@@ -7,13 +7,47 @@
   "seo": {
     "title": "World Cup 2026 Mood Board",
     "description": "A visual reference board for the 2026 FIFA World Cup — host cities, stadiums, exact team-kit color palettes, the trophy, and the schedule, on one Clusters canvas.",
-    "body": "A living reference board for the 2026 FIFA World Cup across the United States, Canada, and Mexico — the first 48-team tournament and the first hosted by three nations. It collects the host stadiums and their capacities, exact national-kit color palettes with hex codes, the trophy and match ball, and the full tournament schedule, composed the way a creative team would build a mood board: on an infinite, shareable canvas with connected notes and grid mosaics. Made with Soleil Clusters.",
-    "keyword": "world cup 2026 mood board"
+    "keyword": "world cup 2026 mood board",
+    "answer": "The 2026 FIFA World Cup runs June 11 to July 19 across the United States, Canada, and Mexico — the first 48-team edition and the first with three hosts. This board gathers the 16 host stadiums, exact national kit palettes with hex codes, the trophy, the new 104-match format, and the full tournament schedule on one visual canvas.",
+    "faq": [
+      {
+        "q": "When and where is the 2026 FIFA World Cup?",
+        "a": "The tournament runs June 11 to July 19, 2026, across 16 host cities in three countries — 11 in the United States, 3 in Mexico, and 2 in Canada. The opening match is at Estadio Azteca in Mexico City on June 11, and every match from the quarter-finals onward is played in the United States."
+      },
+      {
+        "q": "How does the 48-team World Cup format work?",
+        "a": "The 48 teams are drawn into 12 groups of four. The top two in each group plus the eight best third-placed teams advance to a new Round of 32, followed by a straight knockout to the final. That makes 104 matches in all, up from 64 in Qatar 2022, and the champion now plays eight matches instead of seven."
+      },
+      {
+        "q": "Where is the 2026 World Cup final?",
+        "a": "The final is on Sunday, July 19, 2026 at MetLife Stadium in East Rutherford, New Jersey, part of the New York New Jersey host region. Home of the NFL's Giants and Jets, it holds about 82,500 and is one of the largest stadiums in American football."
+      },
+      {
+        "q": "Why is Estadio Azteca historic for World Cups?",
+        "a": "Mexico City's Estadio Azteca becomes the first stadium to stage matches at three World Cups — 1970, 1986, and 2026. It hosted two of the most famous finals ever played: Pelé's Brazil beating Italy in 1970 and Maradona's Argentina beating West Germany in 1986. It also sits at roughly 2,200 meters above sea level, an altitude visiting teams have to plan for."
+      },
+      {
+        "q": "How do teams qualify for the 2026 World Cup?",
+        "a": "The three hosts qualified automatically, and the rest of the field comes through confederation qualifying: 16 places for Europe, 9 for Africa, 8 for Asia, 6 for South America, 6 in total for North and Central America including the hosts, and 1 for Oceania. The final two places go to a six-team intercontinental playoff staged in Mexico in March 2026."
+      }
+    ],
+    "body": "A living reference board for the 2026 FIFA World Cup across the United States, Canada, and Mexico — the first 48-team tournament and the first hosted by three nations. It collects the host stadiums and their capacities, exact national-kit color palettes with hex codes, the trophy and match ball, and the full tournament schedule, composed the way a creative team would build a mood board: on an infinite, shareable canvas with connected notes and grid mosaics. A linked child board collects the exact kit palette of every contender, a numbered grid walks the knockout rounds in order, and a one-page brief explains how the new 104-match format works. Made with Soleil Clusters."
   },
   "arrows": [
-    { "from": "pal-argentina", "to": "img-fans-arg", "color": "orange", "head": "single" },
-    { "from": "note-format", "to": "sched", "color": "blue", "dashed": true },
-    { "from": "note-venues", "to": "note-hosts", "color": "green", "head": "single" }
+    { "from": "pal-argentina", "to": "img-fans-arg", "color": "orange", "head": "single", "label": "colors in the crowd" },
+    { "from": "note-format", "to": "sched", "color": "blue", "dashed": true, "label": "maps to the calendar" },
+    { "from": "note-venues", "to": "note-hosts", "color": "green", "head": "single", "label": "16 cities, 3 nations" },
+    { "from": "img-jerseys", "to": "card-kits", "color": "orange", "head": "single", "thickness": "thick", "label": "full collection" },
+    { "from": "pal-pitch", "to": "hero-trophy", "color": "#f5c518", "head": "double", "dashed": true, "label": "same trophy gold" },
+    { "from": "grid-road", "to": "doc-format", "color": "purple", "head": "single", "label": "how the bracket works" }
+  ],
+  "groups": [
+    { "id": "grp-hosts", "name": "Host nations", "outline": true, "color": "#f5c518" }
+  ],
+  "strokes": [
+    { "relTo": "sched", "color": "#d21f3c", "width": 4, "points": [[248, 226], [236, 236], [204, 243], [157, 247], [103, 247], [56, 243], [24, 236], [12, 226], [24, 216], [56, 209], [103, 205], [157, 205], [204, 209], [236, 216], [247, 222]] },
+    { "relTo": "hero-trophy", "color": "#f5c518", "width": 3, "points": [[58, 440], [96, 444], [134, 439], [172, 444], [210, 440], [248, 443], [282, 439]] },
+    { "relTo": "card-kits", "color": "#f5c518", "width": 3, "points": [[-72, 158], [-52, 148], [-32, 138], [-14, 128], [-30, 120], [-14, 128], [-28, 140]] }
   ],
   "sections": [
     {
@@ -37,7 +71,9 @@
         { "id": "st-night", "kind": "image", "source": { "provider": "pexels", "query": "football stadium night lights full crowd" }, "title": "Matchday", "caption": "Under the lights" },
         { "id": "st-roof", "kind": "image", "source": { "provider": "unsplash", "query": "modern stadium roof architecture detail" }, "title": "Modern arenas", "caption": "Retractable roofs and open bowls" },
         { "id": "note-venues", "kind": "note", "bgColor": "#14110d", "html": "<p><b>Marquee venues</b><br>Estadio Azteca, Mexico City — opening match · 87,523<br>MetLife Stadium, NY/NJ — the Final · 82,500<br>SoFi Stadium, Los Angeles · 70,240<br>AT&amp;T Stadium, Dallas · 80,000<br>Mercedes-Benz, Atlanta · Hard Rock, Miami · BC Place, Vancouver</p>" },
-        { "id": "note-hosts", "kind": "note", "bgColor": "#0e1712", "html": "<p><b>16 host cities</b><br>New York/NJ · Los Angeles · Dallas · Kansas City · Atlanta · Miami · Seattle · SF Bay · Houston · Philadelphia · Boston · Toronto · Vancouver · Guadalajara · Mexico City · Monterrey</p>" }
+        { "id": "note-hosts", "kind": "note", "bgColor": "#0e1712", "html": "<p><b>16 host cities</b><br>New York/NJ · Los Angeles · Dallas · Kansas City · Atlanta · Miami · Seattle · SF Bay · Houston · Philadelphia · Boston · Toronto · Vancouver · Guadalajara · Mexico City · Monterrey</p>" },
+        { "id": "shape-hosts", "kind": "shape", "shape": "triangle", "stroke": "#1B7A3D", "fill": "transparent", "strokeWidth": 3, "dash": "solid", "label": "Three hosts, one bracket: US 78 matches · Mexico 13 · Canada 13" },
+        { "id": "link-metlife", "kind": "link", "source": "https://www.metlifestadium.com/", "title": "MetLife Stadium — venue of the Final", "description": "Official site of the East Rutherford, New Jersey stadium hosting the 2026 Final — capacity, transit, and event guides straight from the venue." }
       ]
     },
     {
@@ -47,17 +83,20 @@
         { "id": "pal-argentina", "kind": "palette", "title": "Argentina", "swatches": [ { "hex": "#75AADB", "name": "Celeste" }, { "hex": "#FFFFFF", "name": "Blanco" }, { "hex": "#F6B40E", "name": "Sol" }, { "hex": "#000000", "name": "Negro" } ] },
         { "id": "pal-france", "kind": "palette", "title": "France", "swatches": [ { "hex": "#002654", "name": "Bleu" }, { "hex": "#FFFFFF", "name": "Blanc" }, { "hex": "#ED2939", "name": "Rouge" } ] },
         { "id": "pal-england", "kind": "palette", "title": "England", "swatches": [ { "hex": "#FFFFFF", "name": "White" }, { "hex": "#CE1124", "name": "St George Red" }, { "hex": "#001489", "name": "Navy" } ] },
-        { "id": "pal-mexico", "kind": "palette", "title": "Mexico", "swatches": [ { "hex": "#006847", "name": "Verde" }, { "hex": "#FFFFFF", "name": "Blanco" }, { "hex": "#CE1126", "name": "Rojo" } ] },
-        { "id": "pal-usa", "kind": "palette", "title": "United States", "swatches": [ { "hex": "#002868", "name": "Old Glory Blue" }, { "hex": "#FFFFFF", "name": "White" }, { "hex": "#BF0A30", "name": "Old Glory Red" } ] },
+        { "id": "pal-mexico", "kind": "palette", "groupId": "grp-hosts", "title": "Mexico", "swatches": [ { "hex": "#006847", "name": "Verde" }, { "hex": "#FFFFFF", "name": "Blanco" }, { "hex": "#CE1126", "name": "Rojo" } ] },
+        { "id": "pal-usa", "kind": "palette", "groupId": "grp-hosts", "title": "United States", "swatches": [ { "hex": "#002868", "name": "Old Glory Blue" }, { "hex": "#FFFFFF", "name": "White" }, { "hex": "#BF0A30", "name": "Old Glory Red" } ] },
+        { "id": "pal-canada", "kind": "palette", "groupId": "grp-hosts", "title": "Canada", "swatches": [ { "hex": "#FF0000", "name": "Maple Red" }, { "hex": "#FFFFFF", "name": "White" }, { "hex": "#000000", "name": "Black" } ] },
         { "id": "pal-germany", "kind": "palette", "title": "Germany", "swatches": [ { "hex": "#000000", "name": "Schwarz" }, { "hex": "#DD0000", "name": "Rot" }, { "hex": "#FFCE00", "name": "Gold" }, { "hex": "#FFFFFF", "name": "Weiß" } ] },
         { "id": "pal-netherlands", "kind": "palette", "title": "Netherlands", "swatches": [ { "hex": "#EC6E19", "name": "Oranje" }, { "hex": "#FFFFFF", "name": "Wit" }, { "hex": "#21468B", "name": "Blauw" } ] },
         { "id": "img-fans-arg", "kind": "image", "feature": true, "source": { "provider": "unsplash", "query": "argentina soccer fans jersey celebration" }, "title": "Kit culture", "caption": "Colors that carry a nation" },
-        { "id": "img-jerseys", "kind": "image", "source": { "provider": "pexels", "query": "soccer jerseys hanging locker room" }, "title": "The kits", "caption": "Every nation, its own palette" }
+        { "id": "img-jerseys", "kind": "image", "source": { "provider": "pexels", "query": "soccer jerseys hanging locker room" }, "title": "The kits", "caption": "Every nation, its own palette" },
+        { "id": "card-kits", "kind": "board", "child": "All Kit Palettes — World Cup 2026", "title": "All Kit Palettes — World Cup 2026" }
       ]
     },
     {
       "header": { "text": "The Trophy, Ball and Atmosphere" },
       "cards": [
+        { "id": "vid-crowd", "kind": "video", "source": { "query": "soccer stadium crowd celebration night" }, "title": "Matchday roar", "caption": "The sound of a knockout night" },
         { "id": "img-ball", "kind": "image", "source": { "provider": "pexels", "query": "soccer ball on pitch close up" }, "title": "The match ball", "caption": "On the pitch" },
         { "id": "img-pitch", "kind": "image", "source": { "provider": "pexels", "query": "aerial green football pitch stadium" }, "title": "The pitch", "caption": "Groundsmanship at world level" },
         { "id": "img-night", "kind": "image", "feature": true, "source": { "provider": "unsplash", "query": "night football stadium lights atmosphere" }, "title": "Under lights", "caption": "Knockout nights" },
@@ -76,8 +115,89 @@
           { "day": "Jul 14–15", "what": "Semi-finals", "loc": "" },
           { "day": "Jul 19", "what": "Final", "loc": "MetLife Stadium" }
         ] },
+        { "id": "grid-road", "kind": "grid", "title": "Road to the Final", "rows": 2, "cols": 3,
+          "seq": { "pattern": "z", "format": { "style": "num" } },
+          "cellSpecs": [
+            { "text": "<p><b>[#] Round of 32</b><br>Jun 28 to Jul 3 — the new knockout round: 32 teams, single elimination</p>" },
+            { "text": "<p><b>[#] Round of 16</b><br>Jul 4 to 7 — the classic bracket resumes</p>" },
+            { "text": "<p><b>[#] Quarter-finals</b><br>Jul 9 to 11 — Boston, Los Angeles, Kansas City, Miami</p>" },
+            { "text": "<p><b>[#] Semi-finals</b><br>Jul 14 in Dallas, Jul 15 in Atlanta — then the Final in New York New Jersey</p>" },
+            { "image": { "provider": "pexels", "query": "soccer players celebrating goal night match", "alt": "Players celebrating a knockout-round goal at night" } },
+            { "image": { "provider": "pexels", "query": "stadium confetti trophy celebration", "alt": "Confetti falling at a stadium trophy celebration" } }
+          ] },
+        { "id": "doc-format", "kind": "doc", "title": "How the 48-team format works", "author": "Clusters", "date": "2026-07-09", "lines": [
+          { "text": "How the 48-team format works", "h": true },
+          { "text": "104 matches across 39 days — the biggest World Cup ever played." },
+          { "text": "Group stage — Jun 11 to 27", "h": true },
+          { "text": "12 groups of four; every team plays three group matches", "bullet": true },
+          { "text": "Top two in each group advance — 24 teams in all", "bullet": true },
+          { "text": "The eight best third-placed teams, ranked across all groups, also go through", "bullet": true },
+          { "text": "Knockout rounds — Jun 28 to Jul 19", "h": true },
+          { "text": "New Round of 32, then Round of 16, quarter-finals, semi-finals, final", "bullet": true },
+          { "text": "Every match from the quarter-finals onward is played in the United States", "bullet": true },
+          { "text": "Semi-finals: Dallas on Jul 14, Atlanta on Jul 15", "bullet": true },
+          { "text": "Final: MetLife Stadium, New York New Jersey, on Jul 19", "bullet": true },
+          { "text": "What changed from 2022", "h": true },
+          { "text": "48 teams, up from 32; 104 matches, up from 64", "bullet": true },
+          { "text": "Champions now play eight matches instead of seven", "bullet": true },
+          { "text": "The United States hosts 78 matches; Canada and Mexico host 13 each", "bullet": true }
+        ] },
         { "id": "note-format", "kind": "note", "bgColor": "#14110d", "html": "<p><b>New format</b><br>48 teams in 12 groups of four. The top two from each group plus the eight best third-placed teams advance to a new Round of 32 — 104 matches in all, up from 64.</p>" },
-        { "id": "note-firsts", "kind": "note", "bgColor": "#f5c518", "html": "<p><b>A tournament of firsts</b><br>First hosted across three nations, and the first with 48 teams.</p>" }
+        { "id": "note-firsts", "kind": "note", "bgColor": "#f5c518", "textColor": "#1a1408", "vAlign": "center", "html": "<p><b>A tournament of firsts</b><br>First hosted across three nations, and the first with 48 teams.</p>" },
+        { "id": "link-fifa", "kind": "link", "source": "https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026", "title": "FIFA World Cup 26 — official hub", "description": "FIFA's official tournament site: the match schedule, host-city guides, ticketing phases, and the qualifying tracker for all 48 places." }
+      ]
+    }
+  ],
+  "children": [
+    {
+      "name": "All Kit Palettes — World Cup 2026",
+      "bgColor": "#0e1215",
+      "sections": [
+        {
+          "header": { "text": "KIT PALETTES — WORLD CUP 2026", "sub": "Exact hex codes for 17 national kits — flag-accurate primaries and kit accents", "hero": true },
+          "cards": [
+            { "id": "kit-img-shirts", "kind": "image", "feature": true, "source": { "provider": "pexels", "query": "colorful soccer jerseys hanging collection" }, "title": "The collection", "caption": "Every nation, its own palette" },
+            { "id": "kit-note-clash", "kind": "note", "bgColor": "#14110d", "html": "<p><b>Kit-clash rules</b><br>Every federation registers two contrasting kits and brings both to each match. When palettes collide — Croatia's checkerboard against England's white, say — the designated away team switches. Goalkeepers must contrast with both outfield kits, the officials, and each other.</p>" }
+          ]
+        },
+        {
+          "header": { "text": "Host Nations", "sub": "Automatic qualifiers — the three flags of 2026" },
+          "cards": [
+            { "id": "kit-pal-usa", "kind": "palette", "title": "United States", "swatches": [ { "hex": "#002868", "name": "Old Glory Blue" }, { "hex": "#FFFFFF", "name": "White" }, { "hex": "#BF0A30", "name": "Old Glory Red" } ] },
+            { "id": "kit-pal-mexico", "kind": "palette", "title": "Mexico", "swatches": [ { "hex": "#006847", "name": "Verde" }, { "hex": "#FFFFFF", "name": "Blanco" }, { "hex": "#CE1126", "name": "Rojo" } ] },
+            { "id": "kit-pal-canada", "kind": "palette", "title": "Canada", "swatches": [ { "hex": "#FF0000", "name": "Maple Red" }, { "hex": "#FFFFFF", "name": "White" }, { "hex": "#000000", "name": "Black" } ] }
+          ]
+        },
+        {
+          "header": { "text": "South America", "sub": "Celeste, canary yellow, and the Sol de Mayo" },
+          "cards": [
+            { "id": "kit-pal-brazil", "kind": "palette", "title": "Brazil", "swatches": [ { "hex": "#FEDD00", "name": "Amarelo" }, { "hex": "#009C3B", "name": "Verde" }, { "hex": "#002776", "name": "Azul" }, { "hex": "#FFFFFF", "name": "Branco" } ] },
+            { "id": "kit-pal-argentina", "kind": "palette", "title": "Argentina", "swatches": [ { "hex": "#75AADB", "name": "Celeste" }, { "hex": "#FFFFFF", "name": "Blanco" }, { "hex": "#F6B40E", "name": "Sol" }, { "hex": "#000000", "name": "Negro" } ] },
+            { "id": "kit-pal-uruguay", "kind": "palette", "title": "Uruguay", "swatches": [ { "hex": "#5CB8E4", "name": "Celeste" }, { "hex": "#FFFFFF", "name": "Blanco" }, { "hex": "#FCD116", "name": "Sol de Mayo" }, { "hex": "#000000", "name": "Negro" } ] },
+            { "id": "kit-pal-colombia", "kind": "palette", "title": "Colombia", "swatches": [ { "hex": "#FCD116", "name": "Amarillo" }, { "hex": "#003893", "name": "Azul" }, { "hex": "#CE1126", "name": "Rojo" } ] }
+          ]
+        },
+        {
+          "header": { "text": "Europe", "sub": "From La Roja to the Oranje" },
+          "cards": [
+            { "id": "kit-pal-spain", "kind": "palette", "title": "Spain", "swatches": [ { "hex": "#AA151B", "name": "Rojo" }, { "hex": "#F1BF00", "name": "Gualda" }, { "hex": "#1F2A5A", "name": "Marino" } ] },
+            { "id": "kit-pal-portugal", "kind": "palette", "title": "Portugal", "swatches": [ { "hex": "#DA291C", "name": "Vermelho" }, { "hex": "#046A38", "name": "Verde" }, { "hex": "#FFE900", "name": "Ouro" } ] },
+            { "id": "kit-pal-france", "kind": "palette", "title": "France", "swatches": [ { "hex": "#002654", "name": "Bleu" }, { "hex": "#FFFFFF", "name": "Blanc" }, { "hex": "#ED2939", "name": "Rouge" } ] },
+            { "id": "kit-pal-england", "kind": "palette", "title": "England", "swatches": [ { "hex": "#FFFFFF", "name": "White" }, { "hex": "#CE1124", "name": "St George Red" }, { "hex": "#001489", "name": "Navy" } ] },
+            { "id": "kit-pal-germany", "kind": "palette", "title": "Germany", "swatches": [ { "hex": "#000000", "name": "Schwarz" }, { "hex": "#DD0000", "name": "Rot" }, { "hex": "#FFCE00", "name": "Gold" }, { "hex": "#FFFFFF", "name": "Weiß" } ] },
+            { "id": "kit-pal-netherlands", "kind": "palette", "title": "Netherlands", "swatches": [ { "hex": "#EC6E19", "name": "Oranje" }, { "hex": "#FFFFFF", "name": "Wit" }, { "hex": "#21468B", "name": "Blauw" } ] },
+            { "id": "kit-pal-croatia", "kind": "palette", "title": "Croatia", "swatches": [ { "hex": "#FF0000", "name": "Checker Red" }, { "hex": "#FFFFFF", "name": "Checker White" }, { "hex": "#171796", "name": "Blue" } ] },
+            { "id": "kit-pal-belgium", "kind": "palette", "title": "Belgium", "swatches": [ { "hex": "#000000", "name": "Noir" }, { "hex": "#FDDA24", "name": "Jaune" }, { "hex": "#EF3340", "name": "Rouge" } ] }
+          ]
+        },
+        {
+          "header": { "text": "Africa and Asia", "sub": "The Atlas Lions and the Samurai Blue" },
+          "cards": [
+            { "id": "kit-pal-morocco", "kind": "palette", "title": "Morocco", "swatches": [ { "hex": "#C1272D", "name": "Rouge" }, { "hex": "#006233", "name": "Vert" }, { "hex": "#FFFFFF", "name": "Blanc" } ] },
+            { "id": "kit-pal-japan", "kind": "palette", "title": "Japan", "swatches": [ { "hex": "#002063", "name": "Samurai Blue" }, { "hex": "#FFFFFF", "name": "White" }, { "hex": "#BC002D", "name": "Sun Red" } ] },
+            { "id": "kit-img-fans", "kind": "image", "source": { "provider": "pexels", "query": "soccer fans colorful flags stadium crowd" }, "title": "Colors in the stands", "caption": "Seventeen palettes, one tournament" }
+          ]
+        }
       ]
     }
   ]

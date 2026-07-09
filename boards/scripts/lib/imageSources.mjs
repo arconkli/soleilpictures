@@ -154,3 +154,58 @@ export async function downloadImage(url, { retries = 4 } = {}) {
     throw new Error(`download ${res.status} for ${url.slice(0, 80)}`);
   }
 }
+
+// ── Pexels Videos ─────────────────────────────────────────────────────────
+// https://www.pexels.com/api/documentation/#videos-search
+// Ambient loops for showcase boards. Picks the smallest HD-ish mp4 (≤720p
+// preferred) whose actual size fits maxBytes (checked via HEAD), 4-30s long.
+// Returns { url, posterUrl, w, h, duration, credit } or null.
+export async function fetchPexelsVideo(query, { key, maxBytes = 16 * 1024 * 1024 } = {}) {
+  if (!key) throw new Error('fetchPexelsVideo: missing PEXELS_API_KEY');
+  const u = new URL('https://api.pexels.com/videos/search');
+  u.searchParams.set('query', query);
+  u.searchParams.set('per_page', '10');
+  const res = await fetch(u, { headers: { Authorization: key } });
+  if (!res.ok) throw new Error(`Pexels videos ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const data = await res.json();
+  for (const v of data.videos || []) {
+    if (!v.duration || v.duration < 4 || v.duration > 30) continue;
+    const files = (v.video_files || [])
+      .filter((f) => (f.file_type || '').includes('mp4') && f.height && f.height >= 480)
+      .sort((a, b) => a.height - b.height); // smallest acceptable first
+    for (const f of files) {
+      if (f.height > 1080) break;
+      try {
+        const head = await fetch(f.link, { method: 'HEAD' });
+        const size = Number(head.headers.get('content-length') || 0);
+        if (head.ok && size > 0 && size <= maxBytes) {
+          return {
+            url: f.link, posterUrl: v.image || null,
+            w: f.width || v.width, h: f.height || v.height, duration: v.duration,
+            credit: { name: v.user?.name || 'Pexels', link: v.user?.url || 'https://pexels.com', source: 'Pexels' },
+          };
+        }
+      } catch (_) { /* try next file */ }
+    }
+  }
+  return null;
+}
+
+// Download a video (or any binary) with the same retry discipline as images.
+export async function downloadVideo(url, { retries = 3, maxBytes = 20 * 1024 * 1024 } = {}) {
+  const UA = 'SoleilClusters-SeedBot/1.0 (clusters.soleilpictures.com; contact clusters@soleilpictures.com)';
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, { headers: { 'User-Agent': UA } });
+    if (res.ok) {
+      const contentType = (res.headers.get('content-type') || 'video/mp4').split(';')[0];
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (bytes.byteLength > maxBytes) throw new Error(`video too large (${Math.round(bytes.byteLength / 1e6)}MB)`);
+      return { bytes, contentType, ext: 'mp4' };
+    }
+    if ((res.status === 429 || res.status === 503) && attempt < retries) {
+      await new Promise((r) => setTimeout(r, 800 * Math.pow(2, attempt)));
+      continue;
+    }
+    throw new Error(`video download ${res.status} for ${url.slice(0, 80)}`);
+  }
+}

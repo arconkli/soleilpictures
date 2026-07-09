@@ -33,6 +33,7 @@ import { SoleilMark } from './primitives.jsx';
 import { ClustersMark } from './SoleilWordmark.jsx';
 import { CanvasSurface } from './CanvasSurface.jsx';
 import { SharePrompt } from './SharePrompt.jsx';
+import PublicArticle from './PublicArticle.jsx';
 import { setReadUrlResolver, clearReadUrlResolver, setImageAuthErrorHandler, clearImageAuthErrorHandler } from '../lib/r2.js';
 import { setMetaResolver, clearMetaResolver } from '../lib/imageMeta.js';
 import { matchToolPath } from '../lib/seoLanding.js';
@@ -575,6 +576,23 @@ export function PublicBoardView({ token, slug }) {
     return filtered.length === cards.length ? cards : filtered;
   }, [cur, boardsMap]);
 
+  // Editorial article under the canvas (slug mode): the worker injected the
+  // exact page model it rendered as crawlable HTML — same structure, same
+  // order (anti-cloaking parity), zero extra fetch. Hidden while navigated
+  // into a sub-board (the model describes the root). No model (transient RPC
+  // miss at the edge) → classic full-viewport canvas + bottom strip.
+  // (Must sit ABOVE the early returns — it owns a hook.)
+  const pageModel = (slug && typeof window !== 'undefined'
+    && window.__publicPageModel && window.__publicPageModel.slug === slug)
+    ? window.__publicPageModel : null;
+  // The app pins html/body/#root to the viewport (canvas app). The doc-style
+  // public page needs real document flow — release them for this route only.
+  useEffect(() => {
+    if (!pageModel) return undefined;
+    document.documentElement.classList.add('public-doc-page');
+    return () => document.documentElement.classList.remove('public-doc-page');
+  }, [pageModel]);
+
   if (status === 'loading') {
     return (
       <div className="public-shell">
@@ -609,6 +627,7 @@ export function PublicBoardView({ token, slug }) {
 
   const board = cur?.board || EMPTY_OBJ;
   const showCrumbs = stack.length > 1;
+  const showArticle = !!(pageModel && stack.length <= 1);
   // The current board has no board_state row (null snapshot) — render a calm
   // empty state rather than a silent blank canvas. (The anomaly is reported to
   // the Errors tab by the effect above.)
@@ -619,7 +638,8 @@ export function PublicBoardView({ token, slug }) {
   // contrast over arbitrary owner-picked backgrounds, and the dark frame
   // reads like a gallery mat around light boards.
   return (
-    <div className="public-shell" style={{ background: board.bg_color || 'var(--bg-0)' }}>
+    <div className={`public-shell${pageModel ? ' public-shell-doc' : ''}`}
+         style={{ background: board.bg_color || 'var(--bg-0)' }}>
       <PublicTopbar
         ctx={ctx}
         busy={navBusy}
@@ -702,12 +722,20 @@ export function PublicBoardView({ token, slug }) {
       </EntityNavigateContext.Provider>
       )}
 
-      {/* Related boards + hub links (slug mode) — a subtle bottom strip. The
-          worker injects the same links server-side as crawlable anchors; this is
-          the live-app equivalent for visitors (anti-cloaking parity). The
-          "Make your own" spoke→hub link points at the tool page matching this
-          board's subject so example boards feed the landing pages. */}
-      {slug && (
+      {/* The editorial article — canvas hero above, scrollable page below. */}
+      {showArticle && !missing && (
+        <PublicArticle
+          model={pageModel}
+          boardId={board.id}
+          remixUrl={remixHref(ctx)}
+          tryHref={ctaHref(ctx, 'article')}
+          onCta={onCta}
+        />
+      )}
+
+      {/* Legacy bottom strip — only when there's no article to carry these
+          links (transient page-RPC miss at the edge, or pre-0181 content). */}
+      {slug && !pageModel && (
         <nav className="public-related" aria-label="Related boards" style={{
           position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 6,
           display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',

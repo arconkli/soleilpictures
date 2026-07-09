@@ -2387,6 +2387,12 @@ export function CanvasSurface({
           if (isEditing || isSelected) return;
         }
       }
+      // Public pages are scrollable documents (canvas hero + article below):
+      // a plain wheel scrolls the PAGE — standard embedded-canvas behavior —
+      // while zoom stays on ctrl/cmd+wheel and panning on drag/pinch. Early
+      // return → no preventDefault → the browser scrolls. isPublic is constant
+      // for a mount, so the [] closure capture is safe.
+      if (isPublic && !(e.ctrlKey || e.metaKey)) return;
       e.preventDefault();
       perf.bump('wheel.events');
       // Round 17: time the JS-side cost of zoom handling. A 'first-zoom
@@ -8442,6 +8448,11 @@ export function CanvasSurface({
                       key={item.id}
                       type="button"
                       role="menuitem"
+                      // Explicit label so the accessible name stays exactly the
+                      // item label. Without it, Chromium folds the data-tip
+                      // ::after tooltip content into the name ("Shape Draw a
+                      // shape"), which also breaks getByRole('menuitem') lookups.
+                      aria-label={item.label}
                       data-tip={item.tip}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={() => {

@@ -24,6 +24,10 @@ function cardHeight(card, w) {
     // Clamp so a tall portrait doesn't tower and a wide pano isn't a sliver.
     return Math.round(Math.min(w * 1.35, Math.max(w * 0.6, w / ar)));
   }
+  if (card.kind === 'video') {
+    const ar = (card.srcW && card.srcH) ? card.srcW / card.srcH : 16 / 9;
+    return Math.round(Math.min(w * 1.1, Math.max(w * 0.5, w / ar)));
+  }
   if (card.h) return card.h;
   switch (card.kind) {
     case 'palette': return 160;
@@ -31,9 +35,12 @@ function cardHeight(card, w) {
       const text = ((card.body || '') + (card.html || '')).replace(/<[^>]+>/g, '');
       return text.length > 260 ? 244 : text.length > 120 ? 188 : 140;
     }
-    case 'doc': return 250;
+    case 'doc': return Array.isArray(card.lines) ? Math.min(560, 96 + 26 * card.lines.length) : 250;
     case 'link': return 184;
     case 'schedule': return 46 + 28 * (Array.isArray(card.rows) ? card.rows.length : 3);
+    case 'shape': return card.shape === 'line' || card.shape === 'arrow' ? 120 : 220;
+    case 'file': return 150;
+    case 'board': return 240;
     default: return 176;
   }
 }

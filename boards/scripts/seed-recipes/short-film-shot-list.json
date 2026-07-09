@@ -1,0 +1,153 @@
+{
+  "slug": "short-film-shot-list",
+  "name": "Short Film Shot List — Coverage Plan, Visualized",
+  "priority": 4,
+  "bgColor": "#0c0e12",
+  "cover": "neutral",
+  "seo": {
+    "title": "Short Film Shot List Board",
+    "description": "A complete one-scene coverage plan: shot sizes with visual examples, a lettered shot list with lenses, the 180-degree rule diagrammed, and a copy-ready template — on one canvas.",
+    "keyword": "short film shot list",
+    "answer": "A short film shot list is a numbered plan of every camera setup a scene needs — shot size, lens, angle, and movement — written before the shoot day. This board shows a complete seven-setup coverage plan for a two-person dialogue scene, plus the shot-size ladder, the 180-degree rule, and a copyable template.",
+    "faq": [
+      {
+        "q": "What order should you shoot a scene's coverage in?",
+        "a": "Shoot the master first, while performances and light are freshest, then work from wide shots to tight ones. Continuity, makeup, and energy all degrade over a shooting day, and they degrade most gracefully in that order. Inserts and cutaways go last because they forgive almost any mismatch in the edit."
+      },
+      {
+        "q": "What is the 180-degree rule?",
+        "a": "Draw an imaginary line — the axis of action — between your two subjects and keep the camera on one side of it for the whole scene. This keeps screen direction constant and eyelines opposed, so the audience always knows who is looking at whom. Crossing the line mid-scene disorients viewers unless you bridge it with a neutral shot on the axis or a visible camera move."
+      },
+      {
+        "q": "How many setups does a two-person dialogue scene need?",
+        "a": "Classic full coverage is five setups: a master, two over-the-shoulders, and two clean singles, plus any inserts or cutaways the scene calls for — seven is typical. On a small crew, each setup costs roughly 20 to 45 minutes of lighting, rehearsal, and takes, so a seven-setup scene is about half a shooting day."
+      },
+      {
+        "q": "What lens is best for close-ups?",
+        "a": "On a full-frame camera, the classic close-up range is 65mm to 100mm; an 85mm flatters faces by compressing features and melting the background. A wide lens like 35mm can also work for close-ups, but it forces the camera physically near the actor, which reads as intimate or confrontational rather than neutral."
+      },
+      {
+        "q": "What is the difference between a shot list and a storyboard?",
+        "a": "A shot list is a text inventory — shot number, size, lens, movement, and subject for every setup — and it doubles as the on-set scheduling document. A storyboard draws the actual frames. Most shorts get by with a shot list alone; storyboards earn their cost on complex action, stunts, and VFX sequences where exact framing must be agreed in advance."
+      }
+    ],
+    "body": "A working shot list for a two-person dialogue scene, built the way a director and DP would board it: the full shot-size ladder from extreme wide to extreme close-up with a visual example of each, a lettered coverage plan (master, over-the-shoulders, clean singles, inserts) with lens choices, a diagrammed 180-degree rule, and the craft notes that keep a set moving — shooting wide to tight and matching eyelines — plus a shot-list template you can copy column for column. Swap in your scene and walk on set with a plan. Made with Soleil Clusters."
+  },
+  "groups": [
+    { "id": "grp-ladder", "name": "The shot-size ladder", "outline": true, "color": "#4f7fd9" }
+  ],
+  "arrows": [
+    { "from": "sched", "to": "grid-setups", "color": "purple", "head": "double", "label": "the same seven setups" },
+    { "from": "sched", "to": "note-coverage", "color": "blue", "dashed": true, "label": "why this order" },
+    { "from": "img-master", "to": "img-ots", "color": "blue", "head": "single", "label": "coverage order" },
+    { "from": "img-ots", "to": "img-single", "color": "orange", "head": "single", "label": "match the eyeline" },
+    { "from": "note-180", "to": "shape-line", "color": "red", "dashed": true, "label": "never cross it" },
+    { "from": "note-lenses", "to": "img-cu", "color": "green", "head": "single", "label": "85mm territory" },
+    { "from": "note-movement", "to": "img-dolly", "color": "green", "dashed": true, "thickness": "thin", "label": "motivate the move" }
+  ],
+  "strokes": [
+    { "relTo": "shape-line", "color": "#3e9b4f", "width": 4, "points": [[28,72],[46,84],[68,94],[96,103],[128,110],[162,114],[198,115],[232,111],[262,103],[288,93],[310,81],[324,70]] },
+    { "relTo": "note-coverage", "color": "#f5c518", "width": 3, "points": [[70,78],[104,66],[146,60],[190,62],[226,70],[248,82],[250,98],[230,112],[190,122],[144,124],[102,118],[74,104],[64,90],[72,80]] },
+    { "relTo": "doc-template", "color": "#e5484d", "width": 3, "points": [[-30,58],[-20,57],[-8,55],[-18,44],[-6,55],[-19,68]] }
+  ],
+  "sections": [
+    {
+      "header": { "text": "THE SHOT LIST", "sub": "One scene · full coverage · every setup planned before call time", "hero": true },
+      "cards": [
+        { "id": "grid-onset", "kind": "grid", "title": "On set", "rows": 2, "cols": 3, "images": [
+          { "provider": "unsplash", "query": "film clapperboard scene take" },
+          { "provider": "pexels", "query": "cinema camera rig film set" },
+          { "provider": "unsplash", "query": "director monitor film set dark" },
+          { "provider": "pexels", "query": "film set lighting softbox crew" },
+          { "provider": "unsplash", "query": "camera lens close up glass" },
+          { "provider": "pexels", "query": "film crew shooting behind the scenes" }
+        ] },
+        { "id": "hero-camera", "kind": "image", "source": { "provider": "unsplash", "query": "cinema camera silhouette dramatic light" }, "title": "Plan the day, then shoot the plan", "caption": "A shot list is a schedule, a budget, and a style guide in one" }
+      ]
+    },
+    {
+      "header": { "text": "The Shot-Size Ladder", "sub": "Learn the vocabulary once — every list is written in it" },
+      "cards": [
+        { "id": "img-ews", "kind": "image", "groupId": "grp-ladder", "source": { "provider": "unsplash", "query": "lone person vast landscape extreme wide" }, "title": "EWS — Extreme Wide", "caption": "Geography and scale; the character belongs to the world" },
+        { "id": "img-ws", "kind": "image", "groupId": "grp-ladder", "source": { "provider": "pexels", "query": "full body person standing street wide shot" }, "title": "WS — Wide", "caption": "Full body; blocking and body language read clearly" },
+        { "id": "img-ms", "kind": "image", "groupId": "grp-ladder", "source": { "provider": "unsplash", "query": "waist up portrait person natural light" }, "title": "MS — Medium", "caption": "Waist up; the conversational workhorse" },
+        { "id": "img-cu", "kind": "image", "feature": true, "groupId": "grp-ladder", "source": { "provider": "pexels", "query": "close up portrait face dramatic light" }, "title": "CU — Close-Up", "caption": "The face is the scene; save it for the beats that earn it" },
+        { "id": "img-ecu", "kind": "image", "groupId": "grp-ladder", "source": { "provider": "unsplash", "query": "extreme close up human eye macro" }, "title": "ECU — Extreme Close-Up", "caption": "Detail as punctuation — an eye, a trigger, a ring" }
+      ]
+    },
+    {
+      "header": { "text": "Scene 1 — Kitchen Argument", "sub": "Two actors, seven setups, half a day" },
+      "cards": [
+        { "id": "sched", "kind": "schedule", "title": "Coverage plan", "rows": [
+          { "day": "1A", "what": "Master — whole scene, both actors in frame", "loc": "25mm" },
+          { "day": "1B", "what": "Over-the-shoulder favoring ANA", "loc": "50mm" },
+          { "day": "1C", "what": "Over-the-shoulder favoring SAM", "loc": "50mm" },
+          { "day": "1D", "what": "Clean single — ANA, from the turn to the exit", "loc": "85mm" },
+          { "day": "1E", "what": "Clean single — SAM, full scene", "loc": "85mm" },
+          { "day": "1F", "what": "Insert — the unsent message on the phone", "loc": "100mm macro" },
+          { "day": "1G", "what": "Cutaway — kettle reaching boil", "loc": "50mm" }
+        ] },
+        { "id": "grid-setups", "kind": "grid", "title": "The seven setups", "rows": 2, "cols": 4,
+          "seq": { "name": "Setups", "pattern": "z", "format": { "style": "num" } },
+          "cellSpecs": [
+            { "text": "<p><b>[#]A · Master · 25mm</b><br>Whole scene, both actors in frame. Shoot it first, while energy is highest.</p>" },
+            { "text": "<p><b>[#]B · OTS on ANA · 50mm</b><br>Over SAM's shoulder, favoring ANA. Full scene, matched to 1C.</p>" },
+            { "text": "<p><b>[#]C · OTS on SAM · 50mm</b><br>Over ANA's shoulder, favoring SAM. Mirror the framing of 1B.</p>" },
+            { "image": { "provider": "pexels", "query": "couple tense conversation kitchen", "alt": "Two people in a tense kitchen conversation" } },
+            { "text": "<p><b>[#]D · Single on ANA · 85mm</b><br>Clean single, from the turn to the exit. Hold after the last line.</p>" },
+            { "text": "<p><b>[#]E · Single on SAM · 85mm</b><br>Clean single, full scene. Keep rolling for reactions.</p>" },
+            { "text": "<p><b>[#]F · Insert · 100mm macro</b><br>The unsent message on the phone screen.</p>" },
+            { "text": "<p><b>[#]G · Cutaway · 50mm</b><br>Kettle reaching boil. Forgives any cut.</p>" }
+          ] },
+        { "id": "img-master", "kind": "image", "feature": true, "source": { "provider": "pexels", "query": "two people talking kitchen wide shot" }, "title": "1A — The master", "caption": "The whole scene in one frame; everything else is commentary" },
+        { "id": "img-ots", "kind": "image", "source": { "provider": "pexels", "query": "over the shoulder conversation two people" }, "title": "1B and 1C — Over-the-shoulders", "caption": "A matched pair; keep headroom and look-room symmetrical" },
+        { "id": "img-single", "kind": "image", "source": { "provider": "pexels", "query": "close up woman face window light serious" }, "title": "1D and 1E — Clean singles", "caption": "Where the performance lives; shoot them before the inserts" },
+        { "id": "note-coverage", "kind": "note", "bgColor": "#12141a", "html": "<p><b>Coverage logic</b><br>Shoot the master first while energy and light are fresh, then work wide to tight — makeup, continuity, and performance all degrade gracefully in that order. Inserts and cutaways go last; they forgive everything.</p>" }
+      ]
+    },
+    {
+      "header": { "text": "The 180-Degree Rule, Diagrammed", "sub": "Two actors, one dashed line, and every camera position that works" },
+      "cards": [
+        { "id": "shape-ana", "kind": "shape", "shape": "ellipse", "stroke": "#75aadb", "fill": "transparent", "strokeWidth": 3, "dash": "solid", "label": "ANA" },
+        { "id": "shape-line", "kind": "shape", "shape": "line", "stroke": "#e5484d", "fill": "transparent", "strokeWidth": 3, "dash": "dashed" },
+        { "id": "shape-sam", "kind": "shape", "shape": "ellipse", "stroke": "#e8a13d", "fill": "transparent", "strokeWidth": 3, "dash": "solid", "label": "SAM" },
+        { "id": "shape-cam", "kind": "shape", "shape": "arrow", "stroke": "#3e9b4f", "fill": "transparent", "strokeWidth": 3, "dash": "solid" },
+        { "id": "note-180", "kind": "note", "bgColor": "#f5c518", "textColor": "#1c1503", "html": "<p><b>The 180° rule</b><br>Draw a line between your two actors and keep the camera on one side of it. Eyelines stay opposed, screen direction stays constant, and the audience always knows who is looking at whom. The green arc is your side — every setup on this list lives there.</p>" }
+      ]
+    },
+    {
+      "header": { "text": "Lenses and Movement", "sub": "What the glass and the dolly are saying" },
+      "cards": [
+        { "id": "note-lenses", "kind": "note", "bgColor": "#12141a", "html": "<p><b>Lens language</b><br>24mm — context and energy, space stretches.<br>35mm — how the eye sees a room.<br>50mm — honest, neutral, documentary.<br>85mm — intimacy and compression; backgrounds melt.</p>" },
+        { "id": "note-movement", "kind": "note", "bgColor": "#12141a", "html": "<p><b>Move with a reason</b><br>Static — observation. Push-in — realization. Handheld — instability. Dolly — grace and inevitability. If the move has no motivation, lock it off.</p>" },
+        { "id": "img-dolly", "kind": "image", "source": { "provider": "pexels", "query": "camera slider dolly filming video" }, "title": "Motivated movement", "caption": "The camera is a character with opinions" },
+        { "id": "pal-exposure", "kind": "palette", "title": "A night-interior exposure", "swatches": [
+          { "hex": "#10131A", "name": "Shadow floor" },
+          { "hex": "#31405C", "name": "Window fill" },
+          { "hex": "#E8A13D", "name": "Practical warmth" },
+          { "hex": "#F4EFE6", "name": "Key highlight" }
+        ] }
+      ]
+    },
+    {
+      "header": { "text": "Steal the Template", "sub": "Copy the columns, swap in your scene, print it for the AD" },
+      "cards": [
+        { "id": "doc-template", "kind": "doc", "title": "Shot list template", "author": "Clusters", "date": "2026-07-09", "lines": [
+          { "text": "Shot list template — the columns that matter", "h": true },
+          { "text": "One row per setup. Sort by location, then by lens — never by script order." },
+          { "text": "Shot number — scene number plus setup letter (1A, 1B…); keep letters stable once called on set.", "bullet": true },
+          { "text": "Size — EWS, WS, MS, MCU, CU, ECU. The edit needs a ladder, not one size.", "bullet": true },
+          { "text": "Lens — focal length states distance and feeling before the actors do.", "bullet": true },
+          { "text": "Movement — static, pan, push-in, handheld, dolly. Name the motivation.", "bullet": true },
+          { "text": "Subject and action — who is in frame and what must happen inside it.", "bullet": true },
+          { "text": "Sound — sync dialogue, wild lines, and the room tone to grab before wrap.", "bullet": true },
+          { "text": "Estimated time — 30 minutes per setup is honest on a small crew.", "bullet": true },
+          { "text": "Mark the three shots the scene cannot live without, and protect them when the day runs long." }
+        ] },
+        { "id": "link-asc", "kind": "link", "source": "https://theasc.com", "title": "American Cinematographers (ASC)", "description": "The American Society of Cinematographers — shot breakdowns, lighting diagrams, and interviews with the DPs who plan coverage for a living." },
+        { "id": "link-studiobinder", "kind": "link", "source": "https://www.studiobinder.com/blog/how-to-make-a-shot-list/", "title": "How to Make a Shot List — StudioBinder", "description": "A thorough, example-driven walkthrough of shot-list columns and templates from a widely used production-planning tool." },
+        { "id": "link-nfs", "kind": "link", "source": "https://nofilmschool.com", "title": "No Film School", "description": "Filmmaking education and craft breakdowns — a deep archive on coverage, lens choice, and directing scenes on small budgets." }
+      ]
+    }
+  ]
+}
