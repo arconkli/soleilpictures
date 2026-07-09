@@ -6,6 +6,7 @@ import { supabase } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 import * as perf from './perf.js';
 import { cardWeight } from './gridCount.js';
+import { resolveTagText } from './gridSequence.js';
 
 const PARTYKIT_HOST = import.meta.env?.VITE_PARTYKIT_HOST || 'localhost:1999';
 
@@ -1027,13 +1028,32 @@ async function _doSyncCardIndex(boardId, ydoc) {
     // Notes carry text in `html`, not `body` — fall through so we
     // index the actual user-visible content. Strip HTML.
     const rawBody = get('body') || get('caption') || '';
-    const body = rawBody || htmlToText(get('html') || '');
+    let body = rawBody || htmlToText(get('html') || '');
+    // Kind-aware bodies so search + the public page RPC see real content
+    // (lockstep with scripts/lib/cardEncode.mjs buildCardIndexRows).
+    if (kind === 'doc' && Array.isArray(get('lines'))) {
+      body = get('lines').map((l) => (l.bullet ? `• ${l.text}` : l.text || '')).join('\n').trim() || body;
+    } else if (kind === 'schedule' && Array.isArray(get('rows'))) {
+      body = get('rows').map((r) => [r.day, r.what, r.loc].filter(Boolean).join(' — ')).join('\n') || body;
+    }
     const groupId = get('groupId') || null;
     const groupName = groupId ? (groupNameById.get(String(groupId)) || '') : '';
     // Per-kind preview data — drives the universal popover's
     // visual previews (image thumbnails, palette swatches, etc).
     // Migration 0021 added the `meta jsonb` column.
     const baseMeta = buildCardMeta(kind, get) || {};
+    // Layout + section meta for get_public_board_page (0181): spatial article
+    // ordering and H2 section grouping on /c/<slug>. Lockstep with the generator.
+    const px = get('x'), py = get('y');
+    if (Number.isFinite(px) && Number.isFinite(py)) {
+      baseMeta.pos = { x: Math.round(px), y: Math.round(py),
+                       w: Math.round(get('w') || 0), h: Math.round(get('h') || 0) };
+    }
+    if (get('sectionHeader')) {
+      baseMeta.sectionHeader = true;
+      const sub = get('sub');
+      if (sub) baseMeta.sub = String(sub).slice(0, 300);
+    }
     const meta = (groupId || groupName)
       ? { ...baseMeta, groupId, groupName }
       : baseMeta;
@@ -1147,7 +1167,41 @@ function buildCardMeta(kind, get) {
     case 'boardlink':
       return { boardId: get('id') || get('target') || null };
     case 'doc':
-      return { pageCount: (get('pages') || []).length || null };
+      return { pageCount: (get('pages') || []).length || null,
+               lineCount: (get('lines') || []).length || null };
+    // The kinds below feed get_public_board_page (migration 0181) — the
+    // public /c/<slug> article renders schedules as tables, grids as cell
+    // lists, and shapes as labeled lines. MUST stay in lockstep with
+    // scripts/lib/cardEncode.mjs buildCardMeta or an in-app edit of a
+    // published board silently degrades its public article.
+    case 'schedule':
+      return { rows: (get('rows') || []).slice(0, 30) };
+    case 'grid': {
+      const gcm = get('gridCells');
+      const fmt = get('seqFormat') || {};
+      const out = [];
+      let idx = 0;
+      if (gcm && typeof gcm.forEach === 'function') {
+        gcm.forEach((cv) => {
+          const i = idx++;
+          const cell = (cv && cv.toJSON) ? cv.toJSON() : cv;
+          if (!cell || cell.type === 'empty') { out.push({ type: 'empty' }); return; }
+          out.push({
+            type: cell.type,
+            src: cell.src || null,
+            alt: cell.alt || null,
+            text: cell.type === 'text'
+              ? htmlToText(resolveTagText(cell.html || '', { index: i, format: fmt }))
+              : null,
+          });
+        });
+      }
+      return { cells: out.slice(0, 60) };
+    }
+    case 'shape':
+      return { shape: get('shape') || 'rect', label: get('label') || null };
+    case 'video':
+      return { src: get('src') || null, poster: get('poster') || null };
     default:
       return null;
   }
