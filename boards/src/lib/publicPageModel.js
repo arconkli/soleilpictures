@@ -65,6 +65,7 @@ export function buildPageModel(meta, cards, related) {
     updatedText: formatDate((m.updated_at || '').slice(0, 10)),
     published: (m.published_at || '').slice(0, 10),
     toolPath: matchToolPath(`${m.name || ''} ${m.target_keyword || ''}`),
+    isTemplate: !!m.is_template,
     faq,
     credits,
     sections,

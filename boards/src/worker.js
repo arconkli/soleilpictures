@@ -1046,6 +1046,16 @@ function buildLandingCrawlableHtml(spec) {
     }
     parts.push(`</tbody></table></section>`);
   }
+  // Example boards — landing→board internal links (hub-and-spoke both ways).
+  // Mirrors the React "Made with Clusters" section (anti-cloaking parity).
+  if (Array.isArray(spec.exampleSlugs) && spec.exampleSlugs.length) {
+    parts.push(`<section><h2 style="${H2}">Made with Clusters</h2><p>Real boards published from the canvas — open one and explore it live.</p><ul>`);
+    for (const slug of spec.exampleSlugs) {
+      const label = escapeHtml(String(slug).replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()));
+      parts.push(`<li><a href="/c/${escapeHtml(slug)}" style="color:#FFA500;"><img src="/api/public-thumb/${escapeHtml(slug)}" alt="${label} — example board made with Clusters" loading="lazy" width="320" height="180"> ${label}</a></li>`);
+    }
+    parts.push(`</ul></section>`);
+  }
   if (Array.isArray(spec.faq) && spec.faq.length) {
     parts.push(`<section><h2 style="${H2}">Frequently asked questions</h2>`);
     for (const f of spec.faq) parts.push(`<h3>${escapeHtml(f.q)}</h3><p>${escapeHtml(f.a)}</p>`);

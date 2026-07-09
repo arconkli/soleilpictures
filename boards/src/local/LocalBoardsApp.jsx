@@ -542,6 +542,23 @@ export function LocalBoardsApp({ user, signOut }) {
     setAutoFocusId(id);
   };
 
+  // Keep in lockstep with App.jsx addSchedule (same starter rows/size).
+  const addSchedule = (clickPos = null) => {
+    const id = createId('sched');
+    const w = 344, h = 140;
+    addCard({
+      id, kind: 'schedule', title: 'Schedule',
+      rows: [
+        { day: 'Mon', what: '', loc: '' },
+        { day: 'Tue', what: '', loc: '' },
+        { day: 'Wed', what: '', loc: '' },
+      ],
+      x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
+      y: Math.max(8, Math.round((clickPos?.y ?? 180) - h / 2)),
+      w, h,
+    });
+  };
+
   // Minimal doc card for the local QA harness — enough for the rail "Doc"
   // tool + the + / right-click Doc entries to place a card. There's no
   // ydoc-backed doc store here, so CanvasSurface renders the static
@@ -893,6 +910,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addPdfAt,
     addNewBoard,
     addPalette,
+    addSchedule,
     addDocCard,
     addGrid,
     resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,

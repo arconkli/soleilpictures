@@ -20193,3 +20193,17 @@ html.public-doc-page, html.public-doc-page body, html.public-doc-page #root {
   overflow: visible;
 }
 html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
+
+/* Hero interaction hint on public board pages */
+.pa-hero-hint {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  z-index: 6; pointer-events: none;
+  padding: 7px 14px; border-radius: 999px;
+  font: 600 12px/1 var(--font-sans, system-ui); letter-spacing: .03em;
+  color: #e9e3d7;
+  background: rgba(16,14,12,0.78);
+  border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(6px);
+  opacity: 1; transition: opacity .6s ease;
+}
+.pa-hero-hint.is-gone { opacity: 0; }

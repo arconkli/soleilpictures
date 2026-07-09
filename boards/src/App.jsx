@@ -1387,6 +1387,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setAutoFocusId(id);
     };
 
+    // Schedule card — the "rows at a glance" table (day / what / where). Was
+    // render-only (only the board generator could seed one) until 2026-07.
+    const addSchedule = (clickPos = null) => {
+      const w = 344, h = 140;
+      const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
+      const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
+      addCard({
+        id: `sched-${Date.now()}`, kind: 'schedule', title: 'Schedule',
+        rows: [
+          { day: 'Mon', what: '', loc: '' },
+          { day: 'Tue', what: '', loc: '' },
+          { day: 'Wed', what: '', loc: '' },
+        ],
+        x: Math.max(8, x), y: Math.max(8, y), w, h,
+      });
+    };
+
     const addDocCard = (clickPos = null) => {
       const d = defaultsRef.current?.doc || {};
       const w = d.w || 320, h = d.h || 240;
@@ -2133,7 +2150,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setGridTextStyle, pinCellStyle, unpinCellStyle, guardWeightedAdd,
       promoteGridToTemplate, linkGridToTemplate, unlinkGrid, resizeLinkedGrids, graftGridIntoCell,
       stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern, setGridSequenceStartAt,
-      addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
+      addShape, addSchedule, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
       setBoardBgColor,
       setBoardCover,
       // Workspace-scoped mutators (rename, delete, clone) close over outer

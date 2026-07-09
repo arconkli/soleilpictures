@@ -228,7 +228,9 @@ async function composeBoard(cardList, recipeLike, ctx) {
   const allCards = credit ? [...resolved, credit] : resolved;
 
   const nowIso = new Date().toISOString();
-  const laid = layoutRecipe(allCards).map((c, i) => {
+  // recipe.layout = layoutRecipe overrides ({columns: 5} → wider, shallower
+  // boards that fill the public page's landscape hero).
+  const laid = layoutRecipe(allCards, recipeLike.layout || {}).map((c, i) => {
     const { source, srcW, srcH, span, images, cellSpecs, feature, child, ...rest } = c;
     let clean = rest;
     if (c.kind === 'grid') { const { rows: _r, cols: _c, ...noRC } = rest; clean = noRC; }
@@ -382,6 +384,7 @@ async function main() {
     const { error } = await supa.from('public_boards').upsert({
       board_id: boardId, slug, seo_title: seo.title, seo_description: seo.description, seo_body: seo.body,
       answer: seo.answer || null, faq: Array.isArray(seo.faq) && seo.faq.length ? seo.faq : null,
+      is_template: !!recipe.template,
       target_keyword: seo.keyword, og_image_key: heroKey, priority: recipe.priority || 0, published_at: nowIso,
       review_status: 'approved', published_by: 'admin', created_by: userId, updated_at: nowIso,
     }, { onConflict: 'board_id' });

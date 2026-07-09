@@ -106,7 +106,7 @@ function remixHref(ctx) {
 // so the wordmark and signup CTA are visible from the first paint. When a valid
 // board is loaded (remixUrl set), "Make a copy" is the primary action (highest
 // intent: clone THIS board) and "Try free" steps back to secondary.
-function PublicTopbar({ ctx, center, busy, onCta, remixUrl }) {
+function PublicTopbar({ ctx, center, busy, onCta, remixUrl, remixLabel = 'Make a copy' }) {
   return (
     <div className="public-topbar">
       <a className="public-brand" href={ctaHref(ctx, 'badge')} title="Clusters home" onClick={onCta('badge')}>
@@ -118,7 +118,7 @@ function PublicTopbar({ ctx, center, busy, onCta, remixUrl }) {
         <a className="public-signin-quiet" href={ctaHref(ctx, 'signin')} onClick={onCta('signin')}>Sign in</a>
         {remixUrl ? (
           <>
-            <a className="public-cta" href={remixUrl} onClick={onCta('remix')}>Make a copy</a>
+            <a className="public-cta" href={remixUrl} onClick={onCta('remix')}>{remixLabel}</a>
             <a className="public-signin-quiet" href={ctaHref(ctx, 'topbar')} onClick={onCta('topbar')}>Try free</a>
           </>
         ) : (
@@ -592,6 +592,28 @@ export function PublicBoardView({ token, slug }) {
     document.documentElement.classList.add('public-doc-page');
     return () => document.documentElement.classList.remove('public-doc-page');
   }, [pageModel]);
+  // Hero framing: tall generated boards open as a tiny fit-everything strip.
+  // In article mode, frame the TOP BAND at fit-to-width instead — the rect's
+  // aspect matches the hero, so CanvasSurface's center math top-anchors it.
+  const initialFrame = useMemo(() => {
+    if (!pageModel || stack.length > 1) return null;
+    const cs = visibleCards;
+    if (!cs || cs.length < 2) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity;
+    for (const c of cs) {
+      if (!Number.isFinite(c.x) || !Number.isFinite(c.w)) continue;
+      minX = Math.min(minX, c.x);
+      minY = Math.min(minY, c.y);
+      maxX = Math.max(maxX, c.x + c.w);
+    }
+    if (!Number.isFinite(minX) || maxX <= minX) return null;
+    const w = maxX - minX;
+    const heroW = window.innerWidth || 1280;
+    const heroH = Math.min(920, Math.max(440, (window.innerHeight || 800) * 0.78));
+    return { x: minX, y: minY, w, h: w * (heroH / heroW) };
+  }, [pageModel, stack.length, visibleCards]);
+  // "Interactive" affordance over the hero — gone after the first gesture.
+  const [heroTouched, setHeroTouched] = useState(false);
 
   if (status === 'loading') {
     return (
@@ -644,7 +666,12 @@ export function PublicBoardView({ token, slug }) {
         ctx={ctx}
         busy={navBusy}
         onCta={onCta}
-        remixUrl={remixHref(ctx)}
+        // Contextual CTA: template boards keep the remix CTA with honest words;
+        // reference boards (a World Cup guide isn't a template) drop the copy
+        // button — "Try Clusters free" carries the conversion. Token /share
+        // mode (no pageModel) keeps the classic "Make a copy".
+        remixUrl={(!pageModel || pageModel.isTemplate) ? remixHref(ctx) : null}
+        remixLabel={pageModel?.isTemplate ? 'Use this template' : 'Make a copy'}
         center={showCrumbs ? (
           <nav className="public-crumbs" aria-label="Breadcrumb">
             {stack.map((id, i) => {
@@ -692,9 +719,16 @@ export function PublicBoardView({ token, slug }) {
       ) : (
       <EntityNavigateContext.Provider value={EMPTY_OBJ}>
         <OpenDmContext.Provider value={NOOP}>
-          <div className={`public-canvas-host${navBusy ? ' is-nav-busy' : ''}`} aria-busy={navBusy}>
+          <div className={`public-canvas-host${navBusy ? ' is-nav-busy' : ''}`} aria-busy={navBusy}
+               onPointerDownCapture={heroTouched ? undefined : () => setHeroTouched(true)}>
+            {pageModel && stack.length <= 1 && (
+              <div className={`pa-hero-hint${heroTouched ? ' is-gone' : ''}`} aria-hidden="true">
+                This board is live — drag to explore
+              </div>
+            )}
             <CanvasSurface
               key={`cv-${imgEpoch}`}
+              initialFrame={initialFrame}
               board={board}
               boards={boardsMap}
               cards={visibleCards}

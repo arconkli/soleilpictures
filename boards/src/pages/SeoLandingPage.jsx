@@ -7,7 +7,7 @@
 // Code-split (loaded only on a landing path) and dependency-light — it imports
 // just the brand mark and the shared registry, staying out of the editor chunk.
 
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { SEO_LANDING_PAGES, getLandingSpec } from '../lib/seoLanding.js';
 import { NotFoundPage } from './NotFoundPage.jsx';
@@ -18,6 +18,10 @@ import './seoLanding.css';
 const TITLE_BY_PATH = new Map(
   SEO_LANDING_PAGES.map((p) => [p.path, p.h1]),
 );
+
+const humanize = (slug) => String(slug || '')
+  .replace(/-/g, ' ')
+  .replace(/\b\w/g, (c) => c.toUpperCase());
 
 export function SeoLandingPage({ spec: specProp, path }) {
   // Accept a spec directly, or resolve it from a path (router passes one or
@@ -33,10 +37,36 @@ export function SeoLandingPage({ spec: specProp, path }) {
     logEventOnce(`seo_landing_${spec.path}`, 'seo_landing_view', { path: spec.path, kind: spec.kind });
   }, [spec]);
 
+  // Live board titles + thumb cache-busters for the example cards. Loaded
+  // lazily (dynamic import keeps the supabase client out of this chunk's
+  // critical path); cards render immediately with humanized-slug fallbacks.
+  const [pubBoards, setPubBoards] = useState(null);
+  useEffect(() => {
+    if (!spec?.exampleSlugs?.length) return undefined;
+    let on = true;
+    import('../lib/publicBoardsApi.js')
+      .then((m) => m.getPublicBoards())
+      .then((bs) => { if (on) setPubBoards(Array.isArray(bs) ? bs : []); })
+      .catch(() => {});
+    return () => { on = false; };
+  }, [spec]);
+  const examples = useMemo(() => {
+    const slugs = spec?.exampleSlugs || [];
+    return slugs.map((slug) => {
+      const b = (pubBoards || []).find((x) => x.slug === slug);
+      return {
+        slug,
+        title: b?.seo_title || humanize(slug),
+        v: b?.thumb_updated_at ? `?v=${encodeURIComponent(b.thumb_updated_at)}` : '',
+      };
+    });
+  }, [spec, pubBoards]);
+
   if (!spec) return <NotFoundPage />;
 
   const cta = spec.cta || {};
   const related = (spec.related || []).filter((p) => TITLE_BY_PATH.has(p));
+  const hero = examples[0] || null;
 
   return (
     <div className="public-shell seo-shell">
@@ -56,19 +86,33 @@ export function SeoLandingPage({ spec: specProp, path }) {
       <div className="seo-scroll">
         <article className="seo-main">
           {/* Hero — the answer block is the 40–60-word direct answer AI answer
-              engines can lift verbatim; keep it above the CTA. */}
-          <header className="seo-hero">
-            <h1 className="seo-h1">{spec.h1}</h1>
-            <p className="seo-subhead">{spec.subhead}</p>
-            {spec.answer && <p className="seo-answer">{spec.answer}</p>}
-            <div className="seo-hero-cta">
-              <a className="seo-cta-primary" href={cta.href || '/'}>{cta.label || 'Start free'}</a>
-              {cta.sub && <span className="seo-cta-sub">{cta.sub}</span>}
-            </div>
-            {spec.updated && (
-              <div className="seo-updated">
-                Updated {new Date(spec.updated + 'T00:00:00Z').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
+              engines can lift verbatim; keep it above the CTA. The right column
+              is a LIVE example board (visual proof, links to /c/<slug>). */}
+          <header className={`seo-hero${hero ? ' seo-hero-split' : ''}`}>
+            <div className="seo-hero-copy">
+              <h1 className="seo-h1">{spec.h1}</h1>
+              <p className="seo-subhead">{spec.subhead}</p>
+              {spec.answer && <p className="seo-answer">{spec.answer}</p>}
+              <div className="seo-hero-cta">
+                <a className="seo-cta-primary" href={cta.href || '/'}>{cta.label || 'Start free'}</a>
+                {cta.sub && <span className="seo-cta-sub">{cta.sub}</span>}
               </div>
+              {spec.updated && (
+                <div className="seo-updated">
+                  Updated {new Date(spec.updated + 'T00:00:00Z').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
+                </div>
+              )}
+            </div>
+            {hero && (
+              <aside className="seo-hero-card">
+                <a className="pubcard" href={`/c/${hero.slug}`}>
+                  <img src={`/api/public-thumb/${hero.slug}${hero.v}`}
+                       alt={`${hero.title} — a real board made with Clusters`}
+                       width="640" height="360" fetchPriority="high" />
+                  <span className="pubcard-title">{hero.title}</span>
+                </a>
+                <div className="seo-hero-card-cap">A real board, made with Clusters — open it and explore</div>
+              </aside>
             )}
           </header>
 
@@ -125,6 +169,30 @@ export function SeoLandingPage({ spec: specProp, path }) {
                   </tbody>
                 </table>
               </div>
+            </section>
+          )}
+
+          {/* Visual proof: published example boards, live and explorable. */}
+          {examples.length > 0 && (
+            <section className="seo-section seo-examples">
+              <h2 className="seo-h2">Made with Clusters</h2>
+              <p className="seo-body">
+                Real boards published from the canvas — open one and explore it live: pan the board,
+                copy the palettes, read the notes.
+              </p>
+              <ul className="pubgrid">
+                {examples.map((e) => (
+                  <li key={e.slug}>
+                    <a className="pubcard" href={`/c/${e.slug}`}>
+                      <img src={`/api/public-thumb/${e.slug}${e.v}`}
+                           alt={`${e.title} — example board made with Clusters`}
+                           loading="lazy" width="320" height="180" />
+                      <span className="pubcard-title">{e.title}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <a className="seo-examples-more" href="/explore">Explore all example boards →</a>
             </section>
           )}
 
