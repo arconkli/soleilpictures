@@ -16,6 +16,7 @@ import { CardContextMenu } from './CardContextMenu.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
 import { boardClipboardSize } from '../lib/boardClipboard.js';
+import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 
 const HOVER_PREFETCH_MS = 80;
 const expandedKey = (workspaceId) => `soleil.boards.sb.expanded.${workspaceId}`;
@@ -154,18 +155,21 @@ export function SidebarBoardTree({
   const buildRowMenu = (board) => {
     const canEdit = canEditBoard ? canEditBoard(board.id) : false;
     const currentCover = board.cover || 'neutral';
-    const items = [];
 
-    items.push({ id: 'open', label: 'Open', run: () => onOpenBoard?.(board.id) });
+    // Same grouped vocabulary as the canvas menus: primary (Open) · EDIT ·
+    // CLIPBOARD · meta (Delete). Empty groups drop out for non-editors.
+    const openItems = [{ id: 'open', label: 'Open', run: () => onOpenBoard?.(board.id) }];
+    const editItems = [];
+    const clipboardItems = [{ id: 'copy', label: 'Copy', run: () => onCopyBoard?.(board) }];
+    const metaItems = [];
 
     if (canEdit) {
-      items.push({ id: 'rename', label: 'Rename', run: () => beginRename(board) });
-      items.push({ divider: true });
-      items.push({
+      editItems.push({ id: 'rename', label: 'Rename', run: () => beginRename(board) });
+      editItems.push({
         id: 'new-inside', label: 'New cluster inside',
         run: () => { expandBoard(board.id); onCreateBoardInside?.(board.id); },
       });
-      items.push({
+      editItems.push({
         id: 'color', label: 'Change color',
         submenu: [
           ...Object.keys(COVER_TINTS).map(k => ({
@@ -186,34 +190,33 @@ export function SidebarBoardTree({
           },
         ],
       });
-      items.push({
+      editItems.push({
         id: 'custom-thumb', label: 'Upload custom thumbnail…',
         run: () => triggerThumbPick(board.id),
       });
       if (board.thumb_custom) {
-        items.push({
+        editItems.push({
           id: 'reset-thumb', label: 'Reset to auto thumbnail',
           run: () => onResetBoardThumb?.(board.id),
         });
       }
-      items.push({ divider: true });
-    }
-
-    items.push({ id: 'copy', label: 'Copy', run: () => onCopyBoard?.(board) });
-    if (canEdit) {
-      items.push({
+      clipboardItems.push({
         id: 'paste', label: 'Paste into this cluster',
         disabled: boardClipboardSize() === 0,
         run: () => onPasteBoardInto?.(board.id),
       });
-      items.push({ divider: true });
-      items.push({
+      metaItems.push({
         id: 'delete', label: 'Delete', danger: true,
         run: () => onDeleteBoard?.(board.id),
       });
     }
 
-    return items;
+    return composeMenuSections([
+      { items: openItems },
+      { header: SECTION.EDIT, items: editItems },
+      { header: SECTION.CLIPBOARD, items: clipboardItems },
+      { items: metaItems },
+    ]);
   };
 
   // Reset expansion state when switching workspaces — we keep per-workspace

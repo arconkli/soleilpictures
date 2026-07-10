@@ -1,7 +1,7 @@
-/* Styles for the self-authored SEO landing pages (SeoLandingPage.jsx).
-   Scoped under .seo-shell / .seo-* so nothing here touches the app or the
-   other public surfaces. Uses the shared design tokens (--soleil, --bg-*,
-   --ink-*, --line-*, --radius*, --font-*) so it matches the brand exactly. */
+/* Styles for the self-authored SEO landing pages (SeoLandingPage.jsx) and the
+   /explore hub (ExplorePage.jsx). Scoped under .seo-* / .exp-* so nothing here
+   touches the app or the other public surfaces. The pages commit to the dark
+   brand world via .public-dark (styles.css) — tokens here always resolve dark. */
 
 .seo-shell {
   /* .public-shell already sets column layout + full-height + bg/ink. */
@@ -10,54 +10,91 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+  scroll-behavior: smooth;
 }
+@media (prefers-reduced-motion: reduce) { .seo-scroll { scroll-behavior: auto; } }
 .seo-main {
-  max-width: 800px;
+  max-width: 920px;
   margin: 0 auto;
-  padding: clamp(40px, 8vh, 96px) 24px 80px;
+  padding: clamp(48px, 9vh, 110px) 24px 80px;
 }
 
 /* ── Hero ─────────────────────────────────────────────────────────────── */
 .seo-hero {
-  padding-bottom: clamp(24px, 5vh, 48px);
-  border-bottom: 1px solid var(--line-1);
-  margin-bottom: clamp(28px, 5vh, 52px);
+  position: relative;
+  margin-bottom: clamp(28px, 5vh, 48px);
+}
+/* Soft gold aura behind the headline — the sun, felt not seen. */
+.seo-hero::before {
+  content: '';
+  position: absolute;
+  top: -140px; left: -180px;
+  width: 620px; height: 480px;
+  background: radial-gradient(closest-side, rgba(255, 165, 0, 0.09), rgba(255, 165, 0, 0));
+  pointer-events: none;
+}
+.seo-hero > * { position: relative; }
+.seo-eyebrow {
+  font: 700 0.8rem/1 var(--font-display, var(--font-sans));
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--soleil);
+  margin: 0 0 18px;
 }
 .seo-h1 {
-  font: 700 clamp(2rem, 5vw, 3rem)/1.08 var(--font-display, var(--font-sans));
-  letter-spacing: -0.02em;
+  font: 700 clamp(2.5rem, 6vw, 3.9rem)/1.02 var(--font-display, var(--font-sans));
+  letter-spacing: 0.005em;
   color: var(--ink-0);
-  margin: 0 0 0.4em;
+  margin: 0 0 0.35em;
+  text-wrap: balance;
+  max-width: 18ch;
 }
 .seo-subhead {
-  font: 400 clamp(1.05rem, 2.4vw, 1.35rem)/1.5 var(--font-sans);
+  font: 400 clamp(1.1rem, 2.4vw, 1.3rem)/1.5 var(--font-sans);
   color: var(--ink-1);
-  max-width: 42ch;
-  margin: 0 0 1.6em;
+  max-width: 52ch;
+  margin: 0 0 1.5em;
 }
-/* The extractable direct-answer block — slightly brighter than body copy so it
-   reads as the page's definitive answer, not a footnote. */
+/* The extractable direct-answer block — the page's definitive answer, set as
+   a quiet definition card so AI answer engines and skimmers both catch it. */
 .seo-answer {
-  font: 400 1.02rem/1.6 var(--font-sans);
+  font: 400 1.02rem/1.62 var(--font-sans);
   color: var(--ink-0);
-  max-width: 62ch;
-  margin: 0 0 1.6em;
-  padding-left: 14px;
+  max-width: 66ch;
+  margin: 0 0 1.8em;
+  padding: 16px 20px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
   border-left: 3px solid var(--soleil);
+  border-radius: 0 var(--radius-md, 8px) var(--radius-md, 8px) 0;
 }
 .seo-updated {
   font: 500 0.78rem/1 var(--font-sans);
   color: var(--ink-3);
-  margin-top: 14px;
+  margin-top: 16px;
 }
 .seo-hero-cta {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
   flex-wrap: wrap;
 }
-.seo-cta-sub {
-  font: 500 0.85rem/1.3 var(--font-sans);
+.seo-cta-secondary {
+  font: 600 0.95rem/1.2 var(--font-sans);
+  color: var(--ink-1);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-3);
+  padding-bottom: 2px;
+  transition: color var(--dur-fast, 120ms) var(--ease), border-color var(--dur-fast, 120ms) var(--ease);
+}
+.seo-cta-secondary:hover { color: var(--soleil); border-color: var(--soleil); }
+.seo-trust {
+  display: flex;
+  align-items: baseline;
+  gap: 6px 18px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  font: 500 0.85rem/1.4 var(--font-sans);
   color: var(--ink-2);
 }
 
@@ -66,128 +103,244 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 46px;
-  padding: 0 22px;
+  min-height: 50px;
+  padding: 0 26px;
   background: var(--soleil);
   color: var(--bg-0);
-  font: 700 0.95rem/1 var(--font-sans);
+  font: 700 1rem/1 var(--font-sans);
   text-decoration: none;
-  border-radius: var(--radius-md, 8px);
+  border-radius: 10px;
   transition: transform var(--dur-fast, 120ms) var(--ease), box-shadow var(--dur-fast, 120ms) var(--ease);
   -webkit-tap-highlight-color: transparent;
 }
 .seo-cta-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 28px rgba(255, 165, 0, 0.28);
 }
+.seo-cta-small { min-height: 40px; padding: 0 18px; font-size: 0.9rem; border-radius: 8px; }
+
+/* ── Live product shot in a minimal browser frame ─────────────────────── */
+.seo-frame {
+  margin: 0 0 clamp(40px, 7vh, 72px);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg, 12px);
+  overflow: hidden;
+  background: var(--bg-1);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 165, 0, 0.04);
+  scroll-margin-top: 72px;
+}
+.seo-frame-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 40px;
+  padding: 0 14px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line-1);
+}
+.seo-frame-dots { display: inline-flex; gap: 6px; flex: none; }
+.seo-frame-dots i {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--bg-4);
+}
+.seo-frame-url {
+  font: 500 12px/1 var(--font-mono, ui-monospace, monospace);
+  color: var(--ink-2);
+  background: var(--bg-0);
+  border: 1px solid var(--line-1);
+  border-radius: 999px;
+  padding: 6px 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.seo-frame-shot { display: block; position: relative; }
+.seo-frame-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2048 / 1000;
+  object-fit: cover;
+  background: var(--bg-0);
+}
+/* Hover invitation: dim + a centered "open" pill, so the shot reads as a door,
+   not wallpaper. */
+.seo-frame-shot::after {
+  content: 'Open this board live →';
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%) scale(0.96);
+  padding: 12px 22px;
+  border-radius: 999px;
+  font: 700 0.95rem/1 var(--font-sans);
+  color: var(--bg-0);
+  background: var(--soleil);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity var(--dur-base, 200ms) var(--ease), transform var(--dur-base, 200ms) var(--ease);
+  pointer-events: none;
+}
+.seo-frame-shot:hover::after { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.seo-frame-cap {
+  padding: 12px 16px;
+  font: 500 0.85rem/1.45 var(--font-sans);
+  color: var(--ink-2);
+  border-top: 1px solid var(--line-1);
+}
+.seo-frame-cap b { color: var(--ink-0); font-weight: 600; }
 
 /* ── Sections ─────────────────────────────────────────────────────────── */
 .seo-section {
-  margin: 0 0 clamp(30px, 5vh, 52px);
+  margin: 0 0 clamp(36px, 6vh, 60px);
 }
 .seo-h2 {
-  font: 600 clamp(1.35rem, 3vw, 1.7rem)/1.2 var(--font-sans);
-  letter-spacing: -0.01em;
+  font: 700 clamp(1.45rem, 3vw, 1.8rem)/1.2 var(--font-display, var(--font-sans));
+  letter-spacing: 0.01em;
   color: var(--ink-0);
-  margin: 0 0 0.5em;
+  margin: 0 0 0.55em;
+  text-wrap: balance;
 }
 .seo-body {
-  font: 400 1.05rem/1.65 var(--font-sans);
+  font: 400 1.05rem/1.7 var(--font-sans);
   color: var(--ink-1);
   margin: 0 0 0.9em;
   max-width: 68ch;
 }
 .seo-bullets {
-  margin: 0.6em 0 0;
+  margin: 0.8em 0 0;
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 10px;
+  gap: 11px;
 }
 .seo-bullets li {
   position: relative;
-  padding-left: 26px;
+  padding-left: 28px;
   font: 400 1rem/1.5 var(--font-sans);
   color: var(--ink-1);
+  max-width: 64ch;
 }
 .seo-bullets li::before {
   content: '';
   position: absolute;
   left: 4px;
-  top: 0.62em;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+  top: 0.52em;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  transform: rotate(45deg);
   background: var(--soleil);
 }
 
-/* ── How-to steps ─────────────────────────────────────────────────────── */
+/* ── Mid-page CTA strip — one quiet ask halfway through the read ──────── */
+.seo-midcta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 20px;
+  flex-wrap: wrap;
+  margin: 0 0 clamp(36px, 6vh, 60px);
+  padding: 18px 22px;
+  background: linear-gradient(120deg, rgba(255, 165, 0, 0.08), rgba(255, 165, 0, 0) 55%), var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-left: 3px solid var(--soleil);
+  border-radius: var(--radius-md, 8px);
+}
+.seo-midcta-copy {
+  font: 500 1rem/1.45 var(--font-sans);
+  color: var(--ink-1);
+}
+.seo-midcta-copy b { color: var(--ink-0); font-weight: 600; }
+
+/* ── How-to steps: a connected timeline ───────────────────────────────── */
 .seo-steps {
   list-style: none;
   counter-reset: seo-step;
   padding: 0;
-  margin: 0.4em 0 0;
+  margin: 0.8em 0 0;
   display: grid;
-  gap: 14px;
+  gap: 0;
 }
 .seo-steps li {
   counter-increment: seo-step;
   position: relative;
-  padding-left: 52px;
-  min-height: 34px;
+  padding: 0 0 22px 56px;
 }
 .seo-steps li::before {
   content: counter(seo-step);
   position: absolute;
   left: 0;
   top: 0;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: var(--soleil-soft, rgba(255, 165, 0, 0.14));
+  border: 1px solid rgba(255, 165, 0, 0.3);
   color: var(--soleil);
-  font: 700 0.95rem/1 var(--font-sans);
+  font: 700 1rem/1 var(--font-display, var(--font-sans));
 }
+/* connector rail between the numbered discs */
+.seo-steps li::after {
+  content: '';
+  position: absolute;
+  left: 17px;
+  top: 40px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--line-2);
+}
+.seo-steps li:last-child { padding-bottom: 0; }
+.seo-steps li:last-child::after { display: none; }
 .seo-step-t {
   display: block;
-  font: 600 1.02rem/1.4 var(--font-sans);
+  font: 600 1.05rem/1.4 var(--font-sans);
   color: var(--ink-0);
+  padding-top: 6px;
 }
 .seo-step-d {
   display: block;
   font: 400 0.98rem/1.55 var(--font-sans);
   color: var(--ink-1);
-  margin-top: 2px;
+  margin-top: 3px;
+  max-width: 62ch;
 }
 
 /* ── Comparison table ─────────────────────────────────────────────────── */
 .seo-compare-wrap {
   overflow-x: auto;
-  border: 1px solid var(--line-1);
-  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg, 12px);
   margin-top: 1.1em;
+  background: var(--bg-1);
 }
 .seo-compare {
   width: 100%;
   border-collapse: collapse;
   font: 400 0.95rem/1.4 var(--font-sans);
-  min-width: 460px;
+  min-width: 480px;
 }
 .seo-compare th,
 .seo-compare td {
-  padding: 12px 16px;
+  padding: 13px 18px;
   text-align: left;
   border-bottom: 1px solid var(--line-1);
   vertical-align: top;
 }
 .seo-compare thead th {
-  font-weight: 600;
-  color: var(--ink-0);
-  background: var(--bg-1);
+  font: 700 0.82rem/1 var(--font-display, var(--font-sans));
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-1);
+  background: var(--bg-2);
   white-space: nowrap;
+  padding-top: 15px;
+  padding-bottom: 15px;
 }
+.seo-compare thead th.seo-us-col { color: var(--soleil); }
 .seo-compare tbody th[scope='row'] {
   font-weight: 500;
   color: var(--ink-1);
@@ -196,9 +349,16 @@
 .seo-compare tbody tr:last-child td {
   border-bottom: none;
 }
+/* Clusters column carries a faint gold wash so the eye lands on our side. */
 .seo-compare .seo-us {
-  color: var(--soleil);
+  color: var(--ink-0);
   font-weight: 600;
+  background: rgba(255, 165, 0, 0.05);
+}
+.seo-check {
+  color: var(--soleil);
+  font-weight: 700;
+  margin-right: 7px;
 }
 .seo-compare .seo-them {
   color: var(--ink-2);
@@ -206,15 +366,20 @@
 
 /* ── FAQ ──────────────────────────────────────────────────────────────── */
 .seo-faq-item {
-  border-bottom: 1px solid var(--line-1);
-  padding: 4px 0;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md, 8px);
+  padding: 0 18px;
+  margin: 10px 0;
+  transition: border-color var(--dur-fast, 120ms) var(--ease);
 }
+.seo-faq-item[open] { border-color: var(--line-3); }
 .seo-faq-q {
-  font: 600 1.05rem/1.45 var(--font-sans);
+  font: 600 1.02rem/1.45 var(--font-sans);
   color: var(--ink-0);
   cursor: pointer;
   list-style: none;
-  padding: 14px 30px 14px 0;
+  padding: 15px 30px 15px 0;
   position: relative;
 }
 .seo-faq-q::-webkit-details-marker { display: none; }
@@ -222,30 +387,46 @@
   content: '+';
   position: absolute;
   right: 2px;
-  top: 12px;
+  top: 13px;
   font-weight: 400;
   font-size: 1.4rem;
-  color: var(--ink-2);
+  color: var(--soleil);
   transition: transform var(--dur-fast, 120ms) var(--ease);
 }
 .seo-faq-item[open] .seo-faq-q::after { transform: rotate(45deg); }
 .seo-faq-a {
   font: 400 1rem/1.6 var(--font-sans);
   color: var(--ink-1);
-  margin: 0 0 14px;
+  margin: 0 0 16px;
   max-width: 68ch;
 }
 
 /* ── Closing CTA band ─────────────────────────────────────────────────── */
 .seo-cta-band {
+  position: relative;
+  overflow: hidden;
   text-align: center;
-  padding: clamp(32px, 6vh, 56px) 24px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-1);
-  border-radius: var(--radius-lg, 12px);
-  margin: clamp(20px, 4vh, 40px) 0;
+  padding: clamp(40px, 8vh, 72px) 24px;
+  background:
+    radial-gradient(90% 140% at 50% -40%, rgba(255, 165, 0, 0.13), rgba(255, 165, 0, 0) 62%),
+    var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-xl, 16px);
+  margin: clamp(24px, 5vh, 48px) 0;
 }
-.seo-cta-band .seo-h2 { margin-bottom: 0.8em; }
+.seo-cta-headline {
+  font: 700 clamp(1.6rem, 3.6vw, 2.2rem)/1.15 var(--font-display, var(--font-sans));
+  letter-spacing: 0.01em;
+  color: var(--ink-0);
+  margin: 0 0 0.9em;
+  text-wrap: balance;
+}
+.seo-cta-band .seo-cta-sub2 {
+  display: block;
+  margin-top: 14px;
+  font: 500 0.85rem/1.4 var(--font-sans);
+  color: var(--ink-2);
+}
 
 /* ── Footer ───────────────────────────────────────────────────────────── */
 .seo-footer {
@@ -254,8 +435,8 @@
   margin-top: 40px;
 }
 .seo-related-label {
-  font: 600 0.78rem/1 var(--font-sans);
-  letter-spacing: 0.08em;
+  font: 700 0.75rem/1 var(--font-display, var(--font-sans));
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-3);
   margin-bottom: 12px;
@@ -266,14 +447,15 @@
   margin: 0 0 28px;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 20px;
+  gap: 8px 22px;
 }
 .seo-related a {
-  font: 500 0.95rem/1.3 var(--font-sans);
-  color: var(--soleil);
+  font: 500 0.92rem/1.3 var(--font-sans);
+  color: var(--ink-2);
   text-decoration: none;
+  transition: color var(--dur-fast, 120ms) var(--ease);
 }
-.seo-related a:hover { text-decoration: underline; }
+.seo-related a:hover { color: var(--soleil); }
 .seo-footer-brand {
   display: flex;
   align-items: center;
@@ -282,30 +464,98 @@
   color: var(--ink-3);
 }
 
-/* ── Visual proof: split hero + example-board cards ──────────────────────── */
-.seo-hero-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
-  gap: 40px;
-  align-items: center;
+/* ── Example-board proof (pubcard grid lives in styles.css) ───────────── */
+.seo-examples .pubgrid {
+  margin-top: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
 }
-.seo-hero-card { min-width: 0; }
-.seo-hero-card .pubcard img { aspect-ratio: 16 / 9; }
-.seo-hero-card-cap {
-  margin-top: 10px;
-  font-size: .82rem;
-  color: var(--ink-2);
-}
-.seo-examples .pubgrid { margin-top: 16px; }
 .seo-examples-more {
   display: inline-block;
-  margin-top: 14px;
+  margin-top: 16px;
   color: var(--soleil);
-  font: 600 .9rem/1.3 var(--font-sans);
+  font: 600 0.9rem/1.3 var(--font-sans);
   text-decoration: none;
 }
 .seo-examples-more:hover { text-decoration: underline; }
-@media (max-width: 860px) {
-  .seo-hero-split { grid-template-columns: 1fr; gap: 24px; }
-  .seo-hero-card { max-width: 480px; }
+
+/* ── /explore hub ─────────────────────────────────────────────────────── */
+.exp-main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: clamp(40px, 8vh, 88px) 24px 72px;
+}
+.exp-h1 {
+  font: 700 clamp(2.2rem, 5vw, 3.2rem)/1.05 var(--font-display, var(--font-sans));
+  letter-spacing: 0.005em;
+  color: var(--ink-0);
+  margin: 0 0 0.4em;
+}
+.exp-intro {
+  font: 400 1.02rem/1.6 var(--font-sans);
+  color: var(--ink-1);
+  max-width: 68ch;
+  margin: 0 0 1.8em;
+}
+.exp-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 2.6em;
+}
+.exp-chip {
+  font: 600 0.85rem/1 var(--font-sans);
+  color: var(--ink-1);
+  text-decoration: none;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  padding: 9px 15px;
+  transition: color var(--dur-fast, 120ms) var(--ease), border-color var(--dur-fast, 120ms) var(--ease), transform var(--dur-fast, 120ms) var(--ease);
+}
+.exp-chip:hover {
+  color: var(--soleil);
+  border-color: var(--soleil);
+  transform: translateY(-1px);
+}
+.exp-grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+.exp-grid .pubcard { height: 100%; }
+.exp-card-body { padding: 12px 14px 14px; }
+.exp-card-body .pubcard-title { padding: 0; font-size: 1rem; }
+.exp-card-desc {
+  color: var(--ink-2);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin-top: 5px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.exp-make {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--soleil);
+  text-decoration: none;
+  font: 600 0.85rem/1.3 var(--font-sans);
+}
+.exp-make:hover { text-decoration: underline; }
+/* Featured (first) board spans two columns on wide screens. */
+@media (min-width: 720px) {
+  .exp-feat { grid-column: span 2; }
+  .exp-feat .pubcard-title { font-size: 1.15rem; }
+}
+
+/* ── Mobile ───────────────────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  .seo-main { padding-top: 40px; }
+  .seo-hero::before { left: -120px; width: 420px; height: 340px; }
+  .seo-hero-cta .seo-cta-primary { width: 100%; }
+  .seo-cta-secondary { padding-bottom: 1px; }
+  .seo-frame-url { font-size: 11px; }
+  .seo-midcta { flex-direction: column; align-items: flex-start; }
+  .seo-midcta .seo-cta-primary { width: 100%; }
 }

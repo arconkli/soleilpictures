@@ -140,13 +140,18 @@ export function renderArticleHtml(model) {
   if (model.updated) s.push(`<p class="pa-updated">Updated <time datetime="${esc(model.updated)}">${esc(model.updatedText || model.updated)}</time></p>`);
   if (model.body) s.push(`<section class="pa-body">${esc(model.body)}</section>`);
 
-  for (const sec of model.sections) {
+  model.sections.forEach((sec, i) => {
     s.push('<section class="pa-section">');
     if (sec.heading) s.push(`<h2>${esc(sec.heading)}</h2>`);
     if (sec.sub) s.push(`<p class="pa-deck">${esc(sec.sub)}</p>`);
     for (const item of sec.items) s.push(itemHtml(item, model.slug));
     s.push('</section>');
-  }
+    // One quiet mid-read ask after the first section (mirrored in
+    // PublicArticle.jsx — parity by construction).
+    if (i === 0 && model.sections.length > 1) {
+      s.push('<aside class="pa-midcta"><span><b>Make a board like this — free.</b> Images, notes, palettes, and connections on one canvas.</span> <a href="/">Start a board</a></aside>');
+    }
+  });
 
   if (model.faq.length) {
     s.push('<section class="pa-faq"><h2>Frequently asked questions</h2>');

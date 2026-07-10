@@ -135,6 +135,26 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
   const px = Math.min(x, window.innerWidth  - w  - 8);
   const py = Math.min(y, window.innerHeight - hEst - 8);
 
+  // "Linked from N places" row. Callers can position it explicitly by placing a
+  // { backlinks: true } item in their menu (preferred — keeps Delete last); if
+  // none is present we fall back to auto-appending it at the very bottom.
+  const backlinksButton = (key) => (
+    <button key={key} className="ctx-item" role="menuitem" onClick={() => {
+      onClose();
+      document.dispatchEvent(new CustomEvent('soleil-open-backlinks', {
+        detail: {
+          ref: { kind: 'card', boardId, cardId: card.id },
+          name: card.title || card.name || null,
+        },
+      }));
+    }}>
+      <span className="ctx-label">
+        {refCount === null ? 'Linked from…' : refCount === 0 ? 'Not linked anywhere' : `Linked from ${refCount} ${refCount === 1 ? 'place' : 'places'}`}
+      </span>
+    </button>
+  );
+  const hasBacklinksPlaceholder = items.some(it => it.backlinks);
+
   return (
     <div className="ctx-menu" style={{ left: px, top: py }} role="menu" onKeyDown={onMenuKeyDown}>
       {card?.id && appliedTags.length > 0 && (
@@ -157,6 +177,8 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
       )}
       {items.map((it, i) => {
         if (it.divider) return <div key={`d-${i}`} className="ctx-divider" />;
+        if (it.header) return <div key={`h-${i}`} className="ctx-header" aria-hidden="true">{it.header}</div>;
+        if (it.backlinks) return card?.id ? backlinksButton(it.id || `bl-${i}`) : null;
         if (it.submenu) return <SubmenuItem key={it.id || i} item={it} onClose={onClose} claimFire={claimFire} />;
         return (
           <button
@@ -171,22 +193,10 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
           </button>
         );
       })}
-      {card?.id && (
+      {card?.id && !hasBacklinksPlaceholder && (
         <>
           {items.length > 0 && items[items.length - 1].divider !== true && <div className="ctx-divider" />}
-          <button className="ctx-item" onClick={() => {
-            onClose();
-            document.dispatchEvent(new CustomEvent('soleil-open-backlinks', {
-              detail: {
-                ref: { kind: 'card', boardId, cardId: card.id },
-                name: card.title || card.name || null,
-              },
-            }));
-          }}>
-            <span className="ctx-label">
-              {refCount === null ? 'Linked from…' : refCount === 0 ? 'Not linked anywhere' : `Linked from ${refCount} ${refCount === 1 ? 'place' : 'places'}`}
-            </span>
-          </button>
+          {backlinksButton('backlinks-fallback')}
         </>
       )}
     </div>
@@ -247,6 +257,7 @@ function SubmenuItem({ item, onClose, claimFire = () => true }) {
              onMouseLeave={handleLeave}>
           {item.submenu.map((sub, j) => {
             if (sub.divider) return <div key={`sd-${j}`} className="ctx-divider" />;
+            if (sub.header) return <div key={`sh-${j}`} className="ctx-header" aria-hidden="true">{sub.header}</div>;
             if (sub.swatch) {
               return (
                 <button key={sub.id || j}

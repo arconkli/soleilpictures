@@ -660,7 +660,7 @@ export function PublicBoardView({ token, slug }) {
   // contrast over arbitrary owner-picked backgrounds, and the dark frame
   // reads like a gallery mat around light boards.
   return (
-    <div className={`public-shell${pageModel ? ' public-shell-doc' : ''}`}
+    <div className={`public-shell public-dark${pageModel ? ' public-shell-doc' : ''}`}
          style={{ background: board.bg_color || 'var(--bg-0)' }}>
       <PublicTopbar
         ctx={ctx}

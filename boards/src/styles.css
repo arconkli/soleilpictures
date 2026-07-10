@@ -19999,20 +19999,33 @@ button, [role="button"], a {
 .public-shell-doc .public-canvas-host::after {
   content: '';
   position: absolute; left: 0; right: 0; bottom: 0; height: 64px;
-  background: linear-gradient(to bottom, rgba(10,9,8,0), rgba(10,9,8,0.5));
+  background: linear-gradient(to bottom, rgba(10,10,12,0), rgba(10,10,12,0.5));
   pointer-events: none;
 }
 
 .pa-wrap {
-  /* Self-contained dark palette: the article commits to the public boards'
-     dark editorial world regardless of the visitor's OS theme. */
-  --pab0: #0f0d0b;
-  --pab1: #171410;
-  --pat:  #eae4d8;
-  --pats: #a89f90;
-  --pafaint: #7c7466;
-  --paline: rgba(255,255,255,0.09);
+  /* Self-contained dark palette: the article commits to the brand's dark
+     editorial world regardless of the visitor's OS theme. Values mirror the
+     :root dark tokens (bg-0/bg-1/ink-*) so /c matches the app + landings. */
+  --pab0: #0a0a0c;
+  --pab1: #131317;
+  --pat:  #f5f5f7;
+  --pats: #a2a2ab;
+  --pafaint: #6d6d76;
+  --paline: rgba(255,255,255,0.08);
   background: var(--pab0);
+  position: relative;
+  isolation: isolate;
+}
+/* Film-grain wash — same texture the canvas hero above carries, so the page
+   reads as one continuous surface (matches the .public-shell grain tier). */
+.pa-wrap::after {
+  content: '';
+  position: absolute; inset: 0; z-index: -1;
+  background: url('/grain.gif');
+  background-size: 320px 240px;
+  opacity: 0.025;
+  pointer-events: none;
 }
 .pa-scroll-hint {
   position: relative; z-index: 5;
@@ -20021,7 +20034,7 @@ button, [role="button"], a {
   font: 600 12.5px/1 var(--font-sans, system-ui);
   letter-spacing: .04em;
   color: var(--pats);
-  background: rgba(16,14,12,0.82);
+  background: rgba(17,17,20,0.85);
   border: 1px solid var(--paline);
   backdrop-filter: blur(6px);
   opacity: 1; transition: opacity .5s ease;
@@ -20040,15 +20053,19 @@ button, [role="button"], a {
 }
 .public-article h1 {
   color: var(--pat);
-  font-size: clamp(1.9rem, 4vw, 2.5rem); font-weight: 650;
-  line-height: 1.15; letter-spacing: -0.01em; margin: 0 0 14px;
+  font: 700 clamp(2.1rem, 4.5vw, 3rem)/1.08 var(--font-display, var(--font-sans));
+  letter-spacing: 0.005em; margin: 0 0 14px;
   text-wrap: balance;
 }
-.public-article h2 { color: var(--pat); font-size: 1.35rem; font-weight: 650; margin: 0 0 6px; letter-spacing: -0.005em; }
+.public-article h2 {
+  color: var(--pat);
+  font: 700 1.5rem/1.25 var(--font-display, var(--font-sans));
+  margin: 0 0 6px; letter-spacing: 0.01em;
+}
 .public-article h3 { color: var(--pat); font-size: 1.02rem; font-weight: 650; margin: 0 0 6px; }
 .pa-answer {
   font-size: 1.13rem; line-height: 1.6; margin: 0 0 10px;
-  padding-left: 14px; border-left: 3px solid #f5c518;
+  padding-left: 14px; border-left: 3px solid #ffa500;
   color: var(--pat);
 }
 .pa-updated { font-size: .82rem; color: var(--pats); margin: 0 0 18px; }
@@ -20070,14 +20087,14 @@ button, [role="button"], a {
   border-radius: 999px; padding: 7px 13px;
   transition: color .15s, border-color .15s, transform .15s;
 }
-.pa-chip:hover { color: #f5c518; border-color: #f5c518; transform: translateY(-1px); }
+.pa-chip:hover { color: #ffa500; border-color: #ffa500; transform: translateY(-1px); }
 
 .pa-section { margin: 34px 0 0; }
 .pa-h2-jump {
   appearance: none; background: none; border: 0; padding: 0; cursor: pointer;
   font: inherit; color: inherit; text-align: left;
 }
-.pa-h2-jump:hover { color: #f5c518; }
+.pa-h2-jump:hover { color: #ffa500; }
 
 .pa-items { display: flex; flex-direction: column; gap: 18px; margin-top: 12px; }
 
@@ -20097,7 +20114,7 @@ button, [role="button"], a {
 }
 .pa-note p, .pa-doc p, .pa-grid-note p { margin: 0; color: var(--pats); }
 .pa-doc p { margin: 0 0 6px; }
-.pa-link a { color: #f5c518; font-weight: 600; text-decoration: none; }
+.pa-link a { color: #ffa500; font-weight: 600; text-decoration: none; }
 .pa-link a:hover { text-decoration: underline; }
 .pa-link p { margin: 6px 0 0; font-size: .92rem; color: var(--pats); }
 .pa-grid-note ul { margin: 10px 0 0; padding-left: 20px; color: var(--pats); }
@@ -20105,10 +20122,10 @@ button, [role="button"], a {
 
 .pa-jump {
   appearance: none; background: none; border: 0; padding: 0; cursor: pointer;
-  font: inherit; color: #f5c518; text-decoration: underline;
-  text-decoration-color: rgba(245,197,24,0.4);
+  font: inherit; color: #ffa500; text-decoration: underline;
+  text-decoration-color: rgba(255,165,0,0.4);
 }
-.pa-jump:hover { text-decoration-color: #f5c518; }
+.pa-jump:hover { text-decoration-color: #ffa500; }
 
 .pa-palette { background: var(--pab1); border: 1px solid var(--paline); border-radius: 12px; padding: 16px 18px; }
 .pa-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -20122,7 +20139,7 @@ button, [role="button"], a {
   color: var(--pat);
   transition: border-color .15s, transform .15s;
 }
-.pa-swatch:hover { border-color: #f5c518; transform: translateY(-1px); }
+.pa-swatch:hover { border-color: #ffa500; transform: translateY(-1px); }
 .pa-swatch-chip { width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.18); flex: none; }
 .pa-swatch-hex { font-family: var(--font-mono, ui-monospace, monospace); font-size: 11.5px; color: var(--pats); min-width: 58px; text-align: left; }
 
@@ -20142,7 +20159,7 @@ button, [role="button"], a {
   display: flex; align-items: center; justify-content: space-between;
 }
 .pa-faq summary::-webkit-details-marker { display: none; }
-.pa-faq summary::after { content: '+'; color: #f5c518; font-size: 1.2rem; font-weight: 400; }
+.pa-faq summary::after { content: '+'; color: #ffa500; font-size: 1.2rem; font-weight: 400; }
 .pa-faq details[open] summary::after { content: '–'; }
 .pa-faq details p { margin: 0; padding: 0 0 16px; color: var(--pats); }
 
@@ -20153,27 +20170,42 @@ button, [role="button"], a {
 .pubcard {
   /* Used inside .pa-wrap (scoped props) AND on /explore — keep fallbacks. */
   display: block; text-decoration: none; color: var(--pat, inherit);
-  background: var(--pab1, var(--bg-1, #14110d)); border: 1px solid var(--paline, rgba(255,255,255,0.08));
+  background: var(--pab1, var(--bg-1, #131317)); border: 1px solid var(--paline, rgba(255,255,255,0.08));
   border-radius: 12px; overflow: hidden;
   transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
 }
-.pubcard:hover { transform: translateY(-3px); border-color: rgba(245,197,24,0.45); box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
-.pubcard img { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; background: #0c0b09; }
+.pubcard:hover { transform: translateY(-3px); border-color: rgba(255,165,0,0.45); box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
+.pubcard img { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; background: #101014; }
 .pubcard-title { display: block; font-size: .9rem; font-weight: 600; padding: 10px 12px; }
 
+/* Slim inline CTA after the first section — one low-pressure ask mid-read. */
+.pa-midcta {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+  margin: 26px 0 0; padding: 14px 18px;
+  background: linear-gradient(120deg, rgba(255,165,0,0.07), rgba(255,165,0,0) 55%), var(--pab1);
+  border: 1px solid var(--paline); border-left: 3px solid #ffa500;
+  border-radius: 12px;
+  font-size: .95rem; color: var(--pats);
+}
+.pa-midcta b { color: var(--pat); font-weight: 600; }
+
 .pa-cta {
-  margin: 48px 0 0; padding: 24px;
-  background: var(--pab1);
-  border: 1px solid rgba(245,197,24,0.28); border-radius: 14px;
+  position: relative; overflow: hidden;
+  margin: 48px 0 0; padding: 28px 26px;
+  background:
+    radial-gradient(120% 160% at 85% -30%, rgba(255,165,0,0.12), rgba(255,165,0,0) 60%),
+    var(--pab1);
+  border: 1px solid rgba(255,165,0,0.28); border-radius: 16px;
 }
 .pa-cta-copy { margin-bottom: 14px; color: var(--pats); }
 .pa-cta-copy b { color: var(--pat); }
 .pa-cta-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.pa-toollink { color: #f5c518; font-size: .9rem; font-weight: 600; text-decoration: none; }
+.pa-toollink { color: #ffa500; font-size: .9rem; font-weight: 600; text-decoration: none; }
 .pa-toollink:hover { text-decoration: underline; }
 .pa-hubnav { margin-top: 14px; display: flex; gap: 18px; font-size: .85rem; }
 .pa-hubnav a { color: var(--pats); text-decoration: none; }
-.pa-hubnav a:hover { color: #f5c518; }
+.pa-hubnav a:hover { color: #ffa500; }
 
 @media (max-width: 640px) {
   .public-shell-doc .public-canvas-host { height: clamp(360px, 60dvh, 560px); }
@@ -20200,10 +20232,29 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
   z-index: 6; pointer-events: none;
   padding: 7px 14px; border-radius: 999px;
   font: 600 12px/1 var(--font-sans, system-ui); letter-spacing: .03em;
-  color: #e9e3d7;
-  background: rgba(16,14,12,0.78);
+  color: #ececf0;
+  background: rgba(17,17,20,0.8);
   border: 1px solid rgba(255,255,255,0.12);
   backdrop-filter: blur(6px);
   opacity: 1; transition: opacity .6s ease;
 }
 .pa-hero-hint.is-gone { opacity: 0; }
+
+/* ── .public-dark — commit a public marketing surface to the dark brand world ──
+   The SEO landings, /explore, and the /c chrome must never dissolve into the
+   light theme for light-OS visitors: these pages ARE the brand's first
+   impression. Re-pins the shared tokens to the :root dark values (styles.css
+   :root) inside the shell scope, same pattern as .pa-wrap. */
+.public-dark {
+  --bg-0: #0a0a0c; --bg-1: #111114; --bg-2: #16161a; --bg-3: #1c1c20; --bg-4: #26262a;
+  --bg-hov: #1a1a1e; --bg-act: #212126;
+  --line-1: #212126; --line-2: #2c2c32; --line-3: #3a3a40;
+  --ink-0: #f5f5f7; --ink-1: #d0d0d4; --ink-2: #888890; --ink-3: #5a5a60; --ink-4: #3a3a40;
+  --soleil-soft: rgba(255,165,0,0.14);
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-2: 0 4px 12px rgba(0,0,0,0.45);
+  --shadow-3: 0 12px 32px rgba(0,0,0,0.55);
+  color-scheme: dark;
+  background: var(--bg-0);
+  color: var(--ink-0);
+}
