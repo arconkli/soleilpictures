@@ -55,6 +55,7 @@ import { ImageEditPopover } from './ImageEditPopover.jsx';
 import { ImageEditModal } from './ImageEditModal.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
+import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
@@ -4595,37 +4596,46 @@ export function CanvasSurface({
   const closeCardMenu = () => setCtx(c => ({ ...c, open: false }));
 
   const buildMenu = (c) => {
+    // Buckets → composeMenuSections keeps every card's menu grouped + ordered
+    // the same: primary (open) · EDIT · ANNOTATE · ARRANGE · CLIPBOARD · meta
+    // (info / backlinks / delete). Empty buckets drop out (no stray headers).
+    // `items` is the EDIT bucket — the big per-kind block below fills it.
     const items = [];
+    const openItems = [], annotateItems = [], arrangeItems = [], clipboardItems = [], metaItems = [];
     const multi = selected.size > 1 && selected.has(c.id);
 
     // View-only board: strip every mutating action (Edit/Replace/Cover/
-    // Shape/Stroke/Fit/Tag — all RLS-blocked). Keep navigation, Info,
-    // and the auto-appended "Linked from N places" / tag chips from
-    // CardContextMenu itself. Tier-demoted users get the same upgrade
+    // Shape/Stroke/Fit/Tag — all RLS-blocked). Keep navigation, Info, and the
+    // "Linked from N places" backlink. Tier-demoted users get the same upgrade
     // CTA the bg menu uses (see commit ca3ca78).
     if (!canEdit) {
+      const upgradeItems = [];
       if (boardPermission?.source === 'tier-demoted') {
-        items.push({ id: 'upgrade-edit',
+        upgradeItems.push({ id: 'upgrade-edit',
           label: 'Upgrade to edit shared clusters →',
           run: () => onRequestUpgrade?.() });
-        items.push({ divider: true });
       }
       if (!multi) {
         if (c.kind === 'board') {
-          items.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
+          openItems.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
         } else if (c.kind === 'boardlink') {
-          items.push({ id: 'open', label: 'Open linked cluster',
+          openItems.push({ id: 'open', label: 'Open linked cluster',
             run: () => boards[c.target] && onOpenBoard(c.target) });
         } else if (c.kind === 'link' && (c.source || c.link)) {
-          items.push({ id: 'open', label: 'Open link', run: () => {
+          openItems.push({ id: 'open', label: 'Open link', run: () => {
             const url = c.link || c.source;
             window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener');
           }});
         }
-        items.push({ id: 'info', label: 'Info',
+        metaItems.push({ id: 'info', label: 'Info',
           run: () => setInfoFor({ cardId: c.id, x: ctx.x, y: ctx.y }) });
+        metaItems.push({ backlinks: true });
       }
-      return items;
+      return composeMenuSections([
+        { items: upgradeItems },
+        { items: openItems },
+        { items: metaItems },
+      ]);
     }
 
     // "Move to board…" non-drag fallback for board references (works for a
@@ -4654,7 +4664,7 @@ export function CanvasSurface({
           ...(targets.length ? [{ divider: true }] : []),
           ...targets.map(b => ({ id: 'mtb-' + b.id, label: b.name || 'Untitled', run: () => dispatchMove(b.id) })),
         ];
-        items.push({
+        arrangeItems.push({
           id: 'move-to-board',
           label: actingBoardIds.length > 1 ? `Move ${actingBoardIds.length} clusters to…` : 'Move to cluster…',
           submenu,
@@ -4703,7 +4713,7 @@ export function CanvasSurface({
             run: () => downloadImage({ src: c.src, title: c.title || c.label || '', adjust: c.adjust }) });
         }
       } else if (c.kind === 'pdf') {
-        items.push({ id: 'pdf-open', label: 'Open',
+        openItems.push({ id: 'pdf-open', label: 'Open',
           run: () => { if (c.pdfSrc) setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' }); } });
         items.push({ id: 'pdf-title', label: c.title ? 'Edit title' : 'Add title',
           run: () => triggerInlineEdit(c.id, 'title') });
@@ -4803,7 +4813,7 @@ export function CanvasSurface({
           ]});
         }
       } else if (c.kind === 'board') {
-        items.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
+        openItems.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
         const target = boards[c.id];
         const currentCover = target?.cover || 'neutral';
         items.push({ id: 'cover', label: 'Cover color', submenu: [
@@ -4825,7 +4835,7 @@ export function CanvasSurface({
           items.push({ id: 'clone', label: 'Copy to my workspace', run: () => mutators.cloneBoardToPersonal?.(c.id) });
         }
       } else if (c.kind === 'boardlink') {
-        items.push({ id: 'open', label: 'Open linked cluster', run: () => boards[c.target] && onOpenBoard(c.target) });
+        openItems.push({ id: 'open', label: 'Open linked cluster', run: () => boards[c.target] && onOpenBoard(c.target) });
       } else if (c.kind === 'palette') {
         items.push({ id: 'palette-edit', label: 'Edit', submenu: [
           { id: 'pc-pure',
@@ -4874,7 +4884,7 @@ export function CanvasSurface({
           triggerInlineEdit(c.id, 'title');
         }});
         if (c.source || c.link) {
-          items.push({ id: 'open', label: 'Open link', run: () => {
+          openItems.push({ id: 'open', label: 'Open link', run: () => {
             const url = c.link || c.source;
             window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener');
           }});
@@ -4904,30 +4914,31 @@ export function CanvasSurface({
         items.push({ id: 'shape-label', label: c.label ? 'Edit label' : 'Add label',
                      run: () => triggerInlineEdit(c.id, 'shapeLabel') });
       }
-      if (items.length > 0) items.push({ divider: true });
     }
 
     if (!multi) {
-      items.push({ id: 'comment', label: 'Add comment',
+      annotateItems.push({ id: 'comment', label: 'Add comment',
         run: () => promptComment({ kind: 'card', id: c.id }) });
-      items.push({ id: 'vote', label: 'Add vote to card',
+      annotateItems.push({ id: 'vote', label: 'Add vote to card',
         run: () => addVoteCardAt({ kind: 'card', id: c.id }) });
-      items.push({ id: 'tag', label: 'Tag…',
+      annotateItems.push({ id: 'tag', label: 'Tag…',
         run: () => {
           // Open the picker anchored near the right-click coord. The
           // ctx state holds the click position from onCardContextMenu.
           const anchorRect = { left: ctx.x, top: ctx.y, bottom: ctx.y + 4, right: ctx.x + 4 };
           openTagPicker(c.id, anchorRect);
         }});
-      items.push({ id: 'info', label: 'Info', run: () => {
+      // Info lives in the bottom meta group (added here so it's the first meta
+      // row, above the backlinks + delete pushed at the very end).
+      metaItems.push({ id: 'info', label: 'Info', run: () => {
         // Anchor the info popover at the click point so it sits next
         // to the card the user invoked it on.
         setInfoFor({ cardId: c.id, x: ctx.x, y: ctx.y });
       }});
     }
-    items.push({ id: 'cut', label: multi ? `Cut (${selected.size})` : 'Cut', shortcut: `${cmdKey}X`, run: doCut });
-    items.push({ id: 'copy', label: multi ? `Copy (${selected.size})` : 'Copy', shortcut: `${cmdKey}C`, run: doCopy });
-    items.push({ id: 'duplicate', label: multi ? `Duplicate (${selected.size})` : 'Duplicate', shortcut: `${cmdKey}D`, run: doDuplicate });
+    clipboardItems.push({ id: 'cut', label: multi ? `Cut (${selected.size})` : 'Cut', shortcut: `${cmdKey}X`, run: doCut });
+    clipboardItems.push({ id: 'copy', label: multi ? `Copy (${selected.size})` : 'Copy', shortcut: `${cmdKey}C`, run: doCopy });
+    clipboardItems.push({ id: 'duplicate', label: multi ? `Duplicate (${selected.size})` : 'Duplicate', shortcut: `${cmdKey}D`, run: doDuplicate });
     // Arrange (z-order): mutators are singular, so for multi-select we
     // iterate in an order that preserves relative stacking:
     //   front:    low-z first  → top-most selected ends up top-most
@@ -4949,18 +4960,17 @@ export function CanvasSurface({
         /* backward */      mutators.sendBackward;
       order.forEach(id => fn?.(id));
     };
-    items.push({ id: 'arrange', label: 'Arrange', submenu: [
+    arrangeItems.push({ id: 'arrange', label: 'Arrange', submenu: [
       { id: 'front',    label: 'Bring to front', run: () => arrangeRun('front') },
       { id: 'forward',  label: 'Bring forward',  run: () => arrangeRun('forward') },
       { id: 'backward', label: 'Send backward',  run: () => arrangeRun('backward') },
       { id: 'back',     label: 'Send to back',   run: () => arrangeRun('back') },
     ]});
 
-    // Grouping ──
-    items.push({ divider: true });
+    // Grouping (stays in the ARRANGE group) ──
     if (multi && selected.size >= 2) {
       // Selection of 2+ → "Group together"
-      items.push({ id: 'group', label: `Group (${selected.size})`, run: async () => {
+      arrangeItems.push({ id: 'group', label: `Group (${selected.size})`, run: async () => {
         const name = await feedback.prompt({
           title: 'Group these cards',
           label: 'Name',
@@ -4977,7 +4987,7 @@ export function CanvasSurface({
     // (or all selected cards) into the chosen group.
     if (!c.groupId && groups && groups.length > 0) {
       const targets = multi ? [...selected] : [c.id];
-      items.push({ id: 'add-to-group', label: 'Add to group', submenu:
+      arrangeItems.push({ id: 'add-to-group', label: 'Add to group', submenu:
         groups.map(g => ({
           id: `atg-${g.id}`,
           label: g.name || 'Untitled group',
@@ -4988,11 +4998,11 @@ export function CanvasSurface({
     if (c.groupId && groupById[c.groupId]) {
       const g = groupById[c.groupId];
       // Quick "Remove from group" stays at top — most common action.
-      items.push({ id: 'group-remove', label: multi ? `Remove from group (${selected.size})` : 'Remove from group',
+      arrangeItems.push({ id: 'group-remove', label: multi ? `Remove from group (${selected.size})` : 'Remove from group',
         run: () => mutators.removeFromGroup?.(multi ? [...selected] : [c.id]) });
       // Everything else — rename / outline / shape / color / info / ungroup —
       // tucked into a single Group submenu so the top level stays scannable.
-      items.push({ id: 'group', label: `Group "${g.name || 'Untitled'}"`, submenu: [
+      arrangeItems.push({ id: 'group', label: `Group "${g.name || 'Untitled'}"`, submenu: [
         { id: 'group-rename', label: 'Rename group…', run: async () => {
           const name = await feedback.prompt({
             title: 'Rename group',
@@ -5041,38 +5051,23 @@ export function CanvasSurface({
       ]});
     }
 
-    // Audit info — who created this and when, last edit by whom and when.
-    // Surfaces the audit metadata that was stamped on add/update; resolves
-    // user ids against current wsPeers, falling back to "you" / a short id.
-    if (!multi && (c.createdBy || c.createdAt || c.updatedBy || c.updatedAt)) {
-      const resolveName = (uid) => {
-        if (!uid) return 'unknown';
-        if (uid === userId) return 'you';
-        const cached = userProfiles.resolve(uid);
-        return cached?.name
-            || (cached?.email ? cached.email.split('@')[0] : null)
-            || 'someone';
-      };
-      const lines = [];
-      if (c.createdAt) {
-        lines.push(`Created ${relativeTimeShort(c.createdAt)} by ${resolveName(c.createdBy)}`);
-      }
-      if (c.updatedAt && c.updatedAt !== c.createdAt) {
-        lines.push(`Updated ${relativeTimeShort(c.updatedAt)} by ${resolveName(c.updatedBy)}`);
-      }
-      if (lines.length) {
-        items.push({ divider: true });
-        items.push({ id: 'info', label: 'Info', run: () => {
-          feedback.toast({ type: 'info', message: lines.join(' · ') });
-        }});
-      }
-    }
+    // Info (created-by/when) is the CardInfoPopover row already in metaItems for
+    // single-select; the old audit-toast duplicate "Info" was removed here so the
+    // menu never shows two "Info" rows.
 
-    items.push({ divider: true });
-    items.push({ id: 'delete', label: multi ? `Delete (${selected.size})` : 'Delete',
+    metaItems.push({ backlinks: true });
+    metaItems.push({ id: 'delete', label: multi ? `Delete (${selected.size})` : 'Delete',
       shortcut: '⌫', danger: true,
       run: () => doDeleteIds(multi ? [...selected] : [c.id]) });
-    return items;
+
+    return composeMenuSections([
+      { items: openItems },
+      { header: SECTION.EDIT,      items },
+      { header: SECTION.ANNOTATE,  items: annotateItems },
+      { header: SECTION.ARRANGE,   items: arrangeItems },
+      { header: SECTION.CLIPBOARD, items: clipboardItems },
+      { items: metaItems },
+    ]);
   };
 
   // ── Background pointer + context ──────────────────────────────────────────
@@ -5771,12 +5766,12 @@ export function CanvasSurface({
     ].filter(Boolean);
     return [
       { id: 'add', label: 'Add', submenu: addSubmenu },
-      { divider: true },
+      { header: SECTION.CLIPBOARD },
       { id: 'paste', label: clipboardSize() ? `Paste (${clipboardSize()})` : 'Paste',
         shortcut: `${cmdKey}V`, disabled: clipboardSize() === 0,
         run: () => doPaste(pos) },
       { id: 'selectall', label: 'Select all', shortcut: `${cmdKey}A`, run: selectAll },
-      { divider: true },
+      { header: 'BOARD' },
       { id: 'bg', label: 'Background', submenu: [
         { id: 'bg-default', swatch: 'transparent', label: 'Default', run: () => mutators.setBoardBgColor?.(null) },
         { id: 'bg-paper',   swatch: '#f5f2ec', label: 'Paper',   run: () => mutators.setBoardBgColor?.('#f5f2ec') },
@@ -5795,7 +5790,6 @@ export function CanvasSurface({
           });
         }},
       ]},
-      { divider: true },
       { id: 'fit', label: 'Reset zoom (⌘0)', run: () => { enableSmoothTransform(); setZoom(1); setPan({ x: 40, y: 60 }); } },
       { id: 'export', label: 'Export', submenu: [
         { id: 'export-png', label: 'PNG image', run: async () => {
@@ -5823,6 +5817,7 @@ export function CanvasSurface({
           finally { setExportSvgMounted(false); }
         }},
       ]},
+      { divider: true },
       { id: 'clearstrokes', label: 'Clear all drawings', disabled: !(strokes && strokes.length > 0),
         danger: true, run: () => mutators.clearStrokes?.() },
     ];
