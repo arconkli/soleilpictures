@@ -23,6 +23,28 @@ const humanize = (slug) => String(slug || '')
   .replace(/-/g, ' ')
   .replace(/\b\w/g, (c) => c.toUpperCase());
 
+// Renders a feature section, slipping ONE quiet CTA strip in after the second
+// section — a single mid-read ask between the value copy and the how-to.
+function SectionWithMidCta({ index, cta, children }) {
+  return (
+    <>
+      {children}
+      {index === 1 && (
+        <aside className="seo-midcta">
+          <span className="seo-midcta-copy"><b>Try it on your next project.</b> Free to start — nothing to install.</span>
+          <a className="seo-cta-primary seo-cta-small" href={cta.href || '/'}>{cta.label || 'Start free'}</a>
+        </aside>
+      )}
+    </>
+  );
+}
+
+// "Yes" / "Yes (Creator)" cells in the compare table get a gold check so the
+// Clusters column scans as a column of wins.
+const yesCheck = (text) => (/^yes\b/i.test(String(text || '').trim())
+  ? <><span className="seo-check" aria-hidden="true">✓</span>{text}</>
+  : text);
+
 export function SeoLandingPage({ spec: specProp, path }) {
   // Accept a spec directly, or resolve it from a path (router passes one or
   // the other). An unknown landing-shaped path renders the branded NotFound —
@@ -69,7 +91,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
   const hero = examples[0] || null;
 
   return (
-    <div className="public-shell seo-shell">
+    <div className="public-shell seo-shell public-dark">
       <div className="public-topbar">
         <a className="public-brand" href={cta.href || '/'} title="Clusters home">
           <ClustersMark size={20} />
@@ -86,47 +108,61 @@ export function SeoLandingPage({ spec: specProp, path }) {
       <div className="seo-scroll">
         <article className="seo-main">
           {/* Hero — the answer block is the 40–60-word direct answer AI answer
-              engines can lift verbatim; keep it above the CTA. The right column
-              is a LIVE example board (visual proof, links to /c/<slug>). */}
-          <header className={`seo-hero${hero ? ' seo-hero-split' : ''}`}>
-            <div className="seo-hero-copy">
-              <h1 className="seo-h1">{spec.h1}</h1>
-              <p className="seo-subhead">{spec.subhead}</p>
-              {spec.answer && <p className="seo-answer">{spec.answer}</p>}
-              <div className="seo-hero-cta">
-                <a className="seo-cta-primary" href={cta.href || '/'}>{cta.label || 'Start free'}</a>
-                {cta.sub && <span className="seo-cta-sub">{cta.sub}</span>}
-              </div>
-              {spec.updated && (
-                <div className="seo-updated">
-                  Updated {new Date(spec.updated + 'T00:00:00Z').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
-                </div>
-              )}
+              engines can lift verbatim; keep it above the CTA. Directly below,
+              a LIVE example board in a browser frame (visual proof → /c/<slug>). */}
+          <header className="seo-hero">
+            {spec.eyebrow && <p className="seo-eyebrow">{spec.eyebrow}</p>}
+            <h1 className="seo-h1">{spec.h1}</h1>
+            <p className="seo-subhead">{spec.subhead}</p>
+            {spec.answer && <p className="seo-answer">{spec.answer}</p>}
+            <div className="seo-hero-cta">
+              <a className="seo-cta-primary" href={cta.href || '/'}>{cta.label || 'Start free'}</a>
+              {hero && <a className="seo-cta-secondary" href="#live-example">See a real board ↓</a>}
             </div>
-            {hero && (
-              <aside className="seo-hero-card">
-                <a className="pubcard" href={`/c/${hero.slug}`}>
-                  <img src={`/api/public-thumb/${hero.slug}${hero.v}`}
-                       alt={`${hero.title} — a real board made with Clusters`}
-                       width="640" height="360" fetchPriority="high" />
-                  <span className="pubcard-title">{hero.title}</span>
-                </a>
-                <div className="seo-hero-card-cap">A real board, made with Clusters — open it and explore</div>
-              </aside>
+            <div className="seo-trust">
+              {cta.sub && <span>{cta.sub}</span>}
+              <span>Built by a film studio, for real productions.</span>
+            </div>
+            {spec.updated && (
+              <div className="seo-updated">
+                Updated {new Date(spec.updated + 'T00:00:00Z').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
+              </div>
             )}
           </header>
 
-          {/* Feature / value sections */}
+          {/* The product, full width: a real published board inside a minimal
+              browser frame. The static shot ships with the app (public/landing/)
+              so it renders instantly; clicking opens the live board. */}
+          {hero && (
+            <figure className="seo-frame" id="live-example">
+              <div className="seo-frame-bar" aria-hidden="true">
+                <span className="seo-frame-dots"><i /><i /><i /></span>
+                <span className="seo-frame-url">clusters.soleilpictures.com/c/{hero.slug}</span>
+              </div>
+              <a className="seo-frame-shot" href={`/c/${hero.slug}`}>
+                <img src={`/landing/${hero.slug}.webp`}
+                     alt={`${hero.title} — a real board made with Clusters, open in the app`}
+                     width="2048" height="1000" fetchPriority="high" />
+              </a>
+              <figcaption className="seo-frame-cap">
+                This is a real board published from Clusters — <b>open it live</b>, pan around, and copy its palettes.
+              </figcaption>
+            </figure>
+          )}
+
+          {/* Feature / value sections, with one quiet CTA strip mid-read */}
           {(spec.sections || []).map((s, i) => (
-            <section className="seo-section" key={i}>
-              <h2 className="seo-h2">{s.heading}</h2>
-              <p className="seo-body">{s.body}</p>
-              {Array.isArray(s.bullets) && s.bullets.length > 0 && (
-                <ul className="seo-bullets">
-                  {s.bullets.map((b, j) => <li key={j}>{b}</li>)}
-                </ul>
-              )}
-            </section>
+            <SectionWithMidCta key={i} index={i} cta={cta}>
+              <section className="seo-section">
+                <h2 className="seo-h2">{s.heading}</h2>
+                <p className="seo-body">{s.body}</p>
+                {Array.isArray(s.bullets) && s.bullets.length > 0 && (
+                  <ul className="seo-bullets">
+                    {s.bullets.map((b, j) => <li key={j}>{b}</li>)}
+                  </ul>
+                )}
+              </section>
+            </SectionWithMidCta>
           ))}
 
           {/* How-to steps (tool pages) — captures informational intent */}
@@ -154,7 +190,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
                   <thead>
                     <tr>
                       <th scope="col">Feature</th>
-                      <th scope="col">Clusters</th>
+                      <th scope="col" className="seo-us-col">Clusters</th>
                       <th scope="col">{spec.compare.competitor}</th>
                     </tr>
                   </thead>
@@ -162,7 +198,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
                     {spec.compare.rows.map((r, i) => (
                       <tr key={i}>
                         <th scope="row">{r.feature}</th>
-                        <td className="seo-us">{r.us}</td>
+                        <td className="seo-us">{yesCheck(r.us)}</td>
                         <td className="seo-them">{r.them}</td>
                       </tr>
                     ))}
@@ -211,8 +247,11 @@ export function SeoLandingPage({ spec: specProp, path }) {
 
           {/* Closing CTA */}
           <section className="seo-cta-band">
-            <h2 className="seo-h2">{spec.kind === 'compare' ? 'See it for yourself' : 'Ready to start?'}</h2>
+            <h2 className="seo-cta-headline">
+              {spec.kind === 'compare' ? 'See it for yourself' : 'Your next board is 30 seconds away'}
+            </h2>
             <a className="seo-cta-primary" href={cta.href || '/'}>{cta.label || 'Start free'}</a>
+            {cta.sub && <span className="seo-cta-sub2">{cta.sub}</span>}
           </section>
 
           {/* Internal-linking footer */}

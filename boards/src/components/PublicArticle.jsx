@@ -8,7 +8,7 @@
 // the app's `soleil-flash-card` event, which pans the read-only canvas to
 // that card — the page itself demonstrates what the product does.
 
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 
 function flashCard(boardId, cardId, heroSelector = '.public-canvas-host') {
   const hero = document.querySelector(heroSelector);
@@ -190,21 +190,31 @@ export default function PublicArticle({ model, boardId, remixUrl, tryHref, onCta
           </nav>
         )}
 
-        {model.sections.map((sec) => (
-          <section className="pa-section" key={sec.id}>
-            {sec.heading && (
-              <h2>
-                <button type="button" className="pa-h2-jump" title="Show on the board"
-                        onClick={() => flashCard(boardId, sec.id)}>
-                  {sec.heading}
-                </button>
-              </h2>
+        {model.sections.map((sec, i) => (
+          <Fragment key={sec.id}>
+            <section className="pa-section">
+              {sec.heading && (
+                <h2>
+                  <button type="button" className="pa-h2-jump" title="Show on the board"
+                          onClick={() => flashCard(boardId, sec.id)}>
+                    {sec.heading}
+                  </button>
+                </h2>
+              )}
+              {sec.sub && <p className="pa-deck">{sec.sub}</p>}
+              <div className="pa-items">
+                {sec.items.map((item) => <Item key={item.card_id} item={item} slug={model.slug} boardId={boardId} />)}
+              </div>
+            </section>
+            {/* One quiet mid-read ask after the first section (mirrored in the
+                worker's renderArticleHtml — parity by construction). */}
+            {i === 0 && model.sections.length > 1 && tryHref && (
+              <aside className="pa-midcta">
+                <span><b>Make a board like this — free.</b> Images, notes, palettes, and connections on one canvas.</span>
+                <a className="public-cta" href={tryHref} onClick={onCta ? onCta('article_mid') : undefined}>Start a board</a>
+              </aside>
             )}
-            {sec.sub && <p className="pa-deck">{sec.sub}</p>}
-            <div className="pa-items">
-              {sec.items.map((item) => <Item key={item.card_id} item={item} slug={model.slug} boardId={boardId} />)}
-            </div>
-          </section>
+          </Fragment>
         ))}
 
         {model.faq.length > 0 && (

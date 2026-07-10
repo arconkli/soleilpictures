@@ -509,11 +509,25 @@ const EXAMPLES_BY_PATH = {
   '/use-cases':                   ['world-cup-2026-moodboard', 'neon-noir-look-book', 'sage-terracotta-wedding'],
 };
 
+// Hero eyebrow — the category kicker above the h1 (brand display face, gold).
+const EYEBROW_BY_PATH = {
+  '/tools/mood-board-maker':      'Free online tool',
+  '/tools/storyboard-maker':      'Free online tool',
+  '/tools/shot-list-maker':       'Free online tool',
+  '/tools/look-book-maker':       'Free online tool',
+  '/tools/free-mood-board-maker': 'Free — no trial clock',
+  '/vs/milanote':                 'Milanote alternative',
+  '/vs/pureref':                  'PureRef alternative',
+  '/vs/miro':                     'Miro alternative',
+  '/use-cases':                   'What you can make',
+};
+
 // Attach the signup CTA href to each page (campaign = last path segment).
 for (const p of PAGES) {
   const campaign = p.path.replace(/^\//, '').replace(/\//g, '_');
   p.cta = { ...p.cta, href: SIGNUP(campaign) };
   p.exampleSlugs = EXAMPLES_BY_PATH[p.path] || [];
+  p.eyebrow = EYEBROW_BY_PATH[p.path] || (p.kind === 'compare' ? 'Honest comparison' : 'Free online tool');
 }
 
 // Fast lookups. Paths are matched with an optional trailing slash by callers.

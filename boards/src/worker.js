@@ -1015,6 +1015,7 @@ function injectLanding(res, spec) {
 function buildLandingCrawlableHtml(spec) {
   const H2 = 'font-size:1.35rem;font-weight:600;margin:1.4em 0 .4em;';
   const parts = [];
+  if (spec.eyebrow) parts.push(`<p style="color:#FFA500;font-size:.8rem;letter-spacing:.16em;text-transform:uppercase;font-weight:700;margin:0 0 .8em;">${escapeHtml(spec.eyebrow)}</p>`);
   parts.push(`<h1 style="font-size:1.9rem;font-weight:700;margin:0 0 .4em;">${escapeHtml(spec.h1)}</h1>`);
   parts.push(`<p style="color:#b7b1a6;font-size:1.15rem;margin:0 0 1.4em;">${escapeHtml(spec.subhead)}</p>`);
   // The extractable direct answer + a visible freshness signal (mirrors the
