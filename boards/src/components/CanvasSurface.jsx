@@ -747,6 +747,15 @@ export function CanvasSurface({
       }
     };
   }, [snapHints]);
+  // Clear the alignment guides IMMEDIATELY (skip the ~90ms linger + fade) —
+  // used at gesture end / cancel / abort so the gold lines don't hang behind
+  // for a beat after the user drops. The linger effect above still handles the
+  // graceful fade for mid-drag fast↔slow transitions.
+  const clearSnapGuidesNow = useCallback(() => {
+    if (snapHintsTimerRef.current) { clearTimeout(snapHintsTimerRef.current); snapHintsTimerRef.current = null; }
+    setSnapHints(null);
+    setDisplayedHints(null);
+  }, []);
   const [resize, setResize] = useState(null);
   // Multi-selection / group resize. When active, drives a live overlay
   // of new bounds on every affected card so the user sees the scale
@@ -1792,10 +1801,45 @@ export function CanvasSurface({
 
   // Context object passed to arrowGeometry helpers. Memoized so the
   // attachments map below recomputes only when inputs change.
-  const arrowCtx = useMemo(() => ({
-    cardById,
-    resolveGroupBBox: (gid) => groupBoundsById[gid] || null,
-  }), [cardById, groupBoundsById]);
+  //
+  // `liveRect` returns a card's IN-GESTURE rect (mid-drag / mid-resize /
+  // mid-multi-resize), mirroring renderCard's (x,y,w,h) math (6465+), so an
+  // arrow anchors to exactly where the card is DRAWN rather than its committed
+  // position. Without this the endpoint stays at the old edge until pointer-up
+  // — the "ghost line left behind" the user reported. Adding drag/resize/
+  // multiResize to the deps makes this ctx (and the attachments/geom memos that
+  // depend on it) recompute each gesture frame; on release the Yjs commit
+  // updates `cards → cardById` and the endpoint settles onto the final spot.
+  const arrowCtx = useMemo(() => {
+    const dIds = drag?.ids || null;
+    const dDx = drag?.dx || 0, dDy = drag?.dy || 0;
+    const mr = multiResize?.live || null;
+    const rz = resize || null;
+    const liveRect = (id) => {
+      const c = cardById[id];
+      if (!c) return null;
+      if (mr && mr.has(id)) { const lv = mr.get(id); return { x: lv.x, y: lv.y, w: lv.w, h: lv.h }; }
+      let x = c.x, y = c.y, w = c.w, h = c.h;
+      if (dIds && dIds.includes(id)) { x += dDx; y += dDy; }
+      if (rz && rz.id === id) { w = Math.max(MIN_W, w + (rz.dw || 0)); h = Math.max(MIN_H, h + (rz.dh || 0)); }
+      return { x, y, w, h };
+    };
+    const resolveGroupBBox = (gid) => {
+      const members = cardsByGroup.get(gid);
+      if (!members || !members.length) return null;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const m of members) {
+        const r = liveRect(m.id) || m;
+        if (r.x < minX) minX = r.x;
+        if (r.y < minY) minY = r.y;
+        if (r.x + r.w > maxX) maxX = r.x + r.w;
+        if (r.y + r.h > maxY) maxY = r.y + r.h;
+      }
+      if (!Number.isFinite(minX)) return null;
+      return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+    };
+    return { cardById, liveRect, resolveGroupBBox };
+  }, [cardById, cardsByGroup, drag, resize, multiResize]);
 
   // Per-arrow attachment points (handles fan-out when multiple arrows
   // share an anchor side). Keyed by array index; falsy entries mean the
@@ -3643,6 +3687,10 @@ export function CanvasSurface({
     let lastRaw = { dx: 0, dy: 0 };
     let movedSettled = false;                               // last frame's settled state (for onUp)
     let settleTimer = 0;
+    // Drop-target hover hit-test throttle. elementsFromPoint forces a
+    // synchronous layout; a hover highlight doesn't need it every frame.
+    let lastHitTestT = 0;
+    const DROP_HITTEST_MS = 50;                             // ~20Hz
     const onSettle = () => {
       settleTimer = 0;
       if (!dragArmed || aborted) return;
@@ -3724,74 +3772,79 @@ export function CanvasSurface({
       movedSettled = settled;
       if (settleTimer) clearTimeout(settleTimer);
       if (!skip) settleTimer = setTimeout(onSettle, SNAP_TUNING.SETTLE_MS);
-      // Same-canvas board-drop hover detection. The dragged cards
-      // themselves sit under the cursor, so elementFromPoint would
-      // return them; use elementsFromPoint and walk the stack to find
-      // the FIRST card-id that's not in the dragged set.
-      let nextDropTarget = null;
-      if (Math.abs(dx) + Math.abs(dy) > 4) {
+      // Drop-target hover detection (board nesting + grid-cell drop). Both use
+      // document.elementsFromPoint — a forced synchronous layout — so we (a)
+      // SKIP it entirely when this board has nothing to drop into, and (b)
+      // throttle it to ~20Hz and share ONE stack read. A hover highlight
+      // doesn't need 60/120Hz, and pointer-up resolves the real target
+      // independently (onUp), so drop accuracy is unchanged. On throttled-out
+      // frames the current highlight is left as-is (no flicker).
+      const soloKind = dragIds.length === 1 ? cardById[dragIds[0]]?.kind : null;
+      const wantHitTest = (dropCandidateIds.length > 0 || CELL_DROP_KINDS.has(soloKind))
+        && (Math.abs(dx) + Math.abs(dy) > 4);
+      if (wantHitTest && (nowT - lastHitTestT) > DROP_HITTEST_MS) {
+        lastHitTestT = nowT;
+        // The dragged cards sit under the cursor, so use elementsFromPoint and
+        // walk the stack for the first id that ISN'T in the dragged set.
         const stack = document.elementsFromPoint(ev.clientX, ev.clientY) || [];
-        for (const el of stack) {
-          const cardEl = el?.closest?.('[data-card-id]');
-          const id = cardEl?.getAttribute?.('data-card-id');
-          if (!id) continue;
-          if (dragIds.includes(id)) continue;
-          const tc = cardById[id];
-          if (tc?.kind === 'board') { nextDropTarget = tc.id; break; }
-          if (tc?.kind === 'boardlink' && tc.target) { nextDropTarget = tc.target; break; }
-          // Keep walking the stack — non-board cards aren't drop
-          // targets but we don't want to stop on them either.
-        }
-        // Touch-friendly fallback: on a phone the finger is offset from the
-        // card and occludes small boards, so the point hit-test above often
-        // misses the board you're clearly dragging ONTO. Pick the candidate
-        // board the dragged card visually overlaps the most.
-        if (!nextDropTarget && dropCandidateIds.length) {
-          const dragEl = document.querySelector(`[data-card-id="${(window.CSS && CSS.escape) ? CSS.escape(primaryId) : primaryId}"]`);
-          const dr = dragEl?.getBoundingClientRect();
-          if (dr && dr.width && dr.height) {
-            let best = 0;
-            for (const bid of dropCandidateIds) {
-              const bEl = document.querySelector(`[data-card-id="${(window.CSS && CSS.escape) ? CSS.escape(bid) : bid}"]`);
-              const br = bEl?.getBoundingClientRect();
-              if (!br || !br.width || !br.height) continue;
-              const ox = Math.max(0, Math.min(dr.right, br.right) - Math.max(dr.left, br.left));
-              const oy = Math.max(0, Math.min(dr.bottom, br.bottom) - Math.max(dr.top, br.top));
-              const overlap = ox * oy;
-              if (overlap <= 0) continue;
-              const minArea = Math.min(dr.width * dr.height, br.width * br.height);
-              if (overlap > best && overlap > 0.18 * minArea) {
-                best = overlap;
-                const tc = cardById[bid];
-                nextDropTarget = tc?.kind === 'boardlink' ? tc.target : bid;
+        let nextDropTarget = null;
+        if (dropCandidateIds.length) {
+          for (const el of stack) {
+            const cardEl = el?.closest?.('[data-card-id]');
+            const id = cardEl?.getAttribute?.('data-card-id');
+            if (!id) continue;
+            if (dragIds.includes(id)) continue;
+            const tc = cardById[id];
+            if (tc?.kind === 'board') { nextDropTarget = tc.id; break; }
+            if (tc?.kind === 'boardlink' && tc.target) { nextDropTarget = tc.target; break; }
+            // Keep walking — non-board cards aren't targets but don't stop us.
+          }
+          // Touch-friendly fallback: on a phone the finger is offset from the
+          // card and occludes small boards, so the point hit-test above often
+          // misses the board you're clearly dragging ONTO. Pick the candidate
+          // board the dragged card visually overlaps the most.
+          if (!nextDropTarget) {
+            const dragEl = document.querySelector(`[data-card-id="${(window.CSS && CSS.escape) ? CSS.escape(primaryId) : primaryId}"]`);
+            const dr = dragEl?.getBoundingClientRect();
+            if (dr && dr.width && dr.height) {
+              let best = 0;
+              for (const bid of dropCandidateIds) {
+                const bEl = document.querySelector(`[data-card-id="${(window.CSS && CSS.escape) ? CSS.escape(bid) : bid}"]`);
+                const br = bEl?.getBoundingClientRect();
+                if (!br || !br.width || !br.height) continue;
+                const ox = Math.max(0, Math.min(dr.right, br.right) - Math.max(dr.left, br.left));
+                const oy = Math.max(0, Math.min(dr.bottom, br.bottom) - Math.max(dr.top, br.top));
+                const overlap = ox * oy;
+                if (overlap <= 0) continue;
+                const minArea = Math.min(dr.width * dr.height, br.width * br.height);
+                if (overlap > best && overlap > 0.18 * minArea) {
+                  best = overlap;
+                  const tc = cardById[bid];
+                  nextDropTarget = tc?.kind === 'boardlink' ? tc.target : bid;
+                }
               }
             }
           }
         }
-      }
-      updateBoardDropTarget(nextDropTarget, nextDropTarget ? { x: ev.clientX, y: ev.clientY } : null);
-      // Grid-cell drop target: walk the same stack for a [data-cell-id] inside a
-      // grid that ISN'T part of the dragged set (can't drop a grid into its own
-      // cell). A board drop wins over a cell drop (handled first → we clear the
-      // cell target when a board is targeted).
-      // Only a SINGLE card of a kind that can become cell content highlights a
-      // cell — so a multi-select drag or an unsupported kind (doc/shape/palette/…)
-      // never shows a misleading drop affordance (and won't snap back on release).
-      let nextCell = null;
-      const soloKind = dragIds.length === 1 ? cardById[dragIds[0]]?.kind : null;
-      if (!nextDropTarget && CELL_DROP_KINDS.has(soloKind) && Math.abs(dx) + Math.abs(dy) > 4) {
-        const stack = document.elementsFromPoint(ev.clientX, ev.clientY) || [];
-        for (const el of stack) {
-          const cellEl = el?.closest?.('[data-cell-id]');
-          if (!cellEl) continue;
-          const gridEl = cellEl.closest('[data-grid-id]');
-          const gid = gridEl?.getAttribute?.('data-grid-id');
-          if (!gid || dragIds.includes(gid)) continue; // not into the dragged grid itself
-          nextCell = { gridId: gid, cellId: cellEl.getAttribute('data-cell-id') };
-          break;
+        updateBoardDropTarget(nextDropTarget, nextDropTarget ? { x: ev.clientX, y: ev.clientY } : null);
+        // Grid-cell drop target: reuse the same stack for a [data-cell-id] in a
+        // grid that ISN'T part of the dragged set. A board drop wins over a cell
+        // drop. Only a SINGLE card of a cell-fillable kind highlights a cell, so
+        // a multi-select drag never shows a misleading affordance.
+        let nextCell = null;
+        if (!nextDropTarget && CELL_DROP_KINDS.has(soloKind)) {
+          for (const el of stack) {
+            const cellEl = el?.closest?.('[data-cell-id]');
+            if (!cellEl) continue;
+            const gridEl = cellEl.closest('[data-grid-id]');
+            const gid = gridEl?.getAttribute?.('data-grid-id');
+            if (!gid || dragIds.includes(gid)) continue; // not into the dragged grid itself
+            nextCell = { gridId: gid, cellId: cellEl.getAttribute('data-cell-id') };
+            break;
+          }
         }
+        updateCellDropTarget(nextCell);
       }
-      updateCellDropTarget(nextCell);
       // Live cross-pane / inbox hover signal — other panes use this to
       // highlight themselves as drop targets while the pointer is over them.
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-hover', {
@@ -3857,7 +3910,7 @@ export function CanvasSurface({
       // (fast, guides were hidden) lands free so a toss isn't yanked into alignment.
       const snapEnd = (skip || !movedSettled) ? { dx: rawDx, dy: rawDy } : computeSnap(rawDx, rawDy);
       const { dx, dy } = snapEnd;
-      setSnapHints(null);
+      clearSnapGuidesNow();
       // Cancel any queued mid-drag broadcast so a stale rAF can't fire
       // AFTER we clear liveDrag and momentarily flash the card back to
       // the previous position.
@@ -4124,7 +4177,7 @@ export function CanvasSurface({
       updateBoardDropTarget(null);
       updateCellDropTarget(null);
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-end'));
-      setSnapHints(null);
+      clearSnapGuidesNow();
       setDrag(null);
     };
     // pointercancel fires (not pointerup) when the OS steals the touch — palm
@@ -4145,7 +4198,7 @@ export function CanvasSurface({
       cleanupTouchHold();
       updateBoardDropTarget(null);
       updateCellDropTarget(null);
-      setSnapHints(null);
+      clearSnapGuidesNow();
       setDrag(null);
     };
     window.addEventListener('pointermove', onMove);
@@ -4295,7 +4348,7 @@ export function CanvasSurface({
       noteMeasurer?.destroy();
       noteMeasurer = null;
       setResize(null);
-      setSnapHints(null);
+      clearSnapGuidesNow();
     };
     // Escape-abort: revert to the committed size (setResize(null)).
     pointerOpAbortRef.current = () => {
@@ -4303,7 +4356,7 @@ export function CanvasSurface({
       window.removeEventListener('pointerup', onUp);
       noteMeasurer?.destroy();
       noteMeasurer = null;
-      setSnapHints(null);
+      clearSnapGuidesNow();
       setResize(null);
     };
     window.addEventListener('pointermove', onMove);
@@ -7414,7 +7467,21 @@ export function CanvasSurface({
   // Arrow geometry memo: the obstacle-avoidance bezier (buildArrowPath) plus
   // a padded segment bbox per arrow. Recomputes only when arrows/cards
   // change — previously rebuilt for EVERY arrow on EVERY render.
-  const arrowGeom = useMemo(() => (arrows || []).map((a, i) => {
+  const arrowGeom = useMemo(() => {
+    // Fold the live drag/resize delta into the obstacle rects too, so a
+    // dragged NON-endpoint card deflects the bezier at its live spot rather
+    // than its stale committed one (mirrors arrowCtx.liveRect above).
+    const dIds = drag?.ids ? new Set(drag.ids) : null;
+    const dDx = drag?.dx || 0, dDy = drag?.dy || 0;
+    const mr = multiResize?.live || null;
+    const rz = resize || null;
+    const liveObstacle = (r) => {
+      if (mr && mr.has(r.id)) { const lv = mr.get(r.id); return { ...r, x: lv.x, y: lv.y, w: lv.w, h: lv.h }; }
+      if (dIds && dIds.has(r.id)) return { ...r, x: r.x + dDx, y: r.y + dDy };
+      if (rz && rz.id === r.id) return { ...r, w: Math.max(MIN_W, r.w + (rz.dw || 0)), h: Math.max(MIN_H, r.h + (rz.dh || 0)) };
+      return r;
+    };
+    return (arrows || []).map((a, i) => {
     const att = arrowAttachments[i];
     if (!att?.from || !att?.to) return null;
     // Anchor cards (or group members) stay in the obstacle set with a 1px
@@ -7426,7 +7493,10 @@ export function CanvasSurface({
     if (ef) ef.forEach(id => anchorIds.add(id));
     if (et) et.forEach(id => anchorIds.add(id));
     const obstacles = a.straight ? null
-      : arrowObstacleRects.map(r => (anchorIds.has(r.id) ? { ...r, pad: 1 } : r));
+      : arrowObstacleRects.map(r => {
+          const rr = liveObstacle(r);
+          return anchorIds.has(rr.id) ? { ...rr, pad: 1 } : rr;
+        });
     const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight }, obstacles });
     if (!built) return null;
     // Cull box = endpoint-segment bbox padded generously for the bezier's
@@ -7440,7 +7510,8 @@ export function CanvasSurface({
       minY: Math.min(att.from.point.y, att.to.point.y) - PAD,
       maxY: Math.max(att.from.point.y, att.to.point.y) + PAD,
     };
-  }), [arrows, arrowAttachments, arrowObstacleRects, excludedCardIdsForRef]);
+    });
+  }, [arrows, arrowAttachments, arrowObstacleRects, excludedCardIdsForRef, drag, resize, multiResize]);
 
   // Group outlines + name labels, memoized: the body does O(members) bbox
   // work per group (plus per-member SVG rects in hug mode) and used to
@@ -7753,6 +7824,14 @@ export function CanvasSurface({
             for (const [, lv] of multiResize.live) liveItems.push(lv);
             const b = boundsOfCards(liveItems);
             if (b) bounds = b;
+          } else if (drag?.ids?.length && (drag.dx || drag.dy)) {
+            // Dragging the whole selection: shift the frame with the cards so
+            // it doesn't stay behind as a ghost at the old spot. Only offset
+            // when the drag actually covers every selected card (a plain flat
+            // offset is exact because a multi-select drag moves them together).
+            let coversAll = true;
+            for (const id of effectiveSelectedIds) { if (!drag.ids.includes(id)) { coversAll = false; break; } }
+            if (coversAll) bounds = { ...bounds, x: bounds.x + drag.dx, y: bounds.y + drag.dy };
           }
           const items = (cards || []).filter(c => effectiveSelectedIds.has(c.id));
           const startBounds = multiResize?.startBounds || multiSelectionBounds;
