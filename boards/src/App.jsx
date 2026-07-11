@@ -106,7 +106,7 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { hasLabelTag } from './lib/gridSequence.js';
 import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio, uploadFile, readVideoMeta } from './lib/uploads.js';
 import { arrangeInFreeSpace } from './lib/canvasGeom.js';
-import { classifyDropFile, fitImageDims } from './lib/fileIngest.js';
+import { classifyDropFile, fitImageDims, sizeBucket } from './lib/fileIngest.js';
 import { makeLimiter } from './lib/asyncPool.js';
 import { TrashModal } from './components/TrashModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
@@ -799,12 +799,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // change survives reloads AND propagates to anywhere this board appears
   // as a card on a parent canvas (where we render list-mode boards as an
   // inline clickable item list instead of a thumbnail).
-  const setView = (v) => {
+  const setView = (v, via = 'topbar') => {
     setViewOverride(o => ({ ...o, [currentId]: v }));
     // Guided tour: the final step completes on a real switch to List view
     // (null ref no-ops for everyone else; 'canvas' switches are ignored by
     // the engine).
     tourFireRef.current?.({ type: 'view_switched', view: v, boardId: currentId });
+    logEvent(EV.VIEW_MODE_SWITCH, { view: v, board_id: currentId, via });
     updateBoardMeta(currentId, { view: v })
       .then(() => refreshBoards())
       .catch((e) => console.warn('persist board view failed', e));
@@ -1611,6 +1612,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       if (blocked.length) {
         setUpgradeReason('storage');
+        const biggest = blocked.reduce((m, f) => Math.max(m, f?.size || 0), 0);
+        logEvent(EV.UPLOAD_BLOCKED, {
+          reason: 'owner_not_paid', surface: 'list', n: blocked.length,
+          ext: (blocked[0]?.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
+          size_bucket: sizeBucket(biggest),
+        });
         feedback.toast({
           type: 'warning',
           message: `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`,
@@ -1681,7 +1688,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       feedback.toast({
         type: 'success',
         message: `Added ${addedIds.length} ${addedIds.length === 1 ? 'file' : 'files'} — arranged on canvas.`,
-        action: { label: 'View on canvas', onClick: () => setView('canvas') },
+        action: { label: 'View on canvas', onClick: () => setView('canvas', 'toast') },
       });
 
       // 6) Background uploads (bounded concurrency). Patch via updateCardSilent
@@ -1708,7 +1715,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           }
         } catch (err) {
           console.error('list drop upload failed', err);
-          if (err?.code === 402 || err?.code === 403) setUpgradeReason('storage');
+          if (err?.code === 402 || err?.code === 403) {
+            setUpgradeReason('storage');
+            logEvent(EV.UPLOAD_BLOCKED, {
+              reason: err.code === 402 ? 'server_quota' : 'server_403', surface: 'list', n: 1,
+              ext: (it.file?.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
+              size_bucket: sizeBucket(it.file?.size),
+            });
+          }
           else if (String(err?.message) !== 'aborted') feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
           deleteCard(id);
         }
@@ -4523,7 +4537,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      selfId={user.id}
                      gridTemplates={gridTemplates}
                      getGridModel={(card) => readGridModel(card, yd, gridTemplates)}
-                     onRevealOnCanvas={(ids) => { setView('canvas'); setFocusRequest({ boardId: board.id, ids, token: Date.now() }); }}
+                     onRevealOnCanvas={(ids) => { setView('canvas', 'reveal'); setFocusRequest({ boardId: board.id, ids, token: Date.now() }); }}
                      mutators={muts} />
       );
       return (

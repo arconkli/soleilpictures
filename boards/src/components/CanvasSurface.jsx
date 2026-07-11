@@ -97,7 +97,7 @@ import {
   computeSnap as computeSnapPure, computeResizeSnap as computeResizeSnapPure,
 } from '../lib/snapGuides.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
-import { classifyDropFile } from '../lib/fileIngest.js';
+import { classifyDropFile, sizeBucket } from '../lib/fileIngest.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
@@ -2139,6 +2139,14 @@ export function CanvasSurface({
   const handleUploadReject = useCallback((err, id, dropBoardId) => {
     if (boardIdRef.current === dropBoardId) mutators.deleteCard?.(id);
     const upsell = onRequestStorageUpgrade || onRequestUpgrade;
+    if (err?.code === 402 || err?.code === 403) {
+      try {
+        logEvent(EV.UPLOAD_BLOCKED, {
+          reason: err.code === 402 ? 'server_quota' : 'server_403',
+          surface: 'canvas', n: 1, ext: null, size_bucket: null,
+        });
+      } catch (_) {}
+    }
     if (err?.code === 402) {
       upsell?.();
       feedback.toast({ type: 'warning', message: "You're out of storage. Upgrade for more space." });
@@ -2319,6 +2327,14 @@ export function CanvasSurface({
     }
     if (blockedForUpgrade.length) {
       (onRequestStorageUpgrade || onRequestUpgrade)?.();
+      try {
+        const biggest = blockedForUpgrade.reduce((m, f) => Math.max(m, f?.size || 0), 0);
+        logEvent(EV.UPLOAD_BLOCKED, {
+          reason: 'owner_not_paid', surface: 'canvas', n: blockedForUpgrade.length,
+          ext: (blockedForUpgrade[0]?.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
+          size_bucket: sizeBucket(biggest),
+        });
+      } catch (_) {}
       feedback.toast({
         type: 'warning',
         message: `Uploading ${blockedForUpgrade.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`,
