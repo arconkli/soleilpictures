@@ -2,10 +2,11 @@
 // can be unit-tested directly and reasoned about in isolation).
 //
 // The tour walks a fresh arm-B signup through the core mental model:
-//   make a cluster -> name it -> open it -> learn the nav -> add an image
+//   make a cluster -> name it -> open it -> learn the nav -> add anything
+//   -> flip it to List view (the "every cluster is also a drive" reveal)
 // Creating the cluster already stamps activation (first_card_at), so step 1 is
 // the activation moment; the rest teaches nesting + navigation and pushes
-// toward a populated board.
+// toward a populated board, ending on the file-storage pitch.
 //
 // Each step declares an `anchor` (a data-tour attribute on a real control), the
 // coachmark `copy`, a `placement` hint for the pill, and an `accepts(event,ctx)`
@@ -14,7 +15,7 @@
 // user who races ahead (e.g. opens the cluster before naming it) skips the
 // steps they've already completed instead of getting stuck.
 
-export const TOUR_VERSION = 1;
+export const TOUR_VERSION = 2;
 
 export const TOUR_STEPS = [
   {
@@ -70,9 +71,9 @@ export const TOUR_STEPS = [
     accepts: (e) => e?.type === 'nav_ack' || e?.type === 'nav_back',
   },
   {
-    // Final step opens up the whole rail (anchoring to the rail container makes
-    // the lock's `.tour-target *` rule re-enable every add tool) so the user can
-    // add ANYTHING. Accepts any content card — the lock guarantees no content can
+    // Opens up the whole rail (anchoring to the rail container makes the lock's
+    // `.tour-target *` rule re-enable every add tool) so the user can add
+    // ANYTHING. Accepts any content card — the lock guarantees no content can
     // be added before this step, so there's no premature-completion risk and no
     // brittle board-id match (which was failing to complete on live).
     id: 'content',
@@ -88,6 +89,24 @@ export const TOUR_STEPS = [
       touch: 'Add anything — image, note, doc or file. This is your canvas.',
     },
     accepts: (e) => e?.type === 'content_added',
+  },
+  {
+    // Final step: flip the cluster into List view — the "every cluster is also
+    // a drive" reveal (browse/upload any file, storage pitch). Completes on the
+    // real switch; `list_ack` is the Got-it fallback when the toggle isn't on
+    // screen (ctaWhenUnanchored — see OnboardingTour), so nobody can strand.
+    id: 'list',
+    anchor: 'view-toggle',
+    placement: 'bottom',
+    cta: 'Got it',
+    ctaWhenUnanchored: true,
+    ackEvent: { type: 'list_ack' },
+    copy: {
+      title: 'Every cluster is also a drive',
+      body: 'Flip to List to browse this cluster like a drive — every file you add lives here too. Free covers images and small media; Creator stores any file, any size.',
+      touch: 'Tap List to browse this cluster like a drive — every file you add lives here too. Free covers images and small media; Creator stores any file, any size.',
+    },
+    accepts: (e) => (e?.type === 'view_switched' && e.view === 'list') || e?.type === 'list_ack',
   },
 ];
 

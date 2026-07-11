@@ -66,7 +66,7 @@ import { CommandPalette } from './components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -801,6 +801,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // inline clickable item list instead of a thumbnail).
   const setView = (v) => {
     setViewOverride(o => ({ ...o, [currentId]: v }));
+    // Guided tour: the final step completes on a real switch to List view
+    // (null ref no-ops for everyone else; 'canvas' switches are ignored by
+    // the engine).
+    tourFireRef.current?.({ type: 'view_switched', view: v, boardId: currentId });
     updateBoardMeta(currentId, { view: v })
       .then(() => refreshBoards())
       .catch((e) => console.warn('persist board view failed', e));
@@ -3062,8 +3066,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       .then(() => myTierRef.current?.refetch?.())
       .catch((e) => { try { logEvent(EV.ONBOARDING_SETTINGS_PERSIST_FAILED, { op: 'tour', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {} });
   }, []);
+  // Distinguishes a genuine terminal advance from Skip (both set state.done)
+  // for the completion toast below.
+  const tourCompletedRef = useRef(false);
   const emitTourStep = useCallback((e) => {
-    try { logEvent(EV.ONBOARDING_STEP, { step: e.step, action: e.action, via: e.via || null }); } catch (_) {}
+    if (e.action === 'advance' && e.done) tourCompletedRef.current = true;
+    try { logEvent(EV.ONBOARDING_STEP, { step: e.step, action: e.action, via: e.via || null, done: !!e.done }); } catch (_) {}
   }, []);
   const tourActive = onboardingArmB && onboardingUiActive;
   const tour = useOnboardingTour({
@@ -3076,8 +3084,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // non-arm-B (or finished) user's card/nav actions would advance + persist +
   // emit tour state into their profile. Null ref → the mutators' `?.()` no-op.
   tourFireRef.current = tourActive ? tour.fire : null;
-  // Finishing the last step (or Skip) closes the onboarding UI.
-  useEffect(() => { if (tour.state.done) setOnboardingUiActive(false); }, [tour.state.done]);
+  // Finishing the last step (or Skip) closes the onboarding UI. A genuine
+  // completion (not Skip — Skip leaves `step` on the step it bailed from with
+  // no terminal advance emitted; we key off the ref set by the emit below)
+  // gets a one-time closing beat. Non-selling on purpose — the first-value
+  // banner follows ~15s later as the upsell moment.
+  const tourFinishedToastRef = useRef(false);
+  useEffect(() => {
+    if (!tour.state.done) return;
+    setOnboardingUiActive(false);
+    if (tourCompletedRef.current && !tourFinishedToastRef.current) {
+      tourFinishedToastRef.current = true;
+      try { feedback.toast({ type: 'success', message: 'That’s the tour — tip: List view works like a drive for any cluster.', ttl: 5000 }); } catch (_) {}
+    }
+  }, [tour.state.done]);
 
   // Returning first-run user (seeded a prior session but never finished) →
   // re-show the coachmark. Brand-new users get it switched on by the seed effect.
@@ -4873,8 +4893,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
           <div className="tb-center">
             <div className="view-pill">
-              <button className={`view-pill-btn ${view !== 'list' ? 'on' : ''}`} onClick={() => setView('canvas')}>Canvas</button>
-              <button className={`view-pill-btn ${view === 'list' ? 'on' : ''}`} onClick={() => setView('list')}>List</button>
+              <button className={`view-pill-btn ${view !== 'list' ? 'on' : ''}`} onClick={() => setView('canvas')} title="Canvas view">
+                <span className="vp-ico" aria-hidden="true"><Icon as={LayoutGrid} size={14} /></span><span className="vp-lbl">Canvas</span>
+              </button>
+              <button className={`view-pill-btn ${view === 'list' ? 'on' : ''}`} onClick={() => setView('list')} title="List view" data-tour="view-toggle">
+                <span className="vp-ico" aria-hidden="true"><Icon as={ListIcon} size={14} /></span><span className="vp-lbl">List</span>
+              </button>
             </div>
             {/* Read-only notice for demo-tier viewers — self-gates on
                 source==='tier-demoted'. Anchored under the view toggle so it

@@ -5,7 +5,7 @@ import { CommandPalette } from '../components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote } from '../lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote } from '../lib/icons.js';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from '../lib/gridLayout.js';
@@ -879,6 +879,9 @@ export function LocalBoardsApp({ user, signOut }) {
 
   const setView = (viewName) => {
     setViewOverride(prev => ({ ...prev, [currentId]: viewName }));
+    // Guided-tour preview parity (?tour=1): the final step completes on a
+    // real switch to List view, same as App.jsx.
+    tourFireRef.current?.({ type: 'view_switched', view: viewName, boardId: currentId });
     // Persist on the board itself so embedded board cards on a parent
     // canvas pick up list-mode rendering when their target is a list.
     setLocalState(prev => prev.boards[currentId]
@@ -1080,8 +1083,12 @@ export function LocalBoardsApp({ user, signOut }) {
 
           <div className="tb-center">
             <div className="view-pill">
-              <button className={`view-pill-btn ${view !== 'list' ? 'on' : ''}`} onClick={() => setView('canvas')}>Canvas</button>
-              <button className={`view-pill-btn ${view === 'list' ? 'on' : ''}`} onClick={() => setView('list')}>List</button>
+              <button className={`view-pill-btn ${view !== 'list' ? 'on' : ''}`} onClick={() => setView('canvas')} title="Canvas view">
+                <span className="vp-ico" aria-hidden="true"><Icon as={LayoutGrid} size={14} /></span><span className="vp-lbl">Canvas</span>
+              </button>
+              <button className={`view-pill-btn ${view === 'list' ? 'on' : ''}`} onClick={() => setView('list')} title="List view" data-tour="view-toggle">
+                <span className="vp-ico" aria-hidden="true"><Icon as={ListIcon} size={14} /></span><span className="vp-lbl">List</span>
+              </button>
             </div>
           </div>
 

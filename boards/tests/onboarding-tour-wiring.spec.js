@@ -22,9 +22,13 @@ test.describe('guided tour wiring', () => {
 
   test('App fires every tour advance trigger', () => {
     const s = app();
-    for (const ev of ['cluster_created', 'cluster_renamed', 'cluster_opened', 'nav_back', 'content_added']) {
+    for (const ev of ['cluster_created', 'cluster_renamed', 'cluster_opened', 'nav_back', 'content_added', 'view_switched']) {
       expect(s).toContain(`type: '${ev}'`);
     }
+  });
+
+  test('App tags the List toggle as the list-step anchor', () => {
+    expect(app()).toContain('data-tour="view-toggle"');
   });
 
   test('first-card dismiss + first-value nudge never fire mid-tour', () => {
