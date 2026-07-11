@@ -74,6 +74,13 @@
   word-break: break-word;
 }
 .gridc-cell .gc-text :where(p, h1, h2, h3, ul, ol) { margin: 0 0 4px; }
+/* Restore the list indent the global reset strips — outside-position markers
+   would otherwise paint into the clipped left gutter and vanish (same fix as
+   .note-body lists; checklists keep their own no-marker layout). */
+.gridc-cell .gc-text ul:not(.note-checklist),
+.gridc-cell .gc-text ol,
+.gridc-cell .gc-text-edit ul:not(.note-checklist),
+.gridc-cell .gc-text-edit ol { padding-left: 24px; }
 .gridc-cell .gc-text-edit { width: 100%; height: 100%; overflow: auto; }
 
 .gridc-cell .gc-video { width: 100%; height: 100%; object-fit: cover; background: #000; display: block; }

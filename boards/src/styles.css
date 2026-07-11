@@ -4734,6 +4734,17 @@ body {
   word-break: break-word;
 }
 
+/* Bullet/numbered lists inside a note (toolbar-made). The global reset
+   zeroes ul/ol padding and .note/.note-body clip overflow, so the
+   outside-position markers were painted into a clipped gutter — i.e.
+   invisible bullets. Restore the indent (mirrors .tt-editor in Docs).
+   ul.note-checklist keeps its own list-style:none + zero padding. */
+.note-body ul:not(.note-checklist),
+.note-body ol { padding-left: 24px; margin: 6px 0; list-style-position: outside; }
+.note-body ul:not(.note-checklist) > li,
+.note-body ol > li { margin: 2px 0; }
+.note-body li::marker { color: currentColor; }
+
 /* Checklist inside a note. Hairline checkbox; warm-gold check on toggle.
    Uses a click handler on .ck-box (RichNoteEditor.onBodyClick) to flip
    .is-checked + aria-checked, which then drives the visual state. */
