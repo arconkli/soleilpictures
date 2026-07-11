@@ -4,6 +4,8 @@ import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { wouldCreateCycle, collectDescendantIds } from '../lib/boardTree.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 import { toListItem, sortItems, filterItems, matchItems } from '../lib/listItem.js';
 import { searchEntities } from '../lib/entitySearch.js';
 import { getMeta, primeImageMetaForBoard } from '../lib/imageMeta.js';
@@ -57,6 +59,10 @@ export function ListSurface({
   getGridModel = null,
   // Reveal a card on the canvas (selects + frames it), used by the detail popout.
   onRevealOnCanvas = null,
+  // Quiet "Any file, any size — Creator" toolbar nudge for free workspace
+  // owners; opens the storage upgrade modal. Off in the ?local harness.
+  showStorageUpsell = false,
+  onStorageUpsell = null,
 }) {
   const feedback = useFeedback();
   const subBoards = childBoards || [];
@@ -80,6 +86,19 @@ export function ListSurface({
   // Prime image/media metadata once per cluster so thumbnails paint instantly
   // and media Size can resolve.
   useEffect(() => { if (board?.id) primeImageMetaForBoard(board.id); }, [board?.id]);
+
+  // List-mode adoption signal (once per board per session; the feature shipped
+  // dark — this is how we learn whether the browser correlates with retention).
+  useEffect(() => {
+    if (!board?.id) return;
+    try {
+      logEventOnce(`list_browser_view:${board.id}`, EV.LIST_BROWSER_VIEW, {
+        board_id: board.id, files: otherCards.length, subclusters: subBoards.length,
+      });
+    } catch (_) {}
+    // Counts are a snapshot at first render of this board's list — good enough.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board?.id]);
 
   // Normalize the non-folder cards into uniform ListItems. Depends on the raw
   // card fields + primed meta (getMeta is a stable module accessor).
@@ -341,6 +360,7 @@ export function ListSurface({
     // tidy grid in free canvas space (see App.ingestFilesArranged); switching to
     // canvas shows them laid out. No longer refused.
     if (e.dataTransfer.files && e.dataTransfer.files.length) {
+      try { logEvent(EV.LIST_ADD_FILES, { board_id: board.id, n: e.dataTransfer.files.length, via: 'drop' }); } catch (_) {}
       onDropFilesToCluster?.(e.dataTransfer.files, { boardId: board.id });
       return;
     }
@@ -469,6 +489,11 @@ export function ListSurface({
               onToggleFilter={onToggleFilter} onClearFilters={onClearFilters}
               viewMode={viewMode} onViewMode={onViewMode}
               onAddFiles={openAddPicker} canEdit={canEdit}
+              showUpsell={showStorageUpsell && !!onStorageUpsell}
+              onUpsell={() => {
+                try { logEventNow(EV.LIST_UPSELL_CTA, { board_id: board.id }); } catch (_) {}
+                onStorageUpsell?.();
+              }}
               facePeers={facePeers}
             />
             <div className={`cb-split ${detailTarget ? 'has-detail' : ''}`}>
@@ -520,7 +545,10 @@ export function ListSurface({
         {/* Hidden picker for the toolbar "Add files" button (touch-friendly). */}
         <input ref={addInputRef} type="file" multiple style={{ display: 'none' }}
                onChange={(e) => {
-                 if (e.target.files && e.target.files.length) onDropFilesToCluster?.(e.target.files, { boardId: board.id });
+                 if (e.target.files && e.target.files.length) {
+                   try { logEvent(EV.LIST_ADD_FILES, { board_id: board.id, n: e.target.files.length, via: 'toolbar' }); } catch (_) {}
+                   onDropFilesToCluster?.(e.target.files, { boardId: board.id });
+                 }
                  e.target.value = '';
                }} />
       </div>

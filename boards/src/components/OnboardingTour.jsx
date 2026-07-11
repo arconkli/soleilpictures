@@ -171,7 +171,10 @@ export function OnboardingTour({ step, onEvent, onSkip, onView }) {
         <div className="onboarding-coachmark-body">{body}</div>
       </div>
       <div className="onboarding-tour-actions">
-        {step.cta && (
+        {/* ctaWhenUnanchored steps (the List step) only surface their Got-it
+            fallback when the real control isn't on screen — anchored users
+            complete by clicking the ringed control itself. */}
+        {step.cta && (!step.ctaWhenUnanchored || (pos && !pos.anchored)) && (
           <button
             type="button"
             className="onboarding-coachmark-dismiss"

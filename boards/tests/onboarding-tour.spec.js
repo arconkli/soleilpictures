@@ -70,7 +70,7 @@ test.describe('onboarding tour overlay', () => {
     await expect(pill).toHaveAttribute('data-tour-anchor', 'rail');
   });
 
-  test('finishing the last step hides the tour', async ({ page }) => {
+  test('the content step hands off to the list step, anchored to the view toggle', async ({ page }) => {
     await page.evaluate(() => {
       const T = window.__soleilTourTest;
       for (const e of [
@@ -81,6 +81,47 @@ test.describe('onboarding tour overlay', () => {
         { type: 'content_added', boardId: 'b1', kind: 'image' },
       ]) T.fire(e);
     });
+    const pill = page.locator('.onboarding-tour');
+    await expect(pill).toContainText('Every cluster is also a drive');
+    await expect(pill).toHaveAttribute('data-tour-anchor', 'view-toggle');
+    await expect(page.locator('[data-tour="view-toggle"]')).toHaveClass(/tour-target/);
+    // Anchored → the real List button is the action; no Got-it fallback shown.
+    await expect(pill.getByRole('button', { name: /got it/i })).toHaveCount(0);
+  });
+
+  test('clicking the real List toggle finishes the tour', async ({ page }) => {
+    await page.evaluate(() => {
+      const T = window.__soleilTourTest;
+      for (const e of [
+        { type: 'cluster_created', boardId: 'b1' },
+        { type: 'cluster_renamed', boardId: 'b1' },
+        { type: 'cluster_opened', boardId: 'b1' },
+        { type: 'nav_ack' },
+        { type: 'content_added', boardId: 'b1', kind: 'image' },
+      ]) T.fire(e);
+    });
+    await page.locator('[data-tour="view-toggle"]').click();
+    await expect(page.locator('.onboarding-tour')).toHaveCount(0);
+    expect(await page.evaluate(() => window.__soleilTourTest.getState().done)).toBe(true);
+  });
+
+  test('the list step falls back to a centered Got-it when the toggle is hidden', async ({ page }) => {
+    await page.evaluate(() => {
+      const T = window.__soleilTourTest;
+      for (const e of [
+        { type: 'cluster_created', boardId: 'b1' },
+        { type: 'cluster_renamed', boardId: 'b1' },
+        { type: 'cluster_opened', boardId: 'b1' },
+        { type: 'nav_ack' },
+        { type: 'content_added', boardId: 'b1', kind: 'image' },
+      ]) T.fire(e);
+      T.setViewToggleVisible(false);
+    });
+    const pill = page.locator('.onboarding-tour');
+    await expect(pill).toContainText('Every cluster is also a drive');
+    // Unanchored → centered pill with the acknowledge CTA.
+    await expect(pill).toHaveClass(/tour-centered/);
+    await pill.getByRole('button', { name: /got it/i }).click();
     await expect(page.locator('.onboarding-tour')).toHaveCount(0);
     expect(await page.evaluate(() => window.__soleilTourTest.getState().done)).toBe(true);
   });
@@ -95,6 +136,7 @@ test.describe('onboarding tour overlay', () => {
         { type: 'cluster_opened', boardId: 'b1' },
         { type: 'nav_ack' },
         { type: 'content_added', boardId: 'b1', kind: 'image' },
+        { type: 'view_switched', view: 'list', boardId: 'b1' },
       ]) T.fire(e);
     });
     await expect(page.locator('.onboarding-tour')).toHaveCount(0);

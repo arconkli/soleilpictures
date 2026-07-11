@@ -464,7 +464,11 @@ function segmentIntersectsAny(a, b, rects) {
 function resolveShape(ref, ctx) {
   if (ref == null) return null;
   if (typeof ref === 'string') {
-    const c = ctx.cardById?.[ref];
+    // Prefer a live rect (card mid-drag / mid-resize) so arrows track the
+    // moving edge; fall back to the committed position. `liveRect` is absent
+    // in non-gesture paths and the ?arrowqa test ctx, so behavior is identical
+    // there.
+    const c = ctx.liveRect?.(ref) || ctx.cardById?.[ref];
     if (c) return { kind: 'shape', shape: { x: c.x, y: c.y, w: c.w, h: c.h }, id: ref, type: 'card' };
     // Legacy strings could theoretically be a group id too — try.
     const g = ctx.resolveGroupBBox?.(ref);
@@ -473,7 +477,7 @@ function resolveShape(ref, ctx) {
   }
   if (typeof ref !== 'object') return null;
   if (ref.type === 'card' && ref.id) {
-    const c = ctx.cardById?.[ref.id];
+    const c = ctx.liveRect?.(ref.id) || ctx.cardById?.[ref.id];
     if (!c) return null;
     return { kind: 'shape', shape: { x: c.x, y: c.y, w: c.w, h: c.h }, id: ref.id, type: 'card' };
   }

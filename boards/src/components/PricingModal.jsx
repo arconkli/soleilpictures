@@ -26,15 +26,16 @@ import { trackViewContent } from '../lib/metaPixel.js';
 export function PricingModal({ onClose, header = null, surface = 'modal' }) {
   const { user } = useAuth();
   const { tier } = useMyTier({ userId: user?.id });
-  const [plan, setPlan]   = useState('annual');
+  const [plan, setPlan]   = useState('monthly'); // monthly-first: annual-default drove pricing abandons (24/28 in 30d)
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
   const redirectingRef = useRef(false);   // suppress abandon while a checkout redirect is in flight
 
   useEffect(() => {
     logEventOnce(`pricing_view:modal:${header || 'generic'}`, 'pricing_view', { surface: 'modal', header });
-    // Meta ViewContent — mid-funnel ad-optimization signal. Defaults to annual.
-    trackViewContent({ content_name: 'Creator', value: PRICING.annual.billed, currency: 'USD' });
+    // Meta ViewContent — mid-funnel ad-optimization signal. Matches the
+    // monthly-first default plan.
+    trackViewContent({ content_name: 'Creator', value: PRICING.monthly.billed, currency: 'USD' });
   }, [header]);
   useDwellTime(EV.PRICING_DWELL, () => ({ surface: 'modal', header }));
 
@@ -108,7 +109,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal' }) {
             <>
               <div className="upgrade-eyebrow t-eyebrow">GO CREATOR</div>
               <h2 className="upgrade-title">Unlock everything.</h2>
-              <p className="upgrade-sub t-body">Unlimited cards, clusters, any file type with 100GB storage, and full edit access.</p>
+              <p className="upgrade-sub t-body">Store any file, any size (100GB) — plus unlimited cards, clusters, and full edit access.</p>
             </>
           )}
         </div>

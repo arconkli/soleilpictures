@@ -22,9 +22,21 @@ test.describe('guided tour wiring', () => {
 
   test('App fires every tour advance trigger', () => {
     const s = app();
-    for (const ev of ['cluster_created', 'cluster_renamed', 'cluster_opened', 'nav_back', 'content_added']) {
+    for (const ev of ['cluster_created', 'cluster_renamed', 'cluster_opened', 'nav_back', 'content_added', 'view_switched']) {
       expect(s).toContain(`type: '${ev}'`);
     }
+  });
+
+  test('App tags the List toggle as the list-step anchor', () => {
+    expect(app()).toContain('data-tour="view-toggle"');
+  });
+
+  test('first-card dismiss + first-value nudge never fire mid-tour', () => {
+    const s = app();
+    // The step-1 cluster is a genuine card: dismissing on it killed the whole
+    // tour in prod (0 users ever advanced past step 1). Keep both gates.
+    expect(s).toContain("if (onboardingUiActive && !tourActive) dismissOnboarding('placed')");
+    expect(s).toMatch(/tier === 'demo' && !tourActive/);
   });
 
   test('CanvasSurface exposes the cluster + image data-tour anchors', () => {

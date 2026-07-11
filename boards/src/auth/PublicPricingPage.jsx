@@ -26,7 +26,7 @@ import { trackViewContent } from '../lib/metaPixel.js';
 const SURFACE = 'public_page';
 
 export function PublicPricingPage() {
-  const [plan, setPlan] = useState('annual');   // annual is the better deal
+  const [plan, setPlan] = useState('monthly'); // monthly-first: annual-default drove pricing abandons
 
   useEffect(() => {
     const prev = document.title;

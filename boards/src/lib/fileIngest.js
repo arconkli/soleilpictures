@@ -60,6 +60,17 @@ export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
   return { route: 'file', kind: 'file', ...FALLBACK_DIMS.file };
 }
 
+// Coarse size bucket for upload analytics (EV.UPLOAD_BLOCKED etc.) — buckets,
+// never raw bytes, so events stay low-cardinality and non-identifying.
+export function sizeBucket(bytes) {
+  const MB = 1024 * 1024;
+  if (!bytes || bytes < 10 * MB) return 'lt_10mb';
+  if (bytes < 50 * MB) return '10_50mb';
+  if (bytes < 200 * MB) return '50_200mb';
+  if (bytes < 1024 * MB) return '200mb_1gb';
+  return 'gt_1gb';
+}
+
 // Clamp real image dimensions into the canvas' paste-size window, preserving
 // aspect. Same rule as dropImageBlob / optimisticDropImage (scale DOWN above
 // MAX, scale UP below MIN, never distort). Shared so list + canvas agree.

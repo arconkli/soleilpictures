@@ -16,12 +16,17 @@ export function useOnboardingTour({ onboarding, persist, emit, enabled = true } 
 
   // Resume-on-reload: onboarding settings load async (after first render), so
   // adopt the persisted progress once it first arrives — but only once, so we
-  // never clobber in-session advances with a stale refetch.
+  // never clobber in-session advances with a stale refetch. `touchedRef` covers
+  // the other side of that race: if the user advances (or skips) BEFORE the
+  // first persisted snapshot arrives, a stale `{seeded:true}` (no tour yet)
+  // refetch must not reset the session back to step 1 and lose clusterId.
   const hydratedRef = useRef(false);
+  const touchedRef = useRef(false);
   useEffect(() => {
     if (hydratedRef.current) return;
     if (onboarding && (onboarding.tour || onboarding.seeded === true || onboarding.done === true)) {
       hydratedRef.current = true;
+      if (touchedRef.current) return; // in-session progress wins over the snapshot
       const synced = readTourState(onboarding);
       stateRef.current = synced;
       setState(synced);
@@ -32,6 +37,7 @@ export function useOnboardingTour({ onboarding, persist, emit, enabled = true } 
     const prev = stateRef.current;
     const next = advanceTour(prev, event);
     if (next === prev) return;
+    touchedRef.current = true;
     stateRef.current = next;
     setState(next);
     persist?.(next);
@@ -41,6 +47,7 @@ export function useOnboardingTour({ onboarding, persist, emit, enabled = true } 
   const skip = useCallback(() => {
     const prev = stateRef.current;
     if (prev.done) return;
+    touchedRef.current = true;
     const next = { ...prev, done: true };
     stateRef.current = next;
     setState(next);

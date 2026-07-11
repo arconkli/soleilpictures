@@ -3195,6 +3195,9 @@ body {
   gap: 0;
 }
 .view-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: transparent;
   border: 0;
   color: var(--ink-2);
@@ -3206,6 +3209,9 @@ body {
 }
 .view-pill-btn.on { background: var(--bg-4); color: var(--ink-0); }
 .view-pill-btn:not(.on):hover { color: var(--ink-1); }
+/* Desktop keeps the text-only pill; the icons exist for the phone-width
+   compact variant (see the mobile topbar block). */
+.view-pill-btn .vp-ico { display: none; }
 
 /* Topbar add menu — popover anchored to the + button */
 .topbar-add {
@@ -9157,6 +9163,15 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .cbt-btn.is-open, .cbt-btn.has-active { border-color: var(--soleil); color: var(--ink-0); }
 .cbt-add { background: var(--soleil-soft); border-color: transparent; color: var(--soleil); }
 .cbt-add:hover { color: var(--soleil); filter: brightness(1.12); }
+/* Quiet storage upsell next to Add files (free workspace owners only) —
+   muted ink, not gold: gold stays reserved for active/selection. */
+.cbt-upsell {
+  background: none; border: none; cursor: pointer; white-space: nowrap;
+  color: var(--ink-3); font-size: 12px; font-weight: 500;
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-2);
+  padding: 5px 4px;
+}
+.cbt-upsell:hover { color: var(--ink-1); text-decoration-color: var(--ink-3); }
 .cbt-viewtoggle .view-pill-btn { display: grid; place-items: center; padding: 4px 11px; }
 .cbt-menu {
   position: absolute; top: calc(100% + 6px); right: 0; min-width: 190px; z-index: 60;
@@ -18839,13 +18854,13 @@ button, [role="button"], a {
   /* ── Topbar slim ──────────────────────────────────────────────────
      The full desktop topbar (~14 elements) won't fit a phone, so hide
      non-essential controls. What remains: hamburger, brand icon,
-     breadcrumbs (truncated), undo, redo, feedback icon, presence
-     stack, share icon. The hidden controls all live elsewhere — view
-     pill is redundant with the bottom nav, theme + split + trash +
+     breadcrumbs (truncated), the view pill (icon-only compact — it is
+     the ONLY route to List view on a phone; the bottom nav has no list
+     tab), undo, redo, feedback icon, presence stack, share icon. The
+     other hidden controls all live elsewhere — theme + split + trash +
      link/backlinks live in settings/secondary surfaces. The
      identifier classes (tb-icon-trash etc.) are set in App.jsx so
      we can hide just these icons without nuking every .tb-icon. */
-  .topbar .view-pill,
   .topbar .tb-brand-text,
   .topbar .tb-btn-label,
   .topbar .tb-brand-sep,
@@ -18856,6 +18871,11 @@ button, [role="button"], a {
   .topbar .tb-divider {
     display: none;
   }
+  /* Icon-only compact view pill on phone: swap the text labels for the
+     canvas/list glyphs (base rule hides .vp-ico / shows .vp-lbl). */
+  .topbar .view-pill-btn { padding: 6px 10px; }
+  .topbar .view-pill-btn .vp-lbl { display: none; }
+  .topbar .view-pill-btn .vp-ico { display: inline-flex; }
   .topbar .tb-left,
   .topbar .tb-right { gap: 4px; }
   /* On phone the UpgradeChip is repositioned below the topbar, so the desktop

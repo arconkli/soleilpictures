@@ -66,7 +66,7 @@ import { CommandPalette } from './components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -106,7 +106,7 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { hasLabelTag } from './lib/gridSequence.js';
 import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio, uploadFile, readVideoMeta } from './lib/uploads.js';
 import { arrangeInFreeSpace } from './lib/canvasGeom.js';
-import { classifyDropFile, fitImageDims } from './lib/fileIngest.js';
+import { classifyDropFile, fitImageDims, sizeBucket } from './lib/fileIngest.js';
 import { makeLimiter } from './lib/asyncPool.js';
 import { TrashModal } from './components/TrashModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
@@ -799,8 +799,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // change survives reloads AND propagates to anywhere this board appears
   // as a card on a parent canvas (where we render list-mode boards as an
   // inline clickable item list instead of a thumbnail).
-  const setView = (v) => {
+  const setView = (v, via = 'topbar') => {
     setViewOverride(o => ({ ...o, [currentId]: v }));
+    // Guided tour: the final step completes on a real switch to List view
+    // (null ref no-ops for everyone else; 'canvas' switches are ignored by
+    // the engine).
+    tourFireRef.current?.({ type: 'view_switched', view: v, boardId: currentId });
+    logEvent(EV.VIEW_MODE_SWITCH, { view: v, board_id: currentId, via });
     updateBoardMeta(currentId, { view: v })
       .then(() => refreshBoards())
       .catch((e) => console.warn('persist board view failed', e));
@@ -1590,6 +1595,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       if (blocked.length) {
         setUpgradeReason('storage');
+        const biggest = blocked.reduce((m, f) => Math.max(m, f?.size || 0), 0);
+        logEvent(EV.UPLOAD_BLOCKED, {
+          reason: 'owner_not_paid', surface: 'list', n: blocked.length,
+          ext: (blocked[0]?.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
+          size_bucket: sizeBucket(biggest),
+        });
         feedback.toast({
           type: 'warning',
           message: `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`,
@@ -1660,7 +1671,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       feedback.toast({
         type: 'success',
         message: `Added ${addedIds.length} ${addedIds.length === 1 ? 'file' : 'files'} — arranged on canvas.`,
-        action: { label: 'View on canvas', onClick: () => setView('canvas') },
+        action: { label: 'View on canvas', onClick: () => setView('canvas', 'toast') },
       });
 
       // 6) Background uploads (bounded concurrency). Patch via updateCardSilent
@@ -1687,7 +1698,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           }
         } catch (err) {
           console.error('list drop upload failed', err);
-          if (err?.code === 402 || err?.code === 403) setUpgradeReason('storage');
+          if (err?.code === 402 || err?.code === 403) {
+            setUpgradeReason('storage');
+            logEvent(EV.UPLOAD_BLOCKED, {
+              reason: err.code === 402 ? 'server_quota' : 'server_403', surface: 'list', n: 1,
+              ext: (it.file?.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
+              size_bucket: sizeBucket(it.file?.size),
+            });
+          }
           else if (String(err?.message) !== 'aborted') feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
           deleteCard(id);
         }
@@ -3031,16 +3049,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     updateOwnSettings({
       onboarding: {
         ...mergeTourIntoOnboarding(myTierRef.current?.onboarding || {}, tourState),
+        // merge_profile_settings replaces the whole `onboarding` key, and this
+        // can run before the seed effect's refetch lands (onboarding still
+        // undefined in the ref) — always re-assert seeded so a fast first
+        // advance can't wipe it and break resume-on-reload. The tour only ever
+        // runs post-seed, so this is safe.
+        seeded: true,
         // Completing or skipping the tour also finishes onboarding so it never
         // re-shows for a returning user.
-        ...(tourState.done ? { seeded: true, done: true } : {}),
+        ...(tourState.done ? { done: true } : {}),
       },
     })
       .then(() => myTierRef.current?.refetch?.())
       .catch((e) => { try { logEvent(EV.ONBOARDING_SETTINGS_PERSIST_FAILED, { op: 'tour', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {} });
   }, []);
+  // Distinguishes a genuine terminal advance from Skip (both set state.done)
+  // for the completion toast below.
+  const tourCompletedRef = useRef(false);
   const emitTourStep = useCallback((e) => {
-    try { logEvent(EV.ONBOARDING_STEP, { step: e.step, action: e.action, via: e.via || null }); } catch (_) {}
+    if (e.action === 'advance' && e.done) tourCompletedRef.current = true;
+    try { logEvent(EV.ONBOARDING_STEP, { step: e.step, action: e.action, via: e.via || null, done: !!e.done }); } catch (_) {}
   }, []);
   const tourActive = onboardingArmB && onboardingUiActive;
   const tour = useOnboardingTour({
@@ -3053,8 +3081,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // non-arm-B (or finished) user's card/nav actions would advance + persist +
   // emit tour state into their profile. Null ref → the mutators' `?.()` no-op.
   tourFireRef.current = tourActive ? tour.fire : null;
-  // Finishing the last step (or Skip) closes the onboarding UI.
-  useEffect(() => { if (tour.state.done) setOnboardingUiActive(false); }, [tour.state.done]);
+  // Finishing the last step (or Skip) closes the onboarding UI. A genuine
+  // completion (not Skip — Skip leaves `step` on the step it bailed from with
+  // no terminal advance emitted; we key off the ref set by the emit below)
+  // gets a one-time closing beat. Non-selling on purpose — the first-value
+  // banner follows ~15s later as the upsell moment.
+  const tourFinishedToastRef = useRef(false);
+  useEffect(() => {
+    if (!tour.state.done) return;
+    setOnboardingUiActive(false);
+    if (tourCompletedRef.current && !tourFinishedToastRef.current) {
+      tourFinishedToastRef.current = true;
+      try { feedback.toast({ type: 'success', message: 'That’s the tour — tip: List view works like a drive for any cluster.', ttl: 5000 }); } catch (_) {}
+    }
+  }, [tour.state.done]);
 
   // Returning first-run user (seeded a prior session but never finished) →
   // re-show the coachmark. Brand-new users get it switched on by the seed effect.
@@ -3456,7 +3496,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // demo-gate + once-per-account guard + the soft banner; we just emit the window
     // event (works the same in the ?local=1 harness). The localStorage stamp avoids
     // re-arming across reloads; UpgradeChip de-dupes per account regardless.
-    if (!fvDone && myTier.tier === 'demo') {
+    // Not while the guided tour is running — the fv-banner would render dead under
+    // the tour's pointer-events lock; this effect re-runs when the tour closes
+    // (onboardingUiActive dep) and the nudge fires then, as the post-tour beat.
+    if (!fvDone && myTier.tier === 'demo' && !tourActive) {
       const dispatchFirstValue = () => {
         if (firstValueTimerRef.current) { clearTimeout(firstValueTimerRef.current); firstValueTimerRef.current = null; }
         try { localStorage.setItem(fvKey, '1'); } catch { /* ignore */ }
@@ -3478,10 +3521,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
 
     // Close the coachmark when a genuine card lands while it's showing (UI only;
-    // the analytics above no longer depends on it).
-    if (onboardingUiActive) dismissOnboarding('placed');
+    // the analytics above no longer depends on it). NOT while the arm-B guided
+    // tour is running: its step-1 cluster IS a genuine card, and dismissing here
+    // killed the whole tour before its cluster_created event could fire (the
+    // live funnel showed 0 users ever advancing past step 1). The tour owns its
+    // own completion via persistTour + the tour.state.done effect.
+    if (onboardingUiActive && !tourActive) dismissOnboarding('placed');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, yb.cards, currentId, onboardingUiActive]);
+  }, [user?.id, yb.cards, currentId, onboardingUiActive, tourActive]);
 
   // ── First-card friction signal ────────────────────────────────────────────
   // Detect when a brand-new user is STRUGGLING to place a first card and passively
@@ -3818,7 +3865,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           logEvent(EV.ONBOARDING_NEST, { board_id: targetBoardId, source_board_id: sourceBoardId, n: movedCards.length });
           try { setJourneyState({ phase: JOURNEY_PHASE.NEST }); } catch (_) {}
           feedback.toast({ type: 'success', message: 'Nice — that’s how you organize ✨' });
-          dismissOnboarding('nested'); // sets onboarding.done:true + logs ONBOARDING_DISMISS
+          // Never let a mid-tour nest kill the guided tour (arm B has no
+          // tutorialBoardId today, so this is insurance; the body flag is the
+          // live source of truth inside this long-lived listener closure).
+          if (document.body.dataset.tourActive !== '1') {
+            dismissOnboarding('nested'); // sets onboarding.done:true + logs ONBOARDING_DISMISS
+          }
         }
       } catch (_) { /* never block the move on the celebration */ }
       console.log('[xbm] start', { sourceBoardId, targetBoardId, movedCount: movedCards.length, movedIds: movedCards.map(c => c.id), movedKinds: movedCards.map(c => c.kind) });
@@ -4468,7 +4520,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      selfId={user.id}
                      gridTemplates={gridTemplates}
                      getGridModel={(card) => readGridModel(card, yd, gridTemplates)}
-                     onRevealOnCanvas={(ids) => { setView('canvas'); setFocusRequest({ boardId: board.id, ids, token: Date.now() }); }}
+                     onRevealOnCanvas={(ids) => { setView('canvas', 'reveal'); setFocusRequest({ boardId: board.id, ids, token: Date.now() }); }}
+                     showStorageUpsell={myTier.tier === 'demo' && workspace?.created_by === user?.id}
+                     onStorageUpsell={() => setUpgradeReason('storage')}
                      mutators={muts} />
       );
       return (
@@ -4838,8 +4892,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
           <div className="tb-center">
             <div className="view-pill">
-              <button className={`view-pill-btn ${view !== 'list' ? 'on' : ''}`} onClick={() => setView('canvas')}>Canvas</button>
-              <button className={`view-pill-btn ${view === 'list' ? 'on' : ''}`} onClick={() => setView('list')}>List</button>
+              <button className={`view-pill-btn ${view !== 'list' ? 'on' : ''}`} onClick={() => setView('canvas')} title="Canvas view">
+                <span className="vp-ico" aria-hidden="true"><Icon as={LayoutGrid} size={14} /></span><span className="vp-lbl">Canvas</span>
+              </button>
+              <button className={`view-pill-btn ${view === 'list' ? 'on' : ''}`} onClick={() => setView('list')} title="List view" data-tour="view-toggle">
+                <span className="vp-ico" aria-hidden="true"><Icon as={ListIcon} size={14} /></span><span className="vp-lbl">List</span>
+              </button>
             </div>
             {/* Read-only notice for demo-tier viewers — self-gates on
                 source==='tier-demoted'. Anchored under the view toggle so it

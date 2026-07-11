@@ -60,6 +60,7 @@ export const EV = Object.freeze({
   CHECKOUT_SUPPORT_CLICK:  'checkout_support_click',      // {surface:'stalled'|'missing_session'}
   CHECKOUT_ACTIVATED_SEEN: 'checkout_activated_seen',     // tier→paid celebration {tier,plan} (must-land)
   CHECKOUT_SUCCESS_DWELL:  'checkout_success_dwell',      // {ms,outcome}
+  SUBSCRIPTION_STARTED:    'subscription_started',        // SERVER (stripe-webhook, checkout.session.completed) {plan,amount_total_cents,currency,session_id} — ground-truth paid conversion, fires even if the buyer never returns to /pricing/success
 
   // ── Ad offer (fbclid instant-demo) ──
   AD_OFFER_VIEW:           'ad_offer_view',               // price-first screen shown to ad-sourced demo user
@@ -135,6 +136,15 @@ export const EV = Object.freeze({
   SEARCH_RUN:              'search_run',                  // ran a search / command {has_results}
   SHARE_OPEN:              'share_open',                  // opened the share surface {board_id}
   RETURN_SESSION:          'return_session',              // app_open on a later calendar day than last-seen {days_since_last_seen,tier}
+
+  // ── View modes + list-mode "drive" usage (previously DARK: the Cluster Browser
+  //    shipped with zero instrumentation, and upload-gate rejections left no
+  //    signal beyond an eventual pricing_view{header:'storage'}) ──
+  VIEW_MODE_SWITCH:        'view_mode_switch',            // canvas↔list toggle {view:'canvas'|'list',board_id,via:'topbar'|'toast'|'reveal'} — the tour's terminal advance rides onboarding_step instead
+  LIST_BROWSER_VIEW:       'list_browser_view',           // ListSurface mounted (once per board per session) {board_id,files,subclusters}
+  LIST_ADD_FILES:          'list_add_files',              // files handed to the list-mode ingest {board_id,n,via:'toolbar'|'drop'}
+  LIST_UPSELL_CTA:         'list_upsell_cta',             // "Any file, any size — Creator" clicked in the list toolbar {board_id} (must-land)
+  UPLOAD_BLOCKED:          'upload_blocked',              // an upload was refused {reason:'owner_not_paid'|'server_403'|'server_quota',surface:'canvas'|'list',ext,size_bucket,n} — owner_not_paid = client hard-block (free owner, non-standard file); server_* = party /mpu 403/402
 
   // ── Public share viewer (/share/<token>, anonymous) ──
   SHARE_VIEW:              'share_view',                  // public viewer mounted {share_token,board_id,root_id,include_subboards,valid}

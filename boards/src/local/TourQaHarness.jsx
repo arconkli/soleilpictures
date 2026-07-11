@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { OnboardingTour } from '../components/OnboardingTour.jsx';
 import { useOnboardingTour } from '../hooks/useOnboardingTour.js';
 
@@ -10,6 +10,9 @@ import { useOnboardingTour } from '../hooks/useOnboardingTour.js';
 // so Playwright (tests/onboarding-tour.spec.js) can drive + assert. DEV only.
 export function TourQaHarness() {
   const emittedRef = useRef([]);
+  // Toggleable so tests can exercise the list step's unanchored Got-it
+  // fallback (ctaWhenUnanchored) by hiding the fake view toggle.
+  const [showViewToggle, setShowViewToggle] = useState(true);
   const sinks = useRef({
     persist: () => {},
     emit: (e) => { emittedRef.current.push(e); },
@@ -31,6 +34,7 @@ export function TourQaHarness() {
       skip: () => ref.current.skip(),
       getState: () => ref.current.state,
       getEmitted: () => emittedRef.current.slice(),
+      setViewToggleVisible: (v) => setShowViewToggle(!!v),
     };
     const root = document.getElementById('root');
     if (root) root.setAttribute('data-tourqa-ready', '1');
@@ -50,6 +54,15 @@ export function TourQaHarness() {
       </div>
       {/* a cluster card mid-canvas (rename/open anchor) */}
       <div className="bc" data-tour="cluster-card" style={{ position: 'fixed', top: '42%', left: '55%', width: 140, height: 100, border: '1px solid #888', borderRadius: 8 }}>Cluster</div>
+      {/* topbar view toggle (the 'view-toggle' anchor for the final list step) */}
+      {showViewToggle && (
+        <div className="view-pill" style={{ position: 'fixed', top: 8, left: '58%' }}>
+          <button type="button" className="view-pill-btn" data-tour="view-toggle"
+                  onClick={() => ref.current.fire({ type: 'view_switched', view: 'list' })}>
+            List
+          </button>
+        </div>
+      )}
       <OnboardingTour
         step={tour.step}
         onEvent={(e) => tour.fire(e)}
