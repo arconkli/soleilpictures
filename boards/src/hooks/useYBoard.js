@@ -180,7 +180,25 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
     };
     earlyRefresh = scheduleRefresh;   // now safe to fire the instant cache paint
 
-    const onUpdate = () => { perf.bump('yboard.update'); scheduleRefresh(); };
+    const onUpdate = (update, origin) => {
+      perf.bump('yboard.update');
+      // A LOCAL user commit (a drag/resize/rotate releasing its new geometry, or
+      // any direct edit) must be reflected in the SAME React commit that clears
+      // the transient drag/resize delta in CanvasSurface. If we defer it a frame
+      // (scheduleRefresh), that in-between frame paints the card at its
+      // PRE-commit position while the delta is already gone — a visible "snap
+      // back to the old spot" flash on drop. `updateCard(s)` transact with the
+      // 'local' origin, so refresh synchronously for those: readCards runs now
+      // and its setSnapshot batches with setDrag(null) into one render.
+      // Remote sync bursts and Tiptap note typing (their own binding origin)
+      // keep the rAF coalescing described above.
+      if (origin === 'local') {
+        if (pendingRaf) { cancelAnimationFrame(pendingRaf); pendingRaf = 0; }
+        refresh();
+      } else {
+        scheduleRefresh();
+      }
+    };
     handle.ydoc.on('update', onUpdate);
     handle.undoManager.on('stack-item-added', scheduleRefresh);
     handle.undoManager.on('stack-item-popped', scheduleRefresh);
