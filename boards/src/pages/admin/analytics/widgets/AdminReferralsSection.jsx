@@ -10,6 +10,7 @@
 //     referring_users, paid_conversions, months_granted, k_factor,
 //     median_days_to_activate,
 //     by_source: { link:{total,activated}, collab:{total,activated} },
+//     invites: { sent_total, pending_signup, direct_grants, inviting_users },   // 0185 — invites SENT (the k-factor numerator)
 //     top_referrers: [{ user_id, email, friends_joined, friends_activated, friends_paid, cards_earned }] }
 
 import { CopyableText } from '../../../../components/CopyableText.jsx';
@@ -23,9 +24,10 @@ export function AdminReferralsSection({ data, days = 30 }) {
   const d = data || null;
   const windowLabel = days > 0 ? `last ${days}d` : 'all time';
 
-  // No payload, or zero referrals → a single honest empty panel. The loop just
-  // shipped, so this is the expected state until invites start converting.
-  if (!d || !Number(d.total)) {
+  // No payload, or zero referrals AND zero invites → a single honest empty
+  // panel. Invites-without-signups still renders (that half of the funnel is
+  // exactly what the collaboration push needs eyes on).
+  if (!d || (!Number(d.total) && !Number(d.invites?.sent_total))) {
     return (
       <section className="admin-chart-panel admin-chart-panel-wide">
         <header className="admin-chart-head">
@@ -38,6 +40,7 @@ export function AdminReferralsSection({ data, days = 30 }) {
   }
 
   const bySource = d.by_source || {};
+  const invites = d.invites || {};
   const top = Array.isArray(d.top_referrers) ? d.top_referrers : [];
 
   return (
@@ -81,6 +84,20 @@ export function AdminReferralsSection({ data, days = 30 }) {
             value={d.k_factor != null ? d.k_factor : '—'}
             sub={d.median_days_to_activate != null ? `${d.median_days_to_activate}d median to activate` : 'activations ÷ referrers'}
             title="k-factor: activated referrals per referring user. >1 = self-sustaining growth." />
+          <AdminStatCard
+            label="Invites sent"
+            value={formatCount(invites.sent_total || 0)}
+            sub={`${formatCount(invites.pending_signup || 0)} to non-users · ${formatCount(invites.direct_grants || 0)} direct grants`}
+            title="Collaborator invites that went out: pending_invites (email invites to people without an account — the signup-capable kind) + board_shares grants to existing users" />
+          <AdminStatCard
+            label="Inviting users"
+            value={formatCount(invites.inviting_users || 0)}
+            sub="sent ≥1 invite"
+            title="Distinct users who invited anyone in the window — the breadth half of the loop (k-factor only counts those whose friends signed up)" />
+          <AdminStatCard
+            label="Invite → signup"
+            value={<RateCell numer={bySource.collab?.total || 0} denom={invites.pending_signup || 0} />}
+            title="Referral rows attributed source='collab' ÷ email invites to non-users. Windows are both trailing, so a signup can trail its invite — directional, not exact." />
         </div>
       </section>
 
