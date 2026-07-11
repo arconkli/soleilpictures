@@ -19,7 +19,8 @@ export type TemplateName =
   | "comment_reply_email"
   | "activate_nudge_1"
   | "activate_nudge_2"
-  | "reengage_1";
+  | "reengage_1"
+  | "welcome_board";
 
 export const TEMPLATE_NAMES: TemplateName[] = [
   "waitlist_submitted",
@@ -32,6 +33,7 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "activate_nudge_1",
   "activate_nudge_2",
   "reengage_1",
+  "welcome_board",
 ];
 
 export interface RenderedEmail {
@@ -79,6 +81,13 @@ function noteP(text: string): string {
 
 function noteLink(label: string, url: string): string {
   return `<p style="margin:2px 0 18px; font:600 15px/1.65 ${NOTE_FONT};"><a href="${escapeHtml(url)}" style="color:#1a1a1a; text-decoration:underline;">${escapeHtml(label)} &rarr;</a></p>`;
+}
+
+// A linked image inside the note body (welcome_board embeds the user's own
+// board thumbnail). width= attribute + inline max-width keep it bounded in
+// Outlook and fluid everywhere else.
+function noteImg(src: string, alt: string, href: string): string {
+  return `<p style="margin:4px 0 18px;"><a href="${escapeHtml(href)}" style="text-decoration:none;"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" width="440" style="width:100%; max-width:440px; height:auto; display:block; border-radius:10px; border:1px solid #e7e4df;"></a></p>`;
 }
 
 function waitlistSubmitted(): RenderedEmail {
@@ -562,6 +571,103 @@ Unsubscribe: ${unsub}`,
   };
 }
 
+// ── welcome_board (migration 0184) ──────────────────────────────────────────
+// Day-1 welcome showing the user their OWN board — the strongest pull-back we
+// have is a picture of the thing they made. The image URL is computed by
+// lifecycle-email-cron (HMAC-signed /api/email-thumb worker route; email
+// clients fetch it unauthenticated, possibly weeks after send). Only that
+// exact origin/path is ever embedded — anything else renders text-only.
+const EMAIL_THUMB_PREFIX = "https://clusters.soleilpictures.com/api/email-thumb/";
+
+interface WelcomeBoardData {
+  workspaceId?: string;
+  boardId?: string;
+  boardName?: string;   // pre-sanitized in renderTemplate
+  thumbUrl?: string;    // signed /api/email-thumb URL (cron-computed)
+  unsubscribeToken: string;
+  variant?: string;
+}
+
+// Besides "Untitled cluster", the auto-created root is always called "Studio"
+// — the eligibility RPC can feature it when it's the only populated board,
+// and 'you started "Studio"' reads like we named it for them. Fall back to
+// no-name copy for both.
+function namedWelcomeBoard(d: WelcomeBoardData): string | null {
+  const n = (d.boardName || "").trim();
+  return n && !/^untitled/i.test(n) && !/^studio$/i.test(n) ? n : null;
+}
+
+function welcomeBoard(d: WelcomeBoardData): RenderedEmail {
+  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("welcome_board"));
+  const unsub = unsubUrl(d.unsubscribeToken);
+  const name = namedWelcomeBoard(d);
+  const img = d.thumbUrl && d.thumbUrl.startsWith(EMAIL_THUMB_PREFIX)
+    ? noteImg(d.thumbUrl, name ? `Your board "${name}"` : "Your board", url)
+    : "";
+  if (d.variant === "B") {
+    const openerB = img
+      ? "hey — one day in, and your board already looks like this:"
+      : "hey — one day in, and your board is already taking shape.";
+    const saved = name
+      ? `"${name}" is saved and waiting. add a few more photos and watch it take shape.`
+      : "it's saved and waiting. add a few more photos and watch it take shape.";
+    return {
+      subject: "look what you made",
+      html: renderPlainNote({
+        preheader: "one day in, and your board is already taking shape.",
+        bodyHtml:
+          noteP(openerB) +
+          img +
+          noteP(saved) +
+          noteLink("keep building", url) +
+          noteP("talk soon, the clusters team"),
+        unsubscribeUrl: unsub,
+      }),
+      text:
+`${openerB}
+
+${saved}
+
+keep building: ${url}
+
+talk soon, the clusters team
+
+Unsubscribe: ${unsub}`,
+    };
+  }
+  const opener = name
+    ? (img ? `you started "${name}" yesterday — here's how it's looking already.`
+           : `you started "${name}" yesterday — it's already taking shape.`)
+    : (img ? "you started a board yesterday — here's how it's looking already."
+           : "you started a board yesterday — it's already taking shape.");
+  return {
+    subject: name ? `"${name}" is off to a good start` : "your board is off to a good start",
+    html: renderPlainNote({
+      preheader: "it's saved and waiting whenever you want to keep going.",
+      bodyHtml:
+        noteP("hey, the clusters team here.") +
+        noteP(opener) +
+        img +
+        noteP("it's saved and waiting whenever you want to keep going — drop in more photos, notes, or files and they arrange themselves.") +
+        noteLink("pick up where you left off", url) +
+        noteP("talk soon, the clusters team"),
+      unsubscribeUrl: unsub,
+    }),
+    text:
+`hey, the clusters team here.
+
+${opener}
+
+it's saved and waiting whenever you want to keep going — drop in more photos, notes, or files and they arrange themselves.
+
+pick up where you left off: ${url}
+
+talk soon, the clusters team
+
+Unsubscribe: ${unsub}`,
+  };
+}
+
 export function renderTemplate(name: TemplateName, data: Record<string, unknown>): RenderedEmail {
   switch (name) {
     case "waitlist_submitted":
@@ -632,6 +738,17 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:          data.boardId != null ? String(data.boardId) : undefined,
         boardName:        boardName || undefined,
+        unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        variant:          data.variant != null ? String(data.variant) : undefined,
+      });
+    }
+    case "welcome_board": {
+      const boardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
+      return welcomeBoard({
+        workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:          data.boardId != null ? String(data.boardId) : undefined,
+        boardName:        boardName || undefined,
+        thumbUrl:         data.thumbUrl != null ? String(data.thumbUrl) : undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
         variant:          data.variant != null ? String(data.variant) : undefined,
       });
