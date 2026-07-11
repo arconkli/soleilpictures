@@ -11,6 +11,9 @@
 // /api/share-thumb/*  — serves a shared board's stored R2 thumbnail as the
 //                       og:image behind /share link previews. Gated by the
 //                       share token (get_share_meta RPC), no user auth.
+// /api/email-thumb/*  — serves a board's stored R2 thumbnail to email clients
+//                       (the welcome email embeds the recipient's own board).
+//                       Gated by an HMAC in the URL, no user auth.
 
 import { handleTagsRoute } from './worker-tags.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
@@ -315,6 +318,8 @@ export default {
       if (resetMatch) return await handleBoardReset(resetMatch[1], request);
       const thumbMatch = url.pathname.match(/^\/api\/share-thumb\/([0-9a-f-]{36})$/i);
       if (thumbMatch) return await handleShareThumb(env, thumbMatch[1], url.searchParams, request);
+      const emailThumbMatch = url.pathname.match(/^\/api\/email-thumb\/([0-9a-f-]{36})$/i);
+      if (emailThumbMatch) return await handleEmailThumb(env, emailThumbMatch[1], url.searchParams, request);
       if (url.pathname === '/api/admin/backfill-image-sizes') return await handleBackfillImageSizes(request, env);
       // Public marketing boards (migration 0136). Dynamic sitemap + indexable
       // og:image + crawlable per-card images, all keyed by slug. Intercepted
@@ -1392,6 +1397,82 @@ async function handleShareThumb(env, token, searchParams, request) {
     'content-type': 'image/webp',
     // 1h browser cache: the URL carries a v= cache-buster for freshness, and
     // a short TTL bounds how long a just-revoked link keeps serving bytes.
+    'cache-control': 'public, max-age=3600',
+    'etag': obj.httpEtag,
+    'x-robots-tag': 'noindex',
+  };
+  if (request.headers.get('if-none-match') === obj.httpEtag) {
+    return new Response(null, { status: 304, headers });
+  }
+  return new Response(obj.body, { status: 200, headers });
+}
+
+// Signature for /api/email-thumb URLs. The HMAC key is DERIVED from the
+// service-role key (SHA-256 over key + a domain-separation tag) — this worker
+// and the lifecycle-email-cron edge fn both already hold that secret, so no
+// new secret has to be provisioned on either side. HMAC output reveals nothing
+// about the key; rotating the service key merely invalidates old email image
+// URLs, which then 302 to the logo fallback. lifecycle-email-cron carries the
+// mirror of this derivation — keep the two in lockstep.
+async function emailThumbSig(env, boardId) {
+  const enc = new TextEncoder();
+  const keyBytes = await crypto.subtle.digest(
+    'SHA-256', enc.encode(`${env.SUPABASE_SERVICE_ROLE_KEY}:email-thumb-v1`),
+  );
+  const key = await crypto.subtle.importKey(
+    'raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+  );
+  const mac = await crypto.subtle.sign('HMAC', key, enc.encode(`email-thumb:${boardId}`));
+  return [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+}
+
+// Serves a board's stored thumbnail to EMAIL CLIENTS (the welcome email embeds
+// the recipient's own board). Email <img> fetches arrive unauthenticated and
+// possibly weeks after send, so the gate is a permanent board-scoped HMAC in
+// the URL — a session gate can't work and a 7-day signed R2 URL would die
+// before many emails get opened. Body mirrors handleShareThumb, with the
+// share-token gate swapped for the signature + a direct boards lookup.
+async function handleEmailThumb(env, boardId, searchParams, request) {
+  const fallback = () =>
+    new Response(null, {
+      status: 302,
+      headers: { location: `${SITE_ORIGIN}/clusters-logo-dark.png`, 'cache-control': 'no-store' },
+    });
+
+  let expected = '';
+  try { expected = await emailThumbSig(env, boardId); } catch { return fallback(); }
+  if (!expected || searchParams.get('s') !== expected) return fallback();
+
+  let row = null;
+  try {
+    const res = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/boards?id=eq.${boardId}&select=thumb_key,deleted_at`,
+      {
+        headers: {
+          'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+          'authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+          'accept': 'application/json',
+        },
+        signal: AbortSignal.timeout(5000),
+      },
+    );
+    if (!res.ok) return fallback();
+    row = (await res.json())?.[0] || null;
+  } catch {
+    return fallback();
+  }
+  if (!row || row.deleted_at) return fallback();
+
+  const key = (row.thumb_key || '').replace(/^r2:/, '');
+  if (!key || !env.IMAGES) return fallback();
+
+  const obj = await env.IMAGES.get(key);
+  if (!obj) return fallback();
+
+  const headers = {
+    'content-type': 'image/webp',
+    // 1h cache like share-thumb: the v= param busts on re-render, and a short
+    // TTL bounds how long a just-deleted board's thumb keeps serving bytes.
     'cache-control': 'public, max-age=3600',
     'etag': obj.httpEtag,
     'x-robots-tag': 'noindex',
