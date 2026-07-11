@@ -161,6 +161,22 @@ async function consumeAuthCallback() {
     return data.session;
   }
   if (!accessToken || !refreshToken) return null;
+  // Staging handoff (stagingRedirect.js): prod copies its session here so an
+  // admin lands on the preview signed in. If this origin already has a working
+  // session, keep it — it's the fresher rotation of the family. Adopting the
+  // prod copy after this origin has rotated the token would trip Supabase's
+  // refresh-token reuse detection and revoke the whole session family (the
+  // cause of the daily re-OTP). Magic-link hashes carry no marker and still
+  // adopt unconditionally so "sign in as a different user" keeps working.
+  if (hash.get('handoff') === 'staging') {
+    try {
+      const { data: existing } = await supabase.auth.getSession();
+      if (existing?.session?.access_token) {
+        clearAuthUrl();
+        return existing.session;
+      }
+    } catch (_) { /* fall through and adopt the handed-off tokens */ }
+  }
   if (expiresAt && expiresAt <= Math.floor(Date.now() / 1000) + 30) {
     clearAuthUrl();
     return null;
