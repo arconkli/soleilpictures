@@ -36,7 +36,13 @@ test.describe('guided tour wiring', () => {
     // The step-1 cluster is a genuine card: dismissing on it killed the whole
     // tour in prod (0 users ever advanced past step 1). Keep both gates.
     expect(s).toContain("if (onboardingUiActive && !tourActive) dismissOnboarding('placed')");
-    expect(s).toMatch(/tier === 'demo' && !tourActive/);
+    expect(s).toMatch(/tier === 'demo' && !tourActive && genuine\.length >= 2/);
+  });
+
+  test('first-value nudge has no first-session timer (2nd genuine card only)', () => {
+    // The old ~15s-after-card-1 timer surfaced the upsell at a median of 40s
+    // after first app open with 0 conversions ever — it must not come back.
+    expect(app()).not.toContain('firstValueTimerRef');
   });
 
   test('CanvasSurface exposes the cluster + image data-tour anchors', () => {

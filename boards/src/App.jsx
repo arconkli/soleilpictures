@@ -3454,11 +3454,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // faster); 'populated' = board hits POP_BOARD_THRESHOLD cards (stronger signal,
   // lower volume). Flip this single value to switch the activation bar.
   const META_REG_BAR = 'first_card'; // 'first_card' | 'populated'
-  // Re-timed first-value nudge: fire a beat AFTER the first genuine card (the 2nd
-  // card, or ~15s after the 1st), not on the first card itself. Timer ref persists
-  // across renders; cleared on unmount.
-  const firstValueTimerRef = useRef(null);
-  useEffect(() => () => { if (firstValueTimerRef.current) clearTimeout(firstValueTimerRef.current); }, []);
   useEffect(() => {
     if (!user?.id) return;
     const fcKey = `soleil_first_card_logged_${user.id}`;
@@ -3507,23 +3502,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
     } catch { /* localStorage unavailable — logEventOnce still de-dupes per page load */ }
 
-    // Re-timed first-value nudge (demo only): fire a beat AFTER the first genuine
-    // card — on the 2nd genuine card, or ~15s after the first, whichever comes
-    // first — so we never interrupt the very first action. UpgradeChip owns the
-    // demo-gate + once-per-account guard + the soft banner; we just emit the window
-    // event (works the same in the ?local=1 harness). The localStorage stamp avoids
-    // re-arming across reloads; UpgradeChip de-dupes per account regardless.
-    // Not while the guided tour is running — the fv-banner would render dead under
-    // the tour's pointer-events lock; this effect re-runs when the tour closes
+    // First-value nudge (demo only): fire on the 2ND genuine card — never the
+    // first. The old "~15s after card 1" timer put the upsell at a MEDIAN of 40s
+    // after first app open (34/42 views within 2 min); journeys showed banner →
+    // pricing → abandon → exit, with 0 conversions ever. Two cards = the user
+    // came back for more; that's the earliest defensible beat. UpgradeChip owns
+    // the demo-gate + once-per-account guard + the soft banner; we just emit the
+    // window event (works the same in the ?local=1 harness). Not while the
+    // guided tour is running — the fv-banner would render dead under the tour's
+    // pointer-events lock; this effect re-runs when the tour closes
     // (onboardingUiActive dep) and the nudge fires then, as the post-tour beat.
-    if (!fvDone && myTier.tier === 'demo' && !tourActive) {
-      const dispatchFirstValue = () => {
-        if (firstValueTimerRef.current) { clearTimeout(firstValueTimerRef.current); firstValueTimerRef.current = null; }
-        try { localStorage.setItem(fvKey, '1'); } catch { /* ignore */ }
-        window.dispatchEvent(new CustomEvent('soleil:first-value'));
-      };
-      if (genuine.length >= 2) dispatchFirstValue();                          // 2nd genuine card → now
-      else if (!firstValueTimerRef.current) firstValueTimerRef.current = setTimeout(dispatchFirstValue, 15000); // 1st → ~15s beat
+    if (!fvDone && myTier.tier === 'demo' && !tourActive && genuine.length >= 2) {
+      try { localStorage.setItem(fvKey, '1'); } catch { /* ignore */ }
+      window.dispatchEvent(new CustomEvent('soleil:first-value'));
     }
 
     // Post-activation referral nudge: once they've clearly gotten value (≥5
