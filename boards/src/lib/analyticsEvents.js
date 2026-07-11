@@ -161,12 +161,21 @@ export const EV = Object.freeze({
   REFERRAL_TAB_VIEW:       'referral_tab_view',           // Invite & earn account tab mounted {has_code}
   REFERRAL_LINK_COPIED:    'referral_link_copied',        // copied the ?ref= link {surface}
   REFERRAL_LINK_SHARED:    'referral_link_shared',        // shared the link {surface,channel:'native'|'whatsapp'|'x'|'email'|'sms'}
-  REFERRAL_NUDGE_VIEW:     'referral_nudge_view',         // post-activation invite nudge shown
-  REFERRAL_NUDGE_CTA:      'referral_nudge_cta',          // nudge "Invite friends" clicked → opens tab (must-land)
-  REFERRAL_NUDGE_DISMISS:  'referral_nudge_dismiss',      // nudge dismissed
+  REFERRAL_NUDGE_VIEW:     'referral_nudge_view',         // LEGACY (≤2026-07-11): old 5-card referral banner — superseded by invite_nudge_view
+  REFERRAL_NUDGE_CTA:      'referral_nudge_cta',          // LEGACY: kept for historical queries only
+  REFERRAL_NUDGE_DISMISS:  'referral_nudge_dismiss',      // LEGACY: kept for historical queries only
   REFERRAL_SIGNUP:         'referral_signup',             // SERVER: friend signed up via a referral {source,code}
   REFERRAL_ACTIVATED:      'referral_activated',          // SERVER: referee created first genuine card
   REFERRAL_REWARD_GRANTED: 'referral_reward_granted',     // SERVER: referrer credited {referee,amount}
+
+  // ── Collaborator invites (the "build together" growth loop) ──
+  // The banner fires at the activation beat (3 genuine cards) and routes into
+  // the ShareModal's Invite People section. INVITE_SENT is the k-factor
+  // numerator the referral ledger can't see — it only records signups.
+  INVITE_NUDGE_VIEW:       'invite_nudge_view',           // "build this together" banner shown {surface}
+  INVITE_NUDGE_CTA:        'invite_nudge_cta',            // banner CTA clicked → Share panel (must-land)
+  INVITE_NUDGE_DISMISS:    'invite_nudge_dismiss',        // banner dismissed {surface}
+  INVITE_SENT:             'invite_sent',                 // collaborator invite(s) submitted {role,result:'granted'|'pending',n,surface} (must-land)
 
   // ── Remix ("Make a copy" — clone a public board into your workspace, 0168) ──
   REMIX_CLONE:             'remix_clone',                 // a shared/public board was cloned into the user's workspace {kind:'token'|'slug',n}

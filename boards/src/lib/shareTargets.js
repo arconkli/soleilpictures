@@ -12,7 +12,7 @@
 // pitch-less buttons. navigator.share covers mobile (where those apps live).
 
 export const REFERRAL_PITCH =
-  'I’m using Clusters to organize ideas on an infinite canvas — here are 25 free cards to start.';
+  'Come build with me on Clusters — an infinite canvas for photos, ideas, and projects. You start with 25 free cards.';
 
 // One message that carries pitch + link, for clipboard / SMS / WhatsApp where a
 // single text field holds everything.

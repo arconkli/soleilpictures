@@ -794,10 +794,10 @@ function InviteTab({ user }) {
     <div className="settings-section">
       <h3 className="settings-section-title">Invite &amp; earn</h3>
       <p className="settings-section-hint">
-        Share Clusters and you <b>both</b> get free cards. Your friend starts with
-        {' '}<b>25 bonus cards</b>; the moment they place their first card, <b>you earn 25 too</b>.
-        {' '}And when a friend <b>upgrades to a paid plan, you get a free month</b>.
-        {' '}No limit — keep inviting, keep earning.
+        Clusters is better with people in it — invite someone to build with you.
+        {' '}You <b>both</b> get free cards: your friend starts with <b>25 bonus cards</b>,
+        {' '}and the moment they place their first card, <b>you earn 25 too</b>.
+        {' '}When a friend <b>upgrades to a paid plan, you get a free month</b>. No limit.
       </p>
 
       {err || !code ? (

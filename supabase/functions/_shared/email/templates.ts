@@ -147,7 +147,7 @@ interface WorkspaceInviteData {
 function workspaceInvite(d: WorkspaceInviteData): RenderedEmail {
   const role = (d.role || "member").toLowerCase();
   const headline = `You're in ${d.workspaceName}.`;
-  const subtitle = `${d.inviterName} added you as ${role}. Jump in to see what they're working on.`;
+  const subtitle = `${d.inviterName} added you as ${role} — jump in and build together.`;
   const url = deepLink({ w: d.workspaceId });
   return {
     subject: `${d.inviterName} added you to ${d.workspaceName}`,
@@ -181,8 +181,8 @@ interface BoardSharedData {
 
 function boardShared(d: BoardSharedData): RenderedEmail {
   const role = (d.role || "viewer").toLowerCase();
-  const headline = `${d.sharerName} shared a board.`;
-  const subtitle = `You've got ${role} access to "${d.boardName}".`;
+  const headline = `${d.sharerName} wants to build with you.`;
+  const subtitle = `You've got ${role} access to "${d.boardName}" — hop in.`;
   const url = deepLink({ w: d.workspaceId, b: d.boardId });
   return {
     subject: `${d.sharerName} shared "${d.boardName}" with you`,
@@ -229,7 +229,7 @@ function pendingInvite(d: PendingInviteData): RenderedEmail {
     return "a viewer";
   })();
   const headline = `${d.inviterName} invited you.`;
-  const subtitle = `You've been invited to join ${target} as ${roleLabel}. Sign in to get started — we'll set up your account.`;
+  const subtitle = `You've been invited to join ${target} as ${roleLabel}. You'll start with 25 free cards — sign in and we'll set up your account.`;
   const url = `${APP_URL}?invite=${encodeURIComponent(d.token)}`;
   return {
     subject: isWorkspace

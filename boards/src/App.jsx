@@ -2731,6 +2731,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [shareOpen, setShareOpen] = useState(false);
   // Collaboration-loop signal: fire when the share surface opens (any path).
   useEffect(() => { if (shareOpen) logEvent(EV.SHARE_OPEN, { board_id: currentId }); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [shareOpen]);
+  // "Build this together" banner CTA → the Share panel for the current board
+  // (Invite People is its first section). ShareModal is board-scoped, so
+  // off-board surfaces (tag view, cluster browser home) fall back to the
+  // account Invite tab instead of opening a modal for the wrong thing.
+  const openCollabInvite = React.useCallback((surface) => {
+    if (currentSurface === 'board') {
+      try { logEvent(EV.REFERRAL_OPEN, { surface }); } catch (_) {}
+      setShareOpen(true);
+    } else {
+      openInviteFriends(surface);
+    }
+  }, [currentSurface, openInviteFriends]);
   // "Linked from" side drawer for the currently-viewed board (or any
   // entity surfaced by other components via setBacklinksRef).
   const [backlinksRef, setBacklinksRef] = useState(null);
@@ -3529,15 +3541,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       window.dispatchEvent(new CustomEvent('soleil:first-value'));
     }
 
-    // Post-activation referral nudge: once they've clearly gotten value (≥5
-    // genuine cards), invite them to share. A higher bar than the first-value
-    // upgrade banner (2 cards) so the two soft banners never stack. Fires for
-    // demo AND paid users — paid users are the best advocates and now have a
-    // real reward (a free month when a friend upgrades, migration 0167).
-    // ReferralNudge owns the tier-gate + once-per-account guard (per-tier key);
-    // repeated dispatches as the count grows are harmless (it de-dupes).
-    if ((myTier.tier === 'demo' || myTier.tier === 'paid') && genuine.length >= 5) {
-      window.dispatchEvent(new CustomEvent('soleil:referral-nudge'));
+    // Moment-of-value collaborator invite: once this board crosses the
+    // activation bar (≥3 genuine cards), suggest bringing a second person
+    // INTO it — a collaborator is the strongest return + growth signal we
+    // have (47% of populated users return vs 5%; email invites attribute as
+    // referrals too, 0163). Fires for demo AND paid — demo invites are
+    // viewer-only and the ShareModal owns the editor upsell. Never mid-tour:
+    // 3 cards is reachable while the guided tour runs and the banner would
+    // render dead under its pointer lock; this effect re-runs when the tour
+    // closes and the dispatch fires then, like the fv nudge above.
+    // ReferralNudge owns the tier-gate + once-per-account guard + the
+    // fv-banner stacking guard; repeated dispatches as the count grows are
+    // its retry mechanism, not a bug.
+    if ((myTier.tier === 'demo' || myTier.tier === 'paid') && !tourActive && genuine.length >= POP_BOARD_THRESHOLD) {
+      window.dispatchEvent(new CustomEvent('soleil:collab-nudge'));
     }
 
     // Close the coachmark when a genuine card lands while it's showing (UI only;
@@ -5210,7 +5227,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         />
       )}
 
-      <ReferralNudge tier={myTier.tier} onInvite={openInviteFriends} />
+      <ReferralNudge tier={myTier.tier} onCollaborate={openCollabInvite} />
 
       {mobileShell && (() => {
         // The "+" appears only when a board canvas is the active surface and
