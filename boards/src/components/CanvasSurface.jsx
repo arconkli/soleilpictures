@@ -824,7 +824,16 @@ export function CanvasSurface({
     if (k === 'grid') { mutators.graftGridIntoCell?.(gridId, cellId, card.id); return true; }
     let patch = null, consume = true;
     if (k === 'image') patch = { type: 'image', src: card.src, fit: 'cover', ...(card.adjust ? { adjust: card.adjust } : {}), ...(card.pos ? { pos: card.pos } : {}) };
-    else if (k === 'note' || k === 'textlink') patch = { type: 'text', html: card.html || '' };
+    else if (k === 'note' || k === 'textlink') {
+      // Keep the note's look (bg / text color / font) as a pinned cell style —
+      // a painted note dropped into a grid used to arrive stripped to bare html.
+      const style = {};
+      if (card.bgColor) style.bg = card.bgColor;            // 'transparent' renders as unset
+      if (card.textColor) style.color = card.textColor;
+      if (card.fontFamily) style.fontFamily = card.fontFamily;
+      if (card.fontSize) style.fontSize = card.fontSize;
+      patch = { type: 'text', html: card.html || '', ...(Object.keys(style).length ? { style } : {}) };
+    }
     else if (k === 'link') patch = { type: 'link', source: card.source || card.link, link: card.link || card.source, title: card.title, image: card.image, favicon: card.favicon, ...(card.embed ? { embed: card.embed } : {}) };
     else if (k === 'board') { patch = { type: 'board', boardId: card.id, name: boards?.[card.id]?.name || null }; consume = false; }
     else if (k === 'boardlink' && card.target) { patch = { type: 'board', boardId: card.target, name: boards?.[card.target]?.name || null }; consume = false; }
@@ -8992,6 +9001,17 @@ export function CanvasSurface({
             return next;
           });
         } : null}
+        editingCellStyle={(() => {
+          // Effective style of the edited cell (family + pinned override) — seeds
+          // the Box-background picker. Seed-only: a pinned nested write doesn't
+          // bust the cards snapshot, so this may lag one pick; harmless.
+          if (!editingCell) return null;
+          const gcard = cardById[editingCell.gridId];
+          if (!gcard) return null;
+          const fam = (gcard.templateId ? gridTemplates?.[gcard.templateId]?.textStyle : gcard.textStyle) || {};
+          const rec = gridCellRecord(editingCell.gridId, editingCell.cellId);
+          return { ...fam, ...((rec && rec.style) || {}) };
+        })()}
         editingShapeCard={(() => {
           if (selected.size !== 1) return null;
           const id = [...selected][0];

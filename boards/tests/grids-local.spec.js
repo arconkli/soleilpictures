@@ -242,6 +242,63 @@ test.describe('grids — local interaction', () => {
     await expect(page.locator('.tob')).toBeVisible();
     await expect(page.locator('.tob [title="Bold (⌘B)"]')).toHaveCount(1);
     await expect(page.locator('.tob [title="Card background"]')).toHaveCount(0);
+    // The cell-scoped background control (rides the shared/pinned style path).
+    await expect(page.locator('.tob [title="Box background"]')).toHaveCount(1);
+  });
+
+  test('Box background paints a text cell with readable ink and reverts on No background', async ({ page }) => {
+    await addGrid(page);
+    const grid = page.locator('.card-kind-grid').first();
+    await grid.click({ position: { x: 180, y: 8 } });
+
+    // Make a text cell and keep its editor open (the toolbar is cell-scoped).
+    const cell = page.locator('.gridc-cell.is-empty').first();
+    await cell.hover();
+    await cell.getByRole('button', { name: 'Text', exact: true }).click();
+    const editor = page.locator('.gridc-cell [contenteditable="true"]').first();
+    await editor.waitFor({ state: 'visible' });
+    await editor.click();
+    await page.keyboard.type('painted cell');
+
+    // Pick a color swatch (first non-transparent, non-custom one in the popover)
+    // → the editing surface paints and the ink adjusts.
+    await page.getByTitle('Box background').click();
+    await page.locator('.tob-pop .tob-sw:not(.tob-sw-custom):not([title="No background"])').first().click();
+    const editWrap = page.locator('.gridc-cell .gc-text-edit').first();
+    await expect.poll(() => editWrap.evaluate((el) => el.style.background)).not.toBe('');
+
+    // Commit → the read-only body keeps the painted surface.
+    await editor.evaluate((el) => el.blur());
+    await page.locator('.canvas-wrap').click({ position: { x: 60, y: 60 } });
+    const roText = grid.locator('.gridc-cell-text .gc-text').first();
+    const painted = await roText.evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(painted).not.toBe('rgba(0, 0, 0, 0)');
+    // Ink contrasts with the surface (readableOn/readableInk applied).
+    const ink = await roText.evaluate((el) => getComputedStyle(el).color);
+    expect(ink).not.toBe(painted);
+
+    // Re-enter and revert via "No background" → back to the default surface.
+    await grid.locator('.gridc-cell-text').first().dblclick();
+    await page.locator('.gridc-cell [contenteditable="true"]').first().waitFor();
+    await page.getByTitle('Box background').click();
+    await page.getByTitle('No background').click();
+    await expect.poll(() => page.locator('.gridc-cell .gc-text-edit').first()
+      .evaluate((el) => el.style.background)).toBe('');
+  });
+
+  test('split buttons respond to REAL pointer clicks (fresh unfocused cell)', async ({ page }) => {
+    await addGrid(page);
+    // No prior focus on the cell: the first press used to trigger a focus
+    // re-render that remounted the inline pill mid-click and ate the event.
+    const cell = page.locator('.gridc-cell').nth(1);
+    await cell.hover();
+    await cell.getByTitle('Add a vertical line (split into columns)').click();
+    await expect(page.locator('.gridc-cell')).toHaveCount(4);
+    // And again on another fresh cell, splitting into rows.
+    const top = page.locator('.gridc-cell').first();
+    await top.hover();
+    await top.getByTitle('Add a horizontal line (split into rows)').click();
+    await expect(page.locator('.gridc-cell')).toHaveCount(5);
   });
 
   // Click a cell to focus it, then paste — the cell auto-formats by clipboard type.
@@ -430,14 +487,13 @@ test.describe('grids — local interaction', () => {
   // trigger that opens a portaled full-size menu with every option.
   async function makeCompactCell(page) {
     // Split the 180×150 bottom-left cell into columns → two ~90px cells (below
-    // GRID_TUNING.PILL_MIN_W=172). The split buttons live in the opacity-gated
-    // hover pill; a native click on the icon-only button is deterministic where
-    // Playwright's synthesized click on that transient pill can race the reveal.
-    await page.evaluate(() => {
-      const cell = [...document.querySelectorAll('.gridc-cell')][1];
-      const btn = cell && [...cell.querySelectorAll('button')].find(b => (b.getAttribute('title') || '') === 'Add a vertical line (split into columns)');
-      btn && btn.click();
-    });
+    // GRID_TUNING.PILL_MIN_W=172). Real hover + click on the pill button — this
+    // used to need a programmatic el.click() workaround, which was actually
+    // masking a bug: the first press re-rendered the cell (focusCell) and the
+    // inline pill (an inline component back then) remounted mid-click.
+    const cell = page.locator('.gridc-cell').nth(1);
+    await cell.hover();
+    await cell.getByTitle('Add a vertical line (split into columns)').click();
     const mini = page.locator('.gridc-cell .gridc-pill-mini').first();
     await expect(mini).toBeVisible();
     return mini;
