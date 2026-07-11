@@ -652,13 +652,13 @@ export function RichNoteEditor({
            data-gramm="false"
            data-gramm_editor="false"
            data-enable-grammarly="false"
-           // With Grammarly off, notes rely on the browser/OS native
-           // spellchecker for red wavy underlines + right-click "correct to…".
-           // Set it explicitly (matching DocPageEditor) so the spell-check
-           // experience can't silently turn off via a contentEditable default
-           // change. Only takes effect while editing; the read-only display path
-           // is a separate non-editable div, so no squiggles on display.
-           spellCheck={true}
+           // Native spellcheck OFF as well: Chromium paints its squiggles at
+           // untransformed glyph coordinates — they do NOT follow the canvas's
+           // ancestor `transform: scale(zoom)` — so at any zoom ≠ 100% they
+           // drift off the words (same misalignment as the Grammarly overlay).
+           // Docs (DocPageEditor) keep spellcheck because they scale via CSS
+           // `zoom`, which the squiggle painter does follow.
+           spellCheck={false}
            onPointerDown={editing ? onEditingPointerDown : undefined}
            onMouseDown={editing ? (e) => e.stopPropagation() : undefined}
            onBlur={editing ? commit : undefined}

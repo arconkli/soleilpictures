@@ -154,13 +154,15 @@ export function NoteTiptapSurface({
         // absolutely-positioned overlay, which does NOT follow the canvas's
         // `transform: scale(zoom)` — so at any zoom ≠ 100% its squiggles drift
         // left of the words (the "spellcheck misalignment" bug). Native
-        // spellcheck underlines are painted INTO the text layer, so they scale
-        // with the canvas and stay aligned. (The legacy RichNoteEditor already
-        // turns Grammarly off; we now match it here.)
+        // spellcheck is OFF too: Chromium paints its squiggles at untransformed
+        // glyph coordinates (they do NOT follow an ancestor transform:scale),
+        // so they misalign exactly the same way at any zoom ≠ 100%. Docs keep
+        // native spellcheck because DocPageEditor scales via CSS `zoom`, which
+        // the squiggle painter does follow.
         'data-gramm': 'false',
         'data-gramm_editor': 'false',
         'data-enable-grammarly': 'false',
-        spellcheck: 'true',
+        spellcheck: 'false',
       },
       // Toggle a checklist item by clicking its box, even mid-edit.
       handleClickOn: (view, pos, _node, _nodePos, event) => {
