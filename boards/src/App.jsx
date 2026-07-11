@@ -413,6 +413,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // once the hook exists; only ever invoked at runtime, so the ref is populated.
   const tourFireRef = useRef(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Canvas-space point the "Linked cluster" picker was opened FROM (right-click
+  // Add / rail), so the picked boardlink lands under the cursor. Ref, not state:
+  // nothing re-renders on it. Rewritten on EVERY open (null for pos-less flows
+  // like the sidebar/palette) — never cleared in onClose, because CommandPalette
+  // pick mode closes itself before onPickBoard fires.
+  const linkPickerPosRef = useRef(null);
+  const openBoardLinkPicker = (pos = null) => { linkPickerPosRef.current = pos; setPickerOpen(true); };
   // Global search + ⌘K command palette (distinct from the boards-only
   // BoardPicker above, which stays the "link a board onto canvas" surface).
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -2575,12 +2582,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
   };
 
-  const addLink = (targetBoard) => {
+  const addLink = (targetBoard, clickPos = null) => {
+    const w = 220, h = 160;
     mainMutators._addCardRaw?.({
       id: `xlink-${Date.now()}`,
       kind: 'boardlink',
       target: targetBoard.id,
-      x: 1080, y: 80 + Math.floor(Math.random() * 200), w: 220, h: 160,
+      // Center on the right-click/rail point when one was captured; the
+      // legacy drop zone stays for pos-less flows (sidebar, ⌘K, list view).
+      x: clickPos ? Math.max(8, Math.round(clickPos.x - w / 2)) : 1080,
+      y: clickPos ? Math.max(8, Math.round(clickPos.y - h / 2)) : 80 + Math.floor(Math.random() * 200),
+      w, h,
     });
   };
 
@@ -4419,7 +4431,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => setCurrentSurface('home') },
     { id: 'link-board', label: 'Link a cluster onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'cluster', 'board'],
       available: canEditCurrent && currentSurface === 'board',
-      run: () => setPickerOpen(true) },
+      run: () => openBoardLinkPicker() },
     { id: 'split', label: 'Open split view', icon: Columns2, keywords: ['split', 'side by side', 'compare'],
       run: () => setSplitPickerOpen(true) },
     { id: 'share', label: 'Share this cluster', icon: Share2, keywords: ['share', 'invite', 'collaborate', 'public link'],
@@ -4515,7 +4527,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <ListSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards}
                      childBoards={Object.values(boards).filter(b => b.parent_board_id === board.id)}
                      onOpenBoard={openBoard}
-                     onOpenPicker={() => setPickerOpen(true)}
+                     onOpenPicker={() => openBoardLinkPicker()}
                      onDropInboxItem={dropInboxItem}
                      canEdit={isMain ? canEditCurrent : true}
                      peersHereByBoard={peersHereByBoard}
@@ -4553,7 +4565,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          ownsWorkspace={workspace?.created_by === user?.id}
                          currentUser={currentUser}
                          onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
-                         onOpenPicker={() => setPickerOpen(true)}
+                         onOpenPicker={(pos) => openBoardLinkPicker(pos)}
                          onDropInboxItem={dropInboxItemFor(muts)}
                          onDropFileImage={dropFileImageFor(muts)}
                          workspaceId={workspace.id} userId={user.id}
@@ -4777,7 +4789,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onPasteBoardInto={pasteBoardInto}
             onDeleteBoard={(id) => deleteBoardsById([id])}
             canEditBoard={canEditBoard}
-            onOpenPicker={() => setPickerOpen(true)}
+            onOpenPicker={() => openBoardLinkPicker()}
             peersHereByBoard={peersHereByBoard}
             peersBelowByBoard={peersBelowByBoard}
             onJumpToPeer={jumpToPeer}
@@ -5049,7 +5061,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         recents={recents.recents}
         mobileShell={mobileShell}
         placeholder="Search boards to link…"
-        onPickBoard={(b) => addLink(b)}
+        onPickBoard={(b) => addLink(b, linkPickerPosRef.current)}
       />
 
       {/* Split-view board picker — same pick mode, opens the chosen board beside. */}

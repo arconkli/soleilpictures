@@ -199,6 +199,12 @@ export function LocalBoardsApp({ user, signOut }) {
   // Grid sequences, keyed by boardId → { seqId: {id,name,pattern,format} }.
   const [gridSeqState, setGridSeqState] = useState({});
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Canvas-space point the "Linked cluster" picker was opened FROM (right-click
+  // Add / rail) so the picked boardlink lands under the cursor — mirrors App.jsx.
+  // Rewritten on every open (null for pos-less flows); never cleared in onClose
+  // because CommandPalette pick mode closes itself before onPickBoard fires.
+  const linkPickerPosRef = useRef(null);
+  const openBoardLinkPicker = (pos = null) => { linkPickerPosRef.current = pos; setPickerOpen(true); };
   // Global search + ⌘K command palette (separate from the boards-only
   // BoardPicker, which stays the "link a board" surface).
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -635,16 +641,19 @@ export function LocalBoardsApp({ user, signOut }) {
     });
   };
 
-  const addLink = (targetBoard) => {
+  const addLink = (targetBoard, clickPos = null) => {
+    const w = 220, h = 160;
     addCard({
       id: createId('xlink'),
       kind: 'boardlink',
       target: targetBoard.id,
       note: 'Local link',
-      x: 1080,
-      y: 80 + Math.floor(Math.random() * 200),
-      w: 220,
-      h: 160,
+      // Center on the right-click/rail point when one was captured; the
+      // legacy drop zone stays for pos-less flows (sidebar, topbar, list).
+      x: clickPos ? Math.max(8, Math.round(clickPos.x - w / 2)) : 1080,
+      y: clickPos ? Math.max(8, Math.round(clickPos.y - h / 2)) : 80 + Math.floor(Math.random() * 200),
+      w,
+      h,
     });
   };
 
@@ -1055,7 +1064,7 @@ export function LocalBoardsApp({ user, signOut }) {
               <span className="sb-row-label">{board.name}</span>
             </div>
           ))}
-          <div className="sb-row sb-row-all" onClick={() => setPickerOpen(true)}>
+          <div className="sb-row sb-row-all" onClick={() => openBoardLinkPicker()}>
             <Icon as={MoreHorizontal} size={14} />
             <span className="sb-row-label">All clusters</span>
           </div>
@@ -1097,7 +1106,7 @@ export function LocalBoardsApp({ user, signOut }) {
                     onClick={() => setPaletteOpen(true)}>
               <Icon as={Search} size={16} />
             </button>
-            <LocalTopbarAddMenu onAddBoard={() => addNewBoard()} onLinkBoard={() => setPickerOpen(true)} />
+            <LocalTopbarAddMenu onAddBoard={() => addNewBoard()} onLinkBoard={() => openBoardLinkPicker()} />
             <button
               className="tb-icon"
               title="Toggle theme"
@@ -1134,7 +1143,7 @@ export function LocalBoardsApp({ user, signOut }) {
             onOpenBoard={openBoard}
             tweak={tweak}
             depth={stack.length - 1}
-            onOpenPicker={() => setPickerOpen(true)}
+            onOpenPicker={(pos) => openBoardLinkPicker(pos)}
             onDropInboxItem={dropInboxItem}
             onDropFileImage={({ publicUrl, width, height, x, y }) => addCard({
               id: createId('img'),
@@ -1164,7 +1173,7 @@ export function LocalBoardsApp({ user, signOut }) {
             cards={currentState.cards}
             childBoards={childBoards}
             onOpenBoard={openBoard}
-            onOpenPicker={() => setPickerOpen(true)}
+            onOpenPicker={() => openBoardLinkPicker()}
             onDropInboxItem={dropInboxItem}
             gridTemplates={currentTemplates}
             getGridModel={(card) => readGridModel(card, null, currentTemplates)}
@@ -1186,7 +1195,7 @@ export function LocalBoardsApp({ user, signOut }) {
         recents={recents.recents}
         mobileShell={mobileShell}
         placeholder="Search boards to link…"
-        onPickBoard={addLink}
+        onPickBoard={(b) => addLink(b, linkPickerPosRef.current)}
       />
 
       <CommandPalette

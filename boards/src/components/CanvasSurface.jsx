@@ -5687,7 +5687,7 @@ export function CanvasSurface({
   // the mobile sheet and ignored by the context-menu renderer.
   const buildAddActions = (pos, method) => [
     { id: 'board',   group: 'card', label: 'Cluster', icon: Browsers,      run: () => { noteCreateIntent(method); mutators.addNewBoard?.(pos); } },
-    { id: 'linkedcluster', group: 'card', label: 'Linked cluster', icon: ArrowSquareOut, run: () => onOpenPicker?.() },
+    { id: 'linkedcluster', group: 'card', label: 'Linked cluster', icon: ArrowSquareOut, run: () => onOpenPicker?.(pos) },
     { id: 'grid',    group: 'card', label: 'Grid',    icon: GridFour,      run: () => { noteCreateIntent(method); mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); } },
     { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method); mutators.addImageAt?.(pos); } },
     { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method); openFilePicker(pos); } },
@@ -7467,7 +7467,7 @@ export function CanvasSurface({
       { id: 'file',          label: 'File',           icon: Paperclip,      tip: 'Upload any file',         action: () => addFromRegistry('file') },
       { id: 'addurl',        label: 'Link',           icon: Link,           tip: 'Add a web link',          action: () => addFromRegistry('addurl') },
       { id: 'schedule',      label: 'Schedule',       icon: CalendarPh,     tip: 'A when / what / where table', action: () => addFromRegistry('schedule') },
-      { id: 'linkedcluster', label: 'Linked cluster', icon: ArrowSquareOut, tip: 'Link an existing cluster',action: () => onOpenPicker?.() },
+      { id: 'linkedcluster', label: 'Linked cluster', icon: ArrowSquareOut, tip: 'Link an existing cluster',action: () => onOpenPicker?.(resolvePastePos().pos) },
     ]},
     { title: 'Annotate', items: [
       { id: 'comment', label: 'Comment', icon: MessageCircle, tip: 'Place a comment — click a card or the canvas', action: () => setAnnotPlacing('comment') },
