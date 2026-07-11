@@ -1939,6 +1939,9 @@ export function CanvasSurface({
   // can be dispatched by anything, so the canEdit guard here is the actual
   // enforcement. The boardId match keeps a split-pane dispatch from opening
   // the sheet on the wrong pane.
+  // pickPhotosAt is declared further down (it needs ingestFiles); the ref keeps
+  // these early listeners on the CURRENT closure without TDZ'd deps arrays.
+  const pickPhotosAtRef = useRef(null);
   useEffect(() => {
     const onAdd = (e) => {
       if (e.detail?.boardId !== board.id) return;
@@ -1948,20 +1951,39 @@ export function CanvasSurface({
       const pos = rect
         ? clientToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2)
         : { x: 200, y: 200 };
-      // First-card moment (empty board): skip the type-picker sheet and drop a note
-      // immediately — one obvious tap, not a second decision. Mobile first-card
-      // converts at <half of desktop; choice paralysis on the very first action is
-      // the enemy. (cardsRef stays fresh without re-binding this listener.) Non-empty
-      // boards keep the full add sheet so power users still get the type picker.
+      // First-card moment (empty board): skip the type-picker sheet and open the
+      // photo picker immediately — one obvious tap, not a second decision. This
+      // used to drop a text note, but ZERO note-only users have ever activated;
+      // images are the activation signal and the camera roll is the phone's
+      // superpower. (cardsRef stays fresh without re-binding this listener.)
+      // Non-empty boards keep the full add sheet so power users get the picker.
       if ((cardsRef.current || []).length === 0) {
         noteCreateIntent('mobile_nav');
-        mutators.addNote?.(pos);
+        pickPhotosAtRef.current?.(pos);
         return;
       }
       setMobileAdd({ pos });
     };
     document.addEventListener('soleil-mobile-add-card', onAdd);
     return () => document.removeEventListener('soleil-mobile-add-card', onAdd);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board.id, canEdit]);
+
+  // Guided-tour "Add photos" (the content step's touch action): App dispatches
+  // this when the pill button is tapped. Deliberately NOT gated on the tour
+  // lock — unlike soleil-mobile-add-card, the tour itself is the sender here.
+  useEffect(() => {
+    const onPick = (e) => {
+      if (e.detail?.boardId !== board.id) return;
+      if (!canEdit) return;
+      const rect = wrapRef.current?.getBoundingClientRect();
+      const pos = rect
+        ? clientToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2)
+        : { x: 200, y: 200 };
+      pickPhotosAtRef.current?.(pos);
+    };
+    document.addEventListener('soleil-pick-photos', onPick);
+    return () => document.removeEventListener('soleil-pick-photos', onPick);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board.id, canEdit]);
 
@@ -2361,6 +2383,24 @@ export function CanvasSurface({
     };
     input.click();
   }, [ingestFiles]);
+
+  // Camera-roll-first photo picker: accept="image/*" keeps the OS chooser on
+  // the photo library (camera roll on iOS/Android), multi-select routes through
+  // the same batch ingest as drag-drop (per-image offsets, caps, optimistic
+  // cards). Images are THE activation signal — this is the mobile primary path.
+  const pickPhotosAt = useCallback((pos) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.onchange = () => {
+      if (input.files && input.files.length) {
+        ingestFiles(input.files, pos?.x ?? 200, pos?.y ?? 200);
+      }
+    };
+    input.click();
+  }, [ingestFiles]);
+  pickPhotosAtRef.current = pickPhotosAt;
 
   // Right-click "Set cover image" → upload an image file and stamp it
   // onto the audio card's `cover` field. Also widens the card so the
@@ -8882,6 +8922,16 @@ export function CanvasSurface({
       {isPhone && mobileAdd && (
         <Sheet open onClose={() => setMobileAdd(null)} title="Add to cluster" snap="half">
           <div className="mobile-add-grid">
+            {/* Photos leads on the phone sheet — camera-roll multi-select is the
+                mobile superpower and images are the activation signal. */}
+            <button
+              type="button"
+              className="mobile-add-tile"
+              onClick={() => { setMobileAdd(null); noteCreateIntent('mobile_nav'); pickPhotosAt(mobileAdd.pos); }}
+            >
+              <span className="mobile-add-ico" aria-hidden="true"><Icon as={ImageIcon} size={24} /></span>
+              <span className="mobile-add-lbl">Photos</span>
+            </button>
             {buildAddActions(mobileAdd.pos, 'mobile_nav').filter(a => a.id !== 'script').map(a => (
               <button
                 key={a.id}

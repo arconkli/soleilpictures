@@ -5186,6 +5186,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onEvent={(e) => tour.fire(e)}
           onSkip={() => tour.skip()}
           onView={(id) => tour.markView(id)}
+          onAction={(type) => {
+            // Touch "Add photos" on the content step → CanvasSurface's picker.
+            // A document event (like soleil-mobile-add-card) because the picker
+            // needs CanvasSurface's ingest pipeline; its listener is NOT tour-
+            // locked since the tour itself is the sender.
+            if (type === 'pick_photos') {
+              document.dispatchEvent(new CustomEvent('soleil-pick-photos', { detail: { boardId: currentId } }));
+            }
+          }}
         />
       )}
 

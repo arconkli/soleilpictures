@@ -31,6 +31,16 @@ test.describe('guided tour wiring', () => {
     expect(app()).toContain('data-tour="view-toggle"');
   });
 
+  test('the touch "Add photos" tour action is wired end to end', () => {
+    // Pill action → App dispatches → CanvasSurface picker (NOT tour-locked).
+    expect(app()).toContain("soleil-pick-photos");
+    const cs = canvas();
+    expect(cs).toContain("addEventListener('soleil-pick-photos'");
+    expect(cs).toContain('pickPhotosAt');
+    // The mobile first-card one-tap goes to photos, never a reflexive note.
+    expect(cs).toContain('pickPhotosAtRef.current?.(pos)');
+  });
+
   test('first-card dismiss + first-value nudge never fire mid-tour', () => {
     const s = app();
     // The step-1 cluster is a genuine card: dismissing on it killed the whole

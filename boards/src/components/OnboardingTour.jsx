@@ -77,7 +77,7 @@ function centered(pr, region) {
   };
 }
 
-export function OnboardingTour({ step, onEvent, onSkip, onView }) {
+export function OnboardingTour({ step, onEvent, onSkip, onView, onAction }) {
   const { isTouch } = useBreakpoint();
   const pillRef = useRef(null);
   const [pos, setPos] = useState(null);
@@ -171,6 +171,18 @@ export function OnboardingTour({ step, onEvent, onSkip, onView }) {
         <div className="onboarding-coachmark-body">{body}</div>
       </div>
       <div className="onboarding-tour-actions">
+        {/* Touch-only direct action (the content step's camera-roll "Add
+            photos") — hands off to App via onAction; the step still completes
+            through its normal accepts() event once the action lands content. */}
+        {isTouch && step.touchAction && (
+          <button
+            type="button"
+            className="onboarding-coachmark-dismiss"
+            onClick={() => onAction?.(step.touchAction.type)}
+          >
+            {step.touchAction.label}
+          </button>
+        )}
         {/* ctaWhenUnanchored steps (the List step) only surface their Got-it
             fallback when the real control isn't on screen — anchored users
             complete by clicking the ringed control itself. */}

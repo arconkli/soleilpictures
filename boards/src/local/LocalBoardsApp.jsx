@@ -1226,6 +1226,12 @@ export function LocalBoardsApp({ user, signOut }) {
           onEvent={(e) => tour.fire(e)}
           onSkip={() => tour.skip()}
           onView={(id) => tour.markView(id)}
+          onAction={(type) => {
+            // Preview parity with App.jsx: touch "Add photos" → CanvasSurface picker.
+            if (type === 'pick_photos') {
+              document.dispatchEvent(new CustomEvent('soleil-pick-photos', { detail: { boardId: currentId } }));
+            }
+          }}
         />
       )}
 

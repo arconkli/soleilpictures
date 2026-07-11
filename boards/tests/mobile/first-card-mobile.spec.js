@@ -1,29 +1,33 @@
 import { expect, test } from '@playwright/test';
 
-// Mobile first-card affordance: on an EMPTY board the bottom-nav "+" must drop a
-// card in ONE tap — not open the multi-tile "Add to board" type-picker sheet.
-// Mobile first-card converts at <half of desktop, so the very first action has to
-// be a single obvious tap, not a second decision. (On a non-empty board the full
-// sheet still returns for power users — that path is unchanged.)
+// Mobile first-card affordance: on an EMPTY board the bottom-nav "+" must open
+// the camera-roll photo picker in ONE tap — not the multi-tile type-picker
+// sheet, and not a reflexive note (zero note-only users ever activated; images
+// are THE activation signal). On a non-empty board the full sheet still
+// returns for power users — that path is covered by create-button.spec.js.
 
 test.beforeEach(async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'desktop-chrome', 'mobile bottom-nav flow');
-  // onboard mode seeds a real EMPTY "Ideas" child board — the clean empty-canvas the
+  // blank=1 seeds a clean EMPTY root cluster — the exact first-run canvas the
   // one-tap path targets (the default local root carries demo cards).
-  await page.goto('/?local=1&onboard=1');
-  await expect(page.locator('.canvas-wrap')).toBeVisible();
+  await page.goto('/?local=1&reset=1&blank=1');
+  await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 15000 });
 });
 
-test('bottom-nav + drops a card in one tap on an empty board (no type-picker sheet)', async ({ page }) => {
-  // Drill into the empty Ideas board (a single clean tap on its board card opens it).
-  await page.locator('[data-card-id="local-ideas"]').click();
-  await expect(page.locator('[data-card-id]')).toHaveCount(0);   // Ideas starts empty
+test('bottom-nav + opens the photo picker in one tap on an empty board (no sheet, no note)', async ({ page }) => {
+  await expect(page.locator('[data-card-id]')).toHaveCount(0);   // truly empty
 
   const createBtn = page.getByRole('button', { name: 'Add a card' });
   await expect(createBtn).toBeVisible();
-  await createBtn.click();
 
-  // One tap → exactly one card, and the multi-tile "Add to board" sheet never opened.
-  await expect(page.locator('[data-card-id]')).toHaveCount(1);
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser', { timeout: 5000 }),
+    createBtn.tap(),
+  ]);
+  expect(chooser.isMultiple()).toBe(true);
+  expect(await chooser.element().getAttribute('accept')).toBe('image/*');
+
+  // No type-picker sheet, and no card materialized without a pick.
   await expect(page.locator('.mobile-add-grid')).toHaveCount(0);
+  await expect(page.locator('[data-card-id]')).toHaveCount(0);
 });

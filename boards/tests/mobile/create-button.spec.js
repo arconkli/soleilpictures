@@ -4,17 +4,16 @@ import { expect, test } from '@playwright/test';
 //
 // The mobile activation cliff: card creation lived only in a desktop-style
 // left-edge toolbar, so phone users never made a first card. The first fix put
-// a bold, thumb-reachable "+" in the centre of the bottom nav. It now opens the
-// FULL add sheet (board / image / file / note / doc / shape / palette / link /
-// comment / vote) instead of only adding a note — so every content type is
-// reachable on phones. These tests lock that in.
+// a bold, thumb-reachable "+" in the centre of the bottom nav. It opens the
+// FULL add sheet — led by Photos (camera-roll multi-select, the activation
+// path) with every content type behind it. These tests lock that in.
 //
 // The "+" is phone-only (it renders inside MobileBottomNav, which only mounts
 // at ≤640px), so skip the desktop + tablet projects.
 
 const ADD_LABELS = [
-  'Board', 'Image', 'File', 'Text note', 'Doc',
-  'Shape', 'Color palette', 'Link', 'Comment', 'Vote',
+  'Photos', 'Cluster', 'Image', 'File', 'Text note', 'Doc',
+  'Shape', 'Color palette', 'Comment', 'Vote',
 ];
 
 test.beforeEach(async ({ page }, testInfo) => {
@@ -33,13 +32,17 @@ test('the create "+" puck is present and does not disturb the 4 tabs', async ({ 
   await expect(page.locator('.mb-nav-tab.is-active')).toHaveCount(0);
 });
 
-test('tapping "+" opens the full add sheet with every option', async ({ page }) => {
+test('tapping "+" opens the full add sheet with every option, Photos first', async ({ page }) => {
   await page.locator('.mb-nav-create').tap();
   await expect(page.locator('.sheet-panel')).toBeVisible();
-  await expect(page.locator('.mobile-add-grid')).toBeVisible();
+  const grid = page.locator('.mobile-add-grid');
+  await expect(grid).toBeVisible();
+  // Scoped to the sheet — bare labels like "Image" also match icon buttons
+  // elsewhere in the shell (strict-mode collision).
   for (const label of ADD_LABELS) {
-    await expect(page.getByRole('button', { name: label, exact: true })).toBeVisible();
+    await expect(grid.getByRole('button', { name: label, exact: true })).toBeVisible();
   }
+  await expect(grid.locator('.mobile-add-tile').first()).toContainText('Photos');
 });
 
 test('picking "Text note" from the sheet creates a focused note', async ({ page }) => {

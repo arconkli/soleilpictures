@@ -152,6 +152,11 @@ test.describe('onboarding tour engine', () => {
     expect(content.centerPill).toBe(true);
   });
 
+  test('the content step carries the touch "Add photos" action (camera-roll-first mobile)', () => {
+    const content = TOUR_STEPS.find((s) => s.id === 'content');
+    expect(content.touchAction).toEqual({ label: 'Add photos', type: 'pick_photos' });
+  });
+
   test('the list step has the unanchored Got-it fallback so nobody can strand', () => {
     const list = TOUR_STEPS.find((s) => s.id === 'list');
     expect(list.anchor).toBe('view-toggle');
