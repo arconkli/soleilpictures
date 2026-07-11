@@ -27,7 +27,7 @@ export function FirstValueUpgradeBanner({ onSeeCreator, onDismiss }) {
       <div className="fv-banner-copy">
         <div className="fv-banner-title">Your first cluster is taking shape.</div>
         <div className="fv-banner-body">
-          Creator unlocks unlimited cards, clusters, and full edit access.
+          Creator stores any file, any size — 100GB, like a drive — plus unlimited cards and full edit access.
         </div>
       </div>
       <div className="fv-banner-actions">

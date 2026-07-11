@@ -4538,6 +4538,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      gridTemplates={gridTemplates}
                      getGridModel={(card) => readGridModel(card, yd, gridTemplates)}
                      onRevealOnCanvas={(ids) => { setView('canvas', 'reveal'); setFocusRequest({ boardId: board.id, ids, token: Date.now() }); }}
+                     showStorageUpsell={myTier.tier === 'demo' && workspace?.created_by === user?.id}
+                     onStorageUpsell={() => setUpgradeReason('storage')}
                      mutators={muts} />
       );
       return (

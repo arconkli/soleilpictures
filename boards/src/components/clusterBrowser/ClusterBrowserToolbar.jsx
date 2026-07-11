@@ -29,6 +29,9 @@ export function ClusterBrowserToolbar({
   filters, availableBuckets, onToggleFilter, onClearFilters,
   viewMode, onViewMode,
   onAddFiles, canEdit = true,
+  // Quiet storage upsell for free workspace owners (their generic uploads are
+  // paid-gated) — muted text link, NOT gold (gold = active/selection only).
+  showUpsell = false, onUpsell = null,
   facePeers = [],
   onSearchKeyDown, searchRef,
 }) {
@@ -120,6 +123,11 @@ export function ClusterBrowserToolbar({
       {canEdit && (
         <button className="cbt-btn cbt-add" onClick={onAddFiles}>
           <Icon as={Plus} size={14} />Add files
+        </button>
+      )}
+      {canEdit && showUpsell && (
+        <button className="cbt-upsell" onClick={() => onUpsell?.()}>
+          Any file, any size — Creator
         </button>
       )}
 

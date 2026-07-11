@@ -28,7 +28,7 @@ import { trackViewContent, trackAdLead } from '../lib/metaPixel.js';
 // parent (TierRouter) can refetch tier and drop the user into the app.
 export function AdWelcome({ onEnter }) {
   const { user, signOut } = useAuth();
-  const [plan, setPlan]       = useState('annual');   // default to the better deal
+  const [plan, setPlan]       = useState('monthly'); // monthly-first: annual-default drove pricing abandons
   const [busy, setBusy]       = useState(false);      // checkout redirect in flight
   const [entering, setEntering] = useState(false);    // dismiss + enter in flight
   const [error, setError]     = useState(null);

@@ -23,7 +23,7 @@ import { trackViewContent } from '../lib/metaPixel.js';
 export function PricingPage() {
   const { user, signOut } = useAuth();
   const { tier, subscriptionStatus, grantActive, grantExpiresAt } = useMyTier({ userId: user?.id });
-  const [plan, setPlan]   = useState('annual');   // default to annual (better deal)
+  const [plan, setPlan]   = useState('monthly'); // monthly-first: annual-default drove pricing abandons
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
 

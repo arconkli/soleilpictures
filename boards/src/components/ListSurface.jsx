@@ -4,7 +4,7 @@ import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { wouldCreateCycle, collectDescendantIds } from '../lib/boardTree.js';
 import { useFeedback } from './AppFeedback.jsx';
-import { logEvent, logEventOnce } from '../lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { toListItem, sortItems, filterItems, matchItems } from '../lib/listItem.js';
 import { searchEntities } from '../lib/entitySearch.js';
@@ -59,6 +59,10 @@ export function ListSurface({
   getGridModel = null,
   // Reveal a card on the canvas (selects + frames it), used by the detail popout.
   onRevealOnCanvas = null,
+  // Quiet "Any file, any size — Creator" toolbar nudge for free workspace
+  // owners; opens the storage upgrade modal. Off in the ?local harness.
+  showStorageUpsell = false,
+  onStorageUpsell = null,
 }) {
   const feedback = useFeedback();
   const subBoards = childBoards || [];
@@ -485,6 +489,11 @@ export function ListSurface({
               onToggleFilter={onToggleFilter} onClearFilters={onClearFilters}
               viewMode={viewMode} onViewMode={onViewMode}
               onAddFiles={openAddPicker} canEdit={canEdit}
+              showUpsell={showStorageUpsell && !!onStorageUpsell}
+              onUpsell={() => {
+                try { logEventNow(EV.LIST_UPSELL_CTA, { board_id: board.id }); } catch (_) {}
+                onStorageUpsell?.();
+              }}
               facePeers={facePeers}
             />
             <div className={`cb-split ${detailTarget ? 'has-detail' : ''}`}>

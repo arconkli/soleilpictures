@@ -41,12 +41,14 @@ export function planBilling(plan) {
 
 // Canonical Creator feature list — the public PricingPage wording, used on
 // EVERY Creator surface. `**text**` marks bold spans (rendered by FeatureList).
+// Storage leads: image/file use is the observed activation signal, and
+// "any file, any size" is the clearest differentiator vs the free demo.
 export const CREATOR_FEATURES = [
+  '**100GB** storage — upload **any file type**, no size limit',
   'Unlimited visitors with **Edit Mode**',
   'Unlimited workspaces, boards & files',
   'All Creative Tools available',
   'Access to all Virtual + Social events',
-  '**100GB** storage — upload **any file type**, no size limit',
 ];
 
 // Demo is intentionally minimal: it's a 100-card sandbox, and visitors only

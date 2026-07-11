@@ -32,7 +32,7 @@ export function WaitlistConfirm() {
   const { tier, refetch } = useMyTier({ userId: user?.id });
   const [entry, setEntry] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [plan, setPlan] = useState('annual');
+  const [plan, setPlan] = useState('monthly'); // monthly-first: annual-default drove pricing abandons
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
   const [accepted, setAccepted] = useState(false);

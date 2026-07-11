@@ -24,6 +24,13 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({ json: { ok: true, url: '/pricing' } }));
   await page.route('**/functions/v1/create-portal-session', (route) =>
     route.fulfill({ json: { ok: true, url: '/settings/billing' } }));
+  // /pricing now short-circuits to the SIGNED-OUT public page when no cached
+  // Supabase session exists (main.jsx hasCachedSession). These specs exercise
+  // the AUTHED, tier-aware page — seed a fake session marker so the app takes
+  // the signed-in path and the ?local=1 fake-user seam kicks in as before.
+  await page.addInitScript(() => {
+    try { localStorage.setItem('sb-local-auth-token', '1'); } catch (_) {}
+  });
 });
 
 test('pricing page shows the canonical Creator list and the trimmed Demo list', async ({ page }) => {
@@ -33,18 +40,21 @@ test('pricing page shows the canonical Creator list and the trimmed Demo list', 
   await expect(creator).toBeVisible();
 
   // Canonical Creator features (the public list, mirrored everywhere).
+  // Storage leads the list — it's the clearest paid differentiator.
+  await expect(creator.getByText('100GB storage — upload any file type, no size limit')).toBeVisible();
   await expect(creator.getByText('Unlimited visitors with Edit Mode')).toBeVisible();
-  await expect(creator.getByText('Unlimited workspaces, boards, video, and audio files')).toBeVisible();
+  await expect(creator.getByText('Unlimited workspaces, boards & files')).toBeVisible();
   await expect(creator.getByText('All Creative Tools available')).toBeVisible();
   await expect(creator.getByText('Access to all Virtual + Social events')).toBeVisible();
   // High-res exports was removed from the offering — must not reappear.
   await expect(page.getByText(/high.?res/i)).toHaveCount(0);
 
-  // Default plan is annual: $20/mo with a savings badge. Toggle to monthly → $25.
+  // Monthly-first default: $25/mo (annual-default drove pricing abandons).
+  // Toggle to annual → $20/mo with the savings badge.
+  await expect(creator.locator('.pricing-card-price')).toContainText('$25');
+  await creator.getByRole('tab', { name: 'Annual' }).click();
   await expect(creator.locator('.pricing-card-price')).toContainText('$20');
   await expect(creator.getByText('Save 20%')).toBeVisible();
-  await creator.getByRole('tab', { name: 'Monthly' }).click();
-  await expect(creator.locator('.pricing-card-price')).toContainText('$25');
 
   // CTA wording is centralized.
   await expect(creator.getByRole('button', { name: 'Get Creator' })).toBeVisible();
@@ -108,11 +118,11 @@ test('a pending waitlist user sees status + a skip-the-wait price from billingCo
   await page.goto('/waitlist/status?local=1&tier=waitlist');
 
   await expect(page.getByText("We'll be in touch soon.")).toBeVisible();
-  // Skip CTA price comes from billingCopy (annual default $20/mo → monthly $25/mo).
+  // Skip CTA price comes from billingCopy (monthly-first $25/mo → annual $20/mo).
   const skip = page.locator('.waitlist-skip');
-  await expect(skip.getByRole('button', { name: 'Subscribe — $20/mo' })).toBeVisible();
-  await skip.getByRole('tab', { name: 'Monthly' }).click();
   await expect(skip.getByRole('button', { name: 'Subscribe — $25/mo' })).toBeVisible();
+  await skip.getByRole('tab', { name: 'Annual' }).click();
+  await expect(skip.getByRole('button', { name: 'Subscribe — $20/mo' })).toBeVisible();
 });
 
 test('a waitlist user with no application is offered a path forward', async ({ page }) => {
