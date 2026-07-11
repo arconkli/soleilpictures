@@ -349,66 +349,74 @@ function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
 // (migration 0174) picks which variant a recipient gets and learns the winner.
 interface ActivateNudgeData {
   workspaceId?: string;
+  boardId?: string;     // the user's most recent cluster (nullable — see 0183)
+  boardName?: string;   // pre-sanitized in renderTemplate
   unsubscribeToken: string;
   variant?: string;
 }
 
+// "Untitled cluster" reads worse than no name at all in a subject/CTA.
+function namedBoard(d: ActivateNudgeData): string | null {
+  const n = (d.boardName || "").trim();
+  return n && !/^untitled/i.test(n) ? n : null;
+}
+
 function activateNudge1(d: ActivateNudgeData): RenderedEmail {
-  const url = deepLink({ w: d.workspaceId }, utm("activate_nudge_1"));
+  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("activate_nudge_1"));
   const unsub = unsubUrl(d.unsubscribeToken);
+  const name = namedBoard(d);
   if (d.variant === "B") {
+    const readyLine = name ? `"${name}" is ready when you are.` : "your board is ready when you are.";
     return {
-      subject: "the fastest way to start a board",
+      subject: "3 photos is all it takes",
       html: renderPlainNote({
-        preheader: "pick something you're working on and drop in a few images or links.",
+        preheader: "drop three photos onto a board and it becomes something you can use and share.",
         bodyHtml:
           noteP("hey, the clusters team here.") +
-          noteP("you made it in but haven't started a board yet, so here's the 10-second version:") +
-          noteP("pick something you're working on, drop in a few images or links, and clusters arranges it into something you can actually use and share.") +
-          noteP("give it a go?") +
-          noteLink("open clusters", url) +
+          noteP("the 60-second version of clusters: drop three photos onto a board — camera roll, screenshots, references — and it becomes something you can actually use and share.") +
+          noteP(readyLine) +
+          noteLink("add 3 photos", url) +
           noteP("talk soon, the clusters team"),
         unsubscribeUrl: unsub,
       }),
       text:
 `hey, the clusters team here.
 
-you made it in but haven't started a board yet, so here's the 10-second version:
+the 60-second version of clusters: drop three photos onto a board — camera roll, screenshots, references — and it becomes something you can actually use and share.
 
-pick something you're working on, drop in a few images or links, and clusters arranges it into something you can actually use and share.
+${readyLine}
 
-give it a go?
-
-open clusters: ${url}
+add 3 photos: ${url}
 
 talk soon, the clusters team
 
 Unsubscribe: ${unsub}`,
     };
   }
+  const opener = name
+    ? `you made "${name}" — it's just sitting empty. the fastest way to see what clusters can do: open it and drop in a few photos. camera roll, screenshots, references — we arrange them for you.`
+    : "you're in, but your canvas is still empty. drop a few photos on it — camera roll, screenshots, references — and clusters arranges them for you.";
+  const cta = name ? `open "${name}"` : "open clusters";
   return {
-    subject: "your board's still blank",
+    subject: "your cluster is one photo away",
     html: renderPlainNote({
-      preheader: "the fastest way in: drop three things you're into onto a board.",
+      preheader: "drop a few photos in — camera roll, screenshots, references — we arrange them.",
       bodyHtml:
         noteP("hey, quick note from the clusters team.") +
-        noteP("you signed up but haven't actually built anything yet. no judgment, a blank canvas is the worst part.") +
-        noteP("the move is to not overthink it: dump three things you're into onto a board and let it cluster itself. takes about a minute, and it's basically the whole point.") +
-        noteP("want to give it a shot?") +
-        noteLink("open clusters", url) +
+        noteP(opener) +
+        noteP("give it a minute?") +
+        noteLink(cta, url) +
         noteP("talk soon, the clusters team"),
       unsubscribeUrl: unsub,
     }),
     text:
 `hey, quick note from the clusters team.
 
-you signed up but haven't actually built anything yet. no judgment, a blank canvas is the worst part.
+${opener}
 
-the move is to not overthink it: dump three things you're into onto a board and let it cluster itself. takes about a minute, and it's basically the whole point.
+give it a minute?
 
-want to give it a shot?
-
-open clusters: ${url}
+${cta}: ${url}
 
 talk soon, the clusters team
 
@@ -417,55 +425,60 @@ Unsubscribe: ${unsub}`,
 }
 
 function activateNudge2(d: ActivateNudgeData): RenderedEmail {
-  const url = deepLink({ w: d.workspaceId }, utm("activate_nudge_2"));
+  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("activate_nudge_2"));
   const unsub = unsubUrl(d.unsubscribeToken);
+  const name = namedBoard(d);
   if (d.variant === "B") {
     return {
       subject: "before you go",
       html: renderPlainNote({
-        preheader: "most people start with one messy board. it sorts itself out from there.",
+        preheader: "most people start with one messy photo drop. it sorts itself out from there.",
         bodyHtml:
           noteP("hey, last one from us, promise.") +
-          noteP("most people who stick with clusters start with one messy board: a moodboard, a project, a pile of references. it sorts itself out from there.") +
+          noteP("most people who stick with clusters started with one messy photo drop: a moodboard, a project, a pile of references. it sorts itself out from there.") +
           noteP("two minutes to see if it clicks?") +
-          noteLink("build my first board", url) +
+          noteLink("drop in some photos", url) +
           noteP("talk soon, the clusters team"),
         unsubscribeUrl: unsub,
       }),
       text:
 `hey, last one from us, promise.
 
-most people who stick with clusters start with one messy board: a moodboard, a project, a pile of references. it sorts itself out from there.
+most people who stick with clusters started with one messy photo drop: a moodboard, a project, a pile of references. it sorts itself out from there.
 
 two minutes to see if it clicks?
 
-build my first board: ${url}
+drop in some photos: ${url}
 
 talk soon, the clusters team
 
 Unsubscribe: ${unsub}`,
     };
   }
+  const waiting = name
+    ? `"${name}" is still waiting. one photo drop is all it takes to see whether clusters clicks for you — everything you add arranges itself into a board you can share.`
+    : "your canvas is still waiting. one photo drop is all it takes to see whether clusters clicks for you — everything you add arranges itself into a board you can share.";
+  const cta = name ? `open "${name}"` : "open clusters";
   return {
     subject: "last note from us",
     html: renderPlainNote({
-      preheader: "for the stuff that lives in 40 open tabs and six group chats.",
+      preheader: "one photo drop is all it takes to see whether clusters clicks for you.",
       bodyHtml:
         noteP("hey again, we'll keep this one short, then we'll leave you be.") +
-        noteP("clusters is for the stuff that lives in 40 open tabs and six group chats: references, ideas, things you don't want to lose. you drop it in, it organizes itself into boards you can actually share.") +
-        noteP("if that sounds at all like your kind of thing, it's worth two minutes to start one. if it's not, genuinely no hard feelings.") +
-        noteLink("build my first board", url) +
+        noteP(waiting) +
+        noteP("two minutes, in and out. if it's not your kind of thing, genuinely no hard feelings.") +
+        noteLink(cta, url) +
         noteP("talk soon, the clusters team"),
       unsubscribeUrl: unsub,
     }),
     text:
 `hey again, we'll keep this one short, then we'll leave you be.
 
-clusters is for the stuff that lives in 40 open tabs and six group chats: references, ideas, things you don't want to lose. you drop it in, it organizes itself into boards you can actually share.
+${waiting}
 
-if that sounds at all like your kind of thing, it's worth two minutes to start one. if it's not, genuinely no hard feelings.
+two minutes, in and out. if it's not your kind of thing, genuinely no hard feelings.
 
-build my first board: ${url}
+${cta}: ${url}
 
 talk soon, the clusters team
 
@@ -602,17 +615,17 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardId:       data.boardId != null ? String(data.boardId) : undefined,
       });
     case "activate_nudge_1":
-      return activateNudge1({
+    case "activate_nudge_2": {
+      const nudgeBoardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
+      const nudgeData = {
         workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:          data.boardId != null ? String(data.boardId) : undefined,
+        boardName:        nudgeBoardName || undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
         variant:          data.variant != null ? String(data.variant) : undefined,
-      });
-    case "activate_nudge_2":
-      return activateNudge2({
-        workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
-        unsubscribeToken: String(data.unsubscribeToken ?? ""),
-        variant:          data.variant != null ? String(data.variant) : undefined,
-      });
+      };
+      return name === "activate_nudge_1" ? activateNudge1(nudgeData) : activateNudge2(nudgeData);
+    }
     case "reengage_1": {
       const boardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
       return reengage1({
