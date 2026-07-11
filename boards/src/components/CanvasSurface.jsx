@@ -22,6 +22,7 @@ import { LiveCursor, COVER_TINTS } from './primitives.jsx';
 import { CanvasPresence } from './CanvasPresence.jsx';
 import { PresenceStack } from './PresenceStack.jsx';
 import { CardContextMenu } from './CardContextMenu.jsx';
+import { EditableText } from './EditableText.jsx';
 import { SketchPadOverlay } from './SketchPadOverlay.jsx';
 import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
 import { ToolOptionsBar } from './ToolOptionsBar.jsx';
@@ -7580,7 +7581,8 @@ export function CanvasSurface({
   // re-run on EVERY render (every gesture-settle commit included). Deps are
   // the audited free variables of the body — KEEP IN SYNC with any future
   // edit inside this memo. (The state setters it calls — setArrowFrom /
-  // setSelectedTool / setBgCtx — are stable and deliberately omitted.)
+  // setSelectedTool / setBgCtx — are stable and deliberately omitted;
+  // canEdit gates the inline label rename.)
   const groupOutlineEls = useMemo(() => (
     groups.map(g => {
               const members = cardsByGroup.get(g.id) || [];
@@ -7660,7 +7662,21 @@ export function CanvasSurface({
                          groupMenu: { id: g.id, name: g.name },
                        });
                      }}>
-                  {g.name}
+                  {(canEdit && selectedTool !== 'arrow') ? (
+                    // Double-click renames inline (Enter/blur commit, Escape
+                    // cancels — EditableText). Gated off in arrow mode so the
+                    // wrapper's arrow-connect pointerdown owns the gesture;
+                    // right-click still reaches the wrapper's group menu.
+                    <EditableText
+                      tag="span"
+                      className="group-label-name"
+                      value={g.name}
+                      onChange={(v) => {
+                        const t = (v || '').trim();
+                        if (t) mutators.renameGroup?.(g.id, t);
+                      }}
+                    />
+                  ) : g.name}
                 </div>
               ) : null;
 
@@ -7732,7 +7748,7 @@ export function CanvasSurface({
                 </Fragment>
               );
             })
-  ), [groups, cardsByGroup, drag, arrowFrom, selectedTool, mutators, arrowOptions]);
+  ), [groups, cardsByGroup, drag, arrowFrom, selectedTool, mutators, arrowOptions, canEdit]);
 
 
   // An empty board has nothing to zoom into, so freeze the dotted grid

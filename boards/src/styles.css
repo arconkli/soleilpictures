@@ -10359,6 +10359,15 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   user-select: none;
   font-feature-settings: 'tnum' on;
 }
+/* Double-click-to-rename (EditableText) inside the chip: re-enable text
+   selection while editing (the chip itself is user-select:none) and keep a
+   minimum hit area so an emptied field doesn't collapse to zero width. */
+.group-label .group-label-name.is-editing {
+  display: inline-block;
+  min-width: 40px;
+  user-select: text;
+  -webkit-user-select: text;
+}
 
 /* ──────────────────────────── Card tag chips ───────────────────────────── */
 
