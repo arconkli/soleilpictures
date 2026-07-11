@@ -3048,9 +3048,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     updateOwnSettings({
       onboarding: {
         ...mergeTourIntoOnboarding(myTierRef.current?.onboarding || {}, tourState),
+        // merge_profile_settings replaces the whole `onboarding` key, and this
+        // can run before the seed effect's refetch lands (onboarding still
+        // undefined in the ref) — always re-assert seeded so a fast first
+        // advance can't wipe it and break resume-on-reload. The tour only ever
+        // runs post-seed, so this is safe.
+        seeded: true,
         // Completing or skipping the tour also finishes onboarding so it never
         // re-shows for a returning user.
-        ...(tourState.done ? { seeded: true, done: true } : {}),
+        ...(tourState.done ? { done: true } : {}),
       },
     })
       .then(() => myTierRef.current?.refetch?.())
@@ -3473,7 +3479,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // demo-gate + once-per-account guard + the soft banner; we just emit the window
     // event (works the same in the ?local=1 harness). The localStorage stamp avoids
     // re-arming across reloads; UpgradeChip de-dupes per account regardless.
-    if (!fvDone && myTier.tier === 'demo') {
+    // Not while the guided tour is running — the fv-banner would render dead under
+    // the tour's pointer-events lock; this effect re-runs when the tour closes
+    // (onboardingUiActive dep) and the nudge fires then, as the post-tour beat.
+    if (!fvDone && myTier.tier === 'demo' && !tourActive) {
       const dispatchFirstValue = () => {
         if (firstValueTimerRef.current) { clearTimeout(firstValueTimerRef.current); firstValueTimerRef.current = null; }
         try { localStorage.setItem(fvKey, '1'); } catch { /* ignore */ }
@@ -3495,10 +3504,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
 
     // Close the coachmark when a genuine card lands while it's showing (UI only;
-    // the analytics above no longer depends on it).
-    if (onboardingUiActive) dismissOnboarding('placed');
+    // the analytics above no longer depends on it). NOT while the arm-B guided
+    // tour is running: its step-1 cluster IS a genuine card, and dismissing here
+    // killed the whole tour before its cluster_created event could fire (the
+    // live funnel showed 0 users ever advancing past step 1). The tour owns its
+    // own completion via persistTour + the tour.state.done effect.
+    if (onboardingUiActive && !tourActive) dismissOnboarding('placed');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, yb.cards, currentId, onboardingUiActive]);
+  }, [user?.id, yb.cards, currentId, onboardingUiActive, tourActive]);
 
   // ── First-card friction signal ────────────────────────────────────────────
   // Detect when a brand-new user is STRUGGLING to place a first card and passively
@@ -3835,7 +3848,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           logEvent(EV.ONBOARDING_NEST, { board_id: targetBoardId, source_board_id: sourceBoardId, n: movedCards.length });
           try { setJourneyState({ phase: JOURNEY_PHASE.NEST }); } catch (_) {}
           feedback.toast({ type: 'success', message: 'Nice — that’s how you organize ✨' });
-          dismissOnboarding('nested'); // sets onboarding.done:true + logs ONBOARDING_DISMISS
+          // Never let a mid-tour nest kill the guided tour (arm B has no
+          // tutorialBoardId today, so this is insurance; the body flag is the
+          // live source of truth inside this long-lived listener closure).
+          if (document.body.dataset.tourActive !== '1') {
+            dismissOnboarding('nested'); // sets onboarding.done:true + logs ONBOARDING_DISMISS
+          }
         }
       } catch (_) { /* never block the move on the celebration */ }
       console.log('[xbm] start', { sourceBoardId, targetBoardId, movedCount: movedCards.length, movedIds: movedCards.map(c => c.id), movedKinds: movedCards.map(c => c.kind) });
