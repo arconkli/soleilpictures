@@ -6416,6 +6416,12 @@ export function CanvasSurface({
   const focusedCellRef = useRef(null);
   const focusCell = useCallback((gridId, cellId) => {
     const v = (gridId && cellId) ? { gridId, cellId } : null;
+    // Same-cell dedupe: focusCell fires on EVERY pointerdown inside a cell
+    // (capture phase), and an unconditional setState here re-renders GridCard
+    // mid-click — which used to remount the cell tools between pointerdown and
+    // pointerup, eating the click. Skip when focus isn't actually changing.
+    const cur = focusedCellRef.current;
+    if ((!v && !cur) || (v && cur && cur.gridId === v.gridId && cur.cellId === v.cellId)) return;
     focusedCellRef.current = v;
     setFocusedCell(v);
   }, []);

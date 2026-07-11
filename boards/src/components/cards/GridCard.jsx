@@ -81,6 +81,26 @@ function cellTextStyle(eff) {
   return Object.keys(s).length ? s : undefined;
 }
 
+// Split control: a vertical line (split into columns = a 'row' of two cells) or
+// a horizontal line (split into rows = a 'col'). Real icons (Columns, rotated).
+// MODULE scope, not inside GridCard's render: an inline component gets a new
+// function identity every render, so React REMOUNTS its buttons — and because
+// any pointerdown in a cell triggers focusCell (a re-render), the pressed
+// button was detached between pointerdown and pointerup and the click never
+// fired (the "split buttons don't work" bug).
+const SplitButtons = ({ gridActions, cardId, cellId }) => (
+  <>
+    <button type="button" className="is-icon" title="Add a vertical line (split into columns)"
+      onPointerDown={stop} onClick={(e) => { e.stopPropagation(); gridActions.splitCell(cardId, cellId, 'row'); }}>
+      <span className="gridc-ico"><Icon as={Columns} size={15} /></span>
+    </button>
+    <button type="button" className="is-icon" title="Add a horizontal line (split into rows)"
+      onPointerDown={stop} onClick={(e) => { e.stopPropagation(); gridActions.splitCell(cardId, cellId, 'col'); }}>
+      <span className="gridc-ico gridc-rot90"><Icon as={Columns} size={15} /></span>
+    </button>
+  </>
+);
+
 function CellText({ html, seqIndex, seqFormat, style }) {
   const resolved = (seqIndex != null && hasLabelTag(html))
     ? resolveTagText(html, { index: seqIndex, format: seqFormat || {} })
@@ -248,21 +268,6 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
     window.addEventListener('pointerup', up);
   };
 
-  // Split control: a vertical line (split into columns = a 'row' of two cells) or
-  // a horizontal line (split into rows = a 'col'). Real icons (Columns, rotated).
-  const SplitButtons = ({ cellId }) => (
-    <>
-      <button type="button" className="is-icon" title="Add a vertical line (split into columns)"
-        onPointerDown={stop} onClick={(e) => { e.stopPropagation(); gridActions.splitCell(card.id, cellId, 'row'); }}>
-        <span className="gridc-ico"><Icon as={Columns} size={15} /></span>
-      </button>
-      <button type="button" className="is-icon" title="Add a horizontal line (split into rows)"
-        onPointerDown={stop} onClick={(e) => { e.stopPropagation(); gridActions.splitCell(card.id, cellId, 'col'); }}>
-        <span className="gridc-ico gridc-rot90"><Icon as={Columns} size={15} /></span>
-      </button>
-    </>
-  );
-
   const linked = !!model.templateId;
 
   return (
@@ -414,7 +419,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                       <span className="gridc-pill-sep" />
                     </>
                   )}
-                  <SplitButtons cellId={r.id} />
+                  <SplitButtons gridActions={gridActions} cardId={card.id} cellId={r.id} />
                 </div>
                 )}
               </div>
