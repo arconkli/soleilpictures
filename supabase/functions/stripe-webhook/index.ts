@@ -156,6 +156,34 @@ async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, sessi
     },
   });
 
+  // First-party conversion analytics (subscription_started) — server-side so a
+  // buyer who never lands back on /pricing/success still counts (the client
+  // checkout_* events miss that path entirely). Deduped on the checkout
+  // session id so Stripe retries / operator re-sends stay single-counted.
+  // Best-effort: an analytics failure must never fail the webhook.
+  try {
+    const seen = await admin.from("analytics_events")
+      .select("id").eq("event", "subscription_started")
+      .eq("props->>session_id", session.id).limit(1);
+    if (!seen.error && !(seen.data?.length)) {
+      const ins = await admin.from("analytics_events").insert({
+        user_id: userId,
+        event: "subscription_started",
+        props: {
+          plan: m.plan ?? result.plan ?? null,
+          amount_total_cents: session.amount_total ?? null,
+          currency: (session.currency || "usd"),
+          session_id: session.id,
+          source: "stripe_webhook",
+        },
+        path: "/stripe-webhook",
+      });
+      if (ins.error) console.warn("[stripe-webhook] subscription_started insert failed", ins.error.message);
+    }
+  } catch (e) {
+    console.warn("[stripe-webhook] subscription_started insert threw", (e as Error)?.message || String(e));
+  }
+
   // Surface DB failures as a 500 AFTER the CAPI emit so Stripe retries the
   // event instead of treating the lost write as delivered (emitCapi dedups
   // on session.id across retries, so the emit stays single-counted).

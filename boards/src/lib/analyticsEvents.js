@@ -60,6 +60,7 @@ export const EV = Object.freeze({
   CHECKOUT_SUPPORT_CLICK:  'checkout_support_click',      // {surface:'stalled'|'missing_session'}
   CHECKOUT_ACTIVATED_SEEN: 'checkout_activated_seen',     // tier→paid celebration {tier,plan} (must-land)
   CHECKOUT_SUCCESS_DWELL:  'checkout_success_dwell',      // {ms,outcome}
+  SUBSCRIPTION_STARTED:    'subscription_started',        // SERVER (stripe-webhook, checkout.session.completed) {plan,amount_total_cents,currency,session_id} — ground-truth paid conversion, fires even if the buyer never returns to /pricing/success
 
   // ── Ad offer (fbclid instant-demo) ──
   AD_OFFER_VIEW:           'ad_offer_view',               // price-first screen shown to ad-sourced demo user
