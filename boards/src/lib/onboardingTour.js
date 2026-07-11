@@ -83,10 +83,15 @@ export const TOUR_STEPS = [
     // every rail tooltip at once (a column down the rail), so a right-placed pill
     // would sit on top of them. Centering clears the column. See OnboardingTour.
     centerPill: true,
+    // Touch devices get a direct "Add photos" button in the pill (camera-roll
+    // multi-select via OnboardingTour's onAction) — the rail is unfamiliar on
+    // phones and images are THE activation signal. Desktop keeps the unlocked
+    // rail as the action. Completion is unchanged (any content_added).
+    touchAction: { label: 'Add photos', type: 'pick_photos' },
     copy: {
       title: 'Now add anything',
       body: 'An image, a note, a doc, a file — drop in whatever you want. This is your canvas.',
-      touch: 'Add anything — image, note, doc or file. This is your canvas.',
+      touch: 'Add your first photos — or anything else. This is your canvas.',
     },
     accepts: (e) => e?.type === 'content_added',
   },

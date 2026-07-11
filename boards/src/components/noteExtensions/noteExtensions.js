@@ -12,6 +12,8 @@
 // emit the exact legacy note html contract the read-only consumers expect.
 
 import StarterKit from '@tiptap/starter-kit';
+import BulletList from '@tiptap/extension-bullet-list';
+import OrderedList from '@tiptap/extension-ordered-list';
 import Underline from '@tiptap/extension-underline';
 import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
@@ -31,7 +33,18 @@ export const noteExtensions = [
     codeBlock: false,
     horizontalRule: false,
     heading: { levels: [1, 2, 3] },
+    // Lists are re-added below with their markdown input rules stripped.
+    bulletList: false,
+    orderedList: false,
   }),
+  // Same list nodes/commands (schema + toolbar toggles unchanged) minus the
+  // "- " / "* " / "1. " markdown input rules: typing a plain dash list kept
+  // flipping into a real <ul> the user didn't ask for. Lists stay reachable
+  // via the formatting toolbar; typed "- " remains literal text and Enter
+  // auto-continues the prefix (NoteTiptapSurface handleKeyDown). listItem
+  // still ships via StarterKit, so toggleBulletList/toggleOrderedList work.
+  BulletList.extend({ addInputRules: () => [] }),
+  OrderedList.extend({ addInputRules: () => [] }),
   Underline,
   // Inline color / font-family / font-size live on the textStyle mark and
   // render as <span style="…"> — matching the legacy wrapSelectionStyle output.

@@ -19,7 +19,8 @@ export type TemplateName =
   | "comment_reply_email"
   | "activate_nudge_1"
   | "activate_nudge_2"
-  | "reengage_1";
+  | "reengage_1"
+  | "welcome_board";
 
 export const TEMPLATE_NAMES: TemplateName[] = [
   "waitlist_submitted",
@@ -32,6 +33,7 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "activate_nudge_1",
   "activate_nudge_2",
   "reengage_1",
+  "welcome_board",
 ];
 
 export interface RenderedEmail {
@@ -79,6 +81,13 @@ function noteP(text: string): string {
 
 function noteLink(label: string, url: string): string {
   return `<p style="margin:2px 0 18px; font:600 15px/1.65 ${NOTE_FONT};"><a href="${escapeHtml(url)}" style="color:#1a1a1a; text-decoration:underline;">${escapeHtml(label)} &rarr;</a></p>`;
+}
+
+// A linked image inside the note body (welcome_board embeds the user's own
+// board thumbnail). width= attribute + inline max-width keep it bounded in
+// Outlook and fluid everywhere else.
+function noteImg(src: string, alt: string, href: string): string {
+  return `<p style="margin:4px 0 18px;"><a href="${escapeHtml(href)}" style="text-decoration:none;"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" width="440" style="width:100%; max-width:440px; height:auto; display:block; border-radius:10px; border:1px solid #e7e4df;"></a></p>`;
 }
 
 function waitlistSubmitted(): RenderedEmail {
@@ -138,7 +147,7 @@ interface WorkspaceInviteData {
 function workspaceInvite(d: WorkspaceInviteData): RenderedEmail {
   const role = (d.role || "member").toLowerCase();
   const headline = `You're in ${d.workspaceName}.`;
-  const subtitle = `${d.inviterName} added you as ${role}. Jump in to see what they're working on.`;
+  const subtitle = `${d.inviterName} added you as ${role} — jump in and build together.`;
   const url = deepLink({ w: d.workspaceId });
   return {
     subject: `${d.inviterName} added you to ${d.workspaceName}`,
@@ -172,8 +181,8 @@ interface BoardSharedData {
 
 function boardShared(d: BoardSharedData): RenderedEmail {
   const role = (d.role || "viewer").toLowerCase();
-  const headline = `${d.sharerName} shared a board.`;
-  const subtitle = `You've got ${role} access to "${d.boardName}".`;
+  const headline = `${d.sharerName} wants to build with you.`;
+  const subtitle = `You've got ${role} access to "${d.boardName}" — hop in.`;
   const url = deepLink({ w: d.workspaceId, b: d.boardId });
   return {
     subject: `${d.sharerName} shared "${d.boardName}" with you`,
@@ -220,7 +229,7 @@ function pendingInvite(d: PendingInviteData): RenderedEmail {
     return "a viewer";
   })();
   const headline = `${d.inviterName} invited you.`;
-  const subtitle = `You've been invited to join ${target} as ${roleLabel}. Sign in to get started — we'll set up your account.`;
+  const subtitle = `You've been invited to join ${target} as ${roleLabel}. You'll start with 25 free cards — sign in and we'll set up your account.`;
   const url = `${APP_URL}?invite=${encodeURIComponent(d.token)}`;
   return {
     subject: isWorkspace
@@ -349,66 +358,74 @@ function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
 // (migration 0174) picks which variant a recipient gets and learns the winner.
 interface ActivateNudgeData {
   workspaceId?: string;
+  boardId?: string;     // the user's most recent cluster (nullable — see 0183)
+  boardName?: string;   // pre-sanitized in renderTemplate
   unsubscribeToken: string;
   variant?: string;
 }
 
+// "Untitled cluster" reads worse than no name at all in a subject/CTA.
+function namedBoard(d: ActivateNudgeData): string | null {
+  const n = (d.boardName || "").trim();
+  return n && !/^untitled/i.test(n) ? n : null;
+}
+
 function activateNudge1(d: ActivateNudgeData): RenderedEmail {
-  const url = deepLink({ w: d.workspaceId }, utm("activate_nudge_1"));
+  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("activate_nudge_1"));
   const unsub = unsubUrl(d.unsubscribeToken);
+  const name = namedBoard(d);
   if (d.variant === "B") {
+    const readyLine = name ? `"${name}" is ready when you are.` : "your board is ready when you are.";
     return {
-      subject: "the fastest way to start a board",
+      subject: "3 photos is all it takes",
       html: renderPlainNote({
-        preheader: "pick something you're working on and drop in a few images or links.",
+        preheader: "drop three photos onto a board and it becomes something you can use and share.",
         bodyHtml:
           noteP("hey, the clusters team here.") +
-          noteP("you made it in but haven't started a board yet, so here's the 10-second version:") +
-          noteP("pick something you're working on, drop in a few images or links, and clusters arranges it into something you can actually use and share.") +
-          noteP("give it a go?") +
-          noteLink("open clusters", url) +
+          noteP("the 60-second version of clusters: drop three photos onto a board — camera roll, screenshots, references — and it becomes something you can actually use and share.") +
+          noteP(readyLine) +
+          noteLink("add 3 photos", url) +
           noteP("talk soon, the clusters team"),
         unsubscribeUrl: unsub,
       }),
       text:
 `hey, the clusters team here.
 
-you made it in but haven't started a board yet, so here's the 10-second version:
+the 60-second version of clusters: drop three photos onto a board — camera roll, screenshots, references — and it becomes something you can actually use and share.
 
-pick something you're working on, drop in a few images or links, and clusters arranges it into something you can actually use and share.
+${readyLine}
 
-give it a go?
-
-open clusters: ${url}
+add 3 photos: ${url}
 
 talk soon, the clusters team
 
 Unsubscribe: ${unsub}`,
     };
   }
+  const opener = name
+    ? `you made "${name}" — it's just sitting empty. the fastest way to see what clusters can do: open it and drop in a few photos. camera roll, screenshots, references — we arrange them for you.`
+    : "you're in, but your canvas is still empty. drop a few photos on it — camera roll, screenshots, references — and clusters arranges them for you.";
+  const cta = name ? `open "${name}"` : "open clusters";
   return {
-    subject: "your board's still blank",
+    subject: "your cluster is one photo away",
     html: renderPlainNote({
-      preheader: "the fastest way in: drop three things you're into onto a board.",
+      preheader: "drop a few photos in — camera roll, screenshots, references — we arrange them.",
       bodyHtml:
         noteP("hey, quick note from the clusters team.") +
-        noteP("you signed up but haven't actually built anything yet. no judgment, a blank canvas is the worst part.") +
-        noteP("the move is to not overthink it: dump three things you're into onto a board and let it cluster itself. takes about a minute, and it's basically the whole point.") +
-        noteP("want to give it a shot?") +
-        noteLink("open clusters", url) +
+        noteP(opener) +
+        noteP("give it a minute?") +
+        noteLink(cta, url) +
         noteP("talk soon, the clusters team"),
       unsubscribeUrl: unsub,
     }),
     text:
 `hey, quick note from the clusters team.
 
-you signed up but haven't actually built anything yet. no judgment, a blank canvas is the worst part.
+${opener}
 
-the move is to not overthink it: dump three things you're into onto a board and let it cluster itself. takes about a minute, and it's basically the whole point.
+give it a minute?
 
-want to give it a shot?
-
-open clusters: ${url}
+${cta}: ${url}
 
 talk soon, the clusters team
 
@@ -417,55 +434,60 @@ Unsubscribe: ${unsub}`,
 }
 
 function activateNudge2(d: ActivateNudgeData): RenderedEmail {
-  const url = deepLink({ w: d.workspaceId }, utm("activate_nudge_2"));
+  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("activate_nudge_2"));
   const unsub = unsubUrl(d.unsubscribeToken);
+  const name = namedBoard(d);
   if (d.variant === "B") {
     return {
       subject: "before you go",
       html: renderPlainNote({
-        preheader: "most people start with one messy board. it sorts itself out from there.",
+        preheader: "most people start with one messy photo drop. it sorts itself out from there.",
         bodyHtml:
           noteP("hey, last one from us, promise.") +
-          noteP("most people who stick with clusters start with one messy board: a moodboard, a project, a pile of references. it sorts itself out from there.") +
+          noteP("most people who stick with clusters started with one messy photo drop: a moodboard, a project, a pile of references. it sorts itself out from there.") +
           noteP("two minutes to see if it clicks?") +
-          noteLink("build my first board", url) +
+          noteLink("drop in some photos", url) +
           noteP("talk soon, the clusters team"),
         unsubscribeUrl: unsub,
       }),
       text:
 `hey, last one from us, promise.
 
-most people who stick with clusters start with one messy board: a moodboard, a project, a pile of references. it sorts itself out from there.
+most people who stick with clusters started with one messy photo drop: a moodboard, a project, a pile of references. it sorts itself out from there.
 
 two minutes to see if it clicks?
 
-build my first board: ${url}
+drop in some photos: ${url}
 
 talk soon, the clusters team
 
 Unsubscribe: ${unsub}`,
     };
   }
+  const waiting = name
+    ? `"${name}" is still waiting. one photo drop is all it takes to see whether clusters clicks for you — everything you add arranges itself into a board you can share.`
+    : "your canvas is still waiting. one photo drop is all it takes to see whether clusters clicks for you — everything you add arranges itself into a board you can share.";
+  const cta = name ? `open "${name}"` : "open clusters";
   return {
     subject: "last note from us",
     html: renderPlainNote({
-      preheader: "for the stuff that lives in 40 open tabs and six group chats.",
+      preheader: "one photo drop is all it takes to see whether clusters clicks for you.",
       bodyHtml:
         noteP("hey again, we'll keep this one short, then we'll leave you be.") +
-        noteP("clusters is for the stuff that lives in 40 open tabs and six group chats: references, ideas, things you don't want to lose. you drop it in, it organizes itself into boards you can actually share.") +
-        noteP("if that sounds at all like your kind of thing, it's worth two minutes to start one. if it's not, genuinely no hard feelings.") +
-        noteLink("build my first board", url) +
+        noteP(waiting) +
+        noteP("two minutes, in and out. if it's not your kind of thing, genuinely no hard feelings.") +
+        noteLink(cta, url) +
         noteP("talk soon, the clusters team"),
       unsubscribeUrl: unsub,
     }),
     text:
 `hey again, we'll keep this one short, then we'll leave you be.
 
-clusters is for the stuff that lives in 40 open tabs and six group chats: references, ideas, things you don't want to lose. you drop it in, it organizes itself into boards you can actually share.
+${waiting}
 
-if that sounds at all like your kind of thing, it's worth two minutes to start one. if it's not, genuinely no hard feelings.
+two minutes, in and out. if it's not your kind of thing, genuinely no hard feelings.
 
-build my first board: ${url}
+${cta}: ${url}
 
 talk soon, the clusters team
 
@@ -549,6 +571,103 @@ Unsubscribe: ${unsub}`,
   };
 }
 
+// ── welcome_board (migration 0184) ──────────────────────────────────────────
+// Day-1 welcome showing the user their OWN board — the strongest pull-back we
+// have is a picture of the thing they made. The image URL is computed by
+// lifecycle-email-cron (HMAC-signed /api/email-thumb worker route; email
+// clients fetch it unauthenticated, possibly weeks after send). Only that
+// exact origin/path is ever embedded — anything else renders text-only.
+const EMAIL_THUMB_PREFIX = "https://clusters.soleilpictures.com/api/email-thumb/";
+
+interface WelcomeBoardData {
+  workspaceId?: string;
+  boardId?: string;
+  boardName?: string;   // pre-sanitized in renderTemplate
+  thumbUrl?: string;    // signed /api/email-thumb URL (cron-computed)
+  unsubscribeToken: string;
+  variant?: string;
+}
+
+// Besides "Untitled cluster", the auto-created root is always called "Studio"
+// — the eligibility RPC can feature it when it's the only populated board,
+// and 'you started "Studio"' reads like we named it for them. Fall back to
+// no-name copy for both.
+function namedWelcomeBoard(d: WelcomeBoardData): string | null {
+  const n = (d.boardName || "").trim();
+  return n && !/^untitled/i.test(n) && !/^studio$/i.test(n) ? n : null;
+}
+
+function welcomeBoard(d: WelcomeBoardData): RenderedEmail {
+  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("welcome_board"));
+  const unsub = unsubUrl(d.unsubscribeToken);
+  const name = namedWelcomeBoard(d);
+  const img = d.thumbUrl && d.thumbUrl.startsWith(EMAIL_THUMB_PREFIX)
+    ? noteImg(d.thumbUrl, name ? `Your board "${name}"` : "Your board", url)
+    : "";
+  if (d.variant === "B") {
+    const openerB = img
+      ? "hey — one day in, and your board already looks like this:"
+      : "hey — one day in, and your board is already taking shape.";
+    const saved = name
+      ? `"${name}" is saved and waiting. add a few more photos and watch it take shape.`
+      : "it's saved and waiting. add a few more photos and watch it take shape.";
+    return {
+      subject: "look what you made",
+      html: renderPlainNote({
+        preheader: "one day in, and your board is already taking shape.",
+        bodyHtml:
+          noteP(openerB) +
+          img +
+          noteP(saved) +
+          noteLink("keep building", url) +
+          noteP("talk soon, the clusters team"),
+        unsubscribeUrl: unsub,
+      }),
+      text:
+`${openerB}
+
+${saved}
+
+keep building: ${url}
+
+talk soon, the clusters team
+
+Unsubscribe: ${unsub}`,
+    };
+  }
+  const opener = name
+    ? (img ? `you started "${name}" yesterday — here's how it's looking already.`
+           : `you started "${name}" yesterday — it's already taking shape.`)
+    : (img ? "you started a board yesterday — here's how it's looking already."
+           : "you started a board yesterday — it's already taking shape.");
+  return {
+    subject: name ? `"${name}" is off to a good start` : "your board is off to a good start",
+    html: renderPlainNote({
+      preheader: "it's saved and waiting whenever you want to keep going.",
+      bodyHtml:
+        noteP("hey, the clusters team here.") +
+        noteP(opener) +
+        img +
+        noteP("it's saved and waiting whenever you want to keep going — drop in more photos, notes, or files and they arrange themselves.") +
+        noteLink("pick up where you left off", url) +
+        noteP("talk soon, the clusters team"),
+      unsubscribeUrl: unsub,
+    }),
+    text:
+`hey, the clusters team here.
+
+${opener}
+
+it's saved and waiting whenever you want to keep going — drop in more photos, notes, or files and they arrange themselves.
+
+pick up where you left off: ${url}
+
+talk soon, the clusters team
+
+Unsubscribe: ${unsub}`,
+  };
+}
+
 export function renderTemplate(name: TemplateName, data: Record<string, unknown>): RenderedEmail {
   switch (name) {
     case "waitlist_submitted":
@@ -602,23 +721,34 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardId:       data.boardId != null ? String(data.boardId) : undefined,
       });
     case "activate_nudge_1":
-      return activateNudge1({
+    case "activate_nudge_2": {
+      const nudgeBoardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
+      const nudgeData = {
         workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:          data.boardId != null ? String(data.boardId) : undefined,
+        boardName:        nudgeBoardName || undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
         variant:          data.variant != null ? String(data.variant) : undefined,
-      });
-    case "activate_nudge_2":
-      return activateNudge2({
-        workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
-        unsubscribeToken: String(data.unsubscribeToken ?? ""),
-        variant:          data.variant != null ? String(data.variant) : undefined,
-      });
+      };
+      return name === "activate_nudge_1" ? activateNudge1(nudgeData) : activateNudge2(nudgeData);
+    }
     case "reengage_1": {
       const boardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
       return reengage1({
         workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:          data.boardId != null ? String(data.boardId) : undefined,
         boardName:        boardName || undefined,
+        unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        variant:          data.variant != null ? String(data.variant) : undefined,
+      });
+    }
+    case "welcome_board": {
+      const boardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
+      return welcomeBoard({
+        workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:          data.boardId != null ? String(data.boardId) : undefined,
+        boardName:        boardName || undefined,
+        thumbUrl:         data.thumbUrl != null ? String(data.thumbUrl) : undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
         variant:          data.variant != null ? String(data.variant) : undefined,
       });

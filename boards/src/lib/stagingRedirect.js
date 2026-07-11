@@ -99,11 +99,16 @@ export async function maybeRedirectToLatest() {
 
   // Hand the session off in the same hash shape AuthGate.consumeAuthCallback()
   // already understands (#access_token=…&refresh_token=…&expires_at=…), and keep
-  // the current path so they land where they were.
+  // the current path so they land where they were. `handoff=staging` tells the
+  // receiver this is a courtesy copy, not a sign-in: if the preview origin
+  // already has a working session of its own it must KEEP it — adopting this
+  // (possibly stale) copy would present an already-rotated refresh token and
+  // get the whole session family revoked, logging the admin out everywhere.
   const hash = new URLSearchParams({
     access_token:  sess.access_token,
     refresh_token: sess.refresh_token,
     expires_at:    String(sess.expires_at || ''),
+    handoff:       'staging',
   }).toString();
   const dest = targetUrl.origin + window.location.pathname + window.location.search + '#' + hash;
   window.location.replace(dest);

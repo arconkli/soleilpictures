@@ -22,6 +22,7 @@ import { LiveCursor, COVER_TINTS } from './primitives.jsx';
 import { CanvasPresence } from './CanvasPresence.jsx';
 import { PresenceStack } from './PresenceStack.jsx';
 import { CardContextMenu } from './CardContextMenu.jsx';
+import { EditableText } from './EditableText.jsx';
 import { SketchPadOverlay } from './SketchPadOverlay.jsx';
 import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
 import { ToolOptionsBar } from './ToolOptionsBar.jsx';
@@ -822,7 +823,16 @@ export function CanvasSurface({
     if (k === 'grid') { mutators.graftGridIntoCell?.(gridId, cellId, card.id); return true; }
     let patch = null, consume = true;
     if (k === 'image') patch = { type: 'image', src: card.src, fit: 'cover', ...(card.adjust ? { adjust: card.adjust } : {}), ...(card.pos ? { pos: card.pos } : {}) };
-    else if (k === 'note' || k === 'textlink') patch = { type: 'text', html: card.html || '' };
+    else if (k === 'note' || k === 'textlink') {
+      // Keep the note's look (bg / text color / font) as a pinned cell style —
+      // a painted note dropped into a grid used to arrive stripped to bare html.
+      const style = {};
+      if (card.bgColor) style.bg = card.bgColor;            // 'transparent' renders as unset
+      if (card.textColor) style.color = card.textColor;
+      if (card.fontFamily) style.fontFamily = card.fontFamily;
+      if (card.fontSize) style.fontSize = card.fontSize;
+      patch = { type: 'text', html: card.html || '', ...(Object.keys(style).length ? { style } : {}) };
+    }
     else if (k === 'link') patch = { type: 'link', source: card.source || card.link, link: card.link || card.source, title: card.title, image: card.image, favicon: card.favicon, ...(card.embed ? { embed: card.embed } : {}) };
     else if (k === 'board') { patch = { type: 'board', boardId: card.id, name: boards?.[card.id]?.name || null }; consume = false; }
     else if (k === 'boardlink' && card.target) { patch = { type: 'board', boardId: card.target, name: boards?.[card.target]?.name || null }; consume = false; }
@@ -1938,6 +1948,9 @@ export function CanvasSurface({
   // can be dispatched by anything, so the canEdit guard here is the actual
   // enforcement. The boardId match keeps a split-pane dispatch from opening
   // the sheet on the wrong pane.
+  // pickPhotosAt is declared further down (it needs ingestFiles); the ref keeps
+  // these early listeners on the CURRENT closure without TDZ'd deps arrays.
+  const pickPhotosAtRef = useRef(null);
   useEffect(() => {
     const onAdd = (e) => {
       if (e.detail?.boardId !== board.id) return;
@@ -1947,20 +1960,39 @@ export function CanvasSurface({
       const pos = rect
         ? clientToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2)
         : { x: 200, y: 200 };
-      // First-card moment (empty board): skip the type-picker sheet and drop a note
-      // immediately — one obvious tap, not a second decision. Mobile first-card
-      // converts at <half of desktop; choice paralysis on the very first action is
-      // the enemy. (cardsRef stays fresh without re-binding this listener.) Non-empty
-      // boards keep the full add sheet so power users still get the type picker.
+      // First-card moment (empty board): skip the type-picker sheet and open the
+      // photo picker immediately — one obvious tap, not a second decision. This
+      // used to drop a text note, but ZERO note-only users have ever activated;
+      // images are the activation signal and the camera roll is the phone's
+      // superpower. (cardsRef stays fresh without re-binding this listener.)
+      // Non-empty boards keep the full add sheet so power users get the picker.
       if ((cardsRef.current || []).length === 0) {
         noteCreateIntent('mobile_nav');
-        mutators.addNote?.(pos);
+        pickPhotosAtRef.current?.(pos);
         return;
       }
       setMobileAdd({ pos });
     };
     document.addEventListener('soleil-mobile-add-card', onAdd);
     return () => document.removeEventListener('soleil-mobile-add-card', onAdd);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board.id, canEdit]);
+
+  // Guided-tour "Add photos" (the content step's touch action): App dispatches
+  // this when the pill button is tapped. Deliberately NOT gated on the tour
+  // lock — unlike soleil-mobile-add-card, the tour itself is the sender here.
+  useEffect(() => {
+    const onPick = (e) => {
+      if (e.detail?.boardId !== board.id) return;
+      if (!canEdit) return;
+      const rect = wrapRef.current?.getBoundingClientRect();
+      const pos = rect
+        ? clientToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2)
+        : { x: 200, y: 200 };
+      pickPhotosAtRef.current?.(pos);
+    };
+    document.addEventListener('soleil-pick-photos', onPick);
+    return () => document.removeEventListener('soleil-pick-photos', onPick);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board.id, canEdit]);
 
@@ -2360,6 +2392,24 @@ export function CanvasSurface({
     };
     input.click();
   }, [ingestFiles]);
+
+  // Camera-roll-first photo picker: accept="image/*" keeps the OS chooser on
+  // the photo library (camera roll on iOS/Android), multi-select routes through
+  // the same batch ingest as drag-drop (per-image offsets, caps, optimistic
+  // cards). Images are THE activation signal — this is the mobile primary path.
+  const pickPhotosAt = useCallback((pos) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.onchange = () => {
+      if (input.files && input.files.length) {
+        ingestFiles(input.files, pos?.x ?? 200, pos?.y ?? 200);
+      }
+    };
+    input.click();
+  }, [ingestFiles]);
+  pickPhotosAtRef.current = pickPhotosAt;
 
   // Right-click "Set cover image" → upload an image file and stamp it
   // onto the audio card's `cover` field. Also widens the card so the
@@ -5646,7 +5696,7 @@ export function CanvasSurface({
   // the mobile sheet and ignored by the context-menu renderer.
   const buildAddActions = (pos, method) => [
     { id: 'board',   group: 'card', label: 'Cluster', icon: Browsers,      run: () => { noteCreateIntent(method); mutators.addNewBoard?.(pos); } },
-    { id: 'linkedcluster', group: 'card', label: 'Linked cluster', icon: ArrowSquareOut, run: () => onOpenPicker?.() },
+    { id: 'linkedcluster', group: 'card', label: 'Linked cluster', icon: ArrowSquareOut, run: () => onOpenPicker?.(pos) },
     { id: 'grid',    group: 'card', label: 'Grid',    icon: GridFour,      run: () => { noteCreateIntent(method); mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); } },
     { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method); mutators.addImageAt?.(pos); } },
     { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method); openFilePicker(pos); } },
@@ -6374,6 +6424,12 @@ export function CanvasSurface({
   const focusedCellRef = useRef(null);
   const focusCell = useCallback((gridId, cellId) => {
     const v = (gridId && cellId) ? { gridId, cellId } : null;
+    // Same-cell dedupe: focusCell fires on EVERY pointerdown inside a cell
+    // (capture phase), and an unconditional setState here re-renders GridCard
+    // mid-click — which used to remount the cell tools between pointerdown and
+    // pointerup, eating the click. Skip when focus isn't actually changing.
+    const cur = focusedCellRef.current;
+    if ((!v && !cur) || (v && cur && cur.gridId === v.gridId && cur.cellId === v.cellId)) return;
     focusedCellRef.current = v;
     setFocusedCell(v);
   }, []);
@@ -7424,7 +7480,7 @@ export function CanvasSurface({
     { title: 'Create', items: [
       { id: 'file',          label: 'File',           icon: Paperclip,      tip: 'Upload any file',         action: () => addFromRegistry('file') },
       { id: 'addurl',        label: 'Link',           icon: Link,           tip: 'Add a web link',          action: () => addFromRegistry('addurl') },
-      { id: 'linkedcluster', label: 'Linked cluster', icon: ArrowSquareOut, tip: 'Link an existing cluster',action: () => onOpenPicker?.() },
+      { id: 'linkedcluster', label: 'Linked cluster', icon: ArrowSquareOut, tip: 'Link an existing cluster',action: () => onOpenPicker?.(resolvePastePos().pos) },
     ]},
     { title: 'Annotate', items: [
       { id: 'comment', label: 'Comment', icon: MessageCircle, tip: 'Place a comment — click a card or the canvas', action: () => setAnnotPlacing('comment') },
@@ -7531,7 +7587,8 @@ export function CanvasSurface({
   // re-run on EVERY render (every gesture-settle commit included). Deps are
   // the audited free variables of the body — KEEP IN SYNC with any future
   // edit inside this memo. (The state setters it calls — setArrowFrom /
-  // setSelectedTool / setBgCtx — are stable and deliberately omitted.)
+  // setSelectedTool / setBgCtx — are stable and deliberately omitted;
+  // canEdit gates the inline label rename.)
   const groupOutlineEls = useMemo(() => (
     groups.map(g => {
               const members = cardsByGroup.get(g.id) || [];
@@ -7611,7 +7668,21 @@ export function CanvasSurface({
                          groupMenu: { id: g.id, name: g.name },
                        });
                      }}>
-                  {g.name}
+                  {(canEdit && selectedTool !== 'arrow') ? (
+                    // Double-click renames inline (Enter/blur commit, Escape
+                    // cancels — EditableText). Gated off in arrow mode so the
+                    // wrapper's arrow-connect pointerdown owns the gesture;
+                    // right-click still reaches the wrapper's group menu.
+                    <EditableText
+                      tag="span"
+                      className="group-label-name"
+                      value={g.name}
+                      onChange={(v) => {
+                        const t = (v || '').trim();
+                        if (t) mutators.renameGroup?.(g.id, t);
+                      }}
+                    />
+                  ) : g.name}
                 </div>
               ) : null;
 
@@ -7683,7 +7754,7 @@ export function CanvasSurface({
                 </Fragment>
               );
             })
-  ), [groups, cardsByGroup, drag, arrowFrom, selectedTool, mutators, arrowOptions]);
+  ), [groups, cardsByGroup, drag, arrowFrom, selectedTool, mutators, arrowOptions, canEdit]);
 
 
   // An empty board has nothing to zoom into, so freeze the dotted grid
@@ -8879,6 +8950,16 @@ export function CanvasSurface({
       {isPhone && mobileAdd && (
         <Sheet open onClose={() => setMobileAdd(null)} title="Add to cluster" snap="half">
           <div className="mobile-add-grid">
+            {/* Photos leads on the phone sheet — camera-roll multi-select is the
+                mobile superpower and images are the activation signal. */}
+            <button
+              type="button"
+              className="mobile-add-tile"
+              onClick={() => { setMobileAdd(null); noteCreateIntent('mobile_nav'); pickPhotosAt(mobileAdd.pos); }}
+            >
+              <span className="mobile-add-ico" aria-hidden="true"><Icon as={ImageIcon} size={24} /></span>
+              <span className="mobile-add-lbl">Photos</span>
+            </button>
             {buildAddActions(mobileAdd.pos, 'mobile_nav').filter(a => a.id !== 'script').map(a => (
               <button
                 key={a.id}
@@ -8917,6 +8998,17 @@ export function CanvasSurface({
             return next;
           });
         } : null}
+        editingCellStyle={(() => {
+          // Effective style of the edited cell (family + pinned override) — seeds
+          // the Box-background picker. Seed-only: a pinned nested write doesn't
+          // bust the cards snapshot, so this may lag one pick; harmless.
+          if (!editingCell) return null;
+          const gcard = cardById[editingCell.gridId];
+          if (!gcard) return null;
+          const fam = (gcard.templateId ? gridTemplates?.[gcard.templateId]?.textStyle : gcard.textStyle) || {};
+          const rec = gridCellRecord(editingCell.gridId, editingCell.cellId);
+          return { ...fam, ...((rec && rec.style) || {}) };
+        })()}
         editingShapeCard={(() => {
           if (selected.size !== 1) return null;
           const id = [...selected][0];

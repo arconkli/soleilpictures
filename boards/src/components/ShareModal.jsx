@@ -24,6 +24,8 @@ import { pickPresenceColor } from '../lib/presenceColor.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { ExplorePublishSection } from './ExplorePublishSection.jsx';
 import { useFeedback } from './AppFeedback.jsx';
+import { logEventNow } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 import { X as XIcon } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
 
@@ -301,6 +303,14 @@ export function ShareModal({
       }
     }
 
+    // K-factor numerator: invites actually SENT. The referral ledger only
+    // records signups, so without this the "invites per activated user" half
+    // of the loop is invisible. One event per outcome group, not per address.
+    try {
+      if (granted.length > 0) logEventNow(EV.INVITE_SENT, { role: inviteRole, result: 'granted', n: granted.length, surface: 'share_modal' });
+      if (pending.length > 0) logEventNow(EV.INVITE_SENT, { role: inviteRole, result: 'pending', n: pending.length, surface: 'share_modal' });
+    } catch (_) { /* analytics must never break the invite flow */ }
+
     // Refresh derived state once after the loop.
     if (inviteRole === 'workspace' && (granted.length > 0 || pending.length > 0)) {
       onMembersChanged?.();
@@ -534,7 +544,7 @@ export function ShareModal({
           </div>
           <div className="share-list">
             {workspaceMembers.length === 0 && pendingWorkspaceInvites.length === 0 ? (
-              <div className="share-empty">No members yet.</div>
+              <div className="share-empty">No members yet — clusters are better together.</div>
             ) : workspaceMembers.map(m => {
               const meta = userMeta(m.user_id);
               const isWsOwner = m.user_id === workspace?.created_by;
@@ -599,7 +609,7 @@ export function ShareModal({
                   <div className="share-empty">Loading…</div>
                 ) : shares.length === 0 && pendingBoardInvites.length === 0 ? (
                   <div className="share-empty">
-                    No one yet. Invite people above to give them access to this
+                    No one yet. Invite someone above — they&apos;ll see this
                     cluster and everything inside it.
                   </div>
                 ) : shares.map(s => {

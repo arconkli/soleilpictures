@@ -413,6 +413,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // once the hook exists; only ever invoked at runtime, so the ref is populated.
   const tourFireRef = useRef(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Canvas-space point the "Linked cluster" picker was opened FROM (right-click
+  // Add / rail), so the picked boardlink lands under the cursor. Ref, not state:
+  // nothing re-renders on it. Rewritten on EVERY open (null for pos-less flows
+  // like the sidebar/palette) — never cleared in onClose, because CommandPalette
+  // pick mode closes itself before onPickBoard fires.
+  const linkPickerPosRef = useRef(null);
+  const openBoardLinkPicker = (pos = null) => { linkPickerPosRef.current = pos; setPickerOpen(true); };
   // Global search + ⌘K command palette (distinct from the boards-only
   // BoardPicker above, which stays the "link a board onto canvas" surface).
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -2558,12 +2565,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
   };
 
-  const addLink = (targetBoard) => {
+  const addLink = (targetBoard, clickPos = null) => {
+    const w = 220, h = 160;
     mainMutators._addCardRaw?.({
       id: `xlink-${Date.now()}`,
       kind: 'boardlink',
       target: targetBoard.id,
-      x: 1080, y: 80 + Math.floor(Math.random() * 200), w: 220, h: 160,
+      // Center on the right-click/rail point when one was captured; the
+      // legacy drop zone stays for pos-less flows (sidebar, ⌘K, list view).
+      x: clickPos ? Math.max(8, Math.round(clickPos.x - w / 2)) : 1080,
+      y: clickPos ? Math.max(8, Math.round(clickPos.y - h / 2)) : 80 + Math.floor(Math.random() * 200),
+      w, h,
     });
   };
 
@@ -2702,6 +2714,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [shareOpen, setShareOpen] = useState(false);
   // Collaboration-loop signal: fire when the share surface opens (any path).
   useEffect(() => { if (shareOpen) logEvent(EV.SHARE_OPEN, { board_id: currentId }); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [shareOpen]);
+  // "Build this together" banner CTA → the Share panel for the current board
+  // (Invite People is its first section). ShareModal is board-scoped, so
+  // off-board surfaces (tag view, cluster browser home) fall back to the
+  // account Invite tab instead of opening a modal for the wrong thing.
+  const openCollabInvite = React.useCallback((surface) => {
+    if (currentSurface === 'board') {
+      try { logEvent(EV.REFERRAL_OPEN, { surface }); } catch (_) {}
+      setShareOpen(true);
+    } else {
+      openInviteFriends(surface);
+    }
+  }, [currentSurface, openInviteFriends]);
   // "Linked from" side drawer for the currently-viewed board (or any
   // entity surfaced by other components via setBacklinksRef).
   const [backlinksRef, setBacklinksRef] = useState(null);
@@ -3500,15 +3524,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       window.dispatchEvent(new CustomEvent('soleil:first-value'));
     }
 
-    // Post-activation referral nudge: once they've clearly gotten value (≥5
-    // genuine cards), invite them to share. A higher bar than the first-value
-    // upgrade banner (2 cards) so the two soft banners never stack. Fires for
-    // demo AND paid users — paid users are the best advocates and now have a
-    // real reward (a free month when a friend upgrades, migration 0167).
-    // ReferralNudge owns the tier-gate + once-per-account guard (per-tier key);
-    // repeated dispatches as the count grows are harmless (it de-dupes).
-    if ((myTier.tier === 'demo' || myTier.tier === 'paid') && genuine.length >= 5) {
-      window.dispatchEvent(new CustomEvent('soleil:referral-nudge'));
+    // Moment-of-value collaborator invite: once this board crosses the
+    // activation bar (≥3 genuine cards), suggest bringing a second person
+    // INTO it — a collaborator is the strongest return + growth signal we
+    // have (47% of populated users return vs 5%; email invites attribute as
+    // referrals too, 0163). Fires for demo AND paid — demo invites are
+    // viewer-only and the ShareModal owns the editor upsell. Never mid-tour:
+    // 3 cards is reachable while the guided tour runs and the banner would
+    // render dead under its pointer lock; this effect re-runs when the tour
+    // closes and the dispatch fires then, like the fv nudge above.
+    // ReferralNudge owns the tier-gate + once-per-account guard + the
+    // fv-banner stacking guard; repeated dispatches as the count grows are
+    // its retry mechanism, not a bug.
+    if ((myTier.tier === 'demo' || myTier.tier === 'paid') && !tourActive && genuine.length >= POP_BOARD_THRESHOLD) {
+      window.dispatchEvent(new CustomEvent('soleil:collab-nudge'));
     }
 
     // Close the coachmark when a genuine card lands while it's showing (UI only;
@@ -4402,7 +4431,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => setCurrentSurface('home') },
     { id: 'link-board', label: 'Link a cluster onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'cluster', 'board'],
       available: canEditCurrent && currentSurface === 'board',
-      run: () => setPickerOpen(true) },
+      run: () => openBoardLinkPicker() },
     { id: 'split', label: 'Open split view', icon: Columns2, keywords: ['split', 'side by side', 'compare'],
       run: () => setSplitPickerOpen(true) },
     { id: 'share', label: 'Share this cluster', icon: Share2, keywords: ['share', 'invite', 'collaborate', 'public link'],
@@ -4498,7 +4527,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <ListSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards}
                      childBoards={Object.values(boards).filter(b => b.parent_board_id === board.id)}
                      onOpenBoard={openBoard}
-                     onOpenPicker={() => setPickerOpen(true)}
+                     onOpenPicker={() => openBoardLinkPicker()}
                      onDropInboxItem={dropInboxItem}
                      canEdit={isMain ? canEditCurrent : true}
                      peersHereByBoard={peersHereByBoard}
@@ -4536,7 +4565,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          ownsWorkspace={workspace?.created_by === user?.id}
                          currentUser={currentUser}
                          onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
-                         onOpenPicker={() => setPickerOpen(true)}
+                         onOpenPicker={(pos) => openBoardLinkPicker(pos)}
                          onDropInboxItem={dropInboxItemFor(muts)}
                          onDropFileImage={dropFileImageFor(muts)}
                          workspaceId={workspace.id} userId={user.id}
@@ -4760,7 +4789,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onPasteBoardInto={pasteBoardInto}
             onDeleteBoard={(id) => deleteBoardsById([id])}
             canEditBoard={canEditBoard}
-            onOpenPicker={() => setPickerOpen(true)}
+            onOpenPicker={() => openBoardLinkPicker()}
             peersHereByBoard={peersHereByBoard}
             peersBelowByBoard={peersBelowByBoard}
             onJumpToPeer={jumpToPeer}
@@ -5032,7 +5061,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         recents={recents.recents}
         mobileShell={mobileShell}
         placeholder="Search boards to link…"
-        onPickBoard={(b) => addLink(b)}
+        onPickBoard={(b) => addLink(b, linkPickerPosRef.current)}
       />
 
       {/* Split-view board picker — same pick mode, opens the chosen board beside. */}
@@ -5169,10 +5198,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onEvent={(e) => tour.fire(e)}
           onSkip={() => tour.skip()}
           onView={(id) => tour.markView(id)}
+          onAction={(type) => {
+            // Touch "Add photos" on the content step → CanvasSurface's picker.
+            // A document event (like soleil-mobile-add-card) because the picker
+            // needs CanvasSurface's ingest pipeline; its listener is NOT tour-
+            // locked since the tour itself is the sender.
+            if (type === 'pick_photos') {
+              document.dispatchEvent(new CustomEvent('soleil-pick-photos', { detail: { boardId: currentId } }));
+            }
+          }}
         />
       )}
 
-      <ReferralNudge tier={myTier.tier} onInvite={openInviteFriends} />
+      <ReferralNudge tier={myTier.tier} onCollaborate={openCollabInvite} />
 
       {mobileShell && (() => {
         // The "+" appears only when a board canvas is the active surface and

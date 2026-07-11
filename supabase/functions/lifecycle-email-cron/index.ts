@@ -168,10 +168,10 @@ Deno.serve(async (req) => {
     workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name,
   }));
   await runType("activate_nudge_2", "lifecycle_due_activate_nudge_2", (row) => ({
-    workspaceId: row.workspace_id,
+    workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name,
   }));
   await runType("activate_nudge_1", "lifecycle_due_activate_nudge_1", (row) => ({
-    workspaceId: row.workspace_id,
+    workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name,
   }));
 
   return json({ ok: true, totalSent, summary }, 200);

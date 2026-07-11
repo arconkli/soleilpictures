@@ -158,6 +158,14 @@ export function EditableText({
       className={`editable ${className} ${editing ? 'is-editing' : ''} ${showPlaceholder ? 'is-placeholder' : ''}`}
       contentEditable={editing}
       suppressContentEditableWarning
+      // Titles/labels live inside the canvas's `transform: scale(zoom)` layer.
+      // Grammarly's overlay and Chromium's native squiggles are both painted
+      // untransformed, so at zoom ≠ 100% they drift off the words — keep both
+      // off here (same policy as the note editors).
+      data-gramm="false"
+      data-gramm_editor="false"
+      data-enable-grammarly="false"
+      spellCheck={false}
       onClick={clickHandler}
       onDoubleClick={dblClickHandler}
       onPointerDown={onPtrDown}

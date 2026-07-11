@@ -154,13 +154,15 @@ export function NoteTiptapSurface({
         // absolutely-positioned overlay, which does NOT follow the canvas's
         // `transform: scale(zoom)` — so at any zoom ≠ 100% its squiggles drift
         // left of the words (the "spellcheck misalignment" bug). Native
-        // spellcheck underlines are painted INTO the text layer, so they scale
-        // with the canvas and stay aligned. (The legacy RichNoteEditor already
-        // turns Grammarly off; we now match it here.)
+        // spellcheck is OFF too: Chromium paints its squiggles at untransformed
+        // glyph coordinates (they do NOT follow an ancestor transform:scale),
+        // so they misalign exactly the same way at any zoom ≠ 100%. Docs keep
+        // native spellcheck because DocPageEditor scales via CSS `zoom`, which
+        // the squiggle painter does follow.
         'data-gramm': 'false',
         'data-gramm_editor': 'false',
         'data-enable-grammarly': 'false',
-        spellcheck: 'true',
+        spellcheck: 'false',
       },
       // Toggle a checklist item by clicking its box, even mid-edit.
       handleClickOn: (view, pos, _node, _nodePos, event) => {
@@ -180,6 +182,28 @@ export function NoteTiptapSurface({
       // Tab inserts two spaces (legacy note behaviour); Shift-Tab falls through
       // to the checklist lift keymap.
       handleKeyDown: (view, event) => {
+        // Plain-dash lists: Enter on a top-level paragraph that starts with
+        // "- " continues the prefix on the next line; Enter on a bare "- "
+        // clears it and ends the run (the usual editor convention). Top-level
+        // paragraphs ONLY (depth 1) — real list items and checklist items
+        // keep their own Enter keymaps.
+        if (event.key === 'Enter' && !event.shiftKey && !event.metaKey
+            && !event.ctrlKey && !event.altKey && !event.isComposing) {
+          const { state } = view;
+          const { $from, empty } = state.selection;
+          if (empty && $from.depth === 1 && $from.parent.type.name === 'paragraph') {
+            const text = $from.parent.textContent;
+            if (/^- ?$/.test(text)) {
+              const start = $from.start();
+              view.dispatch(state.tr.delete(start, start + $from.parent.content.size));
+              return true;
+            }
+            if (text.startsWith('- ') && $from.parentOffset >= 2) {
+              editorRef.current?.chain().splitBlock().insertContent('- ').run();
+              return true;
+            }
+          }
+        }
         if (event.key === 'Tab' && !event.shiftKey) {
           event.preventDefault();
           view.dispatch(view.state.tr.insertText('  '));

@@ -168,6 +168,13 @@ function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
                   autoFocus
                   rows={2}
                   value={body}
+                  // Draft sits inside the canvas transform layer — Grammarly's
+                  // overlay and native squiggles paint untransformed and drift
+                  // at zoom ≠ 100%, so both stay off (note-editor policy).
+                  data-gramm="false"
+                  data-gramm_editor="false"
+                  data-enable-grammarly="false"
+                  spellCheck={false}
                   placeholder="Add a comment…"
                   onChange={(e) => setBody(e.target.value)}
                   onKeyDown={(e) => {

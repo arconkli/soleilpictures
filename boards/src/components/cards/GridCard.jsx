@@ -17,6 +17,8 @@ import { createPortal } from 'react-dom';
 import { computeCellRects, collectDividers, resizeDivider, dividerSnapTargets, GRID_TUNING } from '../../lib/gridLayout.js';
 import { resolveTagText, hasLabelTag } from '../../lib/gridSequence.js';
 import { readGridModel, effectiveCellStyle } from '../../lib/gridState.js';
+import { readableOn, remapHtmlColors } from '../../lib/readableColor.js';
+import { readableInk } from '../../lib/paletteLayout.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
 import { R2Image } from '../R2Image.jsx';
 import { RichNoteEditor } from '../RichNoteEditor.jsx';
@@ -62,16 +64,22 @@ function useResolvedSrc(src) {
   return url;
 }
 
-// Translate a resolved cell text style {fontFamily,fontSize,color,align,vAlign}
+// Translate a resolved cell text style {fontFamily,fontSize,color,align,vAlign,bg}
 // into inline CSS. vAlign uses flex so text can sit dead-center (or bottom) in
 // the box; align is text-align. Typed text stays plain html and inherits this,
-// so a shared-style change re-flows every un-pinned cell live.
+// so a shared-style change re-flows every un-pinned cell live. A bg paints the
+// whole text box (it fills the cell body) with the ink forced readable on it —
+// the same treatment a painted note gets.
 function cellTextStyle(eff) {
   if (!eff) return undefined;
   const s = {};
   if (eff.fontFamily) s.fontFamily = eff.fontFamily;
   if (eff.fontSize) s.fontSize = typeof eff.fontSize === 'number' ? `${eff.fontSize}px` : eff.fontSize;
-  if (eff.color) s.color = eff.color;
+  const bg = (eff.bg && eff.bg !== 'transparent') ? eff.bg : null;
+  if (bg) {
+    s.background = bg;
+    s.color = eff.color ? readableOn(eff.color, bg) : readableInk(bg);
+  } else if (eff.color) s.color = eff.color;
   if (eff.align) s.textAlign = eff.align;
   if (eff.vAlign && eff.vAlign !== 'top') {
     s.display = 'flex';
@@ -81,11 +89,34 @@ function cellTextStyle(eff) {
   return Object.keys(s).length ? s : undefined;
 }
 
-function CellText({ html, seqIndex, seqFormat, style }) {
+// Split control: a vertical line (split into columns = a 'row' of two cells) or
+// a horizontal line (split into rows = a 'col'). Real icons (Columns, rotated).
+// MODULE scope, not inside GridCard's render: an inline component gets a new
+// function identity every render, so React REMOUNTS its buttons — and because
+// any pointerdown in a cell triggers focusCell (a re-render), the pressed
+// button was detached between pointerdown and pointerup and the click never
+// fired (the "split buttons don't work" bug).
+const SplitButtons = ({ gridActions, cardId, cellId }) => (
+  <>
+    <button type="button" className="is-icon" title="Add a vertical line (split into columns)"
+      onPointerDown={stop} onClick={(e) => { e.stopPropagation(); gridActions.splitCell(cardId, cellId, 'row'); }}>
+      <span className="gridc-ico"><Icon as={Columns} size={15} /></span>
+    </button>
+    <button type="button" className="is-icon" title="Add a horizontal line (split into rows)"
+      onPointerDown={stop} onClick={(e) => { e.stopPropagation(); gridActions.splitCell(cardId, cellId, 'col'); }}>
+      <span className="gridc-ico gridc-rot90"><Icon as={Columns} size={15} /></span>
+    </button>
+  </>
+);
+
+function CellText({ html, seqIndex, seqFormat, style, effBg }) {
   const resolved = (seqIndex != null && hasLabelTag(html))
     ? resolveTagText(html, { index: seqIndex, format: seqFormat || {} })
     : (html || '');
-  return <div className="gc-text" style={style} dangerouslySetInnerHTML={{ __html: resolved }} />;
+  // On a painted cell, remap per-span inline colors to stay legible against
+  // the cell surface — the same pass a painted note's read-only html gets.
+  const safe = effBg ? remapHtmlColors(resolved, effBg) : resolved;
+  return <div className="gc-text" style={style} dangerouslySetInnerHTML={{ __html: safe }} />;
 }
 
 function CellVideo({ src }) {
@@ -94,7 +125,7 @@ function CellVideo({ src }) {
   return <video className="gc-video" src={url} controls preload="metadata" onPointerDown={stop} />;
 }
 
-function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard, textStyle, cardId, cellId, compare = false }) {
+function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard, textStyle, effBg = null, cardId, cellId, compare = false }) {
   const type = cell?.type || 'empty';
   if (type === 'board' && cell.boardId) {
     const b = boards?.[cell.boardId];
@@ -143,7 +174,7 @@ function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard, tex
       />
     );
   }
-  if (type === 'text') return <CellText html={cell.html} seqIndex={seqIndex} seqFormat={seqFormat} style={textStyle} />;
+  if (type === 'text') return <CellText html={cell.html} seqIndex={seqIndex} seqFormat={seqFormat} style={textStyle} effBg={effBg} />;
   if (type === 'link') {
     return (
       <a className="gc-link" href={cell.source || cell.link || '#'} target="_blank" rel="noreferrer" onClick={stop}>
@@ -248,21 +279,6 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
     window.addEventListener('pointerup', up);
   };
 
-  // Split control: a vertical line (split into columns = a 'row' of two cells) or
-  // a horizontal line (split into rows = a 'col'). Real icons (Columns, rotated).
-  const SplitButtons = ({ cellId }) => (
-    <>
-      <button type="button" className="is-icon" title="Add a vertical line (split into columns)"
-        onPointerDown={stop} onClick={(e) => { e.stopPropagation(); gridActions.splitCell(card.id, cellId, 'row'); }}>
-        <span className="gridc-ico"><Icon as={Columns} size={15} /></span>
-      </button>
-      <button type="button" className="is-icon" title="Add a horizontal line (split into rows)"
-        onPointerDown={stop} onClick={(e) => { e.stopPropagation(); gridActions.splitCell(card.id, cellId, 'col'); }}>
-        <span className="gridc-ico gridc-rot90"><Icon as={Columns} size={15} /></span>
-      </button>
-    </>
-  );
-
   const linked = !!model.templateId;
 
   return (
@@ -283,7 +299,10 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         const empty = type === 'empty' || (type === 'image' && !cell.src);
         const isEditingText = editable && type === 'text' && editingCellId === r.id;
         // Effective text style = family (shared) style + this cell's override.
-        const tstyle = cellTextStyle(effectiveCellStyle(model.familyTextStyle, cell));
+        const effStyle = effectiveCellStyle(model.familyTextStyle, cell);
+        const tstyle = cellTextStyle(effStyle);
+        // Painted-cell surface (drives the readable-ink remap + editor tone).
+        const cellBg = (effStyle?.bg && effStyle.bg !== 'transparent') ? effStyle.bg : null;
         // Show the Text/Image/Link chooser when the cell is empty OR the user hit
         // "Replace" on a filled cell to swap its type in place.
         const showChooser = empty || swapCellId === r.id;
@@ -327,6 +346,8 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                   <RichNoteEditor
                     html={cell.html || ''}
                     autoFocus
+                    bgColor={cellBg || undefined}
+                    textColor={effStyle?.color || undefined}
                     onChangeHTML={(html) => gridActions.setCellContent(card.id, r.id, { html })}
                     onEditingChange={(ed) => { if (!ed) exitTextEdit(r.id); }}
                     awareness={getAwareness ? (getAwareness() || null) : null}
@@ -335,7 +356,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                   />
                 </div>
               ) : (
-                <CellContent cell={cell} rect={r} seqIndex={seqIndex} seqFormat={seqFormat} boards={boards} onOpenBoard={onOpenBoard} textStyle={tstyle}
+                <CellContent cell={cell} rect={r} seqIndex={seqIndex} seqFormat={seqFormat} boards={boards} onOpenBoard={onOpenBoard} textStyle={tstyle} effBg={cellBg}
                   cardId={card.id} cellId={r.id} compare={compareCellId === r.id} />
               )}
             </div>
@@ -414,7 +435,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                       <span className="gridc-pill-sep" />
                     </>
                   )}
-                  <SplitButtons cellId={r.id} />
+                  <SplitButtons gridActions={gridActions} cardId={card.id} cellId={r.id} />
                 </div>
                 )}
               </div>

@@ -11,6 +11,10 @@
 //   | { type:'file', fileSrc, fileName, mime, sizeBytes, ext }
 //   | { type:'board', boardId, name }   — a cluster preview (opens on click; name
 //                                          is a snapshot so a deleted cluster still reads)
+// A text cell may also carry `style` — a pinned "only this box" text style
+// ({fontFamily,fontSize,color,align,vAlign,bg}). `bg` (hex or 'transparent')
+// paints the cell surface like a colored note; the family/shared textStyle
+// (see readGridModel) accepts the same keys, so a shared bg is possible too.
 // A whole Grid dropped into a cell is NOT a cell record: it grafts into the host
 // layout tree (see gridLayout.graftSubtree), so it edits inline like any nesting.
 //

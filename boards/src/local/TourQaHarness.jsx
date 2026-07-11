@@ -10,6 +10,7 @@ import { useOnboardingTour } from '../hooks/useOnboardingTour.js';
 // so Playwright (tests/onboarding-tour.spec.js) can drive + assert. DEV only.
 export function TourQaHarness() {
   const emittedRef = useRef([]);
+  const actionsRef = useRef([]);   // touchAction taps (e.g. 'pick_photos')
   // Toggleable so tests can exercise the list step's unanchored Got-it
   // fallback (ctaWhenUnanchored) by hiding the fake view toggle.
   const [showViewToggle, setShowViewToggle] = useState(true);
@@ -34,6 +35,7 @@ export function TourQaHarness() {
       skip: () => ref.current.skip(),
       getState: () => ref.current.state,
       getEmitted: () => emittedRef.current.slice(),
+      getActions: () => actionsRef.current.slice(),
       setViewToggleVisible: (v) => setShowViewToggle(!!v),
     };
     const root = document.getElementById('root');
@@ -68,6 +70,7 @@ export function TourQaHarness() {
         onEvent={(e) => tour.fire(e)}
         onSkip={() => tour.skip()}
         onView={(id) => tour.markView(id)}
+        onAction={(type) => { actionsRef.current.push(type); }}
       />
     </div>
   );

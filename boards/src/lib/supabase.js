@@ -133,10 +133,25 @@ async function refreshAndSetAuth(_reason) {
     try {
       let token = null;
       try {
-        const { data, error } = await supabase.auth.refreshSession();
-        if (error) console.warn('[realtime] refreshSession failed', error.message);
-        token = data?.session?.access_token ?? null;
-      } catch (e) { console.warn('[realtime] refreshSession threw', e); }
+        // Reuse the current session when it has comfortable life left; only
+        // rotate the refresh token when the access token is near expiry
+        // (getSession() already auto-refreshes an expired one). Forcing
+        // refreshSession() on every wake event rotated tokens every ~10 min,
+        // which left any other copy of the session (second tab, prod↔preview
+        // staging handoff, WKWebView) holding a stale refresh token — using
+        // one trips reuse detection and revokes the whole session family
+        // (= surprise logout + re-OTP).
+        const { data: cur } = await supabase.auth.getSession();
+        const sess = cur?.session;
+        const secondsLeft = (sess?.expires_at || 0) - Math.floor(Date.now() / 1000);
+        if (sess?.access_token && secondsLeft > 120) {
+          token = sess.access_token;
+        } else {
+          const { data, error } = await supabase.auth.refreshSession();
+          if (error) console.warn('[realtime] refreshSession failed', error.message);
+          token = data?.session?.access_token ?? null;
+        }
+      } catch (e) { console.warn('[realtime] session refresh threw', e); }
 
       if (token) {
         // setAuth on a connected client pushes an `access_token` event

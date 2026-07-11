@@ -381,6 +381,7 @@ export function ToolOptionsBar({
   cellPinned = false,     // that cell is "pinned" to its own frozen text style
   onCellStyle,            // (patch) => write text style: shared family, or this cell if pinned
   onCellPinToggle,        // () => pin/unpin this cell ("only this box" vs shared)
+  editingCellStyle = null, // effective {…, bg} of the edited cell — seeds the bg picker
   editingShapeCard,
   onUpdateEditingShape,
   editingLineArrow,       // { idx, arrow } when a single line-arrow is selected
@@ -424,6 +425,7 @@ export function ToolOptionsBar({
       cellPinned={cellPinned}
       onCellStyle={onCellStyle}
       onCellPinToggle={onCellPinToggle}
+      editingCellStyle={editingCellStyle}
     />;
   }
 
@@ -693,7 +695,7 @@ export function ToolOptionsBar({
 // selectionchange while the note is being edited). Keeping it inside the
 // main ToolOptionsBar function would mean the hook runs in every render of
 // every tool's bar.
-function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCard, onUpdateEditingNote, cardLevel = true, cellStyleMode = false, cellPinned = false, onCellStyle, onCellPinToggle }) {
+function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCard, onUpdateEditingNote, cardLevel = true, cellStyleMode = false, cellPinned = false, onCellStyle, onCellPinToggle, editingCellStyle = null }) {
   const currentFore = useNoteForeColor(true);
   const fmt = useNoteFormatState(true);
   const barRef = useRef(null);
@@ -813,18 +815,28 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
                     ? onCellStyle?.({ color: c })
                     : applyStyleOrNoteDefault({ color: c }, () => onUpdateEditingNote && onUpdateEditingNote({ textColor: c })),
                 })} />
-      {cardLevel && (
-        <ColorBtn title="Card background" defaultColor={editingNoteCard?.bgColor || '#1c1c1f'}
+      {(cardLevel || cellStyleMode) && (
+        // Card background (note) / Box background (grid cell). The cell write
+        // rides the same shared-vs-pinned onCellStyle path as font/size/color;
+        // the 'transparent' swatch maps to bg:null = back to the default cell
+        // surface (the renderer treats null/'transparent' as unset).
+        <ColorBtn title={cellStyleMode ? 'Box background' : 'Card background'}
+                defaultColor={(cellStyleMode ? editingCellStyle?.bg : editingNoteCard?.bgColor) || '#1c1c1f'}
                 swatches={BG_COLORS}
                 paletteColors={paletteColors}
-                onPick={(c) => onUpdateEditingNote && onUpdateEditingNote({ bgColor: c })}
+                onPick={(c) => cellStyleMode
+                  ? onCellStyle?.({ bg: c === 'transparent' ? null : c })
+                  : onUpdateEditingNote && onUpdateEditingNote({ bgColor: c })}
                 onCustom={(e) => openPickerAt(e, {
                   // Seed the picker pad with a real hex when the current bg
                   // is transparent (the pad can't represent 'transparent';
                   // its None button emits it instead) — mirrors shape fills.
-                  value: (editingNoteCard?.bgColor && editingNoteCard.bgColor !== 'transparent')
-                    ? editingNoteCard.bgColor : '#1c1c1f',
-                  onChange: (c) => onUpdateEditingNote && onUpdateEditingNote({ bgColor: c }),
+                  value: cellStyleMode
+                    ? ((editingCellStyle?.bg && editingCellStyle.bg !== 'transparent') ? editingCellStyle.bg : '#1c1c1f')
+                    : ((editingNoteCard?.bgColor && editingNoteCard.bgColor !== 'transparent') ? editingNoteCard.bgColor : '#1c1c1f'),
+                  onChange: (c) => cellStyleMode
+                    ? onCellStyle?.({ bg: c === 'transparent' ? null : c })
+                    : onUpdateEditingNote && onUpdateEditingNote({ bgColor: c }),
                   allowTransparent: true,
                 })} />
       )}

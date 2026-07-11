@@ -40,7 +40,10 @@ export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
   const type = file?.type || '';
   const name = file?.name || '';
   const size = file?.size || 0;
-  const isImage = type.startsWith('image/');
+  // Some pickers surface iPhone HEIC/HEIF with an EMPTY mime type — match the
+  // extension too, or a camera-roll photo becomes a generic file card (which is
+  // paid-gated for free owners). Browsers that DO report a type say image/heic.
+  const isImage = type.startsWith('image/') || (!type && /\.(heic|heif)$/i.test(name));
   const isVideo = type.startsWith('video/');
   const isAudio = type.startsWith('audio/');
   // Some browsers report an empty type for .pdf picks/drops — match the ext too.
