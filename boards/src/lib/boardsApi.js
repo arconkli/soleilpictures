@@ -7,6 +7,7 @@ import { bytesToB64, b64ToBytes } from './yhelpers.js';
 import * as perf from './perf.js';
 import { cardWeight } from './gridCount.js';
 import { resolveTagText } from './gridSequence.js';
+import { schedItems, schedLegacyRows } from './schedLayout.js';
 
 const PARTYKIT_HOST = import.meta.env?.VITE_PARTYKIT_HOST || 'localhost:1999';
 
@@ -1033,6 +1034,12 @@ async function _doSyncCardIndex(boardId, ydoc) {
     // (lockstep with scripts/lib/cardEncode.mjs buildCardIndexRows).
     if (kind === 'doc' && Array.isArray(get('lines'))) {
       body = get('lines').map((l) => (l.bullet ? `• ${l.text}` : l.text || '')).join('\n').trim() || body;
+    } else if (kind === 'schedule' && get('schedView')) {
+      // New-model calendar: index each item as "Jul 15 — title — 9 AM".
+      const cellsObj = {};
+      const scm = get('gridCells');
+      if (scm && typeof scm.forEach === 'function') scm.forEach((cv, ck) => { cellsObj[ck] = (cv && cv.toJSON) ? cv.toJSON() : cv; });
+      body = schedLegacyRows(schedItems(cellsObj)).map((r) => [r.day, r.what, r.loc].filter(Boolean).join(' — ')).join('\n') || body;
     } else if (kind === 'schedule' && Array.isArray(get('rows'))) {
       body = get('rows').map((r) => [r.day, r.what, r.loc].filter(Boolean).join(' — ')).join('\n') || body;
     }
@@ -1058,14 +1065,15 @@ async function _doSyncCardIndex(boardId, ydoc) {
       ? { ...baseMeta, groupId, groupName }
       : baseMeta;
     if (kind === 'image' && !meta.src) imageCardsNeedingSrc.push(id);
-    // Weighted card count: a grid weighs its FILLED cells (min 1), so a grid of
-    // 25 images counts ~25 toward the demo cap, not 1. Everything else weighs 1.
+    // Weighted card count: a cell container (grid, new-model schedule) weighs
+    // its FILLED cells (min 1), so a grid of 25 images counts ~25 toward the
+    // demo cap, not 1. Everything else — incl. LEGACY rows schedules — weighs 1.
     let weight = 1;
-    if (kind === 'grid') {
+    if (kind === 'grid' || (kind === 'schedule' && get('schedView'))) {
       const cellsObj = {};
       const gcm = get('gridCells');
       if (gcm && typeof gcm.forEach === 'function') gcm.forEach((cv, ck) => { cellsObj[ck] = (cv && cv.toJSON) ? cv.toJSON() : cv; });
-      weight = cardWeight('grid', cellsObj);
+      weight = cardWeight(kind, cellsObj);
     }
     rows.push({
       workspace_id: workspaceId,
@@ -1174,8 +1182,18 @@ function buildCardMeta(kind, get) {
     // lists, and shapes as labeled lines. MUST stay in lockstep with
     // scripts/lib/cardEncode.mjs buildCardMeta or an in-app edit of a
     // published board silently degrades its public article.
-    case 'schedule':
+    case 'schedule': {
+      // New-model calendar: expose items + synthesized legacy rows so the
+      // public /c article's existing table render shows a real summary.
+      if (get('schedView')) {
+        const cellsObj = {};
+        const scm = get('gridCells');
+        if (scm && typeof scm.forEach === 'function') scm.forEach((cv, ck) => { cellsObj[ck] = (cv && cv.toJSON) ? cv.toJSON() : cv; });
+        const items = schedItems(cellsObj, { max: 30 });
+        return { schedView: get('schedView'), anchor: get('anchor') || null, items, rows: schedLegacyRows(items) };
+      }
       return { rows: (get('rows') || []).slice(0, 30) };
+    }
     case 'grid': {
       const gcm = get('gridCells');
       const fmt = get('seqFormat') || {};

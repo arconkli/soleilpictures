@@ -25,11 +25,12 @@ import {
   arrowStrokeWidth, arrowHeadSize, arrowHeadStyle,
 } from './arrowGeometry.js';
 import { paletteLayout, readableInk, hasCustomName } from './paletteLayout.js';
+import { parseISO as schedParseISO, todayISO as schedTodayISO, daysInMonth as schedDaysInMonth, firstWeekdayOfMonth as schedFirstWeekday, monthTitle as schedMonthTitle } from './schedDates.js';
 
 // Bump when the rendered output changes materially. Stored thumbnails carry
 // this in boards.thumb_version; tiles re-render stale versions in the
 // background (useThumbnailBackfill) so the new look rolls out lazily.
-export const RENDER_VERSION = 4;
+export const RENDER_VERSION = 5;   // 5: new-model schedule cards draw a mini month lattice
 
 // Output frame: 16:9 ≈ both the grid tile cover and OG's 1.91:1. Fixed
 // supersample (NOT device DPR) so the stored artifact is deterministic
@@ -782,7 +783,57 @@ function drawDocInterior(ctx, c, x, y, w, h) {
   ctx.restore();
 }
 
+// New-model schedule (schedView): a mini month lattice of the anchor month —
+// day cells with an accent dot on days holding content (any depth). Reads the
+// nested cells straight off the card object (readCards keeps the Y ref) or the
+// local plain field.
+function drawScheduleCalendarInterior(ctx, c, x, y, w, h) {
+  const pad = 10;
+  ctx.save();
+  ctx.textBaseline = 'top';
+  const cells = (c.gridCells && typeof c.gridCells.toJSON === 'function') ? c.gridCells.toJSON() : (c.cells || {});
+  const anchorT = schedParseISO(c.anchor || '') || schedParseISO(schedTodayISO());
+  const dotDays = new Set();
+  let itemCount = 0;
+  for (const k in cells) {
+    const rec = cells[k];
+    if (!rec || !rec.type || rec.type === 'empty' || !/\/i:[^/]+$/.test(k)) continue;
+    itemCount++;
+    const m = /^d:(\d{4})-(\d{2})-(\d{2})\//.exec(k);
+    if (m && +m[1] === anchorT.y && +m[2] === anchorT.m) dotDays.add(+m[3]);
+  }
+  ctx.font = `500 12px ${FONT_SANS}`;
+  ctx.fillStyle = T.ink0;
+  const title = `${schedMonthTitle(`${anchorT.y}-${String(anchorT.m).padStart(2, '0')}-01`)}${itemCount ? ` · ${itemCount}` : ''}`;
+  ctx.fillText(truncateToWidth(ctx, title, w - pad * 2), x + pad, y + pad);
+  const top = y + pad + 22;
+  const bottom = y + h - pad;
+  if (bottom - top < 14) { ctx.restore(); return; }
+  const first = schedFirstWeekday(anchorT.y, anchorT.m);
+  const nDays = schedDaysInMonth(anchorT.y, anchorT.m);
+  const nRows = Math.ceil((first + nDays) / 7);
+  const gap = 2;
+  const cw = (w - pad * 2 - gap * 6) / 7;
+  const ch = (bottom - top - gap * (nRows - 1)) / nRows;
+  for (let d = 1; d <= nDays; d++) {
+    const idx = first + d - 1;
+    const cx = x + pad + (idx % 7) * (cw + gap);
+    const cyy = top + Math.floor(idx / 7) * (ch + gap);
+    ctx.fillStyle = dotDays.has(d) ? T.bg3 : T.bg1;
+    ctx.fillRect(cx, cyy, cw, ch);
+    if (dotDays.has(d)) {
+      ctx.fillStyle = T.ink1;
+      const r = Math.max(1.2, Math.min(cw, ch) * 0.14);
+      ctx.beginPath();
+      ctx.arc(cx + cw / 2, cyy + ch / 2, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
 function drawScheduleInterior(ctx, c, x, y, w, h) {
+  if (c.schedView) { drawScheduleCalendarInterior(ctx, c, x, y, w, h); return; }
   const pad = 12;
   ctx.save();
   ctx.textBaseline = 'top';

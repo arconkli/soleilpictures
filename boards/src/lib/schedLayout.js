@@ -23,7 +23,7 @@
 
 import {
   pad2, parseISO, formatISO, todayISO, daysInMonth, firstWeekdayOfMonth,
-  startOfWeek, addDays, hourLabel, WEEKDAYS,
+  startOfWeek, addDays, hourLabel, timeLabel, shortDate, WEEKDAYS,
 } from './schedDates.js';
 
 export const SCHED_TUNING = Object.freeze({
@@ -218,6 +218,49 @@ export function chipCapacity(rect, kind = 'day') {
   const usable = rect.h - labelH - 2;
   if (usable < SCHED_TUNING.CHIP_H) return 0;
   return Math.floor((usable + SCHED_TUNING.CHIP_GAP) / (SCHED_TUNING.CHIP_H + SCHED_TUNING.CHIP_GAP));
+}
+
+// ---------------------------------------------------------------------------
+// Summary reads (thumbnails / list previews / search / public pages)
+
+function itemTitle(rec) {
+  if (!rec) return '';
+  if (rec.type === 'text') return String(rec.html || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').trim().slice(0, 140);
+  if (rec.type === 'link') return rec.title || rec.source || rec.link || 'Link';
+  if (rec.type === 'board') return rec.name || 'Cluster';
+  if (rec.type === 'file') return rec.fileName || 'File';
+  if (rec.type === 'image') return rec.title || 'Image';
+  if (rec.type === 'video') return 'Video';
+  return '';
+}
+
+// Flatten a schedule card's cells map into chronological display items — the
+// shared summary read behind thumbnails, list previews, search indexing, and
+// the public-page meta. Each: { key, date, hour?, minute?, type, title }.
+export function schedItems(cells, { max = Infinity } = {}) {
+  const out = [];
+  for (const k of Object.keys(cells || {}).sort()) {
+    if (!isItemKey(k)) continue;
+    const rec = cells[k];
+    if (!rec || !rec.type || rec.type === 'empty') continue;
+    if (rec.type === 'image' && !rec.src) continue;
+    const slot = parseSlotKey(slotOfItem(k));
+    if (!slot) continue;
+    out.push({ key: k, date: slot.date, hour: slot.hour ?? null, minute: slot.minute ?? null, type: rec.type, title: itemTitle(rec) });
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+// Items → the legacy schedule row shape {day, what, loc}, so every renderer
+// that already knows the rows table (list marks, public /c articles) shows a
+// meaningful summary of a new-model card with zero changes.
+export function schedLegacyRows(items) {
+  return (items || []).map((it) => ({
+    day: shortDate(it.date),
+    what: it.title || it.type,
+    loc: it.hour == null ? '' : timeLabel(it.hour, it.minute || 0),
+  }));
 }
 
 // ---------------------------------------------------------------------------

@@ -95,6 +95,19 @@ export function hourLabel(h) {
   return `${base} ${hh < 12 ? 'AM' : 'PM'}`;
 }
 
+// '9 AM' / '9:15 AM' — hourLabel with an optional minute.
+export function timeLabel(h, m = 0) {
+  const hh = ((h % 24) + 24) % 24;
+  const base = hh % 12 === 0 ? 12 : hh % 12;
+  return m ? `${base}:${pad2(m)} ${hh < 12 ? 'AM' : 'PM'}` : hourLabel(hh);
+}
+
+// 'Jul 15' — compact date for chips / synthesized schedule rows.
+export function shortDate(iso) {
+  const t = parseISO(iso);
+  return t ? `${MONTHS_SHORT[t.m - 1]} ${t.d}` : String(iso || '');
+}
+
 export function hourTitle(iso, h) {
   const t = parseISO(iso);
   if (!t) return '';

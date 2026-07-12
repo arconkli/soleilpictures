@@ -12,7 +12,7 @@ import {
 import {
   SCHED_TUNING, dayKey, hourKey, minuteKey, isItemKey, slotOfItem, mintItemKey,
   newUid, parseSlotKey, itemsForSlot, hourWindowForDay, computeSchedSlots,
-  chipCapacity, graftKeyMap,
+  chipCapacity, graftKeyMap, schedItems, schedLegacyRows,
 } from './schedLayout.js';
 import { isCellFilled, cellsWeight, cardWeight } from './gridCount.js';
 
@@ -23,7 +23,7 @@ export function makeSchedTestBridge() {
     isToday, monthTitle, weekTitle, dayTitle, hourLabel, hourTitle,
     SCHED_TUNING, dayKey, hourKey, minuteKey, isItemKey, slotOfItem, mintItemKey,
     newUid, parseSlotKey, itemsForSlot, hourWindowForDay, computeSchedSlots,
-    chipCapacity, graftKeyMap,
+    chipCapacity, graftKeyMap, schedItems, schedLegacyRows,
     isCellFilled, cellsWeight, cardWeight,
   };
 }

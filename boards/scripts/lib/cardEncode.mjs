@@ -12,6 +12,7 @@
 import * as Y from 'yjs';
 import { cardToYMap, readCards, bytesToB64 } from '../../src/lib/yhelpers.js';
 import { resolveTagText } from '../../src/lib/gridSequence.js';
+import { schedItems, schedLegacyRows } from '../../src/lib/schedLayout.js';
 
 // Per-kind card_index.meta — mirrors buildCardMeta() in src/lib/boardsApi.js.
 // image → { src, alt, w, h } is what get_public_board_content turns into
@@ -33,8 +34,16 @@ export function buildCardMeta(kind, card) {
     case 'doc':
       // The legacy flat doc card renders `lines`, not `pages`.
       return { lineCount: (g('lines') || []).length || null };
-    case 'schedule':
+    case 'schedule': {
+      // New-model calendar (schedView + date-keyed cells) — lockstep with
+      // src/lib/boardsApi.js buildCardMeta. The generator still only emits
+      // legacy rows tables; this fork exists for parity.
+      if (g('schedView')) {
+        const items = schedItems(card.gridCells || card.cells || {}, { max: 30 });
+        return { schedView: g('schedView'), anchor: g('anchor') || null, items, rows: schedLegacyRows(items) };
+      }
       return { rows: (g('rows') || []).slice(0, 30) };
+    }
     case 'grid': {
       // Row-major cell summary for the page RPC. The RPC strips `src`
       // before it reaches the client; it's kept here for future image-
@@ -197,6 +206,8 @@ export function buildCardIndexRows({ workspaceId, boardId, cards }) {
     // Kind-aware bodies so the page RPC / search see the real content.
     if (kind === 'doc' && Array.isArray(card.lines)) {
       body = card.lines.map((l) => (l.bullet ? `• ${l.text}` : l.text || '')).join('\n').trim() || body;
+    } else if (kind === 'schedule' && card.schedView) {
+      body = schedLegacyRows(schedItems(card.gridCells || card.cells || {})).map((r) => [r.day, r.what, r.loc].filter(Boolean).join(' — ')).join('\n') || body;
     } else if (kind === 'schedule' && Array.isArray(card.rows)) {
       body = card.rows.map((r) => [r.day, r.what, r.loc].filter(Boolean).join(' — ')).join('\n') || body;
     }

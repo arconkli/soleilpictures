@@ -384,6 +384,38 @@ test.describe('schedule — graft key-rewrite', () => {
   });
 });
 
+test.describe('schedule — summary reads', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/?schedqa=1');
+    await page.waitForFunction(() => !!window.__soleilSchedTest);
+  });
+
+  test('schedItems flattens chronologically; schedLegacyRows synthesizes day/what/loc', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilSchedTest;
+      const cells = {
+        'd:2026-07-16/h:09/i:b': { type: 'board', boardId: 'b1', name: 'Locations' },
+        'd:2026-07-15/i:a': { type: 'text', html: '<div>Call sheet</div>' },
+        'd:2026-07-16/h:09/m:15/i:c': { type: 'link', title: 'Permits', source: 'https://x.com' },
+        'd:2026-07-17/i:ghost': { type: 'empty' },
+        'd:2026-07-18': { type: 'text', html: 'not an item key' },
+      };
+      const items = T.schedItems(cells);
+      return { items, rows: T.schedLegacyRows(items) };
+    });
+    expect(r.items.map((i) => i.key)).toEqual([
+      'd:2026-07-15/i:a',
+      'd:2026-07-16/h:09/i:b',
+      'd:2026-07-16/h:09/m:15/i:c',
+    ]);
+    expect(r.rows).toEqual([
+      { day: 'Jul 15', what: 'Call sheet', loc: '' },
+      { day: 'Jul 16', what: 'Locations', loc: '9 AM' },
+      { day: 'Jul 16', what: 'Permits', loc: '9:15 AM' },
+    ]);
+  });
+});
+
 test.describe('schedule — demo-cap weight parity', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/?schedqa=1');

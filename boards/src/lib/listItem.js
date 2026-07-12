@@ -9,6 +9,8 @@
 // created/updated, z, a preview descriptor consumed by CardPreview).
 
 import { computeCellRects } from './gridLayout.js';
+import { schedItems, schedLegacyRows } from './schedLayout.js';
+import { monthTitle } from './schedDates.js';
 
 // Cap the grid schematic: past this many cells the subdivision is unreadable at
 // thumb size and re-tiling wastes work, so we draw the raw box instead.
@@ -152,16 +154,24 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
       item.sub = `${(card.swatches || []).length} colors`;
       item.preview = { mode: 'swatches', swatches: (card.swatches || []).map(s => s.hex).filter(Boolean), kind };
       break;
-    case 'schedule':
-      item.name = card.title || 'Schedule';
-      item.sub = `${(card.rows || []).length} rows`;
+    case 'schedule': {
+      // New-model calendar container (schedView): synthesize the legacy row
+      // shape from its items so ScheduleMark renders unchanged. Legacy rows
+      // tables keep their original read.
+      const rows = card.schedView
+        ? schedLegacyRows(schedItems(
+            (card.gridCells && typeof card.gridCells.toJSON === 'function') ? card.gridCells.toJSON() : (card.cells || {}),
+            { max: 30 }))
+        : (Array.isArray(card.rows) ? card.rows : []);
+      item.name = card.title || (card.schedView ? monthTitle(card.anchor) || 'Schedule' : 'Schedule');
+      item.sub = card.schedView ? `${rows.length} item${rows.length === 1 ? '' : 's'}` : `${rows.length} rows`;
       item.preview = {
         mode: 'schedule',
-        rows: (Array.isArray(card.rows) ? card.rows : []).slice(0, 4)
-          .map(r => ({ when: String((r && (r.day ?? r.when)) || '').slice(0, 10) })),
+        rows: rows.slice(0, 4).map(r => ({ when: String((r && (r.day ?? r.when)) || '').slice(0, 10) })),
         kind,
       };
       break;
+    }
     case 'shape':
       item.name = card.label || card.title || `Shape (${card.shape || 'rect'})`;
       item.preview = { mode: 'shape', shape: card.shape || 'rect', fill: card.fill, stroke: card.stroke, dash: card.dash, kind };
