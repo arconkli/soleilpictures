@@ -19,8 +19,9 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const stop = (e) => e.stopPropagation();
 
 // Place the menu flush beside the cell rect, never overlapping it. Same order as
-// ImageEditPopover: right → left → below → above, viewport-clamped.
-function placeBeside(rect, w, h, vw, vh) {
+// ImageEditPopover: right → left → below → above, viewport-clamped. Exported —
+// the schedule's Day Peek panel (SchedulePeek.jsx) places itself the same way.
+export function placeBeside(rect, w, h, vw, vh) {
   const topAligned = clamp(rect.top, PAD, vh - h - PAD);
   if (rect.right + GAP + w <= vw - PAD)         // right
     return { left: rect.right + GAP, top: topAligned };

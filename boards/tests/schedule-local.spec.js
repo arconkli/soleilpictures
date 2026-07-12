@@ -258,3 +258,170 @@ test.describe('schedule — local interaction', () => {
     await expect(page.locator('.card-kind-schedule .schedc')).toHaveCount(0);
   });
 });
+
+test.describe('schedule — day peek panel', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/?local=1&reset=1&blank=1');
+    await page.waitForSelector('.canvas-wrap');
+  });
+
+  async function pasteInto(page, text) {
+    await page.evaluate((t) => {
+      const dt = new DataTransfer();
+      dt.setData('text/plain', t);
+      window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    }, text);
+  }
+
+  // The peek's deterministic English titles (mirrors lib/schedDates.js).
+  const WD = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const MS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dayTitleOf = (d) => `${WD[(d.getDay() + 6) % 7]}, ${MS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+
+  async function openTodayPeek(page) {
+    const today = page.locator('.schedc .schedc-slot-day.is-today');
+    await today.hover();
+    await today.locator('.schedc-peek-btn').click();
+    const panel = page.locator('.schedc-peekpanel');
+    await expect(panel).toBeVisible();
+    return panel;
+  }
+
+  test('the day peek opens from a day slot with big hour rows, without touching card state', async ({ page }) => {
+    await addSchedule(page);
+    const panel = await openTodayPeek(page);
+
+    // Full-size hour rows (default 8–18 window → 10 rows), every one of them
+    // comfortably tall — the whole point of the peek.
+    const rows = panel.locator('.schedc-slot-hour:not(.is-band)');
+    await expect(rows).toHaveCount(10);
+    for (let i = 0; i < 10; i++) {
+      const box = await rows.nth(i).boundingBox();
+      expect(box.height).toBeGreaterThan(36);
+    }
+    await expect(panel.locator('.schedc-peektitle')).toHaveText(dayTitleOf(new Date()));
+    // The card itself is untouched: still Month view, still this month.
+    await expect(page.locator('.schedc .schedc-pill-btn.is-active')).toHaveText('M');
+  });
+
+  test('panel ‹ › steps the peeked day locally — the card title never changes', async ({ page }) => {
+    await addSchedule(page);
+    const panel = await openTodayPeek(page);
+    const cardTitle = await page.locator('.schedc .schedc-title').textContent();
+
+    await panel.getByRole('button', { name: 'Next day' }).click();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    await expect(panel.locator('.schedc-peektitle')).toHaveText(dayTitleOf(tomorrow));
+    await expect(page.locator('.schedc .schedc-title')).toHaveText(cardTitle);
+  });
+
+  test('Esc, outside click, and ✕ all close the peek; Esc yields to an open slot menu', async ({ page }) => {
+    await addSchedule(page);
+    let panel = await openTodayPeek(page);
+    await page.keyboard.press('Escape');
+    await expect(panel).toHaveCount(0);
+    // Esc was captured by the panel — the card must still be selected/rendered.
+    await expect(page.locator('.schedc')).toBeVisible();
+
+    panel = await openTodayPeek(page);
+    await page.locator('.canvas-wrap').click({ position: { x: 20, y: 400 } });
+    await expect(panel).toHaveCount(0);
+
+    panel = await openTodayPeek(page);
+    // Open a slot menu INSIDE the panel: first Esc closes only the menu.
+    const row = panel.locator('.schedc-slot-hour:not(.is-band)').nth(2);
+    await row.hover();
+    await row.locator('.schedc-mini').click();
+    await expect(page.locator('.gridc-cell-menu')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.gridc-cell-menu')).toHaveCount(0);
+    await expect(panel).toBeVisible();
+    await panel.getByRole('button', { name: 'Close' }).click();
+    await expect(panel).toHaveCount(0);
+  });
+
+  test('pasting into a panel hour row lands the item on BOTH surfaces', async ({ page }) => {
+    await addSchedule(page);
+    const panel = await openTodayPeek(page);
+
+    // Focus the 9 AM row (empty → slot focus) and paste a URL.
+    const nineAm = panel.locator('.schedc-slot-hour:not(.is-band)').nth(1);
+    await nineAm.click({ position: { x: 200, y: 22 } });
+    await expect(panel.locator('.schedc-slot.is-focused')).toHaveCount(1);
+    await pasteInto(page, 'https://example.com/callsheet');
+
+    // One item in a 44px row renders full-bleed in the panel…
+    await expect(nineAm.locator('.schedc-item-full .gc-link')).toContainText('example.com');
+    // …and the SAME item aggregates into today's (collapsed) month cell on the card.
+    await expect(page.locator('.schedc .schedc-slot-day.is-today .schedc-item-full .gc-link')).toBeVisible();
+  });
+
+  test('the slot menu works inside the panel: break an hour into minutes inline', async ({ page }) => {
+    await addSchedule(page);
+    const panel = await openTodayPeek(page);
+    const tenAm = panel.locator('.schedc-slot-hour:not(.is-band)').nth(2);
+    await tenAm.hover();
+    await tenAm.locator('.schedc-mini').click();
+    await page.locator('.gridc-cell-menu').getByRole('button', { name: 'Break into minutes' }).click();
+    await expect(panel.locator('.schedc-slot-minute')).toHaveCount(4);
+  });
+
+  test('"+N more" opens the peek instead of flipping the shared card view', async ({ page }) => {
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    const slot = sched.locator('.schedc-slot-day:not(.is-outside)').nth(9);
+    for (const url of ['https://a.example/1', 'https://b.example/2', 'https://c.example/3', 'https://d.example/4']) {
+      await slot.click({ position: { x: 8, y: 5 } });
+      await pasteInto(page, url);
+    }
+    const more = slot.locator('.schedc-chip.is-more');
+    await expect(more).toBeVisible();
+    await more.click();
+    await expect(page.locator('.schedc-peekpanel')).toBeVisible();
+    // The card did NOT drill into Day view (that was the old shared-state behavior).
+    await expect(sched.locator('.schedc-pill-btn.is-active')).toHaveText('M');
+  });
+
+  test('the panel never inherits the canvas transform — full-size rows at any zoom', async ({ page }) => {
+    await addSchedule(page);
+    // Zoom the canvas well out (the wheel listener lives on .canvas-wrap).
+    await page.locator('.canvas-wrap').evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      for (let i = 0; i < 6; i++) {
+        node.dispatchEvent(new WheelEvent('wheel', {
+          bubbles: true, cancelable: true, deltaY: 120, ctrlKey: true,
+          clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2,
+        }));
+      }
+    });
+    const scale = await page.locator('.canvas').evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).a);
+    expect(scale).toBeLessThan(0.9);
+
+    // The peek still opens at full, unscaled size beside the (tiny) day cell.
+    const panel = await openTodayPeek(page);
+    const rows = panel.locator('.schedc-slot-hour:not(.is-band)');
+    await expect(rows).toHaveCount(10);
+    const box = await rows.first().boundingBox();
+    expect(box.height).toBeGreaterThan(36);
+  });
+
+  test('hour peek: a panel hour row zooms to full-size minute rows and back', async ({ page }) => {
+    await addSchedule(page);
+    const panel = await openTodayPeek(page);
+    const nineAm = panel.locator('.schedc-slot-hour:not(.is-band)').nth(1);
+    await nineAm.hover();
+    await nineAm.locator('.schedc-peek-btn').click();
+
+    // Same panel, re-targeted: 4 quarter-hour rows at full size.
+    const minutes = panel.locator('.schedc-slot-minute');
+    await expect(minutes).toHaveCount(4);
+    const box = await minutes.first().boundingBox();
+    expect(box.height).toBeGreaterThan(40);
+    await expect(panel.locator('.schedc-peektitle')).toContainText('9 AM');
+
+    await panel.getByRole('button', { name: 'Back to day' }).click();
+    await expect(panel.locator('.schedc-slot-hour:not(.is-band)')).toHaveCount(10);
+  });
+});
