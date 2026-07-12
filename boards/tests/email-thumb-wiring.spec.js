@@ -24,6 +24,15 @@ test.describe('email-thumb worker route wiring', () => {
     expect(s).toContain("enc.encode(`email-thumb:${boardId}`)");
   });
 
+  test('the HMAC secret comes from app_config, never a Supabase credential', () => {
+    // The worker and the edge runtime hold DIFFERENT-format Supabase keys —
+    // a credential-derived HMAC mismatched on every request (x-miss: sig).
+    // Both sides must read the shared app_config row (migration 0186).
+    const s = worker();
+    expect(s).toContain('email_thumb_hmac');
+    expect(s).not.toContain('SUPABASE_SERVICE_ROLE_KEY}:email-thumb-v1');
+  });
+
   test('every reject path falls back to the logo, never an error status', () => {
     // Email clients render whatever comes back — a 4xx shows a broken-image
     // icon in the user's welcome email. The 302→logo keeps it presentable.
