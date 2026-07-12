@@ -14,38 +14,80 @@
 }
 @media (prefers-reduced-motion: reduce) { .seo-scroll { scroll-behavior: auto; } }
 .seo-main {
-  max-width: 920px;
+  max-width: 960px;
   margin: 0 auto;
-  padding: clamp(48px, 9vh, 110px) 24px 80px;
+  padding: clamp(64px, 12vh, 140px) 24px 80px;
 }
 
-/* ── Hero ─────────────────────────────────────────────────────────────── */
+/* Frosted-glass conversion surfaces — the same glass as the sign-in landing's
+   .sb-frost, so the marketing pages and the front door share one material. */
+.seo-answer,
+.seo-midcta,
+.seo-cta-band {
+  background: rgba(18, 16, 13, 0.72);
+  backdrop-filter: blur(16px) saturate(1.05);
+  -webkit-backdrop-filter: blur(16px) saturate(1.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+
+/* ── Hero — centered and ceremonial, like the front door ──────────────── */
 .seo-hero {
   position: relative;
-  margin-bottom: clamp(28px, 5vh, 48px);
+  text-align: center;
+  margin-bottom: clamp(48px, 8vh, 88px);
 }
 /* Soft gold aura behind the headline — the sun, felt not seen. */
 .seo-hero::before {
   content: '';
   position: absolute;
-  top: -140px; left: -180px;
-  width: 620px; height: 480px;
-  background: radial-gradient(closest-side, rgba(255, 165, 0, 0.09), rgba(255, 165, 0, 0));
+  top: -160px; left: 50%;
+  transform: translateX(-50%);
+  width: 760px; height: 520px;
+  background: radial-gradient(closest-side, rgba(255, 165, 0, 0.1), rgba(255, 165, 0, 0));
   pointer-events: none;
 }
-.seo-hero > * { position: relative; }
+/* Faint dot-grid atmosphere (the sign-in scene's idiom, same values as
+   .sb-grid), dissolving before the reading column begins. */
+.seo-hero::after {
+  content: '';
+  position: absolute;
+  inset: -120px 0 auto; /* stay inside the column — side bleed causes mobile x-overflow */
+  height: 130%;
+  pointer-events: none;
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.13) 1.3px, transparent 1.6px);
+  background-size: 24px 24px;
+  opacity: 0.55;
+  mask-image: radial-gradient(120% 100% at 50% 0%, #000 40%, transparent 75%);
+  -webkit-mask-image: radial-gradient(120% 100% at 50% 0%, #000 40%, transparent 75%);
+}
+.seo-hero > * { position: relative; z-index: 1; }
+/* One motion touch: the hero settles in, nothing else moves. */
+@keyframes seo-rise {
+  from { opacity: 0; transform: translateY(10px); }
+}
+.seo-hero > * { animation: seo-rise 0.5s var(--ease) backwards; }
+.seo-hero > *:nth-child(2) { animation-delay: 60ms; }
+.seo-hero > *:nth-child(3) { animation-delay: 120ms; }
+.seo-hero > *:nth-child(4) { animation-delay: 180ms; }
+.seo-hero > *:nth-child(5) { animation-delay: 240ms; }
+.seo-hero > *:nth-child(n + 6) { animation-delay: 300ms; }
+@media (prefers-reduced-motion: reduce) {
+  .seo-hero > * { animation: none; }
+}
 .seo-eyebrow {
-  font: 700 0.8rem/1 var(--font-display, var(--font-sans));
-  letter-spacing: 0.18em;
+  font: 700 0.72rem/1 var(--font-display, var(--font-sans));
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--soleil);
-  margin: 0 0 18px;
+  margin: 0 0 22px;
 }
 .seo-h1 {
-  font: 700 clamp(2.5rem, 6vw, 3.9rem)/1.02 var(--font-display, var(--font-sans));
+  font: 700 clamp(2.9rem, 7vw, 4.8rem)/1.02 var(--font-display, var(--font-sans));
   letter-spacing: 0.005em;
   color: var(--ink-0);
-  margin: 0 0 0.35em;
+  margin: 0 auto 0.35em;
   text-wrap: balance;
   max-width: 18ch;
 }
@@ -53,20 +95,18 @@
   font: 400 clamp(1.1rem, 2.4vw, 1.3rem)/1.5 var(--font-sans);
   color: var(--ink-1);
   max-width: 52ch;
-  margin: 0 0 1.5em;
+  margin: 0 auto 1.5em;
 }
 /* The extractable direct-answer block — the page's definitive answer, set as
-   a quiet definition card so AI answer engines and skimmers both catch it. */
+   a quiet frosted definition card so AI answer engines and skimmers both
+   catch it. Text stays left-set inside the centered card for readability. */
 .seo-answer {
   font: 400 1.02rem/1.62 var(--font-sans);
   color: var(--ink-0);
+  text-align: left;
   max-width: 66ch;
-  margin: 0 0 1.8em;
-  padding: 16px 20px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-1);
-  border-left: 3px solid var(--soleil);
-  border-radius: 0 var(--radius-md, 8px) var(--radius-md, 8px) 0;
+  margin: 0 auto 1.8em;
+  padding: 20px 24px;
 }
 .seo-updated {
   font: 500 0.78rem/1 var(--font-sans);
@@ -76,6 +116,7 @@
 .seo-hero-cta {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 18px;
   flex-wrap: wrap;
 }
@@ -91,6 +132,7 @@
 .seo-trust {
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: 6px 18px;
   flex-wrap: wrap;
   margin-top: 14px;
@@ -103,13 +145,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 50px;
+  min-height: 52px;
   padding: 0 26px;
   background: var(--soleil);
   color: var(--bg-0);
   font: 700 1rem/1 var(--font-sans);
   text-decoration: none;
-  border-radius: 10px;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(255, 165, 0, 0.18);
   transition: transform var(--dur-fast, 120ms) var(--ease), box-shadow var(--dur-fast, 120ms) var(--ease);
   -webkit-tap-highlight-color: transparent;
 }
@@ -121,12 +164,12 @@
 
 /* ── Live product shot in a minimal browser frame ─────────────────────── */
 .seo-frame {
-  margin: 0 0 clamp(40px, 7vh, 72px);
+  margin: 0 0 clamp(56px, 9vh, 100px);
   border: 1px solid var(--line-2);
   border-radius: var(--radius-lg, 12px);
   overflow: hidden;
   background: var(--bg-1);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 165, 0, 0.04);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 165, 0, 0.05);
   scroll-margin-top: 72px;
 }
 .seo-frame-bar {
@@ -191,12 +234,12 @@
 }
 .seo-frame-cap b { color: var(--ink-0); font-weight: 600; }
 
-/* ── Sections ─────────────────────────────────────────────────────────── */
+/* ── Sections — calm rhythm; spacing IS the separator ─────────────────── */
 .seo-section {
-  margin: 0 0 clamp(36px, 6vh, 60px);
+  margin: 0 0 clamp(56px, 9vh, 96px);
 }
 .seo-h2 {
-  font: 700 clamp(1.45rem, 3vw, 1.8rem)/1.2 var(--font-display, var(--font-sans));
+  font: 700 clamp(1.6rem, 3.4vw, 2rem)/1.2 var(--font-display, var(--font-sans));
   letter-spacing: 0.01em;
   color: var(--ink-0);
   margin: 0 0 0.55em;
@@ -222,31 +265,27 @@
   color: var(--ink-1);
   max-width: 64ch;
 }
+/* Quiet ink dash — gold is reserved for focal moments, not every list. */
 .seo-bullets li::before {
   content: '';
   position: absolute;
-  left: 4px;
-  top: 0.52em;
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  transform: rotate(45deg);
-  background: var(--soleil);
+  left: 0;
+  top: 0.78em;
+  width: 14px;
+  height: 1.5px;
+  background: var(--ink-3);
 }
 
-/* ── Mid-page CTA strip — one quiet ask halfway through the read ──────── */
+/* ── Mid-page CTA strip — one quiet ask halfway through the read.
+   Frosted (shared rule above); the gold button inside is the only accent. ── */
 .seo-midcta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px 20px;
   flex-wrap: wrap;
-  margin: 0 0 clamp(36px, 6vh, 60px);
+  margin: 0 0 clamp(56px, 9vh, 96px);
   padding: 18px 22px;
-  background: linear-gradient(120deg, rgba(255, 165, 0, 0.08), rgba(255, 165, 0, 0) 55%), var(--bg-1);
-  border: 1px solid var(--line-1);
-  border-left: 3px solid var(--soleil);
-  border-radius: var(--radius-md, 8px);
 }
 .seo-midcta-copy {
   font: 500 1rem/1.45 var(--font-sans);
@@ -278,10 +317,10 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: var(--soleil-soft, rgba(255, 165, 0, 0.14));
-  border: 1px solid rgba(255, 165, 0, 0.3);
-  color: var(--soleil);
-  font: 700 1rem/1 var(--font-display, var(--font-sans));
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  color: var(--ink-0);
+  font: 600 0.95rem/1 var(--font-mono, ui-monospace, monospace);
 }
 /* connector rail between the numbered discs */
 .seo-steps li::after {
@@ -364,22 +403,22 @@
   color: var(--ink-2);
 }
 
-/* ── FAQ ──────────────────────────────────────────────────────────────── */
+/* ── FAQ — de-carded hairline rows; gold only on the open item ────────── */
 .seo-faq-item {
-  background: var(--bg-1);
-  border: 1px solid var(--line-1);
-  border-radius: var(--radius-md, 8px);
-  padding: 0 18px;
-  margin: 10px 0;
-  transition: border-color var(--dur-fast, 120ms) var(--ease);
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--line-1);
+  border-radius: 0;
+  padding: 0 2px;
+  margin: 0;
 }
-.seo-faq-item[open] { border-color: var(--line-3); }
+.seo-faq-item:last-of-type { border-bottom: 1px solid var(--line-1); }
 .seo-faq-q {
   font: 600 1.02rem/1.45 var(--font-sans);
   color: var(--ink-0);
   cursor: pointer;
   list-style: none;
-  padding: 15px 30px 15px 0;
+  padding: 16px 30px 16px 0;
   position: relative;
 }
 .seo-faq-q::-webkit-details-marker { display: none; }
@@ -387,13 +426,13 @@
   content: '+';
   position: absolute;
   right: 2px;
-  top: 13px;
+  top: 14px;
   font-weight: 400;
   font-size: 1.4rem;
-  color: var(--soleil);
-  transition: transform var(--dur-fast, 120ms) var(--ease);
+  color: var(--ink-2);
+  transition: transform var(--dur-fast, 120ms) var(--ease), color var(--dur-fast, 120ms) var(--ease);
 }
-.seo-faq-item[open] .seo-faq-q::after { transform: rotate(45deg); }
+.seo-faq-item[open] .seo-faq-q::after { transform: rotate(45deg); color: var(--soleil); }
 .seo-faq-a {
   font: 400 1rem/1.6 var(--font-sans);
   color: var(--ink-1);
@@ -401,7 +440,7 @@
   max-width: 68ch;
 }
 
-/* ── Closing CTA band ─────────────────────────────────────────────────── */
+/* ── Closing CTA band — frost under the gold radial: the closing sun ──── */
 .seo-cta-band {
   position: relative;
   overflow: hidden;
@@ -409,9 +448,9 @@
   padding: clamp(40px, 8vh, 72px) 24px;
   background:
     radial-gradient(90% 140% at 50% -40%, rgba(255, 165, 0, 0.13), rgba(255, 165, 0, 0) 62%),
-    var(--bg-1);
-  border: 1px solid var(--line-2);
+    rgba(18, 16, 13, 0.72);
   border-radius: var(--radius-xl, 16px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), 0 0 60px rgba(255, 165, 0, 0.08);
   margin: clamp(24px, 5vh, 48px) 0;
 }
 .seo-cta-headline {
@@ -473,11 +512,12 @@
 .seo-examples-more {
   display: inline-block;
   margin-top: 16px;
-  color: var(--soleil);
+  color: var(--ink-1);
   font: 600 0.9rem/1.3 var(--font-sans);
   text-decoration: none;
+  transition: color var(--dur-fast, 120ms) var(--ease);
 }
-.seo-examples-more:hover { text-decoration: underline; }
+.seo-examples-more:hover { color: var(--soleil); text-decoration: underline; }
 
 /* ── /explore hub ─────────────────────────────────────────────────────── */
 .exp-main {
@@ -551,8 +591,21 @@
 
 /* ── Mobile ───────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
-  .seo-main { padding-top: 40px; }
-  .seo-hero::before { left: -120px; width: 420px; height: 340px; }
+  .seo-main { padding-top: 48px; }
+  .seo-hero::before { width: 460px; height: 360px; }
+  /* Cheaper glass on mobile GPUs (the .sb-frost pattern). */
+  .seo-answer,
+  .seo-midcta,
+  .seo-cta-band {
+    backdrop-filter: blur(9px) saturate(1.05);
+    -webkit-backdrop-filter: blur(9px) saturate(1.05);
+    background: rgba(18, 16, 13, 0.9);
+  }
+  .seo-cta-band {
+    background:
+      radial-gradient(90% 140% at 50% -40%, rgba(255, 165, 0, 0.13), rgba(255, 165, 0, 0) 62%),
+      rgba(18, 16, 13, 0.9);
+  }
   .seo-hero-cta .seo-cta-primary { width: 100%; }
   .seo-cta-secondary { padding-bottom: 1px; }
   .seo-frame-url { font-size: 11px; }
