@@ -47,14 +47,35 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // Signed image URL for welcome_board, served by the soleil-boards Worker's
 // public /api/email-thumb route (email clients fetch <img> unauthenticated,
 // possibly weeks after send — the HMAC in the URL is the whole gate). The
-// derivation MIRRORS worker.js emailThumbSig — keep the two in lockstep:
-// hmacKey = SHA-256(SERVICE_KEY + ":email-thumb-v1"),
+// HMAC secret lives in app_config 'email_thumb_hmac' (migration 0186): the
+// Worker and this runtime hold DIFFERENT-format Supabase credentials, so a
+// credential-derived key mismatched — a shared DB row is identical by
+// construction. Derivation MIRRORS worker.js emailThumbSig — keep in lockstep:
+// hmacKey = SHA-256(secret + ":email-thumb-v1"),
 // sig     = hex(HMAC-SHA256(hmacKey, "email-thumb:" + boardId)).slice(0, 32).
 const SITE_ORIGIN = "https://clusters.soleilpictures.com";
 
+let emailThumbSecretCache = { secret: "", at: 0 };
+async function emailThumbSecret(): Promise<string> {
+  if (emailThumbSecretCache.secret && Date.now() - emailThumbSecretCache.at < 300_000) {
+    return emailThumbSecretCache.secret;
+  }
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/app_config?key=eq.email_thumb_hmac&select=value`, {
+    headers: { "apikey": SERVICE_KEY, "authorization": `Bearer ${SERVICE_KEY}`, "accept": "application/json" },
+  });
+  if (!res.ok) throw new Error(`email_thumb_hmac fetch ${res.status}`);
+  // deno-lint-ignore no-explicit-any
+  const rows: any[] = await res.json().catch(() => []);
+  const secret = rows?.[0]?.value?.secret || "";
+  if (!secret) throw new Error("email_thumb_hmac missing");
+  emailThumbSecretCache = { secret, at: Date.now() };
+  return secret;
+}
+
 async function emailThumbUrl(boardId: string, thumbUpdatedAt?: string | null): Promise<string> {
   const enc = new TextEncoder();
-  const keyBytes = await crypto.subtle.digest("SHA-256", enc.encode(`${SERVICE_KEY}:email-thumb-v1`));
+  const secret = await emailThumbSecret();
+  const keyBytes = await crypto.subtle.digest("SHA-256", enc.encode(`${secret}:email-thumb-v1`));
   const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const mac = await crypto.subtle.sign("HMAC", key, enc.encode(`email-thumb:${boardId}`));
   const sig = [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
@@ -194,12 +215,18 @@ Deno.serve(async (req) => {
   // Priority order: the day-1 welcome first — it must win the one-per-day
   // unique index (and the `mailed` set) on a fresh user's second day; then
   // win-back, then the final activation nudge, then the first.
-  await runType("welcome_board", "lifecycle_due_welcome_board", async (row) => ({
-    workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name,
-    thumbUrl: row.board_id
-      ? await emailThumbUrl(String(row.board_id), row.thumb_updated_at ? String(row.thumb_updated_at) : null)
-      : undefined,
-  }));
+  await runType("welcome_board", "lifecycle_due_welcome_board", async (row) => {
+    // Best-effort image: a secret-fetch hiccup degrades to a text-only note
+    // rather than crashing the run mid-claim (claims are once-ever).
+    let thumbUrl: string | undefined;
+    try {
+      if (row.board_id) {
+        thumbUrl = await emailThumbUrl(String(row.board_id),
+          row.thumb_updated_at ? String(row.thumb_updated_at) : null);
+      }
+    } catch (e) { console.warn("emailThumbUrl failed", e); }
+    return { workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name, thumbUrl };
+  });
   await runType("reengage_1", "lifecycle_due_reengage_1", (row) => ({
     workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name,
   }));

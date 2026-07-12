@@ -1407,17 +1407,41 @@ async function handleShareThumb(env, token, searchParams, request) {
   return new Response(obj.body, { status: 200, headers });
 }
 
-// Signature for /api/email-thumb URLs. The HMAC key is DERIVED from the
-// service-role key (SHA-256 over key + a domain-separation tag) — this worker
-// and the lifecycle-email-cron edge fn both already hold that secret, so no
-// new secret has to be provisioned on either side. HMAC output reveals nothing
-// about the key; rotating the service key merely invalidates old email image
-// URLs, which then 302 to the logo fallback. lifecycle-email-cron carries the
-// mirror of this derivation — keep the two in lockstep.
+// Signature for /api/email-thumb URLs. The HMAC secret lives in app_config
+// (migration 0186, key 'email_thumb_hmac') — NOT derived from the service-role
+// credential: this worker and the edge functions hold DIFFERENT-format
+// Supabase keys (both authenticate, so REST worked while every credential-
+// derived HMAC mismatched). Reading the same DB row guarantees identical key
+// material on both sides and survives credential rotation. lifecycle-email-
+// cron carries the mirror of this — keep the two in lockstep.
+let emailThumbSecretCache = { secret: '', at: 0 };
+async function emailThumbSecret(env) {
+  if (emailThumbSecretCache.secret && Date.now() - emailThumbSecretCache.at < 300_000) {
+    return emailThumbSecretCache.secret;
+  }
+  const res = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/app_config?key=eq.email_thumb_hmac&select=value`,
+    {
+      headers: {
+        'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+        'authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        'accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(5000),
+    },
+  );
+  if (!res.ok) throw new Error(`email_thumb_hmac fetch ${res.status}`);
+  const secret = (await res.json())?.[0]?.value?.secret || '';
+  if (!secret) throw new Error('email_thumb_hmac missing');
+  emailThumbSecretCache = { secret, at: Date.now() };
+  return secret;
+}
+
 async function emailThumbSig(env, boardId) {
   const enc = new TextEncoder();
+  const secret = await emailThumbSecret(env);
   const keyBytes = await crypto.subtle.digest(
-    'SHA-256', enc.encode(`${env.SUPABASE_SERVICE_ROLE_KEY}:email-thumb-v1`),
+    'SHA-256', enc.encode(`${secret}:email-thumb-v1`),
   );
   const key = await crypto.subtle.importKey(
     'raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
