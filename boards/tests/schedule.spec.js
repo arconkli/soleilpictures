@@ -440,3 +440,85 @@ test.describe('schedule — demo-cap weight parity', () => {
     expect(r.filled).toBe(2);
   });
 });
+
+test.describe('schedule — weekend flag + month matrix (peek/date-jump foundations)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/?schedqa=1');
+    await page.waitForFunction(() => !!window.__soleilSchedTest);
+  });
+
+  test('month/week day slots carry a weekend flag for Sat/Sun only', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilSchedTest;
+      const month = T.computeSchedSlots({
+        view: 'month', anchor: '2026-07-15', w: 420, h: 380, todayIso: '2026-07-11',
+      }).slots.filter((s) => s.kind === 'day');
+      const week = T.computeSchedSlots({
+        view: 'week', anchor: '2026-07-15', w: 420, h: 170, todayIso: '2026-07-15',
+      }).slots.filter((s) => s.kind === 'day');
+      const day = T.computeSchedSlots({ view: 'day', anchor: '2026-07-18', w: 300, h: 420 });
+      return {
+        monthWeekend: month.filter((s) => s.weekend).map((s) => s.date),
+        weekWeekend: week.filter((s) => s.weekend).map((s) => s.date),
+        bandWeekend: !!day.slots.find((s) => s.kind === 'day').weekend,
+      };
+    });
+    // July 2026 grid runs Mon 06-29 … Sun 08-02: ten Sat/Sun cells.
+    expect(r.monthWeekend).toEqual([
+      '2026-07-04', '2026-07-05', '2026-07-11', '2026-07-12', '2026-07-18',
+      '2026-07-19', '2026-07-25', '2026-07-26', '2026-08-01', '2026-08-02',
+    ]);
+    expect(r.weekWeekend).toEqual(['2026-07-18', '2026-07-19']);
+    expect(r.bandWeekend).toBe(false);
+  });
+
+  test('monthMatrix tiles full Monday-first weeks matching computeSchedSlots', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilSchedTest;
+      const cells = T.monthMatrix('2026-07-15');
+      const slots = T.computeSchedSlots({
+        view: 'month', anchor: '2026-07-15', w: 420, h: 380, todayIso: '2026-07-11',
+      }).slots.filter((s) => s.kind === 'day');
+      return {
+        n: cells.length,
+        first: cells[0], last: cells[cells.length - 1],
+        outside: cells.filter((c) => c.outside).map((c) => c.date),
+        sameOrder: cells.every((c, i) => c.date === slots[i].date && !!c.outside === !!slots[i].outside),
+      };
+    });
+    expect(r.n).toBe(35);
+    expect(r.n % 7).toBe(0);
+    expect(r.first).toEqual({ date: '2026-06-29', outside: true });
+    expect(r.last).toEqual({ date: '2026-08-02', outside: true });
+    expect(r.outside).toEqual(['2026-06-29', '2026-06-30', '2026-08-01', '2026-08-02']);
+    expect(r.sameOrder).toBe(true);
+  });
+
+  test('monthMatrix handles a leap February', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilSchedTest;
+      const cells = T.monthMatrix('2028-02-10');
+      return {
+        n: cells.length,
+        first: cells[0].date, last: cells[cells.length - 1].date,
+        outsideN: cells.filter((c) => c.outside).length,
+        has29: cells.some((c) => c.date === '2028-02-29' && !c.outside),
+      };
+    });
+    // Feb 2028: Feb 1 is a Tuesday → grid Mon 01-31 … Sun 03-05 (35 cells, 6 outside).
+    expect(r.n).toBe(35);
+    expect(r.first).toBe('2028-01-31');
+    expect(r.last).toBe('2028-03-05');
+    expect(r.outsideN).toBe(6);
+    expect(r.has29).toBe(true);
+  });
+
+  test('SCHED_TUNING carries the peek panel constants', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilSchedTest;
+      const { PEEK_W, PEEK_ROW_H, PEEK_MINUTE_ROW_H, PEEK_MAX_H } = T.SCHED_TUNING;
+      return { PEEK_W, PEEK_ROW_H, PEEK_MINUTE_ROW_H, PEEK_MAX_H };
+    });
+    expect(r).toEqual({ PEEK_W: 380, PEEK_ROW_H: 44, PEEK_MINUTE_ROW_H: 56, PEEK_MAX_H: 560 });
+  });
+});

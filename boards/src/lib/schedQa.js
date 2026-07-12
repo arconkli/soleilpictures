@@ -7,7 +7,7 @@
 import {
   MONTHS, MONTHS_SHORT, WEEKDAYS, pad2, daysInMonth, parseISO, formatISO,
   todayISO, weekdayOf, firstWeekdayOfMonth, addDays, addMonths, startOfWeek,
-  isToday, monthTitle, weekTitle, dayTitle, hourLabel, hourTitle,
+  isToday, monthTitle, weekTitle, dayTitle, hourLabel, hourTitle, monthMatrix,
 } from './schedDates.js';
 import {
   SCHED_TUNING, dayKey, hourKey, minuteKey, isItemKey, slotOfItem, mintItemKey,
@@ -20,7 +20,7 @@ export function makeSchedTestBridge() {
   return {
     MONTHS, MONTHS_SHORT, WEEKDAYS, pad2, daysInMonth, parseISO, formatISO,
     todayISO, weekdayOf, firstWeekdayOfMonth, addDays, addMonths, startOfWeek,
-    isToday, monthTitle, weekTitle, dayTitle, hourLabel, hourTitle,
+    isToday, monthTitle, weekTitle, dayTitle, hourLabel, hourTitle, monthMatrix,
     SCHED_TUNING, dayKey, hourKey, minuteKey, isItemKey, slotOfItem, mintItemKey,
     newUid, parseSlotKey, itemsForSlot, hourWindowForDay, computeSchedSlots,
     chipCapacity, graftKeyMap, schedItems, schedLegacyRows,

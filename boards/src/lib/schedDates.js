@@ -113,3 +113,18 @@ export function hourTitle(iso, h) {
   if (!t) return '';
   return `${MONTHS_SHORT[t.m - 1]} ${t.d} · ${hourLabel(h)}`;
 }
+
+// Full Monday-first month grid for the anchor's month — the same tiling rule
+// as computeSchedSlots' month view (startOfWeek of the 1st, whole weeks), as a
+// flat cell list for the date-jump popover: [{ date, outside }].
+export function monthMatrix(iso) {
+  const t = parseISO(iso) || parseISO(todayISO());
+  const first = startOfWeek(formatISO(t.y, t.m, 1));
+  const nRows = Math.ceil((firstWeekdayOfMonth(t.y, t.m) + daysInMonth(t.y, t.m)) / 7);
+  const cells = [];
+  for (let i = 0; i < nRows * 7; i++) {
+    const date = addDays(first, i);
+    cells.push({ date, outside: parseISO(date).m !== t.m });
+  }
+  return cells;
+}

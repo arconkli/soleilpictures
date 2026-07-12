@@ -41,6 +41,10 @@ export const SCHED_TUNING = Object.freeze({
   MINUTE_STEP: 15,
   COMPACT_W: 90,      // below either → slot gets the pop-out menu trigger (local px,
   COMPACT_H: 40,      // zoom-independent — same reasoning as GRID_TUNING.PILL_MIN_*)
+  PEEK_W: 380,        // Day/Hour Peek panel (SchedulePeek.jsx): width, per-row
+  PEEK_ROW_H: 44,     // heights (hour rows / minute rows) and max panel height —
+  PEEK_MINUTE_ROW_H: 56, // the panel feeds computeSchedSlots a GENEROUS height so
+  PEEK_MAX_H: 560,    // rows come out big; overflow scrolls natively.
 });
 
 // ---------------------------------------------------------------------------
@@ -173,6 +177,7 @@ export function computeSchedSlots({
           key, kind: 'day', rect, date,
           outside: view === 'month' && dt.m !== t.m,
           isToday: date === todayIso,
+          weekend: c >= 5, // Monday-first columns → 5/6 are Sat/Sun
           label: String(dt.d),
           expanded,
         });
