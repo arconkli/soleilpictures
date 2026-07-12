@@ -993,7 +993,10 @@ function injectExplore(res, boards) {
 // SeoLandingPage.jsx renders from the same spec (anti-cloaking parity).
 function injectLanding(res, spec) {
   const canonical = `${SITE_ORIGIN}${spec.path}`;
-  const og = `${SITE_ORIGIN}${landingOgPath(spec)}`;
+  // ?v= busts scraper/CDN caches of the immutable OG asset when a page's copy
+  // (and thus its card) is refreshed. Keep the query OUT of landingOgPath —
+  // generate-og.mjs derives output filenames from it.
+  const og = `${SITE_ORIGIN}${landingOgPath(spec)}${spec.updated ? `?v=${spec.updated}` : ''}`;
   const rw = new HTMLRewriter()
     .on('title',                            new SetText(spec.title))
     .on('meta[name="description"]',         new SetContent(spec.metaDescription))
@@ -1083,7 +1086,7 @@ function buildLandingCrawlableHtml(spec) {
 // SoftwareApplication + BreadcrumbList + (if present) FAQPage — the FAQ is
 // visible on-page (the accordion), which is what FAQ rich results require.
 function buildLandingJsonLd(spec, url) {
-  const og = `${SITE_ORIGIN}${landingOgPath(spec)}`;
+  const og = `${SITE_ORIGIN}${landingOgPath(spec)}${spec.updated ? `?v=${spec.updated}` : ''}`;
   const graph = [
     {
       '@type': 'WebPage',
