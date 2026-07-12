@@ -17,7 +17,7 @@
 import { useState } from 'react';
 import { readSchedModel } from '../../lib/schedState.js';
 import {
-  SCHED_TUNING, computeSchedSlots, itemsForSlot, chipCapacity, mintItemKey, newUid,
+  SCHED_TUNING, computeSchedSlots, itemsForSlot, chipCapacity, mintItemKey, newUid, parseSlotKey,
 } from '../../lib/schedLayout.js';
 import {
   todayISO, addDays, addMonths, monthTitle, weekTitle, dayTitle, hourTitle,
@@ -379,6 +379,18 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
           onText={() => addText(menu.slotKey)}
           onImage={() => addImage(menu.slotKey)}
           onLink={() => addLink(menu.slotKey)}
+          extraItems={(() => {
+            // Breakdown straight from the slot menu (collapse lives in the
+            // card's right-click menu — expanded slots hide the trigger).
+            const slot = parseSlotKey(menu.slotKey);
+            if (slot?.kind === 'day' && gridActions.setSlotExpand) {
+              return [{ id: 'break-hours', label: 'Break into hours', onClick: () => gridActions.setSlotExpand(card.id, menu.slotKey, 'hours') }];
+            }
+            if (slot?.kind === 'hour' && gridActions.setSlotExpand) {
+              return [{ id: 'break-minutes', label: 'Break into minutes', onClick: () => gridActions.setSlotExpand(card.id, menu.slotKey, 'minutes') }];
+            }
+            return null;
+          })()}
           onClose={() => setMenu(null)}
         />
       )}

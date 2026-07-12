@@ -202,6 +202,45 @@ test.describe('schedule — local interaction', () => {
     await expect(slot.locator('.schedc-chip')).toHaveCount(0);
   });
 
+  test('break a day into inline hour rows from the slot menu; collapse via right-click', async ({ page }) => {
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    const slot = sched.locator('.schedc-slot-day:not(.is-outside)').nth(8);
+
+    await slot.hover();
+    await slot.locator('.schedc-mini').click();
+    await page.locator('.gridc-cell-menu').getByRole('button', { name: 'Break into hours' }).click();
+    // The day subdivides INLINE in the month grid (default 8–18 window).
+    await expect(sched.locator('.schedc-slot-day.is-expanded')).toHaveCount(1);
+    await expect(sched.locator('.schedc-slot-hour')).toHaveCount(10);
+
+    // Focus the expanded day (its date strip) → right-click → Collapse day.
+    await slot.click({ position: { x: 8, y: 5 } });
+    await page.locator('.card-kind-schedule').dispatchEvent('contextmenu');
+    await page.locator('.ctx-menu').getByText('Collapse day', { exact: true }).click();
+    await expect(sched.locator('.schedc-slot-day.is-expanded')).toHaveCount(0);
+    await expect(sched.locator('.schedc-slot-hour')).toHaveCount(0);
+  });
+
+  test('an hour item aggregates into its (collapsed) day in month view', async ({ page }) => {
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    // Day view: put a text item into the 9 AM hour row.
+    await sched.getByRole('button', { name: 'Day view' }).click();
+    const nineAm = sched.locator('.schedc-slot-hour').nth(1);
+    await addViaSlotMenu(page, nineAm, 'Text');
+    await expect(nineAm.locator('.gc-text-edit')).toBeVisible();
+    await page.keyboard.type('Dailies review');
+    await page.locator('.canvas-wrap').click({ position: { x: 30, y: 700 } });
+    // (chip or full-bleed depending on row height — either way it's in the slot)
+    await expect(nineAm).toContainText('Dailies review');
+
+    // Month view: the (collapsed) day aggregates the hour-deep item — the
+    // breakdown content is never invisible.
+    await sched.getByRole('button', { name: 'Month view' }).click();
+    await expect(sched.locator('.schedc-slot-day.is-today .schedc-item-full .gc-text')).toContainText('Dailies review');
+  });
+
   test('a LEGACY rows-table schedule card still renders the old table', async ({ page }) => {
     // The seeded (non-blank) local workspace carries the legacy fixture card
     // ("6-day shoot · v3" — rows of day/what/loc) on the Sundown Highway

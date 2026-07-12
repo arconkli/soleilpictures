@@ -105,6 +105,7 @@ import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readG
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from './lib/gridLayout.js';
 import { hasLabelTag } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
+import { graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey } from './lib/schedLayout.js';
 import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio, uploadFile, readVideoMeta } from './lib/uploads.js';
 import { arrangeInFreeSpace } from './lib/canvasGeom.js';
 import { classifyDropFile, fitImageDims, sizeBucket } from './lib/fileIngest.js';
@@ -1907,6 +1908,67 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const cm = cy.get('gridCells'); if (!cm || !cm.delete) return;
       ydoc.transact(() => { cm.delete(cellId); }, 'local');
     };
+    // Break a schedule slot down inline ('hours' on a day, 'minutes' on an
+    // hour) or collapse it (null). Meta-only + whole-object LWW — items are
+    // untouched, so collapse is non-destructive (deep items re-aggregate as
+    // the slot's chips).
+    const setSchedSlotExpand = (cardId, slotPath, mode) => {
+      const m = cardsMap(); const cy = m && m.get(cardId); if (!cy) return;
+      const mm = cy.get('gridMeta'); if (!mm || !mm.set) return;
+      ydoc.transact(() => {
+        const next = { ...(mm.get('expand') || {}) };
+        if (mode) next[slotPath] = mode; else delete next[slotPath];
+        mm.set('expand', next);
+      }, 'local');
+    };
+    // Drag a Day-view schedule onto a Month/Week day slot (or an Hour-view onto
+    // an hour slot) → the slot subdivides INLINE and absorbs the source's items
+    // with their date prefix rewritten (pure schedLayout.graftKeyMap); the
+    // source card is consumed (mirrors graftGridIntoCell's move semantics +
+    // arrow cascade). Returns false — so the drag falls through to a normal
+    // move — on a granularity mismatch (hour card over a day slot) or when the
+    // source holds content OUTSIDE its anchor prefix (strays): deleting it
+    // would silently orphan that content.
+    const graftScheduleIntoSlot = (hostId, slotPath, srcId) => {
+      const m = cardsMap();
+      const hostCy = m && m.get(hostId); const srcCy = m && m.get(srcId);
+      if (!hostCy || !srcCy || hostId === srcId) return false;
+      if (!hostCy.get('schedView') || !srcCy.get('schedView')) return false;
+      const slot = parseSlotKey(slotPath);
+      const srcView = srcCy.get('schedView');
+      const match = (srcView === 'day' && slot?.kind === 'day') || (srcView === 'hour' && slot?.kind === 'hour');
+      if (!match) return false;
+      const srcAnchor = srcCy.get('anchor') || todayISO();
+      const srcPrefix = srcView === 'day' ? schedDayKey(srcAnchor) : schedHourKey(srcAnchor, srcCy.get('anchorHour') ?? 9);
+      const srcCells = {};
+      const scm = srcCy.get('gridCells');
+      if (scm && scm.forEach) scm.forEach((v, k) => { srcCells[k] = (v && v.toJSON) ? v.toJSON() : v; });
+      const srcExpand = (srcCy.get('gridMeta')?.get?.('expand')) || {};
+      const { cells, expand, strays } = graftKeyMap(srcCells, srcExpand, srcPrefix, slotPath);
+      if (strays.length) return false;
+      breakUndo();
+      ydoc.transact(() => {
+        const hcm = hostCy.get('gridCells');
+        if (hcm) Object.entries(cells).forEach(([k, rec]) => { if (rec && rec.type && rec.type !== 'empty') hcm.set(k, rec); });
+        const hmm = hostCy.get('gridMeta');
+        if (hmm && hmm.set) {
+          hmm.set('expand', { ...(hmm.get('expand') || {}), ...expand, [slotPath]: srcView === 'day' ? 'hours' : 'minutes' });
+        }
+        // Consume the source + cascade its arrow endpoints (no dangling arrows).
+        const a = arrowsArr();
+        if (a) {
+          const cardIdOf = (r) => (typeof r === 'string' ? r : (r && typeof r === 'object' && r.type === 'card' ? r.id : null));
+          for (let i = a.length - 1; i >= 0; i--) {
+            const ar = a.get(i);
+            const fromCard = cardIdOf(ar?.from ?? ar?.get?.('from'));
+            const toCard = cardIdOf(ar?.to ?? ar?.get?.('to'));
+            if (fromCard === srcId || toCard === srcId) a.delete(i, 1);
+          }
+        }
+        m.delete(srcId);
+      }, 'local');
+      return true;
+    };
     // ── shared / per-cell text style ──────────────────────────────────────────
     // The family (shared) text style: linked → the shared template; else the card.
     const familyStyleOf = (cy) => {
@@ -2183,6 +2245,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addNote, addTextLink, addImageAt, addPdfAt, ingestFilesArranged, updateCardSilent, addNewBoard, addPalette,
       addDocCard, addScriptCard, addGrid,
       resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, setGridCellContent, clearGridCellContent, removeGridCellRecord,
+      setSchedSlotExpand, graftScheduleIntoSlot,
       setGridTextStyle, pinCellStyle, unpinCellStyle, guardWeightedAdd,
       promoteGridToTemplate, linkGridToTemplate, unlinkGrid, resizeLinkedGrids, graftGridIntoCell,
       stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern, setGridSequenceStartAt,

@@ -3,7 +3,16 @@ import * as perf from '../lib/perf.js';
 import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
 import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
-import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey as mintSchedItemKey, newUid as schedUid } from '../lib/schedLayout.js';
+import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey as mintSchedItemKey, newUid as schedUid, parseSlotKey as schedParseSlotKey } from '../lib/schedLayout.js';
+import { todayISO as schedTodayISO } from '../lib/schedDates.js';
+
+// Live expand map for a schedule card — Yjs gridMeta when present, else the
+// local shell's plain card.gridMeta.
+function schedExpandOf(card, ydoc) {
+  const mm = ydoc?.getMap?.('cards')?.get?.(card.id)?.get?.('gridMeta');
+  if (mm && typeof mm.get === 'function') return mm.get('expand') || {};
+  return card?.gridMeta?.expand || {};
+}
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import {
@@ -838,7 +847,14 @@ export function CanvasSurface({
       mutators.graftGridIntoCell?.(gridId, cellId, card.id);
       return true;
     }
-    if (k === 'schedule') return false;              // schedule-into-schedule grafting: P5
+    if (k === 'schedule') {
+      // Day card → day slot breaks the day into inline hour rows; hour card →
+      // hour slot breaks it into minute rows (source consumed). Legacy source,
+      // non-schedule target, a granularity mismatch, or off-prefix content in
+      // the source all return false → the drag stays a normal move.
+      if (!targetIsSched || !card.schedView) return false;
+      return mutators.graftScheduleIntoSlot?.(gridId, schedSlotOfItem(cellId), card.id) === true;
+    }
     let patch = null, consume = true;
     if (k === 'image') patch = { type: 'image', src: card.src, fit: 'cover', ...(card.adjust ? { adjust: card.adjust } : {}), ...(card.pos ? { pos: card.pos } : {}) };
     else if (k === 'note' || k === 'textlink') {
@@ -4949,6 +4965,31 @@ export function CanvasSurface({
             { id: 'ord-snake', label: `Snake — alternating rows${pat === 'snake' ? ' ✓' : ''}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'snake') },
           ]});
         }
+      } else if (c.kind === 'schedule' && c.schedView) {
+        const setView = (v) => mutators.updateCard?.(c.id, { schedView: v });
+        items.push({ id: 'sched-view', label: 'View', submenu: [
+          { id: 'sv-month', label: `Month${c.schedView === 'month' ? ' ✓' : ''}`, run: () => setView('month') },
+          { id: 'sv-week', label: `Week${c.schedView === 'week' ? ' ✓' : ''}`, run: () => setView('week') },
+          { id: 'sv-day', label: `Day${c.schedView === 'day' ? ' ✓' : ''}`, run: () => setView('day') },
+          { id: 'sv-hour', label: `Hour${c.schedView === 'hour' ? ' ✓' : ''}`, run: () => setView('hour') },
+        ]});
+        items.push({ id: 'sched-today', label: 'Go to today', run: () => mutators.updateCard?.(c.id, { anchor: schedTodayISO() }) });
+        // Breakdown / collapse for the focused slot (click a slot first).
+        const fc = focusedCell;
+        if (fc?.gridId === c.id && fc.cellId) {
+          const slotPath = schedSlotOfItem(fc.cellId);
+          const slot = schedParseSlotKey(slotPath);
+          const expanded = schedExpandOf(c, ydoc)[slotPath];
+          if (slot?.kind === 'day') {
+            items.push(expanded === 'hours'
+              ? { id: 'sched-collapse', label: 'Collapse day', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, null) }
+              : { id: 'sched-break', label: 'Break day into hours', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, 'hours') });
+          } else if (slot?.kind === 'hour') {
+            items.push(expanded === 'minutes'
+              ? { id: 'sched-collapse', label: 'Collapse hour', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, null) }
+              : { id: 'sched-break', label: 'Break hour into minutes', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, 'minutes') });
+          }
+        }
       } else if (c.kind === 'board') {
         openItems.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
         const target = boards[c.id];
@@ -6623,6 +6664,9 @@ export function CanvasSurface({
     // True key delete — schedule item chips remove entirely (a {type:'empty'}
     // tombstone would linger as a ghost entry in a multi-item slot).
     removeCellRecord: (gridId, cellId) => mutators.removeGridCellRecord?.(gridId, cellId),
+    // Schedule breakdown: 'hours' on a day slot / 'minutes' on an hour slot /
+    // null to collapse (meta-only, non-destructive).
+    setSlotExpand: (cardId, slotPath, mode) => mutators.setSchedSlotExpand?.(cardId, slotPath, mode),
     unlinkGrid: (gridId) => mutators.unlinkGrid?.(gridId),
     promoteToTemplate: (gridId) => mutators.promoteGridToTemplate?.(gridId),
     stampNeighbor: (gridId, dir) => mutators.stampGridNeighbor?.(gridId, dir),

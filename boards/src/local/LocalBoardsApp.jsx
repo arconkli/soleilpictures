@@ -12,6 +12,7 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { hasLabelTag } from '../lib/gridSequence.js';
 import { readGridModel } from '../lib/gridState.js';
 import { todayISO } from '../lib/schedDates.js';
+import { graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey } from '../lib/schedLayout.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -758,6 +759,40 @@ export function LocalBoardsApp({ user, signOut }) {
   // lists items by key prefix, so a removed chip must actually vanish.
   const removeGridCellRecord = (gridId, cellId) =>
     mapGridCard(gridId, c => { const cells = { ...(c.cells || {}) }; delete cells[cellId]; return { ...c, cells }; });
+  // Twin of App.jsx setSchedSlotExpand — breakdown meta on plain card.gridMeta.
+  const setSchedSlotExpand = (cardId, slotPath, mode) =>
+    mapGridCard(cardId, c => {
+      const expand = { ...(c.gridMeta?.expand || {}) };
+      if (mode) expand[slotPath] = mode; else delete expand[slotPath];
+      return { ...c, gridMeta: { ...(c.gridMeta || {}), expand } };
+    });
+  // Twin of App.jsx graftScheduleIntoSlot — same pure graftKeyMap, same refusal
+  // rules (granularity mismatch / stray content → false → normal move).
+  const graftScheduleIntoSlot = (hostId, slotPath, srcId) => {
+    const host = findLocalGrid(hostId); const src = findLocalGrid(srcId);
+    if (!host || !src || hostId === srcId || !host.schedView || !src.schedView) return false;
+    const slot = parseSlotKey(slotPath);
+    const match = (src.schedView === 'day' && slot?.kind === 'day') || (src.schedView === 'hour' && slot?.kind === 'hour');
+    if (!match) return false;
+    const srcPrefix = src.schedView === 'day'
+      ? schedDayKey(src.anchor || todayISO())
+      : schedHourKey(src.anchor || todayISO(), src.anchorHour ?? 9);
+    const { cells, expand, strays } = graftKeyMap(src.cells || {}, src.gridMeta?.expand || {}, srcPrefix, slotPath);
+    if (strays.length) return false;
+    mapGridCard(hostId, c => ({
+      ...c,
+      cells: {
+        ...(c.cells || {}),
+        ...Object.fromEntries(Object.entries(cells).filter(([, r]) => r && r.type && r.type !== 'empty')),
+      },
+      gridMeta: {
+        ...(c.gridMeta || {}),
+        expand: { ...(c.gridMeta?.expand || {}), ...expand, [slotPath]: src.schedView === 'day' ? 'hours' : 'minutes' },
+      },
+    }));
+    deleteCards([srcId]); // consume the source (move semantics; arrows cascade)
+    return true;
+  };
   // ── shared / per-cell text style (local twin of App.jsx) ───────────────────
   const localFamilyStyle = (card) => {
     if (card?.templateId) return gridTplState[currentId]?.[card.templateId]?.textStyle || {};
@@ -931,6 +966,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addDocCard,
     addGrid,
     resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent, removeGridCellRecord,
+    setSchedSlotExpand, graftScheduleIntoSlot,
     setGridTextStyle, pinCellStyle, unpinCellStyle,
     promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
     removeGridDivider, resizeLinkedGrids, graftGridIntoCell,
