@@ -104,6 +104,104 @@ test.describe('schedule — local interaction', () => {
     await expect(sched.locator('.schedc-title')).toContainText('11 PM');
   });
 
+  // Click a slot to focus it, then paste — the slot auto-formats by clipboard
+  // type and APPENDS (multi-item slots mint a fresh item key per write).
+  async function pasteInto(page, text) {
+    await page.evaluate((t) => {
+      const dt = new DataTransfer();
+      dt.setData('text/plain', t);
+      window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    }, text);
+  }
+
+  // The hover "+" on a slot opens the portaled add menu; pick an option.
+  async function addViaSlotMenu(page, slot, option) {
+    await slot.hover();
+    await slot.locator('.schedc-mini').click();
+    const menu = page.locator('.gridc-cell-menu');
+    await expect(menu).toBeVisible();
+    await menu.getByRole('button', { name: option, exact: true }).click();
+  }
+
+  test('slot add-menu appends text items: 1 renders full-bleed, 2 stack as chips', async ({ page }) => {
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    const slot = sched.locator('.schedc-slot-day:not(.is-outside)').nth(8);
+
+    await addViaSlotMenu(page, slot, 'Text');
+    // A fresh text item opens in edit mode (autoFocus editor) — type + commit on blur.
+    await expect(slot.locator('.gc-text-edit')).toBeVisible();
+    await page.keyboard.type('Call sheet');
+    await page.locator('.canvas-wrap').click({ position: { x: 30, y: 500 } });
+    // One item in a comfortable day cell renders full-bleed like a grid cell.
+    await expect(slot.locator('.schedc-item-full .gc-text')).toContainText('Call sheet');
+
+    await addViaSlotMenu(page, slot, 'Text');
+    await expect(slot.locator('.gc-text-edit')).toBeVisible();
+    await page.keyboard.type('Scout notes');
+    await page.locator('.canvas-wrap').click({ position: { x: 30, y: 500 } });
+    // Two items → compact chips (append, never replace).
+    await expect(slot.locator('.schedc-chip.is-text')).toHaveCount(2);
+  });
+
+  test('paste a URL into a focused day slot → a link item; a second paste appends', async ({ page }) => {
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    const slot = sched.locator('.schedc-slot-day:not(.is-outside)').nth(10);
+    await slot.click({ position: { x: 8, y: 5 } });
+    await expect(sched.locator('.schedc-slot.is-focused')).toHaveCount(1);
+
+    await pasteInto(page, 'https://example.com/callsheet');
+    await expect(slot.locator('.schedc-item-full .gc-link')).toContainText('example.com');
+
+    // Focus again (background click cleared it) and paste a second URL — the
+    // slot appends a second item instead of replacing the first.
+    await slot.click({ position: { x: 8, y: 5 } });
+    await pasteInto(page, 'https://soleilpictures.com/board');
+    await expect(slot.locator('.schedc-chip.is-link')).toHaveCount(2);
+  });
+
+  test('paste with a CHIP focused replaces that item in place', async ({ page }) => {
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    const slot = sched.locator('.schedc-slot-day:not(.is-outside)').nth(12);
+    await slot.click({ position: { x: 8, y: 5 } });
+    await pasteInto(page, 'first note');
+    await slot.click({ position: { x: 8, y: 5 } });
+    await pasteInto(page, 'second note');
+    await expect(slot.locator('.schedc-chip.is-text')).toHaveCount(2);
+
+    // Clicking a chip focuses the ITEM key (capture handler), so a paste
+    // REPLACES that item — still 2 chips, one rewritten.
+    await slot.locator('.schedc-chip.is-text').first().click();
+    await pasteInto(page, 'rewritten');
+    await expect(slot.locator('.schedc-chip.is-text')).toHaveCount(2);
+    await expect(slot.locator('.schedc-chip.is-text', { hasText: 'rewritten' })).toHaveCount(1);
+  });
+
+  test('the chip × and the full-bleed corner × truly remove items', async ({ page }) => {
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    const slot = sched.locator('.schedc-slot-day:not(.is-outside)').nth(15);
+    await slot.click({ position: { x: 8, y: 5 } });
+    await pasteInto(page, 'keep me');
+    await slot.click({ position: { x: 8, y: 5 } });
+    await pasteInto(page, 'remove me');
+    await expect(slot.locator('.schedc-chip.is-text')).toHaveCount(2);
+
+    // Hover × removes one chip; the survivor collapses back to full-bleed.
+    const victim = slot.locator('.schedc-chip.is-text', { hasText: 'remove me' });
+    await victim.hover();
+    await victim.locator('.schedc-chip-x').click();
+    await expect(slot.locator('.schedc-item-full .gc-text')).toContainText('keep me');
+
+    // The full-bleed corner × removes the last item — the slot is empty again.
+    await slot.hover();
+    await slot.locator('.schedc-item-x').click();
+    await expect(slot.locator('.schedc-item-full')).toHaveCount(0);
+    await expect(slot.locator('.schedc-chip')).toHaveCount(0);
+  });
+
   test('a LEGACY rows-table schedule card still renders the old table', async ({ page }) => {
     // The seeded (non-blank) local workspace carries the legacy fixture card
     // ("6-day shoot · v3" — rows of day/what/loc) on the Sundown Highway

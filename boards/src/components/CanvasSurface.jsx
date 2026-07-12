@@ -3,6 +3,7 @@ import * as perf from '../lib/perf.js';
 import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
 import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
+import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey as mintSchedItemKey, newUid as schedUid } from '../lib/schedLayout.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import {
@@ -337,7 +338,7 @@ function GuideLabel({ cx, cy, text, zoom }) {
 
 // Card kinds that can become grid-cell content when dragged onto a cell (see
 // routeCardIntoCell). Anything else keeps dragging/repositioning normally.
-const CELL_DROP_KINDS = new Set(['image', 'note', 'textlink', 'link', 'board', 'boardlink', 'video', 'file', 'pdf', 'grid']);
+const CELL_DROP_KINDS = new Set(['image', 'note', 'textlink', 'link', 'board', 'boardlink', 'video', 'file', 'pdf', 'grid', 'schedule']);
 
 // Inline "make a grid" control shown below a selected Grid: type cols × rows and
 // it replicates the Grid into a flush, connected matrix (the effortless path to a
@@ -813,16 +814,31 @@ export function CanvasSurface({
     cellDropTargetRef.current = next;
     if (!same) setCellDropTarget(next);
   }, []);
-  // Convert a dragged canvas card into the content of a grid cell. Content cards
-  // (image/note/link/file/video) MOVE (consumed); a board → a board cell (preview,
-  // reference kept); a grid → grafted inline (graftGridIntoCell consumes it).
-  // Returns true if the drop was consumed into the cell (so the caller skips the
-  // normal move-commit); false for kinds with no cell representation (doc/shape/
-  // palette/…) so those keep dragging/repositioning normally.
+  // Convert a dragged canvas card into the content of a grid cell OR a
+  // schedule slot. Content cards (image/note/link/file/video) MOVE (consumed);
+  // a board → a board cell (preview, reference kept); a grid → grafted inline
+  // (graftGridIntoCell consumes it). Schedule slots hold MULTIPLE items, so a
+  // drop APPENDS (mints a fresh `<slot>/i:<uid>` key; a drop landing on a chip
+  // normalizes to its slot — replacing would silently destroy an item).
+  // Returns true if the drop was consumed into the cell (so the caller skips
+  // the normal move-commit); false for kinds with no cell representation
+  // (doc/shape/palette/…) OR kind/target mismatches (grid over a schedule,
+  // schedule over a grid) so those keep dragging/repositioning normally —
+  // returning true on a write that no-ops would swallow the drag (snap-back).
   const routeCardIntoCell = useCallback((card, gridId, cellId) => {
     if (!card || !gridId || !cellId) return false;
     const k = card.kind;
-    if (k === 'grid') { mutators.graftGridIntoCell?.(gridId, cellId, card.id); return true; }
+    // cardById is the stable in-place singleton (declared below; initialized by
+    // the time any drop fires) — intentionally NOT in deps.
+    const target = cardById[gridId];
+    const targetIsSched = target?.kind === 'schedule' && !!target.schedView;
+    if (target && target.kind !== 'grid' && !targetIsSched) return false;
+    if (k === 'grid') {
+      if (targetIsSched) return false;               // a grid can't graft into a slot
+      mutators.graftGridIntoCell?.(gridId, cellId, card.id);
+      return true;
+    }
+    if (k === 'schedule') return false;              // schedule-into-schedule grafting: P5
     let patch = null, consume = true;
     if (k === 'image') patch = { type: 'image', src: card.src, fit: 'cover', ...(card.adjust ? { adjust: card.adjust } : {}), ...(card.pos ? { pos: card.pos } : {}) };
     else if (k === 'note' || k === 'textlink') {
@@ -841,7 +857,8 @@ export function CanvasSurface({
     else if (k === 'video') patch = { type: 'video', src: card.src };
     else if (k === 'file' || k === 'pdf') patch = { type: 'file', fileSrc: card.fileSrc || card.src, fileName: card.fileName || card.name, mime: card.mime, sizeBytes: card.sizeBytes, ext: card.ext };
     if (!patch) return false;
-    mutators.setGridCellContent?.(gridId, cellId, patch);
+    const writeKey = targetIsSched ? mintSchedItemKey(schedSlotOfItem(cellId), schedUid()) : cellId;
+    mutators.setGridCellContent?.(gridId, writeKey, patch);
     if (consume) mutators.deleteCards?.([card.id]);
     return true;
   }, [mutators, boards]);
@@ -6516,9 +6533,23 @@ export function CanvasSurface({
     if (fc && !cards.some((c) => c.id === fc.gridId)) focusCell(null, null);
     setEditingCell((ec) => (ec && !cards.some((c) => c.id === ec.gridId) ? null : ec));
   }, [cards, focusCell]);
+  // The key a WRITE should land on. Grid cells write in place. A schedule
+  // SLOT key (day/hour/minute path) mints a fresh `<slot>/i:<uid>` so writes
+  // APPEND (multi-item slots); a schedule ITEM key writes in place (replace
+  // that item — an explicit act like paste-with-a-chip-focused). Resolved
+  // ONCE at operation entry and threaded through the whole operation — the
+  // async link-preview backfill reuses the SAME key, so it can never mint a
+  // second item.
+  const resolveCellWriteKey = useCallback((gridId, cellId) => {
+    if (!gridId || !cellId) return cellId;
+    const t = cardById[gridId];   // stable singleton — intentionally not in deps
+    if (!t || t.kind !== 'schedule' || !t.schedView) return cellId;
+    return isSchedItemKey(cellId) ? cellId : mintSchedItemKey(cellId, schedUid());
+  }, []);
   // Decode a file list into the right cell content (image / video / file).
   const fillCellFromFiles = useCallback(async (gridId, cellId, files) => {
     const f = files && files[0]; if (!f) return;
+    cellId = resolveCellWriteKey(gridId, cellId);
     if (!guardCellFill(gridId, cellId)) return;   // demo cap: filling counts as a card
     const mime = f.type || '';
     const key = `${gridId}:${cellId}`;
@@ -6537,12 +6568,13 @@ export function CanvasSurface({
       }
     } catch (e) { feedback.toast({ type: 'error', message: 'Upload failed: ' + (e.message || e) }); }
     finally { setCellUploads((p) => { const n = { ...p }; delete n[key]; return n; }); }
-  }, [mutators, workspaceId, board?.id, userId, feedback, guardCellFill]);
+  }, [mutators, workspaceId, board?.id, userId, feedback, guardCellFill, resolveCellWriteKey]);
   // Decode a clipboard/drag payload INTO a cell: files/images → upload; a bare URL
   // → link (with async preview); any other text → a text cell. Shared by paste +
   // external drop so a cell auto-formats whatever you give it.
   const pasteIntoCell = useCallback(async (gridId, cellId, dt) => {
     if (!dt) return false;
+    cellId = resolveCellWriteKey(gridId, cellId);
     if (dt.files && dt.files.length) { await fillCellFromFiles(gridId, cellId, dt.files); return true; }
     if (dt.items) {
       for (const it of dt.items) {
@@ -6571,7 +6603,7 @@ export function CanvasSurface({
       return true;
     }
     return false;
-  }, [fillCellFromFiles, mutators, guardCellFill]);
+  }, [fillCellFromFiles, mutators, guardCellFill, resolveCellWriteKey]);
 
   const gridActions = useMemo(() => ({
     focusCell,
@@ -6588,11 +6620,17 @@ export function CanvasSurface({
     removeDivider: (gridId, path, childIndex) => mutators.removeGridDivider?.(gridId, path, childIndex),
     setCellContent: (gridId, cellId, patch) => mutators.setGridCellContent?.(gridId, cellId, patch),
     clearCellContent: (gridId, cellId) => mutators.clearGridCellContent?.(gridId, cellId),
+    // True key delete — schedule item chips remove entirely (a {type:'empty'}
+    // tombstone would linger as a ghost entry in a multi-item slot).
+    removeCellRecord: (gridId, cellId) => mutators.removeGridCellRecord?.(gridId, cellId),
     unlinkGrid: (gridId) => mutators.unlinkGrid?.(gridId),
     promoteToTemplate: (gridId) => mutators.promoteGridToTemplate?.(gridId),
     stampNeighbor: (gridId, dir) => mutators.stampGridNeighbor?.(gridId, dir),
     bulkGenerate: (gridId, cols, rows) => mutators.bulkGenerateGrids?.(gridId, cols, rows),
     pickImageForCell: (gridId, cellId) => {
+      // Resolve the write key BEFORE the picker opens so the async onchange
+      // lands on the same (possibly freshly-minted schedule item) key.
+      cellId = resolveCellWriteKey(gridId, cellId);
       const input = document.createElement('input');
       input.type = 'file'; input.accept = 'image/*';
       // Route through fillCellFromFiles so the Image-picker gets the same in-cell
@@ -6602,6 +6640,7 @@ export function CanvasSurface({
     },
     fillCellFromFiles,
     addLinkToCell: async (gridId, cellId) => {
+      cellId = resolveCellWriteKey(gridId, cellId);
       if (!guardCellFill(gridId, cellId)) return;   // demo cap: a link counts as a card
       const v = await feedback.prompt({ title: 'Add a link', label: 'URL', placeholder: 'https://…', confirmLabel: 'Add' });
       if (!v) return;
@@ -6621,7 +6660,7 @@ export function CanvasSurface({
         if (Object.keys(np).length) mutators.setGridCellContent?.(gridId, cellId, np);
       });
     },
-  }), [mutators, workspaceId, board?.id, userId, feedback, focusCell, pasteIntoCell, fillCellFromFiles, guardCellFill]);
+  }), [mutators, workspaceId, board?.id, userId, feedback, focusCell, pasteIntoCell, fillCellFromFiles, guardCellFill, resolveCellWriteKey]);
 
   const renderCard = (c) => {
     const inDrag = drag && drag.ids.includes(c.id);

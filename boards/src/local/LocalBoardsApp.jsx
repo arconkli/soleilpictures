@@ -754,6 +754,10 @@ export function LocalBoardsApp({ user, signOut }) {
   };
   const clearGridCellContent = (gridId, cellId) =>
     mapGridCard(gridId, c => ({ ...c, cells: { ...(c.cells || {}), [cellId]: { type: 'empty' } } }));
+  // True key delete (twin of App.jsx removeGridCellRecord) — a schedule slot
+  // lists items by key prefix, so a removed chip must actually vanish.
+  const removeGridCellRecord = (gridId, cellId) =>
+    mapGridCard(gridId, c => { const cells = { ...(c.cells || {}) }; delete cells[cellId]; return { ...c, cells }; });
   // ── shared / per-cell text style (local twin of App.jsx) ───────────────────
   const localFamilyStyle = (card) => {
     if (card?.templateId) return gridTplState[currentId]?.[card.templateId]?.textStyle || {};
@@ -926,7 +930,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addSchedule,
     addDocCard,
     addGrid,
-    resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,
+    resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent, removeGridCellRecord,
     setGridTextStyle, pinCellStyle, unpinCellStyle,
     promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
     removeGridDivider, resizeLinkedGrids, graftGridIntoCell,

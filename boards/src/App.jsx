@@ -1900,6 +1900,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
       clearGridCell(ydoc, cy, cellId);
     };
+    // True key delete (vs clear's {type:'empty'} tombstone) — a schedule slot
+    // lists its items by key prefix, so a removed chip must actually vanish.
+    const removeGridCellRecord = (gridId, cellId) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const cm = cy.get('gridCells'); if (!cm || !cm.delete) return;
+      ydoc.transact(() => { cm.delete(cellId); }, 'local');
+    };
     // ── shared / per-cell text style ──────────────────────────────────────────
     // The family (shared) text style: linked → the shared template; else the card.
     const familyStyleOf = (cy) => {
@@ -2175,7 +2182,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addArrow, addFreeArrow, deleteArrows, updateArrow,
       addNote, addTextLink, addImageAt, addPdfAt, ingestFilesArranged, updateCardSilent, addNewBoard, addPalette,
       addDocCard, addScriptCard, addGrid,
-      resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, setGridCellContent, clearGridCellContent,
+      resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, setGridCellContent, clearGridCellContent, removeGridCellRecord,
       setGridTextStyle, pinCellStyle, unpinCellStyle, guardWeightedAdd,
       promoteGridToTemplate, linkGridToTemplate, unlinkGrid, resizeLinkedGrids, graftGridIntoCell,
       stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern, setGridSequenceStartAt,

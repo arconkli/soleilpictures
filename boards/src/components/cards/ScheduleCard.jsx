@@ -29,7 +29,7 @@ import { RichNoteEditor } from '../RichNoteEditor.jsx';
 import { Spinner } from '../Spinner.jsx';
 import { Icon } from '../Icon.jsx';
 import {
-  ChevronLeft, ChevronRight, Plus, MoreHorizontal,
+  ChevronLeft, ChevronRight, Plus, MoreHorizontal, X,
   Image as ImageIcon, Link as LinkIcon, FileText, Clapperboard,
 } from '../../lib/icons.js';
 import { GridCellMenu } from './GridCellMenu.jsx';
@@ -54,21 +54,33 @@ function viewTitle(view, anchor, anchorHour) {
 }
 
 // One compact chip row for an item in a multi-item slot. Board/link chips are
-// their own click affordance; the rest read as labeled type chips.
-function SlotChip({ itemKey, cell, boards, onOpenBoard }) {
+// their own click affordance; the rest read as labeled type chips. A hover ×
+// removes the item (true key delete — not a {type:'empty'} tombstone).
+function ChipX({ onRemove }) {
+  if (!onRemove) return null;
+  return (
+    <button type="button" className="schedc-chip-x" title="Remove" aria-label="Remove"
+      onPointerDown={stop} onClick={(e) => { e.stopPropagation(); e.preventDefault(); onRemove(); }}>
+      <Icon as={X} size={9} />
+    </button>
+  );
+}
+
+function SlotChip({ itemKey, cell, boards, onOpenBoard, onRemove = null }) {
   const type = cell?.type || 'empty';
   if (type === 'board' && cell.boardId) {
     const b = boards?.[cell.boardId];
     const missing = !b;
     const name = b?.name || cell.name || 'Cluster';
     return (
-      <button type="button" className={`schedc-chip is-board${missing ? ' is-missing' : ''}`}
-        data-cell-id={itemKey} onPointerDown={stop} disabled={missing}
+      <span className={`schedc-chip is-board${missing ? ' is-missing' : ''}`} data-cell-id={itemKey}
+        role="button" tabIndex={missing ? -1 : 0} onPointerDown={stop}
         title={missing ? 'This cluster was removed' : `Open ${name}`}
         onClick={(e) => { e.stopPropagation(); if (!missing) onOpenBoard?.(cell.boardId); }}>
         <span className="schedc-chip-dot" aria-hidden="true" />
         <span className="schedc-chip-txt">{missing ? `${name} (removed)` : name}</span>
-      </button>
+        <ChipX onRemove={onRemove} />
+      </span>
     );
   }
   if (type === 'link') {
@@ -80,6 +92,7 @@ function SlotChip({ itemKey, cell, boards, onOpenBoard }) {
           ? <img className="schedc-chip-fav" src={cell.favicon} alt="" />
           : <span className="schedc-chip-ico"><Icon as={LinkIcon} size={10} /></span>}
         <span className="schedc-chip-txt">{cell.title || cell.source || cell.link}</span>
+        <ChipX onRemove={onRemove} />
       </a>
     );
   }
@@ -88,6 +101,7 @@ function SlotChip({ itemKey, cell, boards, onOpenBoard }) {
       <span className="schedc-chip is-image" data-cell-id={itemKey} title={cell.title || 'Image'}>
         <span className="schedc-chip-ico"><Icon as={ImageIcon} size={10} /></span>
         <span className="schedc-chip-txt">{cell.title || 'Image'}</span>
+        <ChipX onRemove={onRemove} />
       </span>
     );
   }
@@ -96,6 +110,7 @@ function SlotChip({ itemKey, cell, boards, onOpenBoard }) {
     return (
       <span className="schedc-chip is-text" data-cell-id={itemKey} title={txt}>
         <span className="schedc-chip-txt">{txt || 'Text'}</span>
+        <ChipX onRemove={onRemove} />
       </span>
     );
   }
@@ -104,6 +119,7 @@ function SlotChip({ itemKey, cell, boards, onOpenBoard }) {
       <span className="schedc-chip is-video" data-cell-id={itemKey} title="Video">
         <span className="schedc-chip-ico"><Icon as={Clapperboard} size={10} /></span>
         <span className="schedc-chip-txt">Video</span>
+        <ChipX onRemove={onRemove} />
       </span>
     );
   }
@@ -112,6 +128,7 @@ function SlotChip({ itemKey, cell, boards, onOpenBoard }) {
       <span className="schedc-chip is-file" data-cell-id={itemKey} title={cell.fileName || 'File'}>
         <span className="schedc-chip-ico"><Icon as={FileText} size={10} /></span>
         <span className="schedc-chip-txt">{cell.fileName || 'File'}</span>
+        <ChipX onRemove={onRemove} />
       </span>
     );
   }
@@ -257,7 +274,12 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
                 ].filter(Boolean).join(' ')}
                 data-cell-id={s.key}
                 style={{ left: s.rect.x, top: s.rect.y, width: s.rect.w, height: s.rect.h }}
-                onPointerDownCapture={editable && gridActions.focusCell ? () => gridActions.focusCell(card.id, s.key) : undefined}
+                onPointerDownCapture={editable && gridActions.focusCell ? (e) => {
+                  // Clicking a chip focuses THAT item (paste replaces it); the
+                  // slot background focuses the slot (paste appends).
+                  const hit = e.target?.closest?.('[data-cell-id]');
+                  gridActions.focusCell(card.id, hit?.getAttribute?.('data-cell-id') || s.key);
+                } : undefined}
                 onDoubleClick={editable ? (e) => {
                   e.stopPropagation();
                   // Double-tap an empty region of a slot → a fresh text item in
@@ -301,11 +323,19 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
                       boards={boards} onOpenBoard={onOpenBoard}
                       textStyle={cellTextStyle(effectiveCellStyle(null, items[0].cell))}
                       cardId={card.id} cellId={items[0].k} />
+                    {editable && (
+                      <button type="button" className="schedc-item-x" title="Remove" aria-label="Remove"
+                        onPointerDown={stop}
+                        onClick={(e) => { e.stopPropagation(); gridActions.removeCellRecord?.(card.id, items[0].k); }}>
+                        <Icon as={X} size={11} />
+                      </button>
+                    )}
                   </div>
                 ) : (shown.length || overflow > 0) && cap > 0 ? (
                   <div className="schedc-chips" style={{ top: labelH || undefined }}>
                     {shown.map((it) => (
-                      <SlotChip key={it.k} itemKey={it.k} cell={it.cell} boards={boards} onOpenBoard={onOpenBoard} />
+                      <SlotChip key={it.k} itemKey={it.k} cell={it.cell} boards={boards} onOpenBoard={onOpenBoard}
+                        onRemove={editable ? () => gridActions.removeCellRecord?.(card.id, it.k) : null} />
                     ))}
                     {overflow > 0 && (
                       <button type="button" className="schedc-chip is-more" title={`${overflow} more — open day`}
