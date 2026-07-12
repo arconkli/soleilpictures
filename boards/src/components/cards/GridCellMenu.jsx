@@ -36,7 +36,8 @@ function placeBeside(rect, w, h, vw, vh) {
 
 export function GridCellMenu({ anchorRect, mode = 'empty', isImage = false,
                               onText, onImage, onLink, onSplitRow, onSplitCol, onClear,
-                              onEditPhoto, onOpenFullScreen, onDownload, onClose }) {
+                              onEditPhoto, onOpenFullScreen, onDownload, onClose,
+                              extraItems = null }) {
   const ref = useRef(null);
   // Filled cells rest on Replace/Clear; clicking Replace reveals the choosers.
   // Empty cells show the choosers straight away. Held HERE (not GridCard's
@@ -118,15 +119,36 @@ export function GridCellMenu({ anchorRect, mode = 'empty', isImage = false,
           </button>
         </div>
       )}
-      <div className="gcm-sep" />
-      <div className="gcm-group">
-        <button type="button" className="gcm-item" title="Add a vertical line (split into columns)" aria-label="Split into columns" onClick={run(onSplitRow)}>
-          <span className="gridc-ico"><Icon as={Columns} size={16} /></span><span className="gcm-label">Split columns</span>
-        </button>
-        <button type="button" className="gcm-item" title="Add a horizontal line (split into rows)" aria-label="Split into rows" onClick={run(onSplitCol)}>
-          <span className="gridc-ico gridc-rot90"><Icon as={Columns} size={16} /></span><span className="gcm-label">Split rows</span>
-        </button>
-      </div>
+      {onSplitRow ? (
+        // Grid cells only — a schedule slot's subdivisions are fixed
+        // (hours/minutes), so it simply omits the split handlers.
+        <>
+          <div className="gcm-sep" />
+          <div className="gcm-group">
+            <button type="button" className="gcm-item" title="Add a vertical line (split into columns)" aria-label="Split into columns" onClick={run(onSplitRow)}>
+              <span className="gridc-ico"><Icon as={Columns} size={16} /></span><span className="gcm-label">Split columns</span>
+            </button>
+            <button type="button" className="gcm-item" title="Add a horizontal line (split into rows)" aria-label="Split into rows" onClick={run(onSplitCol)}>
+              <span className="gridc-ico gridc-rot90"><Icon as={Columns} size={16} /></span><span className="gcm-label">Split rows</span>
+            </button>
+          </div>
+        </>
+      ) : null}
+      {extraItems && extraItems.length ? (
+        // Caller-specific actions (the schedule slot menu: remove item, break
+        // into hours/minutes, …) — same look, same run-then-close discipline.
+        <>
+          <div className="gcm-sep" />
+          <div className="gcm-group">
+            {extraItems.map((it) => (
+              <button key={it.id} type="button" className="gcm-item" title={it.label} aria-label={it.label} onClick={run(it.onClick)}>
+                {it.icon ? <span className="gridc-ico"><Icon as={it.icon} size={16} /></span> : null}
+                <span className="gcm-label">{it.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
     </div>
   );
 
