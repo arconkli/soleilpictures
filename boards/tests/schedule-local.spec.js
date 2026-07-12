@@ -425,3 +425,90 @@ test.describe('schedule — day peek panel', () => {
     await expect(panel.locator('.schedc-slot-hour:not(.is-band)')).toHaveCount(10);
   });
 });
+
+test.describe('schedule — date-jump popover', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/?local=1&reset=1&blank=1');
+    await page.waitForSelector('.canvas-wrap');
+  });
+
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthTitleOf = (d) => `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+
+  async function openPopover(page) {
+    await page.locator('.schedc .schedc-title').click();
+    const pop = page.locator('.schedc-datepop');
+    await expect(pop).toBeVisible();
+    return pop;
+  }
+
+  test('title click opens the mini calendar; picking a date jumps the anchor', async ({ page }) => {
+    await addSchedule(page);
+    const pop = await openPopover(page);
+
+    // Step the POPOVER back one month and pick the 15th — the card jumps
+    // straight there (no seven ‹ clicks).
+    await pop.getByRole('button', { name: 'Previous month' }).click();
+    await pop.locator('.schedc-dp-day:not(.is-outside)', { hasText: /^15$/ }).click();
+    await expect(pop).toHaveCount(0);
+    const prev = new Date();
+    prev.setDate(1); prev.setMonth(prev.getMonth() - 1);
+    await expect(page.locator('.schedc .schedc-title')).toContainText(monthTitleOf(prev));
+  });
+
+  test('popover ‹ › browses months without touching the card until a pick', async ({ page }) => {
+    await addSchedule(page);
+    const cardTitle = await page.locator('.schedc .schedc-title').textContent();
+    const pop = await openPopover(page);
+
+    await pop.getByRole('button', { name: 'Next month' }).click();
+    const next = new Date();
+    next.setDate(1); next.setMonth(next.getMonth() + 1);
+    await expect(pop.locator('.schedc-dp-title')).toHaveText(monthTitleOf(next));
+    await expect(page.locator('.schedc .schedc-title')).toHaveText(cardTitle);
+    // Esc closes without picking.
+    await page.keyboard.press('Escape');
+    await expect(pop).toHaveCount(0);
+    await expect(page.locator('.schedc .schedc-title')).toHaveText(cardTitle);
+  });
+
+  test('the popover Today button returns a wandered card to today', async ({ page }) => {
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    const nowTitle = await sched.locator('.schedc-title').textContent();
+    await sched.getByRole('button', { name: 'Next' }).click();
+    await sched.getByRole('button', { name: 'Next' }).click();
+    await expect(sched.locator('.schedc-title')).not.toHaveText(nowTitle);
+
+    const pop = await openPopover(page);
+    await pop.getByRole('button', { name: 'Today', exact: true }).click();
+    await expect(pop).toHaveCount(0);
+    await expect(sched.locator('.schedc-title')).toHaveText(nowTitle);
+    await expect(sched.locator('.schedc-slot-day.is-today')).toHaveCount(1);
+  });
+
+  test('hour view keeps its anchor hour across a date jump; week view stays week', async ({ page }) => {
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    await sched.getByRole('button', { name: 'Hour view' }).click();
+    await expect(sched.locator('.schedc-title')).toContainText('9 AM');
+
+    let pop = await openPopover(page);
+    await pop.getByRole('button', { name: 'Next month' }).click();
+    await pop.locator('.schedc-dp-day:not(.is-outside)', { hasText: /^20$/ }).click();
+    // Jumped a month ahead, still parked on 9 AM.
+    await expect(sched.locator('.schedc-title')).toContainText('9 AM');
+    await expect(sched.locator('.schedc-title')).toContainText('20');
+
+    await sched.getByRole('button', { name: 'Week view' }).click();
+    const weekTitle = await sched.locator('.schedc-title').textContent();
+    pop = await openPopover(page);
+    await pop.getByRole('button', { name: 'Previous month' }).click();
+    await pop.getByRole('button', { name: 'Previous month' }).click();
+    await pop.locator('.schedc-dp-day:not(.is-outside)', { hasText: /^8$/ }).click();
+    await expect(sched.locator('.schedc-pill-btn.is-active')).toHaveText('W');
+    await expect(sched.locator('.schedc-title')).not.toHaveText(weekTitle);
+  });
+});

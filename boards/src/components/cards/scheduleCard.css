@@ -27,15 +27,32 @@
   background: var(--bg-1, #111114);
   user-select: none;
 }
+/* The title is a BUTTON when editable (opens the date-jump popover) and a
+   plain span read-only — same class, same type treatment for both. */
 .schedc-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
   white-space: nowrap;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--ink-1, #d9d9de);
+}
+button.schedc-title { cursor: pointer; height: 20px; transition: background var(--dur-fast, 120ms) var(--ease, ease); }
+button.schedc-title:hover { background: var(--bg-act, #212126); color: var(--ink-0, #f5f5f7); }
+button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
+.schedc-title-txt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .schedc-spring { flex: 1 1 auto; }
 .schedc-nav, .schedc-today {
@@ -387,3 +404,103 @@
 .schedc-peekcontent .schedc-slot:hover { background: color-mix(in srgb, var(--ink-0, #f5f5f7) 8%, transparent); }
 .schedc-peekcontent .schedc-slot.is-band { background: color-mix(in srgb, var(--ink-0, #f5f5f7) 7%, transparent); }
 .schedc-peekcontent .schedc-time-label { font-size: 9px; }
+
+/* ── Date-jump popover (SchedDatePopover.jsx) — mini month under the title ── */
+.schedc-datepop {
+  z-index: 2147483590;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 212px;
+  padding: 8px;
+  background: rgba(16, 16, 20, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-3, 0 12px 48px rgba(0, 0, 0, .45)), inset 0 1px 0 rgba(255, 255, 255, .05);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
+  font-family: var(--font-sans, sans-serif);
+  user-select: none;
+}
+[data-theme='light'] .schedc-datepop { background: rgba(250, 250, 252, 0.9); border-color: rgba(10, 10, 12, 0.07); }
+.schedc-dp-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 2px;
+}
+.schedc-dp-title {
+  flex: 1 1 auto;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-0, #f5f5f7);
+}
+.schedc-dp-nav {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-3, #5a5a60);
+  cursor: pointer;
+  transition: background var(--dur-fast, 120ms) var(--ease, ease), color var(--dur-fast, 120ms) var(--ease, ease);
+}
+.schedc-dp-nav:hover { background: var(--bg-act, #212126); color: var(--ink-0, #f5f5f7); }
+.schedc-dp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+}
+.schedc-dp-wd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3, #5a5a60);
+}
+.schedc-dp-day {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-1, #d0d0d4);
+  font-size: 10.5px;
+  cursor: pointer;
+  transition: background var(--dur-fast, 120ms) var(--ease, ease);
+}
+.schedc-dp-day:hover { background: var(--bg-act, #212126); }
+.schedc-dp-day.is-outside { color: var(--ink-4, #3a3a40); }
+/* Gold grammar: today = gold signal, the current anchor = gold selection ring. */
+.schedc-dp-day.is-today { color: var(--soleil, #ffa500); font-weight: 700; }
+.schedc-dp-day.is-anchor {
+  background: var(--soleil-soft, rgba(255, 165, 0, 0.14));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--soleil, #ffa500) 70%, transparent);
+}
+.schedc-dp-today {
+  align-self: center;
+  height: 22px;
+  padding: 0 12px;
+  border: 1px solid var(--line-2, #2c2c32);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2, #a6a6ad);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast, 120ms) var(--ease, ease), color var(--dur-fast, 120ms) var(--ease, ease);
+}
+.schedc-dp-today:hover { background: var(--bg-act, #212126); color: var(--ink-0, #f5f5f7); }

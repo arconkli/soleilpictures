@@ -30,11 +30,12 @@ import { RichNoteEditor } from '../RichNoteEditor.jsx';
 import { Spinner } from '../Spinner.jsx';
 import { Icon } from '../Icon.jsx';
 import {
-  ChevronLeft, ChevronRight, Plus, MoreHorizontal, X, Maximize2,
+  ChevronLeft, ChevronRight, ChevronDown, Plus, MoreHorizontal, X, Maximize2,
   Image as ImageIcon, Link as LinkIcon, FileText, Clapperboard,
 } from '../../lib/icons.js';
 import { GridCellMenu } from './GridCellMenu.jsx';
 import { SchedulePeek } from './SchedulePeek.jsx';
+import { SchedDatePopover } from './SchedDatePopover.jsx';
 import { useCardCellsVersion, cellTextStyle, CellContent } from './gridCellShared.jsx';
 import './gridCard.css';
 import './scheduleCard.css';
@@ -151,6 +152,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
   // collaborators' views are untouched). hour == null → day peek (hour rows);
   // hour set → the same panel re-targeted to full-size minute rows.
   const [peek, setPeek] = useState(null);            // { date, hour, sourceRect }
+  const [datePop, setDatePop] = useState(null);      // { anchorRect } — the title's date-jump popover
 
   const editable = canEdit && !!gridActions;
   const model = readSchedModel(card, ydoc);
@@ -407,7 +409,17 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
               <Icon as={ChevronLeft} size={13} />
             </button>
           )}
-          <span className="schedc-title" title={title}>{title}</span>
+          {editable ? (
+            <button type="button" className="schedc-title" title={`${title} — jump to date`}
+              aria-haspopup="dialog"
+              onPointerDown={stop}
+              onClick={(e) => { e.stopPropagation(); setDatePop((p) => (p ? null : { anchorRect: e.currentTarget.getBoundingClientRect() })); }}>
+              <span className="schedc-title-txt">{title}</span>
+              <Icon as={ChevronDown} size={9} />
+            </button>
+          ) : (
+            <span className="schedc-title" title={title}>{title}</span>
+          )}
           {editable && (
             <button type="button" className="schedc-nav" title="Next" aria-label="Next"
               onPointerDown={stop} onClick={(e) => { e.stopPropagation(); shift(1); }}>
@@ -469,6 +481,11 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
           })()}
           onClose={() => setMenu(null)}
         />
+      )}
+      {editable && datePop && (
+        <SchedDatePopover anchorRect={datePop.anchorRect} anchor={anchor}
+          onPick={(date) => { onUpdate?.({ anchor: date }); setDatePop(null); }}
+          onClose={() => setDatePop(null)} />
       )}
       {peek && peekSlots && (
         <SchedulePeek cardId={card.id} title={peekTitle} sourceRect={peek.sourceRect}
