@@ -1433,15 +1433,19 @@ async function emailThumbSig(env, boardId) {
 // before many emails get opened. Body mirrors handleShareThumb, with the
 // share-token gate swapped for the signature + a direct boards lookup.
 async function handleEmailThumb(env, boardId, searchParams, request) {
-  const fallback = () =>
+  // x-miss names the gate that sent a request to the logo — sig mismatches vs
+  // board lookups vs missing R2 objects are indistinguishable 302s otherwise.
+  // Not an oracle worth hiding: whether a guessed sig passed is already
+  // visible from whether the image comes back.
+  const fallback = (why) =>
     new Response(null, {
       status: 302,
-      headers: { location: `${SITE_ORIGIN}/clusters-logo-dark.png`, 'cache-control': 'no-store' },
+      headers: { location: `${SITE_ORIGIN}/clusters-logo-dark.png`, 'cache-control': 'no-store', 'x-miss': why },
     });
 
   let expected = '';
-  try { expected = await emailThumbSig(env, boardId); } catch { return fallback(); }
-  if (!expected || searchParams.get('s') !== expected) return fallback();
+  try { expected = await emailThumbSig(env, boardId); } catch { return fallback('sig-compute'); }
+  if (!expected || searchParams.get('s') !== expected) return fallback('sig');
 
   let row = null;
   try {
@@ -1456,18 +1460,18 @@ async function handleEmailThumb(env, boardId, searchParams, request) {
         signal: AbortSignal.timeout(5000),
       },
     );
-    if (!res.ok) return fallback();
+    if (!res.ok) return fallback('board-http');
     row = (await res.json())?.[0] || null;
   } catch {
-    return fallback();
+    return fallback('board-fetch');
   }
-  if (!row || row.deleted_at) return fallback();
+  if (!row || row.deleted_at) return fallback('board-gone');
 
   const key = (row.thumb_key || '').replace(/^r2:/, '');
-  if (!key || !env.IMAGES) return fallback();
+  if (!key || !env.IMAGES) return fallback('no-key');
 
   const obj = await env.IMAGES.get(key);
-  if (!obj) return fallback();
+  if (!obj) return fallback('r2-miss');
 
   const headers = {
     'content-type': 'image/webp',
