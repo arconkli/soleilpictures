@@ -1,0 +1,244 @@
+/* Schedule card — the real-date calendar container (see ScheduleCard.jsx).
+   Speaks the same premium system as gridCard.css: flat, cheap always-rendered
+   slots; hover-revealed chrome; gold (--soleil) STRICTLY for today/selection/
+   drop affordance. Slot content classes (gc-img / gc-board / gc-text …) come
+   from gridCard.css — shared with grid cells on purpose. */
+
+.schedc {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-2, #16161a);
+  border: 1px solid var(--line-1, #212126);
+}
+
+/* ── In-card header: ‹ title › · today · view pill ─────────────────────── */
+.schedc-head {
+  flex: 0 0 30px; /* SCHED_TUNING.HEADER_H */
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  min-width: 0;
+  border-bottom: 1px solid var(--line-1, #212126);
+  background: var(--bg-1, #111114);
+  user-select: none;
+}
+.schedc-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ink-1, #d9d9de);
+}
+.schedc-spring { flex: 1 1 auto; }
+.schedc-nav, .schedc-today {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-3, #6f6f78);
+  cursor: pointer;
+  transition: background var(--dur-fast, 120ms) var(--ease, ease), color var(--dur-fast, 120ms) var(--ease, ease);
+}
+.schedc-nav:hover, .schedc-today:hover { background: var(--bg-act, #212126); color: var(--ink-0, #f5f5f7); }
+.schedc-today-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.schedc-pill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 1px;
+  padding: 1px;
+  border-radius: 6px;
+  background: var(--bg-3, #1c1c21);
+  border: 1px solid var(--line-1, #212126);
+}
+.schedc-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-3, #6f6f78);
+  font-size: 9px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast, 120ms) var(--ease, ease), color var(--dur-fast, 120ms) var(--ease, ease);
+}
+.schedc-pill-btn:hover { color: var(--ink-0, #f5f5f7); }
+.schedc-pill-btn.is-active { background: var(--bg-act, #212126); color: var(--soleil, #ffa500); }
+
+/* ── Body / slots ───────────────────────────────────────────────────────── */
+.schedc-body { position: relative; flex: 1 1 auto; min-height: 0; }
+.schedc-weekdays {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  align-items: center;
+  pointer-events: none;
+}
+.schedc-wd {
+  text-align: center;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-4, #3a3a40);
+}
+
+.schedc-slot {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--bg-1, #111114);
+  transition: background var(--dur-fast, 120ms) var(--ease, ease);
+}
+.schedc-slot:hover { background: var(--bg-hov, #1a1a1e); }
+.schedc-slot.is-outside { opacity: 0.45; }
+.schedc-slot.is-band { background: var(--bg-3, #1c1c21); }
+/* An expanded day is a frame around its inline hour rows — quiet, no hover lift. */
+.schedc-slot.is-expanded { background: var(--bg-3, #1c1c21); }
+.schedc-slot.is-expanded:hover { background: var(--bg-3, #1c1c21); }
+/* Today: a quiet gold signal on the date number, not a loud fill. */
+.schedc-slot.is-today .schedc-slot-label {
+  color: var(--soleil, #ffa500);
+  font-weight: 700;
+}
+/* Drop / paste-focus affordance — same grammar as grid cells. */
+.schedc-slot.is-drop { box-shadow: inset 0 0 0 2px var(--soleil, #ffa500); background: var(--bg-hov, #1a1a1e); }
+.schedc-slot.is-focused { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--soleil, #ffa500) 70%, transparent); }
+.schedc-slot.is-focused.is-drop { box-shadow: inset 0 0 0 2px var(--soleil, #ffa500); }
+
+.schedc-slot-label {
+  position: absolute;
+  top: 1px; left: 4px;
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 11px; /* SCHED_TUNING.DAY_LABEL_H minus breathing room */
+  color: var(--ink-3, #6f6f78);
+  pointer-events: none;
+}
+.schedc-time-label {
+  position: absolute;
+  top: 0; left: 4px; bottom: 0;
+  display: flex;
+  align-items: center;
+  font-size: 8px;
+  font-weight: 500;
+  color: var(--ink-4, #3a3a40);
+  pointer-events: none;
+}
+/* In day/hour views rows reserve a time gutter; content starts past it. */
+.schedc-slot-hour .schedc-chips, .schedc-slot-minute .schedc-chips { left: 34px; /* SCHED_TUNING.HOUR_LABEL_W */ }
+.schedc-slot-hour .schedc-item-full, .schedc-slot-minute .schedc-item-full { left: 34px; }
+/* …except inside an expanded day cell (month/week), where every px counts. */
+.schedc-slot-day .schedc-slot-hour { left: 0; }
+
+/* ── Items ──────────────────────────────────────────────────────────────── */
+.schedc-item-full {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+}
+.schedc-chips {
+  position: absolute;
+  inset: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px; /* SCHED_TUNING.CHIP_GAP */
+  overflow: hidden;
+  pointer-events: none; /* chips re-enable below so empty space stays slot-owned */
+}
+.schedc-chip {
+  pointer-events: auto;
+  flex: 0 0 16px; /* SCHED_TUNING.CHIP_H */
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink-0, #f5f5f7) 7%, transparent);
+  color: var(--ink-1, #d9d9de);
+  font-size: 9px;
+  line-height: 16px;
+  text-align: left;
+  text-decoration: none;
+  cursor: default;
+}
+.schedc-chip.is-board, .schedc-chip.is-link, .schedc-chip.is-more { cursor: pointer; }
+.schedc-chip.is-board:hover, .schedc-chip.is-link:hover, .schedc-chip.is-more:hover {
+  background: color-mix(in srgb, var(--ink-0, #f5f5f7) 13%, transparent);
+}
+.schedc-chip.is-board.is-missing { opacity: 0.5; cursor: not-allowed; }
+.schedc-chip-txt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.schedc-chip-dot {
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 1.5px;
+  background: var(--ink-3, #6f6f78);
+}
+.schedc-chip.is-board .schedc-chip-dot { background: var(--soleil, #ffa500); }
+.schedc-chip-ico { flex: 0 0 auto; display: inline-flex; color: var(--ink-3, #6f6f78); }
+.schedc-chip-fav { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 2px; }
+.schedc-chip.is-more { justify-content: center; color: var(--ink-3, #6f6f78); font-weight: 600; }
+/* Sliver slots that can't fit a chip: a tiny count pip, click = open the day. */
+.schedc-count {
+  position: absolute;
+  right: 2px; bottom: 2px;
+  min-width: 11px;
+  height: 11px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink-0, #f5f5f7) 12%, transparent);
+  color: var(--ink-1, #d9d9de);
+  font-size: 7.5px;
+  font-weight: 700;
+  line-height: 11px;
+  cursor: pointer;
+}
+
+/* ── Hover add/options trigger (reuses the grid mini-pill look) ─────────── */
+.schedc-slottools {
+  position: absolute;
+  right: 2px; top: 2px;
+  display: flex;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast, 120ms) var(--ease, ease);
+}
+.schedc-slot:hover > .schedc-slottools { opacity: 1; pointer-events: auto; }
+.schedc-mini { width: 16px; height: 16px; }
+/* Hide per-slot chrome while the card itself is being dragged (same rule
+   family as the grid's drag-suppression). */
+.card.is-dragging .schedc-slottools { opacity: 0 !important; pointer-events: none !important; }

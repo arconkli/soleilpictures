@@ -7,8 +7,9 @@ import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
-  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard, FileCard, GridCard,
+  PaletteCard, DocCard, ScheduleCard as ScheduleTableCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard, FileCard, GridCard,
 } from './cards.jsx';
+import { ScheduleCard } from './cards/ScheduleCard.jsx';
 import { RichDocCard } from './DocCard.jsx';
 import { Spinner } from './Spinner.jsx';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
@@ -5870,7 +5871,7 @@ export function CanvasSurface({
     };
     const addSubmenu = [
       { header: 'Cards' },
-      sub('note', 'Note'), sub('image'), sub('board'), sub('linkedcluster'), sub('grid'), sub('doc'), sub('file'),
+      sub('note', 'Note'), sub('image'), sub('board'), sub('linkedcluster'), sub('grid'), sub('schedule'), sub('doc'), sub('file'),
       { divider: true },
       { header: 'Visual' },
       sub('shape'), sub('palette', 'Palette'),
@@ -6824,8 +6825,26 @@ export function CanvasSurface({
                      onUpdate={onUpdate} />
       ) : <DocCard title={c.title} lines={c.lines} author={c.author} date={c.date} onUpdate={onUpdate} autoFocus={af} />;
     }
-    else if (c.kind === 'schedule')  inner = <ScheduleCard title={c.title} rows={c.rows} onUpdate={onUpdate}
-                                                           editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
+    else if (c.kind === 'schedule' && !c.schedView)
+      // LEGACY schedule (static rows table) — generator-seeded cards keep
+      // rendering; new-model cards (schedView) take the container branch below.
+      inner = <ScheduleTableCard title={c.title} rows={c.rows} onUpdate={onUpdate}
+                                 editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
+    else if (c.kind === 'schedule') {
+      // Schedule card — the real-date calendar container. Same cell plumbing as
+      // the grid branch below: cardYMap exposes the nested gridCells/gridMeta,
+      // and the per-card upload slice keys by the item path.
+      const cardYMap = ydoc?.getMap?.('cards')?.get?.(c.id) || null;
+      const schedUploads = {};
+      for (const k in cellUploads) { if (k.startsWith(`${c.id}:`)) schedUploads[k.slice(c.id.length + 1)] = cellUploads[k]; }
+      inner = <ScheduleCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
+                            isSelected={isSelected} canEdit={canEdit} onUpdate={onUpdate}
+                            focusedCellId={focusedCell?.gridId === c.id ? focusedCell.cellId : null}
+                            dropCellId={cellDropTarget?.gridId === c.id ? cellDropTarget.cellId : null}
+                            cellUploads={schedUploads}
+                            boards={boards} onOpenBoard={onOpenBoard}
+                            gridActions={gridActions} getAwareness={getAwareness} boardId={board.id} />;
+    }
     else if (c.kind === 'shape')     inner = <ShapeCard key={`shape-${c.shape}`} shape={c.shape} stroke={c.stroke} fill={c.fill} strokeWidth={c.strokeWidth} dash={c.dash}
                                                         label={c.label} onUpdate={onUpdate}
                                                         editLabelAt={editFieldSignal.id === c.id && editFieldSignal.field === 'shapeLabel' ? editFieldSignal.n : 0} />;
@@ -7517,7 +7536,7 @@ export function CanvasSurface({
     { title: 'Create', items: [
       { id: 'file',          label: 'File',           icon: Paperclip,      tip: 'Upload any file',         action: () => addFromRegistry('file') },
       { id: 'addurl',        label: 'Link',           icon: Link,           tip: 'Add a web link',          action: () => addFromRegistry('addurl') },
-      { id: 'schedule',      label: 'Schedule',       icon: CalendarPh,     tip: 'A when / what / where table', action: () => addFromRegistry('schedule') },
+      { id: 'schedule',      label: 'Schedule',       icon: CalendarPh,     tip: 'A calendar you can drop anything into', action: () => addFromRegistry('schedule') },
       { id: 'linkedcluster', label: 'Linked cluster', icon: ArrowSquareOut, tip: 'Link an existing cluster',action: () => onOpenPicker?.(resolvePastePos().pos) },
     ]},
     { title: 'Annotate', items: [

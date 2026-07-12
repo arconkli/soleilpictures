@@ -104,6 +104,7 @@ import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel } from './lib/gridState.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from './lib/gridLayout.js';
 import { hasLabelTag } from './lib/gridSequence.js';
+import { todayISO } from './lib/schedDates.js';
 import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio, uploadFile, readVideoMeta } from './lib/uploads.js';
 import { arrangeInFreeSpace } from './lib/canvasGeom.js';
 import { classifyDropFile, fitImageDims, sizeBucket } from './lib/fileIngest.js';
@@ -1399,21 +1400,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setAutoFocusId(id);
     };
 
-    // Schedule card — the "rows at a glance" table (day / what / where). Was
-    // render-only (only the board generator could seed one) until 2026-07.
-    const addSchedule = (clickPos = null) => {
-      const w = 344, h = 140;
-      const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
-      const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
+    // Schedule card — the real-date calendar container (Month/Week/Day/Hour
+    // views; slots hold grid-cell records at date-path keys — see
+    // lib/schedLayout.js). Mirrors addGrid: fresh card + the per-card Y store
+    // (gridCells/gridMeta) initialized in the SAME transaction (afterInsert)
+    // so create+init is ONE undo step. LEGACY schedule cards (rows table, no
+    // schedView) still render via the old table — this only creates new-model
+    // cards. Keep in lockstep with the LocalBoardsApp twin.
+    const SCHED_SIZES = { month: [420, 380], week: [420, 170], day: [300, 420], hour: [280, 300] };
+    const addSchedule = (clickPos = null, view = 'month') => {
+      const [w, h] = SCHED_SIZES[view] || SCHED_SIZES.month;
+      const x = clickPos ? Math.round(clickPos.x - w / 2) : 60;
+      const y = clickPos ? Math.round(clickPos.y - h / 2) : 60;
       addCard({
-        id: `sched-${Date.now()}`, kind: 'schedule', title: 'Schedule',
-        rows: [
-          { day: 'Mon', what: '', loc: '' },
-          { day: 'Tue', what: '', loc: '' },
-          { day: 'Wed', what: '', loc: '' },
-        ],
+        id: `sched-${Date.now()}`, kind: 'schedule',
+        schedView: SCHED_SIZES[view] ? view : 'month',
+        anchor: todayISO(), anchorHour: 9,
         x: Math.max(8, x), y: Math.max(8, y), w, h,
-      });
+      }, { afterInsert: (cardYM) => { if (cardYM) initCardGridStore(ydoc, cardYM); } });
     };
 
     const addDocCard = (clickPos = null) => {

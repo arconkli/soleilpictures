@@ -11,6 +11,7 @@ import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from '../lib/gridLayout.js';
 import { hasLabelTag } from '../lib/gridSequence.js';
 import { readGridModel } from '../lib/gridState.js';
+import { todayISO } from '../lib/schedDates.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -548,17 +549,17 @@ export function LocalBoardsApp({ user, signOut }) {
     setAutoFocusId(id);
   };
 
-  // Keep in lockstep with App.jsx addSchedule (same starter rows/size).
-  const addSchedule = (clickPos = null) => {
+  // Keep in lockstep with App.jsx addSchedule (same shape/sizes). Local shell
+  // stores the cell/meta twins as plain fields (cells / gridMeta) — no Yjs.
+  const SCHED_SIZES = { month: [420, 380], week: [420, 170], day: [300, 420], hour: [280, 300] };
+  const addSchedule = (clickPos = null, view = 'month') => {
     const id = createId('sched');
-    const w = 344, h = 140;
+    const [w, h] = SCHED_SIZES[view] || SCHED_SIZES.month;
     addCard({
-      id, kind: 'schedule', title: 'Schedule',
-      rows: [
-        { day: 'Mon', what: '', loc: '' },
-        { day: 'Tue', what: '', loc: '' },
-        { day: 'Wed', what: '', loc: '' },
-      ],
+      id, kind: 'schedule',
+      schedView: SCHED_SIZES[view] ? view : 'month',
+      anchor: todayISO(), anchorHour: 9,
+      cells: {}, gridMeta: {},
       x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
       y: Math.max(8, Math.round((clickPos?.y ?? 180) - h / 2)),
       w, h,
