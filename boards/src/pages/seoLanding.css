@@ -501,7 +501,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 0 0 2.6em;
 }
 .exp-chip {
   font: 600 0.85rem/1 var(--font-sans);
@@ -511,6 +510,7 @@
   border: 1px solid var(--line-2);
   border-radius: 999px;
   padding: 9px 15px;
+  cursor: pointer;
   transition: color var(--dur-fast, 120ms) var(--ease), border-color var(--dur-fast, 120ms) var(--ease), transform var(--dur-fast, 120ms) var(--ease);
 }
 .exp-chip:hover {
@@ -518,13 +518,124 @@
   border-color: var(--soleil);
   transform: translateY(-1px);
 }
+
+/* Browse toolbar: search + sort + count. Sticky inside .seo-scroll so the
+   controls stay reachable while scanning a long grid; frosted like the app's
+   overlay surfaces. */
+.exp-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin: 0 -12px 14px;
+  padding: 10px 12px;
+  border-radius: 0 0 14px 14px;
+  background: rgba(10, 10, 12, 0.78);
+  backdrop-filter: blur(12px) saturate(1.05);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+}
+.exp-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 240px;
+  min-width: 180px;
+  height: 38px;
+  padding: 0 6px 0 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  color: var(--ink-3);
+  transition: border-color var(--dur-fast, 120ms) var(--ease), box-shadow var(--dur-fast, 120ms) var(--ease);
+}
+.exp-search:focus-within {
+  border-color: var(--soleil);
+  box-shadow: 0 0 0 1px rgba(255, 165, 0, 0.25);
+  color: var(--ink-1);
+}
+.exp-search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--ink-0);
+  font: 400 0.95rem/1 var(--font-sans);
+}
+.exp-search input::placeholder { color: var(--ink-3); }
+.exp-search input::-webkit-search-cancel-button { display: none; }
+.exp-clear {
+  border: none;
+  background: none;
+  color: var(--ink-3);
+  font: 400 1.1rem/1 var(--font-sans);
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.exp-clear:hover { color: var(--ink-0); }
+.exp-sorts {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+}
+.exp-sort-btn {
+  border: none;
+  background: none;
+  color: var(--ink-2);
+  font: 600 0.82rem/1 var(--font-sans);
+  padding: 8px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: color var(--dur-fast, 120ms) var(--ease), background var(--dur-fast, 120ms) var(--ease);
+}
+.exp-sort-btn:hover { color: var(--ink-0); }
+.exp-sort-btn.is-on { background: var(--bg-3); color: var(--ink-0); }
+.exp-count {
+  margin-left: auto;
+  color: var(--ink-3);
+  font: 500 0.82rem/1 var(--font-sans);
+  white-space: nowrap;
+}
+
+/* Topic filter chips (selection state = gold, per the accent rule). */
+.exp-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+.exp-topic.is-on {
+  color: var(--soleil);
+  border-color: var(--soleil);
+  background: var(--soleil-soft, rgba(255, 165, 0, 0.12));
+}
+
 .exp-grid {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
 }
-.exp-grid .pubcard { height: 100%; }
+/* Each cell stacks card + "Make your own" link; the card flexes to fill so
+   the link never overflows into the next grid row. */
+.exp-grid li { display: flex; flex-direction: column; }
+.exp-grid .pubcard { flex: 1; }
+.exp-thumb { display: block; overflow: hidden; }
+.exp-thumb img { transition: transform 0.35s var(--ease); }
+.pubcard:hover .exp-thumb img { transform: scale(1.045); }
 .exp-card-body { padding: 12px 14px 14px; }
 .exp-card-body .pubcard-title { padding: 0; font-size: 1rem; }
+.exp-mark {
+  background: rgba(255, 165, 0, 0.28);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
+}
 .exp-card-desc {
   color: var(--ink-2);
   font-size: 0.88rem;
@@ -535,6 +646,22 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.exp-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.exp-tag {
+  font: 700 0.66rem/1 var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 4px 7px;
+}
+.exp-cards { font: 500 0.78rem/1 var(--font-sans); color: var(--ink-3); }
 .exp-make {
   display: inline-block;
   margin-top: 8px;
@@ -549,6 +676,52 @@
   .exp-feat .pubcard-title { font-size: 1.15rem; }
 }
 
+/* Loading skeletons (shimmer, not a spinner — the grid keeps its shape). */
+.exp-skel {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line-1);
+  background: var(--bg-1);
+}
+.exp-skel-img { aspect-ratio: 16 / 9; }
+.exp-skel-line {
+  height: 12px;
+  margin: 12px 14px 0;
+  border-radius: 6px;
+  width: 70%;
+}
+.exp-skel-line.short { width: 45%; margin-bottom: 16px; }
+.exp-skel-img, .exp-skel-line {
+  background: linear-gradient(100deg, var(--bg-2) 40%, var(--bg-3) 50%, var(--bg-2) 60%);
+  background-size: 200% 100%;
+  animation: exp-shimmer 1.4s linear infinite;
+}
+@keyframes exp-shimmer { to { background-position: -200% 0; } }
+
+.exp-noresults {
+  display: grid;
+  gap: 16px;
+  justify-items: start;
+  padding: 40px 0 56px;
+  color: var(--ink-2);
+  font: 400 0.98rem/1.5 var(--font-sans);
+}
+.exp-noresults p { margin: 0; }
+.exp-noresults strong { color: var(--ink-0); }
+
+.exp-tools-band { margin-top: 56px; }
+.exp-h2 {
+  font: 600 1.05rem/1.3 var(--font-display, var(--font-sans));
+  color: var(--ink-1);
+  margin: 0 0 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exp-skel-img, .exp-skel-line { animation: none; }
+  .exp-thumb img, .exp-chip, .pubcard { transition: none; }
+  .pubcard:hover .exp-thumb img { transform: none; }
+}
+
 /* ── Mobile ───────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
   .seo-main { padding-top: 40px; }
@@ -558,4 +731,7 @@
   .seo-frame-url { font-size: 11px; }
   .seo-midcta { flex-direction: column; align-items: flex-start; }
   .seo-midcta .seo-cta-primary { width: 100%; }
+  /* /explore: search takes its own row; sort + count share the second. */
+  .exp-toolbar { margin: 0 -8px 12px; padding: 8px; }
+  .exp-search { flex-basis: 100%; }
 }

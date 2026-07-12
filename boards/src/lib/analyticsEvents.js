@@ -183,6 +183,8 @@ export const EV = Object.freeze({
 
   // ── Public marketing boards (/c/<slug> + /explore, migration 0136) ──
   EXPLORE_VIEW:            'explore_view',                // /explore index mounted {count}
+  EXPLORE_SEARCH:          'explore_search',              // /explore search used (once/session) {q}
+  EXPLORE_CARD_CLICK:      'explore_card_click',          // /explore card → /c/<slug> {slug,pos,sort,topic,has_query}
 
   // ── Tags (the ambient hover-to-explore rework — see project_tags_rework).
   //    Zero tag events existed before; this is how we finally measure whether
