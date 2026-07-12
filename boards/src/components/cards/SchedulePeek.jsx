@@ -75,7 +75,7 @@ export function SchedulePeek({ cardId, title, sourceRect, contentH, hourMode = f
   const node = (
     <div className="schedc-peekpanel" ref={ref} role="dialog" aria-label={title}
          data-grid-id={cardId}
-         style={{ ...style, width: SCHED_TUNING.PEEK_W, height: panelH }}
+         style={{ ...style, width: SCHED_TUNING.PEEK_W, maxHeight: panelH }}
          onWheel={stop} onContextMenu={stop}>
       <div className="schedc-peekhead" onPointerDown={stop}>
         {onBack && (

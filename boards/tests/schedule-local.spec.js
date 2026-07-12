@@ -426,6 +426,45 @@ test.describe('schedule — day peek panel', () => {
   });
 });
 
+test.describe('schedule — visual pass', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/?local=1&reset=1&blank=1');
+    await page.waitForSelector('.canvas-wrap');
+  });
+
+  test('month view carries the view class and tints weekend columns', async ({ page }) => {
+    await addSchedule(page);
+    await expect(page.locator('.schedc.is-view-month')).toBeVisible();
+    // A full month grid always shows at least 4 Sat+Sun pairs.
+    const weekendCells = await page.locator('.schedc .schedc-slot-day.is-weekend').count();
+    expect(weekendCells).toBeGreaterThanOrEqual(8);
+    expect(weekendCells % 2).toBe(0);
+  });
+
+  test('day view shows the live now-line exactly when the current hour is visible', async ({ page }) => {
+    await addSchedule(page);
+    await page.locator('.schedc').getByRole('button', { name: 'Day view' }).click();
+    await expect(page.locator('.schedc.is-view-day')).toBeVisible();
+    // Default window is 8–18; the line renders only when "now" falls inside it.
+    const h = new Date().getHours();
+    await expect(page.locator('.schedc .schedc-nowline')).toHaveCount(h >= 8 && h < 18 ? 1 : 0);
+  });
+
+  test('inline hour rows stripe alternating hours and mute sliver rows', async ({ page }) => {
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    const slot = sched.locator('.schedc-slot-day:not(.is-outside)').nth(8);
+    await slot.hover();
+    await slot.locator('.schedc-mini').click();
+    await page.locator('.gridc-cell-menu').getByRole('button', { name: 'Break into hours' }).click();
+    // 8–18 window → odd hours 9/11/13/15/17 stripe as .is-alt…
+    await expect(sched.locator('.schedc-slot-hour.is-alt')).toHaveCount(5);
+    // …and rows this small (~5px in a month cell) mute their chrome.
+    await expect(sched.locator('.schedc-slot-hour.is-sliver').first()).toBeAttached();
+  });
+});
+
 test.describe('schedule — date-jump popover', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });

@@ -5,16 +5,18 @@
 // so the .card overflow:hidden/contain:paint clip never bites). Slots hold
 // MULTIPLE items (standard grid cell records at `<slotPath>/i:<uid>` keys in
 // the shared gridCells map): one item renders full-bleed like a grid cell;
-// several stack as compact chips with a "+N more" drill-in. A broken-down day
-// renders its hour rows INLINE (see lib/schedLayout.js) — zoom the canvas to
-// work in small slots, exactly like deep grid grafts.
+// several stack as compact chips. A broken-down day renders its hour rows
+// INLINE as glanceable stripes (see lib/schedLayout.js); working at small
+// sizes goes through the Day/Hour Peek (SchedulePeek.jsx) — a local-only zoom
+// panel any day slot opens (hover ⤢ / "+N more" / count pip / slot menu). The
+// header title opens the date-jump popover (SchedDatePopover.jsx).
 //
 // Reactivity: like GridCard, item edits live in nested Y.Maps that don't bust
 // the cards snapshot — useCardCellsVersion self-observes gridCells AND
 // gridMeta (expand). Legacy schedule cards (rows table, no schedView) never
 // reach this component (CanvasSurface renders the old table for them).
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { readSchedModel } from '../../lib/schedState.js';
 import {
   SCHED_TUNING, computeSchedSlots, itemsForSlot, chipCapacity, mintItemKey, newUid, parseSlotKey,
@@ -158,6 +160,31 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
   const model = readSchedModel(card, ydoc);
   const anchor = model.anchor || todayISO();
   const cellKeys = Object.keys(model.cells);
+  const todayIso = todayISO();
+
+  // Live now-line (Day view + day peek, today only). A 60s tick re-renders so
+  // the line tracks the clock; the interval only runs while a line is visible.
+  const [, setNowTick] = useState(0);
+  const nowLineActive = (model.view === 'day' && anchor === todayIso)
+    || (peek != null && peek.hour == null && peek.date === todayIso);
+  useEffect(() => {
+    if (!nowLineActive) return undefined;
+    const id = setInterval(() => setNowTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, [nowLineActive]);
+  const renderNowLine = (slotList) => {
+    const now = new Date();
+    const s = slotList.find((x) => x.kind === 'hour' && !x.band
+      && x.date === todayIso && x.hour === now.getHours());
+    if (!s) return null;
+    const y = s.rect.y + s.rect.h * (now.getMinutes() / 60);
+    return (
+      <div className="schedc-nowline" aria-hidden="true"
+        style={{ top: y, left: s.rect.x, width: s.rect.w }}>
+        <span className="schedc-nowline-dot" />
+      </div>
+    );
+  };
 
   const headerH = SCHED_TUNING.HEADER_H;
   const bodyW = Math.max(0, w);
@@ -265,6 +292,9 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
           'schedc-slot', `schedc-slot-${s.kind}`,
           s.band ? 'is-band' : '', s.outside ? 'is-outside' : '',
           s.isToday && s.kind === 'day' ? 'is-today' : '',
+          s.weekend ? 'is-weekend' : '',
+          s.kind === 'hour' && !s.band && s.hour % 2 === 1 ? 'is-alt' : '',
+          (s.kind === 'hour' || s.kind === 'minute') && !s.band && s.rect.h < 8 ? 'is-sliver' : '',
           s.expanded ? 'is-expanded' : '',
           isDrop ? 'is-drop' : '', isFocused ? 'is-focused' : '',
         ].filter(Boolean).join(' ')}
@@ -401,7 +431,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
 
   return (
     <>
-      <div className="schedc" data-grid-id={card.id}>
+      <div className={`schedc is-view-${model.view}`} data-grid-id={card.id}>
         <div className="schedc-head">
           {editable && (
             <button type="button" className="schedc-nav" title="Previous" aria-label="Previous"
@@ -413,7 +443,13 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
             <button type="button" className="schedc-title" title={`${title} — jump to date`}
               aria-haspopup="dialog"
               onPointerDown={stop}
-              onClick={(e) => { e.stopPropagation(); setDatePop((p) => (p ? null : { anchorRect: e.currentTarget.getBoundingClientRect() })); }}>
+              onClick={(e) => {
+                e.stopPropagation();
+                // Read the rect EAGERLY — updaters run after React nulls
+                // e.currentTarget, and this crashed in longer sessions.
+                const anchorRect = e.currentTarget.getBoundingClientRect();
+                setDatePop((p) => (p ? null : { anchorRect }));
+              }}>
               <span className="schedc-title-txt">{title}</span>
               <Icon as={ChevronDown} size={9} />
             </button>
@@ -454,6 +490,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
             </div>
           )}
           {renderSlotLayer(slots, 'card')}
+          {model.view === 'day' && anchor === todayIso && renderNowLine(slots)}
         </div>
       </div>
       {editable && menu && (
@@ -495,6 +532,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
           onOpenAsDayView={editable && onUpdate ? () => { onUpdate({ schedView: 'day', anchor: peek.date }); setPeek(null); } : null}
           onClose={() => setPeek(null)}>
           {renderSlotLayer(peekSlots, 'peek')}
+          {peek.hour == null && peek.date === todayIso && renderNowLine(peekSlots)}
         </SchedulePeek>
       )}
       {(() => {

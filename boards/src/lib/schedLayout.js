@@ -18,8 +18,9 @@
 // FLAT slot list — an expanded day emits its day slot (whole cell; the visible
 // remainder is the date strip) plus hour rows positioned inside it, painted
 // after so elementsFromPoint hits the row first. Rows can get arbitrarily
-// small: canvas zoom + the compact pop-out cell menu are the interaction
-// story, exactly like deep grid grafts.
+// small: inline they read as glanceable stripes, and the Day/Hour Peek
+// (SchedulePeek.jsx) — which feeds this SAME engine a generous height — is
+// how you actually work in them.
 
 import {
   pad2, parseISO, formatISO, todayISO, daysInMonth, firstWeekdayOfMonth,
@@ -27,14 +28,14 @@ import {
 } from './schedDates.js';
 
 export const SCHED_TUNING = Object.freeze({
-  HEADER_H: 30,       // in-card header (nav/title/view pill) — component subtracts it before calling computeSchedSlots
-  WEEKDAY_H: 14,      // Mon–Sun strip (month/week)
-  DAY_LABEL_H: 12,    // date-number strip inside a day cell (month/week)
-  BAND_H: 20,         // the "All day" / whole-hour drop band (day/hour views)
-  HOUR_LABEL_W: 34,   // time gutter painted inside hour/minute rows (day/hour views)
-  GUTTER_PX: 2,       // spacing between top-level slots
+  HEADER_H: 32,       // in-card header (nav/title/view pill) — component subtracts it before calling computeSchedSlots; CSS mirror: .schedc-head flex-basis
+  WEEKDAY_H: 16,      // Mon–Sun strip (month/week)
+  DAY_LABEL_H: 14,    // date-number strip inside a day cell (month/week); CSS mirror: .schedc-slot-label line-height
+  BAND_H: 22,         // the "All day" / whole-hour drop band (day/hour views)
+  HOUR_LABEL_W: 44,   // time gutter painted inside hour/minute rows (day/hour views); CSS mirror: the left:44px gutter rules
+  GUTTER_PX: 1,       // spacing between top-level slots — 1px so the body bg reads as a hairline lattice
   INNER_GUTTER_PX: 1, // spacing between rows nested inside a day cell
-  CHIP_H: 16,
+  CHIP_H: 18,         // CSS mirror: .schedc-chip flex-basis/line-height
   CHIP_GAP: 2,
   DAY_HOUR_FROM: 8,   // default visible hour window [FROM, TO)
   DAY_HOUR_TO: 18,
