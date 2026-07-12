@@ -6444,6 +6444,11 @@ export function CanvasSurface({
   // "only this box"). Tracked as state (a cell's nested `style` change does NOT bust
   // the top-level cards snapshot) and updated optimistically on toggle.
   const [editingCellPinned, setEditingCellPinned] = useState(false);
+  // Sticky "All boxes / This box" scope preference, remembered per grid for this
+  // session. Once you style a single box in a grid, the next box you select there
+  // pre-selects the same scope so repeat per-box edits are one click. Cleared
+  // implicitly on reload (a ref, not persisted). gridId -> 'all' | 'box'.
+  const cellScopePrefRef = useRef(new Map());
   // Live-read a grid cell record across both shells (Yjs gridCells / local card.cells).
   const gridCellRecord = useCallback((gridId, cellId) => {
     if (!gridId || !cellId) return null;
@@ -6465,11 +6470,41 @@ export function CanvasSurface({
     if (!wasEmpty) return true;   // replacing existing content — no new weight
     return mutators.guardWeightedAdd ? mutators.guardWeightedAdd() : true;
   }, [gridCellRecord, mutators]);
-  // Re-derive pinned state when the edited cell changes / board switches.
+  // The cell the bottom style bar targets. Either a text cell mid-edit (editingCell)
+  // OR — when a single grid is selected — the box you've clicked (focusedCell), so
+  // you can restyle ANY box (image / link / empty), not just a text box you've
+  // double-clicked into. `editing` distinguishes the two (emphasis controls need a
+  // live editor). See ToolOptionsBar's cellStyleMode.
+  const styleCell = useMemo(() => {
+    if (editingCell) return { gridId: editingCell.gridId, cellId: editingCell.cellId, editing: true };
+    // The selected-not-editing box bar is a Select-tool affordance. With a place /
+    // draw / shape / arrow tool active, fall through so the toolbar shows THAT tool's
+    // options — a merely-selected box has no DOM focus to blur, so it would otherwise
+    // survive a tool switch and keep hijacking the bar.
+    if (selectedTool !== 'select') return null;
+    const fc = focusedCell;
+    if (!canEdit || !fc || selected.size !== 1) return null;
+    const gid = [...selected][0];
+    if (gid !== fc.gridId) return null;
+    const gc = cardById[gid];
+    if (!gc || gc.kind !== 'grid') return null;
+    return { gridId: fc.gridId, cellId: fc.cellId, editing: false };
+  }, [editingCell, focusedCell, selected, cardById, canEdit, selectedTool]);
+  // Content type of the targeted box → the style bar tailors its controls
+  // (typography for text/empty/link; just Box background for image/video/file).
+  const styleCellKind = useMemo(() => {
+    if (!styleCell) return null;
+    const rec = gridCellRecord(styleCell.gridId, styleCell.cellId);
+    return (rec && rec.type) || 'empty';
+  }, [styleCell, gridCellRecord]);
+  // Re-derive pinned state when the targeted cell changes / board switches. A cell
+  // that already has its own style is pinned; otherwise fall back to the grid's
+  // remembered scope preference (the sticky "This box" default).
   useEffect(() => {
-    if (!editingCell) { setEditingCellPinned(false); return; }
-    setEditingCellPinned(recIsPinned(gridCellRecord(editingCell.gridId, editingCell.cellId)));
-  }, [editingCell, gridCellRecord]);
+    if (!styleCell) { setEditingCellPinned(false); return; }
+    if (recIsPinned(gridCellRecord(styleCell.gridId, styleCell.cellId))) { setEditingCellPinned(true); return; }
+    setEditingCellPinned(cellScopePrefRef.current.get(styleCell.gridId) === 'box');
+  }, [styleCell, gridCellRecord]);
   // Drop cell focus when its grid disappears — deleted, or board-switched (the
   // surface doesn't remount on board change). Prevents a stale paste being
   // silently swallowed into a vanished cell.
@@ -8987,26 +9022,39 @@ export function CanvasSurface({
         onOpenSketchpad={() => setSketchpadOpen(true)}
         editingNoteCard={editingNoteId ? cardById[editingNoteId] : null}
         onUpdateEditingNote={editingNoteId ? (patch) => mutators.updateCard?.(editingNoteId, patch) : null}
-        editingCellText={!!editingCell}
+        editingCellText={!!styleCell?.editing}
+        selectedCellStyle={!!styleCell && !styleCell.editing}
+        cellKind={styleCellKind}
         cellPinned={editingCellPinned}
-        onCellStyle={editingCell ? (patch) => mutators.setGridTextStyle?.(editingCell.gridId, editingCell.cellId, patch, { pinned: editingCellPinned }) : null}
-        onCellPinToggle={editingCell ? () => {
-          setEditingCellPinned((p) => {
-            const next = !p;
-            if (next) mutators.pinCellStyle?.(editingCell.gridId, editingCell.cellId);
-            else mutators.unpinCellStyle?.(editingCell.gridId, editingCell.cellId);
-            return next;
-          });
+        onCellStyle={styleCell ? (patch) => {
+          // Scope is "This box" (from an explicit click OR the grid's sticky pref) but
+          // the box isn't actually pinned yet → freeze the FULL effective style first,
+          // so "This box" means the same thing on both paths: fully isolated from later
+          // shared changes, not just the one property you happened to edit.
+          if (editingCellPinned && !recIsPinned(gridCellRecord(styleCell.gridId, styleCell.cellId))) {
+            mutators.pinCellStyle?.(styleCell.gridId, styleCell.cellId);
+          }
+          mutators.setGridTextStyle?.(styleCell.gridId, styleCell.cellId, patch, { pinned: editingCellPinned });
+        } : null}
+        onCellScope={styleCell ? (mode) => {
+          // Explicit segment click. Remember the choice for this grid, and pin/unpin
+          // the box to match: "This box" freezes the current look so later shared
+          // changes skip it; "All boxes" rejoins the grid's shared style.
+          cellScopePrefRef.current.set(styleCell.gridId, mode);
+          const pinned = recIsPinned(gridCellRecord(styleCell.gridId, styleCell.cellId));
+          if (mode === 'box') { if (!pinned) mutators.pinCellStyle?.(styleCell.gridId, styleCell.cellId); setEditingCellPinned(true); }
+          else { if (pinned) mutators.unpinCellStyle?.(styleCell.gridId, styleCell.cellId); setEditingCellPinned(false); }
         } : null}
         editingCellStyle={(() => {
-          // Effective style of the edited cell (family + pinned override) — seeds
-          // the Box-background picker. Seed-only: a pinned nested write doesn't
-          // bust the cards snapshot, so this may lag one pick; harmless.
-          if (!editingCell) return null;
-          const gcard = cardById[editingCell.gridId];
+          // Effective style of the targeted cell (family + pinned override) — seeds
+          // the Box-background picker AND, when the box is only selected (not being
+          // edited), the Font/Size/Align display state. Seed-only: a pinned nested
+          // write doesn't bust the cards snapshot, so this may lag one pick; harmless.
+          if (!styleCell) return null;
+          const gcard = cardById[styleCell.gridId];
           if (!gcard) return null;
           const fam = (gcard.templateId ? gridTemplates?.[gcard.templateId]?.textStyle : gcard.textStyle) || {};
-          const rec = gridCellRecord(editingCell.gridId, editingCell.cellId);
+          const rec = gridCellRecord(styleCell.gridId, styleCell.cellId);
           return { ...fam, ...((rec && rec.style) || {}) };
         })()}
         editingShapeCard={(() => {

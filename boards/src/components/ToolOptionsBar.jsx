@@ -378,9 +378,11 @@ export function ToolOptionsBar({
   editingNoteCard,
   onUpdateEditingNote,
   editingCellText,        // a grid TEXT cell is being edited (no backing note card)
+  selectedCellStyle = false, // a grid box is SELECTED (not text-editing) → box style bar
+  cellKind = null,        // content type of the targeted box (text/empty/link/image/…)
   cellPinned = false,     // that cell is "pinned" to its own frozen text style
   onCellStyle,            // (patch) => write text style: shared family, or this cell if pinned
-  onCellPinToggle,        // () => pin/unpin this cell ("only this box" vs shared)
+  onCellScope,            // (mode:'all'|'box') => set the scope: shared family vs only this box
   editingCellStyle = null, // effective {…, bg} of the edited cell — seeds the bg picker
   editingShapeCard,
   onUpdateEditingShape,
@@ -413,7 +415,7 @@ export function ToolOptionsBar({
   // Also shown for a grid TEXT cell (editingCellText) — same inline formatting,
   // driven against the focused contenteditable. With no backing note card the
   // two card-level controls (card background, vertical balance) are hidden.
-  if (editingNoteCard || editingCellText) {
+  if (editingNoteCard || editingCellText || selectedCellStyle) {
     return <NoteRichTextBar
       tobProps={tobProps}
       paletteColors={paletteColors}
@@ -421,10 +423,12 @@ export function ToolOptionsBar({
       editingNoteCard={editingNoteCard}
       onUpdateEditingNote={onUpdateEditingNote}
       cardLevel={!!editingNoteCard}
-      cellStyleMode={!editingNoteCard && !!editingCellText}
+      cellStyleMode={!editingNoteCard && (!!editingCellText || !!selectedCellStyle)}
+      cellEditing={!!editingCellText}
+      cellKind={cellKind}
       cellPinned={cellPinned}
       onCellStyle={onCellStyle}
-      onCellPinToggle={onCellPinToggle}
+      onCellScope={onCellScope}
       editingCellStyle={editingCellStyle}
     />;
   }
@@ -695,10 +699,27 @@ export function ToolOptionsBar({
 // selectionchange while the note is being edited). Keeping it inside the
 // main ToolOptionsBar function would mean the hook runs in every render of
 // every tool's bar.
-function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCard, onUpdateEditingNote, cardLevel = true, cellStyleMode = false, cellPinned = false, onCellStyle, onCellPinToggle, editingCellStyle = null }) {
+function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCard, onUpdateEditingNote, cardLevel = true, cellStyleMode = false, cellEditing = false, cellKind = null, cellPinned = false, onCellStyle, onCellScope, editingCellStyle = null }) {
   const currentFore = useNoteForeColor(true);
   const fmt = useNoteFormatState(true);
   const barRef = useRef(null);
+  // A box that's SELECTED but not being text-edited has no live editor, so the
+  // execCommand controls (bold/italic/lists) are hidden and Font/Size/Align show
+  // the box's effective style instead of the (empty) selection state. For an
+  // image/video/file box, typography doesn't apply → only Box background + scope.
+  const selectedBox = cellStyleMode && !cellEditing;
+  const textish = !cellStyleMode || cellKind == null || cellKind === 'text' || cellKind === 'empty' || cellKind === 'link';
+  const showTypography = textish;
+  const showEmphasis = !selectedBox;
+  const display = selectedBox
+    ? { // Show the first family name (e.g. "Inter"), not the raw CSS stack the cell
+        // stores ("Inter, system-ui, sans-serif") — matches the editing path's label.
+        fontFamily: editingCellStyle?.fontFamily
+          ? editingCellStyle.fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '')
+          : undefined,
+        fontSize: editingCellStyle?.fontSize ? parseInt(editingCellStyle.fontSize, 10) : undefined,
+        align: editingCellStyle?.align }
+    : fmt;
   // Mobile: lift the bar above the soft keyboard. In mobile Safari the keyboard
   // overlays the layout viewport (visualViewport shrinks, the page doesn't), so
   // a CSS `bottom` would sit the bar UNDER the keyboard. Track visualViewport
@@ -733,94 +754,108 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
     <div {...tobProps}
          ref={barRef}
          onPointerDown={(e) => e.stopPropagation()}>
-      <FontPicker currentLabel={fmt.fontFamily || 'Font'}
-                  onApplyFont={(css) => cellStyleMode
-                    ? onCellStyle?.({ fontFamily: css })
-                    : applyStyleOrNoteDefault({ fontFamily: css }, () => onUpdateEditingNote && onUpdateEditingNote({ fontFamily: css }))} />
-      <SizePicker value={fmt.fontSize}
-                  onApply={(px) => cellStyleMode
-                    ? onCellStyle?.({ fontSize: px })
-                    : applyStyleOrNoteDefault({ fontSize: px + 'px' }, () => onUpdateEditingNote && onUpdateEditingNote({ fontSize: px }))} />
-      <span className="tob-sep" />
-      <FormatBtn label="B" title="Bold (⌘B)" cmd="bold" bold toggle active={fmt.bold} />
-      <FormatBtn label={<i>I</i>} title="Italic (⌘I)" cmd="italic" toggle active={fmt.italic} />
-      <FormatBtn label={<u>U</u>} title="Underline (⌘U)" cmd="underline" toggle active={fmt.underline} />
-      <FormatBtn label={<s>S</s>} title="Strike" cmd="strikeThrough" toggle active={fmt.strike} />
-      <span className="tob-sep" />
-      <ListBtn label="•"  title="Bulleted list" type="ul"   active={fmt.listType === 'ul'} />
-      <ListBtn label="1." title="Numbered list" type="ol"   active={fmt.listType === 'ol'} />
-      <ListBtn label="☐"  title="Checklist"     type="task" active={fmt.listType === 'task'} />
-      <span className="tob-sep" />
-      {cellStyleMode ? (
+      {showTypography && (
         <>
-          {/* Cell alignment is container-level (part of the shared/pinned text style)
-              so it propagates like the font — not baked per-content via execCommand. */}
-          <button type="button" className={`tob-btn ${(!fmt.align || fmt.align === 'left') ? 'is-active' : ''}`.trim()}
-            title="Align left" onMouseDown={(e) => e.preventDefault()} onClick={() => onCellStyle?.({ align: 'left' })}>⇤</button>
-          <button type="button" className={`tob-btn ${fmt.align === 'center' ? 'is-active' : ''}`.trim()}
-            title="Align center" onMouseDown={(e) => e.preventDefault()} onClick={() => onCellStyle?.({ align: 'center' })}>≡</button>
-          <button type="button" className={`tob-btn ${fmt.align === 'right' ? 'is-active' : ''}`.trim()}
-            title="Align right" onMouseDown={(e) => e.preventDefault()} onClick={() => onCellStyle?.({ align: 'right' })}>⇥</button>
-        </>
-      ) : (
-        <>
-          <FormatBtn label="⇤" title="Align left"   cmd="justifyLeft"   active={fmt.align === 'left'} />
-          <FormatBtn label="≡" title="Align center" cmd="justifyCenter" active={fmt.align === 'center'} />
-          <FormatBtn label="⇥" title="Align right"  cmd="justifyRight"  active={fmt.align === 'right'} />
+          <FontPicker currentLabel={display.fontFamily || 'Font'}
+                      onApplyFont={(css) => cellStyleMode
+                        ? onCellStyle?.({ fontFamily: css })
+                        : applyStyleOrNoteDefault({ fontFamily: css }, () => onUpdateEditingNote && onUpdateEditingNote({ fontFamily: css }))} />
+          <SizePicker value={display.fontSize}
+                      onApply={(px) => cellStyleMode
+                        ? onCellStyle?.({ fontSize: px })
+                        : applyStyleOrNoteDefault({ fontSize: px + 'px' }, () => onUpdateEditingNote && onUpdateEditingNote({ fontSize: px }))} />
         </>
       )}
-      {(cardLevel || cellStyleMode) && (() => {
-        // One-click "center" — text sits DEAD-CENTER of the box, both axes. For a
-        // note it's a flat card field (vAlign) through the undo-aware path; for a
-        // grid cell it's part of the cell's text style (shared or pinned) applied
-        // as container flex + text-align, so it propagates like the font.
-        const balanced = cellStyleMode
-          ? (fmt.align === 'center')
-          : (fmt.align === 'center' && editingNoteCard?.vAlign === 'center');
-        return (
-          <button type="button"
-            className={`tob-btn ${balanced ? 'is-active' : ''}`.trim()}
-            title="Center — put the text dead-center of the box"
-            aria-pressed={balanced}
-            onMouseDown={(e) => e.preventDefault()}
-            onPointerDown={(e) => e.preventDefault()}
-            onClick={() => {
-              if (cellStyleMode) {
-                onCellStyle?.(balanced ? { align: 'left', vAlign: 'top' } : { align: 'center', vAlign: 'center' });
-              } else if (balanced) {
-                setAlignAllBlocks('left');
-                onUpdateEditingNote && onUpdateEditingNote({ vAlign: null });
-              } else {
-                setAlignAllBlocks('center');
-                onUpdateEditingNote && onUpdateEditingNote({ vAlign: 'center' });
-              }
-            }}>
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <rect x="1.5" y="1.5" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.1" />
-              <line x1="4" y1="7" x2="10" y2="7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-            </svg>
-          </button>
-        );
-      })()}
-      <span className="tob-sep" />
-      <ColorBtn title="Text color" glyph="A" defaultColor={currentFore}
-                swatches={TEXT_COLORS}
-                paletteColors={paletteColors}
-                onPick={(c) => cellStyleMode
-                  ? onCellStyle?.({ color: c })
-                  : applyStyleOrNoteDefault({ color: c }, () => onUpdateEditingNote && onUpdateEditingNote({ textColor: c }))}
-                onCustom={(e) => openPickerAt(e, {
-                  value: currentFore,
-                  onChange: (c) => cellStyleMode
-                    ? onCellStyle?.({ color: c })
-                    : applyStyleOrNoteDefault({ color: c }, () => onUpdateEditingNote && onUpdateEditingNote({ textColor: c })),
-                })} />
+      {showEmphasis && (
+        <>
+          <span className="tob-sep" />
+          <FormatBtn label="B" title="Bold (⌘B)" cmd="bold" bold toggle active={fmt.bold} />
+          <FormatBtn label={<i>I</i>} title="Italic (⌘I)" cmd="italic" toggle active={fmt.italic} />
+          <FormatBtn label={<u>U</u>} title="Underline (⌘U)" cmd="underline" toggle active={fmt.underline} />
+          <FormatBtn label={<s>S</s>} title="Strike" cmd="strikeThrough" toggle active={fmt.strike} />
+          <span className="tob-sep" />
+          <ListBtn label="•"  title="Bulleted list" type="ul"   active={fmt.listType === 'ul'} />
+          <ListBtn label="1." title="Numbered list" type="ol"   active={fmt.listType === 'ol'} />
+          <ListBtn label="☐"  title="Checklist"     type="task" active={fmt.listType === 'task'} />
+        </>
+      )}
+      {showTypography && (
+        <>
+          <span className="tob-sep" />
+          {cellStyleMode ? (
+            <>
+              {/* Cell alignment is container-level (part of the shared/pinned text style)
+                  so it propagates like the font — not baked per-content via execCommand. */}
+              <button type="button" className={`tob-btn ${(!display.align || display.align === 'left') ? 'is-active' : ''}`.trim()}
+                title="Align left" onMouseDown={(e) => e.preventDefault()} onClick={() => onCellStyle?.({ align: 'left' })}>⇤</button>
+              <button type="button" className={`tob-btn ${display.align === 'center' ? 'is-active' : ''}`.trim()}
+                title="Align center" onMouseDown={(e) => e.preventDefault()} onClick={() => onCellStyle?.({ align: 'center' })}>≡</button>
+              <button type="button" className={`tob-btn ${display.align === 'right' ? 'is-active' : ''}`.trim()}
+                title="Align right" onMouseDown={(e) => e.preventDefault()} onClick={() => onCellStyle?.({ align: 'right' })}>⇥</button>
+            </>
+          ) : (
+            <>
+              <FormatBtn label="⇤" title="Align left"   cmd="justifyLeft"   active={fmt.align === 'left'} />
+              <FormatBtn label="≡" title="Align center" cmd="justifyCenter" active={fmt.align === 'center'} />
+              <FormatBtn label="⇥" title="Align right"  cmd="justifyRight"  active={fmt.align === 'right'} />
+            </>
+          )}
+          {(() => {
+            // One-click "center" — text sits DEAD-CENTER of the box, both axes. For a
+            // note it's a flat card field (vAlign) through the undo-aware path; for a
+            // grid cell it's part of the cell's text style (shared or pinned) applied
+            // as container flex + text-align, so it propagates like the font.
+            const balanced = cellStyleMode
+              ? (display.align === 'center')
+              : (fmt.align === 'center' && editingNoteCard?.vAlign === 'center');
+            return (
+              <button type="button"
+                className={`tob-btn ${balanced ? 'is-active' : ''}`.trim()}
+                title="Center — put the text dead-center of the box"
+                aria-pressed={balanced}
+                onMouseDown={(e) => e.preventDefault()}
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  if (cellStyleMode) {
+                    onCellStyle?.(balanced ? { align: 'left', vAlign: 'top' } : { align: 'center', vAlign: 'center' });
+                  } else if (balanced) {
+                    setAlignAllBlocks('left');
+                    onUpdateEditingNote && onUpdateEditingNote({ vAlign: null });
+                  } else {
+                    setAlignAllBlocks('center');
+                    onUpdateEditingNote && onUpdateEditingNote({ vAlign: 'center' });
+                  }
+                }}>
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <rect x="1.5" y="1.5" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.1" />
+                  <line x1="4" y1="7" x2="10" y2="7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                </svg>
+              </button>
+            );
+          })()}
+          <span className="tob-sep" />
+          <ColorBtn title="Text color" glyph="A" defaultColor={currentFore}
+                    swatches={TEXT_COLORS}
+                    paletteColors={paletteColors}
+                    onPick={(c) => cellStyleMode
+                      ? onCellStyle?.({ color: c })
+                      : applyStyleOrNoteDefault({ color: c }, () => onUpdateEditingNote && onUpdateEditingNote({ textColor: c }))}
+                    onCustom={(e) => openPickerAt(e, {
+                      value: currentFore,
+                      onChange: (c) => cellStyleMode
+                        ? onCellStyle?.({ color: c })
+                        : applyStyleOrNoteDefault({ color: c }, () => onUpdateEditingNote && onUpdateEditingNote({ textColor: c })),
+                    })} />
+        </>
+      )}
       {(cardLevel || cellStyleMode) && (
-        // Card background (note) / Box background (grid cell). The cell write
-        // rides the same shared-vs-pinned onCellStyle path as font/size/color;
-        // the 'transparent' swatch maps to bg:null = back to the default cell
-        // surface (the renderer treats null/'transparent' as unset).
-        <ColorBtn title={cellStyleMode ? 'Box background' : 'Card background'}
+        <>
+          {showTypography && <span className="tob-sep" />}
+          {/* Card background (note) / Box background (grid cell). The cell write
+              rides the same shared-vs-pinned onCellStyle path as font/size/color;
+              the 'transparent' swatch maps to bg:null = back to the default cell
+              surface (the renderer treats null/'transparent' as unset). */}
+          <ColorBtn title={cellStyleMode ? 'Box background' : 'Card background'}
                 defaultColor={(cellStyleMode ? editingCellStyle?.bg : editingNoteCard?.bgColor) || '#1c1c1f'}
                 swatches={BG_COLORS}
                 paletteColors={paletteColors}
@@ -839,24 +874,27 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
                     : onUpdateEditingNote && onUpdateEditingNote({ bgColor: c }),
                   allowTransparent: true,
                 })} />
+        </>
       )}
       {cellStyleMode && (
         <>
           <span className="tob-sep" />
-          {/* Shared vs. "only this box". Default = Shared: font/size/color/align set
-              the grid's shared text style, live across every un-pinned cell. Pinned
-              = this box keeps its own style and ignores later shared changes. */}
-          <button type="button"
-            className={`tob-btn tob-pin ${cellPinned ? 'is-active' : ''}`.trim()}
-            title={cellPinned
-              ? 'Only this box — its style is frozen. Click to rejoin the grid’s shared style.'
-              : 'Shared style — changes apply to every box. Click to style only this box.'}
-            aria-pressed={cellPinned}
-            onMouseDown={(e) => e.preventDefault()}
-            onPointerDown={(e) => e.preventDefault()}
-            onClick={() => onCellPinToggle?.()}>
-            {cellPinned ? 'This box' : 'Shared'}
-          </button>
+          {/* Scope: does a font/size/color/align/background change apply to EVERY box
+              in the grid (shared, the default) or ONLY this one? "This box" freezes
+              this box's look so later shared changes skip it. The choice is remembered
+              per grid so styling several boxes in a row stays one click. */}
+          <div className="tob-segmented tob-scope" role="group" aria-label="Style scope">
+            <button type="button" className={!cellPinned ? 'is-active' : ''}
+              aria-pressed={!cellPinned}
+              title="Changes apply to every box in this grid"
+              onMouseDown={(e) => e.preventDefault()} onPointerDown={(e) => e.preventDefault()}
+              onClick={() => onCellScope?.('all')}>All boxes</button>
+            <button type="button" className={cellPinned ? 'is-active' : ''}
+              aria-pressed={cellPinned}
+              title="Changes apply to only this box"
+              onMouseDown={(e) => e.preventDefault()} onPointerDown={(e) => e.preventDefault()}
+              onClick={() => onCellScope?.('box')}>This box</button>
+          </div>
         </>
       )}
     </div>

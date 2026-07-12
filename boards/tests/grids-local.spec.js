@@ -246,6 +246,53 @@ test.describe('grids — local interaction', () => {
     await expect(page.locator('.tob [title="Box background"]')).toHaveCount(1);
   });
 
+  test('select a box (single click) surfaces the scope control; "This box" is remembered per grid', async ({ page }) => {
+    await addGrid(page);
+    const grid = page.locator('.card-kind-grid').first();
+    await grid.click({ position: { x: 180, y: 8 } });
+
+    // Commit a text cell so we have a filled, read-only box to select.
+    const empty = page.locator('.gridc-cell.is-empty').first();
+    await empty.hover();
+    await empty.getByRole('button', { name: 'Text', exact: true }).click();
+    const editor = page.locator('.gridc-cell [contenteditable="true"]').first();
+    await editor.waitFor({ state: 'visible' });
+    await editor.click();
+    await page.keyboard.type('Shot A');
+    await editor.evaluate((el) => el.blur());
+    await page.locator('.canvas-wrap').click({ position: { x: 60, y: 60 } });
+    const roCell = grid.locator('.gridc-cell-text').first();
+    await expect(roCell.locator('.gc-text')).toContainText('Shot A');
+
+    // SINGLE click the box (no double-click into text) → the style bar appears with
+    // the segmented scope control, defaulting to "All boxes" (shared). Emphasis
+    // (needs a live editor) is hidden; Box background is available for the box.
+    await roCell.click();
+    const scope = page.locator('.tob-scope');
+    await expect(scope).toBeVisible();
+    await expect(scope.getByRole('button', { name: 'All boxes' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(scope.getByRole('button', { name: 'This box' })).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('.tob [title="Bold (⌘B)"]')).toHaveCount(0);
+    await expect(page.locator('.tob [title="Box background"]')).toHaveCount(1);
+
+    // Choose "This box" → isolates this box (pins its style) and flips the segment.
+    await scope.getByRole('button', { name: 'This box' }).click();
+    await expect(scope.getByRole('button', { name: 'This box' })).toHaveAttribute('aria-pressed', 'true');
+
+    // The choice is remembered for this grid: selecting ANOTHER (still-empty) box
+    // in the same grid pre-selects "This box" so per-box edits stay one click.
+    const sibling = page.locator('.gridc-cell.is-empty').first();
+    await sibling.click();
+    await expect(page.locator('.tob-scope').getByRole('button', { name: 'This box' }))
+      .toHaveAttribute('aria-pressed', 'true');
+
+    // The box style bar is a Select-tool affordance: switching to another tool must
+    // release it (else it would hijack that tool's options bar).
+    await page.keyboard.press('d');   // → Draw tool
+    await expect(page.locator('.tob-scope')).toHaveCount(0);
+    await page.keyboard.press('v');   // back to Select
+  });
+
   test('Box background paints a text cell with readable ink and reverts on No background', async ({ page }) => {
     await addGrid(page);
     const grid = page.locator('.card-kind-grid').first();
@@ -429,8 +476,9 @@ test.describe('grids — local interaction', () => {
 
     // Pin B ("only this box"), then change the shared style again → B must NOT move.
     await B.locator('.gridc-cell-text').first().dblclick();
-    await page.locator('.tob .tob-pin').click();               // Shared → This box
-    await expect(page.locator('.tob .tob-pin')).toHaveText('This box');
+    const scope = page.locator('.tob .tob-scope');
+    await scope.getByRole('button', { name: 'This box' }).click();   // All boxes → This box
+    await expect(scope.getByRole('button', { name: 'This box' })).toHaveAttribute('aria-pressed', 'true');
     await page.locator('.canvas-wrap').click({ position: { x: 40, y: 40 } });
     const bPinned = await cellFontPx(bText);
     await A.locator('.gridc-cell-text').first().dblclick();
