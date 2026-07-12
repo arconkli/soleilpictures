@@ -28,9 +28,11 @@ export function cellsWeight(cells) {
   return n;
 }
 
-// Weight of one card toward the cap: a grid weighs its filled cells (min 1 — the
-// container itself is one placed card); everything else is 1.
+// Weight of one card toward the cap: a cell container (grid, or a new-model
+// schedule whose items are grid cell records) weighs its filled cells (min 1 —
+// the container itself is one placed card); everything else is 1. A LEGACY
+// schedule card (rows table, no cells map) passes no cells → weighs 1.
 export function cardWeight(kind, cells) {
-  if (kind === 'grid') return Math.max(1, cellsWeight(cells));
+  if (kind === 'grid' || kind === 'schedule') return Math.max(1, cellsWeight(cells));
   return 1;
 }

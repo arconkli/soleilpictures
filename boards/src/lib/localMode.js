@@ -82,6 +82,16 @@ export function isGridQaMode() {
   return new URLSearchParams(window.location.search).get('gridqa') === '1';
 }
 
+// Dev-only Schedule QA bridge. Active ONLY in a DEV build with ?schedqa=1
+// (same trust boundary as isGridQaMode). Publishes the PURE schedule date
+// math + slot-key grammar + calendar layout + graft helpers on
+// window.__soleilSchedTest so Playwright can verify the Schedule math without
+// a backend. See ../local/SchedQaHarness.jsx.
+export function isSchedQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('schedqa') === '1';
+}
+
 // Dev-only first-run guided-tour QA harness. Active ONLY in a DEV build with
 // ?tourqa=1 (same trust boundary as isAlignQaMode). Mounts the real
 // <OnboardingTour> over fake data-tour anchors, driven by the real tour engine,

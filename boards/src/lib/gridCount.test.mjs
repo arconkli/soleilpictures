@@ -43,5 +43,15 @@ const grid25 = {};
 for (let i = 0; i < 25; i++) grid25[`c${i}`] = { type: 'image', src: `r2:${i}` };
 assertEq(cardWeight('grid', grid25), 25, 'grid of 25 images weighs 25, not 1');
 
+// A schedule weighs its filled items like a grid; a LEGACY schedule (rows
+// table, no cells map) passes no cells and weighs 1.
+assertEq(cardWeight('schedule'), 1, 'legacy schedule (no cells) weighs 1');
+assertEq(cardWeight('schedule', {}), 1, 'empty schedule weighs 1');
+assertEq(cardWeight('schedule', {
+  'd:2026-07-15/i:a': { type: 'image', src: 'r2:1' },
+  'd:2026-07-15/h:09/i:b': { type: 'board', boardId: 'b1' },
+  'd:2026-07-16/i:c': { type: 'empty' },
+}), 2, 'schedule weighs its 2 filled items');
+
 console.log(`gridCount.test: ${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
