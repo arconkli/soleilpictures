@@ -513,12 +513,88 @@ test.describe('schedule — weekend flag + month matrix (peek/date-jump foundati
     expect(r.has29).toBe(true);
   });
 
-  test('SCHED_TUNING carries the peek panel constants', async ({ page }) => {
+  test('SCHED_TUNING carries the peek panel + LOD constants', async ({ page }) => {
     const r = await page.evaluate(() => {
       const T = window.__soleilSchedTest;
-      const { PEEK_W, PEEK_ROW_H, PEEK_MINUTE_ROW_H, PEEK_MAX_H } = T.SCHED_TUNING;
-      return { PEEK_W, PEEK_ROW_H, PEEK_MINUTE_ROW_H, PEEK_MAX_H };
+      const { PEEK_W, PEEK_ROW_H, PEEK_MINUTE_ROW_H, PEEK_MAX_H,
+              ROW_CHIP_H, LOD_NUM_PX, LOD_DOT_PX, LOD_COUNT_PX, LOD_TITLE_PX } = T.SCHED_TUNING;
+      return { PEEK_W, PEEK_ROW_H, PEEK_MINUTE_ROW_H, PEEK_MAX_H,
+               ROW_CHIP_H, LOD_NUM_PX, LOD_DOT_PX, LOD_COUNT_PX, LOD_TITLE_PX };
     });
-    expect(r).toEqual({ PEEK_W: 380, PEEK_ROW_H: 44, PEEK_MINUTE_ROW_H: 56, PEEK_MAX_H: 560 });
+    expect(r).toEqual({
+      PEEK_W: 380, PEEK_ROW_H: 48, PEEK_MINUTE_ROW_H: 60, PEEK_MAX_H: 560,
+      ROW_CHIP_H: 22, LOD_NUM_PX: 13, LOD_DOT_PX: 4, LOD_COUNT_PX: 10, LOD_TITLE_PX: 13,
+    });
+  });
+});
+
+test.describe('schedule — LOD tiers + day counts (zoomed-out foundations)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/?schedqa=1');
+    await page.waitForFunction(() => !!window.__soleilSchedTest);
+  });
+
+  test('schedLodTier picks full/mid/far per view from on-screen size', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilSchedTest;
+      const t = (view, w, h, scale) => T.schedLodTier({ view, w, h, scale });
+      return {
+        // Default month card 420×380 — full at zoom 1, mid at 0.6, far at 0.3.
+        monthFull: t('month', 420, 380, 1),
+        monthMid: t('month', 420, 380, 0.6),
+        monthFar: t('month', 420, 380, 0.3),
+        // Default week card is deliberately short (420×170) — must stay FULL at zoom 1.
+        weekFull: t('week', 420, 170, 1),
+        weekMid: t('week', 420, 170, 0.55),
+        weekFar: t('week', 420, 170, 0.3),
+        dayFull: t('day', 300, 420, 1),
+        hourFull: t('hour', 280, 300, 1),
+        // Threshold edges are inclusive-full / inclusive-mid (strict < demotes).
+        monthEdgeFull: t('month', 330, 240, 1),
+        monthJustMid: t('month', 329, 240, 1),
+        monthEdgeMid: t('month', 150, 240, 1),
+        monthJustFar: t('month', 149, 240, 1),
+      };
+    });
+    expect(r.monthFull).toBe('full');
+    expect(r.monthMid).toBe('mid');
+    expect(r.monthFar).toBe('far');
+    expect(r.weekFull).toBe('full');
+    expect(r.weekMid).toBe('mid');
+    expect(r.weekFar).toBe('far');
+    expect(r.dayFull).toBe('full');
+    expect(r.hourFull).toBe('full');
+    expect(r.monthEdgeFull).toBe('full');
+    expect(r.monthJustMid).toBe('mid');
+    expect(r.monthEdgeMid).toBe('mid');
+    expect(r.monthJustFar).toBe('far');
+  });
+
+  test('schedDayCounts groups valid items by date at any depth', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilSchedTest;
+      return T.schedDayCounts({
+        'd:2026-07-15/i:a': { type: 'text', html: 'call sheet' },
+        'd:2026-07-15/h:09/i:b': { type: 'board', boardId: 'b1' },
+        'd:2026-07-15/h:09/m:15/i:c': { type: 'link', source: 'https://x' },
+        'd:2026-07-16/i:d': { type: 'empty' },              // tombstone — excluded
+        'd:2026-07-17/i:e': { type: 'image' },               // src-less image — excluded
+        'd:2026-07-18/i:f': { type: 'image', src: 'r2:ok' },
+      });
+    });
+    expect(r).toEqual({ '2026-07-15': 3, '2026-07-18': 1 });
+  });
+
+  test('chipCapacity accepts an opt-in chip height (2-arg callers unchanged)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilSchedTest;
+      const rect = { x: 0, y: 0, w: 200, h: 70 };
+      return {
+        def: T.chipCapacity(rect, 'hour'),
+        tall: T.chipCapacity(rect, 'hour', { chipH: T.SCHED_TUNING.ROW_CHIP_H }),
+      };
+    });
+    expect(r.def).toBe(3);   // 18px chips
+    expect(r.tall).toBe(2);  // 22px chips fit fewer
   });
 });

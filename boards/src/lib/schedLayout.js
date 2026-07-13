@@ -43,10 +43,53 @@ export const SCHED_TUNING = Object.freeze({
   COMPACT_W: 90,      // below either → slot gets the pop-out menu trigger (local px,
   COMPACT_H: 40,      // zoom-independent — same reasoning as GRID_TUNING.PILL_MIN_*)
   PEEK_W: 380,        // Day/Hour Peek panel (SchedulePeek.jsx): width, per-row
-  PEEK_ROW_H: 44,     // heights (hour rows / minute rows) and max panel height —
-  PEEK_MINUTE_ROW_H: 56, // the panel feeds computeSchedSlots a GENEROUS height so
+  PEEK_ROW_H: 48,     // heights (hour rows / minute rows) and max panel height —
+  PEEK_MINUTE_ROW_H: 60, // the panel feeds computeSchedSlots a GENEROUS height so
   PEEK_MAX_H: 560,    // rows come out big; overflow scrolls natively.
+  ROW_CHIP_H: 22,     // taller, legible chips in day/hour rows + the peek (CSS mirror: the 22px chip rules); bands keep CHIP_H
+  LOD_NUM_PX: 13,     // LOD counter-scale TARGETS in *screen* px (layout px = target / canvasScale,
+  LOD_DOT_PX: 4,      // clamped to the cell): MID date number, item dot, count badge,
+  LOD_COUNT_PX: 10,   // and the FAR poster title. Tuned via the screenshot pass.
+  LOD_TITLE_PX: 13,
 });
+
+// ---------------------------------------------------------------------------
+// LOD — how much detail the card can honestly render at its ON-SCREEN size
+// (layout px × settled canvas scale). Per-view thresholds: a week card is
+// 420×170 by design and must not demote at zoom 1 on a month-shaped H bar.
+// 'full' = today's render · 'mid' = density map (big date numbers + dots) ·
+// 'far' = poster (big title + dot lattice). Strict < demotes; edges stay up.
+
+export const SCHED_LOD = Object.freeze({
+  month: Object.freeze({ midW: 330, midH: 240, farW: 150, farH: 120 }),
+  week:  Object.freeze({ midW: 330, midH: 96,  farW: 150, farH: 56  }),
+  day:   Object.freeze({ midW: 210, midH: 250, farW: 120, farH: 120 }),
+  hour:  Object.freeze({ midW: 200, midH: 180, farW: 120, farH: 100 }),
+});
+
+export function schedLodTier({ view, w, h, scale = 1 }) {
+  const t = SCHED_LOD[view] || SCHED_LOD.month;
+  const sw = w * scale, sh = h * scale;
+  if (sw < t.farW || sh < t.farH) return 'far';
+  if (sw < t.midW || sh < t.midH) return 'mid';
+  return 'full';
+}
+
+// Valid items per date (any depth) — the LOD dot/count source. Same validity
+// rules as schedItems: tombstones and src-less images don't count.
+export function schedDayCounts(cells) {
+  const out = {};
+  for (const k in cells || {}) {
+    if (!isItemKey(k)) continue;
+    const rec = cells[k];
+    if (!rec || !rec.type || rec.type === 'empty') continue;
+    if (rec.type === 'image' && !rec.src) continue;
+    const slot = parseSlotKey(slotOfItem(k));
+    if (!slot) continue;
+    out[slot.date] = (out[slot.date] || 0) + 1;
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // Key grammar
@@ -218,12 +261,13 @@ export function computeSchedSlots({
 }
 
 // How many item chips fit in a slot rect (stacked vertically); the component
-// renders the overflow as a "+N more" drill-in chip.
-export function chipCapacity(rect, kind = 'day') {
+// renders the overflow as a "+N more" drill-in chip. chipH is opt-in so
+// day/hour rows can use the taller ROW_CHIP_H without touching day-cell math.
+export function chipCapacity(rect, kind = 'day', { chipH = SCHED_TUNING.CHIP_H } = {}) {
   const labelH = kind === 'day' ? SCHED_TUNING.DAY_LABEL_H : 0;
   const usable = rect.h - labelH - 2;
-  if (usable < SCHED_TUNING.CHIP_H) return 0;
-  return Math.floor((usable + SCHED_TUNING.CHIP_GAP) / (SCHED_TUNING.CHIP_H + SCHED_TUNING.CHIP_GAP));
+  if (usable < chipH) return 0;
+  return Math.floor((usable + SCHED_TUNING.CHIP_GAP) / (chipH + SCHED_TUNING.CHIP_GAP));
 }
 
 // ---------------------------------------------------------------------------

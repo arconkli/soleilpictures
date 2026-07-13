@@ -10,9 +10,9 @@ import {
   isToday, monthTitle, weekTitle, dayTitle, hourLabel, hourTitle, monthMatrix,
 } from './schedDates.js';
 import {
-  SCHED_TUNING, dayKey, hourKey, minuteKey, isItemKey, slotOfItem, mintItemKey,
+  SCHED_TUNING, SCHED_LOD, dayKey, hourKey, minuteKey, isItemKey, slotOfItem, mintItemKey,
   newUid, parseSlotKey, itemsForSlot, hourWindowForDay, computeSchedSlots,
-  chipCapacity, graftKeyMap, schedItems, schedLegacyRows,
+  chipCapacity, graftKeyMap, schedItems, schedLegacyRows, schedLodTier, schedDayCounts,
 } from './schedLayout.js';
 import { isCellFilled, cellsWeight, cardWeight } from './gridCount.js';
 
@@ -21,9 +21,9 @@ export function makeSchedTestBridge() {
     MONTHS, MONTHS_SHORT, WEEKDAYS, pad2, daysInMonth, parseISO, formatISO,
     todayISO, weekdayOf, firstWeekdayOfMonth, addDays, addMonths, startOfWeek,
     isToday, monthTitle, weekTitle, dayTitle, hourLabel, hourTitle, monthMatrix,
-    SCHED_TUNING, dayKey, hourKey, minuteKey, isItemKey, slotOfItem, mintItemKey,
+    SCHED_TUNING, SCHED_LOD, dayKey, hourKey, minuteKey, isItemKey, slotOfItem, mintItemKey,
     newUid, parseSlotKey, itemsForSlot, hourWindowForDay, computeSchedSlots,
-    chipCapacity, graftKeyMap, schedItems, schedLegacyRows,
+    chipCapacity, graftKeyMap, schedItems, schedLegacyRows, schedLodTier, schedDayCounts,
     isCellFilled, cellsWeight, cardWeight,
   };
 }
