@@ -302,7 +302,13 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
     const editingHere = editing && editing.surface === surface && itemKeys.includes(editing.itemKey);
     const fullBleed = !editingHere && items.length === 1
       && (s.rect.h - labelH) >= 34 && !s.band && !s.expanded;
-    const cap = chipCapacity(s.rect, s.kind === 'day' && !s.band ? 'day' : 'hour');
+    // Hour/minute rows in the peek and the Day/Hour views run the taller,
+    // legible ROW_CHIP_H chips (CSS mirror: the 22px row-chip rules); month
+    // cells and bands keep the compact CHIP_H.
+    const rowChips = (s.kind === 'hour' || s.kind === 'minute') && !s.band
+      && (surface === 'peek' || model.view === 'day' || model.view === 'hour');
+    const cap = chipCapacity(s.rect, s.kind === 'day' && !s.band ? 'day' : 'hour',
+      rowChips ? { chipH: SCHED_TUNING.ROW_CHIP_H } : undefined);
     const shown = fullBleed || editingHere ? [] : items.slice(0, Math.max(0, cap === 0 ? 0 : cap - (items.length > cap ? 1 : 0)));
     const overflow = fullBleed || editingHere ? 0 : items.length - shown.length;
     const timeLabel = surface === 'peek'

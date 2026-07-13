@@ -398,6 +398,33 @@ test.describe('schedule — day peek panel', () => {
     await expect(panel.locator('.schedc-peektitle')).not.toHaveText(before);
   });
 
+  test('day/hour rows carry legible 22px chips with a clean overflow badge', async ({ page }) => {
+    await addSchedule(page);
+    const panel = await openTodayPeek(page);
+    const row = panel.locator('.schedc-slot-hour:not(.is-band)').nth(1);
+    await row.click({ position: { x: 200, y: 30 } });
+    await expect(panel.locator('.schedc-slot.is-focused')).toHaveCount(1);
+    await pasteInto(page, 'alpha');
+    await pasteInto(page, 'beta');
+    await pasteInto(page, 'gamma');
+
+    // 48px row at 22px row-chips → capacity 2 → one chip + a "+2" badge.
+    const chips = row.locator('.schedc-chip.is-text');
+    await expect(chips).toHaveCount(1);
+    const more = row.locator('.schedc-chip.is-more');
+    await expect(more).toContainText('+2');
+
+    const cs = await chips.first().evaluate((el) => ({
+      fs: getComputedStyle(el).fontSize, h: el.getBoundingClientRect().height,
+    }));
+    expect(cs.fs).toBe('11.5px');
+    expect(Math.round(cs.h)).toBe(22);
+    // Nothing clips mid-glyph — every chip box sits inside its row box.
+    const rb = await row.boundingBox();
+    const mb = await more.boundingBox();
+    expect(mb.y + mb.height).toBeLessThanOrEqual(rb.y + rb.height + 0.5);
+  });
+
   test('clicking over a full-bleed month item still opens the peek (pass-through ink)', async ({ page }) => {
     await addSchedule(page);
     const panel = await openTodayPeek(page);
