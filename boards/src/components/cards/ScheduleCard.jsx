@@ -20,11 +20,14 @@ import { useEffect, useRef, useState } from 'react';
 import { readSchedModel } from '../../lib/schedState.js';
 import {
   SCHED_TUNING, computeSchedSlots, itemsForSlot, chipCapacity, mintItemKey, newUid, parseSlotKey,
-  hourWindowForDay, dayKey,
+  hourWindowForDay, dayKey, hourKey, schedLodTier, schedDayCounts,
 } from '../../lib/schedLayout.js';
 import {
   todayISO, addDays, addMonths, monthTitle, weekTitle, dayTitle, hourTitle,
+  monthMatrix, startOfWeek,
 } from '../../lib/schedDates.js';
+import { getCanvasScale } from '../../lib/canvasScale.js';
+import { useCanvasSettleTick } from '../../hooks/useCanvasSettleTick.js';
 import { effectiveCellStyle } from '../../lib/gridState.js';
 import { hasFilterStages } from '../../lib/imageAdjust.js';
 import { PerCardFilter } from '../ImageAdjustFilters.jsx';
@@ -219,6 +222,19 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
     w: bodyW, h: bodyH, expand: model.expand, cellKeys,
   });
 
+  // LOD: how much detail this card can honestly show at its ON-SCREEN size
+  // (layout px × settled canvas zoom). full = normal render · mid = density
+  // map (counter-scaled date numbers + item dots) · far = poster. The peek
+  // panel is screen-space and always renders full. Zoom reactivity comes from
+  // an explicit settle subscription — never from parent re-renders.
+  useCanvasSettleTick();
+  const scale = getCanvasScale() || 1;
+  const lod = schedLodTier({ view: model.view, w, h, scale });
+  const dayCounts = lod !== 'full' ? schedDayCounts(model.cells) : null;
+  // Counter-scaled sizes: layout px = target screen px / zoom, clamped so a
+  // number can never overflow its cell.
+  const lodPx = (targetPx, max) => Math.min(targetPx / scale, max);
+
   const enterTextEdit = (itemKey, surface = 'card') => { setEditing({ itemKey, surface }); gridActions?.setCellEditing?.(card.id, itemKey); };
   const exitTextEdit = (itemKey) => { setEditing((p) => (p?.itemKey === itemKey ? null : p)); gridActions?.setCellEditing?.(null, null); };
 
@@ -309,6 +325,10 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
       && (surface === 'peek' || model.view === 'day' || model.view === 'hour');
     const cap = chipCapacity(s.rect, s.kind === 'day' && !s.band ? 'day' : 'hour',
       rowChips ? { chipH: SCHED_TUNING.ROW_CHIP_H } : undefined);
+    // MID tier: this slot renders as a density-map cell (counter-scaled date
+    // number + item dots) instead of chips/labels/tools. Drops and the
+    // click-into-day handler ride the identical outer div.
+    const lodCell = surface === 'card' && lod === 'mid';
     const shown = fullBleed || editingHere ? [] : items.slice(0, Math.max(0, cap === 0 ? 0 : cap - (items.length > cap ? 1 : 0)));
     const overflow = fullBleed || editingHere ? 0 : items.length - shown.length;
     const timeLabel = surface === 'peek'
@@ -332,6 +352,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
           s.kind === 'hour' && !s.band && s.hour % 2 === 1 ? 'is-alt' : '',
           (s.kind === 'hour' || s.kind === 'minute') && !s.band && s.rect.h < 8 ? 'is-sliver' : '',
           s.expanded ? 'is-expanded' : '',
+          lodCell ? 'is-lod' : '',
           isDrop ? 'is-drop' : '', isFocused ? 'is-focused' : '',
         ].filter(Boolean).join(' ')}
         data-cell-id={s.key}
@@ -381,6 +402,34 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
           }
         } : undefined}
       >
+        {lodCell ? (() => {
+          // Density map: a readable date number + dots (or a count) sized in
+          // SCREEN px via counter-scaling, clamped to the cell.
+          const n = (s.kind === 'day' && !s.band ? dayCounts?.[s.date] : items.length) || 0;
+          const dotPx = lodPx(SCHED_TUNING.LOD_DOT_PX, Math.max(2, s.rect.h * 0.14));
+          return (
+            <>
+              {s.kind === 'day' && !s.band && (
+                <span className="schedc-lod-num"
+                  style={{ fontSize: lodPx(SCHED_TUNING.LOD_NUM_PX, Math.min(s.rect.h * 0.5, s.rect.w * 0.45)) }}>
+                  {s.label}
+                </span>
+              )}
+              {n > 0 && (n <= 4 ? (
+                <span className="schedc-lod-dots">
+                  {Array.from({ length: n }).map((_, i) => (
+                    <span key={i} className="schedc-lod-dot" style={{ width: dotPx, height: dotPx }} />
+                  ))}
+                </span>
+              ) : (
+                <span className="schedc-lod-count"
+                  style={{ fontSize: lodPx(SCHED_TUNING.LOD_COUNT_PX, s.rect.h * 0.4) }}>
+                  {n}
+                </span>
+              ))}
+            </>
+          );
+        })() : (<>
         {s.kind === 'day' && !s.band && (
           <span className="schedc-slot-label">{s.label}</span>
         )}
@@ -475,6 +524,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
             )}
           </div>
         )}
+        </>)}
       </div>
     );
   });
@@ -500,9 +550,101 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
     peekTitle = isHourPeek ? hourTitle(peek.date, peek.hour) : dayTitle(peek.date);
   }
 
+  // FAR tier: the whole card becomes a poster — big counter-scaled title +
+  // a dot lattice. Poster cells are REAL drop targets (data-cell-id + file
+  // drop) and open the peek on a guarded click, so the card keeps its powers
+  // at any distance.
+  const renderPoster = () => {
+    const posterDown = (key) => (e) => {
+      downRef.current = { key, x: e.clientX, y: e.clientY };
+      gridActions?.focusCell?.(null, null);
+    };
+    const posterClick = (key, dateIso) => (e) => {
+      const d = downRef.current;
+      if (!d || d.key !== key) return;
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
+      e.stopPropagation();
+      openPeek({ kind: 'day', date: dateIso }, e.currentTarget);
+    };
+    const dropProps = (slotKey) => (editable ? {
+      onDragOver: (e) => { e.preventDefault(); },
+      onDrop: (e) => {
+        const files = e.dataTransfer?.files;
+        if (files && files.length) {
+          e.preventDefault(); e.stopPropagation();
+          gridActions.fillCellFromFiles(card.id, mintItemKey(slotKey, newUid()), files);
+        }
+      },
+    } : {});
+    const dotPx = lodPx(SCHED_TUNING.LOD_DOT_PX, 12);
+    const cells = model.view === 'month' ? monthMatrix(anchor)
+      : model.view === 'week'
+        ? Array.from({ length: 7 }, (_, i) => ({ date: addDays(startOfWeek(anchor), i), outside: false }))
+        : null;
+    const oneKey = model.view === 'hour' ? hourKey(anchor, model.anchorHour) : dayKey(anchor);
+    const oneN = dayCounts?.[anchor] || 0;
+    return (
+      <div className="schedc-poster">
+        <span className="schedc-poster-title"
+          style={{ fontSize: lodPx(SCHED_TUNING.LOD_TITLE_PX * 1.25, 40) }}
+          title={title}>
+          {title}
+        </span>
+        {cells ? (
+          <div className="schedc-poster-grid">
+            {cells.map((c) => {
+              const k = dayKey(c.date);
+              const n = dayCounts?.[c.date] || 0;
+              return (
+                <div key={c.date} data-cell-id={k}
+                  className={[
+                    'schedc-poster-day',
+                    c.outside ? 'is-outside' : '',
+                    c.date === todayIso ? 'is-today' : '',
+                    dropCellId === k || (dropCellId && dropCellId.startsWith(`${k}/`)) ? 'is-drop' : '',
+                  ].filter(Boolean).join(' ')}
+                  onPointerDownCapture={posterDown(k)}
+                  onClick={posterClick(k, c.date)}
+                  {...dropProps(k)}>
+                  {n > 0 && <span className="schedc-lod-dot" style={{ width: dotPx, height: dotPx }} />}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div data-cell-id={oneKey}
+            className={`schedc-poster-one${dropCellId && dropCellId.startsWith(oneKey) ? ' is-drop' : ''}`}
+            onPointerDownCapture={posterDown(oneKey)}
+            onClick={posterClick(oneKey, anchor)}
+            {...dropProps(oneKey)}>
+            {oneN > 0 && (
+              <span className="schedc-poster-count" style={{ fontSize: lodPx(SCHED_TUNING.LOD_COUNT_PX, 28) }}>
+                {oneN}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // MID: month/week keep only their day cells (nested glance rows are noise
+  // at this size); day/hour keep their rows (dots instead of text).
+  const bodySlots = lod === 'mid' && (model.view === 'month' || model.view === 'week')
+    ? slots.filter((s) => s.kind === 'day') : slots;
+
   return (
     <>
-      <div className={`schedc is-view-${model.view}`} data-grid-id={card.id}>
+      <div className={`schedc is-view-${model.view}${lod !== 'full' ? ` is-lod-${lod}` : ''}`} data-grid-id={card.id}>
+        {lod === 'far' ? renderPoster() : (<>
+        {lod === 'mid' ? (
+          <div className="schedc-head is-lod">
+            <span className="schedc-title schedc-lod-title" title={title}
+              style={{ fontSize: lodPx(SCHED_TUNING.LOD_TITLE_PX, 24) }}>
+              {title}
+            </span>
+          </div>
+        ) : (
         <div className="schedc-head">
           {editable && (
             <button type="button" className="schedc-nav" title="Previous" aria-label="Previous"
@@ -554,15 +696,17 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
             </span>
           )}
         </div>
+        )}
         <div className="schedc-body" style={{ height: bodyH }}>
           {weekdayLabels && (
             <div className="schedc-weekdays" style={{ height: SCHED_TUNING.WEEKDAY_H }}>
               {weekdayLabels.map((d) => <span key={d} className="schedc-wd">{d}</span>)}
             </div>
           )}
-          {renderSlotLayer(slots, 'card')}
+          {renderSlotLayer(bodySlots, 'card')}
           {model.view === 'day' && anchor === todayIso && renderNowLine(slots)}
         </div>
+        </>)}
       </div>
       {editable && menu && (
         <GridCellMenu

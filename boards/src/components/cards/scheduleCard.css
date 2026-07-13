@@ -368,6 +368,95 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 /* The passive "+N more"/count markers keep their looks without button chrome. */
 .is-view-month span.schedc-count, .is-view-week span.schedc-count { cursor: inherit; }
 
+/* ── LOD: zoomed-out density map (mid) + poster (far) ───────────────────── */
+/* Text/dot sizes are inline (counter-scaled: target screen px ÷ canvas zoom);
+   CSS carries layout + color only. */
+.schedc-head.is-lod { justify-content: center; padding: 0 4px; }
+.schedc-lod-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-0, #f5f5f7); font-weight: 650; }
+.schedc-slot.is-lod {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6%;
+}
+.schedc-lod-num { color: var(--ink-1, #d0d0d4); font-weight: 600; line-height: 1.1; }
+/* Today keeps its gold pill at any size (em padding rides the font size). */
+.schedc-slot.is-today .schedc-lod-num {
+  background: var(--soleil, #ffa500);
+  color: var(--bg-0, #0b0b0d);
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.05em 0.32em;
+}
+.schedc-lod-dots { display: flex; gap: 2px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.schedc-lod-dot { flex: 0 0 auto; border-radius: 50%; background: var(--ink-2, #a6a6ad); }
+/* The >4-items count is a quiet pill so it can't read as a date number. */
+.schedc-lod-count {
+  color: var(--ink-2, #a6a6ad);
+  background: color-mix(in srgb, var(--ink-0, #f5f5f7) 10%, transparent);
+  border-radius: 999px;
+  padding: 0.1em 0.45em;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.is-lod-mid .schedc-weekdays { display: none; }
+
+/* FAR: the poster. Cells stay real drop/click targets. */
+.schedc-poster {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5%;
+  padding: 6%;
+}
+.schedc-poster-title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-0, #f5f5f7);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+}
+.schedc-poster-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  width: 86%;
+  min-height: 0;
+  flex: 0 1 auto;
+}
+.schedc-poster-day {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1.2;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--ink-0, #f5f5f7) 5%, transparent);
+  cursor: pointer;
+}
+.schedc-poster-day.is-outside { opacity: 0.3; }
+.schedc-poster-day.is-today { box-shadow: inset 0 0 0 1.5px var(--soleil, #ffa500); }
+.schedc-poster-day.is-drop { box-shadow: inset 0 0 0 2px var(--soleil, #ffa500); }
+.schedc-poster-one {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40%;
+  min-height: 28%;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ink-0, #f5f5f7) 5%, transparent);
+  cursor: pointer;
+}
+.schedc-poster-one.is-drop { box-shadow: inset 0 0 0 2px var(--soleil, #ffa500); }
+.schedc-poster-count { color: var(--ink-1, #d0d0d4); font-weight: 700; line-height: 1; }
+
 /* ── Now-line: the current time, Day view + day peek, today only ────────── */
 .schedc-nowline {
   position: absolute;

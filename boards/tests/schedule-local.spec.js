@@ -470,16 +470,10 @@ test.describe('schedule — day peek panel', () => {
 
   test('the panel never inherits the canvas transform — full-size rows at any zoom', async ({ page }) => {
     await addSchedule(page);
-    // Zoom the canvas well out (the wheel listener lives on .canvas-wrap).
-    await page.locator('.canvas-wrap').evaluate((node) => {
-      const rect = node.getBoundingClientRect();
-      for (let i = 0; i < 6; i++) {
-        node.dispatchEvent(new WheelEvent('wheel', {
-          bubbles: true, cancelable: true, deltaY: 120, ctrlKey: true,
-          clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2,
-        }));
-      }
-    });
+    // Zoom well out — MID tier: day cells still exist (the density map).
+    // FAR-tier click-through is covered by the LOD poster test.
+    for (let i = 0; i < 3; i++) await page.keyboard.press('Control+Minus');
+    await page.waitForTimeout(320);
     const scale = await page.locator('.canvas').evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).a);
     expect(scale).toBeLessThan(0.9);
 
@@ -548,6 +542,84 @@ test.describe('schedule — visual pass', () => {
     await expect(sched.locator('.schedc-slot-hour.is-alt')).toHaveCount(5);
     // …and rows this small (~5px in a month cell) mute their chrome.
     await expect(sched.locator('.schedc-slot-hour.is-sliver').first()).toBeAttached();
+  });
+});
+
+test.describe('schedule — zoomed-out LOD', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/?local=1&reset=1&blank=1');
+    await page.waitForSelector('.canvas-wrap');
+  });
+
+  async function pasteInto(page, text) {
+    await page.evaluate((t) => {
+      const dt = new DataTransfer();
+      dt.setData('text/plain', t);
+      window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    }, text);
+  }
+
+  const canvasScale = (page) => page.locator('.canvas')
+    .evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).a);
+
+  // Keyboard zoom: Ctrl+Minus/Equal step the SETTLED zoom by exactly ×0.8/×1.25
+  // per press (zoomAroundCenter) — deterministic, unlike synthetic ctrl-wheel
+  // which the pinch pipeline slams straight to ZOOM_MIN. The 320ms wait lets
+  // the smooth-transform transition finish so computed-matrix reads are exact.
+  async function pressZoom(page, presses, dir) {
+    for (let i = 0; i < presses; i++) {
+      await page.keyboard.press(dir < 0 ? 'Control+Minus' : 'Control+Equal');
+    }
+    await page.waitForTimeout(320);
+  }
+
+  test('mid tier: chips give way to a counter-scaled density map, then zooming back restores full', async ({ page }) => {
+    await addSchedule(page);
+    // Seed 2 items into today via the peek band.
+    const today = page.locator('.schedc .schedc-slot-day.is-today');
+    await today.click();
+    const panel = page.locator('.schedc-peekpanel');
+    await expect(panel).toBeVisible();
+    await panel.locator('.schedc-slot-day.is-band').click({ position: { x: 200, y: 11 } });
+    await pasteInto(page, 'scout');
+    await pasteInto(page, 'callsheet');
+    await page.keyboard.press('Escape');
+    const sched = page.locator('.schedc');
+    await expect(sched.locator('.schedc-slot-day.is-today .schedc-chip')).toHaveCount(2);
+
+    await pressZoom(page, 3, -1); // ×0.8³ = 0.512 → MID for a 420×380 month card
+    await expect(sched).toHaveClass(/is-lod-mid/);
+    // Chips are gone; the density map takes over.
+    await expect(sched.locator('.schedc-chip')).toHaveCount(0);
+    await expect(sched.locator('.schedc-lod-num').first()).toBeVisible();
+    await expect(sched.locator('.schedc-slot-day.is-today .schedc-lod-dot')).toHaveCount(2);
+    // The date numbers counter-scale to a readable ON-SCREEN size (~13px).
+    const scale = await canvasScale(page);
+    const fs = await sched.locator('.schedc-lod-num').first()
+      .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    expect(Math.abs(fs * scale - 13)).toBeLessThan(2.5);
+
+    await pressZoom(page, 3, 1); // back to ×1.0 exactly
+    await expect(sched).not.toHaveClass(/is-lod-mid/);
+    await expect(sched.locator('.schedc-slot-day.is-today .schedc-chip')).toHaveCount(2);
+  });
+
+  test('far tier: a poster with a dot lattice — lattice days still open the full-size peek', async ({ page }) => {
+    await addSchedule(page);
+    await pressZoom(page, 6, -1); // ×0.8⁶ ≈ 0.262 → FAR for a 420×380 month card
+    const sched = page.locator('.schedc');
+    await expect(sched).toHaveClass(/is-lod-far/);
+    await expect(sched.locator('.schedc-poster-title')).toBeVisible();
+    await expect(sched.locator('.schedc-slot-day')).toHaveCount(0); // grid replaced
+
+    // The poster is still the calendar: clicking a lattice day opens the peek
+    // at full, unscaled size.
+    await sched.locator('.schedc-poster-day:not(.is-outside)').nth(10).click();
+    const panel = page.locator('.schedc-peekpanel');
+    await expect(panel).toBeVisible();
+    const box = await panel.locator('.schedc-slot-hour:not(.is-band)').first().boundingBox();
+    expect(box.height).toBeGreaterThan(36);
   });
 });
 
