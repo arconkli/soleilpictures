@@ -16,11 +16,11 @@
 // gridMeta (expand). Legacy schedule cards (rows table, no schedView) never
 // reach this component (CanvasSurface renders the old table for them).
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { readSchedModel } from '../../lib/schedState.js';
 import {
   SCHED_TUNING, computeSchedSlots, itemsForSlot, chipCapacity, mintItemKey, newUid, parseSlotKey,
-  hourWindowForDay,
+  hourWindowForDay, dayKey,
 } from '../../lib/schedLayout.js';
 import {
   todayISO, addDays, addMonths, monthTitle, weekTitle, dayTitle, hourTitle,
@@ -71,12 +71,23 @@ function ChipX({ onRemove }) {
   );
 }
 
-function SlotChip({ itemKey, cell, boards, onOpenBoard, onRemove = null }) {
+function SlotChip({ itemKey, cell, boards, onOpenBoard, onRemove = null, passive = false }) {
   const type = cell?.type || 'empty';
   if (type === 'board' && cell.boardId) {
     const b = boards?.[cell.boardId];
     const missing = !b;
     const name = b?.name || cell.name || 'Cluster';
+    if (passive) {
+      // Month/week grid chips are pure ink — the CELL is the interactive
+      // element (click opens the day); pointer-events:none in CSS makes
+      // clicks fall through.
+      return (
+        <span className={`schedc-chip is-board${missing ? ' is-missing' : ''}`} data-cell-id={itemKey}>
+          <span className="schedc-chip-dot" aria-hidden="true" />
+          <span className="schedc-chip-txt">{missing ? `${name} (removed)` : name}</span>
+        </span>
+      );
+    }
     return (
       <span className={`schedc-chip is-board${missing ? ' is-missing' : ''}`} data-cell-id={itemKey}
         role="button" tabIndex={missing ? -1 : 0} onPointerDown={stop}
@@ -89,6 +100,16 @@ function SlotChip({ itemKey, cell, boards, onOpenBoard, onRemove = null }) {
     );
   }
   if (type === 'link') {
+    if (passive) {
+      return (
+        <span className="schedc-chip is-link" data-cell-id={itemKey}>
+          {cell.favicon
+            ? <img className="schedc-chip-fav" src={cell.favicon} alt="" />
+            : <span className="schedc-chip-ico"><Icon as={LinkIcon} size={10} /></span>}
+          <span className="schedc-chip-txt">{cell.title || cell.source || cell.link}</span>
+        </span>
+      );
+    }
     return (
       <a className="schedc-chip is-link" data-cell-id={itemKey} href={cell.source || cell.link || '#'}
         target="_blank" rel="noreferrer" onClick={stop} onPointerDown={stop}
@@ -155,6 +176,10 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
   // hour set → the same panel re-targeted to full-size minute rows.
   const [peek, setPeek] = useState(null);            // { date, hour, sourceRect }
   const [datePop, setDatePop] = useState(null);      // { anchorRect } — the title's date-jump popover
+  // Where the last pointerdown landed on a passive grid cell — the click-vs-
+  // drag guard (there is NO global click suppression after card drags; a >4px
+  // drag that started on a cell still emits a native click on it).
+  const downRef = useRef(null);                      // { key, x, y }
 
   const editable = canEdit && !!gridActions;
   const model = readSchedModel(card, ydoc);
@@ -254,6 +279,11 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
   // Peek panel. Same keys, same data-cell-id wiring, same chips/menus/drops, so
   // panel slots engage every attribute-driven CanvasSurface pipeline for free.
   const renderSlotLayer = (slotList, surface) => slotList.map((s) => {
+    // Click-into-day: the month/week grid is a read-only overview — cells are
+    // buttons that open the Day Peek, chips are pure ink, and ALL slot editing
+    // lives in the peek (or the Day/Hour views, which are already "inside").
+    // Drag-drop onto cells stays live at every tier.
+    const passive = surface === 'card' && (model.view === 'month' || model.view === 'week');
     const direct = itemsForSlot(s.key, cellKeys);
     // A collapsed day/hour aggregates everything under it so breakdown
     // content is never invisible; expanded slots show direct items only
@@ -279,12 +309,12 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
       ? (s.kind === 'hour' || s.kind === 'minute') && !s.band
       : (model.view === 'day' && s.kind === 'hour' && !s.band)
         || (model.view === 'hour' && s.kind === 'minute');
-    // The local-only peek affordance: any day slot on the card opens the Day
-    // Peek; hour rows inside a day peek re-target the panel to that hour
-    // (minutes at full size). Minute slots never peek. Works read-only —
-    // peeking mutates nothing.
+    // The ⤢ button survives only where the cell isn't already the button:
+    // the Day-view all-day band on the card, and hour rows inside a day peek
+    // (re-target the panel to full-size minutes). Month/week cells open the
+    // peek by plain click; minute slots never peek.
     const peekable = surface === 'card'
-      ? s.kind === 'day'
+      ? model.view === 'day' && s.kind === 'day'
       : s.kind === 'hour' && !s.band && peek?.hour == null;
     return (
       <div key={s.key}
@@ -300,13 +330,35 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
         ].filter(Boolean).join(' ')}
         data-cell-id={s.key}
         style={{ left: s.rect.x, top: s.rect.y, width: s.rect.w, height: s.rect.h }}
-        onPointerDownCapture={editable && gridActions.focusCell ? (e) => {
+        onPointerDownCapture={(e) => {
+          if (passive) {
+            // Read-only grid: never focus cells here (kills month-level paste
+            // AND any stale Day-view focus — CanvasSurface skips clearing when
+            // the pointerdown target is a [data-cell-id]). Just remember where
+            // the press started for the click-vs-drag guard.
+            downRef.current = { key: s.key, x: e.clientX, y: e.clientY };
+            gridActions?.focusCell?.(null, null);
+            return;
+          }
+          if (!editable || !gridActions.focusCell) return;
           // Clicking a chip focuses THAT item (paste replaces it); the
           // slot background focuses the slot (paste appends).
           const hit = e.target?.closest?.('[data-cell-id]');
           gridActions.focusCell(card.id, hit?.getAttribute?.('data-cell-id') || s.key);
+        }}
+        onClick={passive && s.date ? (e) => {
+          // The cell is the button — but only for a true click: a >4px card
+          // drag that started here still emits a native click, and a click
+          // whose pointerdown landed on a different slot is a drag artifact.
+          const d = downRef.current;
+          if (!d || d.key !== s.key) return;
+          if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
+          e.stopPropagation();
+          // Nested inline hour/minute rows open their DAY — grid granularity
+          // is glanceable only; the peek is where hours are worked.
+          openPeek({ kind: 'day', date: s.date }, e.currentTarget);
         } : undefined}
-        onDoubleClick={editable ? (e) => {
+        onDoubleClick={editable && !passive ? (e) => {
           e.stopPropagation();
           // Double-tap an empty region of a slot → a fresh text item in
           // edit mode (mirrors the grid's empty-cell double-tap). Item
@@ -344,12 +396,12 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
         ) : fullBleed ? (
           <div className="schedc-item-full" data-cell-id={items[0].k}
             style={{ top: labelH }}
-            onDoubleClick={editable && items[0].cell.type === 'text' ? (e) => { e.stopPropagation(); enterTextEdit(items[0].k, surface); } : undefined}>
+            onDoubleClick={editable && !passive && items[0].cell.type === 'text' ? (e) => { e.stopPropagation(); enterTextEdit(items[0].k, surface); } : undefined}>
             <CellContent cell={items[0].cell} rect={{ ...s.rect, h: s.rect.h - labelH }}
               boards={boards} onOpenBoard={onOpenBoard}
               textStyle={cellTextStyle(effectiveCellStyle(null, items[0].cell))}
               cardId={card.id} cellId={items[0].k} />
-            {editable && (
+            {editable && !passive && (
               <button type="button" className="schedc-item-x" title="Remove" aria-label="Remove"
                 onPointerDown={stop}
                 onClick={(e) => { e.stopPropagation(); gridActions.removeCellRecord?.(card.id, items[0].k); }}>
@@ -361,29 +413,39 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
           <div className="schedc-chips" style={{ top: labelH || undefined }}>
             {shown.map((it) => (
               <SlotChip key={it.k} itemKey={it.k} cell={it.cell} boards={boards} onOpenBoard={onOpenBoard}
-                onRemove={editable ? () => gridActions.removeCellRecord?.(card.id, it.k) : null} />
+                passive={passive}
+                onRemove={editable && !passive ? () => gridActions.removeCellRecord?.(card.id, it.k) : null} />
             ))}
-            {overflow > 0 && (
+            {overflow > 0 && (passive ? (
+              // Passive marker on the grid — the CELL opens the day.
+              <span className="schedc-chip is-more">
+                <span className="schedc-chip-txt">+{overflow} more</span>
+              </span>
+            ) : (
               <button type="button" className="schedc-chip is-more" title={`${overflow} more — open day`}
                 onPointerDown={stop}
                 onClick={s.date ? (e) => { e.stopPropagation(); openPeek(s, e.currentTarget); } : undefined}>
                 <span className="schedc-chip-txt">+{overflow} more</span>
               </button>
-            )}
+            ))}
           </div>
         ) : (items.length > 0 && cap === 0) ? (
-          <button type="button" className="schedc-count" title={`${items.length} item${items.length > 1 ? 's' : ''} — open day`}
-            onPointerDown={stop}
-            onClick={s.date ? (e) => { e.stopPropagation(); openPeek(s, e.currentTarget); } : undefined}>
-            {items.length}
-          </button>
+          passive ? (
+            <span className="schedc-count">{items.length}</span>
+          ) : (
+            <button type="button" className="schedc-count" title={`${items.length} item${items.length > 1 ? 's' : ''} — open day`}
+              onPointerDown={stop}
+              onClick={s.date ? (e) => { e.stopPropagation(); openPeek(s, e.currentTarget); } : undefined}>
+              {items.length}
+            </button>
+          )
         ) : null}
         {slotUploading(s.key) && (
           <div className="gridc-cell-uploading" aria-label="Uploading">
             <Spinner size={16} tone="on-dark" label="Uploading" />
           </div>
         )}
-        {(peekable || (editable && !s.expanded)) && (
+        {!passive && (peekable || (editable && (!s.expanded || s.band))) && (
           <div className="schedc-slottools">
             {peekable && (
               <button type="button" className="schedc-peek-btn"
@@ -394,11 +456,14 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
                 <Icon as={Maximize2} size={11} />
               </button>
             )}
-            {editable && !s.expanded && (
+            {editable && (!s.expanded || s.band) && (
+              // Bands are "expanded" by construction but ARE the day/hour-level
+              // slot — with the grid read-only they're the only menu-based
+              // day-level add left, so they keep the mini.
               <button type="button" className="gridc-pill-mini schedc-mini"
                 title="Add content" aria-label="Add content"
                 onPointerDown={stop}
-                onClick={(e) => { e.stopPropagation(); setMenu({ slotKey: s.key, anchorRect: (e.currentTarget.closest('.schedc-slot') || e.currentTarget).getBoundingClientRect(), surface }); }}>
+                onClick={(e) => { e.stopPropagation(); setMenu({ slotKey: s.key, anchorRect: (e.currentTarget.closest('.schedc-slot') || e.currentTarget).getBoundingClientRect(), surface, band: !!s.band }); }}>
                 <span className="gridc-ico"><Icon as={items.length ? MoreHorizontal : Plus} size={14} /></span>
               </button>
             )}
@@ -506,11 +571,12 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
             // plus the peek as a menu affordance for slots too small to hover.
             const slot = parseSlotKey(menu.slotKey);
             const items = [];
-            if (slot?.kind === 'day') {
+            // Bands ARE the surface they'd "open"/"break" — plain add only.
+            if (slot?.kind === 'day' && !menu.band) {
               items.push({ id: 'open-day', label: 'Open day', icon: Maximize2, onClick: () => openPeek({ kind: 'day', date: slot.date }, null, menu.anchorRect) });
               if (gridActions.setSlotExpand) items.push({ id: 'break-hours', label: 'Break into hours', onClick: () => gridActions.setSlotExpand(card.id, menu.slotKey, 'hours') });
             }
-            if (slot?.kind === 'hour') {
+            if (slot?.kind === 'hour' && !menu.band) {
               items.push({ id: 'open-hour', label: 'Open hour', icon: Maximize2, onClick: () => openPeek({ kind: 'hour', date: slot.date, hour: slot.hour }, null, menu.anchorRect) });
               if (gridActions.setSlotExpand) items.push({ id: 'break-minutes', label: 'Break into minutes', onClick: () => gridActions.setSlotExpand(card.id, menu.slotKey, 'minutes') });
             }
@@ -530,6 +596,11 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
           onPrev={() => stepPeek(-1)} onNext={() => stepPeek(1)}
           onBack={peek.hour != null ? () => setPeek((p) => (p ? { ...p, hour: null } : p)) : null}
           onOpenAsDayView={editable && onUpdate ? () => { onUpdate({ schedView: 'day', anchor: peek.date }); setPeek(null); } : null}
+          gridHours={peek.hour == null && model.expand[dayKey(peek.date)] === 'hours'}
+          onToggleGridHours={peek.hour == null && editable && gridActions?.setSlotExpand ? () => {
+            const k = dayKey(peek.date);
+            gridActions.setSlotExpand(card.id, k, model.expand[k] === 'hours' ? null : 'hours');
+          } : null}
           onClose={() => setPeek(null)}>
           {renderSlotLayer(peekSlots, 'peek')}
           {peek.hour == null && peek.date === todayIso && renderNowLine(peekSlots)}

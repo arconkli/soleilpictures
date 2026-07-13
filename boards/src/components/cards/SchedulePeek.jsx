@@ -25,15 +25,19 @@ const stop = (e) => e.stopPropagation();
 
 export function SchedulePeek({ cardId, title, sourceRect, contentH, hourMode = false,
                                onPrev, onNext, onBack = null, onOpenAsDayView = null,
+                               gridHours = false, onToggleGridHours = null,
                                onClose, children }) {
   const ref = useRef(null);
   const bodyRef = useRef(null);
   // Outside-close must ignore every portal that stacks above the panel (slot
-  // menus, context menus, the add-link prompt) plus sibling peek triggers —
-  // clicking another day's trigger re-targets the open panel, not close+reopen.
+  // menus, context menus, the add-link prompt), plus THIS card's day cells and
+  // peek triggers — clicking another day re-targets the open panel in place
+  // instead of close+reopen. Another schedule card's cells are NOT ignored:
+  // its click closes this panel and opens its own.
   useDismissOnOutside(ref, true, onClose, {
     escape: false,
-    ignore: '.gridc-cell-menu, .ctx-menu, .feedback-bg, .feedback-dialog, .schedc-peek-btn',
+    ignore: '.gridc-cell-menu, .ctx-menu, .feedback-bg, .feedback-dialog, .schedc-peek-btn, '
+      + `[data-grid-id="${cardId}"] .schedc-slot-day`,
   });
   useScrollEdges(bodyRef);
 
@@ -96,6 +100,14 @@ export function SchedulePeek({ cardId, title, sourceRect, contentH, hourMode = f
           <Icon as={ChevronRight} size={13} />
         </button>
         <span className="schedc-spring" />
+        {onToggleGridHours && (
+          <button type="button" className="schedc-peekday schedc-peekhours"
+            title="Show this day's hour rows inline on the calendar grid"
+            aria-pressed={gridHours ? 'true' : 'false'}
+            onClick={(e) => { e.stopPropagation(); onToggleGridHours(); }}>
+            Hours on grid
+          </button>
+        )}
         {onOpenAsDayView && (
           <button type="button" className="schedc-peekday" title="Open as the card's Day view"
             onClick={(e) => { e.stopPropagation(); onOpenAsDayView(); }}>

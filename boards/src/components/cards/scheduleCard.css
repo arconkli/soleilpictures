@@ -333,6 +333,18 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   cursor: pointer;
 }
 
+/* ── Click-into-day: the month/week grid is a read-only overview ────────── */
+/* Cells (and their nested glance rows) are the buttons — everything inside
+   them is pass-through ink so clicks land on the slot and open the Day Peek.
+   These selectors ride the .schedc root, so the portaled peek panel keeps its
+   fully interactive chips untouched. */
+.is-view-month .schedc-slot, .is-view-week .schedc-slot { cursor: pointer; }
+.is-view-month .schedc-chip, .is-view-week .schedc-chip,
+.is-view-month .schedc-item-full, .is-view-week .schedc-item-full,
+.is-view-month .schedc-count, .is-view-week .schedc-count { pointer-events: none; }
+/* The passive "+N more"/count markers keep their looks without button chrome. */
+.is-view-month span.schedc-count, .is-view-week span.schedc-count { cursor: inherit; }
+
 /* ── Now-line: the current time, Day view + day peek, today only ────────── */
 .schedc-nowline {
   position: absolute;
@@ -359,6 +371,18 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   transition: opacity var(--dur-fast, 120ms) var(--ease, ease);
 }
 .schedc-slot:hover > .schedc-slottools { opacity: 1; pointer-events: auto; }
+/* Rows with a time gutter park their hover tools IN the gutter — top-right
+   would sit exactly on the first chip's × and the two would swallow each
+   other's clicks. */
+.schedc-peekcontent .schedc-slot-hour:not(.is-band) > .schedc-slottools,
+.schedc-peekcontent .schedc-slot-minute > .schedc-slottools,
+.is-view-day .schedc-slot-hour:not(.is-band) > .schedc-slottools,
+.is-view-hour .schedc-slot-minute > .schedc-slottools {
+  left: 2px;
+  right: auto;
+  top: 50%;
+  transform: translateY(-50%);
+}
 .schedc-mini { width: 16px; height: 16px; }
 /* Hide per-slot chrome while the card itself is being dragged (same rule
    family as the grid's drag-suppression). */
@@ -449,6 +473,8 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   transition: background var(--dur-fast, 120ms) var(--ease, ease), color var(--dur-fast, 120ms) var(--ease, ease);
 }
 .schedc-peekday:hover { background: var(--bg-act, #212126); color: var(--ink-0, #f5f5f7); }
+/* "Hours on grid" toggle — gold = active state (selection grammar). */
+.schedc-peekhours[aria-pressed="true"] { color: var(--soleil, #ffa500); border-color: color-mix(in srgb, var(--soleil, #ffa500) 45%, transparent); }
 .schedc-peekbody {
   flex: 1 1 auto;
   min-height: 0;

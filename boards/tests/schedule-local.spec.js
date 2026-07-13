@@ -123,104 +123,9 @@ test.describe('schedule — local interaction', () => {
     await menu.getByRole('button', { name: option, exact: true }).click();
   }
 
-  test('slot add-menu appends text items: 1 renders full-bleed, 2 stack as chips', async ({ page }) => {
-    await addSchedule(page);
-    const sched = page.locator('.schedc');
-    const slot = sched.locator('.schedc-slot-day:not(.is-outside)').nth(8);
-
-    await addViaSlotMenu(page, slot, 'Text');
-    // A fresh text item opens in edit mode (autoFocus editor) — type + commit on blur.
-    await expect(slot.locator('.gc-text-edit')).toBeVisible();
-    await page.keyboard.type('Call sheet');
-    await page.locator('.canvas-wrap').click({ position: { x: 30, y: 500 } });
-    // One item in a comfortable day cell renders full-bleed like a grid cell.
-    await expect(slot.locator('.schedc-item-full .gc-text')).toContainText('Call sheet');
-
-    await addViaSlotMenu(page, slot, 'Text');
-    await expect(slot.locator('.gc-text-edit')).toBeVisible();
-    await page.keyboard.type('Scout notes');
-    await page.locator('.canvas-wrap').click({ position: { x: 30, y: 500 } });
-    // Two items → compact chips (append, never replace).
-    await expect(slot.locator('.schedc-chip.is-text')).toHaveCount(2);
-  });
-
-  test('paste a URL into a focused day slot → a link item; a second paste appends', async ({ page }) => {
-    await addSchedule(page);
-    const sched = page.locator('.schedc');
-    const slot = sched.locator('.schedc-slot-day:not(.is-outside)').nth(10);
-    await slot.click({ position: { x: 8, y: 5 } });
-    await expect(sched.locator('.schedc-slot.is-focused')).toHaveCount(1);
-
-    await pasteInto(page, 'https://example.com/callsheet');
-    await expect(slot.locator('.schedc-item-full .gc-link')).toContainText('example.com');
-
-    // Focus again (background click cleared it) and paste a second URL — the
-    // slot appends a second item instead of replacing the first.
-    await slot.click({ position: { x: 8, y: 5 } });
-    await pasteInto(page, 'https://soleilpictures.com/board');
-    await expect(slot.locator('.schedc-chip.is-link')).toHaveCount(2);
-  });
-
-  test('paste with a CHIP focused replaces that item in place', async ({ page }) => {
-    await addSchedule(page);
-    const sched = page.locator('.schedc');
-    const slot = sched.locator('.schedc-slot-day:not(.is-outside)').nth(12);
-    await slot.click({ position: { x: 8, y: 5 } });
-    await pasteInto(page, 'first note');
-    await slot.click({ position: { x: 8, y: 5 } });
-    await pasteInto(page, 'second note');
-    await expect(slot.locator('.schedc-chip.is-text')).toHaveCount(2);
-
-    // Clicking a chip focuses the ITEM key (capture handler), so a paste
-    // REPLACES that item — still 2 chips, one rewritten.
-    await slot.locator('.schedc-chip.is-text').first().click();
-    await pasteInto(page, 'rewritten');
-    await expect(slot.locator('.schedc-chip.is-text')).toHaveCount(2);
-    await expect(slot.locator('.schedc-chip.is-text', { hasText: 'rewritten' })).toHaveCount(1);
-  });
-
-  test('the chip × and the full-bleed corner × truly remove items', async ({ page }) => {
-    await addSchedule(page);
-    const sched = page.locator('.schedc');
-    const slot = sched.locator('.schedc-slot-day:not(.is-outside)').nth(15);
-    await slot.click({ position: { x: 8, y: 5 } });
-    await pasteInto(page, 'keep me');
-    await slot.click({ position: { x: 8, y: 5 } });
-    await pasteInto(page, 'remove me');
-    await expect(slot.locator('.schedc-chip.is-text')).toHaveCount(2);
-
-    // Hover × removes one chip; the survivor collapses back to full-bleed.
-    const victim = slot.locator('.schedc-chip.is-text', { hasText: 'remove me' });
-    await victim.hover();
-    await victim.locator('.schedc-chip-x').click();
-    await expect(slot.locator('.schedc-item-full .gc-text')).toContainText('keep me');
-
-    // The full-bleed corner × removes the last item — the slot is empty again.
-    await slot.hover();
-    await slot.locator('.schedc-item-x').click();
-    await expect(slot.locator('.schedc-item-full')).toHaveCount(0);
-    await expect(slot.locator('.schedc-chip')).toHaveCount(0);
-  });
-
-  test('break a day into inline hour rows from the slot menu; collapse via right-click', async ({ page }) => {
-    await addSchedule(page);
-    const sched = page.locator('.schedc');
-    const slot = sched.locator('.schedc-slot-day:not(.is-outside)').nth(8);
-
-    await slot.hover();
-    await slot.locator('.schedc-mini').click();
-    await page.locator('.gridc-cell-menu').getByRole('button', { name: 'Break into hours' }).click();
-    // The day subdivides INLINE in the month grid (default 8–18 window).
-    await expect(sched.locator('.schedc-slot-day.is-expanded')).toHaveCount(1);
-    await expect(sched.locator('.schedc-slot-hour')).toHaveCount(10);
-
-    // Focus the expanded day (its date strip) → right-click → Collapse day.
-    await slot.click({ position: { x: 8, y: 5 } });
-    await page.locator('.card-kind-schedule').dispatchEvent('contextmenu');
-    await page.locator('.ctx-menu').getByText('Collapse day', { exact: true }).click();
-    await expect(sched.locator('.schedc-slot-day.is-expanded')).toHaveCount(0);
-    await expect(sched.locator('.schedc-slot-hour')).toHaveCount(0);
-  });
+  // NOTE (click-into-day): month/week cells are read-only tiles — all slot
+  // editing (add menu, paste, ×-removal, breakdown) lives in the Day Peek and
+  // is covered by the 'day peek panel' describe below.
 
   test('an hour item aggregates into its (collapsed) day in month view', async ({ page }) => {
     await addSchedule(page);
@@ -279,13 +184,21 @@ test.describe('schedule — day peek panel', () => {
   const MS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const dayTitleOf = (d) => `${WD[(d.getDay() + 6) % 7]}, ${MS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 
+  // Click-into-day: a plain click anywhere on a month day cell opens its peek.
+  // Center click (default) — cell content is pass-through ink, and at deep
+  // zoom-out an edge offset can round into the neighboring cell.
   async function openTodayPeek(page) {
     const today = page.locator('.schedc .schedc-slot-day.is-today');
-    await today.hover();
-    await today.locator('.schedc-peek-btn').click();
+    await today.click();
     const panel = page.locator('.schedc-peekpanel');
     await expect(panel).toBeVisible();
     return panel;
+  }
+
+  // Commit an in-panel text edit by blurring into another row's empty area
+  // (clicking OUTSIDE the panel would dismiss it).
+  async function blurEditor(page, panel) {
+    await panel.locator('.schedc-slot-hour:not(.is-band)').last().click({ position: { x: 200, y: 30 } });
   }
 
   test('the day peek opens from a day slot with big hour rows, without touching card state', async ({ page }) => {
@@ -368,19 +281,163 @@ test.describe('schedule — day peek panel', () => {
     await expect(panel.locator('.schedc-slot-minute')).toHaveCount(4);
   });
 
-  test('"+N more" opens the peek instead of flipping the shared card view', async ({ page }) => {
+  test('peek add-menu appends text: 1 full-bleed, then chips — the month cell mirrors passively', async ({ page }) => {
+    await addSchedule(page);
+    const panel = await openTodayPeek(page);
+    const row = panel.locator('.schedc-slot-hour:not(.is-band)').nth(3); // 11 AM
+    const menu = page.locator('.gridc-cell-menu');
+
+    await row.hover();
+    await row.locator('.schedc-mini').click();
+    await menu.getByRole('button', { name: 'Text', exact: true }).click();
+    await expect(row.locator('.gc-text-edit')).toBeVisible();
+    await page.keyboard.type('Call sheet');
+    await blurEditor(page, panel);
+    await expect(row.locator('.schedc-item-full .gc-text')).toContainText('Call sheet');
+
+    await row.hover();
+    await row.locator('.schedc-mini').click();
+    await menu.getByRole('button', { name: 'Text', exact: true }).click();
+    await expect(row.locator('.gc-text-edit')).toBeVisible();
+    await page.keyboard.type('Scout notes');
+    await blurEditor(page, panel);
+    await expect(row.locator('.schedc-chip.is-text')).toHaveCount(2);
+    // The (read-only) month cell mirrors the aggregation.
+    await expect(page.locator('.schedc .schedc-slot-day.is-today .schedc-chip.is-text')).toHaveCount(2);
+  });
+
+  test('paste appends in a peek row; a focused chip paste replaces in place', async ({ page }) => {
+    await addSchedule(page);
+    const panel = await openTodayPeek(page);
+    const row = panel.locator('.schedc-slot-hour:not(.is-band)').nth(1); // 9 AM
+    await row.click({ position: { x: 200, y: 30 } });
+    await expect(panel.locator('.schedc-slot.is-focused')).toHaveCount(1);
+    await pasteInto(page, 'first note');
+    await pasteInto(page, 'second note'); // slot focus survives → append
+    await expect(row.locator('.schedc-chip.is-text')).toHaveCount(2);
+
+    // Clicking a chip focuses the ITEM key — a paste REPLACES it in place.
+    await row.locator('.schedc-chip.is-text').first().click();
+    await pasteInto(page, 'rewritten');
+    await expect(row.locator('.schedc-chip.is-text')).toHaveCount(2);
+    await expect(row.locator('.schedc-chip.is-text', { hasText: 'rewritten' })).toHaveCount(1);
+  });
+
+  test('chip × and the full-bleed corner × remove items from the peek', async ({ page }) => {
+    await addSchedule(page);
+    const panel = await openTodayPeek(page);
+    const row = panel.locator('.schedc-slot-hour:not(.is-band)').nth(2); // 10 AM
+    await row.click({ position: { x: 200, y: 30 } });
+    await pasteInto(page, 'keep me');
+    await pasteInto(page, 'remove me');
+    await expect(row.locator('.schedc-chip.is-text')).toHaveCount(2);
+
+    const victim = row.locator('.schedc-chip.is-text', { hasText: 'remove me' });
+    await victim.hover();
+    await victim.locator('.schedc-chip-x').click();
+    await expect(row.locator('.schedc-item-full .gc-text')).toContainText('keep me');
+
+    await row.hover();
+    await row.locator('.schedc-item-x').click();
+    await expect(row.locator('.schedc-item-full')).toHaveCount(0);
+    await expect(row.locator('.schedc-chip')).toHaveCount(0);
+  });
+
+  test('the "Hours on grid" toggle drives the inline breakdown from the peek', async ({ page }) => {
     await addSchedule(page);
     const sched = page.locator('.schedc');
-    const slot = sched.locator('.schedc-slot-day:not(.is-outside)').nth(9);
+    const panel = await openTodayPeek(page);
+    const toggle = panel.getByRole('button', { name: 'Hours on grid' });
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    // Card-scoped asserts — the panel has hour rows of its own.
+    await expect(sched.locator('.schedc-slot-day.is-expanded')).toHaveCount(1);
+    await expect(sched.locator('.schedc-slot-hour')).toHaveCount(10);
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(sched.locator('.schedc-slot-day.is-expanded')).toHaveCount(0);
+    await expect(sched.locator('.schedc-slot-hour')).toHaveCount(0);
+  });
+
+  test('clicking a month day cell opens its peek; the grid carries no edit chrome', async ({ page }) => {
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    const today = sched.locator('.schedc-slot-day.is-today');
+    await today.hover();
+    // No hover chrome on grid cells anymore — the whole cell is the button.
+    await expect(sched.locator('.schedc-mini')).toHaveCount(0);
+    await expect(sched.locator('.schedc-peek-btn')).toHaveCount(0);
+    await today.click({ position: { x: 8, y: 5 } });
+    const panel = page.locator('.schedc-peekpanel');
+    await expect(panel).toBeVisible();
+    await expect(panel.locator('.schedc-peektitle')).toHaveText(dayTitleOf(new Date()));
+  });
+
+  test('a drag that starts on a day cell never opens the peek', async ({ page }) => {
+    await addSchedule(page);
+    const today = page.locator('.schedc .schedc-slot-day.is-today');
+    const box = await today.boundingBox();
+    await page.mouse.move(box.x + 20, box.y + 25);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 45, box.y + 25, { steps: 5 }); // >4px — a card drag
+    await page.mouse.up();
+    await expect(page.locator('.schedc-peekpanel')).toHaveCount(0);
+  });
+
+  test('clicking another day retargets the open panel in place', async ({ page }) => {
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    const panel = await openTodayPeek(page);
+    const before = await panel.locator('.schedc-peektitle').textContent();
+
+    const other = sched.locator('.schedc-slot-day:not(.is-outside):not(.is-today)').first();
+    await other.click({ position: { x: 8, y: 5 } });
+    await expect(page.locator('.schedc-peekpanel')).toHaveCount(1);
+    await expect(panel.locator('.schedc-peektitle')).not.toHaveText(before);
+  });
+
+  test('clicking over a full-bleed month item still opens the peek (pass-through ink)', async ({ page }) => {
+    await addSchedule(page);
+    const panel = await openTodayPeek(page);
+    const band = panel.locator('.schedc-slot-day.is-band');
+    await band.click({ position: { x: 200, y: 11 } });
+    await pasteInto(page, 'https://example.com/one');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.schedc-peekpanel')).toHaveCount(0);
+
+    const today = page.locator('.schedc .schedc-slot-day.is-today');
+    await expect(today.locator('.schedc-item-full .gc-link')).toBeVisible();
+    await today.click({ position: { x: 30, y: 35 } }); // squarely over the item
+    await expect(page.locator('.schedc-peekpanel')).toBeVisible();
+  });
+
+  test('an overflowing day shows a passive "+N more"; clicking the CELL opens the peek', async ({ page }) => {
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    // Seed 4 items into today via the peek's all-day band (grid cells are
+    // read-only now — the band is the day-level slot inside the panel). One
+    // focus click while the band is still empty, then paste-append ×4 (slot
+    // focus survives pastes; re-clicking would land on freshly minted chips).
+    const panel = await openTodayPeek(page);
+    const band = panel.locator('.schedc-slot-day.is-band');
+    await band.click({ position: { x: 200, y: 11 } });
+    await expect(panel.locator('.schedc-slot.is-focused')).toHaveCount(1);
     for (const url of ['https://a.example/1', 'https://b.example/2', 'https://c.example/3', 'https://d.example/4']) {
-      await slot.click({ position: { x: 8, y: 5 } });
       await pasteInto(page, url);
     }
-    const more = slot.locator('.schedc-chip.is-more');
-    await expect(more).toBeVisible();
-    await more.click();
+    await expect(band.locator('.schedc-chip.is-more')).toContainText('+');
+    await page.keyboard.press('Escape');
+    await expect(panel).toHaveCount(0);
+
+    // The month cell overflows into a passive "+N more" marker (not a button).
+    const today = sched.locator('.schedc-slot-day.is-today');
+    await expect(today.locator('.schedc-chip.is-more')).toBeVisible();
+    // Clicking the CELL (chips are pass-through ink) re-opens the peek; the
+    // card never flips its shared view.
+    await today.click({ position: { x: 8, y: 5 } });
     await expect(page.locator('.schedc-peekpanel')).toBeVisible();
-    // The card did NOT drill into Day view (that was the old shared-state behavior).
     await expect(sched.locator('.schedc-pill-btn.is-active')).toHaveText('M');
   });
 
@@ -454,10 +511,12 @@ test.describe('schedule — visual pass', () => {
   test('inline hour rows stripe alternating hours and mute sliver rows', async ({ page }) => {
     await addSchedule(page);
     const sched = page.locator('.schedc');
-    const slot = sched.locator('.schedc-slot-day:not(.is-outside)').nth(8);
-    await slot.hover();
-    await slot.locator('.schedc-mini').click();
-    await page.locator('.gridc-cell-menu').getByRole('button', { name: 'Break into hours' }).click();
+    // Inline breakdown is driven from the peek now ("Hours on grid").
+    await sched.locator('.schedc-slot-day.is-today').click({ position: { x: 8, y: 5 } });
+    const panel = page.locator('.schedc-peekpanel');
+    await expect(panel).toBeVisible();
+    await panel.getByRole('button', { name: 'Hours on grid' }).click();
+    await page.keyboard.press('Escape');
     // 8–18 window → odd hours 9/11/13/15/17 stripe as .is-alt…
     await expect(sched.locator('.schedc-slot-hour.is-alt')).toHaveCount(5);
     // …and rows this small (~5px in a month cell) mute their chrome.
