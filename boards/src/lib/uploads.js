@@ -101,10 +101,17 @@ async function presign({ workspaceId, boardId, file }) {
         fileExt: ext,
         contentType: file.type || 'application/octet-stream',
         boardId: boardId || null,
+        // Owner-pays byte ceiling (0187): the party checks the board OWNER's
+        // aggregate against the storage quota before presigning. Old parties
+        // ignore the field.
+        bytes: file.size || 0,
       }),
     });
     if (!res.ok) {
       const msg = await res.text().catch(() => res.statusText);
+      if (res.status === 403 && /over_quota/.test(msg)) {
+        throw new Error("Storage is full for this cluster's owner — free up space or upgrade to add more.");
+      }
       throw new Error(`Presign failed: ${res.status} ${msg}`);
     }
     return res.json();   // { uploadUrl, key }
