@@ -389,6 +389,13 @@ export default class UploadParty implements Party.Server {
     let body: PresignBody = {};
     try { body = (await req.json()) as PresignBody; } catch (_) {}
 
+    // Two-stage auth by design (do NOT collapse into a single
+    // authorize_image_upload call): this writer check fails CLOSED — an RPC
+    // error yields allowed=false → 403 — while the quota check below fails
+    // OPEN. Merging them would force one of the two to adopt the other's
+    // failure mode: either a transient error bypasses writer authz (security
+    // hole) or it blocks a core image drop (the availability regression the
+    // quota comment below deliberately avoids).
     let allowed = false;
     if (body.boardId) {
       const data = await supabaseRpc("can_write_board", { p_board_id: body.boardId }, accessToken);
