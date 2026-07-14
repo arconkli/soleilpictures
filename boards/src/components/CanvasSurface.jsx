@@ -384,9 +384,8 @@ export function CanvasSurface({
   onJumpToPeer,            // (location) => void  — click peer avatar/dot
   canEdit = true,          // false → view-only board: hide drawing tools
                            // and gray the toolbar (RLS is the real defense)
-  boardPermission = null,  // { role, canEdit, source } from useBoardPermission;
-                           // drives the ReadOnlyBanner + upgrade-CTA copy
-  onRequestUpgrade = null, // () => void — opens App's UpgradeModal (shared-edit copy)
+  boardPermission = null,  // { role, canEdit, source } from useBoardPermission
+  onRequestUpgrade = null, // () => void — opens App's UpgradeModal (fallback for storage upsell)
   onRequestStorageUpgrade = null, // () => void — opens the storage/files upgrade prompt
   isPaidPlan = false,      // current user on a paid/admin plan (best-effort client gate)
   ownsWorkspace = false,   // current user owns the active workspace (created_by)
@@ -1253,25 +1252,10 @@ export function CanvasSurface({
   const lastMouseCanvasRef = useRef({ x: 200, y: 200 });
   const feedback = useFeedback();
 
-  // Tracks whether we've shown the "subscribe to edit" toast for the
-  // currently-open read-only board. Covers ALL edit attempts (drag,
-  // Delete key, etc.) so the user sees one toast on first interaction
-  // instead of one per channel. Reset on board change.
-  const editBlockedToastShownRef = useRef(false);
-  useEffect(() => { editBlockedToastShownRef.current = false; }, [board?.id]);
-  const showEditBlockedToast = () => {
-    if (canEdit) return;
-    if (isPublic) return; // public viewers silently no-op, no upgrade nudge
-    if (boardPermission?.source !== 'tier-demoted') return;
-    if (editBlockedToastShownRef.current) return;
-    editBlockedToastShownRef.current = true;
-    feedback.toast({
-      type: 'info',
-      message: 'Subscribe to edit shared clusters.',
-      action: onRequestUpgrade ? { label: 'Upgrade', onClick: onRequestUpgrade } : null,
-      ttl: 5000,
-    });
-  };
+  // Edit attempts on read-only boards silently no-op (viewer shares always
+  // did). The demo-tier "Subscribe to edit shared clusters" toast died with
+  // 0188 — editor collaboration is free, so 'tier-demoted' no longer exists.
+  const showEditBlockedToast = () => {};
 
   // ── First-card friction instrumentation ─────────────────────────────────
   // noteCreateIntent fires at every "make a card" gesture (the missing half of
@@ -4724,15 +4708,9 @@ export function CanvasSurface({
 
     // View-only board: strip every mutating action (Edit/Replace/Cover/
     // Shape/Stroke/Fit/Tag — all RLS-blocked). Keep navigation, Info, and the
-    // "Linked from N places" backlink. Tier-demoted users get the same upgrade
-    // CTA the bg menu uses (see commit ca3ca78).
+    // "Linked from N places" backlink. (The demo-tier upgrade CTA died with
+    // 0188 — editor collaboration is free, 'tier-demoted' no longer exists.)
     if (!canEdit) {
-      const upgradeItems = [];
-      if (boardPermission?.source === 'tier-demoted') {
-        upgradeItems.push({ id: 'upgrade-edit',
-          label: 'Upgrade to edit shared clusters →',
-          run: () => onRequestUpgrade?.() });
-      }
       if (!multi) {
         if (c.kind === 'board') {
           openItems.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
@@ -4750,7 +4728,6 @@ export function CanvasSurface({
         metaItems.push({ backlinks: true });
       }
       return composeMenuSections([
-        { items: upgradeItems },
         { items: openItems },
         { items: metaItems },
       ]);
@@ -5822,21 +5799,8 @@ export function CanvasSurface({
           run: () => mutators.deleteArrows?.([idx]) },
       ];
     }
-    // Demo-tier viewer on someone else's board: every Add/Paste/Background
-    // mutator is RLS-blocked. Replace the menu with one honest CTA rather
-    // than stranding the user on actions that silently no-op. Select all
-    // is read-only-safe so we keep it for power users.
-    if (boardPermission?.source === 'tier-demoted') {
-      return [
-        { id: 'upgrade-edit',
-          label: 'Upgrade to edit shared clusters →',
-          run: () => onRequestUpgrade?.() },
-        { divider: true },
-        { id: 'selectall', label: 'Select all', shortcut: `${cmdKey}A`, run: selectAll },
-      ];
-    }
-    // Other view-only states (legitimate viewer share, no access) — no
-    // paid upgrade path; just expose the safe read-only actions.
+    // View-only states (viewer share, no access) — just expose the safe
+    // read-only actions. (The demo-tier upgrade CTA died with 0188.)
     if (!canEdit) {
       return [
         { id: 'selectall', label: 'Select all', shortcut: `${cmdKey}A`, run: selectAll },

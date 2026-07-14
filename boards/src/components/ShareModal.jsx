@@ -35,9 +35,7 @@ export function ShareModal({
   workspaceMembers = [],  // [{ user_id, role, ... }]
   wsPeers = [],           // workspace presence — used to resolve names/emails
   selfUserId,
-  tier,                   // caller's tier — 'demo' restricts invites to viewer
   canManage = false,      // caller can write this board (owner OR editor) — mirrors can_write_board
-  onUpgrade,              // open the in-app PricingModal
   onClose,
   onMembersChanged,       // refetch trigger after remove-member
   onSharesChanged,        // refetch trigger after share / unshare
@@ -49,7 +47,6 @@ export function ShareModal({
   // create public links. The owner-only affordances (workspace membership,
   // managing OTHER people's invites/links) stay gated on isOwner below.
   const canInvite = isOwner || canManage;
-  const isDemo  = tier === 'demo';
   const [shares, setShares] = useState([]);          // per-board shares
   const [loadingShares, setLoadingShares] = useState(false);
   // Pending invites = rows in pending_invites (email-only, no account yet).
@@ -59,9 +56,7 @@ export function ShareModal({
   const [pendingBoardInvites, setPendingBoardInvites]     = useState([]);
   const [pendingWorkspaceInvites, setPendingWorkspaceInvites] = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
-  // Demo callers can only invite viewers; force the initial role so the
-  // first submit doesn't bounce off the server's tier check.
-  const [inviteRole, setInviteRole] = useState(isDemo ? 'viewer' : 'editor');
+  const [inviteRole, setInviteRole] = useState('editor');
   const [inviting, setInviting] = useState(false);
   const [publicLinks, setPublicLinks] = useState([]);  // active links
   const [creatingLink, setCreatingLink] = useState(false);
@@ -492,18 +487,12 @@ export function ShareModal({
               <select className="share-role-select" aria-label="Access level for invitees"
                       value={inviteRole}
                       onChange={(e) => setInviteRole(e.target.value)}>
-                {isDemo ? (
-                  <option value="viewer">Can view — this cluster &amp; its sub-clusters</option>
-                ) : (
-                  <>
-                    <option value="editor">Can edit — this cluster &amp; its sub-clusters</option>
-                    <option value="viewer">Can view — this cluster &amp; its sub-clusters</option>
-                    {/* Workspace membership grants access to every board, so
-                        only the owner may hand it out. */}
-                    {isOwner && (
-                      <option value="workspace">Workspace member — every cluster in this workspace</option>
-                    )}
-                  </>
+                <option value="editor">Can edit — this cluster &amp; its sub-clusters</option>
+                <option value="viewer">Can view — this cluster &amp; its sub-clusters</option>
+                {/* Workspace membership grants access to every board, so
+                    only the owner may hand it out. */}
+                {isOwner && (
+                  <option value="workspace">Workspace member — every cluster in this workspace</option>
                 )}
               </select>
               <button className="share-invite-btn"
@@ -513,19 +502,8 @@ export function ShareModal({
               </button>
             </div>
             <div className="share-hint">
-              {isDemo ? (
-                <>
-                  On the Demo plan you can invite <b>viewers</b> only.{' '}
-                  <button className="share-upgrade-inline" onClick={onUpgrade}>
-                    Upgrade to invite editors
-                  </button>
-                </>
-              ) : (
-                <>
-                  Anyone you add gets the same access to this cluster&apos;s
-                  sub-clusters too.{isOwner && ' Workspace members can edit every cluster in this workspace, not just this one.'}
-                </>
-              )}
+              Anyone you add gets the same access to this cluster&apos;s
+              sub-clusters too.{isOwner && ' Workspace members can edit every cluster in this workspace, not just this one.'}
             </div>
           </div>
         )}
