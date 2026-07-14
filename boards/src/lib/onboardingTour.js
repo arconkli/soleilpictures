@@ -15,7 +15,7 @@
 // user who races ahead (e.g. opens the cluster before naming it) skips the
 // steps they've already completed instead of getting stuck.
 
-export const TOUR_VERSION = 2;
+export const TOUR_VERSION = 3;
 
 export const TOUR_STEPS = [
   {
@@ -115,17 +115,63 @@ export const TOUR_STEPS = [
   },
 ];
 
-export function tourStepIndex(id) {
-  return TOUR_STEPS.findIndex((s) => s.id === id);
+// Phones get a radically shorter variant: the 6-step desktop tour front-loads
+// "create a cluster" and locks the shell, which is exactly backwards on a
+// phone — the one-tap camera-roll picker (bottom-nav "+") is the activation
+// superpower there (multi-select: one gesture from empty board to populated).
+// So the mobile steps carry `lock: false` (no body[data-tour-active], nothing
+// disabled) and lead with photos; clusters are the closing beat, skippable.
+export const MOBILE_TOUR_STEPS = [
+  {
+    id: 'add_photos',
+    anchor: 'mb-create',
+    placement: 'top',
+    lock: false,
+    variant: 'mobile',
+    // Same pill-action plumbing as the desktop content step: the button
+    // dispatches pick_photos -> soleil-pick-photos -> camera-roll picker.
+    touchAction: { label: 'Add photos', type: 'pick_photos' },
+    copy: {
+      title: 'Add your photos',
+      body: 'Pick a few from your camera roll — they land right on your canvas.',
+      touch: 'Pick a few from your camera roll — they land right on your canvas.',
+    },
+    // Images only: a note/doc must not advance the photos beat (images are the
+    // activation signal — zero note-only users ever activated).
+    accepts: (e) => e?.type === 'content_added' && e.kind === 'image',
+  },
+  {
+    id: 'group',
+    anchor: 'mb-create',
+    placement: 'top',
+    lock: false,
+    variant: 'mobile',
+    cta: 'Done',
+    ackEvent: { type: 'mobile_done' },
+    copy: {
+      title: 'Group them into a cluster',
+      body: 'Tap + then Cluster to group these — drag photos in, name it.',
+      touch: 'Tap + then Cluster to group these — drag photos in, name it.',
+    },
+    accepts: (e) => e?.type === 'cluster_created' || e?.type === 'mobile_done',
+  },
+];
+
+export function stepsFor(variant) {
+  return variant === 'mobile_lite' ? MOBILE_TOUR_STEPS : TOUR_STEPS;
 }
 
-export function initialTourState() {
-  return { step: TOUR_STEPS[0].id, clusterId: null, done: false };
+export function tourStepIndex(id, variant) {
+  return stepsFor(variant).findIndex((s) => s.id === id);
+}
+
+export function initialTourState(variant = 'full') {
+  return { step: stepsFor(variant)[0].id, clusterId: null, done: false, variant };
 }
 
 export function currentStep(state) {
   if (!state || state.done) return null;
-  return TOUR_STEPS[tourStepIndex(state.step)] || null;
+  return stepsFor(state.variant)[tourStepIndex(state.step, state.variant)] || null;
 }
 
 // Advance the tour in response to one event. Pure: returns a new state object
@@ -133,7 +179,8 @@ export function currentStep(state) {
 // so later steps only react to that specific cluster.
 export function advanceTour(state, event) {
   if (!state || state.done) return state;
-  const i = tourStepIndex(state.step);
+  const steps = stepsFor(state.variant);
+  const i = tourStepIndex(state.step, state.variant);
   if (i < 0) return state;
 
   let clusterId = state.clusterId;
@@ -142,8 +189,8 @@ export function advanceTour(state, event) {
 
   // Furthest step at/after the current one that this event satisfies.
   let matched = -1;
-  for (let k = TOUR_STEPS.length - 1; k >= i; k--) {
-    if (TOUR_STEPS[k].accepts(event, ctx)) { matched = k; break; }
+  for (let k = steps.length - 1; k >= i; k--) {
+    if (steps[k].accepts(event, ctx)) { matched = k; break; }
   }
 
   if (matched < 0) {
@@ -151,10 +198,10 @@ export function advanceTour(state, event) {
   }
 
   const nextIdx = matched + 1;
-  if (nextIdx >= TOUR_STEPS.length) {
-    return { ...state, step: TOUR_STEPS[TOUR_STEPS.length - 1].id, clusterId, done: true };
+  if (nextIdx >= steps.length) {
+    return { ...state, step: steps[steps.length - 1].id, clusterId, done: true };
   }
-  return { ...state, step: TOUR_STEPS[nextIdx].id, clusterId, done: false };
+  return { ...state, step: steps[nextIdx].id, clusterId, done: false };
 }
 
 // Merge tour progress into the existing profiles.settings.onboarding object
@@ -166,13 +213,22 @@ export function mergeTourIntoOnboarding(onboarding, tour) {
 
 // Read persisted tour progress back out of onboarding settings, tolerating a
 // missing/unknown step (older or newer tour shapes fall back to the start).
-export function readTourState(onboarding) {
+// `sessionVariant` is the variant THIS session runs (phone -> mobile_lite,
+// desktop -> full, latched at mount). A persisted record for a DIFFERENT
+// variant never resumes — it starts the session's variant fresh. That is the
+// cross-device handoff: a phone user's finished mobile_lite record must not
+// gate the full desktop tour, and a full-tour record stuck at step 1 restarts
+// as mobile_lite on a phone. Legacy rows (no variant field) read as 'full'.
+export function readTourState(onboarding, sessionVariant = 'full') {
   const t = onboarding && onboarding.tour;
-  if (!t || typeof t !== 'object') return initialTourState();
-  const known = tourStepIndex(t.step) >= 0;
+  if (!t || typeof t !== 'object') return initialTourState(sessionVariant);
+  const persistedVariant = t.variant ?? 'full';
+  if (persistedVariant !== sessionVariant) return initialTourState(sessionVariant);
+  const known = tourStepIndex(t.step, sessionVariant) >= 0;
   return {
-    step: known ? t.step : TOUR_STEPS[0].id,
+    step: known ? t.step : stepsFor(sessionVariant)[0].id,
     clusterId: t.clusterId ?? null,
     done: !!t.done,
+    variant: sessionVariant,
   };
 }
