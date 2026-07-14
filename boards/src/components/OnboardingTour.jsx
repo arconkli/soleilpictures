@@ -95,12 +95,23 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction }) {
   // app's data-clean-mode / data-canvas-interacting idiom). Tied to step PRESENCE
   // (not mount) so it clears the moment the tour finishes/skips even if the parent
   // keeps the component mounted. Covers the real app and the ?tour=1 preview.
+  //
+  // A step may opt OUT of the lock (`lock: false`) — the mobile_lite variant does,
+  // because the bottom-nav "+", the add sheet and the empty tiles ARE its activation
+  // paths and locking them is exactly the bug we're fixing. Such steps still stamp
+  // `data-tour-variant` as a styling hook (e.g. pill z-index above the nav).
   const tourShowing = !!stepId;
+  const lockActive = tourShowing && step?.lock !== false;
+  const variantFlag = tourShowing ? (step?.variant || null) : null;
   useEffect(() => {
     if (!tourShowing) return undefined;
-    document.body.setAttribute('data-tour-active', '1');
-    return () => document.body.removeAttribute('data-tour-active');
-  }, [tourShowing]);
+    if (lockActive) document.body.setAttribute('data-tour-active', '1');
+    if (variantFlag) document.body.setAttribute('data-tour-variant', variantFlag);
+    return () => {
+      document.body.removeAttribute('data-tour-active');
+      document.body.removeAttribute('data-tour-variant');
+    };
+  }, [tourShowing, lockActive, variantFlag]);
 
   // Track the anchor's live screen position (it moves with canvas pan/zoom) via
   // rAF, re-rendering only when it shifts, and keep a glow ring on the target.
@@ -171,10 +182,12 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction }) {
         <div className="onboarding-coachmark-body">{body}</div>
       </div>
       <div className="onboarding-tour-actions">
-        {/* Touch-only direct action (the content step's camera-roll "Add
-            photos") — hands off to App via onAction; the step still completes
-            through its normal accepts() event once the action lands content. */}
-        {isTouch && step.touchAction && (
+        {/* Direct action button (the camera-roll "Add photos") — hands off to
+            App via onAction; the step still completes through its normal
+            accepts() event once the action lands content. Shown on touch, or
+            always for the mobile_lite variant (which only ever runs on phones,
+            so the picker is its primary path regardless of the media query). */}
+        {(isTouch || step.variant === 'mobile') && step.touchAction && (
           <button
             type="button"
             className="onboarding-coachmark-dismiss"

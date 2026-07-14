@@ -8,8 +8,8 @@ import { advanceTour, currentStep, readTourState } from '../lib/onboardingTour.j
 //   - `emit({ action, step, ... })` reports view / advance / skip for the funnel.
 //   - `enabled` gates whether a step is surfaced at all (e.g. only arm B on the
 //     root board for a fresh signup), without losing persisted progress.
-export function useOnboardingTour({ onboarding, persist, emit, enabled = true } = {}) {
-  const [state, setState] = useState(() => readTourState(onboarding));
+export function useOnboardingTour({ onboarding, persist, emit, enabled = true, variant = 'full' } = {}) {
+  const [state, setState] = useState(() => readTourState(onboarding, variant));
   const stateRef = useRef(state);
   stateRef.current = state;
   const viewedRef = useRef(new Set());
@@ -27,11 +27,14 @@ export function useOnboardingTour({ onboarding, persist, emit, enabled = true } 
     if (onboarding && (onboarding.tour || onboarding.seeded === true || onboarding.done === true)) {
       hydratedRef.current = true;
       if (touchedRef.current) return; // in-session progress wins over the snapshot
-      const synced = readTourState(onboarding);
+      // Pass the session variant so a persisted record for the OTHER variant
+      // (e.g. a finished mobile_lite tour, read on desktop) doesn't clobber the
+      // freshly-started session tour — readTourState restarts it instead.
+      const synced = readTourState(onboarding, variant);
       stateRef.current = synced;
       setState(synced);
     }
-  }, [onboarding]);
+  }, [onboarding, variant]);
 
   const fire = useCallback((event) => {
     const prev = stateRef.current;

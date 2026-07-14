@@ -14,6 +14,10 @@ export function TourQaHarness() {
   // Toggleable so tests can exercise the list step's unanchored Got-it
   // fallback (ctaWhenUnanchored) by hiding the fake view toggle.
   const [showViewToggle, setShowViewToggle] = useState(true);
+  // ?tourqa=1&variant=mobile drives the phones-only 2-step tour over a fake
+  // bottom-nav "+" puck; default is the full desktop tour.
+  const variant = new URLSearchParams(window.location.search).get('variant') === 'mobile'
+    ? 'mobile_lite' : 'full';
   const sinks = useRef({
     persist: () => {},
     emit: (e) => { emittedRef.current.push(e); },
@@ -24,6 +28,7 @@ export function TourQaHarness() {
     persist: sinks.persist,
     emit: sinks.emit,
     enabled: true,
+    variant,
   });
 
   const ref = useRef(tour);
@@ -65,6 +70,12 @@ export function TourQaHarness() {
           </button>
         </div>
       )}
+      {/* fake bottom-nav with the "+" create puck (the 'mb-create' anchor for the
+          mobile_lite variant). Kept live so the mobile tour has a real target. */}
+      <div className="mb-nav" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, height: 56, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <button type="button" className="mb-nav-create" data-tour="mb-create"
+                style={{ width: 44, height: 44, borderRadius: '50%' }}>+</button>
+      </div>
       <OnboardingTour
         step={tour.step}
         onEvent={(e) => tour.fire(e)}
