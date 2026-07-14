@@ -59,6 +59,8 @@ import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
+import { genuineCards } from '../lib/firstValueTrigger.js';
+import { momentumHintSeen, markMomentumHintSeen } from '../lib/momentumHint.js';
 import { setJourneyState } from '../lib/journey.js';
 import { ShowcaseBanner } from './ShowcaseBanner.jsx';
 import { isShowcaseCard } from '../lib/onboardingStarter.js';
@@ -1952,7 +1954,7 @@ export function CanvasSurface({
       // Non-empty boards keep the full add sheet so power users get the picker.
       if ((cardsRef.current || []).length === 0) {
         noteCreateIntent('mobile_nav');
-        pickPhotosAtRef.current?.(pos);
+        pickPhotosAtRef.current?.(pos, 'plus_empty');
         return;
       }
       setMobileAdd({ pos });
@@ -1973,7 +1975,7 @@ export function CanvasSurface({
       const pos = rect
         ? clientToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2)
         : { x: 200, y: 200 };
-      pickPhotosAtRef.current?.(pos);
+      pickPhotosAtRef.current?.(pos, 'tour');
     };
     document.addEventListener('soleil-pick-photos', onPick);
     return () => document.removeEventListener('soleil-pick-photos', onPick);
@@ -2381,18 +2383,40 @@ export function CanvasSurface({
   // the photo library (camera roll on iOS/Android), multi-select routes through
   // the same batch ingest as drag-drop (per-image offsets, caps, optimistic
   // cards). Images are THE activation signal — this is the mobile primary path.
-  const pickPhotosAt = useCallback((pos) => {
+  // `source` tags where the pick started so we can measure adoption + the
+  // multi-select depth (n_selected) that turns one photo into a populated board.
+  const pickPhotosAt = useCallback((pos, source = 'unknown') => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
     input.multiple = true;
-    input.onchange = () => {
-      if (input.files && input.files.length) {
-        ingestFiles(input.files, pos?.x ?? 200, pos?.y ?? 200);
+    try { logEvent(EV.PHOTO_PICK_OPEN, { source, board_id: board?.id }); } catch (_) {}
+    input.onchange = async () => {
+      const n = input.files ? input.files.length : 0;
+      if (!n) return;
+      try { logEvent(EV.PHOTO_PICK_COMMIT, { n_selected: n, source, board_id: board?.id }); } catch (_) {}
+      // Genuine cards on the board BEFORE this batch (cardsRef hasn't re-synced
+      // the optimistic adds yet, so add `n` to project the post-batch count).
+      const before = genuineCards(cardsRef.current || []).length;
+      await ingestFiles(input.files, pos?.x ?? 200, pos?.y ?? 200);
+      // Momentum beat: on a phone, right after the first photo(s) land while
+      // still short of a populated board (<3), nudge to add a few more —
+      // tapping re-opens the multi-select. Once per device; never during a tour
+      // (the tour owns its own beat) and never for the momentum re-pick itself.
+      const after = before + n;
+      const tourPill = document.body.dataset.tourActive === '1' || !!document.body.dataset.tourVariant;
+      if (isPhone && canEdit && source !== 'momentum' && !tourPill && !momentumHintSeen() && after < 3) {
+        markMomentumHintSeen();
+        try { logEvent(EV.MOMENTUM_NUDGE_SHOWN, { board_id: board?.id, after }); } catch (_) {}
+        feedback.toast({
+          message: 'Nice start — boards get good at 3+. Add a few more?',
+          duration: 6000,
+          action: { label: 'Add more', onClick: () => pickPhotosAtRef.current?.(pos, 'momentum') },
+        });
       }
     };
     input.click();
-  }, [ingestFiles]);
+  }, [ingestFiles, board?.id, isPhone, canEdit, feedback]);
   pickPhotosAtRef.current = pickPhotosAt;
 
   // Right-click "Set cover image" → upload an image file and stamp it
@@ -8954,7 +8978,7 @@ export function CanvasSurface({
             <button
               type="button"
               className="mobile-add-tile"
-              onClick={() => { setMobileAdd(null); noteCreateIntent('mobile_nav'); pickPhotosAt(mobileAdd.pos); }}
+              onClick={() => { setMobileAdd(null); noteCreateIntent('mobile_nav'); pickPhotosAt(mobileAdd.pos, 'add_sheet'); }}
             >
               <span className="mobile-add-ico" aria-hidden="true"><Icon as={ImageIcon} size={24} /></span>
               <span className="mobile-add-lbl">Photos</span>

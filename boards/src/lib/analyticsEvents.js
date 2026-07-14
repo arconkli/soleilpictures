@@ -116,6 +116,13 @@ export const EV = Object.freeze({
   CARD_CREATE_STUCK:       'card_create_stuck',             // new user appears stuck placing a first card {reason,intents,seconds,method_last} — reason:'timeout'|'rage' (logEventOnce per page-load)
   MOBILE_LIFT_HINT_SHOWN:  'mobile_lift_hint_shown',        // first time a touch user's drag-from-a-card panned instead of moving — one-time press-and-hold hint shown {board_id}
 
+  // ── Camera-roll photo picker (the mobile activation path — measures adoption
+  //    AND multi-select depth, the thing that turns one photo into a populated
+  //    board in a single gesture) ──
+  PHOTO_PICK_OPEN:         'photo_pick_open',               // the image/* multi-select chooser was opened {source:'plus_empty'|'add_sheet'|'tour'|'momentum',board_id}
+  PHOTO_PICK_COMMIT:       'photo_pick_commit',             // files chosen from the chooser {n_selected,source,board_id} — n_selected is the multi-select depth
+  MOMENTUM_NUDGE_SHOWN:    'momentum_nudge_shown',          // one-time "add a few more" beat after the first phone photo batch, short of a populated board {board_id,after}
+
   // ── Onboarding failure paths (previously SILENT — a broken seed/persist left no signal) ──
   ONBOARDING_SEED_FAILED:            'onboarding_seed_failed',             // a seed step threw {stage,reason} — stage:'create_board'|'add_cards'|'persist'
   ONBOARDING_SETTINGS_PERSIST_FAILED:'onboarding_settings_persist_failed', // merge_profile_settings rejected {op,reason} — op:'seed'|'dismiss'
