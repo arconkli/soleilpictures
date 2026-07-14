@@ -2830,18 +2830,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [shareInitialSection, setShareInitialSection] = useState(null);
   // Collaboration-loop signal: fire when the share surface opens (any path).
   useEffect(() => { if (shareOpen) logEvent(EV.SHARE_OPEN, { board_id: currentId }); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [shareOpen]);
-  // "Build this together" banner CTA → the Share panel for the current board
-  // (Invite People is its first section). ShareModal is board-scoped, so
-  // off-board surfaces (tag view, cluster browser home) fall back to the
-  // account Invite tab instead of opening a modal for the wrong thing.
-  const openCollabInvite = React.useCallback((surface) => {
-    if (currentSurface === 'board') {
+  // "Build this together" banner CTA → the Share panel scrolled to the
+  // invite-link section. The nudge passes the board it fired for, so an
+  // off-board surface (tag view, cluster browser home) first navigates to
+  // that board and THEN opens the panel — previously it dumped the user in
+  // the generic account Invite tab, losing the board context entirely. Only
+  // when there's no board at all do we fall back to the Invite tab.
+  const openCollabInvite = React.useCallback((surface, boardId = null) => {
+    const goShare = () => {
       try { logEvent(EV.REFERRAL_OPEN, { surface }); } catch (_) {}
+      setShareInitialSection('invite-link');
       setShareOpen(true);
-    } else {
-      openInviteFriends(surface);
+    };
+    if (currentSurface === 'board') { goShare(); return; }
+    if (boardId && boards?.[boardId]) {
+      openBoard(boardId);
+      goShare();
+      return;
     }
-  }, [currentSurface, openInviteFriends]);
+    openInviteFriends(surface);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSurface, boards, openInviteFriends]);
   // "Linked from" side drawer for the currently-viewed board (or any
   // entity surfaced by other components via setBacklinksRef).
   const [backlinksRef, setBacklinksRef] = useState(null);
@@ -3677,7 +3686,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // fv-banner stacking guard; repeated dispatches as the count grows are
     // its retry mechanism, not a bug.
     if ((myTier.tier === 'demo' || myTier.tier === 'paid') && !tourActive && genuine.length >= POP_BOARD_THRESHOLD) {
-      window.dispatchEvent(new CustomEvent('soleil:collab-nudge'));
+      window.dispatchEvent(new CustomEvent('soleil:collab-nudge', { detail: { boardId: currentId } }));
     }
 
     // Close the coachmark when a genuine card lands while it's showing (UI only;
