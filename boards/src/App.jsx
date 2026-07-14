@@ -14,6 +14,7 @@ import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission, computeBoardPermission } from './hooks/useBoardPermission.js';
 import { setBoardClipboard, getBoardClipboard } from './lib/boardClipboard.js';
 import { useMyTier } from './hooks/useMyTier.js';
+import { useBoardCapacity } from './hooks/useBoardCapacity.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
@@ -893,26 +894,58 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // ONLY (see analyticsEvents.js); the user-facing 'cap-hit' string is not one.
     const noteBlocked = (reason) => { try { logEvent(EV.CARD_CREATE_BLOCKED, { reason, board_id: boardId }); } catch (_) {} };
 
+    // Owner-pays cap source (0187): the cap's subject is the board's WORKSPACE
+    // OWNER, not the actor. On boards the user owns this reads myTier; on
+    // shared boards it reads the owner's capacity from the ref-stable
+    // boardCapacity cache (get_board_capacity RPC). An unknown capacity (not
+    // yet fetched) reads as uncapped — the server card-cap trigger backstops.
+    const capSource = () => {
+      const b = boards?.[boardId];
+      const own = !b || (b.workspace_id === workspace?.id && workspace?.created_by === user?.id);
+      if (own) {
+        return {
+          own,
+          capped: myTier.tier === 'demo',
+          count: myTier.demoCardCount,
+          limit: myTier.effectiveCardLimit || DEMO_CARD_LIMIT,
+        };
+      }
+      const cap = boardCapacity.get(boardId);
+      return { own, capped: Boolean(cap?.isCapped), count: cap?.used || 0, limit: cap?.cap || DEMO_CARD_LIMIT };
+    };
+    // Cap-hit surfacing differs by ownership: owners get the upgrade modal;
+    // collaborators get a toast — upgrading THEIR account wouldn't lift the
+    // owner's cap.
+    const surfaceCapHit = (cs) => {
+      if (cs.own) { setUpgradeReason('cap-hit'); return; }
+      feedback.toast({
+        type: 'warning',
+        message: `This cluster is at the owner's ${cs.limit}-card limit — they'll need to upgrade or clear space before more cards fit.`,
+      });
+    };
+
     const addCard = (card, { afterInsert = null } = {}) => {
       const m = cardsMap(); if (!m) { if (!isSeedCard(card)) noteBlocked('mutator_null'); return; }
       if (isDemoBlockedOnThisBoard()) { if (!isSeedCard(card)) noteBlocked('demo_blocked'); return; }
-      // Demo-tier cap: hard-block at the limit (cards total across the user's
-      // own boards). The trigger on card_index keeps demo_card_count in
-      // sync server-side; the chip and this check read the cached value.
-      if (myTier.tier === 'demo') {
-        const limit = myTier.effectiveCardLimit || DEMO_CARD_LIMIT;
-        const { capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: 1, limit });
-        if (capHit) {
-          if (!isSeedCard(card)) noteBlocked('demo_cap');   // modal already opens below
-          setUpgradeReason('cap-hit');
-          return;
-        }
-        if (myTier.demoCardCount === limit - 10) {
-          feedback.toast({
-            type: 'warning',
-            message: `You're at ${myTier.demoCardCount}/${limit} cards in your demo workspace. Invite friends or upgrade for more.`,
-            action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
-          });
+      // Owner-pays cap: hard-block at the limit (cards total across the
+      // OWNER's workspaces — 0187). The trigger on card_index enforces the
+      // same subject server-side; this check reads the cached value.
+      {
+        const cs = capSource();
+        if (cs.capped) {
+          const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: 1, limit: cs.limit });
+          if (capHit) {
+            if (!isSeedCard(card)) noteBlocked('demo_cap');   // modal/toast opens below
+            surfaceCapHit(cs);
+            return;
+          }
+          if (cs.own && cs.count === cs.limit - 10) {
+            feedback.toast({
+              type: 'warning',
+              message: `You're at ${cs.count}/${cs.limit} cards in your demo workspace. Invite friends or upgrade for more.`,
+              action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
+            });
+          }
         }
       }
       breakUndo();
@@ -948,10 +981,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // weight; opens the upgrade modal and returns false when at the cap. Empty text
     // cells add no weight, so the Text chooser is intentionally NOT gated here.
     const guardWeightedAdd = () => {
-      if (myTier.tier !== 'demo') return true;
-      const limit = myTier.effectiveCardLimit || DEMO_CARD_LIMIT;
-      const { capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: 1, limit });
-      if (capHit) { noteBlocked('demo_cap_cell'); setUpgradeReason('cap-hit'); return false; }
+      const cs = capSource();
+      if (!cs.capped) return true;
+      const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: 1, limit: cs.limit });
+      if (capHit) { noteBlocked('demo_cap_cell'); surfaceCapHit(cs); return false; }
       return true;
     };
 
@@ -962,18 +995,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       let capHit = false;
       const m = cardsMap(); if (!m || !cardsToAdd?.length) { if (!m && genuineCards(cardsToAdd || []).length) noteBlocked('mutator_null'); return { added: 0, requested, capHit }; }
       if (isDemoBlockedOnThisBoard()) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_blocked'); return { added: 0, requested, capHit }; }
-      if (myTier.tier === 'demo') {
-        const limit = myTier.effectiveCardLimit || DEMO_CARD_LIMIT;
-        const evald = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: cardsToAdd.length, limit });
+      const csBatch = capSource();
+      if (csBatch.capped) {
+        const evald = evaluateDemoCap({ tier: 'demo', demoCardCount: csBatch.count, requested: cardsToAdd.length, limit: csBatch.limit });
         const accepted = evald.accepted; capHit = evald.capHit;
-        if (capHit && accepted === 0) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_cap'); setUpgradeReason('cap-hit'); return { added: 0, requested, capHit }; }
+        if (capHit && accepted === 0) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_cap'); surfaceCapHit(csBatch); return { added: 0, requested, capHit }; }
         if (capHit) {
           cardsToAdd = cardsToAdd.slice(0, accepted);
-          setUpgradeReason('cap-hit');
-        } else if (myTier.demoCardCount + cardsToAdd.length >= limit - 10 && myTier.demoCardCount < limit - 10) {
+          surfaceCapHit(csBatch);
+        } else if (csBatch.own && csBatch.count + cardsToAdd.length >= csBatch.limit - 10 && csBatch.count < csBatch.limit - 10) {
           feedback.toast({
             type: 'warning',
-            message: `You're approaching the ${limit}-card demo limit. Invite friends or upgrade for more.`,
+            message: `You're approaching the ${csBatch.limit}-card demo limit. Invite friends or upgrade for more.`,
             action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
           });
         }
@@ -1131,19 +1164,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Resolve the cards that would actually be duplicated (skip missing +
       // board cards) so the demo cap counts only real new cards.
       let sources = ids.map(id => m.get(id)).filter(ym => ym && ym.get('kind') !== 'board');
-      // Demo-tier cap: same gate as addCard/addCards — block at the limit, slice
-      // an over-cap batch to what fits, warn when crossing the 90 threshold.
-      if (myTier.tier === 'demo') {
-        const limit = myTier.effectiveCardLimit || DEMO_CARD_LIMIT;
-        const { accepted, capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: sources.length, limit });
-        if (capHit && accepted === 0) { if (sources.length) noteBlocked('demo_cap'); setUpgradeReason('cap-hit'); return []; }
+      // Owner-pays cap: same gate as addCard/addCards — block at the limit,
+      // slice an over-cap batch to what fits, warn when crossing the threshold.
+      const csDup = capSource();
+      if (csDup.capped) {
+        const { accepted, capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: csDup.count, requested: sources.length, limit: csDup.limit });
+        if (capHit && accepted === 0) { if (sources.length) noteBlocked('demo_cap'); surfaceCapHit(csDup); return []; }
         if (capHit) {
           sources = sources.slice(0, accepted);
-          setUpgradeReason('cap-hit');
-        } else if (myTier.demoCardCount + sources.length >= limit - 10 && myTier.demoCardCount < limit - 10) {
+          surfaceCapHit(csDup);
+        } else if (csDup.own && csDup.count + sources.length >= csDup.limit - 10 && csDup.count < csDup.limit - 10) {
           feedback.toast({
             type: 'warning',
-            message: `You're approaching the ${limit}-card demo limit. Invite friends or upgrade for more.`,
+            message: `You're approaching the ${csDup.limit}-card demo limit. Invite friends or upgrade for more.`,
             action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
           });
         }
@@ -1610,9 +1643,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const ingestFilesArranged = async (fileList) => {
       const files = Array.from(fileList || []);
       if (!files.length) return;
-      const isPaidPlan = myTier.tier === 'paid' || myTier.tier === 'admin';
-      const ownsWorkspace = workspace?.created_by === user?.id;
-      const canAttemptFiles = !(ownsWorkspace && !isPaidPlan);
+      // Owner-pays (0187): any-file uploads are gated by the BOARD OWNER's
+      // plan, not the actor's. Owned boards read myTier; shared boards read
+      // the owner's capacity (isCapped ⇒ demo owner). Unknown capacity
+      // attempts anyway — the server upload gate re-checks and the caller
+      // rolls back the optimistic card.
+      const csFiles = capSource();
+      const canAttemptFiles = csFiles.own
+        ? (myTier.tier === 'paid' || myTier.tier === 'admin')
+        : !csFiles.capped;
 
       // 1) Classify — split blocked (paid-only) from accepted.
       const blocked = [];
@@ -1623,7 +1662,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         accepted.push({ file, ...c }); // { file, route, kind, w, h }
       }
       if (blocked.length) {
-        setUpgradeReason('storage');
+        if (csFiles.own) setUpgradeReason('storage');
         const biggest = blocked.reduce((m, f) => Math.max(m, f?.size || 0), 0);
         logEvent(EV.UPLOAD_BLOCKED, {
           reason: 'owner_not_paid', surface: 'list', n: blocked.length,
@@ -1632,19 +1671,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         });
         feedback.toast({
           type: 'warning',
-          message: `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`,
+          message: csFiles.own
+            ? `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`
+            : `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs the cluster's owner to be on a paid plan.`,
           duration: 6000,
         });
       }
       if (!accepted.length) return;
 
-      // 2) Demo cap FIRST — slice to what will actually be accepted so we never
-      //    place cards the cap would silently drop (leaving grid gaps).
-      if (myTier.tier === 'demo') {
-        const limit = myTier.effectiveCardLimit || DEMO_CARD_LIMIT;
-        const evald = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: accepted.length, limit });
-        if (evald.capHit && evald.accepted === 0) { setUpgradeReason('cap-hit'); return; }
-        if (evald.capHit) { accepted = accepted.slice(0, evald.accepted); setUpgradeReason('cap-hit'); }
+      // 2) Owner-pays cap FIRST — slice to what will actually be accepted so we
+      //    never place cards the cap would silently drop (leaving grid gaps).
+      if (csFiles.capped) {
+        const evald = evaluateDemoCap({ tier: 'demo', demoCardCount: csFiles.count, requested: accepted.length, limit: csFiles.limit });
+        if (evald.capHit && evald.accepted === 0) { surfaceCapHit(csFiles); return; }
+        if (evald.capHit) { accepted = accepted.slice(0, evald.accepted); surfaceCapHit(csFiles); }
       }
 
       // 3) Pre-measure real dims for images + videos so the uniform grid cell
@@ -3059,6 +3099,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // tier/onboarding without re-creating on every tier refetch.
   const myTierRef = useRef(myTier);
   myTierRef.current = myTier;
+  // Owner-pays (0187): capacity of the current/split board's OWNER, for boards
+  // the user doesn't own. myTier covers owned boards; this covers shared ones
+  // so the client cap gates agree with the server trigger's subject. The api
+  // is ref-stable, so the memoized mutators can close over it safely.
+  const boardCapacity = useBoardCapacity({
+    boardIds: [currentId, splitId],
+    isOwned: (bid) => {
+      const b = boards?.[bid];
+      return !b || (b.workspace_id === workspace?.id && workspace?.created_by === user?.id);
+    },
+  });
   const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'shared-edit' | 'storage' | 'manual' | null
 
   // Celebrate referral rewards: when bonus_card_credits grows (a friend you

@@ -107,6 +107,10 @@ interface PresignBody {
   // caller's workspace and shape-validated so it can't traverse/overwrite
   // arbitrary objects. Gated by the same can_write_board check below.
   previewKey?: string;
+  // Size of the object about to be PUT. Feeds the owner-pays byte ceiling
+  // (authorize_image_upload, 0187). Absent/0 from old clients — that only
+  // blocks when the owner is already over quota.
+  bytes?: number;
 }
 
 interface SignReadsBody { keys?: string[] }
@@ -413,6 +417,28 @@ export default class UploadParty implements Party.Server {
       (body.thumbKey && canonicalThumbKey && body.thumbKey === canonicalThumbKey) ? canonicalThumbKey
       : (body.previewKey && isValidPreviewKey(body.previewKey)) ? body.previewKey
       : `${workspaceId}/${crypto.randomUUID()}.${ext}`;
+
+    // Owner-pays byte ceiling (0187): this single-PUT path was unmetered —
+    // only multipart ran authorize_upload. Gate MAIN-CONTENT uploads against
+    // the board owner's aggregate quota; derived assets (board thumbs,
+    // progressive previews) are tiny, deterministic-keyed, and stay ungated.
+    // A null verdict (RPC error) fails OPEN — the prior behavior was no check
+    // at all, and blocking core image drops on a transient RPC failure is the
+    // worse trade.
+    const isDerivedKey = key === canonicalThumbKey || key.startsWith(previewPrefix);
+    if (body.boardId && !isDerivedKey) {
+      const authRows = await supabaseRpc("authorize_image_upload", {
+        p_board_id: body.boardId,
+        p_bytes: Math.max(0, Math.floor(Number(body.bytes) || 0)),
+      }, accessToken);
+      const auth = Array.isArray(authRows) ? authRows[0] : authRows;
+      if (auth && auth.allow !== true && auth.reason === "over_quota") {
+        return Response.json(
+          { error: "over_quota", reason: "over_quota", used: auth.used ?? null, quota: auth.quota ?? null },
+          { status: 403, headers: corsHeaders(origin) },
+        );
+      }
+    }
 
     const r2 = new AwsClient({
       accessKeyId: env.accessKeyId,
