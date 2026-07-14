@@ -35,3 +35,11 @@ test('the email field carries mobile keyboard hints', async ({ page }) => {
   await expect(email).toHaveAttribute('autocorrect', 'off');
   await expect(email).toHaveAttribute('enterkeyhint', 'go');
 });
+
+test('the email field is >=16px so iOS Safari does not zoom-in on focus', async ({ page }) => {
+  // The very first field a new mobile user taps: a sub-16px font makes iOS
+  // Safari auto-zoom the viewport on focus (jarring, and a known bounce cause).
+  const email = page.locator('input[type="email"]');
+  const px = await email.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  expect(px).toBeGreaterThanOrEqual(16);
+});
