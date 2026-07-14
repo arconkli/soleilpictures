@@ -62,7 +62,6 @@ import { SettingsPanel } from './components/SettingsPanel.jsx';
 import { ShareModal } from './components/ShareModal.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
-import { ReadOnlyBanner } from './components/ReadOnlyBanner.jsx';
 import { CommandPalette } from './components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
@@ -875,19 +874,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       ym.set('updatedAt', nowIso());
     };
 
-    // Demo users can only write to boards in workspaces they CREATED.
-    // RLS enforces this server-side; we mirror the check here so that
-    // the local Y.Doc transact doesn't leave a phantom card the server
-    // will then reject. The ReadOnlyBanner explains the situation in
-    // the canvas; we silently no-op the mutator.
-    const isDemoBlockedOnThisBoard = () => {
-      if (myTier.tier !== 'demo') return false;
-      const b = boards?.[boardId];
-      if (!b) return false; // unknown — fall through, let RLS decide.
-      const inActiveWs = b.workspace_id === workspace?.id;
-      const ownsActiveWs = workspace?.created_by === user?.id;
-      return !(inActiveWs && ownsActiveWs);
-    };
+    // (The demo write-block mirror died with 0188 — editor collaboration is
+    // free, so a demo user's editor share writes like anyone else's. Viewer
+    // shares are gated by canEdit at the canvas layer; RLS backstops.)
 
     // Record a card-create that the mutator refused (the un-bypassable layer —
     // every add path routes through here). Seeds never count. Snake-case reasons
@@ -926,7 +915,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     const addCard = (card, { afterInsert = null } = {}) => {
       const m = cardsMap(); if (!m) { if (!isSeedCard(card)) noteBlocked('mutator_null'); return; }
-      if (isDemoBlockedOnThisBoard()) { if (!isSeedCard(card)) noteBlocked('demo_blocked'); return; }
       // Owner-pays cap: hard-block at the limit (cards total across the
       // OWNER's workspaces — 0187). The trigger on card_index enforces the
       // same subject server-side; this check reads the cached value.
@@ -994,7 +982,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const requested = cardsToAdd?.length || 0;
       let capHit = false;
       const m = cardsMap(); if (!m || !cardsToAdd?.length) { if (!m && genuineCards(cardsToAdd || []).length) noteBlocked('mutator_null'); return { added: 0, requested, capHit }; }
-      if (isDemoBlockedOnThisBoard()) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_blocked'); return { added: 0, requested, capHit }; }
       const csBatch = capSource();
       if (csBatch.capped) {
         const evald = evaluateDemoCap({ tier: 'demo', demoCardCount: csBatch.count, requested: cardsToAdd.length, limit: csBatch.limit });
@@ -1035,7 +1022,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     const updateCard = (cardId, patch) => {
       const m = cardsMap(); if (!m) return;
-      if (isDemoBlockedOnThisBoard()) return;
       const ym = m.get(cardId); if (!ym) return;
       ydoc.transact(() => {
         for (const [k, v] of Object.entries(patch)) ym.set(k, v);
@@ -1046,7 +1032,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     const updateCards = (updates) => {
       const m = cardsMap(); if (!m || !updates?.length) return;
-      if (isDemoBlockedOnThisBoard()) return;
       ydoc.transact(() => {
         for (const { id, patch } of updates) {
           const ym = m.get(id); if (!ym) continue;
@@ -1065,7 +1050,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // origin; ySupabase only skips 'remote'). No-ops if the card is already gone.
     const updateCardSilent = (cardId, patch) => {
       const m = cardsMap(); if (!m) return;
-      if (isDemoBlockedOnThisBoard()) return;
       const ym = m.get(cardId); if (!ym) return;
       ydoc.transact(() => {
         for (const [k, v] of Object.entries(patch)) ym.set(k, v);
@@ -1076,7 +1060,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const deleteCards = async (ids) => {
       if (!ids?.length) return;
       const m = cardsMap(); if (!m) return;
-      if (isDemoBlockedOnThisBoard()) return;
       const idSet = new Set(ids);
       const boardIdsToCascade = [];
       const docCardIds = [];
@@ -1160,7 +1143,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     const duplicateCards = (ids) => {
       const m = cardsMap(); if (!m || !ids?.length) { if (!m && ids?.length) noteBlocked('mutator_null'); return []; }
-      if (isDemoBlockedOnThisBoard()) { noteBlocked('demo_blocked'); return []; }
       // Resolve the cards that would actually be duplicated (skip missing +
       // board cards) so the demo cap counts only real new cards.
       let sources = ids.map(id => m.get(id)).filter(ym => ym && ym.get('kind') !== 'board');
@@ -3110,7 +3092,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       return !b || (b.workspace_id === workspace?.id && workspace?.created_by === user?.id);
     },
   });
-  const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'shared-edit' | 'storage' | 'manual' | null
+  const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'storage' | 'manual' | null ('shared-edit' died with 0188)
 
   // Celebrate referral rewards: when bonus_card_credits grows (a friend you
   // invited just activated — granted server-side, picked up on the next
@@ -4701,7 +4683,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          onJumpToPeer={jumpToPeer}
                          canEdit={isMain ? canEditCurrent : true}
                          boardPermission={isMain ? currentBoardPerm : null}
-                         onRequestUpgrade={() => setUpgradeReason('shared-edit')}
                          onRequestStorageUpgrade={() => setUpgradeReason('storage')}
                          isPaidPlan={myTier.tier === 'paid' || myTier.tier === 'admin'}
                          ownsWorkspace={workspace?.created_by === user?.id}
@@ -5061,11 +5042,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <span className="vp-ico" aria-hidden="true"><Icon as={ListIcon} size={14} /></span><span className="vp-lbl">List</span>
               </button>
             </div>
-            {/* Read-only notice for demo-tier viewers — self-gates on
-                source==='tier-demoted'. Anchored under the view toggle so it
-                reads as centered in the content area on both canvas + list. */}
-            <ReadOnlyBanner boardPermission={currentBoardPerm}
-                            onRequestUpgrade={() => setUpgradeReason('shared-edit')} />
           </div>
 
           <div className="tb-right">
@@ -5304,9 +5280,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           workspaceMembers={workspaceMembers}
           wsPeers={wsPeers}
           selfUserId={user.id}
-          tier={myTier.tier}
           canManage={canEditCurrent}
-          onUpgrade={() => setUpgradeReason('manual')}
           onClose={() => setShareOpen(false)}
           onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
           onSharesChanged={() => { refreshSharedBoards?.(); }}

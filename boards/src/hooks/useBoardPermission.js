@@ -3,7 +3,7 @@
 //
 //   { role: 'owner' | 'editor' | 'viewer' | 'none',
 //     canEdit: boolean,
-//     source:  'workspace' | 'share' | 'tier-demoted' | 'tier-blocked' | null }
+//     source:  'workspace' | 'share' | 'tier-blocked' | null }
 //
 // "owner" = workspace owner (workspaces.created_by === userId).
 // "editor" = workspace member (workspace_members) OR per-board editor share.
@@ -15,9 +15,9 @@
 //
 // Tier gates (applied AFTER the workspace-owner shortcut):
 //   tier='waitlist' → blocked from everything (defensive)
-//   tier='demo'     → forced to viewer on any board they don't own outright
-//                     (workspace.created_by must match userId), regardless of
-//                     editor shares. Editing other people's boards is paid-only.
+//   Editor collaboration is FREE for every other tier (0188): a demo user's
+//   editor share writes like anyone else's. Resources stay gated owner-pays —
+//   whatever a collaborator adds charges the board owner's cap (0187).
 
 import { useMemo } from 'react';
 
@@ -49,13 +49,6 @@ export function computeBoardPermission({
   // mounts, but a stale session could leak through.
   if (tier === 'waitlist') {
     return { role: 'none', canEdit: false, source: 'tier-blocked' };
-  }
-
-  // tier='demo' — viewer-only on any board they don't own. Editing
-  // others' boards is a paid feature; the server-side can_write_board
-  // RPC enforces the same rule, this is the client-side mirror.
-  if (tier === 'demo') {
-    return { role: 'viewer', canEdit: false, source: 'tier-demoted' };
   }
 
   // Workspace member of THE BOARD'S workspace (not necessarily the
