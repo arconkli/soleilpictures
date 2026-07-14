@@ -4,6 +4,8 @@
 import { expect, test } from '@playwright/test';
 import {
   TOUR_STEPS,
+  MOBILE_TOUR_STEPS,
+  stepsFor,
   initialTourState,
   currentStep,
   tourStepIndex,
@@ -136,7 +138,7 @@ test.describe('onboarding tour engine', () => {
 
   test('readTourState round-trips a persisted tour and ignores an unknown step', () => {
     const persisted = { tour: { step: 'open', done: false, clusterId: 'b1' } };
-    expect(readTourState(persisted)).toEqual({ step: 'open', done: false, clusterId: 'b1' });
+    expect(readTourState(persisted)).toEqual({ step: 'open', done: false, clusterId: 'b1', variant: 'full' });
     // a step id from a future/older tour version falls back to the start
     expect(readTourState({ tour: { step: 'bogus', done: false } }).step).toBe('create');
   });
@@ -173,5 +175,92 @@ test.describe('onboarding tour engine', () => {
       expect(typeof st.copy?.body).toBe('string');
       expect(typeof st.accepts).toBe('function');
     }
+  });
+});
+
+test.describe('onboarding tour engine — mobile_lite variant', () => {
+  test('mobile list is two unlocked steps anchored to the bottom-nav puck', () => {
+    expect(MOBILE_TOUR_STEPS.map((s) => s.id)).toEqual(['add_photos', 'group']);
+    for (const st of MOBILE_TOUR_STEPS) {
+      // No Milanote lock on phones: the puck/add-sheet/empty-tiles ARE the paths.
+      expect(st.lock).toBe(false);
+      expect(st.variant).toBe('mobile');
+      expect(st.anchor).toBe('mb-create');
+      expect(typeof st.copy?.title).toBe('string');
+      expect(typeof st.copy?.touch).toBe('string');
+      expect(typeof st.accepts).toBe('function');
+    }
+    const [addPhotos, group] = MOBILE_TOUR_STEPS;
+    expect(addPhotos.touchAction).toEqual({ label: 'Add photos', type: 'pick_photos' });
+    expect(group.cta).toBe('Done');
+    expect(group.ackEvent).toEqual({ type: 'mobile_done' });
+  });
+
+  test('stepsFor resolves the list by variant (full is the default)', () => {
+    expect(stepsFor('mobile_lite')).toBe(MOBILE_TOUR_STEPS);
+    expect(stepsFor('full')).toBe(TOUR_STEPS);
+    expect(stepsFor(undefined)).toBe(TOUR_STEPS);
+  });
+
+  test('mobile_lite starts on add_photos and carries its variant', () => {
+    const s = initialTourState('mobile_lite');
+    expect(s.variant).toBe('mobile_lite');
+    expect(s.done).toBe(false);
+    expect(currentStep(s).id).toBe('add_photos');
+  });
+
+  test('add_photos advances ONLY on an image add — a note does not move it', () => {
+    const s0 = initialTourState('mobile_lite');
+    expect(advanceTour(s0, { type: 'content_added', boardId: 'b1', kind: 'note' }).step).toBe('add_photos');
+    expect(advanceTour(s0, { type: 'content_added', boardId: 'b1', kind: 'doc' }).step).toBe('add_photos');
+    const s1 = advanceTour(s0, { type: 'content_added', boardId: 'b1', kind: 'image' });
+    expect(s1.step).toBe('group');
+    expect(s1.done).toBe(false);
+  });
+
+  test('group completes on cluster_created or the Done ack', () => {
+    const atGroup = advanceTour(initialTourState('mobile_lite'), {
+      type: 'content_added', boardId: 'b1', kind: 'image',
+    });
+    expect(advanceTour(atGroup, { type: 'cluster_created', boardId: 'c1' }).done).toBe(true);
+    expect(advanceTour(atGroup, { type: 'mobile_done' }).done).toBe(true);
+    // stray image adds during the group step do not complete it
+    expect(advanceTour(atGroup, { type: 'content_added', boardId: 'b1', kind: 'image' }).done).toBe(false);
+  });
+
+  test('creating a cluster during add_photos skips ahead and completes (furthest-match)', () => {
+    const s = advanceTour(initialTourState('mobile_lite'), { type: 'cluster_created', boardId: 'c1' });
+    expect(s.done).toBe(true);
+  });
+
+  test('done mobile tour ignores further events and surfaces no step', () => {
+    let s = initialTourState('mobile_lite');
+    s = advanceTour(s, { type: 'content_added', boardId: 'b1', kind: 'image' });
+    s = advanceTour(s, { type: 'mobile_done' });
+    expect(s.done).toBe(true);
+    expect(currentStep(s)).toBeNull();
+    expect(advanceTour(s, { type: 'content_added', boardId: 'b1', kind: 'image' })).toEqual(s);
+  });
+
+  test('readTourState restarts fresh when the persisted variant differs from the session', () => {
+    // Phone user later opens on desktop: their mobile_lite record must NOT gate
+    // the full tour — it starts fresh (the desktop-handoff moment).
+    const mobileDone = { tour: { variant: 'mobile_lite', step: 'group', clusterId: null, done: true } };
+    const onDesktop = readTourState(mobileDone, 'full');
+    expect(onDesktop).toEqual({ step: 'create', clusterId: null, done: false, variant: 'full' });
+
+    // And the mirror: a stuck full-tour record read on a phone restarts as mobile_lite.
+    const fullStuck = { tour: { step: 'create', clusterId: null, done: false } };
+    const onPhone = readTourState(fullStuck, 'mobile_lite');
+    expect(onPhone).toEqual({ step: 'add_photos', clusterId: null, done: false, variant: 'mobile_lite' });
+  });
+
+  test('readTourState resumes same-variant progress, legacy rows defaulting to full', () => {
+    const legacy = { tour: { step: 'open', clusterId: 'b1', done: false } }; // pre-variant shape
+    expect(readTourState(legacy, 'full')).toEqual({ step: 'open', clusterId: 'b1', done: false, variant: 'full' });
+    const mobile = { tour: { variant: 'mobile_lite', step: 'group', clusterId: null, done: false } };
+    expect(readTourState(mobile, 'mobile_lite')).toEqual({ step: 'group', clusterId: null, done: false, variant: 'mobile_lite' });
+    // unknown step within the SAME variant still falls back to that variant's start
+    expect(readTourState({ tour: { variant: 'mobile_lite', step: 'bogus', done: false } }, 'mobile_lite').step).toBe('add_photos');
   });
 });
