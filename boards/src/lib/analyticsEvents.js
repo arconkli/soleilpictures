@@ -177,6 +177,14 @@ export const EV = Object.freeze({
   INVITE_NUDGE_DISMISS:    'invite_nudge_dismiss',        // banner dismissed {surface}
   INVITE_SENT:             'invite_sent',                 // collaborator invite(s) submitted {role,result:'granted'|'pending',n,surface} (must-land)
 
+  // ── Invite links ("anyone with this link joins as editor/viewer", 0189) ──
+  // invite_link_claimed is SERVER-fired inside claim_collab_link (like
+  // REFERRAL_SIGNUP); the client logs only the claim FAILURE case.
+  INVITE_LINK_CREATED:     'invite_link_created',         // link minted/reused in ShareModal {role,expiry,board_id,surface} (must-land)
+  INVITE_LINK_VIEW:        'invite_link_view',            // join confirm card rendered on /share {share_token,role} (once per token/session)
+  INVITE_LINK_JOIN_CLICK:  'invite_link_join_click',      // "Join as …" clicked {share_token,role} (must-land)
+  INVITE_LINK_CLAIM_FAILED:'invite_link_claim_failed',    // claim_collab_link raised after signup/click {reason}
+
   // ── Remix ("Make a copy" — clone a public board into your workspace, 0168) ──
   REMIX_CLONE:             'remix_clone',                 // a shared/public board was cloned into the user's workspace {kind:'token'|'slug',n}
   REMIX_FAILED:            'remix_failed',                // remix consume failed {kind,stage,reason}

@@ -14,6 +14,7 @@ export type TemplateName =
   | "waitlist_accepted"
   | "workspace_invite"
   | "board_shared"
+  | "invite_accepted"
   | "pending_invite"
   | "mention_email"
   | "comment_reply_email"
@@ -27,6 +28,7 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "waitlist_accepted",
   "workspace_invite",
   "board_shared",
+  "invite_accepted",
   "pending_invite",
   "mention_email",
   "comment_reply_email",
@@ -189,6 +191,48 @@ function boardShared(d: BoardSharedData): RenderedEmail {
     html: renderEmail({
       preheader: subtitle,
       eyebrow: "Board shared",
+      headline,
+      subtitle,
+      cta: { label: "Open board", url },
+    }),
+    text: plain([
+      "CLUSTERS",
+      "",
+      headline,
+      subtitle,
+      "",
+      "Open board: " + url,
+      "",
+      "© Soleil Pictures · clusters.soleilpictures.com",
+    ]),
+  };
+}
+
+// The inviter's payoff moment: someone they invited (by email or invite
+// link) just joined their board. Sent by the share_notifications trigger on
+// kind='joined' rows — skipped when the inviter is in-app (the toast covers
+// it) or has email_invite_accepted off.
+interface InviteAcceptedData {
+  joinerName: string;
+  boardName: string;
+  role?: string;
+  workspaceId?: string;
+  boardId?: string;
+}
+
+function inviteAccepted(d: InviteAcceptedData): RenderedEmail {
+  const role = (d.role || "editor").toLowerCase();
+  const headline = `${d.joinerName} just joined you.`;
+  const subtitle = `They now have ${role} access to "${d.boardName}" — go say hi and build together.`;
+  const url = deepLink(
+    { w: d.workspaceId, b: d.boardId },
+    { utm_source: "email", utm_medium: "transactional", utm_campaign: "invite_accepted" },
+  );
+  return {
+    subject: `${d.joinerName} joined "${d.boardName}"`,
+    html: renderEmail({
+      preheader: subtitle,
+      eyebrow: "They're in",
       headline,
       subtitle,
       cta: { label: "Open board", url },
@@ -685,6 +729,14 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
       return boardShared({
         boardName:   String(data.boardName  ?? "a board"),
         sharerName:  String(data.sharerName ?? "Someone"),
+        role:        data.role != null ? String(data.role) : undefined,
+        workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:     data.boardId != null ? String(data.boardId) : undefined,
+      });
+    case "invite_accepted":
+      return inviteAccepted({
+        joinerName:  String(data.joinerName ?? "Someone"),
+        boardName:   String(data.boardName  ?? "a board"),
         role:        data.role != null ? String(data.role) : undefined,
         workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:     data.boardId != null ? String(data.boardId) : undefined,

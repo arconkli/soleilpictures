@@ -24,3 +24,15 @@ export async function claimPendingInvite(token) {
   const row = Array.isArray(data) ? data[0] : data;
   return row || null;
 }
+
+// Authed call — claim a multi-use invite LINK (?join=<token>, 0189).
+// Returns { workspace_id, board_id, role, status } where status is
+// 'joined' | 'upgraded' | 'already' | 'noop'. Idempotent; safe to call on
+// every repeat click of the same link.
+export async function claimCollabLink(token) {
+  const { data, error } = await supabase
+    .rpc('claim_collab_link', { p_token: token });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row || null;
+}

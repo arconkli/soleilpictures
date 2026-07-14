@@ -33,6 +33,7 @@ import { SoleilMark } from './primitives.jsx';
 import { ClustersMark } from './SoleilWordmark.jsx';
 import { CanvasSurface } from './CanvasSurface.jsx';
 import { SharePrompt } from './SharePrompt.jsx';
+import { JoinBoardCard } from './JoinBoardCard.jsx';
 import PublicArticle from './PublicArticle.jsx';
 import { setReadUrlResolver, clearReadUrlResolver, setImageAuthErrorHandler, clearImageAuthErrorHandler } from '../lib/r2.js';
 import { setMetaResolver, clearMetaResolver } from '../lib/imageMeta.js';
@@ -149,6 +150,7 @@ export function PublicBoardView({ token, slug }) {
   const [stack, setStack] = useState([]);             // board ids, last = current
   const [navBusy, setNavBusy] = useState(false);
   const [subboardOpened, setSubboardOpened] = useState(false); // SharePrompt trigger B
+  const [joinInfo, setJoinInfo] = useState(null);              // { role } — invite link (0189): render the Join confirm card
   const [relatedBoards, setRelatedBoards] = useState(EMPTY);   // slug mode: tag-related public boards
   const [imgEpoch, setImgEpoch] = useState(0);                 // bumped on a forced URL refresh → canvas re-resolves
 
@@ -322,6 +324,9 @@ export function PublicBoardView({ token, slug }) {
     }
     setIncludeSubboards(!!bundle.include_subboards);
     if (bundle.root_id) setRootId(bundle.root_id);
+    // Invite links (0189): the bundle carries { role, kind:'invite' }. Joining
+    // is claim-on-click only — this just arms the confirm card.
+    if (bundle.join?.kind === 'invite') setJoinInfo({ role: bundle.join.role === 'editor' ? 'editor' : 'viewer' });
     return id;
   }, []);
 
@@ -797,12 +802,26 @@ export function PublicBoardView({ token, slug }) {
         </nav>
       )}
 
-      <SharePrompt
-        href={ctaHref(ctx, 'prompt')}
-        onCtaClick={onCta('prompt')}
-        subboardOpened={subboardOpened}
-        ctaClickedRef={ctaClickedRef}
-      />
+      {/* Invite link (0189): the Join confirm card replaces the generic
+          signup prompt — the visitor was invited, not ambushed. Joining is
+          claim-on-click: the href lands on / with ?join=<token>, AuthGate
+          stashes it across the OTP hop and claims once a session exists. */}
+      {joinInfo && token ? (
+        <JoinBoardCard
+          role={joinInfo.role}
+          boardName={board.name}
+          token={token}
+          href={`${ctaHref(ctx, 'join')}&join=${encodeURIComponent(token)}`}
+          onJoinClick={() => { ctaClickedRef.current = true; }}
+        />
+      ) : (
+        <SharePrompt
+          href={ctaHref(ctx, 'prompt')}
+          onCtaClick={onCta('prompt')}
+          subboardOpened={subboardOpened}
+          ctaClickedRef={ctaClickedRef}
+        />
+      )}
     </div>
   );
 }

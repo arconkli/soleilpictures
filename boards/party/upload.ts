@@ -371,6 +371,10 @@ export default class UploadParty implements Party.Server {
         root_id: bundle.root_id || null,
         include_subboards: !!bundle.include_subboards,
         nav_boards: Array.isArray(bundle.nav_boards) ? bundle.nav_boards : [],
+        // Invite links (0189): { role, kind } — the /share viewer renders the
+        // "Join as editor/viewer" confirm card off this. Null for view links
+        // and for get_public_board_bundle (which never sets it).
+        join: bundle.join || null,
       },
       { headers: corsHeaders(origin) },
     );

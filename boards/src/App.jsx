@@ -2825,6 +2825,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //  hook resolves on first render.)
   // ShareModal lifecycle. Replaces the old "invite to workspace" prompt.
   const [shareOpen, setShareOpen] = useState(false);
+  // Which section ShareModal scrolls to on open ('invite-link' from the
+  // collab nudge CTA); cleared on close so plain opens start at the top.
+  const [shareInitialSection, setShareInitialSection] = useState(null);
   // Collaboration-loop signal: fire when the share surface opens (any path).
   useEffect(() => { if (shareOpen) logEvent(EV.SHARE_OPEN, { board_id: currentId }); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [shareOpen]);
   // "Build this together" banner CTA → the Share panel for the current board
@@ -3055,6 +3058,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           type: 'info',
           ttl: 8000,
           message: `Your cluster wasn’t approved for Explore${n.detail ? `: ${n.detail}` : '.'}`,
+        });
+        continue;
+      }
+      // Someone accepted an invite / joined via an invite link (0189) — the
+      // inviter's payoff moment. detail carries the joiner's display name.
+      if (n.kind === 'joined') {
+        const joinedBoard = boards[n.board_id];
+        const joinedName = joinedBoard?.name || 'your cluster';
+        feedback.toast({
+          type: 'success',
+          ttl: 8000,
+          message: `🤝 ${n.detail || 'Someone'} joined "${joinedName}" — say hi.`,
+          ...(joinedBoard ? { action: { label: 'Open', onClick: () => openBoard(n.board_id) } } : {}),
         });
         continue;
       }
@@ -5281,7 +5297,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           wsPeers={wsPeers}
           selfUserId={user.id}
           canManage={canEditCurrent}
-          onClose={() => setShareOpen(false)}
+          initialSection={shareInitialSection}
+          onClose={() => { setShareOpen(false); setShareInitialSection(null); }}
           onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
           onSharesChanged={() => { refreshSharedBoards?.(); }}
           onLinkCreated={() => {

@@ -21,8 +21,9 @@ import { isLocalQaMode } from '../lib/localMode.js';
 import { logEvent, logEventOnce, getFirstSource } from '../lib/analytics.js';
 import { EV, classifyAuthError } from '../lib/analyticsEvents.js';
 import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat.js';
-import { peekPendingInviteEmail, claimPendingInvite } from '../lib/inviteApi.js';
+import { peekPendingInviteEmail, claimPendingInvite, claimCollabLink } from '../lib/inviteApi.js';
 import { parseRemixParam, stashRemix } from '../lib/remix.js';
+import { parseJoinParam, stashJoin, readJoin, clearJoin } from '../lib/joinLink.js';
 import { getFbCookies } from '../lib/metaPixel.js';
 import { SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
@@ -116,6 +117,48 @@ function captureRemixSource() {
   window.history.replaceState({}, document.title, url.pathname + url.search);
 }
 
+// Capture ?join=<token> (a multi-use collab invite link, 0189 — distinct
+// from single-recipient ?invite= tokens) and stash it across the OTP hop.
+// Runs signed-in or not: an already-signed-in click claims on this same
+// pageload via consumePendingJoin.
+function captureJoinToken() {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  const token = parseJoinParam(url.searchParams.get('join'));
+  if (!token) return;
+  stashJoin(token);
+  url.searchParams.delete('join');
+  window.history.replaceState({}, document.title, url.pathname + url.search);
+}
+
+// Claim a stashed collab-link token: claim_collab_link inserts the
+// board_shares row (idempotent) and returns the workspace/board to land on.
+// Best-effort; never throws upward. Clears the stash on ANY outcome — a
+// terminally-bad token (revoked/expired) must not retry forever.
+async function consumePendingJoin(userId) {
+  if (typeof window === 'undefined' || !userId) return;
+  const token = readJoin();
+  if (!token) return;
+  try {
+    const row = await claimCollabLink(token);
+    if (row?.workspace_id) {
+      const wsKey = `soleil.boards.session.${userId}.workspace`;
+      localStorage.setItem(wsKey, JSON.stringify({ activeWorkspaceId: row.workspace_id }));
+      if (row.board_id) {
+        const boardKey = `soleil.boards.session.${userId}.${row.workspace_id}`;
+        let existing = {};
+        try { existing = JSON.parse(localStorage.getItem(boardKey) || '{}'); } catch (_) {}
+        localStorage.setItem(boardKey, JSON.stringify({ ...existing, stack: [row.board_id] }));
+      }
+    }
+  } catch (e) {
+    console.warn('[join-link] claim failed', e?.message || e);
+    try { logEvent(EV.INVITE_LINK_CLAIM_FAILED, { reason: String(e?.message || e).slice(0, 120) }); } catch (_) {}
+  } finally {
+    clearJoin();
+  }
+}
+
 // Claim the pending invite associated with the stored token and wire
 // the returned workspace_id/board_id into the deep-link localStorage
 // slots so the app lands on the right board after sign-in. Idempotent —
@@ -199,9 +242,10 @@ export function AuthGate({ children }) {
   useEffect(() => {
     if (localMode || devWithoutSupabase) return;
     if (!supabase) return;
-    // Capture ?invite=<token> and ?remix=<source> on every mount BEFORE any
-    // auth roundtrip, so they survive the OTP redirect dance.
+    // Capture ?invite=<token>, ?join=<token> and ?remix=<source> on every
+    // mount BEFORE any auth roundtrip, so they survive the OTP redirect dance.
     captureInviteToken();
+    captureJoinToken();
     captureRemixSource();
     let cancelled = false;
     (async () => {
@@ -216,6 +260,7 @@ export function AuthGate({ children }) {
         if (data.session?.user?.id) {
           consumeDeepLink(data.session.user.id);
           await consumePendingInvite(data.session.user.id);
+          await consumePendingJoin(data.session.user.id);
         }
         if (!cancelled) setSession(data.session);
       } catch (error) {
@@ -243,6 +288,7 @@ export function AuthGate({ children }) {
         if (sess?.user?.id) {
           consumeDeepLink(sess.user.id);
           await consumePendingInvite(sess.user.id);
+          await consumePendingJoin(sess.user.id);
         }
         if (!cancelled) setSession(sess);
       })();

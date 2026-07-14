@@ -403,11 +403,24 @@ export async function setPublicLinkIndexing({ token, allow }) {
   if (error) throw error;
 }
 
+// Mint (or reuse) a role-bearing INVITE link (0189): anyone with it can
+// preview the board on /share and claim editor/viewer access after signing
+// in. Pass expiresAt explicitly (the ShareModal default is 30 days); omit it
+// to take the server's 30-day default. Returns the uuid token.
+export async function createCollabLink({ boardId, role = 'editor', expiresAt }) {
+  const params = { p_board_id: boardId, p_role: role };
+  if (expiresAt !== undefined) params.p_expires_at = expiresAt; // explicit null = never expires
+  const { data, error } = await supabase.rpc('create_collab_link', params);
+  if (error) throw error;
+  return data;  // uuid token
+}
+
 export async function listPublicLinks(boardId) {
   if (!boardId) return [];
   const { data, error } = await supabase
     .rpc('list_public_links', { p_board_id: boardId });
   if (error) throw error;
+  // rows now carry `kind` ('view' | 'invite') + `joined_count` (0189).
   return data || [];
 }
 
@@ -415,11 +428,14 @@ export async function listPublicLinks(boardId) {
 // or create one. Powers the one-tap "Copy share link" toolbar action (and the
 // ShareModal create button), so a board has at most one interchangeable link
 // per scope instead of accumulating random tokens. Returns { token, reused }.
+// VIEW links only — invite links (kind='invite', 0189) grant access on claim
+// and must never be handed out by the anonymous-share path.
 export async function ensurePublicLink({ boardId, includeSubboards = false, expiresAt = null }) {
   if (!boardId) throw new Error('ensurePublicLink: boardId required');
   const rows = await listPublicLinks(boardId);
   const active = (rows || []).filter(
-    l => !l.revoked_at && (!l.expires_at || new Date(l.expires_at).getTime() > Date.now())
+    l => (l.kind || 'view') === 'view'
+      && !l.revoked_at && (!l.expires_at || new Date(l.expires_at).getTime() > Date.now())
   );
   const existing = active.find(l => !!l.include_subboards === !!includeSubboards);
   if (existing) return { token: existing.token, reused: true };
