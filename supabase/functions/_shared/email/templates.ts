@@ -645,6 +645,10 @@ function welcomeBoard(d: WelcomeBoardData): RenderedEmail {
   const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("welcome_board"));
   const unsub = unsubUrl(d.unsubscribeToken);
   const name = namedWelcomeBoard(d);
+  // A lot of new users sign up on a phone and never see the full app; a quiet,
+  // device-neutral nudge to open it on a computer (the cron has no device
+  // signal, so this rides every welcome_board).
+  const deskTip = "one tip: open it on your computer when you can — the full studio, a bigger canvas, every tool.";
   const img = d.thumbUrl && d.thumbUrl.startsWith(EMAIL_THUMB_PREFIX)
     ? noteImg(d.thumbUrl, name ? `Your board "${name}"` : "Your board", url)
     : "";
@@ -663,6 +667,7 @@ function welcomeBoard(d: WelcomeBoardData): RenderedEmail {
           noteP(openerB) +
           img +
           noteP(saved) +
+          noteP(deskTip) +
           noteLink("keep building", url) +
           noteP("talk soon, the clusters team"),
         unsubscribeUrl: unsub,
@@ -671,6 +676,8 @@ function welcomeBoard(d: WelcomeBoardData): RenderedEmail {
 `${openerB}
 
 ${saved}
+
+${deskTip}
 
 keep building: ${url}
 
@@ -693,6 +700,7 @@ Unsubscribe: ${unsub}`,
         noteP(opener) +
         img +
         noteP("it's saved and waiting whenever you want to keep going — drop in more photos, notes, or files and they arrange themselves.") +
+        noteP(deskTip) +
         noteLink("pick up where you left off", url) +
         noteP("talk soon, the clusters team"),
       unsubscribeUrl: unsub,
@@ -703,6 +711,8 @@ Unsubscribe: ${unsub}`,
 ${opener}
 
 it's saved and waiting whenever you want to keep going — drop in more photos, notes, or files and they arrange themselves.
+
+${deskTip}
 
 pick up where you left off: ${url}
 
