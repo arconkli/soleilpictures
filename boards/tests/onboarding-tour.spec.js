@@ -160,3 +160,60 @@ test.describe('onboarding tour overlay', () => {
     expect(actions).toContain('skip');
   });
 });
+
+// The phones variant (?tourqa=1&variant=mobile): a 2-step unlocked tour anchored
+// to the bottom-nav "+" puck. The critical invariant is that it does NOT set
+// body[data-tour-active] — that lock is what disables the camera-roll path the
+// mobile flow depends on.
+test.describe('onboarding tour overlay — mobile_lite variant', () => {
+  test.beforeEach(async ({ page }) => {
+    page.on('pageerror', (e) => { throw e; });
+    await page.goto('/?tourqa=1&variant=mobile');
+    await expect(page.locator('#tourqa-ready')).toBeVisible({ timeout: 15000 });
+  });
+
+  test('starts on add_photos anchored to the bottom-nav puck', async ({ page }) => {
+    const pill = page.locator('.onboarding-tour');
+    await expect(pill).toBeVisible();
+    await expect(pill).toContainText('Add your photos');
+    await expect(pill).toHaveAttribute('data-tour-anchor', 'mb-create');
+    await expect(page.locator('[data-tour="mb-create"]')).toHaveClass(/tour-target/);
+  });
+
+  test('does NOT lock the app — no body[data-tour-active] — but stamps the variant', async ({ page }) => {
+    await expect(page.locator('.onboarding-tour')).toBeVisible();
+    await expect(page.locator('body')).not.toHaveAttribute('data-tour-active', '1');
+    await expect(page.locator('body')).toHaveAttribute('data-tour-variant', 'mobile');
+  });
+
+  test('the Add photos button hands off the pick_photos action', async ({ page }) => {
+    const pill = page.locator('.onboarding-tour');
+    await pill.getByRole('button', { name: /add photos/i }).click();
+    const actions = await page.evaluate(() => window.__soleilTourTest.getActions());
+    expect(actions).toContain('pick_photos');
+  });
+
+  test('an image add advances to the group step; Done completes the tour and clears the variant flag', async ({ page }) => {
+    const pill = page.locator('.onboarding-tour');
+    await page.evaluate(() => window.__soleilTourTest.fire({ type: 'content_added', boardId: 'b1', kind: 'image' }));
+    await expect(pill).toContainText('Group them into a cluster');
+    await pill.getByRole('button', { name: /done/i }).click();
+    await expect(page.locator('.onboarding-tour')).toHaveCount(0);
+    expect(await page.evaluate(() => window.__soleilTourTest.getState().done)).toBe(true);
+    // the styling hook is removed once the tour ends
+    await expect(page.locator('body')).not.toHaveAttribute('data-tour-variant', 'mobile');
+  });
+
+  test('a note add does NOT advance the photos step', async ({ page }) => {
+    const pill = page.locator('.onboarding-tour');
+    await page.evaluate(() => window.__soleilTourTest.fire({ type: 'content_added', boardId: 'b1', kind: 'note' }));
+    await expect(pill).toContainText('Add your photos');
+  });
+
+  test('Skip ends the mobile tour immediately', async ({ page }) => {
+    const pill = page.locator('.onboarding-tour');
+    await pill.getByRole('button', { name: /skip/i }).click();
+    await expect(pill).toHaveCount(0);
+    expect(await page.evaluate(() => window.__soleilTourTest.getState().done)).toBe(true);
+  });
+});
