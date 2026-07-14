@@ -11,6 +11,8 @@
 //     median_days_to_activate,
 //     by_source: { link:{total,activated}, collab:{total,activated} },
 //     invites: { sent_total, pending_signup, direct_grants, inviting_users },   // 0185 — invites SENT (the k-factor numerator)
+//     link_invites: { created, claimed, active_links },                          // 0190 — invite LINKS (0189)
+//     editor_seats: { workspaces_with_editors, max_editors_per_owner },          // 0190 — all-time seat watch (free-editor decision, 0188)
 //     top_referrers: [{ user_id, email, friends_joined, friends_activated, friends_paid, cards_earned }] }
 
 import { CopyableText } from '../../../../components/CopyableText.jsx';
@@ -41,6 +43,8 @@ export function AdminReferralsSection({ data, days = 30 }) {
 
   const bySource = d.by_source || {};
   const invites = d.invites || {};
+  const linkInvites = d.link_invites || {};
+  const seats = d.editor_seats || {};
   const top = Array.isArray(d.top_referrers) ? d.top_referrers : [];
 
   return (
@@ -98,6 +102,17 @@ export function AdminReferralsSection({ data, days = 30 }) {
             label="Invite → signup"
             value={<RateCell numer={bySource.collab?.total || 0} denom={invites.pending_signup || 0} />}
             title="Referral rows attributed source='collab' ÷ email invites to non-users. Windows are both trailing, so a signup can trail its invite — directional, not exact." />
+          <AdminStatCard
+            label="Invite links"
+            value={formatCount(linkInvites.created || 0)}
+            sub={`${formatCount(linkInvites.claimed || 0)} claimed · ${formatCount(linkInvites.active_links || 0)} live`}
+            title="Role-bearing invite links (0189): created in the window, board_shares granted through one, and links currently live (all-time)"
+            accent />
+          <AdminStatCard
+            label="Editor seats"
+            value={formatCount(seats.workspaces_with_editors || 0)}
+            sub={`max ${formatCount(seats.max_editors_per_owner || 0)} per owner`}
+            title="ALL-TIME seat watch for free editor collaboration (0188): workspace owners with external editors + the largest seat count. Growth here = the future Team-plan list; runaway growth = flip admin_set_collab_editor_cap." />
         </div>
       </section>
 
