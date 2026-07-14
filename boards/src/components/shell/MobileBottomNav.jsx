@@ -41,6 +41,7 @@ export function MobileBottomNav({ tabs, active, onChange, showCreate = false, cr
         <button
           type="button"
           className="mb-nav-create"
+          data-tour="mb-create"
           aria-label="Add a card"
           onClick={() => onCreate?.()}
         >

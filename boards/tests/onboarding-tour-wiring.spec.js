@@ -38,7 +38,7 @@ test.describe('guided tour wiring', () => {
     expect(cs).toContain("addEventListener('soleil-pick-photos'");
     expect(cs).toContain('pickPhotosAt');
     // The mobile first-card one-tap goes to photos, never a reflexive note.
-    expect(cs).toContain('pickPhotosAtRef.current?.(pos)');
+    expect(cs).toContain("pickPhotosAtRef.current?.(pos, 'plus_empty')");
   });
 
   test('first-card dismiss + first-value nudge never fire mid-tour', () => {
@@ -83,5 +83,73 @@ test.describe('guided tour wiring', () => {
     // both the desktop dblclick quick-add and the mobile add listener must yield
     const hits = s.match(/dataset\.tourActive === '1'/g) || [];
     expect(hits.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+const mbnav = () => read('src/components/shell/MobileBottomNav.jsx');
+
+test.describe('mobile onboarding wiring', () => {
+  test('App latches the tour variant once (isPhone → mobile_lite) and never re-derives it', () => {
+    const s = app();
+    expect(s).toMatch(/tourVariantRef/);
+    // latched from isPhone at first decision, passed into the hook
+    expect(s).toMatch(/isPhone \? 'mobile_lite' : 'full'/);
+    expect(s).toMatch(/variant: tourVariantRef\.current/);
+  });
+
+  test('App gates the tour on onboardingUiActive OR the latched desktop handoff', () => {
+    const s = app();
+    // handoff must be a decide-once latch, NOT re-derived from live settings
+    // (a live gate would self-destruct once the first full advance persists variant:'full')
+    expect(s).toMatch(/desktopHandoff/);
+    expect(s).toMatch(/tour\??\.variant === 'mobile_lite'/);
+    expect(s).toMatch(/tourActive = onboardingArmB && \(onboardingUiActive \|\| desktopHandoff\)/);
+  });
+
+  test('the 7/10 tour-kill guards remain intact under the new gate', () => {
+    const s = app();
+    // persistTour still re-asserts seeded:true; dismiss still gated on !tourActive
+    expect(s).toMatch(/seeded: true/);
+    expect(s).toContain("if (onboardingUiActive && !tourActive) dismissOnboarding('placed')");
+  });
+
+  test('the step funnel carries the variant so mobile vs full is separable', () => {
+    expect(app()).toMatch(/variant: tourVariantRef\.current/);
+    // emitTourStep payload includes variant
+    expect(app()).toMatch(/EV\.ONBOARDING_STEP, \{[\s\S]*?variant/);
+  });
+
+  test('MobileBottomNav tags the create puck as the mb-create anchor', () => {
+    expect(mbnav()).toContain('data-tour="mb-create"');
+  });
+
+  test('OnboardingTour honors a per-step lock:false (mobile steps do not lock)', () => {
+    const s = tourComp();
+    expect(s).toMatch(/step\?\.lock !== false/);
+    expect(s).toContain("setAttribute('data-tour-variant'");
+  });
+
+  test('CanvasSurface emits the photo-picker adoption + depth events', () => {
+    const s = canvas();
+    expect(s).toContain('EV.PHOTO_PICK_OPEN');
+    expect(s).toContain('EV.PHOTO_PICK_COMMIT');
+    expect(s).toContain('n_selected');
+  });
+
+  test('the momentum beat is device-local + once-ever + never mid-tour', () => {
+    const s = canvas();
+    expect(s).toContain('momentumHintSeen');
+    expect(s).toContain('markMomentumHintSeen');
+    // suppressed while a tour pill (either variant flag) is showing
+    expect(s).toMatch(/tourVariant|tourActive === '1'/);
+    // never re-fires from its own re-pick
+    expect(s).toMatch(/source !== 'momentum'/);
+  });
+
+  test('the mobile completion beat mentions the desktop studio (no reintroduced interstitial)', () => {
+    const s = app();
+    expect(s).toMatch(/computer/i);
+    // the deleted MobileDesktopNotice must NOT come back
+    expect(s).not.toContain('MobileDesktopNotice');
   });
 });

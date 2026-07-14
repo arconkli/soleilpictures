@@ -21,6 +21,7 @@ import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
 import { OnboardingTour } from './components/OnboardingTour.jsx';
 import { useOnboardingTour } from './hooks/useOnboardingTour.js';
 import { mergeTourIntoOnboarding } from './lib/onboardingTour.js';
+import { momentumHintSeen, markMomentumHintSeen } from './lib/momentumHint.js';
 import { ReferralNudge } from './components/ReferralNudge.jsx';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
 import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
@@ -3127,6 +3128,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // progress and wire persistence + the step funnel. The mutators above emit
   // tour events through tourFireRef (assigned just below).
   const onboardingArmB = getEnrolledArm('onboarding_v2') === 'B';
+  // Latch the tour variant ONCE per session from the form factor: phones get the
+  // short photos-first mobile_lite tour (the 6-step cluster-first tour is where
+  // 58% of mobile users bail at step 1), everything else the full tour. A ref,
+  // never re-derived — an iPad rotating or a resize must not flip a live tour.
+  const tourVariantRef = useRef(null);
+  if (tourVariantRef.current === null) tourVariantRef.current = isPhone ? 'mobile_lite' : 'full';
+  // Cross-device handoff: a phone user who finished (or skipped) the mobile_lite
+  // tour gets the FULL tour the first time they open on a desktop. Decided ONCE,
+  // when onboarding settings first arrive, then LATCHED — never re-derived from
+  // live settings, because the first full-tour advance persists tour.variant:
+  // 'full', which would flip a live gate false and kill the tour mid-run (the
+  // same failure mode as the 6/29 dead-after-step-1 bug).
+  const desktopHandoffDecidedRef = useRef(false);
+  const [desktopHandoff, setDesktopHandoff] = useState(false);
+  useEffect(() => {
+    if (desktopHandoffDecidedRef.current) return;
+    const onb = myTier.onboarding;
+    if (!onb) return; // wait for settings before deciding
+    desktopHandoffDecidedRef.current = true;
+    if (onboardingArmB && tourVariantRef.current === 'full'
+        && onb.done === true && onb.tour?.variant === 'mobile_lite') {
+      setDesktopHandoff(true);
+    }
+  }, [myTier.onboarding, onboardingArmB]);
   const persistTour = useCallback((tourState) => {
     updateOwnSettings({
       onboarding: {
@@ -3150,14 +3175,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const tourCompletedRef = useRef(false);
   const emitTourStep = useCallback((e) => {
     if (e.action === 'advance' && e.done) tourCompletedRef.current = true;
-    try { logEvent(EV.ONBOARDING_STEP, { step: e.step, action: e.action, via: e.via || null, done: !!e.done }); } catch (_) {}
+    try { logEvent(EV.ONBOARDING_STEP, { step: e.step, action: e.action, via: e.via || null, done: !!e.done, variant: tourVariantRef.current }); } catch (_) {}
   }, []);
-  const tourActive = onboardingArmB && onboardingUiActive;
+  const tourActive = onboardingArmB && (onboardingUiActive || desktopHandoff);
   const tour = useOnboardingTour({
     onboarding: myTier.onboarding,
     persist: persistTour,
     emit: emitTourStep,
     enabled: tourActive,
+    variant: tourVariantRef.current,
   });
   // Only feed tour events while the tour is actually running — otherwise a
   // non-arm-B (or finished) user's card/nav actions would advance + persist +
@@ -3172,9 +3198,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     if (!tour.state.done) return;
     setOnboardingUiActive(false);
+    setDesktopHandoff(false); // a handoff tour that finished closes its gate
     if (tourCompletedRef.current && !tourFinishedToastRef.current) {
       tourFinishedToastRef.current = true;
-      try { feedback.toast({ type: 'success', message: 'That’s the tour — tip: List view works like a drive for any cluster.', ttl: 5000 }); } catch (_) {}
+      try {
+        if (tour.state.variant === 'mobile_lite') {
+          // Secondary momentum site: if their first photos landed DURING the
+          // tour (so the in-picker beat was suppressed by the pill) and they're
+          // still short of a populated board, nudge to add more here; otherwise
+          // a subtle non-blocking mention that the full studio is on desktop.
+          const short = genuineCards(yb.cards).length < 3;
+          if (short && !momentumHintSeen()) {
+            markMomentumHintSeen();
+            try { logEvent(EV.MOMENTUM_NUDGE_SHOWN, { board_id: currentId, after: genuineCards(yb.cards).length }); } catch (_) {}
+            feedback.toast({
+              message: 'Nice start — boards get good at 3+. Add a few more?',
+              duration: 6000,
+              action: { label: 'Add more', onClick: () => document.dispatchEvent(new CustomEvent('soleil-pick-photos', { detail: { boardId: currentId } })) },
+            });
+          } else {
+            feedback.toast({ type: 'success', message: 'You’re set — tip: open Clusters on your computer for the full studio.', ttl: 5000 });
+          }
+        } else {
+          feedback.toast({ type: 'success', message: 'That’s the tour — tip: List view works like a drive for any cluster.', ttl: 5000 });
+        }
+      } catch (_) {}
     }
   }, [tour.state.done]);
 
