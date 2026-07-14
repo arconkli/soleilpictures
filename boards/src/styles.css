@@ -5239,6 +5239,10 @@ body {
   transition: box-shadow var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
 }
 .auth-input::placeholder { color: var(--ink-3); }
+/* On phones bump to 16px: iOS Safari auto-zooms the viewport when a focused
+   input is under 16px, and this is the first field a new mobile user taps.
+   Same guard as .cmdk-input. Later source than the base rule so it wins. */
+@media (max-width: 640px) { .auth-input { font-size: 16px; } }
 .auth-input:focus { border-color: transparent; box-shadow: var(--shadow-glow); }
 .auth-input:disabled { opacity: 0.6; }
 /* Keep browser autofill on-theme — without this Chrome paints the dark form
