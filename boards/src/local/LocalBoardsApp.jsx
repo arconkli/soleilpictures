@@ -113,9 +113,12 @@ const BLANK_SEED = typeof window !== 'undefined'
 
 // Dev-only: add &tour=1 (best alongside &blank=1) to walk the REAL first-run
 // guided tour on a live local canvas — no Supabase / arm enrollment needed.
-// e.g. /?local=1&reset=1&blank=1&tour=1
-const TOUR_DEMO = typeof window !== 'undefined' && import.meta.env.DEV
-  && new URLSearchParams(window.location.search).get('tour') === '1';
+// &tour=mobile walks the phones-only photos-first variant over the real puck.
+// e.g. /?local=1&reset=1&blank=1&tour=1  or  &tour=mobile
+const TOUR_PARAM = typeof window !== 'undefined' && import.meta.env.DEV
+  ? new URLSearchParams(window.location.search).get('tour') : null;
+const TOUR_DEMO = TOUR_PARAM === '1' || TOUR_PARAM === 'mobile';
+const TOUR_VARIANT = TOUR_PARAM === 'mobile' ? 'mobile_lite' : 'full';
 
 // Dev-only: ?local=1&showcase=1 renders welcome_showcase arm B exactly as a new
 // user gets it — calls the real prepare_showcase RPC (grants this session's images
@@ -282,7 +285,7 @@ export function LocalBoardsApp({ user, signOut }) {
   // tourFireRef; the overlay is mounted near the surface. No persistence/funnel
   // here — this is purely to preview the real component/engine on a live canvas.
   const tourFireRef = useRef(null);
-  const tour = useOnboardingTour({ onboarding: {}, persist: () => {}, emit: () => {}, enabled: TOUR_DEMO });
+  const tour = useOnboardingTour({ onboarding: {}, persist: () => {}, emit: () => {}, enabled: TOUR_DEMO, variant: TOUR_VARIANT });
   tourFireRef.current = TOUR_DEMO ? tour.fire : null;
   const prevTourBoardRef = useRef(currentId);
   useEffect(() => {
