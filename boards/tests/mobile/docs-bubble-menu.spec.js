@@ -17,7 +17,12 @@ test('touch: selection bubble appears and formats', async ({ page }) => {
   await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('bubble target').selectAll().run());
   const bubble = page.locator('.doc-bubble');
   await expect(bubble).toBeVisible({ timeout: 5000 });
-  await bubble.getByRole('button', { name: 'Bold' }).tap();
+  // Activate via click, not tap: a real tap resolves to a click, but
+  // Playwright-WebKit doesn't synthesize the click after the button's
+  // onPointerDown preventDefault (mobile-chrome, with faithful touch emulation,
+  // fires it — so the button itself works on touch). click() exercises the same
+  // pointerdown→preventDefault→click path cross-engine.
+  await bubble.getByRole('button', { name: 'Bold' }).click();
   const html = await page.evaluate(() => window.__soleilDocTest.editor.getHTML());
   expect(html).toContain('<strong>');
 });
