@@ -902,9 +902,16 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   const [bubble, setBubble] = useState(null); // { top, left } | null
   useEffect(() => {
     if (!editor) return undefined;
-    const coarse = typeof window !== 'undefined' && window.matchMedia
-      && window.matchMedia('(pointer: coarse)').matches;
-    if (!coarse) return undefined; // desktop keeps the top toolbar
+    // Show the selection bubble on any touch-capable device. `(pointer: coarse)`
+    // alone under-reports on some real contexts (hybrid mouse+touch laptops,
+    // certain webviews) and in Playwright-WebKit; OR-ing maxTouchPoints closes
+    // that gap. This is purely ADDITIVE — a hybrid device merely gains a
+    // selection bubble on select; the desktop top toolbar is unaffected — so it
+    // never strips hover UI the way widening the global isTouch would.
+    const touch = typeof window !== 'undefined'
+      && ((window.matchMedia && window.matchMedia('(pointer: coarse)').matches)
+        || (typeof navigator !== 'undefined' && (navigator.maxTouchPoints || 0) > 0));
+    if (!touch) return undefined; // pure mouse desktop keeps the top toolbar
     const update = () => {
       const sel = editor.state.selection;
       if (sel.empty || !editor.isEditable || !editor.isFocused) { setBubble(null); return; }
