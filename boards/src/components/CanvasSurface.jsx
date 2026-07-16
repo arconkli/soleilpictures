@@ -2355,7 +2355,7 @@ export function CanvasSurface({
       feedback.toast({
         type: 'warning',
         message: `Uploading ${blockedForUpgrade.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`,
-        duration: 6000,
+        ttl: 6000,
       });
     }
   }, [ownsWorkspace, isPaidPlan, optimisticDropImage, dropVideoFile, dropAudioFile,
@@ -2410,7 +2410,7 @@ export function CanvasSurface({
         try { logEvent(EV.MOMENTUM_NUDGE_SHOWN, { board_id: board?.id, after }); } catch (_) {}
         feedback.toast({
           message: 'Nice start — boards get good at 3+. Add a few more?',
-          duration: 6000,
+          ttl: 6000,
           action: { label: 'Add more', onClick: () => pickPhotosAtRef.current?.(pos, 'momentum') },
         });
       }
@@ -4099,7 +4099,7 @@ export function CanvasSurface({
               feedback.toast({
                 type: 'error',
                 message: 'Drop failed — source cards preserved. ' + (err?.message || err),
-                duration: 8000,
+                ttl: 8000,
               });
               return;
             }

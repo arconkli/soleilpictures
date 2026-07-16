@@ -1635,7 +1635,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           message: csFiles.own
             ? `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`
             : `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs the cluster's owner to be on a paid plan.`,
-          duration: 6000,
+          ttl: 6000,
         });
       }
       if (!accepted.length) return;
@@ -3213,7 +3213,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             try { logEvent(EV.MOMENTUM_NUDGE_SHOWN, { board_id: currentId, after: genuineCards(yb.cards).length }); } catch (_) {}
             feedback.toast({
               message: 'Nice start — boards get good at 3+. Add a few more?',
-              duration: 6000,
+              ttl: 6000,
               action: { label: 'Add more', onClick: () => document.dispatchEvent(new CustomEvent('soleil-pick-photos', { detail: { boardId: currentId } })) },
             });
           } else {
@@ -4079,7 +4079,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           feedback.toast({
             type: 'error',
             message: 'Could not load the destination cluster’s state. Drag cancelled to prevent data loss. Try again in a moment.',
-            duration: 8000,
+            ttl: 8000,
           });
           reject(new Error('target board_state empty'));
           return;
@@ -4169,7 +4169,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           feedback.toast({
             type: 'error',
             message: 'Drag aborted — target cluster state looked unsafe to overwrite.',
-            duration: 8000,
+            ttl: 8000,
           });
           reject(new Error('tmp card count below expected'));
           return;
@@ -4206,7 +4206,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           feedback.toast({
             type: 'error',
             message: 'Move incomplete — could not finalize the destination cluster. Your cards are safe on this cluster; try again.',
-            duration: 8000,
+            ttl: 8000,
           });
           reject(resetErr);
           return;
