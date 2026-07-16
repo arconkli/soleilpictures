@@ -187,9 +187,17 @@ export function advanceTour(state, event) {
   if (event?.type === 'cluster_created' && i === 0) clusterId = event.boardId;
   const ctx = { clusterId };
 
-  // Furthest step at/after the current one that this event satisfies.
+  // Furthest step at/after the current one that this event satisfies. The full
+  // tour allows skip-ahead so a user who races ahead (opens the cluster before
+  // renaming) isn't stranded. The mobile_lite tour is STRICTLY SEQUENTIAL: its
+  // two steps are the whole point (photos, THEN group), and its last step
+  // accepts cluster_created — with skip-ahead, tapping an empty-board Cluster
+  // tile would complete the tour from the photos step with zero photos, the
+  // exact empty-cluster failure this variant exists to fix. So mobile only ever
+  // matches the current step.
+  const scanFrom = state.variant === 'mobile_lite' ? i : steps.length - 1;
   let matched = -1;
-  for (let k = steps.length - 1; k >= i; k--) {
+  for (let k = scanFrom; k >= i; k--) {
     if (steps[k].accepts(event, ctx)) { matched = k; break; }
   }
 

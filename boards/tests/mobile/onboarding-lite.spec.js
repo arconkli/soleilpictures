@@ -27,6 +27,10 @@ test('opens on the photos step, anchored to the puck, WITHOUT locking the app', 
   await expect(page.locator('body')).not.toHaveAttribute('data-tour-active', '1');
   await expect(page.locator('body')).toHaveAttribute('data-tour-variant', 'mobile');
   await expect(page.locator('[data-tour="mb-create"]')).toHaveClass(/tour-target/);
+  // The competing empty-state tiles (incl. the "Cluster" tile that used to
+  // complete the tour with zero photos) must be hidden during the tour, leaving
+  // the ringed puck as the single obvious CTA.
+  await expect(page.locator('.cnv-empty-tiles')).toBeHidden();
 });
 
 test('the puck is live during the tour and opens the camera-roll multi-select', async ({ page }) => {
