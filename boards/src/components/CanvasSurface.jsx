@@ -1284,7 +1284,11 @@ export function CanvasSurface({
   // Phone bottom-nav "+" → full add sheet. { pos } = canvas-space drop point
   // captured when the sheet opens (viewport centre); null = closed.
   const [mobileAdd, setMobileAdd] = useState(null);
-  const { isPhone } = useBreakpoint();
+  const { isPhone, isTablet, isTouch } = useBreakpoint();
+  // The whole touch shell that shows the bottom-nav "+" puck (App/LocalBoardsApp
+  // gate the nav on this) — phones plus touch tablets and landscape phones. The
+  // add sheet must render for all of them or the puck dead-ends there.
+  const mobileShell = isPhone || (isTablet && isTouch);
   const [spaceDown, setSpaceDown] = useState(false);
   const lastMouseCanvasRef = useRef({ x: 200, y: 200 });
   const feedback = useFeedback();
@@ -9074,11 +9078,12 @@ export function CanvasSurface({
         boardName={board?.name}
       />
 
-      {/* Phone bottom-nav "+" → full add sheet. The action set mirrors the
+      {/* Mobile-shell bottom-nav "+" → full add sheet. The action set mirrors the
           desktop right-click Add menu (shared via buildAddActions). Close the
           sheet before running so card auto-focus/editors aren't fighting the
-          sheet teardown. */}
-      {isPhone && mobileAdd && (
+          sheet teardown. Gated on the whole shell (phone + touch tablet /
+          landscape phone) so the puck never dead-ends. */}
+      {mobileShell && mobileAdd && (
         <Sheet open onClose={() => setMobileAdd(null)} title="Add to cluster" snap="half">
           <div className="mobile-add-grid">
             {/* Photos leads on the phone sheet — camera-roll multi-select is the
