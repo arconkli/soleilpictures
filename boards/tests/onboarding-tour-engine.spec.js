@@ -228,9 +228,26 @@ test.describe('onboarding tour engine — mobile_lite variant', () => {
     expect(advanceTour(atGroup, { type: 'content_added', boardId: 'b1', kind: 'image' }).done).toBe(false);
   });
 
-  test('creating a cluster during add_photos skips ahead and completes (furthest-match)', () => {
+  test('add_photos is a HARD gate: cluster_created cannot skip the photos beat', () => {
+    // The whole point of mobile_lite is photos-first. Creating an empty cluster
+    // (via the empty-tile / rail Cluster tool / quick-add) must NOT complete the
+    // tour from the photos step — that would finish the flow with zero photos,
+    // the exact empty-cluster failure this variant exists to fix. Mobile is
+    // strictly sequential (no furthest-match skip-ahead).
     const s = advanceTour(initialTourState('mobile_lite'), { type: 'cluster_created', boardId: 'c1' });
-    expect(s.done).toBe(true);
+    expect(s.step).toBe('add_photos');
+    expect(s.done).toBe(false);
+    // an image is still the only thing that advances it
+    expect(advanceTour(s, { type: 'content_added', boardId: 'b1', kind: 'image' }).step).toBe('group');
+  });
+
+  test('the full tour KEEPS furthest-match skip-ahead (mobile-only change)', () => {
+    // Regression guard: the strict-sequential rule must be scoped to mobile_lite.
+    // On the full tour, opening a cluster before renaming still skips the rename
+    // step (users who race ahead aren't stranded).
+    let s = advanceTour(initialTourState('full'), { type: 'cluster_created', boardId: 'b1' });
+    s = advanceTour(s, { type: 'cluster_opened', boardId: 'b1' });
+    expect(s.step).toBe('nav');
   });
 
   test('done mobile tour ignores further events and surfaces no step', () => {

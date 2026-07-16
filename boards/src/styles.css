@@ -17095,6 +17095,15 @@ body[data-tour-active] :is(
    back after skip/finish (the flag is removed). */
 body[data-tour-active] .cnv-empty-tiles { display: none; }
 body[data-tour-active] .cnv-tool[data-tip]::after { display: none; }
+/* The mobile_lite tour is UNLOCKED (no data-tour-active — the bottom-nav puck
+   must stay live), but it must still hide the empty-board tiles: their "Cluster"
+   tile fired cluster_created, which used to complete the photos-first tour with
+   zero photos. The engine now hard-gates the photos step, and this removes the
+   tempting wrong path so the ringed puck is the single CTA. Also lift the pill
+   above the z90 bottom-nav so its buttons are never covered if the canvas-region
+   inset math ever fails (the comment in OnboardingTour.jsx referenced this). */
+body[data-tour-variant] .cnv-empty-tiles { display: none; }
+body[data-tour-variant] .onboarding-tour { z-index: 95; }
 /* …except the final step, where the rail IS the .tour-target: reveal EVERY tool's
    tooltip at once (not just on hover) so the user can read the whole toolset in a
    tidy column down the rail. Higher specificity + later source than the rule above,
