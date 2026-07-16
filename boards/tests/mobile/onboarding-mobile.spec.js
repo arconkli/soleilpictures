@@ -1,40 +1,32 @@
 import { expect, test } from '@playwright/test';
 
-// The first-run onboarding board must be USABLE on a phone. The bulk of new
-// users arrive on mobile, so the seeded starter cards have to lay out in a
-// readable column (not auto-fit to a tiny ~35% zoom, which is what the old wide
-// desktop spread did on a ~390px canvas) and the copy has to be touch-aware
-// (no bare "right-click", which means nothing without a mouse).
+// The first-run onboarding board must be USABLE on a phone. At onboarding_v2
+// arm B:100 the seed is an EMPTY board (the retired arm-A starter notes +
+// "Ideas" tutorial are gone), so first-run guidance is the empty-state
+// first-card tiles + the guided tour. These must lay out readably on a ~390px
+// canvas and the copy must be touch-aware (no bare "right-click", which means
+// nothing without a mouse).
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/?local=1&onboard=1');
-  await expect(page.locator('.canvas-wrap')).toBeVisible();
+  await page.goto('/?local=1&reset=1&blank=1');
+  await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 15000 });
 });
 
-test('starter cards render at a readable zoom and stay within the viewport', async ({ page }, testInfo) => {
+test('the empty-board first-card tiles render readably and stay within the viewport', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'desktop-chrome', 'mobile onboarding layout');
 
-  await expect(page.locator('[data-card-id]').first()).toBeVisible();
+  const tiles = page.locator('.cnv-empty-tiles');
+  await expect(tiles).toBeVisible();
+  // The "Add an image" hero (the activation CTA) is on screen and tappable.
+  await expect(page.locator('.cnv-empty-tile-hero')).toBeVisible();
 
-  // Fit-to-content must not zoom out to an unreadable level. Before the fix the
-  // content spanned ~670px and forced ~35% on a 390px phone; the column layout
-  // keeps it readable (~77%).
-  await expect
-    .poll(async () => page.evaluate(() => {
-      const el = document.querySelector('.cnv-zoom-val');
-      return el ? parseInt(el.textContent, 10) : 0;
-    }), { timeout: 4000 })
-    .toBeGreaterThanOrEqual(55);
-
-  // No seeded card sits off-screen (the user shouldn't have to pan to find them).
-  const offscreen = await page.evaluate(() => {
-    const vw = window.innerWidth;
-    return [...document.querySelectorAll('[data-card-id]')].filter((el) => {
-      const r = el.getBoundingClientRect();
-      return r.right > vw + 2 || r.left < -2;
-    }).length;
-  });
-  expect(offscreen).toBe(0);
+  // Nothing in the first-card panel overflows the viewport horizontally (the old
+  // wide desktop spread forced ~35% fit-zoom / off-screen cards on a phone).
+  const vw = page.viewportSize()?.width ?? 390;
+  const box = await tiles.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box.x).toBeGreaterThanOrEqual(-2);
+  expect(box.x + box.width).toBeLessThanOrEqual(vw + 2);
 });
 
 test('onboarding copy is touch-aware on a touch device', async ({ page }, testInfo) => {
@@ -43,23 +35,12 @@ test('onboarding copy is touch-aware on a touch device', async ({ page }, testIn
     window.matchMedia('(hover: none) and (pointer: coarse)').matches);
   test.skip(!coarse, 'requires a coarse-pointer (touch) device');
 
-  // The seeded intro note must be touch-aware: never "right-click" (no mouse on a
-  // phone), and it must point at a touch gesture (tap / long-press). Wider touch
-  // devices (tablet) get the onb-welcome note; phones get a single combined
-  // "onb-drag" note instead (no separate onb-welcome) — assert against whichever the
-  // device-adaptive seed actually produced.
-  const hasWelcome = await page.locator('[data-card-id="onb-welcome"]').count();
-  const intro = hasWelcome
-    ? page.locator('[data-card-id="onb-welcome"]')
-    : page.locator('[data-card-id="onb-drag"]');
-  await expect(intro).toBeVisible();
-  const welcome = (await intro.innerText()).toLowerCase();
-  expect(welcome).not.toContain('right-click');
-  expect(/tap|long-press/.test(welcome)).toBe(true);
-
-  // The coachmark nudge is touch-aware too (when present).
-  const coach = page.locator('.onboarding-coachmark-body');
-  if (await coach.count()) {
-    expect((await coach.innerText()).toLowerCase()).not.toContain('right-click');
-  }
+  // The empty-board sub-line has a coarse (touch) variant that must never say
+  // "right-click" or "double-click" — it points at a touch gesture instead.
+  const coarseSub = page.locator('.cnv-empty-tiles-sub-coarse');
+  await expect(coarseSub).toBeVisible();
+  const copy = (await coarseSub.innerText()).toLowerCase();
+  expect(copy).not.toContain('right-click');
+  expect(copy).not.toContain('double-click');
+  expect(/tap|long-press|drag/.test(copy)).toBe(true);
 });
