@@ -10,6 +10,12 @@
 
 export const PLAN_NAME = 'Creator';
 
+// Revision marker for the current pricing/upgrade copy. Threaded into the
+// pricing funnel events (pricing_view, pricing_creator_intent, first_value_*)
+// so conversion can be attributed before/after a copy change without an A/B
+// test (traffic is far too low for one). Bump on every material copy revision.
+export const COPY_REV = 'studio_v1';
+
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 
 // Root pricing object — both "per month" (shown on the cards) and "billed"
@@ -41,14 +47,15 @@ export function planBilling(plan) {
 
 // Canonical Creator feature list — the public PricingPage wording, used on
 // EVERY Creator surface. `**text**` marks bold spans (rendered by FeatureList).
-// Storage leads: image/file use is the observed activation signal, and
-// "any file, any size" is the clearest differentiator vs the free demo.
+// Completeness/identity leads ("the complete studio") — selling a professional
+// creative toolkit converts better than leading with storage/limits, which
+// reads like a hosting plan. Storage and edit access stay, as support.
 export const CREATOR_FEATURES = [
-  '**100GB** storage — upload **any file type**, no size limit',
-  'Unlimited visitors with **Edit Mode**',
-  'Unlimited workspaces, boards & files',
-  'All Creative Tools available',
-  'Access to all Virtual + Social events',
+  'The **complete studio** — unlimited clusters, boards & files',
+  'Any file, any size — your own **100GB** drive',
+  "Full **edit access**, everywhere you're invited",
+  'Every creative tool, unlocked',
+  'All Virtual + Social events',
 ];
 
 // Demo is intentionally minimal: it's a 100-card sandbox, and visitors only

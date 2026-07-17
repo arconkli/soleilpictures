@@ -20,6 +20,7 @@ import { logEvent, logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { qaForceFirstValue } from '../lib/localMode.js';
 import { DEMO_CARD_LIMIT } from '../lib/demoCardCap.js';
+import { COPY_REV } from '../lib/billingCopy.js';
 
 export function UpgradeChip() {
   const { user } = useAuth();
@@ -53,7 +54,7 @@ export function UpgradeChip() {
       const at = new Date().toISOString();
       fvShownAtRef.current = at;
       setFvBanner(true);
-      logEvent(EV.FIRST_VALUE_UPGRADE_VIEW, {});
+      logEvent(EV.FIRST_VALUE_UPGRADE_VIEW, { copy_rev: COPY_REV });
       // Persist on show so it's truly once-per-account. Best-effort.
       updateOwnSettings({ upgrade_prompts: { first_value_shown_at: at } }).catch(() => {});
     };
@@ -89,7 +90,7 @@ export function UpgradeChip() {
 
   const near = demoCardCount >= cardLimit - 10;
   const onSeeCreator = () => {
-    logEventNow(EV.FIRST_VALUE_UPGRADE_CTA, {}); // must-land: a redirect may follow from the modal
+    logEventNow(EV.FIRST_VALUE_UPGRADE_CTA, { copy_rev: COPY_REV }); // must-land: a redirect may follow from the modal
     setFvBanner(false);
     setFvModal(true);
   };
@@ -107,9 +108,13 @@ export function UpgradeChip() {
         aria-label="Upgrade to Creator"
         title="Upgrade your demo to Creator"
       >
-        <span className="upgrade-chip-label">Upgrade</span>
-        <span className="upgrade-chip-sep">·</span>
-        <span className="upgrade-chip-count">{demoCardCount}/{cardLimit}</span>
+        <span className="upgrade-chip-label">Get Creator</span>
+        {near && (
+          <>
+            <span className="upgrade-chip-sep">·</span>
+            <span className="upgrade-chip-count">{demoCardCount}/{cardLimit}</span>
+          </>
+        )}
       </button>
       {open && <PricingModal onClose={() => setOpen(false)} header={null} />}
       {fvBanner && <FirstValueUpgradeBanner onSeeCreator={onSeeCreator} onDismiss={onDismiss} />}

@@ -2,10 +2,11 @@
 // as the public PricingPage (via the shared PricingBits), but in a modal
 // shell so demo users can upgrade without leaving their workspace.
 //
-// Three presentations:
-//   • header={null}         → generic upgrade prompt
-//   • header="cap-hit"      → "You've reached your 100-card demo limit"
-//   • header="shared-edit"  → "Editing shared boards is a Creator feature"
+// Presentations by `header` (all in the confident "Studio" voice):
+//   • null          → generic ("Everything your work deserves")
+//   • "cap-hit"     → demo card cap reached
+//   • "first-value" → first genuine card placed (warm nudge)
+//   • "storage"     → paid-only file/upload gate
 //
 // Already-paid users (paid/admin) get the "Manage billing" path to the
 // Stripe Customer Portal instead of a second checkout.
@@ -20,7 +21,7 @@ import { startCheckout, startPortal } from '../lib/checkout.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { FeatureList, PlanToggle, CreatorPriceRow } from './PricingBits.jsx';
-import { CTA, CREATOR_FEATURES, PRICING } from '../lib/billingCopy.js';
+import { CTA, CREATOR_FEATURES, PRICING, COPY_REV } from '../lib/billingCopy.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 
 export function PricingModal({ onClose, header = null, surface = 'modal' }) {
@@ -32,7 +33,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal' }) {
   const redirectingRef = useRef(false);   // suppress abandon while a checkout redirect is in flight
 
   useEffect(() => {
-    logEventOnce(`pricing_view:modal:${header || 'generic'}`, 'pricing_view', { surface: 'modal', header });
+    logEventOnce(`pricing_view:modal:${header || 'generic'}`, 'pricing_view', { surface: 'modal', header, copy_rev: COPY_REV });
     // Meta ViewContent — mid-funnel ad-optimization signal. Matches the
     // monthly-first default plan.
     trackViewContent({ content_name: 'Creator', value: PRICING.monthly.billed, currency: 'USD' });
@@ -46,7 +47,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal' }) {
     setError(null);
     setBusy(true);
     redirectingRef.current = true;
-    logEventNow(EV.PRICING_CREATOR_INTENT, { plan, surface, already_paid: alreadyPaid });
+    logEventNow(EV.PRICING_CREATOR_INTENT, { plan, surface, already_paid: alreadyPaid, copy_rev: COPY_REV });
     try {
       if (alreadyPaid) await startPortal({ surface });
       else             await startCheckout({ plan, surface });
@@ -83,33 +84,27 @@ export function PricingModal({ onClose, header = null, surface = 'modal' }) {
         <div className="upgrade-intro">
           {header === 'cap-hit' ? (
             <>
-              <div className="upgrade-eyebrow t-eyebrow">DEMO LIMIT REACHED</div>
-              <h2 className="upgrade-title">You've filled up your demo workspace.</h2>
-              <p className="upgrade-sub t-body">Upgrade to Creator for unlimited cards, clusters, and edits on other people's clusters — or invite friends to earn more free cards.</p>
-            </>
-          ) : header === 'shared-edit' ? (
-            <>
-              <div className="upgrade-eyebrow t-eyebrow">EDIT ACCESS REQUIRED</div>
-              <h2 className="upgrade-title">Editing shared clusters is a Creator feature.</h2>
-              <p className="upgrade-sub t-body">You can view this cluster. Upgrade to Creator to edit any cluster you've been invited to — plus unlimited cards and clusters.</p>
+              <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
+              <h2 className="upgrade-title">Your work outgrew the demo.</h2>
+              <p className="upgrade-sub t-body">You've built enough to feel it. Step into the complete studio — unlimited clusters, any file, full edit access — or invite friends to earn more free cards.</p>
             </>
           ) : header === 'first-value' ? (
             <>
-              <div className="upgrade-eyebrow t-eyebrow">YOU'RE OFF THE GROUND</div>
-              <h2 className="upgrade-title">Love it? Keep building.</h2>
-              <p className="upgrade-sub t-body">You've made your first cluster. Upgrade to Creator for unlimited cards, clusters, any file type, and full edit access.</p>
+              <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
+              <h2 className="upgrade-title">You're building something.</h2>
+              <p className="upgrade-sub t-body">Your first cluster is taking shape. Creator is the complete studio — unlimited space, any file, and full edit access. Everything your work deserves.</p>
             </>
           ) : header === 'storage' ? (
             <>
-              <div className="upgrade-eyebrow t-eyebrow">UPLOAD ANYTHING</div>
-              <h2 className="upgrade-title">Store any file, up to 100GB.</h2>
-              <p className="upgrade-sub t-body">Upgrade to Creator to drop any file type — large video, zips, design files, docs — straight onto your clusters, with 100GB of storage.</p>
+              <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
+              <h2 className="upgrade-title">Room for everything you make.</h2>
+              <p className="upgrade-sub t-body">Drop any file, any size — video, design files, docs — straight onto your clusters, backed by your own 100GB drive.</p>
             </>
           ) : (
             <>
-              <div className="upgrade-eyebrow t-eyebrow">GO CREATOR</div>
-              <h2 className="upgrade-title">Unlock everything.</h2>
-              <p className="upgrade-sub t-body">Store any file, any size (100GB) — plus unlimited cards, clusters, and full edit access.</p>
+              <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
+              <h2 className="upgrade-title">Everything your work deserves.</h2>
+              <p className="upgrade-sub t-body">The complete studio — unlimited clusters and files, any type, any size, and full edit access everywhere you're invited.</p>
             </>
           )}
         </div>
