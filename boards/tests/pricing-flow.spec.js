@@ -40,12 +40,13 @@ test('pricing page shows the canonical Creator list and the trimmed Demo list', 
   await expect(creator).toBeVisible();
 
   // Canonical Creator features (the public list, mirrored everywhere).
-  // Storage leads the list — it's the clearest paid differentiator.
-  await expect(creator.getByText('100GB storage — upload any file type, no size limit')).toBeVisible();
-  await expect(creator.getByText('Unlimited visitors with Edit Mode')).toBeVisible();
-  await expect(creator.getByText('Unlimited workspaces, boards & files')).toBeVisible();
-  await expect(creator.getByText('All Creative Tools available')).toBeVisible();
-  await expect(creator.getByText('Access to all Virtual + Social events')).toBeVisible();
+  // Completeness/identity leads now (the "complete studio" reframe); storage
+  // is still there, as support rather than the headline.
+  await expect(creator.getByText('complete studio')).toBeVisible();
+  await expect(creator.getByText('Any file, any size')).toBeVisible();
+  await expect(creator.getByText('everywhere you')).toBeVisible();
+  await expect(creator.getByText('Every creative tool')).toBeVisible();
+  await expect(creator.getByText('All Virtual + Social events')).toBeVisible();
   // High-res exports was removed from the offering — must not reappear.
   await expect(page.getByText(/high.?res/i)).toHaveCount(0);
 
@@ -88,9 +89,10 @@ test('the in-app upgrade modal matches the pricing page copy', async ({ page }) 
 
   const modal = page.locator('.upgrade-modal');
   await expect(modal).toBeVisible();
-  // Same canonical Creator features as the public page.
-  await expect(modal.getByText('Unlimited visitors with Edit Mode')).toBeVisible();
-  await expect(modal.getByText('Access to all Virtual + Social events')).toBeVisible();
+  // Same canonical Creator features as the public page. (Substrings chosen to
+  // sit only in the feature list, not the modal's subhead copy.)
+  await expect(modal.getByText('boards & files')).toBeVisible();
+  await expect(modal.getByText('All Virtual + Social events')).toBeVisible();
   await expect(modal.getByRole('button', { name: 'Get Creator' })).toBeVisible();
   await expect(modal.getByText(/high.?res/i)).toHaveCount(0);
 });

@@ -25,9 +25,9 @@ export function FirstValueUpgradeBanner({ onSeeCreator, onDismiss }) {
     <div className={`fv-banner surface-frosted${leaving ? ' is-leaving' : ''}`} role="dialog" aria-label="Upgrade to Creator">
       <div className="fv-banner-spark" aria-hidden="true">✦</div>
       <div className="fv-banner-copy">
-        <div className="fv-banner-title">Your first cluster is taking shape.</div>
+        <div className="fv-banner-title">You're building something.</div>
         <div className="fv-banner-body">
-          Creator stores any file, any size — 100GB, like a drive — plus unlimited cards and full edit access.
+          Creator is the complete studio — unlimited space, any file, full edit access. Everything your work deserves.
         </div>
       </div>
       <div className="fv-banner-actions">

@@ -80,11 +80,12 @@ test('a demo user sees the soft banner, and "See Creator" opens the first-value 
 
   await banner.getByRole('button', { name: 'See Creator' }).click();
 
-  // Opens the existing upgrade modal with the warm "first-value" framing (not the
-  // "100-CARD DEMO LIMIT" wall) and the canonical Get Creator CTA.
+  // Opens the existing upgrade modal with the warm "first-value" framing (title
+  // "You're building something.", not the cap-hit "Your work outgrew the demo."
+  // wall) and the canonical Get Creator CTA.
   const modal = page.locator('.upgrade-modal');
   await expect(modal).toBeVisible();
-  await expect(modal.getByText(/YOU'RE OFF THE GROUND/i)).toBeVisible();
+  await expect(modal.getByText(/You're building something/i)).toBeVisible();
   await expect(modal.getByRole('button', { name: 'Get Creator' })).toBeVisible();
   // The banner yields to the modal.
   await expect(banner).toHaveCount(0);

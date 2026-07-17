@@ -17,7 +17,7 @@ import { useAuth } from './AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { FeatureList, PlanToggle, CreatorPriceRow } from '../components/PricingBits.jsx';
-import { CTA, CREATOR_FEATURES, DEMO_FEATURES, grantCopy, PRICING } from '../lib/billingCopy.js';
+import { CTA, CREATOR_FEATURES, DEMO_FEATURES, grantCopy, PRICING, COPY_REV } from '../lib/billingCopy.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 
 export function PricingPage() {
@@ -28,7 +28,7 @@ export function PricingPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    logEventOnce('pricing_view:page', 'pricing_view', { surface: 'page' });
+    logEventOnce('pricing_view:page', 'pricing_view', { surface: 'page', copy_rev: COPY_REV });
     // Meta ViewContent — mid-funnel ad-optimization signal. Both cards default to
     // the annual plan, so report that value.
     trackViewContent({ content_name: 'Creator', value: PRICING.annual.billed, currency: 'USD' });
@@ -48,7 +48,7 @@ export function PricingPage() {
   const onCreatorCta = async () => {
     setError(null);
     setBusy(true);
-    logEventNow(EV.PRICING_CREATOR_INTENT, { plan, surface: 'page', already_paid: alreadyPaid });
+    logEventNow(EV.PRICING_CREATOR_INTENT, { plan, surface: 'page', already_paid: alreadyPaid, copy_rev: COPY_REV });
     try {
       if (alreadyPaid) await startPortal({ surface: 'page' });
       else             await startCheckout({ plan, surface: 'page' });
