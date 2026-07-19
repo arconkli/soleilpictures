@@ -6629,8 +6629,8 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   border-bottom: 1px solid var(--line-1);
 }
 .admin-users-list-toolbar .admin-search-input { width: 100%; }
-.admin-users-list-filters { display: flex; align-items: center; gap: 8px; }
-.admin-users-list-filters .admin-filter-select { flex: 1 1 auto; width: auto; }
+.admin-users-list-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.admin-users-list-filters .admin-filter-select { flex: 1 1 128px; min-width: 116px; width: auto; }
 .admin-users-list-filters .admin-refresh { flex: 0 0 auto; height: 44px; width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 .admin-users-list-count {
   font: 600 10px/1 var(--font-display, var(--font-sans));

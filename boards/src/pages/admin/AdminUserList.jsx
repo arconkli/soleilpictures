@@ -31,6 +31,14 @@ const VERIFICATION = [
   { value: 'unverified', label: 'Unverified' },
   { value: 'all',        label: 'All users' },
 ];
+// Activity = did they actually create anything? Junk/undeliverable accounts
+// (misspelled emails) still count as "signed in", so activity is the real
+// signal that separates real users from dead signups. Default hides the dead.
+const ACTIVITY = [
+  { value: 'active',   label: 'Active' },
+  { value: 'inactive', label: 'No activity' },
+  { value: 'all',      label: 'All activity' },
+];
 
 function UserListRow({ row, selected, isSelf, onSelect }) {
   const ghost = row.tier === 'waitlist' && !row.joined_waitlist;
@@ -92,6 +100,7 @@ export function AdminUserList({
   tierFilter, onTierFilterChange,
   contacted, onContactedChange,
   verification, onVerificationChange,
+  activity, onActivityChange,
   sourceFilter, onSourceFilterChange, sourceOptions = [],
   sort, onSortChange,
   onPrevPage, onNextPage, onRefresh,
@@ -148,6 +157,15 @@ export function AdminUserList({
             title="Verified = email confirmed + signed in at least once"
           >
             {VERIFICATION.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
+          </select>
+          <select
+            className="auth-input admin-filter-select"
+            value={activity}
+            onChange={(e) => onActivityChange(e.target.value)}
+            aria-label="Filter by activity"
+            title="Active = created at least one card or board"
+          >
+            {ACTIVITY.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
           </select>
           <select
             className="auth-input admin-filter-select"
