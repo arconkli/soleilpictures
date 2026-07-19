@@ -45,6 +45,7 @@ export function AdminUsersTab() {
   const [tierFilter, setTierFilter] = useState('');   // '' = all tiers
   const [contacted, setContacted] = useState('');     // '' = all · 'yes' · 'no'
   const [verification, setVerification] = useState('verified'); // 'verified' · 'unverified' · 'all'
+  const [activity, setActivity] = useState('active');  // 'active' hides zero-activity (no cards/boards) junk by default
   const [sourceFilter, setSourceFilter] = useState(''); // '' = all acquisition channels
   const [channels, setChannels] = useState([]);          // [{channel, n}] for the source dropdown
   const [sort, setSort]        = useState('recent');
@@ -64,7 +65,7 @@ export function AdminUsersTab() {
   }, [query]);
 
   // Reset page when filters / sort change
-  useEffect(() => { setPage(0); }, [debounced, tierFilter, contacted, verification, sourceFilter, sort]);
+  useEffect(() => { setPage(0); }, [debounced, tierFilter, contacted, verification, activity, sourceFilter, sort]);
 
   // Channel options for the source filter — distinct channels present (with
   // counts) via the same normalizer the list uses, so the dropdown values match
@@ -84,13 +85,13 @@ export function AdminUsersTab() {
     const c = contacted || null;
     const o = sourceFilter || null;
     const [listRes, countRes] = await Promise.all([
-      supabase.rpc('admin_list_users', { p_limit: PAGE_SIZE, p_offset: page * PAGE_SIZE, p_query: q, p_tier: t, p_sort: sort, p_status: null, p_source: o, p_contacted: c, p_verification: verification }),
-      supabase.rpc('admin_user_count', { p_query: q, p_tier: t, p_status: null, p_source: o, p_contacted: c, p_verification: verification }),
+      supabase.rpc('admin_list_users', { p_limit: PAGE_SIZE, p_offset: page * PAGE_SIZE, p_query: q, p_tier: t, p_sort: sort, p_status: null, p_source: o, p_contacted: c, p_verification: verification, p_activity: activity }),
+      supabase.rpc('admin_user_count', { p_query: q, p_tier: t, p_status: null, p_source: o, p_contacted: c, p_verification: verification, p_activity: activity }),
     ]);
     if (listRes.error)  throw listRes.error;
     if (countRes.error) throw countRes.error;
     return { rows: listRes.data || [], total: Number(countRes.data) || 0 };
-  }, [page, debounced, tierFilter, contacted, verification, sourceFilter, sort]);
+  }, [page, debounced, tierFilter, contacted, verification, activity, sourceFilter, sort]);
 
   const rows  = data?.rows || [];
   const total = data?.total || 0;
@@ -288,7 +289,7 @@ export function AdminUsersTab() {
     }
   };
 
-  const isFiltered = !!(debounced || tierFilter || contacted || sourceFilter || verification !== 'verified');
+  const isFiltered = !!(debounced || tierFilter || contacted || sourceFilter || verification !== 'verified' || activity !== 'active');
 
   return (
     <div className="admin-section admin-section-users">
@@ -319,6 +320,8 @@ export function AdminUsersTab() {
           onContactedChange={setContacted}
           verification={verification}
           onVerificationChange={setVerification}
+          activity={activity}
+          onActivityChange={setActivity}
           sourceFilter={sourceFilter}
           onSourceFilterChange={setSourceFilter}
           sourceOptions={channels}
