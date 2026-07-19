@@ -110,6 +110,14 @@ export function AdminUsersTab() {
     return { detail: d ?? null };
   }, [selectedUserId, detailEpoch]);
 
+  // Share-provenance roll-up — fetched once, feeds the detail pane's empty state
+  // with "which shares are driving signups" (board · sharer · signups/active).
+  const { data: sharesData } = useAdminData(async () => {
+    const { data: d, error: e } = await supabase.rpc('admin_share_signups', { p_limit: 20 });
+    if (e) throw e;
+    return { shares: d || [] };
+  }, []);
+
   const selectedRow = rows.find((r) => r.user_id === selectedUserId) || null;
 
   // Drop a selection that's no longer in the list (deleted, or paged/filtered away).
@@ -352,6 +360,7 @@ export function AdminUsersTab() {
           onDelete={onDelete}
           onLogOutreach={onLogOutreach}
           onDeleteOutreach={onDeleteOutreach}
+          shareSignups={sharesData?.shares || []}
           isOpen={isNarrow && !!selectedUserId}
           onClose={() => setSelectedUserId(null)}
         />

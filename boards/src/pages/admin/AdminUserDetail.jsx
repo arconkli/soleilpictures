@@ -40,6 +40,8 @@ const ACQ_ID_KEYS = new Set([
 
 function AcquisitionSection({ acq }) {
   if (!acq) return null;
+  // Resolved share provenance (board + sharer + reach) when they came via a share.
+  const share = acq.share && typeof acq.share === 'object' ? acq.share : null;
   // First-touch detail — every signal the capture layer records, shown when present.
   const fields = [
     ['utm_source', acq.utm_source], ['utm_medium', acq.utm_medium],
@@ -51,7 +53,7 @@ function AcquisitionSection({ acq }) {
     ['rdt_cid', acq.rdt_cid], ['li_fat_id', acq.li_fat_id], ['epik', acq.epik],
     ['sccid', acq.sccid], ['fbclid', acq.fbclid],
     ['share_token', acq.share_token], ['public_slug', acq.public_slug],
-  ].filter(([, v]) => v);
+  ].filter(([k, v]) => v && !(share && (k === 'share_token' || k === 'public_slug')));
   // "Captured nothing" = nothing beyond the always-present landing_path.
   const meaningful = fields.filter(([k]) => k !== 'landing_path');
   // Last-touch (latest click) — only rendered when an lt_* event existed.
@@ -68,7 +70,35 @@ function AcquisitionSection({ acq }) {
           <Row key={k} label={k}><span className={ACQ_ID_KEYS.has(k) ? 'is-muted' : ''} style={{ overflowWrap: 'anywhere' }}>{v}</span></Row>
         ))}
       </dl>
-      {meaningful.length === 0 && <div className="admin-detail-note">No campaign or referrer captured — organic / direct.</div>}
+      {share && (
+        <>
+          <div className="admin-detail-subhead">Came from a share</div>
+          <dl className="admin-detail-kv">
+            <Row label="Board">
+              {share.board_title || <span className="is-muted">deleted board</span>}
+              {share.kind === 'public_board' && <span className="is-muted"> · public page</span>}
+            </Row>
+            <Row label="Shared by">
+              {share.shared_by_email || <span className="is-muted">link since deleted</span>}
+            </Row>
+            {share.kind === 'share_link' && share.link_kind && (
+              <Row label="Link">
+                <span style={{ textTransform: 'capitalize' }}>
+                  {share.link_kind === 'invite' ? `invite · ${share.link_role || 'editor'}` : 'view link'}
+                </span>
+                {share.link_revoked_at && <span className="admin-detail-flag is-cancel" style={{ marginLeft: 6 }}>revoked</span>}
+              </Row>
+            )}
+            {share.link_created_at && <Row label="Link made">{relativeTime(share.link_created_at)}</Row>}
+            {share.cohort_signups > 1 && (
+              <Row label="Reach">
+                <span className="is-strong">+{share.cohort_signups - 1}</span> other{share.cohort_signups - 1 === 1 ? '' : 's'} signed up from this link
+              </Row>
+            )}
+          </dl>
+        </>
+      )}
+      {meaningful.length === 0 && !share && <div className="admin-detail-note">No campaign or referrer captured — organic / direct.</div>}
       {lt && (
         <>
           <div className="admin-detail-subhead">Latest click</div>
@@ -193,19 +223,50 @@ export function AdminUserDetail({
   selectedRow, currentUserId, busyId,
   onChangeTier, onBan, onUnban, onResync, onDelete,
   onLogOutreach, onDeleteOutreach,
+  shareSignups,
   isOpen, onClose,
 }) {
-  // Nothing selected → empty prompt (no fetch fires in the shell).
+  // Nothing selected → show the shares roll-up (if any) so the idle right pane
+  // earns its space, else the plain "select a user" prompt.
   if (!selectedRow) {
+    const shares = Array.isArray(shareSignups) ? shareSignups : [];
     return (
       <div className="admin-users-detail">
-        <div className="admin-detail-empty">
-          <span className="admin-detail-empty-icon"><Icon as={UsersIcon} size={26} /></span>
-          <div className="admin-detail-empty-title">Select a user</div>
-          <div className="admin-detail-empty-hint">
-            Pick someone on the left to see their full profile — acquisition, activation, engagement, billing and grants.
+        {shares.length > 0 ? (
+          <div className="admin-detail-shares">
+            <div className="admin-detail-subhead">Shares driving signups</div>
+            <div className="admin-share-rollup">
+              {shares.map((s, i) => (
+                <div key={i} className="admin-share-row">
+                  <div className="admin-share-main">
+                    <div className="admin-share-board">
+                      {s.board_title || <span className="is-muted">deleted board</span>}
+                      {s.kind === 'public_board'
+                        ? <span className="admin-share-tag">public</span>
+                        : s.link_kind === 'invite' ? <span className="admin-share-tag">invite</span> : null}
+                    </div>
+                    <div className="admin-share-by">{s.shared_by_email || '—'}</div>
+                  </div>
+                  <div className="admin-share-stat">
+                    <span className="is-strong">{s.signups}</span> signup{s.signups === 1 ? '' : 's'}
+                    {s.activated > 0 && <span className="is-muted"> · {s.activated} active</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="admin-detail-empty-hint" style={{ marginTop: 14 }}>
+              Pick someone on the left to see their full profile.
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="admin-detail-empty">
+            <span className="admin-detail-empty-icon"><Icon as={UsersIcon} size={26} /></span>
+            <div className="admin-detail-empty-title">Select a user</div>
+            <div className="admin-detail-empty-hint">
+              Pick someone on the left to see their full profile — acquisition, activation, engagement, billing and grants.
+            </div>
+          </div>
+        )}
       </div>
     );
   }
