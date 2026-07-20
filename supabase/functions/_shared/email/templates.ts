@@ -21,7 +21,9 @@ export type TemplateName =
   | "activate_nudge_1"
   | "activate_nudge_2"
   | "reengage_1"
-  | "welcome_board";
+  | "welcome_board"
+  | "board_waiting"
+  | "nudge_dormant_early";
 
 export const TEMPLATE_NAMES: TemplateName[] = [
   "waitlist_submitted",
@@ -36,6 +38,8 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "activate_nudge_2",
   "reengage_1",
   "welcome_board",
+  "board_waiting",
+  "nudge_dormant_early",
 ];
 
 export interface RenderedEmail {
@@ -81,8 +85,22 @@ function noteP(text: string): string {
   return `<p style="margin:0 0 18px; font:400 15px/1.65 ${NOTE_FONT}; color:#1a1a1a;">${escapeHtml(text)}</p>`;
 }
 
-function noteLink(label: string, url: string): string {
-  return `<p style="margin:2px 0 18px; font:600 15px/1.65 ${NOTE_FONT};"><a href="${escapeHtml(url)}" style="color:#1a1a1a; text-decoration:underline;">${escapeHtml(label)} &rarr;</a></p>`;
+// The lifecycle CTA. Formerly a bare inline text-link — the founder notes opened
+// well (welcome_board ~58%) but almost nobody clicked through, so the CTA is now
+// a bulletproof (table-based) button that reads as a real tap target in
+// Gmail/Outlook/Apple Mail. A dark pill on the light note background, left-
+// aligned to sit in the note's flow (not a centered marketing blast). The muted
+// caveat under it heads off the dead-end when a lapsed session lands the click
+// on the sign-in wall: the deep link is preserved through OTP either way.
+function noteBtn(label: string, url: string): string {
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:6px 0 6px;">
+                  <tr>
+                    <td bgcolor="#1a1a1a" style="background:#1a1a1a; border-radius:8px;">
+                      <a href="${escapeHtml(url)}" style="display:inline-block; padding:0 24px; height:46px; line-height:46px; font:600 15px/46px ${NOTE_FONT}; color:#faf9f7; text-decoration:none; border-radius:8px;">${escapeHtml(label)} &rarr;</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:0 0 18px; font:400 12px/1.5 ${NOTE_FONT}; color:#8a8780;">signed out? we'll email you a 6-digit code — no password to dig up.</p>`;
 }
 
 // A linked image inside the note body (welcome_board embeds the user's own
@@ -428,7 +446,7 @@ function activateNudge1(d: ActivateNudgeData): RenderedEmail {
           noteP("hey, the clusters team here.") +
           noteP("the 60-second version of clusters: drop three photos onto a board — camera roll, screenshots, references — and it becomes something you can actually use and share.") +
           noteP(readyLine) +
-          noteLink("add 3 photos", url) +
+          noteBtn("add 3 photos", url) +
           noteP("talk soon, the clusters team"),
         unsubscribeUrl: unsub,
       }),
@@ -458,7 +476,7 @@ Unsubscribe: ${unsub}`,
         noteP("hey, quick note from the clusters team.") +
         noteP(opener) +
         noteP("give it a minute?") +
-        noteLink(cta, url) +
+        noteBtn(cta, url) +
         noteP("talk soon, the clusters team"),
       unsubscribeUrl: unsub,
     }),
@@ -490,7 +508,7 @@ function activateNudge2(d: ActivateNudgeData): RenderedEmail {
           noteP("hey, last one from us, promise.") +
           noteP("most people who stick with clusters started with one messy photo drop: a moodboard, a project, a pile of references. it sorts itself out from there.") +
           noteP("two minutes to see if it clicks?") +
-          noteLink("drop in some photos", url) +
+          noteBtn("drop in some photos", url) +
           noteP("talk soon, the clusters team"),
         unsubscribeUrl: unsub,
       }),
@@ -520,7 +538,7 @@ Unsubscribe: ${unsub}`,
         noteP("hey again, we'll keep this one short, then we'll leave you be.") +
         noteP(waiting) +
         noteP("two minutes, in and out. if it's not your kind of thing, genuinely no hard feelings.") +
-        noteLink(cta, url) +
+        noteBtn(cta, url) +
         noteP("talk soon, the clusters team"),
       unsubscribeUrl: unsub,
     }),
@@ -566,7 +584,7 @@ function reengage1(d: ReengageData): RenderedEmail {
           noteP(nudge) +
           noteP("if new references or ideas have been piling up, this is the easy place to put them.") +
           noteP("jump back in:") +
-          noteLink(ctaLabelB, url),
+          noteBtn(ctaLabelB, url),
         unsubscribeUrl: unsub,
       }),
       text:
@@ -597,7 +615,7 @@ Unsubscribe: ${unsub}`,
         noteP(opener) +
         noteP("it's all still there, exactly how you left it. no pressure, but if a few new things have piled up since, this is a good moment to drop them in.") +
         noteP("pick up where you left off:") +
-        noteLink(ctaLabel, url),
+        noteBtn(ctaLabel, url),
       unsubscribeUrl: unsub,
     }),
     text:
@@ -668,7 +686,7 @@ function welcomeBoard(d: WelcomeBoardData): RenderedEmail {
           img +
           noteP(saved) +
           noteP(deskTip) +
-          noteLink("keep building", url) +
+          noteBtn("keep building", url) +
           noteP("talk soon, the clusters team"),
         unsubscribeUrl: unsub,
       }),
@@ -701,7 +719,7 @@ Unsubscribe: ${unsub}`,
         img +
         noteP("it's saved and waiting whenever you want to keep going — drop in more photos, notes, or files and they arrange themselves.") +
         noteP(deskTip) +
-        noteLink("pick up where you left off", url) +
+        noteBtn("pick up where you left off", url) +
         noteP("talk soon, the clusters team"),
       unsubscribeUrl: unsub,
     }),
@@ -715,6 +733,152 @@ it's saved and waiting whenever you want to keep going — drop in more photos, 
 ${deskTip}
 
 pick up where you left off: ${url}
+
+talk soon, the clusters team
+
+Unsubscribe: ${unsub}`,
+  };
+}
+
+// ── board_waiting (migration 0194) ──────────────────────────────────────────
+// The picture-powered win-back: an activated user who built a real board and
+// then went quiet (~14d). Same own-thumbnail pull as welcome_board, but framed
+// as "it's still here" rather than "look what you made". Sits above reengage_1
+// in the cron priority (reengage_1 is the text fallback for dormant users whose
+// board has no stored thumbnail). Reuses WelcomeBoardData — identical shape.
+function boardWaiting(d: WelcomeBoardData): RenderedEmail {
+  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("board_waiting"));
+  const unsub = unsubUrl(d.unsubscribeToken);
+  const name = namedWelcomeBoard(d);
+  const img = d.thumbUrl && d.thumbUrl.startsWith(EMAIL_THUMB_PREFIX)
+    ? noteImg(d.thumbUrl, name ? `Your board "${name}"` : "Your board", url)
+    : "";
+  const cta = name ? `open "${name}"` : "open my board";
+  if (d.variant === "B") {
+    const line = name
+      ? `"${name}" is still here — right where you left it.`
+      : "your board is still here — right where you left it.";
+    return {
+      subject: name ? `remember "${name}"?` : "remember your board?",
+      html: renderPlainNote({
+        preheader: "it's all still there, right where you left it.",
+        bodyHtml:
+          noteP("hey, the clusters team here.") +
+          noteP("popping back in with a picture — it's the fastest way to say it:") +
+          img +
+          noteP(line) +
+          noteP("if references or ideas have been piling up since, this is the easy place to put them.") +
+          noteBtn(cta, url) +
+          noteP("talk soon, the clusters team"),
+        unsubscribeUrl: unsub,
+      }),
+      text:
+`hey, the clusters team here.
+
+popping back in with a picture — it's the fastest way to say it:
+
+${line}
+
+if references or ideas have been piling up since, this is the easy place to put them.
+
+${cta}: ${url}
+
+talk soon, the clusters team
+
+Unsubscribe: ${unsub}`,
+    };
+  }
+  const opener = name
+    ? (img ? `remember "${name}"? here's how you left it:` : `remember "${name}"? it's still sitting in your workspace.`)
+    : (img ? "remember this? here's how you left it:" : "your board's still sitting in your workspace.");
+  return {
+    subject: name ? `"${name}" is still taking shape` : "your board is still taking shape",
+    html: renderPlainNote({
+      preheader: "it's saved and waiting whenever you want to pick it back up.",
+      bodyHtml:
+        noteP("hey, the clusters team here.") +
+        noteP(opener) +
+        img +
+        noteP("it's all saved, exactly how you left it. no pressure — but if a few new things have piled up since, this is a good moment to drop them in.") +
+        noteBtn(cta, url) +
+        noteP("talk soon, the clusters team"),
+      unsubscribeUrl: unsub,
+    }),
+    text:
+`hey, the clusters team here.
+
+${opener}
+
+it's all saved, exactly how you left it. no pressure — but if a few new things have piled up since, this is a good moment to drop them in.
+
+${cta}: ${url}
+
+talk soon, the clusters team
+
+Unsubscribe: ${unsub}`,
+  };
+}
+
+// ── nudge_dormant_early (migration 0194) ────────────────────────────────────
+// The gap-filler: a never-activated user who fell quiet AFTER the activation-
+// nudge window closed (activate_nudge_2 stops at day 14). reengage_1 gates on
+// first_populated_board_at, so these users otherwise get nothing ever again.
+// Gentle, low-pressure, activation-agnostic. Reuses ActivateNudgeData.
+function nudgeDormantEarly(d: ActivateNudgeData): RenderedEmail {
+  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("nudge_dormant_early"));
+  const unsub = unsubUrl(d.unsubscribeToken);
+  const name = namedBoard(d);
+  const cta = name ? `open "${name}"` : "open clusters";
+  if (d.variant === "B") {
+    return {
+      subject: "still here whenever you want it",
+      html: renderPlainNote({
+        preheader: "no rush — your workspace is saved and waiting whenever you are.",
+        bodyHtml:
+          noteP("hey, the clusters team here.") +
+          noteP("we haven't seen you in a little while — totally fine, life happens. just wanted you to know your workspace is saved and waiting whenever you want it.") +
+          noteP("if you've got a project, a moodboard, or a pile of references sitting around, clusters is the easy place to drop them and watch them arrange themselves.") +
+          noteBtn(cta, url) +
+          noteP("talk soon, the clusters team"),
+        unsubscribeUrl: unsub,
+      }),
+      text:
+`hey, the clusters team here.
+
+we haven't seen you in a little while — totally fine, life happens. just wanted you to know your workspace is saved and waiting whenever you want it.
+
+if you've got a project, a moodboard, or a pile of references sitting around, clusters is the easy place to drop them and watch them arrange themselves.
+
+${cta}: ${url}
+
+talk soon, the clusters team
+
+Unsubscribe: ${unsub}`,
+    };
+  }
+  const opener = name
+    ? `you started "${name}" a little while back, then things went quiet — no worries at all.`
+    : "you set up a workspace a little while back, then things went quiet — no worries at all.";
+  return {
+    subject: "your workspace is still here",
+    html: renderPlainNote({
+      preheader: "it's saved and waiting whenever you want to give it another look.",
+      bodyHtml:
+        noteP("hey, quick note from the clusters team.") +
+        noteP(opener) +
+        noteP("the whole idea of clusters: drop in photos, notes, or files — camera roll, screenshots, references — and they arrange themselves into something you can actually use and share. two minutes is enough to see if it clicks.") +
+        noteBtn(cta, url) +
+        noteP("talk soon, the clusters team"),
+      unsubscribeUrl: unsub,
+    }),
+    text:
+`hey, quick note from the clusters team.
+
+${opener}
+
+the whole idea of clusters: drop in photos, notes, or files — camera roll, screenshots, references — and they arrange themselves into something you can actually use and share. two minutes is enough to see if it clicks.
+
+${cta}: ${url}
 
 talk soon, the clusters team
 
@@ -811,6 +975,27 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardId:          data.boardId != null ? String(data.boardId) : undefined,
         boardName:        boardName || undefined,
         thumbUrl:         data.thumbUrl != null ? String(data.thumbUrl) : undefined,
+        unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        variant:          data.variant != null ? String(data.variant) : undefined,
+      });
+    }
+    case "board_waiting": {
+      const boardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
+      return boardWaiting({
+        workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:          data.boardId != null ? String(data.boardId) : undefined,
+        boardName:        boardName || undefined,
+        thumbUrl:         data.thumbUrl != null ? String(data.thumbUrl) : undefined,
+        unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        variant:          data.variant != null ? String(data.variant) : undefined,
+      });
+    }
+    case "nudge_dormant_early": {
+      const boardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
+      return nudgeDormantEarly({
+        workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:          data.boardId != null ? String(data.boardId) : undefined,
+        boardName:        boardName || undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
         variant:          data.variant != null ? String(data.variant) : undefined,
       });

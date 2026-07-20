@@ -1,8 +1,9 @@
 // lifecycle-email-cron — hourly behavioral lifecycle email scan.
 //
-// Sends four "simple note" emails to users who fall into a lifecycle segment
-// (see migrations 0173 + 0184): welcome_board (day-1, embeds the user's own
-// board thumbnail), activate_nudge_1, activate_nudge_2, reengage_1.
+// Sends "simple note" lifecycle emails to users who fall into a segment (see
+// migrations 0173 / 0184 / 0194): welcome_board (day-1, embeds the user's own
+// board thumbnail), board_waiting (picture win-back), reengage_1 (text win-
+// back), nudge_dormant_early (never-activated gap-filler), activate_nudge_1/2.
 // Invoked hourly by pg_cron (job 'lifecycle-email-hourly').
 //
 // Per email type: query the eligibility RPC, then for each recipient
@@ -131,7 +132,7 @@ Deno.serve(async (req) => {
     // welcome_board previews get a real signed thumb URL (or an explicit
     // override) so the embedded image can be verified end to end.
     let thumbUrl = reqBody.thumbUrl ? String(reqBody.thumbUrl) : undefined;
-    if (!thumbUrl && type === "welcome_board" && reqBody.boardId) {
+    if (!thumbUrl && (type === "welcome_board" || type === "board_waiting") && reqBody.boardId) {
       thumbUrl = await emailThumbUrl(String(reqBody.boardId),
         reqBody.thumbUpdatedAt ? String(reqBody.thumbUpdatedAt) : null);
     }
@@ -212,9 +213,10 @@ Deno.serve(async (req) => {
                                 : { eligible, sent, skipped, failed };
   }
 
-  // Priority order: the day-1 welcome first — it must win the one-per-day
-  // unique index (and the `mailed` set) on a fresh user's second day; then
-  // win-back, then the final activation nudge, then the first.
+  // Priority order (highest-intent / most-perishable first — it wins the
+  // one-per-day unique index AND the `mailed` set): day-1 welcome, then the
+  // picture win-back, then the text win-back, then the never-activated gap-
+  // filler, then the final activation nudge, then the first.
   await runType("welcome_board", "lifecycle_due_welcome_board", async (row) => {
     // Best-effort image: a secret-fetch hiccup degrades to a text-only note
     // rather than crashing the run mid-claim (claims are once-ever).
@@ -227,7 +229,22 @@ Deno.serve(async (req) => {
     } catch (e) { console.warn("emailThumbUrl failed", e); }
     return { workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name, thumbUrl };
   });
+  // board_waiting embeds the user's own board thumbnail, exactly like
+  // welcome_board — same best-effort degrade path.
+  await runType("board_waiting", "lifecycle_due_board_waiting", async (row) => {
+    let thumbUrl: string | undefined;
+    try {
+      if (row.board_id) {
+        thumbUrl = await emailThumbUrl(String(row.board_id),
+          row.thumb_updated_at ? String(row.thumb_updated_at) : null);
+      }
+    } catch (e) { console.warn("emailThumbUrl failed", e); }
+    return { workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name, thumbUrl };
+  });
   await runType("reengage_1", "lifecycle_due_reengage_1", (row) => ({
+    workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name,
+  }));
+  await runType("nudge_dormant_early", "lifecycle_due_nudge_dormant_early", (row) => ({
     workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name,
   }));
   await runType("activate_nudge_2", "lifecycle_due_activate_nudge_2", (row) => ({
