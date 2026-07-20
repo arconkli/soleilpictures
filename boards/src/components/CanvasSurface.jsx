@@ -71,7 +71,8 @@ import { prefetchBoard } from '../lib/prefetchKinds.js';
 import * as Y from 'yjs';
 import { supabase } from '../lib/supabase.js';
 import { addRecentColor } from '../lib/recentColors.js';
-import { loadBoardView, saveBoardView } from '../lib/boardViewState.js';
+import { loadBoardView, saveBoardView, clearBoardView,
+         markViewRestoreInFlight, viewRestoreCrashed, clearViewRestoreInFlight } from '../lib/boardViewState.js';
 import { fetchLinkPreview } from '../lib/linkPreview.js';
 import { detectEmbed } from '../lib/oembed.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
@@ -1385,11 +1386,22 @@ export function CanvasSurface({
     //    public mode so a /share visitor always opens framed-to-content,
     //    regardless of any view this device saved while signed in.
     const saved = isPublic ? null : loadBoardView(board.id);
-    if (saved) {
+    if (saved && !viewRestoreCrashed(board.id)) {
       fitOnceForRef.current = board.id;
+      // Breadcrumb: if restoring this (possibly heavy) view OOM-crashes the tab,
+      // the sentinel survives Safari's auto-reload and the next open takes the
+      // fall-through branch below instead of re-entering the crash.
+      markViewRestoreInFlight(board.id);
       setZoom(saved.zoom);
       setPan(saved.pan);
       return;
+    }
+    if (saved) {
+      // The last restore of this saved view didn't survive (likely an OOM crash
+      // → reload). Don't walk back into it: drop the saved view and fall through
+      // to fit-to-content so the board opens at a safe zoom.
+      clearBoardView(board.id);
+      clearViewRestoreInFlight(board.id);
     }
     // 2) No saved view: fit everything into the viewport. But if the
     //    board hasn't surfaced any cards yet (Yjs sync still en route)
@@ -1443,6 +1455,16 @@ export function CanvasSurface({
     const tid = setTimeout(() => saveBoardView(board.id, { zoom, pan }), 400);
     return () => clearTimeout(tid);
   }, [zoom, pan.x, pan.y, board.id, isPublic]);
+
+  // Clear the restore breadcrumb once this board has stayed alive long enough to
+  // prove a restored view didn't crash the tab. If an OOM kills the renderer
+  // first, this timer never fires, the sentinel survives Safari's auto-reload,
+  // and the restore effect above opens framed-to-content instead of looping.
+  useEffect(() => {
+    if (isPublic || !board?.id) return undefined;
+    const tid = setTimeout(() => clearViewRestoreInFlight(board.id), 4000);
+    return () => clearTimeout(tid);
+  }, [board?.id, isPublic]);
 
   // Fit the entire board content into the viewport. Wired to a
   // double-tap on the zoom % control (replaces what used to happen

@@ -26,6 +26,7 @@ import * as perf from '../lib/perf.js';
 import { bumpPerf, getGestureActiveUntil } from '../lib/perfReport.js';
 import { getCanvasScale } from '../lib/canvasScale.js';
 import { getImageTierScheduler } from '../lib/imageTierScheduler.js';
+import { lowMemoryDevice } from '../lib/device.js';
 
 const REFRESH_BEFORE_MS = 30 * 1000; // re-presign 30s before client cache expires
 
@@ -110,6 +111,11 @@ function pickTierSrc(src, originalKey) {
   const pv = `r2:${m.previewKey}`;
   if (cachedUrl(pv) || !cachedUrl(src)) return pv;
   if (!(m.w && m.h && m.w * m.h <= MAX_WARM_ORIGINAL_PX)) return pv;
+  // Memory-constrained clients (iOS Safari's per-tab budget, ≤4GB) never warm a
+  // full-res original on the canvas — a handful of decodes OOM-crashes the tab.
+  // The 1280px lg preview is already retina on a phone; detail lives in the
+  // lightbox (basic mode, unaffected).
+  if (lowMemoryDevice()) return pv;
   return src;
 }
 
@@ -143,7 +149,10 @@ function pickInitialTier(src, originalKey, w) {
   const wantSm = !!smSrc && !!m.previewSmW && displayedPx > 0 && displayedPx <= m.previewSmW;
   const floor = wantSm ? smSrc : `r2:${m.previewKey}`;
   if (cachedUrl(floor) || !cachedUrl(src)) return floor;
-  if (m.w && m.h && m.w * m.h <= MAX_WARM_ORIGINAL_PX) return src;
+  // Low-mem: keep the floor variant — never mount a card straight on the warm
+  // original (see pickTierSrc / originalWorthUpgrade). Prevents a viewport-cull
+  // remount from decoding a disk-cached original the promote path just refused.
+  if (!lowMemoryDevice() && m.w && m.h && m.w * m.h <= MAX_WARM_ORIGINAL_PX) return src;
   return floor;
 }
 
@@ -156,6 +165,13 @@ function pickInitialTier(src, originalKey, w) {
 //     blow Chrome's canvas raster-tile budget (black patches mid-pan).
 // Unknown dims keep the legacy behavior (upgrade) — can't prove zero gain.
 function originalWorthUpgrade(m) {
+  // Memory-constrained clients (iOS Safari's per-tab budget, ≤4GB): the Tier-2
+  // original never pays. The public /share bundle ships no original w/h, so the
+  // MAX_WARM_ORIGINAL_PX guard below is inert there — an unbounded 12–24MP photo
+  // is otherwise eligible, and a pinch-zoom-in rolling several through decode is
+  // exactly what OOM-crashes the WebKit renderer ("A problem repeatedly
+  // occurred"). Cap the canvas at the 1280px lg preview instead.
+  if (lowMemoryDevice()) return false;
   if (!m) return true;
   if (m.w && m.previewW && m.w <= m.previewW) return false;
   if (m.w && m.h && m.w * m.h > MAX_WARM_ORIGINAL_PX) return false;
