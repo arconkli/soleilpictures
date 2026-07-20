@@ -30,7 +30,7 @@ const logDb = (SUPABASE_URL && SERVICE_KEY)
 
 // Coarse bucket for the dashboard, derived from the template name.
 function emailCategory(template: string): string {
-  if (/^activate_|^reengage_|^welcome_/.test(template)) return "lifecycle";
+  if (/^activate_|^reengage_|^welcome_|^board_waiting$|^nudge_dormant_early$/.test(template)) return "lifecycle";
   if (template.startsWith("waitlist_"))       return "waitlist";
   return "transactional";
 }
@@ -80,6 +80,8 @@ function fromAddress(template: string): string {
     case "activate_nudge_2":
     case "reengage_1":
     case "welcome_board":
+    case "board_waiting":
+    case "nudge_dormant_early":
       return FROM_LIFECYCLE;
     default:
       return FROM_NOREPLY;
@@ -89,7 +91,7 @@ function fromAddress(template: string): string {
 // One-click List-Unsubscribe (RFC 8058) — required by Gmail/Yahoo for bulk
 // senders. Only attached to lifecycle (marketing) templates, and only when a
 // valid 64-hex unsubscribe token is present. Transactional/auth mail gets none.
-const LIST_UNSUB_TEMPLATES = new Set(["activate_nudge_1", "activate_nudge_2", "reengage_1", "welcome_board"]);
+const LIST_UNSUB_TEMPLATES = new Set(["activate_nudge_1", "activate_nudge_2", "reengage_1", "welcome_board", "board_waiting", "nudge_dormant_early"]);
 
 function listUnsubHeaders(template: string, data: Record<string, unknown> = {}): Record<string, string> {
   const tok = String(data.unsubscribeToken ?? "");
