@@ -14,6 +14,14 @@ import { TOKEN, IMAGE_COUNT, routeShareBundle, routeAnalytics, routeImageCdn } f
 const loadedSrcs = (page) => page.evaluate(() =>
   [...document.querySelectorAll('.r2p-img')].map((el) => el.currentSrc).filter(Boolean));
 
+// lib/device.js lowMemoryDevice() = iOS Safari OR navigator.deviceMemory <= 4.
+// Pin deviceMemory so these specs are deterministic regardless of runner RAM:
+// gb=8 forces the full-fidelity (Tier-2 original) path, gb=4 forces the
+// memory-constrained cap (canvas never promotes past the 1280px lg preview).
+const forceDeviceMemory = (page, gb) => page.addInitScript((n) => {
+  try { Object.defineProperty(navigator, 'deviceMemory', { configurable: true, get: () => n }); } catch (_) {}
+}, gb);
+
 test('fit-all mounts select the 640px sm preview, not lg', async ({ page }) => {
   await routeAnalytics(page, []);
   await routeImageCdn(page);
@@ -47,6 +55,7 @@ test('fit-all mounts select the 640px sm preview, not lg', async ({ page }) => {
 });
 
 test('zoom-in promotes to the original; zoom-out demotes back to sm — never re-blurring', async ({ page }) => {
+  await forceDeviceMemory(page, 8); // full-fidelity device: Tier-2 originals allowed
   await routeAnalytics(page, []);
   await routeImageCdn(page);
   await routeShareBundle(page, { withImages: true });
@@ -118,4 +127,64 @@ test('zoom-in promotes to the original; zoom-out demotes back to sm — never re
   expect(after.promote + after.upgrade).toBeGreaterThanOrEqual(2);
   expect(after.upgrade).toBeGreaterThanOrEqual(2);
   expect(after.demote).toBeGreaterThanOrEqual(1);
+});
+
+test('low-memory device caps the canvas at the lg preview — zoom-in never reaches the original', async ({ page }) => {
+  // Regression guard for the iOS-Safari viewer OOM: on a memory-constrained tab
+  // a pinch-zoom-in must climb sm→lg but NEVER decode the full-resolution
+  // original (a handful of 12–24MP decodes crashes the WebKit renderer, which is
+  // the "A problem repeatedly occurred" bug). lib/device.js flags iOS Safari and
+  // ≤4GB devices; we simulate the latter here.
+  await forceDeviceMemory(page, 4);
+  await routeAnalytics(page, []);
+  await routeImageCdn(page);
+  await routeShareBundle(page, { withImages: true });
+  await page.goto(`/share/${TOKEN}?shareqa=1&prefetch=0`);
+  await expect(page.getByText('Image board ready', { exact: true })).toBeVisible();
+  await expect.poll(async () => (await loadedSrcs(page)).length, { timeout: 8000 })
+    .toBeGreaterThanOrEqual(IMAGE_COUNT);
+
+  // Same center-anchored zoom target as the desktop spec.
+  const target = await page.evaluate(() => {
+    const imgs = [...document.querySelectorAll('.r2p-img')];
+    const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+    let best = imgs[0], bd = Infinity;
+    for (const el of imgs) {
+      const r = el.getBoundingClientRect();
+      const d = Math.hypot(r.left + r.width / 2 - cx, r.top + r.height / 2 - cy);
+      if (d < bd) { bd = d; best = el; }
+    }
+    best.setAttribute('data-tier-target', '1');
+    const r = best.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2, src: best.currentSrc };
+  });
+  expect(target.src).toContain('-sm.webp');
+
+  const targetSrc = () => page.evaluate(
+    () => document.querySelector('[data-tier-target]')?.currentSrc || '');
+  const zoomBurst = (deltaY) => page.evaluate(({ dy, x, y }) => {
+    const wrap = document.querySelector('.canvas-wrap');
+    for (let i = 0; i < 10; i++) {
+      wrap.dispatchEvent(new WheelEvent('wheel', {
+        deltaY: dy, ctrlKey: true, bubbles: true, cancelable: true, clientX: x, clientY: y,
+      }));
+    }
+  }, { dy: deltaY, x: target.x, y: target.y });
+
+  // Deep zoom-in: the ungated sm→lg promote still fires (lg IS the cap), but the
+  // Tier-2 original upgrade is refused on a low-memory device.
+  await zoomBurst(-240);
+  await expect.poll(targetSrc, { timeout: 8000 }).toContain('-lg.webp');
+
+  // Hold past a second would-be promote drain, then confirm it never climbed to
+  // the original and no original decode was counted anywhere.
+  await page.waitForTimeout(1000);
+  expect(await targetSrc()).not.toContain('-orig');
+  const counters = await page.evaluate(() => ({
+    upgrade: window.__perfReport?.counters?.['image.tier2Upgrade'] || 0,
+    promote: window.__perfReport?.counters?.['image.tierPromote'] || 0,
+  }));
+  expect(counters.upgrade).toBe(0);                    // zero full-res original decodes
+  expect(counters.promote).toBeGreaterThanOrEqual(1);  // did climb sm→lg
+  for (const s of await loadedSrcs(page)) expect(s).not.toContain('-orig');
 });
