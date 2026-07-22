@@ -21,5 +21,11 @@ export function UpgradeModal({ onClose, reason = null }) {
                : reason === 'storage' ? 'storage'
                : null;
   const surface = reason === 'first-value' ? 'first_value' : 'modal';
-  return <PricingModal onClose={onClose} header={header} surface={surface} />;
+  // `via` = the entry point, for the up_* exposure envelope (which trigger put
+  // this pitch in front of the user).
+  const via = reason === 'cap-hit' ? 'cap_hit'
+            : reason === 'storage' ? 'storage_gate'
+            : reason === 'first-value' ? 'first_value_banner'
+            : null;
+  return <PricingModal onClose={onClose} header={header} surface={surface} via={via} />;
 }

@@ -923,9 +923,14 @@ function BillingTab({ user }) {
         demoCardCount={demoCardCount}
         busy={busy}
         onManage={openPortal}
-        onUpgrade={() => setPricingOpen(true)} />
+        onUpgrade={() => {
+          // Was dark: only the downstream modal pricing_view fired, so Settings
+          // upgrades were indistinguishable from every other modal entry.
+          logEvent(EV.UP_SETTINGS_CLICK, {});
+          setPricingOpen(true);
+        }} />
 
-      {pricingOpen && <PricingModal onClose={() => setPricingOpen(false)} />}
+      {pricingOpen && <PricingModal onClose={() => setPricingOpen(false)} via="settings" />}
     </div>
   );
 }

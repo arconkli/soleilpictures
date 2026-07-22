@@ -104,7 +104,12 @@ export function UpgradeChip() {
       <button
         ref={chipRef}
         className={`upgrade-chip ${near ? 'upgrade-chip-near' : ''}`}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          // Was dark: only the downstream modal pricing_view fired, so chip
+          // clicks were indistinguishable from every other modal entry.
+          logEvent(EV.UP_CHIP_CLICK, { near, count: demoCardCount, limit: cardLimit });
+          setOpen(true);
+        }}
         aria-label="Upgrade to Creator"
         title="Upgrade your demo to Creator"
       >
@@ -116,9 +121,9 @@ export function UpgradeChip() {
           </>
         )}
       </button>
-      {open && <PricingModal onClose={() => setOpen(false)} header={null} />}
+      {open && <PricingModal onClose={() => setOpen(false)} header={null} via="chip" />}
       {fvBanner && <FirstValueUpgradeBanner onSeeCreator={onSeeCreator} onDismiss={onDismiss} />}
-      {fvModal && <PricingModal onClose={() => setFvModal(false)} header="first-value" surface="first_value" />}
+      {fvModal && <PricingModal onClose={() => setFvModal(false)} header="first-value" surface="first_value" via="first_value_banner" />}
     </>
   );
 }

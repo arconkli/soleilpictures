@@ -8,10 +8,11 @@
 // wait, tier='demo' uses it to upgrade. Already-paid users (paid/admin)
 // see "Manage billing" → Stripe Customer Portal instead of a second checkout.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
+import { useUpsellExposure } from '../hooks/useUpsellExposure.js';
 import { startCheckout, startPortal } from '../lib/checkout.js';
 import { useAuth } from './AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
@@ -22,17 +23,26 @@ import { trackViewContent } from '../lib/metaPixel.js';
 
 export function PricingPage() {
   const { user, signOut } = useAuth();
-  const { tier, subscriptionStatus, grantActive, grantExpiresAt } = useMyTier({ userId: user?.id });
+  const { tier, demoCardCount, effectiveCardLimit, subscriptionStatus, grantActive, grantExpiresAt } = useMyTier({ userId: user?.id });
   const [plan, setPlan]   = useState('monthly'); // monthly-first: annual-default drove pricing abandons
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
+  const rootRef = useRef(null);
+
+  // up_* exposure telemetry (summary fires on tab-hide/pagehide/unmount).
+  const up = useUpsellExposure({
+    surface: 'page', via: 'route',
+    uid: user?.id, tier,
+    userState: { demoCardCount, cardLimit: effectiveCardLimit, signupAt: user?.created_at },
+    getRootEl: () => rootRef.current,
+  });
 
   useEffect(() => {
-    logEventOnce('pricing_view:page', 'pricing_view', { surface: 'page', copy_rev: COPY_REV });
+    logEventOnce('pricing_view:page', 'pricing_view', { ...up.envelope(), surface: 'page', copy_rev: COPY_REV });
     // Meta ViewContent — mid-funnel ad-optimization signal. Both cards default to
     // the annual plan, so report that value.
     trackViewContent({ content_name: 'Creator', value: PRICING.annual.billed, currency: 'USD' });
-  }, []);
+  }, [up]);
   useDwellTime(EV.PRICING_DWELL, () => ({ surface: 'page' }));
 
   const alreadyPaid = tier === 'paid' || tier === 'admin';
@@ -43,23 +53,32 @@ export function PricingPage() {
   const noPortal = grantBacked || tier === 'admin';
   const grantLine = grantBacked ? grantCopy({ grantActive, grantExpiresAt }) : null;
 
-  const onPlanToggle = (p) => { logEvent(EV.PRICING_PLAN_TOGGLE, { plan: p, surface: 'page' }); setPlan(p); };
+  const onPlanToggle = (p) => {
+    const t = up.planToggle(p);
+    logEvent(EV.PRICING_PLAN_TOGGLE, { plan: p, surface: 'page', ...t });
+    setPlan(p);
+  };
 
   const onCreatorCta = async () => {
     setError(null);
     setBusy(true);
-    logEventNow(EV.PRICING_CREATOR_INTENT, { plan, surface: 'page', already_paid: alreadyPaid, copy_rev: COPY_REV });
+    up.outcome('cta', { plan });
+    logEventNow(EV.PRICING_CREATOR_INTENT, {
+      plan, surface: 'page', already_paid: alreadyPaid, copy_rev: COPY_REV,
+      via: 'route', exposure_n: up.envelope().exposure_n, ...up.timing(),
+    });
     try {
       if (alreadyPaid) await startPortal({ surface: 'page' });
       else             await startCheckout({ plan, surface: 'page' });
     } catch (err) {
+      up.noteError();
       setError(err?.message || String(err));
       setBusy(false);
     }
   };
 
   return (
-    <div className="pricing-screen">
+    <div className="pricing-screen" ref={rootRef}>
       <div className="auth-glow" aria-hidden="true" />
 
       <header className="pricing-header">
@@ -84,7 +103,11 @@ export function PricingPage() {
           ) : (
             <button
               className="pricing-cta pricing-cta-secondary"
-              onClick={() => { logEventNow(EV.PRICING_DEMO_CTA, { surface: 'page', tier }); window.location.assign('/waitlist'); }}
+              onClick={() => {
+                up.outcome('demo_cta');
+                logEventNow(EV.PRICING_DEMO_CTA, { surface: 'page', tier });
+                window.location.assign('/waitlist');
+              }}
               disabled={busy}
             >
               Go to Waitlist
@@ -123,6 +146,7 @@ export function PricingPage() {
           ) : (
             <button
               className="pricing-cta pricing-cta-primary"
+              data-up-cta="creator"
               onClick={onCreatorCta}
               disabled={busy}
             >
