@@ -58,6 +58,12 @@ export const CREATOR_FEATURES = [
   'All Virtual + Social events',
 ];
 
+// Stable analytics keys, parallel to CREATOR_FEATURES by index. The up_* hover
+// telemetry records WHICH pitch line a prospect read (up_feature_hover {row,key});
+// keying by these instead of the copy text means the data survives copy edits.
+// Keep this array in lockstep with CREATOR_FEATURES.
+export const CREATOR_FEATURE_KEYS = ['studio', 'storage', 'edit_access', 'tools', 'events'];
+
 // Demo is intentionally minimal: it's a 100-card sandbox, and visitors only
 // get View Mode (no editing of boards shared by others). Nothing else to list.
 export const DEMO_FEATURES = [

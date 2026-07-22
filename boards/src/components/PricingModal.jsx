@@ -17,6 +17,7 @@ import { lockScroll, unlockScroll } from './Modal.jsx';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
+import { useUpsellExposure } from '../hooks/useUpsellExposure.js';
 import { startCheckout, startPortal } from '../lib/checkout.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
@@ -24,43 +25,74 @@ import { FeatureList, PlanToggle, CreatorPriceRow } from './PricingBits.jsx';
 import { CTA, CREATOR_FEATURES, PRICING, COPY_REV } from '../lib/billingCopy.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 
-export function PricingModal({ onClose, header = null, surface = 'modal' }) {
+export function PricingModal({ onClose, header = null, surface = 'modal', via = null }) {
   const { user } = useAuth();
-  const { tier } = useMyTier({ userId: user?.id });
+  const { tier, demoCardCount, effectiveCardLimit } = useMyTier({ userId: user?.id });
   const [plan, setPlan]   = useState('monthly'); // monthly-first: annual-default drove pricing abandons (24/28 in 30d)
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
   const redirectingRef = useRef(false);   // suppress abandon while a checkout redirect is in flight
+  const modalRef = useRef(null);
+
+  // up_* exposure telemetry — what the user DOES on this pitch before leaving
+  // (feature-row reads, toggles, dismiss method, dwell → up_exposure_summary).
+  const up = useUpsellExposure({
+    surface, header, via,
+    uid: user?.id, tier,
+    userState: { demoCardCount, cardLimit: effectiveCardLimit, signupAt: user?.created_at },
+    getRootEl: () => modalRef.current,
+  });
 
   useEffect(() => {
-    logEventOnce(`pricing_view:modal:${header || 'generic'}`, 'pricing_view', { surface: 'modal', header, copy_rev: COPY_REV });
+    // surface stays 'modal' in pricing_view for continuity with historical rows
+    // (the first-value mount is distinguished by header, and by envelope.surface
+    // on the up_* rows); the envelope adds via/exposure_n/tier/cap_pct/acct_days.
+    logEventOnce(`pricing_view:modal:${header || 'generic'}`, 'pricing_view', { ...up.envelope(), surface: 'modal', header, copy_rev: COPY_REV });
     // Meta ViewContent — mid-funnel ad-optimization signal. Matches the
     // monthly-first default plan.
     trackViewContent({ content_name: 'Creator', value: PRICING.monthly.billed, currency: 'USD' });
-  }, [header]);
+  }, [header, up]);
   useDwellTime(EV.PRICING_DWELL, () => ({ surface: 'modal', header }));
 
   const alreadyPaid = tier === 'paid' || tier === 'admin';
-  const onPlanToggle = (p) => { logEvent(EV.PRICING_PLAN_TOGGLE, { plan: p, surface: 'modal' }); setPlan(p); };
+  const onPlanToggle = (p) => {
+    const t = up.planToggle(p);
+    logEvent(EV.PRICING_PLAN_TOGGLE, { plan: p, surface: 'modal', header, ...t });
+    setPlan(p);
+  };
 
   const onCta = async () => {
     setError(null);
     setBusy(true);
     redirectingRef.current = true;
-    logEventNow(EV.PRICING_CREATOR_INTENT, { plan, surface, already_paid: alreadyPaid, copy_rev: COPY_REV });
+    up.outcome('cta', { plan });
+    logEventNow(EV.PRICING_CREATOR_INTENT, {
+      plan, surface, already_paid: alreadyPaid, copy_rev: COPY_REV,
+      header, via, exposure_n: up.envelope().exposure_n, ...up.timing(),
+    });
     try {
       if (alreadyPaid) await startPortal({ surface });
       else             await startCheckout({ plan, surface });
     } catch (err) {
       redirectingRef.current = false;
+      up.noteError();
       setError(err?.message || String(err));
       setBusy(false);
     }
   };
 
-  // Closing without a redirect in flight = abandon.
-  const handleClose = () => {
-    if (!redirectingRef.current) logEvent(EV.PRICING_ABANDON, { header, plan, surface: 'modal' });
+  // Closing without a redirect in flight = abandon. `method` records HOW the
+  // user left ('x' | 'backdrop' | 'maybe_later' | 'esc') — which dismiss
+  // affordance wins is a pitch signal ("Maybe later" is a considered no;
+  // backdrop/esc is a bounce).
+  const handleClose = (method = 'x') => {
+    if (!redirectingRef.current) {
+      up.outcome('dismiss', { method });
+      logEvent(EV.PRICING_ABANDON, {
+        header, plan, surface: 'modal', method,
+        exposure_n: up.envelope().exposure_n, ...up.timing(),
+      });
+    }
     onClose?.();
   };
 
@@ -71,15 +103,15 @@ export function PricingModal({ onClose, header = null, surface = 'modal' }) {
   handleCloseRef.current = handleClose;
   useEffect(() => {
     lockScroll();
-    const onKey = (e) => { if (e.key === 'Escape') handleCloseRef.current(); };
+    const onKey = (e) => { if (e.key === 'Escape') handleCloseRef.current('esc'); };
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('keydown', onKey); unlockScroll(); };
   }, []);
 
   return createPortal(
-    <div className="upgrade-backdrop" onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
-      <div className="upgrade-modal">
-        <button className="upgrade-close" onClick={handleClose} aria-label="Close">×</button>
+    <div className="upgrade-backdrop" onClick={(e) => { if (e.target === e.currentTarget) handleClose('backdrop'); }}>
+      <div className="upgrade-modal" ref={modalRef}>
+        <button className="upgrade-close" onClick={() => handleClose('x')} aria-label="Close">×</button>
 
         <div className="upgrade-intro">
           {header === 'cap-hit' ? (
@@ -121,7 +153,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal' }) {
 
           {error && <div className="auth-error t-meta">{error}</div>}
 
-          <button className="pricing-cta pricing-cta-primary" onClick={onCta} disabled={busy}>
+          <button className="pricing-cta pricing-cta-primary" data-up-cta="creator" onClick={onCta} disabled={busy}>
             {busy && <span className="cta-spinner" aria-hidden="true" />}
             {busy
               ? (alreadyPaid ? CTA.manageBillingBusy : CTA.getCreatorBusy)
@@ -143,6 +175,8 @@ export function PricingModal({ onClose, header = null, surface = 'modal' }) {
               textDecoration: 'underline', textUnderlineOffset: 3,
             }}
             onClick={() => {
+              logEvent(EV.UP_INVITE_ALT_CLICK, { ...up.envelope(), plan, dwell_ms: up.timing().dwell_ms });
+              up.outcome('invite_alt');
               try { window.dispatchEvent(new CustomEvent('soleil:open-invite', { detail: { surface: 'cap_modal' } })); } catch (_) {}
               onClose?.();
             }}
@@ -151,7 +185,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal' }) {
           </button>
         )}
 
-        <button className="upgrade-later" onClick={handleClose}>Maybe later</button>
+        <button className="upgrade-later" onClick={() => handleClose('maybe_later')}>Maybe later</button>
       </div>
     </div>,
     document.body,

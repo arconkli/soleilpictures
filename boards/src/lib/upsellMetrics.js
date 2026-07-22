@@ -169,6 +169,10 @@ export function createUpsellExposure({
 
     envelope,
 
+    // Timing snapshot for enriching the existing pricing_* events at their
+    // call sites (pricing_creator_intent / pricing_abandon).
+    timing() { return { ttfi_ms: ttfi, dwell_ms: tMs(), toggles_n: togglesN }; },
+
     // First pointer/key interaction inside the surface — sets ttfi once.
     markInteraction() {
       if (ended || ttfi != null) return;

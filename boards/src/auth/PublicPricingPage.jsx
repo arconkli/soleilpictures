@@ -19,6 +19,7 @@ import { logEvent, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
+import { useUpsellExposure } from '../hooks/useUpsellExposure.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { FeatureList, PlanToggle, CreatorPriceRow } from '../components/PricingBits.jsx';
 import { CTA, CREATOR_FEATURES, DEMO_FEATURES, PRICING } from '../lib/billingCopy.js';
@@ -29,19 +30,6 @@ const SURFACE = 'public_page';
 export function PublicPricingPage() {
   const [plan, setPlan] = useState('monthly'); // monthly-first: annual-default drove pricing abandons
 
-  useEffect(() => {
-    const prev = document.title;
-    // The Worker already injects this title at the edge on cold load; set it
-    // again so it's correct after any client navigation too.
-    document.title = 'Pricing · Soleil Clusters';
-    logEventOnce('pricing_view:public_page', EV.PRICING_VIEW, { surface: SURFACE });
-    // Meta ViewContent — mid-funnel ad-optimization signal. Both cards default
-    // to the annual plan, so report that value (mirrors the in-app PricingPage).
-    trackViewContent({ content_name: 'Creator', value: PRICING.annual.billed, currency: 'USD' });
-    return () => { document.title = prev; };
-  }, []);
-  useDwellTime(EV.PRICING_DWELL, () => ({ surface: SURFACE }));
-
   // Uniform lp_* engagement package; .pricing-screen is the overflow scroller.
   const scrollRef = useRef(null);
   const lp = useLandingEngagement({
@@ -49,11 +37,39 @@ export function PublicPricingPage() {
     getScrollEl: () => scrollRef.current,
   });
 
-  const onPlanToggle = (p) => { logEvent(EV.PRICING_PLAN_TOGGLE, { plan: p, surface: SURFACE }); setPlan(p); };
+  // up_* exposure telemetry. The trace stays off here by the arming rule
+  // (lp_trace already covers anonymous visitors on this page); feature-row
+  // hovers + the exposure summary still fire.
+  const up = useUpsellExposure({
+    surface: SURFACE, tier: 'signed_out',
+    getRootEl: () => scrollRef.current,
+  });
+
+  useEffect(() => {
+    const prev = document.title;
+    // The Worker already injects this title at the edge on cold load; set it
+    // again so it's correct after any client navigation too.
+    document.title = 'Pricing · Soleil Clusters';
+    // envelope() adds copy_rev (previously missing here) + exposure_n.
+    logEventOnce('pricing_view:public_page', EV.PRICING_VIEW, { ...up.envelope(), surface: SURFACE });
+    // Meta ViewContent — mid-funnel ad-optimization signal. Both cards default
+    // to the annual plan, so report that value (mirrors the in-app PricingPage).
+    trackViewContent({ content_name: 'Creator', value: PRICING.annual.billed, currency: 'USD' });
+    return () => { document.title = prev; };
+  }, [up]);
+  useDwellTime(EV.PRICING_DWELL, () => ({ surface: SURFACE }));
+
+  const onPlanToggle = (p) => {
+    const t = up.planToggle(p);
+    logEvent(EV.PRICING_PLAN_TOGGLE, { plan: p, surface: SURFACE, ...t });
+    setPlan(p);
+  };
 
   // Signed-out → sign in first; the post-auth flow handles the actual upgrade.
-  // The lp CTA click beacons (logEventNow) so it survives the navigation.
+  // The lp CTA click beacons (logEventNow) so it survives the navigation; the
+  // up_* summary beacons from the pagehide the navigation causes.
   const goSignIn = (ev, pos, extra) => {
+    up.outcome(pos === 'creator' ? 'cta' : 'demo_cta', { plan: extra?.plan });
     logEvent(ev, { surface: SURFACE, ...extra });
     lp.tracker.ctaClick(pos, '/');
     window.location.assign('/');
@@ -104,6 +120,7 @@ export function PublicPricingPage() {
           <button
             className="pricing-cta pricing-cta-primary"
             data-lp-cta="creator"
+            data-up-cta="creator"
             onClick={() => goSignIn(EV.PRICING_CREATOR_INTENT, 'creator', { plan, already_paid: false })}
           >
             {CTA.getCreator}

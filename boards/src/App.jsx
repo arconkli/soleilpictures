@@ -929,6 +929,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             return;
           }
           if (cs.own && cs.count === cs.limit - 10) {
+            logEventOnce('up_cap_toast:near', EV.UP_CAP_TOAST_VIEW, { count: cs.count, limit: cs.limit, at: 'near' });
             feedback.toast({
               type: 'warning',
               message: `You're at ${cs.count}/${cs.limit} cards in your demo workspace. Invite friends or upgrade for more.`,
@@ -992,6 +993,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           cardsToAdd = cardsToAdd.slice(0, accepted);
           surfaceCapHit(csBatch);
         } else if (csBatch.own && csBatch.count + cardsToAdd.length >= csBatch.limit - 10 && csBatch.count < csBatch.limit - 10) {
+          logEventOnce('up_cap_toast:near', EV.UP_CAP_TOAST_VIEW, { count: csBatch.count, limit: csBatch.limit, at: 'near' });
           feedback.toast({
             type: 'warning',
             message: `You're approaching the ${csBatch.limit}-card demo limit. Invite friends or upgrade for more.`,
@@ -1157,6 +1159,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           sources = sources.slice(0, accepted);
           surfaceCapHit(csDup);
         } else if (csDup.own && csDup.count + sources.length >= csDup.limit - 10 && csDup.count < csDup.limit - 10) {
+          logEventOnce('up_cap_toast:near', EV.UP_CAP_TOAST_VIEW, { count: csDup.count, limit: csDup.limit, at: 'near' });
           feedback.toast({
             type: 'warning',
             message: `You're approaching the ${csDup.limit}-card demo limit. Invite friends or upgrade for more.`,
