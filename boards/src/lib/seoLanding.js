@@ -151,7 +151,7 @@ const PAGES = [
       'Keep your shots, reference frames, and schedule on one board — visual and organized, not buried in a spreadsheet.',
     answer:
       'Soleil Clusters is a visual shot list maker: every shot gets its own card with a reference frame, lens, and movement notes, and the board toggles between a freeform canvas and a clean list view. Link it to your storyboard and mood board, map shots to shoot days with a schedule card, and share one live link with the crew.',
-    updated: '2026-07-12',
+    updated: '2026-07-22',
     cta: { label: 'Build a shot list — free', sub: 'Free to start. No install.' },
     stepsHeading: 'How to make a shot list',
     steps: [
@@ -202,6 +202,7 @@ const PAGES = [
       { q: 'Is it free to start?', a: 'Yes, the Demo tier is free. Creator ($25/mo) unlocks unlimited boards, 100GB storage, and Edit Mode.' },
       { q: 'How do I make a shot list for a short film?', a: 'Make a board per scene, add a card per shot with its reference frame, lens, and movement, then add a schedule card to map shots to days. Open the short-film shot list example board below to see a finished one.' },
       { q: 'Does Clusters have a shot list template?', a: 'The fastest start is the public short-film shot list example board — open it, see how the shot cards and schedule are structured, and rebuild that structure in your own board in a few minutes.' },
+      { q: 'Is this a shot planner?', a: 'Yes — planning the shots is the whole point. Each shot card carries its reference frame, lens, and movement, the schedule card maps shots to shoot days and locations, and the crew works from one live board. If what you searched for was a shot planner, this is that tool with the pictures kept in.' },
     ],
     related: ['/tools/storyboard-maker', '/tools/mood-board-maker', '/vs/studiobinder', '/use-cases'],
   },
@@ -392,7 +393,7 @@ const PAGES = [
       'Milanote is a lovely place to think. Clusters is where a team pulls a whole production together — live, on one canvas.',
     answer:
       'Soleil Clusters is a free Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, auto-tagging that files dropped references for you, a relationship graph connecting whole projects, and no hard item cap on the free tier — Creator is a flat $25/mo with 100GB storage. Milanote remains strong for solo planning; Clusters is for visual, media-heavy, collaborative work.',
-    updated: '2026-07-21',
+    updated: '2026-07-22',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     sections: [
       {
@@ -456,21 +457,22 @@ const PAGES = [
       { q: 'Is Clusters cheaper than Milanote for a team?', a: 'Usually, because Clusters is flat-priced: Creator is $25/mo rather than a per-person subscription, and anyone you share a board with can view it free with one link.' },
       { q: 'Is there a free Milanote alternative without item caps?', a: 'Yes — Soleil Clusters. The free Demo tier has no trial clock and a generous card cap sized for real projects, instead of a hard limit of around a hundred total items. Creator ($25/mo, flat) removes the cap entirely.' },
       { q: 'What do filmmakers use instead of Milanote?', a: 'Many use Clusters, because pre-production is connected there: the mood board links to the storyboard, the shot list, and the schedule as one project, with screenplay mode built in — and the whole crew edits the same boards in real time.' },
+      { q: 'Milanote vs Canva — and where does Clusters fit?', a: 'Canva is a template-driven graphics editor, strongest when the goal is a finished design. Milanote is a board app for planning and collecting ideas. Clusters covers that planning ground for production teams — a real-time multiplayer canvas with no hard item cap, where the finished board shares with one link a client can open without an account.' },
     ],
     related: ['/tools/mood-board-maker', '/tools/storyboard-maker', '/tools/shot-list-maker', '/vs/pureref', '/vs/miro', '/use-cases'],
   },
   {
     path: '/vs/pureref',
     kind: 'compare',
-    title: 'PureRef Alternative — Online, Shareable, Free to Start',
+    title: 'Free PureRef Alternative — Online, Shareable, No Install',
     metaDescription:
-      'Love PureRef but need to share? Clusters keeps the fast reference-board feel, plus real-time collaboration, link sharing, and cloud sync. Free to start.',
+      'The free PureRef alternative that runs online: the fast reference-board feel plus real-time collaboration, link sharing, and cloud sync. No install.',
     h1: 'A PureRef Alternative for Teams and the Cloud',
     subhead:
       'PureRef is a fast, offline reference window. Clusters is a collaborative reference workspace you can share and grow.',
     answer:
       'Soleil Clusters is a PureRef alternative that runs free in your browser: reference boards sync across devices, share with one link, and support real-time team editing. Boards hold notes, docs, video, and color palettes alongside images. PureRef still wins for a tiny offline desktop overlay; Clusters wins when reference needs to be shared.',
-    updated: '2026-07-21',
+    updated: '2026-07-22',
     cta: { label: 'Try Clusters free', sub: 'Runs in your browser. Free to start.' },
     stepsHeading: 'How to move a PureRef board to Clusters',
     steps: [
@@ -548,8 +550,10 @@ const PAGES = [
       ],
     },
     faq: [
-      { q: 'What is a good PureRef alternative with collaboration?', a: 'Soleil Clusters. It keeps the fast, freeform reference-board feel but adds real-time collaboration, link sharing, cloud sync, and support for notes, docs, palettes, and video — not just images.' },
+      { q: 'What is a good PureRef alternative with collaboration?', a: 'Among apps like PureRef, Soleil Clusters is the one built for collaboration: it keeps the fast, freeform reference-board feel but adds real-time editing, link sharing, cloud sync, and support for notes, docs, palettes, and video — not just images.' },
       { q: 'Is there an online version of PureRef?', a: 'No — PureRef is a desktop app with no official web version, and the community request for one has been open on its forum for years. Clusters fills that gap: a reference board that runs in the browser, syncs across devices, and shares with one link.' },
+      { q: 'Milanote vs PureRef — which should I use?', a: 'They solve different problems: PureRef is an offline desktop window for pinning reference images while you work, and Milanote is a board app for planning and organizing ideas. Clusters sits between the two — the reference-board workflow, in the browser, with sharing and real-time collaboration. Our Milanote comparison covers that side in detail.' },
+      { q: 'Is there an open-source PureRef alternative?', a: 'BeeRef is the best-known one — a free, open-source desktop reference board for Windows, Mac, and Linux. Like PureRef it is desktop-only, with no web version or collaboration. Clusters is not open source; it is the option to pick when you want reference boards in the browser, shared with a link.' },
       { q: 'Can I use PureRef on an iPad?', a: 'PureRef does not ship an iPad or Android app. Clusters runs in the browser, so the same reference board opens on your desktop, laptop, or iPad — useful when you want your reference with you on set or away from your workstation.' },
       { q: 'Does PureRef have a collaboration mode?', a: 'No. A PureRef board is a local file on one machine; sharing it means sending the file or an exported image. Clusters boards are collaborative by default — live cursors, comments pinned to images, and one link that always shows the current board.' },
       { q: 'Can Clusters open .pur files?', a: 'Not directly — .pur is PureRef’s own local format. Export your images from PureRef (or gather the originals) and drag the whole set onto a Clusters board; auto-tagging files each reference as it lands, and the layout takes minutes to rebuild.' },
@@ -633,7 +637,7 @@ const PAGES = [
   {
     path: '/vs/storyboarder',
     kind: 'compare',
-    title: 'Wonder Unit Storyboarder Alternative That Runs Online',
+    title: 'Wonder Unit Storyboarder Alternative — Free & Online',
     metaDescription:
       'Storyboarder’s last stable release was 2020. Clusters moves your board to the browser — numbered panels, shot lists, real-time crew edits, one shared link.',
     h1: 'An Online Alternative to Wonder Unit’s Storyboarder',
