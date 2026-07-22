@@ -62,6 +62,21 @@ export const EV = Object.freeze({
   CHECKOUT_SUCCESS_DWELL:  'checkout_success_dwell',      // {ms,outcome}
   SUBSCRIPTION_STARTED:    'subscription_started',        // SERVER (stripe-webhook, checkout.session.completed) {plan,amount_total_cents,currency,session_id} — ground-truth paid conversion, fires even if the buyer never returns to /pricing/success
 
+  // ── Upsell behavioral telemetry (up_* family — lib/upsellMetrics.js +
+  //    hooks/useUpsellExposure.js). WHY users who see the Creator pitch don't
+  //    click. Every up_* row carries the exposure ENVELOPE {surface,header,via,
+  //    copy_rev,exposure_n,tier,cap_pct,demo_cards,acct_days}; the pricing_*
+  //    events above keep firing unchanged (0110 funnels read them) and only
+  //    GAIN these props at their call sites. Read layer: admin_upsell_scorecard
+  //    + admin_upsell_exposures (migration 0197). ──
+  UP_EXPOSURE_SUMMARY:     'up_exposure_summary',         // ONE dense terminal row per exposure — the analyzable unit; 0197 counts THESE as exposures, not pricing_view {outcome:'cta'|'invite_alt'|'demo_cta'|'dismiss'|'hidden',dismiss_method:'x'|'backdrop'|'maybe_later'|'esc'|'nav'|null,plan_final,toggles_n,toggle_seq,dwell_ms,ttfi_ms,feat_rows,feat_ms,price_hes_ms,cta_hes_ms,rage_n,dead_n,error_seen} (beacon; once — first of hide/unmount/pagehide)
+  UP_FEATURE_HOVER:        'up_feature_hover',            // pointer lingered ≥300ms on a Creator feature row — "they read this pitch line" {row,key,ms} (once per row per exposure; keys = billingCopy.CREATOR_FEATURE_KEYS)
+  UP_CHIP_CLICK:           'up_chip_click',               // demo topbar "Get Creator" pill clicked {near,count,limit} (was DARK — only the downstream modal pricing_view fired)
+  UP_SETTINGS_CLICK:       'up_settings_upgrade_click',   // Settings→Billing "Upgrade to Creator →" clicked (was DARK)
+  UP_INVITE_ALT_CLICK:     'up_invite_alt_click',         // modal's "Or invite friends to earn more free cards →" alternative clicked {header,plan,dwell_ms} (was DARK; referral_open{surface:'cap_modal'} still fires downstream)
+  UP_CAP_TOAST_VIEW:       'up_cap_toast_view',           // approaching/at-limit demo-cap warning toast shown {count,limit,at:'near'|'limit'} (logEventOnce per pageload; was DARK)
+  UP_TRACE:                'up_trace',                    // coalesced micro-interaction batch {from_t,to_t,n,ev:[{t,k,tgt,...}]} — k:'click'|'dead'|'rage'|'input'|'cta'|'invite_alt'|'demo_cta'|'dismiss'|'hide'|'show'; armed ONLY when surface!=='public_page' && !isJourneyOpen() so it never overlaps ps_trace/lp_trace; never captures input values
+
   // ── Ad offer (fbclid instant-demo) ──
   AD_OFFER_VIEW:           'ad_offer_view',               // price-first screen shown to ad-sourced demo user
   AD_OFFER_ENTER:          'ad_offer_enter',              // chose "continue into workspace" (skipped buying) {plan}
