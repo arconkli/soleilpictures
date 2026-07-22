@@ -14,10 +14,11 @@
 // All copy/prices/markup are shared with the in-app PricingPage via billingCopy
 // + PricingBits, so the two surfaces can never drift.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { logEvent, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
+import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { FeatureList, PlanToggle, CreatorPriceRow } from '../components/PricingBits.jsx';
 import { CTA, CREATOR_FEATURES, DEMO_FEATURES, PRICING } from '../lib/billingCopy.js';
@@ -41,13 +42,25 @@ export function PublicPricingPage() {
   }, []);
   useDwellTime(EV.PRICING_DWELL, () => ({ surface: SURFACE }));
 
+  // Uniform lp_* engagement package; .pricing-screen is the overflow scroller.
+  const scrollRef = useRef(null);
+  const lp = useLandingEngagement({
+    page: '/pricing', pageKind: 'pricing',
+    getScrollEl: () => scrollRef.current,
+  });
+
   const onPlanToggle = (p) => { logEvent(EV.PRICING_PLAN_TOGGLE, { plan: p, surface: SURFACE }); setPlan(p); };
 
   // Signed-out → sign in first; the post-auth flow handles the actual upgrade.
-  const goSignIn = (ev, extra) => { logEvent(ev, { surface: SURFACE, ...extra }); window.location.assign('/'); };
+  // The lp CTA click beacons (logEventNow) so it survives the navigation.
+  const goSignIn = (ev, pos, extra) => {
+    logEvent(ev, { surface: SURFACE, ...extra });
+    lp.tracker.ctaClick(pos, '/');
+    window.location.assign('/');
+  };
 
   return (
-    <div className="pricing-screen">
+    <div className="pricing-screen" ref={scrollRef}>
       <div className="auth-glow" aria-hidden="true" />
 
       <header className="pricing-header">
@@ -70,7 +83,8 @@ export function PublicPricingPage() {
           <FeatureList features={DEMO_FEATURES} />
           <button
             className="pricing-cta pricing-cta-secondary"
-            onClick={() => goSignIn(EV.PRICING_DEMO_CTA, { tier: 'signed_out' })}
+            data-lp-cta="demo"
+            onClick={() => goSignIn(EV.PRICING_DEMO_CTA, 'demo', { tier: 'signed_out' })}
           >
             Get started free
           </button>
@@ -89,7 +103,8 @@ export function PublicPricingPage() {
 
           <button
             className="pricing-cta pricing-cta-primary"
-            onClick={() => goSignIn(EV.PRICING_CREATOR_INTENT, { plan, already_paid: false })}
+            data-lp-cta="creator"
+            onClick={() => goSignIn(EV.PRICING_CREATOR_INTENT, 'creator', { plan, already_paid: false })}
           >
             {CTA.getCreator}
           </button>

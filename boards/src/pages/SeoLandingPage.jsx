@@ -7,11 +7,13 @@
 // Code-split (loaded only on a landing path) and dependency-light — it imports
 // just the brand mark and the shared registry, staying out of the editor chunk.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { SEO_LANDING_PAGES, getLandingSpec } from '../lib/seoLanding.js';
 import { NotFoundPage } from './NotFoundPage.jsx';
 import { logEventOnce } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
+import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import './seoLanding.css';
 
 // path → short link label, for related-page spokes in the footer.
@@ -23,16 +25,21 @@ const humanize = (slug) => String(slug || '')
   .replace(/-/g, ' ')
   .replace(/\b\w/g, (c) => c.toUpperCase());
 
+// Stable section id for lp_section: ordinal + heading slug, so copy tweaks
+// shift history gracefully instead of orphaning it.
+const sectionId = (i, heading) => `s${i}-` + String(heading || '')
+  .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24);
+
 // Renders a feature section, slipping ONE quiet CTA strip in after the second
 // section — a single mid-read ask between the value copy and the how-to.
-function SectionWithMidCta({ index, cta, children }) {
+function SectionWithMidCta({ index, cta, midCtaProps, children }) {
   return (
     <>
       {children}
       {index === 1 && (
         <aside className="seo-midcta">
           <span className="seo-midcta-copy"><b>Try it on your next project.</b> Free to start — nothing to install.</span>
-          <a className="seo-cta-primary seo-cta-small" href={cta.href || '/'}>{cta.label || 'Start free'}</a>
+          <a className="seo-cta-primary seo-cta-small" href={cta.href || '/'} {...(midCtaProps || {})}>{cta.label || 'Start free'}</a>
         </aside>
       )}
     </>
@@ -56,8 +63,16 @@ export function SeoLandingPage({ spec: specProp, path }) {
   useEffect(() => {
     if (!spec) return;
     document.title = spec.title;
-    logEventOnce(`seo_landing_${spec.path}`, 'seo_landing_view', { path: spec.path, kind: spec.kind });
+    logEventOnce(`seo_landing_${spec.path}`, EV.SEO_LANDING_VIEW, { path: spec.path, kind: spec.kind });
   }, [spec]);
+
+  // Uniform lp_* engagement package (scroll / dwell / CTA / sections / trace).
+  // The page scrolls the .seo-scroll overflow container, not the window.
+  const scrollRef = useRef(null);
+  const lp = useLandingEngagement({
+    page: spec?.path, pageKind: spec?.kind,
+    getScrollEl: () => scrollRef.current,
+  });
 
   // Live board titles + thumb cache-busters for the example cards. Loaded
   // lazily (dynamic import keeps the supabase client out of this chunk's
@@ -89,6 +104,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
   const cta = spec.cta || {};
   const related = (spec.related || []).filter((p) => TITLE_BY_PATH.has(p));
   const hero = examples[0] || null;
+  const nSec = (spec.sections || []).length;   // lp_section idx base for the tail sections
 
   return (
     <div className="public-shell seo-shell public-dark">
@@ -99,25 +115,25 @@ export function SeoLandingPage({ spec: specProp, path }) {
         </a>
         <div className="public-topbar-spacer" />
         <div className="public-topbar-actions">
-          <a className="public-signin-quiet" href="/explore">Explore</a>
-          <a className="public-signin-quiet" href="/pricing">Pricing</a>
-          <a className="public-cta" href={cta.href || '/'}>Try Clusters free</a>
+          <a className="public-signin-quiet" href="/explore" {...lp.ctaProps('topbar_explore', '/explore', { intent: 'nav' })}>Explore</a>
+          <a className="public-signin-quiet" href="/pricing" {...lp.ctaProps('topbar_pricing', '/pricing', { intent: 'nav' })}>Pricing</a>
+          <a className="public-cta" href={cta.href || '/'} {...lp.ctaProps('topbar', cta.href || '/')}>Try Clusters free</a>
         </div>
       </div>
 
-      <div className="seo-scroll">
+      <div className="seo-scroll" ref={scrollRef}>
         <article className="seo-main">
           {/* Hero — the answer block is the 40–60-word direct answer AI answer
               engines can lift verbatim; keep it above the CTA. Directly below,
               a LIVE example board in a browser frame (visual proof → /c/<slug>). */}
-          <header className="seo-hero">
+          <header className="seo-hero" ref={lp.sectionRef('hero', 0)}>
             {spec.eyebrow && <p className="seo-eyebrow">{spec.eyebrow}</p>}
             <h1 className="seo-h1">{spec.h1}</h1>
             <p className="seo-subhead">{spec.subhead}</p>
             {spec.answer && <p className="seo-answer">{spec.answer}</p>}
             <div className="seo-hero-cta">
-              <a className="seo-cta-primary" href={cta.href || '/'}>{cta.label || 'Start free'}</a>
-              {hero && <a className="seo-cta-secondary" href="#live-example">See a real board ↓</a>}
+              <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('hero', cta.href || '/')}>{cta.label || 'Start free'}</a>
+              {hero && <a className="seo-cta-secondary" href="#live-example" {...lp.ctaProps('hero_secondary', '#live-example', { intent: 'nav' })}>See a real board ↓</a>}
             </div>
             <div className="seo-trust">
               {cta.sub && <span>{cta.sub}</span>}
@@ -134,12 +150,12 @@ export function SeoLandingPage({ spec: specProp, path }) {
               browser frame. The static shot ships with the app (public/landing/)
               so it renders instantly; clicking opens the live board. */}
           {hero && (
-            <figure className="seo-frame" id="live-example">
+            <figure className="seo-frame" id="live-example" ref={lp.sectionRef('frame', 1)}>
               <div className="seo-frame-bar" aria-hidden="true">
                 <span className="seo-frame-dots"><i /><i /><i /></span>
                 <span className="seo-frame-url">clusters.soleilpictures.com/c/{hero.slug}</span>
               </div>
-              <a className="seo-frame-shot" href={`/c/${hero.slug}`}>
+              <a className="seo-frame-shot" href={`/c/${hero.slug}`} onClick={() => lp.exampleClick(hero.slug, 'frame')}>
                 <img src={`/landing/${hero.slug}.webp`}
                      alt={`${hero.title} — a real board made with Clusters, open in the app`}
                      width="2048" height="1000" fetchPriority="high" />
@@ -152,8 +168,8 @@ export function SeoLandingPage({ spec: specProp, path }) {
 
           {/* Feature / value sections, with one quiet CTA strip mid-read */}
           {(spec.sections || []).map((s, i) => (
-            <SectionWithMidCta key={i} index={i} cta={cta}>
-              <section className="seo-section">
+            <SectionWithMidCta key={i} index={i} cta={cta} midCtaProps={lp.ctaProps('mid', cta.href || '/')}>
+              <section className="seo-section" ref={lp.sectionRef(sectionId(i, s.heading), 2 + i)}>
                 <h2 className="seo-h2">{s.heading}</h2>
                 <p className="seo-body">{s.body}</p>
                 {Array.isArray(s.bullets) && s.bullets.length > 0 && (
@@ -167,7 +183,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
 
           {/* How-to steps (tool pages) — captures informational intent */}
           {Array.isArray(spec.steps) && spec.steps.length > 0 && (
-            <section className="seo-section">
+            <section className="seo-section" ref={lp.sectionRef('steps', 2 + nSec)}>
               <h2 className="seo-h2">{spec.stepsHeading || 'How it works'}</h2>
               <ol className="seo-steps">
                 {spec.steps.map((s, i) => (
@@ -182,7 +198,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
 
           {/* Comparison table (alternative-to pages) */}
           {spec.compare && (
-            <section className="seo-section">
+            <section className="seo-section" ref={lp.sectionRef('compare', 3 + nSec)}>
               <h2 className="seo-h2">Clusters vs {spec.compare.competitor}</h2>
               {spec.compare.intro && <p className="seo-body">{spec.compare.intro}</p>}
               <div className="seo-compare-wrap">
@@ -210,16 +226,16 @@ export function SeoLandingPage({ spec: specProp, path }) {
 
           {/* Visual proof: published example boards, live and explorable. */}
           {examples.length > 0 && (
-            <section className="seo-section seo-examples">
+            <section className="seo-section seo-examples" ref={lp.sectionRef('examples', 4 + nSec)}>
               <h2 className="seo-h2">Made with Clusters</h2>
               <p className="seo-body">
                 Real boards published from the canvas — open one and explore it live: pan the board,
                 copy the palettes, read the notes.
               </p>
               <ul className="pubgrid">
-                {examples.map((e) => (
+                {examples.map((e, i) => (
                   <li key={e.slug}>
-                    <a className="pubcard" href={`/c/${e.slug}`}>
+                    <a className="pubcard" href={`/c/${e.slug}`} onClick={() => lp.exampleClick(e.slug, i)}>
                       <img src={`/api/public-thumb/${e.slug}${e.v}`}
                            alt={`${e.title} — example board made with Clusters`}
                            loading="lazy" width="320" height="180" />
@@ -228,16 +244,17 @@ export function SeoLandingPage({ spec: specProp, path }) {
                   </li>
                 ))}
               </ul>
-              <a className="seo-examples-more" href="/explore">Explore all example boards →</a>
+              <a className="seo-examples-more" href="/explore" {...lp.ctaProps('explore_more', '/explore', { intent: 'nav' })}>Explore all example boards →</a>
             </section>
           )}
 
           {/* FAQ — mirrors the FAQPage JSON-LD the Worker injects */}
           {Array.isArray(spec.faq) && spec.faq.length > 0 && (
-            <section className="seo-section seo-faq">
+            <section className="seo-section seo-faq" ref={lp.sectionRef('faq', 5 + nSec)}>
               <h2 className="seo-h2">Frequently asked questions</h2>
               {spec.faq.map((f, i) => (
-                <details className="seo-faq-item" key={i}>
+                <details className="seo-faq-item" key={i}
+                         onToggle={(ev) => { if (ev.currentTarget.open) lp.faqOpen(i, f.q); }}>
                   <summary className="seo-faq-q">{f.q}</summary>
                   <p className="seo-faq-a">{f.a}</p>
                 </details>
@@ -246,11 +263,11 @@ export function SeoLandingPage({ spec: specProp, path }) {
           )}
 
           {/* Closing CTA */}
-          <section className="seo-cta-band">
+          <section className="seo-cta-band" ref={lp.sectionRef('closing', 6 + nSec)}>
             <h2 className="seo-cta-headline">
               {spec.kind === 'compare' ? 'See it for yourself' : 'Your next board is 30 seconds away'}
             </h2>
-            <a className="seo-cta-primary" href={cta.href || '/'}>{cta.label || 'Start free'}</a>
+            <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('closing', cta.href || '/')}>{cta.label || 'Start free'}</a>
             {cta.sub && <span className="seo-cta-sub2">{cta.sub}</span>}
           </section>
 

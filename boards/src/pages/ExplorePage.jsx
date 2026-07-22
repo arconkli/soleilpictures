@@ -11,12 +11,13 @@
 // Shares the .seo-* / .exp-* stylesheet with the SEO landing pages so the two
 // marketing surfaces stay one visual system.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { getPublicBoards } from '../lib/publicBoardsApi.js';
 import { SEO_LANDING_PAGES, EXPLORE_INTRO, matchToolPath } from '../lib/seoLanding.js';
 import { logEvent, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import './seoLanding.css';
 
 const CTA = '/?utm_source=public_board&utm_medium=explore&utm_campaign=explore_index';
@@ -80,6 +81,14 @@ function readUrlState() {
 export function ExplorePage() {
   const [boards, setBoards] = useState(null);   // null = loading, [] = none
   const [{ q, sort, topic }, setBrowse] = useState(readUrlState);
+
+  // Uniform lp_* engagement package; the page scrolls .seo-scroll (shared with
+  // the SEO landing pages), not the window.
+  const scrollRef = useRef(null);
+  const lp = useLandingEngagement({
+    page: '/explore', pageKind: 'explore',
+    getScrollEl: () => scrollRef.current,
+  });
   const setQ = (v) => setBrowse((s) => ({ ...s, q: v }));
   const setSort = (v) => setBrowse((s) => ({ ...s, sort: v }));
   const setTopic = (v) => setBrowse((s) => ({ ...s, topic: v }));
@@ -158,6 +167,7 @@ export function ExplorePage() {
     logEvent(EV.EXPLORE_CARD_CLICK, {
       slug: b.slug, pos: i, sort, topic, has_query: Boolean(q.trim()),
     });
+    lp.exampleClick(b.slug, i);
   };
 
   return (
@@ -169,11 +179,11 @@ export function ExplorePage() {
         </a>
         <div className="public-board-name">Explore</div>
         <div className="public-topbar-actions">
-          <a className="public-cta" href={CTA}>Try Clusters free</a>
+          <a className="public-cta" href={CTA} {...lp.ctaProps('topbar', CTA)}>Try Clusters free</a>
         </div>
       </div>
 
-      <div className="seo-scroll">
+      <div className="seo-scroll" ref={scrollRef}>
         <div className="exp-main">
           <header>
             <p className="seo-eyebrow">Made with Clusters</p>
@@ -310,7 +320,7 @@ export function ExplorePage() {
 
           <section className="seo-cta-band" style={{ marginTop: 48 }}>
             <h2 className="seo-cta-headline">Start your own board</h2>
-            <a className="seo-cta-primary" href={CTA}>Try Clusters free</a>
+            <a className="seo-cta-primary" href={CTA} {...lp.ctaProps('band', CTA)}>Try Clusters free</a>
             <span className="seo-cta-sub2">No credit card. Your first board in seconds.</span>
           </section>
         </div>

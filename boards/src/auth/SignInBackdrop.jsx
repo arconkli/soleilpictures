@@ -17,6 +17,7 @@
 import { useEffect, useRef } from 'react';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import './signin-backdrop.css';
 
 const RUNWAY_MULT = 6.0;   // runway height = this × viewport height (more scroll = gentler motion)
@@ -166,6 +167,17 @@ export function SignInBackdrop({ children, exploreHref }) {
   const boxRef     = useRef(null);
   const exploreRef = useRef(null);
   const footRef    = useRef(null);
+
+  // Uniform lp_* engagement package for '/'. Scroll is 'manual': the reveal's
+  // rAF loop below feeds its progress p straight into the tracker. The legacy
+  // map keeps landing_scroll/landing_dwell firing with their historical prop
+  // shapes — the signup-funnel RPCs read those names.
+  const lp = useLandingEngagement({
+    page: '/', pageKind: 'home', scroll: 'manual',
+    legacy: { scroll: EV.LANDING_SCROLL, dwell: EV.LANDING_DWELL },
+  });
+  const lpRef = useRef(lp);
+  lpRef.current = lp;
 
   useEffect(() => {
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -328,30 +340,14 @@ export function SignInBackdrop({ children, exploreHref }) {
       });
     }
 
-    // Landing engagement: fire once each as the visitor scrolls the reveal past
-    // these depths, and track the deepest point + time-on-page for the dwell
-    // event — lets us tell scrollers from bouncers.
-    const firedDepths = new Set();
-    let maxP = 0;
-    const startedAt = Date.now();
-    function trackScrollDepth(p) {
-      if (p > maxP) maxP = p;
-      for (const m of [0.1, 0.25, 0.5, 0.75, 0.9, 1.0]) {
-        if (p >= m && !firedDepths.has(m)) { firedDepths.add(m); logEvent(EV.LANDING_SCROLL, { depth: m }); }
-      }
-    }
-    let dwellFired = false;
-    const fireDwell = () => {
-      if (dwellFired) return;
-      dwellFired = true;
-      logEvent(EV.LANDING_DWELL, { ms: Date.now() - startedAt, max_depth: Math.round(maxP * 100) / 100 });
-    };
-
     function render(now) {
       const t = (now || 0) * 0.001;
       const forced = window.__sbForceP;
       const p = (forced != null) ? forced : clamp((scrollEl.scrollTop) / maxScroll, 0, 1);
-      if (forced == null) trackScrollDepth(p);
+      // Landing engagement (scroll depth thresholds + dwell max_depth) rides
+      // the shared lp tracker — the legacy landing_scroll/landing_dwell names
+      // keep firing from there with identical shapes.
+      if (forced == null) lpRef.current.tracker.reportProgress(p);
       const { sx, sy } = spread();
       const cxv = cx(), cyv = cy();
       const br = boxRef.current ? boxRef.current.getBoundingClientRect() : null;
@@ -503,7 +499,7 @@ export function SignInBackdrop({ children, exploreHref }) {
     // Don't burn CPU/battery animating a backgrounded tab; resume cleanly on
     // return (reset lastNow so the cursor dt doesn't jump after a long hide).
     const onVisibility = () => {
-      if (document.hidden) { cancelAnimationFrame(rafId); rafId = 0; fireDwell(); }
+      if (document.hidden) { cancelAnimationFrame(rafId); rafId = 0; }
       else if (!rafId) { lastNow = null; rafId = requestAnimationFrame(loop); }
     };
 
@@ -512,7 +508,6 @@ export function SignInBackdrop({ children, exploreHref }) {
     scrollEl.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
     document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('pagehide', fireDwell);
     if (vv) { vv.addEventListener('resize', syncVisibleHeight); vv.addEventListener('scroll', syncVisibleHeight); }
     rafId = requestAnimationFrame(loop);
     render(0);
@@ -522,8 +517,6 @@ export function SignInBackdrop({ children, exploreHref }) {
       scrollEl.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
       document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('pagehide', fireDwell);
-      fireDwell();   // SPA route change away from the landing
       if (vv) { vv.removeEventListener('resize', syncVisibleHeight); vv.removeEventListener('scroll', syncVisibleHeight); }
       cardEls.forEach(el => el.remove());
       cursorEls.forEach(el => el.remove());
@@ -564,7 +557,8 @@ export function SignInBackdrop({ children, exploreHref }) {
                 {children}
                 {exploreHref && (
                   <a className="sb-explore" ref={exploreRef} href={exploreHref} target="_blank" rel="noopener noreferrer"
-                     onClick={() => logEvent(EV.LANDING_EXPLORE_CLICK)}>
+                     data-lp-cta="explore"
+                     onClick={() => { logEvent(EV.LANDING_EXPLORE_CLICK); lp.tracker.ctaClick('explore', exploreHref, { intent: 'nav' }); }}>
                     Explore a live board ↗
                   </a>
                 )}
