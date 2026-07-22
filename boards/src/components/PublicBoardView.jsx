@@ -42,6 +42,7 @@ import { logClientError } from '../lib/errorReporting.js';
 import { EntityNavigateContext } from '../hooks/useEntityNavigate.js';
 import { OpenDmContext } from '../hooks/useOpenDm.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
+import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import { logEvent, logEventNow, logEventOnce, seedShareFirstSource, seedPublicBoardFirstSource } from '../lib/analytics.js';
 import { getRelatedPublicBoards } from '../lib/publicBoardsApi.js';
 import { encodeRemixParam } from '../lib/remix.js';
@@ -142,6 +143,14 @@ export function PublicBoardView({ token, slug }) {
   const attrib = useMemo(() => (slug ? { public_slug: slug } : { share_token: token }), [slug, token]);
   const linkKey = slug || token;
 
+  // Uniform lp_* engagement package. Each /c/<slug> is its own landing page;
+  // /share is one aggregate page (NEVER the token). Canvas pans, so no scroll axis.
+  const lp = useLandingEngagement({
+    page: slug ? `/c/${slug}` : '/share',
+    pageKind: slug ? 'public_board' : 'share',
+    scroll: 'none',
+  });
+
   const [status, setStatus] = useState('loading');   // 'loading' | 'ok' | 'invalid'
   const [cache, setCache] = useState({});             // boardId → decoded bundle
   const [navBoards, setNavBoards] = useState({});     // boardId → name (reachable)
@@ -189,7 +198,8 @@ export function PublicBoardView({ token, slug }) {
   const onCta = useCallback((surface) => () => {
     ctaClickedRef.current = true;
     logEventNow(EV.SHARE_CTA_CLICK, { surface, ...attrib });
-  }, [attrib]);
+    lp.tracker.ctaClick(surface, '/');   // uniform lp_cta_click (no token in props)
+  }, [attrib, lp]);
 
   // Time-on-board, fired once on leave (hide/unload/unmount). board_id and
   // boards_opened are read at fire time so they reflect where the visitor

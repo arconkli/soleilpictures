@@ -25,6 +25,7 @@ import { peekPendingInviteEmail, claimPendingInvite, claimCollabLink } from '../
 import { parseRemixParam, stashRemix } from '../lib/remix.js';
 import { parseJoinParam, stashJoin, readJoin, clearJoin } from '../lib/joinLink.js';
 import { getFbCookies } from '../lib/metaPixel.js';
+import { lpCtaClick } from '../hooks/useLandingEngagement.js';
 import { SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { SignInBackdrop } from './SignInBackdrop.jsx';
@@ -452,6 +453,9 @@ function SignIn() {
       });
       if (error) throw error;
       logEvent('email_submit', { resend: !!resending });
+      // The OTP form IS the '/' page's signup CTA — count it in lp_cta_click so
+      // the landing scorecard's CTR column means the same thing on every page.
+      if (!resending) lpCtaClick('/', 'home', 'form');
       if (!resending) setStage('code');
       setResendCooldown(60);
     } catch (e) {

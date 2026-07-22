@@ -200,6 +200,25 @@ export const EV = Object.freeze({
   EXPLORE_SEARCH:          'explore_search',              // /explore search used (once/session) {q}
   EXPLORE_CARD_CLICK:      'explore_card_click',          // /explore card → /c/<slug> {slug,pos,sort,topic,has_query}
 
+  // ── Public landing pages (uniform lp_* engagement family — lib/landingMetrics.js
+  //    + hooks/useLandingEngagement.js). EVERY public page (the 9 SEO pages, /,
+  //    /pricing, /explore, /c/<slug>, /share aggregate) fires the same schema so
+  //    the admin_landing_scorecard RPC GROUP BYs one event set. Every lp_* row
+  //    carries the base {page,page_kind} — page = canonical spec path ('/tools/…',
+  //    '/', '/pricing', '/explore', '/c/<slug>', '/share' — NEVER a share token);
+  //    page_kind = tool|compare|hub|home|pricing|explore|public_board|share.
+  //    Page-specific legacy events (landing_*, pricing_*, share_*, explore_*,
+  //    seo_landing_view) keep firing unchanged — funnels in 0110/0180 read them. ──
+  SEO_LANDING_VIEW:        'seo_landing_view',            // SEO landing mounted {path,kind} (pre-dated the lp_* family; kept for the 0180 RPCs)
+  LP_VIEW:                 'lp_view',                     // page mounted (once per pageload)
+  LP_SCROLL:               'lp_scroll',                   // scroll depth crossed {depth} — thresholds .1/.25/.5/.75/.9/1, each once
+  LP_DWELL:                'lp_dwell',                    // time on page {ms,max_depth} (once; first of hide/pagehide/unmount)
+  LP_CTA_CLICK:            'lp_cta_click',                // CTA clicked {pos,href,intent:'signup'|'nav'} (must-land beacon; CTR counts intent='signup' only)
+  LP_SECTION:              'lp_section',                  // section first ≥50% visible {section,idx,t_ms}
+  LP_FAQ:                  'lp_faq',                      // FAQ <details> opened {idx,q}
+  LP_EXAMPLE_CLICK:        'lp_example_click',            // example-board link → /c/<slug> {slug,pos} (must-land beacon)
+  LP_TRACE:                'lp_trace',                    // ANON-ONLY coalesced micro-interaction batch {from_t,to_t,n,ev:[{t,k,tgt,...}]} — k:'click'|'dead'|'rage'|'cta'|'scroll'|'input'|'hes'|'hide'|'show'; never captures input values or typed characters
+
   // ── Tags (the ambient hover-to-explore rework — see project_tags_rework).
   //    Zero tag events existed before; this is how we finally measure whether
   //    tagging pays off. ──
