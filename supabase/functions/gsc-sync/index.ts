@@ -13,12 +13,14 @@
 // ── Manual setup (one-time) ─────────────────────────────────────────────────
 //   1. GCP: create a project, enable the "Google Search Console API".
 //   2. Create a service account; download its JSON key.
-//   3. In Search Console → property (clusters.soleilpictures.com) → Settings →
-//      Users and permissions → add the service-account email as a Restricted user.
+//   3. In Search Console → the property → Settings → Users and permissions →
+//      add the service-account email as a Restricted user. This site uses the
+//      soleilpictures.com DOMAIN property.
 //   4. Set secrets:
 //        supabase secrets set GSC_SERVICE_ACCOUNT_JSON='<the full JSON key>'
-//        supabase secrets set GSC_SITE_URL='https://clusters.soleilpictures.com/'
-//        (or 'sc-domain:soleilpictures.com' for a domain property)
+//        supabase secrets set GSC_SITE_URL='sc-domain:soleilpictures.com'
+//        (URL-prefix property would be 'https://clusters.soleilpictures.com/';
+//        GSC_APP_HOST filters domain-property rows to the app subdomain.)
 //   5. Deploy:  supabase functions deploy gsc-sync   (or via MCP deploy_edge_function)
 //   6. pg_cron daily POST with the x-cron-secret header (see 'gsc-sync-daily').
 //
@@ -31,6 +33,10 @@ const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const CRON_SECRET = Deno.env.get('CRON_SECRET') || '';
 const SA_JSON = Deno.env.get('GSC_SERVICE_ACCOUNT_JSON') || '';
 const SITE_URL = Deno.env.get('GSC_SITE_URL') || 'https://clusters.soleilpictures.com/';
+// Domain properties (sc-domain:) return rows for EVERY subdomain — without this
+// guard, soleilpictures.com/ and clusters.soleilpictures.com/ would both
+// normalize to '/' and merge. Only the app host is ingested.
+const APP_HOST = (Deno.env.get('GSC_APP_HOST') || 'clusters.soleilpictures.com').toLowerCase();
 
 const RETENTION_DAYS = 180;
 
@@ -47,11 +53,13 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
 }
 function ymd(d: Date): string { return d.toISOString().slice(0, 10); }
 
-// GSC 'page' key (absolute URL) → canonical stored path. Null = drop the row.
+// GSC 'page' key (absolute URL) → canonical stored path. Null = drop the row
+// (bad URL, off-host subdomain, or junk).
 function normPath(pageUrl: string): string | null {
-  let p: string;
-  try { p = new URL(pageUrl).pathname; } catch { return null; }
-  p = p.toLowerCase();
+  let u: URL;
+  try { u = new URL(pageUrl); } catch { return null; }
+  if (u.hostname.toLowerCase() !== APP_HOST) return null;
+  let p = u.pathname.toLowerCase();
   if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
   if (!p) p = '/';
   if (p.startsWith('/share/')) p = '/share';   // never store share tokens
@@ -146,10 +154,12 @@ Deno.serve(async (req) => {
     const totals = new Map<string, any>();
     for (const r of pageRows) {
       const pageUrl = r.keys?.[0] || '';
-      const m = pageUrl.match(/\/c\/([a-z0-9][a-z0-9-]{0,79})/i);
+      const path = normPath(pageUrl);
+      if (!path) continue;
+      const m = path.match(/^\/c\/([a-z0-9][a-z0-9-]{0,79})$/);
       if (m) {
         boardRows.push({
-          slug: m[1].toLowerCase(),
+          slug: m[1],
           day,
           clicks: Math.round(r.clicks || 0),
           impressions: Math.round(r.impressions || 0),
@@ -158,8 +168,6 @@ Deno.serve(async (req) => {
           updated_at: nowIso,
         });
       }
-      const path = normPath(pageUrl);
-      if (!path) continue;
       const prev = totals.get(path);   // '/share' aggregation can merge rows
       totals.set(path, {
         path, day, query: '',
