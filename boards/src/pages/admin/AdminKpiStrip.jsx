@@ -17,9 +17,8 @@
 // payer count is trustworthy. Sparklines need ≥3 real points or they're hidden
 // (metrics_daily is sparse — a 2-point line implies a trend that isn't there).
 
-import { ResponsiveContainer, LineChart, Line } from 'recharts';
-import { formatCount, formatCompact, formatPct, formatMoney, MIN_RATE_FLAG, MIN_RATE_SHOW, MIN_POINTS } from '../../lib/adminFormat.js';
-import { NFlag } from './SmallN.jsx';
+import { formatCount, formatCompact, formatPct, formatMoney, MIN_RATE_FLAG, MIN_RATE_SHOW } from '../../lib/adminFormat.js';
+import { NFlag, Spark } from './SmallN.jsx';
 import { CHART } from './chartTheme.js';
 
 const num = (x) => (x == null || (typeof x === 'number' && Number.isNaN(x)) ? null : Number(x));
@@ -62,22 +61,6 @@ function DeltaBadge({ delta }) {
   if (!delta) return null;
   const arrow = delta.dir === 'up' ? '▲' : delta.dir === 'down' ? '▼' : '·';
   return <span className={`admin-stat-delta is-${delta.dir}`}>{arrow} {delta.text}</span>;
-}
-
-function Spark({ data, color }) {
-  // Raised floor: metrics_daily is sparse, and a 1–2 point line reads as a
-  // trend. Below MIN_POINTS we show a muted "collecting" caption instead.
-  const pts = (data || []).length;
-  if (pts < MIN_POINTS) return <div className="admin-stat-spark-empty t-meta">collecting…</div>;
-  return (
-    <div className="admin-stat-spark">
-      <ResponsiveContainer width="100%" height={30}>
-        <LineChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
-          <Line type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} dot={false} isAnimationActive={false} />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
 }
 
 function KpiCard({ label, value, sub, delta, flagN, muted, spark, accent }) {

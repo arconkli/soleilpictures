@@ -513,6 +513,18 @@ export async function adminSeoHealthLatest() {
   return data || null; // { run, checks } or null when no runs yet
 }
 
+// Landing-page scorecard (migration 0195): one row per public page over the
+// lp_* event family — views/sessions, median scroll + dwell, signup-CTA
+// sessions, attributed signups, referrer classes, and a per-day views spark.
+// Supersedes admin_seo_page_stats in the Discover tab UI (the 0180 RPC stays).
+export async function adminLandingScorecard(days = 30, excludeInternal = true) {
+  const { data, error } = await supabase.rpc('admin_landing_scorecard', {
+    p_days: days, p_exclude_internal: excludeInternal,
+  });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
 // AI SEO tooling (migration 0137) — admin-only worker routes (worker-seo.js),
 // gated server-side on tier='admin'. Same same-origin Bearer pattern as
 // forceResetBoardRoom. Cloudflare Workers AI drafts copy / writes image alt; both return
