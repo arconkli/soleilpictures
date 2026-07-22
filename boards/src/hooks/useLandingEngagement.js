@@ -81,6 +81,10 @@ export function useLandingEngagement({ page, pageKind, scroll = 'container', get
       if (!el) return null;
       const range = el.scrollHeight - el.clientHeight;
       if (range <= 1) return 'flat';                       // no scroll axis — page fully visible
+      // Fractional layout heights leave scrollTop ~1px short of the max, so a
+      // strict ratio never reaches 1.0 and the 100% threshold would be
+      // systematically undercounted — bottom-within-2px IS a full read.
+      if (el.scrollTop >= range - 2) return 1;
       return (el.scrollTop + el.clientHeight) / el.scrollHeight;
     };
     if (scroll === 'container') {
