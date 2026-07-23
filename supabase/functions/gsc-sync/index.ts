@@ -147,58 +147,68 @@ Deno.serve(async (req) => {
     const day = ymd(end);
     const nowIso = new Date().toISOString();
 
-    // A. Per-page totals — feeds BOTH tables.
-    const pageRows = await gscQuery(token, { ...range, dimensions: ['page'], rowLimit: 1000 });
-
+    // One pass per search type: page totals + per-(page,query) detail into
+    // seo_page_stats (search_type column, 0197). seo_board_stats stays
+    // WEB-ONLY (legacy shape; admin_public_board_stats reads it).
+    const SEARCH_TYPES = ['web', 'image'];
     const boardRows: unknown[] = [];
-    const totals = new Map<string, any>();
-    for (const r of pageRows) {
-      const pageUrl = r.keys?.[0] || '';
-      const path = normPath(pageUrl);
-      if (!path) continue;
-      const m = path.match(/^\/c\/([a-z0-9][a-z0-9-]{0,79})$/);
-      if (m) {
-        boardRows.push({
-          slug: m[1],
-          day,
-          clicks: Math.round(r.clicks || 0),
-          impressions: Math.round(r.impressions || 0),
-          ctr: r.ctr != null ? Number((r.ctr * 100).toFixed(2)) : null,
-          position: r.position != null ? Number(r.position.toFixed(1)) : null,
+    const pageStatRows: unknown[] = [];
+    const counts: Record<string, { pages: number; page_queries: number }> = {};
+
+    for (const st of SEARCH_TYPES) {
+      const pageRows = await gscQuery(token, { ...range, type: st, dimensions: ['page'], rowLimit: 1000 });
+
+      const totals = new Map<string, any>();
+      for (const r of pageRows) {
+        const pageUrl = r.keys?.[0] || '';
+        const path = normPath(pageUrl);
+        if (!path) continue;
+        const m = path.match(/^\/c\/([a-z0-9][a-z0-9-]{0,79})$/);
+        if (st === 'web' && m) {
+          boardRows.push({
+            slug: m[1],
+            day,
+            clicks: Math.round(r.clicks || 0),
+            impressions: Math.round(r.impressions || 0),
+            ctr: r.ctr != null ? Number((r.ctr * 100).toFixed(2)) : null,
+            position: r.position != null ? Number(r.position.toFixed(1)) : null,
+            updated_at: nowIso,
+          });
+        }
+        const prev = totals.get(path);   // '/share' aggregation can merge rows
+        totals.set(path, {
+          path, day, query: '', search_type: st,
+          clicks: Math.round(r.clicks || 0) + (prev?.clicks || 0),
+          impressions: Math.round(r.impressions || 0) + (prev?.impressions || 0),
+          position: prev ? prev.position : (r.position != null ? Number(r.position.toFixed(1)) : null),
           updated_at: nowIso,
         });
       }
-      const prev = totals.get(path);   // '/share' aggregation can merge rows
-      totals.set(path, {
-        path, day, query: '',
-        clicks: Math.round(r.clicks || 0) + (prev?.clicks || 0),
-        impressions: Math.round(r.impressions || 0) + (prev?.impressions || 0),
-        position: prev ? prev.position : (r.position != null ? Number(r.position.toFixed(1)) : null),
-        updated_at: nowIso,
-      });
-    }
 
-    // B. Per-(page, query) — the ranking-query detail for every path.
-    const pqRows = await gscQuery(token, { ...range, dimensions: ['page', 'query'], rowLimit: 5000 });
-    const detail = new Map<string, any>();
-    for (const r of pqRows) {
-      const path = normPath(r.keys?.[0] || '');
-      const query = String(r.keys?.[1] || '').slice(0, 200);
-      if (!path || !query) continue;
-      const k = `${path} ${query}`;
-      const prev = detail.get(k);
-      detail.set(k, {
-        path, day, query,
-        clicks: Math.round(r.clicks || 0) + (prev?.clicks || 0),
-        impressions: Math.round(r.impressions || 0) + (prev?.impressions || 0),
-        position: prev ? prev.position : (r.position != null ? Number(r.position.toFixed(1)) : null),
-        updated_at: nowIso,
-      });
+      // Per-(page, query) — the ranking-query detail for every path.
+      const pqRows = await gscQuery(token, { ...range, type: st, dimensions: ['page', 'query'], rowLimit: 5000 });
+      const detail = new Map<string, any>();
+      for (const r of pqRows) {
+        const path = normPath(r.keys?.[0] || '');
+        const query = String(r.keys?.[1] || '').slice(0, 200);
+        if (!path || !query) continue;
+        const k = `${path} ${query}`;
+        const prev = detail.get(k);
+        detail.set(k, {
+          path, day, query, search_type: st,
+          clicks: Math.round(r.clicks || 0) + (prev?.clicks || 0),
+          impressions: Math.round(r.impressions || 0) + (prev?.impressions || 0),
+          position: prev ? prev.position : (r.position != null ? Number(r.position.toFixed(1)) : null),
+          updated_at: nowIso,
+        });
+      }
+
+      pageStatRows.push(...totals.values(), ...detail.values());
+      counts[st] = { pages: totals.size, page_queries: detail.size };
     }
 
     await upsert('seo_board_stats', 'slug,day', boardRows);
-    await upsert('seo_page_stats', 'path,day,query', [...totals.values()]);
-    await upsert('seo_page_stats', 'path,day,query', [...detail.values()]);
+    await upsert('seo_page_stats', 'path,day,query,search_type', pageStatRows);
 
     // Retention: snapshots accumulate daily; keep a rolling window.
     const cutoff = ymd(new Date(end.getTime() - RETENTION_DAYS * 86400000));
@@ -208,7 +218,7 @@ Deno.serve(async (req) => {
     });
 
     return new Response(
-      JSON.stringify({ ok: true, day, boards: boardRows.length, pages: totals.size, page_queries: detail.size }),
+      JSON.stringify({ ok: true, day, boards: boardRows.length, web: counts.web, image: counts.image }),
       { headers: { 'content-type': 'application/json' } },
     );
   } catch (e) {

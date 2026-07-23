@@ -1221,10 +1221,16 @@ async function handleImageSitemap(env, request) {
       bySlug.set(r.slug, list);
     }
     for (const [slug, imgs] of bySlug) {
+      const boardLabel = slug.split('-').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');
       const entries = imgs.map((r) => {
-        const title = escapeHtml(String(r.title || '').slice(0, 200));
+        const rawTitle = String(r.title || '').slice(0, 140);
+        const title = escapeHtml(rawTitle.slice(0, 200));
+        const caption = escapeHtml(
+          `${rawTitle}${rawTitle ? ' — ' : ''}from the ${boardLabel} board, made with Soleil Clusters`.slice(0, 200),
+        );
         return `    <image:image><image:loc>${SITE_ORIGIN}/api/public-img/${escapeHtml(slug)}?i=${r.i}</image:loc>`
-          + (title ? `<image:title>${title}</image:title>` : '') + `</image:image>`;
+          + (title ? `<image:title>${title}</image:title>` : '')
+          + `<image:caption>${caption}</image:caption></image:image>`;
       });
       blocks.push(`  <url><loc>${SITE_ORIGIN}/c/${escapeHtml(slug)}</loc>\n${entries.join('\n')}\n  </url>`);
     }
@@ -1239,11 +1245,17 @@ async function handleImageSitemap(env, request) {
       try { content = await fetchPublicBoardContent(env, b.slug); } catch (_) { return ''; }
       const cards = Array.isArray(content?.cards) ? content.cards : [];
       const imgs = [];
+      const boardLabel = b.seo_title || b.slug.split('-').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');
       cards.forEach((c, i) => {
         if (c.media && imgs.length < 30) {
-          const title = escapeHtml((c.media.alt || c.title || b.seo_title || b.slug || '').slice(0, 200));
+          const rawTitle = (c.media.alt || c.title || b.seo_title || b.slug || '').slice(0, 140);
+          const title = escapeHtml(rawTitle);
+          const caption = escapeHtml(
+            `${rawTitle}${rawTitle ? ' — ' : ''}from the ${boardLabel} board, made with Soleil Clusters`.slice(0, 200),
+          );
           imgs.push(`    <image:image><image:loc>${SITE_ORIGIN}/api/public-img/${escapeHtml(b.slug)}?i=${i}</image:loc>`
-            + (title ? `<image:title>${title}</image:title>` : '') + `</image:image>`);
+            + (title ? `<image:title>${title}</image:title>` : '')
+            + `<image:caption>${caption}</image:caption></image:image>`);
         }
       });
       if (!imgs.length) return '';
