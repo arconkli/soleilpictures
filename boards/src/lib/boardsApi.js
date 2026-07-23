@@ -526,6 +526,28 @@ export async function adminLandingScorecard(days = 30, excludeInternal = true) {
   return Array.isArray(data) ? data : [];
 }
 
+// Upsell behavior scorecard (migration 0197): what users DO on the Creator
+// pitch surfaces before leaving, aggregated per surface × trigger over the
+// up_* event family, plus the classic per-surface pricing_* funnel counters.
+// Returns { days, groups, funnel, entry_points, subs }.
+export async function adminUpsellScorecard(days = 30, excludeInternal = true) {
+  const { data, error } = await supabase.rpc('admin_upsell_scorecard', {
+    p_days: days, p_exclude_internal: excludeInternal,
+  });
+  if (error) throw error;
+  return data || null;
+}
+
+// Recent upsell exposures (up_exposure_summary), newest first — the
+// qualitative one-line-per-exposure feed behind the Revenue view panel.
+export async function adminUpsellExposures(days = 30, limit = 50, excludeInternal = true) {
+  const { data, error } = await supabase.rpc('admin_upsell_exposures', {
+    p_days: days, p_limit: limit, p_exclude_internal: excludeInternal,
+  });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
 // AI SEO tooling (migration 0137) — admin-only worker routes (worker-seo.js),
 // gated server-side on tier='admin'. Same same-origin Bearer pattern as
 // forceResetBoardRoom. Cloudflare Workers AI drafts copy / writes image alt; both return

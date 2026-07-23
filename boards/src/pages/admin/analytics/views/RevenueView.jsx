@@ -8,6 +8,7 @@ import { useAdminData } from '../../useAdminData.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
 import { useAnalyticsFilters, useRegisterViewRuntime } from '../AnalyticsFiltersContext.jsx';
 import { SignupFunnelPanel } from '../widgets/SignupFunnelPanel.jsx';
+import { UpsellBehaviorPanel } from '../widgets/UpsellBehaviorPanel.jsx';
 import { AdminEventBreakdown } from '../../AdminEventBreakdown.jsx';
 import { AdminTopUsersList } from '../../AdminTopUsersList.jsx';
 
@@ -40,12 +41,14 @@ function RevenueKpis({ stats }) {
 export function RevenueView() {
   const f = useAnalyticsFilters();
   const q = useAdminData(async () => {
-    const [cr, eb, td, tp, fn] = await Promise.allSettled([
+    const [cr, eb, td, tp, fn, us, ux] = await Promise.allSettled([
       supabase.rpc('admin_checkout_reliability', { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_event_breakdown',      { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_top_users',            { p_tier: 'demo', p_limit: 20, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_top_users',            { p_tier: 'paid', p_limit: 20, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_signup_funnel',        { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_upsell_scorecard',     { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_upsell_exposures',     { p_days: f.days, p_limit: 40, p_exclude_internal: f.excludeInternal }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
@@ -56,6 +59,7 @@ export function RevenueView() {
     return {
       reliability: val(cr), eventBreakdown: val(eb) || [],
       topDemo: val(td) || [], topPaid: val(tp) || [], steps: val(fn) || [],
+      upsell: val(us), upsellExposures: val(ux) || [],
     };
   }, [f.days, f.excludeInternal, f.verifiedOnly]);
 
@@ -70,6 +74,10 @@ export function RevenueView() {
         <RevenueKpis stats={f.stats} />
         <SignupFunnelPanel steps={q.data?.steps || []} days={f.days}
           title="Pricing path" sub="of those who reached the fork: pricing → checkout → paid" branches={['pricing']} />
+
+        <h2 className="admin-section-title">Upsell behavior</h2>
+        <div className="admin-section-sub">What people do on the Creator pitch before they leave — per surface, per trigger (up_* family, 0197).</div>
+        <UpsellBehaviorPanel scorecard={q.data?.upsell} exposures={q.data?.upsellExposures || []} days={f.days} />
 
         <h2 className="admin-section-title">Checkout &amp; signals</h2>
         <div className="admin-section-sub">How completed checkouts resolve, plus error / abandon signals.</div>
