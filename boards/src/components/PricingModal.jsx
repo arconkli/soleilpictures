@@ -36,10 +36,16 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
 
   // up_* exposure telemetry — what the user DOES on this pitch before leaving
   // (feature-row reads, toggles, dismiss method, dwell → up_exposure_summary).
+  // Card counts gate on a RESOLVED tier: useMyTier's pre-fetch placeholders
+  // (demoCardCount 0 / limit 100) must never be recorded as measured values —
+  // the envelope emits null until real, and the summary self-heals via the
+  // hook's update effect once the RPC lands.
   const up = useUpsellExposure({
     surface, header, via,
     uid: user?.id, tier,
-    userState: { demoCardCount, cardLimit: effectiveCardLimit, signupAt: user?.created_at },
+    userState: tier != null
+      ? { demoCardCount, cardLimit: effectiveCardLimit, signupAt: user?.created_at }
+      : { signupAt: user?.created_at },
     getRootEl: () => modalRef.current,
   });
 
@@ -65,7 +71,9 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     setError(null);
     setBusy(true);
     redirectingRef.current = true;
-    up.outcome('cta', { plan });
+    // Only a real upgrade click is a CTA outcome — an already-paid user's
+    // "Manage billing" must not inflate the scorecard's CTA rate.
+    if (!alreadyPaid) up.outcome('cta', { plan });
     logEventNow(EV.PRICING_CREATOR_INTENT, {
       plan, surface, already_paid: alreadyPaid, copy_rev: COPY_REV,
       header, via, exposure_n: up.envelope().exposure_n, ...up.timing(),

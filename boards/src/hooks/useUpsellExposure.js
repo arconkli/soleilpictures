@@ -111,6 +111,10 @@ export function useUpsellExposure({ surface, header = null, via = null, uid, tie
         z.cur = null;
       }
     };
+    // A hidden tab gets no pointerout, so an open hover would accumulate
+    // asleep wall-clock time and report an absurd read on return — abandon
+    // open zones at hide instead of crediting the nap.
+    const dropOpenHovers = () => { for (const z of zones) z.cur = null; };
     const onClick = (e) => {
       x.markInteraction();
       x.click(describeTarget(e.target), isInteractiveTarget(e.target));
@@ -137,11 +141,15 @@ export function useUpsellExposure({ surface, header = null, via = null, uid, tie
     });
 
     // ── Micro-interaction trace — never overlaps lp_trace (public /pricing is
-    //    anon-covered there) or ps_trace (first authed session) ──
-    if (surface !== 'public_page' && !isJourneyOpen()) {
-      x.armTrace();
+    //    anon-covered there) or ps_trace (first authed session). The arming
+    //    check is DEFERRED a tick: child effects run before parent effects in
+    //    the same commit, so on a direct /pricing load this hook can otherwise
+    //    read isJourneyOpen()=false in the very commit where TierRouter's
+    //    effect opens the journey. ──
+    if (surface !== 'public_page') {
+      const armTimer = setTimeout(() => { if (!isJourneyOpen()) x.armTrace(); }, 0);
       const flushTimer = setInterval(() => x.flushTrace(false), TRACE_FLUSH_MS);
-      cleanups.push(() => clearInterval(flushTimer));
+      cleanups.push(() => { clearTimeout(armTimer); clearInterval(flushTimer); });
     }
 
     // ── Summary: first of tab-hidden / pagehide / unmount (lp_dwell semantics;
@@ -149,6 +157,7 @@ export function useUpsellExposure({ surface, header = null, via = null, uid, tie
     //    A tab-hide is non-terminal: tracking continues if the user returns. ──
     const onVisibility = () => {
       if (document.visibilityState !== 'hidden') { x.traceVisibility(false); return; }
+      dropOpenHovers();
       x.traceVisibility(true);
       x.end({ terminal: false });
     };

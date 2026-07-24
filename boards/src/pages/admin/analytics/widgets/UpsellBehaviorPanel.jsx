@@ -55,9 +55,11 @@ function DismissChips({ methods }) {
 // Which pitch lines get read — one bar per Creator feature row, aggregated
 // across every surface (the shared FeatureList instruments them all).
 function PitchLineStrip({ groups }) {
+  // feat_keys only — mixing in the feat_hover row counts as a fallback could
+  // double-count an event whose (attacker-writable) row/key disagree.
   const totals = CREATOR_FEATURE_KEYS.map((key, i) => {
     let n = 0;
-    for (const g of groups) n += Number(g.feat_keys?.[key] ?? g.feat_hover?.[`r${i}`] ?? 0) || 0;
+    for (const g of groups) n += Number(g.feat_keys?.[key]) || 0;
     return { key, i, n };
   });
   const max = Math.max(1, ...totals.map((t) => t.n));
@@ -147,11 +149,13 @@ export function UpsellBehaviorPanel({ scorecard, exposures, days }) {
             </tr>
           </thead>
           <tbody>
-            {groups.map((g) => {
+            {groups.map((g, i) => {
               const o = g.outcomes || {};
               const enough = (Number(g.exposures) || 0) >= MIN_ENGAGEMENT_N;
+              // Index key: surface/header are anon-writable strings, so two
+              // distinct groups could otherwise collide on a joined key.
               return (
-                <tr key={`${g.surface}:${g.header}`}>
+                <tr key={i}>
                   <td style={{ textAlign: 'left' }}>
                     {g.surface}{g.header && g.header !== 'generic' ? ` · ${g.header}` : ''}
                     {Number(g.error_seen_n) > 0 && (
