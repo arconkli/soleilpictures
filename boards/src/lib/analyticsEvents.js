@@ -74,7 +74,7 @@ export const EV = Object.freeze({
   UP_CHIP_CLICK:           'up_chip_click',               // demo topbar "Get Creator" pill clicked {near,count,limit} (was DARK — only the downstream modal pricing_view fired)
   UP_SETTINGS_CLICK:       'up_settings_upgrade_click',   // Settings→Billing "Upgrade to Creator →" clicked (was DARK)
   UP_INVITE_ALT_CLICK:     'up_invite_alt_click',         // modal's "Or invite friends to earn more free cards →" alternative clicked {header,plan,dwell_ms} (was DARK; referral_open{surface:'cap_modal'} still fires downstream)
-  UP_CAP_TOAST_VIEW:       'up_cap_toast_view',           // approaching/at-limit demo-cap warning toast shown {count,limit,at:'near'|'limit'} (logEventOnce per pageload; was DARK)
+  UP_CAP_TOAST_VIEW:       'up_cap_toast_view',           // approaching-limit demo-cap warning toast shown {count,limit,at:'near'} (logEventOnce per pageload; was DARK). At the actual limit owners get the cap-hit modal instead (pricing_view header:'cap-hit'); the collaborator at-owner's-limit toast is deliberately untracked (upgrading THEIR account wouldn't lift it)
   UP_TRACE:                'up_trace',                    // coalesced micro-interaction batch {from_t,to_t,n,ev:[{t,k,tgt,...}]} — k:'click'|'dead'|'rage'|'input'|'cta'|'invite_alt'|'demo_cta'|'dismiss'|'hide'|'show'; armed ONLY when surface!=='public_page' && !isJourneyOpen() so it never overlaps ps_trace/lp_trace; never captures input values
 
   // ── Ad offer (fbclid instant-demo) ──

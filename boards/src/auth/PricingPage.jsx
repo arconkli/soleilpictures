@@ -30,10 +30,14 @@ export function PricingPage() {
   const rootRef = useRef(null);
 
   // up_* exposure telemetry (summary fires on tab-hide/pagehide/unmount).
+  // Card counts gate on a RESOLVED tier — useMyTier's pre-fetch placeholders
+  // must never be recorded as measured values (null until real).
   const up = useUpsellExposure({
     surface: 'page', via: 'route',
     uid: user?.id, tier,
-    userState: { demoCardCount, cardLimit: effectiveCardLimit, signupAt: user?.created_at },
+    userState: tier != null
+      ? { demoCardCount, cardLimit: effectiveCardLimit, signupAt: user?.created_at }
+      : { signupAt: user?.created_at },
     getRootEl: () => rootRef.current,
   });
 
@@ -62,7 +66,9 @@ export function PricingPage() {
   const onCreatorCta = async () => {
     setError(null);
     setBusy(true);
-    up.outcome('cta', { plan });
+    // Only a real upgrade click is a CTA outcome — an already-paid user's
+    // "Manage billing" must not inflate the scorecard's CTA rate.
+    if (!alreadyPaid) up.outcome('cta', { plan });
     logEventNow(EV.PRICING_CREATOR_INTENT, {
       plan, surface: 'page', already_paid: alreadyPaid, copy_rev: COPY_REV,
       via: 'route', exposure_n: up.envelope().exposure_n, ...up.timing(),
