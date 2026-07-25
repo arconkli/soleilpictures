@@ -68,7 +68,12 @@ export function PricingSuccess() {
   const purchaseTracked = useRef(false);   // deduped browser Purchase fires once
   const verifyFired = useRef(new Set());   // checkout_verify_result once per distinct result
 
-  useEffect(() => { logEventOnce('checkout_success', 'checkout_success', { has_session_id: !!sessionId }); }, [sessionId]);
+  // Bots and email-security link scanners replay the Stripe return URL; only a
+  // signed-in return with a session_id counts as a completed checkout.
+  useEffect(() => {
+    if (!user || !sessionId) return;
+    logEventOnce('checkout_success', 'checkout_success', { has_session_id: true });
+  }, [user, sessionId]);
   useEffect(() => { if (!sessionId) logEventOnce('checkout_missing_session', EV.CHECKOUT_MISSING_SESSION); }, [sessionId]);
   useDwellTime(EV.CHECKOUT_SUCCESS_DWELL, () => ({
     outcome: (tier === 'paid' || tier === 'admin' || celebrating) ? 'activated'
