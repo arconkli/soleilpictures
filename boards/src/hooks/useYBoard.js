@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { loadYBoard } from '../lib/yboard.js';
+import { loadYBoard, purgeLocalBoardState } from '../lib/yboard.js';
 import { readCards, readArrows, readStrokes, readGroups, readGridTemplates, readGridSequences } from '../lib/yhelpers.js';
 import { watchBoardRestores } from '../lib/restoreSignal.js';
 import { primeImageMeta, primeImageMetaForBoard } from '../lib/imageMeta.js';
@@ -24,6 +24,13 @@ if (typeof window !== 'undefined') {
   // can trigger it without a circular import.
   window.__soleilEmitBoardReset = emitBoardReset;
 }
+
+// Yjs corruption self-heal: how many times we'll auto-resync a single board
+// per session before giving up. Bounds the loop if the corruption is in the
+// authoritative server snapshot itself (or is a genuine app-level transact
+// bug), which would otherwise re-throw on every remount.
+const CORRUPTION_MAX_RESYNCS = 2;
+const _corruptionResyncs = new Map();   // boardId -> count this session
 
 export function useYBoard(boardId, userId, user = null, workspaceId = null, hasThumb = false) {
   const handleRef = useRef(null);
@@ -92,6 +99,34 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
     });
     return () => { try { unsubscribe(); } catch (_) {} };
   }, [boardId]);
+
+  // 4th reset source: Yjs corruption. perf.js catches a failed integrate/
+  // transact/undo and dispatches 'soleil:yjs-corruption'. We poison the live
+  // handle (so its teardown doesn't re-persist the corrupt doc), purge the
+  // locally-cached bytes (draft + IndexedDB snapshot) that could re-introduce
+  // it, then remount to re-sync clean state from the server. Attempt-capped
+  // per board so a persisted-bad snapshot can't loop.
+  useEffect(() => {
+    if (!boardId) return;
+    const onCorruption = (e) => {
+      // Require an exact board match — a corruption with an unknown/null
+      // boardId must NOT remount every open board.
+      if (!e?.detail || e.detail.boardId !== boardId) return;
+      const n = _corruptionResyncs.get(boardId) || 0;
+      if (n >= CORRUPTION_MAX_RESYNCS) {
+        if (typeof console !== 'undefined') {
+          console.warn(`[useYBoard] yjs-corruption resync cap reached for ${boardId} — leaving as-is (already logged)`);
+        }
+        return;
+      }
+      _corruptionResyncs.set(boardId, n + 1);
+      try { handleRef.current?.poison?.(); } catch (_) {}
+      try { purgeLocalBoardState(boardId, userId); } catch (_) {}
+      triggerReset('yjs-corruption');
+    };
+    window.addEventListener('soleil:yjs-corruption', onCorruption);
+    return () => window.removeEventListener('soleil:yjs-corruption', onCorruption);
+  }, [boardId, userId]);
 
   useEffect(() => {
     if (!boardId) {

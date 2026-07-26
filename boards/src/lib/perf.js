@@ -13,6 +13,7 @@
 
 import * as Y from 'yjs';
 import React, { useLayoutEffect } from 'react';
+import { logClientError } from './errorReporting.js';
 
 const SAMPLE_CAP = 64;  // rolling samples per mark name
 const LONGTASK_CAP = 32; // rolling buffer of recent long tasks
@@ -343,6 +344,39 @@ function _stopLongTaskObserver() {
 // our source AND from inside y-partykit) goes through Doc.transact, so
 // this single patch catches them all. When perf is disabled it's a tight
 // passthrough — one bool check, no measurement overhead.
+
+// Human-readable origin tag: 'snapshot' / 'remote' / 'local' / 'restore' /
+// 'client:<id>' (y-partykit peers) / a constructor name.
+function _originTag(origin) {
+  return origin == null ? 'null'
+    : (typeof origin === 'string' ? origin
+    : (typeof origin === 'number' ? `client:${origin}`
+    : origin?.constructor?.name || typeof origin));
+}
+
+// A Y.Doc transaction threw — treat as CRDT corruption. Log a structured
+// client_error (origin + boardId go in component_stack so rows are
+// diagnosable — we previously had zero boardId on these) and fire a
+// 'soleil:yjs-corruption' window event the board layer (useYBoard) listens
+// for to self-heal. Kept side-effect-only and never re-throws.
+function _reportYjsCorruption(err, oTag, doc) {
+  let boardId = null;
+  try { boardId = doc?._soleilBoardId ?? null; } catch (_) {}
+  try {
+    logClientError(err, {
+      kind: 'yjs-transact',
+      componentStack: JSON.stringify({ origin: oTag, boardId }),
+    });
+  } catch (_) {}
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('soleil:yjs-corruption', {
+        detail: { origin: oTag, boardId },
+      }));
+    }
+  } catch (_) {}
+}
+
 let _origTransact = null;
 function _patchYDocTransact() {
   if (_origTransact) return;
@@ -352,26 +386,41 @@ function _patchYDocTransact() {
   }
   _origTransact = Y.Doc.prototype.transact;
   Y.Doc.prototype.transact = function patchedTransact(fn, origin, local) {
-    if (!enabled) return _origTransact.call(this, fn, origin, local);
-    // First-call sentinel — proves the patch is on the live prototype.
-    if (!gauges['Y.transactPatchHit']) gauges['Y.transactPatchHit'] = 1;
-    const _t0 = performance.now();
-    const ret = _origTransact.call(this, fn, origin, local);
-    const ms = performance.now() - _t0;
-    mark('Y.transact.ms', ms);
-    bump('Y.transact');
-    // Per-origin breakdown: 'snapshot' / 'remote' / 'local' / 'restore' /
-    // y-partykit's library origin (usually a numeric ClientID or the
-    // string 'sync'). Helps separate "our code" from "the lib".
-    const oTag = origin == null ? 'null'
-              : (typeof origin === 'string' ? origin
-              : (typeof origin === 'number' ? `client:${origin}`
-              : origin.constructor?.name || typeof origin));
-    bump(`Y.transact.origin.${oTag}`);
-    if (ms > 50) {
-      console.warn('[perf] Y.transact slow', `${ms.toFixed(0)}ms`, `origin=${oTag}`);
+    // The try/catch wraps BOTH the disabled fast-path and the measured path:
+    // every Y.applyUpdate (remote/library, local, 'restore') and
+    // UndoManager.undo funnels through here, so this is the one choke point
+    // that catches Yjs CRDT struct-store corruption. Left unguarded it
+    // surfaces as an uncaught window error or (in the async y-partykit apply
+    // path) an unhandled promise rejection, and the client silently stops
+    // converging with peers. See _reportYjsCorruption below.
+    try {
+      if (!enabled) return _origTransact.call(this, fn, origin, local);
+      // First-call sentinel — proves the patch is on the live prototype.
+      if (!gauges['Y.transactPatchHit']) gauges['Y.transactPatchHit'] = 1;
+      const _t0 = performance.now();
+      const ret = _origTransact.call(this, fn, origin, local);
+      const ms = performance.now() - _t0;
+      mark('Y.transact.ms', ms);
+      bump('Y.transact');
+      // Per-origin breakdown: 'snapshot' / 'remote' / 'local' / 'restore' /
+      // y-partykit's library origin (usually a numeric ClientID or the
+      // string 'sync'). Helps separate "our code" from "the lib".
+      const oTag = _originTag(origin);
+      bump(`Y.transact.origin.${oTag}`);
+      if (ms > 50) {
+        console.warn('[perf] Y.transact slow', `${ms.toFixed(0)}ms`, `origin=${oTag}`);
+      }
+      return ret;
+    } catch (err) {
+      // Swallow so a corrupt update can't crash the surface / leave an
+      // unhandled rejection; ALWAYS log (so a non-corruption transaction bug —
+      // our own fn throwing — still shows up in client_errors rather than
+      // being hidden); and signal the board layer to self-heal (drop local
+      // caches + re-sync from the server). useYBoard attempt-caps the resync
+      // so a persisted-bad snapshot can't loop.
+      _reportYjsCorruption(err, _originTag(origin), this);
+      return undefined;
     }
-    return ret;
   };
   console.log('[perf] Y.Doc.prototype.transact patched');
 }

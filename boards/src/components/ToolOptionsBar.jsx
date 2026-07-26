@@ -21,6 +21,7 @@ import { SizeInput } from './SizeInput.jsx';
 import { combineAllFonts, ensureGoogleFontLoaded } from '../lib/googleFonts.js';
 import { addRecentFont } from '../lib/customFonts.js';
 import { getActiveNoteEditor, subscribeActiveNoteEditor } from '../lib/noteEditorRegistry.js';
+import { safeRun } from '../lib/safeEditorCmd.js';
 
 // Subscribe to the active collaborative-note Tiptap editor (set by
 // NoteTiptapSurface while a note is being edited). When present, the note
@@ -148,7 +149,8 @@ function applyToggleList(type) {
     if (type === 'ul') c.toggleBulletList();
     else if (type === 'ol') c.toggleOrderedList();
     else if (type === 'task') c.toggleList('noteChecklist', 'noteChecklistItem');
-    c.run();
+    // clearNodes (list fallback) throws on a hardBreak in the selection — guard it.
+    safeRun(c, `note-list:${type}`);
     notifyFormatChanged();
     return;
   }

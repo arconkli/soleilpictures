@@ -25,9 +25,18 @@ export function findHighlightPlugin() {
     key: findKey,
     state: {
       init: () => ({ ranges: [], current: -1 }),
-      apply(tr, prev) {
+      apply(tr, prev, _oldState, newState) {
         const meta = tr.getMeta(findKey);
-        if (meta) return meta;
+        if (meta) {
+          // Match ranges are computed against a possibly-stale doc snapshot
+          // (find spans multiple sheets + async replace). Clamp them to the
+          // live doc so a highlight never points past its end.
+          const max = newState.doc.content.size;
+          const ranges = (meta.ranges || [])
+            .map(([from, to]) => [Math.max(0, Math.min(from, max)), Math.max(0, Math.min(to, max))])
+            .filter(([from, to]) => to > from);
+          return { ...meta, ranges };
+        }
         // Re-map ranges through the transaction so they stay accurate after
         // edits made while the bar is open.
         if (prev.ranges.length === 0) return prev;
@@ -41,9 +50,19 @@ export function findHighlightPlugin() {
       decorations(state) {
         const s = findKey.getState(state);
         if (!s || !s.ranges.length) return DecorationSet.empty;
-        const decos = s.ranges.map(([from, to], i) =>
-          Decoration.inline(from, to, { class: i === s.current ? 'doc-find-hit doc-find-hit-current' : 'doc-find-hit' })
-        );
+        const max = state.doc.content.size;
+        const decos = [];
+        s.ranges.forEach(([from, to], i) => {
+          // Guard against stale/out-of-range spans (e.g. a match computed
+          // before a concurrent remote edit shrank the doc). An out-of-range
+          // inline decoration makes ProseMirror resolve() a position past doc
+          // end → "Position N out of range" thrown deep inside DecorationSet
+          // validation (no app frames in the stack).
+          const f = Math.max(0, Math.min(from, max));
+          const t = Math.max(0, Math.min(to, max));
+          if (t <= f) return;
+          decos.push(Decoration.inline(f, t, { class: i === s.current ? 'doc-find-hit doc-find-hit-current' : 'doc-find-hit' }));
+        });
         return DecorationSet.create(state.doc, decos);
       },
     },
@@ -157,7 +176,9 @@ export function DocFindReplace({ editor, editors = [], open, onClose }) {
     // Preserve the matched text's OWN marks (read from inside the match, not the
     // boundary) so bold/link/etc. survive a replace.
     ed.chain().focus().command(({ tr, state }) => {
-      const marks = tr.doc.resolve(Math.min(m.from + 1, m.to)).marks();
+      // Skip a match that no longer fits the live doc (raced a concurrent edit).
+      if (m.from < 0 || m.to > tr.doc.content.size || m.to <= m.from) return true;
+      const marks = tr.doc.resolve(Math.max(0, Math.min(m.from + 1, m.to, tr.doc.content.size))).marks();
       if (r) tr.replaceWith(m.from, m.to, state.schema.text(r, marks)); else tr.delete(m.from, m.to);
       return true;
     }).run();
@@ -177,7 +198,8 @@ export function DocFindReplace({ editor, editors = [], open, onClose }) {
       // End→start so earlier positions don't shift; preserve each match's marks.
       ed.chain().focus().command(({ tr, state }) => {
         [...ranges].reverse().forEach(([from, to]) => {
-          const marks = tr.doc.resolve(Math.min(from + 1, to)).marks();
+          if (from < 0 || to > tr.doc.content.size || to <= from) return;
+          const marks = tr.doc.resolve(Math.max(0, Math.min(from + 1, to, tr.doc.content.size))).marks();
           if (r) tr.replaceWith(from, to, state.schema.text(r, marks)); else tr.delete(from, to);
         });
         return true;

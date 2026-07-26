@@ -19,6 +19,7 @@ import {
 } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
 import { ELEMENTS as SP_ELEMENTS, ELEMENT_LABELS as SP_LABELS } from './docExtensions/screenplay/screenplayFlow.js';
+import { safeRun } from '../lib/safeEditorCmd.js';
 
 const HEADING_OPTIONS = [
   { value: 'p', label: 'Body' },
@@ -76,8 +77,10 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
   })();
   const setHeading = (val) => {
     if (!editor) return;
-    if (val === 'p') editor.chain().focus().setParagraph().run();
-    else editor.chain().focus().toggleHeading({ level: Number(val[1]) }).run();
+    // setParagraph / toggleHeading route through clearNodes → can throw on a
+    // hardBreak in the selection. Guard so the editor never crashes.
+    if (val === 'p') safeRun(editor.chain().focus().setParagraph(), 'doc-setParagraph');
+    else safeRun(editor.chain().focus().toggleHeading({ level: Number(val[1]) }), 'doc-toggleHeading');
   };
 
   const setFont = (css, gfName, label) => {
@@ -264,13 +267,13 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
         <span className="doc-tb-sep" aria-hidden="true" />
 
         <Btn title="Bulleted list (⌘⇧8)" active={isActive('bulletList')} disabled={disabled}
-             onClick={() => editor.chain().focus().toggleBulletList().run()}><Glyph as={List} size={14} /></Btn>
+             onClick={() => safeRun(editor.chain().focus().toggleBulletList(), 'doc-list:ul')}><Glyph as={List} size={14} /></Btn>
         <Btn title="Numbered list (⌘⇧7)" active={isActive('orderedList')} disabled={disabled}
-             onClick={() => editor.chain().focus().toggleOrderedList().run()}><Glyph as={ListOrdered} size={14} /></Btn>
+             onClick={() => safeRun(editor.chain().focus().toggleOrderedList(), 'doc-list:ol')}><Glyph as={ListOrdered} size={14} /></Btn>
         <Btn title="Task list (⌘⇧9)" active={isActive('taskList')} disabled={disabled}
-             onClick={() => editor.chain().focus().toggleTaskList().run()}><Glyph as={ListChecks} size={14} /></Btn>
+             onClick={() => safeRun(editor.chain().focus().toggleTaskList(), 'doc-list:task')}><Glyph as={ListChecks} size={14} /></Btn>
         <Btn title="Quote" active={isActive('blockquote')} disabled={disabled}
-             onClick={() => editor.chain().focus().toggleBlockquote().run()}><Glyph as={Quote} size={14} /></Btn>
+             onClick={() => safeRun(editor.chain().focus().toggleBlockquote(), 'doc-blockquote')}><Glyph as={Quote} size={14} /></Btn>
 
         <span className="doc-tb-sep" aria-hidden="true" />
 

@@ -24,6 +24,7 @@ import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwareness
 import { supabase, bounceRealtime } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 import * as perf from './perf.js';
+import { logClientError } from './errorReporting.js';
 
 // 250ms = 4 broadcasts/sec/user. Supabase free-tier realtime enforces
 // a ~10 messages/sec per-tenant limit (verified via realtime logs:
@@ -183,7 +184,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
           if (ms > 100) console.warn('[perf] slow yboard.applyRemote(sync2)', `${ms.toFixed(0)}ms`, `${(bytes.length/1024).toFixed(1)}KB`);
         }
       }
-      catch (e) { console.warn('y-sync-step2 apply failed', e); }
+      catch (e) { console.warn('y-sync-step2 apply failed', e); try { logClientError(e, { kind: 'ysupabase-apply' }); } catch (_) {} }
     });
 
     channel.on('broadcast', { event: 'y-update' }, ({ payload }) => {
@@ -201,7 +202,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
           if (ms > 100) console.warn('[perf] slow yboard.applyRemote(update)', `${ms.toFixed(0)}ms`, `${(bytes.length/1024).toFixed(1)}KB`);
         }
       }
-      catch (e) { console.warn('y-update apply failed', e); }
+      catch (e) { console.warn('y-update apply failed', e); try { logClientError(e, { kind: 'ysupabase-apply' }); } catch (_) {} }
     });
 
     channel.on('broadcast', { event: 'y-awareness' }, ({ payload }) => {
