@@ -22,6 +22,11 @@ import { OnboardingTour } from './components/OnboardingTour.jsx';
 import { useOnboardingTour } from './hooks/useOnboardingTour.js';
 import { mergeTourIntoOnboarding, PROJECT_INTENTS } from './lib/onboardingTour.js';
 import { momentumHintSeen, markMomentumHintSeen } from './lib/momentumHint.js';
+import {
+  pickReveal, revealSeen, markRevealSeen,
+  sessionRevealShown, markSessionRevealShown,
+  viewEverSwitched, markViewSwitched,
+} from './lib/powerReveals.js';
 import { ReferralNudge } from './components/ReferralNudge.jsx';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
 import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
@@ -809,6 +814,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // inline clickable item list instead of a thumbnail).
   const setView = (v, via = 'topbar') => {
     setViewOverride(o => ({ ...o, [currentId]: v }));
+    // Any view switch proves the user knows the toggle exists — retires the
+    // list_drive power reveal on this device for good.
+    markViewSwitched();
     // Guided tour: the final step completes on a real switch to List view
     // (null ref no-ops for everyone else; 'canvas' switches are ignored by
     // the engine).
@@ -3212,6 +3220,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     setDesktopHandoff(false); // a handoff tour that finished closes its gate
     if (tourCompletedRef.current && !tourFinishedToastRef.current) {
       tourFinishedToastRef.current = true;
+      // The completion toast IS this session's beat — a power reveal must not
+      // stack a second toast on the same moment.
+      markSessionRevealShown();
       try {
         if (tour.state.variant === 'mobile_lite') {
           // Secondary momentum site: if their first photos landed DURING the
@@ -3234,11 +3245,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           // Keyboardless devices (touch iPads run this variant too — isPhone is
           // width-only) must not be told to press ⌘Z.
           const coarse = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)')?.matches;
-          feedback.toast({
-            type: 'success',
-            message: coarse ? 'You’re set — drag in anything you like.' : 'You’re set — drag in anything, and ⌘Z undoes.',
-            ttl: 5000,
-          });
+          // Desktop momentum port (mirrors the mobile_lite branch above): a
+          // completion short of the populated-board bar swaps the closing beat
+          // for the "keep going" nudge instead of stacking a second toast.
+          const short = genuineCards(yb.cards).length < 3;
+          if (short && !revealSeen('momentum')) {
+            markRevealSeen('momentum');
+            // source discriminates these rows from the two phone emitters
+            // (which predate the key and carry only {board_id, after}).
+            try { logEvent(EV.MOMENTUM_NUDGE_SHOWN, { board_id: currentId, after: genuineCards(yb.cards).length, source: 'project_first_completion' }); } catch (_) {}
+            feedback.toast({
+              message: coarse
+                ? 'Nice start — boards get good at 3+. Add a few more?'
+                : 'Nice start — boards get good at 3+. Paste or drag in a few more.',
+              ttl: 6000,
+            });
+          } else {
+            feedback.toast({
+              type: 'success',
+              message: coarse ? 'You’re set — drag in anything you like.' : 'You’re set — drag in anything, and ⌘Z undoes.',
+              ttl: 5000,
+            });
+          }
         } else {
           feedback.toast({ type: 'success', message: 'That’s the tour — tip: List view works like a drive for any cluster.', ttl: 5000 });
         }
@@ -3732,6 +3760,97 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     tier: myTier.tier,
   });
   const canEditCurrent = currentBoardPerm.canEdit;
+
+  // ── Just-in-time power reveals ────────────────────────────────────────────
+  // Upfront feature tours underperformed just-in-time discovery here, so power
+  // features surface one at a time, at the moment the user's own content makes
+  // them relevant (engine: lib/powerReveals.js). Once-ever each, ONE per
+  // session, never over a tour or the coachmark, own-workspace only,
+  // desktop-shaped. Toast actions outlive board switches AND this component
+  // (FeedbackProvider sits above Workspace), so they read through refs and
+  // no-op after unmount or navigation — a stale click must never create rows
+  // against a destroyed Y.Doc or in a workspace the user has left.
+  const currentIdRef = useRef(currentId);
+  currentIdRef.current = currentId;
+  const mainMutatorsRef = useRef(mainMutators);
+  mainMutatorsRef.current = mainMutators;
+  const aliveRef = useRef(true);
+  useEffect(() => () => { aliveRef.current = false; }, []);
+  // Opening the command palette is using it — retire its pitch for good.
+  useEffect(() => { if (paletteOpen) markRevealSeen('palette'); }, [paletteOpen]);
+  useEffect(() => {
+    if (sessionRevealShown()) return;
+    if (!user?.id || mobileShell || !canEditCurrent || tourActive || showCoachmark) return;
+    // Own workspace only: on a board the user merely edits, the counts would
+    // be someone ELSE's content and the actions would write into their space.
+    if (currentBoardPerm.source !== 'workspace') return;
+    // Wait out the cold-RPC window (tour/coachmark aren't armed until
+    // get_my_tier lands) and never run while onboarding is unfinished —
+    // reveals are the post-onboarding drip by design.
+    if (myTier.loading) return;
+    const onb = myTier.onboarding || {};
+    if (onb.seeded === true && onb.done !== true) return;
+    // Never evaluate another board's snapshot: on the navigation commit,
+    // yb.cards still holds the PREVIOUS board (same gate as currentYDoc).
+    if (!yb.ready || yb.boardId !== currentId) return;
+    // Back-fill for the missing "ever switched views" history: anyone we
+    // observe already in list view obviously knows the toggle — stamp + bail.
+    if (view === 'list' && !viewEverSwitched()) { markViewSwitched(); return; }
+    const genuine = genuineCards(yb.cards);
+    const clusterCards = genuine.filter((c) => c.kind === 'board').length;
+    const picked = pickReveal({
+      isRoot: currentId === rootBoard.id,
+      view,
+      viewEverSwitched: viewEverSwitched(),
+      imageCards: genuine.filter((c) => c.kind === 'image').length,
+      noteCards: genuine.filter((c) => c.kind === 'note').length,
+      gridCards: genuine.filter((c) => c.kind === 'grid').length,
+      docCards: genuine.filter((c) => c.kind === 'doc').length,
+      nonBoardCards: genuine.length - clusterCards,
+      clusterCards,
+      totalGenuine: genuine.length,
+    }, revealSeen);
+    if (!picked) return;
+    // Mark BEFORE showing (momentumHint discipline) — a re-render mid-toast
+    // must never double-fire.
+    markRevealSeen(picked.key);
+    markSessionRevealShown();
+    // Quota-exhausted localStorage (writes throw, reads work) would otherwise
+    // re-pitch the same reveal every session forever — verify the write took
+    // and stay silent if it didn't.
+    if (!revealSeen(picked.key)) return;
+    const firedBoardId = currentId;
+    // Place created cards beside the user's content (they are looking at it),
+    // never at the (60,60) fallback that lands off-camera on a panned canvas.
+    // Read at CLICK time via the ref so the box is current, not fire-time.
+    const nearContent = () => {
+      const cs = genuineCards(ybCardsRef.current || []);
+      if (!cs.length) return null;
+      const right = Math.max(...cs.map((c) => (c.x || 0) + (c.w || 200)));
+      const top = Math.min(...cs.map((c) => c.y || 0));
+      return { x: right + 260, y: top + 160 };
+    };
+    const engage = (fn) => () => {
+      if (!aliveRef.current) return;                     // Workspace unmounted
+      if (currentIdRef.current !== firedBoardId) return; // navigated away
+      try { logEvent(EV.POWER_REVEAL_ENGAGED, { reveal: picked.key }); } catch (_) {}
+      fn?.();
+    };
+    const actions = {
+      grids: engage(() => mainMutatorsRef.current?.addGrid?.(nearContent(), {})),
+      group: engage(() => mainMutatorsRef.current?.addNewBoard?.(nearContent())),
+      list_drive: engage(() => setView('list', 'power_reveal')),
+      docs: engage(() => mainMutatorsRef.current?.addDocCard?.(nearContent())),
+      palette: engage(() => setPaletteOpen(true)),
+    };
+    feedback.toast({
+      message: picked.message,
+      ttl: 8000,
+      action: { label: picked.actionLabel, onClick: actions[picked.key] },
+    });
+    try { logEvent(EV.POWER_REVEAL_SHOWN, { reveal: picked.key, board_id: currentId, n_cards: genuine.length }); } catch (_) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, yb.cards, yb.ready, currentId, tourActive, canEditCurrent, view, mobileShell, showCoachmark, myTier.loading, myTier.onboarding, currentBoardPerm.source]);
 
   // One-tap share: mint-or-reuse a view-only link for the current board and copy
   // it instantly, collapsing the ~4-click ShareModal flow to one. Defaults to
