@@ -56,6 +56,17 @@ function isNoise(message, stack) {
   if (/^ResizeObserver loop/i.test(m)) return true;
   if (/iabjs:\/\/|navigation_performance_logger/i.test(s + m)) return true;
   if (/chrome-extension:\/\/|moz-extension:\/\/|safari-extension:\/\//i.test(s)) return true;
+  // Extension / embedded-webview artifacts injected INTO the page context, so
+  // they carry no extension:// stack frame to match the rule above:
+  //  - "Object Not Found Matching Id:N, MethodName:update, ParamCount:4" — a
+  //    known antivirus/webview bridge rejection with no real stack, not ours.
+  //  - crypto-wallet extensions redefining window.ethereum.
+  //  - Firefox / iOS reader-mode injecting __firefox__.
+  // (We still keep real users' "Failed to fetch" / "Load failed" — dropped by
+  // UA only — so genuine network failures stay actionable.)
+  if (/Object Not Found Matching Id:\d+/i.test(m)) return true;
+  if (/__firefox__/.test(s + m)) return true;
+  if (/window\.ethereum|\bselectedAddress\b|Cannot redefine property: ethereum/i.test(m)) return true;
   return false;
 }
 
