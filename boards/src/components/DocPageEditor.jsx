@@ -20,6 +20,7 @@ import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js'
 import { untagDocRange, tagDocRange } from '../lib/tagsApi.js';
 import { updateBacklinks, syncDocPageIndex } from '../lib/boardsApi.js';
 import { extractTagMentions } from '../lib/extractTagMentions.js';
+import { safeRun } from '../lib/safeEditorCmd.js';
 import { extractParagraphTags } from '../lib/extractParagraphTags.js';
 import { splitSentences, wordContextSpan } from '../lib/sentenceSpan.js';
 import { recordEntityLinks } from '../lib/recordEntityLinks.js';
@@ -107,7 +108,10 @@ function verdictKey(pageId, tagId, snippetHash) {
 const ExtraShortcuts = Extension.create({
   name: 'soleilDocShortcuts',
   addKeyboardShortcuts() {
-    const headings = (level) => () => this.editor.chain().focus().toggleHeading({ level }).run();
+    // toggleHeading / setParagraph / list toggles route through clearNodes,
+    // which throws on a hardBreak in the selection — guard every one so a
+    // shortcut can never crash the editor.
+    const headings = (level) => () => safeRun(this.editor.chain().focus().toggleHeading({ level }), `doc-kbd-h${level}`);
     return {
       // Headings: ⌘⌥1..6
       'Mod-Alt-1': headings(1),
@@ -116,11 +120,11 @@ const ExtraShortcuts = Extension.create({
       'Mod-Alt-4': headings(4),
       'Mod-Alt-5': headings(5),
       'Mod-Alt-6': headings(6),
-      'Mod-Alt-0': () => this.editor.chain().focus().setParagraph().run(),
+      'Mod-Alt-0': () => safeRun(this.editor.chain().focus().setParagraph(), 'doc-kbd-p'),
       // Lists: ⌘⇧7 / ⌘⇧8 / ⌘⇧9 (Google Docs convention)
-      'Mod-Shift-7': () => this.editor.chain().focus().toggleOrderedList().run(),
-      'Mod-Shift-8': () => this.editor.chain().focus().toggleBulletList().run(),
-      'Mod-Shift-9': () => this.editor.chain().focus().toggleTaskList().run(),
+      'Mod-Shift-7': () => safeRun(this.editor.chain().focus().toggleOrderedList(), 'doc-kbd-list:ol'),
+      'Mod-Shift-8': () => safeRun(this.editor.chain().focus().toggleBulletList(), 'doc-kbd-list:ul'),
+      'Mod-Shift-9': () => safeRun(this.editor.chain().focus().toggleTaskList(), 'doc-kbd-list:task'),
       // Strikethrough: ⌘⇧X
       'Mod-Shift-x': () => this.editor.chain().focus().toggleStrike().run(),
       // Blockquote: ⌘⇧.

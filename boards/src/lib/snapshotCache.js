@@ -100,6 +100,20 @@ async function pruneOld(db) {
   } catch (_) {}
 }
 
+// Drop the cached snapshot for a single board (e.g. after Yjs corruption, so
+// the next open pulls clean state from the server instead of re-applying a
+// possibly-bad cached update). Best-effort.
+export async function deleteSnapshot(boardId) {
+  if (!boardId) return;
+  try {
+    const db = await openDb();
+    if (!db) return;
+    const { store, done } = tx(db, 'readwrite');
+    store.delete(boardId);
+    await done;
+  } catch (_) {}
+}
+
 // Drop everything (e.g. on sign-out). Best-effort.
 export async function clearAllSnapshots() {
   try {

@@ -22,9 +22,10 @@ import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
 import { renderThumbnailBlob, quickVisualHash, RENDER_VERSION } from './renderThumbnail.js';
 import { uploadBoardThumbnail } from './uploads.js';
 import { peekBoardSnapshot, prefetchBoard } from './prefetchKinds.js';
-import { getSnapshot, putSnapshot } from './snapshotCache.js';
+import { getSnapshot, putSnapshot, deleteSnapshot } from './snapshotCache.js';
 import { invalidate as invalidatePrefetch } from './prefetch.js';
 import * as perf from './perf.js';
+import { logClientError } from './errorReporting.js';
 // Round 16: serialize the localStorage preview envelope off the main
 // thread so persistSoon's hot path no longer pays a ~50-200ms
 // JSON.stringify cost mid-interaction.
@@ -247,6 +248,9 @@ function clearLocalDraft(boardId, version) {
 export function loadYBoard(boardId, { userId = null, user = null, workspaceId = null, hasThumb = false, onEarlyContent = null } = {}) {
   const _loadT0 = perf.isEnabled() ? performance.now() : 0;
   const ydoc = new Y.Doc();
+  // Stamp the board id on the doc so the perf.js transact guard can attribute
+  // a Yjs corruption error and target the self-heal to the right board.
+  try { ydoc._soleilBoardId = boardId; } catch (_) {}
   const cards = ydoc.getMap('cards');
   const arrows = ydoc.getArray('arrows');
   const strokes = ydoc.getArray('strokes');
@@ -283,6 +287,10 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   let periodicCount = 0;
   let dirty = false;
   let destroyed = false;
+  // Set when this board's doc is deemed corrupt (Yjs threw). A poisoned handle
+  // must NOT write its state anywhere — persisting the corrupt doc would
+  // re-seed the local draft / snapshot cache / server, defeating the resync.
+  let poisoned = false;
   let initialized = false;
   let draftVersion = 0;
   let pendingLocal = false; // a local edit is awaiting a remote save
@@ -378,6 +386,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
 
   const onUpdate = (_update, origin) => {
     if (!initialized) return;
+    if (poisoned) return;   // corrupt doc — never persist derived state
     if (origin === 'snapshot') return;
     if (origin === 'restore') return;
     dirty = true;
@@ -456,6 +465,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
       }
     } catch (e) {
       console.error('loadBoardSnapshot failed', e);
+      try { logClientError(e, { kind: 'yboard-snapshot-load' }); } catch (_) {}
     }
     initialized = true;
     if (_loadT0) {
@@ -484,6 +494,11 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
         maybeGenerateThumbnail(boardId, ydoc, { workspaceId, userId });
       });
     }
+  }).catch((e) => {
+    // Attaching the realtime provider (or the cold-load it awaits) rejected —
+    // previously silent (no .catch). Log so it's visible; the perf.js guard
+    // already handles any Yjs-apply throw inside the provider.
+    try { logClientError(e, { kind: 'yboard-attach' }); } catch (_) {}
   });
 
   // Flush on hard page close. The localStorage draft already protects the
@@ -492,7 +507,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   // stale snapshot. We use pagehide instead of beforeunload because mobile
   // Safari only reliably fires pagehide on tab close.
   const onPageHide = () => {
-    if (!initialized) return;
+    if (!initialized || poisoned) return;
     if (snapTimer) {
       clearTimeout(snapTimer);
       snapTimer = null;
@@ -505,7 +520,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   // e.g. when a doc card closes, so an edit made in the last ~250ms can't be
   // lost if the tab is closed right after. No-op when nothing is pending.
   const flushNow = () => {
-    if (destroyed || !initialized) return;
+    if (destroyed || !initialized || poisoned) return;
     if (snapTimer) {
       clearTimeout(snapTimer);
       snapTimer = null;
@@ -521,7 +536,10 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     if (typeof window !== 'undefined') window.removeEventListener('pagehide', onPageHide);
     try { realtime?.destroy?.(); } catch (_) {}
     ydoc.off('update', onUpdate);
-    if (initialized) {
+    // A poisoned (corrupt) doc skips ALL persistence — writing its state back
+    // to the draft / snapshot cache / server / version history would just
+    // re-seed the corruption. useYBoard purges the local caches and remounts.
+    if (initialized && !poisoned) {
       const version = saveLocalDraft(boardId, ydoc, ++draftVersion);
       // Refresh the instant-reopen cache with the latest state on close so the
       // next open of this board paints current content, not last session's.
@@ -570,7 +588,20 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     flushNow,
     sessionId,
     getAwareness: () => realtime?.awareness || null,
+    // Mark this handle's doc corrupt so its teardown skips all persistence.
+    // Called by useYBoard right before it purges caches + remounts.
+    poison: () => { poisoned = true; },
   };
+}
+
+// Drop the locally-cached bytes for a board (localStorage draft + IndexedDB
+// snapshot) so the next cold-load pulls clean state from the server instead of
+// re-applying a possibly-corrupt cached/draft update. Used by the Yjs
+// corruption self-heal in useYBoard.
+export function purgeLocalBoardState(boardId, uid = null) {
+  if (!boardId) return;
+  try { if (typeof localStorage !== 'undefined') localStorage.removeItem(draftKey(boardId)); } catch (_) {}
+  try { void deleteSnapshot(boardId, uid); } catch (_) {}
 }
 
 export function restoreVersionInto(ydoc, b64) {
