@@ -157,8 +157,69 @@ export const MOBILE_TOUR_STEPS = [
   },
 ];
 
+// Desktop replacement for the retired 6-step mechanics tour (project_first):
+// live data showed most desktop users abandoning the old opening steps, and
+// finishing the tour didn't predict coming back — teaching mechanics was
+// never the constraint, having a project is. So the first beat asks what they're working
+// on (the retention payload nothing else captures: win-back emails can name
+// THEIR project instead of guessing), and the second goes straight to content,
+// the same content-first shape that transformed activation on mobile_lite.
+// Nothing locks, everything is skippable, and a self-directed user advances by
+// just doing their own thing (create a cluster / drop content).
+export const PROJECT_INTENTS = [
+  { key: 'moodboard',  label: 'A moodboard',           boardName: 'Moodboard' },
+  { key: 'storyboard', label: 'A storyboard',          boardName: 'Storyboard' },
+  { key: 'references', label: 'Collecting references', boardName: 'References' },
+  { key: 'exploring',  label: 'Just exploring',        boardName: null },
+];
+
+export const PROJECT_TOUR_STEPS = [
+  {
+    // Centered card (no real control carries the 'intent' anchor, so the
+    // overlay's unanchored fallback centers it). Choices render as buttons in
+    // OnboardingTour; each dispatches intent_picked via App's onAction, which
+    // also seeds the named project cluster for non-exploring picks.
+    id: 'pick_intent',
+    anchor: 'intent',
+    placement: 'bottom',
+    lock: false,
+    variant: 'project',
+    choices: PROJECT_INTENTS,
+    copy: {
+      title: 'What are you working on?',
+      body: 'Pick one and we’ll set your board up for it — or skip and start blank.',
+      touch: 'Pick one and we’ll set your board up for it — or skip and start blank.',
+    },
+    accepts: (e) => e?.type === 'intent_picked' || e?.type === 'cluster_created',
+  },
+  {
+    // Same content-first close as mobile_lite, desktop-shaped: the rail stays
+    // live (lock:false) and any content completes. Skip-ahead means content
+    // dropped while the ask was still up also lands here and finishes.
+    // NO centerPill: the freshly seeded project cluster gets fit-centered on
+    // screen right as this step appears, so the pill must anchor at the rail
+    // and leave the canvas center to the payoff. (The full tour's content step
+    // centered only to clear its lock-revealed rail-tooltip column — there is
+    // no lock here, so no column.)
+    id: 'add_content',
+    anchor: 'rail',
+    placement: 'right',
+    lock: false,
+    variant: 'project',
+    touchAction: { label: 'Add photos', type: 'pick_photos' },
+    copy: {
+      title: 'Now drop your stuff in',
+      body: 'Images, notes, files — drag them straight onto the canvas, or paste. This is your workspace.',
+      touch: 'Add your first images — or anything else. This is your canvas.',
+    },
+    accepts: (e) => e?.type === 'content_added',
+  },
+];
+
 export function stepsFor(variant) {
-  return variant === 'mobile_lite' ? MOBILE_TOUR_STEPS : TOUR_STEPS;
+  if (variant === 'mobile_lite') return MOBILE_TOUR_STEPS;
+  if (variant === 'project_first') return PROJECT_TOUR_STEPS;
+  return TOUR_STEPS;
 }
 
 export function tourStepIndex(id, variant) {
@@ -185,6 +246,11 @@ export function advanceTour(state, event) {
 
   let clusterId = state.clusterId;
   if (event?.type === 'cluster_created' && i === 0) clusterId = event.boardId;
+  // project_first: remember WHICH intent was picked (only meaningful on the
+  // ask step) so it persists with the tour and App can lift it into
+  // profiles.settings.onboarding.intent for lifecycle email personalization.
+  let intent = state.intent;
+  if (event?.type === 'intent_picked' && i === 0 && typeof event.intent === 'string') intent = event.intent;
   const ctx = { clusterId };
 
   // Furthest step at/after the current one that this event satisfies. The full
@@ -205,11 +271,12 @@ export function advanceTour(state, event) {
     return clusterId !== state.clusterId ? { ...state, clusterId } : state;
   }
 
+  const carry = intent !== undefined ? { intent } : {};
   const nextIdx = matched + 1;
   if (nextIdx >= steps.length) {
-    return { ...state, step: steps[steps.length - 1].id, clusterId, done: true };
+    return { ...state, ...carry, step: steps[steps.length - 1].id, clusterId, done: true };
   }
-  return { ...state, step: steps[nextIdx].id, clusterId, done: false };
+  return { ...state, ...carry, step: steps[nextIdx].id, clusterId, done: false };
 }
 
 // Merge tour progress into the existing profiles.settings.onboarding object
@@ -238,5 +305,8 @@ export function readTourState(onboarding, sessionVariant = 'full') {
     clusterId: t.clusterId ?? null,
     done: !!t.done,
     variant: sessionVariant,
+    // Same-variant resume keeps a recorded intent so a mid-tour reload's next
+    // persist doesn't drop it from the tour record.
+    ...(typeof t.intent === 'string' ? { intent: t.intent } : {}),
   };
 }

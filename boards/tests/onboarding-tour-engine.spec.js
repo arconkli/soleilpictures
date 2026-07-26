@@ -281,3 +281,65 @@ test.describe('onboarding tour engine — mobile_lite variant', () => {
     expect(readTourState({ tour: { variant: 'mobile_lite', step: 'bogus', done: false } }, 'mobile_lite').step).toBe('add_photos');
   });
 });
+
+// The project_first variant replaces the retired 6-step mechanics tour on
+// desktop: capture WHAT the user is working on (the retention payload the
+// mechanics tour never collected), then go straight to content. Data basis:
+// most desktop users died on the old opening steps and completing all 6 steps
+// didn't predict retention; the content-first mobile_lite variant is what
+// moved activation. Two steps, nothing locked, everything skippable.
+test.describe('project_first tour variant', () => {
+  test('has exactly two steps: pick_intent then add_content, both unlocked', () => {
+    const steps = stepsFor('project_first');
+    expect(steps.map((s) => s.id)).toEqual(['pick_intent', 'add_content']);
+    for (const s of steps) expect(s.lock).toBe(false);
+  });
+
+  test('pick_intent offers four choices ending in a no-project escape hatch', () => {
+    const [intentStep] = stepsFor('project_first');
+    const keys = intentStep.choices.map((c) => c.key);
+    expect(keys).toEqual(['moodboard', 'storyboard', 'references', 'exploring']);
+    // every project choice names the board it will seed; exploring seeds nothing
+    for (const c of intentStep.choices) {
+      if (c.key === 'exploring') expect(c.boardName).toBeNull();
+      else expect(typeof c.boardName).toBe('string');
+    }
+  });
+
+  test('starts on pick_intent, not done', () => {
+    const s = initialTourState('project_first');
+    expect(currentStep(s).id).toBe('pick_intent');
+    expect(s.done).toBe(false);
+  });
+
+  test('picking an intent advances to add_content and records the intent', () => {
+    const s = advanceTour(initialTourState('project_first'), { type: 'intent_picked', intent: 'moodboard' });
+    expect(s.step).toBe('add_content');
+    expect(s.intent).toBe('moodboard');
+    expect(s.done).toBe(false);
+  });
+
+  test('a self-directed cluster advances past the ask without inventing an intent', () => {
+    const s = advanceTour(initialTourState('project_first'), { type: 'cluster_created', boardId: 'b1' });
+    expect(s.step).toBe('add_content');
+    expect(s.intent).toBeUndefined();
+  });
+
+  test('dropping content while the ask is up completes the whole tour (skip-ahead)', () => {
+    const s = advanceTour(initialTourState('project_first'), { type: 'content_added', kind: 'image' });
+    expect(s.done).toBe(true);
+  });
+
+  test('content after an intent completes the tour and keeps the intent', () => {
+    let s = advanceTour(initialTourState('project_first'), { type: 'intent_picked', intent: 'storyboard' });
+    s = advanceTour(s, { type: 'content_added', kind: 'note' });
+    expect(s.done).toBe(true);
+    expect(s.intent).toBe('storyboard');
+  });
+
+  test('a persisted full-tour record restarts fresh as project_first (variant mismatch)', () => {
+    const fullStuck = { tour: { step: 'rename', clusterId: 'b1', done: false } }; // legacy full row
+    const s = readTourState(fullStuck, 'project_first');
+    expect(s).toEqual({ step: 'pick_intent', clusterId: null, done: false, variant: 'project_first' });
+  });
+});

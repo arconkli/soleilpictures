@@ -93,7 +93,8 @@ test.describe('mobile onboarding wiring', () => {
     const s = app();
     expect(s).toMatch(/tourVariantRef/);
     // latched from isPhone at first decision, passed into the hook
-    expect(s).toMatch(/isPhone \? 'mobile_lite' : 'full'/);
+    // (desktop side moved full → project_first when the mechanics tour retired)
+    expect(s).toMatch(/isPhone \? 'mobile_lite' : 'project_first'/);
     expect(s).toMatch(/variant: tourVariantRef\.current/);
   });
 
@@ -151,5 +152,71 @@ test.describe('mobile onboarding wiring', () => {
     expect(s).toMatch(/computer/i);
     // the deleted MobileDesktopNotice must NOT come back
     expect(s).not.toContain('MobileDesktopNotice');
+  });
+});
+
+// ── project_first wiring (the mechanics-tour retirement) ────────────────────
+// Desktop first-runs now open on the intent ask instead of the 6-step
+// mechanics tour (which most users abandoned early and whose completion
+// didn't predict retention). These guards pin the App-side integration.
+test.describe('project_first wiring', () => {
+  test('desktop sessions latch the project_first variant', () => {
+    expect(app()).toMatch(/isPhone \? 'mobile_lite' : 'project_first'/);
+  });
+
+  test('App answers pick_intent: engine event, analytics, then the named project cluster', () => {
+    const s = app();
+    expect(s).toMatch(/type === 'pick_intent'/);
+    expect(s).toMatch(/type: 'intent_picked'/);
+    expect(s).toMatch(/EV\.ONBOARDING_INTENT/);
+    expect(s).toMatch(/addNewBoard\?\.\(null, \{ name/);
+  });
+
+  test('persistTour lifts a picked intent to onboarding.intent for lifecycle-email reads', () => {
+    expect(app()).toMatch(/tourState\.intent \? \{ intent: tourState\.intent \}/);
+  });
+
+  test('the desktop handoff gate covers the project_first session variant', () => {
+    expect(app()).toMatch(/tourVariantRef\.current !== 'mobile_lite'/);
+  });
+
+  test('addNewBoard accepts a caller-supplied name and skips the rename autofocus for it', () => {
+    const s = app();
+    expect(s).toMatch(/opts\.name \|\|/);
+    expect(s).toMatch(/if \(!opts\.name\) setAutoFocusId/);
+  });
+
+  test('the analytics registry names the intent event', () => {
+    expect(read('src/lib/analyticsEvents.js')).toMatch(/ONBOARDING_INTENT:\s*'onboarding_intent'/);
+  });
+
+  test('LocalBoardsApp previews project_first via ?tour=project with pick_intent parity', () => {
+    const s = read('src/local/LocalBoardsApp.jsx');
+    expect(s).toMatch(/TOUR_PARAM === 'project'/);
+    expect(s).toMatch(/type === 'pick_intent'/);
+  });
+});
+
+// Review fixes (adversarial pass, 2026-07-26): the intent seed must never
+// manufacture activation, the content pill must not sit on the fitted seed,
+// and the completion tip must match the input device.
+test.describe('project_first review fixes', () => {
+  test('the intent seed is a SEED card — activation stays user-earned', () => {
+    const s = app();
+    // handler passes seed:true; addNewBoard stamps it onto the canvas card so
+    // isSeedCard/_doSyncCardIndex treat it like the arm-A Ideas board (no
+    // card_placed, no first_card_at, no Meta conversion from a survey click).
+    expect(s).toMatch(/addNewBoard\?\.\(null, \{ name: choice\.boardName, seed: true \}\)/);
+    expect(s).toMatch(/\.\.\.\(opts\.seed \? \{ seed: true \} : \{\}\)/);
+    const l = read('src/local/LocalBoardsApp.jsx');
+    expect(l).toMatch(/addNewBoard\(null, \{ name: choice\.boardName, seed: true \}\)/);
+    expect(l).toMatch(/\.\.\.\(opts\.seed \? \{ seed: true \} : \{\}\)/);
+  });
+
+  test('the completion toast drops the keyboard tip on coarse pointers', () => {
+    const s = app();
+    expect(s).toMatch(/pointer: coarse/);
+    expect(s).toContain('You’re set — drag in anything you like.');
+    expect(s).toContain('You’re set — drag in anything, and ⌘Z undoes.');
   });
 });

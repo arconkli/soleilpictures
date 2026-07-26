@@ -15,9 +15,11 @@ export function TourQaHarness() {
   // fallback (ctaWhenUnanchored) by hiding the fake view toggle.
   const [showViewToggle, setShowViewToggle] = useState(true);
   // ?tourqa=1&variant=mobile drives the phones-only 2-step tour over a fake
-  // bottom-nav "+" puck; default is the full desktop tour.
-  const variant = new URLSearchParams(window.location.search).get('variant') === 'mobile'
-    ? 'mobile_lite' : 'full';
+  // bottom-nav "+" puck; &variant=project drives the desktop project_first
+  // (intent card) variant; default is the legacy full desktop tour.
+  const variantParam = new URLSearchParams(window.location.search).get('variant');
+  const variant = variantParam === 'mobile' ? 'mobile_lite'
+    : variantParam === 'project' ? 'project_first' : 'full';
   const sinks = useRef({
     persist: () => {},
     emit: (e) => { emittedRef.current.push(e); },
@@ -81,7 +83,13 @@ export function TourQaHarness() {
         onEvent={(e) => tour.fire(e)}
         onSkip={() => tour.skip()}
         onView={(id) => tour.markView(id)}
-        onAction={(type) => { actionsRef.current.push(type); }}
+        onAction={(type, arg) => {
+          actionsRef.current.push(arg ? `${type}:${arg}` : type);
+          // Mirror App's wiring: the host answers a pick_intent action by
+          // firing the intent_picked event back into the engine (App also
+          // seeds the named project cluster; the harness just advances).
+          if (type === 'pick_intent') ref.current.fire({ type: 'intent_picked', intent: arg });
+        }}
       />
     </div>
   );
