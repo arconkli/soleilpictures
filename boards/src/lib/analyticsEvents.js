@@ -137,7 +137,9 @@ export const EV = Object.freeze({
   //    board in a single gesture) ──
   PHOTO_PICK_OPEN:         'photo_pick_open',               // the image/* multi-select chooser was opened {source:'plus_empty'|'add_sheet'|'tour'|'momentum',board_id}
   PHOTO_PICK_COMMIT:       'photo_pick_commit',             // files chosen from the chooser {n_selected,source,board_id} — n_selected is the multi-select depth
-  MOMENTUM_NUDGE_SHOWN:    'momentum_nudge_shown',          // one-time "add a few more" beat after the first phone photo batch, short of a populated board {board_id,after}
+  MOMENTUM_NUDGE_SHOWN:    'momentum_nudge_shown',          // one-time "add a few more" beat after the first phone photo batch, short of a populated board {board_id,after} (also the desktop project_first completion port)
+  POWER_REVEAL_SHOWN:      'power_reveal_shown',            // JIT power hint surfaced when the user's content made a feature relevant {reveal,board_id,n_cards}
+  POWER_REVEAL_ENGAGED:    'power_reveal_engaged',          // its action button was clicked {reveal}
 
   // ── Onboarding failure paths (previously SILENT — a broken seed/persist left no signal) ──
   ONBOARDING_SEED_FAILED:            'onboarding_seed_failed',             // a seed step threw {stage,reason} — stage:'create_board'|'add_cards'|'persist'
@@ -163,7 +165,7 @@ export const EV = Object.freeze({
   // ── View modes + list-mode "drive" usage (previously DARK: the Cluster Browser
   //    shipped with zero instrumentation, and upload-gate rejections left no
   //    signal beyond an eventual pricing_view{header:'storage'}) ──
-  VIEW_MODE_SWITCH:        'view_mode_switch',            // canvas↔list toggle {view:'canvas'|'list',board_id,via:'topbar'|'toast'|'reveal'} — the tour's terminal advance rides onboarding_step instead
+  VIEW_MODE_SWITCH:        'view_mode_switch',            // canvas↔list toggle {view:'canvas'|'list',board_id,via:'topbar'|'toast'|'reveal'|'power_reveal'} — 'reveal' = the list-surface Reveal-on-canvas action; 'power_reveal' = the list_drive JIT hint; the tour's terminal advance rides onboarding_step instead
   LIST_BROWSER_VIEW:       'list_browser_view',           // ListSurface mounted (once per board per session) {board_id,files,subclusters}
   LIST_ADD_FILES:          'list_add_files',              // files handed to the list-mode ingest {board_id,n,via:'toolbar'|'drop'}
   LIST_UPSELL_CTA:         'list_upsell_cta',             // "Any file, any size — Creator" clicked in the list toolbar {board_id} (must-land)
