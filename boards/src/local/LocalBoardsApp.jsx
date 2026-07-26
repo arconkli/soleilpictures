@@ -21,6 +21,7 @@ import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
 import { OnboardingTour } from '../components/OnboardingTour.jsx';
 import { useOnboardingTour } from '../hooks/useOnboardingTour.js';
+import { PROJECT_INTENTS } from '../lib/onboardingTour.js';
 import { supabase } from '../lib/supabase.js';
 import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
@@ -115,12 +116,15 @@ const BLANK_SEED = typeof window !== 'undefined'
 
 // Dev-only: add &tour=1 (best alongside &blank=1) to walk the REAL first-run
 // guided tour on a live local canvas — no Supabase / arm enrollment needed.
-// &tour=mobile walks the phones-only photos-first variant over the real puck.
-// e.g. /?local=1&reset=1&blank=1&tour=1  or  &tour=mobile
+// &tour=mobile walks the phones-only photos-first variant over the real puck;
+// &tour=project walks the desktop project_first intent-ask variant; a bare
+// &tour=1 keeps the legacy 6-step full tour for reference.
+// e.g. /?local=1&reset=1&blank=1&tour=project
 const TOUR_PARAM = typeof window !== 'undefined' && import.meta.env.DEV
   ? new URLSearchParams(window.location.search).get('tour') : null;
-const TOUR_DEMO = TOUR_PARAM === '1' || TOUR_PARAM === 'mobile';
-const TOUR_VARIANT = TOUR_PARAM === 'mobile' ? 'mobile_lite' : 'full';
+const TOUR_DEMO = TOUR_PARAM === '1' || TOUR_PARAM === 'mobile' || TOUR_PARAM === 'project';
+const TOUR_VARIANT = TOUR_PARAM === 'mobile' ? 'mobile_lite'
+  : TOUR_PARAM === 'project' ? 'project_first' : 'full';
 
 // Dev-only: ?local=1&showcase=1 renders welcome_showcase arm B exactly as a new
 // user gets it — calls the real prepare_showcase RPC (grants this session's images
@@ -433,9 +437,11 @@ export function LocalBoardsApp({ user, signOut }) {
     updateBoardState(state => ({ ...state, strokes: nextStrokes || [] }));
   };
 
-  const addNewBoard = (clickPos = null) => {
+  const addNewBoard = (clickPos = null, opts = {}) => {
     const id = createId('board');
-    const name = 'Untitled cluster';
+    // opts.name = caller-supplied name (project_first intent seed parity with
+    // App.jsx) — a pre-named cluster also skips the rename autofocus below.
+    const name = opts.name || 'Untitled cluster';
     setLocalState(prev => ({
       boards: {
         ...prev.boards,
@@ -463,8 +469,9 @@ export function LocalBoardsApp({ user, signOut }) {
       y: Math.max(8, Math.round((clickPos?.y ?? 180) - h / 2)),
       w,
       h,
+      ...(opts.seed ? { seed: true } : {}),
     });
-    setAutoFocusId(id);
+    if (!opts.name) setAutoFocusId(id);
     tourFireRef.current?.({ type: 'cluster_created', boardId: id });
   };
 
@@ -1279,10 +1286,17 @@ export function LocalBoardsApp({ user, signOut }) {
           onEvent={(e) => tour.fire(e)}
           onSkip={() => tour.skip()}
           onView={(id) => tour.markView(id)}
-          onAction={(type) => {
+          onAction={(type, arg) => {
             // Preview parity with App.jsx: touch "Add photos" → CanvasSurface picker.
             if (type === 'pick_photos') {
               document.dispatchEvent(new CustomEvent('soleil-pick-photos', { detail: { boardId: currentId } }));
+            }
+            // project_first intent pick: advance the ask first, then seed the
+            // named project cluster (same ordering rule as App.jsx).
+            if (type === 'pick_intent') {
+              tourFireRef.current?.({ type: 'intent_picked', intent: arg });
+              const choice = PROJECT_INTENTS.find((c) => c.key === arg);
+              if (choice?.boardName) addNewBoard(null, { name: choice.boardName, seed: true });
             }
           }}
         />

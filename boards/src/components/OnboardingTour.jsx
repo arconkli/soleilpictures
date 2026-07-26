@@ -165,11 +165,12 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction }) {
     ? { top: `${pos.top}px`, left: `${pos.left}px` }
     : { top: 0, left: 0, visibility: 'hidden' };
   const arrowClass = pos && !pos.anchored ? ' tour-centered' : '';
+  const choicesClass = Array.isArray(step.choices) && step.choices.length > 0 ? ' tour-has-choices' : '';
 
   return (
     <div
       ref={pillRef}
-      className={`onboarding-tour surface-frosted tour-${pos?.placement || step.placement}${arrowClass}`}
+      className={`onboarding-tour surface-frosted tour-${pos?.placement || step.placement}${arrowClass}${choicesClass}`}
       data-tour-anchor={step.anchor}
       style={style}
       role="dialog"
@@ -181,6 +182,23 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction }) {
         <div className="onboarding-coachmark-title">{step.copy.title}</div>
         <div className="onboarding-coachmark-body">{body}</div>
       </div>
+      {/* Intent choices (project_first's ask step): each pick hands off to the
+          host via onAction — App seeds the named project cluster and fires the
+          intent_picked event that advances the engine. */}
+      {Array.isArray(step.choices) && step.choices.length > 0 && (
+        <div className="onboarding-tour-choices">
+          {step.choices.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              className="onboarding-tour-choice"
+              onClick={() => onAction?.('pick_intent', c.key)}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="onboarding-tour-actions">
         {/* Direct action button (the camera-roll "Add photos") — hands off to
             App via onAction; the step still completes through its normal

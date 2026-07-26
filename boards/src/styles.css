@@ -19575,6 +19575,33 @@ button, [role="button"], a {
 /* Centered fallback has no target to point at — hide the arrow. */
 .onboarding-tour.tour-centered .onboarding-tour-arrow { display: none; }
 .onboarding-tour-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+/* Intent choices (the project_first ask step): the pill wraps into a card —
+   copy up top, a 2×2 option grid, Skip tucked below. Options are neutral ink
+   (gold stays reserved for active/selection); hover brightens the border. */
+.onboarding-tour.tour-has-choices { flex-wrap: wrap; max-width: 360px; }
+.onboarding-tour.tour-has-choices .onboarding-coachmark-copy { flex: 1 1 auto; min-width: 0; }
+.onboarding-tour.tour-has-choices .onboarding-tour-actions { flex: 1 0 100%; justify-content: flex-end; }
+.onboarding-tour-choices {
+  flex: 1 0 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.onboarding-tour-choice {
+  height: 36px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius);
+  color: var(--ink-1);
+  font: 600 12px/1.2 var(--font-sans);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease);
+}
+.onboarding-tour-choice:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.28); }
+[data-theme='light'] .onboarding-tour-choice { background: rgba(10, 9, 8, 0.04); border-color: rgba(10, 9, 8, 0.14); }
+[data-theme='light'] .onboarding-tour-choice:hover { background: rgba(10, 9, 8, 0.08); border-color: rgba(10, 9, 8, 0.28); }
 .onboarding-tour-skip {
   background: none;
   border: 0;

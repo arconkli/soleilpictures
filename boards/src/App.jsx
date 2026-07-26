@@ -20,7 +20,7 @@ import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
 import { OnboardingTour } from './components/OnboardingTour.jsx';
 import { useOnboardingTour } from './hooks/useOnboardingTour.js';
-import { mergeTourIntoOnboarding } from './lib/onboardingTour.js';
+import { mergeTourIntoOnboarding, PROJECT_INTENTS } from './lib/onboardingTour.js';
 import { momentumHintSeen, markMomentumHintSeen } from './lib/momentumHint.js';
 import { ReferralNudge } from './components/ReferralNudge.jsx';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
@@ -1770,7 +1770,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const addNewBoard = async (clickPos = null, opts = {}) => {
       const d = defaultsRef.current?.board || {};
       const view = opts.view || d.view || 'canvas';
-      const defaultName = view === 'list' ? 'Untitled list' : 'Untitled cluster';
+      // opts.name = caller-supplied name (the project_first intent seed) — a
+      // pre-named cluster also skips the rename autofocus below.
+      const defaultName = opts.name || (view === 'list' ? 'Untitled list' : 'Untitled cluster');
       try {
         const b = await createBoard({
           workspaceId: workspace.id,
@@ -1781,9 +1783,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const w = d.w || 280, h = d.h || 220;
         const x = clickPos ? Math.round(clickPos.x - w/2) : 60 + Math.floor(Math.random() * 600);
         const y = clickPos ? Math.round(clickPos.y - h/2) : 60 + Math.floor(Math.random() * 200);
-        addCard({ id: b.id, kind: 'board', x: Math.max(8, x), y: Math.max(8, y), w, h });
+        addCard({ id: b.id, kind: 'board', x: Math.max(8, x), y: Math.max(8, y), w, h, ...(opts.seed ? { seed: true } : {}) });
         await refreshBoards();
-        setAutoFocusId(b.id);
+        if (!opts.name) setAutoFocusId(b.id);
         tourFireRef.current?.({ type: 'cluster_created', boardId: b.id });
       } catch (e) {
         console.error('createBoard failed', e);
@@ -3223,11 +3225,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // tour events through tourFireRef (assigned just below).
   const onboardingArmB = getEnrolledArm('onboarding_v2') === 'B';
   // Latch the tour variant ONCE per session from the form factor: phones get the
-  // short photos-first mobile_lite tour (the 6-step cluster-first tour is where
-  // 58% of mobile users bail at step 1), everything else the full tour. A ref,
-  // never re-derived — an iPad rotating or a resize must not flip a live tour.
+  // short photos-first mobile_lite tour, everything else project_first — the
+  // intent ask + content-first close that retired the 6-step mechanics tour
+  // (most users abandoned its opening steps and completing it didn't predict
+  // retention; the engine keeps 'full' only for legacy persisted rows). A ref, never
+  // re-derived — an iPad rotating or a resize must not flip a live tour.
   const tourVariantRef = useRef(null);
-  if (tourVariantRef.current === null) tourVariantRef.current = isPhone ? 'mobile_lite' : 'full';
+  if (tourVariantRef.current === null) tourVariantRef.current = isPhone ? 'mobile_lite' : 'project_first';
   // Cross-device handoff: a phone user who finished (or skipped) the mobile_lite
   // tour gets the FULL tour the first time they open on a desktop. Decided ONCE,
   // when onboarding settings first arrive, then LATCHED — never re-derived from
@@ -3241,7 +3245,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const onb = myTier.onboarding;
     if (!onb) return; // wait for settings before deciding
     desktopHandoffDecidedRef.current = true;
-    if (onboardingArmB && tourVariantRef.current === 'full'
+    if (onboardingArmB && tourVariantRef.current !== 'mobile_lite'
         && onb.done === true && onb.tour?.variant === 'mobile_lite') {
       setDesktopHandoff(true);
     }
@@ -3256,6 +3260,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // advance can't wipe it and break resume-on-reload. The tour only ever
         // runs post-seed, so this is safe.
         seeded: true,
+        // project_first: lift a picked intent to the top-level onboarding
+        // object so lifecycle emails / analysis can read it without digging
+        // into the tour record ("your Moodboard" beats "got a project yet?").
+        ...(tourState.intent ? { intent: tourState.intent } : {}),
         // Completing or skipping the tour also finishes onboarding so it never
         // re-shows for a returning user.
         ...(tourState.done ? { done: true } : {}),
@@ -3313,6 +3321,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           } else {
             feedback.toast({ type: 'success', message: 'You’re set — tip: open Clusters on your computer for the full studio.', ttl: 5000 });
           }
+        } else if (tour.state.variant === 'project_first') {
+          // Keyboardless devices (touch iPads run this variant too — isPhone is
+          // width-only) must not be told to press ⌘Z.
+          const coarse = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)')?.matches;
+          feedback.toast({
+            type: 'success',
+            message: coarse ? 'You’re set — drag in anything you like.' : 'You’re set — drag in anything, and ⌘Z undoes.',
+            ttl: 5000,
+          });
         } else {
           feedback.toast({ type: 'success', message: 'That’s the tour — tip: List view works like a drive for any cluster.', ttl: 5000 });
         }
@@ -5391,13 +5408,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onEvent={(e) => tour.fire(e)}
           onSkip={() => tour.skip()}
           onView={(id) => tour.markView(id)}
-          onAction={(type) => {
+          onAction={(type, arg) => {
             // Touch "Add photos" on the content step → CanvasSurface's picker.
             // A document event (like soleil-mobile-add-card) because the picker
             // needs CanvasSurface's ingest pipeline; its listener is NOT tour-
             // locked since the tour itself is the sender.
             if (type === 'pick_photos') {
               document.dispatchEvent(new CustomEvent('soleil-pick-photos', { detail: { boardId: currentId } }));
+            }
+            // project_first intent pick: record it, advance the ask FIRST (so
+            // the seeded cluster's own cluster_created event can't consume the
+            // step before the intent is captured), then seed the named project
+            // cluster for non-exploring picks.
+            if (type === 'pick_intent') {
+              const intent = typeof arg === 'string' ? arg : null;
+              try { logEvent(EV.ONBOARDING_INTENT, { intent }); } catch (_) {}
+              tourFireRef.current?.({ type: 'intent_picked', intent });
+              const choice = PROJECT_INTENTS.find((c) => c.key === intent);
+              // seed:true — this cluster is SYSTEM-placed from a survey answer,
+              // so it must ride the arm-A Ideas-board convention: isSeedCard
+              // suppresses card_placed / the activation cascade / the Meta
+              // conversion, and _doSyncCardIndex never indexes it, so
+              // first_card_at stays user-earned (their real content, not our
+              // seed, is the activation signal this experiment is judged on).
+              if (choice?.boardName) mainMutators.addNewBoard?.(null, { name: choice.boardName, seed: true });
             }
           }}
         />
