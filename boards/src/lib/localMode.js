@@ -102,6 +102,16 @@ export function isTourQaMode() {
   return new URLSearchParams(window.location.search).get('tourqa') === '1';
 }
 
+// Dev-only power-reveal QA harness. Active ONLY in a DEV build with
+// ?revealqa=1 (same trust boundary as isTourQaMode). Mounts the real
+// FeedbackProvider/FeedbackOverlay and fires the real POWER_REVEALS registry
+// toasts (copy + action labels) so the reveal surface can be eyeballed and
+// screenshotted without a signed-in session. See ../local/RevealQaHarness.jsx.
+export function isRevealQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('revealqa') === '1';
+}
+
 // Dev-only photo-adjustment QA bridge. Active ONLY in a DEV build with
 // ?imgeditqa=1 (same trust boundary as isDndQaMode). Publishes the PURE
 // imageAdjust helpers (buildFilterCss / buildTransform / isAdjusted / …) on

@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -294,6 +294,16 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     createRoot(document.getElementById('root')).render(
       <StrictMode>
         <TourQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isRevealQaMode()) {
+  // Power-reveal QA (?revealqa=1). Mounts the real FeedbackProvider/Overlay and
+  // fires the real POWER_REVEALS registry toasts for design review — no backend.
+  import('./local/RevealQaHarness.jsx').then(({ RevealQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <RevealQaHarness />
       </StrictMode>
     );
   });
