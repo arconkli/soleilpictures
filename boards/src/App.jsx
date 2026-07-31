@@ -3845,7 +3845,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
     feedback.toast({
       message: picked.message,
-      ttl: 8000,
+      // The user is mid-drag on their own content when this fires; give them
+      // time to look up and act. Toasts stay hand-dismissable regardless.
+      ttl: 30000,
       action: { label: picked.actionLabel, onClick: actions[picked.key] },
     });
     try { logEvent(EV.POWER_REVEAL_SHOWN, { reveal: picked.key, board_id: currentId, n_cards: genuine.length }); } catch (_) {}
