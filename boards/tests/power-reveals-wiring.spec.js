@@ -61,6 +61,14 @@ test.describe('power reveal wiring', () => {
     expect(toast).toBeGreaterThan(block.indexOf('if (!revealSeen(picked.key)) return;'));
   });
 
+  test('the reveal toast dwells long enough to act on', () => {
+    // Reveals fire the moment the qualifying card lands, i.e. while the user
+    // is still mid-drag on their own content and not looking at the toast
+    // corner. A default-length toast expires before they look up, so the
+    // action button must outlive that moment (toasts stay hand-dismissable).
+    expect(revealBlock()).toContain('ttl: 30000');
+  });
+
   test('toast actions no-op after unmount OR board change (no orphaned rows in destroyed docs)', () => {
     const block = revealBlock();
     expect(block).toContain('aliveRef.current');
