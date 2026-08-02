@@ -417,6 +417,15 @@ export function LocalBoardsApp({ user, signOut }) {
     updateBoardState(state => ({ ...state, arrows: [...state.arrows, { from, to, ...opts }] }));
   };
 
+  const updateArrow = (index, patch) => {
+    updateBoardState(state => {
+      if (index < 0 || index >= state.arrows.length) return state;
+      const arrows = state.arrows.slice();
+      arrows[index] = { ...arrows[index], ...patch };
+      return { ...state, arrows };
+    });
+  };
+
   const deleteArrows = (indices) => {
     const indexSet = new Set(indices || []);
     updateBoardState(state => ({ ...state, arrows: state.arrows.filter((_arrow, index) => !indexSet.has(index)) }));
@@ -908,6 +917,7 @@ export function LocalBoardsApp({ user, signOut }) {
     bringToFront,
     addArrow,
     addFreeArrow,
+    updateArrow,
     deleteArrows,
     addNote,
     addTextLink,

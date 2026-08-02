@@ -63,7 +63,7 @@ export function buildPathFor(cards, arrows, i) {
   if (!att?.from || !att?.to) return null;
   return buildArrowPath({
     from: att.from, to: att.to,
-    style: { straight: !!arrows[i].straight },
+    style: { straight: !!arrows[i].straight, bend: arrows[i].bend },
     obstacles: obstaclesFor(arrows[i], rectsOf(cards)),
   });
 }
@@ -78,7 +78,7 @@ export function builtArrows(cards, arrows) {
     if (!att?.from || !att?.to) return null;
     const built = buildArrowPath({
       from: att.from, to: att.to,
-      style: { straight: !!a.straight }, obstacles: obstaclesFor(a, cardRects),
+      style: { straight: !!a.straight, bend: a.bend }, obstacles: obstaclesFor(a, cardRects),
     });
     return built ? { built, att } : null;
   });
@@ -116,9 +116,13 @@ export function assertClearOfCards(cards, arrows, gap = 2) {
   arrows.forEach((a, i) => {
     const att = atts[i];
     if (!att?.from || !att?.to) return;
+    // A manually-bent arrow overrides auto-routing and may cross cards by
+    // design, so the "never cross a non-anchor card" invariant no longer
+    // applies to it.
+    if (a.bend) return;
     const built = buildArrowPath({
       from: att.from, to: att.to,
-      style: { straight: !!a.straight }, obstacles: obstaclesFor(a, cardRects),
+      style: { straight: !!a.straight, bend: a.bend }, obstacles: obstaclesFor(a, cardRects),
     });
     if (!built) return;
     const anchors = new Set([refId(a.from), refId(a.to)]);
