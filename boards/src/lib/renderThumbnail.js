@@ -188,10 +188,12 @@ function drawArrows(ctx, arrows, cards, pxPerUnit, precomputedPlacements) {
     const att = placements[i];
     if (!att || !att.from || !att.to) continue;
     const anchorIds = new Set([...excludedIds(a.from, cards), ...excludedIds(a.to, cards)]);
-    const obstacles = a.straight ? null
+    // A manually-bent arrow (a.bend) is drawn exactly as shaped — skip the
+    // obstacle set so thumbnails/exports match the editor's curve.
+    const obstacles = (a.straight || a.bend) ? null
       : obstacleRects.map(r => (anchorIds.has(r.id) ? { ...r, pad: 1 } : r));
     let built = null;
-    try { built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight }, obstacles }); }
+    try { built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight, bend: a.bend }, obstacles }); }
     catch (_) { built = null; }
     if (!built) continue;
     const { path, fromTangentIn, toTangentIn } = built;

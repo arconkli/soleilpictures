@@ -103,3 +103,93 @@ test.describe('arrow routing (smart blend)', () => {
     expect(ok).toBe(true);
   });
 });
+
+// Manual bend: the user grabs the midpoint dot and pulls the curve to a chosen
+// apex. Stored as {u,v} in the chord-local frame (fractions of chord length);
+// rebuilt into a quadratic that passes exactly through the apex. Drives the same
+// pure geometry bridge as above.
+test.describe('arrow manual bend', () => {
+  // Two free points 100px apart on the x-axis: chord unit = (1,0),
+  // perpendicular = (0,1). Handy closed-form target for apex assertions.
+  const HORIZ = {
+    from: { point: { x: 0, y: 0 }, tangent: { ux: 1, uy: 0 }, kind: 'point' },
+    to:   { point: { x: 100, y: 0 }, tangent: { ux: -1, uy: 0 }, kind: 'point' },
+  };
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/?arrowqa=1');
+    await page.waitForFunction(() => !!window.__soleilArrowTest);
+  });
+
+  test('bend builds a quadratic whose apex is exactly the dragged point', async ({ page }) => {
+    const r = await page.evaluate((ends) => {
+      const T = window.__soleilArrowTest;
+      // v=0.3 → apex = mid(50,0) + 0.3*100*(0,1) = (50, 30).
+      const built = T.buildArrowPath({ from: ends.from, to: ends.to, style: { bend: { u: 0, v: 0.3 } } });
+      const peak = T.samplePath(built.path, 200)[100]; // t≈0.5 sample
+      return { path: built.path, mid: built.midPoint, control: built.control, peak };
+    }, HORIZ);
+    // Quadratic, not a cubic.
+    expect(r.path).toContain('Q');
+    expect(r.path).not.toContain('C');
+    // midPoint is the exact apex the user dragged to.
+    expect(r.mid.x).toBeCloseTo(50, 3);
+    expect(r.mid.y).toBeCloseTo(30, 3);
+    // The real rendered curve peaks there too (control = 2*apex - mid).
+    expect(r.control.y).toBeCloseTo(60, 3);
+    expect(r.peak.x).toBeCloseTo(50, 0);
+    expect(r.peak.y).toBeCloseTo(30, 0);
+  });
+
+  test('a lengthwise lean (u) shifts the belly toward one end', async ({ page }) => {
+    const r = await page.evaluate((ends) => {
+      const T = window.__soleilArrowTest;
+      // u=+0.2 pushes apex along the chord toward `to`; v=0.3 lifts it.
+      const built = T.buildArrowPath({ from: ends.from, to: ends.to, style: { bend: { u: 0.2, v: 0.3 } } });
+      return built.midPoint;
+    }, HORIZ);
+    expect(r.x).toBeCloseTo(70, 3); // 50 + 0.2*100
+    expect(r.y).toBeCloseTo(30, 3);
+  });
+
+  test('straight takes precedence — a straight arrow ignores its stored bend', async ({ page }) => {
+    const path = await page.evaluate((ends) => {
+      const T = window.__soleilArrowTest;
+      return T.buildArrowPath({ from: ends.from, to: ends.to, style: { straight: true, bend: { u: 0, v: 0.3 } } }).path;
+    }, HORIZ);
+    expect(path).toContain('L');
+    expect(path).not.toContain('Q');
+    expect(path).not.toContain('C');
+  });
+
+  test('the along-chord cusp returns finite tangents (no NaN arrowheads)', async ({ page }) => {
+    const r = await page.evaluate((ends) => {
+      const T = window.__soleilArrowTest;
+      // u=-0.25, v=0 places the control point exactly on the source → the
+      // naive derivative is 0/0; the fallback must hand back a finite dir.
+      const b = T.buildArrowPath({ from: ends.from, to: ends.to, style: { bend: { u: -0.25, v: 0 } } });
+      return {
+        f: [b.fromTangentIn.ux, b.fromTangentIn.uy],
+        t: [b.toTangentIn.ux, b.toTangentIn.uy],
+      };
+    }, HORIZ);
+    for (const n of [...r.f, ...r.t]) expect(Number.isFinite(n)).toBe(true);
+  });
+
+  test('bent arrows are exempt from the no-cross invariant (manual shape wins)', async ({ page }) => {
+    const res = await page.evaluate(() => {
+      const T = window.__soleilArrowTest;
+      // A card sits dead-center between S and E; a hard bend deliberately
+      // drapes the arrow across it. assertClearOfCards must skip bent arrows.
+      const cards = [
+        { id: 'S', x: 0, y: 0, w: 140, h: 90 },
+        { id: 'E', x: 600, y: 0, w: 140, h: 90 },
+        { id: 'M', x: 330, y: 120, w: 140, h: 90 },
+      ];
+      const arrows = [{ from: 'S', to: 'E', bend: { u: 0, v: 0.5 } }];
+      return T.assertClearOfCards(cards, arrows, 2);
+    });
+    expect(res.ok).toBe(true);
+    expect(res.violations).toEqual([]);
+  });
+});

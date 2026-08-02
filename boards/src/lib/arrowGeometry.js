@@ -749,6 +749,40 @@ export function buildArrowPath({ from, to, style = {}, obstacles = null }) {
     };
   }
 
+  // Manual bend: the user grabbed the midpoint dot and pulled the curve to a
+  // specific apex. `style.bend` = {u, v} in the chord-local frame (fractions of
+  // chord length): u along the chord from the midpoint, v perpendicular. We
+  // rebuild the apex P from the CURRENT endpoints (so the bend rides along when
+  // cards move / fan-out shifts) and draw a single quadratic that passes exactly
+  // through P at t=0.5 — control Q = 2P - mid gives B(0.5) = P. A hand-bent arrow
+  // is drawn exactly as shaped and deliberately SKIPS obstacle avoidance (manual
+  // wins); auto-routing resumes only when the bend is cleared. `straight` takes
+  // precedence above, so a straight arrow keeps its stored bend unused (toggling
+  // back to curved restores it).
+  if (style.bend && Number.isFinite(style.bend.v) && len > 1) {
+    const ux = dx / len, uy = dy / len;      // chord unit
+    const px = -uy, py = ux;                  // perpendicular (matches soft-bow convention)
+    // Clamp the lengthwise lean so the control point can't shoot far past an
+    // endpoint into an ugly hook; the perpendicular pull (v) is unbounded.
+    const u = Math.max(-0.4, Math.min(0.4, style.bend.u || 0));
+    const v = style.bend.v;
+    const mx = (s.x + e.x) / 2, my = (s.y + e.y) / 2;
+    const P = { x: mx + u * len * ux + v * len * px, y: my + u * len * uy + v * len * py };
+    const Q = { x: 2 * P.x - mx, y: 2 * P.y - my };
+    // End tangents = quadratic derivative at t=0 (∝ Q-s) and t=1 (∝ e-Q),
+    // pointing INTO each endpoint. Fall back to the chord direction if Q lands
+    // on an endpoint (the v≈0, u≈±0.25 cusp) so arrowheads never get a 0/0 dir.
+    const fl = Math.hypot(s.x - Q.x, s.y - Q.y);
+    const tl = Math.hypot(e.x - Q.x, e.y - Q.y);
+    return {
+      path: `M${s.x},${s.y} Q${Q.x},${Q.y} ${e.x},${e.y}`,
+      midPoint: P,
+      control: Q,
+      fromTangentIn: fl > 0.01 ? { ux: (s.x - Q.x) / fl, uy: (s.y - Q.y) / fl } : { ux: -ux, uy: -uy },
+      toTangentIn:   tl > 0.01 ? { ux: (e.x - Q.x) / tl, uy: (e.y - Q.y) / tl } : { ux,      uy      },
+    };
+  }
+
   // Cubic bezier with directional control points. The control magnitude
   // is proportional to the gap so short connections curve gently and long
   // connections sweep wider.

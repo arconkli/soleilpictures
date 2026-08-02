@@ -8017,6 +8017,18 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .card-resize.multi-resize { opacity: 0.85; right: auto; bottom: auto; }
 .card-resize.multi-resize:hover { opacity: 1; }
 
+/* Arrow bend (curve) handle — same reveal-on-hover convention as .card-resize:
+   the mid-arrow dot fades in when the arrow is hovered, and is solid + fully
+   grabbable when selected. Hidden + inert otherwise so it never steals a click
+   from the arrow body. (`.arrow-g:hover` only fires when the arrow's hit path is
+   pointer-eventable — i.e. the Select tool.) */
+.arrow-bend-vis { opacity: 0; transition: opacity .12s; }
+.arrow-bend-hit { pointer-events: none; }
+.arrows-layer .arrow-g:hover .arrow-bend-vis { opacity: 0.55; }
+.arrows-layer .arrow-g:hover .arrow-bend-hit { pointer-events: all; }
+.arrows-layer .arrow-g.is-selected .arrow-bend-vis { opacity: 1; }
+.arrows-layer .arrow-g.is-selected .arrow-bend-hit { pointer-events: all; }
+
 /* Rotation handle: small dot above the card with a 14px stalk back to the
    card edge. Visible only on selected, rotatable cards. */
 .card-rotate {

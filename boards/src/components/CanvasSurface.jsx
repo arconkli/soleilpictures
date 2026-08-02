@@ -721,6 +721,9 @@ export function CanvasSurface({
   const [selected, setSelected] = useState(() => new Set());
   const [selectedStrokes, setSelectedStrokes] = useState(() => new Set());
   const [selectedArrows, setSelectedArrows] = useState(() => new Set());
+  // True while the arrow bend (midpoint curve) dot is being dragged — used to
+  // hide the ArrowPopover so it doesn't chase the cursor / cover the dot.
+  const [bendDragging, setBendDragging] = useState(false);
   // Hidden BoardThumbnail used for PNG/PDF export. Same render path as
   // the canvas card preview, just scaled up at export time. Only mounted
   // while an export handler is running — otherwise rendering one SVG node
@@ -5905,6 +5908,8 @@ export function CanvasSurface({
         { id: 'arrow-straight',
           label: arrow.straight ? 'Curved arrow' : 'Straight arrow',
           run: () => mutators.updateArrow?.(idx, { straight: !arrow.straight }) },
+        ...(arrow.bend ? [{ id: 'arrow-reset-curve', label: 'Reset curve',
+          run: () => mutators.updateArrow?.(idx, { bend: null }) }] : []),
         { id: 'arrow-dashed',
           label: arrow.dashed ? 'Solid line' : 'Dashed line',
           run: () => mutators.updateArrow?.(idx, { dashed: !arrow.dashed }) },
@@ -7718,23 +7723,30 @@ export function CanvasSurface({
     const et = excludedCardIdsForRef(a.to);
     if (ef) ef.forEach(id => anchorIds.add(id));
     if (et) et.forEach(id => anchorIds.add(id));
-    const obstacles = a.straight ? null
+    // A manually-bent arrow (a.bend) skips obstacle avoidance entirely — the
+    // user's shape wins — so don't pay for the obstacle set either.
+    const obstacles = (a.straight || a.bend) ? null
       : arrowObstacleRects.map(r => {
           const rr = liveObstacle(r);
           return anchorIds.has(rr.id) ? { ...rr, pad: 1 } : rr;
         });
-    const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight }, obstacles });
+    const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight, bend: a.bend }, obstacles });
     if (!built) return null;
     // Cull box = endpoint-segment bbox padded generously for the bezier's
     // obstacle detours, arrowheads, and labels. An arrow crossing the
     // viewport with both endpoints out-of-band still intersects this box.
+    // Fold in the bend apex/control too so a hard-bent arrow whose bulge swings
+    // far off the chord isn't culled when both endpoints drift off-screen.
     const PAD = 300;
+    const xs = [att.from.point.x, att.to.point.x];
+    const ys = [att.from.point.y, att.to.point.y];
+    if (built.control) { xs.push(built.control.x); ys.push(built.control.y); }
     return {
       ...built,
-      minX: Math.min(att.from.point.x, att.to.point.x) - PAD,
-      maxX: Math.max(att.from.point.x, att.to.point.x) + PAD,
-      minY: Math.min(att.from.point.y, att.to.point.y) - PAD,
-      maxY: Math.max(att.from.point.y, att.to.point.y) + PAD,
+      minX: Math.min(...xs) - PAD,
+      maxX: Math.max(...xs) + PAD,
+      minY: Math.min(...ys) - PAD,
+      maxY: Math.max(...ys) + PAD,
     };
     });
   }, [arrows, arrowAttachments, arrowObstacleRects, excludedCardIdsForRef, drag, resize, multiResize]);
@@ -8318,8 +8330,65 @@ export function CanvasSurface({
               else if (a.customDash === 'dotted') dashArray = `${sw * 1} ${sw * 2}`;
               else if (a.dashed) dashArray = `${sw * 5} ${sw * 3.5}`;
               const pathId = `${arrowPathIdPrefix}${i}`;
+              // Bend (curve) dot — sits at the current curve apex. Revealed on
+              // hover (CSS `.arrow-g:hover`) and solid when selected, so users
+              // discover it without first hunting-and-clicking the thin line.
+              // Grab + drag to shape the arc; dragging left/right moves WHERE the
+              // bend sits along the arrow (chord-local `u`), perpendicular sets
+              // HOW MUCH it bends (`v`). Right-click straightens; dbl-click resets.
+              const bendMid = canEdit && strokesInteractive && att?.from?.point && att?.to?.point
+                ? g.midPoint : null;
+              const BEND_R = 5 / zoom;
+              const BEND_HIT_R = 11 / zoom;
+              const onBendDown = (ev) => {
+                // Left button only. For right/middle, stop the event bubbling to
+                // the canvas (which would clear selection) but DON'T preventDefault
+                // — so the follow-up contextmenu still fires the arc↔straight toggle.
+                if (ev.button !== 0) { ev.stopPropagation(); return; }
+                ev.preventDefault();
+                ev.stopPropagation();
+                // Grabbing a hovered (unselected) arrow's dot selects it too, so
+                // the endpoint handles appear and the bend starts in one gesture.
+                setSelectedArrows(new Set([i]));
+                setSelected(new Set());
+                setSelectedStrokes(new Set());
+                const s = att.from.point, e = att.to.point;
+                const bdx = e.x - s.x, bdy = e.y - s.y;
+                const blen = Math.hypot(bdx, bdy) || 1;
+                const ux = bdx / blen, uy = bdy / blen;      // chord unit
+                const px = -uy, py = ux;                      // perpendicular
+                const mx = (s.x + e.x) / 2, my = (s.y + e.y) / 2;
+                const round = (n) => Math.round(n * 1e4) / 1e4;
+                setBendDragging(true);
+                const onMove = (mv) => {
+                  const P = clientToCanvas(mv.clientX, mv.clientY);
+                  const rx = P.x - mx, ry = P.y - my;
+                  const u = Math.max(-0.4, Math.min(0.4, (rx * ux + ry * uy) / blen));
+                  const v = (rx * px + ry * py) / blen;
+                  mutators.updateArrow?.(i, { bend: { u: round(u), v: round(v) }, straight: false });
+                };
+                const onUp = () => {
+                  setBendDragging(false);
+                  window.removeEventListener('pointermove', onMove);
+                  window.removeEventListener('pointerup', onUp);
+                };
+                window.addEventListener('pointermove', onMove);
+                window.addEventListener('pointerup', onUp);
+              };
+              // Right-click the dot → toggle arc ↔ straight line.
+              const onBendContext = (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                mutators.updateArrow?.(i, { straight: !a.straight });
+              };
+              // Double-click the dot → clear the manual bend (back to auto).
+              const onBendReset = (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                mutators.updateArrow?.(i, { bend: null });
+              };
               return (
-                <g key={i} data-arrow-idx={i}>
+                <g key={i} data-arrow-idx={i} className={`arrow-g${sel ? ' is-selected' : ''}`}>
                   {/* Hit target — only path with pointer-events; svg root is none. */}
                   <path d={path} fill="none" stroke="transparent" strokeWidth={Math.max(14, sw + 12)}
                         pointerEvents={strokesInteractive ? 'stroke' : 'none'}
@@ -8341,6 +8410,25 @@ export function CanvasSurface({
                         {a.label}
                       </textPath>
                     </text>
+                  )}
+                  {bendMid && (
+                    <Fragment>
+                      {/* Transparent grab target — inert until the arrow is
+                          hovered/selected (CSS gates pointer-events) so it
+                          doesn't steal clicks meant for the line body. */}
+                      <circle data-arrow-bend-dot className="arrow-bend-hit"
+                              cx={bendMid.x} cy={bendMid.y} r={BEND_HIT_R}
+                              fill="transparent" style={{ cursor: 'grab' }}
+                              onPointerDown={onBendDown}
+                              onContextMenu={onBendContext}
+                              onDoubleClick={onBendReset}>
+                        <title>Drag to bend · right-click to straighten · double-click to reset</title>
+                      </circle>
+                      {/* Visible dot — faded on hover, solid when selected (CSS). */}
+                      <circle className="arrow-bend-vis" cx={bendMid.x} cy={bendMid.y} r={BEND_R}
+                              fill="rgba(245,158,11,.95)" stroke="#fff" strokeWidth={1.5 / zoom}
+                              pointerEvents="none" />
+                    </Fragment>
                   )}
                 </g>
               );
@@ -8379,6 +8467,8 @@ export function CanvasSurface({
               const att = arrowAttachments[idx];
               if (!a || !att?.from || !att?.to) return null;
               const HANDLE_R = 6 / zoom;
+              // Note: the bend (curve) dot now lives in the per-arrow <g> above
+              // so it can reveal on hover; only the endpoint handles are here.
               // Snap distance in canvas units (12px on screen at any zoom).
               const SNAP_DIST = 12 / zoom;
               // Collect snap targets: other arrows' endpoints + card corners.
@@ -8690,7 +8780,7 @@ export function CanvasSurface({
           head:'none' created via the Shape tool) use the bottom
           ToolOptionsBar instead; suppress this popover for them so
           the user doesn't see two editors with different controls. */}
-      {canEdit && selectedArrows.size === 1 && (() => {
+      {canEdit && selectedArrows.size === 1 && !bendDragging && (() => {
         const idx = [...selectedArrows][0];
         const a = (arrows || [])[idx];
         const att = arrowAttachments[idx];
@@ -8701,9 +8791,11 @@ export function CanvasSurface({
         const excludeSet = new Set();
         if (excludeFrom) for (const id of excludeFrom) excludeSet.add(id);
         if (excludeTo)   for (const id of excludeTo)   excludeSet.add(id);
-        const obstacles = a.straight ? null
+        // Match the arrows-layer geometry: a manual bend skips obstacle
+        // avoidance, so the popover anchors on the same curve the user sees.
+        const obstacles = (a.straight || a.bend) ? null
           : arrowObstacleRects.filter(r => !excludeSet.has(r.id));
-        const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight }, obstacles });
+        const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight, bend: a.bend }, obstacles });
         if (!built) return null;
         return (
           <ArrowPopover
