@@ -12,7 +12,7 @@ const TOAST_ICON = { success: CheckCircle, error: WarningCircle, info: Info };
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export default function FeedbackOverlay({ dialog, onCloseDialog, toasts, onDismissToast }) {
+export default function FeedbackOverlay({ dialog, onCloseDialog, toasts, onDismissToast, onManualDismiss }) {
   const overlay = (
     <>
       <FeedbackDialog dialog={dialog} onClose={onCloseDialog} />
@@ -35,7 +35,10 @@ export default function FeedbackOverlay({ dialog, onCloseDialog, toasts, onDismi
                 {item.action.label || 'Undo'}
               </button>
             )}
-            <button type="button" className="toast-dismiss" aria-label="Dismiss" onClick={() => onDismissToast(item.id)}>
+            {/* The X is the HAND-dismiss: it takes the manual path so a toast's
+                onDismiss fires ("seen and closed") — unlike the action button
+                above and the TTL expiry, which both use the plain path. */}
+            <button type="button" className="toast-dismiss" aria-label="Dismiss" onClick={() => (onManualDismiss || onDismissToast)(item.id)}>
               <Icon as={X} size={14} />
             </button>
           </div>

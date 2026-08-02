@@ -31,6 +31,12 @@ test.describe('guided tour wiring', () => {
     expect(app()).toContain('data-tour="view-toggle"');
   });
 
+  test('the intent event carries variant + board context', () => {
+    // Without variant the intent rows are unsegmentable if a second variant
+    // ever ships; without board_id the seeded cluster is unjoinable.
+    expect(app()).toMatch(/EV\.ONBOARDING_INTENT, \{ intent, variant: tourVariantRef\.current, board_id: currentId \}/);
+  });
+
   test('the touch "Add photos" tour action is wired end to end', () => {
     // Pill action → App dispatches → CanvasSurface picker (NOT tour-locked).
     expect(app()).toContain("soleil-pick-photos");

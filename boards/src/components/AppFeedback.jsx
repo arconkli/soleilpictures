@@ -73,10 +73,26 @@ export function FeedbackProvider({ children }) {
       setToasts(current => current.filter(item => item.id !== id));
     }, TOAST_EXIT_MS);
   }, []);
-  const toast = useCallback(({ type = 'info', message, action = null, ttl = 4200 }) => {
+  // Mirror of the toasts state so the manual-dismiss path can read the item
+  // outside a setState updater (updaters double-invoke under StrictMode, and a
+  // side effect there would fire onDismiss twice).
+  const toastsRef = useRef(toasts);
+  toastsRef.current = toasts;
+  // Hand-dismiss (the toast X). Distinct from the TTL-expiry path so a toast's
+  // onDismiss means "the user saw this and closed it" — expiry stays silent.
+  // Skips toasts already exiting: an X clicked during the expiry exit animation
+  // is the timer's dismissal, not the user's.
+  const dismissToastManual = useCallback((id) => {
+    const item = toastsRef.current.find(t => t.id === id);
+    if (item && !item.exiting) {
+      try { item.onDismiss?.(); } catch (_) { /* never block the dismiss */ }
+    }
+    dismissToast(id);
+  }, [dismissToast]);
+  const toast = useCallback(({ type = 'info', message, action = null, ttl = 4200, onDismiss = null }) => {
     if (!message) return;
     const id = nextId.current++;
-    setToasts(current => [...current, { id, type, message, action, exiting: false }]);
+    setToasts(current => [...current, { id, type, message, action, onDismiss, exiting: false }]);
     window.setTimeout(() => dismissToast(id), Math.max(1000, ttl));
   }, [dismissToast]);
 
@@ -92,6 +108,7 @@ export function FeedbackProvider({ children }) {
             onCloseDialog={closeDialog}
             toasts={toasts}
             onDismissToast={dismissToast}
+            onManualDismiss={dismissToastManual}
           />
         </Suspense>
       )}

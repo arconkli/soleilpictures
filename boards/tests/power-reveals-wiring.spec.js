@@ -61,6 +61,23 @@ test.describe('power reveal wiring', () => {
     expect(toast).toBeGreaterThan(block.indexOf('if (!revealSeen(picked.key)) return;'));
   });
 
+  test('manual dismiss completes the reveal funnel: X logs dismissed, expiry logs nothing', () => {
+    const block = revealBlock();
+    // The toast carries an onDismiss that fires ONLY on the hand-dismiss path
+    // (AppFeedback routes the expiry timer around it), so shown partitions
+    // cleanly into engaged / dismissed / expired-unseen.
+    expect(block).toContain('onDismiss:');
+    expect(block).toContain('EV.POWER_REVEAL_DISMISSED');
+    // Same unmount discipline as engage(): a dismiss click after the Workspace
+    // is gone must not log.
+    const onDismiss = block.slice(block.indexOf('onDismiss:'));
+    expect(onDismiss.slice(0, 200)).toContain('aliveRef.current');
+  });
+
+  test('the analytics registry names the dismissed event', () => {
+    expect(ev()).toMatch(/POWER_REVEAL_DISMISSED:\s+'power_reveal_dismissed'/);
+  });
+
   test('the reveal toast dwells long enough to act on', () => {
     // Reveals fire the moment the qualifying card lands, i.e. while the user
     // is still mid-drag on their own content and not looking at the toast
