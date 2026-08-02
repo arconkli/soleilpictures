@@ -986,9 +986,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       return true;
     };
 
-    const addCards = (cardsToAdd) => {
+    const addCards = (cardsToAdd, opts = {}) => {
       // Returns { added, requested, capHit } so callers (e.g. the remix seed) can
       // tell whether the demo cap silently dropped cards and toast accordingly.
+      // opts.suppressPlaced: skip the card_placed beacon for batches that carry
+      // their own event (the remix clone logs remix_clone with the same n —
+      // card_placed must keep meaning "the user placed cards").
       const requested = cardsToAdd?.length || 0;
       let capHit = false;
       const m = cardsMap(); if (!m || !cardsToAdd?.length) { if (!m && genuineCards(cardsToAdd || []).length) noteBlocked('mutator_null'); return { added: 0, requested, capHit }; }
@@ -1021,7 +1024,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Count only genuine cards so the onboarding seed batch (all onb-*) never
       // emits a card_placed — the seed was being counted as activation.
       const genuine = genuineCards(cardsToAdd);
-      if (genuine.length) {
+      if (genuine.length && !opts.suppressPlaced) {
         const kinds = new Set(genuine.map((c) => c?.kind).filter(Boolean));
         logEventNow(EV.CARD_PLACED, {
           n: genuine.length, kind: kinds.size === 1 ? [...kinds][0] : 'mixed',
@@ -3669,7 +3672,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     try {
       // addCards reports how many it actually placed — a demo user at their cap
       // can have all/most cards silently dropped, so don't claim "Copied!" then.
-      const res = mainMutators.addCards?.(pend.cards) || {};
+      const res = mainMutators.addCards?.(pend.cards, { suppressPlaced: true }) || {};
       const added = res.added ?? pend.cards.length;
       const requested = res.requested ?? pend.cards.length;
       if (added === 0) {
@@ -3940,6 +3943,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // time to look up and act. Toasts stay hand-dismissable regardless.
       ttl: 30000,
       action: { label: picked.actionLabel, onClick: actions[picked.key] },
+      // Hand-dismiss only (expiry stays silent) — so shown partitions into
+      // engaged / dismissed / expired-unseen. Same unmount guard as engage().
+      onDismiss: () => {
+        if (!aliveRef.current) return;
+        try { logEvent(EV.POWER_REVEAL_DISMISSED, { reveal: picked.key }); } catch (_) {}
+      },
     });
     try { logEvent(EV.POWER_REVEAL_SHOWN, { reveal: picked.key, board_id: currentId, n_cards: genuine.length }); } catch (_) {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -5543,7 +5552,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             // cluster for non-exploring picks.
             if (type === 'pick_intent') {
               const intent = typeof arg === 'string' ? arg : null;
-              try { logEvent(EV.ONBOARDING_INTENT, { intent }); } catch (_) {}
+              try { logEvent(EV.ONBOARDING_INTENT, { intent, variant: tourVariantRef.current, board_id: currentId }); } catch (_) {}
               tourFireRef.current?.({ type: 'intent_picked', intent });
               const choice = PROJECT_INTENTS.find((c) => c.key === intent);
               // seed:true — this cluster is SYSTEM-placed from a survey answer,

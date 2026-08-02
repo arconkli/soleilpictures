@@ -107,7 +107,7 @@ export const EV = Object.freeze({
   // ── Onboarding (first-run) ──
   ONBOARDING_VIEW:         'onboarding_view',             // first-card coachmark shown {board_id}
   ONBOARDING_SEED:         'onboarding_seed',             // starter cards + tutorial board seeded into the root board {n,board_id,tutorial_board_id}
-  ONBOARDING_FIRST_CARD:   'onboarding_first_card',       // user placed their OWN first card during onboarding (activation north-star)
+  ONBOARDING_FIRST_CARD:   'onboarding_first_card',       // user placed their OWN first card during onboarding (activation north-star). Once-guard is per-DEVICE localStorage, so it re-fires on a second device — funnel reads must COUNT DISTINCT user_id (profiles.first_card_at is the stamp of truth)
   ONBOARDING_NEST:         'onboarding_nest',             // first time the seed note is dragged into the tutorial board — the retention AHA {board_id,source_board_id,n}
   ONBOARDING_DISMISS:      'onboarding_dismiss',          // onboarding ended {reason:'placed'|'dismissed'|'nested'}
   ONBOARDING_STEP:         'onboarding_step',             // arm-B guided tour funnel {step,action:'view'|'advance'|'skip',via?}
@@ -140,6 +140,7 @@ export const EV = Object.freeze({
   MOMENTUM_NUDGE_SHOWN:    'momentum_nudge_shown',          // one-time "add a few more" beat after the first phone photo batch, short of a populated board {board_id,after} (also the desktop project_first completion port)
   POWER_REVEAL_SHOWN:      'power_reveal_shown',            // JIT power hint surfaced when the user's content made a feature relevant {reveal,board_id,n_cards}
   POWER_REVEAL_ENGAGED:    'power_reveal_engaged',          // its action button was clicked {reveal}
+  POWER_REVEAL_DISMISSED:  'power_reveal_dismissed',        // hand-dismissed via the toast X {reveal}; TTL expiry logs nothing, so expired = shown − engaged − dismissed
 
   // ── Onboarding failure paths (previously SILENT — a broken seed/persist left no signal) ──
   ONBOARDING_SEED_FAILED:            'onboarding_seed_failed',             // a seed step threw {stage,reason} — stage:'create_board'|'add_cards'|'persist'
@@ -151,7 +152,7 @@ export const EV = Object.freeze({
 
   // ── Product activity ──
   APP_OPEN:                'app_open',                    // app mounted with tier loaded {tier} — session/retention marker
-  CARD_PLACED:             'card_placed',                 // GENUINE card(s) placed on a board {n,kind,board_id,workspace_id,actor} — seeds excluded (see firstValueTrigger.areSeedCards); powers the admin Command Center live ticker
+  CARD_PLACED:             'card_placed',                 // GENUINE card(s) placed on a board {n,kind,board_id,workspace_id,actor} — seeds excluded (see firstValueTrigger.areSeedCards); powers the admin Command Center live ticker. A placement beacon, NOT a depth metric: read depth as sum(n), and note the remix clone batch logs remix_clone instead of this (addCards suppressPlaced)
   ACTIVATED:               'activated',                   // first POPULATED board — a board crossed the genuine-card threshold {board_id,n} (the activation bar)
 
   // ── In-product engagement (breadth / depth / intent / loop / return — batched, high-signal) ──
