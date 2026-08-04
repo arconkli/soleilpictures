@@ -20,5 +20,5 @@ insert into seo_health_expectations (url, check_name, kind, expected) values
 
 -- Ship gate: a deploy stuck before this date turns the strip red.
 update seo_health_expectations
-   set expected = '2026-08-03'
+   set expected = '2026-08-04'
  where kind = 'build_min';
