@@ -17,6 +17,7 @@ import { chromium } from '@playwright/test';
 import sharp from 'sharp';
 
 import { SEO_LANDING_PAGES, landingOgPath } from '../src/lib/seoLanding.js';
+import { SEO_LISTICLE_PAGES } from '../src/lib/seoListicles.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -57,6 +58,7 @@ function cardHtml({ h1, subhead }) {
 
 const cards = [
   ...SEO_LANDING_PAGES.map((s) => ({ file: landingOgPath(s).slice(4), h1: s.h1, subhead: s.subhead })),
+  ...SEO_LISTICLE_PAGES.map((s) => ({ file: landingOgPath(s).slice(4), h1: s.h1, subhead: s.subhead })),
   {
     file: 'default.png',
     h1: 'Creative Workspace & Moodboard for Production Teams',

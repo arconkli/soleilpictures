@@ -36,6 +36,7 @@ const ExplorePage     = lazyWithReload(() => import('./pages/ExplorePage.jsx').t
 const LegalPage       = lazyWithReload(() => import('./auth/LegalPage.jsx').then(m => ({ default: m.LegalPage })));
 const PublicPricingPage = lazyWithReload(() => import('./auth/PublicPricingPage.jsx').then(m => ({ default: m.PublicPricingPage })));
 const SeoLandingPage  = lazyWithReload(() => import('./pages/SeoLandingPage.jsx').then(m => ({ default: m.SeoLandingPage })));
+const SeoListiclePage = lazyWithReload(() => import('./pages/SeoListiclePage.jsx').then(m => ({ default: m.SeoListiclePage })));
 
 // First-party error logging: capture uncaught errors + unhandled promise
 // rejections into our own client_errors table (see lib/errorReporting.js).
@@ -160,6 +161,10 @@ const exploreMatch = /^\/explore\/?$/.test(window.location.pathname);
 // 404 document would boot into AuthGate instead of the not-found page. Bare
 // /tools and /vs never reach the client — the Worker 301s them to /use-cases.
 const seoLandingMatch = /^\/(?:tools\/|vs\/|use-cases(?:\/|$))/i.test(window.location.pathname);
+
+// /best/* listicle pages (lib/seoListicles.js) — same shape-match discipline;
+// the Worker 404s unknown /best/* siblings and 301s bare /best to /use-cases.
+const seoListicleMatch = /^\/best\//i.test(window.location.pathname);
 
 // /legal/<privacy|terms|cookies> = public legal documents. Like /share, these
 // render before the AuthGate so they're reachable signed-out (footer links,
@@ -363,6 +368,8 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
               <LegalPage doc={legalMatch[1].toLowerCase()} />
             ) : seoLandingMatch ? (
               <SeoLandingPage path={window.location.pathname} />
+            ) : seoListicleMatch ? (
+              <SeoListiclePage path={window.location.pathname} />
             ) : showPublicPricing ? (
               <PublicPricingPage />
             ) : exploreMatch ? (

@@ -23,6 +23,8 @@ import { runCompactionJob1 } from './worker-compaction.js';
 // registry shared with the React component so the crawlable server-rendered
 // text can't drift from what the app renders (anti-cloaking).
 import { getLandingSpec, SEO_LANDING_PAGES, landingOgPath, EXPLORE_INTRO, matchToolPath } from './lib/seoLanding.js';
+import { getListicleSpec, SEO_LISTICLE_PAGES } from './lib/seoListicles.js';
+import { buildListicleCrawlableHtml, buildListicleJsonLd } from './lib/seoListicleHtml.js';
 // /c/<slug> editorial article: shared model + renderer (imported by BOTH this
 // worker and PublicBoardView's article — parity by construction, like seoLanding).
 import { buildPageModel, renderArticleHtml } from './lib/publicPageModel.js';
@@ -299,9 +301,9 @@ export default {
         && !url.pathname.includes('.')) {
       let p = url.pathname;
       if (p.length > 1 && p.endsWith('/')) p = p.replace(/\/+$/, '') || '/';
-      if (/^\/(tools|vs|use-cases|pricing|legal|explore|c)(\/|$)/i.test(p)) p = p.toLowerCase();
+      if (/^\/(tools|vs|best|use-cases|pricing|legal|explore|c)(\/|$)/i.test(p)) p = p.toLowerCase();
       // Bare section prefixes have no page of their own — send them to the hub.
-      if (p === '/tools' || p === '/vs') p = '/use-cases';
+      if (p === '/tools' || p === '/vs' || p === '/best') p = '/use-cases';
       if (p !== url.pathname) {
         return Response.redirect(url.origin + p + url.search, 301);
       }
@@ -419,9 +421,9 @@ export default {
     // real 404 (the SPA shell would otherwise serve homepage meta at 200 for
     // /tools/<anything>, an unbounded soft-404/doorway surface).
     if (isPageReq && contentType.includes('text/html')) {
-      const landingSpec = getLandingSpec(url.pathname);
+      const landingSpec = getLandingSpec(url.pathname) || getListicleSpec(url.pathname);
       if (landingSpec) return withRevalidate(injectLanding(res, landingSpec));
-      if (/^\/(?:tools|vs)\//i.test(url.pathname) || /^\/use-cases\//i.test(url.pathname)) {
+      if (/^\/(?:tools|vs|best)\//i.test(url.pathname) || /^\/use-cases\//i.test(url.pathname)) {
         return notFoundResponse(res);
       }
     }
@@ -953,6 +955,8 @@ function injectExplore(res, boards) {
     <h2 style="font-size:1.1rem;font-weight:600;margin:0 0 .4em;">Make it with Clusters</h2>
     <p style="margin:0;line-height:1.9;">${SEO_LANDING_PAGES.map((s) =>
       `<a href="${escapeHtml(s.path)}" style="color:#FFA500;text-decoration:none;margin-right:1.2em;">${escapeHtml(s.h1)}</a>`
+    ).join('')}${SEO_LISTICLE_PAGES.map((s) =>
+      `<a href="${escapeHtml(s.path)}" style="color:#FFA500;text-decoration:none;margin-right:1.2em;">${escapeHtml(s.h1)}</a>`
     ).join('')}<a href="/pricing" style="color:#FFA500;text-decoration:none;">Pricing</a></p>
   </nav>`;
   const html = `<div style="max-width:760px;margin:0 auto;padding:14vh 24px 24px;">
@@ -1013,9 +1017,16 @@ function injectLanding(res, spec) {
     .on('meta[name="twitter:image"]',       new SetContent(og))
     .on('meta[name="twitter:image:alt"]',   new SetContent(spec.h1))
     .on('link[rel="canonical"]',            new SetHref(canonical));
-  rw.on('main#seo-fallback', new SetInnerHtml(buildLandingCrawlableHtml(spec)));
+  // Listicle specs (/best/*, lib/seoListicles.js) share this head-meta wiring
+  // but carry their own body + JSON-LD builders (Article + ItemList).
+  const listicle = spec.kind === 'listicle';
+  rw.on('main#seo-fallback', new SetInnerHtml(
+    listicle ? buildListicleCrawlableHtml(spec) : buildLandingCrawlableHtml(spec)
+  ));
   rw.on('head', new AppendHead(
-    '<script type="application/ld+json">' + jsonLdSafe(buildLandingJsonLd(spec, canonical)) + '</script>'
+    '<script type="application/ld+json">' + jsonLdSafe(
+      listicle ? buildListicleJsonLd(spec, canonical, og) : buildLandingJsonLd(spec, canonical)
+    ) + '</script>'
   ));
   return rw.transform(res);
 }
@@ -1055,6 +1066,10 @@ function buildLandingCrawlableHtml(spec) {
     }
     parts.push(`</tbody></table></section>`);
   }
+  // Cross-link to the /best/* listicle sibling (mirrors the React callout).
+  if (spec.siblingListicle) {
+    parts.push(`<p><b>Comparing more than two?</b> <a href="${escapeHtml(spec.siblingListicle.path)}" style="color:#FFA500;">${escapeHtml(spec.siblingListicle.label)}</a></p>`);
+  }
   // Example boards — landing→board internal links (hub-and-spoke both ways).
   // Mirrors the React "Made with Clusters" section (anti-cloaking parity).
   if (Array.isArray(spec.exampleSlugs) && spec.exampleSlugs.length) {
@@ -1074,7 +1089,7 @@ function buildLandingCrawlableHtml(spec) {
   if (related.length) {
     parts.push(`<nav aria-label="Related pages" style="margin-top:1.6em;"><h2 style="font-size:1.1rem;">Keep exploring</h2><ul>`);
     for (const p of related) {
-      const label = getLandingSpec(p)?.h1 || p;
+      const label = getLandingSpec(p)?.h1 || getListicleSpec(p)?.h1 || p;
       parts.push(`<li><a href="${escapeHtml(p)}" style="color:#FFA500;">${escapeHtml(label)}</a></li>`);
     }
     parts.push(`<li><a href="/explore" style="color:#FFA500;">Explore example boards</a></li>`);
@@ -1156,6 +1171,10 @@ async function handleSitemap(env, request) {
     // Self-authored SEO landing pages (lib/seoLanding.js): tool / "alternative
     // to" / hub. These rank independent of user-uploaded boards.
     ...SEO_LANDING_PAGES.map((s) => ({
+      loc: `${SITE_ORIGIN}${s.path}`, lastmod: s.updated || null, changefreq: 'monthly', priority: '0.8',
+    })),
+    // /best/* listicles (lib/seoListicles.js) — same honest-lastmod policy.
+    ...SEO_LISTICLE_PAGES.map((s) => ({
       loc: `${SITE_ORIGIN}${s.path}`, lastmod: s.updated || null, changefreq: 'monthly', priority: '0.8',
     })),
     { loc: `${SITE_ORIGIN}/legal/privacy`,  changefreq: 'yearly',  priority: '0.3' },
