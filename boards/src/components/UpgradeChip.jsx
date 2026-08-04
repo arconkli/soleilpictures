@@ -67,7 +67,22 @@ export function UpgradeChip() {
       // qaForceFirstValue is a RENDER seam, not a gate seam: the banner spec
       // exercises how the banner looks and dismisses, not who qualifies for it
       // (that's upsellEligibility.test.mjs's job), so it bypasses the check.
-      if (!elig.eligible && !qaForceFirstValue()) return;
+      if (!elig.eligible && !qaForceFirstValue()) {
+        // Distinct from the chip's suppression row: this user reached the
+        // first-value moment (2+ genuine cards) and was still held back, which
+        // is a different and more interesting silence than "never qualified".
+        logEventOnce('up_suppressed:first_value', EV.UP_SUPPRESSED, {
+          surface: 'first_value',
+          reason: elig.reason,
+          cap_pct: elig.capPct,
+          demo_cards: demoCardCount,
+          limit: cardLimit,
+          acct_days: accountAgeDays,
+          elig_rev: ELIGIBILITY_REV,
+          copy_rev: COPY_REV,
+        });
+        return;
+      }
       firedRef.current = true;
       const at = new Date().toISOString();
       fvShownAtRef.current = at;
@@ -88,7 +103,7 @@ export function UpgradeChip() {
     // crosses the threshold mid-session. firedRef keeps the re-registration
     // idempotent, and qaForceFirstValue stays a render seam that bypasses the
     // gate so the banner spec doesn't need to construct an eligible user.
-  }, [tier, elig.eligible, user?.id]);
+  }, [tier, elig.eligible, elig.reason, elig.capPct, demoCardCount, cardLimit, accountAgeDays, user?.id]);
 
   // Publish the chip's measured width to --upgrade-chip-gutter so the topbar's
   // right cluster (.tb-right) can reserve exactly enough room and never sit

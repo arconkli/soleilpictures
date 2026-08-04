@@ -105,7 +105,7 @@ import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
-import { evaluateUpsell } from './lib/upsellEligibility.js';
+import { evaluateUpsell, ELIGIBILITY_REV } from './lib/upsellEligibility.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel } from './lib/gridState.js';
@@ -3202,6 +3202,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     window.addEventListener('soleil:card-index-capped', onCapped);
     return () => window.removeEventListener('soleil:card-index-capped', onCapped);
   }, [myTier]);
+
+  // The list-toolbar upsell chip's own suppression row, so the scorecard's
+  // by_surface breakdown isn't permanently zero for this surface.
+  useEffect(() => {
+    if (myTier.tier !== 'demo' || upsellElig.eligible) return;
+    if (workspace?.created_by !== user?.id) return;   // only the owner is ever pitched here
+    logEventOnce('up_suppressed:list_toolbar', EV.UP_SUPPRESSED, {
+      surface: 'list_toolbar',
+      reason: upsellElig.reason,
+      cap_pct: upsellElig.capPct,
+      demo_cards: myTier.demoCardCount,
+      limit: myTier.effectiveCardLimit,
+      elig_rev: ELIGIBILITY_REV,
+    });
+  }, [myTier.tier, myTier.demoCardCount, myTier.effectiveCardLimit,
+      upsellElig.eligible, upsellElig.reason, upsellElig.capPct,
+      workspace?.created_by, user?.id]);
 
   // Funnel: app_open fires once per mount with the caller's tier so we
   // can correlate retention (app opens / unique user / week).
