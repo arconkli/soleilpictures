@@ -1,0 +1,211 @@
+/* Styles for the /best/* listicle pages (SeoListiclePage.jsx). Scoped under
+   .seo-li-* on top of seoLanding.css — the shared marketing shell (topbar,
+   .seo-scroll, hero, compare table, FAQ, CTA band) comes from there; this file
+   only styles what a listicle adds. Dark brand world (.public-dark tokens);
+   gold stays reserved for links/accents. */
+
+/* Anchored sections must clear the fixed topbar when jumped to. */
+.seo-li-main section[id],
+.seo-li-main nav[id],
+.seo-li-item {
+  scroll-margin-top: 76px;
+}
+
+/* ── Byline ─────────────────────────────────────────────────────────────── */
+.seo-li-byline {
+  font: 400 0.9rem/1.5 var(--font-sans);
+  color: var(--ink-2, #8a8a92);
+  margin: 2px 0 18px;
+}
+.seo-li-byline b { color: var(--ink-1, #b7b1a6); font-weight: 600; }
+.seo-li-byline-dot { margin: 0 0.55em; opacity: 0.6; }
+
+/* ── Quick answer + disclosure ──────────────────────────────────────────── */
+.seo-li-answer { margin-bottom: 18px; }
+.seo-li-disclosure {
+  border-left: 3px solid var(--soleil, #ffa500);
+  padding: 10px 16px;
+  margin: 0 0 22px;
+  font: 400 0.95rem/1.65 var(--font-sans);
+  color: var(--ink-1, #b7b1a6);
+  background: rgba(255, 165, 0, 0.05);
+  border-radius: 0 var(--radius-md, 8px) var(--radius-md, 8px) 0;
+}
+.seo-li-ranklist {
+  margin: 0;
+  padding-left: 1.4em;
+  font: 400 1rem/1.9 var(--font-sans);
+}
+.seo-li-ranklist a { color: var(--soleil, #ffa500); text-decoration: none; font-weight: 600; }
+.seo-li-ranklist a:hover { text-decoration: underline; }
+.seo-li-ranklist-for { color: var(--ink-1, #b7b1a6); }
+
+/* ── Table of contents ──────────────────────────────────────────────────── */
+.seo-li-toc {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg, 12px);
+  padding: 18px 22px;
+  margin: 0 0 clamp(48px, 7vh, 80px);
+}
+.seo-li-toc-label {
+  font: 700 0.78rem/1 var(--font-sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-2, #8a8a92);
+  margin-bottom: 10px;
+}
+.seo-li-toc ol {
+  margin: 0;
+  padding-left: 1.3em;
+  columns: 2;
+  column-gap: 32px;
+  font: 400 0.95rem/1.9 var(--font-sans);
+}
+.seo-li-toc a { color: var(--ink-0); text-decoration: none; }
+.seo-li-toc a:hover { color: var(--soleil, #ffa500); }
+@media (max-width: 640px) { .seo-li-toc ol { columns: 1; } }
+
+/* ── Comparison table: our row reads as the highlighted pick ───────────── */
+.seo-li-table th[scope='row'] a { color: var(--ink-0); text-decoration: none; font-weight: 600; }
+.seo-li-table th[scope='row'] a:hover { color: var(--soleil, #ffa500); }
+.seo-li-usrow { background: rgba(255, 165, 0, 0.07); }
+.seo-li-uschip {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 7px;
+  font: 700 0.66rem/1.3 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--soleil, #ffa500);
+  border: 1px solid rgba(255, 165, 0, 0.45);
+  border-radius: 999px;
+  vertical-align: 2px;
+}
+
+/* ── Methodology reuses .seo-steps; nothing extra needed ────────────────── */
+.seo-li-criteria { margin-top: 6px; }
+
+/* ── Review cards ───────────────────────────────────────────────────────── */
+.seo-li-item {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg, 12px);
+  padding: clamp(20px, 3.4vw, 34px);
+  margin: 0 0 26px;
+}
+.seo-li-item-us {
+  border-color: rgba(255, 165, 0, 0.4);
+  background: rgba(255, 165, 0, 0.04);
+}
+.seo-li-item-h {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font: 600 1.35rem/1.3 var(--font-sans);
+  color: var(--ink-0);
+  margin: 0 0 12px;
+}
+.seo-li-rank {
+  flex: none;
+  font: 700 0.95rem/1 var(--font-mono, ui-monospace, monospace);
+  color: var(--ink-2, #8a8a92);
+}
+.seo-li-item-us .seo-li-rank { color: var(--soleil, #ffa500); }
+.seo-li-bestfor,
+.seo-li-verdict {
+  font: 400 1rem/1.65 var(--font-sans);
+  color: var(--ink-1, #b7b1a6);
+  margin: 0 0 8px;
+}
+.seo-li-bestfor b,
+.seo-li-verdict b { color: var(--ink-0); }
+.seo-li-minih {
+  font: 700 0.78rem/1 var(--font-sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2, #8a8a92);
+  margin: 16px 0 6px;
+}
+.seo-li-pricing {
+  font: 400 0.98rem/1.6 var(--font-sans);
+  color: var(--ink-0);
+  margin: 14px 0 0;
+}
+.seo-li-asof { color: var(--ink-2, #8a8a92); font-size: 0.88em; }
+.seo-li-proscons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 28px;
+  margin-top: 4px;
+}
+.seo-li-proscons ul {
+  margin: 0;
+  padding-left: 1.2em;
+  font: 400 0.95rem/1.7 var(--font-sans);
+  color: var(--ink-1, #b7b1a6);
+}
+@media (max-width: 560px) { .seo-li-proscons { grid-template-columns: 1fr; } }
+.seo-li-itemcta { margin: 18px 0 0; }
+
+/* Our review's live product shot (reuses the landing shot asset). */
+.seo-li-shot {
+  display: block;
+  margin: 6px 0 16px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+  text-decoration: none;
+}
+.seo-li-shot img { display: block; width: 100%; height: auto; }
+.seo-li-shot-cap {
+  display: block;
+  padding: 8px 12px;
+  font: 400 0.85rem/1.5 var(--font-sans);
+  color: var(--ink-2, #8a8a92);
+  border-top: 1px solid var(--line-1);
+}
+
+/* ── Interstitial conversion strips (extends .seo-midcta) ───────────────── */
+.seo-li-inter { margin: 6px 0 32px; }
+
+/* ── Personas ───────────────────────────────────────────────────────────── */
+.seo-li-personas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.seo-li-personas li {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) 1fr;
+  gap: 2px 20px;
+  padding: 14px 2px;
+  border-top: 1px solid var(--line-1);
+  font: 400 0.98rem/1.65 var(--font-sans);
+}
+.seo-li-personas li:last-child { border-bottom: 1px solid var(--line-1); }
+.seo-li-persona-who { font-weight: 600; color: var(--ink-0); grid-row: span 2; }
+.seo-li-persona-pick { color: var(--soleil, #ffa500); font-weight: 600; }
+.seo-li-persona-why { color: var(--ink-1, #b7b1a6); }
+@media (max-width: 560px) {
+  .seo-li-personas li { grid-template-columns: 1fr; }
+  .seo-li-persona-who { grid-row: auto; }
+}
+
+/* ── Mentions / author box ──────────────────────────────────────────────── */
+.seo-li-mentions li { margin-bottom: 6px; }
+.seo-li-author {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg, 12px);
+  padding: 18px 22px;
+  margin: 0 0 28px;
+}
+.seo-li-author-name { font: 600 1.05rem/1.4 var(--font-sans); color: var(--ink-0); }
+.seo-li-author-role {
+  font: 400 0.85rem/1.4 var(--font-sans);
+  color: var(--soleil, #ffa500);
+  margin: 2px 0 8px;
+}
+.seo-li-author-bio {
+  font: 400 0.95rem/1.7 var(--font-sans);
+  color: var(--ink-1, #b7b1a6);
+  margin: 0;
+}

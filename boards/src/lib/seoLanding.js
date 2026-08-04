@@ -89,7 +89,7 @@ const PAGES = [
       { q: 'Can I share a mood board without making people sign up?', a: 'Yes. Every board can be shared with a single public link that opens a clean, interactive read-only preview — no account required for viewers.' },
       { q: 'Do I need to install anything?', a: 'No. Clusters runs in your browser, with native iOS and Android apps if you want them. There is nothing to download to get started.' },
     ],
-    related: ['/tools/storyboard-maker', '/tools/look-book-maker', '/vs/milanote', '/vs/pureref', '/use-cases'],
+    related: ['/tools/storyboard-maker', '/tools/look-book-maker', '/best/mood-board-apps', '/vs/milanote', '/vs/pureref', '/use-cases'],
   },
   {
     path: '/tools/storyboard-maker',
@@ -459,14 +459,18 @@ const PAGES = [
       { q: 'What do filmmakers use instead of Milanote?', a: 'Many use Clusters, because pre-production is connected there: the mood board links to the storyboard, the shot list, and the schedule as one project, with screenplay mode built in — and the whole crew edits the same boards in real time.' },
       { q: 'Milanote vs Canva — and where does Clusters fit?', a: 'Canva is a template-driven graphics editor, strongest when the goal is a finished design. Milanote is a board app for planning and collecting ideas. Clusters covers that planning ground for production teams — a real-time multiplayer canvas with no hard item cap, where the finished board shares with one link a client can open without an account.' },
     ],
-    related: ['/tools/mood-board-maker', '/tools/storyboard-maker', '/tools/shot-list-maker', '/vs/pureref', '/vs/miro', '/use-cases'],
+    siblingListicle: { path: '/best/milanote-alternatives', label: 'See all 12 Milanote alternatives, ranked by a film studio.' },
+    related: ['/best/milanote-alternatives', '/tools/mood-board-maker', '/tools/storyboard-maker', '/tools/shot-list-maker', '/vs/pureref', '/vs/miro', '/use-cases'],
   },
   {
     path: '/vs/pureref',
     kind: 'compare',
-    title: 'Free PureRef Alternative — Online, Shareable, No Install',
+    // 2026-08 CTR experiment: pos ~9 for "pureref alternative" with 0 clicks/28d
+    // → lead with the film-studio credential nobody else on that SERP has.
+    // Title/meta ONLY (h1 + copy + updated untouched — isolates the CTR variable).
+    title: 'PureRef Alternative — Free, Online, Built by a Film Studio',
     metaDescription:
-      'The free PureRef alternative that runs online: the fast reference-board feel plus real-time collaboration, link sharing, and cloud sync. No install.',
+      'No PureRef web version exists. Clusters is the closest thing: the same drop-and-arrange feel, in the browser, shared with one link. Free, by a film studio.',
     h1: 'A PureRef Alternative for Teams and the Cloud',
     subhead:
       'PureRef is a fast, offline reference window. Clusters is a collaborative reference workspace you can share and grow.',
@@ -565,7 +569,8 @@ const PAGES = [
       { q: 'Can I put more than images on a Clusters board?', a: 'Yes — images, notes, links, video, PDFs, docs, and color palettes all live on the same canvas, with non-destructive image adjustments built in.' },
       { q: 'Is Clusters free?', a: 'Yes, the Demo tier is free with no credit card. Creator ($25/mo) adds unlimited boards, 100GB storage, and Edit Mode.' },
     ],
-    related: ['/tools/reference-board-maker', '/tools/mood-board-maker', '/tools/free-mood-board-maker', '/vs/milanote', '/use-cases'],
+    siblingListicle: { path: '/best/pureref-alternatives', label: 'See all 10 PureRef alternatives, ranked by a film studio.' },
+    related: ['/best/pureref-alternatives', '/tools/reference-board-maker', '/tools/mood-board-maker', '/tools/free-mood-board-maker', '/vs/milanote', '/use-cases'],
   },
   {
     path: '/vs/miro',
@@ -952,6 +957,9 @@ const PAGES = [
       '/tools/storyboard-maker',
       '/tools/shot-list-maker',
       '/tools/free-mood-board-maker',
+      '/best/pureref-alternatives',
+      '/best/milanote-alternatives',
+      '/best/mood-board-apps',
       '/vs/milanote',
       '/vs/pureref',
       '/vs/miro',

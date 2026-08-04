@@ -10,16 +10,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { SEO_LANDING_PAGES, getLandingSpec } from '../lib/seoLanding.js';
+import { SEO_LISTICLE_INDEX } from '../lib/seoListicleIndex.js';
 import { NotFoundPage } from './NotFoundPage.jsx';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import './seoLanding.css';
 
-// path → short link label, for related-page spokes in the footer.
-const TITLE_BY_PATH = new Map(
-  SEO_LANDING_PAGES.map((p) => [p.path, p.h1]),
-);
+// path → short link label, for related-page spokes in the footer. Includes the
+// /best/* listicles via the light index (never the full listicle registry —
+// that would drag its multi-thousand-word prose into this chunk).
+const TITLE_BY_PATH = new Map([
+  ...SEO_LANDING_PAGES.map((p) => [p.path, p.h1]),
+  ...SEO_LISTICLE_INDEX.map((p) => [p.path, p.h1]),
+]);
 
 const humanize = (slug) => String(slug || '')
   .replace(/-/g, ' ')
@@ -222,6 +226,16 @@ export function SeoLandingPage({ spec: specProp, path }) {
                 </table>
               </div>
             </section>
+          )}
+
+          {/* Cross-link to the /best/* listicle sibling: the plural-intent
+              "compare them all" page (mirrored in the worker's crawlable HTML). */}
+          {spec.siblingListicle && (
+            <aside className="seo-midcta">
+              <span className="seo-midcta-copy"><b>Comparing more than two?</b> {spec.siblingListicle.label}</span>
+              <a className="seo-cta-primary seo-cta-small" href={spec.siblingListicle.path}
+                 {...lp.ctaProps('sibling', spec.siblingListicle.path, { intent: 'nav' })}>Read the roundup →</a>
+            </aside>
           )}
 
           {/* Visual proof: published example boards, live and explorable. */}
