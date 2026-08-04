@@ -31,6 +31,7 @@ import { applyThemeNow } from '../lib/theme.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { planLabel, formatPeriodEnd, grantCopy } from '../lib/billingCopy.js';
 import { startPortal } from '../lib/checkout.js';
+import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
 
 const TABS = [
   { id: 'profile',       label: 'Profile' },
@@ -896,7 +897,7 @@ function BillingTab({ user }) {
     try {
       await startPortal({ surface: 'settings' });
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not open billing portal: ' + (e?.message || e) });
+      feedback.toast({ type: 'error', message: checkoutErrorMessage(e) });
       setBusy(false);
     }
   };

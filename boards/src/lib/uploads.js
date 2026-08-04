@@ -75,6 +75,11 @@ async function withRetry(fn, { tries = 3, baseMs = 250 } = {}) {
     try { return await fn(); }
     catch (err) {
       lastErr = err;
+      // An explicitly non-retryable failure (e.g. over_quota) short-circuits.
+      // Needed because the status sniff below reads a 3-digit run out of the
+      // MESSAGE: a human-worded error carries no status, scores 0, and would
+      // otherwise be treated as a network blip and retried with backoff.
+      if (err?.noRetry) throw err;
       const m = String(err?.message || err).match(/\b(\d{3})\b/);
       const status = m ? parseInt(m[1], 10) : 0;          // 0 = network/no status
       const retryable = status === 0 || status >= 500;
@@ -110,7 +115,22 @@ async function presign({ workspaceId, boardId, file }) {
     if (!res.ok) {
       const msg = await res.text().catch(() => res.statusText);
       if (res.status === 403 && /over_quota/.test(msg)) {
-        throw new Error("Storage is full for this cluster's owner — free up space or upgrade to add more.");
+        // Typed like mpuPost's rejections so handleUploadReject recognises it
+        // and opens the upgrade path. Untyped, this threw a bare Error that
+        // bypassed the shared handler entirely: the user got a red "upload
+        // failed" toast with no upgrade modal and no upload_blocked event.
+        //
+        // Normalised to 402 at the client boundary. The party answers 403 for
+        // single-PUT image over-quota (party/upload.ts) but 402 for the
+        // multipart path; this IS a quota condition, not a plan condition, and
+        // handleUploadReject branches 402 → "out of storage" vs 403 → "needs a
+        // paid plan". The party is left alone so older clients keep working.
+        const err = new Error("Storage is full for this cluster's owner — free up space or upgrade to add more.");
+        err.code = 402;
+        err.reason = 'over_quota';
+        err.httpStatus = res.status;
+        err.noRetry = true;
+        throw err;
       }
       throw new Error(`Presign failed: ${res.status} ${msg}`);
     }

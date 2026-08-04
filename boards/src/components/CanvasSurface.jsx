@@ -2074,6 +2074,34 @@ export function CanvasSurface({
   // boards before it finished (and avoid patching the wrong board's card).
   const boardIdRef = useRef(board?.id);
   boardIdRef.current = board?.id;
+
+  // Roll back an optimistic card on upload failure. 402 (over quota) / 403 (not
+  // a paid owner) open the upgrade prompt; anything else is a plain error toast.
+  // Defined above the optimistic drop handlers so all of them can list it as a
+  // dependency — every upload path must funnel through here, or a rejection
+  // silently loses both the upgrade prompt and the upload_blocked event.
+  const handleUploadReject = useCallback((err, id, dropBoardId) => {
+    if (boardIdRef.current === dropBoardId) mutators.deleteCard?.(id);
+    const upsell = onRequestStorageUpgrade || onRequestUpgrade;
+    if (err?.code === 402 || err?.code === 403) {
+      try {
+        logEvent(EV.UPLOAD_BLOCKED, {
+          reason: err.code === 402 ? 'server_quota' : 'server_403',
+          surface: 'canvas', n: 1, ext: null, size_bucket: null,
+        });
+      } catch (_) {}
+    }
+    if (err?.code === 402) {
+      upsell?.();
+      feedback.toast({ type: 'warning', message: "You're out of storage. Upgrade for more space." });
+    } else if (err?.code === 403) {
+      upsell?.();
+      feedback.toast({ type: 'warning', message: 'Uploading files needs a paid plan — upgrade to add any file type.' });
+    } else if (String(err?.message) !== 'aborted') {
+      feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
+    }
+  }, [mutators, onRequestUpgrade, onRequestStorageUpgrade, feedback]);
+
   const optimisticDropImage = useCallback(async (file, cx, cy) => {
     if (!file) return;
     const dropBoardId = board?.id;
@@ -2157,14 +2185,18 @@ export function CanvasSurface({
       }
     } catch (err) {
       console.error('image upload failed', err);
-      feedback.toast({ type: 'error', message: 'Image upload failed: ' + (err.message || err) });
-      if (boardIdRef.current === dropBoardId) mutators.deleteCard?.(id);
+      // Shared handler: rolls the optimistic card back AND, for 402/403, opens
+      // the upgrade prompt and logs upload_blocked. This used to be a bespoke
+      // error toast, so an over-quota image drop — the one upload failure that
+      // is actually a sales moment — showed a red "failed" message with no
+      // upgrade path and no telemetry.
+      handleUploadReject(err, id, dropBoardId);
     } finally {
       setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
       setLocalImagePreview(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
       if (blobUrl) { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }
     }
-  }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, onDropFileImage]);
+  }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, onDropFileImage, handleUploadReject]);
 
   // Drop a PDF: add a pending card immediately, then upload + render the
   // page-1 thumbnail in the background (same optimistic pattern as images).
@@ -2208,36 +2240,14 @@ export function CanvasSurface({
       }
     } catch (err) {
       console.error('pdf upload failed', err);
-      feedback.toast({ type: 'error', message: 'PDF upload failed: ' + (err.message || err) });
-      if (boardIdRef.current === dropBoardId) mutators.deleteCard?.(id);
+      // Same shared handler as the image path — PDFs presign through the same
+      // route, so they hit the same over-quota rejection and need the same
+      // upgrade prompt rather than a dead-end error toast.
+      handleUploadReject(err, id, dropBoardId);
     } finally {
       setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
     }
-  }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, clientToCanvas]);
-
-  // Roll back an optimistic card on upload failure. 402 (over quota) / 403 (not
-  // a paid owner) open the upgrade prompt; anything else is a plain error toast.
-  const handleUploadReject = useCallback((err, id, dropBoardId) => {
-    if (boardIdRef.current === dropBoardId) mutators.deleteCard?.(id);
-    const upsell = onRequestStorageUpgrade || onRequestUpgrade;
-    if (err?.code === 402 || err?.code === 403) {
-      try {
-        logEvent(EV.UPLOAD_BLOCKED, {
-          reason: err.code === 402 ? 'server_quota' : 'server_403',
-          surface: 'canvas', n: 1, ext: null, size_bucket: null,
-        });
-      } catch (_) {}
-    }
-    if (err?.code === 402) {
-      upsell?.();
-      feedback.toast({ type: 'warning', message: "You're out of storage. Upgrade for more space." });
-    } else if (err?.code === 403) {
-      upsell?.();
-      feedback.toast({ type: 'warning', message: 'Uploading files needs a paid plan — upgrade to add any file type.' });
-    } else if (String(err?.message) !== 'aborted') {
-      feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
-    }
-  }, [mutators, onRequestUpgrade, onRequestStorageUpgrade, feedback]);
+  }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, clientToCanvas, handleUploadReject]);
 
   // Place the drop rect (w×h) centered on (cx, cy), clamped to the viewport.
   const placeDropRect = useCallback((cx, cy, w, h) => {

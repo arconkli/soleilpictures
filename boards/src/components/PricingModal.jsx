@@ -19,6 +19,7 @@ import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { useUpsellExposure } from '../hooks/useUpsellExposure.js';
 import { startCheckout, startPortal } from '../lib/checkout.js';
+import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { FeatureList, PlanToggle, CreatorPriceRow } from './PricingBits.jsx';
@@ -84,7 +85,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     } catch (err) {
       redirectingRef.current = false;
       up.noteError();
-      setError(err?.message || String(err));
+      setError(checkoutErrorMessage(err));
       setBusy(false);
     }
   };
@@ -126,13 +127,13 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
             <>
               <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
               <h2 className="upgrade-title">Your work outgrew the demo.</h2>
-              <p className="upgrade-sub t-body">You've built enough to feel it. Step into the complete studio — unlimited clusters, any file, full edit access — or invite friends to earn more free cards.</p>
+              <p className="upgrade-sub t-body">You've built enough to feel it. Creator lifts the cap — and every card you've already made stays exactly where it is.</p>
             </>
           ) : header === 'first-value' ? (
             <>
               <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
               <h2 className="upgrade-title">You're building something.</h2>
-              <p className="upgrade-sub t-body">Your first cluster is taking shape. Creator is the complete studio — unlimited space, any file, and full edit access. Everything your work deserves.</p>
+              <p className="upgrade-sub t-body">Your first cluster is taking shape. Creator is the complete studio — unlimited cards, any file type, any size. Everything your work deserves.</p>
             </>
           ) : header === 'storage' ? (
             <>
@@ -144,7 +145,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
             <>
               <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
               <h2 className="upgrade-title">Everything your work deserves.</h2>
-              <p className="upgrade-sub t-body">The complete studio — unlimited clusters and files, any type, any size, and full edit access everywhere you're invited.</p>
+              <p className="upgrade-sub t-body">The complete studio — unlimited cards, and any file you make, any type, any size.</p>
             </>
           )}
         </div>
@@ -169,17 +170,23 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
           </button>
         </article>
 
-        {/* Card-count contexts only: bonus cards from inviting friends unlock the
-            SAME thing the cap-hit/first-value paywall is about. Not shown for
-            shared-edit / storage, which are genuinely paid-only. Decoupled via a
-            window event so it works from every PricingModal mount. */}
-        {!alreadyPaid && tier === 'demo' && (header === 'cap-hit' || header === 'first-value' || header === null) && (
+        {/* Card-count contexts, EXCEPT the wall itself: bonus cards from inviting
+            friends unlock the SAME thing the first-value paywall is about, so the
+            alternative belongs on the warm nudges. It is deliberately NOT offered
+            on 'cap-hit' — at the wall it is the only thing competing with the
+            sale, and it is where a blocked user is most likely to take the free
+            exit instead of deciding. Not shown for storage, which is genuinely
+            paid-only. Decoupled via a window event so it works from every mount. */}
+        {!alreadyPaid && tier === 'demo' && (header === 'first-value' || header === null) && (
           <button
             type="button"
             className="upgrade-invite-alt"
             style={{
+              // Neutral ink, not --soleil: the gold accent is reserved for the
+              // CTA / active / focus states, and an accent-colored alternative
+              // competes with the primary button it sits beneath.
               background: 'none', border: 'none', cursor: 'pointer', marginTop: 2,
-              color: 'var(--soleil, #ffa500)', fontSize: 13, fontWeight: 600,
+              color: 'var(--ink-2)', fontSize: 13, fontWeight: 600,
               textDecoration: 'underline', textUnderlineOffset: 3,
             }}
             onClick={() => {

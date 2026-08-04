@@ -75,6 +75,7 @@ export const EV = Object.freeze({
   UP_SETTINGS_CLICK:       'up_settings_upgrade_click',   // Settings→Billing "Upgrade to Creator →" clicked (was DARK)
   UP_INVITE_ALT_CLICK:     'up_invite_alt_click',         // modal's "Or invite friends to earn more free cards →" alternative clicked {header,plan,dwell_ms} (was DARK; referral_open{surface:'cap_modal'} still fires downstream)
   UP_CAP_TOAST_VIEW:       'up_cap_toast_view',           // approaching-limit demo-cap warning toast shown {count,limit,at:'near'} (logEventOnce per pageload; was DARK). At the actual limit owners get the cap-hit modal instead (pricing_view header:'cap-hit'); the collaborator at-owner's-limit toast is deliberately untracked (upgrading THEIR account wouldn't lift it)
+  UP_CAP_TOAST_CTA:        'up_cap_toast_cta',            // the approaching-limit toast's action was clicked {count,limit,at:'near'} (must-land). The toast's only button used to be "Invite friends" — the free path — so its action rate was structurally dark; this is the paired click for UP_CAP_TOAST_VIEW
   UP_TRACE:                'up_trace',                    // coalesced micro-interaction batch {from_t,to_t,n,ev:[{t,k,tgt,...}]} — k:'click'|'dead'|'rage'|'input'|'cta'|'invite_alt'|'demo_cta'|'dismiss'|'hide'|'show'; armed ONLY when surface!=='public_page' && !isJourneyOpen() so it never overlaps ps_trace/lp_trace; never captures input values
 
   // ── Ad offer (fbclid instant-demo) ──
@@ -128,7 +129,7 @@ export const EV = Object.freeze({
   //    enum strings below EXACTLY (snake_case) so the GROUP BY never fragments —
   //    NOTE the UI's setUpgradeReason('cap-hit') hyphen is NOT a valid reason here.
   CARD_CREATE_INTENT:      'card_create_intent',            // user did something that signals "make a card" {method,board_id} — method:'dblclick'|'dblclick_menu'|'add_menu'|'context_menu'|'tool_place'|'drag_in'|'paste'|'empty_cta'|'mobile_nav'. (tile ids: image|note|file|doc|script|board) Fired BEFORE the mutator so a blocked create still has a preceding intent.
-  CARD_CREATE_BLOCKED:     'card_create_blocked',           // an intent that produced no card {reason,method?,board_id} — reason:'demo_cap'|'demo_blocked'|'read_only'|'place_miss'|'stale_paste'|'noop_svg'|'mutator_null'
+  CARD_CREATE_BLOCKED:     'card_create_blocked',           // an intent that produced no card {reason,method?,board_id} — reason:'demo_cap'|'demo_cap_cell'|'server_cap'|'demo_blocked'|'read_only'|'place_miss'|'stale_paste'|'noop_svg'|'mutator_null' ('server_cap' = the card_index trigger refused a write the client gate had allowed — a stale cached count; it was previously swallowed silently)
   CARD_CREATE_STUCK:       'card_create_stuck',             // new user appears stuck placing a first card {reason,intents,seconds,method_last} — reason:'timeout'|'rage' (logEventOnce per page-load)
   MOBILE_LIFT_HINT_SHOWN:  'mobile_lift_hint_shown',        // first time a touch user's drag-from-a-card panned instead of moving — one-time press-and-hold hint shown {board_id}
 

@@ -1187,6 +1187,37 @@ async function _doSyncCardIndex(boardId, ydoc) {
     // UPSERT on (board_id, card_id). Idempotent — no race if two windows
     // run this concurrently.
     const ups = await supabase.from('card_index').upsert(changed, { onConflict: 'board_id,card_id' });
+    if (ups.error?.code === '42501' && /limited to \d+ cards/i.test(ups.error.message || '')) {
+      // The owner-pays card cap trigger (enforce_demo_card_cap_trg, 0187)
+      // refused this batch. This used to be swallowed as a generic warning,
+      // which was the worst possible outcome: the card renders on canvas from
+      // the Y.Doc but never reaches card_index, so it's invisible to search,
+      // tags and the graph — and the user is never told, at the exact moment a
+      // cap is supposed to be converting them.
+      //
+      // PostgREST fails the whole batch, but the trigger early-returns for
+      // (board_id, card_id) pairs that already exist. So only genuinely NEW
+      // cards were rejected: re-upsert the rest, or one over-cap card freezes
+      // card_index for the entire board.
+      const known = await supabase.from('card_index').select('card_id').eq('board_id', boardId);
+      const knownIds = new Set((known.data || []).map(r => r.card_id));
+      const retryable = changed.filter(r => knownIds.has(r.card_id));
+      const rejected  = changed.filter(r => !knownIds.has(r.card_id));
+      if (retryable.length > 0) {
+        const retry = await supabase.from('card_index').upsert(retryable, { onConflict: 'board_id,card_id' });
+        // Only cache signatures we actually persisted; rejected cards keep a
+        // stale signature on purpose so the next sync retries them (the user
+        // may have upgraded or freed space in the meantime).
+        if (!retry.error) for (const r of retryable) cache.sigs.set(r.card_id, sigFor(r));
+        else console.warn('syncCardIndex cap-retry', retry.error);
+      }
+      try {
+        window.dispatchEvent(new CustomEvent('soleil:card-index-capped', {
+          detail: { boardId, rejected: rejected.length },
+        }));
+      } catch (_) {}
+      return;
+    }
     if (ups.error) { console.warn('syncCardIndex upsert', ups.error); return; }
     for (const r of changed) cache.sigs.set(r.card_id, sigFor(r));
   }

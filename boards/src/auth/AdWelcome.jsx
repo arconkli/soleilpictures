@@ -18,6 +18,7 @@ import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
 import { journey, setJourneyState } from '../lib/journey.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { startCheckout } from '../lib/checkout.js';
+import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
 import { useAuth } from './AuthGate.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { FeatureList, PlanToggle, CreatorPriceRow } from '../components/PricingBits.jsx';
@@ -63,7 +64,7 @@ export function AdWelcome({ onEnter }) {
     try {
       await startCheckout({ plan, surface: 'ad_offer' });   // redirects on success
     } catch (err) {
-      setError(err?.message || String(err));
+      setError(checkoutErrorMessage(err));
       setBusy(false);
     }
   };

@@ -921,6 +921,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         message: `This cluster is at the owner's ${cs.limit}-card limit — they'll need to upgrade or clear space before more cards fit.`,
       });
     };
+    // Approaching-limit warning, fired once per pageload from all three add
+    // paths (addCard / addCards / duplicateCards). The primary action is the
+    // upgrade: this used to offer "Invite friends" as its ONLY button, which
+    // put the free path in front of the paid one at the moment of most
+    // pressure. Inviting is still named in the copy — the toast API carries a
+    // single action, and extending it for this one caller would touch every
+    // other toast site.
+    const nearCapToast = (cs) => {
+      logEventOnce('up_cap_toast:near', EV.UP_CAP_TOAST_VIEW, { count: cs.count, limit: cs.limit, at: 'near' });
+      feedback.toast({
+        type: 'warning',
+        message: `You're at ${cs.count}/${cs.limit} cards. Creator lifts the cap — or invite friends to earn more free ones.`,
+        action: {
+          label: 'See Creator',
+          onClick: () => {
+            logEventNow(EV.UP_CAP_TOAST_CTA, { count: cs.count, limit: cs.limit, at: 'near' });
+            setUpgradeReason('cap-hit');
+          },
+        },
+      });
+    };
 
     const addCard = (card, { afterInsert = null } = {}) => {
       const m = cardsMap(); if (!m) { if (!isSeedCard(card)) noteBlocked('mutator_null'); return; }
@@ -936,14 +957,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             surfaceCapHit(cs);
             return;
           }
-          if (cs.own && cs.count === cs.limit - 10) {
-            logEventOnce('up_cap_toast:near', EV.UP_CAP_TOAST_VIEW, { count: cs.count, limit: cs.limit, at: 'near' });
-            feedback.toast({
-              type: 'warning',
-              message: `You're at ${cs.count}/${cs.limit} cards in your demo workspace. Invite friends or upgrade for more.`,
-              action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
-            });
-          }
+          if (cs.own && cs.count === cs.limit - 10) nearCapToast(cs);
         }
       }
       breakUndo();
@@ -1004,12 +1018,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           cardsToAdd = cardsToAdd.slice(0, accepted);
           surfaceCapHit(csBatch);
         } else if (csBatch.own && csBatch.count + cardsToAdd.length >= csBatch.limit - 10 && csBatch.count < csBatch.limit - 10) {
-          logEventOnce('up_cap_toast:near', EV.UP_CAP_TOAST_VIEW, { count: csBatch.count, limit: csBatch.limit, at: 'near' });
-          feedback.toast({
-            type: 'warning',
-            message: `You're approaching the ${csBatch.limit}-card demo limit. Invite friends or upgrade for more.`,
-            action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
-          });
+          nearCapToast(csBatch);
         }
       }
       breakUndo();
@@ -1170,12 +1179,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           sources = sources.slice(0, accepted);
           surfaceCapHit(csDup);
         } else if (csDup.own && csDup.count + sources.length >= csDup.limit - 10 && csDup.count < csDup.limit - 10) {
-          logEventOnce('up_cap_toast:near', EV.UP_CAP_TOAST_VIEW, { count: csDup.count, limit: csDup.limit, at: 'near' });
-          feedback.toast({
-            type: 'warning',
-            message: `You're approaching the ${csDup.limit}-card demo limit. Invite friends or upgrade for more.`,
-            action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
-          });
+          nearCapToast(csDup);
         }
       }
       const newIds = [];
@@ -3160,6 +3164,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (_) {}
     }
   }, [myTier.bonusCardCredits, myTier.loading]);
+
+  // The server card-cap trigger rejected a card_index write (syncCardIndex
+  // dispatches this). Reaching here means the CLIENT gate let a card through
+  // that the server refused — a stale cached count, or a cap that moved under
+  // us. Refetch the tier so the client stops guessing, and show the same wall
+  // the client-side gate would have shown. Without this the card renders from
+  // the Y.Doc but is missing from search/tags/graph, and the user is told
+  // nothing at the one moment the cap is meant to be converting them.
+  useEffect(() => {
+    const onCapped = (e) => {
+      try {
+        logEvent(EV.CARD_CREATE_BLOCKED, {
+          reason: 'server_cap',
+          board_id: e?.detail?.boardId || null,
+          n: e?.detail?.rejected || 0,
+        });
+      } catch (_) {}
+      myTier.refetch?.();
+      setUpgradeReason('cap-hit');
+    };
+    window.addEventListener('soleil:card-index-capped', onCapped);
+    return () => window.removeEventListener('soleil:card-index-capped', onCapped);
+  }, [myTier]);
 
   // Funnel: app_open fires once per mount with the caller's tier so we
   // can correlate retention (app opens / unique user / week).

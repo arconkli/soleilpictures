@@ -27,7 +27,7 @@ export function FirstValueUpgradeBanner({ onSeeCreator, onDismiss }) {
       <div className="fv-banner-copy">
         <div className="fv-banner-title">You're building something.</div>
         <div className="fv-banner-body">
-          Creator is the complete studio — unlimited space, any file, full edit access. Everything your work deserves.
+          Creator is the complete studio — unlimited cards, any file type, any size. Everything your work deserves.
         </div>
       </div>
       <div className="fv-banner-actions">

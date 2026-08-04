@@ -39,16 +39,20 @@ test('pricing page shows the canonical Creator list and the trimmed Demo list', 
   const creator = page.locator('.pricing-card-creator');
   await expect(creator).toBeVisible();
 
-  // Canonical Creator features (the public list, mirrored everywhere).
-  // Completeness/identity leads now (the "complete studio" reframe); storage
-  // is still there, as support rather than the headline.
-  await expect(creator.getByText('complete studio')).toBeVisible();
-  await expect(creator.getByText('Any file, any size')).toBeVisible();
-  await expect(creator.getByText('everywhere you')).toBeVisible();
-  await expect(creator.getByText('Every creative tool')).toBeVisible();
-  await expect(creator.getByText('All Virtual + Social events')).toBeVisible();
+  // Canonical Creator features (the public list, mirrored everywhere). Every
+  // line names a difference that is actually enforced in code: the card cap
+  // trigger, the file-type gate, and the free size/length ceilings.
+  await expect(creator.getByText('Unlimited cards')).toBeVisible();
+  await expect(creator.getByText('Any file type')).toBeVisible();
+  await expect(creator.getByText('No size limits')).toBeVisible();
   // High-res exports was removed from the offering — must not reappear.
   await expect(page.getByText(/high.?res/i)).toHaveCount(0);
+  // These three shipped and were false: 'edit access' became free for every
+  // tier in migration 0188, and the other two never had an implementation.
+  // They must never come back.
+  await expect(creator.getByText(/edit access/i)).toHaveCount(0);
+  await expect(creator.getByText('Every creative tool')).toHaveCount(0);
+  await expect(creator.getByText('All Virtual + Social events')).toHaveCount(0);
 
   // Monthly-first default: $25/mo (annual-default drove pricing abandons).
   // Toggle to annual → $20/mo with the savings badge.
@@ -60,12 +64,15 @@ test('pricing page shows the canonical Creator list and the trimmed Demo list', 
   // CTA wording is centralized.
   await expect(creator.getByRole('button', { name: 'Get Creator' })).toBeVisible();
 
-  // Demo card: just the 100-card sandbox + view-only framing. No audio/boards detail.
+  // Demo card: the card cap is the only real limit. It is NOT view-only —
+  // 0188 made editor collaboration free for every tier — and clusters/boards
+  // were never capped, so the free tier says so plainly.
   const demo = page.locator('.pricing-card-demo');
   await expect(demo).toContainText('100 cards');
-  await expect(demo).toContainText('View Mode only');
+  await expect(demo).toContainText('Unlimited clusters');
+  await expect(demo).toContainText('Free collaboration');
+  await expect(demo).not.toContainText('View Mode only');
   await expect(demo).not.toContainText('audio');
-  await expect(demo).not.toContainText('editable boards');
 });
 
 test('an already-paid user is routed to manage billing, not a second checkout', async ({ page }) => {
@@ -91,8 +98,9 @@ test('the in-app upgrade modal matches the pricing page copy', async ({ page }) 
   await expect(modal).toBeVisible();
   // Same canonical Creator features as the public page. (Substrings chosen to
   // sit only in the feature list, not the modal's subhead copy.)
-  await expect(modal.getByText('boards & files')).toBeVisible();
-  await expect(modal.getByText('All Virtual + Social events')).toBeVisible();
+  await expect(modal.getByText('Any file type')).toBeVisible();
+  await expect(modal.getByText('No size limits')).toBeVisible();
+  await expect(modal.getByText('All Virtual + Social events')).toHaveCount(0);
   await expect(modal.getByRole('button', { name: 'Get Creator' })).toBeVisible();
   await expect(modal.getByText(/high.?res/i)).toHaveCount(0);
 });

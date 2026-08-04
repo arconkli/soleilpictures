@@ -151,7 +151,7 @@ export function AdminUsersTab() {
       message = `${row.email} is a paying customer (${amount}). Moving them to ${nextTier} will cancel their Stripe subscription immediately so they stop being billed — issue any refund in Stripe. `
         + (nextTier === 'waitlist'
             ? "They'll lose all access until accepted off the waitlist again."
-            : 'They keep their data but are capped at 100 cards and view-only on shared boards.');
+            : 'They keep their data but are capped at the demo card limit and lose large/non-standard file uploads.');
     } else if (nextTier === 'admin') {
       message = `${row.email} will gain full admin access — including the ability to change other tiers and access this page.`;
     } else if (nextTier === 'paid') {
@@ -159,7 +159,7 @@ export function AdminUsersTab() {
     } else if (nextTier === 'waitlist') {
       message = `${row.email} will lose all access until they're accepted off the waitlist again. Any complimentary grant is revoked.`;
     } else {
-      message = `${row.email} will be capped at 100 cards and viewer-only on other people's boards. Any complimentary grant is revoked.`;
+      message = `${row.email} will be capped at the demo card limit and lose large/non-standard file uploads. Editor access to other people's clusters is unaffected. Any complimentary grant is revoked.`;
     }
 
     const ok = await feedback.confirm({

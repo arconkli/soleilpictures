@@ -14,7 +14,7 @@ export const PLAN_NAME = 'Creator';
 // pricing funnel events (pricing_view, pricing_creator_intent, first_value_*)
 // so conversion can be attributed before/after a copy change without an A/B
 // test (traffic is far too low for one). Bump on every material copy revision.
-export const COPY_REV = 'studio_v1';
+export const COPY_REV = 'studio_v2';
 
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 
@@ -47,28 +47,43 @@ export function planBilling(plan) {
 
 // Canonical Creator feature list — the public PricingPage wording, used on
 // EVERY Creator surface. `**text**` marks bold spans (rendered by FeatureList).
-// Completeness/identity leads ("the complete studio") — selling a professional
-// creative toolkit converts better than leading with storage/limits, which
-// reads like a hosting plan. Storage and edit access stay, as support.
+//
+// EVERY LINE HERE MUST BE TRUE AND ENFORCED IN CODE. The previous list sold
+// three things it should not have: two features that were never built, and
+// "full edit access, everywhere you're invited" — which migration 0188 made
+// FREE for every tier. Before adding a line, name the gate that enforces it.
+//
+// The real, enforced free/paid differences are exactly these three:
+//   1. cards      — enforce_demo_card_cap_trg (0187): demo stops at the cap
+//   2. file types — fileIngest.js routes non-standard files to 'blocked' for
+//                   free owners; authorize_upload() rejects owner_not_paid
+//   3. size/length— free caps video 30MB/60s, audio 50MB, PDF 50MB (uploads.js)
+//
+// NOTE: clusters/boards are NOT a paid difference — they were never capped.
 export const CREATOR_FEATURES = [
-  'The **complete studio** — unlimited clusters, boards & files',
-  'Any file, any size — your own **100GB** drive',
-  "Full **edit access**, everywhere you're invited",
-  'Every creative tool, unlocked',
-  'All Virtual + Social events',
+  'Unlimited cards — build without a ceiling',
+  'Any file type — .psd, .fig, .zip, video, audio, docs',
+  'No size limits, on your own **100GB** drive',
 ];
 
 // Stable analytics keys, parallel to CREATOR_FEATURES by index. The up_* hover
 // telemetry records WHICH pitch line a prospect read (up_feature_hover {row,key});
 // keying by these instead of the copy text means the data survives copy edits.
-// Keep this array in lockstep with CREATOR_FEATURES.
-export const CREATOR_FEATURE_KEYS = ['studio', 'storage', 'edit_access', 'tools', 'events'];
+// Keep this array in lockstep with CREATOR_FEATURES (billingCopy.test.mjs asserts it).
+export const CREATOR_FEATURE_KEYS = ['cards', 'filetypes', 'storage'];
 
-// Demo is intentionally minimal: it's a 100-card sandbox, and visitors only
-// get View Mode (no editing of boards shared by others). Nothing else to list.
+// Retired keys, kept so historical up_feature_hover rows stay readable in the
+// admin scorecard. 'studio'/'edit_access' described lines that are gone;
+// 'tools'/'events' described features that never existed.
+export const LEGACY_FEATURE_KEYS = ['studio', 'edit_access', 'tools', 'events'];
+
+// What the free tier genuinely is. It is NOT view-only: since migration 0188 a
+// free user can edit any cluster they are invited to as an editor, and
+// clusters/boards themselves were never capped. The only real limit is cards.
 export const DEMO_FEATURES = [
-  'Unlimited visitors with **View Mode only**',
-  '**100 cards** to explore the workspace',
+  `**${DEMO_CARD_LIMIT} cards** to build with`,
+  'Unlimited clusters & boards',
+  'Free collaboration — invite editors to any cluster',
 ];
 
 // CTA labels — one place so "Get Creator" / "Manage billing" stay consistent.
