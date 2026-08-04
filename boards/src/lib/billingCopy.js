@@ -97,6 +97,44 @@ export const CTA = {
   subscribeShort: (plan) => `Subscribe — $${planPerMonth(plan)}/mo`,
 };
 
+// Compact byte label for the cap-hit summary ("233 MB", "1.4 GB"). Local to
+// billingCopy so this module stays pure and node-testable; SettingsPanel's
+// meter has its own equivalent tied to its own layout.
+function capBytes(n) {
+  const b = Number(n);
+  if (!Number.isFinite(b) || b <= 0) return null;
+  const units = [['GB', 1024 ** 3], ['MB', 1024 ** 2], ['KB', 1024]];
+  for (const [label, size] of units) {
+    if (b >= size) {
+      const v = b / size;
+      return `${v >= 10 ? Math.round(v) : Math.round(v * 10) / 10} ${label}`;
+    }
+  }
+  return `${Math.round(b)} B`;
+}
+
+// capHitSummary — the cap-hit modal's opening line, in the user's own numbers.
+//
+// The exposure telemetry is unambiguous that the abstract feature list goes
+// unread at this moment: zero feature rows were read on any of the real
+// cap-hitter's exposures. Someone who has just been stopped already knows what
+// they want; naming what they've built beats describing the product.
+//
+// Every field is optional and every clause degrades away rather than printing a
+// zero — a user with no uploads should not be told "0 B of your files".
+export function capHitSummary({ cards, clusters, storageBytes } = {}) {
+  const parts = [];
+  const n = Number(cards);
+  if (Number.isFinite(n) && n > 0) parts.push(`${n} card${n === 1 ? '' : 's'}`);
+  const c = Number(clusters);
+  if (Number.isFinite(c) && c > 0) parts.push(`${c} cluster${c === 1 ? '' : 's'}`);
+  const bytes = capBytes(storageBytes);
+  if (bytes) parts.push(`${bytes} of files`);
+  if (!parts.length) return null;
+  if (parts.length === 1) return parts[0];
+  return `${parts.slice(0, -1).join(', ')} · ${parts[parts.length - 1]}`;
+}
+
 export function planLabel({ tier, plan, demoCardCount, grantBacked } = {}) {
   if (tier === 'admin') return 'Admin · Unlimited';
   if (tier === 'paid') {

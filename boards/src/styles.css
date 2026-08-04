@@ -5858,6 +5858,12 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   margin: 0;
 }
 .upgrade-sub { color: var(--ink-1); margin: 0; line-height: 1.55; max-width: 42ch; }
+/* Cap-hit only: the user's own totals, set above the supporting line. Reads as
+   a statement of what they've made, so it carries more weight than the sub. */
+.upgrade-caphit-stats { color: var(--ink-0); margin: 0 0 6px; line-height: 1.5; max-width: 42ch; font-weight: 600; }
+/* The same feature list, sitting under the CTA on the cap-hit variant. Quieter
+   than the default placement — it's supporting detail there, not the pitch. */
+.upgrade-features-after { margin-top: 14px; }
 .upgrade-card { box-shadow: none; }
 .upgrade-later {
   align-self: center;

@@ -105,6 +105,7 @@ import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
+import { evaluateUpsell } from './lib/upsellEligibility.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel } from './lib/gridState.js';
@@ -3140,6 +3141,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   });
   const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'storage' | 'manual' | null ('shared-edit' died with 0188)
 
+  // Should this demo user be pitched at all? Shared by every always-on upsell
+  // surface so the chip, the first-value banner and the list-toolbar chip agree
+  // rather than each inventing its own threshold. The cap-hit modal is
+  // deliberately NOT gated on this — hitting the wall is a consequence, not a
+  // promotion, and a blocked user always gets the explanation.
+  const upsellElig = useMemo(() => evaluateUpsell({
+    tier: myTier.tier,
+    demoCardCount: myTier.demoCardCount,
+    cardLimit: myTier.effectiveCardLimit,
+    accountAgeDays: user?.created_at
+      ? Math.max(0, Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86400000))
+      : 0,
+  }), [myTier.tier, myTier.demoCardCount, myTier.effectiveCardLimit, user?.created_at]);
+
   // Celebrate referral rewards: when bonus_card_credits grows (a friend you
   // invited just activated — granted server-side, picked up on the next
   // focus refetch), confirm it. The first known value sets a silent baseline
@@ -3794,8 +3809,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // guided tour is running — the fv-banner would render dead under the tour's
     // pointer-events lock; this effect re-runs when the tour closes
     // (onboardingUiActive dep) and the nudge fires then, as the post-tour beat.
-    if (!fvDone && myTier.tier === 'demo' && !tourActive && genuine.length >= 2) {
-      try { localStorage.setItem(fvKey, '1'); } catch { /* ignore */ }
+    // NOTE: this deliberately does NOT stamp fvKey. UpgradeChip decides whether
+    // the user is far enough along to be pitched, and it owns the
+    // once-per-account stamp. Burning the one-shot here would mean a user who
+    // isn't ready at two cards never sees the banner at all — the surface would
+    // die silently for everyone it was re-timed to reach. Re-dispatching costs
+    // one event per card change; the listener is the guard.
+    if (myTier.tier === 'demo' && !tourActive && genuine.length >= 2) {
       window.dispatchEvent(new CustomEvent('soleil:first-value'));
     }
 
@@ -4915,7 +4935,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      gridTemplates={gridTemplates}
                      getGridModel={(card) => readGridModel(card, yd, gridTemplates)}
                      onRevealOnCanvas={(ids) => { setView('canvas', 'reveal'); setFocusRequest({ boardId: board.id, ids, token: Date.now() }); }}
-                     showStorageUpsell={myTier.tier === 'demo' && workspace?.created_by === user?.id}
+                     showStorageUpsell={myTier.tier === 'demo' && workspace?.created_by === user?.id && upsellElig.eligible}
                      onStorageUpsell={() => setUpgradeReason('storage')}
                      mutators={muts} />
       );
@@ -5551,7 +5571,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       )}
 
       {upgradeReason && (
-        <UpgradeModal reason={upgradeReason} onClose={() => setUpgradeReason(null)} />
+        <UpgradeModal
+          reason={upgradeReason}
+          clusterCount={Object.keys(boards || {}).length || null}
+          onClose={() => setUpgradeReason(null)}
+        />
       )}
 
       {/* Arm B gets the guided tour (below) instead of the static pill. */}

@@ -129,13 +129,68 @@ export function UpsellBehaviorPanel({ scorecard, exposures, days }) {
   const funnel = Array.isArray(scorecard?.funnel) ? scorecard.funnel : [];
   const ep = scorecard?.entry_points || {};
   const feed = Array.isArray(exposures) ? exposures : [];
+  const tg = scorecard?.targeting || {};
+  const cap = scorecard?.cap || {};
 
   if (!scorecard) {
     return <PanelNote>Upsell behavior data unavailable (admin_upsell_scorecard failed to load).</PanelNote>;
   }
 
+  const suppressed = Number(tg.suppressed) || 0;
+  const eligExp = Number(tg.eligible_exposures) || 0;
+  const reasons = Object.entries(tg.by_reason || {}).filter(([, n]) => Number(n) > 0);
+  const serverRejects = Number(cap.server_rejects) || 0;
+
   return (
     <div>
+      {/* Targeting — the pitch is deliberately withheld from users who have not
+          invested yet, so the exposure count alone no longer tells the story.
+          Reading CTA rate against ALL exposures would flatter the change (a
+          smaller denominator), which is why eligible-only is called out. */}
+      <div style={{
+        marginBottom: 12, padding: '8px 10px',
+        border: '1px solid var(--line-1)', borderRadius: 8, background: 'var(--bg-1)',
+      }}>
+        <div className="t-meta admin-muted" style={{ marginBottom: 4 }}>
+          Targeting — who we chose to pitch ({days}d)
+        </div>
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'baseline' }}>
+          <span className="t-meta">
+            Withheld <b>{formatCount(suppressed)}</b>
+            {Number(tg.suppressed_users) > 0 && <> · {formatCount(tg.suppressed_users)} users</>}
+          </span>
+          <span className="t-meta">
+            Pitched <b>{formatCount(eligExp)}</b> → CTA{' '}
+            <RateCell numer={Number(tg.eligible_cta) || 0} denom={eligExp} />
+          </span>
+          <span className="t-meta">
+            Cap blocks <b>{formatCount(cap.blocked)}</b>
+            {Number(cap.blocked_users) > 0 && <> · {formatCount(cap.blocked_users)} users</>}
+          </span>
+          <span className="t-meta">
+            Wall toast <b>{formatCount(cap.near_toast_views)}</b> → clicked{' '}
+            <RateCell numer={Number(cap.near_toast_ctas) || 0} denom={Number(cap.near_toast_views) || 0} />
+          </span>
+          {/* Client gate and server trigger disagreeing. Was silently swallowed
+              before; any sustained count here is a bug, not a metric. */}
+          {serverRejects > 0 && (
+            <span className="t-meta" style={{ color: 'var(--ink-error)' }}>
+              server-rejected writes <b>{formatCount(serverRejects)}</b>
+            </span>
+          )}
+        </div>
+        {reasons.length > 0 && (
+          <div className="t-meta admin-muted" style={{ marginTop: 4 }}>
+            withheld because: {reasons.map(([k, n]) => `${k} ${formatCount(n)}`).join(' · ')}
+          </div>
+        )}
+        {suppressed === 0 && eligExp === 0 && (
+          <div className="t-meta admin-muted" style={{ marginTop: 4 }}>
+            No targeting data yet — these fill in once the eligibility build is deployed.
+          </div>
+        )}
+      </div>
+
       {groups.length === 0 && (
         <PanelNote>
           No upsell exposures recorded in the last {days}d yet — up_exposure_summary rows

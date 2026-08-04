@@ -88,7 +88,7 @@ test('an already-paid user is routed to manage billing, not a second checkout', 
 });
 
 test('the in-app upgrade modal matches the pricing page copy', async ({ page }) => {
-  await page.goto('/?local=1&reset=1&tier=demo');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=60');
 
   const chip = page.locator('.upgrade-chip');
   await expect(chip).toBeVisible();

@@ -164,6 +164,13 @@ export function qaShareNoPrefetch() {
 //
 //   /pricing?local=1&tier=paid&plan=annual&cards=42&cancel=1
 //
+// &cards / &limit also drive upsell eligibility (lib/upsellEligibility.js), so
+// every branch of the pitch-targeting rule is reachable from a URL:
+//   /?local=1&tier=demo&cards=0            → suppressed, no_cards
+//   /?local=1&tier=demo&cards=45           → eligible (invested), chip visible
+//   /?local=1&tier=demo&cards=95           → eligible, urgent pressure
+//   /?local=1&tier=demo&cards=45&limit=200 → suppressed (45/200 is only 22%)
+//
 // Returns the same shape useMyTier exposes, or null when not overriding.
 export function qaTierOverride() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return null;
@@ -174,6 +181,8 @@ export function qaTierOverride() {
   return {
     tier,
     demoCardCount:      Number(q.get('cards') ?? 0),
+    bonusCardCredits:   0,
+    effectiveCardLimit: Number(q.get('limit') ?? 100),
     subscriptionStatus: q.get('substatus') || (tier === 'paid' ? 'active' : null),
     currentPeriodEnd:   q.get('periodend') || null,
     cancelAtPeriodEnd:  q.get('cancel') === '1',

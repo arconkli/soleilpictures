@@ -129,6 +129,15 @@ export function createUpsellExposure({
       cap_pct: cards != null && limit != null ? Math.round((cards / limit) * 100) : null,
       demo_cards: cards,
       acct_days: acctDays,
+      // Targeting state at the moment of exposure. Set on the envelope rather
+      // than per-event so ONE edit covers pricing_view, pricing_creator_intent,
+      // up_trace and up_exposure_summary — which is what makes "intent rate
+      // among people we actually meant to pitch" answerable. Without it the
+      // denominator is polluted by day-one users who were never prospects, and
+      // the conversion rate is meaningless in both directions.
+      elig: typeof st.elig === 'boolean' ? st.elig : null,
+      elig_reason: st.eligReason ?? null,
+      pressure: st.pressure ?? null,
     };
   }
 

@@ -74,14 +74,34 @@ test('envelope carries the full schema and derives cap_pct/acct_days', () => {
   assert.deepEqual(env, {
     surface: 'modal', header: 'cap-hit', via: 'cap_hit', copy_rev: 'studio_v1',
     exposure_n: 1, tier: 'demo', cap_pct: 90, demo_cards: 90, acct_days: 5,
+    // Targeting state. Null here because this caller didn't supply it — the
+    // envelope reports "not measured" rather than guessing a value.
+    elig: null, elig_reason: null, pressure: null,
   });
   const bare = exposure({ tier: null, userState: null });
   const benv = bare.envelope();
   assert.deepEqual(
-    [benv.tier, benv.cap_pct, benv.demo_cards, benv.acct_days],
-    [null, null, null, null],
+    [benv.tier, benv.cap_pct, benv.demo_cards, benv.acct_days, benv.elig, benv.elig_reason, benv.pressure],
+    [null, null, null, null, null, null, null],
     'missing state is null, never NaN/undefined',
   );
+});
+
+test('envelope threads the eligibility state when the caller supplies it', () => {
+  setup();
+  const x = exposure({
+    userState: { demoCardCount: 95, cardLimit: 100, elig: true, eligReason: 'invested', pressure: 'urgent' },
+  });
+  const env = x.envelope();
+  assert.equal(env.elig, true);
+  assert.equal(env.elig_reason, 'invested');
+  assert.equal(env.pressure, 'urgent');
+
+  // false must survive as false, not collapse to null — a suppressed-but-shown
+  // exposure (e.g. the cap-hit wall, which ignores eligibility) is a real case.
+  const y = exposure({ userState: { demoCardCount: 2, cardLimit: 100, elig: false, eligReason: 'same_day', pressure: 'none' } });
+  assert.equal(y.envelope().elig, false);
+  assert.equal(y.envelope().elig_reason, 'same_day');
 });
 
 test('update() refreshes what envelope() sees (tier/userState resolve async)', () => {

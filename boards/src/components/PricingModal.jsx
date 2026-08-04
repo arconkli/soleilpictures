@@ -23,12 +23,30 @@ import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { FeatureList, PlanToggle, CreatorPriceRow } from './PricingBits.jsx';
-import { CTA, CREATOR_FEATURES, PRICING, COPY_REV } from '../lib/billingCopy.js';
+import { CTA, CREATOR_FEATURES, PRICING, COPY_REV, capHitSummary } from '../lib/billingCopy.js';
+import { useStorageUsage } from '../hooks/useStorageUsage.js';
+import { evaluateUpsell } from '../lib/upsellEligibility.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 
-export function PricingModal({ onClose, header = null, surface = 'modal', via = null }) {
+export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null }) {
   const { user } = useAuth();
   const { tier, demoCardCount, effectiveCardLimit } = useMyTier({ userId: user?.id });
+  // Only the wall gets personalized, so only the wall pays for the extra RPC.
+  const storage = useStorageUsage({ enabled: header === 'cap-hit' });
+  const capStats = header === 'cap-hit'
+    ? capHitSummary({ cards: demoCardCount, clusters: clusterCount, storageBytes: storage.used })
+    : null;
+  // Recomputed here rather than passed in: PricingModal is mounted from five
+  // places, and every exposure should carry the same targeting state whether or
+  // not its caller happened to thread it through.
+  const elig = evaluateUpsell({
+    tier,
+    demoCardCount,
+    cardLimit: effectiveCardLimit,
+    accountAgeDays: user?.created_at
+      ? Math.max(0, Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86400000))
+      : 0,
+  });
   const [plan, setPlan]   = useState('monthly'); // monthly-first: annual-default drove pricing abandons (24/28 in 30d)
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
@@ -45,7 +63,10 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     surface, header, via,
     uid: user?.id, tier,
     userState: tier != null
-      ? { demoCardCount, cardLimit: effectiveCardLimit, signupAt: user?.created_at }
+      ? {
+          demoCardCount, cardLimit: effectiveCardLimit, signupAt: user?.created_at,
+          elig: elig.eligible, eligReason: elig.reason, pressure: elig.pressure,
+        }
       : { signupAt: user?.created_at },
     getRootEl: () => modalRef.current,
   });
@@ -127,7 +148,11 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
             <>
               <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
               <h2 className="upgrade-title">Your work outgrew the demo.</h2>
-              <p className="upgrade-sub t-body">You've built enough to feel it. Creator lifts the cap — and every card you've already made stays exactly where it is.</p>
+              {/* Their numbers, not ours. This is the one screen where the
+                  reader is provably motivated — and provably not reading the
+                  feature list — so it leads with what they've actually built. */}
+              {capStats && <p className="upgrade-caphit-stats t-body">You've built {capStats}.</p>}
+              <p className="upgrade-sub t-body">Creator lifts the cap — and every card you've already made stays exactly where it is.</p>
             </>
           ) : header === 'first-value' ? (
             <>
@@ -158,7 +183,12 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
 
           {!alreadyPaid && <CreatorPriceRow plan={plan} />}
 
-          <FeatureList features={CREATOR_FEATURES} />
+          {/* At the wall the feature list moves BELOW the CTA so the price, the
+              user's own totals and the button are the whole of the first read.
+              It is demoted rather than deleted: the rows keep their data-up-feat
+              markers, so up_feature_hover can still say whether the demotion
+              changed what gets read. Row indices are unaffected by the move. */}
+          {header !== 'cap-hit' && <FeatureList features={CREATOR_FEATURES} />}
 
           {error && <div className="auth-error t-meta">{error}</div>}
 
@@ -168,6 +198,8 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
               ? (alreadyPaid ? CTA.manageBillingBusy : CTA.getCreatorBusy)
               : (alreadyPaid ? CTA.manageBilling : CTA.getCreator)}
           </button>
+
+          {header === 'cap-hit' && <FeatureList features={CREATOR_FEATURES} className="pricing-features upgrade-features-after" />}
         </article>
 
         {/* Card-count contexts, EXCEPT the wall itself: bonus cards from inviting
