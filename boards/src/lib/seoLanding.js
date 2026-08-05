@@ -40,6 +40,79 @@ const SIGNUP = (campaign) =>
 
 const PAGES = [
   // ────────────────────────────────────────────────────────────────────────
+  // SOLEIL SCOUT — the zero-UI wedge. Its own top-level path (not under
+  // /tools/) because it's a distinct product surface, not another
+  // "X maker" page, and because the whole pitch is that there's nothing
+  // to open. `heroDemo` swaps the static board screenshot for the live
+  // chat→canvas demo (see pages/ScoutDemo.jsx); it stays a STRING because
+  // this module must remain pure data — the Worker imports it too.
+  //
+  // COPY HONESTY: iMessage is the only confirmed transport. Photon lists
+  // SMS/RCS as included but ships no provider doc for it, and their own
+  // FAQ asks when it's coming. Nothing here promises Android until that's
+  // answered — see the FAQ entry, which says so plainly.
+  // ────────────────────────────────────────────────────────────────────────
+  {
+    path: '/scout',
+    kind: 'tool',
+    title: 'Soleil Scout — Text Your Location Photos Onto a Board',
+    metaDescription:
+      'Text photos, links and notes from set. They land arranged on an infinite canvas, grouped by scene. No app to install, no login, no forms.',
+    h1: 'Text your scout photos. Get a board.',
+    subhead:
+      'Shoot the location, text the photos, keep walking. Soleil Scout files them onto a canvas while you are still on site.',
+    answer:
+      'Soleil Scout is a text-message ingest bot for film crews. Send photos, links or notes from your phone and they land on an infinite Soleil Clusters canvas, automatically grouped and arranged by what you said. There is no app to install and no signup — your board and account are created the first time you text.',
+    updated: '2026-08-05',
+    heroDemo: 'scout',
+    cta: { label: 'Start scouting — free', sub: 'No app. No signup. Text and it exists.' },
+    stepsHeading: 'How Soleil Scout works',
+    steps: [
+      { t: 'Text the number', d: 'Send your first photo. A board and an account are created behind you — no form, no password.' },
+      { t: 'Say what it is', d: 'Add "Scene 4 diner" or "power drops look sketchy". Scout reads it and titles the group.' },
+      { t: 'Keep shooting', d: 'Send twelve more. They batch into one tidy grid instead of twelve replies and twelve piles.' },
+      { t: 'Tap the link', d: 'Land on your canvas, signed in, with exactly the photos you just sent already selected.' },
+      { t: 'File it later', d: 'Say "put these in Diner Recce" whenever you want. Until then it all waits in your Scout Inbox.' },
+    ],
+    sections: [
+      {
+        heading: 'The camera roll is where location photos go to die',
+        body: 'A tech scout produces two hundred photos in an afternoon, shot across six rooms in three buildings, and every one lands in the same undifferentiated camera roll. By the time you are at a laptop you have lost which parking lot had the loading dock and which of the four kitchens had the good window. Scout fixes that at the moment of capture, not hours later: you say what you are looking at while you are looking at it, and the board is organized before you get back to the car.',
+        bullets: [
+          'Photos group under what you called them, not the order you shot them',
+          'A note lands beside the photos it refers to, not at the bottom of a list',
+          'Links to listings or reference videos become real cards, not blue text',
+        ],
+      },
+      {
+        heading: 'Nothing to install, on purpose',
+        body: 'Location managers, gaffers and ADs are not going to install a new app in a parking lot with one bar of signal. Scout works in the messages app that is already open on their phone. There is no account to create, because texting it creates one; no password, because there is nothing to log into; and no onboarding, because the first photo is the onboarding. When you finally do open the canvas, the link signs you in.',
+      },
+      {
+        heading: 'It batches like a person would',
+        body: 'Sending twelve photos means twelve separate messages arriving seconds apart. A naive bot replies twelve times and makes twelve piles. Scout waits for you to finish, then does one layout pass and sends one confirmation — "12 photos → Scene 4 — Diner" — with a link to exactly those twelve cards. If the canvas is already open on a laptop back at the office, they appear there live while you are still standing in the driveway.',
+      },
+      {
+        heading: 'Your photos, at full resolution, on a real canvas',
+        body: 'What arrives is not a chat log. It is a Soleil Clusters board — an infinite canvas you can rearrange, draw on, share with one link, and build a shot list or a look book from. The same board your director opens on a laptop is the one you were feeding from a phone an hour earlier, and everyone can be in it at once.',
+        bullets: [
+          'Real cards you can move, group, and connect with arrows',
+          'Share the whole board with one link, no account needed to view',
+          'Free to start — 100 cards, unlimited boards and collaborators',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Do I need to install anything?', a: 'No. You text a number from the messages app already on your phone. There is no app to download, no account to create, and no password. Your board exists from the first photo you send.' },
+      { q: 'Does it work on Android?', a: 'Scout runs over iMessage today, so it works on iPhone. Android support depends on SMS/RCS delivery, which is not live yet — if you are on Android, use the web app at clusters.soleilpictures.com and drag your photos in.' },
+      { q: 'What happens to my photos?', a: 'They upload at full resolution to your own private board. Nobody else can see them unless you share the board. Photos sent over iMessage keep their original quality rather than being compressed the way MMS attachments are.' },
+      { q: 'How does it know where to put things?', a: 'It reads what you wrote. Text "Scene 4 diner" with five photos and it creates a titled group for them. Say "put these in Diner Recce" and it files everything there from then on. If you say nothing, it all waits in your Scout Inbox.' },
+      { q: 'Is it free?', a: 'Yes, to start. The free tier covers 100 cards across unlimited boards, with collaborators included. Creator ($25/mo) lifts the card cap and adds 100GB of storage and any file type.' },
+      { q: 'Can I use it with a board I already have?', a: 'Yes. Connect your existing Soleil account from Settings, then say "put these in <board name>" and Scout files straight into it.' },
+    ],
+    related: ['/tools/mood-board-maker', '/tools/shot-list-maker', '/tools/look-book-maker', '/use-cases'],
+  },
+  // ────────────────────────────────────────────────────────────────────────
   // TOOL PAGES — highest commercial intent (people searching to DO the thing)
   // ────────────────────────────────────────────────────────────────────────
   {
