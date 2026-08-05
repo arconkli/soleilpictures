@@ -35,6 +35,7 @@ import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
 
 const TABS = [
   { id: 'profile',       label: 'Profile' },
+  { id: 'scout',         label: 'Scout' },
   { id: 'invite',        label: 'Invite & earn' },
   { id: 'billing',       label: 'Billing' },
   { id: 'notifications', label: 'Notifications' },
@@ -199,10 +200,14 @@ export function SettingsPanel({
   //   account   = personal identity stuff (Profile + Billing + Notifications)
   //   workspace = cog-style settings (Defaults/Theme/Display)
   //   full      = every tab
+  // Scout is personal identity (which phone is bound to WHICH account), not a
+  // workspace setting — so it lives with Profile/Billing, not with
+  // Defaults/Theme/Display.
+  const ACCOUNT_TABS = new Set(['profile', 'scout', 'invite', 'billing', 'notifications']);
   const visibleTabs = mode === 'account'
-    ? TABS.filter(t => t.id === 'profile' || t.id === 'invite' || t.id === 'billing' || t.id === 'notifications')
+    ? TABS.filter(t => ACCOUNT_TABS.has(t.id))
     : mode === 'workspace'
-      ? TABS.filter(t => t.id !== 'profile' && t.id !== 'invite' && t.id !== 'billing' && t.id !== 'notifications')
+      ? TABS.filter(t => !ACCOUNT_TABS.has(t.id))
       : TABS;
   const [tab, setTab] = useState(visibleTabs[0]?.id || 'profile');
   // If the user reopens the panel in a different mode, the previously
@@ -267,6 +272,9 @@ export function SettingsPanel({
           <div className="settings-pane">
             {tab === 'profile' && (
               <ProfileTab user={user} workspaceId={workspaceId} onSaved={onSaved} />
+            )}
+            {tab === 'scout' && (
+              <ScoutTab user={user} />
             )}
             {tab === 'invite' && (
               <InviteTab user={user} />
@@ -710,6 +718,128 @@ function ReferralStat({ label, value, highlight }) {
                     color: highlight ? 'var(--soleil, #ffa500)' : 'var(--text-1, inherit)',
                     fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       <div className="settings-billing-label" style={{ marginTop: 2 }}>{label}</div>
+    </div>
+  );
+}
+
+// Soleil Scout — connect a phone to THIS account.
+//
+// Two directions exist for linking. This is the web-first one: mint a
+// short-lived code here, text it to the bot, and the bot binds the handle.
+// It's one tap and never has to email anybody.
+//
+// Codes are minted lazily (on open, not on mount of the whole panel) and the
+// RPC reuses an unclaimed one rather than littering the table, so reopening
+// this tab shows the same code instead of invalidating what the user already
+// half-typed into their phone.
+function ScoutTab({ user }) {
+  const feedback = useFeedback();
+  const [code, setCode] = useState(null);
+  const [identities, setIdentities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        // scout_identities is self-readable by RLS (0206); everything else in
+        // the Scout schema is service-role only.
+        const [codeRes, idRes] = await Promise.all([
+          supabase.rpc('scout_create_link_code', { p_ttl_minutes: 15 }),
+          supabase.from('scout_identities').select('platform,handle,created_at').order('created_at'),
+        ]);
+        if (!alive) return;
+        if (codeRes.error) setErr(true); else setCode(codeRes.data || null);
+        setIdentities(idRes.data || []);
+      } catch (_) {
+        if (alive) setErr(true);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [user?.id]);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      feedback.toast({ type: 'success', message: 'Code copied.' });
+    } catch (_) {
+      feedback.toast({ type: 'error', message: 'Couldn’t copy — select the code and copy it manually.' });
+    }
+  };
+
+  // Mask the middle of a phone number: this panel can be open on a shared
+  // screen, and the last four are enough to tell two devices apart.
+  const maskHandle = (h) => {
+    const s = String(h || '');
+    if (s.includes('@')) return s;
+    return s.length > 6 ? `${s.slice(0, 3)}…${s.slice(-4)}` : s;
+  };
+
+  return (
+    <div className="settings-section">
+      <h3 className="settings-section-title">Soleil Scout</h3>
+      <p className="settings-section-hint">
+        Text photos, links and notes from set and they land on your canvas —
+        {' '}no app, nothing to open. Connect your phone once and everything you
+        {' '}send files into <b>your</b> boards.
+      </p>
+
+      {identities.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div className="settings-billing-label">Connected</div>
+          {identities.map((i) => (
+            <div key={`${i.platform}:${i.handle}`}
+                 style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6, fontSize: 13 }}>
+              <span aria-hidden="true">✓</span>
+              <b style={{ fontVariantNumeric: 'tabular-nums' }}>{maskHandle(i.handle)}</b>
+              <span style={{ opacity: 0.6 }}>{i.platform === 'imessage' ? 'iMessage' : i.platform}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="settings-empty" style={{ marginTop: 14 }}>Loading…</div>
+      ) : err || !code ? (
+        <div className="settings-empty" style={{ marginTop: 14 }}>
+          Couldn’t generate a code. Reopen this tab to try again.
+        </div>
+      ) : (
+        <>
+          <div style={{ marginTop: 18 }} className="settings-billing-label">
+            {identities.length ? 'Connect another phone' : 'Connect your phone'}
+          </div>
+          <p className="settings-section-hint" style={{ marginTop: 4 }}>
+            Text this code to Soleil Scout from the phone you want to connect.
+            {' '}It expires in 15 minutes.
+          </p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              readOnly
+              value={code}
+              onFocus={(e) => e.target.select()}
+              aria-label="Your Scout connect code"
+              style={{
+                flex: '0 1 190px', minWidth: 0, padding: '9px 12px', borderRadius: 10,
+                border: '1px solid var(--line-1, rgba(255,255,255,.14))',
+                background: 'var(--surface-2, rgba(255,255,255,.04))',
+                color: 'var(--text-1, inherit)',
+                fontSize: 18, fontWeight: 600, letterSpacing: '0.16em',
+                fontFamily: 'var(--font-mono, ui-monospace, monospace)',
+              }}
+            />
+            <button type="button" className="settings-btn settings-btn-primary" onClick={copy}>
+              Copy code
+            </button>
+          </div>
+          <p className="settings-section-hint" style={{ marginTop: 12 }}>
+            New to Scout? <a href="/scout">See how it works</a>.
+          </p>
+        </>
+      )}
     </div>
   );
 }
