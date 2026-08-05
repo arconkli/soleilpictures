@@ -18,6 +18,7 @@
 import { handleTagsRoute } from './worker-tags.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
+import { handleScoutSession, handleScoutSessionMint } from './worker-scout.js';
 import { runCompactionJob1 } from './worker-compaction.js';
 // Self-authored SEO landing pages (tool / "alternative to" / hub). Pure-data
 // registry shared with the React component so the crawlable server-rendered
@@ -313,6 +314,11 @@ export default {
     // as a contentless Cloudflare 500. await so rejected promises are caught.
     try {
       if (url.pathname === '/api/og') return await handleOg(url, request);
+      // Soleil Scout instant session — trades a token texted to someone's phone
+      // for a real Supabase session. Must be intercepted BEFORE env.ASSETS, or
+      // the SPA fallback swallows it and the user lands signed-out.
+      if (url.pathname.startsWith('/s/')) return await handleScoutSession(url, request, env);
+      if (url.pathname === '/api/scout/session') return await handleScoutSessionMint(request, env);
       if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
       if (url.pathname.startsWith('/api/seo/')) return await handleSeoRoute(url, request, env);
       if (url.pathname.startsWith('/api/ai/')) return await handleAiRoute(url, request, env);
