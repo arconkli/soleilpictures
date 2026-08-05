@@ -13,6 +13,38 @@
 
 import { runWorkersAiChat, parseJsonLoose } from '../worker-llm.js';
 
+// Workers AI is reachable two ways, and Scout needs both: the `AI` binding when
+// running inside the Worker, and the REST API from the Node ingest service
+// (which exists because Photon's iMessage provider needs gRPC + child_process
+// and therefore cannot run in a Worker). Same model, same free allocation.
+async function runChat(env, model, system, user, opts) {
+  if (env?.AI) return runWorkersAiChat(env, model, system, user, opts);
+
+  if (!env?.CF_ACCOUNT_ID || !env?.CF_AI_TOKEN) throw new Error('no Workers AI transport configured');
+  const res = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/ai/run/${model}`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${env.CF_AI_TOKEN}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        max_tokens: opts?.max_tokens ?? 1024,
+        temperature: opts?.temperature ?? 0.2,
+      }),
+      signal: AbortSignal.timeout(20_000),
+    },
+  );
+  if (!res.ok) throw new Error(`workers-ai ${res.status}`);
+  const body = await res.json();
+  return body?.result?.response || '';
+}
+
 // 8b rather than the 3b used for candidate classification: the `topic` becomes
 // a visible section header on the user's canvas, and 3b mangles film vocabulary
 // ("tech scout", "gaffer", "recce", "Scene 4 int. diner"). Still free tier.
@@ -59,7 +91,7 @@ export async function extractIntent(env, { text, attachmentCount = 0 }) {
   // asking a model to label an empty string.
   if (!raw && attachmentCount === 0) return fallbackIntent('');
   if (!raw) return { topic: null, action: 'ingest', board: null, note: null };
-  if (!env?.AI) return fallbackIntent(raw);
+  if (!env?.AI && !(env?.CF_ACCOUNT_ID && env?.CF_AI_TOKEN)) return fallbackIntent(raw);
 
   const user = [
     `Message: ${raw.slice(0, 800)}`,
@@ -67,7 +99,7 @@ export async function extractIntent(env, { text, attachmentCount = 0 }) {
   ].join('\n');
 
   try {
-    const out = await runWorkersAiChat(env, MODEL, SYSTEM, user, {
+    const out = await runChat(env, MODEL, SYSTEM, user, {
       max_tokens: 200, temperature: 0.1,
     });
     const parsed = parseJsonLoose(out);
