@@ -40,17 +40,26 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // with reconnection and awareness, and we want one short, deterministic
 // push-then-leave. Room is the board id on the default ("main") party, matching
 // `new YPartyKitProvider(HOST, boardId, ...)` in yPartyKit.js:62.
+//
+// Uses the STANDARD WebSocket constructor rather than Cloudflare's
+// fetch-with-Upgrade extension, so this file runs unchanged in the Node ingest
+// service (Node 22+ ships a global WebSocket). Resolves only once the socket is
+// actually open — the caller starts the Yjs handshake immediately and would
+// otherwise race the connection.
 async function connectPeer(env, boardId, accessToken) {
   const host = env.PARTYKIT_HOST || 'soleil-boards-party.arconkli.partykit.dev';
-  const url = `https://${host}/parties/main/${encodeURIComponent(boardId)}`
+  const url = `wss://${host}/parties/main/${encodeURIComponent(boardId)}`
     + `?access_token=${encodeURIComponent(accessToken)}`;
 
-  const res = await fetch(url, { headers: { Upgrade: 'websocket' } });
-  if (res.status !== 101 || !res.webSocket) {
-    throw new Error(`partykit upgrade failed: ${res.status}`);
-  }
-  const ws = res.webSocket;
-  ws.accept();
+  const ws = new WebSocket(url);
+  ws.binaryType = 'arraybuffer';
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('partykit connect timeout')), CONNECT_TIMEOUT_MS);
+    const done = (fn, err) => { clearTimeout(timer); fn(err); };
+    ws.addEventListener('open', () => done(resolve), { once: true });
+    ws.addEventListener('error', () => done(reject, new Error('partykit connect failed')), { once: true });
+    ws.addEventListener('close', () => done(reject, new Error('partykit closed before open')), { once: true });
+  });
   return ws;
 }
 
