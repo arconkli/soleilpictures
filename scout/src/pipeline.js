@@ -115,9 +115,15 @@ async function runCommand(cfg, { command, arg }, ctx) {
 // `burst` is { platform, threadKey, handle, service, texts[], attachments[] }
 // where attachments are { bytes, mimeType, name }.
 export async function runBurst(cfg, r2, burst) {
-  const handle = normalizeHandle(burst.handle);
+  // Normalize ONCE, with the provider's country hint — a national-format number
+  // from outside North America is indistinguishable from a US number without it.
+  const handle = normalizeHandle(burst.handle, burst.country);
   const id = await resolveOrCreateIdentity(cfg, {
-    platform: burst.platform, handle, threadKey: burst.threadKey, service: burst.service,
+    platform: burst.platform,
+    handle: burst.handle,
+    threadKey: burst.threadKey,
+    service: burst.service,
+    country: burst.country,
   });
 
   const ctx = {

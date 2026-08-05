@@ -49,6 +49,7 @@ export function makeBatcher({ waitMs = 20_000, maxWaitMs = 90_000, onFlush }) {
             threadKey: msg.threadKey,
             handle: msg.handle,
             service: msg.service,
+            country: msg.country,
             space: msg.space,
             texts: [],
             attachments: [],

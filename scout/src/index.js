@@ -96,6 +96,9 @@ async function main() {
         threadKey: space.id,
         handle,
         service: message?.sender?.service || null,
+        // ISO country for the sender. Without it a national-format number from
+        // outside North America normalizes to a plausible-but-wrong US number.
+        country: message?.sender?.country || null,
         space,
       };
 
