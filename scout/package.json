@@ -1,0 +1,23 @@
+{
+  "name": "soleil-scout",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Soleil Scout — text photos, links and notes onto a Clusters canvas.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "dry": "node src/dryrun.js"
+  },
+  "dependencies": {
+    "spectrum-ts": "^12.7.0",
+    "heif2jpeg": "^0.1.6",
+    "aws4fetch": "^1.0.20",
+    "yjs": "^13.6.30",
+    "y-protocols": "^1.0.6",
+    "lib0": "^0.2.99"
+  }
+}

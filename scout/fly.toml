@@ -1,0 +1,34 @@
+# Soleil Scout — Fly.io deployment.
+#
+# Build from the REPO ROOT, not from scout/, because the image needs the shared
+# ingest modules under boards/:
+#
+#   fly deploy --config scout/fly.toml --dockerfile scout/Dockerfile .
+
+app = "soleil-scout"
+primary_region = "sjc"
+
+[build]
+
+[env]
+  APP_ORIGIN = "https://clusters.soleilpictures.com"
+  PARTYKIT_HOST = "soleil-boards-party.arconkli.partykit.dev"
+  R2_BUCKET = "soleil-boards-images"
+  SCOUT_BURST_MS = "20000"
+
+# No [http_service]. Scout holds an OUTBOUND gRPC stream to Photon and never
+# accepts inbound HTTP, so there is nothing to route and nothing to expose.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+# Run exactly ONE machine:
+#
+#   fly scale count 1 --config scout/fly.toml
+#
+# Duplicate delivery is already safe — scout_log_ingest (0206) is a Postgres
+# unique constraint on (platform, provider_message_id), so it dedupes across
+# processes, not just within one. The reason for a single machine is BATCHING:
+# each process debounces in its own memory, so a burst split across two
+# machines becomes two layout passes and two replies for one dump of photos.
+

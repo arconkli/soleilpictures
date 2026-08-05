@@ -2,6 +2,14 @@
 *.log
 node_modules/
 
+# Secrets. THIS REPO IS PUBLIC — a service-role key or R2 credential committed
+# here is disclosed the moment it's pushed. boards/scripts/.gitignore already
+# covered its own .env; this covers every other directory (scout/, future
+# services) so a new one can't be missed.
+.env
+.env.*
+!.env.example
+
 dist/
 
 # local caches / session artifacts
