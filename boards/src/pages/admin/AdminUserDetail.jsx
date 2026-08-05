@@ -19,6 +19,7 @@ import { formatDuration } from '../../lib/formatDuration.js';
 import {
   formatCount, formatMoney, formatExpires, fmtDate, relativeTime, formatBytes,
 } from '../../lib/adminFormat.js';
+import { countryName, countryFlag } from '../../lib/countries.js';
 import { StatusPill } from './AdminPills.jsx';
 import { AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminUserRowMenu } from './AdminUserRowMenu.jsx';
@@ -116,7 +117,7 @@ function AcquisitionSection({ acq }) {
   );
 }
 
-function EngagementSection({ eng, tier, lastSignInAt, device }) {
+function EngagementSection({ eng, tier, lastSignInAt, device, geo }) {
   if (!eng) return null;
   const last = device?.last;
   const others = Array.isArray(device?.breakdown) ? device.breakdown : [];
@@ -150,6 +151,21 @@ function EngagementSection({ eng, tier, lastSignInAt, device }) {
               <span className="is-muted">{[last.os, last.browser].filter(Boolean).map((x) => ` · ${x}`).join('')}</span>
             </>
           ) : <span className="is-muted">No device data yet</span>}
+        </Row>
+        {/* Country is null for accounts that predate country capture — that's
+            forward-only, not missing data, so say so rather than showing a
+            blank row. signup_country only exists for accounts created since. */}
+        <Row label="Country">
+          {geo?.country || geo?.signup_country ? (
+            <>
+              <span className="is-strong">
+                {countryFlag(geo.country || geo.signup_country)} {countryName(geo.country || geo.signup_country)}
+              </span>
+              {geo.signup_country && geo.signup_country !== geo.country && (
+                <span className="is-muted"> · signed up from {countryName(geo.signup_country)}</span>
+              )}
+            </>
+          ) : <span className="is-muted">No country data yet</span>}
         </Row>
         {others.length > 1 && (
           <Row label="Devices used">
@@ -356,7 +372,7 @@ export function AdminUserDetail({
           <DetailSection title="Activation" icon={Sparkle}>
             <Timeline activation={detail?.activation} />
           </DetailSection>
-          <EngagementSection eng={detail?.engagement} tier={detail?.identity?.tier || row.tier} lastSignInAt={row.last_sign_in_at} device={detail?.device} />
+          <EngagementSection eng={detail?.engagement} tier={detail?.identity?.tier || row.tier} lastSignInAt={row.last_sign_in_at} device={detail?.device} geo={detail?.geo} />
           <BillingSection billing={detail?.billing} />
           <GrantsSection grants={detail?.grants} />
         </div>
