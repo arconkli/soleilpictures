@@ -396,22 +396,38 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // boardId so only the pane showing that board frames it.
   const [recentlyAddedIds, setRecentlyAddedIds] = useState(null);
   const [focusRequest, setFocusRequest] = useState(null); // { boardId, ids:[], token }
-  // Consume a copied card deep link (?board=&card=, from the list detail popout's
-  // "Copy link") once boards are ready: jump to that board in canvas view and
-  // flash the card, then clean the URL. One-shot.
+  // Consume a card deep link once boards are ready: jump to that board in canvas
+  // view, highlight the target(s), then clean the URL. One-shot. Two forms:
+  //
+  //   ?board=&card=      ONE card — the list detail popout's "Copy link".
+  //                      Flashes it.
+  //   ?board=&cards=a,b  MANY cards — what Soleil Scout sends back after an
+  //                      ingest, so "5 photos → Scene 4" lands you on exactly
+  //                      those five, selected and framed. Routed through
+  //                      focusRequest, whose consumer (CanvasSurface:1616)
+  //                      already retries via rAF until the cards have synced —
+  //                      which matters here, because a bot write can arrive
+  //                      over the wire AFTER the page has loaded.
   const cardLinkDone = useRef(false);
   useEffect(() => {
     if (cardLinkDone.current || !boardsReady) return;
     try {
       const p = new URLSearchParams(window.location.search);
-      const bid = p.get('board'); const cid = p.get('card');
-      if (!bid || !cid || !boards[bid]) return;
+      const bid = p.get('board');
+      const cid = p.get('card');
+      const many = (p.get('cards') || '')
+        .split(',').map(s => s.trim()).filter(Boolean).slice(0, 200);
+      if (!bid || !boards[bid] || (!cid && !many.length)) return;
       cardLinkDone.current = true;
       setStack([bid]);
       setViewOverride(o => (o[bid] === 'canvas' ? o : { ...o, [bid]: 'canvas' }));
-      setTimeout(() => document.dispatchEvent(new CustomEvent('soleil-flash-card', { detail: { boardId: bid, cardId: cid } })), 300);
+      if (many.length) {
+        setFocusRequest({ boardId: bid, ids: many, token: `url-${Date.now()}` });
+      } else {
+        setTimeout(() => document.dispatchEvent(new CustomEvent('soleil-flash-card', { detail: { boardId: bid, cardId: cid } })), 300);
+      }
       const url = new URL(window.location.href);
-      url.searchParams.delete('board'); url.searchParams.delete('card');
+      url.searchParams.delete('board'); url.searchParams.delete('card'); url.searchParams.delete('cards');
       window.history.replaceState({}, '', url.pathname + (url.search || ''));
     } catch (_) {}
   }, [boardsReady, boards]);
