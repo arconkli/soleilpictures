@@ -7,26 +7,36 @@
 // Trailing debounce: every new message pushes the deadline out, so we fire once
 // the user has actually stopped sending. A hard ceiling stops someone uploading
 // continuously for ten minutes from never getting a confirmation.
+//
+// SERIALIZATION, and why it matters: a flush does network I/O (uploads, an LLM
+// call, three writes) and can outlive the next debounce window. Two flushes
+// running concurrently for the same conversation would each load the board,
+// compute layout against what they saw, and write back a full board_state —
+// so the slower one clobbers the faster one's cards and the user silently
+// loses photos. Every key therefore keeps an in-flight promise chain, and a
+// later burst awaits its predecessor instead of racing it.
 
 export function makeBatcher({ waitMs = 20_000, maxWaitMs = 90_000, onFlush }) {
-  const pending = new Map();   // key → { burst, timer, firstAt, flushing, again }
+  const pending = new Map();   // key → { burst, timer, firstAt }
+  const chains = new Map();    // key → Promise of the last flush for that key
 
-  async function flush(key) {
+  function flush(key) {
     const entry = pending.get(key);
-    if (!entry) return;
+    if (!entry) return chains.get(key) || Promise.resolve();
     clearTimeout(entry.timer);
-
-    // A flush already in flight: mark it so we re-run afterwards rather than
-    // interleaving two writes to the same board.
-    if (entry.flushing) { entry.again = true; return; }
-
     pending.delete(key);
-    entry.flushing = true;
-    try {
-      await onFlush(entry.burst);
-    } catch (e) {
-      console.error('[scout] flush failed', key, e?.stack || e?.message || e);
-    }
+
+    // Chain onto whatever is still running for this conversation. Errors are
+    // swallowed into the chain so one bad burst can't poison the next.
+    const prev = chains.get(key) || Promise.resolve();
+    const next = prev
+      .catch(() => {})
+      .then(() => onFlush(entry.burst))
+      .catch((e) => { console.error('[scout] flush failed', key, e?.stack || e?.message || e); })
+      .finally(() => { if (chains.get(key) === next) chains.delete(key); });
+
+    chains.set(key, next);
+    return next;
   }
 
   return {
@@ -45,8 +55,6 @@ export function makeBatcher({ waitMs = 20_000, maxWaitMs = 90_000, onFlush }) {
           },
           timer: null,
           firstAt: Date.now(),
-          flushing: false,
-          again: false,
         };
         pending.set(key, entry);
       }
@@ -57,18 +65,21 @@ export function makeBatcher({ waitMs = 20_000, maxWaitMs = 90_000, onFlush }) {
       if (msg.space) entry.burst.space = msg.space;
 
       clearTimeout(entry.timer);
+      // Clamp to the ceiling measured from the FIRST message, so a continuous
+      // uploader still gets a confirmation instead of an ever-receding one.
       const elapsed = Date.now() - entry.firstAt;
       const delay = Math.max(0, Math.min(waitMs, maxWaitMs - elapsed));
       entry.timer = setTimeout(() => { flush(key); }, delay);
     },
 
-    // Flush everything now — used on shutdown so an in-flight burst isn't lost
-    // when Fly recycles the machine.
+    // Flush everything now and wait for it — used on shutdown so an in-flight
+    // burst isn't lost when Fly recycles the machine.
     async drain() {
-      const keys = [...pending.keys()];
-      await Promise.allSettled(keys.map((k) => flush(k)));
+      for (const key of [...pending.keys()]) flush(key);
+      await Promise.allSettled([...chains.values()]);
     },
 
     get size() { return pending.size; },
+    get inFlight() { return chains.size; },
   };
 }
