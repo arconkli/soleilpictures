@@ -160,7 +160,11 @@ const exploreMatch = /^\/explore\/?$/.test(window.location.pathname);
 // EVERYTHING the Worker 404s under these prefixes (any depth/charset), or a
 // 404 document would boot into AuthGate instead of the not-found page. Bare
 // /tools and /vs never reach the client — the Worker 301s them to /use-cases.
-const seoLandingMatch = /^\/(?:tools\/|vs\/|use-cases(?:\/|$))/i.test(window.location.pathname);
+// /scout is an exact path rather than a prefix — it's the Soleil Scout product
+// page, not another "X maker" — so it's matched here alongside the prefixes.
+// It needs no 404-shape guard in the Worker for the same reason: an exact path
+// either resolves in the registry or falls through to the SPA.
+const seoLandingMatch = /^\/(?:tools\/|vs\/|use-cases(?:\/|$)|scout\/?$)/i.test(window.location.pathname);
 
 // /best/* listicle pages (lib/seoListicles.js) — same shape-match discipline;
 // the Worker 404s unknown /best/* siblings and 301s bare /best to /use-cases.

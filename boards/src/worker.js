@@ -302,7 +302,7 @@ export default {
         && !url.pathname.includes('.')) {
       let p = url.pathname;
       if (p.length > 1 && p.endsWith('/')) p = p.replace(/\/+$/, '') || '/';
-      if (/^\/(tools|vs|best|use-cases|pricing|legal|explore|c)(\/|$)/i.test(p)) p = p.toLowerCase();
+      if (/^\/(tools|vs|best|use-cases|pricing|legal|explore|c|scout)(\/|$)/i.test(p)) p = p.toLowerCase();
       // Bare section prefixes have no page of their own — send them to the hub.
       if (p === '/tools' || p === '/vs' || p === '/best') p = '/use-cases';
       if (p !== url.pathname) {
