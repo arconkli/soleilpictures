@@ -145,6 +145,51 @@ export function buildSectionHeader(topic, subtitle) {
   };
 }
 
+const overlaps = (a, b) =>
+  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+// Only cards with real, finite geometry can participate in collision math. A
+// card carrying NaN or a missing width would poison boundsOfCards() and make
+// every subsequent placement garbage — and such a card can't render anyway.
+function withGeometry(cards) {
+  return (cards || []).filter((c) => (
+    Number.isFinite(c?.x) && Number.isFinite(c?.y)
+    && Number.isFinite(c?.w) && Number.isFinite(c?.h)
+    && c.w > 0 && c.h > 0
+  ));
+}
+
+// HARD GUARANTEE that an ingest never lands on top of existing work.
+//
+// arrangeInFreeSpace already anchors below the bounding box of what it was
+// given, which is correct — but only as correct as its inputs. A card the
+// caller filtered out, a stale read, or a collaborator adding cards between our
+// read and our write can all leave a new card sitting on someone's existing
+// one, and a bot write has no undo story. So after laying out, we verify, and
+// push the whole batch down until nothing intersects.
+//
+// Shifting the batch as ONE unit preserves the grid the layout just produced.
+// Monotonic (shift only ever grows) and iteration-bounded, so it always
+// terminates even against pathological input.
+export function pushClearOf(existing, placed, gap = 24) {
+  const solid = withGeometry(existing);
+  if (!solid.length || !placed.length) return placed;
+
+  let shift = 0;
+  for (let pass = 0; pass < 64; pass++) {
+    let push = 0;
+    for (const card of placed) {
+      const rect = { x: card.x, y: card.y + shift, w: card.w, h: card.h };
+      for (const e of solid) {
+        if (overlaps(rect, e)) push = Math.max(push, (e.y + e.h + gap) - rect.y);
+      }
+    }
+    if (push <= 0) break;
+    shift += push;
+  }
+  return shift > 0 ? placed.map((c) => ({ ...c, y: Math.round(c.y + shift) })) : placed;
+}
+
 // Compose a whole burst into positioned cards.
 //
 //   existingCards — what's already on the board (for non-overlap anchoring)
@@ -172,18 +217,27 @@ export function composeBatch({ existingCards = [], images = [], urls = [], noteT
   // body already starts at the top margin.
   const header = batch[0]?.sectionHeader ? batch.shift() : null;
   const reserve = header ? header.h + 24 : 0;
-  const placed = arrangeInFreeSpace(existingCards, batch, {
+  // Sanitize first: one card with NaN geometry would otherwise poison
+  // boundsOfCards() and place the whole batch somewhere arbitrary.
+  const solid = withGeometry(existingCards);
+  const laid = arrangeInFreeSpace(solid, batch, {
     gap: 24,
     startBelowGap: 64 + reserve,
     margin: 80 + reserve,
   });
+  if (!header) return pushClearOf(solid, laid);
 
-  if (!header) return placed;
-  const minX = Math.min(...placed.map((c) => c.x));
-  const minY = Math.min(...placed.map((c) => c.y));
-  const maxRight = Math.max(...placed.map((c) => c.x + c.w));
-  return [
-    { ...header, x: minX, y: Math.max(8, minY - reserve), w: Math.max(320, maxRight - minX) },
-    ...placed,
-  ];
+  // Position the header over the laid-out batch, then clear the WHOLE group as
+  // one unit. Clearing them separately would be wrong: pushClearOf only moves
+  // down, so a colliding header would be shoved into its own batch.
+  const minX = Math.min(...laid.map((c) => c.x));
+  const minY = Math.min(...laid.map((c) => c.y));
+  const maxRight = Math.max(...laid.map((c) => c.x + c.w));
+  const headerCard = {
+    ...header,
+    x: minX,
+    y: Math.max(8, minY - reserve),
+    w: Math.max(320, maxRight - minX),
+  };
+  return pushClearOf(solid, [headerCard, ...laid]);
 }

@@ -13,6 +13,7 @@ import { imessage } from 'spectrum-ts/providers/imessage';
 import { loadConfig } from './config.js';
 import { makeUploader } from './media.js';
 import { makeBatcher } from './batcher.js';
+import { makeProgress } from './progress.js';
 import { runBurst } from './pipeline.js';
 import { scoutRpc } from '../../boards/src/lib/scoutDb.js';
 
@@ -35,15 +36,21 @@ const batcher = makeBatcher({
   onFlush: async (burst) => {
     const t0 = Date.now();
     const { space } = burst;
+    // One message, edited in place through each stage, ending as the
+    // confirmation — so the thread has a single bubble, not a running
+    // commentary, and never silence while photos upload.
+    const progress = makeProgress(space);
     try {
-      const out = await space.responding(async () => runBurst(cfg, r2, burst));
-      if (out?.reply) await space.send(out.reply);
+      const out = await space.responding(async () => runBurst(cfg, r2, burst, progress));
+      if (out?.reply) await progress.done(out.reply);
       console.log('[scout] burst', {
         platform: burst.platform,
         images: burst.attachments.length,
         texts: burst.texts.length,
         live: out?.live ?? null,
         capped: out?.capped ?? false,
+        answered: out?.answered ?? false,
+        edits: progress.usedEdits,
         ms: Date.now() - t0,
       });
     } catch (e) {

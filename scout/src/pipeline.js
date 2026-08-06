@@ -23,6 +23,12 @@ import { scoutRpc, scoutSelect, scoutSession } from '../../boards/src/lib/scoutD
 import { mintScoutSessionToken } from '../../boards/src/worker-scout.js';
 import { uploadImage, isImage } from './media.js';
 import * as say from './replies.js';
+import { STAGES } from './progress.js';
+import {
+  looksLikeQuestion, matchTopic, renderAnswer, fallbackAnswer,
+  CLASSIFIER_SYSTEM, isValidTopic,
+} from './answers.js';
+import { runWorkersAiChat } from '../../boards/src/worker-llm.js';
 
 // Fetch og metadata through the app's own /api/og route so link cards get the
 // same title/image/favicon a browser paste would produce.
@@ -64,6 +70,11 @@ async function boardUrl(cfg, { boardId, cardIds, isShell, userId }) {
     }
   }
   return `${cfg.APP_ORIGIN}/?${query}`;
+}
+
+async function boardNameFor(cfg, boardId) {
+  const rows = await scoutSelect(cfg, 'boards', `id=eq.${boardId}&select=name`).catch(() => []);
+  return rows?.[0]?.name || 'Scout Inbox';
 }
 
 async function findBoardByName(cfg, workspaceId, name) {
@@ -136,11 +147,36 @@ async function runCommand(cfg, { command, arg }, ctx) {
   }
 }
 
+// ── Questions ────────────────────────────────────────────────────────────────
+//
+// Answer from curated copy, never from the model's imagination. Keywords first
+// (free and instant); a classifier call only when the wording is unusual, and
+// even then it just picks an id — the words are ours.
+async function answerQuestion(cfg, text, ctx) {
+  let topic = matchTopic(text);
+
+  if (!topic && (cfg.AI || (cfg.CF_ACCOUNT_ID && cfg.CF_AI_TOKEN))) {
+    try {
+      const out = await runWorkersAiChat(
+        cfg, '@cf/meta/llama-3.1-8b-instruct', CLASSIFIER_SYSTEM,
+        String(text).slice(0, 400), { max_tokens: 12, temperature: 0 },
+      );
+      const guess = String(out || '').trim().toLowerCase().replace(/[^a-z_]/g, '');
+      if (isValidTopic(guess)) topic = guess;
+    } catch (_) { /* fall through to the menu */ }
+  }
+
+  return topic ? renderAnswer(topic, ctx) : fallbackAnswer(ctx);
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 //
-// `burst` is { platform, threadKey, handle, service, texts[], attachments[] }
-// where attachments are { bytes, mimeType, name }.
-export async function runBurst(cfg, r2, burst) {
+// `burst` is { platform, threadKey, handle, service, country, texts[],
+// attachments[] }, attachments being { bytes, mimeType, name }.
+//
+// `progress` is optional; when present the caller gets narrated stages edited
+// into a single message instead of silence followed by a wall of text.
+export async function runBurst(cfg, r2, burst, progress = null) {
   // Normalize ONCE, with the provider's country hint — a national-format number
   // from outside North America is indistinguishable from a US number without it.
   const handle = normalizeHandle(burst.handle, burst.country);
@@ -171,6 +207,24 @@ export async function runBurst(cfg, r2, burst) {
   const images = burst.attachments.filter((a) => isImage(a.mimeType));
   const urls = extractUrls(text);
   const leftover = textWithoutUrls(text);
+
+  // 2. A question with nothing attached is a conversation, not an ingest.
+  //    Checked BEFORE the capacity pre-flight so someone at their cap can still
+  //    ask "how much is this?" and get an answer instead of the paywall.
+  if (!images.length && !urls.length && leftover && looksLikeQuestion(leftover)) {
+    const boardName = await boardNameFor(cfg, id.boardId);
+    const url = await boardUrl(cfg, {
+      boardId: id.boardId, cardIds: [], isShell: id.isShell, userId: id.userId,
+    });
+    const reply = await answerQuestion(cfg, leftover, {
+      boardName, url, origin: cfg.APP_ORIGIN,
+    });
+    return { reply, isNew: id.isNew, answered: true };
+  }
+
+  await progress?.step(STAGES.received({
+    images: images.length, links: urls.length, notes: leftover ? 1 : 0,
+  }));
 
   // A brand-new user who said nothing yet gets oriented, not confirmed. This is
   // the /start experience, and it's the first link they'll ever tap — so it has
@@ -219,14 +273,16 @@ export async function runBurst(cfg, r2, burst) {
       boardName = found.name;
     }
   } else {
-    const rows = await scoutSelect(cfg, 'boards', `id=eq.${boardId}&select=name`).catch(() => []);
-    if (rows?.[0]?.name) boardName = rows[0].name;
+    boardName = await boardNameFor(cfg, boardId);
   }
 
   // 4. Media → R2. Card ids are minted here so the images row can point at the
   //    exact card that will reference it.
   const uploaded = [];
-  for (const att of takeImages) {
+  for (const [i, att] of takeImages.entries()) {
+    // Narrate per photo — on a slow connection this is the difference between
+    // "it's working" and "it's broken".
+    await progress?.step(STAGES.uploading(i + 1, takeImages.length));
     const cardId = `img-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     try {
       const up = await uploadImage(cfg, r2, {
@@ -250,6 +306,8 @@ export async function runBurst(cfg, r2, burst) {
   } catch (e) {
     console.warn('[scout] no user session, cards will appear on next load:', e?.message);
   }
+
+  await progress?.step(STAGES.arranging(boardName));
 
   let result;
   try {
