@@ -32,11 +32,15 @@ import {
   seedNoteFragmentFromHtml,
   noteFragmentToHtml,
   setNoteCacheFields,
+  noteCommentScope,
 } from '../lib/noteDocState.js';
+import { useAddCommentFlow } from './AddCommentFlow.jsx';
+import { CommentInlinePopover } from './CommentInlinePopover.jsx';
 import { linkifyNoteHtml } from '../lib/noteLinkify.js';
 import { cardHeightForBody } from '../lib/noteMeasure.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 import { setActiveNoteEditor } from '../lib/noteEditorRegistry.js';
+import { startTouchScrollGesture } from '../lib/touchScroll.js';
 import './noteTiptap.css';
 
 const NOTE_AUTOSIZE_MAX = 480;
@@ -47,6 +51,7 @@ export function NoteTiptapSurface({
   html,
   cardId = null,
   boardId = null,
+  currentUser = null,
   awareness = null,
   manuallyResized = false,
   autoFocus = false,
@@ -63,6 +68,16 @@ export function NoteTiptapSurface({
     return ensureNoteFragment(ydoc, cardYMap);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ydoc, cardYMap]);
+
+  // Word-level comments, same stack as the doc editor: the CommentMark carries
+  // the anchor (inside the fragment, so the range survives concurrent edits)
+  // and the thread bodies live in a Y.Map on this card. Notes have no pages and
+  // no margin gutter — the highlighted text itself is the affordance.
+  const commentScope = useMemo(
+    () => (ydoc && cardYMap ? noteCommentScope(ydoc, cardYMap) : null),
+    [ydoc, cardYMap],
+  );
+  const [openThread, setOpenThread] = useState(null); // { id, anchor } | null
 
   const writeRaf = useRef(0);
   const editorRef = useRef(null);
@@ -94,6 +109,29 @@ export function NoteTiptapSurface({
     })],
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
+
+  const addComment = useAddCommentFlow({
+    ydoc,
+    scope: commentScope,
+    activePageId: null,          // notes have no pages
+    currentUser,
+    getEditor: () => editorRef.current,
+    workspaceId,
+    boardId,
+    cardId,
+  });
+
+  const onEditorClick = (e) => {
+    // Commented text opens its thread — the Google-Docs gesture, and the only
+    // affordance notes have (no margin gutter: a note card is small and rides
+    // the canvas zoom, so a fixed-size dot in the margin doesn't work).
+    const commentEl = e.target?.closest?.('.tt-comment[data-comment-id]');
+    if (commentEl) {
+      setOpenThread({ id: commentEl.dataset.commentId, anchor: commentEl.getBoundingClientRect() });
+      return;
+    }
+    onCandidateClick(e);
+  };
 
   const onCandidateClick = (e) => {
     const candEl = e.target?.closest?.('.tt-candidate[data-name]');
@@ -221,8 +259,21 @@ export function NoteTiptapSurface({
   // Register as the active note editor so the bottom toolbar drives it.
   useEffect(() => {
     if (!editor) return undefined;
-    setActiveNoteEditor(editor);
+    setActiveNoteEditor(editor, { openAddComment: addComment.open });
     return () => setActiveNoteEditor(null);
+  }, [editor]);
+
+  // Deleting a thread must also strip its highlight, or the note keeps a dead
+  // underline pointing at nothing. CommentInlinePopover portals to <body>, so
+  // it can't call the editor directly — same window event the doc editor uses.
+  useEffect(() => {
+    if (!editor) return undefined;
+    const onRemove = (e) => {
+      const id = e.detail?.id;
+      if (id != null) { try { editor.commands.removeCommentById(id); } catch (_) {} }
+    };
+    window.addEventListener('soleil-remove-comment-mark', onRemove);
+    return () => window.removeEventListener('soleil-remove-comment-mark', onRemove);
   }, [editor]);
 
   // Write-through card.html + auto-size on every edit (rAF-coalesced).
@@ -282,6 +333,13 @@ export function NoteTiptapSurface({
     if (e.key === 'Escape' && !mention) {
       e.preventDefault();
       editor?.commands.blur();
+      return;
+    }
+    // ⌘⌥M — matches the doc editor's Add-comment shortcut so the gesture is
+    // the same wherever you're typing. No-ops on an empty selection.
+    if ((e.metaKey || e.ctrlKey) && e.altKey && (e.key === 'm' || e.key === 'M' || e.code === 'KeyM')) {
+      e.preventDefault();
+      addComment.open();
     }
   };
 
@@ -315,11 +373,25 @@ export function NoteTiptapSurface({
         editor={editor}
         className="note-edit-wrap"
         onKeyDown={onKeyDown}
-        onClick={onCandidateClick}
-        onPointerDown={(e) => e.stopPropagation()}
+        onClick={onEditorClick}
+        // While editing we stop propagation so canvas drags can't hijack
+        // typing — which also means CanvasSurface's touch-scroll branch never
+        // sees this gesture. Drive the note's own overflow scroll here instead
+        // (`.canvas-wrap { touch-action: none }` rules out a native scroll).
+        // No preventDefault: a tap must still place the caret.
+        onPointerDown={(e) => { startTouchScrollGesture(e); e.stopPropagation(); }}
         onMouseDown={(e) => e.stopPropagation()}
         onDoubleClick={(e) => e.stopPropagation()}
       />
+      {addComment.node}
+      {openThread && commentScope && (
+        <CommentInlinePopover
+          ydoc={ydoc} scope={commentScope} threadId={openThread.id}
+          anchor={openThread.anchor} currentUser={currentUser}
+          workspaceId={workspaceId} boardId={boardId} cardId={cardId}
+          onClose={() => setOpenThread(null)}
+        />
+      )}
       {candidatePrompt && (
         <CandidatePromptPopover
           anchor={candidatePrompt.anchor}

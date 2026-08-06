@@ -170,11 +170,17 @@ html, body, #root {
   overscroll-behavior: none;
 }
 
-/* touch-action: pan-y on html tells the browser to only handle
-   vertical pan natively — horizontal swipes are NOT page gestures.
-   Children that need horizontal pan (canvas-wrap, picker-list with
-   horizontal scroll, etc.) override with their own touch-action. */
-html { touch-action: pan-y; }
+/* Allow BOTH pan axes natively; still no pinch-zoom / double-tap-zoom
+   (that's what listing the pan values instead of `auto` buys us).
+   NOTE: touch-action INTERSECTS down the ancestor chain — a descendant
+   can only ever narrow it, never re-widen it. So the old `pan-y` here
+   silently killed every horizontal finger-scroller in the app
+   (.doc-tb, .tob on phone, .settings-tabs, .picker-list, and a doc
+   sheet zoomed past the viewport width); the "children override with
+   their own touch-action" note that used to live here was not
+   achievable. Elements that must own ALL gestures still narrow to
+   `none` themselves (see .canvas-wrap). */
+html { touch-action: pan-x pan-y; }
 
 body {
   font-family: var(--font-sans);
@@ -3348,26 +3354,24 @@ body {
 }
 
 .arrows-layer { color: var(--ink-3); pointer-events: none; overflow: visible; }
-.arrow-label {
-  font-family: var(--font-mono); font-size: 9.5px;
-  color: var(--ink-2);
-  background: var(--bg-2);
-  padding: 1px 6px;
-  text-align: center;
-  letter-spacing: .04em;
-  white-space: nowrap;
-  border-radius: 2px;
-}
-/* SVG text rendered along the arrow path via <textPath>. A stroked
-   outline in the canvas background keeps it readable against any
-   underlying card or arrow color. */
+/* SVG label, rotated to the arrow's tangent at its midpoint and clamped
+   upright by CanvasSurface. The element carries a scale(1/zoom), so every
+   length here is in real SCREEN pixels at any zoom level.
+
+   Ink is --ink-1, NOT the arrow's own stroke: a pale custom arrow color made
+   the label nearly invisible, and the label is text (read at ink strength),
+   not part of the line. Readability comes from a stroked halo in the canvas
+   background punched out around the glyphs (paint-order draws it first, so
+   the fill lands on top) — it visually breaks the line behind the words. */
 .arrow-label-text {
-  font: 600 10.5px/1 var(--font-sans);
+  font: 600 11px/1 var(--font-sans);
   letter-spacing: .02em;
+  fill: var(--ink-1);
   paint-order: stroke fill;
   stroke: var(--canvas-bg, var(--bg-1));
-  stroke-width: 3.5px;
+  stroke-width: 4px;
   stroke-linejoin: round;
+  stroke-linecap: round;
 }
 /* Arrow color tokens — referenced from arrowGeometry.js. */
 :root {
@@ -12482,6 +12486,11 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   position: sticky; top: 0; z-index: 40;
 }
 .doc-tb::-webkit-scrollbar { display: none; }
+/* Controls must not squash. Flex items shrink by default, so on a narrow
+   viewport every button was compressed toward zero instead of the bar simply
+   scrolling — which it now can, since `html` allows pan-x again (see the
+   touch-action note at the top of this file). The spacer keeps growing. */
+.doc-tb > *:not(.doc-tb-spacer) { flex: 0 0 auto; }
 .doc-tb > * { flex-shrink: 0; }
 
 /* Pane-mode (narrow doc-card-modal-side) — tighten everything so the
@@ -12728,12 +12737,49 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
     0 1px 0 rgba(0, 0, 0, 0.02),
     0 4px 12px rgba(0, 0, 0, 0.04);
 }
+/* Narrow-viewport margin relief for the NON-fitted sheet. These shrink the
+   printed margins to buy text width, which changes the sheet's proportions —
+   fine for prose read on a laptop, wrong the moment the sheet is being scaled
+   to fit (.is-fit-width), where the whole point is that the on-screen box stays
+   a true 8.5×11 so screenplay's wrap column, the paginator and the PDF agree.
+   Hence the .is-fit-width exclusion on both. */
 @media (max-width: 900px) {
-  .doc-editor-wrap:not(.doc-flow) { padding: 72px 56px; }
+  .doc-paper:not(.is-fit-width) .doc-editor-wrap:not(.doc-flow) { padding: 72px 56px; }
 }
 @media (max-width: 640px) {
-  .doc-editor-wrap:not(.doc-flow) { padding: 48px 28px; min-height: 800px; }
+  .doc-paper:not(.is-fit-width) .doc-editor-wrap:not(.doc-flow) { padding: 48px 28px; min-height: 800px; }
 }
+
+/* ── Fit-to-width (DocSurface sets --doc-zoom = availableWidth / 816) ───────
+   Give the scaled sheet as much of the viewport as possible: the paper's own
+   horizontal padding is dead space at this size. DocSurface measures the
+   COMPUTED padding when it derives the zoom, so these two stay in sync
+   automatically — no magic number shared across the JS/CSS boundary. */
+.doc-paper.is-fit-width { padding-left: 8px; padding-right: 8px; }
+/* Screenplay scene numbers live OUTSIDE the sheet box (left/right: -0.5in), so
+   reserve room for them or they're clipped by the paper's overflow. */
+.doc-paper.is-fit-width.show-scene-numbers { padding-left: 30px; padding-right: 30px; }
+/* Pin the sheet to a TRUE 8.5in box so `zoom` has the real geometry to scale.
+   The base wrap is width:100%/max-width:816px — fluid — so on a phone it would
+   otherwise already be ~376px and zoom would shrink it AGAIN, wrecking the very
+   ch-based screenplay column this mode exists to preserve. flex-shrink:0 stops
+   .doc-paper's column flex from squeezing it back. */
+.doc-paper.is-fit-width .doc-editor-wrap {
+  width: 816px;
+  max-width: 816px;
+  flex-shrink: 0;
+}
+/* The margin gutters (comment dots, tag dots) hang OUTSIDE the sheet box —
+   right:-28px / left:-34px — which is fine on a desktop where the paper has
+   room either side, but at fit width the sheet fills the viewport and they were
+   pushed past the edge (measured: the paper's scrollWidth exceeded its
+   clientWidth by exactly these two). Tuck them INSIDE instead: the sheet's own
+   1in/1.5in page margin is empty space, which is where a margin dot belongs
+   anyway, and it scales with the sheet instead of needing a padding
+   counterweight (which would be circular — the paper's padding is an input to
+   the zoom calculation). */
+.doc-paper.is-fit-width .comment-gutter { right: 4px; }
+.doc-paper.is-fit-width .doc-tag-gutter { left: 4px; }
 
 /* ── Prose reflow pages (DocPagination) ────────────────────────────────────
    Flow model: the wrap is a TRANSPARENT page-width column; .doc-pages-bg paints
@@ -12793,10 +12839,13 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   user-select: none;
   pointer-events: none;
 }
+/* Same reasoning as the :not(.doc-flow) narrow rules above: letting the paged
+   prose column go fluid contradicts fit-to-width, where the sheet is scaled
+   whole and DocPagination's 816×1056 / PAGE_STRIDE geometry must hold. */
 @media (max-width: 880px) {
-  .doc-editor-wrap.doc-flow { width: 100%; max-width: 100%; }
-  .doc-page-sheet { width: 100%; }
-  .doc-editor-wrap.doc-flow .tt-editor { padding: 56px 24px 0; }
+  .doc-paper:not(.is-fit-width) .doc-editor-wrap.doc-flow { width: 100%; max-width: 100%; }
+  .doc-paper:not(.is-fit-width) .doc-page-sheet { width: 100%; }
+  .doc-paper:not(.is-fit-width) .doc-editor-wrap.doc-flow .tt-editor { padding: 56px 24px 0; }
 }
 
 /* Suppress any browser-injected focus ring on the contenteditable —
@@ -13690,15 +13739,22 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .tt-img-tb-sep { width: 1px; height: 14px; background: var(--line-2); margin: 0 3px; }
 
 /* ─────── Comment marks + panel ─────── */
+/* Commented text. Clicking it opens the thread (DocPageEditor's
+   handleEditorClick / NoteTiptapSurface), so it carries a resting tint as well
+   as the dotted rule — on touch there is no hover, and a hover-only affordance
+   made every highlight look like decoration. Deliberately faint: a doc with
+   many threads must still read as prose. */
 .tt-comment {
-  background: transparent;
+  background: color-mix(in oklab, var(--soleil, #ffa500) 9%, transparent);
+  border-radius: 2px;
   text-decoration: underline dotted rgba(255, 165, 0,.45);
   text-underline-offset: 4px;
   text-decoration-thickness: 1px;
   cursor: pointer;
   transition: text-decoration-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.tt-comment:hover { text-decoration-color: var(--soleil); background: var(--soleil-soft); }
+.tt-comment:hover,
+.tt-comment.is-open { text-decoration-color: var(--soleil); background: var(--soleil-soft); }
 .doc-comments { display: flex; flex-direction: column; min-height: 0; height: 100%; }
 .doc-comments-toggle {
   padding: 8px 12px;
@@ -14312,6 +14368,20 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .doc-card-icon svg, .doc-card-close svg { width: 18px; height: 18px; }
 .doc-card-icon:hover, .doc-card-close:hover { background: var(--bg-hov); color: var(--ink-0); }
 
+/* Messages toggle in the doc header. Gold is reserved for the ACTIVE state
+   (panel open) — at rest it's neutral ink like its neighbours. The unread
+   marker is a plain dot, not a count: the number already lives in the sidebar
+   and a two-digit badge would unbalance a 36px icon row. */
+.doc-card-messages { position: relative; }
+.doc-card-messages.is-active { color: var(--soleil); background: var(--soleil-soft); }
+.doc-card-messages-dot {
+  position: absolute; top: 6px; right: 6px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--soleil);
+  box-shadow: 0 0 0 2px var(--bg-1);
+  pointer-events: none;
+}
+
 /* Peer-avatar stack in the doc-card modal header. One per workspace
    peer currently inside this card. Hover scales the avatar so it's
    clear the icon is interactive; click jumps to that peer's view.   */
@@ -14834,6 +14904,18 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   overflow: hidden;
   animation: ctx-menu-in var(--dur-base) var(--ease);
 }
+
+/* While a doc-card overlay is up, lift the messages panel above it.
+   .doc-card-modal is z-index 2147483600 and portals to <body>, so fullscreen
+   buried the panel entirely and side mode docked over exactly where it sits —
+   the doc was a dead end for conversation. Scoped to the overlay (via the
+   body flag DocCard sets) rather than raised unconditionally, because the
+   panel must stay BELOW ordinary modals (.modal-bg is z-index 200).
+   The panel is portaled to <body> too, so these are siblings in the root
+   stacking context and the numbers compare directly. */
+body[data-doc-overlay='1'] .msg-panel { z-index: 2147483602; }
+body[data-doc-overlay='1'] .msg-newconv-pop,
+body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
 
 .msg-panel-head {
   display: flex; align-items: center; gap: 8px;
@@ -19187,7 +19269,6 @@ button, [role="button"], a {
   display: flex; flex-direction: column;
   padding-bottom: var(--safe-bottom);
   animation: sheet-up 260ms var(--ease);
-  touch-action: none;
 }
 [data-snap="half"] .sheet-panel { max-height: 50vh; }
 .sheet-grip-row {
@@ -19196,6 +19277,12 @@ button, [role="button"], a {
   /* Generous row: the 4px grip is the drag handle, the padding is the target. */
   padding: 12px 0 8px;
   cursor: grab;
+  /* Own the gesture HERE, not on .sheet-panel. Sheet.jsx arms its
+     swipe-to-dismiss drag only on [data-sheet-grab], so a blanket
+     touch-action:none on the panel bought nothing and — because
+     touch-action intersects down the ancestor chain — made .sheet-body
+     (overflow-y:auto) impossible to finger-scroll in every bottom sheet. */
+  touch-action: none;
 }
 .sheet-grip {
   width: 38px; height: 4px; border-radius: 2px;

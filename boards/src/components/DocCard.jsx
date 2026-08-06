@@ -16,6 +16,7 @@ import { createPortal } from 'react-dom';
 import { cardScope, readDocSummary, initCardDocStore } from '../lib/docState.js';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { Avatar } from './primitives.jsx';
+import { useMessagesUi } from '../hooks/useOpenDm.js';
 import { EditableText } from './EditableText.jsx';
 
 // DocSurface drags the entire TipTap/ProseMirror editor stack (vendor-editor,
@@ -29,6 +30,10 @@ const DocSurface = lazyWithReload(() => import('./DocSurface.jsx').then(m => ({ 
 
 const DEFAULT_SIDE_RATIO = 0.5;
 const RATIO_KEY = 'soleil.boards.docCardSideRatio';
+
+// How many doc-card overlays are currently mounted — drives the
+// body[data-doc-overlay] flag (see DocCardOverlay's presence effect).
+let openOverlayCount = 0;
 
 export function RichDocCard({
   card, ydoc, cardYMap,
@@ -341,8 +346,16 @@ function DocCardOverlay({
   // on this exact page+scroll. Mount once per card, unmount on close.
   useEffect(() => {
     document.dispatchEvent(new CustomEvent('soleil-doccard-mount', { detail: { cardId: card.id }}));
+    // Body flag so CSS can lift the (body-portaled) messages panel above this
+    // overlay while it's up — and only while it's up, so the panel still sits
+    // below ordinary modals the rest of the time. Refcounted: side mode leaves
+    // the canvas live, so a second card can open before the first unmounts.
+    openOverlayCount += 1;
+    document.body.setAttribute('data-doc-overlay', '1');
     return () => {
       document.dispatchEvent(new CustomEvent('soleil-doccard-unmount', { detail: { cardId: card.id }}));
+      openOverlayCount = Math.max(0, openOverlayCount - 1);
+      if (openOverlayCount === 0) document.body.removeAttribute('data-doc-overlay');
     };
   }, [card.id]);
   const emitPage = (pageId) => {
@@ -410,6 +423,12 @@ function DocCardOverlay({
               )}
             </div>
           )}
+          {/* Messages. Fullscreen covers the whole workspace and side mode
+              docks over exactly where the panel lives, so without this the
+              doc is a dead end for conversation — you had to close the
+              document to answer someone. The panel itself is portaled to
+              <body> above this overlay (App.jsx), so it just appears. */}
+          {!isPublic && <DocCardMessagesButton />}
           {/* Mode toggles — hidden on public: side mode's dock layout
               assumes the workspace topbar, and the public viewer always
               opens fullscreen. */}
@@ -464,5 +483,29 @@ function DocCardOverlay({
         </div>
       </div>
     </>
+  );
+}
+
+// Messages toggle for the doc-card header. Reads the workspace-level unread
+// count straight off MessagesUiContext (it lives in App and stays subscribed
+// whether or not the panel is mounted), so the badge here is the same number
+// the sidebar shows. Renders nothing outside a provider — e.g. the /share
+// viewer, which has no inbox.
+function DocCardMessagesButton() {
+  const messagesUi = useMessagesUi();
+  if (!messagesUi) return null;
+  const { unread = 0, open = false, toggle } = messagesUi;
+  return (
+    <button className={`doc-card-icon doc-card-messages${open ? ' is-active' : ''}`}
+            title={unread > 0 ? `Messages (${unread} unread)` : 'Messages'}
+            aria-label="Messages"
+            aria-pressed={open}
+            onClick={() => toggle?.()}>
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+           strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 12a2 2 0 0 1-2 2H7l-4 3V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+      </svg>
+      {unread > 0 && <span className="doc-card-messages-dot" aria-hidden="true" />}
+    </button>
   );
 }

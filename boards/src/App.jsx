@@ -4,6 +4,7 @@
 // snapshot is persisted to board_state.
 
 import React, { useState, useEffect, useMemo, useRef, useCallback, Profiler, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import { pickPresenceColor } from './lib/presenceColor.js';
 import * as perf from './lib/perf.js';
 import { isEditableTarget } from './lib/isEditableTarget.js';
@@ -49,7 +50,7 @@ import { useResolvedDefaults } from './hooks/useResolvedDefaults.js';
 import { useMentionNotifications } from './hooks/useMentionNotifications.js';
 import { fetchMessageById } from './lib/messages.js';
 import { EntityNavigateContext } from './hooks/useEntityNavigate.js';
-import { OpenDmContext } from './hooks/useOpenDm.js';
+import { OpenDmContext, MessagesUiContext } from './hooks/useOpenDm.js';
 import { useEntityNameTrie, EntityTrieContext } from './hooks/useEntityNameTrie.js';
 import { refFromCurrentUrl, stripLinkParamsFromUrl } from './lib/entityUrl.js';
 // Side-effect import: registers the v1 entity kinds so any surface
@@ -686,6 +687,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     onOpenConversation: openConversationFromToast,
     feedback,
   });
+
+  // Messages affordance for surfaces that cover the workspace chrome (the
+  // doc-card overlay). Context rather than props: the overlay is portaled to
+  // <body>, three components below CanvasSurface, and React context crosses
+  // portals. The badge count itself already lives up here and survives
+  // showMessages === false, so nothing extra has to stay mounted.
+  const messagesUi = useMemo(() => ({
+    unread: messagesUnread,
+    open: !!tweak.showMessages,
+    toggle: () => setTweak('showMessages', !tweak.showMessages),
+  }), [messagesUnread, tweak.showMessages, setTweak]);
 
   // "hasThumb" = has a CURRENT-version stored thumbnail. A stale version
   // (pre-rework render) counts as missing so the on-open backfill in
@@ -4880,6 +4892,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   return (
     <EntityNavigateContext.Provider value={navHandlers}>
     <OpenDmContext.Provider value={openDmWith}>
+    <MessagesUiContext.Provider value={messagesUi}>
     <AppTrieProvider workspaceId={workspace.id}>
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`}
          data-screen-label={`Board · ${currentBoard.name}`}>
@@ -5371,7 +5384,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         onClose={() => setWorkspaceRecoveryOpen(false)}
       />
 
-      {tweak.showMessages && (
+      {/* Portaled to <body> and stacked above the doc-card overlay so messages
+          stay reachable while a document is open. As an inline child of .app it
+          sat at z-index 30 and the fullscreen doc modal (2147483600) simply
+          buried it — and side mode docks to the right, exactly where the panel
+          lives. The portal also makes it immune to any future ancestor
+          stacking context. */}
+      {tweak.showMessages && createPortal((
         <MessagesPanel
           workspaceId={workspace.id}
           currentUser={userInfo}
@@ -5403,7 +5422,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onPeerConsumed={() => setPendingDmPeerId(null)}
           onClose={() => setTweak('showMessages', false)}
         />
-      )}
+      ), document.body)}
 
       {shareOpen && (
         <ShareModal
@@ -5526,6 +5545,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     </div>
     </AppTrieProvider>
+    </MessagesUiContext.Provider>
     </OpenDmContext.Provider>
     </EntityNavigateContext.Provider>
   );

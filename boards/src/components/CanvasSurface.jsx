@@ -45,6 +45,7 @@ import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideo
 import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
 import { trackStroke } from '../lib/pointerStroke.js';
+import { findTouchScrollable, driveTouchScroll, startTouchScrollGesture } from '../lib/touchScroll.js';
 import { resolveSrc } from '../lib/r2.js';
 import { scheduleBoardPreviewBackfill, drainVariantQueue } from '../lib/previewBackfill.js';
 import { loadCorsCleanImage } from '../lib/corsImage.js';
@@ -93,7 +94,7 @@ import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGro
 import { syncCardIndex, saveBoardVersion, loadBoardVersionDoc, bulletproofRestore } from '../lib/boardsApi.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
-  arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals,
+  arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals, uprightLabelAngle,
 } from '../lib/arrowGeometry.js';
 import {
   SNAP_TUNING, worldViewportRect, buildSnapTargets, buildResizeTargets,
@@ -1908,13 +1909,6 @@ export function CanvasSurface({
     return (cards || []).map(c => ({ id: c.id, x: c.x, y: c.y, w: c.w, h: c.h }));
   }, [cards]);
 
-  // Stable SVG id prefix for arrow paths (textPath references). Scoped by
-  // board so the editor's main + split panes don't collide on duplicate ids.
-  const arrowPathIdPrefix = useMemo(
-    () => `arr-${String(board?.id || 'b').replace(/[^a-zA-Z0-9_-]/g, '')}-`,
-    [board?.id]
-  );
-
   // Given an arrow ref (string card id | {type,id} | {x,y} | null), return
   // the set of card ids that should be excluded from obstacle avoidance —
   // the anchor itself for cards, the full member list for groups.
@@ -3722,6 +3716,16 @@ export function CanvasSurface({
     let lifted = !touchHold;
     let panned = false;
     let aborted = false;
+    // Touch analogue of the wheel carve-out (see onWheel): when the finger
+    // lands inside a clipped, armed scroll container (a selected/editing note
+    // body, a grid cell), a drag scrolls THAT container instead of panning the
+    // board. `.canvas-wrap { touch-action: none }` means the browser will never
+    // do this for us. Resolved once, at pointerdown; null → normal pan/lift.
+    // The lift timer keeps running until the scroll actually engages, so a
+    // press-and-hold can still pick the card up off a scrollable note.
+    const touchScrollEl = touchHold ? findTouchScrollable(e.target) : null;
+    let touchScrolling = false;
+    let lastScrollClientY = e.clientY;
     // Re-baselined to the arm point on a touch lift so the card doesn't jump
     // by the finger's pre-lift drift. Null on mouse → deltas use startClient.
     let dragOriginClient = null;
@@ -3812,6 +3816,19 @@ export function CanvasSurface({
       if (touchHold && !lifted) {
         if (aborted || ev.pointerId !== initialPointerId) return;
         const moved = Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y);
+        // Scroll branch — takes precedence over pan for the whole gesture once
+        // the finger commits to moving. Below the tolerance we do nothing at
+        // all (no pan, no scroll) so the gesture can still resolve as a tap or
+        // a press-and-hold lift.
+        if (touchScrollEl && !panned) {
+          if (!touchScrolling && moved > TOUCH_LIFT_TOLERANCE) {
+            touchScrolling = true;
+            cancelLift();
+          }
+          if (touchScrolling) driveTouchScroll(touchScrollEl, ev.clientY - lastScrollClientY);
+          lastScrollClientY = ev.clientY;
+          return;
+        }
         if (!panned && moved > TOUCH_LIFT_TOLERANCE) {
           panned = true; cancelLift();
           // The user dragged from a card and it panned instead of moving — the
@@ -3990,7 +4007,7 @@ export function CanvasSurface({
           setPan({ x: panRef.current.x, y: panRef.current.y });
           scheduleVisibleRecompute();
           emitCanvasSettle();
-        } else if (!panned && !aborted) {
+        } else if (!panned && !touchScrolling && !aborted) {
           // Tap: boards still open on tap (as before); other cards select.
           if (openOnClick) {
             if (c.kind === 'board') onOpenBoard(c.id);
@@ -6797,6 +6814,7 @@ export function CanvasSurface({
                                                 awareness={getAwareness?.() || null}
                                                 cardId={c.id} boardId={board.id}
                                                 ydoc={ydoc} cardYMap={ydoc?.getMap('cards')?.get(c.id) || null}
+                                                currentUser={currentUser} isPublic={isPublic}
                                                 peerLiveHtml={peerNoteEdits[c.id] ?? null}
                                                 onEditingChange={(editing) => setEditingNoteId(editing ? c.id : (prev => (prev === c.id ? null : prev)))} />;
     else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} target={c.target}
@@ -8224,7 +8242,6 @@ export function CanvasSurface({
               if (a.customDash === 'dashed') dashArray = `${sw * 5} ${sw * 3.5}`;
               else if (a.customDash === 'dotted') dashArray = `${sw * 1} ${sw * 2}`;
               else if (a.dashed) dashArray = `${sw * 5} ${sw * 3.5}`;
-              const pathId = `${arrowPathIdPrefix}${i}`;
               // Bend (curve) dot — sits at the current curve apex. Revealed on
               // hover (CSS `.arrow-g:hover`) and solid when selected, so users
               // discover it without first hunting-and-clicking the thin line.
@@ -8294,18 +8311,37 @@ export function CanvasSurface({
                                 strokeWidth={sw + 8} strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />}
                   {sel && <path d={path} fill="none" stroke="rgba(245,158,11,.55)"
                                 strokeWidth={sw + 4} strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />}
-                  <path id={pathId} data-arrow-line d={path} fill="none" stroke={stroke} strokeWidth={sw}
+                  <path data-arrow-line d={path} fill="none" stroke={stroke} strokeWidth={sw}
                         strokeDasharray={dashArray}
                         strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
                   {headForward && <polygon points={headForward} fill={stroke} pointerEvents="none" />}
                   {headReverse && <polygon points={headReverse} fill={stroke} pointerEvents="none" />}
-                  {a.label && (
-                    <text className="arrow-label-text" fill={stroke} pointerEvents="none" dy="-4">
-                      <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle" side="left">
+                  {a.label && (() => {
+                    // Orientation: follow the line, but never let the text end
+                    // up upside-down. <textPath> (what this used to be) hands
+                    // orientation to the browser's per-glyph tangent, so every
+                    // right-to-left arrow read backwards and curved arrows
+                    // arced their text. Rotate ONCE, by the tangent at the
+                    // midpoint, clamped into (-90°, 90°].
+                    const deg = uprightLabelAngle(g.midTangent);
+                    // 1/zoom keeps the font, the halo and the off-line offset
+                    // at constant SCREEN size — the label lives inside the
+                    // canvas's scale(zoom) transform, so without this it was
+                    // illegible zoomed out and enormous zoomed in. Same idiom
+                    // as BEND_R / the bend dot's strokeWidth above.
+                    const inv = 1 / zoom;
+                    return (
+                      <text className="arrow-label-text" pointerEvents="none"
+                            textAnchor="middle" dominantBaseline="middle"
+                            // dy AFTER the rotate → the offset stays
+                            // perpendicular to the line, so the label sits
+                            // beside the stroke rather than on top of it.
+                            dy="-7"
+                            transform={`translate(${g.midPoint.x} ${g.midPoint.y}) rotate(${deg}) scale(${inv})`}>
                         {a.label}
-                      </textPath>
-                    </text>
-                  )}
+                      </text>
+                    );
+                  })()}
                   {bendMid && (
                     <Fragment>
                       {/* Transparent grab target — inert until the arrow is
@@ -8732,7 +8768,12 @@ export function CanvasSurface({
       </div>
 
 
-      <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`} data-tour="rail">
+      {/* The rail is `overflow-y: auto` on a phone (styles.css .cnv-tools) but
+          lives inside `.canvas-wrap { touch-action: none }`, so the browser
+          will not finger-scroll it. Drive it ourselves. Tapping a tool still
+          works — the gesture only engages past the movement threshold. */}
+      <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`} data-tour="rail"
+           onPointerDown={(e) => { startTouchScrollGesture(e); }}>
         <div className="cnv-add-wrap">
           <div
             className={`cnv-tool ${addMenuOpen ? 'active' : ''}`}

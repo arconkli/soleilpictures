@@ -5,6 +5,7 @@
 // that the smart-blend curve↔elbow switch fires. No backend, no app chrome.
 import {
   computeArrowAttachments, buildArrowPath, arrowAnchorKey, ARROW_TUNING,
+  uprightLabelAngle,
 } from './arrowGeometry.js';
 
 const CARD_W = 140, CARD_H = 90;
@@ -141,9 +142,19 @@ export function assertClearOfCards(cards, arrows, gap = 2) {
   return { ok: violations.length === 0, violations };
 }
 
+// Label orientation for arrow `i` — the angle CanvasSurface and renderThumbnail
+// both rotate the text by. Exposed so the spec can assert the upright invariant
+// on real routed geometry (straight, bowed cubic, manual quadratic, elbow)
+// rather than on a hand-made tangent.
+export function labelAngleFor(cards, arrows, i) {
+  const built = buildPathFor(cards, arrows, i);
+  return built ? uprightLabelAngle(built.midTangent) : null;
+}
+
 export function makeArrowTestBridge() {
   return {
     ARROW_TUNING, computeArrowAttachments, buildArrowPath, arrowAnchorKey,
     seedCrowded, attachmentsFor, buildPathFor, samplePath, assertClearOfCards,
+    uprightLabelAngle, labelAngleFor,
   };
 }

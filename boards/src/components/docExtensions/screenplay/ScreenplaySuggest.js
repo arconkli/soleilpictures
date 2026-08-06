@@ -109,11 +109,29 @@ export const ScreenplaySuggest = Extension.create({
       let coords;
       try { coords = view.coordsAtPos(ctrl.from); } catch (_) { coords = null; }
       if (coords) {
-        el.style.left = `${Math.round(coords.left)}px`;
-        el.style.top = `${Math.round(coords.bottom + 4)}px`;
+        // Make it measurable before clamping (position:fixed + display:none
+        // reports a zero rect).
+        el.style.display = 'block';
+        el.style.left = '0px';
+        el.style.top = '0px';
+        const vw = window.innerWidth || 0;
+        const vh = window.innerHeight || 0;
+        const w = el.offsetWidth || 160;
+        const h = el.offsetHeight || 0;
+        const MARGIN = 8;
+        // Phone: the cue column sits ~22ch in, so an unclamped popup routinely
+        // hangs off the right edge (and, near the fold, off the bottom).
+        const left = Math.max(MARGIN, Math.min(coords.left, vw - w - MARGIN));
+        const below = coords.bottom + 4;
+        const top = (below + h + MARGIN > vh && coords.top - h - 4 > MARGIN)
+          ? coords.top - h - 4          // flip above the caret
+          : Math.max(MARGIN, Math.min(below, vh - h - MARGIN));
+        el.style.left = `${Math.round(left)}px`;
+        el.style.top = `${Math.round(top)}px`;
+      } else {
+        el.style.display = 'block';
       }
       el.classList.add('is-open');
-      el.style.display = 'block';
       ctrl.open = true;
     };
     const accept = (view, idx) => {

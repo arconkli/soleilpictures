@@ -1,6 +1,18 @@
 // Comment mark — wraps a range of text and ties it to a comment thread by id.
-// Visual: a highlighted underline in the comment color. Click the mark to
-// open its thread in the side panel (handled by the host via a CustomEvent).
+// Visual: a soft tint + dotted underline (.tt-comment).
+//
+// The mark IS the anchor: because it rides inside the Y.XmlFragment, the
+// commented range survives concurrent edits for free — no stored offsets, and
+// nothing to remap. The thread record itself (body, replies, resolved) lives in
+// the `docComments` Y.Map, keyed by this id.
+//
+// Clicking the mark opens its thread. That's handled by the hosts, which read
+// data-comment-id off the clicked span: DocPageEditor.handleEditorClick for
+// docs, NoteTiptapSurface / NoteCardCollab for notes.
+//
+// Shared by BOTH schemas — components/docExtensions/baseExtensions.js and
+// components/noteExtensions/noteExtensions.js — so a commented note round-trips
+// through noteDocState's generateHTML/generateJSON with the span intact.
 
 import { Mark, mergeAttributes } from '@tiptap/core';
 

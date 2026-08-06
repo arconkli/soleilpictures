@@ -1,14 +1,40 @@
 import { useEffect, useState, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { commentsMap, addCommentReply, deleteCommentThread, resolveComment } from '../lib/docState.js';
+import { notifyCommentMentions } from '../lib/commentMentions.js';
+import { EntityPicker } from './EntityPicker.jsx';
+import { caretRect } from '../lib/caretRect.js';
 import { useFeedback } from './AppFeedback.jsx';
+
+// Keep only the people whose @name still appears in the final text — a user can
+// pick someone from the picker and then delete the mention again.
+function matchMentions(body, picked) {
+  return [...new Set(picked.filter(m => body.includes('@' + m.name)).map(m => m.id))];
+}
+
+// Scan back from the caret to an unbroken "@word" (same rule as
+// MessageComposer / InlineComposer).
+function detectMentionToken(text, caret) {
+  let i = caret - 1;
+  while (i >= 0 && /\S/.test(text[i]) && text[i] !== '@') i--;
+  if (i < 0 || text[i] !== '@') return null;
+  return { tokenStart: i, query: text.slice(i + 1, caret) };
+}
 
 const PAD = 8;
 const W = 320;
 
-export function CommentInlinePopover({ ydoc, scope, threadId, anchor, currentUser, onClose }) {
+export function CommentInlinePopover({
+  ydoc, scope, threadId, anchor, currentUser, onClose,
+  // Optional. Present → replies can @-mention and the named people get
+  // notified through notify_comment_mention. Absent (e.g. a legacy view='doc'
+  // board with no board id in scope) → plain-text replies, as before.
+  workspaceId = null, boardId = null, cardId = null,
+}) {
   const [thread, setThread] = useState(null);
   const [reply, setReply] = useState('');
+  const [replyMention, setReplyMention] = useState(null);   // { tokenStart, query, anchor }
+  const [replyMentions, setReplyMentions] = useState([]);   // [{ id, name }]
   const popRef = useRef(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const feedback = useFeedback();
@@ -142,16 +168,49 @@ export function CommentInlinePopover({ ydoc, scope, threadId, anchor, currentUse
           e.preventDefault();
           const body = reply.trim();
           if (!body) return;
+          const mentions = matchMentions(body, replyMentions);
           addCommentReply(ydoc, threadId, {
             body,
             author: currentUser?.name || currentUser?.email || 'You',
+            authorId: currentUser?.id || null,
             authorColor: currentUser?.color || 'var(--soleil)',
+            mentions,
             scope,
           });
+          notifyCommentMentions({ workspaceId, boardId, cardId, threadId, userIds: mentions, preview: body });
           setReply('');
+          setReplyMentions([]);
         }}>
-          <input value={reply} onChange={e => setReply(e.target.value)} placeholder="Reply…" />
+          <input value={reply}
+                 onChange={(e) => {
+                   const next = e.target.value;
+                   setReply(next);
+                   if (!workspaceId) return;
+                   const tok = detectMentionToken(next, e.target.selectionStart ?? next.length);
+                   setReplyMention(tok ? { ...tok, anchor: caretRect(e.target) } : null);
+                 }}
+                 onKeyDown={(e) => { if (e.key === 'Enter' && replyMention) e.preventDefault(); }}
+                 placeholder={workspaceId ? 'Reply… (@ to mention)' : 'Reply…'} />
         </form>
+      )}
+      {replyMention && workspaceId && (
+        <EntityPicker
+          workspaceId={workspaceId}
+          anchor={replyMention.anchor}
+          initialQuery={replyMention.query}
+          filter={['user']}
+          onCommit={(targets) => {
+            const t = targets?.[0];
+            if (!t) { setReplyMention(null); return; }
+            const name = t.title || t.name || 'someone';
+            const before = reply.slice(0, replyMention.tokenStart);
+            const after = reply.slice(replyMention.tokenStart + 1 + replyMention.query.length);
+            setReply(before + '@' + name + ' ' + after);
+            setReplyMentions(p => [...p, { id: t.id, name }]);
+            setReplyMention(null);
+          }}
+          onCancel={() => setReplyMention(null)}
+        />
       )}
     </div>,
     document.body,

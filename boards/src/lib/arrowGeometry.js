@@ -427,10 +427,23 @@ function buildOrthogonalDetour(s, e, from, to, obstacles) {
   const fdx = s0.x - smooth.firstPre.x;
   const fdy = s0.y - smooth.firstPre.y;
   const flen = Math.hypot(fdx, fdy) || 1;
-  const mid = waypoints[Math.floor(waypoints.length / 2)];
+  const midIdx = Math.floor(waypoints.length / 2);
+  const mid = waypoints[midIdx];
+  // Direction the route is travelling AT the mid waypoint — used to orient the
+  // arrow's label. A waypoint is a corner, so take the LONGER of the two legs
+  // meeting there rather than the through-direction (which would read as a 45°
+  // diagonal at every right angle).
+  const prev = waypoints[midIdx - 1] || waypoints[0];
+  const next = waypoints[midIdx + 1] || waypoints[waypoints.length - 1];
+  const inLen = Math.hypot(mid.x - prev.x, mid.y - prev.y);
+  const outLen = Math.hypot(next.x - mid.x, next.y - mid.y);
+  const midTangent = outLen >= inLen
+    ? unitVec(next.x - mid.x, next.y - mid.y, { ux: tdx / tlen, uy: tdy / tlen })
+    : unitVec(mid.x - prev.x, mid.y - prev.y, { ux: tdx / tlen, uy: tdy / tlen });
   return {
     path: smooth.path,
     midPoint: { x: mid.x, y: mid.y },
+    midTangent,
     toTangentIn:   { ux: tdx / tlen, uy: tdy / tlen },
     fromTangentIn: { ux: fdx / flen, uy: fdy / flen },
   };
@@ -727,10 +740,34 @@ export function computeArrowAttachments(arrows, ctx, prevSides = null) {
 // its already-resolved attachment endpoints. `style.straight` switches off
 // the cubic-bezier curving.
 //
-// Returns: { path, midPoint, fromTangentIn, toTangentIn } where the *In*
-// tangents are unit vectors pointing INTO the respective endpoints (i.e.
+// Returns: { path, midPoint, midTangent, fromTangentIn, toTangentIn } where the
+// *In* tangents are unit vectors pointing INTO the respective endpoints (i.e.
 // the direction of arrow travel at that point — what arrowheads should
-// face).
+// face). `midTangent` is the travel direction AT midPoint; the renderer rotates
+// the arrow's text label to it (clamped upright), so it must be derived here,
+// where the curve type is known, rather than re-guessed from the path string.
+// Label orientation: the angle (in DEGREES) at which to draw an arrow's text so
+// it follows the line but is never upside-down. Raw tangent angles span
+// (-180, 180]; folding by 180° into (-90, 90] keeps the glyphs upright while
+// preserving the line's slope, so a right-to-left arrow reads forwards instead
+// of mirrored. Shared by the live canvas (CanvasSurface) and the Canvas2D
+// thumbnail mirror (renderThumbnail) so the two can't drift.
+export function uprightLabelAngle(midTangent) {
+  const ux = midTangent?.ux ?? 1;
+  const uy = midTangent?.uy ?? 0;
+  const deg = Math.atan2(uy, ux) * 180 / Math.PI;
+  if (deg > 90) return deg - 180;
+  if (deg <= -90) return deg + 180;
+  return deg;
+}
+
+// Normalize a vector; returns `fallback` when it's degenerate (zero-length).
+function unitVec(vx, vy, fallback) {
+  const l = Math.hypot(vx, vy);
+  if (!(l > 1e-6)) return fallback;
+  return { ux: vx / l, uy: vy / l };
+}
+
 export function buildArrowPath({ from, to, style = {}, obstacles = null }) {
   if (!from || !to) return null;
   const s = from.point, e = to.point;
@@ -742,6 +779,7 @@ export function buildArrowPath({ from, to, style = {}, obstacles = null }) {
     return {
       path: `M${s.x},${s.y} L${e.x},${e.y}`,
       midPoint: { x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 },
+      midTangent: { ux, uy },
       // At target, travel direction is (ux,uy). At source, travel direction
       // (for reverse heads) is (-ux,-uy) into the source.
       toTangentIn:   { ux,  uy  },
@@ -777,6 +815,9 @@ export function buildArrowPath({ from, to, style = {}, obstacles = null }) {
     return {
       path: `M${s.x},${s.y} Q${Q.x},${Q.y} ${e.x},${e.y}`,
       midPoint: P,
+      // A quadratic's derivative at t=0.5 is (Q-s) + (e-Q) = e-s, i.e. exactly
+      // the chord direction, however hard the curve is pulled.
+      midTangent: { ux, uy },
       control: Q,
       fromTangentIn: fl > 0.01 ? { ux: (s.x - Q.x) / fl, uy: (s.y - Q.y) / fl } : { ux: -ux, uy: -uy },
       toTangentIn:   tl > 0.01 ? { ux: (e.x - Q.x) / tl, uy: (e.y - Q.y) / tl } : { ux,      uy      },
@@ -837,6 +878,7 @@ export function buildArrowPath({ from, to, style = {}, obstacles = null }) {
         return {
           path: detour.path,
           midPoint: detour.midPoint,
+          midTangent: detour.midTangent,
           toTangentIn: detour.toTangentIn,
           fromTangentIn: detour.fromTangentIn,
         };
@@ -860,9 +902,16 @@ export function buildArrowPath({ from, to, style = {}, obstacles = null }) {
   const l0 = Math.hypot(dx0, dy0) || 1;
   const dx1 = e.x - c2.x, dy1 = e.y - c2.y;
   const l1 = Math.hypot(dx1, dy1) || 1;
+  // Cubic derivative at t=0.5 simplifies to 0.75 * ((e - s) + (c2 - c1)).
+  const midTangent = unitVec(
+    (e.x - s.x) + (c2.x - c1.x),
+    (e.y - s.y) + (c2.y - c1.y),
+    { ux: dx / len, uy: dy / len },
+  );
   return {
     path,
     midPoint,
+    midTangent,
     fromTangentIn: { ux: -dx0 / l0, uy: -dy0 / l0 }, // into source (reverse-head dir)
     toTangentIn:   { ux:  dx1 / l1, uy:  dy1 / l1 }, // into target (forward-head dir)
   };
