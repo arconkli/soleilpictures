@@ -306,3 +306,18 @@ end;
 $$;
 revoke all on function public.scout_link_signup_user(text, uuid) from public;
 revoke all on function public.scout_link_signup_user(text, uuid) from authenticated, anon;
+
+-----------------------------------------------------------------------
+-- 7. Revoke the default table grants.
+--
+--    Supabase's default privileges hand ALL on every new public table to anon
+--    and authenticated. RLS with zero policies already denies them — but this
+--    table is a list of PHONE NUMBERS, and it should not rest on a single
+--    control: a policy added later for any reason would silently re-open full
+--    read/write on all of them.
+--
+--    Same posture 0208 took for the comment-mention tables. The country work
+--    (0203) is where this class of gotcha was first caught: TABLE-level grants
+--    mean every new column is client-reachable by default.
+-----------------------------------------------------------------------
+revoke all on table public.scout_signups from anon, authenticated;
