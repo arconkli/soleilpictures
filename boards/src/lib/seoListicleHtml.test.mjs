@@ -11,7 +11,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEO_LISTICLE_PAGES, listicleToc } from './seoListicles.js';
+import { SEO_LISTICLE_PAGES, listicleToc, listicleTrustChips, formatRating } from './seoListicles.js';
 import { buildListicleCrawlableHtml, buildListicleJsonLd } from './seoListicleHtml.js';
 
 const ORIGIN = 'https://clusters.soleilpictures.com';
@@ -25,6 +25,14 @@ test('crawlable HTML contains every tool, section id, and FAQ', () => {
       assert.ok(html.includes(`id="${it.anchor}"`), `${spec.path}: item section id ${it.anchor}`);
       assert.ok(html.includes(`${it.rank}. ${it.name.replace(/&/g, '&amp;')}`), `${spec.path}: heading for ${it.name}`);
       assert.ok(html.includes(`as of ${it.pricing.asOf}`), `${spec.path}/${it.name}: pricing asOf visible`);
+      // The React review card shows a score meter; the fallback must show the
+      // same number, formatted identically ("8.0/10", never "8/10").
+      assert.ok(html.includes(`${formatRating(it.rating)}/10`), `${spec.path}/${it.name}: score visible`);
+    }
+    // Hero credibility chips are derived, so parity is by construction — assert
+    // it anyway, since they are the page's trust claim.
+    for (const chip of listicleTrustChips(spec)) {
+      assert.ok(html.includes(escapeLite(chip)), `${spec.path}: trust chip "${chip}"`);
     }
     for (const t of listicleToc(spec)) {
       assert.ok(html.includes(`href="#${t.id}"`), `${spec.path}: toc link #${t.id}`);

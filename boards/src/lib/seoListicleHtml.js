@@ -13,7 +13,7 @@
 // a Google manual-action magnet; the editorial /10 ratings are visible table
 // copy only.
 
-import { listicleToc } from './seoListicles.js';
+import { listicleToc, listicleTrustChips, formatRating } from './seoListicles.js';
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => (
@@ -40,6 +40,9 @@ export function buildListicleCrawlableHtml(spec) {
     + `Published <time datetime="${escapeHtml(spec.published)}">${escapeHtml(prettyDate(spec.published))}</time>`
     + (spec.updated !== spec.published ? ` · Updated <time datetime="${escapeHtml(spec.updated)}">${escapeHtml(prettyDate(spec.updated))}</time>` : '')
     + `</p>`);
+  // The same derived credibility chips the React hero renders as pills.
+  parts.push(`<p style="color:#8a8a92;font-size:.85rem;margin:0 0 1.4em;">${
+    listicleTrustChips(spec).map(escapeHtml).join(' · ')}</p>`);
 
   // ── Quick answer (the AI-liftable block) + disclosure ──
   parts.push(`<section id="answer"><h2 style="${H2}">${escapeHtml(spec.answerHeading)}</h2>`);
@@ -88,6 +91,10 @@ export function buildListicleCrawlableHtml(spec) {
     parts.push(`<section id="${escapeHtml(it.anchor)}"><h3 style="${H3}">${it.rank}. ${escapeHtml(it.name)}</h3>`);
     parts.push(`<p><b>Best for:</b> ${escapeHtml(it.bestFor)}</p>`);
     parts.push(`<p><b>Verdict:</b> ${escapeHtml(it.verdict)}</p>`);
+    // Editorial score — visible copy only, mirroring the React review card's
+    // score meter. Never emitted as Review/AggregateRating markup (see above).
+    const score = formatRating(it.rating);
+    if (score) parts.push(`<p><b>Score:</b> ${escapeHtml(score)}/10</p>`);
     for (const p of it.paras) parts.push(`<p>${escapeHtml(p)}</p>`);
     if (it.features?.length) {
       parts.push(`<p><b>Key features</b></p><ul>${it.features.map((f) => `<li>${escapeHtml(f)}</li>`).join('')}</ul>`);

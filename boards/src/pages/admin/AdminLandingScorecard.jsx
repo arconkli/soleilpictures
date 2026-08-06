@@ -23,7 +23,7 @@ const MIN_ENGAGEMENT_N = 5;
 // props.page is attacker-writable (analytics_events has an open insert
 // policy) — only linkify known internal landing paths; anything else renders
 // as inert text, never an href.
-const LINKABLE = /^\/(tools|vs|use-cases|c)(\/[a-z0-9-]+)*\/?$|^\/(pricing|explore)$|^\/$/;
+const LINKABLE = /^\/(tools|vs|use-cases|best|c)(\/[a-z0-9-]+)*\/?$|^\/(pricing|explore)$|^\/$/;
 
 function fmtDwell(ms) {
   if (ms == null) return null;
