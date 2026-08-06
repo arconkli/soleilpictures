@@ -20,6 +20,7 @@ import { extractIntent, parseCommand } from '../../boards/src/lib/scoutIntent.js
 import { composeBatch, extractUrls, textWithoutUrls } from '../../boards/src/lib/scoutCards.js';
 import { addCardsToBoard, boardCapacity } from '../../boards/src/lib/scoutBoard.js';
 import { scoutRpc, scoutSelect, scoutSession } from '../../boards/src/lib/scoutDb.js';
+import { mintScoutSessionToken } from '../../boards/src/worker-scout.js';
 import { uploadImage, isImage } from './media.js';
 import * as say from './replies.js';
 
@@ -38,14 +39,31 @@ async function linkPreview(cfg, url) {
   }
 }
 
-// Deep link back to exactly what just landed. A shell account has no browser
-// session, so it gets a signed instant-session link; a real account gets a
-// plain board URL it can already open.
-function boardUrl(cfg, { boardId, cardIds, isShell, sessionToken }) {
+// Deep link back to exactly what just landed.
+//
+// A shell account has never seen a login screen and has an email it wouldn't
+// recognise, so a plain board URL would drop it on the auth gate — which is
+// the exact friction Scout exists to remove. It gets a signed instant-session
+// link instead. An account that has already attached a real email gets the
+// plain URL, because it has a browser session of its own.
+//
+// The token is minted in-process rather than over HTTP: worker-scout.js uses
+// only fetch + WebCrypto + btoa/atob, all of which Node 22 has, so the same
+// signing code runs in both runtimes and there's one implementation to trust.
+async function boardUrl(cfg, { boardId, cardIds, isShell, userId }) {
   const cards = cardIds.slice(0, 12).join(',');
-  const path = `/?board=${boardId}${cards ? `&cards=${encodeURIComponent(cards)}` : ''}`;
-  if (isShell && sessionToken) return `${cfg.APP_ORIGIN}/s/${sessionToken}${path.replace('/?', '&')}`;
-  return `${cfg.APP_ORIGIN}${path}`;
+  const query = `board=${boardId}${cards ? `&cards=${encodeURIComponent(cards)}` : ''}`;
+
+  if (isShell) {
+    try {
+      const token = await mintScoutSessionToken(cfg, userId);
+      return `${cfg.APP_ORIGIN}/s/${token}?${query}`;
+    } catch (e) {
+      // Better a link that asks them to sign in than no link at all.
+      console.error('[scout] session mint failed', e?.message);
+    }
+  }
+  return `${cfg.APP_ORIGIN}/?${query}`;
 }
 
 async function findBoardByName(cfg, workspaceId, name) {
@@ -69,7 +87,11 @@ async function findBoardByName(cfg, workspaceId, name) {
 async function runCommand(cfg, { command, arg }, ctx) {
   switch (command) {
     case 'help':
-      return say.help({ url: `${cfg.APP_ORIGIN}/?board=${ctx.boardId}` });
+      return say.help({
+        url: await boardUrl(cfg, {
+          boardId: ctx.boardId, cardIds: [], isShell: ctx.isShell, userId: ctx.userId,
+        }),
+      });
 
     case 'board': {
       if (!arg) {
@@ -103,7 +125,11 @@ async function runCommand(cfg, { command, arg }, ctx) {
       // the supported one and is one tap.
       return arg
         ? 'Open Settings → Scout in the app and tap Connect — it gives you a code to text me. That way I never have to email you.'
-        : say.help({ url: `${cfg.APP_ORIGIN}/?board=${ctx.boardId}` });
+        : say.help({
+        url: await boardUrl(cfg, {
+          boardId: ctx.boardId, cardIds: [], isShell: ctx.isShell, userId: ctx.userId,
+        }),
+      });
 
     default:
       return null;
@@ -146,9 +172,14 @@ export async function runBurst(cfg, r2, burst) {
   const urls = extractUrls(text);
   const leftover = textWithoutUrls(text);
 
-  // A brand-new user who said nothing yet gets oriented, not confirmed.
+  // A brand-new user who said nothing yet gets oriented, not confirmed. This is
+  // the /start experience, and it's the first link they'll ever tap — so it has
+  // to sign them in, not show them a login screen.
   if (id.isNew && !images.length && !urls.length && !leftover) {
-    return { reply: say.welcome({ url: `${cfg.APP_ORIGIN}/?board=${id.boardId}` }), isNew: true };
+    const url = await boardUrl(cfg, {
+      boardId: id.boardId, cardIds: [], isShell: id.isShell, userId: id.userId,
+    });
+    return { reply: say.welcome({ url }), isNew: true };
   }
   if (!images.length && !urls.length && !leftover) return { reply: null, isNew: id.isNew };
 
@@ -258,11 +289,11 @@ export async function runBurst(cfg, r2, burst) {
   messages.push(say.ingestConfirmation({
     counts,
     boardName,
-    url: boardUrl(cfg, {
+    url: await boardUrl(cfg, {
       boardId,
       cardIds: result.cards.filter((c) => !c.sectionHeader).map((c) => c.id),
       isShell: id.isShell,
-      sessionToken: null,
+      userId: id.userId,
     }),
     used,
     cap: cap.cap,
