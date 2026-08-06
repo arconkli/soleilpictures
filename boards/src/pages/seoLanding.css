@@ -37,6 +37,11 @@
   position: relative;
   text-align: center;
   margin-bottom: clamp(48px, 8vh, 88px);
+  /* The gold aura below is wider than the reading column, and its bleed made
+     .seo-scroll pannable ~35px sideways on phones. Clip only the inline axis —
+     `clip` (not `hidden`) leaves the vertical bleed and creates no scroll box,
+     so the aura and dot-grid still spill above the headline as designed. */
+  overflow-x: clip;
 }
 /* Soft gold aura behind the headline — the sun, felt not seen. */
 .seo-hero::before {

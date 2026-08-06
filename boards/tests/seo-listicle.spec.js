@@ -5,7 +5,7 @@
 
 import { expect, test } from '@playwright/test';
 import { routeAnalytics } from './helpers/share-fixture.js';
-import { SEO_LISTICLE_PAGES, listicleToc } from '../src/lib/seoListicles.js';
+import { SEO_LISTICLE_PAGES, listicleToc, listicleTrustChips, formatRating } from '../src/lib/seoListicles.js';
 
 const SPEC = SEO_LISTICLE_PAGES[0];   // /best/pureref-alternatives
 
@@ -34,8 +34,15 @@ test('renders the full listicle: hero, answer, disclosure, TOC, table, reviews, 
   await expect(page.locator('#answer .seo-li-answer')).toHaveText(SPEC.answer);
   await expect(page.locator('.seo-li-disclosure')).toHaveText(SPEC.disclosure);
 
-  // Ranked quick-list + TOC entries mirror the registry exactly.
+  // Hero credibility chips are derived from the spec, never authored.
+  await expect(page.locator('.seo-li-trust li')).toHaveText(listicleTrustChips(SPEC));
+
+  // Ranked pick cards + TOC entries mirror the registry exactly: one <li> per
+  // item, ranks 1-3 carded, the rest compact rows.
   await expect(page.locator('.seo-li-ranklist li')).toHaveCount(SPEC.items.length);
+  await expect(page.locator('.seo-li-ranklist .is-podium')).toHaveCount(3);
+  await expect(page.locator('.seo-li-ranklist .is-row')).toHaveCount(SPEC.items.length - 3);
+  await expect(page.locator('[data-lp-cta="pick:clusters"]')).toHaveCount(1);
   await expect(page.locator('.seo-li-toc ol li')).toHaveCount(listicleToc(SPEC).length);
 
   // Comparison table: header = Tool + columns; one row per item; ours flagged.
@@ -43,14 +50,22 @@ test('renders the full listicle: hero, answer, disclosure, TOC, table, reviews, 
   await expect(headers).toHaveCount(1 + SPEC.columns.length);
   await expect(page.locator('.seo-li-table tbody tr')).toHaveCount(SPEC.items.length);
   await expect(page.locator('.seo-li-usrow')).toHaveCount(1);
+  // Every table row link is instrumented (they used to be dark).
+  await expect(page.locator('[data-lp-cta^="table:"]')).toHaveCount(SPEC.items.length);
 
-  // Every review card exists with its anchor id, pricing asOf, pros/cons.
+  // Every review card exists with its anchor id, score, pricing asOf, pros/cons.
   for (const it of SPEC.items) {
     const card = page.locator(`#${it.anchor}`);
     await expect(card).toHaveCount(1);
+    await expect(card.locator('.seo-li-score-n')).toHaveText(formatRating(it.rating));
+    await expect(card.locator('.seo-li-specs dd').first()).toHaveText(it.bestFor);
+    await expect(card.locator('.seo-li-pros li')).toHaveCount(it.pros.length);
+    await expect(card.locator('.seo-li-cons li')).toHaveCount(it.cons.length);
     await expect(card.locator('.seo-li-pricing')).toContainText(`as of ${it.pricing.asOf}`);
   }
   await expect(page.locator('.seo-li-item-us')).toHaveCount(1);
+  // Our review carries the live product shot in the shared browser frame.
+  await expect(page.locator('.seo-li-item-us .seo-frame .seo-frame-shot')).toHaveCount(1);
 
   // Interstitial after our item + our in-card CTA.
   await expect(page.locator('.seo-li-inter')).toHaveCount(SPEC.items.length >= 6 ? 2 : 1);
@@ -63,6 +78,8 @@ test('renders the full listicle: hero, answer, disclosure, TOC, table, reviews, 
   await expect(page.locator('.seo-faq-item')).toHaveCount(SPEC.faq.length);
   await expect(page.locator('.seo-li-author-name')).toHaveText(SPEC.author.name);
   await expect(page.locator('.seo-related li a').first()).toBeVisible();
+  // Footer spokes are instrumented too (spec.related + /explore + /pricing).
+  await expect(page.locator('[data-lp-cta^="related:"]')).toHaveCount(SPEC.related.length + 2);
 
   // lp_view fired with the listicle page identity.
   await expect.poll(() =>

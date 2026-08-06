@@ -48,9 +48,11 @@
 //       features:      ['4–6 key features'],
 //       pricing:       { summary, asOf },        // asOf REQUIRED
 //       pros:          ['×3'], cons: ['×3'],     // our entry gets REAL cons
-//       rating:        8.5,          // editorial /10 — table display ONLY,
-//                                    // never emitted in JSON-LD (self-serving
-//                                    // review markup = manual-action risk)
+//       rating:        8.5,          // editorial /10 — VISIBLE COPY ONLY
+//                                    // (review-card score meter + the table's
+//                                    // Rating column, via formatRating()).
+//                                    // Never emitted in JSON-LD: self-serving
+//                                    // review markup = manual-action risk.
 //     }],
 //     tableIntro?,     columns: ['Best for', 'Price', …],   // after the Tool col
 //     tableCells:      { [anchor]: ['…', …] },  // one row per item, col-aligned
@@ -2107,6 +2109,26 @@ export function getListicleSpec(pathname) {
   let p = pathname.toLowerCase();
   if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
   return BY_PATH.get(p) || null;
+}
+
+// The hero's credibility chips. DERIVED like listicleToc() — both renderers
+// call this, so the receipts can never claim something the reviews don't back.
+// The price-verification date is only claimed when every single item genuinely
+// shares one `asOf`; otherwise the chip is omitted rather than fudged.
+export function listicleTrustChips(spec) {
+  const chips = [`${spec.items.length} tools tested`];
+  const asOf = new Set(spec.items.map((it) => it.pricing?.asOf).filter(Boolean));
+  if (asOf.size === 1) chips.push(`Prices verified ${[...asOf][0]}`);
+  chips.push('Tested on real productions');
+  return chips;
+}
+
+// The editorial /10 score, formatted the way the authored `tableCells` already
+// write it ("8.0/10", never "8/10"). Shared by both renderers so the review
+// card, the comparison table, and the crawlable HTML can never disagree.
+// Display only — this number is NEVER emitted as Review/AggregateRating markup.
+export function formatRating(rating) {
+  return typeof rating === 'number' && Number.isFinite(rating) ? rating.toFixed(1) : null;
 }
 
 // The table of contents is DERIVED, never authored — both renderers call this,

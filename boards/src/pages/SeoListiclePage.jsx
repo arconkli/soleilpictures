@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
-import { getListicleSpec, listicleToc } from '../lib/seoListicles.js';
+import { getListicleSpec, listicleToc, listicleTrustChips, formatRating } from '../lib/seoListicles.js';
 import { getLandingSpec } from '../lib/seoLanding.js';
 import { SEO_LISTICLE_INDEX } from '../lib/seoListicleIndex.js';
 import { NotFoundPage } from './NotFoundPage.jsx';
@@ -31,6 +31,28 @@ const relatedLabel = (p) => getLandingSpec(p)?.h1
 
 const prettyDate = (iso) => new Date(iso + 'T00:00:00Z')
   .toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+
+// A table cell that is already an authored score ("9.2/10") gets the pill
+// treatment; anything else renders as plain text, so no column-order assumption.
+const SCORE_CELL = /^\d+(?:\.\d+)?\/10$/;
+
+// Editorial score: the numeral carries the meaning, the meter is decoration.
+// The fill is neutral ink for EVERY tool including ours — a gold bar on the one
+// entry we wrote about ourselves would read as rigged.
+function Score({ rating, className }) {
+  const n = formatRating(rating);
+  if (n == null) return null;
+  const pct = Math.max(0, Math.min(100, rating * 10));
+  return (
+    <span className={className ? `seo-li-score ${className}` : 'seo-li-score'}>
+      <span className="seo-li-score-n">{n}</span>
+      <span className="seo-li-score-d">/10</span>
+      <span className="seo-li-score-track" aria-hidden="true">
+        <span className="seo-li-score-fill" style={{ width: `${pct}%` }} />
+      </span>
+    </span>
+  );
+}
 
 // One quiet conversion strip between reviews — same material as the landing
 // pages' mid-read ask (.seo-midcta), used at most twice per page.
@@ -93,6 +115,10 @@ export function SeoListiclePage({ path }) {
     });
   }, [spec, pubBoards]);
 
+  // Hero credibility chips — derived in the shared registry so the crawlable
+  // HTML shows the reader exactly the same receipts.
+  const trustChips = useMemo(() => (spec ? listicleTrustChips(spec) : []), [spec]);
+
   if (!spec) return <NotFoundPage />;
 
   const cta = spec.cta || {};
@@ -104,7 +130,7 @@ export function SeoListiclePage({ path }) {
   return (
     <div className="public-shell seo-shell public-dark">
       <div className="public-topbar">
-        <a className="public-brand" href={cta.href || '/'} title="Clusters home">
+        <a className="public-brand" href={cta.href || '/'} title="Clusters home" {...lp.ctaProps('brand', cta.href || '/')}>
           <ClustersMark size={20} />
           <span className="public-brand-name">Clusters</span>
         </a>
@@ -131,6 +157,9 @@ export function SeoListiclePage({ path }) {
                 <><span className="seo-li-byline-dot">·</span>Updated {prettyDate(spec.updated)}</>
               )}
             </p>
+            <ul className="seo-li-trust">
+              {trustChips.map((t) => <li key={t}>{t}</li>)}
+            </ul>
             <div className="seo-hero-cta">
               <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('hero', cta.href || '/')}>{cta.label || 'Start free'}</a>
               <a className="seo-cta-secondary" href="#picks" {...lp.ctaProps('hero_secondary', '#picks', { intent: 'nav' })}>Skip to the rankings ↓</a>
@@ -142,16 +171,28 @@ export function SeoListiclePage({ path }) {
           </header>
 
           {/* Quick answer — the extractable block — plus the disclosure box
-              and the ranked quick-list with jump links. */}
+              and the ranked pick cards (top three carded, the rest compact). */}
           <section className="seo-section" id="answer" ref={lp.sectionRef('answer', 1)}>
             <h2 className="seo-h2">{spec.answerHeading}</h2>
             <p className="seo-answer seo-li-answer">{spec.answer}</p>
             <aside className="seo-li-disclosure">{spec.disclosure}</aside>
             <ol className="seo-li-ranklist">
               {spec.items.map((it) => (
-                <li key={it.anchor}>
-                  <a href={`#${it.anchor}`} {...lp.ctaProps(`toc:${it.anchor}`, `#${it.anchor}`, { intent: 'nav' })}>{it.name}</a>
-                  <span className="seo-li-ranklist-for"> — {it.bestFor}</span>
+                <li key={it.anchor} className={`${it.rank <= 3 ? 'is-podium' : 'is-row'}${it.isUs ? ' is-us' : ''}`}>
+                  <span className="seo-li-rank">{it.rank}</span>
+                  <span className="seo-li-pick-body">
+                    <a className="seo-li-pick-name" href={`#${it.anchor}`} {...lp.ctaProps(`toc:${it.anchor}`, `#${it.anchor}`, { intent: 'nav' })}>
+                      {it.name}
+                      {it.isUs && <span className="seo-li-uschip">our app</span>}
+                    </a>
+                    <span className="seo-li-ranklist-for">{it.bestFor}</span>
+                  </span>
+                  <Score rating={it.rating} className="seo-li-pick-score" />
+                  {it.isUs && (
+                    <a className="seo-cta-primary seo-cta-small seo-li-pick-cta" href={cta.href || '/'} {...lp.ctaProps('pick:clusters', cta.href || '/')}>
+                      {cta.label || 'Start free'}
+                    </a>
+                  )}
                 </li>
               ))}
             </ol>
@@ -173,7 +214,7 @@ export function SeoListiclePage({ path }) {
           <section className="seo-section" id="table" ref={lp.sectionRef('table', 3)}>
             <h2 className="seo-h2">Comparison table</h2>
             {spec.tableIntro && <p className="seo-body">{spec.tableIntro}</p>}
-            <div className="seo-compare-wrap">
+            <div className="seo-compare-wrap seo-li-tablewrap">
               <table className="seo-compare seo-li-table">
                 <thead>
                   <tr>
@@ -185,10 +226,14 @@ export function SeoListiclePage({ path }) {
                   {spec.items.map((it) => (
                     <tr key={it.anchor} className={it.isUs ? 'seo-li-usrow' : undefined}>
                       <th scope="row">
-                        <a href={`#${it.anchor}`}>{it.name}</a>
+                        <a href={`#${it.anchor}`} {...lp.ctaProps(`table:${it.anchor}`, `#${it.anchor}`, { intent: 'nav' })}>{it.name}</a>
                         {it.isUs && <span className="seo-li-uschip">our app</span>}
                       </th>
-                      {(spec.tableCells[it.anchor] || []).map((cell, j) => <td key={j}>{cell}</td>)}
+                      {(spec.tableCells[it.anchor] || []).map((cell, j) => (
+                        <td key={j}>
+                          {SCORE_CELL.test(cell) ? <span className="seo-li-scorepill">{cell}</span> : cell}
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>
@@ -229,18 +274,31 @@ export function SeoListiclePage({ path }) {
               >
                 <h3 className="seo-li-item-h">
                   <span className="seo-li-rank">{it.rank}</span>
-                  {it.name}
+                  <span className="seo-li-item-name">{it.name}</span>
                   {it.isUs && <span className="seo-li-uschip">our app</span>}
+                  <Score rating={it.rating} className="seo-li-item-score" />
                 </h3>
-                <p className="seo-li-bestfor"><b>Best for:</b> {it.bestFor}</p>
-                <p className="seo-li-verdict"><b>Verdict:</b> {it.verdict}</p>
+                <dl className="seo-li-specs">
+                  <dt>Best for</dt>
+                  <dd>{it.bestFor}</dd>
+                  <dt>Verdict</dt>
+                  <dd>{it.verdict}</dd>
+                </dl>
                 {it.isUs && heroShot && (
-                  <a className="seo-li-shot" href={`/c/${heroShot}`} onClick={() => lp.exampleClick(heroShot, 'item-shot')}>
-                    <img src={`/landing/${heroShot}.webp`}
-                         alt={`${humanize(heroShot)} — a real board made with Clusters, open in the app`}
-                         loading="lazy" width="2048" height="1000" />
-                    <span className="seo-li-shot-cap">A real board published from Clusters — open it live.</span>
-                  </a>
+                  <figure className="seo-frame seo-li-frame">
+                    <div className="seo-frame-bar" aria-hidden="true">
+                      <span className="seo-frame-dots"><i /><i /><i /></span>
+                      <span className="seo-frame-url">clusters.soleilpictures.com/c/{heroShot}</span>
+                    </div>
+                    <a className="seo-frame-shot" href={`/c/${heroShot}`} onClick={() => lp.exampleClick(heroShot, 'item-shot')}>
+                      <img src={`/landing/${heroShot}.webp`}
+                           alt={`${humanize(heroShot)} — a real board made with Clusters, open in the app`}
+                           loading="lazy" width="2048" height="1000" />
+                    </a>
+                    <figcaption className="seo-frame-cap">
+                      A real board published from Clusters — <b>open it live</b>.
+                    </figcaption>
+                  </figure>
                 )}
                 {it.paras.map((p, j) => <p className="seo-body" key={j}>{p}</p>)}
                 {it.features?.length > 0 && (
@@ -254,11 +312,11 @@ export function SeoListiclePage({ path }) {
                   <span className="seo-li-asof"> (as of {it.pricing.asOf})</span>
                 </p>
                 <div className="seo-li-proscons">
-                  <div>
+                  <div className="seo-li-pros">
                     <p className="seo-li-minih">Pros</p>
                     <ul>{it.pros.map((x, j) => <li key={j}>{x}</li>)}</ul>
                   </div>
-                  <div>
+                  <div className="seo-li-cons">
                     <p className="seo-li-minih">Cons</p>
                     <ul>{it.cons.map((x, j) => <li key={j}>{x}</li>)}</ul>
                   </div>
@@ -298,7 +356,7 @@ export function SeoListiclePage({ path }) {
           {/* Honorable mentions */}
           <section className="seo-section" id="mentions" ref={lp.sectionRef('mentions', tailBase + 2)}>
             <h2 className="seo-h2">Honorable mentions</h2>
-            <ul className="seo-bullets seo-li-mentions">
+            <ul className="seo-li-mentions">
               {spec.honorableMentions.map((m, i) => (
                 <li key={i}><b>{m.name}:</b> {m.note}</li>
               ))}
@@ -359,19 +417,22 @@ export function SeoListiclePage({ path }) {
           {/* Author box + internal-linking footer */}
           <footer className="seo-footer">
             <div className="seo-li-author">
-              <div className="seo-li-author-name">{spec.author.name}</div>
-              <div className="seo-li-author-role">{spec.author.role}</div>
-              <p className="seo-li-author-bio">{spec.author.bio}</p>
+              <span className="seo-li-author-mark" aria-hidden="true"><ClustersMark size={22} /></span>
+              <div className="seo-li-author-body">
+                <div className="seo-li-author-name">{spec.author.name}</div>
+                <div className="seo-li-author-role">{spec.author.role}</div>
+                <p className="seo-li-author-bio">{spec.author.bio}</p>
+              </div>
             </div>
             {spec.related.length > 0 && (
               <nav className="seo-related" aria-label="Related pages">
                 <div className="seo-related-label">Keep exploring</div>
                 <ul>
                   {spec.related.map((p) => (
-                    <li key={p}><a href={p}>{relatedLabel(p)}</a></li>
+                    <li key={p}><a href={p} {...lp.ctaProps(`related:${p}`, p, { intent: 'nav' })}>{relatedLabel(p)}</a></li>
                   ))}
-                  <li><a href="/explore">Explore example boards</a></li>
-                  <li><a href="/pricing">Pricing</a></li>
+                  <li><a href="/explore" {...lp.ctaProps('related:/explore', '/explore', { intent: 'nav' })}>Explore example boards</a></li>
+                  <li><a href="/pricing" {...lp.ctaProps('related:/pricing', '/pricing', { intent: 'nav' })}>Pricing</a></li>
                 </ul>
               </nav>
             )}

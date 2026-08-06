@@ -1,8 +1,17 @@
 /* Styles for the /best/* listicle pages (SeoListiclePage.jsx). Scoped under
    .seo-li-* on top of seoLanding.css — the shared marketing shell (topbar,
-   .seo-scroll, hero, compare table, FAQ, CTA band) comes from there; this file
-   only styles what a listicle adds. Dark brand world (.public-dark tokens);
-   gold stays reserved for links/accents. */
+   .seo-scroll, hero, compare table, product frame, FAQ, CTA band) comes from
+   there; this file only styles what a listicle adds. Dark brand world
+   (.public-dark tokens).
+
+   Accent discipline: --soleil marks exactly three things on these pages — the
+   CTAs, the "our app" flags, and the #1 rank. It never colours body lists, and
+   it never colours a score meter (a gold bar on the one entry we wrote about
+   ourselves would read as rigged; the meters are neutral ink for every tool).
+
+   The one sanctioned break from the house grayscale is the pros/cons glyph
+   pair, scoped to the review card below — pros/cons are the most-skimmed
+   element in a roundup and the shapes alone were doing all the work. */
 
 /* Anchored sections must clear the fixed topbar when jumped to. */
 .seo-li-main section[id],
@@ -11,40 +20,200 @@
   scroll-margin-top: 76px;
 }
 
-/* ── Byline ─────────────────────────────────────────────────────────────── */
+/* ── Byline + derived credibility chips ─────────────────────────────────── */
 .seo-li-byline {
   font: 400 0.9rem/1.5 var(--font-sans);
   color: var(--ink-2, #8a8a92);
-  margin: 2px 0 18px;
+  margin: 2px 0 16px;
 }
 .seo-li-byline b { color: var(--ink-1, #b7b1a6); font-weight: 600; }
 .seo-li-byline-dot { margin: 0 0.55em; opacity: 0.6; }
+
+/* Three facts, all derived from the spec — the roundup's receipts, sitting
+   where a reader decides whether to trust the page at all. */
+.seo-li-trust {
+  list-style: none;
+  margin: 0 0 26px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.seo-li-trust li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: rgba(245, 245, 247, 0.03);
+  font: 600 0.76rem/1 var(--font-sans);
+  letter-spacing: 0.03em;
+  color: var(--ink-2, #8a8a92);
+  white-space: nowrap;
+}
+.seo-li-trust li::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--soleil, #ffa500);
+  opacity: 0.75;
+  flex: none;
+}
 
 /* ── Quick answer + disclosure ──────────────────────────────────────────── */
 .seo-li-answer { margin-bottom: 18px; }
 .seo-li-disclosure {
   border-left: 3px solid var(--soleil, #ffa500);
-  padding: 10px 16px;
-  margin: 0 0 22px;
+  padding: 12px 18px;
+  margin: 0 0 26px;
   font: 400 0.95rem/1.65 var(--font-sans);
   color: var(--ink-1, #b7b1a6);
-  background: rgba(255, 165, 0, 0.05);
+  background: linear-gradient(90deg, rgba(255, 165, 0, 0.07), rgba(255, 165, 0, 0.015));
   border-radius: 0 var(--radius-md, 8px) var(--radius-md, 8px) 0;
 }
-.seo-li-ranklist {
-  margin: 0;
-  padding-left: 1.4em;
-  font: 400 1rem/1.9 var(--font-sans);
+
+/* ── Rank medallion — squared so it reads as a RANK, not as a numbered
+      .seo-steps disc (which means "step N of a process" on the sibling
+      landing pages). Shared by the pick cards and the review headings. ──── */
+.seo-li-rank {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  font: 700 1rem/1 var(--font-display, var(--font-sans));
+  color: var(--ink-1, #b7b1a6);
 }
-.seo-li-ranklist a { color: var(--soleil, #ffa500); text-decoration: none; font-weight: 600; }
-.seo-li-ranklist a:hover { text-decoration: underline; }
-.seo-li-ranklist-for { color: var(--ink-1, #b7b1a6); }
+.seo-li-item-us .seo-li-rank,
+.seo-li-ranklist .is-us .seo-li-rank {
+  background: var(--soleil, #ffa500);
+  border-color: var(--soleil, #ffa500);
+  color: var(--bg-0);
+  box-shadow: 0 0 0 1px rgba(255, 165, 0, 0.3), 0 6px 20px rgba(255, 165, 0, 0.16);
+}
+
+/* ── Editorial score — the numeral carries the meaning, the meter is a
+      scanning aid. Neutral fill for every tool, ours included. ──────────── */
+.seo-li-score {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.seo-li-score-n {
+  font: 700 1.05rem/1 var(--font-mono, ui-monospace, monospace);
+  color: var(--ink-0);
+}
+.seo-li-score-d {
+  font: 500 0.78rem/1 var(--font-mono, ui-monospace, monospace);
+  color: var(--ink-3, #5a5a60);
+}
+.seo-li-score-track {
+  width: 56px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-2);
+  overflow: hidden;
+}
+.seo-li-score-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ink-1, #b7b1a6);
+}
+
+/* ── Ranked pick cards — the article's first visual payload. One <li> per
+      item (the crawlable <ol> and the Playwright count both depend on that);
+      ranks 1–3 become cards in a row, the rest compact mini-rows. ───────── */
+.seo-li-ranklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+.seo-li-ranklist .is-row { grid-column: 1 / -1; }
+
+.seo-li-ranklist li {
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg, 12px);
+  transition: border-color var(--dur-base, 200ms) var(--ease),
+              box-shadow var(--dur-base, 200ms) var(--ease),
+              transform var(--dur-base, 200ms) var(--ease);
+}
+.seo-li-ranklist li:hover {
+  border-color: var(--line-3);
+  box-shadow: var(--shadow-2);
+  transform: translateY(-2px);
+}
+.seo-li-ranklist .is-us {
+  border-color: rgba(255, 165, 0, 0.34);
+  background: linear-gradient(180deg, rgba(255, 165, 0, 0.08), rgba(255, 165, 0, 0.015) 60%, var(--bg-1));
+}
+
+.seo-li-ranklist .is-podium {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 18px 20px;
+}
+.seo-li-ranklist .is-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 14px;
+  padding: 11px 16px 11px 12px;
+}
+.seo-li-ranklist .is-row .seo-li-rank {
+  width: 28px;
+  height: 28px;
+  font-size: 0.88rem;
+}
+
+.seo-li-pick-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.seo-li-pick-name {
+  font: 600 1.08rem/1.3 var(--font-sans);
+  color: var(--ink-0);
+  text-decoration: none;
+  transition: color var(--dur-fast, 120ms) var(--ease);
+}
+.seo-li-ranklist li:hover .seo-li-pick-name { color: var(--soleil, #ffa500); }
+.seo-li-ranklist .is-row .seo-li-pick-name { font-size: 1rem; }
+.seo-li-ranklist-for {
+  font: 400 0.9rem/1.5 var(--font-sans);
+  color: var(--ink-2, #8a8a92);
+}
+.seo-li-ranklist .is-row .seo-li-ranklist-for {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Scores line up along the bottom of the three podium cards. */
+.seo-li-ranklist .is-podium .seo-li-pick-score { margin-top: auto; }
+.seo-li-pick-cta { align-self: stretch; }
 
 /* ── Table of contents ──────────────────────────────────────────────────── */
 .seo-li-toc {
-  border: 1px solid var(--line-1);
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius-lg, 12px);
-  padding: 18px 22px;
+  padding: 18px 22px 20px;
   margin: 0 0 clamp(48px, 7vh, 80px);
 }
 .seo-li-toc-label {
@@ -52,23 +221,82 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-2, #8a8a92);
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .seo-li-toc ol {
+  list-style: none;
+  counter-reset: seo-li-toc;
   margin: 0;
-  padding-left: 1.3em;
+  padding: 0;
   columns: 2;
   column-gap: 32px;
-  font: 400 0.95rem/1.9 var(--font-sans);
 }
-.seo-li-toc a { color: var(--ink-0); text-decoration: none; }
-.seo-li-toc a:hover { color: var(--soleil, #ffa500); }
+.seo-li-toc li {
+  counter-increment: seo-li-toc;
+  break-inside: avoid;
+}
+.seo-li-toc a {
+  position: relative;
+  display: block;
+  padding: 5px 0 5px 28px;
+  font: 400 0.95rem/1.55 var(--font-sans);
+  color: var(--ink-1, #b7b1a6);
+  text-decoration: none;
+  transition: color var(--dur-fast, 120ms) var(--ease);
+}
+.seo-li-toc a::before {
+  content: counter(seo-li-toc);
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 18px;
+  text-align: right;
+  font: 600 0.78rem/1.9 var(--font-mono, ui-monospace, monospace);
+  color: var(--ink-3, #5a5a60);
+  transition: color var(--dur-fast, 120ms) var(--ease);
+}
+.seo-li-toc a:hover,
+.seo-li-toc a:hover::before { color: var(--soleil, #ffa500); }
 @media (max-width: 640px) { .seo-li-toc ol { columns: 1; } }
 
 /* ── Comparison table: our row reads as the highlighted pick ───────────── */
+/* No sticky thead here on purpose: .seo-compare-wrap's overflow-x:auto makes
+   IT the sticky containing block, and it has no vertical scroll, so position:
+   sticky silently does nothing. The alternatives — capping the wrapper's height
+   (nested scrolling inside an already-scrolling page) or dropping overflow-x
+   (re-opens page-level horizontal overflow) — both cost more than they pay. */
+/* Give the tool name room — auto table layout otherwise squeezes this column
+   until two-word names like "Obsidian Canvas" wrap. */
+.seo-li-table th[scope='row'] { min-width: 160px; }
 .seo-li-table th[scope='row'] a { color: var(--ink-0); text-decoration: none; font-weight: 600; }
 .seo-li-table th[scope='row'] a:hover { color: var(--soleil, #ffa500); }
-.seo-li-usrow { background: rgba(255, 165, 0, 0.07); }
+.seo-li-table tbody tr { transition: background var(--dur-fast, 120ms) var(--ease); }
+.seo-li-table tbody tr:hover { background: var(--bg-2); }
+.seo-li-usrow,
+.seo-li-table tbody tr.seo-li-usrow:hover { background: rgba(255, 165, 0, 0.08); }
+/* Gold rail on the row — set on the cell, since a <tr> box-shadow is dropped
+   under border-collapse. */
+.seo-li-usrow > :first-child { box-shadow: inset 3px 0 0 var(--soleil, #ffa500); }
+.seo-li-scorepill {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  font: 600 0.82rem/1.35 var(--font-mono, ui-monospace, monospace);
+  color: var(--ink-0);
+  white-space: nowrap;
+}
+/* Horizontal-scroll affordance: the edge shadows only show while there is
+   more table to reach (background-attachment: local vs scroll). */
+.seo-li-tablewrap {
+  background:
+    linear-gradient(to right, var(--bg-1) 40%, rgba(17, 17, 20, 0)) left center / 44px 100% no-repeat local,
+    linear-gradient(to left, var(--bg-1) 40%, rgba(17, 17, 20, 0)) right center / 44px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0)) left center / 16px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0)) right center / 16px 100% no-repeat scroll,
+    var(--bg-1);
+}
 .seo-li-uschip {
   display: inline-block;
   margin-left: 8px;
@@ -80,6 +308,7 @@
   border: 1px solid rgba(255, 165, 0, 0.45);
   border-radius: 999px;
   vertical-align: 2px;
+  white-space: nowrap;
 }
 
 /* ── Methodology reuses .seo-steps; nothing extra needed ────────────────── */
@@ -87,116 +316,238 @@
 
 /* ── Review cards ───────────────────────────────────────────────────────── */
 .seo-li-item {
-  border: 1px solid var(--line-1);
+  /* Scoped pros/cons palette — desaturated to sit in the same register as the
+     app's --ink-error, so neither glyph shouts. Never promoted to :root. */
+  --li-pro: #8fb99a;
+  --li-con: var(--ink-error, #e08b8b);
+
+  position: relative;
+  background: linear-gradient(180deg, var(--bg-1), rgba(17, 17, 20, 0.55));
+  border: 1px solid var(--line-2);
   border-radius: var(--radius-lg, 12px);
   padding: clamp(20px, 3.4vw, 34px);
-  margin: 0 0 26px;
+  margin: 0 0 22px;
+  box-shadow: var(--shadow-1);
+  transition: border-color var(--dur-base, 200ms) var(--ease),
+              box-shadow var(--dur-base, 200ms) var(--ease);
+}
+/* Border + shadow only, deliberately no lift: 34 cards that twitch under the
+   cursor mid-read is worse than 34 that sit still. */
+.seo-li-item:hover {
+  border-color: var(--line-3);
+  box-shadow: var(--shadow-2);
 }
 .seo-li-item-us {
-  border-color: rgba(255, 165, 0, 0.4);
-  background: rgba(255, 165, 0, 0.04);
+  border-color: rgba(255, 165, 0, 0.34);
+  background: linear-gradient(180deg, rgba(255, 165, 0, 0.07), rgba(255, 165, 0, 0.015) 42%, rgba(17, 17, 20, 0.55));
+  box-shadow: var(--shadow-2), 0 0 48px rgba(255, 165, 0, 0.06);
+}
+/* Editor's-pick signature: a filament of light across the top edge. Inset from
+   the corners so the rounded border stays clean. */
+.seo-li-item-us::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--soleil, #ffa500), transparent);
+  pointer-events: none;
 }
 .seo-li-item-h {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   font: 600 1.35rem/1.3 var(--font-sans);
   color: var(--ink-0);
-  margin: 0 0 12px;
+  margin: 0 0 16px;
 }
-.seo-li-rank {
-  flex: none;
-  font: 700 0.95rem/1 var(--font-mono, ui-monospace, monospace);
-  color: var(--ink-2, #8a8a92);
+.seo-li-item-name { min-width: 0; }
+.seo-li-item-score { margin-left: auto; }
+
+/* Best for / Verdict as a spec strip — the tested-product signal. */
+.seo-li-specs {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 7px 20px;
+  margin: 0;
+  padding: 14px 0 16px;
+  border-top: 1px solid var(--line-1);
+  border-bottom: 1px solid var(--line-1);
 }
-.seo-li-item-us .seo-li-rank { color: var(--soleil, #ffa500); }
-.seo-li-bestfor,
-.seo-li-verdict {
-  font: 400 1rem/1.65 var(--font-sans);
+.seo-li-specs dt {
+  font: 700 0.68rem/1.7 var(--font-sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3, #5a5a60);
+}
+.seo-li-specs dd {
+  margin: 0;
+  font: 400 1rem/1.6 var(--font-sans);
   color: var(--ink-1, #b7b1a6);
-  margin: 0 0 8px;
 }
-.seo-li-bestfor b,
-.seo-li-verdict b { color: var(--ink-0); }
+.seo-li-item-us .seo-li-specs dd { color: var(--ink-0); }
+@media (max-width: 560px) {
+  .seo-li-specs { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .seo-li-specs dd { margin-bottom: 8px; }
+  .seo-li-specs dd:last-child { margin-bottom: 0; }
+}
+
 .seo-li-minih {
   font: 700 0.78rem/1 var(--font-sans);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-2, #8a8a92);
-  margin: 16px 0 6px;
+  margin: 16px 0 8px;
 }
 .seo-li-pricing {
   font: 400 0.98rem/1.6 var(--font-sans);
   color: var(--ink-0);
-  margin: 14px 0 0;
+  margin: 18px 0 0;
 }
 .seo-li-asof { color: var(--ink-2, #8a8a92); font-size: 0.88em; }
+
+/* Pros / cons — the most-skimmed block on the page. Colour is never the only
+   signal: the headings and the glyph shapes carry it on their own. */
 .seo-li-proscons {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0 28px;
-  margin-top: 4px;
+  gap: 0 24px;
+  margin-top: 8px;
 }
 .seo-li-proscons ul {
+  list-style: none;
   margin: 0;
-  padding-left: 1.2em;
-  font: 400 0.95rem/1.7 var(--font-sans);
+  padding: 0;
+  display: grid;
+  gap: 9px;
+}
+.seo-li-proscons li {
+  position: relative;
+  padding-left: 24px;
+  font: 400 0.95rem/1.6 var(--font-sans);
   color: var(--ink-1, #b7b1a6);
 }
-@media (max-width: 560px) { .seo-li-proscons { grid-template-columns: 1fr; } }
-.seo-li-itemcta { margin: 18px 0 0; }
-
-/* Our review's live product shot (reuses the landing shot asset). */
-.seo-li-shot {
-  display: block;
-  margin: 6px 0 16px;
-  border: 1px solid var(--line-1);
-  border-radius: var(--radius-md, 8px);
-  overflow: hidden;
-  text-decoration: none;
+.seo-li-proscons li::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font: 700 0.95rem/1.6 var(--font-sans);
 }
-.seo-li-shot img { display: block; width: 100%; height: auto; }
-.seo-li-shot-cap {
-  display: block;
-  padding: 8px 12px;
-  font: 400 0.85rem/1.5 var(--font-sans);
-  color: var(--ink-2, #8a8a92);
-  border-top: 1px solid var(--line-1);
+.seo-li-pros li::before { content: '✓'; color: var(--li-pro); }
+.seo-li-cons li::before { content: '✗'; color: var(--li-con); }
+.seo-li-cons {
+  padding-left: 24px;
+  border-left: 1px solid var(--line-1);
+}
+@media (max-width: 560px) {
+  .seo-li-proscons { grid-template-columns: 1fr; }
+  .seo-li-cons {
+    padding-left: 0;
+    margin-top: 16px;
+    border-left: none;
+    border-top: 1px solid var(--line-1);
+  }
+}
+
+.seo-li-itemcta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 22px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 165, 0, 0.2);
+}
+
+/* Our review's live product shot — reuses .seo-frame (browser chrome + the
+   "Open this board live →" hover pill) from seoLanding.css; only the outer
+   spacing and the hero-sized shadow need taming inside a card. */
+.seo-li-frame {
+  margin: 4px 0 20px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
 }
 
 /* ── Interstitial conversion strips (extends .seo-midcta) ───────────────── */
-.seo-li-inter { margin: 6px 0 32px; }
+.seo-li-inter {
+  margin: 6px 0 32px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), 0 0 40px rgba(255, 165, 0, 0.05);
+}
 
 /* ── Personas ───────────────────────────────────────────────────────────── */
 .seo-li-personas {
   list-style: none;
   margin: 0;
   padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+  gap: 14px;
 }
 .seo-li-personas li {
   display: grid;
-  grid-template-columns: minmax(160px, 220px) 1fr;
-  gap: 2px 20px;
-  padding: 14px 2px;
-  border-top: 1px solid var(--line-1);
-  font: 400 0.98rem/1.65 var(--font-sans);
-}
-.seo-li-personas li:last-child { border-bottom: 1px solid var(--line-1); }
-.seo-li-persona-who { font-weight: 600; color: var(--ink-0); grid-row: span 2; }
-.seo-li-persona-pick { color: var(--soleil, #ffa500); font-weight: 600; }
-.seo-li-persona-why { color: var(--ink-1, #b7b1a6); }
-@media (max-width: 560px) {
-  .seo-li-personas li { grid-template-columns: 1fr; }
-  .seo-li-persona-who { grid-row: auto; }
-}
-
-/* ── Mentions / author box ──────────────────────────────────────────────── */
-.seo-li-mentions li { margin-bottom: 6px; }
-.seo-li-author {
+  align-content: start;
+  gap: 9px;
+  padding: 17px 19px;
+  background: var(--bg-1);
   border: 1px solid var(--line-1);
   border-radius: var(--radius-lg, 12px);
-  padding: 18px 22px;
+  transition: border-color var(--dur-base, 200ms) var(--ease);
+}
+.seo-li-personas li:hover { border-color: var(--line-3); }
+.seo-li-persona-who {
+  font: 600 1rem/1.35 var(--font-sans);
+  color: var(--ink-0);
+}
+.seo-li-persona-pick {
+  justify-self: start;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 165, 0, 0.4);
+  border-radius: 999px;
+  background: rgba(255, 165, 0, 0.07);
+  font: 600 0.8rem/1.3 var(--font-sans);
+  color: var(--soleil, #ffa500);
+}
+.seo-li-persona-why {
+  font: 400 0.94rem/1.6 var(--font-sans);
+  color: var(--ink-1, #b7b1a6);
+}
+
+/* ── Honorable mentions ─────────────────────────────────────────────────── */
+.seo-li-mentions {
+  list-style: none;
+  margin: 0.8em 0 0;
+  padding: 0;
+}
+.seo-li-mentions li {
+  padding: 13px 2px;
+  border-top: 1px solid var(--line-1);
+  font: 400 0.98rem/1.6 var(--font-sans);
+  color: var(--ink-1, #b7b1a6);
+  max-width: 68ch;
+}
+.seo-li-mentions li:last-child { border-bottom: 1px solid var(--line-1); }
+.seo-li-mentions b { color: var(--ink-0); font-weight: 600; }
+
+/* ── Author box ─────────────────────────────────────────────────────────── */
+.seo-li-author {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg, 12px);
+  padding: 20px 22px;
   margin: 0 0 28px;
+}
+.seo-li-author-mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md, 8px);
+  background: rgba(255, 165, 0, 0.09);
+  border: 1px solid rgba(255, 165, 0, 0.26);
 }
 .seo-li-author-name { font: 600 1.05rem/1.4 var(--font-sans); color: var(--ink-0); }
 .seo-li-author-role {
@@ -208,4 +559,47 @@
   font: 400 0.95rem/1.7 var(--font-sans);
   color: var(--ink-1, #b7b1a6);
   margin: 0;
+}
+
+/* ── Narrow screens ─────────────────────────────────────────────────────── */
+/* One column: podium cards and compact rows collapse to the same shape, so
+   they must also read the same — no truncation on one and not the other. */
+@media (max-width: 860px) {
+  .seo-li-ranklist { grid-template-columns: minmax(0, 1fr); }
+  .seo-li-ranklist .is-podium,
+  .seo-li-ranklist .is-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 10px 14px;
+    padding: 15px 16px;
+  }
+  .seo-li-ranklist .is-row .seo-li-ranklist-for {
+    overflow: visible;
+    white-space: normal;
+  }
+  .seo-li-ranklist .seo-li-score { grid-column: 2; margin-top: 0; }
+  /* Our card keeps its CTA, on its own full-width row underneath. */
+  .seo-li-pick-cta { grid-column: 1 / -1; }
+}
+@media (max-width: 700px) {
+  .seo-li-trust { gap: 6px; }
+  .seo-li-trust li { padding: 6px 11px; font-size: 0.72rem; }
+  .seo-li-item-h { font-size: 1.2rem; }
+  .seo-li-item-score { margin-left: 0; }
+  .seo-li-frame { margin: 4px -6px 18px; }
+}
+
+/* ── Motion opt-out ─────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .seo-li-ranklist li,
+  .seo-li-pick-name,
+  .seo-li-toc a,
+  .seo-li-toc a::before,
+  .seo-li-table tbody tr,
+  .seo-li-item,
+  .seo-li-personas li {
+    transition: none;
+  }
+  .seo-li-ranklist li:hover { transform: none; }
 }
