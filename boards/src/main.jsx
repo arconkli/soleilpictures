@@ -36,6 +36,7 @@ const ExplorePage     = lazyWithReload(() => import('./pages/ExplorePage.jsx').t
 const LegalPage       = lazyWithReload(() => import('./auth/LegalPage.jsx').then(m => ({ default: m.LegalPage })));
 const PublicPricingPage = lazyWithReload(() => import('./auth/PublicPricingPage.jsx').then(m => ({ default: m.PublicPricingPage })));
 const SeoLandingPage  = lazyWithReload(() => import('./pages/SeoLandingPage.jsx').then(m => ({ default: m.SeoLandingPage })));
+const ScoutPage       = lazyWithReload(() => import('./pages/ScoutPage.jsx').then(m => ({ default: m.ScoutPage })));
 const SeoListiclePage = lazyWithReload(() => import('./pages/SeoListiclePage.jsx').then(m => ({ default: m.SeoListiclePage })));
 
 // First-party error logging: capture uncaught errors + unhandled promise
@@ -160,11 +161,15 @@ const exploreMatch = /^\/explore\/?$/.test(window.location.pathname);
 // EVERYTHING the Worker 404s under these prefixes (any depth/charset), or a
 // 404 document would boot into AuthGate instead of the not-found page. Bare
 // /tools and /vs never reach the client — the Worker 301s them to /use-cases.
-// /scout is an exact path rather than a prefix — it's the Soleil Scout product
-// page, not another "X maker" — so it's matched here alongside the prefixes.
-// It needs no 404-shape guard in the Worker for the same reason: an exact path
-// either resolves in the registry or falls through to the SPA.
-const seoLandingMatch = /^\/(?:tools\/|vs\/|use-cases(?:\/|$)|scout\/?$)/i.test(window.location.pathname);
+const seoLandingMatch = /^\/(?:tools\/|vs\/|use-cases(?:\/|$))/i.test(window.location.pathname);
+
+// /scout is in the SAME registry but has its OWN renderer (pages/ScoutPage.jsx)
+// — the page is shaped like a text thread rather than an article, because that
+// is the product. It still resolves its spec from lib/seoLanding.js, so the
+// Worker's meta, crawlable HTML, JSON-LD and the sitemap all keep working from
+// one source and server/client parity holds. Exact path, not a prefix: it's the
+// Soleil Scout product page, not another "X maker".
+const scoutMatch = /^\/scout\/?$/i.test(window.location.pathname);
 
 // /best/* listicle pages (lib/seoListicles.js) — same shape-match discipline;
 // the Worker 404s unknown /best/* siblings and 301s bare /best to /use-cases.
@@ -370,6 +375,8 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
           <Suspense fallback={<SplashLoading />}>
             {legalMatch ? (
               <LegalPage doc={legalMatch[1].toLowerCase()} />
+            ) : scoutMatch ? (
+              <ScoutPage />
             ) : seoLandingMatch ? (
               <SeoLandingPage path={window.location.pathname} />
             ) : seoListicleMatch ? (

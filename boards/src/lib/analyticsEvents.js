@@ -240,6 +240,13 @@ export const EV = Object.freeze({
   LP_EXAMPLE_CLICK:        'lp_example_click',            // example-board link → /c/<slug> {slug,pos} (must-land beacon)
   LP_TRACE:                'lp_trace',                    // ANON-ONLY coalesced micro-interaction batch {from_t,to_t,n,ev:[{t,k,tgt,...}]} — k:'click'|'dead'|'rage'|'cta'|'scroll'|'input'|'hes'|'hide'|'show'; never captures input values or typed characters
 
+  // ── Soleil Scout signup box (/scout). The phone number itself NEVER appears
+  //    in props — the server-side row in scout_signups is the only place it
+  //    lives, and that table denies anon/authenticated outright. ──
+  SCOUT_SIGNUP_SUBMIT:     'scout_signup_submit',         // box submitted {pos:'hero'|'closing'}
+  SCOUT_SIGNUP_OK:         'scout_signup_ok',             // accepted {pos,status:'queued'|'texted',is_new}
+  SCOUT_SIGNUP_ERROR:      'scout_signup_error',          // refused {pos,reason:'invalid'|'rate'|'server'|'network'}
+
   // ── Tags (the ambient hover-to-explore rework — see project_tags_rework).
   //    Zero tag events existed before; this is how we finally measure whether
   //    tagging pays off. ──

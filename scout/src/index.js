@@ -15,6 +15,7 @@ import { makeUploader } from './media.js';
 import { makeBatcher } from './batcher.js';
 import { makeProgress } from './progress.js';
 import { runBurst } from './pipeline.js';
+import { startInviteLoop } from './invites.js';
 import { scoutRpc } from '../../boards/src/lib/scoutDb.js';
 
 const cfg = loadConfig();
@@ -97,8 +98,16 @@ async function main() {
     ai: cfg.CF_AI_TOKEN ? 'workers-ai' : 'deterministic-only',
   });
 
+  // Website signups (/scout's phone box) queue in scout_signups; this drains
+  // them slowly. It shares this process rather than getting its own service
+  // because it needs the same authenticated Photon connection, and because
+  // pacing sends against the SAME line the ingest stream uses is the only way
+  // the daily new-conversation budget means anything.
+  const stopInvites = startInviteLoop(cfg, app);
+
   const shutdown = async (sig) => {
     console.log(`[scout] ${sig} — draining ${batcher.size} pending burst(s)`);
+    stopInvites();
     await batcher.drain();
     process.exit(0);
   };
