@@ -34,6 +34,11 @@ export const STAGES = {
   },
   uploading: (n, total) => `Uploading ${total ? `${n} of ${total} photos` : 'photos'}…`,
   arranging: (boardName) => `Arranging on ${boardName}…`,
+  // Filing does real work — reading two boards, sorting by colour, rendering a
+  // sheet — so it narrates too rather than going quiet mid-instruction.
+  checking: () => 'Checking what\'s in your Bin…',
+  moving: (n, boardName) => `Moving ${n} ${n === 1 ? 'card' : 'cards'} → ${boardName}…`,
+  composing: () => 'Laying out the moodboard…',
 };
 
 export function ingestConfirmation({ counts, boardName, url, used, cap }) {
@@ -64,6 +69,72 @@ export function capReached({ cap, billingUrl, kept = 0 }) {
   else lines.push('Nothing from that last batch landed.');
   lines.push('');
   lines.push(`Creator lifts the cap and adds 100GB: ${billingUrl}`);
+  return lines.join('\n');
+}
+
+// ── Filing ───────────────────────────────────────────────────────────────────
+//
+// A move is the one destructive-ish thing Scout does, so it is always confirmed
+// first. The confirmation ships with a contact sheet (sheets.js) — the words
+// below carry the count and the leftover, the picture carries which photos.
+
+export function moveConfirm({ count, boardName, leftover, leftoverLabel }) {
+  const lines = [`Move ${plural(count, 'card', 'cards')} → ${boardName}?`];
+  if (leftover > 0) {
+    lines.push('');
+    lines.push(
+      `${plural(leftover, 'older card', 'older cards')} from ${leftoverLabel} `
+      + 'stay in your Bin. Say "everything" to include them.',
+    );
+  }
+  lines.push('');
+  lines.push('Reply YES.');
+  return lines.join('\n');
+}
+
+export function moveDone({ count, boardName, url, leftover, leftoverLabel }) {
+  const lines = [`Moved ${plural(count, 'card', 'cards')} → ${boardName}`];
+  if (url) lines.push(url);
+  if (leftover > 0) {
+    lines.push('');
+    lines.push(`${plural(leftover, 'card', 'cards')} still in your Bin from ${leftoverLabel}.`);
+  }
+  lines.push('');
+  lines.push('Reply UNDO if that wasn\'t right.');
+  return lines.join('\n');
+}
+
+export function moveCancelled() {
+  return 'Left everything where it was.';
+}
+
+export function moveExpired() {
+  return 'That was a while ago, so I didn\'t move anything. Say it again and I\'ll line it up fresh.';
+}
+
+export function binEmpty() {
+  return 'Your Bin is empty — everything you\'ve sent is already filed.';
+}
+
+export function nothingToMove(boardName) {
+  return `There's nothing in your Bin to move to ${boardName}. Send me some photos first.`;
+}
+
+export function undoDone({ count, boardName }) {
+  return `Put ${plural(count, 'card', 'cards')} back in your Bin, out of ${boardName}.`;
+}
+
+export function undoNothing() {
+  return 'Nothing recent to undo.';
+}
+
+// "What's in my Bin" — grouped by run so the answer matches how filing works.
+export function binSummary({ groups, url }) {
+  const lines = [`Your Bin — ${plural(groups.reduce((s, g) => s + g.count, 0), 'card', 'cards')}:`];
+  for (const g of groups) lines.push(`  ${g.label} · ${g.count}`);
+  lines.push('');
+  lines.push('Say "put these in <board>" to file the most recent group.');
+  if (url) lines.push(url);
   return lines.join('\n');
 }
 
@@ -102,10 +173,12 @@ export function linkFailed() {
 
 export function help({ url }) {
   return [
-    'Text me photos, links or notes — they land on your canvas automatically.',
+    'Text me photos, links or notes — they collect in your Scout Bin.',
+    'When you\'re ready, tell me where they go and I\'ll arrange them.',
     '',
-    '"put these in Diner Recce"  file into a specific board',
-    '/board                      back to your Scout Inbox',
+    '"put these in Diner Recce"  file the batch you just sent',
+    '"put everything in ..."     file the whole Bin',
+    '/bin                        what\'s waiting, and how old',
     '/link you@studio.com        connect an existing Soleil account',
     '',
     url,

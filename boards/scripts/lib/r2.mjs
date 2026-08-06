@@ -27,6 +27,20 @@ export function makeR2({ accountId, bucket, accessKeyId, secretAccessKey }) {
       return key;
     },
 
+    // GET an object's bytes, or null if it isn't there. Used to build the
+    // contact sheets Scout texts back — reading the 640px preview tier rather
+    // than the original keeps a 20-photo sheet around a megabyte, and R2 charges
+    // nothing for egress.
+    async get(key) {
+      const res = await client.fetch(`${base}/${encodeURI(key)}`);
+      if (res.status === 404) return null;
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(`R2 GET ${key} → ${res.status} ${detail.slice(0, 200)}`);
+      }
+      return Buffer.from(await res.arrayBuffer());
+    },
+
     // DELETE an object. 404 is treated as success (already gone).
     async del(key) {
       const res = await client.fetch(`${base}/${encodeURI(key)}`, { method: 'DELETE' });

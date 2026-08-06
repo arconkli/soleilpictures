@@ -80,6 +80,45 @@ export async function scoutInsert(env, table, rows, { onConflict = null, returni
   return text ? JSON.parse(text) : null;
 }
 
+// PostgREST update. `query` is a raw filter querystring.
+//
+// This is how a card MOVES between boards, and the choice of verb is load-
+// bearing: every trigger on card_index fires on INSERT or DELETE only (the
+// demo cap 0091:485, the cached counters 0065:291 and 0074:140, the first-card
+// activation signal 0080:77). Moving with UPDATE therefore consumes no cap,
+// double-counts nothing, and emits no false activation event — where a
+// delete-then-insert would trip all four, and would hard-fail for a user
+// sitting exactly at their 100-card wall.
+export async function scoutPatch(env, table, query, patch) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}?${query}`, {
+    method: 'PATCH',
+    headers: svcHeaders(env, { prefer: 'return=minimal' }),
+    body: JSON.stringify(patch),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    const err = new Error(`patch ${table} ${res.status}: ${text.slice(0, 300)}`);
+    err.status = res.status;
+    err.body = text;
+    throw err;
+  }
+  return true;
+}
+
+export async function scoutDelete(env, table, query) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}?${query}`, {
+    method: 'DELETE',
+    headers: svcHeaders(env, { prefer: 'return=minimal' }),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`delete ${table} ${res.status}: ${text.slice(0, 300)}`);
+  }
+  return true;
+}
+
 // ── Auth admin ───────────────────────────────────────────────────────────────
 // auth.admin.createUser over REST. Used to mint the shell account behind a chat
 // handle. `email_confirm: true` so the account is immediately usable — the user
