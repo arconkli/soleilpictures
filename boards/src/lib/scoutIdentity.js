@@ -11,9 +11,19 @@
 
 import * as Y from 'yjs';
 import { bytesToB64 } from './yhelpers.js';
+import { normalizeHandle } from './phone.js';
 import {
   scoutRpc, scoutSelect, scoutInsert, scoutCreateUser,
 } from './scoutDb.js';
+
+// Phone numbers → E.164-ish, emails/Apple IDs → lowercase.
+//
+// The implementation lives in lib/phone.js — a module with no imports at all —
+// because the Cloudflare Worker needs the SAME function for the landing page's
+// phone box, and importing THIS module at the edge would drag yjs into the
+// Worker bundle. Re-exported so every existing `from './scoutIdentity.js'`
+// keeps working, and so there is visibly only one normalizer.
+export { normalizeHandle };
 
 // The staging board every text lands on until it's filed somewhere. "Bin" is
 // the editorial term — in an NLE a bin is where unsorted media lives before the
@@ -32,86 +42,6 @@ async function syntheticEmail(platform, handle) {
   const digest = await crypto.subtle.digest('SHA-256', data);
   const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
   return `${platform}-${hex.slice(0, 20)}@scout.soleilpictures.com`;
-}
-
-// Phone numbers → E.164-ish, emails/Apple IDs → lowercase. Keeping this in one
-// place matters: the (platform, handle) unique index is the routing key, so an
-// inconsistently-formatted handle silently creates a SECOND account for a user
-// who already exists.
-// Dialing codes for the countries film production actually happens in. Not a
-// complete ITU table on purpose — this is a FALLBACK for the case where a
-// provider hands us a national-format number, and a wrong guess is worse than
-// an honest refusal (see below).
-const DIALING_CODES = {
-  US: '1', CA: '1', PR: '1', DO: '1', JM: '1',
-  GB: '44', IE: '353', FR: '33', DE: '49', ES: '34', PT: '351', IT: '39',
-  NL: '31', BE: '32', CH: '41', AT: '43', SE: '46', NO: '47', DK: '45',
-  FI: '358', IS: '354', PL: '48', CZ: '420', SK: '421', HU: '36', RO: '40',
-  BG: '359', GR: '30', HR: '385', RS: '381', UA: '380', TR: '90',
-  AU: '61', NZ: '64', JP: '81', KR: '82', CN: '86', HK: '852', TW: '886',
-  SG: '65', MY: '60', TH: '66', PH: '63', ID: '62', IN: '91', PK: '92',
-  AE: '971', SA: '966', IL: '972', JO: '962', MA: '212', EG: '20',
-  ZA: '27', NG: '234', KE: '254', GH: '233',
-  MX: '52', BR: '55', AR: '54', CL: '56', CO: '57', PE: '51', UY: '598',
-};
-
-// Italy keeps the leading 0 as part of the subscriber number; almost everywhere
-// else it's a national trunk prefix that must be dropped before the country
-// code. NANP numbers have no trunk prefix at all.
-const KEEPS_LEADING_ZERO = new Set(['IT']);
-
-// Normalize a chat handle into the routing key stored in scout_identities.
-//
-// The (platform, handle) unique index IS the routing table, so the only thing
-// that truly matters is that ONE person always produces ONE handle. A handle
-// that's merely ugly is fine; a handle that varies between messages silently
-// creates a second account for someone who already exists.
-//
-// `country` is the ISO code the provider reports alongside the sender. Photon
-// documents it on the user object, and it's what makes non-US numbers safe:
-// without it, a UK mobile in national form (7911123456) is indistinguishable
-// from a US number and would normalize to +17911123456 — valid-looking,
-// completely wrong, and impossible to notice until someone's board goes
-// missing.
-export function normalizeHandle(raw, country = null) {
-  const s = String(raw || '').trim();
-  if (!s) return '';
-  if (s.includes('@')) return s.toLowerCase();
-
-  const cleaned = s.replace(/[^\d+]/g, '');
-  if (!cleaned) return s.toLowerCase();
-
-  // Already E.164 — the expected path. Providers send this; trust it.
-  if (cleaned.startsWith('+')) return `+${cleaned.replace(/\D/g, '')}`;
-
-  const digits = cleaned.replace(/\D/g, '');
-  const cc = country ? DIALING_CODES[String(country).toUpperCase()] : null;
-
-  if (cc) {
-    const iso = String(country).toUpperCase();
-    let national = digits;
-    // Drop the national trunk prefix (a leading 0 nearly everywhere).
-    if (!KEEPS_LEADING_ZERO.has(iso) && national.startsWith('0')) national = national.slice(1);
-    // The number may ALREADY carry its country code — a provider can report
-    // "15551234567" with country US. Prepending again yields +115551234567,
-    // which is a second key for the same person. Only strip when what's left
-    // is still a plausible subscriber number, so a genuine local number that
-    // happens to begin with the dialing digits survives.
-    if (national.startsWith(cc) && national.length - cc.length >= 6) {
-      national = national.slice(cc.length);
-    }
-    return `+${cc}${national}`;
-  }
-
-  // No country hint. Only assume North America when the shape is unambiguously
-  // NANP, and even then only because the line itself is US-registered.
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
-
-  // Anything else: refuse to guess. A stable, obviously-not-E.164 key keeps the
-  // user routed consistently and makes the gap visible in logs, instead of
-  // minting a plausible wrong number that nobody catches.
-  return `unknown:${digits}`;
 }
 
 // Create a board the same way the app does: client-generated UUID + a seeded

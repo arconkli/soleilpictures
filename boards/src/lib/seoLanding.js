@@ -43,9 +43,14 @@ const PAGES = [
   // SOLEIL SCOUT — the zero-UI wedge. Its own top-level path (not under
   // /tools/) because it's a distinct product surface, not another
   // "X maker" page, and because the whole pitch is that there's nothing
-  // to open. `heroDemo` swaps the static board screenshot for the live
-  // chat→canvas demo (see pages/ScoutDemo.jsx); it stays a STRING because
-  // this module must remain pure data — the Worker imports it too.
+  // to open.
+  //
+  // This is the ONE spec rendered by something other than SeoLandingPage:
+  // pages/ScoutPage.jsx lays it out as a text thread, because the product is
+  // a text thread. The spec shape is unchanged, so the Worker's meta,
+  // crawlable HTML, JSON-LD and the sitemap all keep working from this same
+  // data — which is what keeps server and client in parity. Edit the copy
+  // here and both surfaces move together, as with every other page.
   //
   // COPY HONESTY: iMessage is the only confirmed transport. Photon lists
   // SMS/RCS as included but ships no provider doc for it, and their own
@@ -59,12 +64,12 @@ const PAGES = [
     metaDescription:
       'Text photos, links and notes from set. They land arranged on an infinite canvas, grouped by scene. No app to install, no login, no forms.',
     h1: 'Text your scout photos. Get a board.',
-    subhead:
-      'Shoot the location, text the photos, keep walking. Soleil Scout files them onto a canvas while you are still on site.',
+    // One line. It sits directly under the h1 and above the phone box, and
+    // anything longer starts competing with the thing we want people to do.
+    subhead: 'Shoot the location, text the photos, keep walking.',
     answer:
       'Soleil Scout is a text-message ingest bot for film crews. Send photos, links or notes from your phone and they land on an infinite Soleil Clusters canvas, automatically grouped and arranged by what you said. There is no app to install and no signup — your board and account are created the first time you text.',
-    updated: '2026-08-05',
-    heroDemo: 'scout',
+    updated: '2026-08-06',
     cta: { label: 'Start scouting — free', sub: 'No app. No signup. Text and it exists.' },
     stepsHeading: 'How Soleil Scout works',
     steps: [

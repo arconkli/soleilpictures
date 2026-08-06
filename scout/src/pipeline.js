@@ -225,6 +225,15 @@ export async function runBurst(cfg, r2, burst, progress = null) {
     service: burst.service,
     accessToken: null,
   };
+  // Someone we texted from the /scout signup box has now texted back. Stamping
+  // their user onto the signup row is what turns scout_signups from a list of
+  // numbers into a funnel we can read: requested → sent → replied. Fire and
+  // forget — this is bookkeeping, and it must never cost someone their photos.
+  if (id.isNew && handle.startsWith('+')) {
+    scoutRpc(cfg, 'scout_link_signup_user', { p_phone: handle, p_user_id: id.userId })
+      .catch(() => {});
+  }
+
   const getSession = sessionFor(cfg, id);
   const text = burst.texts.join('\n').trim();
 

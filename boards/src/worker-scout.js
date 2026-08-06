@@ -19,7 +19,14 @@
 // Token: base64url(JSON{u,e}) + "." + hex(HMAC)[0..32]
 // Key:   SHA-256(secret + ":scout-session-v1"), mirroring emailThumbSig().
 
+import { normalizeHandle, isTextablePhone } from './lib/phone.js';
+
 const TOKEN_TTL_MS = 30 * 60 * 1000;   // links live in a chat thread; keep them short
+
+// Pins WHICH consent wording someone agreed to. Bump this whenever the caption
+// in ScoutSignupBox changes, so past rows keep pointing at what they were
+// actually shown rather than at today's text.
+const CONSENT_VERSION = 'v1';
 
 let secretCache = { secret: '', at: 0 };
 
@@ -74,6 +81,21 @@ function safeEqual(a, b) {
 export async function mintScoutSessionToken(env, userId, ttlMs = TOKEN_TTL_MS) {
   const payload = b64urlEncode(JSON.stringify({ u: userId, e: Date.now() + ttlMs }));
   return `${payload}.${await sign(env, payload)}`;
+}
+
+// Stable pseudonym for a client IP, for rate limiting only.
+//
+// The raw address is never stored. Keyed off the same app_config secret with a
+// DIFFERENT label, so a leaked hash can't be replayed against the session
+// signer and vice versa.
+async function ipHash(env, ip) {
+  if (!ip) return null;
+  const enc = new TextEncoder();
+  const secret = await scoutSecret(env);
+  const keyBytes = await crypto.subtle.digest('SHA-256', enc.encode(`${secret}:scout-ip-v1`));
+  const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const mac = await crypto.subtle.sign('HMAC', key, enc.encode(String(ip)));
+  return [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
 }
 
 // Exported for tests: signature forgery and expiry are the two ways this route
@@ -166,6 +188,93 @@ export async function handleScoutSession(url, request, env) {
   return new Response(null, {
     status: 302,
     headers: { location: action, 'cache-control': 'no-store, private', 'referrer-policy': 'no-referrer' },
+  });
+}
+
+const jsonRes = (data, status = 200) => new Response(JSON.stringify(data), {
+  status,
+  headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+});
+
+// POST /api/scout/signup — the /scout landing page's phone box.
+//
+// The one endpoint in this product that is public, unauthenticated, and has a
+// side effect on someone's PHONE. It deliberately does very little itself: it
+// normalizes, hashes the IP, and hands everything to scout_request_invite,
+// where the caps live. Putting the limits in the RPC rather than here means
+// they hold no matter which caller reaches them, and they're enforced inside
+// the same transaction that inserts the row (so two simultaneous submits can't
+// both pass a count check).
+//
+// It never sends anything. The bot drains the queue on its own schedule —
+// see scout/src/invites.js and the header of migration 0210 for why.
+export async function handleScoutSignup(request, env) {
+  if (request.method !== 'POST') return jsonRes({ error: 'method not allowed' }, 405);
+
+  let body = {};
+  try { body = await request.json(); } catch (_) { /* empty */ }
+
+  // cf-ipcountry makes non-US numbers safe to normalize: without it a UK mobile
+  // typed in national form reads as a US number and we'd text a stranger.
+  const country = request.headers.get('cf-ipcountry') || null;
+  const phone = normalizeHandle(body.phone, country && country !== 'XX' ? country : null);
+
+  if (!isTextablePhone(phone)) {
+    return jsonRes({ error: "That doesn't look like a mobile number. Include the country code if you're outside the US." }, 400);
+  }
+
+  // Only the campaign fields, and only as strings — this lands in a jsonb
+  // column, and echoing an arbitrary client object into the database is how you
+  // end up storing whatever someone felt like posting.
+  const utm = {};
+  for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'referrer']) {
+    const v = body[k];
+    if (typeof v === 'string' && v) utm[k] = v.slice(0, 200);
+  }
+
+  let hashed = null;
+  try {
+    hashed = await ipHash(env, request.headers.get('cf-connecting-ip'));
+  } catch (_) {
+    // No secret configured yet — rate limiting degrades, the signup still works.
+  }
+
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/scout_request_invite`, {
+    method: 'POST',
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'content-type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify({
+      p_phone: phone,
+      p_source: typeof body.source === 'string' ? body.source.slice(0, 60) : 'scout_landing',
+      p_ip_hash: hashed,
+      p_country: country,
+      p_utm: utm,
+      p_consent_version: CONSENT_VERSION,
+    }),
+    signal: AbortSignal.timeout(8000),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    // 53400 = the per-IP limit. Everything else is ours, not theirs.
+    if (detail.includes('53400') || detail.includes('too many requests')) {
+      return jsonRes({ error: 'Too many numbers from this connection. Try again in an hour.' }, 429);
+    }
+    return jsonRes({ error: 'We could not save that just now. Try again in a moment.' }, 502);
+  }
+
+  const row = (await res.json().catch(() => null))?.[0] || {};
+
+  // `status` here is the SIGNUP's state, and it is what the page renders. It
+  // says 'pending' until the bot has actually sent something, so the success
+  // copy can never claim a text went out that didn't.
+  return jsonRes({
+    status: row.status === 'sent' ? 'texted' : 'queued',
+    is_new: row.is_new !== false,
   });
 }
 

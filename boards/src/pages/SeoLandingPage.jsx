@@ -7,7 +7,7 @@
 // Code-split (loaded only on a landing path) and dependency-light — it imports
 // just the brand mark and the shared registry, staying out of the editor chunk.
 
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { SEO_LANDING_PAGES, getLandingSpec } from '../lib/seoLanding.js';
 import { SEO_LISTICLE_INDEX } from '../lib/seoListicleIndex.js';
@@ -16,10 +16,6 @@ import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import './seoLanding.css';
-
-// Only /scout uses this today. Lazy so its CSS + animation code never lands in
-// the chunk the other landing pages share.
-const ScoutDemo = lazy(() => import('./ScoutDemo.jsx'));
 
 // path → short link label, for related-page spokes in the footer. Includes the
 // /best/* listicles via the light index (never the full listicle registry —
@@ -157,19 +153,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
           {/* The product, full width: a real published board inside a minimal
               browser frame. The static shot ships with the app (public/landing/)
               so it renders instantly; clicking opens the live board. */}
-          {/* A page whose product IS a motion (text → cards landing) can't prove
-              itself with a screenshot, so specs may opt into an interactive
-              demo instead. Lazy — it only loads on the page that asks for it,
-              keeping every other landing chunk unchanged. */}
-          {spec.heroDemo === 'scout' && (
-            <div ref={lp.sectionRef('demo', 1)}>
-              <Suspense fallback={<div className="scout-demo-fallback" aria-hidden="true" />}>
-                <ScoutDemo />
-              </Suspense>
-            </div>
-          )}
-
-          {!spec.heroDemo && hero && (
+          {hero && (
             <figure className="seo-frame" id="live-example" ref={lp.sectionRef('frame', 1)}>
               <div className="seo-frame-bar" aria-hidden="true">
                 <span className="seo-frame-dots"><i /><i /><i /></span>
