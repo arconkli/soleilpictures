@@ -61,7 +61,16 @@ comment on column public.scout_threads.last_move is
 -----------------------------------------------------------------------
 -- 3. scout_resolve_identity — now also returns the Bin and the move state,
 --    so the hot path stays ONE round trip per inbound message.
+--
+--    DROP FIRST. This widens the RETURNS TABLE from 5 columns to 9, and
+--    `create or replace` cannot change a function's return type — Postgres
+--    raises 42P13 "cannot change return type of existing function" and the
+--    whole migration aborts. The grants are re-applied immediately below, and
+--    only the Scout service calls this (never a browser), so the momentary
+--    absence inside the transaction is not reachable by anyone.
 -----------------------------------------------------------------------
+drop function if exists public.scout_resolve_identity(text, text, text);
+
 create or replace function public.scout_resolve_identity(
   p_platform   text,
   p_handle     text,
