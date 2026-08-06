@@ -46,7 +46,7 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
                                titlePageEnabled = false, onToggleTitlePage,
                                sceneNumbersShow = false, onSetSceneNumbersShow,
                                pageless = true, onTogglePageless,
-                               zoom = 1, onZoomIn, onZoomOut, onZoomReset }) {
+                               zoom = 1, fitMode = false, onZoomIn, onZoomOut, onZoomReset }) {
   // Subscribe to editor updates so the active-state of buttons stays accurate.
   const [, force] = useState(0);
   useEffect(() => {
@@ -303,9 +303,13 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
       {onZoomIn && (
         <span className="doc-tb-zoom" title="Zoom (⌘+ / ⌘− / ⌘0)">
           <button className="doc-tb-btn" onClick={onZoomOut} title="Zoom out (⌘−)" aria-label="Zoom out">−</button>
-          <button className="doc-tb-btn doc-tb-zoom-label"
+          {/* In fit-to-width the percentage is an implementation detail (it
+              tracks the viewport), so name the MODE instead. Tapping it from a
+              manual zoom returns to fit. */}
+          <button className={`doc-tb-btn doc-tb-zoom-label${fitMode ? ' is-active' : ''}`}
                   onClick={onZoomReset}
-                  title="Reset zoom (⌘0)" aria-label="Reset zoom">{Math.round((zoom || 1) * 100)}%</button>
+                  title={fitMode ? `Fit to width (${Math.round((zoom || 1) * 100)}%)` : 'Reset zoom (⌘0)'}
+                  aria-label={fitMode ? 'Fit to width' : 'Reset zoom'}>{fitMode ? 'Fit' : `${Math.round((zoom || 1) * 100)}%`}</button>
           <button className="doc-tb-btn" onClick={onZoomIn} title="Zoom in (⌘+)" aria-label="Zoom in">+</button>
         </span>
       )}

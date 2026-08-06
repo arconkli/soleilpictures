@@ -28,11 +28,16 @@ import { ImageEditModal } from '../ImageEditModal.jsx';
 import { ImageLightbox } from '../ImageLightbox.jsx';
 import { hasFilterStages } from '../../lib/imageAdjust.js';
 import { downloadImage } from '../../lib/imageExport.js';
+import { startTouchScrollGesture } from '../../lib/touchScroll.js';
 import { PerCardFilter } from '../ImageAdjustFilters.jsx';
 import { useCardCellsVersion, cellTextStyle, CellContent } from './gridCellShared.jsx';
 import './gridCard.css';
 
 const stop = (e) => e.stopPropagation();
+// Same as `stop`, but first lets a one-finger drag scroll the clipped editor
+// body. Everything inside `.canvas-wrap { touch-action: none }` needs this —
+// see lib/touchScroll.js.
+const stopWithTouchScroll = (e) => { startTouchScrollGesture(e); e.stopPropagation(); };
 
 // Split control: a vertical line (split into columns = a 'row' of two cells) or
 // a horizontal line (split into rows = a 'col'). Real icons (Columns, rotated).
@@ -203,7 +208,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                 can overflow a small cell instead of being cut off. */}
             <div className="gridc-cell-body">
               {isEditingText ? (
-                <div className="gc-text-edit" style={tstyle} onPointerDown={stop}>
+                <div className="gc-text-edit" style={tstyle} onPointerDown={stopWithTouchScroll}>
                   <RichNoteEditor
                     html={cell.html || ''}
                     autoFocus

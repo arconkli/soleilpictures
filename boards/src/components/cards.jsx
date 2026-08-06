@@ -18,6 +18,21 @@ import './noteChecklist.css';
 // shared one-shot reload instead of stranding the note on the SurfaceErrorBoundary.
 const NoteTiptapSurface = lazyWithReload(() =>
   import('./NoteTiptapSurface.jsx').then(m => ({ default: m.NoteTiptapSurface })));
+// Reading a comment thread on a NON-editing note must not drag in Tiptap — the
+// popover only needs the Yjs thread store, so it's its own lazy chunk. Wrapper
+// component because the popover takes a docState `scope`, which for a note is
+// derived from the card's Y.Map.
+const NoteCommentThread = lazyWithReload(() =>
+  Promise.all([
+    import('./CommentInlinePopover.jsx'),
+    import('../lib/noteDocState.js'),
+  ]).then(([pop, state]) => ({
+    default: function NoteCommentThreadImpl({ ydoc, cardYMap, ...rest }) {
+      const scope = state.noteCommentScope(ydoc, cardYMap);
+      if (!scope) return null;
+      return <pop.CommentInlinePopover ydoc={ydoc} scope={scope} {...rest} />;
+    },
+  })));
 import { ColorPicker } from './ColorPicker.jsx';
 import { BoardThumbnail } from './BoardThumbnail.jsx';
 import { useBoardPreview } from '../hooks/useBoardPreview.js';
@@ -801,8 +816,12 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
                           vAlign = null,
                           onUpdate, onEditingChange, autoFocus = false,
                           manuallyResized = false, ydoc = null, cardYMap = null,
-                          cardId = null, boardId = null, awareness = null }) {
+                          cardId = null, boardId = null, awareness = null,
+                          currentUser = null, isPublic = false }) {
   const [editing, setEditing] = useState(autoFocus);
+  // Reading a comment must not require entering edit mode — a reader with
+  // view-only access has no edit mode at all. { id, anchor } | null.
+  const [openThread, setOpenThread] = useState(null);
   useEffect(() => { onEditingChange?.(editing); }, [editing]);
 
   const ref = useRef(null);
@@ -839,6 +858,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
           <NoteTiptapSurface
             ydoc={ydoc} cardYMap={cardYMap} html={html}
             cardId={cardId} boardId={boardId} awareness={awareness}
+            currentUser={currentUser}
             manuallyResized={manuallyResized} autoFocus={autoFocus}
             onExitEdit={() => setEditing(false)}
           />
@@ -852,6 +872,14 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   // above) is `display` with colors made readable on this surface.
   const startEdit = (e) => { e?.stopPropagation?.(); setEditing(true); };
   const onBodyClick = (e) => {
+    // Commented text opens its thread straight from the read-only note.
+    const commentEl = e.target.closest?.('.tt-comment[data-comment-id]');
+    if (commentEl && !isPublic && ydoc && cardYMap) {
+      e.preventDefault();
+      e.stopPropagation();
+      setOpenThread({ id: commentEl.dataset.commentId, anchor: commentEl.getBoundingClientRect() });
+      return;
+    }
     const box = e.target.closest?.('.ck-box');
     if (!box || !ref.current) return;
     e.preventDefault();
@@ -875,7 +903,9 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   };
   const onPointerUp = (e) => {
     if (e.pointerType !== 'touch') return;
-    if (e.target.closest?.('a, .note-preview-remove, .ck-box')) return;
+    // A tap on commented text opens the thread (handled in onBodyClick); it
+    // must not also count toward the double-tap-to-edit gesture.
+    if (e.target.closest?.('a, .note-preview-remove, .ck-box, .tt-comment[data-comment-id]')) return;
     if (!tapIsDouble(lastTapRef, e)) return;
     setEditing(true);
   };
@@ -883,6 +913,16 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
     <div ref={ref} className={cls} style={noteStyle}
          onDoubleClick={startEdit} onPointerUp={onPointerUp} onClick={onBodyClick}>
       <NoteAutoLinkBody html={safeDisplay} />
+      {openThread && ydoc && cardYMap && (
+        <Suspense fallback={null}>
+          <NoteCommentThread
+            ydoc={ydoc} cardYMap={cardYMap}
+            threadId={openThread.id} anchor={openThread.anchor}
+            currentUser={currentUser}
+            onClose={() => setOpenThread(null)}
+          />
+        </Suspense>
+      )}
       {overflowing && (
         <button type="button" className="note-more-chip"
                 title="Show all text — fit the note to its content"
@@ -906,7 +946,8 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
                            onUpdate, onEditingChange, autoFocus = false,
                            manuallyResized = false,
                            awareness = null, cardId = null, boardId = null, peerLiveHtml = null,
-                           ydoc = null, cardYMap = null }) {
+                           ydoc = null, cardYMap = null,
+                           currentUser = null, isPublic = false }) {
   // Workspace defaults can pin a fontFamily/fontSize at create time —
   // pass them through as inline styles so existing notes that didn't
   // capture them keep falling back to the page default.
@@ -946,6 +987,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
         autoFocus={autoFocus} manuallyResized={manuallyResized}
         ydoc={ydoc} cardYMap={cardYMap}
         cardId={cardId} boardId={boardId} awareness={awareness}
+        currentUser={currentUser} isPublic={isPublic}
       />
     );
   }

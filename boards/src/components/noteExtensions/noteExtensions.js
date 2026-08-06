@@ -20,6 +20,7 @@ import Color from '@tiptap/extension-color';
 import FontFamily from '@tiptap/extension-font-family';
 import TextAlign from '@tiptap/extension-text-align';
 import { FontSize } from '../docExtensions/FontSize.js';
+import { CommentMark } from '../docExtensions/CommentMark.js';
 import { NoteMention } from './NoteMention.js';
 import { NoteChecklist, NoteChecklistItem } from './NoteChecklist.js';
 
@@ -53,6 +54,12 @@ export const noteExtensions = [
   FontFamily,
   FontSize,
   TextAlign.configure({ types: ['heading', 'paragraph'] }),
+  // Word-level comments, the same mark the doc editor uses. MUST live in this
+  // schema list (not the runtime one): noteDocState round-trips notes through
+  // generateHTML/generateJSON against exactly this array, so a mark missing
+  // here would be silently stripped from card.html on the next keystroke —
+  // i.e. every comment anchor in the note would evaporate.
+  CommentMark,
   // Custom nodes — must keep their exact html contract (see each file).
   NoteMention,
   NoteChecklist,

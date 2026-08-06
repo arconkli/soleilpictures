@@ -440,6 +440,12 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     activePageId,
     currentUser,
     getEditor: () => editorRef.current,
+    // Enables @-mentions in the composer + the notification that follows.
+    // scope.boardId can be absent on legacy view='doc' boards; the flow just
+    // falls back to a plain composer then.
+    workspaceId,
+    boardId: scope?.boardId || null,
+    cardId: scope?.docCardId || null,
   });
 
   // Expose addComment.open to DocSurface so the toolbar button can invoke it.
@@ -490,6 +496,18 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   };
 
   const handleEditorClick = (e) => {
+    // Commented text opens its thread — the core Google-Docs gesture. Until
+    // now the ONLY way in was the 8px gutter dot, which is easy to miss and
+    // impossible to hit on touch, so the highlight looked decorative. Checked
+    // first: a comment can overlap a link, and the comment is the more
+    // specific intent when you click the highlighted run.
+    const commentEl = e.target.closest?.('.tt-comment[data-comment-id]');
+    if (commentEl && !isPublic) {
+      e.preventDefault();
+      setLinkHover(null);
+      setOpenThread({ id: commentEl.dataset.commentId, anchor: commentEl.getBoundingClientRect() });
+      return;
+    }
     // Manual link spans (rendered with data-link-id by LinkRenderer).
     const manualEl = e.target.closest?.('[data-link-id]');
     if (manualEl) {
@@ -1465,6 +1483,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
         <CommentInlinePopover
           ydoc={ydoc} scope={scope} threadId={openThread.id}
           anchor={openThread.anchor} currentUser={currentUser}
+          workspaceId={workspaceId}
+          boardId={scope?.boardId || null}
+          cardId={scope?.docCardId || null}
           onClose={() => setOpenThread(null)}
         />
       )}

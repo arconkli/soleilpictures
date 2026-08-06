@@ -11,8 +11,10 @@
 // (per-tab) — picked from the tree by default, restored from sessionStorage
 // per board so a refresh reopens the same page.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
+import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { PAGE_W } from './docExtensions/DocPagination.js';
 import { addBookmark, addPage, addPageSheet, detachPageSheet, reattachPageSheet, purgeSheetContent, renamePage, getDocMode, setDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap } from '../lib/docState.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { uploadImage } from '../lib/uploads.js';
@@ -34,7 +36,9 @@ import { DocLinkPicker } from './DocLinkPicker.jsx';
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 const RAILS_KEY = 'soleil.boards.docRails';
 const ZOOM_KEY = 'soleil.boards.docZoom';
-const ZOOM_MIN = 0.5;
+// 0.25 (not 0.5) because a phone in fit-to-width needs ~0.42 for an 8.5in
+// sheet, and stepping OUT from there must stay on the same continuous scale.
+const ZOOM_MIN = 0.25;
 // Auto-create a new sheet under the active page when the last sheet's actual
 // CONTENT nearly fills its printed page. We measure the inner ProseMirror
 // content height against the sheet's printable area (the wrap's min-height
@@ -227,10 +231,73 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       return Number.isFinite(v) ? clampZoom(v) : 1;
     } catch (_) { return 1; }
   });
+  // ── Fit-to-width ───────────────────────────────────────────────────────────
+  // A doc sheet is a fixed 816px (8.5in) box; on a phone that's ~2× the
+  // viewport, and there is nothing to auto-shrink it. Screenplay is worse: its
+  // whole contract is that the on-screen wrap column, the paginator, and the
+  // exported PDF agree, which only holds while the sheet keeps its real
+  // geometry. So instead of reflowing we scale the WHOLE sheet down to the
+  // available width via the existing CSS `zoom` — proportions, the 60ch
+  // column, the ch indents and the page breaks all stay byte-identical.
+  //
+  // Phones start fitted; any manual zoom leaves fit mode; the zoom-reset
+  // button (⌘0 / the % pill) returns to it.
+  //
+  // Scoped to layouts whose sheet is genuinely a FIXED 816px box — screenplay,
+  // and paged prose (.doc-flow). Pageless prose is already fluid
+  // (.doc-editor-wrap is width:100%, max-width:816px), so it fits a phone on
+  // its own; scaling that would shrink perfectly readable text for nothing.
+  const { isPhone } = useBreakpoint();
+  const fitEligible = isPhone && (docMode === 'screenplay' || !pageless);
+  const [fitWanted, setFitWanted] = useState(true);
+  const fitMode = fitEligible && fitWanted;
+  const [fitZoom, setFitZoom] = useState(1);
+
+  useLayoutEffect(() => {
+    const paper = paperRef.current;
+    if (!paper || typeof ResizeObserver === 'undefined') return undefined;
+    const measure = () => {
+      // clientWidth excludes the scrollbar; subtracting the paper's own
+      // horizontal padding is what makes this self-consistent with the
+      // .is-fit-width padding overrides in CSS.
+      const cs = getComputedStyle(paper);
+      const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+      const avail = paper.clientWidth - padX;
+      if (avail <= 0) return;
+      // FLOOR, not clampZoom's round-to-2dp: rounding up makes
+      // 816 × zoom wider than the space we just measured, and the sheet
+      // overflows by a couple of px — enough to leave the paper horizontally
+      // scrollable, which is the exact thing fit mode exists to prevent.
+      const raw = avail / PAGE_W;
+      setFitZoom(Math.max(ZOOM_MIN, Math.floor(raw * 100) / 100));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(paper);
+    return () => ro.disconnect();
+    // Re-measure when the layout changes: .is-fit-width alters the paper's own
+    // padding, and show-scene-numbers widens it further.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitMode, docMode, sceneNumbersShow]);
+
+  // What actually gets applied. Everything downstream (CSS var, toolbar
+  // readout, DocPresence coordinate math) must use this, never raw `zoom`.
+  const effectiveZoom = fitMode ? fitZoom : zoom;
+
   const setZoom = (z) => {
-    const next = clampZoom(typeof z === 'function' ? z(zoom) : z);
+    // Step from what the user currently SEES, so leaving fit mode is
+    // continuous rather than jumping back to the last manual value.
+    const base = fitMode ? fitZoom : zoom;
+    const next = clampZoom(typeof z === 'function' ? z(base) : z);
+    setFitWanted(false);
     setZoomState(next);
     try { localStorage.setItem(zoomStorageKey, String(next)); } catch (_) {}
+  };
+  // ⌘0 / the % pill: on a phone "reset" means fit (100% is unusable there);
+  // on desktop it keeps meaning actual size.
+  const resetZoom = () => {
+    if (fitEligible) { setFitWanted(true); return; }
+    setZoom(1);
   };
 
   const [findOpen, setFindOpen] = useState(false);
@@ -277,7 +344,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
         setZoom((z) => z - ZOOM_STEP);
       } else if (e.key === '0') {
         e.preventDefault();
-        setZoom(1);
+        resetZoom();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -683,12 +750,14 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
         {/* Phone-only entry point to the page list (the desktop rail is hidden
             at <=640px). Opens the rail as a slide-over drawer. */}
         <button className="doc-mobile-pages-btn"
-                aria-label="Pages" aria-expanded={mobileRailOpen}
+                aria-label={docMode === 'screenplay' ? 'Pages and scenes' : 'Pages'} aria-expanded={mobileRailOpen}
                 onClick={() => { setRails(r => ({ ...r, left: true })); setMobileRailOpen(o => !o); }}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="M2 3 H12 M2 7 H12 M2 11 H12" />
           </svg>
-          Pages
+          {/* The drawer carries the scene nav too in screenplay mode — say so,
+              or the only way to jump between scenes on a phone is invisible. */}
+          {docMode === 'screenplay' ? 'Scenes' : 'Pages'}
         </button>
         {!isPublic && (
         <DocToolbar editor={editorRef.current}
@@ -710,17 +779,18 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     onOpenFind={() => setFindOpen(true)}
                     onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
                     onAddComment={() => openAddCommentRef.current?.()}
-                    zoom={zoom}
+                    zoom={effectiveZoom}
+                    fitMode={fitMode}
                     onZoomIn={() => setZoom((z) => z + ZOOM_STEP)}
                     onZoomOut={() => setZoom((z) => z - ZOOM_STEP)}
-                    onZoomReset={() => setZoom(1)} />
+                    onZoomReset={resetZoom} />
         )}
         <DocFindReplace editor={editorRef.current}
                         editors={activePageId ? sheetIds.map(sid => editorsRef.current.get(sid)).filter(Boolean) : []}
                         open={findOpen}
                         onClose={() => setFindOpen(false)} />
-        <div className={`doc-paper${docMode === 'screenplay' ? ' is-screenplay' : ''}${docMode === 'screenplay' && sceneNumbersShow ? ' show-scene-numbers' : ''}${docMode !== 'screenplay' && pageless ? ' is-pageless' : ''}`} ref={paperRef}
-             style={{ position: 'relative', '--doc-zoom': zoom }}>
+        <div className={`doc-paper${fitMode ? ' is-fit-width' : ''}${docMode === 'screenplay' ? ' is-screenplay' : ''}${docMode === 'screenplay' && sceneNumbersShow ? ' show-scene-numbers' : ''}${docMode !== 'screenplay' && pageless ? ' is-pageless' : ''}`} ref={paperRef}
+             style={{ position: 'relative', '--doc-zoom': effectiveZoom }}>
           {/* Grain texture is painted as a background-image on .doc-paper
               with background-attachment:local so it tiles across the
               full scrollHeight — no separate <div> needed. */}
@@ -747,7 +817,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 scope={scope}
                 docMode={docMode}
                 pageless={pageless}
-                zoom={zoom}
+                zoom={effectiveZoom}
                 pageId={activePageId}
                 sheetId={sid}
                 activePageId={activePageId}

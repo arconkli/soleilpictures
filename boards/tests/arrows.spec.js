@@ -193,3 +193,69 @@ test.describe('arrow manual bend', () => {
     expect(res.violations).toEqual([]);
   });
 });
+
+// ── Arrow text labels ──────────────────────────────────────────────────────
+// Labels used to be drawn with SVG <textPath>, which hands orientation to the
+// browser's per-glyph tangent: every right-to-left arrow rendered upside-down
+// and curved arrows arced their text. They're now a single <text> rotated once
+// by the tangent at the midpoint, folded into (-90°, 90°] so the glyphs stay
+// upright whatever direction the arrow runs.
+test.describe('arrow labels stay upright', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/?arrowqa=1');
+    await page.waitForFunction(() => !!window.__soleilArrowTest);
+  });
+
+  test('every routed arrow reports an upright label angle', async ({ page }) => {
+    const angles = await page.evaluate(() => {
+      const T = window.__soleilArrowTest;
+      const { cards, arrows } = T.seedCrowded();
+      // Covers each routing branch the seed exercises: deflected cubic, the
+      // orthogonal elbow around the wall, the fan-out trio, and open-space bows
+      // in both orientations.
+      return arrows.map((_, i) => T.labelAngleFor(cards, arrows, i));
+    });
+    expect(angles.length).toBeGreaterThan(0);
+    for (const a of angles) {
+      expect(Number.isFinite(a)).toBe(true);
+      expect(a).toBeGreaterThan(-90.0001);
+      expect(a).toBeLessThanOrEqual(90.0001);
+    }
+  });
+
+  test('reversing an arrow does not flip its label over', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilArrowTest;
+      const { cards } = T.seedCrowded();
+      // Same two cards, opposite directions. Under <textPath> the right-to-left
+      // one rendered mirrored; the upright clamp must give both the SAME angle.
+      const ltr = [{ from: 'O1', to: 'O2', straight: true }];
+      const rtl = [{ from: 'O2', to: 'O1', straight: true }];
+      return {
+        ltr: T.labelAngleFor(cards, ltr, 0),
+        rtl: T.labelAngleFor(cards, rtl, 0),
+      };
+    });
+    expect(Math.abs(r.ltr - r.rtl)).toBeLessThan(0.0001);
+  });
+
+  test('the clamp folds a backwards tangent, keeping the line slope', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const f = window.__soleilArrowTest.uprightLabelAngle;
+      return {
+        east:      f({ ux: 1, uy: 0 }),
+        west:      f({ ux: -1, uy: 0 }),          // 180° → folds to 0
+        southEast: f({ ux: 0.7071, uy: 0.7071 }), // 45° → unchanged
+        northWest: f({ ux: -0.7071, uy: -0.7071 }), // -135° → folds to 45
+        south:     f({ ux: 0, uy: 1 }),           // 90° → boundary stays 90
+        north:     f({ ux: 0, uy: -1 }),          // -90° → folds to 90
+      };
+    });
+    expect(r.east).toBeCloseTo(0, 4);
+    expect(r.west).toBeCloseTo(0, 4);
+    expect(r.southEast).toBeCloseTo(45, 3);
+    expect(r.northWest).toBeCloseTo(45, 3);
+    expect(r.south).toBeCloseTo(90, 4);
+    expect(r.north).toBeCloseTo(90, 4);
+  });
+});

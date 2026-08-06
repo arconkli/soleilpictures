@@ -20,7 +20,7 @@ import { FontPickerDropdown } from './FontPickerDropdown.jsx';
 import { SizeInput } from './SizeInput.jsx';
 import { combineAllFonts, ensureGoogleFontLoaded } from '../lib/googleFonts.js';
 import { addRecentFont } from '../lib/customFonts.js';
-import { getActiveNoteEditor, subscribeActiveNoteEditor } from '../lib/noteEditorRegistry.js';
+import { getActiveNoteEditor, getActiveNoteActions, subscribeActiveNoteEditor } from '../lib/noteEditorRegistry.js';
 import { safeRun } from '../lib/safeEditorCmd.js';
 
 // Subscribe to the active collaborative-note Tiptap editor (set by
@@ -835,6 +835,7 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
               </button>
             );
           })()}
+          {!cellStyleMode && <NoteCommentBtn />}
           <span className="tob-sep" />
           <ColorBtn title="Text color" glyph="A" defaultColor={currentFore}
                     swatches={TEXT_COLORS}
@@ -1019,6 +1020,49 @@ function ListBtn({ label, title, type, active = false }) {
             onPointerDown={(e) => e.preventDefault()}
             onClick={() => applyToggleList(type)}>
       {label}
+    </button>
+  );
+}
+
+// Comment on the selected words in a note — the same gesture as the doc
+// editor's toolbar button (and ⌘⌥M). Disabled with an explanatory title on a
+// collapsed caret, mirroring DocToolbar, so the button teaches the gesture
+// instead of silently no-op'ing.
+//
+// The flow itself is owned by NoteTiptapSurface (it needs the note's Yjs card
+// map for the thread store); it hands `openAddComment` to the registry when it
+// mounts. Only the collaborative Tiptap note path registers it — the legacy
+// contentEditable editor has no comment support, so the button hides there.
+function NoteCommentBtn() {
+  const editor = useActiveNoteEditor();
+  // Enabled-ness tracks the live selection, so subscribe to the editor's own
+  // updates — the toolbar's FMT_EVT only fires after a format command runs and
+  // would leave this button stale while the user was merely selecting text.
+  const [, bump] = useState(0);
+  useEffect(() => {
+    if (!editor) return undefined;
+    const tick = () => bump(n => n + 1);
+    editor.on('selectionUpdate', tick);
+    editor.on('transaction', tick);
+    return () => { editor.off('selectionUpdate', tick); editor.off('transaction', tick); };
+  }, [editor]);
+  const openAddComment = getActiveNoteActions().openAddComment;
+  if (!editor || !openAddComment) return null;
+  const hasSelection = !editor.state.selection.empty;
+  return (
+    <button className="tob-btn"
+            title={hasSelection ? 'Comment on the selection (⌘⌥M)' : 'Select text to comment on'}
+            aria-label="Add comment"
+            disabled={!hasSelection}
+            // preventDefault on both so the note keeps its selection — losing
+            // it would leave the composer with nothing to anchor to.
+            onMouseDown={(e) => e.preventDefault()}
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => openAddComment()}>
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor"
+           strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M12 8.5a1.5 1.5 0 0 1-1.5 1.5H5l-3 2.5V3.5A1.5 1.5 0 0 1 3.5 2h7A1.5 1.5 0 0 1 12 3.5z" />
+      </svg>
     </button>
   );
 }

@@ -21,7 +21,7 @@
 import { resolveSrc, cachedUrl } from './r2.js';
 import { loadCorsCleanImage } from './corsImage.js';
 import {
-  computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
+  computeArrowAttachments, buildArrowPath, arrowHeadPolygon, uprightLabelAngle,
   arrowStrokeWidth, arrowHeadSize, arrowHeadStyle,
 } from './arrowGeometry.js';
 import { paletteLayout, readableInk, hasCustomName } from './paletteLayout.js';
@@ -30,7 +30,8 @@ import { parseISO as schedParseISO, todayISO as schedTodayISO, daysInMonth as sc
 // Bump when the rendered output changes materially. Stored thumbnails carry
 // this in boards.thumb_version; tiles re-render stale versions in the
 // background (useThumbnailBackfill) so the new look rolls out lazily.
-export const RENDER_VERSION = 5;   // 5: new-model schedule cards draw a mini month lattice
+export const RENDER_VERSION = 6;   // 6: arrow text labels are drawn (upright-clamped)
+                                   // 5: new-model schedule cards draw a mini month lattice
 
 // Output frame: 16:9 ≈ both the grid tile cover and OG's 1.91:1. Fixed
 // supersample (NOT device DPR) so the stored artifact is deterministic
@@ -178,7 +179,7 @@ function fillTriangle(ctx, ptsStr) {
 // Draw all arrows in board-space (ctx is already board→canvas scaled).
 // `pxPerUnit` = backing canvas px per board unit; used to floor thin arrows
 // so they stay visible at fit-to-content scale.
-function drawArrows(ctx, arrows, cards, pxPerUnit, precomputedPlacements) {
+function drawArrows(ctx, arrows, cards, pxPerUnit, precomputedPlacements, bgColor = null) {
   if (!arrows || !arrows.length) return;
   const placements = precomputedPlacements || computeArrowAttachments(arrows, buildArrowCtx(cards));
   const obstacleRects = (cards || []).map(c => ({ id: c.id, x: c.x, y: c.y, w: c.w || 100, h: c.h || 100 }));
@@ -220,7 +221,45 @@ function drawArrows(ctx, arrows, cards, pxPerUnit, precomputedPlacements) {
     if (headStyle !== 'none') fillTriangle(ctx, arrowHeadPolygon(att.to.point, toTangentIn, hd));
     if (headStyle === 'double') fillTriangle(ctx, arrowHeadPolygon(att.from.point, fromTangentIn, hd));
     ctx.restore();
+    if (a.label) drawArrowLabel(ctx, a.label, built, pxPerUnit, bgColor);
   }
+}
+
+// Arrow text label — mirrors the live canvas (CanvasSurface's .arrow-label-text):
+// rotated to the tangent at the midpoint, clamped upright so it never reads
+// backwards, ink at --ink-1 strength, and a background-colored halo punched out
+// behind the glyphs so it stays legible over cards and other arrows.
+//
+// Sizing differs from the canvas on purpose. On canvas the label is de-scaled by
+// zoom to a constant SCREEN size; a thumbnail is a miniature of the whole board,
+// so a fixed screen size would let one label dominate the frame. Here it scales
+// WITH the board and is dropped below a legibility floor — an unreadable smear
+// is worse than an honest omission.
+const ARROW_LABEL_BOARD_PX = 12;   // board units
+const ARROW_LABEL_MIN_PX = 5;      // backing-canvas px below which we skip it
+function drawArrowLabel(ctx, label, built, pxPerUnit, bgColor) {
+  const mid = built?.midPoint;
+  if (!mid) return;
+  const scale = pxPerUnit || 1;
+  if (ARROW_LABEL_BOARD_PX * scale < ARROW_LABEL_MIN_PX) return;
+  const rot = uprightLabelAngle(built.midTangent) * Math.PI / 180;
+  ctx.save();
+  ctx.translate(mid.x, mid.y);
+  ctx.rotate(rot);
+  ctx.font = `600 ${ARROW_LABEL_BOARD_PX}px ${FONT_SANS}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // Offset perpendicular to the line (post-rotation −y), matching the canvas's
+  // dy so the label sits beside the stroke rather than on it.
+  const dy = -ARROW_LABEL_BOARD_PX * 0.64;
+  ctx.lineWidth = ARROW_LABEL_BOARD_PX * 0.36;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = bgColor || T.bg0;
+  ctx.strokeText(label, 0, dy);
+  ctx.fillStyle = T.ink1;
+  ctx.fillText(label, 0, dy);
+  ctx.restore();
 }
 
 // ── Text helpers ─────────────────────────────────────────────────────────
@@ -1260,7 +1299,7 @@ async function planToBlob(plan, { width, height, allowImages, bgColor }) {
   }
 
   // Arrows / connectors — drawn above cards, below freehand strokes.
-  drawArrows(ctx, arrows, sorted, pxPerUnit, arrowPlacements);
+  drawArrows(ctx, arrows, sorted, pxPerUnit, arrowPlacements, bgColor);
 
   // Freehand strokes overlay — 1:1 with the live canvas (width as stored,
   // full opacity), floored so they stay visible at fit-to-content scale.

@@ -42,10 +42,14 @@ import { GridCellMenu } from './GridCellMenu.jsx';
 import { SchedulePeek } from './SchedulePeek.jsx';
 import { SchedDatePopover } from './SchedDatePopover.jsx';
 import { useCardCellsVersion, cellTextStyle, CellContent } from './gridCellShared.jsx';
+import { startTouchScrollGesture } from '../../lib/touchScroll.js';
 import './gridCard.css';
 import './scheduleCard.css';
 
 const stop = (e) => e.stopPropagation();
+// Same as `stop`, but first lets a one-finger drag scroll the clipped editor
+// body — see lib/touchScroll.js for why the browser can't do it here.
+const stopWithTouchScroll = (e) => { startTouchScrollGesture(e); e.stopPropagation(); };
 
 const VIEWS = [
   { id: 'month', label: 'M', tip: 'Month' },
@@ -437,7 +441,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
           <span className="schedc-time-label">{s.label}</span>
         )}
         {editingHere ? (
-          <div className="schedc-item-full gc-text-edit" onPointerDown={stop}>
+          <div className="schedc-item-full gc-text-edit" onPointerDown={stopWithTouchScroll}>
             <RichNoteEditor
               html={model.cells[editing.itemKey]?.html || ''}
               autoFocus

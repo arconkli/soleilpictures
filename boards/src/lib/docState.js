@@ -552,16 +552,23 @@ export function movePage(ydoc, id, newParentId, newIndex, scope) {
 }
 
 // Comments ──────────────────────────────────────────────────────────────────
+// `authorId` is the real auth.users id. `author` (a display string) is kept as
+// the render fallback for threads written before identity was stored and for
+// peers whose profile hasn't resolved yet — never drop it. `mentions` is the
+// set of user ids @-named in the body; notification is the caller's job (see
+// lib/commentMentions.js), this only records who was named.
 export function addCommentThread(ydoc, opts) {
-  const { pageId, body, author, authorColor, scope } = opts;
+  const { pageId, body, author, authorId, authorColor, mentions, scope } = opts;
   const id = 'cm_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3);
   const map = commentsMap(ydoc, scope); if (!map) return id;
   ydoc.transact(() => {
     map.set(id, {
       pageId, ts: Date.now(),
       author: author || 'Someone',
+      authorId: authorId || null,
       authorColor: authorColor || '#4f8df8',
       body: String(body || '').slice(0, 4000),
+      mentions: Array.isArray(mentions) ? mentions : [],
       replies: [], resolved: false,
     });
   }, DOC_ORIGIN);
@@ -569,15 +576,17 @@ export function addCommentThread(ydoc, opts) {
 }
 
 export function addCommentReply(ydoc, id, opts) {
-  const { body, author, authorColor, scope } = opts;
+  const { body, author, authorId, authorColor, mentions, scope } = opts;
   const map = commentsMap(ydoc, scope);
   const cur = map?.get(id); if (!cur) return;
   const reply = {
     id: 'cr_' + Math.random().toString(36).slice(2, 8),
     ts: Date.now(),
     author: author || 'Someone',
+    authorId: authorId || null,
     authorColor: authorColor || '#4f8df8',
     body: String(body || '').slice(0, 4000),
+    mentions: Array.isArray(mentions) ? mentions : [],
   };
   ydoc.transact(() => { map.set(id, { ...cur, replies: [...(cur.replies || []), reply] }); }, DOC_ORIGIN);
 }
