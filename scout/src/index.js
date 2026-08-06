@@ -8,7 +8,7 @@
 // otherwise. The interesting telemetry lands in analytics_events via the
 // SECURITY DEFINER RPCs, which is where the rest of the product looks.
 
-import { Spectrum } from 'spectrum-ts';
+import { Spectrum, image } from 'spectrum-ts';
 import { imessage } from 'spectrum-ts/providers/imessage';
 import { loadConfig } from './config.js';
 import { makeUploader } from './media.js';
@@ -31,6 +31,21 @@ function senderHandle(message, space) {
     || '';
 }
 
+// Attaching an image is best-effort, exactly like editing a message is: the
+// provider may refuse, the channel may not carry attachments, or the SDK's
+// helper may not be shaped the way we expect. None of those are worth losing the
+// reply over — the text that follows always states the count and the board, so a
+// thread with no picture is degraded but never wrong.
+async function sendImage(space, bytes) {
+  try {
+    await space.send(image(bytes, { mimeType: 'image/jpeg', name: 'scout.jpg' }));
+    return true;
+  } catch (e) {
+    console.error('[scout] image send failed', e?.message);
+    return false;
+  }
+}
+
 const batcher = makeBatcher({
   waitMs: cfg.BURST_MS,
   onFlush: async (burst) => {
@@ -42,6 +57,10 @@ const batcher = makeBatcher({
     const progress = makeProgress(space);
     try {
       const out = await space.responding(async () => runBurst(cfg, r2, burst, progress));
+      // The picture goes FIRST. A move confirmation is answered by looking at
+      // the photos, not by reading the count, so the image has to be above the
+      // question in the thread rather than below it.
+      if (out?.attachment) await sendImage(space, out.attachment);
       if (out?.reply) await progress.done(out.reply);
       console.log('[scout] burst', {
         platform: burst.platform,
@@ -50,6 +69,9 @@ const batcher = makeBatcher({
         live: out?.live ?? null,
         capped: out?.capped ?? false,
         answered: out?.answered ?? false,
+        proposed: out?.proposed ?? false,
+        moved: out?.moved ?? 0,
+        sheet: out?.attachment ? out.attachment.length : 0,
         edits: progress.usedEdits,
         ms: Date.now() - t0,
       });

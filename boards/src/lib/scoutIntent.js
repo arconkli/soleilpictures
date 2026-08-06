@@ -140,7 +140,11 @@ export function parseCommand(text) {
   switch (cmd.toLowerCase()) {
     case 'link':   return { command: 'link', arg };
     case 'board':  return { command: 'board', arg };
-    case 'inbox':  return { command: 'board', arg: '' };
+    // "what's waiting to be filed", not "switch to a board" — these were the
+    // same thing when the Bin was a destination; now that it's a staging
+    // collection they're different questions.
+    case 'bin':
+    case 'inbox':  return { command: 'bin', arg };
     case 'start':
     case 'help':   return { command: 'help', arg };
     case 'code':   return { command: 'code', arg };

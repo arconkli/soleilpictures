@@ -10,8 +10,22 @@
 //     an image library for two numbers.
 
 import { heifToJpeg } from 'heif2jpeg';
+import sharp from 'sharp';
+import { rgbaToThumbHash } from 'thumbhash';
 import { makeR2 } from '../../boards/scripts/lib/r2.mjs';
 import { scoutInsert } from '../../boards/src/lib/scoutDb.js';
+import { averageColor } from '../../boards/src/lib/oklab.js';
+
+// Keep in lockstep with src/lib/uploads.js (the browser upload path) — a scout
+// photo and a dragged photo should produce the same tiers.
+const PREVIEW_LONGEST_EDGE = 1280;
+const PREVIEW_SM_LONGEST_EDGE = 640;
+const PREVIEW_QUALITY = 72;
+// ThumbHash's encoder is specified for inputs up to 100×100.
+const HASH_EDGE = 96;
+// Average colour is computed from an 8×8 reduction: big enough that a single
+// bright window doesn't dominate, small enough that it's free.
+const COLOR_EDGE = 8;
 
 const HEIC_TYPES = new Set(['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence']);
 
@@ -97,6 +111,58 @@ export function imageSize(bytes) {
   return { width: null, height: null };
 }
 
+// One decode, four outputs.
+//
+// Scout previously wrote the raw original and nothing else, which meant a board
+// full of texted photos made the canvas download every multi-megabyte original —
+// exactly the problem migration 0105 exists to prevent. The browser upload path
+// generates a ThumbHash and two WebP tiers; this brings parity, and since we're
+// decoding anyway the moodboard's average colour comes out of the same pass.
+//
+// .rotate() FIRST and everywhere: iPhone photos carry EXIF orientation, so the
+// stored dimensions of a portrait frame are landscape until it's applied. Get
+// this wrong and every portrait photo gets a landscape card, which the moodboard
+// layout then packs into a column of wrongly-shaped holes.
+async function analyzeImage(bytes) {
+  const base = sharp(Buffer.from(bytes), { failOn: 'none' }).rotate();
+  const meta = await base.metadata();
+
+  const [colorRaw, hashRaw, preview, previewSm] = await Promise.all([
+    base.clone().resize(COLOR_EDGE, COLOR_EDGE, { fit: 'fill' }).removeAlpha().raw().toBuffer(),
+    base.clone().resize(HASH_EDGE, HASH_EDGE, { fit: 'inside' }).ensureAlpha().raw()
+      .toBuffer({ resolveWithObject: true }),
+    encodePreview(base, PREVIEW_LONGEST_EDGE),
+    encodePreview(base, PREVIEW_SM_LONGEST_EDGE),
+  ]);
+
+  let thumbhash = null;
+  try {
+    const { data, info } = hashRaw;
+    thumbhash = Buffer.from(rgbaToThumbHash(info.width, info.height, data)).toString('base64');
+  } catch (_) { /* a blur placeholder is a nicety, never a reason to drop a photo */ }
+
+  return {
+    width: meta.width ?? null,
+    height: meta.height ?? null,
+    lab: averageColor(colorRaw, 3),
+    thumbhash,
+    preview,
+    previewSm,
+  };
+}
+
+async function encodePreview(base, edge) {
+  try {
+    const out = await base.clone()
+      .resize(edge, edge, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: PREVIEW_QUALITY })
+      .toBuffer({ resolveWithObject: true });
+    return { bytes: out.data, w: out.info.width, h: out.info.height };
+  } catch (_) {
+    return null;
+  }
+}
+
 // Upload one attachment and register it. The images row carries
 // referenced_in_board_ids FROM BIRTH so the R2 orphan sweep can never treat it
 // as garbage, even if a later step in the pipeline fails.
@@ -104,10 +170,28 @@ export async function uploadImage(cfg, r2, {
   bytes, mimeType, name, workspaceId, boardId, cardId, userId,
 }) {
   const norm = await normalizeImage(bytes, mimeType, name);
-  const { width, height } = imageSize(norm.bytes);
-  const key = `${workspaceId}/${crypto.randomUUID()}.${norm.ext}`;
 
+  // Every derived artifact is optional. A photo that sharp can't decode still
+  // gets stored and still becomes a card — it just loads slower and sorts to
+  // the end of the moodboard.
+  let info = null;
+  try {
+    info = await analyzeImage(norm.bytes);
+  } catch (e) {
+    console.error('[scout] image analyze failed', e?.message);
+  }
+  const { width, height } = info?.width ? info : imageSize(norm.bytes);
+
+  const uuid = crypto.randomUUID();
+  const key = `${workspaceId}/${uuid}.${norm.ext}`;
+  const previewKey = info?.preview ? `${workspaceId}/previews/${uuid}.webp` : null;
+  const previewSmKey = info?.previewSm ? `${workspaceId}/previews/${uuid}-sm.webp` : null;
+
+  // R2 PUTs strictly BEFORE the DB stamps, so a crash can never leave a row
+  // pointing at a missing object (same ordering as backfill-image-variants.mjs).
   await r2.put(key, norm.bytes, norm.mimeType);
+  if (previewKey) await r2.put(previewKey, info.preview.bytes, 'image/webp');
+  if (previewSmKey) await r2.put(previewSmKey, info.previewSm.bytes, 'image/webp');
 
   // /sign-reads only issues URLs for keys that have an images row, so a failure
   // here means an unviewable card. Let it throw.
@@ -121,7 +205,33 @@ export async function uploadImage(cfg, r2, {
     size_bytes: norm.bytes.length ?? norm.bytes.byteLength ?? null,
     uploaded_by: userId,
     referenced_in_board_ids: [boardId],
+    blur_hash: info?.thumbhash || null,
+    preview_path: previewKey,
+    preview_w: info?.preview?.w ?? null,
+    preview_h: info?.preview?.h ?? null,
   }]);
 
-  return { key, width, height, mimeType: norm.mimeType };
+  // Preview rows exist so /sign-reads will authorize the preview keys. They are
+  // never referenced by a card, so ref_count stays 0 — without the retention
+  // lock the daily R2 orphan sweep collects them after 30 days and every scout
+  // photo silently loses its fast tier.
+  const previewRows = [
+    previewKey && { path: previewKey, w: info.preview.w, h: info.preview.h },
+    previewSmKey && { path: previewSmKey, w: info.previewSm.w, h: info.previewSm.h },
+  ].filter(Boolean).map((p) => ({
+    workspace_id: workspaceId,
+    board_id: boardId,
+    storage_path: p.path,
+    width: p.w,
+    height: p.h,
+    uploaded_by: userId,
+    retention_locked_until: '2999-01-01T00:00:00Z',
+  }));
+  if (previewRows.length) {
+    await scoutInsert(cfg, 'images', previewRows, { onConflict: 'storage_path' }).catch((e) => {
+      console.error('[scout] preview row insert failed', e?.message);
+    });
+  }
+
+  return { key, width, height, mimeType: norm.mimeType, lab: info?.lab || null };
 }

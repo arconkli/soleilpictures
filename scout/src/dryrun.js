@@ -86,8 +86,9 @@ if (!row?.user_id) {
 
 const boards = await scoutSelect(cfg, 'boards',
   `workspace_id=not.is.null&created_by=eq.${row.user_id}&deleted_at=is.null&select=id,name,workspace_id&order=created_at.asc`);
-const board = boards.find((b) => b.id === row.target_board_id) || boards[0];
+const board = boards.find((b) => b.id === (row.target_board_id || row.bin_board_id)) || boards[0];
 ok('a board exists for the identity', !!board, board?.name);
+ok('the Bin is pinned by id, not found by name', !!row.bin_board_id);
 
 const stateRows = await scoutSelect(cfg, 'board_state', `board_id=eq.${board.id}&select=doc`);
 ok('board_state row exists', !!stateRows?.[0]?.doc);
@@ -123,5 +124,70 @@ for (let i = 0; i < body.length; i++) {
   for (let j = i + 1; j < body.length; j++) if (rectsOverlap(body[i], body[j])) overlaps++;
 }
 ok('no cards overlap', overlaps === 0, overlaps ? `${overlaps} collision(s)` : '');
+
+// ── Filing ───────────────────────────────────────────────────────────────────
+//
+// The move path, exercised end to end: propose → confirm → verify. The check
+// that matters most is the LAST one. A move rewrites two board_state rows, and
+// recompute_image_refs (0127) fires per board — so a move that writes the source
+// but not the destination leaves photos referenced by nothing, and the R2 orphan
+// sweep silently deletes them 30 days later. Same failure class as the original
+// triple-write bug, one layer up.
+if (process.argv.includes('--file') && imageCards.length) {
+  const destName = `Dry Run Destination ${new Date().toISOString().slice(0, 10)}`;
+  console.log(`\n--- filing into "${destName}" ---`);
+
+  const before = await scoutSelect(cfg, 'card_index',
+    `board_id=eq.${board.id}&select=card_id`);
+
+  const propose = await runBurst(cfg, r2, {
+    ...burst, texts: [`put these in ${destName}`], attachments: [],
+  });
+  console.log(propose.reply || '(silent)');
+  ok('a move was proposed rather than performed', !!propose.proposed);
+  ok('the proposal carried a contact sheet', !!propose.attachment,
+     propose.attachment ? `${Math.round(propose.attachment.length / 1024)}KB` : 'no image');
+
+  const confirm = await runBurst(cfg, r2, { ...burst, texts: ['yes'], attachments: [] });
+  console.log(confirm.reply || '(silent)');
+  ok('cards moved on confirmation', (confirm.moved || 0) > 0, `${confirm.moved} card(s)`);
+  ok('the result carried a moodboard preview', !!confirm.attachment);
+
+  const dest = (await scoutSelect(cfg, 'boards',
+    `workspace_id=eq.${board.workspace_id}&name=eq.${encodeURIComponent(destName)}`
+    + '&deleted_at=is.null&select=id&limit=1'))?.[0];
+
+  if (ok('the destination board exists', !!dest)) {
+    const after = await scoutSelect(cfg, 'card_index', `board_id=eq.${board.id}&select=card_id`);
+    const landed = await scoutSelect(cfg, 'card_index', `board_id=eq.${dest.id}&select=card_id`);
+    ok('card_index rows LEFT the Bin', after.length < before.length,
+       `${before.length} → ${after.length}`);
+    ok('card_index rows ARRIVED on the destination', landed.length >= (confirm.moved || 0),
+       `${landed.length} row(s)`);
+
+    const movedImgs = await scoutSelect(cfg, 'images',
+      `board_id=eq.${board.id}&select=storage_path,referenced_in_board_ids`);
+    const stillSafe = movedImgs.every((i) => (i.referenced_in_board_ids || []).length > 0);
+    ok('SWEEP SAFETY AFTER MOVE: no photo is left unreferenced', stillSafe,
+       stillSafe ? '' : 'the orphan sweep would delete these in 30 days');
+
+    const destState = await scoutSelect(cfg, 'board_state', `board_id=eq.${dest.id}&select=doc`);
+    if (destState?.[0]?.doc) {
+      const d2 = new Y.Doc();
+      Y.applyUpdate(d2, b64ToBytes(destState[0].doc));
+      const destCards = readCards(d2).filter((c) => !c.sectionHeader);
+      d2.destroy();
+      let collisions = 0;
+      for (let i = 0; i < destCards.length; i++) {
+        for (let j = i + 1; j < destCards.length; j++) {
+          if (rectsOverlap(destCards[i], destCards[j])) collisions++;
+        }
+      }
+      ok('the moodboard has no overlapping cards', collisions === 0,
+         collisions ? `${collisions} collision(s)` : `${destCards.length} card(s)`);
+      ok('moved cards kept their colour data', destCards.some((c) => Array.isArray(c.lab)));
+    }
+  }
+}
 
 console.log(`\n${process.exitCode ? 'DRY RUN FAILED' : 'dry run passed'}\n`);

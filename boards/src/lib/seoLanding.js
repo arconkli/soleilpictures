@@ -72,7 +72,7 @@ const PAGES = [
       { t: 'Say what it is', d: 'Add "Scene 4 diner" or "power drops look sketchy". Scout reads it and titles the group.' },
       { t: 'Keep shooting', d: 'Send twelve more. They batch into one tidy grid instead of twelve replies and twelve piles.' },
       { t: 'Tap the link', d: 'Land on your canvas, signed in, with exactly the photos you just sent already selected.' },
-      { t: 'File it later', d: 'Say "put these in Diner Recce" whenever you want. Until then it all waits in your Scout Inbox.' },
+      { t: 'File it later', d: 'Everything collects in your Scout Bin. Say "put these in Diner Recce" whenever you want — Scout shows you exactly which photos are about to move before it moves them, then arranges them by colour.' },
     ],
     sections: [
       {
@@ -106,7 +106,7 @@ const PAGES = [
       { q: 'Do I need to install anything?', a: 'No. You text a number from the messages app already on your phone. There is no app to download, no account to create, and no password. Your board exists from the first photo you send.' },
       { q: 'Does it work on Android?', a: 'Scout runs over iMessage today, so it works on iPhone. Android support depends on SMS/RCS delivery, which is not live yet — if you are on Android, use the web app at clusters.soleilpictures.com and drag your photos in.' },
       { q: 'What happens to my photos?', a: 'They upload at full resolution to your own private board. Nobody else can see them unless you share the board. Photos sent over iMessage keep their original quality rather than being compressed the way MMS attachments are.' },
-      { q: 'How does it know where to put things?', a: 'It reads what you wrote. Text "Scene 4 diner" with five photos and it creates a titled group for them. Say "put these in Diner Recce" and it files everything there from then on. If you say nothing, it all waits in your Scout Inbox.' },
+      { q: 'How does it know where to put things?', a: 'It reads what you wrote. Text "Scene 4 diner" with five photos and it creates a titled group for them. Everything collects in your Scout Bin until you say "put these in Diner Recce" — and before anything moves, Scout texts you back a picture of exactly which photos are about to go, so a batch you forgot about three days ago never rides along by accident.' },
       { q: 'Is it free?', a: 'Yes, to start. The free tier covers 100 cards across unlimited boards, with collaborators included. Creator ($25/mo) lifts the card cap and adds 100GB of storage and any file type.' },
       { q: 'Can I use it with a board I already have?', a: 'Yes. Connect your existing Soleil account from Settings, then say "put these in <board name>" and Scout files straight into it.' },
     ],

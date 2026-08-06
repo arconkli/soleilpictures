@@ -24,7 +24,7 @@ import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import { bytesToB64, b64ToBytes, cardToYMap, readCards } from './yhelpers.js';
 import { buildCardIndexRows, stampCard } from '../../scripts/lib/cardEncode.mjs';
-import { scoutSelect, scoutInsert, scoutRpc } from './scoutDb.js';
+import { scoutSelect, scoutInsert, scoutRpc, scoutPatch, scoutDelete } from './scoutDb.js';
 
 const MESSAGE_SYNC = 0;
 const SYNC_STEP_2 = 1;
@@ -228,6 +228,192 @@ export async function addCardsToBoard(env, {
     }], { onConflict: 'board_id' });
 
     return { cards: stamped, live, cardCount: existing.length + stamped.length };
+  } finally {
+    try { ws?.close(); } catch (_) { /* already gone */ }
+    doc.destroy();
+  }
+}
+
+// ── Moving cards between boards ──────────────────────────────────────────────
+//
+// The filing path: cards collected in the Bin move onto a real board and get
+// re-arranged as a colour-ordered moodboard. Nothing in the app does this — the
+// editor creates and deletes cards but has never moved one between boards — so
+// this is the first implementation of the primitive.
+//
+// WRITE ORDER is the whole design, because there is no transaction spanning two
+// Y.Docs and Postgres. We write the DESTINATION first and remove from the SOURCE
+// last, which means an interrupted move leaves the card visible on BOTH boards.
+// That is the correct failure mode: a duplicate is obvious, harmless and fixable
+// by hand, whereas the reverse order can lose a photo outright. It also keeps
+// images.referenced_in_board_ids non-empty at every instant, so the R2 orphan
+// sweep never sees an unreferenced photo even momentarily.
+async function openBoard(env, boardId, accessToken) {
+  const doc = new Y.Doc();
+  const rows = await scoutSelect(env, 'board_state', `board_id=eq.${boardId}&select=doc`).catch(() => []);
+  const baseline = rows?.[0]?.doc;
+  if (baseline) {
+    try { Y.applyUpdate(doc, b64ToBytes(baseline), 'snapshot'); } catch (_) { /* corrupt → start clean */ }
+  }
+
+  let ws = null;
+  let live = false;
+  if (accessToken) {
+    try {
+      ws = await connectPeer(env, boardId, accessToken);
+      await syncPeer(ws, doc);
+      live = true;
+    } catch (_) {
+      try { ws?.close(); } catch (_) { /* already gone */ }
+      ws = null;
+    }
+  }
+  return { doc, ws, live };
+}
+
+// Commit a doc mutation everywhere: live push then board_state.
+async function commitDoc(env, boardId, { doc, ws }, mutate) {
+  const before = Y.encodeStateVector(doc);
+  doc.transact(mutate, 'scout');
+  const delta = Y.encodeStateAsUpdate(doc, before);
+
+  let live = false;
+  if (ws) {
+    try {
+      pushUpdate(ws, delta);
+      await sleep(FLUSH_GRACE_MS);
+      live = true;
+    } catch (_) { /* durable write below still happens */ }
+  }
+
+  await scoutInsert(env, 'board_state', [{
+    board_id: boardId, doc: bytesToB64(Y.encodeStateAsUpdate(doc)), updated_at: new Date().toISOString(),
+  }], { onConflict: 'board_id' });
+
+  return live;
+}
+
+const inList = (ids) => `(${ids.map((id) => `"${String(id).replace(/"/g, '')}"`).join(',')})`;
+
+// Move `cardIds` from one board to another, re-laid-out by `layout`.
+//
+//   layout(existingDestCards, movingCards) → positioned cards (same ids)
+//   dropIds — cards to DELETE from the source rather than move (an ingest
+//             section header whose photos have all just left, for instance)
+//
+// Returns { moved, count, live, droppedHeader }.
+export async function moveCardsBetweenBoards(env, {
+  fromBoardId, toBoardId, workspaceId, userId, accessToken,
+  cardIds = [], dropIds = [], layout,
+}) {
+  if (!cardIds.length || fromBoardId === toBoardId) {
+    return { moved: [], count: 0, live: false };
+  }
+
+  const src = await openBoard(env, fromBoardId, accessToken);
+  const dst = await openBoard(env, toBoardId, accessToken);
+
+  try {
+    const srcCards = src.doc.getMap('cards');
+    const dstCards = dst.doc.getMap('cards');
+
+    // Only move what's actually there. A card can vanish between the read that
+    // built the confirmation and the YES that acts on it.
+    const wanted = new Set(cardIds.map(String));
+    const moving = readCards(src.doc).filter((c) => wanted.has(String(c.id)));
+    if (!moving.length) return { moved: [], count: 0, live: false };
+
+    const existing = readCards(dst.doc);
+    const maxZ = existing.reduce((m, c) => Math.max(m, Number(c.z) || 0), 0);
+    const nowIso = new Date().toISOString();
+
+    // Re-id anything that would collide on the destination. map.set() on an
+    // existing id REPLACES that card, and this is someone else's board.
+    const renames = new Map();
+    const prepared = moving.map((c, i) => {
+      let id = String(c.id);
+      let guard = 0;
+      while (dstCards.has(id) && guard++ < 10) {
+        id = `${c.id}-${Math.random().toString(36).slice(2, 8)}`;
+      }
+      if (id !== String(c.id)) renames.set(String(c.id), id);
+      return { ...c, id, z: maxZ + i + 1, updatedAt: nowIso, updatedBy: userId || null };
+    }).filter((c) => !dstCards.has(c.id));
+
+    if (!prepared.length) return { moved: [], count: 0, live: false };
+
+    const placed = await layout(existing, prepared);
+    // A section header the layout invented is a NEW card, so it needs its own
+    // card_index row — and that row goes through the cap trigger. At exactly
+    // 100 cards the insert fails; the move itself must not fail with it, so we
+    // drop the label and keep the photos.
+    const movedIds = new Set(prepared.map((c) => c.id));
+    const fresh = placed.filter((c) => !movedIds.has(c.id));
+    let droppedHeader = false;
+    if (fresh.length) {
+      try {
+        await scoutInsert(env, 'card_index', buildCardIndexRows({ workspaceId, boardId: toBoardId, cards: fresh }),
+          { onConflict: 'board_id,card_id' });
+      } catch (e) {
+        if (!e?.isCapHit) throw e;
+        droppedHeader = true;
+      }
+    }
+    const finalCards = droppedHeader
+      ? placed.filter((c) => !fresh.some((f) => f.id === c.id))
+      : placed;
+
+    // 1. DESTINATION doc + board_state.
+    const liveTo = await commitDoc(env, toBoardId, dst, () => {
+      for (const c of finalCards) dstCards.set(c.id, cardToYMap(c));
+    });
+
+    // 2. card_index follows the cards. One bulk UPDATE for the common case;
+    //    renamed ids (vanishingly rare) each need their own.
+    const renamedTo = new Set(renames.values());
+    const plain = prepared.map((c) => c.id).filter((id) => !renamedTo.has(id));
+    if (plain.length) {
+      await scoutPatch(env, 'card_index',
+        `board_id=eq.${fromBoardId}&card_id=in.${encodeURIComponent(inList(plain))}`,
+        { board_id: toBoardId });
+    }
+    for (const [oldId, newId] of renames) {
+      await scoutPatch(env, 'card_index',
+        `board_id=eq.${fromBoardId}&card_id=eq.${encodeURIComponent(oldId)}`,
+        { board_id: toBoardId, card_id: newId }).catch(() => {});
+    }
+    if (dropIds.length) {
+      await scoutDelete(env, 'card_index',
+        `board_id=eq.${fromBoardId}&card_id=in.${encodeURIComponent(inList(dropIds))}`).catch(() => {});
+    }
+
+    // 3. SOURCE doc + board_state, last. Until this lands the cards exist on
+    //    both boards, which is the intended failure mode.
+    const removeIds = [...moving.map((c) => String(c.id)), ...dropIds.map(String)];
+    await commitDoc(env, fromBoardId, src, () => {
+      for (const id of removeIds) srcCards.delete(id);
+    });
+
+    return {
+      moved: prepared,
+      count: prepared.length,
+      live: liveTo,
+      droppedHeader,
+    };
+  } finally {
+    try { src.ws?.close(); } catch (_) { /* already gone */ }
+    try { dst.ws?.close(); } catch (_) { /* already gone */ }
+    src.doc.destroy();
+    dst.doc.destroy();
+  }
+}
+
+// Read a board's cards without mutating anything — the confirmation step needs
+// to know what's in the Bin before it can ask about it.
+export async function readBoardCards(env, boardId, accessToken = null) {
+  const { doc, ws } = await openBoard(env, boardId, accessToken);
+  try {
+    return readCards(doc);
   } finally {
     try { ws?.close(); } catch (_) { /* already gone */ }
     doc.destroy();

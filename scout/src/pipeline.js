@@ -14,8 +14,12 @@
 // never sees a card appear and then vanish.
 
 import {
-  resolveOrCreateIdentity, ensureScoutInbox, normalizeHandle,
+  resolveOrCreateIdentity, ensureScoutBin, normalizeHandle, SCOUT_BIN_NAME,
 } from '../../boards/src/lib/scoutIdentity.js';
+import {
+  parseConfirmation, wantsEverything, isBinQuery,
+  prepareMove, executeMove, undoMove, describeBin, PENDING_TTL_MS,
+} from './filing.js';
 import { extractIntent, parseCommand } from '../../boards/src/lib/scoutIntent.js';
 import { composeBatch, extractUrls, textWithoutUrls } from '../../boards/src/lib/scoutCards.js';
 import { addCardsToBoard, boardCapacity } from '../../boards/src/lib/scoutBoard.js';
@@ -74,7 +78,24 @@ async function boardUrl(cfg, { boardId, cardIds, isShell, userId }) {
 
 async function boardNameFor(cfg, boardId) {
   const rows = await scoutSelect(cfg, 'boards', `id=eq.${boardId}&select=name`).catch(() => []);
-  return rows?.[0]?.name || 'Scout Inbox';
+  return rows?.[0]?.name || SCOUT_BIN_NAME;
+}
+
+// The headless PartyKit peer needs a real user JWT (party/auth.ts validates via
+// PostgREST as the user, so the service key is useless). Minting one costs a
+// magiclink round trip, so it's lazy and memoized per burst — filing needs it
+// early, ingest needs it late, and neither should pay for it twice.
+function sessionFor(cfg, id) {
+  let promise = null;
+  return () => {
+    if (!promise) {
+      promise = scoutSession(cfg, id.userId, id.email).catch((e) => {
+        console.warn('[scout] no user session, cards will appear on next load:', e?.message);
+        return null;
+      });
+    }
+    return promise;
+  };
 }
 
 async function findBoardByName(cfg, workspaceId, name) {
@@ -104,14 +125,22 @@ async function runCommand(cfg, { command, arg }, ctx) {
         }),
       });
 
+    case 'bin':
+      return await describeBin(cfg, ctx, {
+        url: await boardUrl(cfg, {
+          boardId: ctx.binBoardId, cardIds: [], isShell: ctx.isShell, userId: ctx.userId,
+        }),
+      });
+
     case 'board': {
       if (!arg) {
-        const { boardId } = await ensureScoutInbox(cfg, ctx.userId);
+        // Back to the default: new cards collect in the Bin again.
+        const { boardId } = await ensureScoutBin(cfg, ctx.userId, { binBoardId: ctx.binBoardId });
         await scoutRpc(cfg, 'scout_set_target_board', {
           p_user_id: ctx.userId, p_platform: ctx.platform,
           p_thread_key: ctx.threadKey, p_board_id: boardId,
         });
-        return say.boardSwitched({ boardName: 'Scout Inbox', created: false });
+        return say.boardSwitched({ boardName: SCOUT_BIN_NAME, created: false });
       }
       const found = await findBoardByName(cfg, ctx.workspaceId, arg);
       if (!found) return say.boardNotFound(arg);
@@ -194,12 +223,15 @@ export async function runBurst(cfg, r2, burst, progress = null) {
     threadKey: burst.threadKey,
     handle,
     service: burst.service,
+    accessToken: null,
   };
+  const getSession = sessionFor(cfg, id);
   const text = burst.texts.join('\n').trim();
 
   // 1. Commands short-circuit everything.
   const cmd = parseCommand(text);
   if (cmd) {
+    ctx.accessToken = await getSession();
     const reply = await runCommand(cfg, cmd, ctx);
     if (reply) return { reply, isNew: id.isNew };
   }
@@ -208,7 +240,80 @@ export async function runBurst(cfg, r2, burst, progress = null) {
   const urls = extractUrls(text);
   const leftover = textWithoutUrls(text);
 
-  // 2. A question with nothing attached is a conversation, not an ingest.
+  // 2. A reply to a move we proposed. Checked before everything else: a bare
+  //    "yes" means nothing on its own, and letting it fall through to intent
+  //    extraction would have a model guess at it.
+  //
+  //    Only a text-only message can be a confirmation. Photos arriving with the
+  //    "yes" mean the user has moved on to sending more, and acting on a stale
+  //    proposal while new content lands is exactly how the wrong cards move.
+  const pending = id.pendingMove;
+  const pendingFresh = pending && id.pendingMoveAt
+    && (Date.now() - Date.parse(id.pendingMoveAt)) < PENDING_TTL_MS;
+  if (pending && !images.length && !urls.length) {
+    const answer = parseConfirmation(leftover);
+    if (answer === 'no') {
+      await scoutRpc(cfg, 'scout_set_pending_move', {
+        p_user_id: id.userId, p_platform: burst.platform,
+        p_thread_key: burst.threadKey, p_payload: null,
+      }).catch(() => {});
+      return { reply: say.moveCancelled(), isNew: id.isNew };
+    }
+    if (answer === 'yes') {
+      if (!pendingFresh) {
+        await scoutRpc(cfg, 'scout_set_pending_move', {
+          p_user_id: id.userId, p_platform: burst.platform,
+          p_thread_key: burst.threadKey, p_payload: null,
+        }).catch(() => {});
+        return { reply: say.moveExpired(), isNew: id.isNew };
+      }
+      ctx.accessToken = await getSession();
+      const done = await executeMove(cfg, r2, ctx, pending, { progress });
+      if (done.reply) return { reply: done.reply, isNew: id.isNew };
+      return {
+        reply: say.moveDone({
+          count: done.result.count,
+          boardName: pending.board_name,
+          url: await boardUrl(cfg, {
+            boardId: pending.board_id,
+            cardIds: done.result.moved.map((c) => c.id),
+            isShell: id.isShell,
+            userId: id.userId,
+          }),
+          leftover: pending.leftover || 0,
+          leftoverLabel: pending.leftover_label,
+        }),
+        attachment: done.attachment,
+        isNew: id.isNew,
+        moved: done.result.count,
+      };
+    }
+  }
+
+  // 3. UNDO — valid for 24h after a move, regardless of anything pending.
+  if (!images.length && !urls.length && parseConfirmation(leftover) === 'undo') {
+    const fresh = id.lastMove && id.lastMoveAt
+      && (Date.now() - Date.parse(id.lastMoveAt)) < 24 * 60 * 60 * 1000;
+    if (!fresh) return { reply: say.undoNothing(), isNew: id.isNew };
+    ctx.accessToken = await getSession();
+    const back = await undoMove(cfg, ctx, id.lastMove);
+    return { reply: back.reply, isNew: id.isNew };
+  }
+
+  // 4. "What's in my Bin?" phrased in words rather than as /bin.
+  if (!images.length && !urls.length && isBinQuery(leftover)) {
+    ctx.accessToken = await getSession();
+    return {
+      reply: await describeBin(cfg, ctx, {
+        url: await boardUrl(cfg, {
+          boardId: id.binBoardId, cardIds: [], isShell: id.isShell, userId: id.userId,
+        }),
+      }),
+      isNew: id.isNew,
+    };
+  }
+
+  // 5. A question with nothing attached is a conversation, not an ingest.
   //    Checked BEFORE the capacity pre-flight so someone at their cap can still
   //    ask "how much is this?" and get an answer instead of the paywall.
   if (!images.length && !urls.length && leftover && looksLikeQuestion(leftover)) {
@@ -226,6 +331,29 @@ export async function runBurst(cfg, r2, burst, progress = null) {
     images: images.length, links: urls.length, notes: leftover ? 1 : 0,
   }));
 
+  // 6. Intent. Extracted BEFORE the capacity pre-flight because a bare "put
+  //    these in Diner Recce" is an instruction, not content — running it through
+  //    the ingest path would turn the user's own sentence into a sticky note on
+  //    their canvas and consume a card doing it.
+  const intent = images.length || urls.length || leftover
+    ? await extractIntent(cfg, { text, attachmentCount: images.length })
+    : { topic: null, action: 'ingest', board: null, note: null };
+
+  const fileTo = intent.action === 'file' && intent.board
+    ? await findBoardByName(cfg, id.workspaceId, intent.board)
+    : null;
+
+  if (intent.action === 'file' && !images.length && !urls.length) {
+    if (!fileTo) return { reply: say.boardNotFound(intent.board || ''), isNew: id.isNew };
+    ctx.accessToken = await getSession();
+    const proposal = await prepareMove(cfg, r2, ctx, {
+      boardId: fileTo.id, boardName: fileTo.name, everything: wantsEverything(text), progress,
+    });
+    return {
+      reply: proposal.reply, attachment: proposal.attachment, isNew: id.isNew, proposed: true,
+    };
+  }
+
   // A brand-new user who said nothing yet gets oriented, not confirmed. This is
   // the /start experience, and it's the first link they'll ever tap — so it has
   // to sign them in, not show them a login screen.
@@ -239,7 +367,8 @@ export async function runBurst(cfg, r2, burst, progress = null) {
 
   // 2. Capacity PRE-FLIGHT — before a single byte reaches R2.
   const cap = await boardCapacity(cfg, id.boardId);
-  const wanted = images.length + urls.length + (leftover ? 1 : 0);
+  const wanted = images.length + urls.length
+    + (leftover && intent.action !== 'file' ? 1 : 0);
   if (cap.remaining <= 0) {
     return {
       reply: say.capReached({ cap: cap.cap, billingUrl: `${cfg.APP_ORIGIN}/pricing`, kept: 0 }),
@@ -254,27 +383,17 @@ export async function runBurst(cfg, r2, burst, progress = null) {
   const truncated = budget < wanted;
   const takeImages = images.slice(0, budget);
   const takeUrls = urls.slice(0, Math.max(0, budget - takeImages.length));
-  const takeNote = (budget - takeImages.length - takeUrls.length) > 0 ? leftover : null;
+  // "put these in Diner Recce" attached to a photo burst is an instruction, not
+  // a caption — it must not become a sticky note next to the photos it filed.
+  const noteText = intent.action === 'file' ? null : leftover;
+  const takeNote = (budget - takeImages.length - takeUrls.length) > 0 ? noteText : null;
 
-  // 3. Intent — deterministic fallback on any failure.
-  const intent = await extractIntent(cfg, { text, attachmentCount: takeImages.length });
-
-  // "put these in X" retargets the thread before we write.
-  let boardId = id.boardId;
-  let boardName = 'Scout Inbox';
-  if (intent.action === 'file' && intent.board) {
-    const found = await findBoardByName(cfg, id.workspaceId, intent.board);
-    if (found) {
-      await scoutRpc(cfg, 'scout_set_target_board', {
-        p_user_id: id.userId, p_platform: burst.platform,
-        p_thread_key: burst.threadKey, p_board_id: found.id,
-      });
-      boardId = found.id;
-      boardName = found.name;
-    }
-  } else {
-    boardName = await boardNameFor(cfg, boardId);
-  }
+  // Ingest ALWAYS lands where the thread currently collects — the Bin, unless
+  // /board pinned somewhere else. "put these in X" no longer redirects future
+  // photos; it proposes MOVING what's collected, and that proposal is built
+  // AFTER this write so photos arriving in the same message are part of it.
+  const boardId = id.boardId;
+  const boardName = await boardNameFor(cfg, boardId);
 
   // 4. Media → R2. Card ids are minted here so the images row can point at the
   //    exact card that will reference it.
@@ -298,14 +417,10 @@ export async function runBurst(cfg, r2, burst, progress = null) {
   const previews = [];
   for (const u of takeUrls) previews.push({ url: u, preview: await linkPreview(cfg, u) });
 
-  // 5. Triple write. A user session is required for the live peer — PartyKit
+  // 7. Triple write. A user session is required for the live peer — PartyKit
   //    validates via PostgREST as the user, so the service key won't do.
-  let accessToken = null;
-  try {
-    accessToken = await scoutSession(cfg, id.userId, id.email);
-  } catch (e) {
-    console.warn('[scout] no user session, cards will appear on next load:', e?.message);
-  }
+  const accessToken = await getSession();
+  ctx.accessToken = accessToken;
 
   await progress?.step(STAGES.arranging(boardName));
 
@@ -318,7 +433,9 @@ export async function runBurst(cfg, r2, burst, progress = null) {
       accessToken,
       buildCards: (existing) => composeBatch({
         existingCards: existing,
-        images: uploaded.map((u) => ({ key: u.key, width: u.width, height: u.height, alt: u.alt })),
+        images: uploaded.map((u) => ({
+          key: u.key, width: u.width, height: u.height, alt: u.alt, lab: u.lab,
+        })),
         urls: previews,
         noteText: takeNote || (intent.note ?? null),
         topic: intent.topic,
@@ -335,7 +452,18 @@ export async function runBurst(cfg, r2, burst, progress = null) {
     return { reply: say.ingestFailed({ retained: uploaded.length > 0 }), isNew: id.isNew };
   }
 
-  // 6. One reply.
+  // 8. The message also said where things go — propose the move now that this
+  //    burst's photos are in the Bin and therefore part of the offer.
+  if (fileTo) {
+    const proposal = await prepareMove(cfg, r2, ctx, {
+      boardId: fileTo.id, boardName: fileTo.name, everything: wantsEverything(text), progress,
+    });
+    return {
+      reply: proposal.reply, attachment: proposal.attachment, isNew: id.isNew, proposed: true,
+    };
+  }
+
+  // 9. One reply.
   const counts = {
     images: uploaded.length,
     links: previews.length,
@@ -343,6 +471,10 @@ export async function runBurst(cfg, r2, burst, progress = null) {
   };
   const used = cap.used + result.cards.length;
   const messages = [];
+
+  if (intent.action === 'file' && intent.board) {
+    messages.push(say.boardNotFound(intent.board));
+  }
 
   messages.push(say.ingestConfirmation({
     counts,

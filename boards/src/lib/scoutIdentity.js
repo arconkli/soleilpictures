@@ -1,7 +1,7 @@
 // Scout — resolving a chat handle to a Soleil user, minting one if needed.
 //
 // This is the "invisible account creation" step: the first time someone texts
-// the bot, a real auth.users row, a personal workspace and a Scout Inbox board
+// the bot, a real auth.users row, a personal workspace and a Scout Bin board
 // all come into existence behind them. They never see a form.
 //
 // The account is REAL, not a placeholder — it just carries a synthetic email
@@ -15,7 +15,14 @@ import {
   scoutRpc, scoutSelect, scoutInsert, scoutCreateUser,
 } from './scoutDb.js';
 
-export const SCOUT_INBOX_NAME = 'Scout Inbox';
+// The staging board every text lands on until it's filed somewhere. "Bin" is
+// the editorial term — in an NLE a bin is where unsorted media lives before the
+// cut, which is exactly this. Note it is a LABEL, not an identity: the board is
+// found by id (scout_accounts.bin_board_id), because a user who renames it in
+// the app must keep the same board.
+export const SCOUT_BIN_NAME = 'Scout Bin';
+// What 0206 called it. Only used to adopt a board minted before the rename.
+const LEGACY_BIN_NAME = 'Scout Inbox';
 
 // Synthetic address for a shell account. The handle is HASHED rather than
 // embedded: a raw phone number in an email address would leak into admin
@@ -129,22 +136,47 @@ async function createBoard(env, { workspaceId, name, userId }) {
   return id;
 }
 
-// Find this user's Scout Inbox, creating it if it's missing (or was deleted).
-export async function ensureScoutInbox(env, userId) {
+// Find this user's Scout Bin, creating it if it's missing (or was deleted).
+//
+// Resolution order, and why:
+//   1. scout_accounts.bin_board_id — the identity. Survives a rename.
+//   2. name lookup — only ever a MIGRATION path, for accounts minted before
+//      bin_board_id existed. Matches the legacy name too.
+//   3. create one.
+//
+// Whatever we land on gets written back to bin_board_id, so step 2 runs at most
+// once per account. Keying by name was a real bug: renaming the board in the app
+// made the next photo create a second Bin and silently strand the first.
+export async function ensureScoutBin(env, userId, { binBoardId = null } = {}) {
+  if (binBoardId) {
+    const rows = await scoutSelect(
+      env, 'boards', `id=eq.${binBoardId}&deleted_at=is.null&select=id,workspace_id`,
+    ).catch(() => []);
+    if (rows?.[0]?.id) return { workspaceId: rows[0].workspace_id, boardId: rows[0].id };
+    // Deleted out from under us — fall through and make a new one.
+  }
+
   const ws = await scoutRpc(env, 'get_or_create_personal_workspace', {
     p_user_id: userId, p_name: 'Personal',
   });
   const workspaceId = Array.isArray(ws) ? ws[0]?.id : ws?.id;
   if (!workspaceId) throw new Error('could not resolve personal workspace');
 
+  const names = `(${[SCOUT_BIN_NAME, LEGACY_BIN_NAME].map((n) => `"${n}"`).join(',')})`;
   const existing = await scoutSelect(
     env, 'boards',
-    `workspace_id=eq.${workspaceId}&name=eq.${encodeURIComponent(SCOUT_INBOX_NAME)}`
+    `workspace_id=eq.${workspaceId}&name=in.${encodeURIComponent(names)}`
       + '&deleted_at=is.null&select=id&order=created_at.asc&limit=1',
   ).catch(() => []);
-  if (existing?.[0]?.id) return { workspaceId, boardId: existing[0].id };
 
-  const boardId = await createBoard(env, { workspaceId, name: SCOUT_INBOX_NAME, userId });
+  const boardId = existing?.[0]?.id
+    || await createBoard(env, { workspaceId, name: SCOUT_BIN_NAME, userId });
+
+  // Pin the id so we never have to guess from a name again.
+  await scoutRpc(env, 'scout_set_bin_board', {
+    p_user_id: userId, p_board_id: boardId,
+  }).catch(() => {});
+
   return { workspaceId, boardId };
 }
 
@@ -161,27 +193,42 @@ export async function resolveOrCreateIdentity(env, { platform, handle, threadKey
 
   if (hit?.user_id) {
     const userId = hit.user_id;
-    // A targeted board can be deleted out from under a thread; fall back to the
-    // Inbox rather than dead-ending the user's next photo.
-    let boardId = hit.target_board_id || null;
-    let workspaceId = null;
-    if (boardId) {
+
+    // The Bin always exists — it's the staging collection and the fallback for
+    // everything else.
+    const bin = await ensureScoutBin(env, userId, { binBoardId: hit.bin_board_id || null });
+
+    // An explicit sticky target (set by /board) means new cards bypass the Bin
+    // and land straight on that board. It can be deleted out from under a
+    // thread, so verify rather than trust; on a miss we fall back to the Bin
+    // instead of dead-ending the user's next photo.
+    let boardId = null;
+    let workspaceId = bin.workspaceId;
+    if (hit.target_board_id && hit.target_board_id !== bin.boardId) {
       const rows = await scoutSelect(
-        env, 'boards', `id=eq.${boardId}&deleted_at=is.null&select=id,workspace_id`,
+        env, 'boards', `id=eq.${hit.target_board_id}&deleted_at=is.null&select=id,workspace_id`,
       ).catch(() => []);
-      if (rows?.[0]) workspaceId = rows[0].workspace_id;
-      else boardId = null;
+      if (rows?.[0]) {
+        boardId = rows[0].id;
+        workspaceId = rows[0].workspace_id;
+      }
     }
-    if (!boardId) ({ workspaceId, boardId } = await ensureScoutInbox(env, userId));
 
     return {
       userId,
       email: await resolveEmail(env, userId),
       workspaceId,
-      boardId,
+      // Where new cards land.
+      boardId: boardId || bin.boardId,
+      // The staging board specifically — filing reads its runs.
+      binBoardId: bin.boardId,
       isNew: false,
       isShell: !!hit.is_shell,
       capWarnedAt: hit.cap_warned_at || null,
+      pendingMove: hit.pending_move || null,
+      pendingMoveAt: hit.pending_move_at || null,
+      lastMove: hit.last_move || null,
+      lastMoveAt: hit.last_move_at || null,
     };
   }
 
@@ -200,15 +247,16 @@ export async function resolveOrCreateIdentity(env, { platform, handle, threadKey
   const userId = user?.id;
   if (!userId) throw new Error('scout: createUser returned no id');
 
-  const { workspaceId, boardId } = await ensureScoutInbox(env, userId);
+  const { workspaceId, boardId } = await ensureScoutBin(env, userId);
   await scoutRpc(env, 'scout_bind_identity', {
     p_platform: platform, p_handle: norm, p_user_id: userId,
     p_service: service, p_is_shell: true,
   });
 
   return {
-    userId, email, workspaceId, boardId,
+    userId, email, workspaceId, boardId, binBoardId: boardId,
     isNew: true, isShell: true, capWarnedAt: null,
+    pendingMove: null, pendingMoveAt: null, lastMove: null, lastMoveAt: null,
   };
 }
 
