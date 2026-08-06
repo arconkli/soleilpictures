@@ -170,11 +170,33 @@ export async function addCardsToBoard(env, {
     if (!fresh.length) return { cards: [], live, cardCount: existing.length };
 
     const nowIso = new Date().toISOString();
-    const stamped = fresh.map((c, i) => ({
-      ...stampCard(c, existing.length + i, nowIso),
-      createdBy: userId || null,
-      updatedBy: userId || null,
-    }));
+    const cardsMap = doc.getMap('cards');
+
+    // Resolve ids BEFORE anything is written anywhere.
+    //
+    // map.set() on an id that already exists REPLACES that card. Our ids carry
+    // a timestamp, a counter and 20 bits of randomness so a collision is
+    // essentially impossible — but "essentially impossible" is not the standard
+    // for silently destroying someone's work, so we check and take a fresh id
+    // instead. Doing it here (rather than at write time) keeps card_index and
+    // the Y.Doc agreeing on the same ids; resolving later would leave an
+    // orphaned index row pointing at an id no card has.
+    const taken = new Set();
+    const stamped = fresh.map((c, i) => {
+      let id = c.id;
+      let guard = 0;
+      while ((cardsMap.has(id) || taken.has(id)) && guard++ < 10) {
+        id = `${c.id}-${Math.random().toString(36).slice(2, 8)}`;
+      }
+      taken.add(id);
+      return {
+        ...stampCard({ ...c, id }, existing.length + i, nowIso),
+        createdBy: userId || null,
+        updatedBy: userId || null,
+      };
+    }).filter((c) => !cardsMap.has(c.id));   // never clobber, even if we ran out of tries
+
+    if (!stamped.length) return { cards: [], live, cardCount: existing.length };
 
     // 1. card_index FIRST — this is where the 100-card wall lives. A cap hit
     //    throws here, before anything reaches the user's canvas.
@@ -186,8 +208,7 @@ export async function addCardsToBoard(env, {
     // 2. Apply locally, capturing just the delta for the wire.
     const before = Y.encodeStateVector(doc);
     doc.transact(() => {
-      const map = doc.getMap('cards');
-      for (const c of stamped) map.set(c.id, cardToYMap(c));
+      for (const c of stamped) cardsMap.set(c.id, cardToYMap(c));
     }, 'scout');
     const delta = Y.encodeStateAsUpdate(doc, before);
 

@@ -21,6 +21,21 @@ function describe({ images = 0, links = 0, notes = 0 }) {
   return `${parts.slice(0, -1).join(', ')} + ${parts[parts.length - 1]}`;
 }
 
+// Stage narration, edited into a single message as work progresses.
+// Deliberately concrete: "Got 12 photos" proves the bot saw all twelve, which
+// is the exact thing you're anxious about standing in a parking lot.
+export const STAGES = {
+  received: ({ images, links, notes }) => {
+    const bits = [];
+    if (images) bits.push(plural(images, 'photo', 'photos'));
+    if (links) bits.push(plural(links, 'link', 'links'));
+    if (notes) bits.push('a note');
+    return `Got ${bits.join(' + ') || 'that'} — working on it…`;
+  },
+  uploading: (n, total) => `Uploading ${total ? `${n} of ${total} photos` : 'photos'}…`,
+  arranging: (boardName) => `Arranging on ${boardName}…`,
+};
+
 export function ingestConfirmation({ counts, boardName, url, used, cap }) {
   const lines = [`Got it — ${describe(counts)} → ${boardName}`];
   if (url) lines.push(url);
