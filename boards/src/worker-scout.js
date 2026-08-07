@@ -26,7 +26,8 @@ const TOKEN_TTL_MS = 30 * 60 * 1000;   // links live in a chat thread; keep them
 // Pins WHICH consent wording someone agreed to. Bump this whenever the caption
 // in ScoutSignupBox changes, so past rows keep pointing at what they were
 // actually shown rather than at today's text.
-const CONSENT_VERSION = 'v1';
+// v2 (2026-08-07) dropped the platform sentence and trimmed to consent only.
+const CONSENT_VERSION = 'v2';
 
 let secretCache = { secret: '', at: 0 };
 

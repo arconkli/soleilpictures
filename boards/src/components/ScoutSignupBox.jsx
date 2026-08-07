@@ -120,14 +120,19 @@ export function ScoutSignupBox({ pos = 'hero', ctaLabel = 'Text me Scout', autoF
           {busy ? 'Sending…' : `${ctaLabel} →`}
         </button>
         {error && <div className="auth-error t-meta">{error}</div>}
-        {/* Consent, stated plainly and stored with the row (consent_version in
-            0210). This is the line that makes the first message an opt-in
-            rather than cold outreach — bump CONSENT_VERSION in worker-scout.js
-            if the wording here changes. */}
+        {/* Consent ONLY. This is the line that makes the first message an
+            opt-in rather than cold outreach, and it is stored with the row
+            (consent_version in 0210) — so bump CONSENT_VERSION in
+            worker-scout.js whenever this wording changes.
+
+            No platform claim here. It used to open "iPhone today — Android is
+            waiting on SMS delivery", which is (a) not consent, (b) a promise
+            about Photon's roadmap we can't back, and (c) a third of the words
+            under a button. The platform nuance lives in the FAQ, where someone
+            who cares will look. */}
         <div className="sb-cap">
-          iPhone today — Android is waiting on SMS delivery. By entering your number you agree
-          to receive text messages from Soleil Scout. Msg &amp; data rates may apply. See our{' '}
-          <a href="/legal/terms">Terms</a> and <a href="/legal/privacy">Privacy Policy</a>.
+          By continuing you agree to receive texts from Soleil Scout. Msg &amp; data rates may apply.{' '}
+          <a href="/legal/terms">Terms</a> · <a href="/legal/privacy">Privacy</a>
         </div>
       </form>
     </div>

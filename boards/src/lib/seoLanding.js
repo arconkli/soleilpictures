@@ -71,8 +71,11 @@ const PAGES = [
     // a subhead that says "shoot the location" tells four of them this isn't
     // for them. "What you're looking at" covers every one of them.
     subhead: 'Text what you’re looking at. It lands on a canvas your whole team can open.',
+    // Sentences kept SHORT on purpose. ScoutPage.jsx renders this spec as a
+    // text thread, one sentence per bubble, so a 33-word sentence is a bubble
+    // nobody reads. Anything over ~22 words has to be split at the source.
     answer:
-      'Soleil Scout is a text-message ingest bot for film crews. Send photos, links or notes from your phone and they land on an infinite Soleil Clusters canvas, grouped and arranged by what you said. No app to install and no signup — your board and account are created the first time you text.',
+      'Soleil Scout is a text-message ingest bot for film crews. Send photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. No app to install and no signup — your board and account are created the first time you text.',
     updated: '2026-08-07',
     cta: { label: 'Start scouting — free', sub: 'No app. No signup. Text and it exists.' },
     stepsHeading: 'How Soleil Scout works',
@@ -81,7 +84,7 @@ const PAGES = [
       { t: 'Say what it is', d: 'Add "Scene 4 diner" or "power drops look sketchy". Scout reads it and titles the group.' },
       { t: 'Keep shooting', d: 'Send twelve more. They batch into one tidy grid instead of twelve replies and twelve piles.' },
       { t: 'Tap the link', d: 'Land on your canvas, signed in, with exactly the photos you just sent already selected.' },
-      { t: 'File it later', d: 'Everything collects in your Scout Bin. Say "put these in Diner Recce" and Scout shows you exactly what will move before it moves anything.' },
+      { t: 'File it later', d: 'Everything collects in your Scout Bin. Say "put these in Diner Recce" and Scout confirms what moves before it moves anything.' },
     ],
     // SHORT ON PURPOSE. These render as notes that stream past a pinned signup
     // box (pages/ScoutPage.jsx), the way the primary landing page's notes do —
@@ -105,11 +108,11 @@ const PAGES = [
       },
       {
         heading: 'It batches like a person would',
-        body: 'Twelve photos means twelve messages seconds apart. A naive bot replies twelve times. Scout waits until you have finished, lays them out once, and sends a single confirmation.',
+        body: 'Twelve photos means twelve messages seconds apart. Scout waits until you have finished, lays them out once, and sends a single confirmation.',
       },
       {
         heading: 'Your photos, at full resolution, on a real canvas',
-        body: 'What arrives is not a chat log. It is an infinite canvas you can rearrange, draw on and share with one link — the same board your director opens on a laptop.',
+        body: 'What arrives is not a chat log. It is an infinite canvas you can rearrange, draw on and share with one link. The same board your director opens on a laptop.',
         bullets: [
           'Real cards you can move, group, and connect with arrows',
           'Share the whole board with one link, no account needed to view',
@@ -119,15 +122,21 @@ const PAGES = [
     ],
     faq: [
       { q: 'Do I need to install anything?', a: 'No. You text a number from the messages app already on your phone. No download, no account, no password. Your board exists from the first photo you send.' },
-      { q: 'Does it work on Android?', a: 'Scout runs over iMessage today, so it works on iPhone. Android depends on SMS/RCS delivery, which is not live yet — until then, use the web app and drag your photos in.' },
-      { q: 'What happens to my photos?', a: 'They upload at full resolution to your own private board. Nobody else sees them unless you share it. iMessage keeps the original quality; MMS would have compressed them.' },
+      // Deliberately does NOT rule Android out. Whether SMS/RCS is live is
+      // Photon's open question 3 (scout/README.md) — their pricing lists it as
+      // included, their own FAQ asks when it ships. Nobody is signing up for a
+      // line that exists yet either way, so the honest answer is "we text you
+      // when yours is ready" rather than a platform promise in either
+      // direction. Firm this up once Photon answers.
+      { q: 'Does it work on Android?', a: 'Scout is invite-only right now — leave your number and it texts you when your line is ready. iPhone works over iMessage; Android follows as soon as SMS delivery is confirmed.' },
+      { q: 'What happens to my photos?', a: 'They upload at full resolution to your own private board. Nobody else sees them unless you share it.' },
       { q: 'How does it know where to put things?', a: 'It reads what you wrote. Text "Scene 4 diner" with five photos and it titles the group. Everything collects in your Scout Bin until you file it — and Scout shows you exactly what will move first.' },
       { q: 'Is it free?', a: 'Yes, to start. The free tier covers 100 cards across unlimited boards, collaborators included. Creator ($25/mo) lifts the cap and adds 100GB and any file type.' },
       // Honest about what is actually live: linking Scout to an account you
       // already have needs the Settings → Scout tab, which is deliberately not
       // shipped yet (the bot has no line to answer on). Restore the "connect
       // from Settings" wording in the same change that promotes that tab.
-      { q: 'Can I use it with a board I already have?', a: 'Say "put these in <board name>" any time and Scout files into that board. Linking Scout to a Soleil account you already have is coming — for now, your first text creates a board of its own.' },
+      { q: 'Can I use it with a board I already have?', a: 'Say "put these in <board name>" any time and Scout files into that board. Linking Scout to an account you already have is coming. For now, your first text creates a board of its own.' },
     ],
     related: ['/tools/mood-board-maker', '/tools/shot-list-maker', '/tools/look-book-maker', '/use-cases'],
   },

@@ -1,4 +1,4 @@
-/* /scout — one pinned box, notes streaming past it.
+/* /scout — one pinned box, a text conversation scrolling past it.
  *
  * Mirrors the primary landing page (auth/signin-backdrop.css): a fixed scene, a
  * tall runway that provides the scroll, a sticky stage, and a box centred in the
@@ -8,12 +8,14 @@
  *
  * TWO STATES:
  *   default     — no JS, or prefers-reduced-motion: ordinary document flow, the
- *                 notes are a readable column. This is what crawlers get, and
+ *                 thread is a readable column. This is what crawlers get, and
  *                 it must always be complete.
  *   .is-runway  — added by JS once the driver is live: the scene pins and the
- *                 notes become absolutely-positioned, opacity-driven cards.
+ *                 bubbles become absolutely-positioned, opacity-driven messages
+ *                 sweeping up through a reading band.
  *
- * --soleil stays reserved for active/selection/focus per the house rule.
+ * --soleil stays reserved for active/selection/focus per the house rule, which
+ * is why sent bubbles get their own token (--sc-sent) rather than the gold.
  */
 
 .scout-scene {
@@ -21,6 +23,11 @@
   --sc-b: #6b5a4a;
   --sc-c: #3f4a52;
   --sc-d: #5a4a52;
+  /* The "you" bubble. Slate blue reads as SENT in every messages app anyone
+     has used — the single cheapest cue that this is a conversation. Drawn from
+     the same family as --sc-a so it belongs to the page. */
+  --sc-sent: #35566f;
+  --sc-sent-ink: #eef4f8;
   background: var(--bg-0);
   color: var(--ink-1);
   min-height: 100vh;
@@ -47,7 +54,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 22px;
+  padding: 14px 22px;
   pointer-events: none;
 }
 .scout-topbar a { pointer-events: auto; }
@@ -66,6 +73,51 @@
   text-decoration: none;
 }
 .scout-topbar-actions a:hover { color: var(--ink-0); }
+
+/* ── Contact header ──────────────────────────────────────────────────────── */
+
+/* Who you are talking to, in the place every messages app puts it. No phone
+   number — we don't have one, and inventing one would be a fabricated record —
+   and no "online" dot, which would be a claim about a bot that isn't deployed. */
+.scout-contact {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 46px 20px 12px;
+}
+.is-runway .scout-contact {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 12;
+  padding: 44px 20px 10px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, var(--bg-0) 55%, transparent);
+}
+.scout-back {
+  width: 7px;
+  height: 7px;
+  border-left: 1.6px solid var(--ink-3);
+  border-bottom: 1.6px solid var(--ink-3);
+  transform: rotate(45deg);
+  margin-right: 2px;
+}
+.scout-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--bg-2);
+  border: 1px solid var(--line-1);
+}
+.scout-contact-name {
+  font: 600 12.5px/1 var(--font-sans);
+  letter-spacing: 0.01em;
+  color: var(--ink-1);
+}
 
 /* ── Scroller / runway / stage ───────────────────────────────────────────── */
 
@@ -86,7 +138,7 @@
 }
 .is-runway .scout-scroll::-webkit-scrollbar { display: none; }
 
-/* Height and width are set precisely in JS from the measured viewport. */
+/* Height and width are set precisely in JS from the measured thread. */
 .is-runway .scout-runway { position: relative; height: 800vh; width: 100vw; }
 .is-runway .scout-stage {
   position: sticky;
@@ -103,7 +155,7 @@
   inset: -10%;
   z-index: 0;
   pointer-events: none;
-  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.11) 1.3px, transparent 1.6px);
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.1) 1.3px, transparent 1.6px);
   background-size: 26px 26px;
   mask-image: radial-gradient(ellipse 62% 56% at 50% 48%, transparent 30%, #000 100%);
   -webkit-mask-image: radial-gradient(ellipse 62% 56% at 50% 48%, transparent 30%, #000 100%);
@@ -124,6 +176,14 @@
   place-items: center;
   pointer-events: none;
 }
+/* Static flow only. In DOM order the box sits AFTER the thread, because the
+   runway needs it painted over the bubbles — which would put the call to action
+   below fifty messages for a reduced-motion or no-JS visitor. Reordering here
+   also means the first paint already has the box up top, so there is less of a
+   jump when the runway engages. */
+.scout-scene:not(.is-runway) .scout-stage { display: flex; flex-direction: column; }
+.scout-scene:not(.is-runway) .scout-box-wrap { order: -1; }
+
 .scout-box-inner {
   pointer-events: auto;
   width: 392px;
@@ -133,7 +193,7 @@
   align-items: center;
   gap: 12px;
   text-align: center;
-  padding: 88px 20px 40px;
+  padding: 20px 20px 40px;
 }
 .is-runway .scout-box-inner { padding: 0 20px; }
 
@@ -186,18 +246,20 @@
 
 .scout-scene .sb-trust { margin: 2px 0 0; }
 
-/* ── Notes ───────────────────────────────────────────────────────────────── */
+/* ── The thread ──────────────────────────────────────────────────────────── */
 
-/* Default (no JS / reduced motion): a plain readable column. */
-.scout-notes {
+/* Default (no JS / reduced motion): a plain readable column, left/right aligned
+   so it is still legible as a conversation. */
+.scout-thread {
   max-width: 640px;
   margin: 0 auto;
   padding: 8px 22px 56px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  align-items: flex-start;
+  gap: 8px;
 }
-.is-runway .scout-notes {
+.is-runway .scout-thread {
   max-width: none;
   margin: 0;
   padding: 0;
@@ -208,177 +270,212 @@
   pointer-events: none;
 }
 
-.scout-note {
-  border: 1px solid var(--line-1);
-  border-radius: 14px;
-  background: var(--bg-2);
-  padding: 14px 16px;
+.scout-msg {
+  /* Shrink-to-fit, capped. The driver overrides this with a per-lane cap; the
+     460px is for the static column, where a bubble spanning the full measure
+     stops looking like a bubble. */
+  max-width: min(100%, 460px);
+  border-radius: 17px;
+  padding: 9px 14px;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 4px;
 }
-.is-runway .scout-note {
+.is-runway .scout-msg {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 268px;
   /* Centring is done by translate(-50%,-50%) in the driver's transform, not by
-     a negative margin — these notes range from three lines to eight, and one
-     fixed offset only ever centres one of those. */
+     a negative margin — bubbles range from one line to five, and one fixed
+     offset only ever centres one of those. */
   opacity: 0;
   /* OPACITY ONLY — deliberately NOT visibility:hidden or display:none.
-     Those remove an element from the accessibility tree, and these notes are
+     Those remove an element from the accessibility tree, and these bubbles are
      the page's actual content: a screen reader would have been read the
-     headline, the box, and nothing else. Opacity-0 keeps every note in the
+     headline, the box, and nothing else. Opacity-0 keeps every message in the
      tree and in innerText while it waits its turn. */
   pointer-events: none;
-  background: rgba(20, 19, 17, 0.94);
-  box-shadow: var(--shadow-2);
-  will-change: transform, opacity;
 }
-.is-runway .scout-note[data-live="1"] { pointer-events: auto; }
-.is-runway .scout-note.is-wide { width: 330px; }
+.is-runway .scout-msg[data-live="1"] { pointer-events: auto; }
 
-.scout-note-head {
+/* Received. The tail corner is what makes a rounded rectangle read as a
+   bubble rather than as a card. */
+.scout-msg.from-them {
+  align-self: flex-start;
+  background: var(--bg-2);
+  border: 1px solid var(--line-1);
+  border-bottom-left-radius: 5px;
+  color: var(--ink-1);
+}
+.is-runway .scout-msg.from-them { background: rgba(31, 29, 26, 0.96); box-shadow: var(--shadow-1); }
+
+/* Sent. */
+.scout-msg.from-you {
+  align-self: flex-end;
+  background: var(--sc-sent);
+  border: 1px solid transparent;
+  border-bottom-right-radius: 5px;
+  color: var(--sc-sent-ink);
+}
+.is-runway .scout-msg.from-you { box-shadow: var(--shadow-1); }
+
+.scout-t {
   margin: 0;
-  font: 600 13.5px/1.4 var(--font-sans);
+  font: 400 13px/1.45 var(--font-sans);
+  color: inherit;
+}
+/* A step title, riding on the first bubble of its run — matches the <b> the
+   Worker emits inside each <li>. */
+.scout-lead {
+  font: 600 13px/1.4 var(--font-sans);
   color: var(--ink-0);
-  letter-spacing: 0.005em;
 }
-.scout-note-text {
+/* An FAQ question you texted. Still a real <h3> so the outline survives, but
+   it has to look like something a person typed. */
+.scout-q {
   margin: 0;
-  font: 400 13px/1.6 var(--font-sans);
-  color: var(--ink-2);
+  font: 400 13px/1.45 var(--font-sans);
+  color: inherit;
 }
-/* The extractable direct answer — the block AI answer engines lift. Given a
- * little more presence, since it is in effect the page's thesis. */
-.scout-note-answer .scout-note-text { color: var(--ink-1); font-size: 13.5px; }
+.scout-msg.is-bullet .scout-t { padding-left: 13px; position: relative; }
+.scout-msg.is-bullet .scout-t::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--ink-3);
+}
 
-.scout-note-list {
-  margin: 0;
-  padding-left: 17px;
+/* Typing. Fades out exactly as the reply it precedes fades in (driven in JS),
+   which is what sells it as live rather than as decoration. */
+.scout-typing { flex-direction: row; gap: 4px; padding: 12px 14px; }
+.scout-typing i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  animation: scout-dot 1.25s var(--ease) infinite;
+}
+.scout-typing i:nth-child(2) { animation-delay: 0.16s; }
+.scout-typing i:nth-child(3) { animation-delay: 0.32s; }
+@keyframes scout-dot {
+  0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+/* Decorative: it says nothing, so the static column leaves it out. */
+.scout-scene:not(.is-runway) .scout-typing { display: none; }
+
+/* ── Section dividers ────────────────────────────────────────────────────── */
+
+/* Real <h2> headings, drawn as the date separator a thread uses. The label sits
+   at the LEFT on wide screens so it lands in Scout's lane and never behind the
+   pinned box; the rule carries on past it. */
+.scout-div {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font: 400 13px/1.55 var(--font-sans);
-  color: var(--ink-2);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 14px 0 6px;
+  font: 600 11px/1.35 var(--font-sans);
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+  text-align: center;
 }
-.scout-note-list li::marker { color: var(--ink-3); }
-
-.scout-note-chips { display: flex; gap: 5px; margin-bottom: 2px; }
-.scout-chip { width: 30px; height: 30px; border-radius: 6px; flex: none; }
-
-/* ── The mini board ──────────────────────────────────────────────────────── */
-
-.scout-mini-wrap {
-  max-width: 400px;
-  margin: 0 auto 8px;
-  padding: 0 22px;
-}
-.is-runway .scout-mini-wrap {
+/* Deliberately NOT text-transform: uppercase. Section headings here are whole
+   sentences ("The camera roll is where reference photos go to die"), which
+   shout when they're capitalised — and innerText reports the transformed text,
+   so it would also make the anti-cloaking diff compare strings that don't
+   match the spec. */
+.scout-div i { height: 1px; background: var(--line-1); flex: 1; }
+.scout-div span { flex: none; max-width: 74%; }
+.is-runway .scout-div {
   position: absolute;
   top: 50%;
   left: 50%;
-  z-index: 5;
-  width: 300px;
-  max-width: none;
   margin: 0;
-  padding: 0;
-  /* Sits in the upper-left lane during the opening scenes, then retires: its
-     story is told by the time the sections start, and a panel that lingers is
-     just clutter. The bottom-left note slot is pushed below it so the two
-     never share space. */
-  transform: translate(-50%, -50%) translate3d(-575px, -120px, 0);
   opacity: 0;
-  transition: opacity 600ms var(--ease);
   pointer-events: none;
 }
-.is-runway .scout-mini-wrap[data-stage="1"],
-.is-runway .scout-mini-wrap[data-stage="2"],
-.is-runway .scout-mini-wrap[data-stage="3"] { opacity: 1; }
+.is-runway .scout-div i:first-child { flex: 0 0 10px; }
 
-.scout-mini {
-  background: var(--bg-0);
-  border: 1px solid var(--line-1);
+/* ── Attachments ─────────────────────────────────────────────────────────── */
+
+.scout-msg.is-attach { padding: 5px; }
+.scout-att { display: block; }
+
+/* Explicit widths, not shrink-to-fit. A bubble is shrink-to-fit sized, and a
+   grid of empty spans has no intrinsic width — without this the photo
+   attachment collapses to a 20px dot. */
+.scout-att-photos {
+  display: grid;
+  width: 176px;
+  max-width: 100%;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
   border-radius: 13px;
   overflow: hidden;
-  box-shadow: var(--shadow-1);
+}
+.scout-att-ph { display: block; aspect-ratio: 1; }
+
+/* A rich link preview: the board that just got built, arriving in the thread
+   the way a link actually would. */
+.scout-att-board { border-radius: 13px; overflow: hidden; }
+.scout-mini {
+  display: block;
+  width: 240px;
+  max-width: 100%;
+  background: var(--bg-0);
+  border: 1px solid var(--line-1);
+  border-radius: 12px;
+  overflow: hidden;
 }
 .scout-mini-bar {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 8px 11px;
+  padding: 7px 10px;
   border-bottom: 1px solid var(--line-1);
   background: var(--bg-2);
 }
 .scout-mini-dots { display: flex; gap: 5px; }
-.scout-mini-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line-2); }
+.scout-mini-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line-2); }
 .scout-mini-url {
-  font: 400 10.5px/1 var(--font-mono, ui-monospace, monospace);
+  font: 400 10px/1 var(--font-mono, ui-monospace, monospace);
   color: var(--ink-3);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .scout-mini-body {
-  padding: 12px;
+  display: block;
+  padding: 10px;
   background-image: radial-gradient(var(--line-1) 1px, transparent 1px);
   background-size: 17px 17px;
 }
-
-/* Which board the cards are on. Changing this label is how the "file it later"
- * beat is shown — re-sorting the grid would be an untweenable jump. */
-.scout-board-name {
-  font: 500 10px/1 var(--font-mono, ui-monospace, monospace);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  margin-bottom: 8px;
-  transition: color 320ms var(--ease);
-}
-.scout-board-name.is-filed { color: var(--soleil); }
-
 .scout-section-label {
-  font: 600 11.5px/1 var(--font-display, var(--font-sans));
+  display: block;
+  font: 600 11px/1 var(--font-display, var(--font-sans));
   color: var(--ink-0);
-  margin-bottom: 9px;
+  margin-bottom: 8px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--line-1);
-  opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 320ms var(--ease), transform 320ms var(--ease);
 }
-.scout-section-label.is-shown { opacity: 1; transform: none; }
-
 .scout-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: 30px;
-  gap: 6px;
+  grid-auto-rows: 26px;
+  gap: 5px;
 }
-.scout-card {
-  border-radius: 5px;
-  opacity: 0;
-  transform: translate(-30px, 12px) scale(0.5);
-  transition: opacity 420ms var(--ease), transform 480ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-.scout-card.is-landed { opacity: 1; transform: none; }
-
+.scout-card { border-radius: 5px; }
 .scout-note-card {
   grid-column: span 2;
   display: flex;
   align-items: center;
-  padding: 0 8px;
+  padding: 0 7px;
   border-radius: 5px;
   background: #d9c98a;
   color: #2a2618;
-  font: 500 10px/1.25 var(--font-sans);
-  opacity: 0;
-  transform: translateY(8px) scale(0.9);
-  transition: opacity 360ms var(--ease), transform 360ms var(--ease);
+  font: 500 9.5px/1.25 var(--font-sans);
 }
-.scout-note-card.is-landed { opacity: 1; transform: none; }
 
 /* ── Cue + footer ────────────────────────────────────────────────────────── */
 
@@ -386,7 +483,7 @@
 .is-runway .scout-cue {
   display: flex;
   position: absolute;
-  bottom: 22px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 11;
@@ -426,7 +523,7 @@
   right: 0;
   bottom: 0;
   z-index: 11;
-  padding: 14px 22px;
+  padding: 13px 22px;
 }
 .scout-foot a { color: var(--ink-3); text-decoration: none; }
 .scout-foot a:hover { color: var(--ink-1); }
@@ -434,35 +531,36 @@
 
 /* ── Narrow ──────────────────────────────────────────────────────────────── */
 
-/* Matches the `narrow` threshold in the driver (ScoutPage.jsx) — if these two
-   disagree, notes get positioned for one layout and styled for the other. */
+/* Matches the NARROW threshold in the driver (ScoutPage.jsx) — if these two
+   disagree, bubbles get positioned for one layout and styled for the other. */
 @media (max-width: 899px) {
-  /* On a phone the box owns the middle and notes take the top or bottom strip,
-     one at a time (the driver alternates them in TIME, so a slot is never
-     shared). Narrower than desktop so a note never crowds the input. */
-  /* No margin-left here: centring is translate(-50%) in the driver, and a
-     negative margin on top of it pushes the note a full width off to the left. */
-  .is-runway .scout-note { width: min(84vw, 320px); }
-  .is-runway .scout-note.is-wide { width: min(88vw, 340px); }
-  /* The mini board would fight the notes for the same strips. */
-  .is-runway .scout-mini-wrap { display: none; }
-  .scout-box-inner { gap: 10px; }
+  /* No room for lanes beside the box, so the page becomes the messages screen
+     it is describing: contact at the top, thread filling the middle, and the
+     box anchored at the bottom where the compose field lives. The box still
+     never moves — it is simply pinned lower. */
+  /* padding-bottom clears the footer, which stays in the flow rather than
+     being display:none'd — hiding it would take the related-page links out of
+     the accessibility tree for every phone visitor. */
+  .is-runway .scout-box-wrap { align-items: end; padding-bottom: 62px; }
+  .is-runway .scout-box-inner { gap: 9px; }
+  .is-runway .scout-cue { display: none; }
+  .is-runway .scout-foot { padding: 10px 18px; }
+  .scout-div { font-size: 9.5px; }
+  .is-runway .scout-div i:first-child { flex: 1; }
   .scout-foot { font-size: 11px; gap: 6px 12px; }
   .scout-updated { margin-left: 0; }
 }
 
-/* Short viewports: the box is stacked between two notes, so every pixel it
-   gives back is a pixel the notes get to stay on screen. */
+/* Short viewports: the box shares the screen with the thread, so every pixel it
+   gives back is a pixel the conversation gets to stay on screen. */
 @media (max-height: 780px) {
-  .is-runway .scout-box-inner { gap: 8px; }
-  .is-runway .scout-h1 { font-size: clamp(1.6rem, 4vw, 2.1rem); }
+  .is-runway .scout-box-inner { gap: 7px; }
+  .is-runway .scout-h1 { font-size: clamp(1.5rem, 4vw, 2rem); }
   .is-runway .scout-eyebrow { display: none; }
+  .scout-scene.is-runway .sb-trust { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scout-chev { animation: none; }
-  .scout-card,
-  .scout-note-card,
-  .scout-section-label,
-  .scout-mini-wrap { transition: none !important; }
+  .scout-chev,
+  .scout-typing i { animation: none; }
 }
