@@ -1,10 +1,11 @@
 // lifecycle-email-cron — hourly behavioral lifecycle email scan.
 //
 // Sends "simple note" lifecycle emails to users who fall into a segment (see
-// migrations 0173 / 0184 / 0194): welcome_board (day-1, embeds the user's own
-// board thumbnail), board_waiting (picture win-back), reengage_1 (text win-
-// back), nudge_dormant_early (never-activated gap-filler), activate_nudge_1/2.
-// Invoked hourly by pg_cron (job 'lifecycle-email-hourly').
+// migrations 0173 / 0184 / 0194 / 0211): welcome_board (day-1, embeds the
+// user's own board thumbnail), whats_new (news win-back — the broadest dormant
+// gate, re-fires once per published edition), board_waiting (picture win-back),
+// reengage_1 (text win-back), nudge_dormant_early (never-activated gap-filler),
+// activate_nudge_1/2. Invoked hourly by pg_cron (job 'lifecycle-email-hourly').
 //
 // Per email type: query the eligibility RPC, then for each recipient
 //   1. CLAIM via lifecycle_claim_send (atomic cap lock + consent re-check).

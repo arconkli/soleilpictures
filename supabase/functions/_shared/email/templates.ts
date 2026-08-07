@@ -116,9 +116,6 @@ function noteBtn(label: string, url: string): string {
                 <p style="margin:0 0 18px; font:400 12px/1.5 ${NOTE_FONT}; color:#8a8780;">signed out? we'll email you a 6-digit code — no password to dig up.</p>`;
 }
 
-// A linked image inside the note body (welcome_board embeds the user's own
-// board thumbnail). width= attribute + inline max-width keep it bounded in
-// Outlook and fluid everywhere else.
 // A short bulleted run inside the note body (whats_new's shipped-features
 // list). Table rows rather than <ul> — Outlook's list indentation and bullet
 // glyph are unreliable, and a hand-rolled middot renders identically anywhere.
@@ -130,6 +127,9 @@ function noteList(items: string[]): string {
   return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 18px;">${rows}</table>`;
 }
 
+// A linked image inside the note body (welcome_board embeds the user's own
+// board thumbnail). width= attribute + inline max-width keep it bounded in
+// Outlook and fluid everywhere else.
 function noteImg(src: string, alt: string, href: string): string {
   return `<p style="margin:4px 0 18px;"><a href="${escapeHtml(href)}" style="text-decoration:none;"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" width="440" style="width:100%; max-width:440px; height:auto; display:block; border-radius:10px; border:1px solid #e7e4df;"></a></p>`;
 }
