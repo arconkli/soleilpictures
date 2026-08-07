@@ -1,18 +1,21 @@
 // /scout — the Soleil Scout landing page (pages/ScoutPage.jsx over the spec in
 // lib/seoLanding.js).
 //
-// The page is shaped like the primary landing page: ONE box, pinned dead centre
-// for the whole page, with short notes streaming past it in scenes that rotate
-// around it. Assertions are registry-derived — they read from the spec, so copy
-// can be rewritten without touching this file.
+// The page is a text conversation: ONE box, pinned dead centre for the whole
+// page, with a message thread scrolling up past it — Scout on the left, you on
+// the right. Assertions are registry-derived, so copy can be rewritten without
+// touching this file.
 //
-// Four things are pinned, because each of them has already been broken once:
+// Five things are pinned, because each of them has already been broken once:
 //
 //   · The box NEVER MOVES. That is the entire design; if it drifts, the page is
 //     just a scrolling document again.
-//   · EVERY note gets its turn. They are opacity-driven off scroll progress, so
-//     a scheduling mistake silently hides copy from readers while leaving it in
-//     the DOM for crawlers — which is cloaking, and nothing else would catch it.
+//   · EVERY message gets its turn. They are opacity-driven off scroll progress,
+//     so a scheduling mistake silently hides copy from readers while leaving it
+//     in the DOM for crawlers — which is cloaking, and nothing else would catch
+//     it.
+//   · NO BUBBLE IS A PARAGRAPH. The rebuild exists because each card used to
+//     carry a whole 40-word section body. One sentence, one bubble.
 //   · Nothing overlaps the phone input on a narrow screen.
 //   · With motion off, the page is a plain readable column.
 
@@ -22,17 +25,24 @@ import { getLandingSpec, SEO_LANDING_PATHS } from '../src/lib/seoLanding.js';
 
 const SPEC = getLandingSpec('/scout');
 
+// One bubble is one sentence, and a sentence longer than this is a paragraph
+// wearing a bubble. Sentences over the limit get shortened in seoLanding.js —
+// never split in the renderer, because splitting mid-sentence would drop the
+// punctuation that joins the parts back together and the crawler would then be
+// served a string the reader never sees.
+const MAX_BUBBLE_WORDS = 22;
+
 const setProgress = (page, f) => page.evaluate((x) => {
   const sc = document.querySelector('.scout-scroll');
   sc.scrollTop = (sc.scrollHeight - sc.clientHeight) * x;
 }, f);
 
-// Genuinely on screen. Notes are faded with OPACITY only — never
+// Genuinely on screen. Bubbles are faded with OPACITY only — never
 // visibility/display — so that every one of them stays in the accessibility
 // tree and in innerText while it waits its turn.
-const visibleNotes = (page) => page.evaluate(() => [...document.querySelectorAll('.scout-note')]
-  .filter((n) => parseFloat(getComputedStyle(n).opacity) > 0.15)
-  .map((n) => n.dataset.note));
+const onScreen = (page, floor = 0.15) => page.evaluate((min) => [...document.querySelectorAll('.scout-msg:not(.scout-typing), .scout-div')]
+  .filter((n) => parseFloat(getComputedStyle(n).opacity) > min)
+  .map((n) => ({ key: n.dataset.msg, words: (n.innerText.trim().match(/\S+/g) || []).length })), floor);
 
 function routeSignup(page, body, status = 200) {
   return page.route('**/api/scout/signup', (route) =>
@@ -61,8 +71,6 @@ test('SEO fields stay inside the limits that make them useful', () => {
   // One line above the box. Longer starts competing with the thing we want
   // people to do.
   expect(SPEC.subhead.length).toBeLessThanOrEqual(90);
-  // Notes have to be readable as notes. These stream past a pinned box; a
-  // 90-word paragraph floating beside it is what this page was rebuilt to stop.
   for (const s of SPEC.sections) {
     expect(s.body.split(/\s+/).length, `section too long: ${s.heading}`).toBeLessThanOrEqual(40);
   }
@@ -78,18 +86,38 @@ test('the subhead explains the product without narrowing it to location scouts',
   expect(SPEC.subhead.toLowerCase()).not.toContain('location');
 });
 
-test('the first screen is the headline and one phone box', async ({ page }) => {
+test('the first screen is the headline, the contact and one phone box', async ({ page }) => {
   await page.goto('/scout');
   await expect(page.locator('h1.scout-h1')).toHaveText(SPEC.h1);
   await expect(page.locator('.scout-sub')).toHaveText(SPEC.subhead);
+  await expect(page.locator('.scout-contact-name')).toHaveText('Soleil Scout');
 
   const box = page.locator('.scout-box');
   await expect(box.locator('input[type="tel"]')).toBeVisible();
   await expect(box.locator('button[type="submit"]')).toBeVisible();
-  await expect(box).toContainText('agree to receive text messages');
 
   const bb = await page.locator('.scout-box-inner').boundingBox();
   expect(bb.y + bb.height).toBeLessThanOrEqual(page.viewportSize().height);
+});
+
+test('the caption under the button is consent and nothing else', async ({ page }) => {
+  await page.goto('/scout');
+  const cap = page.locator('.scout-box .sb-cap');
+  // The line that makes the first message an opt-in rather than cold outreach.
+  // It is stored with the row (consent_version), so it has to actually be an
+  // agreement, not a vibe.
+  await expect(cap).toContainText('agree to receive texts');
+  await expect(cap).toContainText('Msg & data rates');
+  await expect(cap.locator('a[href="/legal/terms"]')).toHaveCount(1);
+  await expect(cap.locator('a[href="/legal/privacy"]')).toHaveCount(1);
+
+  // No platform claim under a submit button. Whether SMS/RCS is live is
+  // Photon's open question 3, not ours to promise or to rule out; the FAQ is
+  // where that nuance belongs.
+  const text = (await cap.innerText()).replace(/\s+/g, ' ').trim();
+  expect(text.toLowerCase()).not.toContain('android');
+  expect(text.toLowerCase()).not.toContain('iphone');
+  expect(text.length, `caption is ${text.length} chars: ${text}`).toBeLessThanOrEqual(150);
 });
 
 test('the box never moves, however far you scroll', async ({ page }) => {
@@ -107,33 +135,51 @@ test('the box never moves, however far you scroll', async ({ page }) => {
   }
 });
 
-test('every note gets its turn on screen', async ({ page }) => {
+test('every message gets its turn on screen', async ({ page }) => {
   await page.goto('/scout');
   await page.waitForTimeout(400);
 
-  const total = await page.locator('.scout-note').count();
+  const total = await page.locator('.scout-msg:not(.scout-typing), .scout-div').count();
   const seen = new Set();
-  for (let i = 0; i <= 60; i++) {
-    await setProgress(page, i / 60);
-    await page.waitForTimeout(90);
-    (await visibleNotes(page)).forEach((k) => seen.add(k));
+  for (let i = 0; i <= 80; i++) {
+    await setProgress(page, i / 80);
+    await page.waitForTimeout(70);
+    (await onScreen(page)).forEach((n) => seen.add(n.key));
   }
-  // A note scheduled outside the runway is copy the crawler is served and the
-  // reader never sees.
-  expect(seen.size, `only ${seen.size} of ${total} notes ever appeared`).toBe(total);
+  // A message scheduled outside the runway is copy the crawler is served and
+  // the reader never sees.
+  expect(seen.size, `only ${seen.size} of ${total} messages ever appeared`).toBe(total);
 });
 
-test('only a few notes share the screen at once', async ({ page }) => {
+test('no bubble is a paragraph', async ({ page }) => {
+  await page.goto('/scout');
+  const worst = await page.evaluate(() => [...document.querySelectorAll('.scout-msg:not(.scout-typing)')]
+    .map((n) => ({ words: (n.innerText.trim().match(/\S+/g) || []).length, text: n.innerText.trim() }))
+    .sort((a, b) => b.words - a.words)[0]);
+  // The entire reason this page was rebuilt: bubbles carrying 40-word section
+  // bodies. If this fails, shorten the sentence in seoLanding.js.
+  expect(worst.words, `longest bubble is ${worst.words} words: "${worst.text}"`)
+    .toBeLessThanOrEqual(MAX_BUBBLE_WORDS);
+});
+
+test('the screen never fills up with text', async ({ page }) => {
   await page.goto('/scout');
   await page.waitForTimeout(400);
-  let worst = 0;
-  for (let i = 0; i <= 40; i++) {
-    await setProgress(page, i / 40);
-    await page.waitForTimeout(70);
-    worst = Math.max(worst, (await visibleNotes(page)).length);
+  let worstWords = 0;
+  let worstCount = 0;
+  for (let i = 0; i <= 50; i++) {
+    await setProgress(page, i / 50);
+    await page.waitForTimeout(60);
+    // Legible, not merely present: the reading band fades bubbles out well
+    // before the edge of the screen.
+    const vis = await onScreen(page, 0.6);
+    worstWords = Math.max(worstWords, vis.reduce((a, n) => a + n.words, 0));
+    worstCount = Math.max(worstCount, vis.length);
   }
-  // The whole point of the rebuild: never a wall of text.
-  expect(worst, `${worst} notes were on screen at once`).toBeLessThanOrEqual(4);
+  // Word count, not bubble count, is the honest measure now — six eight-word
+  // bubbles is a conversation, one forty-word slab is the wall.
+  expect(worstWords, `${worstWords} words were legible at once`).toBeLessThanOrEqual(95);
+  expect(worstCount, `${worstCount} bubbles were legible at once`).toBeLessThanOrEqual(12);
 });
 
 test('the crawler is served nothing the reader is not (anti-cloaking)', async ({ page }) => {
@@ -141,6 +187,9 @@ test('the crawler is served nothing the reader is not (anti-cloaking)', async ({
   const body = await page.locator('.scout-scene').innerText();
 
   // Exactly what worker.js's buildLandingCrawlableHtml() emits for this spec.
+  // Bodies are split one-sentence-per-bubble, so this only passes while the
+  // parts stay ADJACENT in DOM order — which is the property that makes the
+  // split safe in the first place.
   const shouldAppear = [
     SPEC.h1,
     SPEC.subhead,
@@ -153,7 +202,11 @@ test('the crawler is served nothing the reader is not (anti-cloaking)', async ({
     ...SPEC.faq.map((f) => f.q),
     ...SPEC.faq.map((f) => f.a),
   ];
-  const norm = (s) => s.replace(/\s+/g, ' ').trim();
+  // Case-insensitive on purpose: innerText reports text AFTER text-transform,
+  // so a purely decorative `text-transform: uppercase` would fail this with a
+  // baffling message while the DOM — and therefore the crawler — is fine. Case
+  // is not a cloaking vector; missing strings are.
+  const norm = (s) => s.replace(/\s+/g, ' ').trim().toLowerCase();
   const haystack = norm(body);
   for (const needle of shouldAppear) {
     expect(haystack, `missing: ${needle.slice(0, 60)}…`).toContain(norm(needle));
@@ -177,7 +230,7 @@ test('with motion off the page is a plain readable column', async ({ page }) => 
 
   // The runway never engages, so nothing is absolutely positioned or faded.
   await expect(page.locator('.scout-scene.is-runway')).toHaveCount(0);
-  const faded = await page.evaluate(() => [...document.querySelectorAll('.scout-note')]
+  const faded = await page.evaluate(() => [...document.querySelectorAll('.scout-msg, .scout-div')]
     .filter((n) => parseFloat(getComputedStyle(n).opacity) < 0.9).length);
   expect(faded).toBe(0);
 
@@ -190,26 +243,26 @@ test('on a narrow screen nothing lands on top of the phone input', async ({ page
   await page.goto('/scout');
   await page.waitForTimeout(400);
 
-  for (let i = 0; i <= 24; i++) {
-    await setProgress(page, i / 24);
-    await page.waitForTimeout(80);
+  for (let i = 0; i <= 30; i++) {
+    await setProgress(page, i / 30);
+    await page.waitForTimeout(70);
     const clash = await page.evaluate(() => {
       const input = document.querySelector('.scout-box input[type="tel"]');
       const btn = document.querySelector('.scout-box button[type="submit"]');
       if (!input || !btn) return 'controls missing';
       const targets = [input.getBoundingClientRect(), btn.getBoundingClientRect()];
-      for (const n of document.querySelectorAll('.scout-note')) {
+      for (const n of document.querySelectorAll('.scout-msg, .scout-div')) {
         if (parseFloat(getComputedStyle(n).opacity) <= 0.15) continue;
         const r = n.getBoundingClientRect();
         for (const t of targets) {
           if (r.left < t.right && t.left < r.right && r.top < t.bottom && t.top < r.bottom) {
-            return `${n.dataset.note} overlaps a control`;
+            return `${n.dataset.msg} overlaps a control`;
           }
         }
       }
       return null;
     });
-    expect(clash, `at progress ${i}/24`).toBeNull();
+    expect(clash, `at progress ${i}/30`).toBeNull();
   }
 });
 
