@@ -1,21 +1,20 @@
 // /scout — the Soleil Scout landing page.
 //
-// The product is "you text a number and a board appears", so the page is a text
-// thread. You arrive at one box that wants your phone number; as you scroll, a
-// conversation plays out beside a canvas that fills in — and the marketing copy
-// IS the conversation. Nothing here is a brochure paragraph dressed up as a
-// bubble: every string below comes from the same spec the crawler is served.
+// Same shape as the primary landing page (auth/SignInBackdrop): ONE box, pinned
+// dead centre for the entire page, while short notes stream past it in scenes
+// that rotate around the four quadrants. You never face a wall of text — at any
+// moment two or three notes are on screen, and the thing we want you to do has
+// never moved.
 //
-// THAT LAST POINT IS THE WHOLE DESIGN. lib/seoLanding.js stays the single
-// source of truth. worker.js keeps injecting this page's <title>, description,
-// canonical, OG, JSON-LD and crawlable HTML from that spec via
-// buildLandingCrawlableHtml(); this component renders the SAME strings in
-// bubbles. So the page can look like anything at all and server/client parity —
-// the thing that stops this being cloaking — holds by construction rather than
-// by anyone remembering to keep two files in step.
+// Every string still comes from the spec in lib/seoLanding.js, which the Worker
+// also renders as crawlable HTML + JSON-LD. That is what keeps this honest: the
+// copy was SHORTENED AT THE SOURCE so both surfaces shrank together. Trimming
+// only what the visitor sees, while the crawler kept the long version, is
+// exactly the cloaking pattern this codebase warns about.
 //
-// This is the only landing page with its own renderer. Everything else in the
-// registry goes through SeoLandingPage.jsx.
+// Motion is opt-out, content is not. Without JavaScript, or with
+// prefers-reduced-motion, the runway never engages and the notes lay out as an
+// ordinary readable column — see the `.is-runway` switch below.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
@@ -26,15 +25,32 @@ import { NotFoundPage } from './NotFoundPage.jsx';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
-// The shared public-page chrome — .seo-scroll, .seo-footer, .seo-related,
-// .seo-updated. Imported rather than re-declared so this page's footer and
-// scroll container can't drift from every other landing page's.
-import './seoLanding.css';
 import './scoutPage.css';
 
-// Stand-in photos. Flat gradients rather than real images: no asset weight, no
-// licensing, no layout shift — and the point being demonstrated is ARRANGEMENT,
-// which a photograph would only distract from.
+const RUNWAY_MULT = 8.0;    // runway height = this × viewport height
+const RUNWAY_MULT_TOUCH = 6.0;
+const ENTER_RAMP = 0.055;   // scroll-progress span a note takes to ease IN
+const EXIT_RAMP = 0.05;
+const FIRST_IN = 0.035;     // the box gets the opening beat to itself
+const STAGGER = 0.05;
+const HOLD = 0.125;         // how long a note stays before it streams out
+
+// Where a note sits, in centre-relative px. Rotating TL→BR→BL→TR means the
+// active cluster drifts AROUND the box instead of one side filling, emptying
+// and refilling. Notes never enter the box's own column.
+//
+// The bottom-left slot sits LOWER than its top-left counterpart because the
+// mini board occupies the upper-left lane while the step scenes play; at the
+// mirrored height the two overlapped and a note landed on top of the canvas.
+const SLOTS = [
+  { x: -395, y: -145 },
+  { x: 395, y: 150 },
+  { x: -400, y: 215 },
+  { x: 390, y: -150 },
+];
+
+// Stand-in photos for the canvas. Flat gradients: no asset weight, no
+// licensing, and the point being made is ARRANGEMENT.
 const PHOTOS = [
   { id: 'p1', from: 'var(--sc-a)', to: 'var(--sc-b)', w: 2, h: 2 },
   { id: 'p2', from: 'var(--sc-b)', to: 'var(--sc-c)', w: 1, h: 1 },
@@ -48,134 +64,108 @@ const TITLE_BY_PATH = new Map([
   ...SEO_LISTICLE_INDEX.map((p) => [p.path, p.h1]),
 ]);
 
-// ── The thread ──────────────────────────────────────────────────────────────
+// ── The notes ───────────────────────────────────────────────────────────────
 //
-// Every beat is derived from the spec. The only strings invented here are the
-// four short connective questions, which exist because a conversation needs
-// someone to ask — rendering MORE than the crawler sees is never cloaking;
-// rendering less would be.
-//
-// Order differs from the crawlable HTML (steps before sections) because the
-// demonstration should come before the argument. The CONTENT is identical,
-// which is what parity actually requires.
-function buildThread(spec) {
-  const beats = [];
-  const add = (b) => { beats.push({ ...b, key: `b${beats.length}` }); };
+// Built entirely from the spec, in the order they should be read. `head` is a
+// real heading element so the document outline a crawler reads survives the
+// fact that these are absolutely positioned and faded.
+function buildNotes(spec) {
+  const out = [];
+  const add = (n) => out.push({ ...n, key: `n${out.length}` });
 
-  add({ side: 'out', kind: 'ask', text: 'What is this?' });
-  add({ side: 'in', kind: 'answer', text: spec.answer });
+  // The extractable direct answer — what AI answer engines lift. First, wide,
+  // and given the top of the stage on its own.
+  add({ kind: 'answer', text: spec.answer, wide: true });
 
-  // The steps are the spine: each one is a thing you do, and Scout's reply.
-  // Step 0 carries the photos, so the canvas starts filling exactly where the
-  // copy first mentions sending one.
+  // The five steps: the mechanic, one beat at a time.
   (spec.steps || []).forEach((s, i) => {
-    add({ side: 'out', kind: 'do', text: s.t, photos: i === 0 ? PHOTOS : null, stage: i + 1 });
-    add({ side: 'in', kind: 'said', text: s.d });
+    add({ kind: 'step', head: s.t, text: s.d, level: 3, photos: i === 0 });
   });
 
-  // Sections: heading becomes a quiet thread divider, body a long bubble.
-  // People really do send paragraphs, so this stays plausible as a message.
-  (spec.sections || []).forEach((s, i) => {
-    add({ kind: 'divider', heading: s.heading, idx: i });
-    add({ side: 'in', kind: 'body', text: s.body });
-    if (s.bullets?.length) add({ side: 'in', kind: 'bullets', bullets: s.bullets });
+  // The four sections. Bullets become their own note so neither is a wall.
+  (spec.sections || []).forEach((s) => {
+    add({ kind: 'section', head: s.heading, text: s.body, level: 2 });
+    if (s.bullets?.length) add({ kind: 'bullets', bullets: s.bullets });
   });
 
-  // FAQ is the most natural fit of all: a question is a message, an answer is
-  // a reply. No <details> to open — in a thread everything is already said.
-  //
-  // Zoned separately because it renders OUTSIDE the two-column layout. By the
-  // time the questions start the canvas has told its whole story, and leaving
-  // it pinned would strand half the width beside eight paragraphs of text. The
-  // FAQ gets a single centred column instead, and the sticky canvas simply ends
-  // with its container — no fade-out to orchestrate, no dead space.
-  const faq = [];
-  if (spec.faq?.length) {
-    const at = (b) => { faq.push({ ...b, key: `f${faq.length}` }); };
-    at({ kind: 'divider', heading: 'Frequently asked questions' });
-    spec.faq.forEach((f) => {
-      at({ side: 'out', kind: 'q', text: f.q });
-      at({ side: 'in', kind: 'a', text: f.a });
-    });
-  }
+  // The FAQ — a question and its answer, still real headings for the JSON-LD's
+  // visible counterpart.
+  (spec.faq || []).forEach((f) => {
+    add({ kind: 'faq', head: f.q, text: f.a, level: 3 });
+  });
 
-  return { conv: beats, faq };
+  // Schedule + place. The last few STAY, so the runway settles instead of
+  // ending on an empty stage.
+  const n = out.length;
+  const stayFrom = n - 3;
+  return out.map((note, i) => {
+    const slot = SLOTS[i % SLOTS.length];
+    const inAt = FIRST_IN + i * STAGGER;
+    return {
+      ...note,
+      x: slot.x,
+      y: slot.y,
+      // Alternate top/bottom on touch so each note lands ALONE in its slot,
+      // above or below the box, and is fully readable.
+      mSlot: i % 2 === 0 ? 'top' : 'bottom',
+      in: inAt,
+      out: i >= stayFrom ? null : inAt + HOLD,
+    };
+  });
 }
 
-// One bubble. `data-*` drives the reveal observer and the canvas phases, so the
-// observer needs no per-node bookkeeping and no React state per bubble.
-function Beat({ beat }) {
-  if (beat.kind === 'divider') {
-    return (
-      <div className="scout-divider" data-beat={beat.key}>
-        <h2 className="scout-divider-h">{beat.heading}</h2>
-      </div>
-    );
-  }
-
-  const out = beat.side === 'out';
-  const cls = `scout-bubble scout-bubble-${out ? 'out' : 'in'} scout-bubble-${beat.kind}`;
-
+function Note({ note }) {
+  const H = note.level === 2 ? 'h2' : 'h3';
   return (
-    <div className={cls} data-beat={beat.key}
-         data-stage={beat.stage || undefined}>
-      {beat.photos && (
-        <div className="scout-bubble-photos" aria-hidden="true">
-          {beat.photos.map((p) => (
+    <article className={`scout-note scout-note-${note.kind}${note.wide ? ' is-wide' : ''}`}
+             data-note={note.key} data-mslot={note.mSlot}>
+      {note.photos && (
+        <div className="scout-note-chips" aria-hidden="true">
+          {PHOTOS.map((p) => (
             <span key={p.id} className="scout-chip"
                   style={{ background: `linear-gradient(135deg, ${p.from}, ${p.to})` }} />
           ))}
         </div>
       )}
-      {beat.kind === 'q'
-        ? <h3 className="scout-bubble-q">{beat.text}</h3>
-        : beat.bullets
-          ? <ul className="scout-bubble-list">{beat.bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
-          : <p className="scout-bubble-text">{beat.text}</p>}
-    </div>
+      {note.head && <H className="scout-note-head">{note.head}</H>}
+      {note.bullets
+        ? <ul className="scout-note-list">{note.bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
+        : <p className="scout-note-text">{note.text}</p>}
+    </article>
   );
 }
 
-// ── The canvas ──────────────────────────────────────────────────────────────
+// The mini board, floating opposite the notes while the steps play. It fills in
+// as you scroll: photos land, the group gets its title, the note arrives, and
+// finally it is filed into a real board rather than the Bin.
 //
-// Sticky beside the thread, filling in as the conversation advances. `stage`
-// counts up as step bubbles scroll past:
-//   1 photos land · 2 the group gets its title · 3 the note lands
-//   4 nothing new (the "keep shooting" beat) · 5 it's filed into a real board
-//
-// Stage 5 renames the board rather than re-sorting the cards. Re-ordering a
-// grid mid-scroll is an instant jump with no way to tween it, and a jump reads
-// as a glitch; the rename tells the same story — this left the Bin — and is
-// legible at a glance.
-function Canvas({ stage }) {
-  const filed = stage >= 5;
+// The last beat renames the board instead of re-sorting the grid. Re-ordering
+// mid-scroll is an instant jump with no way to tween it, and a jump reads as a
+// glitch; the rename tells the same story and is legible at a glance.
+function MiniBoard({ stage }) {
+  const filed = stage >= 4;
   return (
-    <div className="scout-canvas" aria-hidden="true">
-      <div className="scout-canvas-bar">
-        <span className="scout-canvas-dots"><i /><i /><i /></span>
-        <span className="scout-canvas-url">clusters.soleilpictures.com</span>
+    <div className="scout-mini" aria-hidden="true">
+      <div className="scout-mini-bar">
+        <span className="scout-mini-dots"><i /><i /><i /></span>
+        <span className="scout-mini-url">clusters.soleilpictures.com</span>
       </div>
-      <div className="scout-canvas-body">
+      <div className="scout-mini-body">
         <div className={`scout-board-name${filed ? ' is-filed' : ''}`}>
           {filed ? 'Diner Recce' : 'Scout Bin'}
         </div>
-        <div className={`scout-section-label${stage >= 2 ? ' is-shown' : ''}`}>
-          Scene 4 — Diner
-        </div>
+        <div className={`scout-section-label${stage >= 2 ? ' is-shown' : ''}`}>Scene 4 — Diner</div>
         <div className="scout-grid">
           {PHOTOS.map((p, i) => (
-            <span key={p.id}
-                  className={`scout-card${stage >= 1 ? ' is-landed' : ''}`}
+            <span key={p.id} className={`scout-card${stage >= 1 ? ' is-landed' : ''}`}
                   style={{
                     background: `linear-gradient(135deg, ${p.from}, ${p.to})`,
                     gridColumn: `span ${p.w}`,
                     gridRow: `span ${p.h}`,
-                    transitionDelay: stage >= 1 ? `${i * 80}ms` : '0ms',
+                    transitionDelay: stage >= 1 ? `${i * 70}ms` : '0ms',
                   }} />
           ))}
-          <span className={`scout-note${stage >= 3 ? ' is-landed' : ''}`}>
-            Check the power drops
-          </span>
+          <span className={`scout-note-card${stage >= 3 ? ' is-landed' : ''}`}>Check the power drops</span>
         </div>
       </div>
     </div>
@@ -184,11 +174,13 @@ function Canvas({ stage }) {
 
 export function ScoutPage() {
   const spec = getLandingSpec('/scout');
-  const { conv, faq } = useMemo(
-    () => (spec ? buildThread(spec) : { conv: [], faq: [] }), [spec]);
+  const notes = useMemo(() => (spec ? buildNotes(spec) : []), [spec]);
 
+  const sceneRef = useRef(null);
   const scrollRef = useRef(null);
-  const threadRef = useRef(null);
+  const runwayRef = useRef(null);
+  const stageRef = useRef(null);
+  const notesRef = useRef(null);
   const [stage, setStage] = useState(0);
 
   const lp = useLandingEngagement({
@@ -202,126 +194,242 @@ export function ScoutPage() {
     logEventOnce(`seo_landing_${spec.path}`, EV.SEO_LANDING_VIEW, { path: spec.path, kind: spec.kind });
   }, [spec]);
 
-  // One observer for every bubble on the page.
-  //
-  // Reveal is one-way on purpose: a bubble that faded back out when it left the
-  // viewport would make scrolling up feel like the page was un-saying things.
-  // The canvas stage is monotonic for the same reason — scrolling back must not
-  // un-land photos.
-  const observe = useCallback(() => {
-    const root = threadRef.current;
-    if (!root) return undefined;
+  const drive = useCallback(() => {
+    const sceneEl = sceneRef.current;
+    const scrollEl = scrollRef.current;
+    const notesEl = notesRef.current;
+    if (!sceneEl || !scrollEl || !notesEl) return undefined;
 
-    const nodes = root.querySelectorAll('[data-beat]');
-    let reduced = false;
-    try { reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { /* animate */ }
+    let reduce = false;
+    let coarse = false;
+    try {
+      reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      coarse = matchMedia('(pointer: coarse)').matches;
+    } catch (_) { /* drive it */ }
 
-    // Reduced motion (and any environment without IntersectionObserver) skips
-    // straight to the end state. The page must be READABLE in full either way —
-    // an animation is the only thing anyone is opting out of, never the copy.
-    if (reduced || typeof IntersectionObserver === 'undefined') {
-      nodes.forEach((n) => n.classList.add('is-in'));
-      setStage(5);
-      return undefined;
-    }
+    // Motion is the only thing anyone opts out of. Without the runway the notes
+    // fall back to an ordinary column and the whole page is still readable —
+    // which is also what a crawler and any no-JS visitor gets.
+    if (reduce) { setStage(4); return undefined; }
 
-    const io = new IntersectionObserver((entries) => {
-      for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        e.target.classList.add('is-in');
-        const s = Number(e.target.dataset.stage || 0);
-        if (s) setStage((cur) => Math.max(cur, s));
-        io.unobserve(e.target);
+    // Applied imperatively, NOT through React state. Measuring depends on this
+    // class (it switches the scene from document flow to a fixed viewport box),
+    // and a state update would not land until after this function returns — so
+    // measure() would size the runway against the full-height static page. That
+    // produced a 191,552px runway instead of 7,200 and pinned scroll progress
+    // at 1, which looks exactly like "the animation is broken".
+    sceneEl.classList.add('is-runway');
+
+    const els = notes.map((n) => notesEl.querySelector(`[data-note="${n.key}"]`));
+    const mult = coarse ? RUNWAY_MULT_TOUCH : RUNWAY_MULT;
+
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const easeOut = (t) => 1 - (1 - t) ** 3;
+    const ramp = (p, start, win) => easeOut(clamp((p - start) / win, 0, 1));
+
+    let maxScroll = 1;
+    const measure = () => {
+      const vw = sceneEl.clientWidth || window.innerWidth;
+      const vh = sceneEl.clientHeight || window.innerHeight;
+      if (runwayRef.current) {
+        runwayRef.current.style.width = `${vw}px`;
+        runwayRef.current.style.height = `${Math.round(vh * mult)}px`;
       }
-    }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+      if (stageRef.current) {
+        stageRef.current.style.width = `${vw}px`;
+        stageRef.current.style.height = `${vh}px`;
+      }
+      maxScroll = Math.max(1, scrollEl.scrollHeight - scrollEl.clientHeight);
+    };
 
-    nodes.forEach((n) => io.observe(n));
-    return () => io.disconnect();
-  }, []);
+    // Keep the pinned box above an on-screen keyboard: the stage is fixed, so
+    // without this it centres in the full layout viewport and the keyboard can
+    // hide the button someone is trying to press.
+    const vv = window.visualViewport;
+    const syncVisible = () => {
+      if (vv) sceneEl.style.setProperty('--sc-vvh', `${Math.round(vv.height)}px`);
+    };
 
-  useEffect(() => observe(), [observe, conv, faq]);
+    const spread = () => {
+      const vw = sceneEl.clientWidth || window.innerWidth;
+      const vh = sceneEl.clientHeight || window.innerHeight;
+      return { sx: clamp(vw / 1240, 0.42, 1.1), sy: clamp(vh / 780, 0.5, 1.1) };
+    };
+
+    const boxEl = sceneEl.querySelector('.scout-box-inner');
+
+    let raf = 0;
+    let lastStage = -1;
+    const frame = () => {
+      const p = clamp(scrollEl.scrollTop / maxScroll, 0, 1);
+      const { sx, sy } = spread();
+      const vw = sceneEl.clientWidth || window.innerWidth;
+      const vh = sceneEl.clientHeight || window.innerHeight;
+      // Stack above/below the box whenever the viewport is NARROW, not merely
+      // when the pointer is coarse. A narrow desktop window has the same
+      // problem — there is no room beside the box — and keying this off touch
+      // alone let notes slide off the left edge and over the input.
+      const narrow = coarse || vw < 900;
+      const boxH = boxEl ? boxEl.offsetHeight : 420;
+
+      // Pass 1 — how visible is each note right now.
+      const vises = notes.map((n) => {
+        const vin = ramp(p, n.in, ENTER_RAMP);
+        const vout = n.out === null ? 0 : ramp(p, n.out, EXIT_RAMP);
+        return { vin, vout, vis: vin * (1 - vout) };
+      });
+
+      // On a narrow layout there are only TWO places a note can go — above the
+      // box and below it — but three notes are often mid-transition at once, so
+      // two would land in the same strip and overlap. Keep only the newest in
+      // each strip; the one it displaces is already on its way out.
+      if (narrow) {
+        for (const slot of ['top', 'bottom']) {
+          let best = -1;
+          for (let i = 0; i < notes.length; i++) {
+            if (notes[i].mSlot !== slot || vises[i].vis <= 0.001) continue;
+            if (best < 0 || notes[i].in > notes[best].in) best = i;
+          }
+          for (let i = 0; i < notes.length; i++) {
+            if (notes[i].mSlot === slot && i !== best) vises[i].vis = 0;
+          }
+        }
+      }
+
+      for (let i = 0; i < notes.length; i++) {
+        const n = notes[i];
+        const el = els[i];
+        if (!el) continue;
+        const { vin, vout, vis } = vises[i];
+
+        if (vis <= 0.001) {
+          if (el.style.opacity !== '0') {
+            el.style.opacity = '0';
+            el.removeAttribute('data-live');
+          }
+          // Deliberately no visibility/display toggle: it would drop the note
+          // out of the accessibility tree, and these notes ARE the page.
+          continue;
+        }
+        if (!el.hasAttribute('data-live')) el.setAttribute('data-live', '1');
+
+        // Notes drift in from slightly further out and settle — the same
+        // easing the primary landing page's cards use.
+        const drift = (1 - vin) * 34 + vout * 26;
+        let tx;
+        let ty;
+        if (narrow) {
+          // The box owns the middle; notes take the strip above or below it,
+          // one at a time. Derived from the BOX's measured height rather than a
+          // fraction of the viewport, so a note can never land on the input no
+          // matter how tall the box gets (the success state is shorter than the
+          // form, and the consent copy wraps differently at every width).
+          // Clearance wins over fitting on screen. On a very short viewport a
+          // note may clip at the edge, which is recoverable by scrolling; a
+          // note sitting on top of the phone input is not.
+          const noteH = el.offsetHeight || 150;
+          tx = 0;
+          ty = (n.mSlot === 'top' ? -1 : 1) * (boxH / 2 + noteH / 2 + 16);
+        } else {
+          tx = n.x * sx;
+          ty = n.y * sy;
+        }
+        const dx = narrow ? 0 : (n.x < 0 ? -drift : drift);
+        const dy = narrow ? (n.mSlot === 'top' ? -drift : drift) : 0;
+        el.style.opacity = String(vis);
+        // translate(-50%,-50%) FIRST so a note centres on its slot whatever its
+        // height — a fixed negative margin only centres one size of note, and
+        // these range from three lines to eight.
+        el.style.transform = `translate(-50%, -50%) translate3d(${tx + dx}px, ${ty + dy}px, 0)`;
+      }
+
+      // The mini board fills in across the step scenes.
+      const s = p < 0.09 ? 0 : p < 0.17 ? 1 : p < 0.25 ? 2 : p < 0.33 ? 3 : 4;
+      if (s !== lastStage) { lastStage = s; setStage(s); }
+
+      raf = requestAnimationFrame(frame);
+    };
+
+    measure();
+    syncVisible();
+    raf = requestAnimationFrame(frame);
+    window.addEventListener('resize', measure);
+    vv?.addEventListener('resize', syncVisible);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', measure);
+      vv?.removeEventListener('resize', syncVisible);
+      sceneEl.classList.remove('is-runway');
+    };
+  }, [notes]);
+
+  useEffect(() => drive(), [drive]);
 
   if (!spec) return <NotFoundPage />;
 
   const related = (spec.related || []).filter((p) => TITLE_BY_PATH.has(p));
 
   return (
-    <div className="public-shell scout-shell public-dark">
-      <div className="public-topbar">
-        <a className="public-brand" href="/" title="Clusters home">
-          <ClustersMark size={20} />
-          <span className="public-brand-name">Clusters</span>
+    // public-dark pins the brand's dark tokens inside this scope, so a
+    // light-OS visitor never gets a washed-out first impression — same as every
+    // other public marketing surface.
+    <div className="scout-scene public-dark" ref={sceneRef}>
+      <div className="scout-topbar">
+        <a className="scout-brand" href="/" title="Clusters home">
+          <ClustersMark size={18} />
+          <span>Clusters</span>
         </a>
-        <div className="public-topbar-spacer" />
-        <div className="public-topbar-actions">
-          <a className="public-signin-quiet" href="/explore" {...lp.ctaProps('topbar_explore', '/explore', { intent: 'nav' })}>Explore</a>
-          <a className="public-signin-quiet" href="/pricing" {...lp.ctaProps('topbar_pricing', '/pricing', { intent: 'nav' })}>Pricing</a>
-          <a className="public-cta" href="/" {...lp.ctaProps('topbar', '/')}>Try Clusters free</a>
+        <div className="scout-topbar-actions">
+          <a href="/explore" {...lp.ctaProps('topbar_explore', '/explore', { intent: 'nav' })}>Explore</a>
+          <a href="/pricing" {...lp.ctaProps('topbar_pricing', '/pricing', { intent: 'nav' })}>Pricing</a>
         </div>
       </div>
 
-      <div className="seo-scroll" ref={scrollRef}>
-        {/* ── Act 1: one box, nothing competing with it ─────────────────── */}
-        <header className="scout-hero" ref={lp.sectionRef('hero', 0)}>
-          <p className="scout-eyebrow">Soleil Scout</p>
-          <h1 className="scout-h1">{spec.h1}</h1>
-          <p className="scout-sub">{spec.subhead}</p>
-          <ScoutSignupBox pos="hero" />
-          <p className="sb-trust">Made by a film studio, for creative professionals.</p>
-          <div className="scout-cue" aria-hidden="true">
-            <span>See how it goes</span>
-            <span className="scout-chev" />
-          </div>
-        </header>
+      <div className="scout-scroll" ref={scrollRef}>
+        <div className="scout-runway" ref={runwayRef}>
+          <div className="scout-stage" ref={stageRef}>
+            <div className="scout-atmos" aria-hidden="true" />
 
-        {/* ── Act 2: the conversation, and the canvas it builds ─────────── */}
-        <div ref={threadRef}>
-          <div className="scout-conv">
-            <div className="scout-stage">
-              <Canvas stage={stage} />
+            {/* The mini board sits opposite the notes while the steps play. */}
+            <div className="scout-mini-wrap" data-stage={stage}>
+              <MiniBoard stage={stage} />
             </div>
-            <div className="scout-msgs">
-              {conv.map((b) => <Beat key={b.key} beat={b} />)}
-            </div>
-          </div>
 
-          {/* The questions get the full column width — the canvas has finished
-              saying what it has to say, and its container ends here, so the
-              sticky panel scrolls away on its own. */}
-          {faq.length > 0 && (
-            <section className="scout-faq scout-msgs" ref={lp.sectionRef('faq', 1)}>
-              {faq.map((b) => <Beat key={b.key} beat={b} />)}
-            </section>
-          )}
+            {/* Everything the page has to say, streaming around the box. */}
+            <div className="scout-notes" ref={notesRef}>
+              {notes.map((n) => <Note key={n.key} note={n} />)}
+            </div>
+
+            {/* The one thing that never moves. */}
+            <div className="scout-box-wrap">
+              <div className="scout-box-inner">
+                <p className="scout-eyebrow">Soleil Scout</p>
+                <h1 className="scout-h1">{spec.h1}</h1>
+                <p className="scout-sub">{spec.subhead}</p>
+                <ScoutSignupBox pos="hero" />
+                <p className="sb-trust">Made by a film studio, for creative professionals.</p>
+              </div>
+            </div>
+
+            <div className="scout-cue" aria-hidden="true">
+              <span>Scroll</span><span className="scout-chev" />
+            </div>
+
+            <footer className="scout-foot">
+              <span>© Soleil Pictures</span>
+              {related.slice(0, 3).map((p) => (
+                <a key={p} href={p}>{TITLE_BY_PATH.get(p)}</a>
+              ))}
+              <a href="/explore">Explore</a>
+              <a href="/pricing">Pricing</a>
+              {spec.updated && (
+                <span className="scout-updated">
+                  Updated {new Date(`${spec.updated}T00:00:00Z`).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
+                </span>
+              )}
+            </footer>
+          </div>
         </div>
-
-        {/* ── Act 3: ask again, then get out of the way ─────────────────── */}
-        <section className="scout-close" ref={lp.sectionRef('closing', 2)}>
-          <h2 className="scout-close-h">Your next scout is a text away.</h2>
-          <ScoutSignupBox pos="closing" ctaLabel="Text me Scout" />
-        </section>
-
-        <footer className="seo-footer">
-          {related.length > 0 && (
-            <nav className="seo-related" aria-label="Related pages">
-              <div className="seo-related-label">Keep exploring</div>
-              <ul>
-                {related.map((p) => <li key={p}><a href={p}>{TITLE_BY_PATH.get(p)}</a></li>)}
-                <li><a href="/explore">Explore example boards</a></li>
-                <li><a href="/pricing">Pricing</a></li>
-              </ul>
-            </nav>
-          )}
-          <div className="seo-footer-brand">
-            <ClustersMark size={16} />
-            <span>Soleil Clusters — a creative workspace &amp; moodboard for production teams.</span>
-          </div>
-          {spec.updated && (
-            <div className="seo-updated">
-              Updated {new Date(spec.updated + 'T00:00:00Z').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
-            </div>
-          )}
-        </footer>
       </div>
     </div>
   );
