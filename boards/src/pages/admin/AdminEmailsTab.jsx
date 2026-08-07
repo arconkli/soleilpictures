@@ -46,6 +46,11 @@ export function AdminEmailsTab() {
   const [status, setStatus]     = useState('');   // '' = all
   const [queryInput, setQueryInput] = useState('');
   const [query, setQuery] = useState('');
+  // Default OFF: this Resend account also carries another product's auth mail
+  // (updates.bountyos.com), which lands as template='unknown' stubs and made up
+  // 73% of every tracked email — blending it in dragged every rate with it.
+  // Migration 0212 records the sending domain; this toggle restores the raw view.
+  const [includeForeign, setIncludeForeign] = useState(false);
 
   // Debounce the recipient search so each keystroke doesn't refetch.
   useEffect(() => {
@@ -55,10 +60,11 @@ export function AdminEmailsTab() {
 
   const fetchEmails = useCallback(async () => {
     const results = await Promise.allSettled([
-      supabase.rpc('admin_email_stats',  { p_days: days }),
+      supabase.rpc('admin_email_stats',  { p_days: days, p_include_foreign: includeForeign }),
       supabase.rpc('admin_recent_emails', {
         p_days: days, p_limit: RECENT_LIMIT,
         p_template: template || null, p_status: status || null, p_query: query || null,
+        p_include_foreign: includeForeign,
       }),
     ]);
     const [st, rec] = results;
@@ -66,10 +72,10 @@ export function AdminEmailsTab() {
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
     if (!val(st) && !val(rec)) throw errOf(st) || errOf(rec) || new Error('Failed to load emails');
     return { stats: val(st) || [], recent: val(rec) || [] };
-  }, [days, template, status, query]);
+  }, [days, template, status, query, includeForeign]);
 
   const { data, loading, error, refreshing, lastUpdated, refresh } =
-    useAdminData(fetchEmails, [days, template, status, query]);
+    useAdminData(fetchEmails, [days, template, status, query, includeForeign]);
   const stats = data?.stats || [];
   const recent = data?.recent || [];
 
@@ -103,6 +109,11 @@ export function AdminEmailsTab() {
         <input className="auth-input admin-search-input" type="search" placeholder="search recipient…"
                value={queryInput} onChange={(e) => setQueryInput(e.target.value)}
                aria-label="Search by recipient" />
+        <label className="admin-inline-check" title="This Resend account also carries another product's mail. Off = Soleil domains only.">
+          <input type="checkbox" checked={includeForeign}
+                 onChange={(e) => setIncludeForeign(e.target.checked)} />
+          <span>other senders</span>
+        </label>
       </AdminToolbar>
 
       <AdminAsync

@@ -6543,6 +6543,18 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 .admin-search-input  { width: 280px; max-width: 100%; }
 .admin-filter-select { width: 140px; }
+/* Inline checkbox filter in an admin toolbar (Emails tab: "other senders"). */
+.admin-inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+.admin-inline-check input { margin: 0; cursor: pointer; }
 .admin-filter-meta {
   margin-left: auto;
   color: var(--ink-3);

@@ -164,6 +164,7 @@ export const EV = Object.freeze({
   SEARCH_RUN:              'search_run',                  // ran a search / command {has_results}
   SHARE_OPEN:              'share_open',                  // opened the share surface {board_id}
   RETURN_SESSION:          'return_session',              // app_open on a later calendar day than last-seen {days_since_last_seen,tier}
+  LIFECYCLE_LAND:          'lifecycle_land',              // arrived from a lifecycle email CTA, read off ?lc=<email_type>.<version> {email_type,content_version} — the FIRST-PARTY click signal. Resend proxies every click through its own host and reports userAgent "Amazon CloudFront" on all of them, so its click webhook can't separate bot prefetch from a human and can't show whether anyone actually landed. This can. Fires once per page-load; the param is stripped after so a reload doesn't re-count
 
   // ── View modes + list-mode "drive" usage (previously DARK: the Cluster Browser
   //    shipped with zero instrumentation, and upload-gate rejections left no

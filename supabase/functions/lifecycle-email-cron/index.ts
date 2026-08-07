@@ -84,6 +84,41 @@ async function emailThumbUrl(boardId: string, thumbUpdatedAt?: string | null): P
   return `${SITE_ORIGIN}/api/email-thumb/${boardId}?v=${v}&s=${sig}`;
 }
 
+// whats_new's copy lives in app_config 'lifecycle_whats_new' (migration 0211)
+// so publishing an edition is a row update rather than a deploy. image_path is
+// OPTIONAL and must sit under /email/ — templates.ts only embeds an image whose
+// URL starts with the app origin + /email/, and anything else degrades to a
+// text note. An edition with no items is not news, so we skip the type entirely
+// rather than send "your stuff is still here" under a news subject line.
+interface WhatsNewConfig {
+  enabled: boolean; version: string; items: string[];
+  imageUrl?: string; ctaLabel?: string;
+}
+
+// ignoreEnabled is for the testTo preview path ONLY: an edition is authored
+// disabled and must be renderable to a test inbox before it is switched on.
+// The batch path never passes it.
+async function whatsNewConfig(
+  admin: ReturnType<typeof createClient>, ignoreEnabled = false,
+): Promise<WhatsNewConfig | null> {
+  const { data, error } = await admin
+    .from("app_config").select("value").eq("key", "lifecycle_whats_new").maybeSingle();
+  if (error) { console.warn("lifecycle_whats_new fetch failed", error.message); return null; }
+  // deno-lint-ignore no-explicit-any
+  const v: any = data?.value;
+  if (!v) return null;
+  if (!ignoreEnabled && v.enabled !== true) return null;
+  const version = String(v.version ?? "").trim();
+  const items = Array.isArray(v.items) ? v.items.map((i: unknown) => String(i ?? "")).filter(Boolean) : [];
+  if (!version || !items.length) return null;
+  const path = String(v.image_path ?? "").trim();
+  return {
+    enabled: true, version, items,
+    imageUrl: path.startsWith("/email/") ? `${SITE_ORIGIN}${path}` : undefined,
+    ctaLabel: v.cta_label ? String(v.cta_label) : undefined,
+  };
+}
+
 async function sendOne(
   template: string, to: string, data: Record<string, unknown>, idempotencyKey: string,
 ): Promise<{ ok: boolean; id?: string }> {
@@ -132,9 +167,17 @@ Deno.serve(async (req) => {
     // welcome_board previews get a real signed thumb URL (or an explicit
     // override) so the embedded image can be verified end to end.
     let thumbUrl = reqBody.thumbUrl ? String(reqBody.thumbUrl) : undefined;
-    if (!thumbUrl && (type === "welcome_board" || type === "board_waiting") && reqBody.boardId) {
+    if (!thumbUrl && (type === "welcome_board" || type === "board_waiting" || type === "whats_new") && reqBody.boardId) {
       thumbUrl = await emailThumbUrl(String(reqBody.boardId),
         reqBody.thumbUpdatedAt ? String(reqBody.thumbUpdatedAt) : null);
+    }
+    // whats_new previews pull the LIVE published edition, so what lands in the
+    // test inbox is exactly what the batch would send.
+    let newsPreview: WhatsNewConfig | null = null;
+    if (type === "whats_new") {
+      const previewDb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+      newsPreview = await whatsNewConfig(previewDb, /* ignoreEnabled */ true);
+      if (!newsPreview) return json({ error: "no lifecycle_whats_new edition authored" }, 409);
     }
     const r = await sendOne(type, String(reqBody.testTo), {
       firstName: "there",
@@ -142,6 +185,10 @@ Deno.serve(async (req) => {
       boardId: reqBody.boardId ? String(reqBody.boardId) : undefined,
       boardName: reqBody.boardName ? String(reqBody.boardName) : undefined,
       thumbUrl,
+      imageUrl: newsPreview?.imageUrl,
+      items: newsPreview?.items,
+      ctaLabel: newsPreview?.ctaLabel,
+      version: newsPreview?.version,
       variant: reqBody.variant ? String(reqBody.variant) : undefined,
       unsubscribeToken: "0".repeat(64),
       // Date.now() in the key: repeat test sends must not be swallowed by
@@ -185,8 +232,14 @@ Deno.serve(async (req) => {
           if (mailed.has(userId)) { skipped++; continue; }
 
           const variant = pickVariant(variantCfg, emailType);
+          // Only whats_new returns a content_version — it's what makes that type
+          // re-fire once per published edition (unique index in 0211). Taken from
+          // the eligibility row rather than re-read here, so a config edit
+          // mid-run can't claim one version and send another.
+          const contentVersion = row.content_version != null ? String(row.content_version) : null;
           const claim = await admin.rpc("lifecycle_claim_send", {
             p_user_id: userId, p_email_type: emailType, p_recipient_email: row.email, p_variant: variant,
+            p_content_version: contentVersion,
           });
           if (claim.error) { failed++; continue; }
           const logId = claim.data as number | null;
@@ -196,7 +249,13 @@ Deno.serve(async (req) => {
           const payload = { ...(await toData(row)), firstName: row.display_name, unsubscribeToken: row.unsub_token, variant };
           let ok = false, resendId: string | undefined;
           try {
-            const r = await sendOne(emailType, String(row.email), payload, `lifecycle:${userId}:${emailType}`);
+            // The version rides in the idempotency key: a second edition to the
+            // same user is a DIFFERENT email and must not be swallowed by
+            // Resend's dedup window on the first one's key.
+            const idem = contentVersion
+              ? `lifecycle:${userId}:${emailType}:${contentVersion}`
+              : `lifecycle:${userId}:${emailType}`;
+            const r = await sendOne(emailType, String(row.email), payload, idem);
             ok = r.ok; resendId = r.id;
           } catch (e) { console.warn(`send threw for ${userId}`, e); }
 
@@ -229,6 +288,30 @@ Deno.serve(async (req) => {
     } catch (e) { console.warn("emailThumbUrl failed", e); }
     return { workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name, thumbUrl };
   });
+  // whats_new is the broadest dormant gate (any activation state, no account-age
+  // ceiling), so it runs FIRST among the win-backs and wins the one-per-day
+  // index and the `mailed` set. The narrower legacy types below stay in place as
+  // fallbacks for users who already have this edition. Skipped entirely when no
+  // edition is published — never send a news email with no news.
+  const news = await whatsNewConfig(admin);
+  if (news) {
+    await runType("whats_new", "lifecycle_due_whats_new", async (row) => {
+      let thumbUrl: string | undefined;
+      try {
+        if (row.board_id && row.thumb_key) {
+          thumbUrl = await emailThumbUrl(String(row.board_id),
+            row.thumb_updated_at ? String(row.thumb_updated_at) : null);
+        }
+      } catch (e) { console.warn("emailThumbUrl failed", e); }
+      return {
+        workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name,
+        thumbUrl, imageUrl: news.imageUrl, items: news.items,
+        ctaLabel: news.ctaLabel, version: news.version,
+      };
+    });
+  } else {
+    summary["whats_new"] = { eligible: 0, sent: 0, skipped: 0, failed: 0, note: "no published edition" };
+  }
   // board_waiting embeds the user's own board thumbnail, exactly like
   // welcome_board — same best-effort degrade path.
   await runType("board_waiting", "lifecycle_due_board_waiting", async (row) => {

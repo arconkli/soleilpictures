@@ -23,7 +23,8 @@ export type TemplateName =
   | "reengage_1"
   | "welcome_board"
   | "board_waiting"
-  | "nudge_dormant_early";
+  | "nudge_dormant_early"
+  | "whats_new";
 
 export const TEMPLATE_NAMES: TemplateName[] = [
   "waitlist_submitted",
@@ -40,6 +41,7 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "welcome_board",
   "board_waiting",
   "nudge_dormant_early",
+  "whats_new",
 ];
 
 export interface RenderedEmail {
@@ -75,8 +77,19 @@ function unsubUrl(token: string): string {
   return `${UNSUB_BASE}?u=${encodeURIComponent(token)}&k=email_lifecycle`;
 }
 
-function utm(campaign: string): Record<string, string> {
-  return { utm_source: "email", utm_medium: "lifecycle", utm_campaign: campaign };
+// `lc` rides alongside the UTMs so the APP can record the landing itself.
+// Resend proxies every click through its own tracking host, which reports a
+// user agent of "Amazon CloudFront" on all of them — bot prefetch and real
+// humans are indistinguishable in the click webhook, and click->land can't be
+// derived from it at all. A first-party lc= param on arrival is the honest
+// signal. Survives consumeDeepLink (which strips only ?w/?b) into analytics.js.
+function utm(campaign: string, version?: string): Record<string, string> {
+  return {
+    utm_source: "email",
+    utm_medium: "lifecycle",
+    utm_campaign: campaign,
+    lc: version ? `${campaign}.${version}` : campaign,
+  };
 }
 
 const NOTE_FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
@@ -106,6 +119,17 @@ function noteBtn(label: string, url: string): string {
 // A linked image inside the note body (welcome_board embeds the user's own
 // board thumbnail). width= attribute + inline max-width keep it bounded in
 // Outlook and fluid everywhere else.
+// A short bulleted run inside the note body (whats_new's shipped-features
+// list). Table rows rather than <ul> — Outlook's list indentation and bullet
+// glyph are unreliable, and a hand-rolled middot renders identically anywhere.
+function noteList(items: string[]): string {
+  if (!items.length) return "";
+  const rows = items.map((it) =>
+    `<tr><td style="padding:0 0 9px; font:400 15px/1.6 ${NOTE_FONT}; color:#1a1a1a;"><span style="color:#8a8780;">&middot;</span>&nbsp;&nbsp;${escapeHtml(it)}</td></tr>`
+  ).join("");
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 18px;">${rows}</table>`;
+}
+
 function noteImg(src: string, alt: string, href: string): string {
   return `<p style="margin:4px 0 18px;"><a href="${escapeHtml(href)}" style="text-decoration:none;"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" width="440" style="width:100%; max-width:440px; height:auto; display:block; border-radius:10px; border:1px solid #e7e4df;"></a></p>`;
 }
@@ -886,6 +910,123 @@ Unsubscribe: ${unsub}`,
   };
 }
 
+// ── whats_new (migration 0211) ──────────────────────────────────────────────
+// The news win-back. Every other dormant email says a version of "your stuff is
+// still here" — a status report, which for the ~172 never-activated dormant
+// users describes nothing they ever had. This one carries the only thing that
+// reliably earns a click from someone 30+ days gone: information they don't
+// have yet. Copy comes from app_config 'lifecycle_whats_new' so publishing an
+// edition is a row update, not a deploy.
+//
+// Two pictures may be in play and they are NOT interchangeable:
+//   • imageUrl  — the product screenshot for this edition (may be absent; an
+//                 edition is allowed to ship before its screenshot exists).
+//   • thumbUrl  — the user's OWN board, the one personalisation with evidence
+//                 behind it (welcome_board opens at 52.6%, board_waiting 48.0%).
+// Whichever exists leads; if both do, the product shot leads and their board
+// follows as the closing "and yours is still here" beat.
+const EMAIL_ASSET_PREFIX = "https://clusters.soleilpictures.com/email/";
+
+interface WhatsNewData {
+  workspaceId?: string;
+  boardId?: string;
+  boardName?: string;   // pre-sanitized in renderTemplate
+  thumbUrl?: string;    // signed /api/email-thumb URL (cron-computed)
+  imageUrl?: string;    // product screenshot for this edition (may be absent)
+  items: string[];
+  ctaLabel?: string;
+  version?: string;
+  unsubscribeToken: string;
+  variant?: string;
+}
+
+const COUNT_WORDS = ["", "one", "two", "three", "four", "five", "six"];
+
+function whatsNew(d: WhatsNewData): RenderedEmail {
+  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("whats_new", d.version));
+  const unsub = unsubUrl(d.unsubscribeToken);
+  const items = d.items.filter((s) => !!s && !!s.trim()).slice(0, 6);
+  const name = namedWelcomeBoard(d);
+  const cta = d.ctaLabel && d.ctaLabel.trim() ? d.ctaLabel.trim() : "take a look";
+
+  // Both prefixes are exact-origin checks: these URLs are embedded in mail that
+  // clients fetch unauthenticated, so anything else degrades to text.
+  const productImg = d.imageUrl && d.imageUrl.startsWith(EMAIL_ASSET_PREFIX)
+    ? noteImg(d.imageUrl, "What's new in Clusters", url)
+    : "";
+  const ownImg = d.thumbUrl && d.thumbUrl.startsWith(EMAIL_THUMB_PREFIX)
+    ? noteImg(d.thumbUrl, name ? `Your board "${name}"` : "Your board", url)
+    : "";
+
+  const countWord = COUNT_WORDS[items.length] || "a few";
+  const yours = name
+    ? `and "${name}" is still there, exactly how you left it.`
+    : "and your workspace is still there, exactly how you left it.";
+  const itemsText = items.map((i) => `· ${i}`).join("\n");
+
+  if (d.variant === "B") {
+    return {
+      subject: "a few things shipped while you were away",
+      html: renderPlainNote({
+        preheader: "a quick note on what's changed in clusters lately.",
+        bodyHtml:
+          noteP("hey, the clusters team here.") +
+          noteP("you've been away a bit, so here's the short version of what's changed:") +
+          productImg +
+          noteList(items) +
+          (ownImg ? noteP(yours) + ownImg : noteP(yours)) +
+          noteBtn(cta, url) +
+          noteP("talk soon, the clusters team"),
+        unsubscribeUrl: unsub,
+      }),
+      text:
+`hey, the clusters team here.
+
+you've been away a bit, so here's the short version of what's changed:
+
+${itemsText}
+
+${yours}
+
+${cta}: ${url}
+
+talk soon, the clusters team
+
+Unsubscribe: ${unsub}`,
+    };
+  }
+
+  return {
+    subject: `${countWord} new things in clusters since you left`,
+    html: renderPlainNote({
+      preheader: "a few things have shipped since you were last here.",
+      bodyHtml:
+        noteP("hey, the clusters team here.") +
+        noteP("it's been a little while — a few things have shipped since you were last in:") +
+        productImg +
+        noteList(items) +
+        (ownImg ? noteP(yours) + ownImg : noteP(yours)) +
+        noteBtn(cta, url) +
+        noteP("talk soon, the clusters team"),
+      unsubscribeUrl: unsub,
+    }),
+    text:
+`hey, the clusters team here.
+
+it's been a little while — a few things have shipped since you were last in:
+
+${itemsText}
+
+${yours}
+
+${cta}: ${url}
+
+talk soon, the clusters team
+
+Unsubscribe: ${unsub}`,
+  };
+}
+
 export function renderTemplate(name: TemplateName, data: Record<string, unknown>): RenderedEmail {
   switch (name) {
     case "waitlist_submitted":
@@ -986,6 +1127,28 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardId:          data.boardId != null ? String(data.boardId) : undefined,
         boardName:        boardName || undefined,
         thumbUrl:         data.thumbUrl != null ? String(data.thumbUrl) : undefined,
+        unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        variant:          data.variant != null ? String(data.variant) : undefined,
+      });
+    }
+    case "whats_new": {
+      const boardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
+      // items come from an admin-edited app_config row, so they get the same
+      // newline-stripping / length-clamping every other free-text field gets
+      // before it reaches a subject line or an HTML body.
+      const rawItems = Array.isArray(data.items) ? data.items : [];
+      const items = rawItems
+        .map((i) => String(i ?? "").replace(/[\r\n]/g, "").slice(0, 120).trim())
+        .filter((i) => i.length > 0);
+      return whatsNew({
+        workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:          data.boardId != null ? String(data.boardId) : undefined,
+        boardName:        boardName || undefined,
+        thumbUrl:         data.thumbUrl != null ? String(data.thumbUrl) : undefined,
+        imageUrl:         data.imageUrl != null ? String(data.imageUrl) : undefined,
+        items,
+        ctaLabel:         data.ctaLabel != null ? String(data.ctaLabel).replace(/[\r\n]/g, "").slice(0, 40) : undefined,
+        version:          data.version != null ? String(data.version).replace(/[^A-Za-z0-9._-]/g, "").slice(0, 32) : undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
         variant:          data.variant != null ? String(data.variant) : undefined,
       });
