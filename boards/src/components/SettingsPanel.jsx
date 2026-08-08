@@ -872,12 +872,27 @@ function ScoutTab({ user }) {
 // nothing left to show. The UI has to be honest about that at the moment it
 // matters, which is why the freshly minted token gets its own panel with an
 // explicit warning rather than being dropped into the list.
+// Named for what the token can do, not for the array it holds. `read` is always
+// present so listing it adds nothing; what someone scanning this list needs to
+// know is whether that token can change or destroy their work.
+function scopeLabel(scopes) {
+  const s = Array.isArray(scopes) ? scopes : [];
+  if (s.includes('delete')) return 'read + write + delete';
+  if (s.includes('write')) return 'read + write';
+  return 'read only';
+}
+
 function ApiTab({ user }) {
   const feedback = useFeedback();
   const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
+  // Two boxes, not one, because "may add to my boards" and "may destroy them"
+  // are different decisions — especially when the token is going to an AI
+  // assistant. The database normalizes the rest (delete implies write, read is
+  // always granted), so this only has to model the intent.
   const [canWrite, setCanWrite] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
   const [minting, setMinting] = useState(false);
   const [fresh, setFresh] = useState(null);   // { token, prefix } — shown once
 
@@ -892,9 +907,12 @@ function ApiTab({ user }) {
     e.preventDefault();
     if (minting) return;
     setMinting(true);
+    const scopes = ['read'];
+    if (canWrite || canDelete) scopes.push('write');
+    if (canDelete) scopes.push('delete');
     const { data, error } = await supabase.rpc('api_token_mint', {
       p_name: name.trim() || 'API token',
-      p_scopes: canWrite ? ['read', 'write'] : ['read'],
+      p_scopes: scopes,
       p_ttl_days: null,
     });
     setMinting(false);
@@ -906,6 +924,7 @@ function ApiTab({ user }) {
     setFresh({ token: row?.token, prefix: row?.prefix });
     setName('');
     setCanWrite(false);
+    setCanDelete(false);
     load();
   };
 
@@ -972,10 +991,22 @@ function ApiTab({ user }) {
           </button>
         </div>
         <label className="api-token-scope">
-          <input type="checkbox" checked={canWrite} onChange={(e) => setCanWrite(e.target.checked)} />
+          <input type="checkbox" checked={canWrite || canDelete}
+                 onChange={(e) => { setCanWrite(e.target.checked); if (!e.target.checked) setCanDelete(false); }} />
           <span>
-            <b>Allow writes.</b> Without this the token can read your boards but
-            {' '}never create, change or delete anything.
+            <b>Allow writes.</b> Create boards, add cards and change them.
+            {' '}Without this the token can only read.
+          </span>
+        </label>
+        <label className="api-token-scope">
+          {/* Ticking this implies writes, so the box above follows it rather
+              than letting someone build a token that may destroy but not edit. */}
+          <input type="checkbox" checked={canDelete}
+                 onChange={(e) => { setCanDelete(e.target.checked); if (e.target.checked) setCanWrite(true); }} />
+          <span>
+            <b>Allow deletes.</b> Remove cards and boards. Leave this off for an AI
+            {' '}assistant unless you specifically want it able to throw things away —
+            {' '}deletes are recoverable, but you would have to notice first.
           </span>
         </label>
       </form>
@@ -993,10 +1024,13 @@ function ApiTab({ user }) {
                 <div style={{ fontWeight: 500 }}>{t.name}</div>
                 <div className="api-token-meta">
                   <code>{t.prefix}…</code>
-                  {' · '}{t.scopes?.includes('write') ? 'read + write' : 'read only'}
+                  {' · '}{scopeLabel(t.scopes)}
                   {' · '}{t.last_used_at
                     ? `last used ${new Date(t.last_used_at).toLocaleDateString()}`
                     : 'never used'}
+                  {/* Only worth showing once a token is actually being used —
+                      "0 of 1000 this hour" on an idle token is noise. */}
+                  {t.req_count > 0 && ` · ${t.req_count} of 1000 requests this hour`}
                 </div>
               </div>
               <button type="button" className="settings-btn" onClick={() => revoke(t.id, t.name)}>
