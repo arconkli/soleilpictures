@@ -10,9 +10,10 @@
 // self-observe its own nested maps to re-render on cell edits (the same
 // pattern as RichDocCard).
 
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useState } from 'react';
 import { resolveTagText, hasLabelTag } from '../../lib/gridSequence.js';
 import { readableOn, remapHtmlColors } from '../../lib/readableColor.js';
+import { sanitizeNoteHtml } from '../../lib/sanitizeNoteHtml.js';
 import { readableInk } from '../../lib/paletteLayout.js';
 import { resolveSrc } from '../../lib/r2.js';
 import { buildImgStyle } from '../../lib/imageAdjust.js';
@@ -84,8 +85,13 @@ export function CellText({ html, seqIndex, seqFormat, style, effBg }) {
     : (html || '');
   // On a painted cell, remap per-span inline colors to stay legible against
   // the cell surface — the same pass a painted note's read-only html gets.
-  const safe = effBg ? remapHtmlColors(resolved, effBg) : resolved;
-  return <div className="gc-text" style={style} dangerouslySetInnerHTML={{ __html: safe }} />;
+  // remapHtmlColors rewrites colours; it is NOT a sanitizer, which is why the
+  // variable below used to be called `safe` while carrying live markup. Cell
+  // html reaches us over the CRDT exactly like note html does, so it gets the
+  // same treatment — see lib/sanitizeNoteHtml.js.
+  const recolored = effBg ? remapHtmlColors(resolved, effBg) : resolved;
+  const clean = useMemo(() => sanitizeNoteHtml(recolored), [recolored]);
+  return <div className="gc-text" style={style} dangerouslySetInnerHTML={{ __html: clean }} />;
 }
 
 export function CellVideo({ src }) {
