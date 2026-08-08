@@ -451,7 +451,7 @@ export async function runBurst(cfg, r2, burst, progress = null) {
   if (!images.length && !urls.length && !leftover) return { reply: null, isNew: id.isNew };
 
   // 2. Capacity PRE-FLIGHT — before a single byte reaches R2.
-  const cap = await boardCapacity(cfg, id.boardId);
+  const cap = await boardCapacity(cfg, id.boardId, id.userId);
   const wanted = images.length + urls.length
     + (leftover && intent.action !== 'file' ? 1 : 0);
   if (cap.remaining <= 0) {

@@ -559,8 +559,15 @@ export async function readBoardCards(env, boardId, accessToken = null) {
 
 // Capacity pre-flight. Returns { used, cap, capped, remaining }. Called BEFORE
 // any R2 upload so we never spend bytes on a card that will be rejected.
-export async function boardCapacity(env, boardId) {
-  const res = await scoutRpc(env, 'get_board_capacity', { p_board_id: boardId });
+// Takes the user EXPLICITLY. get_board_capacity gates on can_read_board, which
+// resolves the caller through auth.uid() — null for a service-role caller, so it
+// raised 42501 on every single ingest and the pre-flight never ran. 0216 adds
+// the explicit-user mirror; same numbers, same owner-keying, different access
+// check. See 0213 §1 for the first instance of this trap.
+export async function boardCapacity(env, boardId, userId) {
+  const res = await scoutRpc(env, 'scout_board_capacity', {
+    p_board_id: boardId, p_user_id: userId,
+  });
   const row = Array.isArray(res) ? res[0] : res;
   const used = Number(row?.used ?? 0);
   const cap = row?.cap == null ? Infinity : Number(row.cap);

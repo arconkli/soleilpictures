@@ -25,14 +25,21 @@ import { basename } from 'node:path';
 import { loadConfig } from './config.js';
 import { makeUploader } from './media.js';
 import { runBurst } from './pipeline.js';
-import { Y, b64ToBytes, readCards } from '../../boards/src/lib/yhelpers.js';
-import { scoutRpc, scoutSelect } from '../../boards/src/lib/scoutDb.js';
+import { Y, b64ToBytes, bytesToB64, readCards } from '../../boards/src/lib/yhelpers.js';
+import { scoutRpc, scoutSelect, scoutInsert } from '../../boards/src/lib/scoutDb.js';
 import { normalizeHandle } from '../../boards/src/lib/scoutIdentity.js';
 
-const [, , handleArg, textArg, ...files] = process.argv;
+// Flags are stripped from the positional list. Without this, `--file` fell
+// through into `files` and was opened as an image (ENOENT) — so the filing
+// phase, which is the half that moves cards between boards, could never
+// actually be run.
+const argv = process.argv.slice(2);
+const flags = new Set(argv.filter((a) => a.startsWith('--')));
+const [handleArg, textArg, ...files] = argv.filter((a) => !a.startsWith('--'));
 
 if (!handleArg) {
-  console.error('usage: node scout/src/dryrun.js <handle> [text] [image files...]');
+  console.error('usage: node scout/src/dryrun.js <handle> [text] [image files...] [--file]');
+  console.error('  --file  also exercise filing: move the run onto a real board');
   process.exit(1);
 }
 
@@ -106,15 +113,46 @@ const indexable = cards.filter((c) => c.seed !== true);
 ok('card_index mirrors every card', idxRows.length >= indexable.length,
    `${idxRows.length} index row(s) vs ${indexable.length} card(s)`);
 
+// Would the R2 orphan sweep reclaim this row? Mirrors the predicate in
+// migration 0068 §58 EXACTLY rather than approximating it:
+//
+//   unreferenced AND (retention_locked_until IS NULL OR it has passed)
+//
+// The distinction is load-bearing. A card in the Y.Doc points at the ORIGINAL
+// key, so the board_state trigger only ever back-references originals — the
+// derived preview/-sm variants are unreferenced by design and are protected
+// instead by retention_locked_until (0105, 0131), which the sweep honours.
+// Asserting "everything references the board" therefore fails on a corpus that
+// is completely safe, and a false alarm on the one check that guards against
+// silently deleting someone's photos is worse than no check: it teaches you to
+// ignore it.
+const sweepWouldReclaim = (i) => {
+  const refs = (i.referenced_in_board_ids || []).length;
+  if (refs > 0) return false;
+  const lock = i.retention_locked_until ? Date.parse(i.retention_locked_until) : null;
+  return !(lock && lock > Date.now());
+};
+
 const imageCards = cards.filter((c) => c.kind === 'image');
 if (imageCards.length) {
   const imgs = await scoutSelect(cfg, 'images',
-    `board_id=eq.${board.id}&select=storage_path,referenced_in_board_ids,width,height`);
+    `board_id=eq.${board.id}`
+    + '&select=storage_path,referenced_in_board_ids,retention_locked_until,width,height');
   ok('an images row exists per image card', imgs.length >= imageCards.length,
      `${imgs.length} row(s)`);
-  const allReferenced = imgs.every((i) => (i.referenced_in_board_ids || []).includes(board.id));
-  ok('SWEEP SAFETY: every image references the board', allReferenced,
-     allReferenced ? '' : 'orphan sweep would delete these');
+
+  // The originals specifically MUST be reachable from the board — that is what
+  // the board_state trigger exists to guarantee, and a preview alone is not the
+  // user's photo.
+  const originals = imgs.filter((i) => !/\/previews\//.test(i.storage_path || ''));
+  ok('every ORIGINAL is referenced by the board',
+     originals.length > 0 && originals.every((i) => (i.referenced_in_board_ids || []).includes(board.id)),
+     `${originals.length} original(s)`);
+
+  const doomed = imgs.filter(sweepWouldReclaim);
+  ok('SWEEP SAFETY: nothing here is sweep-eligible', doomed.length === 0,
+     doomed.length ? `${doomed.length} row(s) the sweep would delete: ${doomed.map((i) => i.storage_path).join(', ')}`
+                   : `${originals.length} referenced, ${imgs.length - originals.length} retention-locked`);
   ok('image dimensions were probed', imgs.every((i) => i.width && i.height));
 }
 
@@ -135,9 +173,30 @@ ok('no cards overlap', overlaps === 0, overlaps ? `${overlaps} collision(s)` : '
 // but not the destination leaves photos referenced by nothing, and the R2 orphan
 // sweep silently deletes them 30 days later. Same failure class as the original
 // triple-write bug, one layer up.
-if (process.argv.includes('--file') && imageCards.length) {
+if (flags.has('--file') && imageCards.length) {
   const destName = `Dry Run Destination ${new Date().toISOString().slice(0, 10)}`;
   console.log(`\n--- filing into "${destName}" ---`);
+
+  // The destination has to EXIST first. Scout deliberately does not invent a
+  // board from a name it doesn't recognise — it says so and keeps collecting in
+  // the Bin — so a dry run that never creates one was only ever testing the
+  // "board not found" reply, which is why the move path went unexercised.
+  const destId = crypto.randomUUID();
+  await scoutInsert(cfg, 'boards', [{
+    id: destId,
+    workspace_id: board.workspace_id,
+    parent_board_id: null,
+    name: destName,
+    view: 'canvas',
+    created_by: row.user_id,
+  }], { returning: 'minimal' });
+  const seed = new Y.Doc();
+  await scoutInsert(cfg, 'board_state', [{
+    board_id: destId,
+    doc: bytesToB64(Y.encodeStateAsUpdate(seed)),
+    updated_at: new Date().toISOString(),
+  }], { onConflict: 'board_id', returning: 'minimal' });
+  seed.destroy();
 
   const before = await scoutSelect(cfg, 'card_index',
     `board_id=eq.${board.id}&select=card_id`);
@@ -167,11 +226,16 @@ if (process.argv.includes('--file') && imageCards.length) {
     ok('card_index rows ARRIVED on the destination', landed.length >= (confirm.moved || 0),
        `${landed.length} row(s)`);
 
+    // The move is where this is most likely to go wrong: it rewrites TWO boards'
+    // docs, and a card that left the source before it landed on the destination
+    // is briefly referenced by neither. Checked against the sweep's real
+    // predicate, same as above.
     const movedImgs = await scoutSelect(cfg, 'images',
-      `board_id=eq.${board.id}&select=storage_path,referenced_in_board_ids`);
-    const stillSafe = movedImgs.every((i) => (i.referenced_in_board_ids || []).length > 0);
-    ok('SWEEP SAFETY AFTER MOVE: no photo is left unreferenced', stillSafe,
-       stillSafe ? '' : 'the orphan sweep would delete these in 30 days');
+      `board_id=eq.${board.id}&select=storage_path,referenced_in_board_ids,retention_locked_until`);
+    const doomedAfter = movedImgs.filter(sweepWouldReclaim);
+    ok('SWEEP SAFETY AFTER MOVE: nothing became sweep-eligible', doomedAfter.length === 0,
+       doomedAfter.length ? `${doomedAfter.length} row(s) would be deleted in 30 days`
+                          : `${movedImgs.length} row(s) still protected`);
 
     const destState = await scoutSelect(cfg, 'board_state', `board_id=eq.${dest.id}&select=doc`);
     if (destState?.[0]?.doc) {
