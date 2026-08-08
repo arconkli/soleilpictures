@@ -114,6 +114,40 @@ test('172.x outside the private range is still allowed', () => {
   expect(check('http://172.16.0.1/')).toBe('host not allowed');
 });
 
+test('the handler rejects an explicit non-http scheme before the bare-host fallback', async () => {
+  // Regression guard for a gap the predicate test above CANNOT see. handleOg
+  // accepts a scheme-less "example.com" and glues `https://` on, so a
+  // `file:///etc/passwd` argument became `https://file:///etc/passwd` — host
+  // "file", fetched for real — and never reached ogTargetIsAllowed's scheme
+  // branch. The unit test asserted 'scheme not allowed' while production
+  // returned a 502 from a live outbound request. Found by probing the deployed
+  // endpoint after the promotion.
+  const fs = await import('node:fs/promises');
+  const src = await fs.readFile(new URL('../src/worker.js', import.meta.url), 'utf8');
+  const handler = src.slice(src.indexOf('async function handleOg'), src.indexOf('async function readCapped'));
+
+  const schemeCheck = handler.indexOf('explicitScheme');
+  const fallback = handler.indexOf('`https://${target}`');
+  expect(schemeCheck, 'handler must test for an explicit scheme').toBeGreaterThan(-1);
+  expect(fallback, 'the bare-host fallback should still exist').toBeGreaterThan(-1);
+  expect(schemeCheck, 'the scheme check must run BEFORE the https:// fallback')
+    .toBeLessThan(fallback);
+
+  // And the regex itself must accept http/https while rejecting the rest.
+  const schemeOf = (s) => {
+    const m = s.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
+    return m && !/^https?$/i.test(m[1]) ? 'scheme not allowed' : null;
+  };
+  expect(schemeOf('file:///etc/passwd')).toBe('scheme not allowed');
+  expect(schemeOf('ftp://example.com')).toBe('scheme not allowed');
+  expect(schemeOf('data:text/html,x')).toBe('scheme not allowed');
+  expect(schemeOf('javascript:alert(1)')).toBe('scheme not allowed');
+  expect(schemeOf('HTTPS://example.com')).toBeNull();
+  expect(schemeOf('http://example.com')).toBeNull();
+  expect(schemeOf('example.com')).toBeNull();          // bare host still allowed
+  expect(schemeOf('example.com/a:b')).toBeNull();      // colon later in the path is not a scheme
+});
+
 test('the handler re-validates every redirect hop', async () => {
   // The predicate above is worthless if the fetch follows redirects itself: a
   // public URL that 302s to 169.254.169.254 would sail past a first-hop-only
@@ -124,10 +158,13 @@ test('the handler re-validates every redirect hop', async () => {
 
   expect(handler, 'handleOg must not let fetch follow redirects itself').not.toContain("redirect: 'follow'");
   expect(handler, 'handleOg must drive redirects manually').toContain("redirect: 'manual'");
-  expect(handler, 'each hop must be re-validated').toContain('ogTargetIsAllowed');
-  // The guard call must sit INSIDE the hop loop, not before it.
+
+  // Match the CALL, not the bare identifier: the name also appears in prose
+  // above, and an indexOf on the identifier alone silently started matching the
+  // comment when one was added — a test that passes on the wrong evidence.
   const loopAt = handler.indexOf('for (let hop');
-  const guardAt = handler.indexOf('ogTargetIsAllowed');
+  const guardAt = handler.indexOf('ogTargetIsAllowed(parsed)');
   expect(loopAt, 'hop loop must exist').toBeGreaterThan(-1);
+  expect(guardAt, 'the guard must actually be CALLED, not just mentioned').toBeGreaterThan(-1);
   expect(guardAt, 'guard must be called inside the redirect loop').toBeGreaterThan(loopAt);
 });
