@@ -1659,6 +1659,21 @@ async function handleOg(url, request) {
   if (!target) {
     return json({ error: 'missing url' }, 400);
   }
+
+  // Reject an EXPLICIT non-http(s) scheme here, before the bare-host fallback
+  // below gets to it. Callers are allowed to pass "example.com" with no scheme,
+  // so anything lacking http(s):// gets `https://` glued on — which silently
+  // rewrote `file:///etc/passwd` into `https://file:///etc/passwd`. That parses
+  // as host "file" and was fetched for real, so ogTargetIsAllowed's scheme
+  // branch never saw it. Not a local-file read (the request does go out over
+  // https), but a bare hostname is exactly the shape that can resolve through a
+  // DNS search suffix, and the unit test asserted a rejection the handler never
+  // actually performed. Found by probing the deployed endpoint, not in review.
+  const explicitScheme = target.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
+  if (explicitScheme && !/^https?$/i.test(explicitScheme[1])) {
+    return json({ error: 'scheme not allowed' }, 400);
+  }
+
   let absolute;
   try {
     absolute = target.startsWith('http://') || target.startsWith('https://')
