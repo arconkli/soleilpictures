@@ -133,17 +133,37 @@ async function sendOne(
   return { ok: res.ok, id: body?.id };
 }
 
-// Weighted random pick of a copy variant from the bandit's current weights
-// (e.g. { A: 60, B: 40 }). Falls back to "A" if no config.
+// Weighted random pick from a { arm: weight } map. Returns "" if the map is
+// empty or every weight is zero, so callers can fall back.
 // deno-lint-ignore no-explicit-any
-function pickVariant(cfg: any, emailType: string): string {
-  const weights = cfg?.[emailType]?.weights || { A: 100 };
-  const entries = Object.entries(weights).filter(([, w]) => Number(w) > 0);
-  if (!entries.length) return "A";
+function weightedPick(weights: any): string {
+  const entries = Object.entries(weights || {}).filter(([, w]) => Number(w) > 0);
+  if (!entries.length) return "";
   const total = entries.reduce((s, [, w]) => s + Number(w), 0);
   let r = Math.random() * total;
   for (const [arm, w] of entries) { r -= Number(w); if (r <= 0) return arm; }
   return String(entries[0][0]);
+}
+
+// Pick the copy variant for one send.
+//
+// Factorial types (migration 0219) carry a `factors` object and draw the
+// subject and body arms INDEPENDENTLY, logging the pair as "<subject>.<body>"
+// — e.g. "s3.b2". Independence is the whole point: it lets the optimizer score
+// each factor marginally, pooling over the other, so five subjects cost the
+// sample of five arms rather than fifteen.
+//
+// Flat types (the low-volume ones, still A/B) keep the old single-draw path.
+// deno-lint-ignore no-explicit-any
+function pickVariant(cfg: any, emailType: string): string {
+  const conf = cfg?.[emailType];
+  const factors = conf?.factors;
+  if (factors) {
+    const s = weightedPick(factors.subject?.weights) || "s1";
+    const b = weightedPick(factors.body?.weights)    || "b1";
+    return `${s}.${b}`;
+  }
+  return weightedPick(conf?.weights) || "A";
 }
 
 Deno.serve(async (req) => {
