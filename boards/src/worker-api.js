@@ -155,20 +155,29 @@ export async function handleApiRoute(url, request, env) {
     }
   }
 
-  let token;
-  try {
-    token = await apiUserSession(env, auth.userId);
-  } catch (e) {
-    return json({ error: 'could not open a session for that account' }, 502);
-  }
-
+  // Everything from here on must fall through to the idempotency bookkeeping
+  // below, so failures set `res` rather than returning. An early return past a
+  // CLAIMED key leaves it pinned as "in progress" forever, and every retry of
+  // that key then gets a 409 — which is exactly backwards, since a failure here
+  // is the case a retry exists for. Found by a session failure doing precisely
+  // that during end-to-end testing.
   let res;
   try {
+    const token = await apiUserSession(env, auth.userId).catch((e) => {
+      // Distinguished from a route failure so the caller is told the account
+      // could not be opened, rather than a generic 500 they cannot act on.
+      const err = new Error('could not open a session for that account');
+      err.status = 502;
+      err.cause = e;
+      throw err;
+    });
     res = await dispatch(url, request, env, { auth, token });
   } catch (e) {
     const status = e?.status || 500;
-    if (status >= 500) console.error('[api]', request.method, url.pathname, e?.message);
-    res = json({ error: status >= 500 ? 'something went wrong on our end' : e.message }, status);
+    if (status >= 500) {
+      console.error('[api]', request.method, url.pathname, e?.message, e?.cause?.message || '');
+    }
+    res = json({ error: status >= 500 && status !== 502 ? 'something went wrong on our end' : e.message }, status);
   }
 
   if (idemKey) {
