@@ -292,7 +292,10 @@ function injectShareMeta(res, meta, token) {
 }
 
 export default {
-  async fetch(request, env) {
+  // `ctx` is here for /api/v1's audit log: api_log_request runs in
+  // ctx.waitUntil so recording a write is never what makes a request slow, and
+  // never what fails one.
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     // ── URL normalization (SEO): 301 duplicate-URL variants onto the canonical
@@ -336,7 +339,7 @@ export default {
       // exchanged for the user's OWN Supabase session — so everything below
       // runs under ordinary RLS. See lib/apiAuth.js.
       if (url.pathname === '/api/v1' || url.pathname.startsWith('/api/v1/')) {
-        return await handleApiRoute(url, request, env);
+        return await handleApiRoute(url, request, env, ctx);
       }
       const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
       if (resetMatch) return await handleBoardReset(resetMatch[1], request);

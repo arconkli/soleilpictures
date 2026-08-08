@@ -60,19 +60,52 @@ export async function resolveApiToken(request, env) {
   }
   const row = (Array.isArray(rows) ? rows : [rows])[0] || {};
 
+  // The window comes back on every answer, refused or not, so the caller can
+  // see what is left instead of discovering the limit by being refused. 0220
+  // returns it from the UPDATE that already runs here — no extra round trip.
+  const rate = {
+    limit: Number(row.req_limit) || 1000,
+    used: Number(row.req_count) || 0,
+    reset: row.req_reset || null,
+  };
+
   if (row.reason === 'rate_limited') {
-    return { ok: false, status: 429, error: 'rate limit exceeded — try again shortly' };
+    return { ok: false, status: 429, code: 'rate_limited', rate,
+      error: 'rate limit exceeded — try again shortly' };
   }
   // unknown / revoked / expired all answer the same way. Distinguishing them
   // tells someone holding a stolen token which of their guesses was once real.
-  if (!row.user_id) return { ok: false, status: 401, error: 'invalid token' };
+  if (!row.user_id) {
+    return { ok: false, status: 401, code: 'invalid_token', rate, error: 'invalid token' };
+  }
 
   return {
     ok: true,
     userId: row.user_id,
     tokenId: row.token_id,
     scopes: Array.isArray(row.scopes) ? row.scopes : ['read'],
+    rate,
   };
+}
+
+// Headers that tell a caller where it stands. Sent on EVERY response, not just
+// refusals — a client that can only learn its budget by being rejected has to
+// hit the wall to find it, which is the one thing a rate limit should never
+// require. `Retry-After` is seconds, per RFC 9110, and only meaningful on 429.
+export function rateHeaders(rate, { retryAfter = false } = {}) {
+  if (!rate) return {};
+  const resetMs = rate.reset ? Date.parse(rate.reset) : NaN;
+  const out = {
+    'x-ratelimit-limit': String(rate.limit),
+    'x-ratelimit-remaining': String(Math.max(0, rate.limit - rate.used)),
+  };
+  if (Number.isFinite(resetMs)) {
+    out['x-ratelimit-reset'] = String(Math.floor(resetMs / 1000));
+    if (retryAfter) {
+      out['retry-after'] = String(Math.max(1, Math.ceil((resetMs - Date.now()) / 1000)));
+    }
+  }
+  return out;
 }
 
 export function hasScope(auth, scope) {
@@ -235,14 +268,60 @@ export async function userPatch(env, token, table, query, patch) {
   return text ? JSON.parse(text) : null;
 }
 
-// RLS denials arrive as 401/403, and a cap hit as a trigger exception. Both are
-// the user's answer, not a server fault, so they keep their own status rather
-// than collapsing into a 500 the caller cannot act on.
+// Turn a PostgREST failure into something safe to hand a stranger.
+//
+// RLS denials arrive as 401/403 and a cap hit as a trigger exception; both are
+// the user's answer, not a server fault, so they keep a status the caller can
+// act on rather than collapsing into a 500.
+//
+// WHAT CHANGED AND WHY. This used to build `"select boards 400: {…raw body…}"`
+// and worker-api.js returned that message verbatim for any non-5xx — so
+// constraint names, column names and internal SQL detail went straight out to
+// whoever held a token. Now the raw body is kept for the log only, and the
+// caller gets a curated message plus a stable `code` it can branch on.
+//
+// The exception is a message WE wrote. Our own RAISEs ("Demo accounts are
+// limited to 100 cards…") are written for a person and are the whole reason a
+// 402 is useful, so those pass through — minus Postgres's own RLS text, which
+// names the table and tells the caller nothing they can use.
+const RAISED_BY_US = new Set(['P0001', '42501', '22023', '54000', '53400', '23505', '23514']);
+
 async function restError(res, what) {
-  const text = await res.text().catch(() => '');
-  const err = new Error(`${what} ${res.status}: ${text.slice(0, 300)}`);
-  err.status = res.status === 401 || res.status === 403 ? 403 : res.status;
-  err.body = text;
-  if (/cap|limit/i.test(text)) err.status = 402;
+  const raw = await res.text().catch(() => '');
+  let body = null;
+  try { body = raw ? JSON.parse(raw) : null; } catch (_) { /* HTML error page */ }
+  const pgMessage = typeof body?.message === 'string' ? body.message : '';
+  const pgCode = typeof body?.code === 'string' ? body.code : '';
+
+  let status = 500;
+  let code = 'upstream_error';
+  let message = 'something went wrong on our end';
+
+  if (res.status === 401 || res.status === 403) {
+    status = 403; code = 'forbidden'; message = 'your account cannot do that';
+  } else if (res.status === 404) {
+    status = 404; code = 'not_found'; message = 'not found';
+  } else if (res.status === 409) {
+    status = 409; code = 'conflict'; message = 'that conflicts with something that already exists';
+  } else if (res.status === 400 || res.status === 422) {
+    status = 400; code = 'bad_request'; message = 'that request was not valid';
+  }
+
+  if (RAISED_BY_US.has(pgCode) && pgMessage && !/row-level security/i.test(pgMessage)) {
+    message = pgMessage;
+    if (/limited to \d+ cards|over[_ ]quota|storage|cap\b/i.test(pgMessage)) {
+      status = 402; code = 'limit_reached';
+    } else if (pgCode === '42501') {
+      status = 403; code = 'forbidden';
+    } else {
+      status = 400; code = 'bad_request';
+    }
+  }
+
+  const err = new Error(message);
+  err.status = status;
+  err.code = code;
+  // Never returned to the caller — worker-api.js logs this and sends `message`.
+  err.detail = `${what} ${res.status}: ${raw.slice(0, 300)}`;
   return err;
 }

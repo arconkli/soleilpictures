@@ -5,9 +5,12 @@
 // worker-api.js is routing and authorization; these two decide what is allowed
 // to become a card and what a consumer is allowed to see. Tested directly
 // because a route test would exercise them incidentally and prove less.
+//
+// pgLikeValue is here for the same reason: it is one pure function standing
+// between a search box and a filter that PostgREST parses structurally.
 
 import { test, expect } from '@playwright/test';
-import { normalizeIncomingCard, publicCard } from '../src/worker-api.js';
+import { normalizeIncomingCard, publicCard, pgLikeValue } from '../src/worker-api.js';
 
 test('unknown fields never reach the card', () => {
   const out = normalizeIncomingCard({
@@ -29,10 +32,70 @@ test('unknown fields never reach the card', () => {
   expect(out.title).toBe('ok');
 });
 
-test('an unrecognised kind falls back to note rather than being stored', () => {
-  expect(normalizeIncomingCard({ kind: 'schedule' }).kind).toBe('note');
-  expect(normalizeIncomingCard({ kind: '../../etc' }).kind).toBe('note');
+// This used to coerce silently, on creates AND on patches. Coercion is right
+// for an ABSENT kind (it's a default) and wrong for a present one: it told a
+// caller they'd made a schedule card when they had made a note, and on a patch
+// it turned an image card into a note and dropped the picture.
+test('an unrecognised kind is refused rather than coerced', () => {
+  expect(() => normalizeIncomingCard({ kind: 'schedule' })).toThrow(/kind must be one of/);
+  expect(() => normalizeIncomingCard({ kind: '../../etc' })).toThrow(/kind must be one of/);
+  expect(() => normalizeIncomingCard({ kind: 'bogus' }, { partial: true, existingKind: 'image' }))
+    .toThrow(/kind must be one of/);
+  // …and the refusal carries a status the route can return directly.
+  try { normalizeIncomingCard({ kind: 'schedule' }); } catch (e) {
+    expect(e.status).toBe(400);
+    expect(e.code).toBe('bad_request');
+  }
+});
+
+test('an absent kind still defaults, and a valid one is kept', () => {
+  expect(normalizeIncomingCard({ title: 'x' }).kind).toBe('note');
   expect(normalizeIncomingCard({ kind: 'image' }).kind).toBe('image');
+  // A patch that says nothing about kind does not invent one.
+  expect(normalizeIncomingCard({ title: 'x' }, { partial: true, existingKind: 'image' }).kind)
+    .toBeUndefined();
+});
+
+// The round-trip bug: publicCard mapped caption→body, but the normalizer always
+// wrote `body`. Reading an image card and PATCHing its text back returned 200
+// and changed nothing the app would ever display, because ImageCard reads
+// `caption`. One name on the wire, translated in both directions.
+test("an image card's text goes to caption, everything else to body", () => {
+  const img = normalizeIncomingCard({ kind: 'image', body: 'a caption' });
+  expect(img.caption).toBe('a caption');
+  expect(img.body).toBeUndefined();
+
+  const note = normalizeIncomingCard({ kind: 'note', body: 'some text' });
+  expect(note.body).toBe('some text');
+  expect(note.caption).toBeUndefined();
+
+  // A partial patch has to learn the kind from the card being patched — that is
+  // the whole reason updateCardOnBoard takes a function.
+  const patch = normalizeIncomingCard({ body: 'new caption' }, { partial: true, existingKind: 'image' });
+  expect(patch.caption).toBe('new caption');
+  expect(patch.body).toBeUndefined();
+});
+
+test('an image card round-trips its text unchanged', () => {
+  const written = normalizeIncomingCard({ kind: 'image', body: 'diner, night' });
+  const read = publicCard({ id: 'c1', kind: 'image', ...written });
+  expect(read.body).toBe('diner, night');
+  const rewritten = normalizeIncomingCard({ body: read.body }, { partial: true, existingKind: 'image' });
+  expect(rewritten.caption).toBe('diner, night');
+});
+
+// Image cards reference their bytes as src:"r2:<key>" — what scoutCards.js
+// writes, what buildCardMeta projects and what cards.jsx resolves. The API used
+// to read and write `card.key`, a field nothing in the app looks at, so an image
+// card created through it rendered blank.
+test('an image key becomes an r2: src, and comes back as a key', () => {
+  const out = normalizeIncomingCard({ kind: 'image', image_key: 'ws-1/abc.jpg' });
+  expect(out.src).toBe('r2:ws-1/abc.jpg');
+  expect(out.key).toBeUndefined();
+  expect(publicCard({ id: 'c', kind: 'image', src: 'r2:ws-1/abc.jpg' }).image_key).toBe('ws-1/abc.jpg');
+  // A non-r2 src (external URL, local blob in QA) is not a storage key.
+  expect(publicCard({ id: 'c', kind: 'image', src: 'https://example.com/x.jpg' }).image_key).toBeNull();
+  expect(publicCard({ id: 'c', kind: 'image' }).image_key).toBeNull();
 });
 
 test('a patch cannot change a card id', () => {
@@ -84,15 +147,63 @@ test('a new card always gets an id, and two calls never collide', () => {
 test('publicCard exposes the documented fields and nothing else', () => {
   const out = publicCard({
     id: 'c1', kind: 'image', x: 1, y: 2, w: 3, h: 4, z: 5,
-    title: 't', caption: 'cap', key: 'r2/key.jpg',
+    title: 't', caption: 'cap', src: 'r2:r2/key.jpg', alt: 'a still',
     // Interior state that consumers must not learn to depend on.
     lab: [1, 2, 3], adjust: { brightness: 2 }, createdBy: 'user-1', seed: false,
   });
   expect(Object.keys(out).sort()).toEqual([
-    'body', 'color', 'created_at', 'h', 'html', 'id', 'image_key',
+    'alt', 'body', 'color', 'created_at', 'h', 'html', 'id', 'image_key',
     'kind', 'title', 'updated_at', 'url', 'w', 'x', 'y', 'z',
   ]);
   expect(out.image_key).toBe('r2/key.jpg');
   // caption stands in for body — the wire has one name for the text of a card.
   expect(out.body).toBe('cap');
+});
+
+// ── search filter escaping ───────────────────────────────────────────────────
+//
+// PostgREST parses `or=(a.ilike.X,b.ilike.Y)` structurally from the DECODED
+// query string, so percent-encoding a comma does not protect it. Double-quoting
+// does. Two escaping layers have to survive in the right order: LIKE
+// metacharacters first, then PostgREST's own quoting, which doubles the
+// backslashes the first layer added.
+
+test('a plain query becomes a quoted contains-pattern', () => {
+  expect(pgLikeValue('diner')).toBe('"%diner%"');
+});
+
+test('PostgREST structural characters stay inside the quotes', () => {
+  // A bare comma here would end the filter and start another condition; a bare
+  // paren would close the or() group early.
+  expect(pgLikeValue('a,b')).toBe('"%a,b%"');
+  expect(pgLikeValue('a)b(c')).toBe('"%a)b(c%"');
+  expect(pgLikeValue('dots.and.more')).toBe('"%dots.and.more%"');
+});
+
+test('LIKE wildcards the user typed are escaped, then re-escaped for quoting', () => {
+  // One backslash after PostgREST unquotes `\\` → Postgres sees \% → literal %.
+  // Verified against Postgres directly: '50% off' ILIKE '%50\%%' is true and
+  // '50X off' is false.
+  expect(pgLikeValue('50%')).toBe('"%50\\\\%%"');
+  expect(pgLikeValue('under_score')).toBe('"%under\\\\_score%"');
+});
+
+test('quotes and backslashes cannot break out of the quoted value', () => {
+  expect(pgLikeValue('quo"te')).toBe('"%quo\\"te%"');
+  // The user's single backslash is escaped for LIKE, then both are doubled for
+  // quoting: one literal backslash in, four out.
+  expect(pgLikeValue('back\\slash')).toBe('"%back\\\\\\\\slash%"');
+});
+
+test('a value can never terminate the filter it sits in', () => {
+  // The property that matters, stated once: whatever comes out, every unescaped
+  // double quote is at the very start and the very end.
+  for (const nasty of ['a,b', 'x)', '(y', 'q"z', 'a\\"b', '%_,()."\\']) {
+    const v = pgLikeValue(nasty);
+    expect(v.startsWith('"')).toBe(true);
+    expect(v.endsWith('"')).toBe(true);
+    const inner = v.slice(1, -1);
+    // Strip escaped pairs; no bare quote may survive.
+    expect(inner.replace(/\\\\/g, '').replace(/\\"/g, '')).not.toContain('"');
+  }
 });

@@ -488,9 +488,17 @@ export async function updateCardOnBoard(env, {
     const before = readCards(board.doc).find((c) => String(c.id) === String(cardId));
     if (!before) return null;
 
+    // `patch` may be a function of the card as it stands. Some fields cannot be
+    // resolved without knowing what is already there — an image card keeps its
+    // text in `caption` and every other kind in `body`, so a caller handing over
+    // "the text" has to be told the kind before that can be turned into a field.
+    // Computing it here means one board open rather than a read followed by a
+    // write, and no window in between for the card to change kind.
+    const resolved = typeof patch === 'function' ? (patch(before) || {}) : (patch || {});
+
     // id can never be patched: it is the key in the Y.Map and in card_index, so
     // changing it here would orphan the index row rather than rename anything.
-    const { id: _ignored, ...safe } = patch || {};
+    const { id: _ignored, ...safe } = resolved;
     const updated = {
       ...before, ...safe, id: before.id,
       updatedAt: new Date().toISOString(),
