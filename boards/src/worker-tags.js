@@ -28,6 +28,7 @@
 //   SUPABASE_ANON_KEY  — required by Supabase /auth/v1/user as the apikey hdr
 
 import { parseJsonLoose, runWorkersAiChat } from './worker-llm.js';
+import { verifyUser } from './lib/workerAuth.js';
 
 // Models. Doc-page word verdicts + cluster naming now run on FREE Cloudflare
 // Workers AI (env.AI) with the SAME prompts — no per-token OpenAI bill. The
@@ -72,36 +73,8 @@ export async function handleTagsRoute(url, request, env) {
 // Verified-token cache. A tagging burst sends the same JWT on every call
 // (embed → apply → apply …); without this each request pays a serial GoTrue
 // round-trip before route dispatch. 60s TTL bounds revocation lag well under
-// the token's own ~1h lifetime. Per-isolate, so it only helps bursts — which
-// is exactly the hot case.
-const TOKEN_CACHE_TTL_MS = 60_000;
-const _tokenCache = new Map(); // token → { userId, expires }
-
-async function verifyUser(request, env) {
-  const auth = request.headers.get('authorization') || '';
-  const match = auth.match(/^Bearer\s+(.+)$/i);
-  if (!match) return { ok: false, status: 401, error: 'missing bearer token' };
-  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
-    return { ok: false, status: 500, error: 'supabase env not configured' };
-  }
-  const cached = _tokenCache.get(match[1]);
-  if (cached && cached.expires > Date.now()) {
-    return { ok: true, userId: cached.userId };
-  }
-  const r = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
-    headers: {
-      'apikey': env.SUPABASE_ANON_KEY,
-      'authorization': `Bearer ${match[1]}`,
-    },
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!r.ok) return { ok: false, status: 401, error: 'invalid token' };
-  const user = await r.json().catch(() => null);
-  if (!user?.id) return { ok: false, status: 401, error: 'invalid token' };
-  if (_tokenCache.size > 500) _tokenCache.clear();
-  _tokenCache.set(match[1], { userId: user.id, expires: Date.now() + TOKEN_CACHE_TTL_MS });
-  return { ok: true, userId: user.id };
-}
+// verifyUser + its token cache now live in lib/workerAuth.js, shared with
+// worker-ai.js and worker-scout.js — see the header there.
 
 // ─────────────────────────────────────────────────────────────────────
 // /api/tags/embed

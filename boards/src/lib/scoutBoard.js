@@ -310,6 +310,27 @@ export async function moveCardsBetweenBoards(env, {
     return { moved: [], count: 0, live: false };
   }
 
+  // Both workspaces, read from the BOARDS rather than taken from the caller.
+  //
+  // card_index rows carry workspace_id and every consumer joins on it:
+  // get_board_capacity sums weights per workspace owner, and the client caches
+  // board→workspace as immutable (boardsApi.js:1001). A row left pointing at the
+  // source workspace after the move is counted against the wrong person's cap
+  // and searched under the wrong workspace.
+  //
+  // The caller's `workspaceId` was right when source and destination shared a
+  // workspace, which was every caller until now. It cannot describe both ends
+  // of an adoption (shell account → real account) or of filing into a board
+  // found in another workspace, and both are now reachable — so it is used only
+  // as a fallback. Deriving these makes the invariant hold whoever calls.
+  const wsRows = await scoutSelect(
+    env, 'boards', `id=in.${encodeURIComponent(inList([fromBoardId, toBoardId]))}&select=id,workspace_id`,
+  ).catch(() => []);
+  const wsOf = (id) => wsRows.find((r) => r.id === id)?.workspace_id;
+  const fromWorkspaceId = wsOf(fromBoardId) || workspaceId;
+  const toWorkspaceId = wsOf(toBoardId) || workspaceId;
+  const crossWorkspace = !!fromWorkspaceId && !!toWorkspaceId && fromWorkspaceId !== toWorkspaceId;
+
   const src = await openBoard(env, fromBoardId, accessToken);
   const dst = await openBoard(env, toBoardId, accessToken);
 
@@ -352,7 +373,8 @@ export async function moveCardsBetweenBoards(env, {
     let droppedHeader = false;
     if (fresh.length) {
       try {
-        await scoutInsert(env, 'card_index', buildCardIndexRows({ workspaceId, boardId: toBoardId, cards: fresh }),
+        await scoutInsert(env, 'card_index',
+          buildCardIndexRows({ workspaceId: toWorkspaceId, boardId: toBoardId, cards: fresh }),
           { onConflict: 'board_id,card_id' });
       } catch (e) {
         if (!e?.isCapHit) throw e;
@@ -370,21 +392,56 @@ export async function moveCardsBetweenBoards(env, {
 
     // 2. card_index follows the cards. One bulk UPDATE for the common case;
     //    renamed ids (vanishingly rare) each need their own.
+    //
+    // UPDATE, never DELETE+INSERT: the cap, count and first-card triggers all
+    // fire on INSERT or DELETE only, so an update moves a card without
+    // consuming cap, without double-counting and without emitting a false
+    // "first card" signal (0209's header explains why that matters).
+    //
+    // 0209 said EVERY trigger on this table was INSERT/DELETE-only. That is no
+    // longer true — autotag_card_index now fires `AFTER INSERT OR UPDATE OF
+    // title, body`. It stays dormant here only because this patch touches
+    // neither column, which is load-bearing rather than incidental: adding
+    // title to the SET list would re-run tag matching for every moved card.
+    const patch = crossWorkspace
+      ? { board_id: toBoardId, workspace_id: toWorkspaceId }
+      : { board_id: toBoardId };
     const renamedTo = new Set(renames.values());
     const plain = prepared.map((c) => c.id).filter((id) => !renamedTo.has(id));
     if (plain.length) {
       await scoutPatch(env, 'card_index',
         `board_id=eq.${fromBoardId}&card_id=in.${encodeURIComponent(inList(plain))}`,
-        { board_id: toBoardId });
+        patch);
     }
     for (const [oldId, newId] of renames) {
       await scoutPatch(env, 'card_index',
         `board_id=eq.${fromBoardId}&card_id=eq.${encodeURIComponent(oldId)}`,
-        { board_id: toBoardId, card_id: newId }).catch(() => {});
+        { ...patch, card_id: newId }).catch(() => {});
     }
     if (dropIds.length) {
       await scoutDelete(env, 'card_index',
         `board_id=eq.${fromBoardId}&card_id=in.${encodeURIComponent(inList(dropIds))}`).catch(() => {});
+    }
+
+    // 2b. Auto-applied tag links are derived from the SOURCE workspace's tags,
+    //     and tags are workspace-scoped. Carried across a workspace boundary
+    //     they would claim a card is tagged with something that does not exist
+    //     where the card now lives. Drop them; the card is genuinely untagged
+    //     in its new workspace until autotag_card_index re-runs on the next
+    //     content edit. Only `auto` links — a human-applied link is a judgement,
+    //     not derived state, so it is re-pointed rather than discarded.
+    if (crossWorkspace) {
+      // Keyed on the ORIGINAL ids: a card re-named for a destination collision
+      // still appears in entity_links under the id it had here. Scoped to the
+      // source workspace too — source_id alone is not unique, and a card id
+      // collision across two workspaces, however unlikely, would mean editing
+      // a stranger's rows.
+      const originalIds = encodeURIComponent(inList(moving.map((c) => String(c.id))));
+      const scope = `source_kind=eq.card&source_workspace=eq.${fromWorkspaceId}&source_id=in.${originalIds}`;
+      await scoutDelete(env, 'entity_links', `${scope}&source=eq.auto`).catch(() => {});
+      await scoutPatch(env, 'entity_links', scope,
+        { source_workspace: toWorkspaceId, source_board_id: toBoardId },
+      ).catch(() => {});
     }
 
     // 3. SOURCE doc + board_state, last. Until this lands the cards exist on

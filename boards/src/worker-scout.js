@@ -20,6 +20,7 @@
 // Key:   SHA-256(secret + ":scout-session-v1"), mirroring emailThumbSig().
 
 import { normalizeHandle, isTextablePhone } from './lib/phone.js';
+import { verifyUser } from './lib/workerAuth.js';
 
 const TOKEN_TTL_MS = 30 * 60 * 1000;   // links live in a chat thread; keep them short
 
@@ -277,6 +278,114 @@ export async function handleScoutSignup(request, env) {
     status: row.status === 'sent' ? 'texted' : 'queued',
     is_new: row.is_new !== false,
   });
+}
+
+// POST /api/scout/claim — a shell account attaches a real email address.
+//
+// THE PROBLEM THIS SOLVES
+// Someone who texts Scout before they have ever visited the site gets a real
+// account minted behind them, carrying a synthetic scout.soleilpictures.com
+// address they would not recognise. If they later sign up on the web with their
+// own email they end up with a SECOND account, and the photos they texted are
+// stranded in the first one. Nothing merges them.
+//
+// No existing account has a phone number on file, so an inbound handle can
+// never be matched to a person — the shell account is unavoidable. The fix is
+// to let them adopt the account they already have rather than start another:
+// same user row, same workspace, same board, real address.
+//
+// WHY THIS DOES NOT SET THE ADDRESS DIRECTLY
+// It hands the change to Supabase's own email-change flow, which mails a
+// confirmation to the NEW address and only applies it when that link is
+// followed. Writing the address straight in would let anyone standing at this
+// endpoint attach an email they do not control — and since the address is what
+// sharing, invites and sign-in all key on, that is an account takeover with
+// extra steps. is_shell therefore clears later, when the app calls
+// scout_settle_shell and finds the address is genuinely no longer synthetic —
+// never on this route's say-so.
+export async function handleScoutClaim(request, env) {
+  if (request.method !== 'POST') return jsonRes({ error: 'method not allowed' }, 405);
+
+  const auth = await verifyUser(request, env);
+  if (!auth.ok) return jsonRes({ error: auth.error }, auth.status || 401);
+
+  let body = {};
+  try { body = await request.json(); } catch (_) { /* empty */ }
+  const email = String(body.email || '').trim().toLowerCase();
+  // Deliberately loose. Real validation is the confirmation mail: an address
+  // that passes a regex but does not exist simply never gets confirmed.
+  if (!email || email.length > 254 || !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) {
+    return jsonRes({ error: 'That does not look like an email address.' }, 400);
+  }
+
+  // Only a shell account may take this path. A real account reaching here would
+  // be an ordinary change-of-address, which belongs in account settings with
+  // the checks that flow has — not in a route whose whole purpose is that the
+  // caller has never seen a login screen.
+  const stateRes = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/scout_accounts?user_id=eq.${auth.userId}&select=is_shell`,
+    {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        accept: 'application/json',
+      },
+      signal: AbortSignal.timeout(8000),
+    },
+  );
+  if (!stateRes.ok) return jsonRes({ error: 'We could not check that just now.' }, 502);
+  const state = (await stateRes.json().catch(() => null))?.[0];
+  if (!state) return jsonRes({ error: 'not a scout account' }, 403);
+  if (state.is_shell === false) return jsonRes({ error: 'already claimed' }, 409);
+
+  // Is the address already spoken for? Ask before attempting the change, so the
+  // answer is a clean "use the code instead" rather than a Supabase error.
+  //
+  // The response says only that this address cannot be used HERE. It never
+  // confirms an account exists: this endpoint is reachable by anyone holding a
+  // link texted to a phone, and turning it into an email-enumeration oracle
+  // would be a worse leak than the problem it solves.
+  const takenRes = await fetch(
+    `${env.SUPABASE_URL}/auth/v1/admin/users?filter=${encodeURIComponent(email)}`,
+    {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        accept: 'application/json',
+      },
+      signal: AbortSignal.timeout(8000),
+    },
+  );
+  if (takenRes.ok) {
+    const users = (await takenRes.json().catch(() => null))?.users || [];
+    if (users.some((u) => String(u.email || '').toLowerCase() === email && u.id !== auth.userId)) {
+      return jsonRes({ conflict: true }, 200);
+    }
+  }
+
+  const upd = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/users/${auth.userId}`, {
+    method: 'PUT',
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'content-type': 'application/json',
+      accept: 'application/json',
+    },
+    // email_confirm omitted ON PURPOSE — see the header. Supabase mails the new
+    // address and holds the change until it is confirmed.
+    body: JSON.stringify({ email }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!upd.ok) {
+    const detail = await upd.text().catch(() => '');
+    // Supabase's own uniqueness check, in case the lookup above raced it.
+    if (detail.includes('already been registered') || detail.includes('email_exists')) {
+      return jsonRes({ conflict: true }, 200);
+    }
+    return jsonRes({ error: 'We could not send the confirmation. Try again in a moment.' }, 502);
+  }
+
+  return jsonRes({ status: 'confirm_sent', email }, 200);
 }
 
 // POST /api/scout/session — internal. The ingest service asks for a link to text

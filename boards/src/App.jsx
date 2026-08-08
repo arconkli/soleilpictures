@@ -122,6 +122,7 @@ import { TrashModal } from './components/TrashModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
 import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
 import { WorkspaceAlertBanner } from './components/WorkspaceAlertBanner.jsx';
+import { ScoutClaimBanner } from './components/ScoutClaimBanner.jsx';
 import { useFeedback } from './components/AppFeedback.jsx';
 import { lazyWithReload } from './lib/lazyWithReload.js';
 // Lazy: HomeGraph pulls in three.js + react-force-graph-3d (~365KB gz) but only
@@ -5313,6 +5314,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           workspaceId={workspace?.id}
           onOpenRecovery={() => setWorkspaceRecoveryOpen(true)}
         />
+        {/* Only renders for a Scout shell account — see the component header;
+            the check is a string test on the session email, not a round trip. */}
+        <ScoutClaimBanner user={user} />
         <div className="topbar">
           <div className="tb-left">
             {(tweak.compactSidebar || mobileShell) && (

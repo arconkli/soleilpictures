@@ -156,7 +156,7 @@ export function boardSwitched({ boardName, created }) {
 }
 
 export function boardNotFound(name) {
-  return `I couldn't find a board called "${name}". Say it again with the exact name, or I'll keep using your inbox.`;
+  return `I couldn't find a board called "${name}". Say it again with the exact name, or I'll keep collecting in your Bin.`;
 }
 
 export function linkCodeSent(email) {
@@ -165,6 +165,15 @@ export function linkCodeSent(email) {
 
 export function linked({ email }) {
   return `Connected to ${email}. Your boards are all here.`;
+}
+
+// The adoption case: this number had already been texting into a throwaway
+// account before it was linked. Name the count — the whole worry in that moment
+// is "did I just lose the photos I already sent", and a number answers it in a
+// way "all set" does not.
+export function adopted({ email, count }) {
+  const what = count === 1 ? 'the card' : `all ${count} cards`;
+  return `Connected to ${email}, and I brought ${what} you'd already sent into your Bin.`;
 }
 
 export function linkFailed() {
@@ -179,7 +188,9 @@ export function help({ url }) {
     '"put these in Diner Recce"  file the batch you just sent',
     '"put everything in ..."     file the whole Bin',
     '/bin                        what\'s waiting, and how old',
-    '/link you@studio.com        connect an existing Soleil account',
+    // Settings → Scout, not an email round-trip. /link used to promise one and
+    // there has never been anything behind it.
+    '/code ABCD1234              connect an account you already have',
     '',
     url,
   ].join('\n');

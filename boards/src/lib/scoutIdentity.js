@@ -193,7 +193,12 @@ export async function resolveOrCreateIdentity(env, { platform, handle, threadKey
 // The magiclink session mint needs the account's current email address, which
 // changes the moment a shell user attaches a real one — so read it live rather
 // than caching it alongside the identity.
-async function resolveEmail(env, userId) {
+//
+// Exported because linking says the address back to the user ("Connected to
+// you@studio.com"), and naming the account they just connected is the whole
+// point of that message — a generic "connected" leaves them unsure WHICH of
+// their accounts this number now texts into.
+export async function resolveEmail(env, userId) {
   const res = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
     headers: {
       apikey: env.SUPABASE_SERVICE_ROLE_KEY,

@@ -32,6 +32,7 @@ import { pickPresenceColor } from '../lib/presenceColor.js';
 import { planLabel, formatPeriodEnd, grantCopy } from '../lib/billingCopy.js';
 import { startPortal } from '../lib/checkout.js';
 import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
+import { isShellEmail } from './ScoutClaimBanner.jsx';
 
 const TABS = [
   { id: 'profile',       label: 'Profile' },
@@ -748,6 +749,12 @@ function ScoutTab({ user }) {
         const [codeRes, idRes] = await Promise.all([
           supabase.rpc('scout_create_link_code', { p_ttl_minutes: 15 }),
           supabase.from('scout_identities').select('platform,handle,created_at').order('created_at'),
+          // Settle a stale is_shell flag. The address change happens in the
+          // user's inbox, out of band, with no webhook back — so the flag can
+          // only clear the next time someone asks, and this tab is where a
+          // Scout user turns up. Cheap, self-keyed on auth.uid(), and a no-op
+          // for the accounts that were never shells.
+          supabase.rpc('scout_settle_shell').catch(() => {}),
         ]);
         if (!alive) return;
         if (codeRes.error) setErr(true); else setCode(codeRes.data || null);
@@ -786,6 +793,16 @@ function ScoutTab({ user }) {
         {' '}no app, nothing to open. Connect your phone once and everything you
         {' '}send files into <b>your</b> boards.
       </p>
+
+      {/* A shell account arrived here BY texting, so "connect your phone" is
+          advice it has already taken. What it is missing is an address. */}
+      {isShellEmail(user?.email) && (
+        <p className="settings-section-hint" style={{ marginTop: 12 }}>
+          <b>This account has no email address yet.</b> Add one from the banner on
+          {' '}your canvas and you will be able to sign in from anywhere — the
+          {' '}boards and photos you already have stay exactly where they are.
+        </p>
+      )}
 
       {identities.length > 0 && (
         <div style={{ marginTop: 14 }}>

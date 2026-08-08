@@ -18,7 +18,9 @@
 import { handleTagsRoute } from './worker-tags.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
-import { handleScoutSession, handleScoutSessionMint, handleScoutSignup } from './worker-scout.js';
+import {
+  handleScoutSession, handleScoutSessionMint, handleScoutSignup, handleScoutClaim,
+} from './worker-scout.js';
 import { runCompactionJob1 } from './worker-compaction.js';
 // Self-authored SEO landing pages (tool / "alternative to" / hub). Pure-data
 // registry shared with the React component so the crawlable server-rendered
@@ -322,6 +324,10 @@ export default {
       // The /scout phone box. Public and unauthenticated — every cap lives in
       // scout_request_invite (0210), not here.
       if (url.pathname === '/api/scout/signup') return await handleScoutSignup(request, env);
+      // A shell account (texted first, never signed up) attaching a real email.
+      // Authenticated as that user; the address change itself is handed to
+      // Supabase's confirmation flow rather than written here.
+      if (url.pathname === '/api/scout/claim') return await handleScoutClaim(request, env);
       if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
       if (url.pathname.startsWith('/api/seo/')) return await handleSeoRoute(url, request, env);
       if (url.pathname.startsWith('/api/ai/')) return await handleAiRoute(url, request, env);
