@@ -18323,6 +18323,60 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   flex-shrink: 0;
 }
 
+/* ───────────────────────── Settings → API tokens ───────────────────────── */
+.api-token-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.api-token-row .auth-input { flex: 1 1 240px; min-width: 0; }
+/* The freshly minted token. Bordered rather than tinted so it reads as
+   "something happened here that you have to act on", without borrowing the
+   red of an error — nothing is wrong, it just will not come back. */
+.api-token-fresh {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-2, rgba(255,255,255,.2));
+  border-radius: var(--radius-lg, 12px);
+  background: var(--bg-2, rgba(255,255,255,.045));
+}
+.api-token-fresh-title { font-weight: 500; font-size: 13px; }
+.api-token-value {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-1, rgba(255,255,255,.14));
+  background: var(--surface-2, rgba(255,255,255,.04));
+  color: var(--ink-0, inherit);
+  font: 500 13px/1.2 var(--font-mono, ui-monospace, monospace);
+}
+.api-token-scope {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 10px;
+  font: 400 12px/1.45 var(--font-sans);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.api-token-scope input { margin-top: 2px; flex: 0 0 auto; }
+.api-token-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--line-1, rgba(255,255,255,.1));
+  font-size: 13px;
+}
+.api-token-meta {
+  margin-top: 2px;
+  font: 400 11px/1.4 var(--font-sans);
+  color: var(--ink-3);
+}
+.api-token-meta code { font-family: var(--font-mono, ui-monospace, monospace); }
+
 /* ──────────────────────────── ScoutClaimBanner ─────────────────────────── */
 /* Shown to a Scout shell account — one that has photos but no real email yet.
    Deliberately NOT the red of .ws-alert-banner: nothing is broken and nothing

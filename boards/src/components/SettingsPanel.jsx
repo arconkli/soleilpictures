@@ -37,6 +37,7 @@ import { isShellEmail } from './ScoutClaimBanner.jsx';
 const TABS = [
   { id: 'profile',       label: 'Profile' },
   { id: 'scout',         label: 'Scout' },
+  { id: 'api',           label: 'API' },
   { id: 'invite',        label: 'Invite & earn' },
   { id: 'billing',       label: 'Billing' },
   { id: 'notifications', label: 'Notifications' },
@@ -204,7 +205,7 @@ export function SettingsPanel({
   // Scout is personal identity (which phone is bound to WHICH account), not a
   // workspace setting — so it lives with Profile/Billing, not with
   // Defaults/Theme/Display.
-  const ACCOUNT_TABS = new Set(['profile', 'scout', 'invite', 'billing', 'notifications']);
+  const ACCOUNT_TABS = new Set(['profile', 'scout', 'api', 'invite', 'billing', 'notifications']);
   const visibleTabs = mode === 'account'
     ? TABS.filter(t => ACCOUNT_TABS.has(t.id))
     : mode === 'workspace'
@@ -276,6 +277,9 @@ export function SettingsPanel({
             )}
             {tab === 'scout' && (
               <ScoutTab user={user} />
+            )}
+            {tab === 'api' && (
+              <ApiTab user={user} />
             )}
             {tab === 'invite' && (
               <InviteTab user={user} />
@@ -857,6 +861,158 @@ function ScoutTab({ user }) {
           </p>
         </>
       )}
+    </div>
+  );
+}
+
+// Personal access tokens for /api/v1.
+//
+// The plaintext is shown ONCE and then never again — not because that is a
+// convention, but because only its SHA-256 is stored, so there is genuinely
+// nothing left to show. The UI has to be honest about that at the moment it
+// matters, which is why the freshly minted token gets its own panel with an
+// explicit warning rather than being dropped into the list.
+function ApiTab({ user }) {
+  const feedback = useFeedback();
+  const [tokens, setTokens] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState('');
+  const [canWrite, setCanWrite] = useState(false);
+  const [minting, setMinting] = useState(false);
+  const [fresh, setFresh] = useState(null);   // { token, prefix } — shown once
+
+  const load = async () => {
+    const { data, error } = await supabase.rpc('api_token_list');
+    if (!error) setTokens(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [user?.id]);
+
+  const mint = async (e) => {
+    e.preventDefault();
+    if (minting) return;
+    setMinting(true);
+    const { data, error } = await supabase.rpc('api_token_mint', {
+      p_name: name.trim() || 'API token',
+      p_scopes: canWrite ? ['read', 'write'] : ['read'],
+      p_ttl_days: null,
+    });
+    setMinting(false);
+    if (error) {
+      feedback.toast({ type: 'error', message: error.message || 'Could not create that token.' });
+      return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    setFresh({ token: row?.token, prefix: row?.prefix });
+    setName('');
+    setCanWrite(false);
+    load();
+  };
+
+  const revoke = async (id, label) => {
+    const { error } = await supabase.rpc('api_token_revoke', { p_id: id });
+    if (error) {
+      feedback.toast({ type: 'error', message: 'Could not revoke that token.' });
+      return;
+    }
+    feedback.toast({ type: 'success', message: `Revoked ${label}. It stops working immediately.` });
+    load();
+  };
+
+  const copy = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      feedback.toast({ type: 'success', message: 'Token copied.' });
+    } catch (_) {
+      feedback.toast({ type: 'error', message: 'Couldn’t copy — select the token and copy it manually.' });
+    }
+  };
+
+  const active = tokens.filter((t) => !t.revoked_at);
+
+  return (
+    <div className="settings-section">
+      <h3 className="settings-section-title">API access</h3>
+      <p className="settings-section-hint">
+        Drive your boards from your own software, or connect an AI assistant.
+        {' '}A token acts as you — it can reach exactly what you can reach, and
+        {' '}nothing more.
+      </p>
+
+      {fresh?.token && (
+        <div className="api-token-fresh">
+          <div className="api-token-fresh-title">Copy this now — it is not shown again.</div>
+          <p className="settings-section-hint" style={{ margin: '4px 0 10px' }}>
+            We only store a hash of it, so there is no way to look it up later.
+            {' '}Lost tokens get revoked and replaced.
+          </p>
+          <div className="api-token-row">
+            <input readOnly value={fresh.token} onFocus={(e) => e.target.select()}
+                   aria-label="Your new API token" className="api-token-value" />
+            <button type="button" className="settings-btn settings-btn-primary"
+                    onClick={() => copy(fresh.token)}>Copy</button>
+            <button type="button" className="settings-btn" onClick={() => setFresh(null)}>Done</button>
+          </div>
+        </div>
+      )}
+
+      <form className="api-token-new" onSubmit={mint}>
+        <div className="settings-billing-label" style={{ marginTop: 18 }}>New token</div>
+        <div className="api-token-row" style={{ marginTop: 8 }}>
+          <input
+            className="auth-input"
+            placeholder="What is it for? e.g. shot-list script"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            aria-label="Token name"
+            maxLength={80}
+          />
+          <button type="submit" className="settings-btn settings-btn-primary" disabled={minting}>
+            {minting ? 'Creating…' : 'Create token'}
+          </button>
+        </div>
+        <label className="api-token-scope">
+          <input type="checkbox" checked={canWrite} onChange={(e) => setCanWrite(e.target.checked)} />
+          <span>
+            <b>Allow writes.</b> Without this the token can read your boards but
+            {' '}never create, change or delete anything.
+          </span>
+        </label>
+      </form>
+
+      <div className="settings-billing-label" style={{ marginTop: 22 }}>Your tokens</div>
+      {loading ? (
+        <div className="settings-empty" style={{ marginTop: 8 }}>Loading…</div>
+      ) : !active.length ? (
+        <div className="settings-empty" style={{ marginTop: 8 }}>No tokens yet.</div>
+      ) : (
+        <div style={{ marginTop: 8 }}>
+          {active.map((t) => (
+            <div key={t.id} className="api-token-item">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 500 }}>{t.name}</div>
+                <div className="api-token-meta">
+                  <code>{t.prefix}…</code>
+                  {' · '}{t.scopes?.includes('write') ? 'read + write' : 'read only'}
+                  {' · '}{t.last_used_at
+                    ? `last used ${new Date(t.last_used_at).toLocaleDateString()}`
+                    : 'never used'}
+                </div>
+              </div>
+              <button type="button" className="settings-btn" onClick={() => revoke(t.id, t.name)}>
+                Revoke
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="settings-section-hint" style={{ marginTop: 18 }}>
+        Base URL <code>/api/v1</code>, sent as <code>Authorization: Bearer …</code>.
+        {' '}Full reference and an MCP server for AI assistants are in
+        {' '}<a href="https://github.com/arconkli/soleilpictures/blob/main/docs/API.md"
+              target="_blank" rel="noreferrer noopener">the docs</a>.
+      </p>
     </div>
   );
 }

@@ -18,6 +18,7 @@
 import { handleTagsRoute } from './worker-tags.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
+import { handleApiRoute } from './worker-api.js';
 import {
   handleScoutSession, handleScoutSessionMint, handleScoutSignup, handleScoutClaim,
 } from './worker-scout.js';
@@ -331,6 +332,12 @@ export default {
       if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
       if (url.pathname.startsWith('/api/seo/')) return await handleSeoRoute(url, request, env);
       if (url.pathname.startsWith('/api/ai/')) return await handleAiRoute(url, request, env);
+      // The public API. Authenticated by a personal access token, which is
+      // exchanged for the user's OWN Supabase session — so everything below
+      // runs under ordinary RLS. See lib/apiAuth.js.
+      if (url.pathname === '/api/v1' || url.pathname.startsWith('/api/v1/')) {
+        return await handleApiRoute(url, request, env);
+      }
       const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
       if (resetMatch) return await handleBoardReset(resetMatch[1], request);
       const thumbMatch = url.pathname.match(/^\/api\/share-thumb\/([0-9a-f-]{36})$/i);

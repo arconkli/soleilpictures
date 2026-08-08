@@ -465,6 +465,86 @@ export async function moveCardsBetweenBoards(env, {
   }
 }
 
+// ── Editing and removing single cards ────────────────────────────────────────
+//
+// Added for /api/v1, which offers full CRUD. Everything below is the SAME
+// triple write as above and must stay that way: a card edited in only the Y.Doc
+// reverts on the next cold load, and one deleted from only the Y.Doc leaves a
+// card_index row that still counts against the owner's cap and still turns up
+// in search.
+//
+// NOTE ON AUTHORIZATION. These run with the SERVICE ROLE (scoutDb.js bypasses
+// RLS), so they do not and cannot check whether the caller may write here. The
+// caller must have established that first — /api/v1 does it by calling
+// can_write_board as the user before reaching any of this.
+
+// Patch one card's fields. Returns the updated card, or null if it is gone.
+export async function updateCardOnBoard(env, {
+  boardId, workspaceId, userId, accessToken, cardId, patch,
+}) {
+  const board = await openBoard(env, boardId, accessToken);
+  try {
+    const cards = board.doc.getMap('cards');
+    const before = readCards(board.doc).find((c) => String(c.id) === String(cardId));
+    if (!before) return null;
+
+    // id can never be patched: it is the key in the Y.Map and in card_index, so
+    // changing it here would orphan the index row rather than rename anything.
+    const { id: _ignored, ...safe } = patch || {};
+    const updated = {
+      ...before, ...safe, id: before.id,
+      updatedAt: new Date().toISOString(),
+      updatedBy: userId || null,
+    };
+
+    await commitDoc(env, boardId, board, () => { cards.set(String(cardId), cardToYMap(updated)); });
+
+    // card_index is a projection of the card, so rebuild the row from the
+    // updated card rather than patching columns by hand — that way a new field
+    // in buildCardIndexRows is picked up here without anyone remembering to.
+    const rows = buildCardIndexRows({ workspaceId, boardId, cards: [updated] });
+    if (rows.length) {
+      await scoutInsert(env, 'card_index', rows, { onConflict: 'board_id,card_id' });
+    }
+    return updated;
+  } finally {
+    try { board.ws?.close(); } catch (_) { /* already gone */ }
+    board.doc.destroy();
+  }
+}
+
+// Remove cards. Returns the cards as they were — the API hands them back as the
+// response body, because an HTTP client has no undo toast and the removed card
+// is the only thing that can serve as one.
+export async function deleteCardsFromBoard(env, {
+  boardId, accessToken, cardIds = [],
+}) {
+  if (!cardIds.length) return [];
+  const board = await openBoard(env, boardId, accessToken);
+  try {
+    const cards = board.doc.getMap('cards');
+    const wanted = new Set(cardIds.map(String));
+    const removed = readCards(board.doc).filter((c) => wanted.has(String(c.id)));
+    if (!removed.length) return [];
+
+    await commitDoc(env, boardId, board, () => {
+      for (const c of removed) cards.delete(String(c.id));
+    });
+
+    // card_index last: while the row survives the card is merely invisible,
+    // which is recoverable. Deleting the index first would free cap for a card
+    // still sitting on the canvas.
+    await scoutDelete(env, 'card_index',
+      `board_id=eq.${boardId}&card_id=in.${encodeURIComponent(inList(removed.map((c) => c.id)))}`,
+    ).catch(() => {});
+
+    return removed;
+  } finally {
+    try { board.ws?.close(); } catch (_) { /* already gone */ }
+    board.doc.destroy();
+  }
+}
+
 // Read a board's cards without mutating anything — the confirmation step needs
 // to know what's in the Bin before it can ask about it.
 export async function readBoardCards(env, boardId, accessToken = null) {
