@@ -853,17 +853,22 @@ async function dispatch(url, request, env, ctx) {
       },
     });
 
-    // Close the loop on uploaded images: the images row was written before the
-    // card existed, so it has no card_id. card_index uses that link to recover
-    // an image's key when the Y.Doc → index sync misses meta.src, and without
-    // it the picture is the one thing on the board with no way back to its row.
-    const linked = result.cards
-      .filter((c) => c.kind === 'image' && keyFromSrc(c.src))
-      .map((c) => userPatch(env, token, 'images',
-        `storage_path=eq.${encodeURIComponent(keyFromSrc(c.src))}&card_id=is.null`,
-        { card_id: String(c.id), board_id: id }).catch(() => {}));
-    if (linked.length) await Promise.all(linked);
-
+    // An image uploaded through /uploads has no card_id on its images row: the
+    // row is written before the card exists. That is FINE, and deliberately not
+    // patched afterwards.
+    //
+    // What keeps the R2 object alive is recompute_image_refs, which derives
+    // referenced_in_board_ids by scanning board_state.doc for r2: keys
+    // (_r2_keys_in_doc) — not from card_id and not from card_index. So the
+    // card's own `src` is the reference, and the triple write has already
+    // persisted it. Verified end to end: after an upload + card create, the
+    // image's ref_count is 1 and its board is in referenced_in_board_ids.
+    //
+    // A first version of this file did patch card_id here, and it silently did
+    // nothing every time — `images` has no UPDATE policy, so RLS denies it, and
+    // the .catch() swallowed the refusal. It bought nothing and hid a failure.
+    // Adding an UPDATE policy to make it work would widen the client-writable
+    // surface of that table for a field nothing reads.
     return json({
       board_id: id,
       cards: result.cards.map(publicCard),
