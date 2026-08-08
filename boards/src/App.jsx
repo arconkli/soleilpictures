@@ -2600,37 +2600,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   };
 
   // ── Workspace sharing ─────────────────────────────────────────────────────
-  const inviteToWorkspace = async () => {
-    const email = await feedback.prompt({
-      title: 'Invite to workspace',
-      message: 'They need to sign up first, then you can invite them here.',
-      label: 'Email address',
-      placeholder: 'teammate@soleilpictures.com',
-      confirmLabel: 'Send invite',
-    });
-    if (!email || !email.trim()) return;
-    try {
-      const { data: uid, error } = await supabase.rpc('user_id_by_email', { p_email: email.trim() });
-      if (error) throw error;
-      if (!uid) {
-        feedback.toast({ type: 'error', message: `No user with email "${email.trim()}". They need to sign up first.` });
-        return;
-      }
-      if (uid === user.id) { feedback.toast({ type: 'info', message: "That's you." }); return; }
-      const { error: insErr } = await supabase
-        .from('workspace_members')
-        .insert({ workspace_id: workspace.id, user_id: uid, role: 'editor' });
-      if (insErr) {
-        if (insErr.code === '23505') feedback.toast({ type: 'info', message: `${email} is already a member of this workspace.` });
-        else throw insErr;
-        return;
-      }
-      feedback.toast({ type: 'success', message: `Invited ${email} to "${workspace.name}".` });
-    } catch (e) {
-      console.error('invite failed', e);
-      feedback.toast({ type: 'error', message: 'Invite failed: ' + (e.message || e) });
-    }
-  };
+  // The old `inviteToWorkspace` lived here: it resolved an email to a user id
+  // client-side via user_id_by_email, then INSERTed straight into
+  // workspace_members. `boardsApi.inviteWorkspaceMember` replaced it with the
+  // owner-gated `invite_workspace_member` RPC — which also enqueues a
+  // pending_invites row when the invitee hasn't signed up yet, instead of
+  // dead-ending on "they need to sign up first" — but the old function was left
+  // behind, defined and referenced nowhere.
+  //
+  // Deleted in 0217: it was the last browser caller of user_id_by_email, and
+  // that RPC is an account-existence oracle (email -> uuid, or null). With this
+  // gone the function is revoked from anon AND authenticated; only the
+  // service-role edge functions still reach it. Don't reintroduce a client-side
+  // email lookup here — use inviteWorkspaceMember.
 
   const addLink = (targetBoard, clickPos = null) => {
     const w = 220, h = 160;
