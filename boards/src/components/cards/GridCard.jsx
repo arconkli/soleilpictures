@@ -12,12 +12,13 @@
 // a cell edit. Like RichDocCard, GridCard self-observes its own gridCells so cell
 // edits re-render. Layout / templateId / seqId arrive as plain props.
 
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { computeCellRects, collectDividers, resizeDivider, dividerSnapTargets, GRID_TUNING } from '../../lib/gridLayout.js';
 import { resolveTagText, hasLabelTag } from '../../lib/gridSequence.js';
 import { readGridModel, effectiveCellStyle } from '../../lib/gridState.js';
 import { readableOn, remapHtmlColors } from '../../lib/readableColor.js';
+import { sanitizeNoteHtml } from '../../lib/sanitizeNoteHtml.js';
 import { readableInk } from '../../lib/paletteLayout.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
 import { R2Image } from '../R2Image.jsx';
@@ -120,8 +121,21 @@ function CellText({ html, seqIndex, seqFormat, style, effBg }) {
     : (html || '');
   // On a painted cell, remap per-span inline colors to stay legible against
   // the cell surface — the same pass a painted note's read-only html gets.
-  const safe = effBg ? remapHtmlColors(resolved, effBg) : resolved;
-  return <div className="gc-text" style={style} dangerouslySetInnerHTML={{ __html: safe }} />;
+  // remapHtmlColors rewrites colours; it is NOT a sanitizer, which is why the
+  // variable below used to be called `safe` while carrying live markup. Cell
+  // html reaches us over the CRDT exactly like note html does, so it gets the
+  // same treatment — see lib/sanitizeNoteHtml.js.
+  //
+  // PRODUCTION-ONLY SHAPE: on main this same CellText lives in
+  // cards/gridCellShared.jsx, extracted by "Schedule rework P2". That stack is
+  // still held back from production, so this branch keeps the pre-extraction
+  // copy and the fix has to be applied here too — otherwise promoting the
+  // sanitizer would leave grid cells unsanitized in prod while main looked
+  // fixed. When the Schedule stack finally promotes, gridCellShared.jsx arrives
+  // already carrying this change and this copy goes away with GridCard's.
+  const recolored = effBg ? remapHtmlColors(resolved, effBg) : resolved;
+  const clean = useMemo(() => sanitizeNoteHtml(recolored), [recolored]);
+  return <div className="gc-text" style={style} dangerouslySetInnerHTML={{ __html: clean }} />;
 }
 
 function CellVideo({ src }) {
