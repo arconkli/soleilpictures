@@ -164,6 +164,27 @@ async function main() {
       console.error('[scout] message handling failed', e?.stack || e?.message || e);
     }
   }
+
+  // REACHING HERE IS FATAL, and has to be made fatal explicitly.
+  //
+  // `for await` exits when Photon's stream ends — a dropped gRPC connection, a
+  // provider restart, a revoked token. Falling out of it used to just... return.
+  // main() resolved, the .catch() below never fired, and the process did NOT
+  // exit, because startInviteLoop's setTimeout keeps the event loop alive. The
+  // result was the worst possible failure: a machine that looks perfectly
+  // healthy, still texting new signups from the invite queue, while every photo
+  // anyone sends is silently ignored. Nothing would page, and the logs would be
+  // quiet, because nothing went wrong — the loop simply had nothing left to
+  // iterate.
+  //
+  // Exiting non-zero hands recovery to the supervisor, which reconnects
+  // everything from a clean slate. That is deliberately preferred over
+  // hand-rolled reconnection: this process holds a gRPC stream, an outbound
+  // PartyKit socket and in-memory burst state, and re-establishing all three
+  // correctly in-place is far more code — and far more ways to be subtly wrong —
+  // than letting the container restart. Pair with `[[restart]] policy = "always"`
+  // in fly.toml; the platform default only restarts on a NON-ZERO exit.
+  throw new Error('Photon message stream ended — no further messages will arrive');
 }
 
 main().catch((e) => {
