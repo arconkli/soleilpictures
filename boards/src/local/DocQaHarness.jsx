@@ -14,6 +14,7 @@
 
 import { useEffect, useState } from 'react';
 import * as Y from 'yjs';
+import { MessagesUiContext } from '../hooks/useOpenDm.js';
 import * as docState from '../lib/docState.js';
 import * as docExport from '../lib/docFullExport.js';
 import * as screenplayFlow from '../components/docExtensions/screenplay/screenplayFlow.js';
@@ -51,6 +52,15 @@ export function DocQaHarness() {
   // Card title lives in React state so onUpdate flows (exercises the
   // card-title → primary-page-title sync) and the preview re-renders.
   const [title, setTitle] = useState('');
+  // ?docqa=1&public=1 mounts the card as the anonymous /share viewer would see
+  // it, so specs can assert the collaboration surfaces (comments, the Messages
+  // button) are correctly suppressed there.
+  const isPublicView = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('public') === '1';
+  // Stub messages state for the doc-header button (see MessagesUiContext below).
+  // A non-zero unread count so the badge dot renders and can be asserted.
+  const [messagesOpen, setMessagesOpen] = useState(false);
+  const messagesUnread = 3;
   const card = { id: CARD_ID, kind: 'doc', title, x: 0, y: 0, w: 320, h: 240 };
 
   // Publish the test bridge. Set it idempotently on every effect run and do
@@ -77,7 +87,18 @@ export function DocQaHarness() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ydoc, cardYMap, scope]);
 
+  // The doc header's Messages button reads MessagesUiContext, which normally
+  // comes from App. Provide a stub so the button (and its unread badge) is
+  // exercised here instead of silently rendering null — `open` is echoed back
+  // into the panel-open flag so a spec can assert the toggle actually fires.
+  const messagesUi = {
+    unread: messagesUnread,
+    open: messagesOpen,
+    toggle: () => setMessagesOpen((v) => !v),
+  };
+
   return (
+    <MessagesUiContext.Provider value={messagesUi}>
     <div className="docqa-root" data-testid="docqa-root"
          style={{ minHeight: '100vh', padding: 24, background: 'var(--bg-1, #111)', color: 'var(--ink-1, #ddd)' }}>
       <header style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -100,11 +121,13 @@ export function DocQaHarness() {
           boards={{}}
           wsPeers={[]}
           onJumpToPeer={() => {}}
-          canEdit
+          canEdit={!isPublicView}
+          isPublic={isPublicView}
           autoFocus={false}
           onUpdate={(patch) => { if (patch && 'title' in patch) setTitle(patch.title || ''); }}
         />
       </div>
     </div>
+    </MessagesUiContext.Provider>
   );
 }

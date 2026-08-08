@@ -96,3 +96,44 @@ test('side mode keeps the panel above the docked doc too', async ({ page }) => {
   expect(z.msgPanel).toBeGreaterThan(z.sideModal);
   expect(z.msgPanel).toBeGreaterThan(z.divider);
 });
+
+// The header button itself. It reads MessagesUiContext (normally supplied by
+// App); the doc QA harness provides a stub so the button, its unread dot and
+// its toggle are exercised rather than silently rendering null.
+test('the doc header exposes a Messages button with an unread marker', async ({ page }) => {
+  await openDoc(page);
+
+  const btn = page.locator('.doc-card-messages');
+  await expect(btn).toBeVisible();
+  // Unread > 0 in the harness stub → the dot renders.
+  await expect(page.locator('.doc-card-messages-dot')).toBeVisible();
+  await expect(btn).toHaveAttribute('aria-pressed', 'false');
+
+  // Clicking drives the shared toggle, which is what flips the real panel.
+  await btn.click();
+  await expect(btn).toHaveAttribute('aria-pressed', 'true');
+  await expect(btn).toHaveClass(/is-active/);
+
+  await btn.click();
+  await expect(btn).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('the Messages button is hidden for public doc viewers', async ({ page }) => {
+  // An anonymous /share viewer has no inbox, so the button must not appear even
+  // though the overlay does. ?public=1 mounts the card exactly as the share
+  // surface does (isPublic), which is what gates it in DocCard.
+  await page.goto('/?docqa=1&public=1');
+  await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
+  await page.evaluate(() => window.__soleilDocTest.openCard());
+  await expect(page.locator('.doc-card-modal')).toBeVisible();
+
+  await expect(page.locator('.doc-card-messages')).toHaveCount(0);
+  // The mode toggles are suppressed on public too — proves we're really in the
+  // public branch and not just failing to find the button.
+  await expect(page.locator('.doc-card-icon[aria-label="Dock to side"]')).toHaveCount(0);
+  // Sanity: the signed-in mount in the same harness DOES show it.
+  await page.goto('/?docqa=1');
+  await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
+  await page.evaluate(() => window.__soleilDocTest.openCard());
+  await expect(page.locator('.doc-card-messages')).toHaveCount(1);
+});
