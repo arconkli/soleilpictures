@@ -40,6 +40,7 @@ import { useThumbnailBackfill } from '../hooks/useThumbnailBackfill.js';
 import { RENDER_VERSION as THUMB_RENDER_VERSION } from '../lib/renderThumbnail.js';
 import { paletteLayout, readableInk, hasCustomName, surfaceTone } from '../lib/paletteLayout.js';
 import { readableOn, remapHtmlColors } from '../lib/readableColor.js';
+import { sanitizeNoteHtml } from '../lib/sanitizeNoteHtml.js';
 import { useThemeAttr } from '../lib/useThemeAttr.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
@@ -62,11 +63,17 @@ export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 // messages flows from there.
 function NoteAutoLinkBody({ html }) {
   const { trie, workspaceId } = useEntityTrie();
-  if (!html) return null;
+  // Sanitize BEFORE either branch. Note html rides the CRDT from board_state,
+  // which PartyKit relays without inspecting, so anyone with write access to a
+  // board can author it — see lib/sanitizeNoteHtml.js and
+  // tests/note-html-xss.spec.js. Memoized because this runs on every render of
+  // a note card and the html itself changes rarely.
+  const clean = useMemo(() => sanitizeNoteHtml(html), [html]);
+  if (!clean) return null;
   if (!trie) {
-    return <div className="note-body" dangerouslySetInnerHTML={{ __html: html }} />;
+    return <div className="note-body" dangerouslySetInnerHTML={{ __html: clean }} />;
   }
-  return <div className="note-body">{renderHtmlWithAutoLinks(html, { trie, workspaceId })}</div>;
+  return <div className="note-body">{renderHtmlWithAutoLinks(clean, { trie, workspaceId })}</div>;
 }
 
 // Map an arbitrary card from a list-view board into a clickable row entry.

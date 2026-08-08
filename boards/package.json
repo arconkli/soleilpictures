@@ -65,6 +65,7 @@
     "@use-gesture/react": "^10.3.1",
     "aws4fetch": "^1.0.20",
     "d3-force-3d": "^3.0.6",
+    "dompurify": "^3.4.5",
     "jspdf": "^4.2.1",
     "partykit": "^0.0.115",
     "partysocket": "^1.1.18",

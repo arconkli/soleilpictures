@@ -20,6 +20,7 @@
 
 import { resolveSrc, cachedUrl } from './r2.js';
 import { loadCorsCleanImage } from './corsImage.js';
+import { sanitizeNoteHtml } from './sanitizeNoteHtml.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon, uprightLabelAngle,
   arrowStrokeWidth, arrowHeadSize, arrowHeadStyle,
@@ -267,7 +268,10 @@ function drawArrowLabel(ctx, label, built, pxPerUnit, bgColor) {
 function extractNoteText(c) {
   if (c.html && typeof document !== 'undefined') {
     const tmp = document.createElement('div');
-    tmp.innerHTML = c.html;
+    // Only textContent is read out below, but the innerHTML assignment itself
+    // starts resource loads even on a detached node — enough for an <img
+    // onerror> in a hostile note to fire during thumbnail generation.
+    tmp.innerHTML = sanitizeNoteHtml(c.html);
     tmp.querySelectorAll('p,div,li,br,h1,h2,h3').forEach(el => {
       try { el.insertAdjacentText('afterend', '\n'); } catch (_) {}
     });

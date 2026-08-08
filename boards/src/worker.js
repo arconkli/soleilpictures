@@ -1594,6 +1594,66 @@ async function handleBoardReset(boardId, request) {
   }
 }
 
+// SSRF guard for /api/og. This endpoint takes a caller-supplied URL and fetches
+// it server-side, which is the textbook shape of a server-side request forgery
+// / open proxy: without a filter, anyone can point our Worker at anything and
+// have the response summarised back to them, from our IP and under our domain.
+//
+// Cloudflare's fetch won't route to RFC1918 from the edge and there's no
+// instance-metadata service to steal, so the realistic damage is abuse
+// (scanning and scraping attributed to us) rather than credential theft. The
+// filter is still worth having, and cheap.
+//
+// Blocked: anything that isn't http/https, any non-default port (that's what
+// turns a preview fetcher into a port scanner), and any host that is or resolves
+// to a name we can see is local. We can only inspect the literal hostname here —
+// Workers can't do a DNS lookup before fetching — so a hostname that resolves to
+// a private address still gets through. That's the residual, and it's why the
+// port and scheme limits matter: they bound what an attacker can do with it.
+const OG_BLOCKED_HOSTS = new Set([
+  'localhost', 'localhost.localdomain', '127.0.0.1', '0.0.0.0', '[::1]', '::1',
+  'metadata.google.internal', 'metadata.goog',
+]);
+
+function ogTargetIsAllowed(u) {
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return 'scheme not allowed';
+  // Only the default ports. Anything else is someone probing infrastructure.
+  if (u.port && u.port !== '80' && u.port !== '443') return 'port not allowed';
+
+  const host = u.hostname.toLowerCase();
+  if (OG_BLOCKED_HOSTS.has(host)) return 'host not allowed';
+  // Internal-only suffixes.
+  if (/(^|\.)(local|localdomain|internal|intranet|lan|home\.arpa)$/.test(host)) return 'host not allowed';
+
+  // IPv4 literals: block loopback, private, link-local (incl. cloud metadata at
+  // 169.254.169.254), CGNAT and broadcast.
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const [a, b] = v4.slice(1).map(Number);
+    if (a === 10 || a === 127 || a === 0 || a >= 224) return 'host not allowed';
+    if (a === 169 && b === 254) return 'host not allowed';
+    if (a === 172 && b >= 16 && b <= 31) return 'host not allowed';
+    if (a === 192 && b === 168) return 'host not allowed';
+    if (a === 100 && b >= 64 && b <= 127) return 'host not allowed';
+  }
+  // IPv6 literals: loopback, link-local (fe80::/10), unique-local (fc00::/7),
+  // and the whole `::`-prefixed low block.
+  //
+  // That last rule is what stops the v4-mapped bypass, and it is NOT the
+  // obvious check. `new URL()` canonicalises IPv6, so
+  // `[::ffff:169.254.169.254]` arrives here as `[::ffff:a9fe:a9fe]` — the
+  // dotted form is gone by the time we see it, and a `.includes('.')` test
+  // (the first thing I wrote) never fires. Matching on the `::` prefix catches
+  // ::1, ::, ::ffff:* (v4-mapped) and ::a.b.c.d (v4-compatible) alike, and
+  // costs nothing: no publicly routable address lives in that block.
+  if (host.startsWith('[')) {
+    const v6 = host.slice(1, -1).toLowerCase();
+    if (v6.startsWith('::')) return 'host not allowed';
+    if (/^(fe[89ab]|f[cd])/.test(v6)) return 'host not allowed';
+  }
+  return null;  // allowed
+}
+
 async function handleOg(url, request) {
   const target = url.searchParams.get('url');
   if (!target) {
@@ -1609,17 +1669,40 @@ async function handleOg(url, request) {
     return json({ error: 'invalid url' }, 400);
   }
   try {
-    const upstream = await fetch(absolute, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; SoleilClustersPreview/1.0; +https://clusters.soleilpictures.com)',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en-US,en;q=0.5',
-      },
-      redirect: 'follow',
-      cf: { cacheTtl: 3600, cacheEverything: true },
-      signal: AbortSignal.timeout(10_000),
-    });
+    // Follow redirects BY HAND. With redirect:'follow' the check above guards
+    // only the first hop, so any public URL that 302s to 169.254.169.254 walks
+    // straight past it — an SSRF filter that doesn't re-check every hop isn't
+    // one. Each Location is re-validated before we make the next request.
+    let current = absolute;
+    let upstream = null;
+    for (let hop = 0; hop < 5; hop++) {
+      const parsed = new URL(current);
+      const bad = ogTargetIsAllowed(parsed);
+      if (bad) return json({ error: bad }, 400);
+
+      upstream = await fetch(current, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; SoleilClustersPreview/1.0; +https://clusters.soleilpictures.com)',
+          'Accept': 'text/html,application/xhtml+xml',
+          'Accept-Language': 'en-US,en;q=0.5',
+        },
+        redirect: 'manual',
+        cf: { cacheTtl: 3600, cacheEverything: true },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (upstream.status >= 300 && upstream.status < 400) {
+        const loc = upstream.headers.get('location');
+        if (!loc) break;
+        current = new URL(loc, current).toString();   // resolve relative hops
+        continue;
+      }
+      break;
+    }
+    if (!upstream) return json({ error: 'no response' }, 502);
+    if (upstream.status >= 300 && upstream.status < 400) {
+      return json({ error: 'too many redirects' }, 502);
+    }
     if (!upstream.ok) return json({ error: `upstream ${upstream.status}` }, 502);
     const ct = upstream.headers.get('content-type') || '';
     if (!ct.includes('text/html') && !ct.includes('application/xhtml')) {
@@ -1627,7 +1710,7 @@ async function handleOg(url, request) {
     }
     // Cap body size — only need the <head>. 256 KB is plenty.
     const text = await readCapped(upstream, 256 * 1024);
-    const data = parseOg(text, absolute);
+    const data = parseOg(text, current);
     return json(data, 200, true);
   } catch (e) {
     return json({ error: String(e?.message || e) }, 500);

@@ -11,6 +11,7 @@
 import React from 'react';
 import { EntityLink } from '../components/EntityLink.jsx';
 import { scanForAutoLinks } from './scanForAutoLinks.js';
+import { sanitizeNoteHtml } from './sanitizeNoteHtml.js';
 
 const ALLOWED_TAGS = new Set([
   'div','p','span','strong','em','u','s','b','i','br','a','code','pre',
@@ -27,7 +28,13 @@ const SKIP_AUTO = new Set(['code', 'pre', 'a']);
 export function renderHtmlWithAutoLinks(html, ctx = {}) {
   if (!html || typeof window === 'undefined') return null;
   const wrapper = document.createElement('div');
-  wrapper.innerHTML = html;
+  // Sanitize even though the output is rebuilt as React elements through
+  // SAFE_ATTRS below. The parse itself is the hazard: assigning innerHTML on a
+  // DETACHED element still kicks off resource loads, so an <img onerror> fires
+  // here before nodeToReact ever gets a say. Callers are expected to pass
+  // already-sanitized html (NoteAutoLinkBody does); this is the second lock,
+  // because the function is exported and the next caller may not.
+  wrapper.innerHTML = sanitizeNoteHtml(html);
   return Array.from(wrapper.childNodes).map((n, i) => nodeToReact(n, ctx, `h${i}`));
 }
 
