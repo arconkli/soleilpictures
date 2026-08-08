@@ -15,16 +15,22 @@
 //     Telegram was dropped from v1. So the queue drains a few at a time, on a
 //     slow tick, with a gap between messages — deliberately unhurried.
 //
-// ⚠️ THE ONE UNVERIFIED CALL IN THIS FILE is opening a space to a handle that
-// has never messaged us. Photon's pricing page lists cold outreach as a
-// Business-tier feature while their deliverability docs give the same 50/day
-// limit with no tier distinction, and Free/Pro draw from a shared number pool.
-// Whether a Pro project may initiate to an opted-in signup is an open question
-// with the vendor. Until it's answered this loop is correct but unproven — and
-// it fails SAFE: a refusal marks the row and the landing page keeps telling
-// people they're on the list, which stays true.
+// OPENING A CONVERSATION WITH A STRANGER is `imessage(app).space.create(handle)`
+// — checked against the installed SDK's own types, not guessed. It used to probe
+// app.space / app.conversation / app.dm in order; none of the three exist (the
+// instance carries only messages/send/edit/responding, and space.create lives on
+// the PLATFORM instance), so every invite threw "provider exposes no way to open
+// a space" and the whole signup drain was dead on arrival.
+//
+// ⚠️ STILL UNVERIFIED, but now for a policy reason rather than a naming one:
+// whether Photon PERMITS a Pro project to initiate to an opted-in signup. Their
+// pricing lists cold outreach as Business-tier while the deliverability docs
+// give the same 50/day limit with no tier distinction. If they refuse, it fails
+// SAFE — the row records the error and the landing page keeps saying people are
+// on the list, which stays true.
 
 import { text as textMsg } from 'spectrum-ts';
+import { imessage } from 'spectrum-ts/providers/imessage';
 import { scoutRpc } from '../../boards/src/lib/scoutDb.js';
 
 // Slow on purpose. Nobody signing up expects an instant text, and a leisurely
@@ -55,20 +61,15 @@ export function inviteText() {
 }
 
 // Open a conversation with a handle we have never heard from, and send once.
+//
+// `space.create` resolves an existing 1:1 conversation or makes one, and takes
+// the same E.164 handle format the inbound stream reports — so a signup who has
+// coincidentally already texted us lands in their existing thread rather than a
+// second one.
 async function sendInvite(app, phone) {
-  // Provider APIs differ on how you address someone who hasn't written first.
-  // Try the documented shapes in order rather than pinning one we can't verify
-  // — the alternative is a loop that fails 100% of the time on a naming detail.
-  const space = typeof app.space === 'function'
-    ? await app.space(phone)
-    : typeof app.conversation === 'function'
-      ? await app.conversation(phone)
-      : typeof app.dm === 'function'
-        ? await app.dm(phone)
-        : null;
-
+  const space = await imessage(app).space.create(phone);
   if (!space || typeof space.send !== 'function') {
-    throw new Error('provider exposes no way to open a space to a new handle');
+    throw new Error('could not open a conversation with that number');
   }
   await space.send(textMsg(inviteText()));
 }

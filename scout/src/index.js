@@ -8,7 +8,7 @@
 // otherwise. The interesting telemetry lands in analytics_events via the
 // SECURITY DEFINER RPCs, which is where the rest of the product looks.
 
-import { Spectrum, image } from 'spectrum-ts';
+import { Spectrum, attachment } from 'spectrum-ts';
 import { imessage } from 'spectrum-ts/providers/imessage';
 import { loadConfig } from './config.js';
 import { makeUploader } from './media.js';
@@ -33,13 +33,19 @@ function senderHandle(message, space) {
 }
 
 // Attaching an image is best-effort, exactly like editing a message is: the
-// provider may refuse, the channel may not carry attachments, or the SDK's
-// helper may not be shaped the way we expect. None of those are worth losing the
-// reply over — the text that follows always states the count and the board, so a
-// thread with no picture is degraded but never wrong.
+// provider may refuse or the channel may not carry attachments. Neither is worth
+// losing the reply over — the text that follows always states the count and the
+// board, so a thread with no picture is degraded but never wrong.
+//
+// The helper is `attachment`, and its input type is `string | Buffer | URL` —
+// NOT a Uint8Array. This was written as `image(bytes, …)`; there is no `image`
+// export, so the module failed to load and the process died at startup before it
+// ever read a message. Buffer.from() wraps the sheet's bytes without copying.
 async function sendImage(space, bytes) {
   try {
-    await space.send(image(bytes, { mimeType: 'image/jpeg', name: 'scout.jpg' }));
+    await space.send(attachment(Buffer.from(bytes), {
+      mimeType: 'image/jpeg', name: 'scout.jpg',
+    }));
     return true;
   } catch (e) {
     console.error('[scout] image send failed', e?.message);

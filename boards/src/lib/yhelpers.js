@@ -2,6 +2,21 @@
 
 import * as Y from 'yjs';
 
+// Re-exported so anything OUTSIDE boards/ (the scout service) can get Yjs from
+// the same module instance these helpers use, instead of resolving its own copy.
+//
+// This matters more than it looks. Node resolves bare specifiers by walking up
+// from the importing FILE, so in a repo checkout scout/src/* finds
+// scout/node_modules/yjs while boards/src/lib/* finds boards/node_modules/yjs —
+// two separate Yjs modules. Yjs itself warns about this ("breaks constructor
+// checks"): a Y.Doc built by one copy fails the internal instanceof checks of
+// the other, so readCards() on a foreign doc can silently misbehave. It bit the
+// dryrun harness, which is precisely the tool used to prove an ingest was
+// correct. The Docker image installs once at the root and has one copy, so this
+// is a local-only hazard — which makes it worse, not better: it only misleads
+// during verification.
+export { Y };
+
 // Uint8Array → base64 (browser-safe, no Buffer).
 export function bytesToB64(bytes) {
   let s = '';

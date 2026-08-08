@@ -19,11 +19,13 @@
 
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
-import * as Y from 'yjs';
+// Yjs comes from the shared helpers, NOT from a bare 'yjs' specifier: this file
+// hands the docs it builds to readCards(), and a second Yjs copy would fail that
+// module's internal constructor checks. See the note in yhelpers.js.
 import { loadConfig } from './config.js';
 import { makeUploader } from './media.js';
 import { runBurst } from './pipeline.js';
-import { b64ToBytes, readCards } from '../../boards/src/lib/yhelpers.js';
+import { Y, b64ToBytes, readCards } from '../../boards/src/lib/yhelpers.js';
 import { scoutRpc, scoutSelect } from '../../boards/src/lib/scoutDb.js';
 import { normalizeHandle } from '../../boards/src/lib/scoutIdentity.js';
 
