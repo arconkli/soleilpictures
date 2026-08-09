@@ -184,8 +184,14 @@ export function publicCard(c) {
   };
   // Only on the kinds that have them. Adding six always-null fields to every
   // note card is paid for on every list response, forever.
-  const bytes = keyFromSrc(c[BYTES_FIELD[kind]]);
-  if (bytes) out.file_key = bytes;
+  //
+  // An image keeps `image_key` and does NOT also get `file_key`: they would
+  // carry the same value, and duplicating a field on the most common card kind
+  // is noise in every list response for the rest of time.
+  if (kind !== 'image') {
+    const bytes = keyFromSrc(c[BYTES_FIELD[kind]]);
+    if (bytes) out.file_key = bytes;
+  }
   if (c.poster) out.poster_key = keyFromSrc(c.poster);
   if (c.fileName) out.file_name = c.fileName;
   if (c.mime) out.mime = c.mime;

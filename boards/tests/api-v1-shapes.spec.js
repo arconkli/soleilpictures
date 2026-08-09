@@ -158,6 +158,35 @@ test('publicCard exposes the documented fields and nothing else', () => {
   expect(out.image_key).toBe('r2/key.jpg');
   // caption stands in for body — the wire has one name for the text of a card.
   expect(out.body).toBe('cap');
+  // An image is NOT also given file_key: it would carry the same value as
+  // image_key, and a duplicated field on the commonest kind is paid for in
+  // every list response forever.
+  expect('file_key' in out).toBe(false);
+});
+
+test('a media card carries its own fields, and only a media card does', () => {
+  const video = publicCard({
+    id: 'v1', kind: 'video', src: 'r2:ws/reel.mov', poster: 'r2:ws/still.jpg',
+    mime: 'video/quicktime', sizeBytes: 4096,
+  });
+  expect(video.file_key).toBe('ws/reel.mov');
+  expect(video.poster_key).toBe('ws/still.jpg');
+  expect(video.mime).toBe('video/quicktime');
+  expect(video.size_bytes).toBe(4096);
+
+  const file = publicCard({
+    id: 'f1', kind: 'file', fileSrc: 'r2:ws/notes.pdf', fileName: 'notes.pdf', ext: 'pdf',
+  });
+  expect(file.file_key).toBe('ws/notes.pdf');
+  expect(file.file_name).toBe('notes.pdf');
+  expect(file.ext).toBe('pdf');
+
+  // A note gains nothing. Six always-null fields on every note is the cost this
+  // avoids.
+  const note = publicCard({ id: 'n1', kind: 'note', body: 'x' });
+  for (const k of ['file_key', 'poster_key', 'file_name', 'mime', 'ext', 'size_bytes']) {
+    expect(k in note).toBe(false);
+  }
 });
 
 // ── search filter escaping ───────────────────────────────────────────────────
