@@ -22,6 +22,8 @@
 // object_identifiers already has the unique index; nothing new was needed.
 
 import { publicHttpsUrlProblem } from './safeUrl.js';
+// The prefix itself is defined once, in the module that enforces it.
+import { RESERVED_PREFIX } from './objectMeta.js';
 
 // A Worker gets a bounded number of subrequests per request, and each item here
 // costs a fetch plus a storage write. A hundred is comfortably inside that and
@@ -161,14 +163,20 @@ export function cardSpecFor(item, { kind, stored = null, importedAt }) {
     if (item[k] !== undefined) spec[k] = item[k];
   }
 
-  // Provenance the caller cannot forge, plus whatever they sent. Their props
-  // are merged UNDER ours, so an import cannot be made to lie about where a
-  // card came from.
-  spec.props = {
-    ...(item.props || {}),
-    [SOURCE_PROP]: item.url,
-    [IMPORTED_AT_PROP]: importedAt,
-  };
+  // Only the CALLER's props ride on the card spec. Provenance is written
+  // separately by provenanceProps(), because these keys live under the reserved
+  // prefix and the ordinary card route rejects reserved keys from callers —
+  // which is exactly what reserving them is for. Putting them here made the
+  // whole import fail its own validation.
+  // Reserved keys are STRIPPED rather than passed through. A caller who sends
+  // one is not refused — POST /cards would reject it and fail their whole
+  // import over a key we were going to overwrite anyway — it is simply
+  // dropped, and the server's own provenance is written afterwards.
+  if (item.props) {
+    const kept = Object.fromEntries(Object.entries(item.props)
+      .filter(([k]) => !String(k).toLowerCase().startsWith(RESERVED_PREFIX)));
+    if (Object.keys(kept).length) spec.props = kept;
+  }
 
   // The source identifier goes LAST so a caller's own identifier for the same
   // scope does not silently displace the one the import resolves on.
@@ -178,6 +186,18 @@ export function cardSpecFor(item, { kind, stored = null, importedAt }) {
   ];
 
   return spec;
+}
+
+/**
+ * Where a card came from, recorded by the server after the card exists.
+ *
+ * Separate from the card spec on purpose. These keys are under the reserved
+ * prefix, which callers are refused — so they cannot be smuggled in through an
+ * ordinary write, and an import cannot be made to misreport its own source.
+ * They are written with `allowReserved`, the one path permitted to set them.
+ */
+export function provenanceProps(item, importedAt) {
+  return { [SOURCE_PROP]: item.url, [IMPORTED_AT_PROP]: importedAt };
 }
 
 // A readable fallback title: the filename, minus its extension and separators.

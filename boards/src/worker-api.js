@@ -56,7 +56,7 @@ import {
 import { handleMcpRequest } from './lib/mcpServer.js';
 import {
   normalizeImportItems, cardSpecFor, kindForContentType, noteFor, mapWithConcurrency,
-  IMPORT_CONCURRENCY, IMPORT_TIMEOUT_MS, SOURCE_SCOPE,
+  IMPORT_CONCURRENCY, IMPORT_TIMEOUT_MS, SOURCE_SCOPE, provenanceProps,
 } from './lib/importManifest.js';
 
 // Raised from 100 once a positioned batch stopped costing O(the whole board):
@@ -2230,6 +2230,23 @@ async function dispatch(url, request, env, ctx) {
     // the counts agree. A positional guess that is off by one would attribute
     // every card to the wrong source url, which is worse than saying nothing.
     const aligned = cards.length === usable.length;
+
+    // Provenance, written by the server after the cards exist.
+    //
+    // It cannot ride on the card spec: these keys are under the reserved
+    // prefix, and the ordinary card route refuses reserved keys from callers —
+    // which is precisely what reserving them is for. So they are merged in
+    // here, on the one path allowed to set them, and a caller therefore has no
+    // way to make an import misreport where a card came from.
+    if (aligned && cards.length) {
+      await saveMetaBulk(env, token, {
+        workspaceId: board.workspace_id, boardId: id, objectType: 'card',
+        userId: auth.userId,
+        entries: usable.map((r, n) => (cards[n]
+          ? { objectId: cards[n].id, props: provenanceProps(r.item, importedAt) }
+          : null)).filter(Boolean),
+      });
+    }
 
     return json({
       board_id: id,

@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeImportItems, kindForContentType, cardSpecFor, titleFromUrl, fitDims,
-  summarize, mapWithConcurrency, noteFor,
+  summarize, mapWithConcurrency, noteFor, provenanceProps,
   MAX_IMPORT_ITEMS, SOURCE_SCOPE, SOURCE_PROP, IMPORTED_AT_PROP,
 } from './importManifest.js';
 
@@ -117,8 +117,20 @@ test('EVERY imported card can be found again by its source url', () => {
     kind: 'image', importedAt: AT, stored: { imageKey: 'k', width: 10, height: 10 },
   });
   assert.deepEqual(spec.identifiers.at(-1), { scope: SOURCE_SCOPE, value: url('a') });
-  assert.equal(spec.props[SOURCE_PROP], url('a'));
-  assert.equal(spec.props[IMPORTED_AT_PROP], AT);
+  assert.equal(provenanceProps(item, AT)[SOURCE_PROP], url('a'));
+  assert.equal(provenanceProps(item, AT)[IMPORTED_AT_PROP], AT);
+});
+
+test('provenance is written by the SERVER, never carried on the card spec', () => {
+  // It lives under the reserved prefix, which the ordinary card route refuses
+  // from callers — so putting it on the spec made the import fail its own
+  // validation. It is merged in afterwards, on the one path allowed to set it.
+  const [item] = normalizeImportItems([{ url: url('a'), props: { department: 'art' } }]);
+  const spec = cardSpecFor(item, { kind: 'link', importedAt: AT });
+  assert.equal(SOURCE_PROP in (spec.props || {}), false,
+    'a reserved key on the card spec is rejected by POST /cards');
+  assert.equal(spec.props.department, 'art');
+  assert.deepEqual(provenanceProps(item, AT), { [SOURCE_PROP]: url('a'), [IMPORTED_AT_PROP]: AT });
 });
 
 test('a caller cannot make an import lie about where a card came from', () => {
@@ -129,8 +141,9 @@ test('a caller cannot make an import lie about where a card came from', () => {
       { scope: 'shotgrid', value: 'Shot:1' }],
   }]);
   const spec = cardSpecFor(item, { kind: 'link', importedAt: AT });
-  assert.equal(spec.props[SOURCE_PROP], url('a'), 'ours must win');
+  assert.equal(provenanceProps(item, AT)[SOURCE_PROP], url('a'), 'ours must win');
   assert.equal(spec.props.department, 'art', 'and theirs must survive');
+  assert.equal(spec.props[SOURCE_PROP], undefined, 'a forged reserved key never reaches the card');
   const sources = spec.identifiers.filter((x) => x.scope === SOURCE_SCOPE);
   assert.equal(sources.length, 1, 'exactly one source_url, or the upsert is ambiguous');
   assert.equal(sources[0].value, url('a'));
