@@ -216,13 +216,23 @@ export function apiFacts() {
   };
   const cap = (field) => Number(pick(new RegExp(`str\\(c\\.${field},\\s*(\\d+)\\)`), `${field} cap`));
 
-  const sql = read('supabase/migrations/0215_api_tokens.sql');
-  const rate = sql.match(/if t\.req_count > (\d+) then/);
-  const prefix = sql.match(/v_token\s*:=\s*'([a-z_]+)'/);
-  if (!rate || !prefix) throw new Error('publicSurface: rate limit / token prefix not found in 0215_api_tokens.sql');
+  const prefixSql = read('supabase/migrations/0215_api_tokens.sql');
+  const prefix = prefixSql.match(/v_token\s*:=\s*'([a-z_]+)'/);
+  if (!prefix) throw new Error('publicSurface: token prefix not found in 0215_api_tokens.sql');
+
+  // The rate limit moved in 0221: it is now per token, with this as the
+  // fallback for a token that has none. Read from the migration that actually
+  // defines the current api_token_resolve — 0215's hard-coded `> 1000` is dead
+  // code that happens to carry the same number, so pointing at it would keep
+  // "passing" long after the two diverged.
+  const rateSql = read('supabase/migrations/0221_scale_limits.sql');
+  const rate = rateSql.match(/coalesce\(t\.req_limit,\s*(\d+)\)/);
+  if (!rate) throw new Error('publicSurface: default rate limit not found in 0221_scale_limits.sql');
 
   return {
     maxCardsPerCall: Number(pick(/const MAX_CARDS_PER_CALL = (\d+)/, 'MAX_CARDS_PER_CALL')),
+    maxBoardsPerCall: Number(pick(/const MAX_BOARDS_PER_CALL = (\d+)/, 'MAX_BOARDS_PER_CALL')),
+    maxPartsPerCall: Number(pick(/const MAX_PARTS_PER_CALL = (\d+)/, 'MAX_PARTS_PER_CALL')),
     titleMax: cap('title'),
     bodyMax: cap('body'),
     htmlMax: cap('html'),

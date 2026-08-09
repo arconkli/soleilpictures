@@ -74,6 +74,32 @@ Only `name` is required.
 
 Returns `201` with `{ "board": … }`.
 
+### Creating many at once
+
+Pass a `boards` array instead, up to 500 per call:
+
+```json
+{
+  "workspace_id": "optional uuid — the default for every entry",
+  "boards": [
+    { "name": "Scene 4 — Diner", "parent_board_id": "…" },
+    { "name": "Scene 5 — Motel",  "parent_board_id": "…" }
+  ]
+}
+```
+
+Returns `201` with `{ "boards": [ … ], "created": 2 }`.
+
+This matters when you are importing an existing library, because a large one is
+a **tree** — a board per scene, reel or shoot — so the first thing an import
+does is create thousands of boards. One request each is the slowest possible way
+to do that; this is two inserts however many you pass.
+
+Every entry is validated before anything is written, so a bad entry at index 900
+is a clean `400` rather than 900 boards and an error. The whole batch is one
+insert as you, so a workspace you cannot write refuses the batch rather than
+half-applying it.
+
 ## `GET /boards/:id`
 
 `{ "board": … }`, or `404` — which is also what you get for a board that exists

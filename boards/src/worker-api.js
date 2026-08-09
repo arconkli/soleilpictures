@@ -45,12 +45,33 @@ import { imageDimensions, extensionFor } from './lib/imageDims.js';
 import { openapiDocument } from './lib/apiOpenapi.js';
 
 const MAX_CARDS_PER_CALL = 100;
-// Workers cap a request body well above this; the limit that matters is that a
-// single call should not be able to spend someone's whole storage allowance in
-// one go, and that we hold the whole thing in memory to hash its header.
+// The ceiling on the SINGLE-SHOT upload, which buffers the whole body in the
+// isolate to read its header. Anything larger goes through /uploads/multipart,
+// where the bytes never touch this Worker at all.
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const DEFAULT_PAGE = 100;
 const MAX_PAGE = 500;
+// R2/S3 allows 10,000 parts; the party targets 9,000 and sizes parts to suit,
+// so this is only a sanity bound on what one sign-parts call may ask for.
+const MAX_PARTS_PER_CALL = 1000;
+// Bulk board creation is two INSERTs whatever the count, so this bounds the
+// request body rather than the work.
+const MAX_BOARDS_PER_CALL = 500;
+
+// Extensions for the kinds of file a studio actually migrates. The multipart
+// path accepts anything (that is the product's "upload any file type" feature),
+// so an unknown type becomes .bin rather than a refusal — but a KNOWN type
+// keeps its real extension, because the extension is what the app uses to
+// decide how to render a card.
+const EXTRA_TYPES = {
+  'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/x-matroska': 'mkv',
+  'video/webm': 'webm', 'video/mpeg': 'mpg',
+  'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav',
+  'audio/aiff': 'aiff', 'audio/x-aiff': 'aiff', 'audio/mp4': 'm4a', 'audio/aac': 'aac',
+  'application/pdf': 'pdf', 'application/zip': 'zip',
+  'image/tiff': 'tif', 'image/x-adobe-dng': 'dng', 'image/x-exr': 'exr',
+  'application/mxf': 'mxf', 'application/x-dpx': 'dpx',
+};
 
 // The kinds the API models. The app has more (palette, schedule, grid, video,
 // audio, pdf, board) and every one of them carries structured interior state
@@ -236,6 +257,63 @@ async function requireBoardWrite(env, token, boardId) {
   if (ok !== true) throw fail(403, 'forbidden', 'you cannot write to that board');
 }
 
+// ── Multipart uploads ────────────────────────────────────────────────────────
+//
+// Proxied to the upload party's /mpu/* routes rather than reimplemented here,
+// and that is a deliberate reuse rather than laziness:
+//
+//   · It is the SAME code path the browser has used in production for the
+//     "upload any file type" feature, including the quota gate and the
+//     workspace-prefixed key shape that scopes storage (0218).
+//   · It authenticates on a plain Supabase user JWT (upload.ts checks the
+//     Authorization header and re-runs can_write_board per call) — and
+//     apiUserSession already mints exactly that. So this needs NO new secret
+//     and, in particular, no R2 credentials inside this Worker.
+//   · The bytes go from the caller STRAIGHT TO R2 via presigned part URLs.
+//     A studio moving 25TB never sends a byte through here, which is the only
+//     way the number works: buffering it would be both slow and, at 128MB of
+//     isolate memory, impossible.
+//
+// A single-shot POST /uploads stays for small files, because one call is what
+// makes it usable from a tool call.
+async function partyMpu(env, token, workspaceId, action, body) {
+  const host = env.PARTYKIT_HOST || 'soleil-boards-party.arconkli.partykit.dev';
+  let res;
+  try {
+    res = await fetch(`https://${host}/parties/upload/${encodeURIComponent(workspaceId)}/mpu/${action}`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch (e) {
+    throw fail(503, 'storage_unavailable', 'the upload service is unreachable right now');
+  }
+
+  const text = await res.text().catch(() => '');
+  let parsed = null;
+  try { parsed = text ? JSON.parse(text) : null; } catch (_) { /* plain-text refusal */ }
+
+  if (!res.ok) {
+    // The party answers over-quota with 402 and a machine-readable reason; keep
+    // both, because "you are out of space" and "you may not write here" need
+    // different things from the caller.
+    const reason = parsed?.reason || '';
+    if (res.status === 402 || reason === 'over_quota') {
+      throw fail(402, 'limit_reached',
+        'that would go past the storage included with this account');
+    }
+    if (res.status === 403) {
+      throw fail(403, 'forbidden', reason === 'owner_not_paid'
+        ? 'large uploads need a paid account on the workspace that owns this board'
+        : 'you cannot upload to that board');
+    }
+    if (res.status === 400) throw fail(400, 'bad_request', 'the upload service rejected that request');
+    throw fail(502, 'upstream_error', 'the upload service could not complete that step');
+  }
+  return parsed || {};
+}
+
 // The workspace a board belongs to, read AS THE USER — so a board they cannot
 // see comes back as "not found" rather than leaking its existence.
 async function boardForUser(env, token, boardId, { includeDeleted = false } = {}) {
@@ -403,9 +481,11 @@ async function dispatch(url, request, env, ctx) {
   const [head, id, sub, subId] = parts;
   const method = request.method;
 
-  // Uploads carry raw bytes, so the body must not be parsed as JSON.
-  const isUpload = head === 'uploads';
-  const body = (method === 'GET' || method === 'DELETE' || isUpload)
+  // The single-shot upload carries RAW BYTES, so its body must not be parsed as
+  // JSON. Its multipart siblings underneath /uploads/* are ordinary JSON, and
+  // treating them as raw too is what made every field arrive undefined.
+  const isRawUpload = head === 'uploads' && !id;
+  const body = (method === 'GET' || method === 'DELETE' || isRawUpload)
     ? {}
     : await request.json().catch(() => ({}));
 
@@ -426,17 +506,23 @@ async function dispatch(url, request, env, ctx) {
         'GET    /search?q=&kind=&workspace=&limit=&offset=',
         'GET    /boards?workspace=&parent=&deleted=&limit=&offset=',
         'POST   /boards',
+        'POST   /boards            {"boards":[…]}  — bulk, up to 500',
         'GET    /boards/:id',
         'PATCH  /boards/:id',
         'DELETE /boards/:id',
         'POST   /boards/:id/restore',
-        'GET    /boards/:id/cards?limit=&offset=',
+        'GET    /boards/:id/cards?source=live|index&limit=&offset=&cursor=',
         'POST   /boards/:id/cards',
         'PATCH  /boards/:id/cards/:cardId',
         'DELETE /boards/:id/cards/:cardId',
         'POST   /boards/:id/cards/move',
         'POST   /uploads?board=:id',
-        'GET    /images/:key',
+        'POST   /uploads/multipart?board=:id',
+        'POST   /uploads/multipart/parts',
+        'POST   /uploads/multipart/complete',
+        'POST   /uploads/multipart/abort',
+        'GET    /images?workspace=&board=&since=&cursor=&limit=',
+        'GET    /images/:key?variant=preview',
       ],
     });
   }
@@ -524,6 +610,136 @@ async function dispatch(url, request, env, ctx) {
     });
   }
 
+  // ── POST /uploads/multipart[/parts|/complete|/abort] ───────────────────────
+  //
+  // The path for files too big to send in one request — which for a studio is
+  // most of them. Four calls, and only the first and last touch this Worker's
+  // request budget at all:
+  //
+  //   1. POST /uploads/multipart?board=…   { bytes, content_type, filename? }
+  //        → { key, upload_id, part_size, part_count }
+  //   2. POST /uploads/multipart/parts     { key, upload_id, part_numbers[] }
+  //        → { urls: { "1": "https://…" } }   PUT the bytes THERE, not here
+  //   3. POST /uploads/multipart/complete  { key, upload_id, parts[] }
+  //        → { image_key, bytes, width, height }
+  //   4. POST /uploads/multipart/abort     { key, upload_id }
+  if (head === 'uploads' && id === 'multipart' && method === 'POST') {
+    const action = sub || 'create';
+    trace.route = `/uploads/multipart${sub ? `/${sub}` : ''}`;
+
+    // Every step re-states its board, and every step re-checks it. The party
+    // does the same on its side (can_write_board per call): a signed part URL
+    // is a capability, so nothing here may rely on a check made three calls
+    // ago against a permission that could since have been revoked.
+    const boardId = url.searchParams.get('board') || body.board_id;
+    if (!isUuid(boardId)) throw fail(400, 'bad_request', 'board is required and must be a uuid');
+    trace.target = boardId;
+    const board = await boardForUser(env, token, boardId);
+    if (!board) throw fail(404, 'not_found', 'board not found');
+    await requireBoardWrite(env, token, boardId);
+
+    if (action === 'create') {
+      const bytes = Number(body.bytes);
+      if (!Number.isFinite(bytes) || bytes <= 0) {
+        throw fail(400, 'bad_request', 'bytes is required — the quota gate needs the total size up front');
+      }
+      const contentType = String(body.content_type || 'application/octet-stream')
+        .split(';')[0].trim().toLowerCase();
+      // Prefer a real extension over .bin: the app decides how to render a card
+      // from it. Content type first, then the filename, then give up.
+      const ext = extensionFor(contentType)
+        || EXTRA_TYPES[contentType]
+        || (String(body.filename || '').match(/\.([a-z0-9]{1,8})$/i)?.[1] || '').toLowerCase()
+        || 'bin';
+
+      const out = await partyMpu(env, token, board.workspace_id, 'create', {
+        boardId, fileExt: ext, contentType, totalBytes: bytes,
+      });
+      return json({
+        key: out.key,
+        upload_id: out.uploadId,
+        part_size: out.partSize,
+        part_count: out.partCount,
+        content_type: contentType,
+        next: 'POST /api/v1/uploads/multipart/parts for signed URLs, then PUT each part directly to it',
+      }, 201);
+    }
+
+    const key = String(body.key || '');
+    const uploadId = String(body.upload_id || '');
+    if (!key || !uploadId) throw fail(400, 'bad_request', 'key and upload_id are required');
+
+    if (action === 'parts') {
+      const wanted = Array.isArray(body.part_numbers) ? body.part_numbers : [];
+      const partNumbers = wanted
+        .map(Number)
+        .filter((n) => Number.isInteger(n) && n >= 1 && n <= 10000)
+        .slice(0, MAX_PARTS_PER_CALL);
+      if (!partNumbers.length) {
+        throw fail(400, 'bad_request', 'part_numbers must be integers between 1 and 10000');
+      }
+      const out = await partyMpu(env, token, board.workspace_id, 'sign-parts', {
+        boardId, key, uploadId, partNumbers,
+      });
+      return json({
+        urls: out.urls || {},
+        // Said plainly because it is the whole point of this route and the
+        // thing a client is most likely to get wrong by proxying through us.
+        upload_directly_to: 'PUT the part bytes to these URLs; they go straight to storage',
+      });
+    }
+
+    if (action === 'abort') {
+      await partyMpu(env, token, board.workspace_id, 'abort', { boardId, key, uploadId });
+      return json({ aborted: true, key });
+    }
+
+    if (action !== 'complete') throw fail(404, 'not_found', 'unknown endpoint');
+
+    const parts = (Array.isArray(body.parts) ? body.parts : [])
+      .map((p) => ({ partNumber: Number(p.part_number ?? p.partNumber), etag: String(p.etag || '') }))
+      .filter((p) => Number.isInteger(p.partNumber) && p.etag);
+    if (!parts.length) {
+      throw fail(400, 'bad_request', 'parts is required — [{ part_number, etag }] from each PUT response');
+    }
+    await partyMpu(env, token, board.workspace_id, 'complete', { boardId, key, uploadId, parts });
+
+    // The object exists now, but nothing points at it. The images row is what
+    // authorizes reads and what keeps the R2 orphan sweep from reclaiming it,
+    // so an upload that stops here is a file that quietly dies in 30 days.
+    // Same reasoning as the single-shot path.
+    let size = Number(body.bytes) || 0;
+    let dims = null;
+    if (env.IMAGES) {
+      // A ranged read: enough of the header to measure an image, without
+      // pulling a 50GB object into a 128MB isolate to find out it is a video.
+      const head64 = await env.IMAGES.get(key, { range: { offset: 0, length: 65536 } })
+        .catch(() => null);
+      if (head64) {
+        size = head64.size || size;
+        dims = imageDimensions(new Uint8Array(await head64.arrayBuffer())) || null;
+      }
+    }
+
+    await userInsert(env, token, 'images', [{
+      workspace_id: board.workspace_id,
+      board_id: boardId,
+      storage_path: key,
+      width: dims?.width ?? null,
+      height: dims?.height ?? null,
+      size_bytes: size || null,
+      uploaded_by: auth.userId,
+    }], { returning: 'minimal' });
+
+    return json({
+      image_key: key,
+      bytes: size || null,
+      width: dims?.width ?? null,
+      height: dims?.height ?? null,
+      next: `POST /api/v1/boards/${boardId}/cards with {"kind":"image","image_key":"${key}"}`,
+    }, 201);
+  }
+
   // POST /uploads?board=<uuid> — raw bytes in, an image key out.
   //
   // Straight to R2 through the Worker's own binding: no presign, no PartyKit
@@ -602,6 +818,64 @@ async function dispatch(url, request, env, ctx) {
       // Spelled out because the next step is not guessable from the key alone.
       next: `POST /api/v1/boards/${boardId}/cards with {"kind":"image","image_key":"${key}"}`,
     }, 201);
+  }
+
+  // GET /images — what is already stored, so a migration can be resumed.
+  //
+  // A client that dies at 60% of three million objects has to be able to work
+  // out what landed. Without this the only options are re-uploading everything
+  // (paying twice, and orphaning the first copy) or trusting a local log that
+  // by definition was not written for the requests that failed.
+  //
+  // KEYSET, not offset. `offset=2900000` makes Postgres walk 2.9M rows to throw
+  // them away, so a listing that starts fast ends unusable — exactly the shape
+  // of failure that only shows up at the scale this exists for. Pass the last
+  // `cursor` back to continue; ordering is (created_at, id) so it is total and
+  // stable even when a thousand rows share a timestamp.
+  if (head === 'images' && !id && method === 'GET') {
+    trace.route = '/images';
+    const { limit } = pageParams(url);
+    const ws = url.searchParams.get('workspace');
+    if (ws && !isUuid(ws)) throw fail(400, 'bad_request', 'workspace must be a uuid');
+    const boardFilter = url.searchParams.get('board');
+    if (boardFilter && !isUuid(boardFilter)) throw fail(400, 'bad_request', 'board must be a uuid');
+
+    let q = 'deleted_at=is.null'
+      + '&select=id,storage_path,size_bytes,width,height,board_id,workspace_id,created_at'
+      + `&order=created_at.asc,id.asc&limit=${limit + 1}`;
+    if (ws) q += `&workspace_id=eq.${ws}`;
+    if (boardFilter) q += `&board_id=eq.${boardFilter}`;
+
+    // `since` is the coarse filter a caller reaches for first; `cursor` is the
+    // exact one that survives ties.
+    const since = url.searchParams.get('since');
+    if (since) {
+      if (Number.isNaN(Date.parse(since))) throw fail(400, 'bad_request', 'since must be an ISO timestamp');
+      q += `&created_at=gte.${encodeURIComponent(since)}`;
+    }
+    const cursor = url.searchParams.get('cursor');
+    if (cursor) {
+      const [cAt, cId] = String(cursor).split('|');
+      if (!cAt || !isUuid(cId || '')) throw fail(400, 'bad_request', 'cursor is not one this endpoint issued');
+      // (created_at, id) > (cAt, cId), spelled as PostgREST understands it.
+      q += `&or=${encodeURIComponent(`(created_at.gt.${cAt},and(created_at.eq.${cAt},id.gt.${cId}))`)}`;
+    }
+
+    const rows = await userSelect(env, token, 'images', q);
+    const page = paginate(rows, limit, 0);
+    const last = page.items[page.items.length - 1];
+    return json({
+      images: page.items.map((r) => ({
+        image_key: r.storage_path,
+        bytes: r.size_bytes == null ? null : Number(r.size_bytes),
+        width: r.width, height: r.height,
+        board_id: r.board_id, workspace_id: r.workspace_id,
+        created_at: r.created_at,
+      })),
+      limit,
+      has_more: page.has_more,
+      next_cursor: page.has_more && last ? `${last.created_at}|${last.id}` : null,
+    });
   }
 
   // GET /images/<key> — the bytes back.
@@ -684,6 +958,66 @@ async function dispatch(url, request, env, ctx) {
       const rows = await userSelect(env, token, 'boards', q);
       const page = paginate(rows, limit, offset);
       return json({ boards: page.items.map(publicBoard), ...pageMeta(page) });
+    }
+
+    if (method === 'POST' && Array.isArray(body.boards)) {
+      // Bulk create. A 25TB library is a board TREE — a board per scene, reel
+      // or shoot — so a migration's first act is making thousands of them, and
+      // one round trip each is the slowest possible way to do it. Two inserts
+      // total, whatever the count.
+      const incoming = body.boards;
+      if (!incoming.length) throw fail(400, 'bad_request', 'boards is empty');
+      if (incoming.length > MAX_BOARDS_PER_CALL) {
+        throw fail(400, 'bad_request', `at most ${MAX_BOARDS_PER_CALL} boards per call`);
+      }
+
+      let defaultWs = body.workspace_id;
+      if (defaultWs && !isUuid(defaultWs)) throw fail(400, 'bad_request', 'workspace_id must be a uuid');
+      if (!defaultWs) {
+        const ws = await userRpc(env, token, 'get_or_create_personal_workspace',
+          { p_user_id: auth.userId, p_name: 'Personal' });
+        defaultWs = (Array.isArray(ws) ? ws[0] : ws)?.id;
+      }
+      if (!defaultWs) throw fail(400, 'bad_request', 'could not resolve a workspace');
+
+      // Validated in full BEFORE anything is written, so a bad entry at index
+      // 900 is a clean 400 rather than 900 boards and an error.
+      const prepared = incoming.map((b, i) => {
+        const nm = String(b?.name || '').trim();
+        if (!nm) throw fail(400, 'bad_request', `boards[${i}].name is required`);
+        const ws = b.workspace_id || defaultWs;
+        if (!isUuid(ws)) throw fail(400, 'bad_request', `boards[${i}].workspace_id must be a uuid`);
+        if (b.parent_board_id && !isUuid(b.parent_board_id)) {
+          throw fail(400, 'bad_request', `boards[${i}].parent_board_id must be a uuid`);
+        }
+        return {
+          id: crypto.randomUUID(),
+          workspace_id: ws,
+          parent_board_id: b.parent_board_id || null,
+          name: nm.slice(0, 200),
+          view: b.view === 'list' ? 'list' : 'canvas',
+          created_by: auth.userId,
+        };
+      });
+
+      // RLS still decides: this is one INSERT as the user, so a workspace they
+      // cannot write is refused for the whole batch rather than partly applied.
+      await userInsert(env, token, 'boards', prepared, { returning: 'minimal' });
+
+      // Every board needs its empty snapshot or it cold-loads as broken rather
+      // than as empty. Identical bytes for all of them, so encode once.
+      const doc = new Y.Doc();
+      const b64 = bytesToB64(Y.encodeStateAsUpdate(doc));
+      doc.destroy();
+      const now = new Date().toISOString();
+      await userInsert(env, token, 'board_state',
+        prepared.map((b) => ({ board_id: b.id, doc: b64, updated_at: now })),
+        { returning: 'minimal' });
+
+      return json({
+        boards: prepared.map((b) => publicBoard({ ...b, created_at: now })),
+        created: prepared.length,
+      }, 201);
     }
 
     if (method === 'POST') {
@@ -827,6 +1161,49 @@ async function dispatch(url, request, env, ctx) {
   if (!subId && method === 'GET') {
     trace.route = '/boards/:id/cards';
     const { limit, offset } = pageParams(url);
+
+    // ?source=index — the projection in card_index instead of the Y.Doc.
+    //
+    // The default below is the truth and stays the default, but it costs a
+    // whole-document load per call: `limit`/`offset` there are applied AFTER
+    // the board is in memory, so paging a large board re-downloads it once per
+    // page and `total` is only knowable by reading all of it. That is fine for
+    // a hundred cards and quadratic for a migration verifying a million.
+    //
+    // card_index is already the row-per-card mirror the triple write maintains,
+    // it is indexed on (board_id, card_id), and RLS covers it. It carries a
+    // PROJECTION, not the card — enough to reconcile what exists, not enough to
+    // rebuild one — so it is opt-in and says so.
+    if (url.searchParams.get('source') === 'index') {
+      const after = url.searchParams.get('cursor');
+      let q = `board_id=eq.${id}&select=card_id,kind,title,body,meta,updated_at`
+        + `&order=card_id.asc&limit=${limit + 1}`;
+      if (after) q += `&card_id=gt.${encodeURIComponent(after)}`;
+      const rows = await userSelect(env, token, 'card_index', q);
+      const page = paginate(rows, limit, 0);
+      const last = page.items[page.items.length - 1];
+      return json({
+        board_id: id,
+        source: 'index',
+        cards: page.items.map((r) => {
+          const pos = r.meta?.pos || {};
+          return {
+            id: r.card_id,
+            kind: r.kind || 'note',
+            title: r.title ?? null,
+            body: r.body ?? null,
+            x: pos.x ?? null, y: pos.y ?? null, w: pos.w ?? null, h: pos.h ?? null,
+            image_key: keyFromSrc(r.meta?.src),
+            url: r.meta?.url ?? null,
+            updated_at: r.updated_at,
+          };
+        }),
+        limit,
+        has_more: page.has_more,
+        next_cursor: page.has_more && last ? last.card_id : null,
+      });
+    }
+
     // Read through the live room when we can, so a card added seconds ago by a
     // collaborator is visible rather than missing until the next snapshot.
     const all = await readBoardCards(env, id, token);
@@ -834,6 +1211,7 @@ async function dispatch(url, request, env, ctx) {
     const page = paginate(slice, limit, offset);
     return json({
       board_id: id,
+      source: 'live',
       cards: page.items.map(publicCard),
       total: all.length,
       ...pageMeta(page),

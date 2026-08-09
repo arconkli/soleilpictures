@@ -3512,6 +3512,24 @@ view is "canvas" unless you pass exactly "list".
 
 Returns 201 with { "board": … }.
 
+Creating many at once
+
+Pass a boards array instead, up to 500 per call:
+
+{
+  "workspace_id": "optional uuid — the default for every entry",
+  "boards": [
+    { "name": "Scene 4 — Diner", "parent_board_id": "…" },
+    { "name": "Scene 5 — Motel",  "parent_board_id": "…" }
+  ]
+}
+
+Returns 201 with { "boards": [ … ], "created": 2 }.
+
+This matters when you are importing an existing library, because a large one is a tree — a board per scene, reel or shoot — so the first thing an import does is create thousands of boards. One request each is the slowest possible way to do that; this is two inserts however many you pass.
+
+Every entry is validated before anything is written, so a bad entry at index 900 is a clean 400 rather than 900 boards and an error. The whole batch is one insert as you, so a workspace you cannot write refuses the batch rather than half-applying it.
+
 GET /boards/:id
 
 { "board": … }, or 404 — which is also what you get for a board that exists but is not yours. The API never confirms the existence of something you cannot see.
@@ -3626,6 +3644,19 @@ Paginated with limit and offset — default 100, maximum 500.
 
 Follow next_offset until it is null. Do not assume one page is the whole board.
 
+?source=index — for large boards
+
+The default reads the live board, so a card a collaborator added seconds ago is already there. The cost is that it loads the whole board to answer: limit and offset are applied afterwards, so paging a large board re-reads it once per page, and total is only knowable by reading all of it. Fine for a hundred cards; wasteful for a hundred thousand.
+
+?source=index reads the row-per-card mirror instead, paged by cursor:
+
+{ "board_id": "9f1c…", "source": "index",
+  "cards": [ { "id": "…", "kind": "image", "title": null, "x": 120, "y": 340,
+               "image_key": "…", "updated_at": "2026-08-08T12:00:00Z" } ],
+  "limit": 100, "has_more": true, "next_cursor": "api-m8x2p1-7fq3ka" }
+
+Pass next_cursor back as cursor. Use this to verify what exists — after a bulk import, say. It is a projection, not the card: enough to reconcile, not enough to rebuild one. Fetch without source for the real thing.
+
 POST /boards/:id/cards
 
 Either shape works:
@@ -3695,7 +3726,7 @@ A: The cards are saved, but a canvas someone already has open will not show them
 URL: https://clusters.soleilpictures.com/docs/api/images
 Updated: 2026-08-08
 
-POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance, images are limited to 25 MB through the API, and the upload is charged against the board owner's storage quota.
+POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance. Files larger than the one-request ceiling go through /uploads/multipart, where you PUT the parts straight to storage and the bytes never pass through the API. Either way the upload is charged against the board owner's storage quota.
 
 Uploading is one request. No presign, no multi-step S3 dance — which is what makes it usable from a single tool call.
 
@@ -3741,7 +3772,70 @@ A missing or unrecognised Content-Type gets 415 — the file extension is derive
 
 An empty body gets 400. Over the size ceiling gets 413. Past the owner's storage quota gets 402. See Errors.
 
-25 MB is the API's own ceiling and is lower than what the app accepts, because a single buffered request is not the right shape for a very large file. Large media goes in through the app, which uploads in parts. See Files and uploads.
+25 MB is the ceiling on this one-request form, because the whole body is held in memory to read its header. Larger files go through the multipart endpoints below, which have no such limit.
+
+Large files
+
+POST /uploads is the convenient path. For anything bigger than 25 MB — camera media, ProRes, a scan of a whole lookbook — use multipart, where the bytes never pass through the API at all. You get signed URLs and PUT directly to storage, in parallel, at whatever speed your connection allows.
+
+Four calls, and only the first and last are API requests.
+
+1. Start
+
+curl -X POST "$SOLEIL_API/uploads/multipart?board=$BOARD" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"bytes":53687091200,"content_type":"video/quicktime","filename":"reel_01.mov"}'
+
+{ "key": "3b7e…/9f1c….mov", "upload_id": "2~abc…", "part_size": 8388608, "part_count": 6400 }
+
+bytes is required: the storage quota is checked against the total size up front, so a file that will not fit is refused before you send any of it.
+
+2. Get signed URLs
+
+curl -X POST "$SOLEIL_API/uploads/multipart/parts" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"board_id":"'$BOARD'","key":"…","upload_id":"…","part_numbers":[1,2,3]}'
+
+Up to 1000 part numbers per call. Ask for them in batches as you go — signed URLs are time-limited, so requesting 6,400 at once is worse than requesting them as you need them.
+
+3. PUT each part to the returned URL
+
+Not to this API. Each response carries an ETag; keep it with its part number. Parts may be uploaded in any order and in parallel.
+
+4. Finish
+
+curl -X POST "$SOLEIL_API/uploads/multipart/complete" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"board_id":"'$BOARD'","key":"…","upload_id":"…",
+       "parts":[{"part_number":1,"etag":"\"a1b2…\""}]}'
+
+Returns the image_key, which you place as a card exactly as above. Dimensions come back for formats that carry them in a header; other files report null.
+
+POST /uploads/multipart/abort with the same key and upload_id discards an upload you have given up on, so the parts are not billed as storage.
+
+Multipart needs a paid account on the workspace that owns the board — the same rule the app applies. Without one the first call returns 403.
+
+Every step re-checks write access to the board. A signed part URL is a capability, so nothing relies on a check made three calls earlier.
+
+GET /images
+
+Lists what is already stored, so an interrupted bulk upload can be resumed without re-sending everything.
+
+curl "$SOLEIL_API/images?workspace=$WS&limit=500" -H "Authorization: Bearer $SOLEIL_TOKEN"
+
+{
+  "images": [
+    { "image_key": "3b7e…/9f1c….jpg", "bytes": 2841923, "width": 3024, "height": 4032,
+      "board_id": "…", "workspace_id": "…", "created_at": "2026-08-08T12:00:00Z" }
+  ],
+  "limit": 500,
+  "has_more": true,
+  "next_cursor": "2026-08-08T12:00:00Z|9f1c…"
+}
+
+Filter with workspace, board and since (an ISO timestamp).
+
+Paging is by cursor, not offset: pass next_cursor back as cursor. Offset paging makes the database walk and discard every row it skips, so it gets slower the further in you go — which only bites once a listing is long, which is exactly when you need it.
 
 GET /images/:key
 
@@ -3776,7 +3870,13 @@ Q: How do I add a photo to a board from code?
 A: Two requests. POST the bytes to /uploads?board=<id> to get an image_key, then POST a card with kind image and that key.
 
 Q: What image formats are accepted?
-A: JPEG, PNG, GIF, WebP, HEIC and AVIF. The Content-Type header must be set correctly — the extension is derived from it.
+A: JPEG, PNG, GIF, WebP, HEIC and AVIF for the one-request upload. Multipart accepts any file type, including video, audio and PDFs.
+
+Q: How do I upload a very large file?
+A: Use POST /uploads/multipart. You declare the total size, get signed URLs for each part, PUT the parts directly to storage in parallel, then call complete. There is no size ceiling on this path.
+
+Q: How do I resume an upload run that failed halfway?
+A: GET /images lists what is already stored, with cursor paging. Diff it against your local manifest and upload only what is missing.
 
 Q: Whose storage does an upload use?
 A: The board owner's, exactly as in the app. Going past it returns 402.
@@ -3855,6 +3955,7 @@ Status | code | Means | Retry?
 415 | unsupported_media_type | Upload with a missing or unrecognised Content-Type | No
 429 | — | Rate limited | Yes, after retry-after
 502 | session_unavailable | An upstream dependency is unreachable | Yes
+502 | upstream_error | A dependency answered, but not successfully | Yes
 503 | storage_unavailable | Image storage is temporarily unavailable | Yes
 
 The ones worth explaining

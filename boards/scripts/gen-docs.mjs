@@ -77,6 +77,8 @@ export const FACTS = {
   freeAudioCap: `${FREE_AUDIO_CAP / MB} MB`,
   freePdfCap: `${FREE_PDF_CAP / MB} MB`,
   maxCardsPerCall: String(api.maxCardsPerCall),
+  maxBoardsPerCall: String(api.maxBoardsPerCall),
+  maxPartsPerCall: String(api.maxPartsPerCall),
   rateLimitPerHour: String(api.rateLimitPerHour),
   tokenPrefix: api.tokenPrefix,
   maxPage: String(api.maxPage),

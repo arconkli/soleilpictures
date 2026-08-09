@@ -26170,6 +26170,105 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
+   "depth": 3,
+   "text": "Creating many at once",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Creating many at once"
+    }
+   ],
+   "id": "creating-many-at-once"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pass a "
+    },
+    {
+     "t": "code",
+     "v": "boards"
+    },
+    {
+     "t": "text",
+     "v": " array instead, up to 500 per call:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"workspace_id\": \"optional uuid — the default for every entry\",\n  \"boards\": [\n    { \"name\": \"Scene 4 — Diner\", \"parent_board_id\": \"…\" },\n    { \"name\": \"Scene 5 — Motel\",  \"parent_board_id\": \"…\" }\n  ]\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Returns "
+    },
+    {
+     "t": "code",
+     "v": "201"
+    },
+    {
+     "t": "text",
+     "v": " with "
+    },
+    {
+     "t": "code",
+     "v": "{ \"boards\": [ … ], \"created\": 2 }"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "This matters when you are importing an existing library, because a large one is a "
+    },
+    {
+     "t": "strong",
+     "v": "tree",
+     "children": [
+      {
+       "t": "text",
+       "v": "tree"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — a board per scene, reel or shoot — so the first thing an import does is create thousands of boards. One request each is the slowest possible way to do that; this is two inserts however many you pass."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every entry is validated before anything is written, so a bad entry at index 900 is a clean "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": " rather than 900 boards and an error. The whole batch is one insert as you, so a workspace you cannot write refuses the batch rather than half-applying it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
    "depth": 2,
    "text": "GET /boards/:id",
    "inline": [
@@ -26927,6 +27026,142 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": ". Do not assume one page is the whole board."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "?source=index — for large boards",
+   "inline": [
+    {
+     "t": "code",
+     "v": "?source=index"
+    },
+    {
+     "t": "text",
+     "v": " — for large boards"
+    }
+   ],
+   "id": "source-index-for-large-boards"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The default reads the "
+    },
+    {
+     "t": "strong",
+     "v": "live",
+     "children": [
+      {
+       "t": "text",
+       "v": "live"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " board, so a card a collaborator added seconds ago is already there. The cost is that it loads the whole board to answer: "
+    },
+    {
+     "t": "code",
+     "v": "limit"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "offset"
+    },
+    {
+     "t": "text",
+     "v": " are applied afterwards, so paging a large board re-reads it once per page, and "
+    },
+    {
+     "t": "code",
+     "v": "total"
+    },
+    {
+     "t": "text",
+     "v": " is only knowable by reading all of it. Fine for a hundred cards; wasteful for a hundred thousand."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "?source=index"
+    },
+    {
+     "t": "text",
+     "v": " reads the row-per-card mirror instead, paged by "
+    },
+    {
+     "t": "code",
+     "v": "cursor"
+    },
+    {
+     "t": "text",
+     "v": ":"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"board_id\": \"9f1c…\", \"source\": \"index\",\n  \"cards\": [ { \"id\": \"…\", \"kind\": \"image\", \"title\": null, \"x\": 120, \"y\": 340,\n               \"image_key\": \"…\", \"updated_at\": \"2026-08-08T12:00:00Z\" } ],\n  \"limit\": 100, \"has_more\": true, \"next_cursor\": \"api-m8x2p1-7fq3ka\" }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pass "
+    },
+    {
+     "t": "code",
+     "v": "next_cursor"
+    },
+    {
+     "t": "text",
+     "v": " back as "
+    },
+    {
+     "t": "code",
+     "v": "cursor"
+    },
+    {
+     "t": "text",
+     "v": ". Use this to "
+    },
+    {
+     "t": "strong",
+     "v": "verify what exists",
+     "children": [
+      {
+       "t": "text",
+       "v": "verify what exists"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — after a bulk import, say. It is a projection, not the card: enough to reconcile, not enough to rebuild one. Fetch without "
+    },
+    {
+     "t": "code",
+     "v": "source"
+    },
+    {
+     "t": "text",
+     "v": " for the real thing."
     }
    ]
   },
@@ -27707,22 +27942,399 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "25 MB is the API's own ceiling and is lower than what the app accepts, because a single buffered request is not the right shape for a very large file. Large media goes in through the app, which uploads in parts. See "
+     "v": "25 MB is the ceiling on this "
     },
     {
-     "t": "link",
-     "v": "Files and uploads",
-     "href": "/docs/files",
+     "t": "strong",
+     "v": "one-request",
      "children": [
       {
        "t": "text",
-       "v": "Files and uploads"
+       "v": "one-request"
       }
      ]
     },
     {
      "t": "text",
+     "v": " form, because the whole body is held in memory to read its header. Larger files go through the multipart endpoints below, which have no such limit."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Large files",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Large files"
+    }
+   ],
+   "id": "large-files"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /uploads"
+    },
+    {
+     "t": "text",
+     "v": " is the convenient path. For anything bigger than 25 MB — camera media, ProRes, a scan of a whole lookbook — use multipart, where "
+    },
+    {
+     "t": "strong",
+     "v": "the bytes never pass through the API at all",
+     "children": [
+      {
+       "t": "text",
+       "v": "the bytes never pass through the API at all"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". You get signed URLs and "
+    },
+    {
+     "t": "code",
+     "v": "PUT"
+    },
+    {
+     "t": "text",
+     "v": " directly to storage, in parallel, at whatever speed your connection allows."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Four calls, and only the first and last are API requests."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "1. Start",
+   "inline": [
+    {
+     "t": "text",
+     "v": "1. Start"
+    }
+   ],
+   "id": "1-start"
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST \"$SOLEIL_API/uploads/multipart?board=$BOARD\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" -H \"Content-Type: application/json\" \\\n  -d '{\"bytes\":53687091200,\"content_type\":\"video/quicktime\",\"filename\":\"reel_01.mov\"}'"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"key\": \"3b7e…/9f1c….mov\", \"upload_id\": \"2~abc…\", \"part_size\": 8388608, \"part_count\": 6400 }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "bytes"
+    },
+    {
+     "t": "text",
+     "v": " is required: the storage quota is checked against the "
+    },
+    {
+     "t": "strong",
+     "v": "total size up front",
+     "children": [
+      {
+       "t": "text",
+       "v": "total size up front"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so a file that will not fit is refused before you send any of it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "2. Get signed URLs",
+   "inline": [
+    {
+     "t": "text",
+     "v": "2. Get signed URLs"
+    }
+   ],
+   "id": "2-get-signed-urls"
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST \"$SOLEIL_API/uploads/multipart/parts\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" -H \"Content-Type: application/json\" \\\n  -d '{\"board_id\":\"'$BOARD'\",\"key\":\"…\",\"upload_id\":\"…\",\"part_numbers\":[1,2,3]}'"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Up to 1000 part numbers per call. Ask for them in batches as you go — signed URLs are time-limited, so requesting 6,400 at once is worse than requesting them as you need them."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "3. PUT each part to the returned URL",
+   "inline": [
+    {
+     "t": "text",
+     "v": "3. "
+    },
+    {
+     "t": "code",
+     "v": "PUT"
+    },
+    {
+     "t": "text",
+     "v": " each part "
+    },
+    {
+     "t": "strong",
+     "v": "to the returned URL",
+     "children": [
+      {
+       "t": "text",
+       "v": "to the returned URL"
+      }
+     ]
+    }
+   ],
+   "id": "3-put-each-part-to-the-returned-url"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Not to this API. Each response carries an "
+    },
+    {
+     "t": "code",
+     "v": "ETag"
+    },
+    {
+     "t": "text",
+     "v": "; keep it with its part number. Parts may be uploaded in any order and in parallel."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "4. Finish",
+   "inline": [
+    {
+     "t": "text",
+     "v": "4. Finish"
+    }
+   ],
+   "id": "4-finish"
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST \"$SOLEIL_API/uploads/multipart/complete\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" -H \"Content-Type: application/json\" \\\n  -d '{\"board_id\":\"'$BOARD'\",\"key\":\"…\",\"upload_id\":\"…\",\n       \"parts\":[{\"part_number\":1,\"etag\":\"\\\"a1b2…\\\"\"}]}'"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Returns the "
+    },
+    {
+     "t": "code",
+     "v": "image_key"
+    },
+    {
+     "t": "text",
+     "v": ", which you place as a card exactly as above. Dimensions come back for formats that carry them in a header; other files report "
+    },
+    {
+     "t": "code",
+     "v": "null"
+    },
+    {
+     "t": "text",
      "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /uploads/multipart/abort"
+    },
+    {
+     "t": "text",
+     "v": " with the same "
+    },
+    {
+     "t": "code",
+     "v": "key"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "upload_id"
+    },
+    {
+     "t": "text",
+     "v": " discards an upload you have given up on, so the parts are not billed as storage."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Multipart needs a paid account on the workspace that owns the board — the same rule the app applies. Without one the first call returns "
+    },
+    {
+     "t": "code",
+     "v": "403"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every step re-checks write access to the board. A signed part URL is a capability, so nothing relies on a check made three calls earlier."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /images",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /images"
+    }
+   ],
+   "id": "get-images"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Lists what is already stored, so an interrupted bulk upload can be resumed without re-sending everything."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl \"$SOLEIL_API/images?workspace=$WS&limit=500\" -H \"Authorization: Bearer $SOLEIL_TOKEN\""
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"images\": [\n    { \"image_key\": \"3b7e…/9f1c….jpg\", \"bytes\": 2841923, \"width\": 3024, \"height\": 4032,\n      \"board_id\": \"…\", \"workspace_id\": \"…\", \"created_at\": \"2026-08-08T12:00:00Z\" }\n  ],\n  \"limit\": 500,\n  \"has_more\": true,\n  \"next_cursor\": \"2026-08-08T12:00:00Z|9f1c…\"\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Filter with "
+    },
+    {
+     "t": "code",
+     "v": "workspace"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "board"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "since"
+    },
+    {
+     "t": "text",
+     "v": " (an ISO timestamp)."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Paging is by "
+    },
+    {
+     "t": "strong",
+     "v": "cursor",
+     "children": [
+      {
+       "t": "text",
+       "v": "cursor"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", not offset: pass "
+    },
+    {
+     "t": "code",
+     "v": "next_cursor"
+    },
+    {
+     "t": "text",
+     "v": " back as "
+    },
+    {
+     "t": "code",
+     "v": "cursor"
+    },
+    {
+     "t": "text",
+     "v": ". Offset paging makes the database walk and discard every row it skips, so it gets slower the further in you go — which only bites once a listing is long, which is exactly when you need it."
     }
    ]
   },
@@ -28688,6 +29300,32 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "An upstream dependency is unreachable"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "502"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "upstream_error"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A dependency answered, but not successfully"
       }
      ],
      [

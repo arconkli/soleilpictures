@@ -44,6 +44,7 @@ be reworded; the code is the contract.
 | `415` | `unsupported_media_type` | Upload with a missing or unrecognised `Content-Type` | No |
 | `429` | — | [Rate limited](/docs/api/authentication) | Yes, after `retry-after` |
 | `502` | `session_unavailable` | An upstream dependency is unreachable | Yes |
+| `502` | `upstream_error` | A dependency answered, but not successfully | Yes |
 | `503` | `storage_unavailable` | Image storage is temporarily unavailable | Yes |
 
 ## The ones worth explaining

@@ -69,6 +69,27 @@ Paginated with `limit` and `offset` — default 100, maximum
 Follow `next_offset` until it is `null`. Do not assume one page is the whole
 board.
 
+### `?source=index` — for large boards
+
+The default reads the **live** board, so a card a collaborator added seconds ago
+is already there. The cost is that it loads the whole board to answer: `limit`
+and `offset` are applied afterwards, so paging a large board re-reads it once
+per page, and `total` is only knowable by reading all of it. Fine for a hundred
+cards; wasteful for a hundred thousand.
+
+`?source=index` reads the row-per-card mirror instead, paged by `cursor`:
+
+```json
+{ "board_id": "9f1c…", "source": "index",
+  "cards": [ { "id": "…", "kind": "image", "title": null, "x": 120, "y": 340,
+               "image_key": "…", "updated_at": "2026-08-08T12:00:00Z" } ],
+  "limit": 100, "has_more": true, "next_cursor": "api-m8x2p1-7fq3ka" }
+```
+
+Pass `next_cursor` back as `cursor`. Use this to **verify what exists** — after
+a bulk import, say. It is a projection, not the card: enough to reconcile, not
+enough to rebuild one. Fetch without `source` for the real thing.
+
 ## `POST /boards/:id/cards`
 
 Either shape works:

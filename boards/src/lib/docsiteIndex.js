@@ -2926,9 +2926,9 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/api/images",
     "title": "Uploading Images via the API — Soleil Clusters",
-    "metaDescription": "Upload an image to Soleil Clusters in one POST and place it as a card. Upload endpoint, size and type limits, storage quota, and reading images back.",
+    "metaDescription": "Upload an image to Soleil Clusters in one POST, or files of any size with multipart. Endpoints, limits, storage quota, and listing images back.",
     "h1": "Images API",
-    "answer": "POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance, images are limited to 25 MB through the API, and the upload is charged against the board owner's storage quota.",
+    "answer": "POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance. Files larger than the one-request ceiling go through /uploads/multipart, where you PUT the parts straight to storage and the bytes never pass through the API. Either way the upload is charged against the board owner's storage quota.",
     "section": "developers",
     "order": 5,
     "updated": "2026-08-08",
@@ -2945,6 +2945,14 @@ export const DOCS_PAGES = [
       {
         "id": "limits",
         "text": "Limits"
+      },
+      {
+        "id": "large-files",
+        "text": "Large files"
+      },
+      {
+        "id": "get-images",
+        "text": "GET /images"
       },
       {
         "id": "get-images-key",
@@ -2971,7 +2979,15 @@ export const DOCS_PAGES = [
       },
       {
         "q": "What image formats are accepted?",
-        "a": "JPEG, PNG, GIF, WebP, HEIC and AVIF. The Content-Type header must be set correctly — the extension is derived from it."
+        "a": "JPEG, PNG, GIF, WebP, HEIC and AVIF for the one-request upload. Multipart accepts any file type, including video, audio and PDFs."
+      },
+      {
+        "q": "How do I upload a very large file?",
+        "a": "Use POST /uploads/multipart. You declare the total size, get signed URLs for each part, PUT the parts directly to storage in parallel, then call complete. There is no size ceiling on this path."
+      },
+      {
+        "q": "How do I resume an upload run that failed halfway?",
+        "a": "GET /images lists what is already stored, with cursor paging. Diff it against your local manifest and upload only what is missing."
       },
       {
         "q": "Whose storage does an upload use?",

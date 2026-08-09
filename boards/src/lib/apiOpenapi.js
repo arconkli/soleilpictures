@@ -435,6 +435,210 @@ export function openapiDocument(origin) {
           },
         },
       },
+      '/uploads/multipart': {
+        post: {
+          summary: 'Begin a multipart upload',
+          description:
+            'For files past the single-request ceiling, and for any file type. The bytes never pass '
+            + 'through this API: you receive signed URLs from /uploads/multipart/parts and PUT to '
+            + 'them directly. `bytes` is the TOTAL size and is required, because the storage quota '
+            + 'is checked up front rather than after the transfer. Needs a paid account on the '
+            + 'workspace that owns the board.',
+          operationId: 'beginMultipartUpload',
+          parameters: [{
+            name: 'board', in: 'query', required: true, schema: { type: 'string', format: 'uuid' },
+          }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['bytes'],
+                  properties: {
+                    bytes: { type: 'integer', description: 'Total size of the whole file.' },
+                    content_type: { type: 'string' },
+                    filename: { type: 'string', description: 'Only used to recover a file extension.' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            201: okJson('The upload session', {
+              type: 'object',
+              properties: {
+                key: { type: 'string' },
+                upload_id: { type: 'string' },
+                part_size: { type: 'integer' },
+                part_count: { type: 'integer' },
+                content_type: { type: 'string' },
+              },
+            }),
+            402: err('That would go past the storage included with this account'),
+            403: err('Not a writer on that board, or the owner is not on a paid plan'),
+          },
+        },
+      },
+      '/uploads/multipart/parts': {
+        post: {
+          summary: 'Get signed URLs for a batch of parts',
+          description:
+            'PUT each part to the URL returned here, not to this API. Parts may go up in any order '
+            + 'and in parallel; keep the ETag from each response for the complete call. Ask in '
+            + 'batches as you go — the URLs are time-limited.',
+          operationId: 'signUploadParts',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['board_id', 'key', 'upload_id', 'part_numbers'],
+                  properties: {
+                    board_id: { type: 'string', format: 'uuid' },
+                    key: { type: 'string' },
+                    upload_id: { type: 'string' },
+                    part_numbers: {
+                      type: 'array', maxItems: 1000,
+                      items: { type: 'integer', minimum: 1, maximum: 10000 },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: okJson('Signed PUT URLs keyed by part number', {
+              type: 'object',
+              properties: { urls: { type: 'object', additionalProperties: { type: 'string' } } },
+            }),
+            403: err('Not a writer on that board'),
+          },
+        },
+      },
+      '/uploads/multipart/complete': {
+        post: {
+          summary: 'Finish a multipart upload',
+          description:
+            'Assembles the parts into one object and records the row that authorizes reads and '
+            + 'keeps it from being reclaimed. Returns the key to pass as `image_key`.',
+          operationId: 'completeMultipartUpload',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['board_id', 'key', 'upload_id', 'parts'],
+                  properties: {
+                    board_id: { type: 'string', format: 'uuid' },
+                    key: { type: 'string' },
+                    upload_id: { type: 'string' },
+                    parts: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        required: ['part_number', 'etag'],
+                        properties: {
+                          part_number: { type: 'integer' },
+                          etag: { type: 'string' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            201: okJson('The stored key', {
+              type: 'object',
+              properties: {
+                image_key: { type: 'string' },
+                bytes: { type: ['integer', 'null'] },
+                width: { type: ['integer', 'null'] },
+                height: { type: ['integer', 'null'] },
+              },
+            }),
+            403: err('Not a writer on that board'),
+          },
+        },
+      },
+      '/uploads/multipart/abort': {
+        post: {
+          summary: 'Discard a multipart upload',
+          description: 'Throws away the parts of an upload you have given up on, so they are not billed.',
+          operationId: 'abortMultipartUpload',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['board_id', 'key', 'upload_id'],
+                  properties: {
+                    board_id: { type: 'string', format: 'uuid' },
+                    key: { type: 'string' },
+                    upload_id: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          responses: { 200: okJson('Discarded', { type: 'object' }) },
+        },
+      },
+      '/images': {
+        get: {
+          summary: 'List stored images',
+          description:
+            'What is already stored, so an interrupted bulk upload can be resumed by diffing '
+            + 'against a local manifest rather than re-sending everything. Paged by CURSOR, not '
+            + 'offset: offset paging makes the database walk and discard every row it skips, so it '
+            + 'degrades exactly when a listing gets long enough to need paging.',
+          operationId: 'listImages',
+          parameters: [
+            { name: 'workspace', in: 'query', schema: { type: 'string', format: 'uuid' } },
+            { name: 'board', in: 'query', schema: { type: 'string', format: 'uuid' } },
+            {
+              name: 'since', in: 'query',
+              schema: { type: 'string', format: 'date-time' },
+              description: 'Only images created at or after this time.',
+            },
+            {
+              name: 'cursor', in: 'query', schema: { type: 'string' },
+              description: 'The `next_cursor` from the previous page.',
+            },
+            limitParam,
+          ],
+          responses: {
+            200: okJson('A page of stored images', {
+              type: 'object',
+              properties: {
+                images: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      image_key: { type: 'string' },
+                      bytes: { type: ['integer', 'null'] },
+                      width: { type: ['integer', 'null'] },
+                      height: { type: ['integer', 'null'] },
+                      board_id: { type: ['string', 'null'], format: 'uuid' },
+                      workspace_id: { type: 'string', format: 'uuid' },
+                      created_at: { type: 'string', format: 'date-time' },
+                    },
+                  },
+                },
+                limit: { type: 'integer' },
+                has_more: { type: 'boolean' },
+                next_cursor: { type: ['string', 'null'] },
+              },
+            }),
+          },
+        },
+      },
       '/images/{key}': {
         get: {
           summary: 'Fetch an uploaded image',

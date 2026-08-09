@@ -1,6 +1,6 @@
 # Images API
 
-> POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance, images are limited to 25 MB through the API, and the upload is charged against the board owner's storage quota.
+> POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance. Files larger than the one-request ceiling go through /uploads/multipart, where you PUT the parts straight to storage and the bytes never pass through the API. Either way the upload is charged against the board owner's storage quota.
 
 _Source: https://clusters.soleilpictures.com/docs/api/images · Updated 2026-08-08_
 
@@ -61,10 +61,100 @@ derived from the declared type, so it has to be right.
 An empty body gets `400`. Over the size ceiling gets `413`. Past the owner's
 storage quota gets `402`. See [Errors](/docs/api/errors).
 
-> **Note:** 25 MB is the API's own ceiling and is lower than what
-> the app accepts, because a single buffered request is not the right shape for
-> a very large file. Large media goes in through the app, which uploads in
-> parts. See [Files and uploads](/docs/files).
+> **Note:** 25 MB is the ceiling on this **one-request** form,
+> because the whole body is held in memory to read its header. Larger files go
+> through the multipart endpoints below, which have no such limit.
+
+## Large files
+
+`POST /uploads` is the convenient path. For anything bigger than
+25 MB — camera media, ProRes, a scan of a whole lookbook — use
+multipart, where **the bytes never pass through the API at all**. You get signed
+URLs and `PUT` directly to storage, in parallel, at whatever speed your
+connection allows.
+
+Four calls, and only the first and last are API requests.
+
+### 1. Start
+
+```sh
+curl -X POST "$SOLEIL_API/uploads/multipart?board=$BOARD" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"bytes":53687091200,"content_type":"video/quicktime","filename":"reel_01.mov"}'
+```
+
+```json
+{ "key": "3b7e…/9f1c….mov", "upload_id": "2~abc…", "part_size": 8388608, "part_count": 6400 }
+```
+
+`bytes` is required: the storage quota is checked against the **total size up
+front**, so a file that will not fit is refused before you send any of it.
+
+### 2. Get signed URLs
+
+```sh
+curl -X POST "$SOLEIL_API/uploads/multipart/parts" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"board_id":"'$BOARD'","key":"…","upload_id":"…","part_numbers":[1,2,3]}'
+```
+
+Up to 1000 part numbers per call. Ask for them in batches as
+you go — signed URLs are time-limited, so requesting 6,400 at once is worse than
+requesting them as you need them.
+
+### 3. `PUT` each part **to the returned URL**
+
+Not to this API. Each response carries an `ETag`; keep it with its part number.
+Parts may be uploaded in any order and in parallel.
+
+### 4. Finish
+
+```sh
+curl -X POST "$SOLEIL_API/uploads/multipart/complete" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"board_id":"'$BOARD'","key":"…","upload_id":"…",
+       "parts":[{"part_number":1,"etag":"\"a1b2…\""}]}'
+```
+
+Returns the `image_key`, which you place as a card exactly as above. Dimensions
+come back for formats that carry them in a header; other files report `null`.
+
+`POST /uploads/multipart/abort` with the same `key` and `upload_id` discards an
+upload you have given up on, so the parts are not billed as storage.
+
+Multipart needs a paid account on the workspace that owns the board — the same
+rule the app applies. Without one the first call returns `403`.
+
+Every step re-checks write access to the board. A signed part URL is a
+capability, so nothing relies on a check made three calls earlier.
+
+## `GET /images`
+
+Lists what is already stored, so an interrupted bulk upload can be resumed
+without re-sending everything.
+
+```sh
+curl "$SOLEIL_API/images?workspace=$WS&limit=500" -H "Authorization: Bearer $SOLEIL_TOKEN"
+```
+
+```json
+{
+  "images": [
+    { "image_key": "3b7e…/9f1c….jpg", "bytes": 2841923, "width": 3024, "height": 4032,
+      "board_id": "…", "workspace_id": "…", "created_at": "2026-08-08T12:00:00Z" }
+  ],
+  "limit": 500,
+  "has_more": true,
+  "next_cursor": "2026-08-08T12:00:00Z|9f1c…"
+}
+```
+
+Filter with `workspace`, `board` and `since` (an ISO timestamp).
+
+Paging is by **cursor**, not offset: pass `next_cursor` back as `cursor`. Offset
+paging makes the database walk and discard every row it skips, so it gets slower
+the further in you go — which only bites once a listing is long, which is
+exactly when you need it.
 
 ## `GET /images/:key`
 
