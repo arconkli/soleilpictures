@@ -724,6 +724,31 @@ export function openapiDocument(origin) {
           }, ['board_ids']),
         }),
       },
+      '/boards/{id}/import': {
+        post: op('importIntoBoard', 'Import reference from remote URLs — re-runnable', {
+          parameters: [boardIdParam],
+          requestBody: jsonBody({
+            items: {
+              type: 'array',
+              maxItems: 100,
+              items: {
+                type: 'object',
+                properties: {
+                  url: { type: 'string', description: 'An https URL on a public host' },
+                  title: { type: 'string' },
+                  caption: { type: 'string' },
+                  props: { type: 'object', additionalProperties: true },
+                  identifiers: { type: 'array', items: { type: 'object', additionalProperties: true } },
+                  x: { type: 'number' }, y: { type: 'number' },
+                  w: { type: 'number' }, h: { type: 'number' },
+                },
+                required: ['url'],
+              },
+            },
+            dry_run: { type: 'boolean', description: 'Validate without fetching or creating' },
+          }, ['items']),
+        }),
+      },
       '/boards/{id}/export': {
         get: op('exportBoard', 'Export a board as JSON or MovieLabs OMC-JSON', {
           parameters: [

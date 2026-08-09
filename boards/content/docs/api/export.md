@@ -4,7 +4,7 @@ metaDescription: Get a whole board out, either as complete JSON or as MovieLabs 
 h1: Export
 navLabel: Export
 section: developers
-order: 8
+order: 9
 updated: 2026-08-09
 answer: GET /boards/:id/export returns a whole board in one call. The default format is complete JSON, including the internal form of every card, so nothing is lost for kinds the API does not otherwise describe. Pass format=omc for MovieLabs OMC-JSON, which models the board as an ordered assetGroup of assets using the film industry's own controlled vocabulary for creative reference material.
 faq:

@@ -54,6 +54,10 @@ import {
   webhookUrlProblem, runWebhooks, hasPendingWork, WEBHOOK_EVENTS,
 } from './lib/webhooks.js';
 import { handleMcpRequest } from './lib/mcpServer.js';
+import {
+  normalizeImportItems, cardSpecFor, kindForContentType, noteFor, mapWithConcurrency,
+  IMPORT_CONCURRENCY, IMPORT_TIMEOUT_MS, SOURCE_SCOPE,
+} from './lib/importManifest.js';
 
 // Raised from 100 once a positioned batch stopped costing O(the whole board):
 // the write is now one card_index insert and one small Yjs update, so the batch
@@ -806,6 +810,7 @@ async function dispatch(url, request, env, ctx) {
         'POST   /boards            {"boards":[…]}  — bulk, up to 500',
         'GET    /boards/:id',
         'GET    /boards/:id/export?format=json|omc',
+        'POST   /boards/:id/import          {"items":[{"url":…}]}  — re-runnable',
         'PATCH  /boards/:id',
         'DELETE /boards/:id',
         'POST   /boards/:id/restore',
@@ -2070,6 +2075,180 @@ async function dispatch(url, request, env, ctx) {
   // `json` is everything, verbatim. `omc` is MovieLabs OMC-JSON: the format a
   // studio's own standards body defined for exactly this, and the one thing in
   // this API that will still mean something to somebody in ten years.
+  // POST /boards/:id/import — bring reference in from wherever it lives now.
+  //
+  // The gap this closes is the first one a studio hits. Everything else in this
+  // API assumes the material is already here; there was no import path at all,
+  // so evaluating this product meant re-uploading a decade of reference by hand.
+  //
+  // It is RE-RUNNABLE by construction: every item is stamped with a `source_url`
+  // identifier and the create is resolved on it, so running the same manifest
+  // twice updates rather than duplicates. That falls out of object_identifiers,
+  // which already had the unique index — nothing new was needed for it.
+  //
+  // Partially fallible on purpose. A dead link in a ninety-nine item manifest
+  // must not fail the other ninety-eight, so every item reports its own outcome
+  // and the envelope counts them.
+  if (sub === 'import' && method === 'POST') {
+    trace.route = '/boards/:id/import';
+    const board = await boardForUser(env, token, id);
+    if (!board) throw fail(404, 'not_found', 'board not found');
+    await requireBoardWrite(env, token, id);
+    if (!env.IMAGES) throw fail(503, 'storage_unavailable', 'image storage is not available right now');
+
+    // Throws on a manifest that is structurally wrong — including one internal
+    // address — before a single byte is fetched.
+    const items = normalizeImportItems(body.items);
+
+    // A dry run answers "would this manifest work" without fetching anything,
+    // which is what you want before pointing a hundred-item import at a board.
+    if (body.dry_run === true) {
+      return json({
+        board_id: id,
+        dry_run: true,
+        items: items.map((it) => ({ url: it.url, ok: true })),
+        note: `${items.length} sources look importable; nothing was fetched or created`,
+      });
+    }
+
+    const importedAt = new Date().toISOString();
+
+    // Fetch and store. Bounded concurrency: a hundred sockets at once is how a
+    // Worker runs out of subrequests halfway through somebody's migration.
+    const fetched = await mapWithConcurrency(items, IMPORT_CONCURRENCY, async (item) => {
+      try {
+        const res = await fetch(item.url, {
+          redirect: 'follow',
+          signal: AbortSignal.timeout(IMPORT_TIMEOUT_MS),
+          // No credentials of ours ever ride along, and a generic agent because
+          // some CDNs refuse an empty one outright.
+          headers: { accept: 'image/*,*/*;q=0.8', 'user-agent': 'SoleilClusters-Import/1.0' },
+        });
+        if (!res.ok) {
+          return { item, ok: false, error: `the source answered ${res.status}`, code: 'source_unavailable' };
+        }
+
+        const contentType = (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+        const ext = extensionFor(contentType);
+        const kind = kindForContentType(contentType, { storable: Boolean(ext) });
+
+        if (kind !== 'image') {
+          // Not stored, and the response says why. A silent link card is how
+          // somebody ends up believing their PDF is in the archive.
+          return { item, ok: true, kind, note: noteFor(kind, contentType) };
+        }
+
+        // Declared length first, so an oversized source is abandoned before it
+        // is pulled into a 128MB isolate rather than after.
+        const declared = Number(res.headers.get('content-length'));
+        if (Number.isFinite(declared) && declared > MAX_UPLOAD_BYTES) {
+          return {
+            item, ok: false, code: 'payload_too_large',
+            error: `that source is ${Math.round(declared / 1048576)}MB — the limit is `
+              + `${Math.floor(MAX_UPLOAD_BYTES / (1024 * 1024))}MB through the API`,
+          };
+        }
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        if (!bytes.length) return { item, ok: false, error: 'the source was empty', code: 'source_unavailable' };
+        if (bytes.length > MAX_UPLOAD_BYTES) {
+          return {
+            item, ok: false, code: 'payload_too_large',
+            error: `that source is ${Math.round(bytes.length / 1048576)}MB — the limit is `
+              + `${Math.floor(MAX_UPLOAD_BYTES / (1024 * 1024))}MB through the API`,
+          };
+        }
+
+        // The same owner-pays byte ceiling the browser upload path runs. Asked
+        // per item so a big import stops at the cap instead of blowing past it.
+        const verdictRows = await userRpc(env, token, 'authorize_image_upload',
+          { p_board_id: id, p_bytes: bytes.length }).catch(() => null);
+        const verdict = Array.isArray(verdictRows) ? verdictRows[0] : verdictRows;
+        if (verdict && verdict.allow !== true && verdict.reason === 'over_quota') {
+          return {
+            item, ok: false, code: 'limit_reached',
+            error: 'that would go past the storage included with this account',
+          };
+        }
+
+        // Workspace-prefixed key, derived from the board and never from input —
+        // the prefix is what scopes storage to a workspace (0218).
+        const key = `${board.workspace_id}/${crypto.randomUUID()}.${ext}`;
+        await env.IMAGES.put(key, bytes, { httpMetadata: { contentType } });
+        const dims = imageDimensions(bytes);
+
+        // The images row is LOAD-BEARING: it authorizes reads and keeps the R2
+        // orphan sweep from reclaiming the object. An import that skipped it
+        // would quietly evaporate in 30 days, which is the exact failure this
+        // whole feature exists to stop.
+        await userInsert(env, token, 'images', [{
+          workspace_id: board.workspace_id,
+          board_id: id,
+          storage_path: key,
+          width: dims?.width ?? null,
+          height: dims?.height ?? null,
+          size_bytes: bytes.length,
+          uploaded_by: auth.userId,
+        }], { returning: 'minimal' });
+
+        return {
+          item, ok: true, kind, imageKey: key,
+          stored: { imageKey: key, width: dims?.width, height: dims?.height },
+        };
+      } catch (e) {
+        const timedOut = e?.name === 'TimeoutError' || /timed? ?out/i.test(e?.message || '');
+        return {
+          item, ok: false, code: timedOut ? 'source_timeout' : 'source_unavailable',
+          error: timedOut ? `the source did not answer within ${IMPORT_TIMEOUT_MS / 1000}s`
+            : `could not fetch that source: ${e?.message || 'unknown error'}`,
+        };
+      }
+    });
+
+    const usable = fetched.filter((r) => r.ok);
+    let cards = [];
+    let created = 0;
+    let updated = 0;
+
+    if (usable.length) {
+      // Cards are created through the ORDINARY route, not a second
+      // implementation of card creation. That is what keeps an imported card
+      // from being a different kind of card: the same normalization, the same
+      // cap trigger, the same webhook, the same upsert-on-identifier.
+      const specs = usable.map((r) => cardSpecFor(r.item, {
+        kind: r.kind, stored: r.stored, importedAt,
+      }));
+      const res = await internalCall(url, env, ctx, { auth, token }, `/boards/${id}/cards`, {
+        method: 'POST',
+        body: { cards: specs, on_conflict: 'identifier' },
+      });
+      cards = res?.cards || [];
+      created = res?.created ?? 0;
+      updated = res?.updated ?? 0;
+    }
+
+    // Pair each returned card with the item that produced it — but only when
+    // the counts agree. A positional guess that is off by one would attribute
+    // every card to the wrong source url, which is worse than saying nothing.
+    const aligned = cards.length === usable.length;
+
+    return json({
+      board_id: id,
+      imported: created,
+      updated,
+      failed: fetched.length - usable.length,
+      items: fetched.map((r, i) => ({
+        url: r.item.url,
+        ok: r.ok,
+        ...(r.ok ? { kind: r.kind } : { error: r.error, code: r.code }),
+        ...(r.note ? { note: r.note } : {}),
+        ...(r.ok && aligned ? { card_id: cards[usable.indexOf(r)]?.id ?? null } : {}),
+      })),
+      // Said plainly because it is the property that makes an import usable.
+      next: 'Re-running this manifest updates the same cards rather than duplicating them — '
+        + `each carries a "${SOURCE_SCOPE}" identifier you can also look up with GET /resolve.`,
+    }, 201);
+  }
+
   if (sub === 'export' && method === 'GET') {
     trace.route = '/boards/:id/export';
     const format = (url.searchParams.get('format') || 'json').toLowerCase();

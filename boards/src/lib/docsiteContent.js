@@ -30540,6 +30540,537 @@ export const DOCS_CONTENT = {
    ]
   }
  ],
+ "/docs/api/import": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Reference rarely starts life in Clusters. It is in a shared drive folder, on a CDN, in somebody's export from another tool. "
+    },
+    {
+     "t": "code",
+     "v": "import"
+    },
+    {
+     "t": "text",
+     "v": " is how it gets here without being re-uploaded by hand."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST https://clusters.soleilpictures.com/api/v1/boards/$BOARD/import \\\n  -H \"Authorization: Bearer undefined…\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"items\": [\n      { \"url\": \"https://cdn.example.com/ref/diner-01.jpg\", \"title\": \"Diner counter\" },\n      { \"url\": \"https://cdn.example.com/ref/diner-02.jpg\" },\n      { \"url\": \"https://example.com/treatment-v4.pdf\" }\n    ]\n  }'"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"…\",\n  \"imported\": 2,\n  \"updated\": 0,\n  \"failed\": 0,\n  \"items\": [\n    { \"url\": \"https://cdn.example.com/ref/diner-01.jpg\", \"ok\": true, \"kind\": \"image\", \"card_id\": \"…\" },\n    { \"url\": \"https://cdn.example.com/ref/diner-02.jpg\", \"ok\": true, \"kind\": \"image\", \"card_id\": \"…\" },\n    { \"url\": \"https://example.com/treatment-v4.pdf\", \"ok\": true, \"kind\": \"link\",\n      \"note\": \"application/pdf is not an image — linked instead of imported\", \"card_id\": \"…\" }\n  ]\n}"
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "It is safe to run twice",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It is safe to run twice"
+    }
+   ],
+   "id": "it-is-safe-to-run-twice"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "This is the point of the endpoint, not a footnote. Every imported card is stamped with an identifier in the "
+    },
+    {
+     "t": "code",
+     "v": "source_url"
+    },
+    {
+     "t": "text",
+     "v": " scope holding the URL it came from, and the import resolves on that identifier. Run the same manifest again and the same cards are "
+    },
+    {
+     "t": "strong",
+     "v": "updated",
+     "children": [
+      {
+       "t": "text",
+       "v": "updated"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " rather than added a second time — the response tells you which, in "
+    },
+    {
+     "t": "code",
+     "v": "imported"
+    },
+    {
+     "t": "text",
+     "v": " versus "
+    },
+    {
+     "t": "code",
+     "v": "updated"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "That means an import that half-failed does not need unpicking. Fix the dead links and run the whole thing again."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It also means you can find anything you brought in:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl \"https://clusters.soleilpictures.com/api/v1/resolve?scope=source_url&value=https://cdn.example.com/ref/diner-01.jpg\" \\\n  -H \"Authorization: Bearer undefined…\""
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "What each source becomes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What each source becomes"
+    }
+   ],
+   "id": "what-each-source-becomes"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "The source is"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "You get"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "An image format the API stores ("
+      },
+      {
+       "t": "code",
+       "v": "doc"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "file"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "image"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "link"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "note"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "video"
+      },
+      {
+       "t": "text",
+       "v": " covers the card kinds; see "
+      },
+      {
+       "t": "link",
+       "v": "Images",
+       "href": "/docs/api/images",
+       "children": [
+        {
+         "t": "text",
+         "v": "Images"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ")"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An "
+      },
+      {
+       "t": "strong",
+       "v": "image card",
+       "children": [
+        {
+         "t": "text",
+         "v": "image card"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " — the bytes are copied into your workspace"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Anything else — a PDF, a web page, a video"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A "
+      },
+      {
+       "t": "strong",
+       "v": "link card",
+       "children": [
+        {
+         "t": "text",
+         "v": "link card"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " pointing at the original, with a "
+      },
+      {
+       "t": "code",
+       "v": "note"
+      },
+      {
+       "t": "text",
+       "v": " saying why"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Only images are copied. Large media goes through the "
+    },
+    {
+     "t": "link",
+     "v": "multipart upload endpoints",
+     "href": "/docs/api/images",
+     "children": [
+      {
+       "t": "text",
+       "v": "multipart upload endpoints"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which stream from the client rather than pulling gigabytes through the API — a link card is the honest answer here rather than a silent half-import."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Limits and refusals",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Limits and refusals"
+    }
+   ],
+   "id": "limits-and-refusals"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "At most "
+     },
+     {
+      "t": "strong",
+      "v": "100 items",
+      "children": [
+       {
+        "t": "text",
+        "v": "100 items"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " per call."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Each source must be an "
+     },
+     {
+      "t": "strong",
+      "v": "https URL on a public host",
+      "children": [
+       {
+        "t": "text",
+        "v": "https URL on a public host"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". Internal and link-local addresses are refused, and one bad address fails the whole manifest before anything is fetched — an import that silently skipped it would still have told you the manifest was fine."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Each image is subject to the same "
+     },
+     {
+      "t": "strong",
+      "v": "25 MB",
+      "children": [
+       {
+        "t": "text",
+        "v": "25 MB"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " ceiling as a direct upload, and the same storage allowance."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A source that does not answer within "
+     },
+     {
+      "t": "strong",
+      "v": "15 seconds",
+      "children": [
+       {
+        "t": "text",
+        "v": "15 seconds"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " fails that item; the rest still import."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The same URL twice in one manifest is refused: both entries would race for the same identifier and one would silently win."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Checking a list first",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Checking a list first"
+    }
+   ],
+   "id": "checking-a-list-first"
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST https://clusters.soleilpictures.com/api/v1/boards/$BOARD/import \\\n  -H \"Authorization: Bearer undefined…\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{ \"items\": [ … ], \"dry_run\": true }'"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Validates every URL and creates nothing. Worth doing before pointing a hundred-item manifest at a board."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Positioning and metadata",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Positioning and metadata"
+    }
+   ],
+   "id": "positioning-and-metadata"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Items accept the same "
+    },
+    {
+     "t": "code",
+     "v": "x"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "y"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "w"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "h"
+    },
+    {
+     "t": "text",
+     "v": " as "
+    },
+    {
+     "t": "link",
+     "v": "cards",
+     "href": "/docs/api/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "cards"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and the same "
+    },
+    {
+     "t": "code",
+     "v": "props"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "identifiers"
+    },
+    {
+     "t": "text",
+     "v": " as "
+    },
+    {
+     "t": "link",
+     "v": "metadata",
+     "href": "/docs/api/metadata",
+     "children": [
+      {
+       "t": "text",
+       "v": "metadata"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Anything without coordinates is arranged around what is already on the board."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Your own properties are kept, but the import always records where a card came from and that record wins — an import cannot be made to misreport its own source."
+    }
+   ]
+  }
+ ],
  "/docs/api/metadata": [
   {
    "type": "para",
@@ -34594,6 +35125,48 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "; handles large files"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "import_urls"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "urls[]"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "titles?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "dry_run?"
+      },
+      {
+       "t": "text",
+       "v": " — bring reference in from the web; safe to re-run"
       }
      ]
     ],

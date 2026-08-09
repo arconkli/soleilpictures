@@ -4,7 +4,7 @@ metaDescription: Create a credential owned by a workspace rather than by a perso
 h1: Service accounts
 navLabel: Service accounts
 section: developers
-order: 11
+order: 12
 updated: 2026-08-09
 answer: A personal access token belongs to one person, so an integration built on it stops the day that person leaves the workspace. A service account is a credential owned by the workspace itself. It is a real member of exactly one workspace, subject to the same permissions as anyone else, and its tokens keep working regardless of who comes and goes. Only the workspace owner can create one, and a token can never grant more than the token that created it.
 faq:

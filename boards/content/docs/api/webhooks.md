@@ -4,7 +4,7 @@ metaDescription: Get notified when boards and cards change, including changes ma
 h1: Webhooks
 navLabel: Webhooks
 section: developers
-order: 10
+order: 11
 updated: 2026-08-09
 answer: Register an HTTPS endpoint and Soleil Clusters posts to it when boards and cards change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.
 faq:

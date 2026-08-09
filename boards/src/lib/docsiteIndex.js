@@ -3020,13 +3020,69 @@ export const DOCS_PAGES = [
     ]
   },
   {
+    "path": "/docs/api/import",
+    "title": "Importing Reference — Soleil Clusters API",
+    "metaDescription": "Bring reference in from wherever it lives now — a shared drive folder, a CDN, any list of URLs — with an import you can safely run twice.",
+    "h1": "Import",
+    "answer": "POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.",
+    "section": "developers",
+    "order": 6,
+    "updated": "2026-08-09",
+    "navLabel": "Import",
+    "headings": [
+      {
+        "id": "it-is-safe-to-run-twice",
+        "text": "It is safe to run twice"
+      },
+      {
+        "id": "what-each-source-becomes",
+        "text": "What each source becomes"
+      },
+      {
+        "id": "limits-and-refusals",
+        "text": "Limits and refusals"
+      },
+      {
+        "id": "checking-a-list-first",
+        "text": "Checking a list first"
+      },
+      {
+        "id": "positioning-and-metadata",
+        "text": "Positioning and metadata"
+      }
+    ],
+    "related": [
+      "/docs/api/metadata",
+      "/docs/api/images",
+      "/docs/api/cards"
+    ],
+    "faq": [
+      {
+        "q": "What happens if I run the same import twice?",
+        "a": "The same cards are updated, not duplicated. Each imported card carries a source_url identifier and the import resolves on it, so a run that half-failed can simply be repeated."
+      },
+      {
+        "q": "Can it import a PDF or a video?",
+        "a": "Not the file itself. Only images are downloaded and stored; everything else becomes a link card pointing at the original, and the response says so per item. Use the multipart upload endpoints for large media, which stream from the client instead of through the API."
+      },
+      {
+        "q": "What happens if one URL is dead?",
+        "a": "That item fails and the rest still import. Every item reports its own outcome, and the envelope counts what landed."
+      },
+      {
+        "q": "Can I check a long list before running it?",
+        "a": "Yes. Pass dry_run to validate every URL without fetching or creating anything."
+      }
+    ]
+  },
+  {
     "path": "/docs/api/metadata",
     "title": "Identifiers and Properties — Soleil Clusters API",
     "metaDescription": "Attach foreign IDs and structured fields to boards and cards, look objects up by them, and run the same import twice without duplicating anything.",
     "h1": "Identifiers and properties",
     "answer": "An identifier is a scope and value pair assigned by another system, like shotgrid and Shot:12345. Attach as many as you like to a board or a card, look objects up by them with GET /resolve, and pass on_conflict identifier when creating so an object that already carries one is updated instead of duplicated. That is what makes an import re-runnable. Properties are a free-form JSON object on the same objects, for whatever fields your pipeline needs.",
     "section": "developers",
-    "order": 6,
+    "order": 7,
     "updated": "2026-08-09",
     "navLabel": "Identifiers and properties",
     "headings": [
@@ -3082,7 +3138,7 @@ export const DOCS_PAGES = [
     "h1": "Search API",
     "answer": "GET /search finds boards and cards by text across everything your account can see. Pass q with at least two characters, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.",
     "section": "developers",
-    "order": 7,
+    "order": 8,
     "updated": "2026-08-08",
     "navLabel": "Search",
     "headings": [
@@ -3126,7 +3182,7 @@ export const DOCS_PAGES = [
     "h1": "Export",
     "answer": "GET /boards/:id/export returns a whole board in one call. The default format is complete JSON, including the internal form of every card, so nothing is lost for kinds the API does not otherwise describe. Pass format=omc for MovieLabs OMC-JSON, which models the board as an ordered assetGroup of assets using the film industry's own controlled vocabulary for creative reference material.",
     "section": "developers",
-    "order": 8,
+    "order": 9,
     "updated": "2026-08-09",
     "navLabel": "Export",
     "headings": [
@@ -3174,7 +3230,7 @@ export const DOCS_PAGES = [
     "h1": "Errors and status codes",
     "answer": "Every error is JSON carrying a machine-readable code and a human sentence. Branch on the code, not the prose. Only 429 and 5xx are worth retrying; everything in the 400 range is a permanent statement about the request. A retried POST must reuse the same Idempotency-Key or it becomes a second real write.",
     "section": "developers",
-    "order": 9,
+    "order": 10,
     "updated": "2026-08-08",
     "navLabel": "Errors",
     "headings": [
@@ -3302,7 +3358,7 @@ export const DOCS_PAGES = [
     "h1": "Webhooks",
     "answer": "Register an HTTPS endpoint and Soleil Clusters posts to it when boards and cards change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.",
     "section": "developers",
-    "order": 10,
+    "order": 11,
     "updated": "2026-08-09",
     "navLabel": "Webhooks",
     "headings": [
@@ -3374,7 +3430,7 @@ export const DOCS_PAGES = [
     "h1": "Service accounts",
     "answer": "A personal access token belongs to one person, so an integration built on it stops the day that person leaves the workspace. A service account is a credential owned by the workspace itself. It is a real member of exactly one workspace, subject to the same permissions as anyone else, and its tokens keep working regardless of who comes and goes. Only the workspace owner can create one, and a token can never grant more than the token that created it.",
     "section": "developers",
-    "order": 11,
+    "order": 12,
     "updated": "2026-08-09",
     "navLabel": "Service accounts",
     "headings": [
@@ -3442,7 +3498,7 @@ export const DOCS_PAGES = [
     "h1": "Audit log",
     "answer": "GET /audit returns a record of every write made through the API and every fetch of image bytes, newest first, cursor-paged. You see your own activity, and if you own a workspace you also see everything its service accounts did. Entries carry the actor, the token used, the method and templated route, the object touched, the status and the duration.",
     "section": "developers",
-    "order": 12,
+    "order": 13,
     "updated": "2026-08-09",
     "navLabel": "Audit log",
     "headings": [

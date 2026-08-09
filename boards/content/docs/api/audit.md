@@ -4,7 +4,7 @@ metaDescription: Read who changed what through the API, and who fetched image by
 h1: Audit log
 navLabel: Audit log
 section: developers
-order: 12
+order: 13
 updated: 2026-08-09
 answer: GET /audit returns a record of every write made through the API and every fetch of image bytes, newest first, cursor-paged. You see your own activity, and if you own a workspace you also see everything its service accounts did. Entries carry the actor, the token used, the method and templated route, the object touched, the status and the duration.
 faq:

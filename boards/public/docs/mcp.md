@@ -165,6 +165,7 @@ quietly failing.
 | `add_cards` | `board_id`, `cards[]` — up to 1000, `on_conflict?` |
 | `upload_image` | `board_id`, `data` (base64), `content_type` |
 | `upload_file` | `board_id`, `path` — **local server only**; handles large files |
+| `import_urls` | `board_id`, `urls[]`, `titles?`, `dry_run?` — bring reference in from the web; safe to re-run |
 | `rename_board` | `board_id`, `name?`, `view?`, `parent_board_id?` |
 | `move_boards` | `board_ids[]`, `parent_board_id` |
 | `update_card` | `board_id`, `card_id`, plus any writable field |

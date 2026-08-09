@@ -42,6 +42,7 @@ import {
 import { DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
 import { PLAN_NAME, PRICING, CREATOR_FEATURES } from '../src/lib/billingCopy.js';
 import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP } from '../src/lib/fileIngest.js';
+import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '..');
@@ -106,6 +107,9 @@ export const FACTS = {
   // the client fails at connection time with nothing useful to read.
   mcpProtocolVersions: mcpProtocolSurface().versions.map((v) => `\`${v}\``).join(' · '),
   mcpProtocolLatest: mcpProtocolSurface().versions[0],
+  maxImportItems: String(MAX_IMPORT_ITEMS),
+  importTimeoutSeconds: String(IMPORT_TIMEOUT_MS / 1000),
+  importSourceScope: SOURCE_SCOPE,
   siteOrigin: SITE_ORIGIN,
 };
 

@@ -24,6 +24,7 @@
 // did not arrive, and "we sent it" without a record is not an answer.
 
 import { scoutSelect, scoutInsert, scoutPatch } from './scoutDb.js';
+import { publicHttpsUrlProblem } from './safeUrl.js';
 
 // The database, injectable. Not for ceremony: fan-out and retry are the parts
 // where a mistake is a silent non-delivery or an infinite retry, and both are
@@ -77,34 +78,18 @@ export async function verifySignature(secret, header, timestamp, body, nowSecond
 
 // ── URL validation ───────────────────────────────────────────────────────────
 
-const BLOCKED_HOSTS = new Set([
-  'localhost', 'localhost.localdomain', '127.0.0.1', '0.0.0.0', '[::1]', '::1',
-  'metadata.google.internal', 'metadata.goog',
-]);
-
 // A webhook URL is caller-supplied and we fetch it from our own IP on a
 // schedule, which is the shape of an SSRF / open proxy. Same posture as the
 // /api/og guard in worker.js: https only, default port only, and no host we can
 // see is local. We cannot resolve DNS before fetching in a Worker, so a name
 // that resolves to a private address is the residual — which is why the scheme
 // and port limits carry the weight.
+// The SSRF rule lives in safeUrl.js, because the importer asks the identical
+// question about a URL the server is about to fetch. Kept as a named export so
+// the message stays webhook-shaped at the call site.
 export function webhookUrlProblem(raw) {
-  let u;
-  try {
-    u = new URL(String(raw));
-  } catch {
-    return 'url must be an absolute https URL';
-  }
-  if (u.protocol !== 'https:') return 'url must use https';
-  if (u.port && u.port !== '443') return 'url must use the default port';
-  const host = u.hostname.toLowerCase();
-  if (BLOCKED_HOSTS.has(host) || host.endsWith('.local') || host.endsWith('.internal')) {
-    return 'url must be a public host';
-  }
-  if (/^(10\.|127\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host)) {
-    return 'url must be a public host';
-  }
-  return null;
+  const problem = publicHttpsUrlProblem(raw);
+  return problem ? `url ${problem}` : null;
 }
 
 // ── Fan-out ──────────────────────────────────────────────────────────────────

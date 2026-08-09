@@ -282,6 +282,49 @@ export const TOOLS = [
     })}`),
   },
   {
+    name: 'import_urls',
+    title: 'Import reference from the web',
+    description: 'BRINGS IN reference from wherever it currently lives: a shared drive folder, '
+      + 'a CDN, anywhere each item has its own https URL. Images are downloaded and stored; '
+      + 'anything else becomes a link card pointing at the original, and the response says which '
+      + 'happened to each. Safe to run twice — every card is stamped with its source URL and a '
+      + 'repeat run updates the same cards instead of duplicating them, so a failed import can '
+      + 'simply be re-run. Use dry_run first to check a long list before fetching anything.',
+    annotations: WRITES,
+    inputSchema: schema({
+      board_id: uuid('The board to import into'),
+      urls: {
+        type: 'array',
+        description: 'The sources, each an https URL. At most 100 per call.',
+        items: { type: 'string' },
+        maxItems: 100,
+      },
+      titles: {
+        type: 'array',
+        description: 'Optional titles, positionally matched to urls. Omit to derive them '
+          + 'from each filename.',
+        items: { type: 'string' },
+      },
+      dry_run: bool('Check the list without fetching or creating anything'),
+    }, ['board_id', 'urls']),
+    outputSchema: looseObject({
+      imported: num('Cards created'),
+      updated: num('Cards that already existed for that source URL'),
+      failed: num('Sources that could not be fetched'),
+      items: { type: 'array', items: looseObject({}) },
+    }),
+    call: (a, { api }) => api(`/boards/${a.board_id}/import`, {
+      method: 'POST',
+      body: {
+        items: (a.urls || []).map((u, i) => ({
+          url: u,
+          ...(a.titles?.[i] ? { title: a.titles[i] } : {}),
+        })),
+        ...(a.dry_run ? { dry_run: true } : {}),
+      },
+    }),
+  },
+  {
     name: 'export_board',
     title: 'Export a whole board',
     description: 'A board and everything on it in one document. format="json" is complete, '

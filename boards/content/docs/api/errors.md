@@ -4,7 +4,7 @@ metaDescription: Every Soleil Clusters API error code and what to do about it â€
 h1: Errors and status codes
 navLabel: Errors
 section: developers
-order: 9
+order: 10
 updated: 2026-08-08
 answer: Every error is JSON carrying a machine-readable code and a human sentence. Branch on the code, not the prose. Only 429 and 5xx are worth retrying; everything in the 400 range is a permanent statement about the request. A retried POST must reuse the same Idempotency-Key or it becomes a second real write.
 faq:
