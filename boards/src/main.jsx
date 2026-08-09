@@ -38,6 +38,7 @@ const PublicPricingPage = lazyWithReload(() => import('./auth/PublicPricingPage.
 const SeoLandingPage  = lazyWithReload(() => import('./pages/SeoLandingPage.jsx').then(m => ({ default: m.SeoLandingPage })));
 const ScoutPage       = lazyWithReload(() => import('./pages/ScoutPage.jsx').then(m => ({ default: m.ScoutPage })));
 const SeoListiclePage = lazyWithReload(() => import('./pages/SeoListiclePage.jsx').then(m => ({ default: m.SeoListiclePage })));
+const DocsPage        = lazyWithReload(() => import('./pages/DocsPage.jsx').then(m => ({ default: m.DocsPage })));
 
 // First-party error logging: capture uncaught errors + unhandled promise
 // rejections into our own client_errors table (see lib/errorReporting.js).
@@ -174,6 +175,16 @@ const scoutMatch = /^\/scout\/?$/i.test(window.location.pathname);
 // /best/* listicle pages (lib/seoListicles.js) — same shape-match discipline;
 // the Worker 404s unknown /best/* siblings and 301s bare /best to /use-cases.
 const seoListicleMatch = /^\/best\//i.test(window.location.pathname);
+
+// /docs/* = the public documentation (generated from content/docs/**.md).
+// Shape-matched here rather than resolved against the registry, for the same
+// reason as the landing pages: the entry chunk must not carry the corpus. The
+// code-split DocsPage resolves the exact page and renders its own not-found for
+// a path the Worker has already served with a real 404. The shape must cover
+// EVERYTHING the Worker 404s under /docs, or a 404 document would boot into
+// AuthGate instead. Note the raw markdown mirrors (/docs/x.md) never reach this
+// file — they are static assets served straight out of dist/.
+const docsMatch = /^\/docs(?:\/|$)/i.test(window.location.pathname);
 
 // /legal/<privacy|terms|cookies> = public legal documents. Like /share, these
 // render before the AuthGate so they're reachable signed-out (footer links,
@@ -381,6 +392,8 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
               <SeoLandingPage path={window.location.pathname} />
             ) : seoListicleMatch ? (
               <SeoListiclePage path={window.location.pathname} />
+            ) : docsMatch ? (
+              <DocsPage path={window.location.pathname} />
             ) : showPublicPricing ? (
               <PublicPricingPage />
             ) : exploreMatch ? (

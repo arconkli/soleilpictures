@@ -1,0 +1,98 @@
+# Soleil Clusters
+
+> An infinite-canvas creative workspace for film, photo, design and brand teams.
+> Organize references, storyboards, shot lists, scripts and schedules on shared boards.
+> Read and write it from your own code with the https://clusters.soleilpictures.com/api/v1 REST API or the MCP server.
+
+Terminology: the product calls a board a **cluster**. The API and database call the same object a `board`.
+
+Every page below is also available as raw Markdown by appending `.md` (e.g. https://clusters.soleilpictures.com/docs/api.md).
+The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
+
+## Getting started
+
+- [Soleil Clusters documentation](https://clusters.soleilpictures.com/docs): Complete documentation for Soleil Clusters — the infinite canvas for film, photo and design teams. Features, guides, REST API and MCP reference.
+- [Getting started](https://clusters.soleilpictures.com/docs/getting-started): Sign in, make your first cluster, get images onto the canvas and share it. A five-minute walkthrough of Soleil Clusters from empty account to shareable board.
+- [Core concepts](https://clusters.soleilpictures.com/docs/concepts): Workspaces, clusters, cards and nesting explained. The vocabulary Soleil Clusters uses, and why the app says "cluster" where the API says "board".
+- [Keyboard shortcuts](https://clusters.soleilpictures.com/docs/keyboard-shortcuts): Every keyboard shortcut in Soleil Clusters — canvas tools, navigation, editing, view controls, notes and document formatting.
+- [Coming from another tool](https://clusters.soleilpictures.com/docs/migrating): Moving to Soleil Clusters from PureRef, Milanote, Miro, Boords, StudioBinder or Storyboarder — what maps across, what does not, and how to bring work over.
+
+## The canvas
+
+- [The canvas](https://clusters.soleilpictures.com/docs/canvas): The infinite canvas in Soleil Clusters — tools, panning, zooming, selection, right-click menus, drawing, backgrounds and exporting.
+- [Cards](https://clusters.soleilpictures.com/docs/canvas/cards): Every card type in Soleil Clusters — images, notes, links, documents, PDFs, video, audio, palettes, shapes, grids, schedules, votes and nested clusters.
+- [Images and photo editing](https://clusters.soleilpictures.com/docs/canvas/images): Add images to a Soleil Clusters canvas and adjust them non-destructively — exposure, contrast, colour, crop. Lightbox, downloads with edits baked in.
+- [Notes](https://clusters.soleilpictures.com/docs/canvas/notes): Rich-text notes on the Soleil Clusters canvas — formatting, checklists, @-mentions, auto-linking and real-time co-typing with other people.
+- [Shapes and drawing](https://clusters.soleilpictures.com/docs/canvas/shapes-and-drawing): Draw freehand on a Soleil Clusters canvas, add shapes with stroke and fill control, use the sketch pad overlay, or place a bounded art canvas card.
+- [Arrows](https://clusters.soleilpictures.com/docs/canvas/arrows): Connect cards with arrows in Soleil Clusters. Arrows anchor to cards, re-route as you move things, and carry labels, colours, thickness and head styles.
+- [Groups](https://clusters.soleilpictures.com/docs/canvas/groups): Group cards on a Soleil Clusters canvas. Named, outlined selections that move as one and can be commented on, tagged and coloured as a unit.
+- [Grids](https://clusters.soleilpictures.com/docs/canvas/grids): Grid cards in Soleil Clusters split into resizable cells holding any content — storyboards, contact sheets, comparisons. Presets and generated matrices.
+- [Schedules](https://clusters.soleilpictures.com/docs/canvas/schedule): Schedule cards in Soleil Clusters are real-date calendars on the canvas. Month, week, day and hour views, drop anything into a slot, edit in the peek panel.
+- [Vote cards](https://clusters.soleilpictures.com/docs/canvas/vote-cards): Vote cards in Soleil Clusters are up/down polls you can anchor anywhere on a board, so a team can decide between options without a thread of comments.
+- [Colour palettes and the picker](https://clusters.soleilpictures.com/docs/canvas/palettes-and-color): Palette cards, the colour picker with eyedropper and hex input, recent colours, and how board colours stay readable in light and dark themes.
+- [Snapping and alignment](https://clusters.soleilpictures.com/docs/canvas/snapping-and-alignment): Alignment guides and snapping on the Soleil Clusters canvas. Cards snap to each other's edges and centres as you drag; hold Alt to bypass.
+- [Exporting a board](https://clusters.soleilpictures.com/docs/canvas/export): Export a Soleil Clusters board as a PNG image or a PDF, download individual images with or without adjustments, and share a live link instead.
+
+## Files and media
+
+- [Files and uploads](https://clusters.soleilpictures.com/docs/files): Upload any file type to Soleil Clusters. What is supported free, where the size caps are, how large uploads work, and where storage is counted.
+- [PDFs](https://clusters.soleilpictures.com/docs/files/pdf): PDF cards in Soleil Clusters show page one and a page count, and open into a full-screen scrolling viewer with download. Free accounts cap PDFs at 50 MB.
+- [Video and audio](https://clusters.soleilpictures.com/docs/files/video-and-audio): Video and audio cards in Soleil Clusters play inline on the canvas. Waveform audio players with cover art, one-at-a-time playback, and free-plan size caps.
+
+## Clusters
+
+- [Clusters](https://clusters.soleilpictures.com/docs/clusters): Create, nest, rename and organize clusters in Soleil Clusters. Unlimited nesting, cover images, thumbnails, moving boards and the sidebar tree.
+- [List view](https://clusters.soleilpictures.com/docs/clusters/list-view): Every cluster in Soleil Clusters is also a drive. List view gives you table and gallery modes, search, sort, type filters and a detail panel with previews.
+- [Home graph](https://clusters.soleilpictures.com/docs/clusters/home-graph): The Home view in Soleil Clusters shows your whole workspace as a 3D relationship graph of clusters, documents, cards and links you can fly through.
+- [Trash and recovery](https://clusters.soleilpictures.com/docs/clusters/trash-and-recovery): Restore deleted clusters from a 30-day trash, roll a board back through version history, or rewind an entire workspace to a point in time.
+
+## Documents
+
+- [Documents](https://clusters.soleilpictures.com/docs/documents): Write long-form documents inside Soleil Clusters. Multi-page editor with a page tree, formatting, tables, board embeds, comments, find and replace.
+- [Screenplay mode](https://clusters.soleilpictures.com/docs/documents/screenplay): Write screenplays in Soleil Clusters with industry formatting, accurate pagination, a scene navigator, title page, and Final Draft and Fountain support.
+- [Exporting documents](https://clusters.soleilpictures.com/docs/documents/export): Export a Soleil Clusters document as PDF, Markdown or HTML, and screenplays as Final Draft .fdx or Fountain. Exports work in the mobile apps too.
+- [Comments, tags and backlinks in documents](https://clusters.soleilpictures.com/docs/documents/comments-and-tags): Comment on a text range in a Soleil Clusters document, tag passages, confirm suggested entities from the margin, and see everywhere a document is referenced.
+
+## Organize and find
+
+- [Tags and entities](https://clusters.soleilpictures.com/docs/organize/tags): Tag anything in Soleil Clusters — cards, groups, boards and passages of text. Entity types, automatic tagging, AI suggestions and emergent themes.
+- [Links and mentions](https://clusters.soleilpictures.com/docs/organize/links-and-mentions): Mention any board, document, card, tag or person with @ in Soleil Clusters. Automatic link detection, hover previews, backlinks and deep links.
+- [Search and the command palette](https://clusters.soleilpictures.com/docs/organize/search): Cmd-K in Soleil Clusters searches clusters, cards, notes, docs and tags, and runs commands — share, invite, trash, theme, settings — from the keyboard.
+
+## Collaborate
+
+- [Collaborating](https://clusters.soleilpictures.com/docs/collaborate): Invite editors and viewers to Soleil Clusters boards. Collaboration is free on every plan — editors do not need to pay, and the owner's quota is what counts.
+- [Sharing and public links](https://clusters.soleilpictures.com/docs/collaborate/sharing): Share a Soleil Clusters board with a view-only public link that needs no account, set an expiry, include sub-clusters, or invite editors by email.
+- [Presence](https://clusters.soleilpictures.com/docs/collaborate/presence): See collaborators' cursors, selections and location in real time across Soleil Clusters. Workspace facepile, click to jump to someone, presence colours.
+- [Comments](https://clusters.soleilpictures.com/docs/collaborate/comments): Comment anywhere in Soleil Clusters — on a card, a group, an empty point on the canvas, a whole board, or a range of text in a document.
+- [Messages](https://clusters.soleilpictures.com/docs/collaborate/messages): Direct and group messages in Soleil Clusters. Message anyone you share a board with, drag attachments onto the canvas, deep-link to any message.
+- [Notifications](https://clusters.soleilpictures.com/docs/collaborate/notifications): Control what Soleil Clusters notifies you about — mentions, comment replies, workspace invites, board shares and product tips — in Settings.
+
+## Publish
+
+- [Publishing to Explore](https://clusters.soleilpictures.com/docs/publish/explore): Publish a Soleil Clusters board to the public Explore directory. How review works, what a published board gets, and how it differs from a share link.
+
+## Soleil Scout
+
+- [Soleil Scout](https://clusters.soleilpictures.com/docs/scout): Soleil Scout turns texted photos, links and notes into cards on a Soleil Clusters canvas. No app, no login. Commands, batching and the Scout Bin explained.
+
+## Account and plans
+
+- [Settings](https://clusters.soleilpictures.com/docs/account/settings): Every setting in Soleil Clusters — Profile, Scout, API tokens, Invite and earn, Billing, Notifications, Defaults, Theme and Display.
+- [Plans and pricing](https://clusters.soleilpictures.com/docs/account/plans): Soleil Clusters is free with 100 cards, unlimited clusters and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.
+- [Theme and defaults](https://clusters.soleilpictures.com/docs/account/theme-and-defaults): Set light or dark mode, an accent colour and a body font in Soleil Clusters, and choose what new notes, shapes and clusters start as.
+- [Referrals](https://clusters.soleilpictures.com/docs/account/referrals): Invite people to Soleil Clusters and earn bonus cards when they actually get started. Your referral link, share targets and stats live in Settings.
+- [Mobile and tablet](https://clusters.soleilpictures.com/docs/account/mobile): Soleil Clusters on phones and tablets — touch gestures, focus view, the mobile add sheet, installing as a PWA, and the iOS and Android apps.
+- [Data and privacy](https://clusters.soleilpictures.com/docs/account/data-and-privacy): Where Soleil Clusters stores your files, how long deleted things are kept, how sharing affects visibility, and how to get your data out or delete it.
+
+## Developers
+
+- [The REST API](https://clusters.soleilpictures.com/docs/api): Read and write Soleil Clusters boards, cards and images from your own code. Bearer-token REST API at /api/v1, with an OpenAPI spec and MCP server.
+- [API quickstart](https://clusters.soleilpictures.com/docs/api/quickstart): Working Soleil Clusters API examples in curl, TypeScript and Python — authenticate, create a board, add cards, read them back and clean up.
+- [Authentication](https://clusters.soleilpictures.com/docs/api/authentication): Mint, scope and revoke Soleil Clusters personal access tokens. How bearer auth works, why a token acts as you, and how to keep one safe.
+- [Boards API](https://clusters.soleilpictures.com/docs/api/boards): Create, list, read, rename, reparent, delete and restore Soleil Clusters boards over REST. Field reference, filters, pagination and cycle-safe reparenting.
+- [Cards API](https://clusters.soleilpictures.com/docs/api/cards): Add, read, update, move and delete Soleil Clusters cards over REST. Field reference, size limits, auto-placement and the delete-is-the-undo pattern.
+- [Images API](https://clusters.soleilpictures.com/docs/api/images): Upload an image to Soleil Clusters in one POST and place it as a card. Upload endpoint, size and type limits, storage quota, and reading images back.
+- [Search API](https://clusters.soleilpictures.com/docs/api/search): Search Soleil Clusters boards and cards by text over REST. Query parameters, kind and workspace filters, pagination and result shape.
+- [Errors and status codes](https://clusters.soleilpictures.com/docs/api/errors): Every Soleil Clusters API error code and what to do about it — which are retryable, which are permanent, and how idempotency interacts with retries.
+- [MCP server](https://clusters.soleilpictures.com/docs/mcp): Connect Claude or any MCP client to Soleil Clusters. Sixteen tools for reading and building boards, uploading images, searching and restoring deletions.

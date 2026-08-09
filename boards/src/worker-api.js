@@ -411,7 +411,10 @@ async function dispatch(url, request, env, ctx) {
   if (!head && method === 'GET') {
     return json({
       version: 'v1',
-      docs: 'https://github.com/arconkli/soleilpictures/blob/main/docs/API.md',
+      // The published docs, not a GitHub blob: an agent that curls this should
+      // get somewhere it can keep reading, including the .md twin of every page.
+      docs: `${url.origin}/docs/api`,
+      llms: `${url.origin}/llms.txt`,
       openapi: `${url.origin}/api/v1/openapi.json`,
       scopes: auth.scopes,
       endpoints: [

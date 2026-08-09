@@ -1043,9 +1043,12 @@ function ApiTab({ user }) {
 
       <p className="settings-section-hint" style={{ marginTop: 18 }}>
         Base URL <code>/api/v1</code>, sent as <code>Authorization: Bearer …</code>.
-        {' '}Full reference and an MCP server for AI assistants are in
-        {' '}<a href="https://github.com/arconkli/soleilpictures/blob/main/docs/API.md"
-              target="_blank" rel="noreferrer noopener">the docs</a>.
+        {' '}Read the{' '}
+        <a href="/docs/api" target="_blank" rel="noreferrer noopener">API reference</a>,
+        {' '}the{' '}
+        <a href="/docs/mcp" target="_blank" rel="noreferrer noopener">MCP setup</a>
+        {' '}for AI assistants, or the{' '}
+        <a href="/api/v1/openapi.json" target="_blank" rel="noreferrer noopener">OpenAPI spec</a>.
       </p>
     </div>
   );

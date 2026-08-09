@@ -1,8 +1,19 @@
 # Soleil Clusters API (`/api/v1`)
 
+> **The canonical API reference now lives at
+> [clusters.soleilpictures.com/docs/api](https://clusters.soleilpictures.com/docs/api).**
+> It is generated from `boards/content/docs/api/*.md` and held to the real
+> implementation by `boards/src/lib/docsite.test.mjs`, so it cannot drift the way
+> a hand-maintained file can. Every page there is also fetchable as raw Markdown
+> (append `.md`), and the whole corpus is at `/llms-full.txt`.
+>
+> This file is kept as a quick summary. **When the API changes, update
+> `boards/content/docs/api/` — not this file.**
+
 Read and write your boards from your own software, or from an AI assistant.
 
 Base URL: `https://clusters.soleilpictures.com/api/v1`
+· Reference: [`/docs/api`](https://clusters.soleilpictures.com/docs/api)
 · Machine-readable: [`/api/v1/openapi.json`](https://clusters.soleilpictures.com/api/v1/openapi.json) (OpenAPI 3.1, no token needed)
 
 ## Authentication

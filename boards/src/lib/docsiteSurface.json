@@ -1,0 +1,234 @@
+{
+  "restEndpoints": [
+    "DELETE /boards/:id",
+    "DELETE /boards/:id/cards/:cardId",
+    "GET /boards/:id",
+    "GET /boards/:id/cards?limit=&offset=",
+    "GET /boards?workspace=&parent=&deleted=&limit=&offset=",
+    "GET /images/:key",
+    "GET /me",
+    "GET /search?q=&kind=&workspace=&limit=&offset=",
+    "GET /workspaces",
+    "PATCH /boards/:id",
+    "PATCH /boards/:id/cards/:cardId",
+    "POST /boards",
+    "POST /boards/:id/cards",
+    "POST /boards/:id/cards/move",
+    "POST /boards/:id/restore",
+    "POST /uploads?board=:id"
+  ],
+  "mcpTools": [
+    {
+      "name": "add_cards",
+      "schema": "dd3b3f12c310"
+    },
+    {
+      "name": "create_board",
+      "schema": "a6c57fdac9d5"
+    },
+    {
+      "name": "delete_board",
+      "schema": "02cdf6a470ba"
+    },
+    {
+      "name": "delete_card",
+      "schema": "eab480033ce1"
+    },
+    {
+      "name": "list_boards",
+      "schema": "12875834f251"
+    },
+    {
+      "name": "list_deleted_boards",
+      "schema": "51a386a72686"
+    },
+    {
+      "name": "list_workspaces",
+      "schema": "e3b0c44298fc"
+    },
+    {
+      "name": "move_cards",
+      "schema": "b185f1a450ab"
+    },
+    {
+      "name": "read_board",
+      "schema": "c7b9ad7dbc5b"
+    },
+    {
+      "name": "rename_board",
+      "schema": "1513fa32ae5b"
+    },
+    {
+      "name": "restore_board",
+      "schema": "02cdf6a470ba"
+    },
+    {
+      "name": "search",
+      "schema": "b104b86c8e3a"
+    },
+    {
+      "name": "update_card",
+      "schema": "087ea81d01b5"
+    },
+    {
+      "name": "upload_image",
+      "schema": "eed4dd13c4e7"
+    },
+    {
+      "name": "view_image",
+      "schema": "124188161960"
+    },
+    {
+      "name": "whoami",
+      "schema": "e3b0c44298fc"
+    }
+  ],
+  "apiCardKinds": [
+    "doc",
+    "image",
+    "link",
+    "note"
+  ],
+  "apiScopes": [
+    "delete",
+    "read",
+    "write"
+  ],
+  "apiErrorCodes": [
+    "400 bad_request",
+    "402 limit_reached",
+    "403 forbidden",
+    "404 not_found",
+    "405 method_not_allowed",
+    "409 conflict",
+    "413 payload_too_large",
+    "415 unsupported_media_type",
+    "502 session_unavailable",
+    "503 storage_unavailable"
+  ],
+  "apiFacts": {
+    "maxCardsPerCall": 100,
+    "titleMax": 300,
+    "bodyMax": 20000,
+    "htmlMax": 40000,
+    "urlMax": 2000,
+    "imageKeyMax": 500,
+    "maxPage": 500,
+    "defaultPage": 100,
+    "maxUploadMb": 25,
+    "rateLimitPerHour": 1000,
+    "tokenPrefix": "sk_live_"
+  },
+  "settingsTabs": [
+    {
+      "id": "api",
+      "label": "API"
+    },
+    {
+      "id": "billing",
+      "label": "Billing"
+    },
+    {
+      "id": "defaults",
+      "label": "Defaults"
+    },
+    {
+      "id": "display",
+      "label": "Display"
+    },
+    {
+      "id": "invite",
+      "label": "Invite & earn"
+    },
+    {
+      "id": "notifications",
+      "label": "Notifications"
+    },
+    {
+      "id": "profile",
+      "label": "Profile"
+    },
+    {
+      "id": "scout",
+      "label": "Scout"
+    },
+    {
+      "id": "theme",
+      "label": "Theme"
+    }
+  ],
+  "powerRevealKeys": [
+    "docs",
+    "grids",
+    "group",
+    "list_drive",
+    "palette"
+  ],
+  "shortcutSections": [
+    {
+      "title": "Tools",
+      "rows": 6
+    },
+    {
+      "title": "Navigate",
+      "rows": 3
+    },
+    {
+      "title": "Edit",
+      "rows": 7
+    },
+    {
+      "title": "View",
+      "rows": 5
+    },
+    {
+      "title": "Notes",
+      "rows": 3
+    },
+    {
+      "title": "Document",
+      "rows": 7
+    }
+  ],
+  "publicRoutes": {
+    "routeMeta": [
+      "/",
+      "/legal/cookies",
+      "/legal/privacy",
+      "/legal/terms",
+      "/pricing"
+    ],
+    "landing": [
+      "/scout",
+      "/tools/free-mood-board-maker",
+      "/tools/look-book-maker",
+      "/tools/mood-board-maker",
+      "/tools/reference-board-maker",
+      "/tools/shot-list-maker",
+      "/tools/storyboard-maker",
+      "/use-cases",
+      "/vs/boords",
+      "/vs/milanote",
+      "/vs/miro",
+      "/vs/pureref",
+      "/vs/storyboarder",
+      "/vs/studiobinder"
+    ],
+    "listicle": [
+      "/best/milanote-alternatives",
+      "/best/mood-board-apps",
+      "/best/pureref-alternatives"
+    ],
+    "router": [
+      "docsMatch = /^\\/docs(?:\\/|$)/i.test(PATH)",
+      "exploreMatch = /^\\/explore\\/?$/.test(PATH)",
+      "legalMatch = PATH.match(/^\\/legal\\/(privacy|terms|cookies)\\/?$/i)",
+      "pricingMatch = PATH.match(/^\\/pricing\\/?$/i)",
+      "publicBoardMatch = PATH.match(/^\\/c\\/([a-z0-9][a-z0-9-]{0,79})\\/?$/)",
+      "scoutMatch = /^\\/scout\\/?$/i.test(PATH)",
+      "seoLandingMatch = /^\\/(?:tools\\/|vs\\/|use-cases(?:\\/|$))/i.test(PATH)",
+      "seoListicleMatch = /^\\/best\\//i.test(PATH)",
+      "shareMatch = PATH.match(/^\\/share\\/([0-9a-f-]{36})\\/?$/i)"
+    ]
+  }
+}

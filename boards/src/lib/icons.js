@@ -9,6 +9,7 @@ export {
   Minus,
   X,
   Check,
+  BookOpen,
   CaretDown as ChevronDown,
   CaretRight as ChevronRight,
   CaretUp as ChevronUp,

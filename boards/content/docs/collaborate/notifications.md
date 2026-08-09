@@ -1,0 +1,58 @@
+---
+title: Notifications — Soleil Clusters
+metaDescription: Control what Soleil Clusters notifies you about — mentions, comment replies, workspace invites, board shares and product tips — in Settings.
+h1: Notifications
+navLabel: Notifications
+section: collaborate
+order: 5
+updated: 2026-08-08
+answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, and occasional product tips. Each of the five is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in.
+faq:
+  - q: Can I turn off product emails but keep mentions?
+    a: Yes. The five categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
+  - q: Do I get browser notifications?
+    a: Only if you grant permission. Nothing is requested until there is a reason.
+  - q: How do I unsubscribe without logging in?
+    a: Every email has a one-click unsubscribe link that works logged out.
+related:
+  - /docs/account/settings
+  - /docs/collaborate/comments
+  - /docs/collaborate/messages
+---
+
+Five categories, five independent switches, in **Settings → Notifications**.
+
+| Category | Fires when |
+|---|---|
+| **@-mentions** | Someone mentions you in a note, comment, document or message |
+| **Comment replies** | Someone replies in a thread you are part of |
+| **Workspace invites** | You are added to a workspace |
+| **Board shares** | A cluster is shared with you |
+| **Product tips and check-ins** | Occasional messages about the product |
+
+The last one is the one to switch off if you only want to hear about your own
+work. The other four are all consequences of something a person did that
+involves you.
+
+## Where they appear
+
+**In the app** — unread indicators on the sidebar, and in the browser tab title
+for [messages](/docs/collaborate/messages).
+
+**Browser notifications** — only if you grant permission. Nothing is requested
+until there is an actual reason to ask.
+
+**Email** — for things you would want to know about while not looking at the
+app.
+
+## Unsubscribing
+
+Every email carries a **one-click unsubscribe** that works without signing in.
+Unsubscribing from email does not turn off in-app notifications; those are
+separate.
+
+## Mentions
+
+The mention notification is the important one. When someone `@`s you, the
+notification links to the exact card, comment or passage, not just to the board
+— see [Links and mentions](/docs/organize/links-and-mentions).
