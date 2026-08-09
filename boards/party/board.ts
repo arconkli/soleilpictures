@@ -13,6 +13,7 @@ import type * as Party from "partykit/server";
 import { onConnect, unstable_getYDoc } from "y-partykit";
 import { authBoard, canWriteBoard } from "./auth";
 import { installOpLogCapture } from "./opLog";
+import { boardStateSync } from "../src/lib/boardStateSync.js";
 
 export default class BoardParty implements Party.Server {
   constructor(readonly room: Party.Room) {}
@@ -45,10 +46,21 @@ export default class BoardParty implements Party.Server {
 
   async onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
     const canWrite = ctx.request.headers.get("x-can-write") === "1";
+    const roomEnv = this.room.env as any;
 
+    // load + callback make this room the writer of board_state (stateFlush.ts).
+    // They have to be in the object handed to onConnect, because y-partykit
+    // reads them while constructing the doc and ignores options supplied later
+    // — and the SAME object has to go to unstable_getYDoc below or it warns
+    // that the document was initialised differently.
     const yPartyOpts = {
       persist: { mode: "snapshot" as const },
       readOnly: !canWrite,
+      ...boardStateSync({
+        boardId: this.room.id,
+        supabaseUrl: roomEnv?.SUPABASE_URL || "https://ehlhlmbpwwalmeisvmdp.supabase.co",
+        serviceRoleKey: roomEnv?.SUPABASE_SERVICE_ROLE_KEY,
+      }),
     };
 
     // y-partykit handles the Y wire protocol over this socket. The
@@ -69,9 +81,8 @@ export default class BoardParty implements Party.Server {
         boardId: this.room.id,
         workspaceId,
         yDoc,
-        supabaseUrl: (this.room.env as any)?.SUPABASE_URL
-          || "https://ehlhlmbpwwalmeisvmdp.supabase.co",
-        serviceRoleKey: (this.room.env as any)?.SUPABASE_SERVICE_ROLE_KEY,
+        supabaseUrl: roomEnv?.SUPABASE_URL || "https://ehlhlmbpwwalmeisvmdp.supabase.co",
+        serviceRoleKey: roomEnv?.SUPABASE_SERVICE_ROLE_KEY,
       });
     } catch (e) {
       console.warn(`[board ${this.room.id}] opLog install failed`, e);
