@@ -1079,7 +1079,7 @@ async function dispatch(url, request, env, ctx) {
     trace.route = '/mcp';
     const out = await handleMcpRequest(request, {
       api: (path, opts = {}) => internalCall(url, env, ctx, { auth, token }, path, opts),
-    });
+    }, body);
     if (out.body === null) return new Response(null, { status: out.status, headers: CORS });
     return json(out.body, out.status);
   }

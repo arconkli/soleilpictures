@@ -175,18 +175,28 @@ export async function handleMcpMessage(msg, ctx) {
  * The HTTP shell. A POST carrying one message or a batch; anything else is
  * refused with the reason.
  */
-export async function handleMcpRequest(request, ctx) {
+export async function handleMcpRequest(request, ctx, parsedBody) {
   if (request.method !== 'POST') {
     // No SSE stream: this server never initiates anything, so a GET would open
     // a connection that stays silent forever.
     return { status: 405, body: { error: 'POST a JSON-RPC message to this endpoint', code: 'method_not_allowed' } };
   }
 
-  let payload;
-  try {
-    payload = await request.json();
-  } catch {
-    return { status: 400, body: error(null, -32700, 'parse error: body is not JSON') };
+  // The body is passed IN, already parsed. The router reads it once at the top
+  // of dispatch for every route, and a Request body is a stream that can only be
+  // consumed once — re-reading it here returned an empty string and answered
+  // every well-formed call with "parse error", which is a confusing thing to be
+  // told when you sent valid JSON.
+  let payload = parsedBody;
+  if (payload === undefined) {
+    try {
+      payload = await request.json();
+    } catch {
+      return { status: 400, body: error(null, -32700, 'parse error: body is not JSON') };
+    }
+  }
+  if (payload === null || typeof payload !== 'object') {
+    return { status: 400, body: error(null, -32700, 'parse error: expected a JSON-RPC message') };
   }
 
   if (Array.isArray(payload)) {

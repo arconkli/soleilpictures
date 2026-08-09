@@ -98,6 +98,50 @@ const okJson = (description, schema) => ({
   content: { 'application/json': { schema } },
 });
 
+
+// ── Helpers for the operations added with the integration surface ────────────
+//
+// These are terser than the hand-written ones above on purpose: what a
+// generated client needs from a spec is the path, the method, the parameters
+// and the SHAPE of the answer. The prose lives in the docs, which are the thing
+// a person reads.
+
+const q = (name, description, schema = { type: 'string' }) =>
+  ({ name, in: 'query', required: false, description, schema });
+
+const jsonBody = (properties, required = []) => ({
+  required: true,
+  content: {
+    'application/json': {
+      schema: { type: 'object', properties, ...(required.length ? { required } : {}) },
+    },
+  },
+});
+
+const anyObject = { type: 'object', additionalProperties: true };
+const identifiers = {
+  type: 'array',
+  description: 'Foreign identifiers, e.g. [{"scope":"shotgrid","value":"Shot:12345"}]',
+  items: {
+    type: 'object',
+    properties: { scope: { type: 'string' }, value: { type: 'string' } },
+    required: ['scope', 'value'],
+  },
+};
+const props = { type: 'object', additionalProperties: true, description: 'Free-form fields; null removes a key' };
+
+const op = (operationId, summary, extra = {}) => ({
+  operationId,
+  summary,
+  responses: {
+    200: okJson('Success', anyObject),
+    400: { $ref: '#/components/responses/BadRequest' },
+    403: { $ref: '#/components/responses/Forbidden' },
+    404: { $ref: '#/components/responses/NotFound' },
+  },
+  ...extra,
+});
+
 export function openapiDocument(origin) {
   return {
     openapi: '3.1.0',
@@ -238,6 +282,11 @@ export function openapiDocument(origin) {
             403: { $ref: '#/components/responses/Forbidden' },
           },
         },
+        delete: op('deleteBoards', 'Soft-delete many boards', {
+          requestBody: jsonBody({
+            board_ids: { type: 'array', items: { type: 'string', format: 'uuid' } },
+          }, ['board_ids']),
+        }),
       },
       '/boards/{id}': {
         parameters: [boardIdParam],
@@ -348,6 +397,25 @@ export function openapiDocument(origin) {
             402: err('The board is at its card cap'),
           },
         },
+        patch: op('updateCards', 'Change many cards on one board', {
+          parameters: [boardIdParam],
+          requestBody: jsonBody({
+            cards: {
+              type: 'array',
+              description: 'Each entry needs an id; every other field is a partial patch',
+              items: {
+                type: 'object',
+                properties: { id: { type: 'string' } },
+                required: ['id'],
+                additionalProperties: true,
+              },
+            },
+          }, ['cards']),
+        }),
+        delete: op('deleteCards', 'Remove many cards; each is returned in full', {
+          parameters: [boardIdParam],
+          requestBody: jsonBody({ card_ids: { type: 'array', items: { type: 'string' } } }, ['card_ids']),
+        }),
       },
       '/boards/{id}/cards/{cardId}': {
         parameters: [boardIdParam, { name: 'cardId', in: 'path', required: true, schema: { type: 'string' } }],
@@ -638,6 +706,140 @@ export function openapiDocument(origin) {
             }),
           },
         },
+      },
+      '/boards/tree': {
+        get: op('getBoardTree', 'A whole board hierarchy in one call', {
+          parameters: [
+            q('root', 'A board id to start from', { type: 'string', format: 'uuid' }),
+            q('workspace', 'Or a whole workspace', { type: 'string', format: 'uuid' }),
+            q('depth', 'Levels down, default 10, max 20', { type: 'integer', minimum: 1, maximum: 20 }),
+          ],
+        }),
+      },
+      '/boards/move': {
+        post: op('moveBoards', 'Reparent several boards, cycle-safe', {
+          requestBody: jsonBody({
+            board_ids: { type: 'array', items: { type: 'string', format: 'uuid' } },
+            parent_board_id: { type: ['string', 'null'], format: 'uuid' },
+          }, ['board_ids']),
+        }),
+      },
+      '/boards/{id}/export': {
+        get: op('exportBoard', 'Export a board as JSON or MovieLabs OMC-JSON', {
+          parameters: [
+            boardIdParam,
+            q('format', 'json (default) or omc', { type: 'string', enum: ['json', 'omc'] }),
+          ],
+        }),
+      },
+      '/resolve': {
+        get: op('resolveIdentifier', 'Find an object by a foreign identifier', {
+          parameters: [
+            { name: 'scope', in: 'query', required: true, schema: { type: 'string' } },
+            { name: 'value', in: 'query', required: true, schema: { type: 'string' } },
+            q('type', 'board, card or image', { type: 'string', enum: ['board', 'card', 'image'] }),
+            q('workspace', 'Restrict to one workspace', { type: 'string', format: 'uuid' }),
+          ],
+        }),
+      },
+      '/audit': {
+        get: op('readAudit', 'Writes made through the API, and image reads', {
+          parameters: [q('since', 'ISO timestamp'), q('cursor', 'From a previous next_cursor'), limitParam],
+        }),
+      },
+      '/mcp': {
+        post: op('mcp', 'Model Context Protocol endpoint, for AI agents', {
+          description: 'A JSON-RPC 2.0 endpoint speaking MCP. See /docs/mcp — this is not a '
+            + 'REST resource and is described here only so it appears in the surface.',
+          requestBody: {
+            required: true,
+            content: { 'application/json': { schema: { description: 'A JSON-RPC message or batch' } } },
+          },
+        }),
+      },
+      '/webhooks': {
+        get: op('listWebhooks', 'Webhooks in a workspace', {
+          parameters: [q('workspace', 'Restrict to one workspace', { type: 'string', format: 'uuid' })],
+        }),
+        post: op('createWebhook', 'Register a webhook; the secret is returned once', {
+          requestBody: jsonBody({
+            workspace_id: { type: 'string', format: 'uuid' },
+            url: { type: 'string', format: 'uri', description: 'Public https, default port' },
+            events: { type: 'array', items: { type: 'string' }, description: 'Event names, or ["*"]' },
+            name: { type: 'string' },
+          }, ['workspace_id', 'url', 'events']),
+        }),
+      },
+      '/webhooks/{id}': {
+        patch: op('updateWebhook', 'Change a webhook, or switch it back on', {
+          parameters: [boardIdParam],
+          requestBody: jsonBody({
+            url: { type: 'string', format: 'uri' },
+            events: { type: 'array', items: { type: 'string' } },
+            name: { type: 'string' },
+            active: { type: 'boolean' },
+          }),
+        }),
+        delete: op('deleteWebhook', 'Remove a webhook', { parameters: [boardIdParam] }),
+      },
+      '/webhooks/{id}/test': {
+        post: op('testWebhook', 'Send a real delivery, to check signing end to end', {
+          parameters: [boardIdParam],
+        }),
+      },
+      '/webhooks/{id}/deliveries': {
+        get: op('listWebhookDeliveries', 'Every delivery attempt, with its result', {
+          parameters: [boardIdParam, limitParam, q('cursor', 'From a previous next_cursor')],
+        }),
+      },
+      '/webhooks/{id}/deliveries/{deliveryId}/redeliver': {
+        post: op('redeliverWebhook', 'Requeue a delivery', {
+          parameters: [
+            boardIdParam,
+            { name: 'deliveryId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          ],
+        }),
+      },
+      '/service-accounts': {
+        get: op('listServiceAccounts', 'Service accounts in a workspace', {
+          parameters: [{ name: 'workspace', in: 'query', required: true, schema: { type: 'string', format: 'uuid' } }],
+        }),
+        post: op('createServiceAccount', 'Create one, with its first token', {
+          requestBody: jsonBody({
+            workspace_id: { type: 'string', format: 'uuid' },
+            name: { type: 'string' },
+            scopes: { type: 'array', items: { type: 'string', enum: ['read', 'write', 'delete'] } },
+            ttl_days: { type: 'integer' },
+            rate_limit: { type: 'integer' },
+          }, ['workspace_id', 'name']),
+        }),
+      },
+      '/service-accounts/{id}': {
+        delete: op('deleteServiceAccount', 'Retire one and revoke its tokens', {
+          parameters: [boardIdParam],
+        }),
+      },
+      '/service-accounts/{id}/tokens': {
+        get: op('listServiceAccountTokens', 'Its tokens and when each was last used', {
+          parameters: [boardIdParam],
+        }),
+        post: op('createServiceAccountToken', 'Mint another token — rotate without downtime', {
+          parameters: [boardIdParam],
+          requestBody: jsonBody({
+            name: { type: 'string' },
+            scopes: { type: 'array', items: { type: 'string', enum: ['read', 'write', 'delete'] } },
+            ttl_days: { type: 'integer' },
+            rate_limit: { type: 'integer' },
+          }),
+        }),
+      },
+      '/service-accounts/{id}/tokens/{tokenId}': {
+        delete: op('revokeServiceAccountToken', 'Revoke one token', {
+          parameters: [
+            boardIdParam,
+            { name: 'tokenId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          ],
+        }),
       },
       '/images/{key}': {
         get: {
