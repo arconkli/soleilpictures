@@ -27749,6 +27749,88 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
+   "depth": 3,
+   "text": "Smaller renditions",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Smaller renditions"
+    }
+   ],
+   "id": "smaller-renditions"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Add "
+    },
+    {
+     "t": "code",
+     "v": "?variant=preview"
+    },
+    {
+     "t": "text",
+     "v": " for the downscaled copy the app stores when an image is uploaded — roughly 900px and about 48 kB, against ~470 kB for a typical original. It is more than enough to look at, and about ten times cheaper to move, which matters if you are reading a whole moodboard or handing images to a model."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Not every image has one, so this "
+    },
+    {
+     "t": "strong",
+     "v": "falls back to the original",
+     "children": [
+      {
+       "t": "text",
+       "v": "falls back to the original"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " rather than failing. The "
+    },
+    {
+     "t": "code",
+     "v": "X-Image-Variant"
+    },
+    {
+     "t": "text",
+     "v": " response header tells you which you got:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -sD- -o shot.webp \\\n  \"https://clusters.soleilpictures.com/api/v1/images/$KEY?variant=preview\" \\\n  -H \"Authorization: Bearer $TOKEN\" | grep -i x-image-variant\n# x-image-variant: preview"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The MCP server's "
+    },
+    {
+     "t": "code",
+     "v": "view_image"
+    },
+    {
+     "t": "text",
+     "v": " asks for this by default."
+    }
+   ]
+  },
+  {
+   "type": "heading",
    "depth": 2,
    "text": "Why the images row matters",
    "inline": [

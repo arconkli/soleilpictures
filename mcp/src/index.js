@@ -63,6 +63,9 @@ async function api(path, { method = 'GET', body, tool, args, raw = false, header
     return {
       bytes: Buffer.from(await res.arrayBuffer()),
       contentType: res.headers.get('content-type') || 'application/octet-stream',
+      // Which rendition the API actually sent — it falls back to the original
+      // when no preview exists, and the caller should not have to guess.
+      variant: res.headers.get('x-image-variant') || 'original',
     };
   }
 
@@ -247,30 +250,49 @@ server.registerTool('view_image', {
   },
   annotations: READS,
 }, run(async ({ image_key }) => {
-  const { bytes, contentType } = await api(`/images/${image_key.split('/').map(encodeURIComponent).join('/')}`, { raw: true });
-  // Base64 inflates by a third and every byte lands in the conversation, so a
-  // full-resolution photo is a real cost. Refusing loudly beats silently
-  // spending someone's context on one picture.
+  // Ask for the smaller rendition. The app generates one on upload (~48kB at
+  // roughly 900px, against ~470kB for a typical original) and it is far more
+  // than a vision model needs, so this is the right default rather than an
+  // optimisation. The API falls back to the original when no preview exists and
+  // says which it sent in x-image-variant.
+  const path = `/images/${image_key.split('/').map(encodeURIComponent).join('/')}?variant=preview`;
+  const { bytes, contentType, variant } = await api(path, { raw: true });
+
+  // The images table holds every upload, not only pictures — video, audio and
+  // PDFs live there too, and the largest object in it is 291MB. Inlining one of
+  // those would be pointless as well as enormous.
+  if (!/^image\//i.test(contentType)) {
+    throw new Error(
+      `${image_key} is ${contentType || 'not an image'}, so there is nothing to look at. `
+      + 'This tool only views pictures.');
+  }
+  // The cap is about TRANSPORT, not context: base64 inflates by a third and the
+  // whole thing crosses a stdio JSON-RPC pipe as one message, so a very large
+  // object is slow and memory-hungry regardless of how the host tokenises it.
   //
-  // This leaves a real gap: /api/v1/uploads accepts up to 25MB, so an image
-  // between 5MB and 25MB can be stored and then never looked at from here. The
-  // message has to be honest about that, and about what the person can actually
-  // DO — "send a smaller one" is not an action available to someone whose photo
-  // is already on the board. (The fix that would close it is serving the
-  // progressive preview variant the app generates; the API does not expose
-  // those yet, because a Worker cannot resize an image itself.)
-  const MAX = 5 * 1024 * 1024;
+  // With preview-first this now only binds on an image that has no preview —
+  // roughly 23 objects in the whole corpus, most of them not photographs. 10MB
+  // covers everything else. Above it, say so plainly: the person cannot make
+  // the file smaller from here, so telling them to "send a smaller one" is not
+  // an action they have.
+  const MAX = 10 * 1024 * 1024;
   if (bytes.length > MAX) {
     throw new Error(
-      `That image is ${(bytes.length / 1048576).toFixed(1)}MB, over the ${MAX / 1048576}MB this tool can inline — `
-      + 'reading it would use most of the conversation. It is fine on the board and opens normally in '
-      + 'Clusters; tell the person you cannot view this one here, and work from its title, caption and '
-      + 'the other cards instead.');
+      `That image is ${(bytes.length / 1048576).toFixed(1)}MB, over the ${MAX / 1048576}MB this tool can transfer, `
+      + 'and it has no smaller rendition stored. It is fine on the board and opens normally in Clusters; '
+      + 'tell the person you cannot view this particular one here, and work from its title, caption and '
+      + 'the surrounding cards instead.');
   }
   return {
     content: [
       { type: 'image', data: bytes.toString('base64'), mimeType: contentType },
-      { type: 'text', text: `Image ${image_key} (${contentType}, ${bytes.length} bytes)` },
+      {
+        type: 'text',
+        text: `Image ${image_key} — ${contentType}, ${bytes.length} bytes`
+          + (variant === 'preview'
+            ? ' (a downscaled preview, which is what you are looking at).'
+            : ' (the original; no smaller rendition was stored).'),
+      },
     ],
   };
 }));

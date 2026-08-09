@@ -63,7 +63,8 @@ const CORS = {
   'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
   'access-control-allow-headers': 'authorization,content-type,idempotency-key',
   'access-control-expose-headers':
-    'x-ratelimit-limit,x-ratelimit-remaining,x-ratelimit-reset,retry-after,idempotent-replay',
+    'x-ratelimit-limit,x-ratelimit-remaining,x-ratelimit-reset,retry-after,'
+    + 'idempotent-replay,x-image-variant',
   'access-control-max-age': '86400',
 };
 
@@ -615,17 +616,39 @@ async function dispatch(url, request, env, ctx) {
     if (!key) throw fail(400, 'bad_request', 'no image key');
     if (!env.IMAGES) throw fail(503, 'storage_unavailable', 'image storage is not available right now');
 
+    // preview_path comes back on the SAME row, so asking for a smaller
+    // rendition costs no extra query and needs no extra authorization: whoever
+    // may read the original may read its own downscaled copy.
     const rows = await userSelect(env, token, 'images',
-      `storage_path=eq.${encodeURIComponent(key)}&deleted_at=is.null&select=storage_path&limit=1`);
+      `storage_path=eq.${encodeURIComponent(key)}&deleted_at=is.null`
+      + '&select=storage_path,preview_path,size_bytes,width,height,preview_w,preview_h&limit=1');
     if (!rows?.length) throw fail(404, 'not_found', 'image not found');
+    const row = rows[0];
 
-    const obj = await env.IMAGES.get(key);
+    // ?variant=preview asks for the smaller rendition the app generates on
+    // upload (~48kB at roughly 900px, against ~470kB for a typical original).
+    // It FALLS BACK to the original rather than 404ing, because only about a
+    // fifth of the corpus has one and a caller should not have to ask twice —
+    // the x-image-variant header says what actually came back.
+    //
+    // The variants are ordinary images rows of their own (0105 set_image_variant
+    // inserts them, retention-locked so the sweep leaves them alone), so this is
+    // not reaching around anything: it is serving a key the same person could
+    // already fetch directly, having read it off a row they can already see.
+    const wantPreview = url.searchParams.get('variant') === 'preview';
+    const served = (wantPreview && row.preview_path) ? row.preview_path : row.storage_path;
+    const variant = served === row.storage_path ? 'original' : 'preview';
+
+    const obj = await env.IMAGES.get(served);
     if (!obj) throw fail(404, 'not_found', 'image not found');
     return new Response(obj.body, {
       headers: {
         ...CORS,
         'content-type': obj.httpMetadata?.contentType || 'application/octet-stream',
         'content-length': String(obj.size),
+        // Which rendition this actually is, so a caller that asked for a
+        // preview and got the original knows why it is large.
+        'x-image-variant': variant,
         // private: this is someone's own picture behind their own credential,
         // and it must not land in a shared cache.
         'cache-control': 'private, max-age=300',

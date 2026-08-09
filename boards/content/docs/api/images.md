@@ -87,6 +87,26 @@ storage quota gets `402`. See [Errors](/docs/api/errors).
 Reads an image back. Access is authorized the same way as everything else — you
 get the image if your account can see a board that references it.
 
+### Smaller renditions
+
+Add `?variant=preview` for the downscaled copy the app stores when an image is
+uploaded — roughly 900px and about 48 kB, against ~470 kB for a typical
+original. It is more than enough to look at, and about ten times cheaper to
+move, which matters if you are reading a whole moodboard or handing images to a
+model.
+
+Not every image has one, so this **falls back to the original** rather than
+failing. The `X-Image-Variant` response header tells you which you got:
+
+```sh
+curl -sD- -o shot.webp \
+  "https://clusters.soleilpictures.com/api/v1/images/$KEY?variant=preview" \
+  -H "Authorization: Bearer $TOKEN" | grep -i x-image-variant
+# x-image-variant: preview
+```
+
+The MCP server's `view_image` asks for this by default.
+
 ## Why the images row matters
 
 An upload does two things: it stores the object, and it records a row that

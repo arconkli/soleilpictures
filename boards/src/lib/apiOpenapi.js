@@ -440,13 +440,31 @@ export function openapiDocument(origin) {
           summary: 'Fetch an uploaded image',
           description:
             'The bytes back, for a key this account can see. The key contains slashes; send it '
-            + 'as-is after /images/.',
+            + 'as-is after /images/.\n\n'
+            + 'Pass `?variant=preview` for the smaller rendition the app stores on upload — around '
+            + '48kB at roughly 900px, against ~470kB for a typical original. Not every image has '
+            + 'one, so this falls back to the original rather than failing; the `X-Image-Variant` '
+            + 'response header says which you actually got.',
           operationId: 'getImage',
-          parameters: [{
-            name: 'key', in: 'path', required: true, schema: { type: 'string' },
-          }],
+          parameters: [
+            { name: 'key', in: 'path', required: true, schema: { type: 'string' } },
+            {
+              name: 'variant', in: 'query', required: false,
+              schema: { type: 'string', enum: ['original', 'preview'], default: 'original' },
+              description: 'preview returns a smaller rendition when one exists.',
+            },
+          ],
           responses: {
-            200: { description: 'The image bytes', content: { 'image/*': { schema: { type: 'string', format: 'binary' } } } },
+            200: {
+              description: 'The image bytes',
+              headers: {
+                'X-Image-Variant': {
+                  description: 'Which rendition was served: `original` or `preview`.',
+                  schema: { type: 'string', enum: ['original', 'preview'] },
+                },
+              },
+              content: { 'image/*': { schema: { type: 'string', format: 'binary' } } },
+            },
             404: { $ref: '#/components/responses/NotFound' },
           },
         },
