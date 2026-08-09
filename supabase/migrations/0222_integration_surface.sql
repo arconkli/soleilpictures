@@ -88,6 +88,13 @@ comment on column public.profiles.is_service is
 alter table public.api_tokens
   add column if not exists workspace_id uuid references public.workspaces(id) on delete cascade;
 
+-- NOTE ON `#variable_conflict use_column` BELOW. These functions RETURN TABLE,
+-- and in plpgsql those OUT parameters are variables in scope for the whole body
+-- — so `on conflict (workspace_id, user_id)`, which is a list of COLUMN
+-- references, is ambiguous and Postgres refuses with 42702. This directive
+-- resolves any such collision in favour of the column, which is correct here
+-- because the OUT parameters are only ever assigned by RETURN QUERY and never
+-- read. Renaming them instead would rename the JSON keys these RPCs return.
 create or replace function public.service_account_register(
   p_user_id      uuid,
   p_workspace_id uuid,
@@ -96,6 +103,7 @@ create or replace function public.service_account_register(
 returns table(user_id uuid, workspace_id uuid, name text, created_at timestamptz)
 language plpgsql security definer
 set search_path = public, auth as $$
+#variable_conflict use_column
 declare
   v_name text := coalesce(nullif(btrim(p_name), ''), 'Service account');
 begin
@@ -168,6 +176,7 @@ create or replace function public.service_account_disable(p_user_id uuid)
 returns table(user_id uuid, disabled_at timestamptz, tokens_revoked integer)
 language plpgsql security definer
 set search_path = public, auth as $$
+#variable_conflict use_column
 declare
   v_ws      uuid;
   v_revoked integer := 0;
@@ -217,6 +226,7 @@ create or replace function public.api_token_mint_for(
 returns table(id uuid, token text, prefix text, req_limit integer)
 language plpgsql security definer
 set search_path = public, auth as $$
+#variable_conflict use_column
 declare
   v_token  text;
   v_prefix text;

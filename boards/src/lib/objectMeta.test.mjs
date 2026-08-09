@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeProps, mergeProps, normalizeIdentifiers, parseInclude,
-  pgQuote, pgInList, withMeta,
+  pgQuote, pgInList, withMeta, indexIdentifierRows, resolveUpsert,
   MAX_PROPS_BYTES, MAX_PROP_KEYS, MAX_IDENTIFIERS, RESERVED_PREFIX,
 } from './objectMeta.js';
 
@@ -134,6 +134,118 @@ test('identifiers are refused rather than silently truncated', () => {
 test('a non-string value is coerced, not accepted as an object', () => {
   assert.deepEqual(normalizeIdentifiers([{ scope: 'shotgrid', value: 12345 }]),
     [{ scope: 'shotgrid', value: '12345' }]);
+});
+
+// ── upsert resolution ────────────────────────────────────────────────────────
+//
+// THE BUG THESE EXIST FOR. matchIdentifiers built its lookup keys one way and
+// the upsert resolver read them another, so every match missed silently: a
+// re-run created a second copy of everything and the first visible symptom was
+// a unique-constraint violation three calls later, in an unrelated-looking
+// place. Both halves were individually correct and individually tested.
+//
+// So the round trip is what gets asserted here, not either half — and
+// `matchRows` below builds its map the way matchIdentifiers really does, via
+// the same exported key function.
+
+const matchRows = (rows) => indexIdentifierRows(rows);
+
+const idRow = (scope, value, board, object) =>
+  ({ scope, value, board_id: board, object_id: object ?? board, object_type: 'board' });
+
+test('an identifier that exists resolves to the object holding it', () => {
+  const matches = matchRows([idRow('shotgrid', 'Sequence:88', 'board-1')]);
+  const out = resolveUpsert(
+    [{ identifiers: [{ scope: 'shotgrid', value: 'Sequence:88' }] }],
+    matches, { objectType: 'board' });
+  assert.equal(out[0].existing?.board_id, 'board-1',
+    'if this misses, every import silently duplicates itself');
+});
+
+test('the key survives values full of separators', () => {
+  // A scope or value is arbitrary text from someone else's system. These are
+  // the pairs that collide under a naive separator.
+  const matches = matchRows([
+    idRow('a b', 'c', 'board-1'),
+    idRow('a', 'b c', 'board-2'),
+    idRow('x', 'y:z/w', 'board-3'),
+  ]);
+  const hit = (scope, value) => resolveUpsert(
+    [{ identifiers: [{ scope, value }] }], matches, { objectType: 'board' })[0].existing?.board_id;
+  assert.equal(hit('a b', 'c'), 'board-1');
+  assert.equal(hit('a', 'b c'), 'board-2', 'must not collide with the one above');
+  assert.equal(hit('x', 'y:z/w'), 'board-3');
+});
+
+test('an unmatched identifier is a create, not an error', () => {
+  const out = resolveUpsert(
+    [{ identifiers: [{ scope: 'shotgrid', value: 'Sequence:99' }] }],
+    new Map(), { objectType: 'board' });
+  assert.equal(out[0].existing, null);
+});
+
+test('an item with no identifiers is always a create', () => {
+  const matches = matchRows([idRow('shotgrid', 'Sequence:88', 'board-1')]);
+  assert.equal(resolveUpsert([{}], matches, { objectType: 'board' })[0].existing, null);
+  assert.equal(resolveUpsert([{ identifiers: [] }], matches, { objectType: 'board' })[0].existing, null);
+});
+
+test('several identifiers pointing at the SAME object is fine', () => {
+  const matches = matchRows([
+    idRow('shotgrid', 'Sequence:88', 'board-1'),
+    idRow('ftrack', 'abc', 'board-1'),
+  ]);
+  const out = resolveUpsert([{ identifiers: [
+    { scope: 'shotgrid', value: 'Sequence:88' }, { scope: 'ftrack', value: 'abc' },
+  ] }], matches, { objectType: 'board' });
+  assert.equal(out[0].existing?.board_id, 'board-1');
+});
+
+test('identifiers pointing at two different objects is a 409, not a coin toss', () => {
+  const matches = matchRows([
+    idRow('shotgrid', 'Sequence:88', 'board-1'),
+    idRow('ftrack', 'abc', 'board-2'),
+  ]);
+  assert.throws(() => resolveUpsert([{ identifiers: [
+    { scope: 'shotgrid', value: 'Sequence:88' }, { scope: 'ftrack', value: 'abc' },
+  ] }], matches, { objectType: 'board' }), (e) => {
+    assert.equal(e.status, 409);
+    assert.equal(e.code, 'identifier_conflict');
+    return true;
+  });
+});
+
+test('a card whose identifier lives on another board is a 409 naming that board', () => {
+  const matches = matchRows([
+    { ...idRow('shotgrid', 'Asset:1', 'board-other', 'card-9'), object_type: 'card' }]);
+  assert.throws(() => resolveUpsert(
+    [{ identifiers: [{ scope: 'shotgrid', value: 'Asset:1' }] }],
+    matches, { objectType: 'card', boardId: 'board-here' }),
+  (e) => {
+    assert.equal(e.status, 409);
+    assert.match(e.message, /board-other/, 'the caller has to be told where it went');
+    return true;
+  });
+});
+
+test('a card matched on its OWN board is an ordinary update', () => {
+  const matches = matchRows([
+    { ...idRow('shotgrid', 'Asset:1', 'board-here', 'card-9'), object_type: 'card' }]);
+  const out = resolveUpsert(
+    [{ identifiers: [{ scope: 'shotgrid', value: 'Asset:1' }] }],
+    matches, { objectType: 'card', boardId: 'board-here' });
+  assert.equal(out[0].existing?.object_id, 'card-9');
+});
+
+test('a mixed batch is partitioned item by item, in order', () => {
+  const matches = matchRows([idRow('sg', 'b', 'board-2')]);
+  const out = resolveUpsert([
+    { identifiers: [{ scope: 'sg', value: 'a' }] },
+    { identifiers: [{ scope: 'sg', value: 'b' }] },
+    { identifiers: [{ scope: 'sg', value: 'c' }] },
+  ], matches, { objectType: 'board' });
+  assert.deepEqual(out.map((r) => r.existing?.board_id ?? null), [null, 'board-2', null]);
+  assert.deepEqual(out.map((r) => r.index), [0, 1, 2]);
 });
 
 // ── PostgREST quoting ────────────────────────────────────────────────────────

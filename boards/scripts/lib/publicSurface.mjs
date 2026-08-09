@@ -189,11 +189,31 @@ export function apiScopes() {
 // ── Machine-readable error codes ────────────────────────────────────────────
 // Every `fail(status, 'code', …)` in the Worker. These are part of the public
 // contract — a client branches on them — so a new one is a documentation event.
+// Every file that can put a code in a response body, not just the router.
+//
+// This was worker-api.js alone, and the day a refusal moved into a helper the
+// code silently left the snapshot — a green build for a surface that had not
+// actually changed. Anything that raises a documented code belongs on this
+// list; `e.code = '…'` is matched as well as fail(), because the helpers set the
+// fields directly rather than importing the router's fail().
+const ERROR_SOURCES = [
+  'boards/src/worker-api.js',
+  'boards/src/lib/objectMeta.js',
+  'boards/src/lib/apiAuth.js',
+];
+
 export function apiErrorCodes() {
-  const file = 'boards/src/worker-api.js';
-  const found = [...new Set([...read(file).matchAll(/fail\((\d{3}),\s*'([a-z_]+)'/g)]
-    .map((m) => `${m[1]} ${m[2]}`))];
-  return expect(found, 6, 'API error codes', file).sort();
+  const found = new Set();
+  for (const file of ERROR_SOURCES) {
+    const src = read(file);
+    for (const m of src.matchAll(/fail\((\d{3}),\s*'([a-z_]+)'/g)) found.add(`${m[1]} ${m[2]}`);
+    // `e.status = 409; e.code = 'identifier_conflict';` — the pair has to be
+    // read together, and they are always written adjacent.
+    for (const m of src.matchAll(/status\s*=\s*(\d{3});\s*(?:\w+\.)?code\s*=\s*'([a-z_]+)'/g)) {
+      found.add(`${m[1]} ${m[2]}`);
+    }
+  }
+  return expect([...found], 6, 'API error codes', ERROR_SOURCES.join(', ')).sort();
 }
 
 // ── Numeric/string facts docs are forbidden from retyping ───────────────────

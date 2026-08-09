@@ -493,6 +493,12 @@ export function describeUpstreamError(httpStatus, rawBody) {
       status = 402; code = 'limit_reached';
     } else if (pgCode === '42501') {
       status = 403; code = 'forbidden';
+    } else if (pgCode === '23505' && /object_identifiers/.test(pgMessage)) {
+      // Two things racing for one identifier. The unique index is the guard the
+      // upsert path relies on, so a caller hitting it needs the same code it
+      // would have got from the check, not a constraint name it cannot act on.
+      status = 409; code = 'identifier_conflict';
+      message = 'that identifier already belongs to another object in this workspace';
     } else {
       status = 400; code = 'bad_request';
     }

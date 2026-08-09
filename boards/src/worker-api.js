@@ -38,7 +38,7 @@ import {
 import {
   normalizeProps, normalizeIdentifiers, matchIdentifiers, loadMeta, loadBoardsMeta,
   saveMeta, saveMetaBulk, withMeta, parseInclude, purgeCardMeta, repointCardMeta,
-  OBJECT_TYPES,
+  resolveUpsert, OBJECT_TYPES,
 } from './lib/objectMeta.js';
 import { scoutRpc, scoutDelete } from './lib/scoutDb.js';
 import {
@@ -301,42 +301,6 @@ function metaFromBody(body) {
     props: normalizeProps(body?.props),
     identifiers: normalizeIdentifiers(body?.identifiers),
   };
-}
-
-// Resolve `on_conflict: "identifier"` for a batch.
-//
-// This is what makes an import RE-RUNNABLE, which is the single most-asked-for
-// property of an integration API and the one thing this API could not do at any
-// price. Given the identifiers each incoming item carries, find what already
-// exists so the caller updates it instead of creating a second copy.
-//
-// Two refusals rather than a guess:
-//   · one item whose identifiers match two DIFFERENT existing objects — there
-//     is no correct answer, and picking one silently merges two records
-//   · a card whose identifier lives on a different board — the caller believes
-//     it is putting a card on this board, and quietly not doing so is worse
-//     than saying where the card actually is
-function resolveUpsert(items, matches, { objectType, boardId }) {
-  return items.map((item, i) => {
-    if (!item.identifiers?.length) return { index: i, existing: null };
-    const hits = new Map();
-    for (const ident of item.identifiers) {
-      const row = matches.get(`${ident.scope} ${ident.value}`);
-      if (row) hits.set(`${row.board_id}/${row.object_id}`, row);
-    }
-    if (hits.size > 1) {
-      throw fail(409, 'identifier_conflict',
-        `identifiers on item ${i} already belong to ${hits.size} different objects — `
-        + 'an object cannot be two things at once');
-    }
-    const row = [...hits.values()][0] || null;
-    if (row && objectType === 'card' && String(row.board_id) !== String(boardId)) {
-      throw fail(409, 'identifier_conflict',
-        `a card with that identifier already exists on board ${row.board_id}. `
-        + 'Move it, or give this one a different identifier.');
-    }
-    return { index: i, existing: row };
-  });
 }
 
 // ── Service accounts ─────────────────────────────────────────────────────────
