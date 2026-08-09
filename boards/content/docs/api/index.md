@@ -63,6 +63,12 @@ permissions to drift out of step with app permissions.
 | `POST /boards/:id/cards/move` | Move cards to another board |
 | `POST /uploads` | [Upload an image](/docs/api/images), get a key back |
 | `GET /images/:key` | Read an image back |
+| `GET /service-accounts` | [Service accounts](/docs/api/service-accounts) in a workspace |
+| `POST /service-accounts` | Create one, with its first token |
+| `DELETE /service-accounts/:id` | Retire one and revoke its tokens |
+| `POST /service-accounts/:id/tokens` | Mint another token — rotate without downtime |
+| `GET /service-accounts/:id/tokens` | Its tokens and when each was last used |
+| `DELETE /service-accounts/:id/tokens/:tokenId` | Revoke one token |
 
 `GET /api/v1` returns this list plus your current scopes, so the one URL a
 person types by hand answers usefully.

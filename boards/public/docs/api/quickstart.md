@@ -10,7 +10,7 @@ In the app: **Settings → API → New token**. Tick **Allow writes** if you int
 to change anything. Copy it immediately — it is shown once.
 
 ```sh
-export SOLEIL_TOKEN="sk_live_…"
+export SOLEIL_TOKEN="undefined…"
 export SOLEIL_API="https://clusters.soleilpictures.com/api/v1"
 ```
 

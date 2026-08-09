@@ -33,6 +33,7 @@ import * as Y from 'yjs';
 import {
   resolveApiToken, hasScope, apiUserSession, rateHeaders, normalizeApiError,
   userSelect, userRpc, userInsert, userPatch,
+  createServiceAuthUser, deleteAuthUser,
 } from './lib/apiAuth.js';
 import { scoutRpc, scoutDelete } from './lib/scoutDb.js';
 import {
@@ -223,6 +224,60 @@ export function normalizeIncomingCard(input, { partial = false, existingKind = n
   if (Number.isFinite(c.w)) out.w = clampSize(c.w);
   if (Number.isFinite(c.h)) out.h = clampSize(c.h);
   return out;
+}
+
+// ── Service accounts ─────────────────────────────────────────────────────────
+
+function publicServiceAccount(s) {
+  return {
+    id: s.user_id,
+    name: s.name,
+    workspace_id: s.workspace_id,
+    created_at: s.created_at,
+    disabled: !!s.disabled_at,
+    token_count: s.token_count ?? null,
+    last_used_at: s.last_used_at ?? null,
+  };
+}
+
+// A minted credential may never exceed the credential that minted it.
+//
+// Without this, a `write` token could mint a service token carrying `delete`
+// and then destroy everything — an escalation, done entirely through documented
+// endpoints. Downscoping is the standard answer and it costs one comparison.
+function requestedScopes(input, auth) {
+  const asked = Array.isArray(input) && input.length ? input : ['read', 'write'];
+  const clean = [...new Set(asked.map((s) => String(s).toLowerCase()))];
+  const bad = clean.filter((s) => !['read', 'write', 'delete'].includes(s));
+  if (bad.length) {
+    throw fail(400, 'bad_request',
+      `scopes must be a subset of read, write, delete — got ${JSON.stringify(bad.join(', '))}`);
+  }
+  const over = clean.filter((s) => !auth.scopes.includes(s));
+  if (over.length) {
+    throw fail(403, 'insufficient_scope',
+      `this token cannot grant ${over.join(', ')} — a service token may not exceed the token that minted it`);
+  }
+  return clean;
+}
+
+async function mintServiceToken(env, token, { userId, name, scopes, ttlDays, rateLimit }) {
+  const rows = await userRpc(env, token, 'api_token_mint_for', {
+    p_user_id: userId,
+    p_name: name,
+    p_scopes: scopes,
+    p_ttl_days: Number.isFinite(ttlDays) ? Math.round(ttlDays) : null,
+    p_req_limit: Number.isFinite(rateLimit) ? Math.round(rateLimit) : null,
+  });
+  const t = (rows || [])[0];
+  if (!t?.token) throw fail(502, 'upstream_error', 'the token was not minted');
+  return {
+    id: t.id,
+    token: t.token,          // the only time this value ever exists outside the caller
+    prefix: t.prefix,
+    scopes,
+    rate_limit: t.req_limit,
+  };
 }
 
 const str = (v, max) => (v == null ? null : String(v).slice(0, max));
@@ -506,6 +561,12 @@ async function dispatch(url, request, env, ctx) {
       endpoints: [
         'GET    /me',
         'GET    /workspaces',
+        'GET    /service-accounts?workspace=',
+        'POST   /service-accounts',
+        'DELETE /service-accounts/:id',
+        'GET    /service-accounts/:id/tokens',
+        'POST   /service-accounts/:id/tokens',
+        'DELETE /service-accounts/:id/tokens/:tokenId',
         'GET    /search?q=&kind=&workspace=&limit=&offset=',
         'GET    /boards?workspace=&parent=&deleted=&limit=&offset=',
         'POST   /boards',
@@ -540,6 +601,11 @@ async function dispatch(url, request, env, ctx) {
       display_name: p.display_name ?? null,
       tier: p.tier ?? 'demo',
       scopes: auth.scopes,
+      // A machine identity should be able to say so. An integration that has
+      // been handed the wrong credential otherwise finds out by being refused
+      // somewhere far from the cause.
+      service_account: auth.serviceAccount,
+      workspace_id: auth.workspaceId,
       rate_limit: {
         limit: auth.rate?.limit ?? null,
         remaining: auth.rate ? Math.max(0, auth.rate.limit - auth.rate.used) : null,
@@ -552,6 +618,114 @@ async function dispatch(url, request, env, ctx) {
   if (head === 'workspaces' && method === 'GET') {
     const rows = await userSelect(env, token, 'workspaces', 'select=id,name,created_at&order=created_at.asc');
     return json({ workspaces: rows.map((w) => ({ id: w.id, name: w.name, created_at: w.created_at })) });
+  }
+
+  // ── Service accounts ──────────────────────────────────────────────────────
+  //
+  // A credential that belongs to the WORKSPACE rather than to a person. The
+  // integration a studio builds cannot be Bob's token: Bob leaves, or his tier
+  // moves, and every pipeline that depended on it stops with a 403 nobody can
+  // explain. A service account is a real auth.users row holding a
+  // workspace_members row, so it is subject to exactly the same RLS as a human
+  // and confined to the one workspace it was made for.
+  //
+  // Only the workspace OWNER may create one — enforced in the RPC, not here,
+  // because an editor who can write to a workspace should not be able to mint a
+  // credential that outlives their own access to it.
+  if (head === 'service-accounts') {
+    // A service account creating another service account would let one leaked
+    // credential clone itself indefinitely. The RPC already refuses (it demands
+    // workspaces.created_by = auth.uid(), and a service account never is), but
+    // saying so plainly beats a permission error about workspace ownership.
+    if (auth.serviceAccount) {
+      throw fail(403, 'forbidden',
+        'a service account cannot manage service accounts — use the owner’s token');
+    }
+
+    // GET /service-accounts?workspace=<uuid>
+    if (!id && method === 'GET') {
+      const ws = url.searchParams.get('workspace');
+      if (!isUuid(ws)) throw fail(400, 'bad_request', 'workspace must be a uuid');
+      const rows = await userRpc(env, token, 'service_account_list', { p_workspace_id: ws });
+      return json({ service_accounts: (rows || []).map(publicServiceAccount) });
+    }
+
+    // POST /service-accounts  {workspace_id, name, scopes?, ttl_days?, rate_limit?}
+    // Creates the identity AND its first token, because a service account with
+    // no credential is not usable and a second round trip to get one is a step
+    // every caller would have to take anyway.
+    if (!id && method === 'POST') {
+      const ws = body.workspace_id;
+      if (!isUuid(ws)) throw fail(400, 'bad_request', 'workspace_id must be a uuid');
+      const name = str(body.name, 80);
+      if (!name) throw fail(400, 'bad_request', 'name is required');
+      const scopes = requestedScopes(body.scopes, auth);
+
+      const { userId: saId } = await createServiceAuthUser(env, { label: name });
+      let account;
+      try {
+        const rows = await userRpc(env, token, 'service_account_register', {
+          p_user_id: saId, p_workspace_id: ws, p_name: name,
+        });
+        account = (rows || [])[0];
+        if (!account) throw fail(502, 'upstream_error', 'the service account was not registered');
+      } catch (e) {
+        // The identity exists and belongs to nothing. Take it back rather than
+        // leave an orphan that counts as a signup and can never be reached.
+        await deleteAuthUser(env, saId);
+        throw e;
+      }
+
+      const minted = await mintServiceToken(env, token, {
+        userId: saId, name: `${name} token`, scopes,
+        ttlDays: body.ttl_days, rateLimit: body.rate_limit,
+      });
+      trace.target = null;
+      return json({
+        service_account: publicServiceAccount(account),
+        token: minted,
+        next: 'Use this token as the Bearer credential. It is shown once.',
+      }, 201);
+    }
+
+    if (id && !isUuid(id)) throw fail(400, 'bad_request', 'service account id must be a uuid');
+
+    // DELETE /service-accounts/:id — revokes every token and drops the
+    // membership, so the credential is dead when this returns. The auth row
+    // stays, so the audit log keeps resolving to a name.
+    if (id && !sub && method === 'DELETE') {
+      const rows = await userRpc(env, token, 'service_account_disable', { p_user_id: id });
+      const r = (rows || [])[0];
+      if (!r) throw fail(404, 'not_found', 'no such service account');
+      return json({ disabled: true, user_id: r.user_id, tokens_revoked: r.tokens_revoked ?? 0 });
+    }
+
+    if (id && sub === 'tokens') {
+      // GET /service-accounts/:id/tokens
+      if (!subId && method === 'GET') {
+        const rows = await userRpc(env, token, 'api_token_list_for', { p_user_id: id });
+        return json({ tokens: rows || [] });
+      }
+      // POST /service-accounts/:id/tokens — rotation is mint-then-revoke, so
+      // an integration can be moved onto a new credential with no downtime.
+      if (!subId && method === 'POST') {
+        const minted = await mintServiceToken(env, token, {
+          userId: id, name: str(body.name, 80) || 'Service token',
+          scopes: requestedScopes(body.scopes, auth),
+          ttlDays: body.ttl_days, rateLimit: body.rate_limit,
+        });
+        return json({ token: minted }, 201);
+      }
+      // DELETE /service-accounts/:id/tokens/:tokenId
+      if (subId && method === 'DELETE') {
+        if (!isUuid(subId)) throw fail(400, 'bad_request', 'token id must be a uuid');
+        const ok = await userRpc(env, token, 'api_token_revoke_for', { p_token_id: subId });
+        if (!ok) throw fail(404, 'not_found', 'no such token');
+        return json({ revoked: true, token_id: subId });
+      }
+    }
+
+    throw fail(405, 'method_not_allowed', `${method} is not supported here`);
   }
 
   // GET /search — the endpoint an assistant needs most: find the board about X

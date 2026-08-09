@@ -118,9 +118,18 @@ Tokens do not expire by default. An optional lifetime can be set at creation.
 - **Read-only unless you need writes.**
 - **Rotate** by creating the new token, deploying it, then revoking the old one — both work simultaneously, so there is no downtime.
 
+## When a token should not be a person
+
+A personal token acts as **you**, which means an integration built on one stops
+working the day you leave the workspace. For anything a team depends on, create
+a [service account](/docs/api/service-accounts) instead: a credential owned by
+the workspace, scoped to it, and unaffected by who comes and goes.
+
 ## Rate limiting
 
 **{{fact:rateLimitPerHour}} requests per hour, per token.**
+([Service tokens](/docs/api/service-accounts) default to
+{{fact:serviceRateLimitPerHour}}.)
 
 Every response carries the current state, not just refusals:
 

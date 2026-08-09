@@ -3109,6 +3109,12 @@ DELETE /boards/:id/cards/:cardId | Remove a card
 POST /boards/:id/cards/move | Move cards to another board
 POST /uploads | Upload an image, get a key back
 GET /images/:key | Read an image back
+GET /service-accounts | Service accounts in a workspace
+POST /service-accounts | Create one, with its first token
+DELETE /service-accounts/:id | Retire one and revoke its tokens
+POST /service-accounts/:id/tokens | Mint another token — rotate without downtime
+GET /service-accounts/:id/tokens | Its tokens and when each was last used
+DELETE /service-accounts/:id/tokens/:tokenId | Revoke one token
 
 GET /api/v1 returns this list plus your current scopes, so the one URL a person types by hand answers usefully.
 
@@ -3117,7 +3123,7 @@ Authentication
 Mint a token under Settings → API, then:
 
 curl https://clusters.soleilpictures.com/api/v1/me \
-  -H "Authorization: Bearer sk_live_…"
+  -H "Authorization: Bearer undefined…"
 
 Three scopes: delete · read · write. Tokens are stored only as a hash — the value is shown once and cannot be recovered. See Authentication.
 
@@ -3153,7 +3159,7 @@ CORS
 
 Access-Control-Allow-Origin is *, so the API is callable from a browser.
 
-That it works from a browser does not mean you should. A sk_live_ token in front-end code is readable by anyone who opens dev tools, and it acts as you. Call the API from a server.
+That it works from a browser does not mean you should. A undefined token in front-end code is readable by anyone who opens dev tools, and it acts as you. Call the API from a server.
 
 For AI agents
 
@@ -3186,7 +3192,7 @@ Mint a token with write access under Settings then API, export it, and you can c
 
 In the app: Settings → API → New token. Tick Allow writes if you intend to change anything. Copy it immediately — it is shown once.
 
-export SOLEIL_TOKEN="sk_live_…"
+export SOLEIL_TOKEN="undefined…"
 export SOLEIL_API="https://clusters.soleilpictures.com/api/v1"
 
 2. Check it works
@@ -3351,18 +3357,18 @@ Settings → API → New token. Give it a name that says where it will be used, 
 
 Allow writes is the only scope control. Leave it off for anything that only needs to read.
 
-The token is displayed once, at creation. It is the prefix sk_live_ followed by 40 hexadecimal characters — 160 bits of randomness:
+The token is displayed once, at creation. It is the prefix undefined followed by 40 hexadecimal characters — 160 bits of randomness:
 
-sk_live_<40 hex characters>
+undefined<40 hex characters>
 
 Only a SHA-256 hash is stored. There is no "show token" and no recovery — this is deliberate, and it means a database compromise does not yield working credentials.
 
-This format is identical in shape to a Stripe live secret key. Secret scanners — GitHub push protection among them — will flag a Soleil token as a Stripe key and block the commit. That is useful when a real token leaks, and a nuisance when you paste an example into a repo. Write examples as sk_live_… rather than spelling out 40 plausible characters.
+This format is identical in shape to a Stripe live secret key. Secret scanners — GitHub push protection among them — will flag a Soleil token as a Stripe key and block the commit. That is useful when a real token leaks, and a nuisance when you paste an example into a repo. Write examples as undefined… rather than spelling out 40 plausible characters.
 
 Using it
 
 curl https://clusters.soleilpictures.com/api/v1/me \
-  -H "Authorization: Bearer sk_live_…"
+  -H "Authorization: Bearer undefined…"
 
 The scheme must be Bearer. A missing or malformed header gets 401 with a WWW-Authenticate header.
 
@@ -3408,7 +3414,7 @@ Tokens do not expire by default. An optional lifetime can be set at creation.
 
 Keeping a token safe
 
-A sk_live_ token is equivalent to your account for everything the API can reach. Treat it like a password.
+A undefined token is equivalent to your account for everything the API can reach. Treat it like a password.
 
 Never put one in front-end code. CORS is open so it will work, and anyone who opens dev tools will have it.
 Never commit one. Use an environment variable.
@@ -3416,9 +3422,13 @@ One token per integration, so you can revoke one without breaking the others.
 Read-only unless you need writes.
 Rotate by creating the new token, deploying it, then revoking the old one — both work simultaneously, so there is no downtime.
 
+When a token should not be a person
+
+A personal token acts as you, which means an integration built on one stops working the day you leave the workspace. For anything a team depends on, create a service account instead: a credential owned by the workspace, scoped to it, and unaffected by who comes and goes.
+
 Rate limiting
 
-1000 requests per hour, per token.
+1000 requests per hour, per token. (Service tokens default to 10000.)
 
 Every response carries the current state, not just refusals:
 
@@ -4066,7 +4076,7 @@ Point your MCP client at the server with the token in its environment:
     "soleil-clusters": {
       "command": "node",
       "args": ["/absolute/path/to/soleilpictures/mcp/src/index.js"],
-      "env": { "SOLEIL_API_TOKEN": "sk_live_…" }
+      "env": { "SOLEIL_API_TOKEN": "undefined…" }
     }
   }
 }
@@ -4158,4 +4168,119 @@ A: No. It forwards your personal access token to the same API, so it inherits yo
 
 Q: How do I stop an agent deleting things?
 A: Mint a token without the delete scope. Deleting is a separate grant from writing precisely so an agent can be allowed to build without being allowed to destroy.
+
+
+========================================================================
+# Service accounts
+URL: https://clusters.soleilpictures.com/docs/api/service-accounts
+Updated: 2026-08-09
+
+A personal access token belongs to one person, so an integration built on it stops the day that person leaves the workspace. A service account is a credential owned by the workspace itself. It is a real member of exactly one workspace, subject to the same permissions as anyone else, and its tokens keep working regardless of who comes and goes. Only the workspace owner can create one, and a token can never grant more than the token that created it.
+
+A personal access token is you. Everything it can do, it does as your account, under your permissions. That is the right design for a script you wrote for yourself, and the wrong one for an integration a team depends on — because the day you leave the workspace, or your account changes, every pipeline built on that token stops, with a permission error a long way from its cause.
+
+A service account is a credential owned by the workspace instead.
+
+It is a real member of one workspace. It is subject to exactly the same permissions as a person — there is no bypass and no elevated mode — and its access ends at the edge of that workspace. What it does not have is a dependency on any particular human still being around.
+
+Create one
+
+curl -X POST "$SOLEIL_API/service-accounts" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"workspace_id":"'$WS'","name":"Pipeline sync","scopes":["read","write"]}'
+
+{
+  "service_account": {
+    "id": "9f1c…", "name": "Pipeline sync", "workspace_id": "3b7e…",
+    "created_at": "2026-08-09T12:00:00Z", "disabled": false
+  },
+  "token": {
+    "id": "a2c4…", "token": "undefined…", "prefix": "undefineda1b2",
+    "scopes": ["read", "write"], "rate_limit": 10000
+  },
+  "next": "Use this token as the Bearer credential. It is shown once."
+}
+
+The account and its first token are created together, because an account with no credential cannot do anything and you would have to ask for one immediately anyway.
+
+token is shown once. It is not stored anywhere it can be read back. If it is lost, mint another and revoke the old one.
+
+Only the workspace owner can create a service account. An editor cannot — a credential that keeps working after its creator loses access would be a way around losing it.
+
+Scopes, and the ceiling on them
+
+Same three scopes as a personal token: read, write, delete. delete implies write, and every token can read.
+
+A service token can never grant more than the token that created it. Asking for delete from a write token is refused with 403 insufficient_scope rather than quietly granted — otherwise the weaker credential would be a way to manufacture the stronger one.
+
+Rate limit
+
+A service token's default is 10000 requests/hour, against 1000 for a personal one. The two numbers exist for different reasons: a personal limit bounds one person's scripting mistake, and a machine identity is the case a rate limit exists to permit. Pass rate_limit to set your own.
+
+Every response carries X-RateLimit-Remaining and X-RateLimit-Reset, so there is no need to discover the ceiling by hitting it.
+
+Managing them
+
+# What exists
+curl "$SOLEIL_API/service-accounts?workspace=$WS" -H "Authorization: Bearer $SOLEIL_TOKEN"
+
+# Another token for the same account — mint the new one BEFORE revoking the old,
+# and the integration never has a moment without a working credential
+curl -X POST "$SOLEIL_API/service-accounts/$SA/tokens" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"rotated 2026-08","scopes":["read","write"],"ttl_days":90}'
+
+# Its tokens, with when each was last used
+curl "$SOLEIL_API/service-accounts/$SA/tokens" -H "Authorization: Bearer $SOLEIL_TOKEN"
+
+# Retire one token
+curl -X DELETE "$SOLEIL_API/service-accounts/$SA/tokens/$TOKEN_ID" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN"
+
+# Retire the whole account — revokes every token and ends its membership
+curl -X DELETE "$SOLEIL_API/service-accounts/$SA" -H "Authorization: Bearer $SOLEIL_TOKEN"
+
+Deleting a service account is immediate: every token is revoked and the membership is removed, so the credential is dead by the time the call returns. The record itself is kept, so past entries in the audit log still resolve to a name rather than to a deleted id.
+
+Limits
+
+ | 
+Per workspace | 10 active service accounts
+Per account | 20 active tokens
+Reach | The one workspace it belongs to
+Requests | 10000/hour by default, per token
+
+What it deliberately cannot do
+
+A service account cannot create or manage service accounts, including itself. If it could, a single leaked credential could clone itself indefinitely and revoking the original would achieve nothing. Account management always needs the owner's own token.
+
+It also cannot be made an owner, and it cannot reach a second workspace. If an integration spans two workspaces it needs two service accounts — which is the honest representation of what it is doing.
+
+Which credential to use
+
+ | Personal token | Service account
+Belongs to | You | The workspace
+Survives you leaving | No | Yes
+Reach | Everything you can see | One workspace
+Created by | Anyone, in Settings → API | The workspace owner, over the API
+Good for | Your own scripts, trying things out, MCP on your machine | Anything a team depends on
+
+A useful rule: if losing access to it would interrupt someone other than you, it should be a service account.
+
+## Frequently asked questions
+
+Q: Why not just use a personal access token?
+A: It works, until the person who minted it leaves the workspace or their account changes. Then every integration built on it stops with a permission error far from the cause. A service account has no such dependency.
+
+Q: What can a service account see?
+A: Exactly one workspace, and only what a member of that workspace can see. It cannot reach boards shared to the person who created it from somewhere else.
+
+Q: Who is allowed to create one?
+A: The workspace owner. An editor cannot, because a credential that outlives its creator's own access would be a way around losing it.
+
+Q: How do I rotate a token without downtime?
+A: Mint the new one first, move the integration onto it, then revoke the old one. A service account can hold several tokens at once.
+
+Q: Does a service account count against my plan?
+A: No. Storage and card limits are charged to the workspace owner no matter who does the writing, which is the same rule the app applies to collaborators.
 

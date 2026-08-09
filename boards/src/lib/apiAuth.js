@@ -84,6 +84,11 @@ export async function resolveApiToken(request, env) {
     userId: row.user_id,
     tokenId: row.token_id,
     scopes: Array.isArray(row.scopes) ? row.scopes : ['read'],
+    // Set only by api_token_mint_for, so it is exactly "this is a machine,
+    // confined to this workspace". A human's token has no workspace and is
+    // bounded only by what that person can reach.
+    workspaceId: row.workspace_id || null,
+    serviceAccount: !!row.workspace_id,
     rate,
   };
 }
@@ -176,6 +181,71 @@ async function freshSession(env, userId) {
   const email = (await userRes.json())?.email;
   if (!email) throw new Error('that account has no address to sign in with');
   return await mintSession(env, email);
+}
+
+// The auth identity behind a service account.
+//
+// A service account has to be a REAL auth.users row, and that is the whole
+// design: because it is a real user it can hold a workspace_members row, and
+// because it holds one, every predicate that already exists — can_read_board,
+// can_write_board, can_write_workspace — applies to it unchanged. There is no
+// second authorization path to keep in step, and nothing runs as the service
+// role on its behalf.
+//
+// It cannot be created in Postgres. generate_link (which is how every session
+// in this file is minted) needs a confirmed address, and service_account_register
+// runs as the calling human, who has no business writing to auth.users. So the
+// identity is created here and registered in one RPC immediately afterwards.
+//
+// The address is real-looking but undeliverable on purpose: `email_confirm`
+// means no mail is ever sent, and nothing about a machine identity should ever
+// arrive in a person's inbox.
+export async function createServiceAuthUser(env, { label } = {}) {
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('service accounts need SUPABASE_SERVICE_ROLE_KEY');
+  }
+  const email = `svc+${crypto.randomUUID()}@service.soleilpictures.com`;
+  const res = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/users`, {
+    method: 'POST',
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'content-type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify({
+      email,
+      email_confirm: true,
+      user_metadata: { service_account: true, label: String(label || '').slice(0, 80) },
+    }),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    const e = new Error('could not create the service identity');
+    e.detail = `admin/users ${res.status}: ${detail.slice(0, 300)}`;
+    throw e;
+  }
+  const user = await res.json();
+  if (!user?.id) throw new Error('admin/users returned no id');
+  return { userId: user.id, email };
+}
+
+// Undo createServiceAuthUser. Only used when registration fails after the
+// identity was made — an orphaned auth user that is a member of nothing is
+// harmless, but it is still litter, and it would count as a signup.
+export async function deleteAuthUser(env, userId) {
+  if (!env.SUPABASE_SERVICE_ROLE_KEY || !userId) return false;
+  const res = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+    method: 'DELETE',
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      accept: 'application/json',
+    },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  }).catch(() => null);
+  return !!res?.ok;
 }
 
 function cacheSession(userId, accessToken) {

@@ -13,11 +13,11 @@ so you know which one to revoke later.
 needs to read.
 
 The token is displayed **once**, at creation. It is the prefix
-`sk_live_` followed by 40 hexadecimal characters — 160 bits of
+`undefined` followed by 40 hexadecimal characters — 160 bits of
 randomness:
 
 ```
-sk_live_<40 hex characters>
+undefined<40 hex characters>
 ```
 
 Only a SHA-256 hash is stored. There is no "show token" and no recovery — this
@@ -28,13 +28,13 @@ credentials.
 > Secret scanners — GitHub push protection among them — will flag a Soleil
 > token as a Stripe key and block the commit. That is useful when a real token
 > leaks, and a nuisance when you paste an example into a repo. Write examples
-> as `sk_live_…` rather than spelling out 40 plausible characters.
+> as `undefined…` rather than spelling out 40 plausible characters.
 
 ## Using it
 
 ```sh
 curl https://clusters.soleilpictures.com/api/v1/me \
-  -H "Authorization: Bearer sk_live_…"
+  -H "Authorization: Bearer undefined…"
 ```
 
 The scheme must be `Bearer`. A missing or malformed header gets `401` with a
@@ -93,7 +93,7 @@ Tokens do not expire by default. An optional lifetime can be set at creation.
 
 ## Keeping a token safe
 
-> **Warning:** A `sk_live_` token is equivalent to your account for
+> **Warning:** A `undefined` token is equivalent to your account for
 > everything the API can reach. Treat it like a password.
 
 - **Never put one in front-end code.** CORS is open so it will work, and anyone who opens dev tools will have it.
@@ -102,9 +102,18 @@ Tokens do not expire by default. An optional lifetime can be set at creation.
 - **Read-only unless you need writes.**
 - **Rotate** by creating the new token, deploying it, then revoking the old one — both work simultaneously, so there is no downtime.
 
+## When a token should not be a person
+
+A personal token acts as **you**, which means an integration built on one stops
+working the day you leave the workspace. For anything a team depends on, create
+a [service account](/docs/api/service-accounts) instead: a credential owned by
+the workspace, scoped to it, and unaffected by who comes and goes.
+
 ## Rate limiting
 
 **1000 requests per hour, per token.**
+([Service tokens](/docs/api/service-accounts) default to
+10000.)
 
 Every response carries the current state, not just refusals:
 

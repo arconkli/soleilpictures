@@ -2755,6 +2755,10 @@ export const DOCS_PAGES = [
         "text": "Keeping a token safe"
       },
       {
+        "id": "when-a-token-should-not-be-a-person",
+        "text": "When a token should not be a person"
+      },
+      {
         "id": "rate-limiting",
         "text": "Rate limiting"
       },
@@ -3148,6 +3152,74 @@ export const DOCS_PAGES = [
       {
         "q": "How do I stop an agent deleting things?",
         "a": "Mint a token without the delete scope. Deleting is a separate grant from writing precisely so an agent can be allowed to build without being allowed to destroy."
+      }
+    ]
+  },
+  {
+    "path": "/docs/api/service-accounts",
+    "title": "Service Accounts — Soleil Clusters API",
+    "metaDescription": "Create a credential owned by a workspace rather than by a person, so an integration keeps working after the person who built it leaves.",
+    "h1": "Service accounts",
+    "answer": "A personal access token belongs to one person, so an integration built on it stops the day that person leaves the workspace. A service account is a credential owned by the workspace itself. It is a real member of exactly one workspace, subject to the same permissions as anyone else, and its tokens keep working regardless of who comes and goes. Only the workspace owner can create one, and a token can never grant more than the token that created it.",
+    "section": "developers",
+    "order": 9,
+    "updated": "2026-08-09",
+    "navLabel": "Service accounts",
+    "headings": [
+      {
+        "id": "create-one",
+        "text": "Create one"
+      },
+      {
+        "id": "scopes-and-the-ceiling-on-them",
+        "text": "Scopes, and the ceiling on them"
+      },
+      {
+        "id": "rate-limit",
+        "text": "Rate limit"
+      },
+      {
+        "id": "managing-them",
+        "text": "Managing them"
+      },
+      {
+        "id": "limits",
+        "text": "Limits"
+      },
+      {
+        "id": "what-it-deliberately-cannot-do",
+        "text": "What it deliberately cannot do"
+      },
+      {
+        "id": "which-credential-to-use",
+        "text": "Which credential to use"
+      }
+    ],
+    "related": [
+      "/docs/api/authentication",
+      "/docs/api",
+      "/docs/mcp"
+    ],
+    "faq": [
+      {
+        "q": "Why not just use a personal access token?",
+        "a": "It works, until the person who minted it leaves the workspace or their account changes. Then every integration built on it stops with a permission error far from the cause. A service account has no such dependency."
+      },
+      {
+        "q": "What can a service account see?",
+        "a": "Exactly one workspace, and only what a member of that workspace can see. It cannot reach boards shared to the person who created it from somewhere else."
+      },
+      {
+        "q": "Who is allowed to create one?",
+        "a": "The workspace owner. An editor cannot, because a credential that outlives its creator's own access would be a way around losing it."
+      },
+      {
+        "q": "How do I rotate a token without downtime?",
+        "a": "Mint the new one first, move the integration onto it, then revoke the old one. A service account can hold several tokens at once."
+      },
+      {
+        "q": "Does a service account count against my plan?",
+        "a": "No. Storage and card limits are charged to the workspace owner no matter who does the writing, which is the same rule the app applies to collaborators."
       }
     ]
   }

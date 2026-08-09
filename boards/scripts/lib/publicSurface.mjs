@@ -229,6 +229,20 @@ export function apiFacts() {
   const rate = rateSql.match(/coalesce\(t\.req_limit,\s*(\d+)\)/);
   if (!rate) throw new Error('publicSurface: default rate limit not found in 0221_scale_limits.sql');
 
+  // Service-account numbers live in the migration that enforces them, same rule
+  // as the rate limit above: the fact is read from the code that refuses, so a
+  // doc claiming a different number cannot survive a build.
+  const svcSql = read('supabase/migrations/0222_integration_surface.sql');
+  const svcPick = (re, what) => {
+    const m = svcSql.match(re);
+    if (!m) throw new Error(`publicSurface: ${what} not found in 0222_integration_surface.sql`);
+    return Number(m[1]);
+  };
+
+  const mintSql = read('supabase/migrations/0220_api_scopes_usage_log.sql');
+  const tokens = mintSql.match(/where user_id = auth\.uid\(\) and revoked_at is null\) >= (\d+)/);
+  if (!tokens) throw new Error('publicSurface: token cap not found in 0220_api_scopes_usage_log.sql');
+
   return {
     maxCardsPerCall: Number(pick(/const MAX_CARDS_PER_CALL = (\d+)/, 'MAX_CARDS_PER_CALL')),
     maxBoardsPerCall: Number(pick(/const MAX_BOARDS_PER_CALL = (\d+)/, 'MAX_BOARDS_PER_CALL')),
@@ -242,7 +256,13 @@ export function apiFacts() {
     defaultPage: Number(pick(/const DEFAULT_PAGE = (\d+)/, 'DEFAULT_PAGE')),
     maxUploadMb: Number(pick(/const MAX_UPLOAD_BYTES = (\d+) \* 1024 \* 1024/, 'MAX_UPLOAD_BYTES')),
     rateLimitPerHour: Number(rate[1]),
-    tokenPrefix: prefix[1],
+    serviceRateLimitPerHour: svcPick(/coalesce\(p_req_limit,\s*(\d+)\)/, 'service token rate default'),
+    maxServiceAccounts: svcPick(/at most (\d+) service accounts/, 'service account cap'),
+    maxWebhooks: svcPick(/at most (\d+) active webhooks/, 'webhook cap'),
+    maxIdentifiersPerObject: svcPick(/at most (\d+) identifiers/, 'identifier cap'),
+    maxPropsBytes: svcPick(/length\(p::text\) <= (\d+)/, 'props byte cap'),
+    maxPropKeys: svcPick(/jsonb_object_keys\(p\)\) <= (\d+)/, 'props key cap'),
+    maxTokensPerAccount: Number(tokens[1]),
   };
 }
 

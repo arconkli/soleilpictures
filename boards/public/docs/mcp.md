@@ -26,7 +26,7 @@ authorization model there applies here unchanged.
     "soleil-clusters": {
       "command": "node",
       "args": ["/absolute/path/to/soleilpictures/mcp/src/index.js"],
-      "env": { "SOLEIL_API_TOKEN": "sk_live_…" }
+      "env": { "SOLEIL_API_TOKEN": "undefined…" }
     }
   }
 }

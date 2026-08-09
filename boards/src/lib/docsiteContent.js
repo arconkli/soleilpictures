@@ -23705,6 +23705,101 @@ export const DOCS_CONTENT = {
        "v": "Read an image back"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET /service-accounts"
+      }
+     ],
+     [
+      {
+       "t": "link",
+       "v": "Service accounts",
+       "href": "/docs/api/service-accounts",
+       "children": [
+        {
+         "t": "text",
+         "v": "Service accounts"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " in a workspace"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /service-accounts"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Create one, with its first token"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "DELETE /service-accounts/:id"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Retire one and revoke its tokens"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /service-accounts/:id/tokens"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Mint another token — rotate without downtime"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET /service-accounts/:id/tokens"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Its tokens and when each was last used"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "DELETE /service-accounts/:id/tokens/:tokenId"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Revoke one token"
+      }
+     ]
     ]
    ]
   },
@@ -23759,7 +23854,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "sh",
-   "code": "curl https://clusters.soleilpictures.com/api/v1/me \\\n  -H \"Authorization: Bearer sk_live_…\""
+   "code": "curl https://clusters.soleilpictures.com/api/v1/me \\\n  -H \"Authorization: Bearer undefined…\""
   },
   {
    "type": "para",
@@ -24171,7 +24266,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
-     "v": "sk_live_"
+     "v": "undefined"
     },
     {
      "t": "text",
@@ -24374,7 +24469,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "sh",
-   "code": "export SOLEIL_TOKEN=\"sk_live_…\"\nexport SOLEIL_API=\"https://clusters.soleilpictures.com/api/v1\""
+   "code": "export SOLEIL_TOKEN=\"undefined…\"\nexport SOLEIL_API=\"https://clusters.soleilpictures.com/api/v1\""
   },
   {
    "type": "heading",
@@ -24964,7 +25059,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
-     "v": "sk_live_"
+     "v": "undefined"
     },
     {
      "t": "text",
@@ -24975,7 +25070,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": null,
-   "code": "sk_live_<40 hex characters>"
+   "code": "undefined<40 hex characters>"
   },
   {
    "type": "para",
@@ -24996,7 +25091,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
-     "v": "sk_live_…"
+     "v": "undefined…"
     },
     {
      "t": "text",
@@ -25019,7 +25114,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "sh",
-   "code": "curl https://clusters.soleilpictures.com/api/v1/me \\\n  -H \"Authorization: Bearer sk_live_…\""
+   "code": "curl https://clusters.soleilpictures.com/api/v1/me \\\n  -H \"Authorization: Bearer undefined…\""
   },
   {
    "type": "para",
@@ -25477,7 +25572,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
-     "v": "sk_live_"
+     "v": "undefined"
     },
     {
      "t": "text",
@@ -25570,6 +25665,56 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "When a token should not be a person",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When a token should not be a person"
+    }
+   ],
+   "id": "when-a-token-should-not-be-a-person"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A personal token acts as "
+    },
+    {
+     "t": "strong",
+     "v": "you",
+     "children": [
+      {
+       "t": "text",
+       "v": "you"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which means an integration built on one stops working the day you leave the workspace. For anything a team depends on, create a "
+    },
+    {
+     "t": "link",
+     "v": "service account",
+     "href": "/docs/api/service-accounts",
+     "children": [
+      {
+       "t": "text",
+       "v": "service account"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " instead: a credential owned by the workspace, scoped to it, and unaffected by who comes and goes."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Rate limiting",
    "inline": [
     {
@@ -25591,6 +25736,25 @@ export const DOCS_CONTENT = {
        "v": "1000 requests per hour, per token."
       }
      ]
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "link",
+     "v": "Service tokens",
+     "href": "/docs/api/service-accounts",
+     "children": [
+      {
+       "t": "text",
+       "v": "Service tokens"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " default to 10000.)"
     }
    ]
   },
@@ -30086,7 +30250,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "json",
-   "code": "{\n  \"mcpServers\": {\n    \"soleil-clusters\": {\n      \"command\": \"node\",\n      \"args\": [\"/absolute/path/to/soleilpictures/mcp/src/index.js\"],\n      \"env\": { \"SOLEIL_API_TOKEN\": \"sk_live_…\" }\n    }\n  }\n}"
+   "code": "{\n  \"mcpServers\": {\n    \"soleil-clusters\": {\n      \"command\": \"node\",\n      \"args\": [\"/absolute/path/to/soleilpictures/mcp/src/index.js\"],\n      \"env\": { \"SOLEIL_API_TOKEN\": \"undefined…\" }\n    }\n  }\n}"
   },
   {
    "type": "para",
@@ -31282,6 +31446,713 @@ export const DOCS_CONTENT = {
       ]
      }
     ]
+   ]
+  }
+ ],
+ "/docs/api/service-accounts": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A "
+    },
+    {
+     "t": "link",
+     "v": "personal access token",
+     "href": "/docs/api/authentication",
+     "children": [
+      {
+       "t": "text",
+       "v": "personal access token"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is "
+    },
+    {
+     "t": "strong",
+     "v": "you",
+     "children": [
+      {
+       "t": "text",
+       "v": "you"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Everything it can do, it does as your account, under your permissions. That is the right design for a script you wrote for yourself, and the wrong one for an integration a team depends on — because the day you leave the workspace, or your account changes, every pipeline built on that token stops, with a permission error a long way from its cause."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A "
+    },
+    {
+     "t": "strong",
+     "v": "service account",
+     "children": [
+      {
+       "t": "text",
+       "v": "service account"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is a credential owned by the workspace instead."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It is a real member of one workspace. It is subject to exactly the same permissions as a person — there is no bypass and no elevated mode — and its access ends at the edge of that workspace. What it does not have is a dependency on any particular human still being around."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Create one",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Create one"
+    }
+   ],
+   "id": "create-one"
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST \"$SOLEIL_API/service-accounts\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" -H \"Content-Type: application/json\" \\\n  -d '{\"workspace_id\":\"'$WS'\",\"name\":\"Pipeline sync\",\"scopes\":[\"read\",\"write\"]}'"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"service_account\": {\n    \"id\": \"9f1c…\", \"name\": \"Pipeline sync\", \"workspace_id\": \"3b7e…\",\n    \"created_at\": \"2026-08-09T12:00:00Z\", \"disabled\": false\n  },\n  \"token\": {\n    \"id\": \"a2c4…\", \"token\": \"undefined…\", \"prefix\": \"undefineda1b2\",\n    \"scopes\": [\"read\", \"write\"], \"rate_limit\": 10000\n  },\n  \"next\": \"Use this token as the Bearer credential. It is shown once.\"\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The account and its first token are created together, because an account with no credential cannot do anything and you would have to ask for one immediately anyway."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "`token` is shown once.",
+     "children": [
+      {
+       "t": "code",
+       "v": "token"
+      },
+      {
+       "t": "text",
+       "v": " is shown once."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " It is not stored anywhere it can be read back. If it is lost, mint another and revoke the old one."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Only the "
+    },
+    {
+     "t": "strong",
+     "v": "workspace owner",
+     "children": [
+      {
+       "t": "text",
+       "v": "workspace owner"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " can create a service account. An editor cannot — a credential that keeps working after its creator loses access would be a way around losing it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Scopes, and the ceiling on them",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Scopes, and the ceiling on them"
+    }
+   ],
+   "id": "scopes-and-the-ceiling-on-them"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Same three "
+    },
+    {
+     "t": "link",
+     "v": "scopes",
+     "href": "/docs/api/authentication",
+     "children": [
+      {
+       "t": "text",
+       "v": "scopes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " as a personal token: "
+    },
+    {
+     "t": "code",
+     "v": "read"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "write"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "delete"
+    },
+    {
+     "t": "text",
+     "v": ". "
+    },
+    {
+     "t": "code",
+     "v": "delete"
+    },
+    {
+     "t": "text",
+     "v": " implies "
+    },
+    {
+     "t": "code",
+     "v": "write"
+    },
+    {
+     "t": "text",
+     "v": ", and every token can read."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "A service token can never grant more than the token that created it.",
+     "children": [
+      {
+       "t": "text",
+       "v": "A service token can never grant more than the token that created it."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Asking for "
+    },
+    {
+     "t": "code",
+     "v": "delete"
+    },
+    {
+     "t": "text",
+     "v": " from a "
+    },
+    {
+     "t": "code",
+     "v": "write"
+    },
+    {
+     "t": "text",
+     "v": " token is refused with "
+    },
+    {
+     "t": "code",
+     "v": "403 insufficient_scope"
+    },
+    {
+     "t": "text",
+     "v": " rather than quietly granted — otherwise the weaker credential would be a way to manufacture the stronger one."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Rate limit",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Rate limit"
+    }
+   ],
+   "id": "rate-limit"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A service token's default is "
+    },
+    {
+     "t": "strong",
+     "v": "10000 requests/hour",
+     "children": [
+      {
+       "t": "text",
+       "v": "10000 requests/hour"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", against 1000 for a personal one. The two numbers exist for different reasons: a personal limit bounds one person's scripting mistake, and a machine identity is the case a rate limit exists to "
+    },
+    {
+     "t": "em",
+     "v": "permit",
+     "children": [
+      {
+       "t": "text",
+       "v": "permit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Pass "
+    },
+    {
+     "t": "code",
+     "v": "rate_limit"
+    },
+    {
+     "t": "text",
+     "v": " to set your own."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every response carries "
+    },
+    {
+     "t": "code",
+     "v": "X-RateLimit-Remaining"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "X-RateLimit-Reset"
+    },
+    {
+     "t": "text",
+     "v": ", so there is no need to discover the ceiling by hitting it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Managing them",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Managing them"
+    }
+   ],
+   "id": "managing-them"
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "# What exists\ncurl \"$SOLEIL_API/service-accounts?workspace=$WS\" -H \"Authorization: Bearer $SOLEIL_TOKEN\"\n\n# Another token for the same account — mint the new one BEFORE revoking the old,\n# and the integration never has a moment without a working credential\ncurl -X POST \"$SOLEIL_API/service-accounts/$SA/tokens\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" -H \"Content-Type: application/json\" \\\n  -d '{\"name\":\"rotated 2026-08\",\"scopes\":[\"read\",\"write\"],\"ttl_days\":90}'\n\n# Its tokens, with when each was last used\ncurl \"$SOLEIL_API/service-accounts/$SA/tokens\" -H \"Authorization: Bearer $SOLEIL_TOKEN\"\n\n# Retire one token\ncurl -X DELETE \"$SOLEIL_API/service-accounts/$SA/tokens/$TOKEN_ID\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\"\n\n# Retire the whole account — revokes every token and ends its membership\ncurl -X DELETE \"$SOLEIL_API/service-accounts/$SA\" -H \"Authorization: Bearer $SOLEIL_TOKEN\""
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Deleting a service account is immediate: every token is revoked and the membership is removed, so the credential is dead by the time the call returns. The record itself is kept, so past entries in the "
+    },
+    {
+     "t": "link",
+     "v": "audit log",
+     "href": "/docs/api/authentication",
+     "children": [
+      {
+       "t": "text",
+       "v": "audit log"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " still resolve to a name rather than to a deleted id."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Limits",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Limits"
+    }
+   ],
+   "id": "limits"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Per workspace",
+       "children": [
+        {
+         "t": "text",
+         "v": "Per workspace"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "10 active service accounts"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Per account",
+       "children": [
+        {
+         "t": "text",
+         "v": "Per account"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "20 active tokens"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Reach",
+       "children": [
+        {
+         "t": "text",
+         "v": "Reach"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The one workspace it belongs to"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Requests",
+       "children": [
+        {
+         "t": "text",
+         "v": "Requests"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "10000/hour by default, per token"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "What it deliberately cannot do",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What it deliberately cannot do"
+    }
+   ],
+   "id": "what-it-deliberately-cannot-do"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A service account "
+    },
+    {
+     "t": "strong",
+     "v": "cannot create or manage service accounts",
+     "children": [
+      {
+       "t": "text",
+       "v": "cannot create or manage service accounts"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", including itself. If it could, a single leaked credential could clone itself indefinitely and revoking the original would achieve nothing. Account management always needs the owner's own token."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It also cannot be made an owner, and it cannot reach a second workspace. If an integration spans two workspaces it needs two service accounts — which is the honest representation of what it is doing."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Which credential to use",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Which credential to use"
+    }
+   ],
+   "id": "which-credential-to-use"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Personal token"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Service account"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "Belongs to"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "You"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The workspace"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Survives you leaving"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Reach"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Everything you can see"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "One workspace"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Created by"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Anyone, in Settings → API"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The workspace owner, over the API"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Good for"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Your own scripts, trying things out, "
+      },
+      {
+       "t": "link",
+       "v": "MCP",
+       "href": "/docs/mcp",
+       "children": [
+        {
+         "t": "text",
+         "v": "MCP"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " on your machine"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Anything a team depends on"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A useful rule: if losing access to it would interrupt someone other than you, it should be a service account."
+    }
    ]
   }
  ]

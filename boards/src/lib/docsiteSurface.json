@@ -2,6 +2,8 @@
   "restEndpoints": [
     "DELETE /boards/:id",
     "DELETE /boards/:id/cards/:cardId",
+    "DELETE /service-accounts/:id",
+    "DELETE /service-accounts/:id/tokens/:tokenId",
     "GET /boards/:id",
     "GET /boards/:id/cards?source=live|index&limit=&offset=&cursor=",
     "GET /boards?workspace=&parent=&deleted=&limit=&offset=",
@@ -9,6 +11,8 @@
     "GET /images?workspace=&board=&since=&cursor=&limit=",
     "GET /me",
     "GET /search?q=&kind=&workspace=&limit=&offset=",
+    "GET /service-accounts/:id/tokens",
+    "GET /service-accounts?workspace=",
     "GET /workspaces",
     "PATCH /boards/:id",
     "PATCH /boards/:id/cards/:cardId",
@@ -17,6 +21,8 @@
     "POST /boards/:id/cards",
     "POST /boards/:id/cards/move",
     "POST /boards/:id/restore",
+    "POST /service-accounts",
+    "POST /service-accounts/:id/tokens",
     "POST /uploads/multipart/abort",
     "POST /uploads/multipart/complete",
     "POST /uploads/multipart/parts",
@@ -104,6 +110,7 @@
     "400 bad_request",
     "402 limit_reached",
     "403 forbidden",
+    "403 insufficient_scope",
     "404 not_found",
     "405 method_not_allowed",
     "409 conflict",
@@ -126,7 +133,13 @@
     "defaultPage": 100,
     "maxUploadMb": 25,
     "rateLimitPerHour": 1000,
-    "tokenPrefix": "sk_live_"
+    "serviceRateLimitPerHour": 10000,
+    "maxServiceAccounts": 10,
+    "maxWebhooks": 20,
+    "maxIdentifiersPerObject": 20,
+    "maxPropsBytes": 16384,
+    "maxPropKeys": 100,
+    "maxTokensPerAccount": 20
   },
   "settingsTabs": [
     {
