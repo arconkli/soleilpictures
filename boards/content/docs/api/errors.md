@@ -4,7 +4,7 @@ metaDescription: Every Soleil Clusters API error code and what to do about it â€
 h1: Errors and status codes
 navLabel: Errors
 section: developers
-order: 7
+order: 9
 updated: 2026-08-08
 answer: Every error is JSON carrying a machine-readable code and a human sentence. Branch on the code, not the prose. Only 429 and 5xx are worth retrying; everything in the 400 range is a permanent statement about the request. A retried POST must reuse the same Idempotency-Key or it becomes a second real write.
 faq:
@@ -40,6 +40,7 @@ be reworded; the code is the contract.
 | `404` | `not_found` | Not found, **or** not visible to you | No |
 | `405` | `method_not_allowed` | Wrong method for that path | No |
 | `409` | `conflict` | Idempotency key in flight, or a refused reparent | Sometimes |
+| `409` | `identifier_conflict` | An [identifier](/docs/api/metadata) already belongs to something else | No |
 | `413` | `payload_too_large` | An [image](/docs/api/images) over {{fact:maxUploadMb}} | No |
 | `415` | `unsupported_media_type` | Upload with a missing or unrecognised `Content-Type` | No |
 | `429` | â€” | [Rate limited](/docs/api/authentication) | Yes, after `retry-after` |

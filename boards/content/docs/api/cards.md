@@ -106,6 +106,30 @@ Pass `next_cursor` back as `cursor`. Use this to **verify what exists** — afte
 a bulk import, say. It is a projection, not the card: enough to reconcile, not
 enough to rebuild one. Fetch without `source` for the real thing.
 
+Add `since=<ISO>` and it becomes a change feed, ordered by `updated_at` instead
+of by id, with a cursor that carries both. That is the cheap way to ask "what
+moved on this board since I last looked" without reading the board.
+
+### `?include=`
+
+| Value | Adds |
+|---|---|
+| `props` | The card's [properties](/docs/api/metadata) |
+| `identifiers` | Its [foreign identifiers](/docs/api/metadata) |
+| `raw` | The card exactly as the canvas stores it |
+
+`raw` exists because the card object above is a deliberately narrow projection,
+and the app has kinds it does not describe — a grid carries its cells and
+template, a palette its swatches, a schedule its rows. Those read back through
+the projection with their interiors missing, which for anyone taking a backup is
+data loss that looks like success.
+
+`raw` is the card's **internal** shape: field names in it are not part of this
+API's contract and can change with the app. Use it to preserve or reconstruct,
+not to build logic on. [`/export`](/docs/api/export) includes it always.
+
+A misspelled `include` is a `400` rather than a silent omission.
+
 ## `POST /boards/:id/cards`
 
 Either shape works:
@@ -146,6 +170,26 @@ read-the-board path.
 **`live`.** `true` means open canvases received the change immediately. `false`
 means it is saved but a canvas someone already has open needs a reload. Never
 treat `false` as failure.
+
+### Adding the same cards twice
+
+Give each card an `identifiers` array and pass `"on_conflict": "identifier"`,
+and a card already carrying one is **updated in place** rather than added again:
+
+```json
+{ "on_conflict": "identifier",
+  "cards": [
+    { "kind": "image", "image_key": "…", "x": 0, "y": 0,
+      "identifiers": [{ "scope": "shotgrid", "value": "Asset:12345" }] }
+  ] }
+```
+
+The response carries `created` and `updated` counts. Run your importer twice
+over three million assets and you get three million cards, not six. See
+[Identifiers and properties](/docs/api/metadata).
+
+Every card write also accepts `props` and `identifiers` directly, whether or not
+you are upserting.
 
 ## `PATCH /boards/:id/cards/:cardId`
 

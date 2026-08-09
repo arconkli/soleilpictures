@@ -35,15 +35,21 @@ import {
   userSelect, userRpc, userInsert, userPatch,
   createServiceAuthUser, deleteAuthUser,
 } from './lib/apiAuth.js';
+import {
+  normalizeProps, normalizeIdentifiers, matchIdentifiers, loadMeta, loadBoardsMeta,
+  saveMeta, saveMetaBulk, withMeta, parseInclude, purgeCardMeta, repointCardMeta,
+  OBJECT_TYPES,
+} from './lib/objectMeta.js';
 import { scoutRpc, scoutDelete } from './lib/scoutDb.js';
 import {
   addCardsToBoard, moveCardsBetweenBoards, readBoardCards,
-  updateCardOnBoard, deleteCardsFromBoard,
+  updateCardOnBoard, updateCardsOnBoard, deleteCardsFromBoard,
 } from './lib/scoutBoard.js';
 import { arrangeExisting } from './lib/scoutCards.js';
 import { bytesToB64 } from './lib/yhelpers.js';
 import { imageDimensions, extensionFor } from './lib/imageDims.js';
 import { openapiDocument } from './lib/apiOpenapi.js';
+import { boardToOmc } from './lib/omcExport.js';
 
 // Raised from 100 once a positioned batch stopped costing O(the whole board):
 // the write is now one card_index insert and one small Yjs update, so the batch
@@ -226,6 +232,113 @@ export function normalizeIncomingCard(input, { partial = false, existingKind = n
   return out;
 }
 
+// Place whatever is missing coordinates, around what is already on the board.
+//
+// Every card must leave here with real coordinates. stampCard sets z and
+// timestamps but NOT x/y, so an unpositioned card would reach the Y.Doc with
+// undefined geometry — and one NaN card poisons boundsOfCards() for the whole
+// board, scattering everything the user already had. Dropping it is the only
+// safe answer; the response reports what actually landed.
+function layoutCards(built, existing) {
+  const needsLayout = built.filter((c) => !Number.isFinite(c.x) || !Number.isFinite(c.y));
+  const placed = needsLayout.length
+    ? arrangeExisting({ existingCards: existing, cards: needsLayout })
+    : [];
+  const byId = new Map(placed.map((c) => [c.id, c]));
+  return built
+    .map((c) => byId.get(c.id) || c)
+    .filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+}
+
+// ── Identifiers and props on the wire ────────────────────────────────────────
+
+// One extra pair of queries for a whole page, not a pair per board.
+async function decorateBoards(env, token, rows, include) {
+  const out = rows.map(publicBoard);
+  if (!include.size || !rows.length) return out;
+  const meta = await loadBoardsMeta(env, token, rows.map((b) => b.id));
+  return out.map((b) => filterMeta(withMeta(b, meta.get(b.id) || {}), include));
+}
+
+// `?include=props` should not also hand back identifiers. Asking for one thing
+// and receiving two is how a response grows without anyone deciding to.
+function filterMeta(obj, include) {
+  const out = { ...obj };
+  if (!include.has('props')) delete out.props;
+  if (!include.has('identifiers')) delete out.identifiers;
+  return out;
+}
+
+// The same for cards, plus `raw`.
+//
+// WHY `raw` EXISTS. publicCard is a 12-field projection, and the app has kinds
+// it does not describe — a grid card carries cells, a template and a sequence;
+// a palette carries swatches; a schedule carries rows. Those kinds are readable
+// but not creatable, and they were reading back with their interior silently
+// missing, which for anyone taking a backup or migrating out is data loss that
+// looks like success. `raw` hands over the card exactly as it is stored.
+//
+// It is opt-in because it is the card's INTERNAL shape: field names there are
+// not part of the API's contract and may change with the app.
+async function decorateCards(env, token, boardId, cards, include) {
+  let out = cards.map((c) => (include.has('raw')
+    ? { ...publicCard(c), raw: c }
+    : publicCard(c)));
+  if (include.has('props') || include.has('identifiers')) {
+    const meta = await loadMeta(env, token, {
+      boardId, objectType: 'card', objectIds: cards.map((c) => c.id),
+    });
+    out = out.map((c) => filterMeta(withMeta(c, meta.get(String(c.id)) || {}), include));
+  }
+  return out;
+}
+
+// Pull `props` and `identifiers` off an incoming body and validate them, so a
+// route never has to remember to. Returns nulls for "not mentioned", which is
+// distinct from an empty object or an empty array.
+function metaFromBody(body) {
+  return {
+    props: normalizeProps(body?.props),
+    identifiers: normalizeIdentifiers(body?.identifiers),
+  };
+}
+
+// Resolve `on_conflict: "identifier"` for a batch.
+//
+// This is what makes an import RE-RUNNABLE, which is the single most-asked-for
+// property of an integration API and the one thing this API could not do at any
+// price. Given the identifiers each incoming item carries, find what already
+// exists so the caller updates it instead of creating a second copy.
+//
+// Two refusals rather than a guess:
+//   · one item whose identifiers match two DIFFERENT existing objects — there
+//     is no correct answer, and picking one silently merges two records
+//   · a card whose identifier lives on a different board — the caller believes
+//     it is putting a card on this board, and quietly not doing so is worse
+//     than saying where the card actually is
+function resolveUpsert(items, matches, { objectType, boardId }) {
+  return items.map((item, i) => {
+    if (!item.identifiers?.length) return { index: i, existing: null };
+    const hits = new Map();
+    for (const ident of item.identifiers) {
+      const row = matches.get(`${ident.scope} ${ident.value}`);
+      if (row) hits.set(`${row.board_id}/${row.object_id}`, row);
+    }
+    if (hits.size > 1) {
+      throw fail(409, 'identifier_conflict',
+        `identifiers on item ${i} already belong to ${hits.size} different objects — `
+        + 'an object cannot be two things at once');
+    }
+    const row = [...hits.values()][0] || null;
+    if (row && objectType === 'card' && String(row.board_id) !== String(boardId)) {
+      throw fail(409, 'identifier_conflict',
+        `a card with that identifier already exists on board ${row.board_id}. `
+        + 'Move it, or give this one a different identifier.');
+    }
+    return { index: i, existing: row };
+  });
+}
+
 // ── Service accounts ─────────────────────────────────────────────────────────
 
 function publicServiceAccount(s) {
@@ -376,7 +489,7 @@ async function partyMpu(env, token, workspaceId, action, body) {
 // see comes back as "not found" rather than leaking its existence.
 async function boardForUser(env, token, boardId, { includeDeleted = false } = {}) {
   const q = `id=eq.${boardId}${includeDeleted ? '' : '&deleted_at=is.null'}`
-    + '&select=id,name,workspace_id,parent_board_id,view,created_at,deleted_at';
+    + '&select=id,name,workspace_id,parent_board_id,view,created_at,updated_at,deleted_at';
   const rows = await userSelect(env, token, 'boards', q);
   return rows?.[0] || null;
 }
@@ -568,14 +681,17 @@ async function dispatch(url, request, env, ctx) {
         'POST   /service-accounts/:id/tokens',
         'DELETE /service-accounts/:id/tokens/:tokenId',
         'GET    /search?q=&kind=&workspace=&limit=&offset=',
-        'GET    /boards?workspace=&parent=&deleted=&limit=&offset=',
+        'GET    /resolve?scope=&value=&type=&workspace=',
+        'GET    /boards?workspace=&parent=&deleted=&since=&cursor=&include=&limit=&offset=',
+        'GET    /boards/tree?root=&workspace=&depth=',
         'POST   /boards',
         'POST   /boards            {"boards":[…]}  — bulk, up to 500',
         'GET    /boards/:id',
+        'GET    /boards/:id/export?format=json|omc',
         'PATCH  /boards/:id',
         'DELETE /boards/:id',
         'POST   /boards/:id/restore',
-        'GET    /boards/:id/cards?source=live|index&limit=&offset=&cursor=',
+        'GET    /boards/:id/cards?source=live|index&since=&cursor=&include=&limit=&offset=',
         'POST   /boards/:id/cards',
         'PATCH  /boards/:id/cards/:cardId',
         'DELETE /boards/:id/cards/:cardId',
@@ -728,6 +844,53 @@ async function dispatch(url, request, env, ctx) {
     throw fail(405, 'method_not_allowed', `${method} is not supported here`);
   }
 
+  // GET /resolve?scope=&value=[&type=][&workspace=]
+  //
+  // The reverse lookup, and the reason identifiers are worth storing at all.
+  // A pipeline holding a ShotGrid id needs to get from that to the board
+  // without keeping its own map of which board it made for which shot — which
+  // is the exact bookkeeping every integration ends up doing when an API cannot
+  // answer this question.
+  if (head === 'resolve' && method === 'GET') {
+    const scope = (url.searchParams.get('scope') || '').trim().toLowerCase();
+    const value = (url.searchParams.get('value') || '').trim();
+    const type = url.searchParams.get('type');
+    const ws = url.searchParams.get('workspace');
+    if (!scope || !value) throw fail(400, 'bad_request', 'scope and value are required');
+    if (type && !OBJECT_TYPES.includes(type)) {
+      throw fail(400, 'bad_request', `type must be one of ${OBJECT_TYPES.join(', ')}`);
+    }
+    if (ws && !isUuid(ws)) throw fail(400, 'bad_request', 'workspace must be a uuid');
+
+    // RLS does the authorization: object_identifiers is readable exactly where
+    // can_read_board is true, so an identifier on someone else's board simply
+    // is not here. No filtering afterwards, and no way to probe for what exists
+    // by watching which lookups come back empty.
+    let q = `scope=eq.${encodeURIComponent(scope)}&value=eq.${encodeURIComponent(value)}`
+      + '&select=object_type,object_id,board_id,workspace_id,scope,value,created_at';
+    if (type) q += `&object_type=eq.${type}`;
+    if (ws) q += `&workspace_id=eq.${ws}`;
+    const rows = await userSelect(env, token, 'object_identifiers', q);
+
+    return json({
+      scope,
+      value,
+      // A list, not a single object. The identifier is unique per (workspace,
+      // type) — not globally — so a caller who belongs to two workspaces that
+      // both track the same upstream record gets both, and gets to choose.
+      matches: (rows || []).map((r) => ({
+        object_type: r.object_type,
+        object_id: r.object_id,
+        board_id: r.board_id,
+        workspace_id: r.workspace_id,
+        url: r.object_type === 'board'
+          ? `/api/v1/boards/${r.board_id}`
+          : `/api/v1/boards/${r.board_id}/cards`,
+        created_at: r.created_at,
+      })),
+    });
+  }
+
   // GET /search — the endpoint an assistant needs most: find the board about X
   // without reading every board.
   //
@@ -753,7 +916,7 @@ async function dispatch(url, request, env, ctx) {
       wantBoards
         ? userSelect(env, token, 'boards',
           `name=ilike.${encodeURIComponent(value)}&deleted_at=is.null${wsFilter}`
-          + `&select=id,name,workspace_id,parent_board_id,view,created_at,deleted_at`
+          + `&select=id,name,workspace_id,parent_board_id,view,created_at,updated_at,deleted_at`
           + `&order=created_at.desc&limit=${limit + 1}&offset=${offset}`)
         : Promise.resolve([]),
       wantCards
@@ -1114,15 +1277,50 @@ async function dispatch(url, request, env, ctx) {
     trace.route = '/boards';
     if (method === 'GET') {
       const { limit, offset } = pageParams(url);
+      const include = parseInclude(url, ['props', 'identifiers']);
       const ws = url.searchParams.get('workspace');
       const parent = url.searchParams.get('parent');
       const deleted = url.searchParams.get('deleted') === '1';
-      // The boards SELECT policy is can_read_board(id) with no deleted_at
-      // clause, so a soft-deleted board stays readable to whoever could read
-      // it. Listing the trash is just dropping the filter.
+      const since = url.searchParams.get('since');
+      const cursor = url.searchParams.get('cursor');
+
+      // Two modes, and which one you are in is decided by whether you asked a
+      // delta question.
+      //
+      // Default is unchanged: created_at ascending, offset paged. Pass `since`
+      // or `cursor` and it becomes a CHANGE FEED — updated_at ascending, keyset
+      // paged — because a synchroniser asking "what moved" wants them in the
+      // order they moved, and offset paging over a set that is being written to
+      // skips and repeats rows.
+      const delta = !!(since || cursor);
+      const selectCols = 'id,name,workspace_id,parent_board_id,view,created_at,updated_at,deleted_at';
       let q = (deleted ? 'deleted_at=not.is.null' : 'deleted_at=is.null')
-            + '&select=id,name,workspace_id,parent_board_id,view,created_at,deleted_at'
-            + `&order=created_at.asc&limit=${limit + 1}&offset=${offset}`;
+            + `&select=${selectCols}&limit=${limit + 1}`;
+
+      if (delta) {
+        q += '&order=updated_at.asc,id.asc';
+        if (since) {
+          if (Number.isNaN(Date.parse(since))) {
+            throw fail(400, 'bad_request', 'since must be an ISO timestamp');
+          }
+          q += `&updated_at=gte.${encodeURIComponent(since)}`;
+        }
+        if (cursor) {
+          const [ts, cid] = String(cursor).split('|');
+          if (!ts || !cid || Number.isNaN(Date.parse(ts))) {
+            throw fail(400, 'bad_request', 'cursor must be a next_cursor from a previous response');
+          }
+          // Strictly after (ts, id): the equal-timestamp tail is why the id is
+          // part of the cursor at all. Two boards touched in the same
+          // transaction share a timestamp, and `gt` on the timestamp alone
+          // would drop whichever came second.
+          q += `&or=(updated_at.gt.${encodeURIComponent(ts)},`
+             + `and(updated_at.eq.${encodeURIComponent(ts)},id.gt.${encodeURIComponent(cid)}))`;
+        }
+      } else {
+        q += `&order=created_at.asc&offset=${offset}`;
+      }
+
       if (ws) {
         if (!isUuid(ws)) throw fail(400, 'bad_request', 'workspace must be a uuid');
         q += `&workspace_id=eq.${ws}`;
@@ -1132,9 +1330,18 @@ async function dispatch(url, request, env, ctx) {
         if (!isUuid(parent)) throw fail(400, 'bad_request', 'parent must be a uuid or "root"');
         q += `&parent_board_id=eq.${parent}`;
       }
+
       const rows = await userSelect(env, token, 'boards', q);
       const page = paginate(rows, limit, offset);
-      return json({ boards: page.items.map(publicBoard), ...pageMeta(page) });
+      const boards = await decorateBoards(env, token, page.items, include);
+      if (!delta) return json({ boards, ...pageMeta(page) });
+      const last = page.items[page.items.length - 1];
+      return json({
+        boards,
+        limit,
+        has_more: page.has_more,
+        next_cursor: page.has_more && last ? `${last.updated_at}|${last.id}` : null,
+      });
     }
 
     if (method === 'POST' && Array.isArray(body.boards)) {
@@ -1167,6 +1374,13 @@ async function dispatch(url, request, env, ctx) {
         if (b.parent_board_id && !isUuid(b.parent_board_id)) {
           throw fail(400, 'bad_request', `boards[${i}].parent_board_id must be a uuid`);
         }
+        let meta;
+        try {
+          meta = metaFromBody(b);
+        } catch (e) {
+          e.message = `boards[${i}]: ${e.message}`;
+          throw e;
+        }
         return {
           id: crypto.randomUUID(),
           workspace_id: ws,
@@ -1174,26 +1388,99 @@ async function dispatch(url, request, env, ctx) {
           name: nm.slice(0, 200),
           view: b.view === 'list' ? 'list' : 'canvas',
           created_by: auth.userId,
+          _props: meta.props,
+          _identifiers: meta.identifiers,
         };
       });
 
-      // RLS still decides: this is one INSERT as the user, so a workspace they
-      // cannot write is refused for the whole batch rather than partly applied.
-      await userInsert(env, token, 'boards', prepared, { returning: 'minimal' });
+      // on_conflict: "identifier" — the difference between an import you can run
+      // twice and one you can run once. Without it a re-run creates a second
+      // copy of everything, which is why every synchroniser that has to work
+      // this way ends up maintaining its own id map instead.
+      const upsert = body.on_conflict === 'identifier';
+      let existingFor = prepared.map(() => null);
+      if (upsert) {
+        const byWs = new Map();
+        for (const b of prepared) {
+          if (!b._identifiers?.length) continue;
+          if (!byWs.has(b.workspace_id)) byWs.set(b.workspace_id, []);
+          byWs.get(b.workspace_id).push(...b._identifiers);
+        }
+        const matches = new Map();
+        for (const [wsId, idents] of byWs) {
+          const found = await matchIdentifiers(env, token,
+            { workspaceId: wsId, objectType: 'board', identifiers: idents });
+          for (const [k, v] of found) matches.set(k, v);
+        }
+        existingFor = resolveUpsert(
+          prepared.map((b) => ({ identifiers: b._identifiers })),
+          matches, { objectType: 'board' },
+        ).map((r) => r.existing);
+      }
 
-      // Every board needs its empty snapshot or it cold-loads as broken rather
-      // than as empty. Identical bytes for all of them, so encode once.
-      const doc = new Y.Doc();
-      const b64 = bytesToB64(Y.encodeStateAsUpdate(doc));
-      doc.destroy();
+      const creates = [];
+      const updates = [];
+      prepared.forEach((b, i) => {
+        const hit = existingFor[i];
+        if (hit) {
+          // Keep the EXISTING id. That is the point — the caller's downstream
+          // references, and its own record of what it created last time, stay
+          // valid across runs.
+          b.id = hit.board_id;
+          updates.push(b);
+        } else {
+          creates.push(b);
+        }
+      });
+
       const now = new Date().toISOString();
-      await userInsert(env, token, 'board_state',
-        prepared.map((b) => ({ board_id: b.id, doc: b64, updated_at: now })),
-        { returning: 'minimal' });
+      if (creates.length) {
+        // RLS still decides: one INSERT as the user, so a workspace they cannot
+        // write is refused for the whole batch rather than partly applied.
+        await userInsert(env, token, 'boards',
+          creates.map(({ _props, _identifiers, ...row }) => row), { returning: 'minimal' });
 
+        // Every board needs its empty snapshot or it cold-loads as broken
+        // rather than as empty. Identical bytes for all, so encode once.
+        const doc = new Y.Doc();
+        const b64 = bytesToB64(Y.encodeStateAsUpdate(doc));
+        doc.destroy();
+        await userInsert(env, token, 'board_state',
+          creates.map((b) => ({ board_id: b.id, doc: b64, updated_at: now })),
+          { returning: 'minimal' });
+      }
+      if (updates.length) {
+        // Upsert by id rather than one PATCH each: 500 matched boards would
+        // otherwise be 500 round trips. created_by is deliberately absent so a
+        // re-run does not rewrite who made the board.
+        await userInsert(env, token, 'boards', updates.map((b) => ({
+          id: b.id,
+          workspace_id: b.workspace_id,
+          name: b.name,
+          view: b.view,
+          parent_board_id: b.parent_board_id,
+        })), { returning: 'minimal', onConflict: 'id' });
+      }
+
+      // Metadata for every board in the batch, in a fixed handful of queries.
+      // Grouped by workspace because that is what the rows are keyed on.
+      for (const wsId of new Set(prepared.map((b) => b.workspace_id))) {
+        const entries = prepared
+          .filter((b) => b.workspace_id === wsId)
+          .map((b) => ({ objectId: b.id, boardId: b.id, props: b._props, identifiers: b._identifiers }));
+        await saveMetaBulk(env, token, {
+          workspaceId: wsId, objectType: 'board', entries, userId: auth.userId,
+        });
+      }
+
+      const createdIds = new Set(creates.map((b) => b.id));
       return json({
-        boards: prepared.map((b) => publicBoard({ ...b, created_at: now })),
-        created: prepared.length,
+        boards: prepared.map((b) => ({
+          ...publicBoard({ ...b, created_at: now }),
+          created: createdIds.has(b.id),
+        })),
+        created: creates.length,
+        updated: updates.length,
       }, 201);
     }
 
@@ -1211,36 +1498,106 @@ async function dispatch(url, request, env, ctx) {
       if (body.parent_board_id && !isUuid(body.parent_board_id)) {
         throw fail(400, 'bad_request', 'parent_board_id must be a uuid');
       }
+      const meta = metaFromBody(body);
+
+      // Same create-or-update rule as the bulk form, so a caller does not have
+      // to switch shapes to get the behaviour.
+      let existing = null;
+      if (body.on_conflict === 'identifier' && meta.identifiers?.length) {
+        const matches = await matchIdentifiers(env, token, {
+          workspaceId, objectType: 'board', identifiers: meta.identifiers,
+        });
+        existing = resolveUpsert([{ identifiers: meta.identifiers }], matches,
+          { objectType: 'board' })[0].existing;
+      }
 
       // The id is generated HERE rather than by the database, for the reason
       // boardsApi.js:684 documents: INSERT…RETURNING re-runs the boards SELECT
       // policy, which cannot see the row it is inserting, so Postgres reports a
       // misleading RLS violation for an insert it actually allowed.
-      const boardId = crypto.randomUUID();
-      await userInsert(env, token, 'boards', [{
-        id: boardId,
-        workspace_id: workspaceId,
-        parent_board_id: body.parent_board_id || null,
-        name: name.slice(0, 200),
-        view: body.view === 'list' ? 'list' : 'canvas',
-        created_by: auth.userId,
-      }], { returning: 'minimal' });
+      const boardId = existing ? existing.board_id : crypto.randomUUID();
       trace.target = boardId;
 
-      // Seed the empty snapshot, exactly as createBoard does — a board with no
-      // board_state row loads as broken rather than as empty.
-      const doc = new Y.Doc();
-      const b64 = bytesToB64(Y.encodeStateAsUpdate(doc));
-      doc.destroy();
-      await userInsert(env, token, 'board_state',
-        [{ board_id: boardId, doc: b64, updated_at: new Date().toISOString() }],
-        { returning: 'minimal' });
+      if (existing) {
+        await userPatch(env, token, 'boards', `id=eq.${boardId}`, {
+          name: name.slice(0, 200),
+          view: body.view === 'list' ? 'list' : 'canvas',
+        });
+      } else {
+        await userInsert(env, token, 'boards', [{
+          id: boardId,
+          workspace_id: workspaceId,
+          parent_board_id: body.parent_board_id || null,
+          name: name.slice(0, 200),
+          view: body.view === 'list' ? 'list' : 'canvas',
+          created_by: auth.userId,
+        }], { returning: 'minimal' });
+
+        // Seed the empty snapshot, exactly as createBoard does — a board with
+        // no board_state row loads as broken rather than as empty.
+        const doc = new Y.Doc();
+        const b64 = bytesToB64(Y.encodeStateAsUpdate(doc));
+        doc.destroy();
+        await userInsert(env, token, 'board_state',
+          [{ board_id: boardId, doc: b64, updated_at: new Date().toISOString() }],
+          { returning: 'minimal' });
+      }
+
+      await saveMeta(env, token, {
+        workspaceId, boardId, objectType: 'board', objectId: boardId,
+        props: meta.props, identifiers: meta.identifiers, userId: auth.userId,
+      });
 
       const created = await boardForUser(env, token, boardId);
-      return json({ board: publicBoard(created || { id: boardId, name, workspace_id: workspaceId }) }, 201);
+      return json({
+        board: publicBoard(created || { id: boardId, name, workspace_id: workspaceId }),
+        created: !existing,
+      }, existing ? 200 : 201);
     }
 
     throw fail(405, 'method_not_allowed', 'method not allowed');
+  }
+
+  // GET /boards/tree?root=&workspace=&depth=
+  //
+  // The hierarchy in ONE call. GET /boards?parent= returns a single level, so
+  // walking a show's structure — title → department → sequence → shot — costs a
+  // request per node, and the first thing any integration does is walk the
+  // structure. Backed by a recursive CTE that checks authorization once at the
+  // root, because can_read_board grants on any readable ancestor: everything
+  // beneath a board you can read is a board you can read, and asking per row
+  // would make it quadratic for no added safety.
+  if (id === 'tree' && method === 'GET') {
+    trace.route = '/boards/tree';
+    const root = url.searchParams.get('root');
+    const ws = url.searchParams.get('workspace');
+    const depth = Number(url.searchParams.get('depth'));
+    if (!root && !ws) throw fail(400, 'bad_request', 'pass root (a board id) or workspace');
+    if (root && !isUuid(root)) throw fail(400, 'bad_request', 'root must be a uuid');
+    if (ws && !isUuid(ws)) throw fail(400, 'bad_request', 'workspace must be a uuid');
+
+    const rows = await userRpc(env, token, 'board_tree', {
+      p_root: root || null,
+      p_workspace: ws || null,
+      p_depth: Number.isFinite(depth) ? Math.round(depth) : 10,
+    });
+    return json({
+      root: root || null,
+      workspace_id: ws || null,
+      boards: (rows || []).map((b) => ({
+        id: b.id,
+        parent_board_id: b.parent_board_id,
+        name: b.name,
+        view: b.view,
+        workspace_id: b.workspace_id,
+        depth: b.depth,
+        card_count: b.card_count,
+        created_at: b.created_at,
+        updated_at: b.updated_at,
+        deleted: !!b.deleted,
+      })),
+      count: (rows || []).length,
+    });
   }
 
   if (!isUuid(id)) throw fail(400, 'bad_request', 'board id must be a uuid');
@@ -1250,6 +1607,7 @@ async function dispatch(url, request, env, ctx) {
   if (!sub) {
     trace.route = '/boards/:id';
     if (method === 'GET') {
+      const include = parseInclude(url, ['props', 'identifiers']);
       const b = await boardForUser(env, token, id, { includeDeleted: true });
       if (!b) throw fail(404, 'not_found', 'board not found');
       // Capacity comes back with the board so a caller learns it is near the
@@ -1257,7 +1615,7 @@ async function dispatch(url, request, env, ctx) {
       const capRows = await userRpc(env, token, 'get_board_capacity', { p_board_id: id }).catch(() => null);
       const cap = Array.isArray(capRows) ? capRows[0] : capRows;
       return json({
-        board: publicBoard(b),
+        board: (await decorateBoards(env, token, [b], include))[0],
         capacity: cap ? {
           used: Number(cap.used ?? 0),
           cap: cap.cap == null ? null : Number(cap.cap),
@@ -1291,8 +1649,15 @@ async function dispatch(url, request, env, ctx) {
         await userPatch(env, token, 'boards', `id=eq.${id}`, patch);
       }
 
+      const meta = metaFromBody(body);
+      await saveMeta(env, token, {
+        workspaceId: b.workspace_id, boardId: id, objectType: 'board', objectId: id,
+        props: meta.props, identifiers: meta.identifiers, userId: auth.userId,
+      });
+
       const after = await boardForUser(env, token, id);
-      return json({ board: publicBoard(after) });
+      const include = parseInclude(url, ['props', 'identifiers']);
+      return json({ board: (await decorateBoards(env, token, [after], include))[0] });
     }
 
     if (method === 'DELETE') {
@@ -1329,6 +1694,55 @@ async function dispatch(url, request, env, ctx) {
     return json({ restored: true, board: publicBoard(after || b) });
   }
 
+  // GET /boards/:id/export?format=json|omc
+  //
+  // There was no way to get a board out. The card read is a 12-field projection
+  // and every kind the API cannot create — grid, palette, schedule — read back
+  // with its interior missing, so "export" meant "lose the parts we do not
+  // model". That is a bad answer for a backup and a worse one for an archive.
+  //
+  // `json` is everything, verbatim. `omc` is MovieLabs OMC-JSON: the format a
+  // studio's own standards body defined for exactly this, and the one thing in
+  // this API that will still mean something to somebody in ten years.
+  if (sub === 'export' && method === 'GET') {
+    trace.route = '/boards/:id/export';
+    const format = (url.searchParams.get('format') || 'json').toLowerCase();
+    if (!['json', 'omc'].includes(format)) {
+      throw fail(400, 'bad_request', 'format must be json or omc');
+    }
+    const b = await boardForUser(env, token, id, { includeDeleted: true });
+    if (!b) throw fail(404, 'not_found', 'board not found');
+
+    const cards = await readBoardCards(env, id, token);
+    const [boardMetaMap, cardMeta] = await Promise.all([
+      loadBoardsMeta(env, token, [id]),
+      loadMeta(env, token, { boardId: id, objectType: 'card', objectIds: cards.map((c) => c.id) }),
+    ]);
+    const boardMeta = boardMetaMap.get(id) || {};
+
+    if (format === 'omc') {
+      return json(boardToOmc({
+        board: b, cards: cards.map(publicCard), boardMeta, cardMeta, origin: url.origin,
+      }));
+    }
+
+    return json({
+      format: 'soleil.board.v1',
+      exported_at: new Date().toISOString(),
+      board: { ...publicBoard(b), props: boardMeta.props ?? {}, identifiers: boardMeta.identifiers ?? [] },
+      // The card exactly as stored, alongside the projection. A caller
+      // reconstructing this board elsewhere needs the former; one reading it
+      // wants the latter.
+      cards: cards.map((c) => ({
+        ...publicCard(c),
+        raw: c,
+        props: cardMeta.get(String(c.id))?.props ?? {},
+        identifiers: cardMeta.get(String(c.id))?.identifiers ?? [],
+      })),
+      count: cards.length,
+    });
+  }
+
   if (sub !== 'cards') throw fail(404, 'not_found', 'unknown endpoint');
 
   // ── /boards/:id/cards ──────────────────────────────────────────────────────
@@ -1338,6 +1752,7 @@ async function dispatch(url, request, env, ctx) {
   if (!subId && method === 'GET') {
     trace.route = '/boards/:id/cards';
     const { limit, offset } = pageParams(url);
+    const include = parseInclude(url, ['props', 'identifiers', 'raw']);
 
     // ?source=index — the projection in card_index instead of the Y.Doc.
     //
@@ -1353,31 +1768,61 @@ async function dispatch(url, request, env, ctx) {
     // rebuild one — so it is opt-in and says so.
     if (url.searchParams.get('source') === 'index') {
       const after = url.searchParams.get('cursor');
+      const since = url.searchParams.get('since');
+      // Same two modes as GET /boards: ordered by id for a full walk, by
+      // updated_at for a change feed. The (board_id, updated_at) index added in
+      // 0222 is what makes the second one cheap.
+      const delta = !!since;
       let q = `board_id=eq.${id}&select=card_id,kind,title,body,meta,updated_at`
-        + `&order=card_id.asc&limit=${limit + 1}`;
-      if (after) q += `&card_id=gt.${encodeURIComponent(after)}`;
+        + `&limit=${limit + 1}`;
+      if (delta) {
+        if (Number.isNaN(Date.parse(since))) {
+          throw fail(400, 'bad_request', 'since must be an ISO timestamp');
+        }
+        q += `&updated_at=gte.${encodeURIComponent(since)}&order=updated_at.asc,card_id.asc`;
+        if (after) {
+          const [ts, cid] = String(after).split('|');
+          if (!ts || !cid) throw fail(400, 'bad_request', 'cursor must be a next_cursor from a previous response');
+          q += `&or=(updated_at.gt.${encodeURIComponent(ts)},`
+             + `and(updated_at.eq.${encodeURIComponent(ts)},card_id.gt.${encodeURIComponent(cid)}))`;
+        }
+      } else {
+        q += '&order=card_id.asc';
+        if (after) q += `&card_id=gt.${encodeURIComponent(after)}`;
+      }
       const rows = await userSelect(env, token, 'card_index', q);
       const page = paginate(rows, limit, 0);
       const last = page.items[page.items.length - 1];
+
+      let cards = page.items.map((r) => {
+        const pos = r.meta?.pos || {};
+        return {
+          id: r.card_id,
+          kind: r.kind || 'note',
+          title: r.title ?? null,
+          body: r.body ?? null,
+          x: pos.x ?? null, y: pos.y ?? null, w: pos.w ?? null, h: pos.h ?? null,
+          image_key: keyFromSrc(r.meta?.src),
+          url: r.meta?.url ?? null,
+          updated_at: r.updated_at,
+        };
+      });
+      if (include.has('props') || include.has('identifiers')) {
+        const meta = await loadMeta(env, token, {
+          boardId: id, objectType: 'card', objectIds: cards.map((c) => c.id),
+        });
+        cards = cards.map((c) => filterMeta(withMeta(c, meta.get(String(c.id)) || {}), include));
+      }
+
       return json({
         board_id: id,
         source: 'index',
-        cards: page.items.map((r) => {
-          const pos = r.meta?.pos || {};
-          return {
-            id: r.card_id,
-            kind: r.kind || 'note',
-            title: r.title ?? null,
-            body: r.body ?? null,
-            x: pos.x ?? null, y: pos.y ?? null, w: pos.w ?? null, h: pos.h ?? null,
-            image_key: keyFromSrc(r.meta?.src),
-            url: r.meta?.url ?? null,
-            updated_at: r.updated_at,
-          };
-        }),
+        cards,
         limit,
         has_more: page.has_more,
-        next_cursor: page.has_more && last ? last.card_id : null,
+        next_cursor: page.has_more && last
+          ? (delta ? `${last.updated_at}|${last.card_id}` : last.card_id)
+          : null,
       });
     }
 
@@ -1389,7 +1834,7 @@ async function dispatch(url, request, env, ctx) {
     return json({
       board_id: id,
       source: 'live',
-      cards: page.items.map(publicCard),
+      cards: await decorateCards(env, token, id, page.items, include),
       total: all.length,
       ...pageMeta(page),
     });
@@ -1410,6 +1855,83 @@ async function dispatch(url, request, env, ctx) {
     // Normalized BEFORE the board is opened so a bad `kind` is a clean 400
     // rather than a rejection halfway through a Y.Doc transaction.
     const built = incoming.map((c) => normalizeIncomingCard(c));
+    const metas = incoming.map((c, i) => {
+      try {
+        return metaFromBody(c);
+      } catch (e) {
+        e.message = `cards[${i}]: ${e.message}`;
+        throw e;
+      }
+    });
+
+    // on_conflict: "identifier" — a card that already carries one of these
+    // identifiers is UPDATED rather than added a second time. This is what lets
+    // an importer re-run over three million assets without producing six.
+    if (body.on_conflict === 'identifier') {
+      const all = metas.flatMap((m) => m.identifiers || []);
+      const matches = await matchIdentifiers(env, token, {
+        workspaceId: board.workspace_id, objectType: 'card', identifiers: all,
+      });
+      const resolvedHits = resolveUpsert(
+        metas.map((m) => ({ identifiers: m.identifiers })),
+        matches, { objectType: 'card', boardId: id },
+      );
+
+      const updateIdx = [];
+      const createIdx = [];
+      resolvedHits.forEach((r, i) => (r.existing ? updateIdx : createIdx).push(i));
+
+      // Existing cards first, in ONE board open — see updateCardsOnBoard.
+      let updatedCards = [];
+      if (updateIdx.length) {
+        const out = await updateCardsOnBoard(env, {
+          boardId: id, workspaceId: board.workspace_id, userId: auth.userId, accessToken: token,
+          patches: updateIdx.map((i) => ({
+            cardId: resolvedHits[i].existing.object_id,
+            patch: (before) => normalizeIncomingCard(incoming[i],
+              { partial: true, existingKind: before?.kind }),
+          })),
+        });
+        updatedCards = out.filter(Boolean);
+      }
+
+      let createdCards = [];
+      if (createIdx.length) {
+        const fresh = createIdx.map((i) => built[i]);
+        const positionedFresh = fresh.every((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+        const res = await addCardsToBoard(env, {
+          boardId: id, workspaceId: board.workspace_id, userId: auth.userId, accessToken: token,
+          ...(positionedFresh ? { appendCards: fresh } : {}),
+          buildCards: async (existing) => layoutCards(fresh, existing),
+        });
+        createdCards = res.cards;
+      }
+
+      // Map each response position back to the card that ended up there, so the
+      // caller can pair its input with what happened to it.
+      const createdById = new Map(createdCards.map((c, n) => [createIdx[n], c]));
+      const updatedById = new Map(updateIdx.map((i, n) => [i, updatedCards[n]]));
+      const finalCards = incoming.map((_, i) => createdById.get(i) || updatedById.get(i)).filter(Boolean);
+
+      await saveMetaBulk(env, token, {
+        workspaceId: board.workspace_id, boardId: id, objectType: 'card',
+        userId: auth.userId,
+        entries: incoming.map((_, i) => {
+          const card = createdById.get(i) || updatedById.get(i);
+          return card
+            ? { objectId: card.id, props: metas[i].props, identifiers: metas[i].identifiers }
+            : null;
+        }).filter(Boolean),
+      });
+
+      return json({
+        board_id: id,
+        cards: finalCards.map(publicCard),
+        created: createIdx.length,
+        updated: updateIdx.length,
+        live: true,
+      }, 201);
+    }
 
     // THE SCALING RULE, and it is a contract worth stating plainly: a batch in
     // which EVERY card carries its own x and y is appended without reading the
@@ -1428,24 +1950,20 @@ async function dispatch(url, request, env, ctx) {
       userId: auth.userId,
       accessToken: token,
       ...(positioned ? { appendCards: built } : {}),
-      buildCards: async (existing) => {
-        // Positioned by the same helper Scout uses, so cards arriving from an
-        // API call cannot land on top of what is already there. A caller that
-        // supplied explicit x/y keeps them.
-        const needsLayout = built.filter((c) => !Number.isFinite(c.x) || !Number.isFinite(c.y));
-        const placed = needsLayout.length
-          ? arrangeExisting({ existingCards: existing, cards: needsLayout })
-          : [];
-        const byId = new Map(placed.map((c) => [c.id, c]));
-        // Every card must leave here with real coordinates. stampCard sets z and
-        // timestamps but NOT x/y, so an unpositioned card would reach the Y.Doc
-        // with undefined geometry — and one NaN card poisons boundsOfCards() for
-        // the whole board, scattering everything the user already had. Dropping
-        // it is the only safe answer; the response reports what actually landed.
-        return built
-          .map((c) => byId.get(c.id) || c)
-          .filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
-      },
+      // Positioned by the same helper Scout uses, so cards arriving from an API
+      // call cannot land on top of what is already there. A caller that supplied
+      // explicit x/y keeps them.
+      buildCards: async (existing) => layoutCards(built, existing),
+    });
+
+    // Metadata is keyed on the card id the server assigned, so it can only be
+    // written once the cards exist.
+    await saveMetaBulk(env, token, {
+      workspaceId: board.workspace_id, boardId: id, objectType: 'card',
+      userId: auth.userId,
+      entries: result.cards.map((c, i) => ({
+        objectId: c.id, props: metas[i]?.props, identifiers: metas[i]?.identifiers,
+      })),
     });
 
     // An image uploaded through /uploads has no card_id on its images row: the
@@ -1494,6 +2012,20 @@ async function dispatch(url, request, env, ctx) {
       cardIds,
       layout: async (existing, moving) => arrangeExisting({ existingCards: existing, cards: moving }),
     });
+
+    // Metadata rows carry board_id so RLS can be can_read_board without
+    // recursing, which means a move has to repoint them — otherwise they end up
+    // readable only by someone who can read a board the card is no longer on.
+    //
+    // The destination id can differ from the source id: moveCardsBetweenBoards
+    // renames a card on collision, and it reports the new id in `moved`.
+    await repointCardMeta(env, token, {
+      fromBoardId: id,
+      toBoardId: to,
+      workspaceId: dest.workspace_id,
+      idPairs: out.moved.map((c, n) => ({ from: cardIds[n], to: c.id })),
+    });
+
     return json({ moved: out.count, cards: out.moved.map(publicCard), live: out.live });
   }
 
@@ -1515,7 +2047,15 @@ async function dispatch(url, request, env, ctx) {
       patch: (before) => normalizeIncomingCard(body, { partial: true, existingKind: before?.kind }),
     });
     if (!updated) throw fail(404, 'not_found', 'card not found');
-    return json({ card: publicCard(updated) });
+
+    const meta = metaFromBody(body);
+    await saveMeta(env, token, {
+      workspaceId: board.workspace_id, boardId: id, objectType: 'card', objectId: subId,
+      props: meta.props, identifiers: meta.identifiers, userId: auth.userId,
+    });
+
+    const include = parseInclude(url, ['props', 'identifiers', 'raw']);
+    return json({ card: (await decorateCards(env, token, id, [updated], include))[0] });
   }
 
   // DELETE /boards/:id/cards/:cardId
@@ -1525,6 +2065,12 @@ async function dispatch(url, request, env, ctx) {
       boardId: id, accessToken: token, cardIds: [subId],
     });
     if (!removed.length) throw fail(404, 'not_found', 'card not found');
+
+    // A card is a Y.Doc key, not a row, so nothing cascades for it. Without this
+    // the deleted card's identifier would hold its (scope, value) forever and
+    // the next import would fail to re-create the card it names.
+    await purgeCardMeta(env, token, { boardId: id, cardIds: [subId] });
+
     // The removed card comes back in full. There is no undo toast on an HTTP
     // call, so the response body IS the undo: POST it back to restore it.
     return json({

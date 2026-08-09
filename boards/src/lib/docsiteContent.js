@@ -23710,6 +23710,85 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "GET /resolve"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Find an object by a "
+      },
+      {
+       "t": "link",
+       "v": "foreign identifier",
+       "href": "/docs/api/metadata",
+       "children": [
+        {
+         "t": "text",
+         "v": "foreign identifier"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET /boards/tree"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A whole "
+      },
+      {
+       "t": "link",
+       "v": "board hierarchy",
+       "href": "/docs/api/boards",
+       "children": [
+        {
+         "t": "text",
+         "v": "board hierarchy"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " in one call"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET /boards/:id/export"
+      }
+     ],
+     [
+      {
+       "t": "link",
+       "v": "Export",
+       "href": "/docs/api/export",
+       "children": [
+        {
+         "t": "text",
+         "v": "Export"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " a board, as JSON or MovieLabs OMC"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "GET /service-accounts"
       }
      ],
@@ -26158,6 +26237,79 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "since=<ISO>"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Only boards changed at or after that time — see below"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "cursor="
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Continue a "
+      },
+      {
+       "t": "code",
+       "v": "since"
+      },
+      {
+       "t": "text",
+       "v": " walk"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "include="
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "props"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "identifiers"
+      },
+      {
+       "t": "text",
+       "v": " — see "
+      },
+      {
+       "t": "link",
+       "v": "Identifiers and properties",
+       "href": "/docs/api/metadata",
+       "children": [
+        {
+         "t": "text",
+         "v": "Identifiers and properties"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "limit"
       },
       {
@@ -26210,6 +26362,230 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Asking what changed",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Asking what changed"
+    }
+   ],
+   "id": "asking-what-changed"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pass "
+    },
+    {
+     "t": "code",
+     "v": "since"
+    },
+    {
+     "t": "text",
+     "v": " and the listing becomes a "
+    },
+    {
+     "t": "strong",
+     "v": "change feed",
+     "children": [
+      {
+       "t": "text",
+       "v": "change feed"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": ordered by "
+    },
+    {
+     "t": "code",
+     "v": "updated_at"
+    },
+    {
+     "t": "text",
+     "v": " rather than "
+    },
+    {
+     "t": "code",
+     "v": "created_at"
+    },
+    {
+     "t": "text",
+     "v": ", and paged by cursor rather than offset."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl \"$SOLEIL_API/boards?workspace=$WS&since=2026-08-09T00:00:00Z\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\""
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"boards\": [ … ], \"limit\": 100, \"has_more\": true,\n  \"next_cursor\": \"2026-08-09T12:00:00Z|3b7e…\" }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pass "
+    },
+    {
+     "t": "code",
+     "v": "next_cursor"
+    },
+    {
+     "t": "text",
+     "v": " back as "
+    },
+    {
+     "t": "code",
+     "v": "cursor"
+    },
+    {
+     "t": "text",
+     "v": " until "
+    },
+    {
+     "t": "code",
+     "v": "has_more"
+    },
+    {
+     "t": "text",
+     "v": " is false, then keep the last "
+    },
+    {
+     "t": "code",
+     "v": "updated_at"
+    },
+    {
+     "t": "text",
+     "v": " you saw as the "
+    },
+    {
+     "t": "code",
+     "v": "since"
+    },
+    {
+     "t": "text",
+     "v": " for your next run."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Offset paging is wrong for this and cursor paging is right, for a specific reason: rows are being written while you walk, so offsets shift under you and a page boundary both skips and repeats. The cursor carries a board id alongside the timestamp because two boards touched in the same transaction share a timestamp exactly, and a timestamp alone would drop whichever came second."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /boards/tree",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/tree"
+    }
+   ],
+   "id": "get-boards-tree"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The hierarchy in one call, rather than one call per level."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl \"$SOLEIL_API/boards/tree?root=$BOARD&depth=6\" -H \"Authorization: Bearer $SOLEIL_TOKEN\""
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"root\": \"3b7e…\", \"count\": 214,\n  \"boards\": [\n    { \"id\": \"3b7e…\", \"parent_board_id\": null, \"name\": \"THE FALL\",\n      \"depth\": 0, \"card_count\": 0, \"updated_at\": \"…\", \"deleted\": false },\n    { \"id\": \"9f1c…\", \"parent_board_id\": \"3b7e…\", \"name\": \"Costume\",\n      \"depth\": 1, \"card_count\": 42, \"updated_at\": \"…\", \"deleted\": false }\n  ] }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pass "
+    },
+    {
+     "t": "code",
+     "v": "root"
+    },
+    {
+     "t": "text",
+     "v": " (a board id) or "
+    },
+    {
+     "t": "code",
+     "v": "workspace"
+    },
+    {
+     "t": "text",
+     "v": ", and optionally "
+    },
+    {
+     "t": "code",
+     "v": "depth"
+    },
+    {
+     "t": "text",
+     "v": " (default 10, maximum 20). Results are flat with a "
+    },
+    {
+     "t": "code",
+     "v": "depth"
+    },
+    {
+     "t": "text",
+     "v": " and a "
+    },
+    {
+     "t": "code",
+     "v": "parent_board_id"
+    },
+    {
+     "t": "text",
+     "v": ", so you can rebuild the tree in whatever shape you need without the response nesting for you."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A show's structure — title, department, sequence, shot — is the first thing any integration walks, and "
+    },
+    {
+     "t": "code",
+     "v": "?parent="
+    },
+    {
+     "t": "text",
+     "v": " costs a request per node."
     }
    ]
   },
@@ -26428,6 +26804,102 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " rather than 900 boards and an error. The whole batch is one insert as you, so a workspace you cannot write refuses the batch rather than half-applying it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Creating the same boards twice",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Creating the same boards twice"
+    }
+   ],
+   "id": "creating-the-same-boards-twice"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Give each board an "
+    },
+    {
+     "t": "code",
+     "v": "identifiers"
+    },
+    {
+     "t": "text",
+     "v": " array and pass "
+    },
+    {
+     "t": "code",
+     "v": "\"on_conflict\": \"identifier\""
+    },
+    {
+     "t": "text",
+     "v": ", and a board already carrying one of those identifiers is "
+    },
+    {
+     "t": "strong",
+     "v": "updated instead of created again",
+     "children": [
+      {
+       "t": "text",
+       "v": "updated instead of created again"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — with its id unchanged:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"on_conflict\": \"identifier\",\n  \"boards\": [\n    { \"name\": \"SEQ 0100\",\n      \"identifiers\": [{ \"scope\": \"shotgrid\", \"value\": \"Sequence:88\" }] }\n  ]\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The response adds "
+    },
+    {
+     "t": "code",
+     "v": "updated"
+    },
+    {
+     "t": "text",
+     "v": ", and each board carries "
+    },
+    {
+     "t": "code",
+     "v": "created: true|false"
+    },
+    {
+     "t": "text",
+     "v": ". This is what makes an import re-runnable — see "
+    },
+    {
+     "t": "link",
+     "v": "Identifiers and properties",
+     "href": "/docs/api/metadata",
+     "children": [
+      {
+       "t": "text",
+       "v": "Identifiers and properties"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -27330,6 +27802,206 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Add "
+    },
+    {
+     "t": "code",
+     "v": "since=<ISO>"
+    },
+    {
+     "t": "text",
+     "v": " and it becomes a change feed, ordered by "
+    },
+    {
+     "t": "code",
+     "v": "updated_at"
+    },
+    {
+     "t": "text",
+     "v": " instead of by id, with a cursor that carries both. That is the cheap way to ask \"what moved on this board since I last looked\" without reading the board."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "?include=",
+   "inline": [
+    {
+     "t": "code",
+     "v": "?include="
+    }
+   ],
+   "id": "include"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Value"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Adds"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "props"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The card's "
+      },
+      {
+       "t": "link",
+       "v": "properties",
+       "href": "/docs/api/metadata",
+       "children": [
+        {
+         "t": "text",
+         "v": "properties"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "identifiers"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Its "
+      },
+      {
+       "t": "link",
+       "v": "foreign identifiers",
+       "href": "/docs/api/metadata",
+       "children": [
+        {
+         "t": "text",
+         "v": "foreign identifiers"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "raw"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The card exactly as the canvas stores it"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "raw"
+    },
+    {
+     "t": "text",
+     "v": " exists because the card object above is a deliberately narrow projection, and the app has kinds it does not describe — a grid carries its cells and template, a palette its swatches, a schedule its rows. Those read back through the projection with their interiors missing, which for anyone taking a backup is data loss that looks like success."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "raw"
+    },
+    {
+     "t": "text",
+     "v": " is the card's "
+    },
+    {
+     "t": "strong",
+     "v": "internal",
+     "children": [
+      {
+       "t": "text",
+       "v": "internal"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " shape: field names in it are not part of this API's contract and can change with the app. Use it to preserve or reconstruct, not to build logic on. "
+    },
+    {
+     "t": "link",
+     "v": "`/export`",
+     "href": "/docs/api/export",
+     "children": [
+      {
+       "t": "code",
+       "v": "/export"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " includes it always."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A misspelled "
+    },
+    {
+     "t": "code",
+     "v": "include"
+    },
+    {
+     "t": "text",
+     "v": " is a "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": " rather than a silent omission."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "POST /boards/:id/cards",
@@ -27540,6 +28212,127 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " as failure."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Adding the same cards twice",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Adding the same cards twice"
+    }
+   ],
+   "id": "adding-the-same-cards-twice"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Give each card an "
+    },
+    {
+     "t": "code",
+     "v": "identifiers"
+    },
+    {
+     "t": "text",
+     "v": " array and pass "
+    },
+    {
+     "t": "code",
+     "v": "\"on_conflict\": \"identifier\""
+    },
+    {
+     "t": "text",
+     "v": ", and a card already carrying one is "
+    },
+    {
+     "t": "strong",
+     "v": "updated in place",
+     "children": [
+      {
+       "t": "text",
+       "v": "updated in place"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " rather than added again:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"on_conflict\": \"identifier\",\n  \"cards\": [\n    { \"kind\": \"image\", \"image_key\": \"…\", \"x\": 0, \"y\": 0,\n      \"identifiers\": [{ \"scope\": \"shotgrid\", \"value\": \"Asset:12345\" }] }\n  ] }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The response carries "
+    },
+    {
+     "t": "code",
+     "v": "created"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "updated"
+    },
+    {
+     "t": "text",
+     "v": " counts. Run your importer twice over three million assets and you get three million cards, not six. See "
+    },
+    {
+     "t": "link",
+     "v": "Identifiers and properties",
+     "href": "/docs/api/metadata",
+     "children": [
+      {
+       "t": "text",
+       "v": "Identifiers and properties"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every card write also accepts "
+    },
+    {
+     "t": "code",
+     "v": "props"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "identifiers"
+    },
+    {
+     "t": "text",
+     "v": " directly, whether or not you are upserting."
     }
    ]
   },
@@ -28883,6 +29676,693 @@ export const DOCS_CONTENT = {
    ]
   }
  ],
+ "/docs/api/metadata": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Everything in your pipeline already has a name. The shot is "
+    },
+    {
+     "t": "code",
+     "v": "ABC_0100_0010"
+    },
+    {
+     "t": "text",
+     "v": ", the asset is "
+    },
+    {
+     "t": "code",
+     "v": "Shot:12345"
+    },
+    {
+     "t": "text",
+     "v": " in production tracking, the file has a checksum. An API that cannot record any of that leaves you maintaining a mapping table on the side, forever, and re-running an import creates a second copy of everything."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Two things fix that, and they apply to boards, cards and images alike."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Identifiers",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Identifiers"
+    }
+   ],
+   "id": "identifiers"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An identifier is a "
+    },
+    {
+     "t": "code",
+     "v": "scope"
+    },
+    {
+     "t": "text",
+     "v": " and a "
+    },
+    {
+     "t": "code",
+     "v": "value"
+    },
+    {
+     "t": "text",
+     "v": " — the system that assigned it, and what it assigned. An object can carry several, from several systems."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST \"$SOLEIL_API/boards\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" -H \"Content-Type: application/json\" \\\n  -d '{\n    \"name\": \"Costume — Sven, fall sequence\",\n    \"workspace_id\": \"'$WS'\",\n    \"identifiers\": [\n      {\"scope\": \"shotgrid\", \"value\": \"Sequence:88\"},\n      {\"scope\": \"ftrack\",   \"value\": \"a3f1-…\"}\n    ]\n  }'"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "scope"
+    },
+    {
+     "t": "text",
+     "v": " is case-folded, because \"ShotGrid\" and \"shotgrid\" are the same system and letting both exist would quietly defeat the uniqueness below. "
+    },
+    {
+     "t": "code",
+     "v": "value"
+    },
+    {
+     "t": "text",
+     "v": " is kept exactly as you gave it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "An identifier is unique per workspace, per object type.",
+     "children": [
+      {
+       "t": "text",
+       "v": "An identifier is unique per workspace, per object type."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Two boards cannot both claim "
+    },
+    {
+     "t": "code",
+     "v": "shotgrid / Sequence:88"
+    },
+    {
+     "t": "text",
+     "v": ". That constraint is the whole feature — it is what turns \"create the board for this sequence\" from a hopeful operation into a deterministic one."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Up to 20 per object."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Re-runnable imports",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Re-runnable imports"
+    }
+   ],
+   "id": "re-runnable-imports"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pass "
+    },
+    {
+     "t": "code",
+     "v": "\"on_conflict\": \"identifier\""
+    },
+    {
+     "t": "text",
+     "v": " when creating, and anything already carrying one of the identifiers you supplied is "
+    },
+    {
+     "t": "strong",
+     "v": "updated in place",
+     "children": [
+      {
+       "t": "text",
+       "v": "updated in place"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " instead of created again."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST \"$SOLEIL_API/boards\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" -H \"Content-Type: application/json\" \\\n  -d '{\"on_conflict\":\"identifier\",\"boards\":[\n        {\"name\":\"SEQ 0100\",\"identifiers\":[{\"scope\":\"shotgrid\",\"value\":\"Sequence:88\"}]},\n        {\"name\":\"SEQ 0200\",\"identifiers\":[{\"scope\":\"shotgrid\",\"value\":\"Sequence:89\"}]}\n      ]}'"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"boards\": [ { \"id\": \"3b7e…\", \"name\": \"SEQ 0100\", \"created\": false }, … ],\n  \"created\": 1, \"updated\": 1 }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each item reports whether it was "
+    },
+    {
+     "t": "code",
+     "v": "created"
+    },
+    {
+     "t": "text",
+     "v": ". "
+    },
+    {
+     "t": "strong",
+     "v": "The id of an updated object does not change",
+     "children": [
+      {
+       "t": "text",
+       "v": "The id of an updated object does not change"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so your own record of what you made last time stays valid."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The same flag works on "
+    },
+    {
+     "t": "code",
+     "v": "POST /boards/:id/cards"
+    },
+    {
+     "t": "text",
+     "v": ". Run your importer twice over three million assets and you get three million objects, not six."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Two refusals rather than a guess",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Two refusals rather than a guess"
+    }
+   ],
+   "id": "two-refusals-rather-than-a-guess"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "409 identifier_conflict"
+    },
+    {
+     "t": "text",
+     "v": " in two cases, both of which have no correct answer:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "one item whose identifiers match "
+     },
+     {
+      "t": "strong",
+      "v": "two different existing objects",
+      "children": [
+       {
+        "t": "text",
+        "v": "two different existing objects"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — picking one would silently merge two records"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "a card whose identifier already lives "
+     },
+     {
+      "t": "strong",
+      "v": "on a different board",
+      "children": [
+       {
+        "t": "text",
+        "v": "on a different board"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the response names the board, so you can move it or use a different identifier. Quietly doing nothing would leave you believing the card is on your board when it is not."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Looking things up",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Looking things up"
+    }
+   ],
+   "id": "looking-things-up"
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl \"$SOLEIL_API/resolve?scope=shotgrid&value=Sequence:88\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\""
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"scope\": \"shotgrid\", \"value\": \"Sequence:88\",\n  \"matches\": [\n    { \"object_type\": \"board\", \"object_id\": \"3b7e…\", \"board_id\": \"3b7e…\",\n      \"workspace_id\": \"9f1c…\", \"url\": \"/api/v1/boards/3b7e…\",\n      \"created_at\": \"2026-08-09T12:00:00Z\" }\n  ] }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "matches"
+    },
+    {
+     "t": "text",
+     "v": " is a list because an identifier is unique per "
+    },
+    {
+     "t": "strong",
+     "v": "workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", not globally — if you belong to two workspaces that both track the same upstream record, you get both and choose. Filter with "
+    },
+    {
+     "t": "code",
+     "v": "type"
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "code",
+     "v": "board"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "card"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "image"
+    },
+    {
+     "t": "text",
+     "v": ") and "
+    },
+    {
+     "t": "code",
+     "v": "workspace"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "You only ever see what you could already see: this reads the same table under the same permissions as everything else, so an identifier on someone else's board simply is not there."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Properties",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Properties"
+    }
+   ],
+   "id": "properties"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A free-form JSON object on the same objects, for the fields your pipeline actually has."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X PATCH \"$SOLEIL_API/boards/$BOARD\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" -H \"Content-Type: application/json\" \\\n  -d '{\"props\":{\"scene\":\"14A\",\"department\":\"costume\",\"status\":\"approved\",\"version\":3}}'"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Deliberately untyped. The shape a production needs — scene, department, camera roll, clearance status — is not a shape this product can guess, and getting it wrong would be worse than not having one."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Props are patched, not replaced.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Props are patched, not replaced."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Send only the keys you own; the rest are left alone. A "
+    },
+    {
+     "t": "code",
+     "v": "null"
+    },
+    {
+     "t": "text",
+     "v": " value removes a key, which is the only way to say \"remove\" when leaving it out already means \"don't touch\":"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\"props\": {\"status\": \"final\", \"draft_note\": null}}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "That matters because several systems usually write to the same object, and an integration that owns one field should not have to read-modify-write the whole bag and race everything else."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Keys",
+       "children": [
+        {
+         "t": "text",
+         "v": "Keys"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "100 per object"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Size",
+       "children": [
+        {
+         "t": "text",
+         "v": "Size"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "16384 bytes per object, serialized"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Reserved",
+       "children": [
+        {
+         "t": "text",
+         "v": "Reserved"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Keys beginning "
+      },
+      {
+       "t": "code",
+       "v": "soleil."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Types",
+       "children": [
+        {
+         "t": "text",
+         "v": "Types"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Any JSON — strings, numbers, booleans, arrays, objects"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Reading them back",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Reading them back"
+    }
+   ],
+   "id": "reading-them-back"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Neither is returned by default, because most callers do not use them and every field on a list response is paid for a thousand times over. Ask:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl \"$SOLEIL_API/boards/$BOARD?include=props,identifiers\" -H \"Authorization: Bearer $SOLEIL_TOKEN\"\ncurl \"$SOLEIL_API/boards/$BOARD/cards?include=identifiers\" -H \"Authorization: Bearer $SOLEIL_TOKEN\""
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A misspelled "
+    },
+    {
+     "t": "code",
+     "v": "include"
+    },
+    {
+     "t": "text",
+     "v": " is a "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": ", not a silent omission — otherwise the difference between \"my props are missing\" and \"I typed "
+    },
+    {
+     "t": "code",
+     "v": "propz"
+    },
+    {
+     "t": "text",
+     "v": "\" is undebuggable."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Where this data lives",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Where this data lives"
+    }
+   ],
+   "id": "where-this-data-lives"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Not in the board document. Three reasons, each sufficient on its own: the document's edit history never shrinks, so a field bag per card would grow it permanently; the card search index is rebuilt from the card on every write, so anything written there is destroyed by the next edit; and looking things up by identifier needs a real index, which a collaborative document cannot provide."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The practical consequence is a good one — "
+    },
+    {
+     "t": "strong",
+     "v": "identifiers and properties survive edits to the card",
+     "children": [
+      {
+       "t": "text",
+       "v": "identifiers and properties survive edits to the card"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", including edits made by someone dragging it around in the app."
+    }
+   ]
+  }
+ ],
  "/docs/api/search": [
   {
    "type": "para",
@@ -29226,6 +30706,566 @@ export const DOCS_CONTENT = {
    ]
   }
  ],
+ "/docs/api/export": [
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl \"$SOLEIL_API/boards/$BOARD/export\" -H \"Authorization: Bearer $SOLEIL_TOKEN\""
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "One call, one board, everything on it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "format=json — complete",
+   "inline": [
+    {
+     "t": "code",
+     "v": "format=json"
+    },
+    {
+     "t": "text",
+     "v": " — complete"
+    }
+   ],
+   "id": "format-json-complete"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The default. Every card "
+    },
+    {
+     "t": "strong",
+     "v": "exactly as stored",
+     "children": [
+      {
+       "t": "text",
+       "v": "exactly as stored"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", alongside the normal "
+    },
+    {
+     "t": "link",
+     "v": "card projection",
+     "href": "/docs/api/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "card projection"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", plus "
+    },
+    {
+     "t": "link",
+     "v": "identifiers and properties",
+     "href": "/docs/api/metadata",
+     "children": [
+      {
+       "t": "text",
+       "v": "identifiers and properties"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ":"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"format\": \"soleil.board.v1\",\n  \"exported_at\": \"2026-08-09T12:00:00Z\",\n  \"board\": { \"id\": \"3b7e…\", \"name\": \"Costume — fall sequence\",\n             \"props\": {…}, \"identifiers\": […] },\n  \"cards\": [\n    { \"id\": \"c1\", \"kind\": \"image\", \"title\": \"Blaster dodge\", \"image_key\": \"…\",\n      \"raw\": { … the card as the canvas stores it … },\n      \"props\": {…}, \"identifiers\": […] }\n  ],\n  \"count\": 128\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "raw"
+    },
+    {
+     "t": "text",
+     "v": " is there because the ordinary card read is a deliberately narrow twelve-field projection, and the app has kinds it does not describe — a grid carries its cells and template, a palette its swatches, a schedule its rows. Those read back through the projection with their interiors missing, which for anyone taking a backup is data loss that looks like success."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "raw"
+    },
+    {
+     "t": "text",
+     "v": " is the card's "
+    },
+    {
+     "t": "strong",
+     "v": "internal",
+     "children": [
+      {
+       "t": "text",
+       "v": "internal"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " shape. Field names in it are not part of this API's contract and can change with the app. Use it to preserve or reconstruct; do not build logic on it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The same thing is available per-request on card reads with "
+    },
+    {
+     "t": "code",
+     "v": "?include=raw"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "format=omc — MovieLabs OMC-JSON",
+   "inline": [
+    {
+     "t": "code",
+     "v": "format=omc"
+    },
+    {
+     "t": "text",
+     "v": " — MovieLabs OMC-JSON"
+    }
+   ],
+   "id": "format-omc-movielabs-omc-json"
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl \"$SOLEIL_API/boards/$BOARD/export?format=omc\" -H \"Authorization: Bearer $SOLEIL_TOKEN\""
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The "
+    },
+    {
+     "t": "strong",
+     "v": "Ontology for Media Creation",
+     "children": [
+      {
+       "t": "text",
+       "v": "Ontology for Media Creation"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is the film industry's own standard for describing production material, published by MovieLabs. A board maps onto it directly, because OMC already has the vocabulary:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"schemaVersion\": \"https://movielabs.com/omc/json/schema/v2.8\",\n  \"entityType\": \"Asset\",\n  \"identifier\": [\n    { \"identifierScope\": \"soleil\",   \"identifierValue\": \"board/3b7e…\" },\n    { \"identifierScope\": \"shotgrid\", \"identifierValue\": \"Sequence:88\" }\n  ],\n  \"name\": \"Costume — fall sequence\",\n  \"AssetSC\": {\n    \"structuralType\": \"assetGroup\",\n    \"structuralProperties\": { \"assetGroup\": { \"isOrdered\": true } }\n  },\n  \"assetFC\": { \"functionalType\": \"creativeReferenceMaterial\" },\n  \"Asset\": [\n    { \"entityType\": \"Asset\",\n      \"identifier\": [{ \"identifierScope\": \"soleil\", \"identifierValue\": \"card/c1\" }],\n      \"name\": \"Blaster dodge\",\n      \"AssetSC\": { \"structuralType\": \"digital.image\",\n                   \"structuralProperties\": {\n                     \"linkset\": { \"recordType\": \"item\", \"mediaType\": \"image/*\",\n                                  \"url\": \"https://…/api/v1/images/…\" } } },\n      \"assetFC\": { \"functionalType\": \"creativeReferenceMaterial\" } }\n  ]\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Three things worth pointing out."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "*"
+    },
+    {
+     "t": "em",
+     "v": "It is an ",
+     "children": [
+      {
+       "t": "text",
+       "v": "It is an "
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "ordered"
+    },
+    {
+     "t": "em",
+     "v": " assetGroup.",
+     "children": [
+      {
+       "t": "text",
+       "v": " assetGroup."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "* A board is a composition, and the arrangement carries meaning — an unordered set would discard the one thing that separates a board from a folder. Order is reading order: rows top to bottom, then left to right within a row."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Your identifiers are preserved, not replaced.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Your identifiers are preserved, not replaced."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " MovieLabs is explicit that a system should keep the identifiers other participants assigned. Ours comes first so the document is self-referential; everything you attached follows."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Image references resolve.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Image references resolve."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Each asset carries a real URL, not a bare storage key, because an archival document whose references only mean something to the system that wrote it is precisely the problem this format exists to avoid."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Saying what the board is",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Saying what the board is"
+    }
+   ],
+   "id": "saying-what-the-board-is"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Set "
+    },
+    {
+     "t": "code",
+     "v": "omc.functionalType"
+    },
+    {
+     "t": "text",
+     "v": " in the board's "
+    },
+    {
+     "t": "link",
+     "v": "properties",
+     "href": "/docs/api/metadata",
+     "children": [
+      {
+       "t": "text",
+       "v": "properties"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ":"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\"props\": {\"omc.functionalType\": \"artwork.storyboard\"}}"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Value"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "For"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "creativeReferenceMaterial"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The default — mood, tone, reference"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "technicalReferenceMaterial"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Specifications, plates, technical notes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "artwork"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Artwork not otherwise specified"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "artwork.conceptArt"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Concept art"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "artwork.storyboard"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A storyboard"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "artwork.animatedStoryboard"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An animatic"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A value outside that list is "
+    },
+    {
+     "t": "strong",
+     "v": "refused with `400`",
+     "children": [
+      {
+       "t": "text",
+       "v": "refused with "
+      },
+      {
+       "t": "code",
+       "v": "400"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " rather than passed through. Emitting something outside the controlled vocabulary produces a document that claims to validate and does not, and the failure would surface much later, in someone else's validator."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a storyboard, cards become "
+    },
+    {
+     "t": "code",
+     "v": "artwork.storyboard.frame"
+    },
+    {
+     "t": "text",
+     "v": " — which is exactly how MovieLabs' own reference example models one."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Properties other than "
+    },
+    {
+     "t": "code",
+     "v": "omc.functionalType"
+    },
+    {
+     "t": "text",
+     "v": " ride along as "
+    },
+    {
+     "t": "code",
+     "v": "customData"
+    },
+    {
+     "t": "text",
+     "v": ", the ontology's own escape hatch for what it does not model."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "What export is not",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What export is not"
+    }
+   ],
+   "id": "what-export-is-not"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It is a read, so it is charged against your "
+    },
+    {
+     "t": "link",
+     "v": "rate limit",
+     "href": "/docs/api/authentication",
+     "children": [
+      {
+       "t": "text",
+       "v": "rate limit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " like anything else, and it loads the whole board. For walking a large library, "
+    },
+    {
+     "t": "link",
+     "v": "`?source=index` with `since`",
+     "href": "/docs/api/cards",
+     "children": [
+      {
+       "t": "code",
+       "v": "?source=index"
+      },
+      {
+       "t": "text",
+       "v": " with "
+      },
+      {
+       "t": "code",
+       "v": "since"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is the cheaper instrument — export is for taking one board somewhere else."
+    }
+   ]
+  }
+ ],
  "/docs/api/errors": [
   {
    "type": "para",
@@ -29525,6 +31565,47 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "Sometimes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "409"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "identifier_conflict"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An "
+      },
+      {
+       "t": "link",
+       "v": "identifier",
+       "href": "/docs/api/metadata",
+       "children": [
+        {
+         "t": "text",
+         "v": "identifier"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " already belongs to something else"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
       }
      ]
     ],

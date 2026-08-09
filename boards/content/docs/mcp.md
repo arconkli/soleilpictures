@@ -4,7 +4,7 @@ metaDescription: Connect Claude or any MCP client to Soleil Clusters. Sixteen to
 h1: MCP server
 navLabel: MCP
 section: developers
-order: 8
+order: 10
 updated: 2026-08-08
 answer: Soleil Clusters ships an MCP server exposing the REST API as tools an AI assistant can call directly — search, read boards, create them, add and update cards, upload images, and restore deletions. It authenticates with the same personal access token as the API and holds no credentials of its own, so an agent reaches exactly what your account reaches.
 faq:

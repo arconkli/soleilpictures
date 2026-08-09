@@ -2811,6 +2811,10 @@ export const DOCS_PAGES = [
         "text": "GET /boards"
       },
       {
+        "id": "get-boards-tree",
+        "text": "GET /boards/tree"
+      },
+      {
         "id": "post-boards",
         "text": "POST /boards"
       },
@@ -3000,13 +3004,69 @@ export const DOCS_PAGES = [
     ]
   },
   {
+    "path": "/docs/api/metadata",
+    "title": "Identifiers and Properties — Soleil Clusters API",
+    "metaDescription": "Attach foreign IDs and structured fields to boards and cards, look objects up by them, and run the same import twice without duplicating anything.",
+    "h1": "Identifiers and properties",
+    "answer": "An identifier is a scope and value pair assigned by another system, like shotgrid and Shot:12345. Attach as many as you like to a board or a card, look objects up by them with GET /resolve, and pass on_conflict identifier when creating so an object that already carries one is updated instead of duplicated. That is what makes an import re-runnable. Properties are a free-form JSON object on the same objects, for whatever fields your pipeline needs.",
+    "section": "developers",
+    "order": 6,
+    "updated": "2026-08-09",
+    "navLabel": "Identifiers and properties",
+    "headings": [
+      {
+        "id": "identifiers",
+        "text": "Identifiers"
+      },
+      {
+        "id": "properties",
+        "text": "Properties"
+      },
+      {
+        "id": "reading-them-back",
+        "text": "Reading them back"
+      },
+      {
+        "id": "where-this-data-lives",
+        "text": "Where this data lives"
+      }
+    ],
+    "related": [
+      "/docs/api/boards",
+      "/docs/api/cards",
+      "/docs/api/export"
+    ],
+    "faq": [
+      {
+        "q": "How do I stop a re-run of my import from duplicating everything?",
+        "a": "Give each board and card an identifier from your own system, and pass \"on_conflict\":\"identifier\" when you create. Anything already carrying that identifier is updated in place, and the response tells you which were created and which were updated."
+      },
+      {
+        "q": "How do I find the board for a shot I have the ID of?",
+        "a": "GET /resolve?scope=shotgrid&value=Shot:12345. You do not have to keep your own map of which board you made for which shot."
+      },
+      {
+        "q": "Can two boards claim the same identifier?",
+        "a": "No. An identifier is unique per workspace, per object type. That is what makes create-or-update deterministic rather than hopeful."
+      },
+      {
+        "q": "Are properties typed or validated?",
+        "a": "No. They are free-form JSON, because the fields a production needs are not fields this product can guess. Up to 100 keys and 16KB per object."
+      },
+      {
+        "q": "Do properties show up in the app?",
+        "a": "Not yet. They are stored, queryable and exportable today; surfacing them on the canvas is separate work."
+      }
+    ]
+  },
+  {
     "path": "/docs/api/search",
     "title": "Search API — Soleil Clusters",
     "metaDescription": "Search Soleil Clusters boards and cards by text over REST. Query parameters, kind and workspace filters, pagination and result shape.",
     "h1": "Search API",
     "answer": "GET /search finds boards and cards by text across everything your account can see. Pass q with at least two characters, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.",
     "section": "developers",
-    "order": 6,
+    "order": 7,
     "updated": "2026-08-08",
     "navLabel": "Search",
     "headings": [
@@ -3044,13 +3104,61 @@ export const DOCS_PAGES = [
     ]
   },
   {
+    "path": "/docs/api/export",
+    "title": "Exporting a Board — Soleil Clusters API",
+    "metaDescription": "Get a whole board out, either as complete JSON or as MovieLabs OMC-JSON, the ontology film studios use to describe creative material.",
+    "h1": "Export",
+    "answer": "GET /boards/:id/export returns a whole board in one call. The default format is complete JSON, including the internal form of every card, so nothing is lost for kinds the API does not otherwise describe. Pass format=omc for MovieLabs OMC-JSON, which models the board as an ordered assetGroup of assets using the film industry's own controlled vocabulary for creative reference material.",
+    "section": "developers",
+    "order": 8,
+    "updated": "2026-08-09",
+    "navLabel": "Export",
+    "headings": [
+      {
+        "id": "format-json-complete",
+        "text": "format=json — complete"
+      },
+      {
+        "id": "format-omc-movielabs-omc-json",
+        "text": "format=omc — MovieLabs OMC-JSON"
+      },
+      {
+        "id": "what-export-is-not",
+        "text": "What export is not"
+      }
+    ],
+    "related": [
+      "/docs/api/metadata",
+      "/docs/api/boards",
+      "/docs/api/cards"
+    ],
+    "faq": [
+      {
+        "q": "How do I take a full backup of a board?",
+        "a": "GET /boards/:id/export. The default JSON format carries every card exactly as stored, plus its identifiers and properties."
+      },
+      {
+        "q": "What is OMC-JSON?",
+        "a": "The MovieLabs Ontology for Media Creation, the film industry's own standard for describing production material. A board maps onto it as an ordered assetGroup, which is how MovieLabs' own examples model a storyboard."
+      },
+      {
+        "q": "Why does the default card read lose information?",
+        "a": "It is a deliberate twelve-field projection, so kinds with structured interiors — grids, palettes, schedules — do not round-trip through it. Export, and include=raw on card reads, both give you the untruncated form."
+      },
+      {
+        "q": "Can I say what kind of material a board represents?",
+        "a": "Set omc.functionalType in the board's properties. Values outside the OMC controlled vocabulary are refused rather than passed through."
+      }
+    ]
+  },
+  {
     "path": "/docs/api/errors",
     "title": "API Errors and Status Codes — Soleil Clusters",
     "metaDescription": "Every Soleil Clusters API error code and what to do about it — which are retryable, which are permanent, and how idempotency interacts with retries.",
     "h1": "Errors and status codes",
     "answer": "Every error is JSON carrying a machine-readable code and a human sentence. Branch on the code, not the prose. Only 429 and 5xx are worth retrying; everything in the 400 range is a permanent statement about the request. A retried POST must reuse the same Idempotency-Key or it becomes a second real write.",
     "section": "developers",
-    "order": 7,
+    "order": 9,
     "updated": "2026-08-08",
     "navLabel": "Errors",
     "headings": [
@@ -3102,7 +3210,7 @@ export const DOCS_PAGES = [
     "h1": "MCP server",
     "answer": "Soleil Clusters ships an MCP server exposing the REST API as tools an AI assistant can call directly — search, read boards, create them, add and update cards, upload images, and restore deletions. It authenticates with the same personal access token as the API and holds no credentials of its own, so an agent reaches exactly what your account reaches.",
     "section": "developers",
-    "order": 8,
+    "order": 10,
     "updated": "2026-08-08",
     "navLabel": "MCP",
     "headings": [
@@ -3162,7 +3270,7 @@ export const DOCS_PAGES = [
     "h1": "Service accounts",
     "answer": "A personal access token belongs to one person, so an integration built on it stops the day that person leaves the workspace. A service account is a credential owned by the workspace itself. It is a real member of exactly one workspace, subject to the same permissions as anyone else, and its tokens keep working regardless of who comes and goes. Only the workspace owner can create one, and a token can never grant more than the token that created it.",
     "section": "developers",
-    "order": 9,
+    "order": 11,
     "updated": "2026-08-09",
     "navLabel": "Service accounts",
     "headings": [

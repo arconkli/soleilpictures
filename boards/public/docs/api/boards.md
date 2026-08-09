@@ -43,6 +43,9 @@ two words.
 | `parent=<uuid>` | Only children of that board |
 | `parent=root` | Only top-level boards |
 | `deleted=` | Include soft-deleted boards |
+| `since=<ISO>` | Only boards changed at or after that time — see below |
+| `cursor=` | Continue a `since` walk |
+| `include=` | `props`, `identifiers` — see [Identifiers and properties](/docs/api/metadata) |
 | `limit` / `offset` | Page size (default 100, max 500) and start |
 
 ```sh
@@ -54,6 +57,56 @@ curl "$SOLEIL_API/boards?parent=root&limit=50" -H "Authorization: Bearer $SOLEIL
 ```
 
 Follow `next_offset` until it comes back `null`.
+
+### Asking what changed
+
+Pass `since` and the listing becomes a **change feed**: ordered by `updated_at`
+rather than `created_at`, and paged by cursor rather than offset.
+
+```sh
+curl "$SOLEIL_API/boards?workspace=$WS&since=2026-08-09T00:00:00Z" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN"
+```
+
+```json
+{ "boards": [ … ], "limit": 100, "has_more": true,
+  "next_cursor": "2026-08-09T12:00:00Z|3b7e…" }
+```
+
+Pass `next_cursor` back as `cursor` until `has_more` is false, then keep the
+last `updated_at` you saw as the `since` for your next run.
+
+Offset paging is wrong for this and cursor paging is right, for a specific
+reason: rows are being written while you walk, so offsets shift under you and a
+page boundary both skips and repeats. The cursor carries a board id alongside
+the timestamp because two boards touched in the same transaction share a
+timestamp exactly, and a timestamp alone would drop whichever came second.
+
+## `GET /boards/tree`
+
+The hierarchy in one call, rather than one call per level.
+
+```sh
+curl "$SOLEIL_API/boards/tree?root=$BOARD&depth=6" -H "Authorization: Bearer $SOLEIL_TOKEN"
+```
+
+```json
+{ "root": "3b7e…", "count": 214,
+  "boards": [
+    { "id": "3b7e…", "parent_board_id": null, "name": "THE FALL",
+      "depth": 0, "card_count": 0, "updated_at": "…", "deleted": false },
+    { "id": "9f1c…", "parent_board_id": "3b7e…", "name": "Costume",
+      "depth": 1, "card_count": 42, "updated_at": "…", "deleted": false }
+  ] }
+```
+
+Pass `root` (a board id) or `workspace`, and optionally `depth` (default 10,
+maximum 20). Results are flat with a `depth` and a `parent_board_id`, so you can
+rebuild the tree in whatever shape you need without the response nesting for
+you.
+
+A show's structure — title, department, sequence, shot — is the first thing any
+integration walks, and `?parent=` costs a request per node.
 
 ## `POST /boards`
 
@@ -99,6 +152,26 @@ Every entry is validated before anything is written, so a bad entry at index 900
 is a clean `400` rather than 900 boards and an error. The whole batch is one
 insert as you, so a workspace you cannot write refuses the batch rather than
 half-applying it.
+
+### Creating the same boards twice
+
+Give each board an `identifiers` array and pass `"on_conflict": "identifier"`,
+and a board already carrying one of those identifiers is **updated instead of
+created again** — with its id unchanged:
+
+```json
+{
+  "on_conflict": "identifier",
+  "boards": [
+    { "name": "SEQ 0100",
+      "identifiers": [{ "scope": "shotgrid", "value": "Sequence:88" }] }
+  ]
+}
+```
+
+The response adds `updated`, and each board carries `created: true|false`. This
+is what makes an import re-runnable — see
+[Identifiers and properties](/docs/api/metadata).
 
 ## `GET /boards/:id`
 

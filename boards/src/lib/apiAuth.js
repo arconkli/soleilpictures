@@ -370,16 +370,38 @@ export async function userRpc(env, token, fn, params) {
   return text ? JSON.parse(text) : null;
 }
 
-export async function userInsert(env, token, table, rows, { returning = 'representation' } = {}) {
-  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}`, {
+// `onConflict` names the unique constraint to upsert on, and turns this into
+// INSERT … ON CONFLICT DO UPDATE. Still one statement and still under RLS: the
+// policy's USING clause governs the update half, so an upsert cannot reach a row
+// the caller could not have written directly.
+export async function userInsert(env, token, table, rows,
+  { returning = 'representation', onConflict = null } = {}) {
+  const qs = onConflict ? `?on_conflict=${encodeURIComponent(onConflict)}` : '';
+  const prefer = onConflict
+    ? `return=${returning},resolution=merge-duplicates`
+    : `return=${returning}`;
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}${qs}`, {
     method: 'POST',
-    headers: userHeaders(token, env, { prefer: `return=${returning}` }),
+    headers: userHeaders(token, env, { prefer }),
     body: JSON.stringify(rows),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw await restError(res, `insert ${table}`);
   const text = await res.text();
   return text ? JSON.parse(text) : null;
+}
+
+// DELETE as the user. Separate from scoutDelete (lib/scoutDb.js), which runs as
+// the service role — this one is subject to the table's RLS policy, which is the
+// only acceptable way to remove a row on someone's behalf.
+export async function userDelete(env, token, table, query) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}?${query}`, {
+    method: 'DELETE',
+    headers: userHeaders(token, env, { prefer: 'return=minimal' }),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) throw await restError(res, `delete ${table}`);
+  return true;
 }
 
 export async function userPatch(env, token, table, query, patch) {

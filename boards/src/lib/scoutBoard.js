@@ -593,6 +593,55 @@ export async function moveCardsBetweenBoards(env, {
 // can_write_board as the user before reaching any of this.
 
 // Patch one card's fields. Returns the updated card, or null if it is gone.
+// Patch MANY cards with one board open.
+//
+// updateCardOnBoard opens the board, syncs it, commits and closes — perfectly
+// reasonable for one card and ruinous for five hundred, which is what a
+// re-runnable import does on its second pass. This does the same work once:
+// one open, one transaction, one card_index write.
+//
+// Returns the cards as they now are, in the order the patches were given,
+// with a null wherever the card did not exist.
+export async function updateCardsOnBoard(env, {
+  boardId, workspaceId, userId, accessToken, patches,
+}) {
+  if (!patches?.length) return [];
+  const board = await openBoard(env, boardId, accessToken);
+  try {
+    const cards = board.doc.getMap('cards');
+    const byId = new Map(readCards(board.doc).map((c) => [String(c.id), c]));
+    const stamp = new Date().toISOString();
+
+    const resolved = patches.map(({ cardId, patch }) => {
+      const before = byId.get(String(cardId));
+      if (!before) return null;
+      const p = typeof patch === 'function' ? (patch(before) || {}) : (patch || {});
+      // id can never be patched: it is the key in the Y.Map and in card_index,
+      // so changing it here would orphan the index row rather than rename it.
+      const { id: _ignored, ...safe } = p;
+      return { ...before, ...safe, id: before.id, updatedAt: stamp, updatedBy: userId || null };
+    });
+
+    const changed = resolved.filter(Boolean);
+    if (!changed.length) return resolved;
+
+    // One transaction, so collaborators see the batch land as a batch rather
+    // than as five hundred separate edits arriving over a second.
+    await commitDoc(env, boardId, board, () => {
+      for (const c of changed) cards.set(String(c.id), cardToYMap(c));
+    });
+
+    const rows = buildCardIndexRows({ workspaceId, boardId, cards: changed });
+    if (rows.length) {
+      await scoutInsert(env, 'card_index', rows, { onConflict: 'board_id,card_id' });
+    }
+    return resolved;
+  } finally {
+    try { board.ws?.close(); } catch (_) { /* already gone */ }
+    board.doc.destroy();
+  }
+}
+
 export async function updateCardOnBoard(env, {
   boardId, workspaceId, userId, accessToken, cardId, patch,
 }) {

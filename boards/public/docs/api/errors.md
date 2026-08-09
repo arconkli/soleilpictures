@@ -24,6 +24,7 @@ be reworded; the code is the contract.
 | `404` | `not_found` | Not found, **or** not visible to you | No |
 | `405` | `method_not_allowed` | Wrong method for that path | No |
 | `409` | `conflict` | Idempotency key in flight, or a refused reparent | Sometimes |
+| `409` | `identifier_conflict` | An [identifier](/docs/api/metadata) already belongs to something else | No |
 | `413` | `payload_too_large` | An [image](/docs/api/images) over 25 MB | No |
 | `415` | `unsupported_media_type` | Upload with a missing or unrecognised `Content-Type` | No |
 | `429` | — | [Rate limited](/docs/api/authentication) | Yes, after `retry-after` |

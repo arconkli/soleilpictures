@@ -63,6 +63,9 @@ permissions to drift out of step with app permissions.
 | `POST /boards/:id/cards/move` | Move cards to another board |
 | `POST /uploads` | [Upload an image](/docs/api/images), get a key back |
 | `GET /images/:key` | Read an image back |
+| `GET /resolve` | Find an object by a [foreign identifier](/docs/api/metadata) |
+| `GET /boards/tree` | A whole [board hierarchy](/docs/api/boards) in one call |
+| `GET /boards/:id/export` | [Export](/docs/api/export) a board, as JSON or MovieLabs OMC |
 | `GET /service-accounts` | [Service accounts](/docs/api/service-accounts) in a workspace |
 | `POST /service-accounts` | Create one, with its first token |
 | `DELETE /service-accounts/:id` | Retire one and revoke its tokens |
