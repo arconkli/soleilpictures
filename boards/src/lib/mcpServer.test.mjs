@@ -17,20 +17,38 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TOOLS, HOSTED_TOOLS, PROMPTS, toolManifest } from './mcpTools.js';
-import { handleMcpMessage, handleMcpRequest } from './mcpServer.js';
+import {
+  handleMcpMessage, handleMcpRequest, headerProblem, decodeHeaderValue,
+  SUPPORTED_PROTOCOL_VERSIONS, META, ERR,
+} from './mcpServer.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '../../..');
 
 // ── one registry, two copies ─────────────────────────────────────────────────
 
+const STRIP_BANNER = /^\/\/ GENERATED[^\n]*\n\/\/ Regenerate[^\n]*\n\n/;
+
 test('the npm package ships the same registry the Worker serves', () => {
   const source = readFileSync(resolve(REPO, 'boards/src/lib/mcpTools.js'), 'utf8');
   const copy = readFileSync(resolve(REPO, 'mcp/src/tools.js'), 'utf8');
-  const stripped = copy.replace(/^\/\/ GENERATED[^\n]*\n\/\/ Regenerate[^\n]*\n\n/, '');
-  assert.equal(stripped, source,
+  assert.equal(copy.replace(STRIP_BANNER, ''), source,
     'mcp/src/tools.js is stale — run `npm run sync` in mcp/. '
     + 'A tool present on one transport and missing on the other looks like a client bug.');
+});
+
+test('the npm package ships the same PROTOCOL the Worker serves', () => {
+  // This matters more than the registry copy. A tool missing from one
+  // transport looks like a client bug; a protocol that differs between them
+  // fails at connection time with nothing useful to read.
+  const source = readFileSync(resolve(REPO, 'boards/src/lib/mcpServer.js'), 'utf8');
+  const copy = readFileSync(resolve(REPO, 'mcp/src/server.js'), 'utf8');
+  const expected = source.replace("from './mcpTools.js'", "from './tools.js'");
+  assert.equal(copy.replace(STRIP_BANNER, ''), expected,
+    'mcp/src/server.js is stale — run `npm run sync` in mcp/.');
+  // The one permitted edit must actually have applied; if the import is ever
+  // renamed, the copy would silently ship a broken specifier.
+  assert.match(copy, /from '\.\/tools\.js'/);
 });
 
 // ── the shape of a tool ──────────────────────────────────────────────────────
@@ -101,7 +119,12 @@ test('a local-only tool refuses cleanly when there is no filesystem', async () =
 // ── the JSON-RPC shell ───────────────────────────────────────────────────────
 
 const ctx = { api: async (path, opts) => ({ echoed: path, method: opts?.method || 'GET' }) };
-const rpc = (method, params, id = 1) => handleMcpMessage({ jsonrpc: '2.0', id, method, params }, ctx);
+
+// A LEGACY call: no per-request _meta, exactly as a client that opened with
+// `initialize` sends. Every assertion below that does not say otherwise is
+// about the era every shipping client is still on.
+const rpc = (method, params, id = 1) =>
+  handleMcpMessage({ jsonrpc: '2.0', id, method, params }, ctx).then((r) => r.body);
 
 test('initialize negotiates and advertises only what is implemented', async () => {
   const r = await rpc('initialize', { protocolVersion: '2025-06-18' });
@@ -114,9 +137,31 @@ test('initialize negotiates and advertises only what is implemented', async () =
   assert.ok(r.result.instructions);
 });
 
+test('initialize echoes a version we implement, and names our best when it does not', async () => {
+  // Answering a 2025-06-18 client with 2025-11-25 would make it disconnect over
+  // a version number, which is the least actionable failure there is.
+  assert.equal((await rpc('initialize', { protocolVersion: '2025-06-18' })).result.protocolVersion,
+    '2025-06-18');
+  assert.equal((await rpc('initialize', { protocolVersion: '2025-11-25' })).result.protocolVersion,
+    '2025-11-25');
+  assert.equal((await rpc('initialize', { protocolVersion: '1999-01-01' })).result.protocolVersion,
+    '2025-11-25', 'an unknown version gets our best legacy answer, not a refusal');
+});
+
+test('a legacy result carries no modern fields', async () => {
+  // resultType and the serverInfo _meta key are 2026-07-28 additions. A client
+  // validating against the older schema has no reason to expect either.
+  const r = await rpc('tools/list');
+  assert.equal('resultType' in r.result, false);
+  assert.equal('ttlMs' in r.result, false);
+  assert.equal('_meta' in r.result, false);
+});
+
 test('notifications get no reply at all', async () => {
-  assert.equal(await handleMcpMessage({ jsonrpc: '2.0', method: 'notifications/initialized' }, ctx), null);
-  assert.equal(await handleMcpMessage({ jsonrpc: '2.0', method: 'notifications/anything' }, ctx), null);
+  const one = await handleMcpMessage({ jsonrpc: '2.0', method: 'notifications/initialized' }, ctx);
+  assert.equal(one.body, null);
+  assert.equal(one.status, 202);
+  assert.equal((await handleMcpMessage({ jsonrpc: '2.0', method: 'notifications/anything' }, ctx)).body, null);
 });
 
 test('tools/list returns the hosted registry in protocol shape', async () => {
@@ -143,12 +188,12 @@ test('a tool that FAILS is a successful call with isError, not an RPC error', as
   // The distinction matters: an RPC error tells a model only that something
   // broke, while isError plus the API's own sentence tells it what to do.
   const failing = { api: async () => { throw new Error('this token cannot delete'); } };
-  const r = await handleMcpMessage(
+  const { body } = await handleMcpMessage(
     { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'delete_board', arguments: { board_id: 'x' } } },
     failing);
-  assert.equal(r.error, undefined);
-  assert.equal(r.result.isError, true);
-  assert.match(r.result.content[0].text, /cannot delete/);
+  assert.equal(body.error, undefined);
+  assert.equal(body.result.isError, true);
+  assert.match(body.result.content[0].text, /cannot delete/);
 });
 
 test('an unknown tool is an RPC error that lists what exists', async () => {
@@ -185,6 +230,188 @@ test('resources answer empty rather than erroring', async () => {
   // A client probing for resources should get a clean "none" it can branch on.
   assert.deepEqual((await rpc('resources/list')).result, { resources: [] });
   assert.deepEqual((await rpc('resources/templates/list')).result, { resourceTemplates: [] });
+});
+
+// ── 2026-07-28: the handshake is gone ────────────────────────────────────────
+//
+// The revision that deleted `initialize`. Version, identity and capabilities
+// ride in `_meta` on every request, so any instance can answer any request —
+// which is what this server always wanted to be, since a Worker isolate does
+// not survive between requests anyway.
+
+const MODERN = '2026-07-28';
+const meta = (over = {}) => ({
+  [META.protocolVersion]: MODERN,
+  [META.clientInfo]: { name: 'test-client', version: '1.0.0' },
+  [META.clientCapabilities]: {},
+  ...over,
+});
+const modernRpc = (method, params = {}, id = 1) =>
+  handleMcpMessage({ jsonrpc: '2.0', id, method, params: { ...params, _meta: meta() } }, ctx);
+
+test('server/discover is answered — the spec says servers MUST implement it', async () => {
+  const { body, status } = await handleMcpMessage(
+    { jsonrpc: '2.0', id: 'd1', method: 'server/discover', params: { _meta: meta() } }, ctx);
+  assert.equal(status, 200);
+  assert.deepEqual(body.result.supportedVersions, SUPPORTED_PROTOCOL_VERSIONS);
+  assert.equal(body.result.supportedVersions[0], MODERN, 'newest first: it is a preference order');
+  assert.deepEqual(Object.keys(body.result.capabilities).sort(), ['prompts', 'tools']);
+  assert.equal(body.result._meta[META.serverInfo].name, 'soleil-clusters');
+  assert.equal(body.result.resultType, 'complete');
+  assert.ok(body.result.ttlMs > 0);
+});
+
+test('discover answers in modern shape even to a client that declared nothing', async () => {
+  // It is the stdio backward-compatibility probe: a dual-era client sends it
+  // FIRST, before it knows what this server is. Refusing it for lack of _meta
+  // would defeat the only mechanism stdio has for era detection.
+  const { body } = await handleMcpMessage({ jsonrpc: '2.0', id: 1, method: 'server/discover' }, ctx);
+  assert.equal(body.result.resultType, 'complete');
+  assert.ok(body.result.supportedVersions.includes(MODERN));
+});
+
+test('a modern result carries resultType and identifies its server', async () => {
+  const { body } = await modernRpc('tools/list');
+  assert.equal(body.result.resultType, 'complete');
+  assert.equal(body.result._meta[META.serverInfo].name, 'soleil-clusters');
+  assert.equal(body.result.ttlMs, 300_000);
+  assert.equal(body.result.cacheScope, 'public');
+  assert.equal(body.result.tools.length, HOSTED_TOOLS.length);
+});
+
+test('the tool list is deterministic, so a client can cache it', async () => {
+  const a = (await modernRpc('tools/list')).body.result.tools.map((t) => t.name);
+  const b = (await modernRpc('tools/list')).body.result.tools.map((t) => t.name);
+  assert.deepEqual(a, b);
+});
+
+test('an unsupported version lists what IS supported, with 400', async () => {
+  const { body, status } = await handleMcpMessage({
+    jsonrpc: '2.0', id: 1, method: 'tools/list',
+    params: { _meta: { ...meta(), [META.protocolVersion]: '1900-01-01' } },
+  }, ctx);
+  assert.equal(status, 400);
+  assert.equal(body.error.code, ERR.UNSUPPORTED_PROTOCOL_VERSION);
+  assert.equal(body.error.code, -32022);
+  assert.deepEqual(body.error.data.supported, SUPPORTED_PROTOCOL_VERSIONS);
+  assert.equal(body.error.data.requested, '1900-01-01');
+});
+
+test('a modern request without client capabilities is malformed', async () => {
+  // The server is forbidden from relying on a capability the client did not
+  // declare, which is only enforceable if declaring is mandatory.
+  const { body, status } = await handleMcpMessage({
+    jsonrpc: '2.0', id: 1, method: 'tools/list',
+    params: { _meta: { [META.protocolVersion]: MODERN } },
+  }, ctx);
+  assert.equal(status, 400);
+  assert.equal(body.error.code, ERR.INVALID_PARAMS);
+  assert.match(body.error.message, /clientCapabilities/);
+});
+
+test('an unknown method is 404 in the modern era and 200 in the legacy one', async () => {
+  const modern = await modernRpc('completion/complete');
+  assert.equal(modern.status, 404);
+  assert.equal(modern.body.error.code, ERR.METHOD_NOT_FOUND);
+  const legacy = await handleMcpMessage({ jsonrpc: '2.0', id: 1, method: 'completion/complete' }, ctx);
+  assert.equal(legacy.status, 200);
+  assert.equal(legacy.body.error.code, ERR.METHOD_NOT_FOUND);
+});
+
+test('ping is gone in 2026-07-28 but still answered for legacy clients', async () => {
+  // A stateless protocol has no connection to keep alive. Removing it for
+  // everyone would break every client shipping today.
+  assert.equal((await modernRpc('ping')).status, 404);
+  assert.deepEqual((await rpc('ping')).result, {});
+});
+
+test('tools still run, and still report their own failures as content', async () => {
+  const good = await modernRpc('tools/call', { name: 'whoami', arguments: {} });
+  assert.equal(good.body.result.resultType, 'complete');
+  assert.equal(good.body.result.isError, undefined);
+  const failing = { api: async () => { throw new Error('this token cannot delete'); } };
+  const bad = await handleMcpMessage({
+    jsonrpc: '2.0', id: 2, method: 'tools/call',
+    params: { name: 'delete_board', arguments: { board_id: 'x' }, _meta: meta() },
+  }, failing);
+  assert.equal(bad.body.error, undefined);
+  assert.equal(bad.body.result.isError, true);
+});
+
+// ── mirrored headers ─────────────────────────────────────────────────────────
+
+const modernPost = (msg, headers = {}) => new Request('https://x/api/v1/mcp', {
+  method: 'POST',
+  headers: {
+    'content-type': 'application/json',
+    'mcp-protocol-version': MODERN,
+    'mcp-method': msg.method,
+    ...(msg.params?.name ? { 'mcp-name': msg.params.name } : {}),
+    ...headers,
+  },
+  body: JSON.stringify(msg),
+});
+
+const modernMsg = (method, params = {}) => ({ jsonrpc: '2.0', id: 1, method, params: { ...params, _meta: meta() } });
+
+test('mirrored headers that agree with the body are accepted', async () => {
+  const msg = modernMsg('tools/call', { name: 'whoami', arguments: {} });
+  const out = await handleMcpRequest(modernPost(msg), ctx, msg);
+  assert.equal(out.status, 200);
+  assert.equal(out.body.result.resultType, 'complete');
+});
+
+test('a header that disagrees with the body is refused', async () => {
+  // The whole reason the headers exist is that an intermediary may route on
+  // them without parsing the body. Two components acting on different values
+  // is the vulnerability this closes.
+  const msg = modernMsg('tools/call', { name: 'whoami', arguments: {} });
+  const out = await handleMcpRequest(modernPost(msg, { 'mcp-name': 'delete_board' }), ctx, msg);
+  assert.equal(out.status, 400);
+  assert.equal(out.body.error.code, ERR.HEADER_MISMATCH);
+  assert.equal(out.body.error.code, -32020);
+  assert.match(out.body.error.message, /Mcp-Name/);
+});
+
+test('every required header is required', async () => {
+  const msg = modernMsg('tools/call', { name: 'whoami', arguments: {} });
+  for (const drop of ['mcp-protocol-version', 'mcp-method', 'mcp-name']) {
+    const headers = new Headers({
+      'mcp-protocol-version': MODERN, 'mcp-method': msg.method, 'mcp-name': 'whoami',
+    });
+    headers.delete(drop);
+    assert.match(headerProblem(headers, msg) || '', new RegExp(drop.replace(/-/g, '.'), 'i'),
+      `${drop} must be required`);
+  }
+});
+
+test('Mcp-Name is only required where the spec says it is', async () => {
+  const list = modernMsg('tools/list');
+  const headers = new Headers({ 'mcp-protocol-version': MODERN, 'mcp-method': 'tools/list' });
+  assert.equal(headerProblem(headers, list), null);
+});
+
+test('a legacy request has no header contract at all', () => {
+  // Legacy clients send none of this. Enforcing it would break every client
+  // shipping today, which is the whole reason this server is dual-era.
+  assert.equal(headerProblem(new Headers({}), { method: 'tools/list', params: {} }), null);
+});
+
+test('a name that is not plain ASCII round-trips through the base64 sentinel', () => {
+  assert.equal(decodeHeaderValue('=?base64?SGVsbG8sIOS4lueVjA==?='), 'Hello, 世界');
+  assert.equal(decodeHeaderValue('whoami'), 'whoami', 'a plain value is left alone');
+  // A malformed sentinel must not throw — it is attacker-controlled input.
+  assert.equal(decodeHeaderValue('=?base64?!!!?='), '=?base64?!!!?=');
+});
+
+test('batching is refused in 2026-07-28 and still works for legacy clients', async () => {
+  // The modern transport requires one message per POST — the mirrored headers
+  // describe a single method and name, so a batch cannot be validated at all.
+  const batch = [modernMsg('tools/list'), modernMsg('prompts/list')];
+  const out = await handleMcpRequest(modernPost(batch[0]), ctx, batch);
+  assert.equal(out.status, 400);
+  assert.equal(out.body.error.code, ERR.INVALID_REQUEST);
+  assert.match(out.body.error.message, /batching/);
 });
 
 // ── the HTTP shell ───────────────────────────────────────────────────────────

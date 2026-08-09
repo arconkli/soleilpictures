@@ -16,8 +16,5 @@
   "repository": { "type": "git", "url": "https://github.com/arconkli/soleilpictures" },
   "homepage": "https://clusters.soleilpictures.com/docs/mcp",
   "publishConfig": { "access": "public" },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0"
-  },
   "engines": { "node": ">=20" }
 }

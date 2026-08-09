@@ -33265,6 +33265,494 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Protocol versions",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Protocol versions"
+    }
+   ],
+   "id": "protocol-versions"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Both servers accept "
+    },
+    {
+     "t": "code",
+     "v": "2026-07-28"
+    },
+    {
+     "t": "text",
+     "v": " · "
+    },
+    {
+     "t": "code",
+     "v": "2025-11-25"
+    },
+    {
+     "t": "text",
+     "v": " · "
+    },
+    {
+     "t": "code",
+     "v": "2025-06-18"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "2026-07-28"
+    },
+    {
+     "t": "text",
+     "v": " is the revision that removed the "
+    },
+    {
+     "t": "code",
+     "v": "initialize"
+    },
+    {
+     "t": "text",
+     "v": " handshake: protocol version, client identity and client capabilities now travel in "
+    },
+    {
+     "t": "code",
+     "v": "_meta"
+    },
+    {
+     "t": "text",
+     "v": " on every request, and there is no session to establish or keep alive. Nothing needs to be configured to use it — the server decides per request:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "A request whose "
+     },
+     {
+      "t": "code",
+      "v": "params._meta"
+     },
+     {
+      "t": "text",
+      "v": " carries "
+     },
+     {
+      "t": "code",
+      "v": "io.modelcontextprotocol/protocolVersion"
+     },
+     {
+      "t": "text",
+      "v": " is served under that revision."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "An "
+     },
+     {
+      "t": "code",
+      "v": "initialize"
+     },
+     {
+      "t": "text",
+      "v": " request is served under the older, session-based rules."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "So a client built on the current official SDK — which tops out at "
+    },
+    {
+     "t": "code",
+     "v": "2025-11-25"
+    },
+    {
+     "t": "text",
+     "v": " — connects exactly as it always did, and a newer one gets the newer behaviour from the same URL. If you ask for a version the server does not implement, it answers "
+    },
+    {
+     "t": "code",
+     "v": "-32022"
+    },
+    {
+     "t": "text",
+     "v": " and lists the ones it does, so a client can retry rather than guess."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "server/discover"
+    },
+    {
+     "t": "text",
+     "v": " returns the supported versions, the capabilities and the server identity in a single call. On the local server it doubles as the probe that tells a client which era it is talking to, because stdio has no HTTP status code to branch on."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Under "
+    },
+    {
+     "t": "code",
+     "v": "2026-07-28"
+    },
+    {
+     "t": "text",
+     "v": " the hosted transport also requires the mirrored request headers — "
+    },
+    {
+     "t": "code",
+     "v": "MCP-Protocol-Version"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "Mcp-Method"
+    },
+    {
+     "t": "text",
+     "v": ", and "
+    },
+    {
+     "t": "code",
+     "v": "Mcp-Name"
+    },
+    {
+     "t": "text",
+     "v": " for "
+    },
+    {
+     "t": "code",
+     "v": "tools/call"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "prompts/get"
+    },
+    {
+     "t": "text",
+     "v": ". They must agree with the request body; a mismatch is refused with "
+    },
+    {
+     "t": "code",
+     "v": "-32020"
+    },
+    {
+     "t": "text",
+     "v": " rather than served, because a proxy is allowed to route on the header without reading the body, and two components acting on different values is exactly the confusion the rule exists to prevent. Older clients send no such headers and are not held to them."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Two things that changed with the revision and may surprise you: "
+    },
+    {
+     "t": "code",
+     "v": "ping"
+    },
+    {
+     "t": "text",
+     "v": " is gone (a stateless protocol has no connection to keep alive), and a POST body must be a single message — JSON-RPC batching is no longer accepted. Both still work for clients connecting under an older version."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Protocol errors",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Protocol errors"
+    }
+   ],
+   "id": "protocol-errors"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "These are JSON-RPC error codes, distinct from the REST API's "
+    },
+    {
+     "t": "link",
+     "v": "error codes",
+     "href": "/docs/api/errors",
+     "children": [
+      {
+       "t": "text",
+       "v": "error codes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — a client branches on the number."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Code"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Means"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "HTTP"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "-32700"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The body was not JSON"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "400"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "-32600"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Not a valid single JSON-RPC message"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "400"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "-32601"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No such method"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "404"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "-32602"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Bad params — also an unknown tool or prompt"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "200"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "-32603"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The server failed"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "200"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "-32020"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A mirrored header disagrees with the body"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "400"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "-32021"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The request needs a capability the client did not declare"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "400"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "-32022"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Unsupported protocol version — the answer lists the supported ones"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "400"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A tool that "
+    },
+    {
+     "t": "em",
+     "v": "runs",
+     "children": [
+      {
+       "t": "text",
+       "v": "runs"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and fails is not an error here. It returns a normal result with "
+    },
+    {
+     "t": "code",
+     "v": "isError: true"
+    },
+    {
+     "t": "text",
+     "v": " and the API's own sentence in the content, because a model that reads \"this token cannot delete\" can correct itself, while one that gets a transport error only learns that something broke."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Choosing scopes for an agent",
    "inline": [
     {

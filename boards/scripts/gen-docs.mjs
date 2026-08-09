@@ -36,6 +36,7 @@ import {
   surfaceJson, apiFacts,
   apiCardKinds as apiCardKindsList,
   apiScopes as apiScopeList,
+  mcpProtocol as mcpProtocolSurface,
 } from './lib/publicSurface.mjs';
 
 import { DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
@@ -100,6 +101,11 @@ export const FACTS = {
   // in the docs the moment it is added rather than whenever someone remembers.
   apiCardKinds: apiCardKindsList().map((k) => `\`${k}\``).join(', '),
   apiScopes: apiScopeList().map((s) => `\`${s}\``).join(' · '),
+  // Read out of the server's own SUPPORTED_PROTOCOL_VERSIONS. A version we
+  // claim in the docs but do not accept is worse than one we never mention:
+  // the client fails at connection time with nothing useful to read.
+  mcpProtocolVersions: mcpProtocolSurface().versions.map((v) => `\`${v}\``).join(' · '),
+  mcpProtocolLatest: mcpProtocolSurface().versions[0],
   siteOrigin: SITE_ORIGIN,
 };
 

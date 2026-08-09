@@ -30,13 +30,8 @@
 
 import { readFile } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema, ListToolsRequestSchema,
-  GetPromptRequestSchema, ListPromptsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
-import { TOOLS, PROMPTS, SERVER_INFO, toolManifest } from './tools.js';
+import { TOOLS } from './tools.js';
+import { handleMcpMessage, ERR } from './server.js';
 import { idempotencyKey } from './idempotency.js';
 
 const BASE = (process.env.SOLEIL_API_BASE || 'https://clusters.soleilpictures.com').replace(/\/$/, '');
@@ -176,76 +171,73 @@ async function uploadLocalFile({ board_id: boardId, path, content_type: contentT
 }
 
 // ── The adapter ──────────────────────────────────────────────────────────────
+//
+// There is no SDK here. That is deliberate, and it is not NIH.
+//
+// Protocol revision 2026-07-28 removed the `initialize` handshake outright:
+// version, identity and capabilities now travel in `_meta` on every request,
+// and servers MUST implement `server/discover`. The official SDK's newest
+// version is 2025-11-25, so it cannot express any of that — a server built on
+// it can only speak the old era. Meanwhile the dispatch this package needs
+// already exists in server.js, shared byte-for-byte with the hosted server at
+// /api/v1/mcp, so the two transports cannot answer a client differently.
+//
+// What is left for this file is the transport itself, which for stdio is
+// newline-delimited JSON on stdin and stdout. That is the whole thing.
 
-const ctx = { api, uploadLocalFile };
+const ctx = {
+  // The stdio server carries the local-filesystem tool as well; the hosted one
+  // filters it out, because there is no filesystem there.
+  tools: TOOLS,
+  api,
+  uploadLocalFile,
+  // Each call gets an api() bound to the tool that made it, so a retried POST
+  // carries a stable idempotency key derived from the tool and its arguments.
+  forTool: (tool, args) => ({
+    ...ctx,
+    api: (p, o) => api(p, { ...o, tool: tool.name, args }),
+  }),
+};
 
-const server = new Server(SERVER_INFO, { capabilities: { tools: {}, prompts: {} } });
+function send(message) {
+  // One message per line, written whole. Responses may complete out of order —
+  // JSON-RPC correlates by id, and serialising them would make a slow upload
+  // block every other call.
+  process.stdout.write(`${JSON.stringify(message)}\n`);
+}
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: TOOLS.map(toolManifest),
-}));
-
-server.setRequestHandler(CallToolRequestSchema, async (req) => {
-  const tool = TOOLS.find((t) => t.name === req.params.name);
-  if (!tool) {
-    return {
-      content: [{ type: 'text', text: `Error: unknown tool ${req.params.name}` }],
-      isError: true,
-    };
+async function handleLine(line) {
+  let msg;
+  try {
+    msg = JSON.parse(line);
+  } catch {
+    send({ jsonrpc: '2.0', id: null, error: { code: ERR.PARSE, message: 'parse error: not JSON' } });
+    return;
   }
   try {
-    const out = await tool.call(req.params.arguments || {},
-      { ...ctx, api: (p, o) => api(p, { ...o, tool: tool.name, args: req.params.arguments }) });
-    if (tool.image) {
-      if (!/^image\//.test(out.contentType)) {
-        return {
-          content: [{ type: 'text', text: `Error: that key is ${out.contentType}, not an image` }],
-          isError: true,
-        };
-      }
-      if (out.bytes.length > 10 * 1024 * 1024) {
-        return {
-          content: [{ type: 'text',
-            text: `That image is ${(out.bytes.length / 1048576).toFixed(1)}MB, too large to look at. `
-              + 'Work from its title and caption instead.' }],
-          isError: true,
-        };
-      }
-      return {
-        content: [
-          { type: 'image', data: out.bytes.toString('base64'), mimeType: out.contentType },
-          { type: 'text',
-            text: `Image ${req.params.arguments.image_key} — ${out.contentType}, ${out.bytes.length} bytes`
-              + (out.variant === 'preview'
-                ? ' (a downscaled preview, which is what you are looking at).'
-                : ' (the original; no smaller rendition was stored).') },
-        ],
-      };
-    }
-    return {
-      content: [{ type: 'text', text: JSON.stringify(out, null, 2) }],
-      ...(tool.outputSchema && out && typeof out === 'object' ? { structuredContent: out } : {}),
-    };
+    const { body } = await handleMcpMessage(msg, ctx);
+    if (body) send(body);
   } catch (e) {
-    return { content: [{ type: 'text', text: `Error: ${e.message}` }], isError: true };
+    // A crash here would kill the process and take every other in-flight call
+    // with it. The client gets an error it can attribute to this request.
+    if (msg?.id !== undefined && msg?.id !== null) {
+      send({ jsonrpc: '2.0', id: msg.id, error: { code: ERR.INTERNAL, message: e?.message || String(e) } });
+    }
+  }
+}
+
+let buffer = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (chunk) => {
+  buffer += chunk;
+  for (let nl = buffer.indexOf('\n'); nl >= 0; nl = buffer.indexOf('\n')) {
+    const line = buffer.slice(0, nl).trim();
+    buffer = buffer.slice(nl + 1);
+    if (line) void handleLine(line);
   }
 });
+process.stdin.on('end', () => process.exit(0));
 
-server.setRequestHandler(ListPromptsRequestSchema, async () => ({
-  prompts: PROMPTS.map((p) => ({
-    name: p.name, title: p.title, description: p.description, arguments: p.arguments,
-  })),
-}));
-
-server.setRequestHandler(GetPromptRequestSchema, async (req) => {
-  const p = PROMPTS.find((x) => x.name === req.params.name);
-  if (!p) throw new Error(`unknown prompt: ${req.params.name}`);
-  return {
-    description: p.description,
-    messages: [{ role: 'user', content: { type: 'text', text: p.render(req.params.arguments || {}) } }],
-  };
-});
-
-const transport = new StdioServerTransport();
-await server.connect(transport);
+// stderr, never stdout: stdout is the protocol channel and anything else
+// written there is a parse error at the other end.
 console.error(`soleil-clusters MCP ready against ${BASE} — ${TOOLS.length} tools`);

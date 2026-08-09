@@ -112,6 +112,45 @@ export function mcpPrompts() {
   return expect(found, 1, 'MCP prompts', file).sort();
 }
 
+// The wire protocol itself: which revisions the server accepts, and which
+// JSON-RPC methods it answers.
+//
+// This had NO extractor, and the hole proved itself: the whole server was
+// rewritten from a handshake protocol to the stateless 2026-07-28 revision —
+// `initialize` gone, `server/discover` added, `ping` removed, three new error
+// codes — and the gate stayed green, because it only ever looked at tool names.
+// An integrator writes against the protocol before they write against a single
+// tool. A version we claim to support is a promise, and this is what holds us
+// to documenting it.
+export function mcpProtocol() {
+  const file = 'boards/src/lib/mcpServer.js';
+  let src;
+  try { src = read(file); } catch { return { versions: [], methods: [] }; }
+
+  const vm = src.match(/SUPPORTED_PROTOCOL_VERSIONS = \[([^\]]+)\]/);
+  if (!vm) throw new Error(`publicSurface: SUPPORTED_PROTOCOL_VERSIONS not found in ${file}`);
+  const versions = [...vm[1].matchAll(/'([\d-]+)'/g)].map((m) => m[1]);
+
+  // The `case` labels of the dispatch switch ARE the method list — there is no
+  // second registry to fall out of step with it.
+  // Trailing `{` on the ones that open a block, so the pattern must not anchor
+  // to the end of the line — `initialize` and `ping` both do.
+  const methods = [...src.matchAll(/^\s*case '([a-z/_]+)':/gm)].map((m) => m[1]);
+
+  // The JSON-RPC error codes are their own vocabulary — a client branches on
+  // the number, not on the English — and they are NOT the API's `code` strings,
+  // so apiErrorCodes does not and should not cover them.
+  const eb = src.slice(src.indexOf('export const ERR = {'));
+  const codes = [...eb.slice(0, eb.indexOf('};')).matchAll(/^\s*([A-Z_]+): (-?\d+),$/gm)]
+    .map((m) => `${m[1]}=${m[2]}`);
+
+  return {
+    versions: expect(versions, 2, 'MCP protocol versions', file),
+    methods: expect([...new Set(methods)], 6, 'MCP methods', file).sort(),
+    errorCodes: expect(codes, 5, 'MCP error codes', file).sort(),
+  };
+}
+
 export function apiCardKinds() {
   const file = 'boards/src/worker-api.js';
   const m = read(file).match(/const CARD_KINDS = \[([^\]]+)\]/);
@@ -328,6 +367,7 @@ export function publicSurface() {
     restEndpoints: restEndpoints(),
     mcpTools: mcpTools(),
     mcpPrompts: mcpPrompts(),
+    mcpProtocol: mcpProtocol(),
     apiCardKinds: apiCardKinds(),
     apiScopes: apiScopes(),
     webhookEvents: webhookEvents(),

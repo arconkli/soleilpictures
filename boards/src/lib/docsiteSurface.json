@@ -168,6 +168,34 @@
     "import_plan",
     "organize_board"
   ],
+  "mcpProtocol": {
+    "versions": [
+      "2026-07-28",
+      "2025-11-25",
+      "2025-06-18"
+    ],
+    "methods": [
+      "initialize",
+      "ping",
+      "prompts/get",
+      "prompts/list",
+      "resources/list",
+      "resources/templates/list",
+      "server/discover",
+      "tools/call",
+      "tools/list"
+    ],
+    "errorCodes": [
+      "HEADER_MISMATCH=-32020",
+      "INTERNAL=-32603",
+      "INVALID_PARAMS=-32602",
+      "INVALID_REQUEST=-32600",
+      "METHOD_NOT_FOUND=-32601",
+      "MISSING_CLIENT_CAPABILITY=-32021",
+      "PARSE=-32700",
+      "UNSUPPORTED_PROTOCOL_VERSION=-32022"
+    ]
+  },
   "apiCardKinds": [
     "doc",
     "file",

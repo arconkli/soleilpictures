@@ -57,6 +57,64 @@ disk and uploads it — including large ones like video, which cannot fit throug
 an assistant's message. Everything else is identical: both servers are built
 from one registry, so a tool cannot exist on one and not the other.
 
+## Protocol versions
+
+Both servers accept `2026-07-28` · `2025-11-25` · `2025-06-18`.
+
+`2026-07-28` is the revision that removed the
+`initialize` handshake: protocol version, client identity and client
+capabilities now travel in `_meta` on every request, and there is no session to
+establish or keep alive. Nothing needs to be configured to use it — the server
+decides per request:
+
+- A request whose `params._meta` carries
+  `io.modelcontextprotocol/protocolVersion` is served under that revision.
+- An `initialize` request is served under the older, session-based rules.
+
+So a client built on the current official SDK — which tops out at `2025-11-25` —
+connects exactly as it always did, and a newer one gets the newer behaviour from
+the same URL. If you ask for a version the server does not implement, it answers
+`-32022` and lists the ones it does, so a client can retry rather than guess.
+
+`server/discover` returns the supported versions, the capabilities and the
+server identity in a single call. On the local server it doubles as the probe
+that tells a client which era it is talking to, because stdio has no HTTP status
+code to branch on.
+
+Under `2026-07-28` the hosted transport also requires the
+mirrored request headers — `MCP-Protocol-Version`, `Mcp-Method`, and `Mcp-Name`
+for `tools/call` and `prompts/get`. They must agree with the request body; a
+mismatch is refused with `-32020` rather than served, because a proxy is allowed
+to route on the header without reading the body, and two components acting on
+different values is exactly the confusion the rule exists to prevent. Older
+clients send no such headers and are not held to them.
+
+Two things that changed with the revision and may surprise you: `ping` is gone
+(a stateless protocol has no connection to keep alive), and a POST body must be
+a single message — JSON-RPC batching is no longer accepted. Both still work for
+clients connecting under an older version.
+
+### Protocol errors
+
+These are JSON-RPC error codes, distinct from the REST API's
+[error codes](/docs/api/errors) — a client branches on the number.
+
+| Code | Means | HTTP |
+|---|---|---|
+| `-32700` | The body was not JSON | 400 |
+| `-32600` | Not a valid single JSON-RPC message | 400 |
+| `-32601` | No such method | 404 |
+| `-32602` | Bad params — also an unknown tool or prompt | 200 |
+| `-32603` | The server failed | 200 |
+| `-32020` | A mirrored header disagrees with the body | 400 |
+| `-32021` | The request needs a capability the client did not declare | 400 |
+| `-32022` | Unsupported protocol version — the answer lists the supported ones | 400 |
+
+A tool that *runs* and fails is not an error here. It returns a normal result
+with `isError: true` and the API's own sentence in the content, because a model
+that reads "this token cannot delete" can correct itself, while one that gets a
+transport error only learns that something broke.
+
 ## Choosing scopes for an agent
 
 The three scopes (`delete` · `read` · `write`) exist mainly for this. "Can add cards to

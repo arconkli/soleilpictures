@@ -1,3 +1,6 @@
+// GENERATED — do not edit. Source: boards/src/lib/mcpServer.js
+// Regenerate with `npm run sync` in mcp/.
+
 // The MCP server: one implementation, two transports, two protocol eras.
 //
 // WHY IT IS HOSTED. The stdio server is fine for one developer and useless to a
@@ -26,7 +29,7 @@
 // /api/v1 govern this identically. There is no second credential and no second
 // permission model, which is the only way the two cannot drift apart.
 
-import { HOSTED_TOOLS, PROMPTS, SERVER_INFO, toolManifest } from './mcpTools.js';
+import { HOSTED_TOOLS, PROMPTS, SERVER_INFO, toolManifest } from './tools.js';
 
 // Newest first: this is the list handed to a client in an
 // UnsupportedProtocolVersionError, and it is the order it should prefer.

@@ -3239,6 +3239,10 @@ export const DOCS_PAGES = [
         "text": "Two ways to connect"
       },
       {
+        "id": "protocol-versions",
+        "text": "Protocol versions"
+      },
+      {
         "id": "choosing-scopes-for-an-agent",
         "text": "Choosing scopes for an agent"
       },
