@@ -53,6 +53,7 @@ import { boardToOmc } from './lib/omcExport.js';
 import {
   webhookUrlProblem, runWebhooks, hasPendingWork, WEBHOOK_EVENTS,
 } from './lib/webhooks.js';
+import { handleMcpRequest } from './lib/mcpServer.js';
 
 // Raised from 100 once a positioned batch stopped costing O(the whole board):
 // the write is now one card_index insert and one small Yjs update, so the batch
@@ -683,6 +684,62 @@ export async function handleApiRoute(url, request, env, ctx) {
   return withHeaders(res, rl);
 }
 
+// Call this API's own routes, from inside it.
+//
+// The MCP tools are defined once and used by two transports, so they are
+// written against an HTTP client. On the hosted side that client is THIS — a
+// direct call into dispatch with the caller's own auth, rather than a fetch
+// back out to ourselves. Two reasons: a Worker calling its own public hostname
+// is a second TLS round trip and a second rate-limit charge for one logical
+// operation, and going out through the front door would re-run authentication
+// against a token we have already resolved.
+//
+// Because it goes through the same dispatcher, an MCP tool cannot do anything a
+// REST caller could not. That is the property worth having, and it is
+// structural rather than remembered.
+async function internalCall(baseUrl, env, ctx, { auth, token }, path, opts = {}) {
+  const target = new URL(`/api/v1${path}`, baseUrl.origin);
+  const method = opts.method || 'GET';
+  const headers = { ...(opts.headers || {}) };
+  let body;
+  if (opts.rawBody !== undefined) {
+    // A base64 payload from upload_image: the upload route reads raw bytes.
+    const bin = atob(opts.rawBody);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    body = bytes;
+  } else if (opts.body !== undefined) {
+    body = JSON.stringify(opts.body);
+    headers['content-type'] = 'application/json';
+  }
+
+  const req = new Request(target, { method, headers, body });
+  const trace = { route: target.pathname.replace(/^\/api\/v1/, '') || '/', target: null };
+  const res = await dispatch(target, req, env, { auth, token, trace });
+
+  if (opts.raw) {
+    if (!res.ok) throw new Error(await describeInternalFailure(res));
+    return {
+      bytes: new Uint8Array(await res.arrayBuffer()),
+      contentType: res.headers.get('content-type') || 'application/octet-stream',
+      variant: res.headers.get('x-image-variant') || 'original',
+    };
+  }
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!res.ok) throw new Error(data?.error || `request failed (${res.status})`);
+  return data;
+}
+
+async function describeInternalFailure(res) {
+  const text = await res.text().catch(() => '');
+  try {
+    return JSON.parse(text)?.error || `request failed (${res.status})`;
+  } catch {
+    return `request failed (${res.status})`;
+  }
+}
+
 async function dispatch(url, request, env, ctx) {
   const { auth, token, trace } = ctx;
   const parts = url.pathname.replace(/^\/api\/v1\/?/, '').replace(/\/$/, '').split('/').filter(Boolean);
@@ -731,6 +788,7 @@ async function dispatch(url, request, env, ctx) {
         'POST   /boards/move',
         'DELETE /boards            {"board_ids":[…]}  — bulk soft-delete',
         'GET    /audit?since=&cursor=&limit=',
+        'POST   /mcp                        — Model Context Protocol, for AI agents',
         'GET    /webhooks?workspace=',
         'POST   /webhooks',
         'PATCH  /webhooks/:id',
@@ -1009,6 +1067,21 @@ async function dispatch(url, request, env, ctx) {
     }
 
     throw fail(405, 'method_not_allowed', `${method} is not supported here`);
+  }
+
+  // POST /mcp — the hosted MCP server.
+  //
+  // Same credential, same scopes, same rate limit as everything else here. The
+  // tools call back into this dispatcher rather than over the network, so there
+  // is no second permission model to keep in step: what a token can do over
+  // REST is exactly what it can do over MCP, by construction.
+  if (head === 'mcp') {
+    trace.route = '/mcp';
+    const out = await handleMcpRequest(request, {
+      api: (path, opts = {}) => internalCall(url, env, ctx, { auth, token }, path, opts),
+    });
+    if (out.body === null) return new Response(null, { status: out.status, headers: CORS });
+    return json(out.body, out.status);
   }
 
   // GET /audit?since=&cursor=&limit=

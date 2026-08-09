@@ -33151,51 +33151,86 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Setup",
+   "text": "Two ways to connect",
    "inline": [
     {
      "t": "text",
-     "v": "Setup"
+     "v": "Two ways to connect"
     }
    ],
-   "id": "setup"
+   "id": "two-ways-to-connect"
   },
   {
-   "type": "list",
-   "ordered": true,
-   "items": [
-    [
-     {
-      "t": "text",
-      "v": "Mint a token in the app: "
-     },
-     {
-      "t": "strong",
-      "v": "Settings → API",
-      "children": [
-       {
-        "t": "text",
-        "v": "Settings → API"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": ". Choose scopes deliberately — see below."
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Point your MCP client at the server with the token in its environment:"
-     }
-    ]
-   ]
+   "type": "heading",
+   "depth": 3,
+   "text": "Hosted — nothing to install",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Hosted — nothing to install"
+    }
+   ],
+   "id": "hosted-nothing-to-install"
   },
   {
    "type": "code",
    "lang": "json",
-   "code": "{\n  \"mcpServers\": {\n    \"soleil-clusters\": {\n      \"command\": \"node\",\n      \"args\": [\"/absolute/path/to/soleilpictures/mcp/src/index.js\"],\n      \"env\": { \"SOLEIL_API_TOKEN\": \"undefined…\" }\n    }\n  }\n}"
+   "code": "{\n  \"mcpServers\": {\n    \"soleil-clusters\": {\n      \"type\": \"http\",\n      \"url\": \"https://clusters.soleilpictures.com/api/v1/mcp\",\n      \"headers\": { \"Authorization\": \"Bearer undefined…\" }\n    }\n  }\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Mint the token in the app under "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → API",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or create a "
+    },
+    {
+     "t": "link",
+     "v": "service account",
+     "href": "/docs/api/service-accounts",
+     "children": [
+      {
+       "t": "text",
+       "v": "service account"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " if this is for a team rather than for you. That is the whole setup."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Local — for files on your machine",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Local — for files on your machine"
+    }
+   ],
+   "id": "local-for-files-on-your-machine"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"mcpServers\": {\n    \"soleil-clusters\": {\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"soleil-clusters-mcp\"],\n      \"env\": { \"SOLEIL_API_TOKEN\": \"undefined…\" }\n    }\n  }\n}"
   },
   {
    "type": "para",
@@ -33207,6 +33242,23 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " overrides the host. Without a token the server exits at startup rather than running in a state where every call fails."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The local server has one extra tool, "
+    },
+    {
+     "t": "code",
+     "v": "upload_file"
+    },
+    {
+     "t": "text",
+     "v": ", which reads a file from your disk and uploads it — including large ones like video, which cannot fit through an assistant's message. Everything else is identical: both servers are built from one registry, so a tool cannot exist on one and not the other."
     }
    ]
   },
@@ -33366,11 +33418,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Reading",
+     "v": "Orientation and finding things",
      "children": [
       {
        "t": "text",
-       "v": "Reading"
+       "v": "Orientation and finding things"
       }
      ]
     }
@@ -33403,7 +33455,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "— · the account, its scopes and rate-limit state"
+       "v": "— · the account, its scopes, rate limit, and whether it is a service account"
       }
      ]
     ],
@@ -33418,52 +33470,6 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "—"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "list_boards"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "workspace_id?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "parent?"
-      },
-      {
-       "t": "text",
-       "v": " ("
-      },
-      {
-       "t": "code",
-       "v": "\"root\""
-      },
-      {
-       "t": "text",
-       "v": " for top level), "
-      },
-      {
-       "t": "code",
-       "v": "limit?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "offset?"
       }
      ]
     ],
@@ -33523,6 +33529,182 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "list_boards"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "workspace_id?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "parent?"
+      },
+      {
+       "t": "text",
+       "v": " ("
+      },
+      {
+       "t": "code",
+       "v": "\"root\""
+      },
+      {
+       "t": "text",
+       "v": " for top level), "
+      },
+      {
+       "t": "code",
+       "v": "since?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "cursor?"
+      },
+      {
+       "t": "text",
+       "v": ", paging"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "board_tree"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "root?"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "workspace_id?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "depth?"
+      },
+      {
+       "t": "text",
+       "v": " — a whole hierarchy in one call"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "get_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": " — one board, with how much of the card allowance is used"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "resolve_identifier"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "scope"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "value"
+      },
+      {
+       "t": "text",
+       "v": " — find something by an id from another system"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "list_deleted_boards"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "workspace_id?"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Reading",
+     "children": [
+      {
+       "t": "text",
+       "v": "Reading"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Tool"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Input"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
        "v": "read_board"
       }
      ],
@@ -33545,7 +33727,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "limit?"
+       "v": "include?"
       },
       {
        "t": "text",
@@ -33553,7 +33735,19 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "offset?"
+       "v": "source?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "since?"
+      },
+      {
+       "t": "text",
+       "v": ", paging"
       }
      ]
     ],
@@ -33579,13 +33773,133 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "list_deleted_boards"
+       "v": "list_images"
       }
      ],
      [
       {
        "t": "code",
        "v": "workspace_id?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "board_id?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "since?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "cursor?"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "export_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "format?"
+      },
+      {
+       "t": "text",
+       "v": " ("
+      },
+      {
+       "t": "code",
+       "v": "json"
+      },
+      {
+       "t": "text",
+       "v": "\\"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "omc"
+      },
+      {
+       "t": "text",
+       "v": ")"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "get_metadata"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "cards?"
+      },
+      {
+       "t": "text",
+       "v": " — identifiers and properties"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "list_audit"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "since?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "cursor?"
+      },
+      {
+       "t": "text",
+       "v": " — recent writes and image fetches"
       }
      ]
     ]
@@ -33650,6 +33964,148 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "parent_board_id?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "identifiers?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "props?"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "create_boards"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "boards[]"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "on_conflict?"
+      },
+      {
+       "t": "text",
+       "v": " — build a structure in one call"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "add_cards"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "cards[]"
+      },
+      {
+       "t": "text",
+       "v": " — up to 1000, "
+      },
+      {
+       "t": "code",
+       "v": "on_conflict?"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "upload_image"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "data"
+      },
+      {
+       "t": "text",
+       "v": " (base64), "
+      },
+      {
+       "t": "code",
+       "v": "content_type"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "upload_file"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "path"
+      },
+      {
+       "t": "text",
+       "v": " — "
+      },
+      {
+       "t": "strong",
+       "v": "local server only",
+       "children": [
+        {
+         "t": "text",
+         "v": "local server only"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": "; handles large files"
       }
      ]
     ],
@@ -33695,13 +34151,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "add_cards"
+       "v": "move_boards"
       }
      ],
      [
       {
        "t": "code",
-       "v": "board_id"
+       "v": "board_ids[]"
       },
       {
        "t": "text",
@@ -33709,41 +34165,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "cards[]"
-      },
-      {
-       "t": "text",
-       "v": " — up to 1000"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "upload_image"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "data"
-      },
-      {
-       "t": "text",
-       "v": " (base64), "
-      },
-      {
-       "t": "code",
-       "v": "content_type"
+       "v": "parent_board_id"
       }
      ]
     ],
@@ -33777,6 +34199,32 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "update_cards"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "cards[]"
+      },
+      {
+       "t": "text",
+       "v": " — many at once"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "move_cards"
       }
      ],
@@ -33800,6 +34248,44 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "card_ids[]"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "set_metadata"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_id?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "identifiers?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "props?"
       }
      ]
     ],
@@ -33882,6 +34368,28 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "card_id"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "delete_cards"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_ids[]"
       }
      ]
     ],
@@ -33972,6 +34480,135 @@ export const DOCS_CONTENT = {
      "t": "text",
      "v": "."
     }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every tool carries "
+    },
+    {
+     "t": "strong",
+     "v": "annotations",
+     "children": [
+      {
+       "t": "text",
+       "v": "annotations"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — "
+    },
+    {
+     "t": "code",
+     "v": "readOnlyHint"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "destructiveHint"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "idempotentHint"
+    },
+    {
+     "t": "text",
+     "v": " — which is what a client reads when deciding whether a call needs confirming. They are structured, so unlike a warning in a description they actually participate in that decision."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Prompts",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Prompts"
+    }
+   ],
+   "id": "prompts"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Three starting points, offered by name rather than buried in a tool description:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Prompt"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "describe_board"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Looks at every image and writes what the board is reaching for"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "organize_board"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Proposes a grouping into child boards, without moving anything"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "import_plan"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Turns a file listing into a plan of boards and cards, with identifiers so it can be re-run"
+      }
+     ]
+    ]
    ]
   },
   {

@@ -1,39 +1,42 @@
 #!/usr/bin/env node
-// Soleil Clusters — MCP server.
+// Soleil Clusters — MCP server (stdio).
 //
-// A thin layer over /api/v1. It holds no credentials of its own and implements
-// no permissions: it forwards the user's own personal access token, and the API
-// resolves that to their Supabase session so every call runs under ordinary
-// RLS. If a model asks for a board the person cannot see, the database says no
-// — not this file.
+// This is an ADAPTER, not a definition. Every tool, prompt and schema lives in
+// boards/src/lib/mcpTools.js, which the hosted server at
+// https://clusters.soleilpictures.com/api/v1/mcp serves from the same file.
+// Two copies of thirty tool definitions would drift within a week, and the
+// drift would be silent: a tool present on one transport and missing on the
+// other looks like a client bug.
 //
-// WHAT PROTECTS THE USER, IN ORDER OF HOW MUCH IT IS WORTH:
+// What lives HERE is what only makes sense on someone's own machine: the stdio
+// transport, and `upload_file`, which reads the local filesystem.
 //
-//   1. The token's scopes. A read-only token makes every write tool fail at the
-//      API, whatever the model intends. A read+write token still cannot delete:
-//      that is a separate `delete` scope (0220), so "can add to my moodboard"
-//      and "can destroy my moodboard" are different decisions.
-//   2. Tool annotations. destructiveHint / readOnlyHint are what a client reads
-//      when deciding whether a call needs confirmation. They are structured, so
-//      unlike prose they participate in that decision.
-//   3. The wording of the descriptions. Last, and least — it is advice to a
-//      model, not a control. It is written bluntly anyway.
+// It holds no credentials of its own. It forwards the user's personal access
+// token, and the API resolves that to their Supabase session, so every call
+// runs under ordinary row-level security. If a model asks for a board the
+// person cannot see, the database says no — not this file.
 //
 // Setup (Claude Desktop / Claude Code, mcp.json):
 //
 //   "soleil-clusters": {
-//     "command": "node",
-//     "args": ["/path/to/soleilpictures/mcp/src/index.js"],
+//     "command": "npx",
+//     "args": ["-y", "soleil-clusters-mcp"],
 //     "env": { "SOLEIL_API_TOKEN": "sk_live_…" }
 //   }
 //
 // Mint the token in Clusters under Settings → API. A read-only token is the
-// right default; add write only if the model should be able to change things,
-// and delete only if it should be able to remove them.
+// right default; add write only if the model should change things, and delete
+// only if it should remove them.
 
-import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { readFile } from 'node:fs/promises';
+import { basename, extname } from 'node:path';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { z } from 'zod';
+import {
+  CallToolRequestSchema, ListToolsRequestSchema,
+  GetPromptRequestSchema, ListPromptsRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
+import { TOOLS, PROMPTS, SERVER_INFO, toolManifest } from './tools.js';
 import { idempotencyKey } from './idempotency.js';
 
 const BASE = (process.env.SOLEIL_API_BASE || 'https://clusters.soleilpictures.com').replace(/\/$/, '');
@@ -46,7 +49,9 @@ if (!TOKEN) {
   process.exit(1);
 }
 
-async function api(path, { method = 'GET', body, tool, args, raw = false, headers } = {}) {
+// ── The HTTP client the shared tools are written against ─────────────────────
+
+async function api(path, { method = 'GET', body, rawBody, raw = false, headers, tool, args } = {}) {
   const res = await fetch(`${BASE}/api/v1${path}`, {
     method,
     headers: {
@@ -55,7 +60,8 @@ async function api(path, { method = 'GET', body, tool, args, raw = false, header
       ...(method === 'POST' ? { 'idempotency-key': await idempotencyKey(tool || path, args) } : {}),
       ...(headers || {}),
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: rawBody !== undefined ? Buffer.from(rawBody, 'base64')
+      : body === undefined ? undefined : JSON.stringify(body),
   });
 
   if (raw) {
@@ -63,8 +69,6 @@ async function api(path, { method = 'GET', body, tool, args, raw = false, header
     return {
       bytes: Buffer.from(await res.arrayBuffer()),
       contentType: res.headers.get('content-type') || 'application/octet-stream',
-      // Which rendition the API actually sent — it falls back to the original
-      // when no preview exists, and the caller should not have to guess.
       variant: res.headers.get('x-image-variant') || 'original',
     };
   }
@@ -77,9 +81,9 @@ async function api(path, { method = 'GET', body, tool, args, raw = false, header
 }
 
 // Surface the API's own message: it is written for a person, and a model
-// relaying it verbatim is more useful than one inventing a reason. The scope
-// case gets a sentence of its own because "403" tells a model nothing it can
-// act on, whereas "this token cannot delete" tells the USER what to change.
+// relaying it verbatim is more useful than one inventing a reason. Two cases
+// get a sentence of their own, because the raw answer tells a model nothing it
+// can act on.
 async function errorMessage(res, method, path, parsed) {
   let data = parsed;
   if (data === undefined) {
@@ -89,441 +93,159 @@ async function errorMessage(res, method, path, parsed) {
     return `${data.error}. This token has: ${(data.scopes || []).join(', ') || 'nothing'}. `
       + 'Mint a new token in Clusters under Settings → API to change that — it cannot be widened from here.';
   }
-  if (res.status === 429) return 'Rate limited by Clusters (1000 requests/hour). Wait a little and retry.';
-  return data?.error || `${method} ${path} failed (${res.status})`;
+  if (res.status === 429) {
+    // The ceiling is per token and configurable, so the number comes from the
+    // response rather than being hard-coded here — it used to say "1000/hour"
+    // to service accounts whose limit was ten times that.
+    const limit = res.headers.get('x-ratelimit-limit');
+    const retry = res.headers.get('retry-after');
+    return `Rate limited by Clusters${limit ? ` (${limit} requests/hour for this token)` : ''}.`
+      + `${retry ? ` Retry in ${retry}s.` : ' Wait a little and retry.'}`;
+  }
+  // The machine-readable code goes back too. A model that only ever sees
+  // English cannot branch on anything.
+  const code = data?.code ? ` [${data.code}]` : '';
+  return `${data?.error || `${method} ${path} failed (${res.status})`}${code}`;
 }
 
-// MCP tools return content blocks. Everything here is structured data, so it
-// goes back as pretty JSON rather than prose — the model reads it better and
-// cannot mistake our summary for the data.
-const ok = (data) => ({ content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] });
-const fail = (e) => ({ content: [{ type: 'text', text: `Error: ${e.message}` }], isError: true });
-const run = (fn) => async (args) => { try { return await fn(args); } catch (e) { return fail(e); } };
-const jsonTool = (fn) => run(async (args) => ok(await fn(args)));
+// ── Local file upload: the one thing only this transport can do ──────────────
 
-// Annotation presets. Spelled out once so a new tool cannot land in a weaker
-// bucket by having its hints forgotten. openWorldHint is true throughout: this
-// talks to a live account over the network, not to a closed dataset.
-const READS = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
-const WRITES = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true };
-const EDITS = { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true };
-const DESTROYS = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true };
+const MIME_BY_EXT = {
+  '.mov': 'video/quicktime', '.mp4': 'video/mp4', '.mkv': 'video/x-matroska',
+  '.webm': 'video/webm', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
+  '.aiff': 'audio/aiff', '.pdf': 'application/pdf', '.zip': 'application/zip',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+  '.gif': 'image/gif', '.webp': 'image/webp', '.heic': 'image/heic',
+  '.tif': 'image/tiff', '.tiff': 'image/tiff', '.dng': 'image/x-adobe-dng',
+  '.exr': 'image/x-exr', '.mxf': 'application/mxf', '.dpx': 'application/x-dpx',
+};
 
-// Output schemas are LOOSE on purpose: they name the fields a client can rely
-// on without failing when the API grows one. A strict mirror of the wire format
-// would be a third source of truth after the Worker and the OpenAPI document,
-// and its failure mode is a hard tool error rather than a degraded response.
-const loose = z.looseObject;
-const CardOut = loose({
-  id: z.string(), kind: z.string(),
-  title: z.string().nullable().optional(),
-  body: z.string().nullable().optional(),
-  image_key: z.string().nullable().optional(),
-});
-const BoardOut = loose({ id: z.string(), name: z.string(), workspace_id: z.string() });
+// The whole multipart dance, so the model does not have to orchestrate it.
+// Parts go straight to storage, never through the API — which is what makes
+// this usable for a file too big to hold in a message.
+async function uploadLocalFile({ board_id: boardId, path, content_type: contentType }) {
+  const bytes = await readFile(path);
+  const filename = basename(path);
+  const mime = contentType || MIME_BY_EXT[extname(path).toLowerCase()] || 'application/octet-stream';
 
-const server = new McpServer({ name: 'soleil-clusters', version: '1.0.0' });
-
-// ── Reading ──────────────────────────────────────────────────────────────────
-
-server.registerTool('whoami', {
-  title: 'Who this token belongs to',
-  description:
-    'The account these tools act as, and what this token is allowed to do. '
-    + 'Worth calling first: it reports the scopes, so you can find out whether you '
-    + 'may write or delete instead of discovering it by being refused.',
-  inputSchema: {},
-  outputSchema: {
-    user_id: z.string(),
-    display_name: z.string().nullable().optional(),
-    tier: z.string().optional(),
-    scopes: z.array(z.string()),
-    rate_limit: loose({}).optional(),
-  },
-  annotations: READS,
-}, run(async () => {
-  const me = await api('/me');
-  return { content: [{ type: 'text', text: JSON.stringify(me, null, 2) }], structuredContent: me };
-}));
-
-server.registerTool('list_workspaces', {
-  title: 'List workspaces',
-  description: 'List the Soleil Clusters workspaces this account can see.',
-  inputSchema: {},
-  annotations: READS,
-}, jsonTool(() => api('/workspaces')));
-
-server.registerTool('list_boards', {
-  title: 'List boards',
-  description:
-    'List boards. Optionally filter to one workspace, or to the children of one '
-    + 'parent board. Pass parent="root" for top-level boards only. Results are paged — '
-    + 'if has_more is true, call again with the offset it gives you.',
-  inputSchema: {
-    workspace_id: z.string().uuid().optional(),
-    parent: z.string().optional().describe('A board id, or "root" for top level'),
-    limit: z.number().int().min(1).max(500).optional(),
-    offset: z.number().int().min(0).optional(),
-  },
-  annotations: READS,
-}, jsonTool(({ workspace_id, parent, limit, offset }) => {
-  const q = new URLSearchParams();
-  if (workspace_id) q.set('workspace', workspace_id);
-  if (parent) q.set('parent', parent);
-  if (limit) q.set('limit', String(limit));
-  if (offset) q.set('offset', String(offset));
-  const qs = q.toString();
-  return api(`/boards${qs ? `?${qs}` : ''}`);
-}));
-
-server.registerTool('search', {
-  title: 'Search boards and cards',
-  description:
-    'Find boards and cards by text — board names, card titles and card bodies. '
-    + 'This is how to locate the board about something WITHOUT listing every board and '
-    + 'reading each one, so prefer it over list_boards when you know roughly what you '
-    + 'are looking for. Card results carry a short excerpt; use read_board for the rest.',
-  inputSchema: {
-    q: z.string().min(2).describe('At least 2 characters. Punctuation is matched literally.'),
-    kind: z.enum(['board', 'card']).optional().describe('Restrict to one or the other; omit for both'),
-    workspace_id: z.string().uuid().optional(),
-    limit: z.number().int().min(1).max(500).optional(),
-  },
-  annotations: READS,
-}, jsonTool(({ q, kind, workspace_id, limit }) => {
-  const p = new URLSearchParams({ q });
-  if (kind) p.set('kind', kind);
-  if (workspace_id) p.set('workspace', workspace_id);
-  if (limit) p.set('limit', String(limit));
-  return api(`/search?${p}`);
-}));
-
-server.registerTool('read_board', {
-  title: 'Read a board',
-  description:
-    'Read the cards on a board — text, links, images and their positions. '
-    + 'This is how to find out what is actually on a board before changing it. '
-    + 'Long card text is shortened by default so one call cannot fill your context; '
-    + 'pass full=true when you genuinely need every word.',
-  inputSchema: {
-    board_id: z.string().uuid(),
-    full: z.boolean().optional().describe('Return untruncated body/html. Can be very large.'),
-    limit: z.number().int().min(1).max(500).optional().describe('Default 100'),
-    offset: z.number().int().min(0).optional(),
-  },
-  annotations: READS,
-}, jsonTool(async ({ board_id, full, limit, offset }) => {
-  const p = new URLSearchParams();
-  if (limit) p.set('limit', String(limit));
-  if (offset) p.set('offset', String(offset));
-  const qs = p.toString();
-  const out = await api(`/boards/${board_id}/cards${qs ? `?${qs}` : ''}`);
-  if (full) return out;
-  // Truncation lives HERE, not in the API. The API returns the truth; this
-  // layer shapes it for a context window. A 300-card board of long notes is
-  // several hundred KB, and a model that spends its window on one read cannot
-  // then do anything with it.
-  const trim = (s, n) => (typeof s === 'string' && s.length > n
-    ? `${s.slice(0, n)}… [${s.length - n} more characters — call again with full=true]`
-    : s);
-  return {
-    ...out,
-    cards: (out.cards || []).map((c) => ({
-      ...c,
-      body: trim(c.body, 500),
-      // html is markup a model almost never needs and is the biggest field on a
-      // rich note. Its text is already in `body`.
-      html: c.html ? '[html omitted — call again with full=true]' : null,
-    })),
-    truncated: !full,
-  };
-}));
-
-server.registerTool('view_image', {
-  title: 'Look at an image on a board',
-  description:
-    'Fetch an image card\'s actual picture so you can SEE it, rather than only knowing '
-    + 'its key. Takes the image_key from a card returned by read_board. This is what makes '
-    + 'it possible to say anything real about a moodboard.',
-  inputSchema: {
-    image_key: z.string().describe('The image_key field of an image card'),
-  },
-  annotations: READS,
-}, run(async ({ image_key }) => {
-  // Ask for the smaller rendition. The app generates one on upload (~48kB at
-  // roughly 900px, against ~470kB for a typical original) and it is far more
-  // than a vision model needs, so this is the right default rather than an
-  // optimisation. The API falls back to the original when no preview exists and
-  // says which it sent in x-image-variant.
-  const path = `/images/${image_key.split('/').map(encodeURIComponent).join('/')}?variant=preview`;
-  const { bytes, contentType, variant } = await api(path, { raw: true });
-
-  // The images table holds every upload, not only pictures — video, audio and
-  // PDFs live there too, and the largest object in it is 291MB. Inlining one of
-  // those would be pointless as well as enormous.
-  if (!/^image\//i.test(contentType)) {
-    throw new Error(
-      `${image_key} is ${contentType || 'not an image'}, so there is nothing to look at. `
-      + 'This tool only views pictures.');
-  }
-  // The cap is about TRANSPORT, not context: base64 inflates by a third and the
-  // whole thing crosses a stdio JSON-RPC pipe as one message, so a very large
-  // object is slow and memory-hungry regardless of how the host tokenises it.
-  //
-  // With preview-first this now only binds on an image that has no preview —
-  // roughly 23 objects in the whole corpus, most of them not photographs. 10MB
-  // covers everything else. Above it, say so plainly: the person cannot make
-  // the file smaller from here, so telling them to "send a smaller one" is not
-  // an action they have.
-  const MAX = 10 * 1024 * 1024;
-  if (bytes.length > MAX) {
-    throw new Error(
-      `That image is ${(bytes.length / 1048576).toFixed(1)}MB, over the ${MAX / 1048576}MB this tool can transfer, `
-      + 'and it has no smaller rendition stored. It is fine on the board and opens normally in Clusters; '
-      + 'tell the person you cannot view this particular one here, and work from its title, caption and '
-      + 'the surrounding cards instead.');
-  }
-  return {
-    content: [
-      { type: 'image', data: bytes.toString('base64'), mimeType: contentType },
-      {
-        type: 'text',
-        text: `Image ${image_key} — ${contentType}, ${bytes.length} bytes`
-          + (variant === 'preview'
-            ? ' (a downscaled preview, which is what you are looking at).'
-            : ' (the original; no smaller rendition was stored).'),
-      },
-    ],
-  };
-}));
-
-server.registerTool('list_deleted_boards', {
-  title: 'List deleted boards',
-  description:
-    'Boards that were deleted but are still recoverable. Pair with restore_board.',
-  inputSchema: { workspace_id: z.string().uuid().optional() },
-  annotations: READS,
-}, jsonTool(({ workspace_id }) => {
-  const p = new URLSearchParams({ deleted: '1' });
-  if (workspace_id) p.set('workspace', workspace_id);
-  return api(`/boards?${p}`);
-}));
-
-// ── Writing ──────────────────────────────────────────────────────────────────
-// Every description below states plainly what the tool changes, and the two that
-// destroy content say so first. The annotations above carry the same fact in a
-// form a client can act on without reading English.
-
-server.registerTool('create_board', {
-  title: 'Create a board',
-  description:
-    'CREATES a new, empty board. If workspace_id is omitted it goes in the '
-    + 'personal workspace. Pass parent_board_id to nest it inside another board.',
-  inputSchema: {
-    name: z.string().min(1).max(200),
-    workspace_id: z.string().uuid().optional(),
-    parent_board_id: z.string().uuid().optional(),
-  },
-  outputSchema: { board: BoardOut },
-  annotations: WRITES,
-}, run(async (body) => {
-  const out = await api('/boards', { method: 'POST', body, tool: 'create_board', args: body });
-  return { content: [{ type: 'text', text: JSON.stringify(out, null, 2) }], structuredContent: out };
-}));
-
-server.registerTool('rename_board', {
-  title: 'Rename a board',
-  description:
-    'CHANGES a board\'s name, its view, or which board it sits inside. Only what you '
-    + 'pass is altered. Moving a board under one of its own descendants is refused.',
-  inputSchema: {
-    board_id: z.string().uuid(),
-    name: z.string().min(1).max(200).optional(),
-    view: z.enum(['canvas', 'list']).optional(),
-    parent_board_id: z.string().uuid().nullable().optional()
-      .describe('null moves it to the top level'),
-  },
-  annotations: EDITS,
-}, jsonTool(({ board_id, ...patch }) =>
-  api(`/boards/${board_id}`, { method: 'PATCH', body: patch })));
-
-server.registerTool('add_cards', {
-  title: 'Add cards to a board',
-  description:
-    'ADDS cards to a board. Existing cards are never touched, and new cards are '
-    + 'positioned in free space so they cannot cover anything already there. '
-    + 'Give x and y only if you specifically want to place a card yourself. '
-    + 'For an image card, call upload_image first and pass the image_key it returns.',
-  inputSchema: {
-    board_id: z.string().uuid(),
-    cards: z.array(z.object({
-      kind: z.enum(['note', 'image', 'link', 'doc']).optional().describe('Defaults to note'),
-      title: z.string().optional(),
-      body: z.string().optional().describe('The text of the card, whatever kind it is'),
-      url: z.string().optional().describe('For kind=link'),
-      image_key: z.string().optional().describe('From upload_image. For kind=image'),
-      alt: z.string().optional().describe('Alt text, for kind=image'),
-      x: z.number().optional(),
-      y: z.number().optional(),
-      w: z.number().optional(),
-      h: z.number().optional(),
-    })).min(1).max(100),
-  },
-  annotations: WRITES,
-}, jsonTool(({ board_id, cards }) =>
-  api(`/boards/${board_id}/cards`, {
-    method: 'POST', body: { cards }, tool: 'add_cards', args: { board_id, cards },
-  })));
-
-server.registerTool('upload_image', {
-  title: 'Upload an image',
-  description:
-    'UPLOADS image bytes and returns an image_key to pass to add_cards. The image is '
-    + 'charged against the board owner\'s storage. Give the bytes base64-encoded. '
-    + 'Maximum 25MB, and the content type must be a real image type.',
-  inputSchema: {
-    board_id: z.string().uuid().describe('The board this upload is charged to'),
-    data: z.string().describe('The image bytes, base64-encoded'),
-    content_type: z.enum([
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/avif',
-    ]),
-  },
-  annotations: WRITES,
-}, jsonTool(async ({ board_id, data, content_type }) => {
-  const bytes = Buffer.from(data, 'base64');
-  if (!bytes.length) throw new Error('data decoded to nothing — is it valid base64?');
-  const res = await fetch(`${BASE}/api/v1/uploads?board=${encodeURIComponent(board_id)}`, {
+  const created = await api(`/uploads/multipart?board=${boardId}`, {
     method: 'POST',
-    headers: {
-      authorization: `Bearer ${TOKEN}`,
-      'content-type': content_type,
-      'idempotency-key': await idempotencyKey('upload_image', { board_id, content_type, len: bytes.length }),
-    },
-    body: bytes,
+    body: { bytes: bytes.length, content_type: mime, filename },
+    tool: 'upload_file', args: { path, size: bytes.length },
   });
-  const text = await res.text();
-  let out = null;
-  try { out = text ? JSON.parse(text) : null; } catch (_) { /* non-JSON */ }
-  if (!res.ok) throw new Error(await errorMessage(res, 'POST', '/uploads', out));
-  return out;
+  const { key, upload_id: uploadId, part_size: partSize, part_count: partCount } = created;
+
+  const etags = [];
+  // Signed URLs expire, so they are fetched in batches as the upload proceeds
+  // rather than all at once up front.
+  for (let start = 1; start <= partCount; start += 100) {
+    const numbers = [];
+    for (let n = start; n < Math.min(start + 100, partCount + 1); n++) numbers.push(n);
+    const signed = await api('/uploads/multipart/parts', {
+      method: 'POST',
+      body: { board_id: boardId, key, upload_id: uploadId, part_numbers: numbers },
+      tool: 'upload_file', args: { key, start },
+    });
+    // Eight at a time: enough to keep a connection busy without making a
+    // desktop machine's upload unusable while it runs.
+    for (let i = 0; i < numbers.length; i += 8) {
+      await Promise.all(numbers.slice(i, i + 8).map(async (n) => {
+        const from = (n - 1) * partSize;
+        const put = await fetch(signed.urls[String(n)], {
+          method: 'PUT',
+          body: bytes.subarray(from, Math.min(from + partSize, bytes.length)),
+        });
+        if (!put.ok) throw new Error(`part ${n} failed (${put.status})`);
+        etags[n - 1] = { part_number: n, etag: put.headers.get('etag') };
+      }));
+    }
+  }
+
+  const done = await api('/uploads/multipart/complete', {
+    method: 'POST',
+    body: { board_id: boardId, key, upload_id: uploadId, parts: etags },
+    tool: 'upload_file', args: { key },
+  });
+  return {
+    ...done,
+    file_name: filename,
+    mime,
+    next: `Add a card with kind "${mime.startsWith('video/') ? 'video' : 'file'}" and `
+      + `file_key "${done.image_key}".`,
+  };
+}
+
+// ── The adapter ──────────────────────────────────────────────────────────────
+
+const ctx = { api, uploadLocalFile };
+
+const server = new Server(SERVER_INFO, { capabilities: { tools: {}, prompts: {} } });
+
+server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  tools: TOOLS.map(toolManifest),
 }));
 
-server.registerTool('update_card', {
-  title: 'Update a card',
-  description:
-    'CHANGES an existing card in place. Only the fields you pass are altered; '
-    + 'anything you leave out keeps its current value. The card id cannot be changed, '
-    + 'and `kind` must be a real kind — an unrecognised one is refused rather than '
-    + 'quietly turning the card into a note.',
-  inputSchema: {
-    board_id: z.string().uuid(),
-    card_id: z.string(),
-    kind: z.enum(['note', 'image', 'link', 'doc']).optional(),
-    title: z.string().optional(),
-    body: z.string().optional(),
-    url: z.string().optional(),
-    alt: z.string().optional(),
-    x: z.number().optional(),
-    y: z.number().optional(),
-    w: z.number().optional(),
-    h: z.number().optional(),
-  },
-  annotations: EDITS,
-}, jsonTool(({ board_id, card_id, ...patch }) =>
-  api(`/boards/${board_id}/cards/${encodeURIComponent(card_id)}`, { method: 'PATCH', body: patch })));
-
-server.registerTool('move_cards', {
-  title: 'Move cards to another board',
-  description:
-    'MOVES cards from one board to another. They stop being on the source board. '
-    + 'They are re-laid-out on the destination so they do not overlap what is there.',
-  inputSchema: {
-    from_board_id: z.string().uuid(),
-    to_board_id: z.string().uuid(),
-    card_ids: z.array(z.string()).min(1),
-  },
-  annotations: WRITES,
-}, jsonTool(({ from_board_id, to_board_id, card_ids }) =>
-  api(`/boards/${from_board_id}/cards/move`, {
-    method: 'POST',
-    body: { to_board_id, card_ids },
-    tool: 'move_cards',
-    args: { from_board_id, to_board_id, card_ids },
-  })));
-
-server.registerTool('restore_board', {
-  title: 'Restore a deleted board',
-  description: 'Puts a deleted board back. Find candidates with list_deleted_boards.',
-  inputSchema: { board_id: z.string().uuid() },
-  annotations: EDITS,
-}, jsonTool(({ board_id }) =>
-  api(`/boards/${board_id}/restore`, { method: 'POST', tool: 'restore_board', args: { board_id } })));
-
-// ── Destroying ───────────────────────────────────────────────────────────────
-// Both of these need a token with the `delete` scope. Without it they fail at
-// the API with a message saying so — which is the actual protection here.
-
-server.registerTool('delete_card', {
-  title: 'Delete a card',
-  description:
-    'DELETES a card from a board. This removes the user\'s content — confirm with '
-    + 'them before calling it. The deleted card is returned in full, and passing it '
-    + 'back to add_cards restores its content.',
-  inputSchema: { board_id: z.string().uuid(), card_id: z.string() },
-  annotations: DESTROYS,
-}, jsonTool(({ board_id, card_id }) =>
-  api(`/boards/${board_id}/cards/${encodeURIComponent(card_id)}`, { method: 'DELETE' })));
-
-server.registerTool('delete_board', {
-  title: 'Delete a board',
-  description:
-    'DELETES a whole board and everything on it — confirm with the user before '
-    + 'calling it. The delete is recoverable: restore_board puts it back, and '
-    + 'list_deleted_boards finds it again.',
-  inputSchema: { board_id: z.string().uuid() },
-  annotations: DESTROYS,
-}, jsonTool(({ board_id }) => api(`/boards/${board_id}`, { method: 'DELETE' })));
-
-// ── Resources ────────────────────────────────────────────────────────────────
-//
-// Boards as attachable context. A tool call is the model deciding to look; a
-// resource is the PERSON deciding what the model gets to see, in their own
-// client, before the conversation starts. Different act, worth supporting.
-
-server.registerResource(
-  'board',
-  new ResourceTemplate('soleil://board/{board_id}', {
-    list: async () => {
-      try {
-        const out = await api('/boards?limit=200');
+server.setRequestHandler(CallToolRequestSchema, async (req) => {
+  const tool = TOOLS.find((t) => t.name === req.params.name);
+  if (!tool) {
+    return {
+      content: [{ type: 'text', text: `Error: unknown tool ${req.params.name}` }],
+      isError: true,
+    };
+  }
+  try {
+    const out = await tool.call(req.params.arguments || {},
+      { ...ctx, api: (p, o) => api(p, { ...o, tool: tool.name, args: req.params.arguments }) });
+    if (tool.image) {
+      if (!/^image\//.test(out.contentType)) {
         return {
-          resources: (out.boards || []).map((b) => ({
-            uri: `soleil://board/${b.id}`,
-            name: b.name || 'Untitled board',
-            description: `Clusters board${b.parent_board_id ? ' (nested)' : ''}`,
-            mimeType: 'application/json',
-          })),
+          content: [{ type: 'text', text: `Error: that key is ${out.contentType}, not an image` }],
+          isError: true,
         };
-      } catch (_) {
-        // A client listing resources at startup must not see a crash because the
-        // network was briefly down. An empty list is honest and recoverable.
-        return { resources: [] };
       }
-    },
-  }),
-  {
-    title: 'Board',
-    description: 'The cards on one Clusters board, as JSON.',
-    mimeType: 'application/json',
-  },
-  async (uri, { board_id }) => {
-    const out = await api(`/boards/${board_id}/cards`);
-    return { contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(out, null, 2) }] };
-  },
-);
+      if (out.bytes.length > 10 * 1024 * 1024) {
+        return {
+          content: [{ type: 'text',
+            text: `That image is ${(out.bytes.length / 1048576).toFixed(1)}MB, too large to look at. `
+              + 'Work from its title and caption instead.' }],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          { type: 'image', data: out.bytes.toString('base64'), mimeType: out.contentType },
+          { type: 'text',
+            text: `Image ${req.params.arguments.image_key} — ${out.contentType}, ${out.bytes.length} bytes`
+              + (out.variant === 'preview'
+                ? ' (a downscaled preview, which is what you are looking at).'
+                : ' (the original; no smaller rendition was stored).') },
+        ],
+      };
+    }
+    return {
+      content: [{ type: 'text', text: JSON.stringify(out, null, 2) }],
+      ...(tool.outputSchema && out && typeof out === 'object' ? { structuredContent: out } : {}),
+    };
+  } catch (e) {
+    return { content: [{ type: 'text', text: `Error: ${e.message}` }], isError: true };
+  }
+});
+
+server.setRequestHandler(ListPromptsRequestSchema, async () => ({
+  prompts: PROMPTS.map((p) => ({
+    name: p.name, title: p.title, description: p.description, arguments: p.arguments,
+  })),
+}));
+
+server.setRequestHandler(GetPromptRequestSchema, async (req) => {
+  const p = PROMPTS.find((x) => x.name === req.params.name);
+  if (!p) throw new Error(`unknown prompt: ${req.params.name}`);
+  return {
+    description: p.description,
+    messages: [{ role: 'user', content: { type: 'text', text: p.render(req.params.arguments || {}) } }],
+  };
+});
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
-// stderr only: stdout carries the JSON-RPC stream, and one stray log on it
-// corrupts the protocol.
-console.error(`soleil-clusters MCP ready against ${BASE}`);
+console.error(`soleil-clusters MCP ready against ${BASE} — ${TOOLS.length} tools`);

@@ -78,21 +78,40 @@ export function restEndpoints() {
 // field on update_card, say) trips the gate without bloating the snapshot with
 // unreadable serialized zod.
 export function mcpTools() {
-  const file = 'mcp/src/index.js';
+  // The registry moved to boards/src/lib/mcpTools.js so ONE definition serves
+  // both transports — the stdio server and the hosted one the Worker runs at
+  // /api/v1/mcp. The old extractor matched `registerTool('name'` in
+  // mcp/src/index.js, which now registers in a loop and would have matched
+  // nothing: the floor below is what would have caught that, loudly.
+  //
+  // Scoped to the TOOLS array specifically, because PROMPTS further down the
+  // same file uses the same `name:` shape and prompts are a different surface.
+  const file = 'boards/src/lib/mcpTools.js';
   let src;
-  try { src = read(file); } catch { return []; }   // MCP is a sibling package; tolerate its absence
-  const found = [...src.matchAll(/registerTool\(\s*'([a-z_]+)'/g)].map((m) => {
+  try { src = read(file); } catch { return []; }
+  const body = src.slice(src.indexOf('export const TOOLS = ['),
+    src.indexOf('export const HOSTED_TOOLS'));
+  const found = [...body.matchAll(/^\s*name: '([a-z_]+)',$/gm)].map((m) => {
     const name = m[1];
-    const after = src.slice(m.index);
+    const after = body.slice(m.index);
     const schema = sliceLiteral(after, 'inputSchema:', '{', '}') ?? '';
     return { name, schema: sha(schema.replace(/\s+/g, ' ').trim()).slice(0, 12) };
   });
   return expect(found, 5, 'MCP tools', file).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// ── Card kinds the API accepts ──────────────────────────────────────────────
-// Narrower than the kinds the canvas renders — this is specifically the wire
-// contract, which is what an API/MCP consumer needs documented.
+// Prompts are user-invoked templates, so they are public surface too — and a
+// separate list, because a prompt is not a tool and documenting one does not
+// document the other.
+export function mcpPrompts() {
+  const file = 'boards/src/lib/mcpTools.js';
+  let src;
+  try { src = read(file); } catch { return []; }
+  const body = src.slice(src.indexOf('export const PROMPTS = ['));
+  const found = [...body.matchAll(/^\s*name: '([a-z_]+)',$/gm)].map((m) => m[1]);
+  return expect(found, 1, 'MCP prompts', file).sort();
+}
+
 export function apiCardKinds() {
   const file = 'boards/src/worker-api.js';
   const m = read(file).match(/const CARD_KINDS = \[([^\]]+)\]/);
@@ -296,6 +315,7 @@ export function publicSurface() {
   return {
     restEndpoints: restEndpoints(),
     mcpTools: mcpTools(),
+    mcpPrompts: mcpPrompts(),
     apiCardKinds: apiCardKinds(),
     apiScopes: apiScopes(),
     apiErrorCodes: apiErrorCodes(),

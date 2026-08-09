@@ -3222,12 +3222,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/mcp",
     "title": "MCP Server — Soleil Clusters for AI Agents",
-    "metaDescription": "Connect Claude or any MCP client to Soleil Clusters. Sixteen tools for reading and building boards, uploading images, searching and restoring deletions.",
+    "metaDescription": "Connect Claude or any MCP client to Soleil Clusters — hosted over a URL, or run locally. Tools for reading, building, importing and exporting boards.",
     "h1": "MCP server",
-    "answer": "Soleil Clusters ships an MCP server exposing the REST API as tools an AI assistant can call directly — search, read boards, create them, add and update cards, upload images, and restore deletions. It authenticates with the same personal access token as the API and holds no credentials of its own, so an agent reaches exactly what your account reaches.",
+    "answer": "Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Connect to the hosted one with a URL and a personal access token, or run it locally with npx for tools that need your filesystem. Either way it holds no credentials of its own and forwards your token, so an agent reaches exactly what your account reaches and no more.",
     "section": "developers",
     "order": 10,
-    "updated": "2026-08-08",
+    "updated": "2026-08-09",
     "navLabel": "MCP",
     "headings": [
       {
@@ -3235,8 +3235,8 @@ export const DOCS_PAGES = [
         "text": "What it is"
       },
       {
-        "id": "setup",
-        "text": "Setup"
+        "id": "two-ways-to-connect",
+        "text": "Two ways to connect"
       },
       {
         "id": "choosing-scopes-for-an-agent",
@@ -3245,6 +3245,10 @@ export const DOCS_PAGES = [
       {
         "id": "tools",
         "text": "Tools"
+      },
+      {
+        "id": "prompts",
+        "text": "Prompts"
       },
       {
         "id": "adding-an-image",
@@ -3262,12 +3266,12 @@ export const DOCS_PAGES = [
     "related": [
       "/docs/api",
       "/docs/api/authentication",
-      "/docs/api/images"
+      "/docs/api/metadata"
     ],
     "faq": [
       {
-        "q": "Can an agent upload images through MCP?",
-        "a": "Yes. upload_image takes base64 bytes and returns an image_key, which you then pass to add_cards as an image card."
+        "q": "Do I have to install anything?",
+        "a": "No. Point an MCP client at https://clusters.soleilpictures.com/api/v1/mcp with your token. Running it locally is only needed for uploading files from your own machine."
       },
       {
         "q": "Does the MCP server have its own permissions?",
@@ -3276,6 +3280,14 @@ export const DOCS_PAGES = [
       {
         "q": "How do I stop an agent deleting things?",
         "a": "Mint a token without the delete scope. Deleting is a separate grant from writing precisely so an agent can be allowed to build without being allowed to destroy."
+      },
+      {
+        "q": "Can an agent upload a video?",
+        "a": "Only the local server can, with upload_file, because the file has to be read from a disk. The hosted one handles images with upload_image."
+      },
+      {
+        "q": "Is it the same set of tools either way?",
+        "a": "Yes, apart from upload_file, which needs a filesystem. Both servers are built from one registry so they cannot drift apart."
       }
     ]
   },

@@ -1,20 +1,23 @@
 {
   "name": "soleil-clusters-mcp",
-  "version": "1.0.0",
-  "private": true,
+  "version": "2.0.0",
+  "description": "MCP server for Soleil Clusters — read and write visual boards from an AI assistant.",
   "type": "module",
-  "description": "MCP server for Soleil Clusters — read and write boards through /api/v1.",
-  "bin": {
-    "soleil-clusters-mcp": "src/index.js"
-  },
+  "license": "MIT",
+  "bin": { "soleil-clusters-mcp": "src/index.js" },
+  "main": "src/index.js",
+  "files": ["src", "README.md"],
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "sync": "node scripts/sync-tools.mjs",
+    "prepack": "node scripts/sync-tools.mjs"
   },
+  "keywords": ["mcp", "modelcontextprotocol", "soleil", "clusters", "moodboard", "ai"],
+  "repository": { "type": "git", "url": "https://github.com/arconkli/soleilpictures" },
+  "homepage": "https://clusters.soleilpictures.com/docs/mcp",
+  "publishConfig": { "access": "public" },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "zod": "^4.4.0"
+    "@modelcontextprotocol/sdk": "^1.30.0"
   },
-  "engines": {
-    "node": ">=20"
-  }
+  "engines": { "node": ">=20" }
 }

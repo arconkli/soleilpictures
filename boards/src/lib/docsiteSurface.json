@@ -33,6 +33,7 @@
     "POST /boards/:id/cards/move",
     "POST /boards/:id/restore",
     "POST /boards/move",
+    "POST /mcp — Model Context Protocol, for AI agents",
     "POST /service-accounts",
     "POST /service-accounts/:id/tokens",
     "POST /uploads/multipart/abort",
@@ -47,68 +48,125 @@
   "mcpTools": [
     {
       "name": "add_cards",
-      "schema": "dd3b3f12c310"
+      "schema": "82949221b3ec"
+    },
+    {
+      "name": "board_tree",
+      "schema": "2ee2385bb700"
     },
     {
       "name": "create_board",
-      "schema": "a6c57fdac9d5"
+      "schema": "732f33f976a7"
+    },
+    {
+      "name": "create_boards",
+      "schema": "88c69d2a239f"
     },
     {
       "name": "delete_board",
-      "schema": "02cdf6a470ba"
+      "schema": "51d451cff7c1"
     },
     {
       "name": "delete_card",
-      "schema": "eab480033ce1"
+      "schema": "0c70e576498a"
+    },
+    {
+      "name": "delete_cards",
+      "schema": "7f23997dbdce"
+    },
+    {
+      "name": "export_board",
+      "schema": "3ee79da6ad8e"
+    },
+    {
+      "name": "get_board",
+      "schema": "151312b54d3d"
+    },
+    {
+      "name": "get_metadata",
+      "schema": "f37d3aee7802"
+    },
+    {
+      "name": "list_audit",
+      "schema": "211b7fc571af"
     },
     {
       "name": "list_boards",
-      "schema": "12875834f251"
+      "schema": "618a15b2b193"
     },
     {
       "name": "list_deleted_boards",
-      "schema": "51a386a72686"
+      "schema": "80e95ddda416"
+    },
+    {
+      "name": "list_images",
+      "schema": "963e26f2bf1e"
     },
     {
       "name": "list_workspaces",
       "schema": "e3b0c44298fc"
     },
     {
+      "name": "move_boards",
+      "schema": "78b849270ae8"
+    },
+    {
       "name": "move_cards",
-      "schema": "b185f1a450ab"
+      "schema": "6c24680d4ff2"
     },
     {
       "name": "read_board",
-      "schema": "c7b9ad7dbc5b"
+      "schema": "b536d828d599"
     },
     {
       "name": "rename_board",
-      "schema": "1513fa32ae5b"
+      "schema": "0a21becb78ba"
+    },
+    {
+      "name": "resolve_identifier",
+      "schema": "141f5f5b1e1f"
     },
     {
       "name": "restore_board",
-      "schema": "02cdf6a470ba"
+      "schema": "51d451cff7c1"
     },
     {
       "name": "search",
-      "schema": "b104b86c8e3a"
+      "schema": "fdbf75288110"
+    },
+    {
+      "name": "set_metadata",
+      "schema": "1232151219e0"
     },
     {
       "name": "update_card",
-      "schema": "087ea81d01b5"
+      "schema": "6d31ca1144e1"
+    },
+    {
+      "name": "update_cards",
+      "schema": "e0dce4228639"
+    },
+    {
+      "name": "upload_file",
+      "schema": "67948383d43c"
     },
     {
       "name": "upload_image",
-      "schema": "eed4dd13c4e7"
+      "schema": "7ede8ec923fe"
     },
     {
       "name": "view_image",
-      "schema": "124188161960"
+      "schema": "269e8d3e4d7d"
     },
     {
       "name": "whoami",
       "schema": "e3b0c44298fc"
     }
+  ],
+  "mcpPrompts": [
+    "describe_board",
+    "import_plan",
+    "organize_board"
   ],
   "apiCardKinds": [
     "doc",

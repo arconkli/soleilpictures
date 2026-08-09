@@ -1,91 +1,71 @@
-# Soleil Clusters MCP server
+# soleil-clusters-mcp
 
-Lets Claude (or any MCP client) read and write your Clusters boards — including
-**looking at the actual images** on them.
+MCP server for [Soleil Clusters](https://clusters.soleilpictures.com) — read and
+build visual boards from Claude, or any Model Context Protocol client.
 
-It holds no credentials of its own and implements no permissions — it forwards
-your personal access token to [`/api/v1`](../docs/API.md), which resolves it to
-your own session. Everything runs under the same row-level security the app
-uses, so the model can reach exactly what you can reach.
+## You probably do not need this package
 
-## Setup
-
-1. In Clusters, go to **Settings → API** and create a token.
-   - Leave both boxes unticked for a read-only token. That is the right default
-     for "help me think about what's on this board".
-   - Tick **Allow writes** if the model should be able to create and change things.
-   - Tick **Allow deletes** only if it should be able to throw things away.
-2. Install dependencies: `npm install`
-3. Point your MCP client at it:
+There is a **hosted** server. Point your client at a URL and be done:
 
 ```json
 {
   "mcpServers": {
     "soleil-clusters": {
-      "command": "node",
-      "args": ["/absolute/path/to/soleilpictures/mcp/src/index.js"],
+      "type": "http",
+      "url": "https://clusters.soleilpictures.com/api/v1/mcp",
+      "headers": { "Authorization": "Bearer sk_live_…" }
+    }
+  }
+}
+```
+
+Install this package only when you want the one tool the hosted server cannot
+offer: `upload_file`, which reads a file from your own disk — including large
+media that will not fit through an assistant's message.
+
+```json
+{
+  "mcpServers": {
+    "soleil-clusters": {
+      "command": "npx",
+      "args": ["-y", "soleil-clusters-mcp"],
       "env": { "SOLEIL_API_TOKEN": "sk_live_…" }
     }
   }
 }
 ```
 
-`SOLEIL_API_BASE` overrides the host (defaults to
-`https://clusters.soleilpictures.com`) — useful against a preview deploy.
+Mint a token in the app under **Settings → API**. `SOLEIL_API_BASE` overrides
+the host.
 
-## Tools
+## What it can do
 
-**Reading** — `whoami`, `list_workspaces`, `list_boards`, `search`,
-`read_board`, `view_image`, `list_deleted_boards`
+29 tools: search, read and export boards, look at the actual images on them,
+create boards and cards in bulk, attach identifiers from other systems, move and
+delete things, and read the audit log. Three prompts for describing, organising
+and importing.
 
-**Writing** — `create_board`, `rename_board`, `add_cards`, `upload_image`,
-`update_card`, `move_cards`, `restore_board`
+Full reference: <https://clusters.soleilpictures.com/docs/mcp>
 
-**Destroying** — `delete_card`, `delete_board`
+## Permissions
 
-Start with `search` rather than `list_boards` when you roughly know what you're
-looking for — it's the difference between one call and reading every board.
-`whoami` reports the token's scopes, so a model can find out whether it may
-write instead of discovering it by being refused.
+This server holds no credentials and implements no permissions. It forwards your
+personal access token, and the API resolves it to your own session — so an agent
+reaches exactly what your account reaches, and the database refuses anything
+else.
 
-## What actually protects you
+Three scopes: `read`, `write`, `delete`. **Deleting is separate from writing on
+purpose**, so an agent can be allowed to build without being allowed to destroy.
+Mint a read-only token unless you mean otherwise.
 
-In descending order of how much it's worth:
+## Development
 
-1. **The token's scopes.** A read-only token makes every write tool fail at the
-   API, whatever the model intends. A read+write token still cannot delete.
-   This is the real control, and it's the one you set.
-2. **Tool annotations.** Every tool declares `readOnlyHint`, `destructiveHint`,
-   `idempotentHint` and `openWorldHint`. Clients read these when deciding what
-   needs confirmation — unlike prose, they participate in that decision.
-3. **The wording of the descriptions.** Last and least. It's advice to a model,
-   not a control. It's written bluntly anyway.
+`src/tools.js` is **generated** from `boards/src/lib/mcpTools.js`, which is the
+one definition the hosted server also uses. Edit that file, then:
 
-## Resources
+```sh
+npm run sync
+```
 
-Boards are also exposed as resources (`soleil://board/<id>`), so you can attach
-one as context in your client rather than having the model tool-call for it.
-
-## Notes
-
-- **`view_image`** returns the picture itself as an image block, so the model can
-  see a moodboard rather than reading a list of opaque keys. It asks for the
-  smaller rendition the app stores on upload — about 48kB at roughly 900px,
-  against ~470kB for a typical original — which is far more than a vision model
-  needs and roughly ten times cheaper to move. It falls back to the original
-  when no preview exists, and tells you which you got.
-  Objects with no preview are capped at 10MB, and anything that isn't a picture
-  (video, audio, PDF — they share the same table) is refused with a reason.
-- **`upload_image`** takes base64 bytes and returns an `image_key` for
-  `add_cards`. Uploads are charged against the board owner's storage.
-- **`read_board`** shortens long card text by default so one call can't fill your
-  context, and omits `html` (its text is already in `body`). Pass `full: true`
-  when you genuinely need every word.
-- **Retries replay rather than repeat.** `POST`s carry an `Idempotency-Key`
-  derived from the call itself plus a per-process id, so re-issuing the same
-  tool call after a timeout returns the original result instead of doing the
-  work twice — while the same write in a later session still goes through. (This
-  was previously a fresh random key per request, which did the opposite of what
-  it claimed.)
-- Deleting a card returns the card. Passing it back to `add_cards` restores its
-  content.
+A test in `boards/` fails if the copy is stale, so the two transports cannot
+drift apart.
