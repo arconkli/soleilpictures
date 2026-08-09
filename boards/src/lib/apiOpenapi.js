@@ -55,12 +55,15 @@ const errorSchema = {
     code: {
       type: 'string',
       description: 'Stable. Branch on this, not on the message.',
+      // Kept in step with the router by api-v1-errors.spec.js, which fails if
+      // a fail(…, 'code', …) literal appears that is not listed here. That test
+      // caught `upstream_rejected` missing the moment it was added.
       enum: [
         'invalid_token', 'rate_limited', 'insufficient_scope', 'forbidden',
         'not_found', 'conflict', 'bad_request', 'limit_reached',
         'unsupported_media_type', 'payload_too_large', 'method_not_allowed',
         'idempotency_in_progress', 'session_unavailable', 'storage_unavailable',
-        'upstream_error', 'internal_error',
+        'upstream_rejected', 'upstream_error', 'internal_error',
       ],
     },
   },

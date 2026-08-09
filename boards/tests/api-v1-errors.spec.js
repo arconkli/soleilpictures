@@ -19,7 +19,11 @@
 // tests pin what comes out of it.
 
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { describeUpstreamError, normalizeApiError } from '../src/lib/apiAuth.js';
+import { openapiDocument } from '../src/lib/apiOpenapi.js';
 
 const pg = (code, message) => JSON.stringify({ code, details: null, hint: null, message });
 
@@ -122,4 +126,73 @@ test('a failed session is distinguishable from a broken route', () => {
   expect(normalizeApiError(e)).toEqual({
     status: 502, code: 'session_unavailable', message: 'could not open a session for that account',
   });
+});
+
+// ── the spec and the router must describe the same API ───────────────────────
+//
+// There are two hand-written descriptions of this surface — the `endpoints`
+// list that GET /api/v1 returns, and the OpenAPI document — plus the router
+// itself. A spec that drifts is worse than no spec, because it is confidently
+// wrong, and nothing else in this repo would notice.
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const WORKER_API = readFileSync(join(HERE, '..', 'src', 'worker-api.js'), 'utf8');
+
+// The `endpoints:` array in the index route, as the strings it actually ships.
+function indexEndpoints() {
+  const block = WORKER_API.match(/endpoints:\s*\[([\s\S]*?)\]/);
+  return [...block[1].matchAll(/'([A-Z]+)\s+([^']+)'/g)]
+    .map(([, method, path]) => `${method} ${path.split('?')[0]}`);
+}
+
+// OpenAPI paths, flattened to "METHOD /path" with {id} → :id so the two
+// notations can be compared at all.
+function openapiEndpoints() {
+  const doc = openapiDocument('https://example.com');
+  const out = [];
+  for (const [path, item] of Object.entries(doc.paths)) {
+    for (const method of Object.keys(item)) {
+      if (method === 'parameters') continue;
+      out.push(`${method.toUpperCase()} ${path.replace(/\{(\w+)\}/g, ':$1')}`);
+    }
+  }
+  return out;
+}
+
+test('every documented endpoint is one the index advertises', () => {
+  const index = new Set(indexEndpoints());
+  const missing = openapiEndpoints().filter((e) => !index.has(e));
+  expect(missing, `in OpenAPI but not in the index list: ${missing.join(', ')}`).toEqual([]);
+});
+
+test('every advertised endpoint is documented', () => {
+  const spec = new Set(openapiEndpoints());
+  const missing = indexEndpoints().filter((e) => !spec.has(e));
+  expect(missing, `advertised but absent from OpenAPI: ${missing.join(', ')}`).toEqual([]);
+});
+
+test('the spec is servable and self-describing', () => {
+  const doc = openapiDocument('https://clusters.soleilpictures.com');
+  expect(doc.openapi).toBe('3.1.0');
+  expect(doc.servers[0].url).toBe('https://clusters.soleilpictures.com/api/v1');
+  expect(doc.components.securitySchemes.bearerAuth.scheme).toBe('bearer');
+  // Every response the router can actually produce must be a code the spec
+  // admits exists, or a client cannot branch on what it is told.
+  const declared = new Set(doc.components.schemas.Error.properties.code.enum);
+  for (const code of ['limit_reached', 'insufficient_scope', 'upstream_rejected',
+    'rate_limited', 'invalid_token', 'not_found', 'conflict', 'bad_request',
+    'payload_too_large', 'unsupported_media_type', 'session_unavailable',
+    'storage_unavailable', 'method_not_allowed', 'forbidden', 'internal_error',
+    'upstream_error', 'idempotency_in_progress']) {
+    expect(declared.has(code), `Error.code enum is missing ${code}`).toBe(true);
+  }
+});
+
+test('the codes the router emits are all declared', () => {
+  // Every fail(status, 'code', …) literal in the router.
+  const emitted = new Set([...WORKER_API.matchAll(/fail\(\s*\d+\s*,\s*'([a-z_]+)'/g)].map((m) => m[1]));
+  const declared = new Set(openapiDocument('https://example.com')
+    .components.schemas.Error.properties.code.enum);
+  const undeclared = [...emitted].filter((c) => !declared.has(c));
+  expect(undeclared, `router emits codes the spec never mentions: ${undeclared.join(', ')}`).toEqual([]);
 });
