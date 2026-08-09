@@ -11,87 +11,10 @@
 
 import * as Y from 'yjs';
 import { cardToYMap, readCards, bytesToB64 } from '../../src/lib/yhelpers.js';
-import { resolveTagText } from '../../src/lib/gridSequence.js';
-import { schedItems, schedLegacyRows } from '../../src/lib/schedLayout.js';
+import { buildCardIndexRow } from '../../src/lib/cardIndexRow.js';
 
-// Per-kind card_index.meta — mirrors buildCardMeta() in src/lib/boardsApi.js.
-// image → { src, alt, w, h } is what get_public_board_content turns into
-// media.src_key, which /api/public-img and the image sitemap serve.
-// get_public_board_page (0181) additionally reads: swatches (palette),
-// rows (schedule), cells/rows/cols (grid), shape/label (shape), poster (video).
-export function buildCardMeta(kind, card) {
-  const g = (k) => card[k];
-  switch (kind) {
-    case 'image':
-      return { src: g('src') || null, alt: g('alt') || null, w: g('w') || null, h: g('h') || null };
-    case 'palette':
-      return { swatches: (g('swatches') || []).slice(0, 12) };
-    case 'link':
-      return { url: g('link') || g('source') || g('url') || null };
-    case 'board':
-    case 'boardlink':
-      return { boardId: g('id') || g('target') || null };
-    case 'doc':
-      // The legacy flat doc card renders `lines`, not `pages`.
-      return { lineCount: (g('lines') || []).length || null };
-    case 'schedule': {
-      // New-model calendar (schedView + date-keyed cells) — lockstep with
-      // src/lib/boardsApi.js buildCardMeta. The generator still only emits
-      // legacy rows tables; this fork exists for parity.
-      if (g('schedView')) {
-        const items = schedItems(card.gridCells || card.cells || {}, { max: 30 });
-        return { schedView: g('schedView'), anchor: g('anchor') || null, items, rows: schedLegacyRows(items) };
-      }
-      return { rows: (g('rows') || []).slice(0, 30) };
-    }
-    case 'grid': {
-      // Row-major cell summary for the page RPC. The RPC strips `src`
-      // before it reaches the client; it's kept here for future image-
-      // sitemap use only. [#]/[A] auto-number tags resolve with the app's
-      // real gridSequence resolver (row-major == 'z' spatial order for a
-      // uniform generator grid), so the article shows "01 · Master", never
-      // a literal "[#]".
-      const cells = card.gridCells || card.cells || {};
-      const fmt = card.seqFormat || {};
-      const out = [];
-      let idx = 0;
-      for (const cell of Object.values(cells)) {
-        const i = idx++;
-        if (!cell || cell.type === 'empty') { out.push({ type: 'empty' }); continue; }
-        out.push({
-          type: cell.type,
-          src: cell.src || null,
-          alt: cell.alt || null,
-          text: cell.type === 'text'
-            ? htmlToText(resolveTagText(cell.html || '', { index: i, format: fmt }))
-            : null,
-        });
-      }
-      return { rows: g('gridRows') || null, cols: g('gridCols') || null, cells: out.slice(0, 60) };
-    }
-    case 'shape':
-      return { shape: g('shape') || 'rect', label: g('label') || null };
-    case 'video':
-      // src/poster keys recorded for R2-sweep ref-counting; the page RPC
-      // exposes neither.
-      return { src: g('src') || null, poster: g('poster') || null };
-    default:
-      return null;
-  }
-}
 
 // Strip HTML to text for the card_index.body column (notes carry `html`).
-function htmlToText(html) {
-  return String(html || '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|h[1-6]|li)>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
 
 // Stamp the fields the editor stamps (stampCreate) so a generated board is
 // indistinguishable from a hand-built one on load.
@@ -197,42 +120,12 @@ export function decodeBoardSnapshot(b64) {
 export function buildCardIndexRows({ workspaceId, boardId, cards }) {
   const rows = [];
   for (const card of cards) {
-    if (card.seed === true || (card.id && String(card.id).startsWith('onb-'))) continue;
-    const g = (k) => card[k];
-    const kind = g('kind') || 'note';
-    const title = g('title') || g('name') || g('label') || g('url') || '';
-    const rawBody = g('body') || g('caption') || '';
-    let body = rawBody || htmlToText(g('html') || '');
-    // Kind-aware bodies so the page RPC / search see the real content.
-    if (kind === 'doc' && Array.isArray(card.lines)) {
-      body = card.lines.map((l) => (l.bullet ? `• ${l.text}` : l.text || '')).join('\n').trim() || body;
-    } else if (kind === 'schedule' && card.schedView) {
-      body = schedLegacyRows(schedItems(card.gridCells || card.cells || {})).map((r) => [r.day, r.what, r.loc].filter(Boolean).join(' — ')).join('\n') || body;
-    } else if (kind === 'schedule' && Array.isArray(card.rows)) {
-      body = card.rows.map((r) => [r.day, r.what, r.loc].filter(Boolean).join(' — ')).join('\n') || body;
-    }
-    const meta = buildCardMeta(kind, card) || {};
-    // Layout metadata for the page RPC's spatial ordering + section grouping
-    // (0181 get_public_board_page orders by meta.pos and splits sections at
-    // meta.sectionHeader boundaries).
-    if (Number.isFinite(card.x) && Number.isFinite(card.y)) {
-      meta.pos = { x: Math.round(card.x), y: Math.round(card.y),
-                   w: Math.round(card.w || 0), h: Math.round(card.h || 0) };
-    }
-    if (card.sectionHeader) {
-      meta.sectionHeader = true;
-      if (card.sub) meta.sub = String(card.sub).slice(0, 300);
-    }
-    rows.push({
-      workspace_id: workspaceId,
-      board_id: boardId,
-      card_id: card.id,
-      kind,
-      title: String(title).slice(0, 200),
-      body: String(body).slice(0, 500),
-      meta,
-      weight: 1,
+    // Same projection the browser uses — see src/lib/cardIndexRow.js for why
+    // that is one function now and not two that were supposed to match.
+    const row = buildCardIndexRow({
+      workspaceId, boardId, cardId: card.id, get: (k) => card[k],
     });
+    if (row) rows.push(row);
   }
   return rows;
 }

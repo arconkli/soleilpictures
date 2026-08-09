@@ -181,6 +181,17 @@
     "read",
     "write"
   ],
+  "webhookEvents": [
+    "board.created",
+    "board.deleted",
+    "board.restored",
+    "board.updated",
+    "card.created",
+    "card.deleted",
+    "card.moved",
+    "card.updated",
+    "image.created"
+  ],
   "apiErrorCodes": [
     "400 bad_request",
     "402 limit_reached",

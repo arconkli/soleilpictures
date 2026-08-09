@@ -31,6 +31,7 @@ import { fileURLToPath } from 'node:url';
 import { DOCS_PAGES, DOCS_SECTIONS, DOCS_PATHS, getDocsPage, isDocsPath } from './docsiteIndex.js';
 import { DOCS_CONTENT } from './docsiteContent.js';
 import { DOCS_HTML } from './docsiteCrawlable.js';
+import * as SURFACE_MODULE from '../../scripts/lib/publicSurface.mjs';
 import { publicSurface, surfaceJson } from '../../scripts/lib/publicSurface.mjs';
 import { blocksToText, blockLinks } from '../../scripts/lib/markdown.mjs';
 
@@ -225,6 +226,33 @@ test('COVERAGE: every /api/v1 endpoint is documented', () => {
 test('COVERAGE: every MCP tool is documented', () => {
   const missing = surface.mcpTools.map((t) => t.name).filter((n) => !mentions(n));
   assert.deepEqual(missing, [], `undocumented MCP tools: ${missing.join(', ')}`);
+});
+
+test('COVERAGE: every webhook event is documented', () => {
+  const missing = surface.webhookEvents.filter((e) => !mentionedOn('/docs/api/webhooks', e));
+  assert.deepEqual(missing, [], `undocumented webhook events: ${missing.join(', ')}`);
+});
+
+// The gate's own blind spot, closed.
+//
+// Every extractor above is protected by a floor, so one that stops matching
+// fails loudly. Nothing protected against an extractor that is never CALLED:
+// add one, forget to put it in publicSurface(), and the surface it describes
+// goes unchecked forever while the suite stays green. That has already
+// happened once in spirit — apiErrorCodes read a single file while refusals
+// lived in three, and moving one silently dropped its code from the snapshot.
+test('GATE: every extractor is wired into the snapshot', () => {
+  // Everything exported from publicSurface.mjs that is not an extractor.
+  const NOT_EXTRACTORS = new Set(['publicSurface', 'surfaceJson', 'sha', 'BOARDS', 'REPO']);
+  const extractors = Object.entries(SURFACE_MODULE)
+    .filter(([name, v]) => typeof v === 'function' && !NOT_EXTRACTORS.has(name))
+    .map(([name]) => name);
+
+  assert.ok(extractors.length >= 10, `expected the extractors, found ${extractors.length}`);
+  const unwired = extractors.filter((name) => !(name in surface));
+  assert.deepEqual(unwired, [],
+    `these extractors exist but are not in publicSurface() — the surface they describe `
+    + `is not being checked by anything: ${unwired.join(', ')}`);
 });
 
 test('COVERAGE: every API card kind is documented on the cards reference', () => {

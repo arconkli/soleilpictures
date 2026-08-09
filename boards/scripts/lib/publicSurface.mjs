@@ -196,6 +196,18 @@ export function publicRoutes() {
 // ── Token scopes ────────────────────────────────────────────────────────────
 // The DB check constraint is the real definition — the Worker's scope gate can
 // only ever enforce a subset of it, so this is the honest source.
+// ── Webhook events ──────────────────────────────────────────────────────────
+// A public vocabulary: webhooks.md documents each one in a table, and a caller
+// subscribing to a name that does not exist is refused. Adding an event without
+// documenting it would leave the table silently short — the same failure this
+// whole module exists to prevent, in a surface that had no extractor at all.
+export function webhookEvents() {
+  const file = 'boards/src/lib/webhooks.js';
+  const body = sliceLiteral(read(file), 'export const WEBHOOK_EVENTS =') ?? '';
+  const found = [...body.matchAll(/'([a-z]+\.[a-z]+)'/g)].map((m) => m[1]);
+  return expect(found, 4, 'webhook events', file).sort();
+}
+
 export function apiScopes() {
   const file = 'supabase/migrations/0220_api_scopes_usage_log.sql';
   const src = read(file);
@@ -318,6 +330,7 @@ export function publicSurface() {
     mcpPrompts: mcpPrompts(),
     apiCardKinds: apiCardKinds(),
     apiScopes: apiScopes(),
+    webhookEvents: webhookEvents(),
     apiErrorCodes: apiErrorCodes(),
     apiFacts: apiFacts(),
     settingsTabs: settingsTabs(),
