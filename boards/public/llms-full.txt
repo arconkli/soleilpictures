@@ -529,7 +529,7 @@ Creator removes the limit entirely. See Plans.
 
 Cards through the API
 
-The REST API exposes a deliberately narrower card model than the canvas: doc, image, link, note. An API caller can set position, size, title, body, HTML, URL, image key and colour, and nothing else — interior state that belongs to the editor is not writable from outside.
+The REST API exposes a deliberately narrower card model than the canvas: doc, file, image, link, note, video. An API caller can set position, size, title, body, HTML, URL, image key and colour, and nothing else — interior state that belongs to the editor is not writable from outside.
 
 ## Frequently asked questions
 
@@ -3112,6 +3112,13 @@ GET /images/:key | Read an image back
 GET /resolve | Find an object by a foreign identifier
 GET /boards/tree | A whole board hierarchy in one call
 GET /boards/:id/export | Export a board, as JSON or MovieLabs OMC
+PATCH /boards/:id/cards | Change many cards in one call
+DELETE /boards/:id/cards | Remove many cards in one call
+POST /boards/move | Reparent many boards, cycle-safe
+DELETE /boards | Soft-delete many boards
+GET /audit | Audit log of writes and image reads
+POST /webhooks | Webhooks — get told when things change
+GET /webhooks/:id/deliveries | Every attempt, with its result
 GET /service-accounts | Service accounts in a workspace
 POST /service-accounts | Create one, with its first token
 DELETE /service-accounts/:id | Retire one and revoke its tokens
@@ -3612,6 +3619,20 @@ A soft delete, requiring the delete scope. The board goes to the trash and stays
 
 Descendants are deliberately not touched — deleting a parent does not cascade.
 
+POST /boards/move — restructure in one call
+
+{ "board_ids": ["3b7e…", "9f1c…"], "parent_board_id": "a2c4…" }
+
+Pass "parent_board_id": null to move boards to the top level. Up to 500 at a time.
+
+Reparenting always goes through the app's own move path — the only thing that checks for cycles, because a board made its own ancestor detaches that whole subtree from every view there is. Anything it refuses comes back in skipped with a named reason (cycle, cross-workspace, no-write, same-parent, missing, self) rather than as one opaque failure for the batch.
+
+DELETE /boards — many at once
+
+{ "board_ids": ["3b7e…", "9f1c…"] }
+
+Soft, and restorable one at a time, exactly like the single delete. Sent as a JSON body on DELETE so a destructive call stays a DELETE.
+
 POST /boards/:id/restore
 
 Puts a soft-deleted board back. Find deleted boards with GET /boards?deleted=.
@@ -3652,7 +3673,7 @@ A: Yes. DELETE is a soft delete and POST /boards/:id/restore puts it back.
 URL: https://clusters.soleilpictures.com/docs/api/cards
 Updated: 2026-08-08
 
-Read a board's cards with GET /boards/:id/cards, add up to 100 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Four card kinds are accepted and an unknown kind is rejected rather than silently coerced.
+Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Six card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
 
 The card object
 
@@ -3675,23 +3696,40 @@ Interior state the editor owns — grid layouts, adjustment settings, collaborat
 
 Kinds
 
-The API accepts doc, image, link, note.
+The API accepts doc, file, image, link, note, video.
+
+Kind | Carries
+note | title, body, html
+image | image_key, alt, body as the caption
+link | url, title, body
+doc | title, body, html
+video | file_key, optional poster_key
+file | file_key, file_name, mime, ext, size_bytes
+
+video and file exist because multipart upload accepts ProRes, MXF, DPX and camera raw — so without them you could upload a two-terabyte camera master and then have no way to put it on a board. An upload you cannot place is not an upload.
 
 An unrecognised kind gets a 400 naming the valid ones. It is not coerced — silently turning an unknown kind into a note produced boards full of notes that were meant to be links.
 
-This is narrower than what the canvas supports. Grids, schedules, palettes and shapes are created in the app.
+This is still narrower than what the canvas supports. Grids, schedules, palettes and shapes are created in the app; you can read them here, and ?include=raw gives you their full contents.
 
 Writable fields
 
 Field | Type | Limit
-kind | string | one of the four above
+kind | string | one of the six above
 title | string | 300 chars
 body | string | 20000 chars
 html | string | 40000 chars
 url | string | 2000 chars
 image_key | string | 500 chars — from POST /uploads
+file_key | string | 500 chars — for video and file
+poster_key | string | 500 chars — a still for a video
+file_name | string | 300 chars
+mime | string | 200 chars
+ext | string | 20 chars
+size_bytes | number | rounded
 alt | string | 300 chars — image description
 color | string | 40 chars
+props, identifiers | see Identifiers and properties | 
 x, y | number | rounded; omit for auto-placement
 w, h | number | clamped to 40–4000; default 280 × 180
 
@@ -3774,6 +3812,27 @@ Give each card an identifiers array and pass "on_conflict": "identifier", and a 
 The response carries created and updated counts. Run your importer twice over three million assets and you get three million cards, not six. See Identifiers and properties.
 
 Every card write also accepts props and identifiers directly, whether or not you are upserting.
+
+PATCH /boards/:id/cards — many at once
+
+{ "cards": [
+  { "id": "api-m8x2p1-7fq3ka", "title": "Approved" },
+  { "id": "api-m8x2p1-9wq2lb", "props": { "status": "final" } }
+] }
+
+Up to 1000 per call. Each entry needs an id; everything else is an ordinary partial patch.
+
+The board is opened once for the whole batch, which is the difference between a five-hundred-card update taking a second and taking a minute — patching one at a time opens, syncs, commits and closes each time.
+
+Ids that were not on the board come back in not_found rather than being silently skipped, because a bulk write that quietly does nothing for part of its input is worse than one that fails.
+
+DELETE /boards/:id/cards — many at once
+
+{ "card_ids": ["api-m8x2p1-7fq3ka", "api-m8x2p1-9wq2lb"] }
+
+Sent as a JSON body on DELETE, which is unusual but deliberate: a thousand card ids do not fit in a query string, and making a destructive call look like a POST would mislead every proxy, log and permission check between you and it.
+
+Every removed card comes back in full, so the response is the undo.
 
 PATCH /boards/:id/cards/:cardId
 
@@ -4446,7 +4505,7 @@ Tool | Input
 delete_card | board_id, card_id
 delete_board | board_id
 
-Card kind is doc, image, link, note, defaulting to note.
+Card kind is doc, file, image, link, note, video, defaulting to note.
 
 Adding an image
 
@@ -4490,6 +4549,145 @@ A: No. It forwards your personal access token to the same API, so it inherits yo
 
 Q: How do I stop an agent deleting things?
 A: Mint a token without the delete scope. Deleting is a separate grant from writing precisely so an agent can be allowed to build without being allowed to destroy.
+
+
+========================================================================
+# Webhooks
+URL: https://clusters.soleilpictures.com/docs/api/webhooks
+Updated: 2026-08-09
+
+Register an HTTPS endpoint and Soleil Clusters posts to it when boards and cards change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.
+
+Register an HTTPS endpoint and we post to it when something changes.
+
+Including changes made in the app. That is the part worth stating plainly: events come from the database, not from the API request handler, so a card someone drags on the canvas fires the same event as one added by your importer. A webhook that only saw API traffic would miss almost everything that actually happens to a board.
+
+Register one
+
+curl -X POST "$SOLEIL_API/webhooks" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"workspace_id":"'$WS'","url":"https://hooks.example.com/soleil",
+       "events":["card.created","card.updated","board.created"],
+       "name":"pipeline sync"}'
+
+{ "webhook": { "id": "a2c4…", "url": "https://hooks.example.com/soleil",
+               "events": ["card.created","card.updated","board.created"], "active": true },
+  "secret": "whsec_…",
+  "next": "Verify each delivery: HMAC-SHA256 of \"v0:{timestamp}:{body}\", compared with the X-Soleil-Signature header." }
+
+secret is returned once and never again. There is no read path for it, over the API or in the database.
+
+The URL must be public HTTPS on the default port. We fetch it from our own address on a schedule, which is the shape of a server-side request forgery, so private ranges, loopback, metadata hosts and non-default ports are refused.
+
+Pass "events": ["*"] to subscribe to everything, including event types added later. An unknown event name is a 400 rather than a subscription that never fires — "subscribed and silent" is the hardest webhook failure to diagnose.
+
+Events
+
+Event | When
+board.created | A board is created
+board.updated | Its name, view or parent changes
+board.deleted | Soft-deleted, or removed outright
+board.restored | Brought back from the trash
+card.created | Cards are added to a board
+card.updated | Their text or contents change
+card.deleted | Cards are removed
+card.moved | Cards move to another board
+image.created | An upload completes
+
+Card events are grouped. A single operation on a board produces one event carrying a count, not one per card — so importing a thousand cards is one delivery, not a thousand. data.card_ids carries the first 25 as a courtesy; past that, read the board.
+
+The payload
+
+{
+  "type": "card.created",
+  "resource": { "type": "card", "id": "…" },
+  "workspace": { "id": "3b7e…" },
+  "board": { "id": "9f1c…" },
+  "data": { "count": 412, "card_ids": ["…", "…"] },
+  "occurred_at": "2026-08-09T12:00:00.412Z"
+}
+
+Deliberately thin. A payload is a copy of the truth, and a copy goes stale between being sent and being read — worse, it goes stale silently. You get enough to know what to look at; call back for current state, with ?since= if you want everything that moved.
+
+Verifying a delivery
+
+Header | 
+X-Soleil-Signature | v0=<hex>
+X-Soleil-Request-Timestamp | Unix seconds
+X-Soleil-Event | The event type
+X-Soleil-Delivery | This delivery's id — useful in your own logs
+
+Compute HMAC-SHA256(secret, "v0:" + timestamp + ":" + rawBody) and compare it with the signature. Use the raw body, before any JSON parsing — re-serializing changes the bytes and the signature will not match.
+
+import hmac, hashlib, time
+
+def verify(secret, headers, raw_body):
+    ts = headers["X-Soleil-Request-Timestamp"]
+    if abs(time.time() - int(ts)) > 300:        # five-minute replay window
+        return False
+    expected = "v0=" + hmac.new(
+        secret.encode(), f"v0:{ts}:".encode() + raw_body, hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, headers["X-Soleil-Signature"])
+
+This is the same scheme Frame.io uses, on purpose — if you have integrated with them, the verifier you already wrote works here.
+
+Reject anything outside the five-minute window, and compare in constant time.
+
+Retries
+
+Six attempts: after 1 minute, 5 minutes, 25 minutes, ~2 hours and ~10 hours. That is over twelve hours in total, so an endpoint that is down overnight still receives its events.
+
+Any non-2xx, or a connection failure, counts as a failure. Respond 2xx as soon as you have durably accepted the delivery and do your work afterwards — a slow receiver is a retried receiver. We give up on a single delivery after ten seconds.
+
+After 20 consecutive failures across all deliveries a webhook is switched off, with disabled_reason saying why. A single success resets the counter, so this only ever fires for a genuinely dead endpoint. Re-enable with PATCH /webhooks/:id {"active": true}, which also clears the failure state.
+
+The delivery log
+
+curl "$SOLEIL_API/webhooks/$HOOK/deliveries?limit=50" -H "Authorization: Bearer $SOLEIL_TOKEN"
+
+Every attempt, with its status, duration, error and the exact payload sent. "We sent it" without a record is not an answer, so there is a record.
+
+# Send a real delivery through the real path, to check signing end to end
+curl -X POST "$SOLEIL_API/webhooks/$HOOK/test" -H "Authorization: Bearer $SOLEIL_TOKEN"
+
+# Replay one you missed
+curl -X POST "$SOLEIL_API/webhooks/$HOOK/deliveries/$DELIVERY/redeliver" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN"
+
+POST /webhooks/:id/test sends through the delivery path everything else uses, so what it proves is what will actually happen. POST /webhooks/:id/deliveries/:deliveryId/redeliver requeues rather than sending inline, so a replay is retried and recorded exactly like any other delivery.
+
+Deliveries are kept for 30 days.
+
+Managing them
+
+curl "$SOLEIL_API/webhooks?workspace=$WS" -H "Authorization: Bearer $SOLEIL_TOKEN"
+curl -X PATCH "$SOLEIL_API/webhooks/$HOOK" -H "Authorization: Bearer $SOLEIL_TOKEN" \
+  -H "Content-Type: application/json" -d '{"events":["*"],"active":true}'
+curl -X DELETE "$SOLEIL_API/webhooks/$HOOK" -H "Authorization: Bearer $SOLEIL_TOKEN"
+
+Up to 20 active webhooks per workspace. Listing never returns the secret.
+
+Timing
+
+An event caused by an API call is delivered immediately. An event caused by someone working in the app is picked up within a minute. Both go through the same queue and the same retry policy; only the pickup differs.
+
+## Frequently asked questions
+
+Q: Do webhooks fire for changes made in the app?
+A: Yes. That is the main point. Events come from the database itself, so a card someone drags on the canvas fires the same event as one added through the API.
+
+Q: How do I verify a delivery is really from you?
+A: HMAC-SHA256 of "v0:{timestamp}:{body}" using the secret from the create response, compared with the X-Soleil-Signature header. Reject anything with a timestamp more than five minutes old.
+
+Q: Does a thousand-card import send a thousand webhooks?
+A: No. Card events are grouped per board per operation, so that batch is one delivery carrying a count.
+
+Q: What if my endpoint is down?
+A: Six attempts over more than twelve hours. Every attempt is recorded, and you can replay any delivery from the log once you are back.
+
+Q: Why is there so little in the payload?
+A: A payload is a copy, and a copy goes stale. You get the type and the ids; call back for current state.
 
 
 ========================================================================
@@ -4605,4 +4803,68 @@ A: Mint the new one first, move the integration onto it, then revoke the old one
 
 Q: Does a service account count against my plan?
 A: No. Storage and card limits are charged to the workspace owner no matter who does the writing, which is the same rule the app applies to collaborators.
+
+
+========================================================================
+# Audit log
+URL: https://clusters.soleilpictures.com/docs/api/audit
+Updated: 2026-08-09
+
+GET /audit returns a record of every write made through the API and every fetch of image bytes, newest first, cursor-paged. You see your own activity, and if you own a workspace you also see everything its service accounts did. Entries carry the actor, the token used, the method and templated route, the object touched, the status and the duration.
+
+curl "$SOLEIL_API/audit?limit=100" -H "Authorization: Bearer $SOLEIL_TOKEN"
+
+{
+  "entries": [
+    { "id": "80421", "at": "2026-08-09T12:00:04.120Z",
+      "actor": "Pipeline sync", "actor_id": "9f1c…",
+      "token_id": "a2c4…", "token_name": "Pipeline sync token",
+      "method": "POST", "route": "/boards/:id/cards",
+      "target_id": "3b7e…", "status": 201, "ms": 214 }
+  ],
+  "limit": 100,
+  "has_more": true,
+  "next_cursor": "80421",
+  "covers": "writes made through /api/v1 and reads of image bytes"
+}
+
+Newest first. Pass next_cursor back as cursor, and since to bound it by time.
+
+What is in it
+
+ | 
+Writes | Every POST, PATCH and DELETE through /api/v1
+Image reads | Every fetch of GET /images/:key
+Not included | Ordinary reads, and anything done in the app
+Retention | 30 days
+
+Ordinary reads are left out because they are the bulk of API traffic and are mostly noise. Image bytes are the exception, and deliberately so: that request is content leaving, which is the thing a security review actually asks about.
+
+route is the templated path — /boards/:id/cards, not the specific board — with the object in target_id. That way the log groups by operation and you can still see what each one touched.
+
+Whose activity
+
+Your own, plus every service account belonging to a workspace you own. actor is the service account's name, or the person's display name.
+
+That pairing is the point. A service account is a credential a team depends on, and being unable to see what it did would make it exactly the kind of anonymous shared secret it exists to replace.
+
+Disabling a service account does not remove it from the log: the record is kept so past entries still resolve to a name rather than a deleted id.
+
+What this is not
+
+It is not a complete history of a board. Changes made on the canvas do not appear here, because this records API traffic, not edits. If you need to know that a board changed — whoever changed it — use GET /boards?since=, or subscribe to a webhook, both of which see app activity too.
+
+## Frequently asked questions
+
+Q: Does this cover changes made in the app?
+A: No. It records writes through /api/v1 and reads of image bytes. Edits someone makes on the canvas are not in it.
+
+Q: Whose activity can I see?
+A: Your own, plus every service account belonging to a workspace you own.
+
+Q: Why are ordinary reads not recorded?
+A: They are the bulk of API traffic and mostly noise. Fetching image bytes is the exception, because that is content leaving.
+
+Q: How long is it kept?
+A: 30 days.
 

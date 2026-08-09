@@ -218,6 +218,30 @@ A **soft delete**, requiring the `delete` scope. The board goes to the
 
 Descendants are deliberately not touched — deleting a parent does not cascade.
 
+## `POST /boards/move` — restructure in one call
+
+```json
+{ "board_ids": ["3b7e…", "9f1c…"], "parent_board_id": "a2c4…" }
+```
+
+Pass `"parent_board_id": null` to move boards to the top level. Up to
+{{fact:maxBoardsPerCall}} at a time.
+
+Reparenting always goes through the app's own move path — the only thing that
+checks for cycles, because a board made its own ancestor detaches that whole
+subtree from every view there is. Anything it refuses comes back in `skipped`
+with a named reason (`cycle`, `cross-workspace`, `no-write`, `same-parent`,
+`missing`, `self`) rather than as one opaque failure for the batch.
+
+## `DELETE /boards` — many at once
+
+```json
+{ "board_ids": ["3b7e…", "9f1c…"] }
+```
+
+Soft, and restorable one at a time, exactly like the single delete. Sent as a
+JSON body on `DELETE` so a destructive call stays a `DELETE`.
+
 ## `POST /boards/:id/restore`
 
 Puts a soft-deleted board back. Find deleted boards with `GET /boards?deleted=`.

@@ -6,7 +6,7 @@ navLabel: Cards
 section: developers
 order: 4
 updated: 2026-08-08
-answer: Read a board's cards with GET /boards/:id/cards, add up to 100 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Four card kinds are accepted and an unknown kind is rejected rather than silently coerced.
+answer: Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Six card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
 faq:
   - q: What happens if I send an unrecognised kind?
     a: A 400 naming the kinds that are valid. It used to fall back to note silently, which produced boards full of notes that should have been links.
@@ -47,25 +47,47 @@ should not be able to write arbitrary internals into everyone's board.
 
 The API accepts {{fact:apiCardKinds}}.
 
+| Kind | Carries |
+|---|---|
+| `note` | `title`, `body`, `html` |
+| `image` | `image_key`, `alt`, `body` as the caption |
+| `link` | `url`, `title`, `body` |
+| `doc` | `title`, `body`, `html` |
+| `video` | `file_key`, optional `poster_key` |
+| `file` | `file_key`, `file_name`, `mime`, `ext`, `size_bytes` |
+
+`video` and `file` exist because [multipart upload](/docs/api/images) accepts
+ProRes, MXF, DPX and camera raw — so without them you could upload a two-terabyte
+camera master and then have no way to put it on a board. An upload you cannot
+place is not an upload.
+
 An unrecognised `kind` gets a `400` naming the valid ones. It is **not**
 coerced — silently turning an unknown kind into a note produced boards full of
 notes that were meant to be links.
 
-This is narrower than [what the canvas supports](/docs/canvas/cards). Grids,
-schedules, palettes and shapes are created in the app.
+This is still narrower than [what the canvas supports](/docs/canvas/cards).
+Grids, schedules, palettes and shapes are created in the app; you can read them
+here, and `?include=raw` gives you their full contents.
 
 ## Writable fields
 
 | Field | Type | Limit |
 |---|---|---|
-| `kind` | string | one of the four above |
+| `kind` | string | one of the six above |
 | `title` | string | {{fact:cardTitleMax}} chars |
 | `body` | string | {{fact:cardBodyMax}} chars |
 | `html` | string | {{fact:cardHtmlMax}} chars |
 | `url` | string | {{fact:cardUrlMax}} chars |
 | `image_key` | string | {{fact:cardImageKeyMax}} chars — from [`POST /uploads`](/docs/api/images) |
+| `file_key` | string | {{fact:cardImageKeyMax}} chars — for `video` and `file` |
+| `poster_key` | string | {{fact:cardImageKeyMax}} chars — a still for a `video` |
+| `file_name` | string | 300 chars |
+| `mime` | string | 200 chars |
+| `ext` | string | 20 chars |
+| `size_bytes` | number | rounded |
 | `alt` | string | 300 chars — image description |
 | `color` | string | 40 chars |
+| `props`, `identifiers` | see [Identifiers and properties](/docs/api/metadata) | |
 | `x`, `y` | number | rounded; omit for auto-placement |
 | `w`, `h` | number | clamped to 40–4000; default 280 × 180 |
 
@@ -190,6 +212,38 @@ over three million assets and you get three million cards, not six. See
 
 Every card write also accepts `props` and `identifiers` directly, whether or not
 you are upserting.
+
+## `PATCH /boards/:id/cards` — many at once
+
+```json
+{ "cards": [
+  { "id": "api-m8x2p1-7fq3ka", "title": "Approved" },
+  { "id": "api-m8x2p1-9wq2lb", "props": { "status": "final" } }
+] }
+```
+
+Up to {{fact:maxCardsPerCall}} per call. Each entry needs an `id`; everything
+else is an ordinary partial patch.
+
+The board is opened **once** for the whole batch, which is the difference
+between a five-hundred-card update taking a second and taking a minute — patching
+one at a time opens, syncs, commits and closes each time.
+
+Ids that were not on the board come back in `not_found` rather than being
+silently skipped, because a bulk write that quietly does nothing for part of its
+input is worse than one that fails.
+
+## `DELETE /boards/:id/cards` — many at once
+
+```json
+{ "card_ids": ["api-m8x2p1-7fq3ka", "api-m8x2p1-9wq2lb"] }
+```
+
+Sent as a JSON body on `DELETE`, which is unusual but deliberate: a thousand
+card ids do not fit in a query string, and making a destructive call look like a
+`POST` would mislead every proxy, log and permission check between you and it.
+
+Every removed card comes back in full, so the response is the undo.
 
 ## `PATCH /boards/:id/cards/:cardId`
 

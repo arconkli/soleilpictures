@@ -50,6 +50,13 @@ permissions to drift out of step with app permissions.
 | `GET /resolve` | Find an object by a [foreign identifier](/docs/api/metadata) |
 | `GET /boards/tree` | A whole [board hierarchy](/docs/api/boards) in one call |
 | `GET /boards/:id/export` | [Export](/docs/api/export) a board, as JSON or MovieLabs OMC |
+| `PATCH /boards/:id/cards` | Change many cards in one call |
+| `DELETE /boards/:id/cards` | Remove many cards in one call |
+| `POST /boards/move` | Reparent many boards, cycle-safe |
+| `DELETE /boards` | Soft-delete many boards |
+| `GET /audit` | [Audit log](/docs/api/audit) of writes and image reads |
+| `POST /webhooks` | [Webhooks](/docs/api/webhooks) — get told when things change |
+| `GET /webhooks/:id/deliveries` | Every attempt, with its result |
 | `GET /service-accounts` | [Service accounts](/docs/api/service-accounts) in a workspace |
 | `POST /service-accounts` | Create one, with its first token |
 | `DELETE /service-accounts/:id` | Retire one and revoke its tokens |

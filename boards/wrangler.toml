@@ -47,10 +47,14 @@ binding = "AI"
 [triggers]
 # Daily 04:00 UTC: history-aware R2 orphan sweep (dry-run by default).
 # Hourly at :15:     Job 1 compaction — board_ops → R2 hourly batches (dry-run by default).
+# Every minute:      webhook drain — fan the outbox out and deliver what is due.
+#                    This is the path that carries changes made IN THE APP;
+#                    API-driven events are already delivered inline. It costs
+#                    one indexed probe when there is nothing pending.
 # event.cron lets the worker dispatch to the right handler in scheduled().
 # To enable actual writes/deletes, set HISTORY_COMPACTION_MODE=run and/or
 # R2_SWEEP_MODE=delete via `wrangler secret put`.
-crons = ["0 4 * * *", "15 * * * *"]
+crons = ["0 4 * * *", "15 * * * *", "* * * * *"]
 
 # R2 binding for the orphan sweeper. Matches PartyKit's R2_BUCKET so
 # the same bucket uploads go into is the one being swept.

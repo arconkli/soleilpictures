@@ -40,7 +40,7 @@ import {
   saveMeta, saveMetaBulk, withMeta, parseInclude, purgeCardMeta, repointCardMeta,
   resolveUpsert, OBJECT_TYPES,
 } from './lib/objectMeta.js';
-import { scoutRpc, scoutDelete } from './lib/scoutDb.js';
+import { scoutRpc, scoutDelete, scoutInsert } from './lib/scoutDb.js';
 import {
   addCardsToBoard, moveCardsBetweenBoards, readBoardCards,
   updateCardOnBoard, updateCardsOnBoard, deleteCardsFromBoard,
@@ -50,6 +50,9 @@ import { bytesToB64 } from './lib/yhelpers.js';
 import { imageDimensions, extensionFor } from './lib/imageDims.js';
 import { openapiDocument } from './lib/apiOpenapi.js';
 import { boardToOmc } from './lib/omcExport.js';
+import {
+  webhookUrlProblem, runWebhooks, hasPendingWork, WEBHOOK_EVENTS,
+} from './lib/webhooks.js';
 
 // Raised from 100 once a positioned batch stopped costing O(the whole board):
 // the write is now one card_index insert and one small Yjs update, so the batch
@@ -83,11 +86,24 @@ const EXTRA_TYPES = {
   'application/mxf': 'mxf', 'application/x-dpx': 'dpx',
 };
 
-// The kinds the API models. The app has more (palette, schedule, grid, video,
-// audio, pdf, board) and every one of them carries structured interior state
-// that the wire format does not describe — so they are readable but not
-// creatable, rather than creatable and broken.
-const CARD_KINDS = ['note', 'image', 'link', 'doc'];
+// The kinds the API models.
+//
+// `video` and `file` were added because their absence was a hole with no
+// workaround: multipart accepts ProRes, MXF, DPX and DNG (see EXTRA_TYPES
+// above), so you could upload a 2TB camera master through this API and then
+// have no way to put a card for it on a board. An upload you cannot place is
+// not an upload.
+//
+// The app has more kinds still (palette, schedule, grid, board) and each of
+// those carries structured interior state the wire format does not describe —
+// they stay readable but not creatable, rather than creatable and broken.
+// `?include=raw` is how you get at their interiors.
+const CARD_KINDS = ['note', 'image', 'link', 'doc', 'video', 'file'];
+
+// Which Y.Doc field holds the bytes, per kind. Images and video both use `src`;
+// files use `fileSrc`. Getting this wrong produces a card that renders nothing,
+// which is exactly what happened when this file wrote `key` instead of `src`.
+const BYTES_FIELD = { image: 'src', video: 'src', file: 'fileSrc', pdf: 'fileSrc' };
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -150,9 +166,10 @@ const textOf = (c) => (c.kind === 'image'
   : (c.body ?? c.caption ?? null));
 
 export function publicCard(c) {
-  return {
+  const kind = c.kind || 'note';
+  const out = {
     id: c.id,
-    kind: c.kind || 'note',
+    kind,
     x: c.x, y: c.y, w: c.w, h: c.h, z: c.z,
     title: c.title ?? null,
     body: textOf(c),
@@ -164,6 +181,16 @@ export function publicCard(c) {
     created_at: c.createdAt ?? null,
     updated_at: c.updatedAt ?? null,
   };
+  // Only on the kinds that have them. Adding six always-null fields to every
+  // note card is paid for on every list response, forever.
+  const bytes = keyFromSrc(c[BYTES_FIELD[kind]]);
+  if (bytes) out.file_key = bytes;
+  if (c.poster) out.poster_key = keyFromSrc(c.poster);
+  if (c.fileName) out.file_name = c.fileName;
+  if (c.mime) out.mime = c.mime;
+  if (c.ext) out.ext = c.ext;
+  if (Number.isFinite(c.sizeBytes)) out.size_bytes = c.sizeBytes;
+  return out;
 }
 
 function publicBoard(b) {
@@ -224,6 +251,20 @@ export function normalizeIncomingCard(input, { partial = false, existingKind = n
     const k = str(c.image_key, 500);
     out.src = k ? `r2:${k}` : null;
   }
+  // The same key, under the field the app reads for that kind. `image_key` is
+  // kept as the name for images because it is what callers already send.
+  if ('file_key' in c) {
+    const k = str(c.file_key, 500);
+    out[BYTES_FIELD[kind] || 'src'] = k ? `r2:${k}` : null;
+  }
+  if ('poster_key' in c) {
+    const k = str(c.poster_key, 500);
+    out.poster = k ? `r2:${k}` : null;
+  }
+  if ('file_name' in c) out.fileName = str(c.file_name, 300);
+  if ('mime' in c) out.mime = str(c.mime, 200);
+  if ('ext' in c) out.ext = str(c.ext, 20);
+  if (Number.isFinite(c.size_bytes)) out.sizeBytes = Math.max(0, Math.round(c.size_bytes));
   if ('color' in c) out.color = str(c.color, 40);
   if (Number.isFinite(c.x)) out.x = Math.round(c.x);
   if (Number.isFinite(c.y)) out.y = Math.round(c.y);
@@ -301,6 +342,20 @@ function metaFromBody(body) {
     props: normalizeProps(body?.props),
     identifiers: normalizeIdentifiers(body?.identifiers),
   };
+}
+
+// An unknown event name is refused rather than accepted and never fired —
+// "subscribed and silent" is the hardest webhook failure to diagnose.
+function normalizeEvents(input) {
+  const asked = Array.isArray(input) ? input : [];
+  if (!asked.length) throw fail(400, 'bad_request', 'events is required');
+  const clean = [...new Set(asked.map((e) => String(e).trim()))];
+  const bad = clean.filter((e) => e !== '*' && !WEBHOOK_EVENTS.includes(e));
+  if (bad.length) {
+    throw fail(400, 'bad_request',
+      `unknown event ${JSON.stringify(bad[0])} — valid: ${WEBHOOK_EVENTS.join(', ')}, or "*"`);
+  }
+  return clean;
 }
 
 // ── Service accounts ─────────────────────────────────────────────────────────
@@ -590,11 +645,18 @@ export async function handleApiRoute(url, request, env, ctx) {
     }
   }
 
-  // Writes only (0220). Reads are the bulk of API traffic and logging them
-  // would be noise; the rows worth keeping are the ones that changed something.
+  // Writes, plus any read a route asked to have recorded.
+  //
+  // 0220 logged writes only, on the grounds that reads are the bulk of traffic
+  // and mostly noise. That is still true of listing boards — and false of
+  // fetching image BYTES, which for a studio is the event that matters: who
+  // took a copy of unreleased material, and when. Routes opt in with
+  // `trace.log`, so the volume stays bounded by an explicit decision rather
+  // than by a method check.
+  //
   // Off the response path via waitUntil — an audit write must never be what
   // makes someone's request slow, or what fails it.
-  if (request.method !== 'GET' && auth.tokenId) {
+  if ((request.method !== 'GET' || trace.log) && auth.tokenId) {
     const write = scoutRpc(env, 'api_log_request', {
       p_token_id: auth.tokenId,
       p_user_id: auth.userId,
@@ -605,6 +667,17 @@ export async function handleApiRoute(url, request, env, ctx) {
       p_target: trace.target,
     }).catch(() => {});
     if (ctx?.waitUntil) ctx.waitUntil(write);
+  }
+
+  // A write may have queued webhook events. Draining here means an API-driven
+  // event leaves in milliseconds instead of waiting up to a minute for the
+  // cron; the cron still exists, and is what covers changes made in the app.
+  // Guarded by a single indexed probe so the overwhelming majority of
+  // workspaces — which have no webhooks — pay almost nothing.
+  if (request.method !== 'GET' && ctx?.waitUntil) {
+    ctx.waitUntil(hasPendingWork(env)
+      .then((pending) => (pending ? runWebhooks(env, { limit: 50 }) : null))
+      .catch(() => {}));
   }
 
   return withHeaders(res, rl);
@@ -620,7 +693,14 @@ async function dispatch(url, request, env, ctx) {
   // JSON. Its multipart siblings underneath /uploads/* are ordinary JSON, and
   // treating them as raw too is what made every field arrive undefined.
   const isRawUpload = head === 'uploads' && !id;
-  const body = (method === 'GET' || method === 'DELETE' || isRawUpload)
+  // DELETE carries a body here, which is unusual but deliberate: a bulk delete
+  // of a thousand card ids does not fit in a query string, and the alternative
+  // — POST /cards/delete — makes a destructive call look like a create to every
+  // proxy, log and scope check between the caller and this line. A body is only
+  // read when one was actually sent with a JSON content type, so an ordinary
+  // single DELETE is unaffected.
+  const hasJsonBody = (request.headers.get('content-type') || '').includes('json');
+  const body = (method === 'GET' || isRawUpload || (method === 'DELETE' && !hasJsonBody))
     ? {}
     : await request.json().catch(() => ({}));
 
@@ -648,6 +728,16 @@ async function dispatch(url, request, env, ctx) {
         'GET    /resolve?scope=&value=&type=&workspace=',
         'GET    /boards?workspace=&parent=&deleted=&since=&cursor=&include=&limit=&offset=',
         'GET    /boards/tree?root=&workspace=&depth=',
+        'POST   /boards/move',
+        'DELETE /boards            {"board_ids":[…]}  — bulk soft-delete',
+        'GET    /audit?since=&cursor=&limit=',
+        'GET    /webhooks?workspace=',
+        'POST   /webhooks',
+        'PATCH  /webhooks/:id',
+        'DELETE /webhooks/:id',
+        'POST   /webhooks/:id/test',
+        'GET    /webhooks/:id/deliveries?limit=&cursor=',
+        'POST   /webhooks/:id/deliveries/:deliveryId/redeliver',
         'POST   /boards',
         'POST   /boards            {"boards":[…]}  — bulk, up to 500',
         'GET    /boards/:id',
@@ -657,6 +747,8 @@ async function dispatch(url, request, env, ctx) {
         'POST   /boards/:id/restore',
         'GET    /boards/:id/cards?source=live|index&since=&cursor=&include=&limit=&offset=',
         'POST   /boards/:id/cards',
+        'PATCH  /boards/:id/cards            {"cards":[…]}  — bulk',
+        'DELETE /boards/:id/cards            {"card_ids":[…]}  — bulk',
         'PATCH  /boards/:id/cards/:cardId',
         'DELETE /boards/:id/cards/:cardId',
         'POST   /boards/:id/cards/move',
@@ -806,6 +898,166 @@ async function dispatch(url, request, env, ctx) {
     }
 
     throw fail(405, 'method_not_allowed', `${method} is not supported here`);
+  }
+
+  // ── /webhooks ─────────────────────────────────────────────────────────────
+  //
+  // Management copies ShotGrid's surface — create, list, update, delete, test,
+  // list deliveries, redeliver — because that is the one facilities already
+  // rely on, and a delivery log you can inspect and replay is what makes
+  // "it didn't arrive" a question with an answer.
+  if (head === 'webhooks') {
+    if (!id && method === 'GET') {
+      const ws = url.searchParams.get('workspace');
+      if (ws && !isUuid(ws)) throw fail(400, 'bad_request', 'workspace must be a uuid');
+      const rows = await userRpc(env, token, 'webhook_list', { p_workspace_id: ws || null });
+      return json({ webhooks: rows || [] });
+    }
+
+    if (!id && method === 'POST') {
+      const ws = body.workspace_id;
+      if (!isUuid(ws)) throw fail(400, 'bad_request', 'workspace_id must be a uuid');
+      const problem = webhookUrlProblem(body.url);
+      if (problem) throw fail(400, 'bad_request', problem);
+      const events = normalizeEvents(body.events);
+      const rows = await userRpc(env, token, 'webhook_create', {
+        p_workspace_id: ws, p_url: String(body.url), p_events: events,
+        p_name: str(body.name, 80),
+      });
+      const w = (rows || [])[0];
+      if (!w) throw fail(502, 'upstream_error', 'the webhook was not created');
+      return json({
+        webhook: { id: w.id, workspace_id: ws, url: String(body.url), events, active: true,
+          created_at: w.created_at },
+        // The only time this value exists outside the database. There is no read
+        // path for it, here or in SQL.
+        secret: w.secret,
+        next: 'Verify each delivery: HMAC-SHA256 of "v0:{timestamp}:{body}", compared with the X-Soleil-Signature header.',
+      }, 201);
+    }
+
+    if (id && !isUuid(id)) throw fail(400, 'bad_request', 'webhook id must be a uuid');
+
+    if (id && !sub && method === 'PATCH') {
+      if (body.url != null) {
+        const problem = webhookUrlProblem(body.url);
+        if (problem) throw fail(400, 'bad_request', problem);
+      }
+      const ok = await userRpc(env, token, 'webhook_update', {
+        p_id: id,
+        p_url: body.url != null ? String(body.url) : null,
+        p_events: body.events != null ? normalizeEvents(body.events) : null,
+        p_name: str(body.name, 80),
+        p_active: typeof body.active === 'boolean' ? body.active : null,
+      });
+      if (!ok) throw fail(404, 'not_found', 'no such webhook');
+      const rows = await userRpc(env, token, 'webhook_list', { p_workspace_id: null });
+      return json({ webhook: (rows || []).find((w) => w.id === id) || null });
+    }
+
+    if (id && !sub && method === 'DELETE') {
+      const ok = await userRpc(env, token, 'webhook_delete', { p_id: id });
+      if (!ok) throw fail(404, 'not_found', 'no such webhook');
+      return json({ deleted: true, webhook_id: id });
+    }
+
+    // POST /webhooks/:id/test — a real delivery through the real path, so what
+    // it proves is what will happen, not what a separate code path does.
+    if (id && sub === 'test' && method === 'POST') {
+      const rows = await userRpc(env, token, 'webhook_list', { p_workspace_id: null });
+      const w = (rows || []).find((x) => x.id === id);
+      if (!w) throw fail(404, 'not_found', 'no such webhook');
+      await scoutInsert(env, 'webhook_deliveries', [{
+        webhook_id: id,
+        event: 'webhook.test',
+        payload: {
+          type: 'webhook.test',
+          resource: { type: 'webhook', id },
+          workspace: { id: w.workspace_id },
+          board: null,
+          data: { message: 'If you are reading this, delivery and signing work.' },
+          occurred_at: new Date().toISOString(),
+        },
+      }]);
+      const out = await runWebhooks(env, { limit: 25 });
+      return json({ sent: true, result: out, check: `GET /api/v1/webhooks/${id}/deliveries` });
+    }
+
+    if (id && sub === 'deliveries' && method === 'GET' && !subId) {
+      const { limit } = pageParams(url);
+      const cursor = url.searchParams.get('cursor');
+      const rows = await userRpc(env, token, 'webhook_deliveries_list', {
+        p_webhook_id: id, p_limit: limit, p_cursor: cursor || null,
+      });
+      const items = rows || [];
+      const last = items[items.length - 1];
+      return json({
+        deliveries: items,
+        limit,
+        has_more: items.length === limit,
+        next_cursor: items.length === limit && last ? last.created_at : null,
+      });
+    }
+
+    if (id && sub === 'deliveries' && subId && method === 'POST') {
+      // .../deliveries/:did/redeliver — requeued rather than re-POSTed inline,
+      // so the retry goes through the same path and is recorded the same way.
+      const ok = await userRpc(env, token, 'webhook_redeliver', { p_delivery_id: subId });
+      if (!ok) throw fail(404, 'not_found', 'no such delivery');
+      const out = await runWebhooks(env, { limit: 25 });
+      return json({ requeued: true, delivery_id: subId, result: out });
+    }
+
+    throw fail(405, 'method_not_allowed', `${method} is not supported here`);
+  }
+
+  // GET /audit?since=&cursor=&limit=
+  //
+  // api_request_log has been written on every write since 0220 and its only
+  // read path had ZERO callers anywhere in the repo — an audit trail that
+  // exists and is unreachable, which for a studio is the same as not having
+  // one. This also covers a workspace owner's service accounts, which the old
+  // `user_id = auth.uid()` predicate could not express.
+  if (head === 'audit' && method === 'GET') {
+    const since = url.searchParams.get('since');
+    const cursor = url.searchParams.get('cursor');
+    const { limit } = pageParams(url);
+    if (since && Number.isNaN(Date.parse(since))) {
+      throw fail(400, 'bad_request', 'since must be an ISO timestamp');
+    }
+    if (cursor && !/^\d+$/.test(String(cursor))) {
+      throw fail(400, 'bad_request', 'cursor must be a next_cursor from a previous response');
+    }
+    const rows = await userRpc(env, token, 'api_audit_read', {
+      p_since: since || null,
+      p_cursor: cursor ? Number(cursor) : null,
+      p_limit: limit,
+    });
+    const items = rows || [];
+    const last = items[items.length - 1];
+    return json({
+      entries: items.map((r) => ({
+        id: String(r.id),
+        at: r.created_at,
+        actor: r.actor,
+        actor_id: r.actor_id,
+        token_id: r.token_id,
+        token_name: r.token_name,
+        method: r.method,
+        route: r.route,
+        target_id: r.target_id,
+        status: r.status,
+        ms: r.ms,
+      })),
+      limit,
+      // Keyset on the log's own id, descending: created_at is not unique under
+      // a migration doing thousands of writes a second.
+      has_more: items.length === limit,
+      next_cursor: items.length === limit && last ? String(last.id) : null,
+      // Said plainly rather than left to be discovered: this records writes
+      // through /api/v1, not edits made in the app.
+      covers: 'writes made through /api/v1 and reads of image bytes',
+    });
   }
 
   // GET /resolve?scope=&value=[&type=][&workspace=]
@@ -1217,6 +1469,12 @@ async function dispatch(url, request, env, ctx) {
     const served = (wantPreview && row.preview_path) ? row.preview_path : row.storage_path;
     const variant = served === row.storage_path ? 'original' : 'preview';
 
+    // The one read worth an audit row: this is bytes leaving, and "who took a
+    // copy of unreleased material, and when" is the question a studio's
+    // security review actually asks.
+    trace.route = '/images/:key';
+    trace.log = true;
+
     const obj = await env.IMAGES.get(served);
     if (!obj) throw fail(404, 'not_found', 'image not found');
     return new Response(obj.body, {
@@ -1519,7 +1777,72 @@ async function dispatch(url, request, env, ctx) {
       }, existing ? 200 : 201);
     }
 
+    // DELETE /boards — bulk soft-delete
+    if (method === 'DELETE') {
+      const ids = (Array.isArray(body.board_ids) ? body.board_ids : []).map(String).filter(Boolean);
+      if (!ids.length) throw fail(400, 'bad_request', 'board_ids is required');
+      if (ids.length > MAX_BOARDS_PER_CALL) {
+        throw fail(400, 'bad_request', `at most ${MAX_BOARDS_PER_CALL} boards per call`);
+      }
+      const bad = ids.filter((b) => !isUuid(b));
+      if (bad.length) throw fail(400, 'bad_request', `board_ids must be uuids — got ${bad[0]}`);
+
+      // One RPC per board, as the single delete does. soft_delete_board is the
+      // app's own path and going around it would leave the Trash and restore
+      // working on something this had already changed differently.
+      const deleted = [];
+      const failed = [];
+      for (const bid of ids) {
+        try {
+          await userRpc(env, token, 'soft_delete_board', { p_board_id: bid });
+          deleted.push(bid);
+        } catch (_) {
+          failed.push(bid);
+        }
+      }
+      return json({
+        deleted: deleted.length,
+        board_ids: deleted,
+        failed,
+        restorable: true,
+        restore_with: 'POST /api/v1/boards/:id/restore',
+      });
+    }
+
     throw fail(405, 'method_not_allowed', 'method not allowed');
+  }
+
+  // POST /boards/move — bulk reparent
+  //
+  // move_boards_under has always taken a uuid[]; this API had only ever passed
+  // it a single-element array. It is the ONLY write path for parent_board_id
+  // (0118) and the only thing that checks for cycles, so restructuring a show
+  // tree goes through it, in one call, with per-board reasons for anything it
+  // refused rather than one opaque failure for the batch.
+  if (id === 'move' && method === 'POST') {
+    trace.route = '/boards/move';
+    const ids = (Array.isArray(body.board_ids) ? body.board_ids : []).map(String).filter(Boolean);
+    if (!ids.length) throw fail(400, 'bad_request', 'board_ids is required');
+    if (ids.length > MAX_BOARDS_PER_CALL) {
+      throw fail(400, 'bad_request', `at most ${MAX_BOARDS_PER_CALL} boards per call`);
+    }
+    const bad = ids.filter((b) => !isUuid(b));
+    if (bad.length) throw fail(400, 'bad_request', `board_ids must be uuids — got ${bad[0]}`);
+    const target = body.parent_board_id ?? null;
+    if (target && !isUuid(target)) {
+      throw fail(400, 'bad_request', 'parent_board_id must be a uuid or null');
+    }
+
+    const out = await userRpc(env, token, 'move_boards_under',
+      { p_child_ids: ids, p_target_id: target });
+    return json({
+      moved: (out?.moved || []).length,
+      board_ids: out?.moved || [],
+      // Named reasons — missing, self, no-write, cross-workspace, same-parent,
+      // cycle — because "it did not work" is not something a caller can act on.
+      skipped: out?.skipped || [],
+      parent_board_id: target,
+    });
   }
 
   // GET /boards/tree?root=&workspace=&depth=
@@ -1953,6 +2276,83 @@ async function dispatch(url, request, env, ctx) {
       // already-open canvas will not show them until it reloads.
       live: result.live,
     }, 201);
+  }
+
+  // PATCH /boards/:id/cards — bulk patch
+  //
+  // ONE board open for the whole batch, not one per card. The second pass of a
+  // re-runnable import is exactly this shape, and updateCardOnBoard opens,
+  // syncs, commits and closes each time — fine for one card, ruinous for five
+  // hundred.
+  if (!subId && method === 'PATCH') {
+    trace.route = '/boards/:id/cards';
+    const incoming = Array.isArray(body.cards) ? body.cards : [];
+    if (!incoming.length) throw fail(400, 'bad_request', 'cards is required');
+    if (incoming.length > MAX_CARDS_PER_CALL) {
+      throw fail(400, 'bad_request', `at most ${MAX_CARDS_PER_CALL} cards per call`);
+    }
+    const ids = incoming.map((c, i) => {
+      const cid = String(c?.id ?? '').trim();
+      if (!cid) throw fail(400, 'bad_request', `cards[${i}].id is required`);
+      return cid;
+    });
+    const metas = incoming.map((c, i) => {
+      try {
+        return metaFromBody(c);
+      } catch (e) {
+        e.message = `cards[${i}]: ${e.message}`;
+        throw e;
+      }
+    });
+
+    const out = await updateCardsOnBoard(env, {
+      boardId: id, workspaceId: board.workspace_id, userId: auth.userId, accessToken: token,
+      patches: incoming.map((c, i) => ({
+        cardId: ids[i],
+        patch: (before) => normalizeIncomingCard(c, { partial: true, existingKind: before?.kind }),
+      })),
+    });
+
+    await saveMetaBulk(env, token, {
+      workspaceId: board.workspace_id, boardId: id, objectType: 'card', userId: auth.userId,
+      entries: out.map((c, i) => (c
+        ? { objectId: c.id, props: metas[i].props, identifiers: metas[i].identifiers }
+        : null)).filter(Boolean),
+    });
+
+    // A card id that was not on the board is reported, not silently dropped —
+    // a bulk patch that quietly does nothing for some of its input is worse
+    // than one that fails.
+    const missing = ids.filter((_, i) => !out[i]);
+    return json({
+      board_id: id,
+      cards: out.filter(Boolean).map(publicCard),
+      updated: out.filter(Boolean).length,
+      not_found: missing,
+    });
+  }
+
+  // DELETE /boards/:id/cards — bulk delete
+  if (!subId && method === 'DELETE') {
+    trace.route = '/boards/:id/cards';
+    const cardIds = (Array.isArray(body.card_ids) ? body.card_ids : []).map(String).filter(Boolean);
+    if (!cardIds.length) throw fail(400, 'bad_request', 'card_ids is required');
+    if (cardIds.length > MAX_CARDS_PER_CALL) {
+      throw fail(400, 'bad_request', `at most ${MAX_CARDS_PER_CALL} cards per call`);
+    }
+    const removed = await deleteCardsFromBoard(env, {
+      boardId: id, accessToken: token, cardIds,
+    });
+    await purgeCardMeta(env, token, { boardId: id, cardIds });
+    // Every removed card comes back in full, for the same reason the single
+    // delete does it: an HTTP client has no undo toast, so the response body IS
+    // the undo.
+    return json({
+      deleted: removed.length,
+      cards: removed.map(publicCard),
+      not_found: cardIds.filter((c) => !removed.some((r) => String(r.id) === c)),
+      restore_with: `POST /api/v1/boards/${id}/cards`,
+    });
   }
 
   // /boards/:id/cards/move

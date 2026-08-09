@@ -85,6 +85,6 @@ Creator removes the limit entirely. See [Plans](/docs/account/plans).
 ## Cards through the API
 
 The [REST API](/docs/api/cards) exposes a deliberately narrower card model than
-the canvas: `doc`, `image`, `link`, `note`. An API caller can set position, size, title,
+the canvas: `doc`, `file`, `image`, `link`, `note`, `video`. An API caller can set position, size, title,
 body, HTML, URL, image key and colour, and nothing else — interior state that
 belongs to the editor is not writable from outside.

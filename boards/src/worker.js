@@ -19,6 +19,7 @@ import { handleTagsRoute } from './worker-tags.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
 import { handleApiRoute } from './worker-api.js';
+import { runWebhooks } from './lib/webhooks.js';
 import {
   handleScoutSession, handleScoutSessionMint, handleScoutSignup, handleScoutClaim,
 } from './worker-scout.js';
@@ -528,7 +529,13 @@ export default {
     //
     // event.cron lets us distinguish which schedule fired this invocation.
     const which = event?.cron || '';
-    if (which === '15 * * * *') {
+    if (which === '* * * * *') {
+      // Webhook drain. Every minute because an outbox is only as timely as its
+      // slowest path, and the slow path here is a change made IN THE APP —
+      // API-driven events already leave immediately via waitUntil in
+      // worker-api.js. Costs one indexed probe when nothing is pending.
+      ctx.waitUntil(runWebhooks(env, { limit: 200 }));
+    } else if (which === '15 * * * *') {
       ctx.waitUntil(runCompactionJob1(env));
     } else if (which === '0 4 * * *') {
       // daily 04:00 UTC — fill in any missing image sizes (additive, runs live),

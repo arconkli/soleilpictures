@@ -5148,6 +5148,14 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
+     "v": "file"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
      "v": "image"
     },
     {
@@ -5165,6 +5173,14 @@ export const DOCS_CONTENT = {
     {
      "t": "code",
      "v": "note"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "video"
     },
     {
      "t": "text",
@@ -23789,6 +23805,126 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "PATCH /boards/:id/cards"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Change many cards in one call"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "DELETE /boards/:id/cards"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Remove many cards in one call"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /boards/move"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Reparent many boards, cycle-safe"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "DELETE /boards"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Soft-delete many boards"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET /audit"
+      }
+     ],
+     [
+      {
+       "t": "link",
+       "v": "Audit log",
+       "href": "/docs/api/audit",
+       "children": [
+        {
+         "t": "text",
+         "v": "Audit log"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " of writes and image reads"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /webhooks"
+      }
+     ],
+     [
+      {
+       "t": "link",
+       "v": "Webhooks",
+       "href": "/docs/api/webhooks",
+       "children": [
+        {
+         "t": "text",
+         "v": "Webhooks"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " — get told when things change"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET /webhooks/:id/deliveries"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Every attempt, with its result"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "GET /service-accounts"
       }
      ],
@@ -27076,6 +27212,155 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "POST /boards/move — restructure in one call",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /boards/move"
+    },
+    {
+     "t": "text",
+     "v": " — restructure in one call"
+    }
+   ],
+   "id": "post-boards-move-restructure-in-one-call"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"board_ids\": [\"3b7e…\", \"9f1c…\"], \"parent_board_id\": \"a2c4…\" }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pass "
+    },
+    {
+     "t": "code",
+     "v": "\"parent_board_id\": null"
+    },
+    {
+     "t": "text",
+     "v": " to move boards to the top level. Up to 500 at a time."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Reparenting always goes through the app's own move path — the only thing that checks for cycles, because a board made its own ancestor detaches that whole subtree from every view there is. Anything it refuses comes back in "
+    },
+    {
+     "t": "code",
+     "v": "skipped"
+    },
+    {
+     "t": "text",
+     "v": " with a named reason ("
+    },
+    {
+     "t": "code",
+     "v": "cycle"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "cross-workspace"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "no-write"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "same-parent"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "missing"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "self"
+    },
+    {
+     "t": "text",
+     "v": ") rather than as one opaque failure for the batch."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "DELETE /boards — many at once",
+   "inline": [
+    {
+     "t": "code",
+     "v": "DELETE /boards"
+    },
+    {
+     "t": "text",
+     "v": " — many at once"
+    }
+   ],
+   "id": "delete-boards-many-at-once"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"board_ids\": [\"3b7e…\", \"9f1c…\"] }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Soft, and restorable one at a time, exactly like the single delete. Sent as a JSON body on "
+    },
+    {
+     "t": "code",
+     "v": "DELETE"
+    },
+    {
+     "t": "text",
+     "v": " so a destructive call stays a "
+    },
+    {
+     "t": "code",
+     "v": "DELETE"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "POST /boards/:id/restore",
    "inline": [
     {
@@ -27230,6 +27515,14 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
+     "v": "file"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
      "v": "image"
     },
     {
@@ -27250,7 +27543,262 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "video"
+    },
+    {
+     "t": "text",
      "v": "."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Kind"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Carries"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "note"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "title"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "body"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "html"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "image"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "image_key"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "alt"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "body"
+      },
+      {
+       "t": "text",
+       "v": " as the caption"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "link"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "url"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "title"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "body"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "doc"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "title"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "body"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "html"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "video"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "file_key"
+      },
+      {
+       "t": "text",
+       "v": ", optional "
+      },
+      {
+       "t": "code",
+       "v": "poster_key"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "file"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "file_key"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "file_name"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "mime"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "ext"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "size_bytes"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "video"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "file"
+    },
+    {
+     "t": "text",
+     "v": " exist because "
+    },
+    {
+     "t": "link",
+     "v": "multipart upload",
+     "href": "/docs/api/images",
+     "children": [
+      {
+       "t": "text",
+       "v": "multipart upload"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " accepts ProRes, MXF, DPX and camera raw — so without them you could upload a two-terabyte camera master and then have no way to put it on a board. An upload you cannot place is not an upload."
     }
    ]
   },
@@ -27298,7 +27846,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "This is narrower than "
+     "v": "This is still narrower than "
     },
     {
      "t": "link",
@@ -27313,7 +27861,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Grids, schedules, palettes and shapes are created in the app."
+     "v": ". Grids, schedules, palettes and shapes are created in the app; you can read them here, and "
+    },
+    {
+     "t": "code",
+     "v": "?include=raw"
+    },
+    {
+     "t": "text",
+     "v": " gives you their full contents."
     }
    ]
   },
@@ -27368,7 +27924,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "one of the four above"
+       "v": "one of the six above"
       }
      ]
     ],
@@ -27487,6 +28043,142 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "file_key"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "string"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "500 chars — for "
+      },
+      {
+       "t": "code",
+       "v": "video"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "file"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "poster_key"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "string"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "500 chars — a still for a "
+      },
+      {
+       "t": "code",
+       "v": "video"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "file_name"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "string"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "300 chars"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "mime"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "string"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "200 chars"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "ext"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "string"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "20 chars"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "size_bytes"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "number"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "rounded"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "alt"
       }
      ],
@@ -27520,6 +28212,45 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "40 chars"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "props"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "identifiers"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "see "
+      },
+      {
+       "t": "link",
+       "v": "Identifiers and properties",
+       "href": "/docs/api/metadata",
+       "children": [
+        {
+         "t": "text",
+         "v": "Identifiers and properties"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": ""
       }
      ]
     ],
@@ -28333,6 +29064,139 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " directly, whether or not you are upserting."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "PATCH /boards/:id/cards — many at once",
+   "inline": [
+    {
+     "t": "code",
+     "v": "PATCH /boards/:id/cards"
+    },
+    {
+     "t": "text",
+     "v": " — many at once"
+    }
+   ],
+   "id": "patch-boards-id-cards-many-at-once"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"cards\": [\n  { \"id\": \"api-m8x2p1-7fq3ka\", \"title\": \"Approved\" },\n  { \"id\": \"api-m8x2p1-9wq2lb\", \"props\": { \"status\": \"final\" } }\n] }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Up to 1000 per call. Each entry needs an "
+    },
+    {
+     "t": "code",
+     "v": "id"
+    },
+    {
+     "t": "text",
+     "v": "; everything else is an ordinary partial patch."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The board is opened "
+    },
+    {
+     "t": "strong",
+     "v": "once",
+     "children": [
+      {
+       "t": "text",
+       "v": "once"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for the whole batch, which is the difference between a five-hundred-card update taking a second and taking a minute — patching one at a time opens, syncs, commits and closes each time."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Ids that were not on the board come back in "
+    },
+    {
+     "t": "code",
+     "v": "not_found"
+    },
+    {
+     "t": "text",
+     "v": " rather than being silently skipped, because a bulk write that quietly does nothing for part of its input is worse than one that fails."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "DELETE /boards/:id/cards — many at once",
+   "inline": [
+    {
+     "t": "code",
+     "v": "DELETE /boards/:id/cards"
+    },
+    {
+     "t": "text",
+     "v": " — many at once"
+    }
+   ],
+   "id": "delete-boards-id-cards-many-at-once"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"card_ids\": [\"api-m8x2p1-7fq3ka\", \"api-m8x2p1-9wq2lb\"] }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sent as a JSON body on "
+    },
+    {
+     "t": "code",
+     "v": "DELETE"
+    },
+    {
+     "t": "text",
+     "v": ", which is unusual but deliberate: a thousand card ids do not fit in a query string, and making a destructive call look like a "
+    },
+    {
+     "t": "code",
+     "v": "POST"
+    },
+    {
+     "t": "text",
+     "v": " would mislead every proxy, log and permission check between you and it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every removed card comes back in full, so the response is the undo."
     }
    ]
   },
@@ -33062,6 +33926,14 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
+     "v": "file"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
      "v": "image"
     },
     {
@@ -33079,6 +33951,14 @@ export const DOCS_CONTENT = {
     {
      "t": "code",
      "v": "note"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "video"
     },
     {
      "t": "text",
@@ -33527,6 +34407,722 @@ export const DOCS_CONTENT = {
       ]
      }
     ]
+   ]
+  }
+ ],
+ "/docs/api/webhooks": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Register an HTTPS endpoint and we post to it when something changes."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Including changes made in the app.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Including changes made in the app."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " That is the part worth stating plainly: events come from the database, not from the API request handler, so a card someone drags on the canvas fires the same event as one added by your importer. A webhook that only saw API traffic would miss almost everything that actually happens to a board."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Register one",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Register one"
+    }
+   ],
+   "id": "register-one"
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST \"$SOLEIL_API/webhooks\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" -H \"Content-Type: application/json\" \\\n  -d '{\"workspace_id\":\"'$WS'\",\"url\":\"https://hooks.example.com/soleil\",\n       \"events\":[\"card.created\",\"card.updated\",\"board.created\"],\n       \"name\":\"pipeline sync\"}'"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"webhook\": { \"id\": \"a2c4…\", \"url\": \"https://hooks.example.com/soleil\",\n               \"events\": [\"card.created\",\"card.updated\",\"board.created\"], \"active\": true },\n  \"secret\": \"whsec_…\",\n  \"next\": \"Verify each delivery: HMAC-SHA256 of \\\"v0:{timestamp}:{body}\\\", compared with the X-Soleil-Signature header.\" }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "`secret` is returned once and never again.",
+     "children": [
+      {
+       "t": "code",
+       "v": "secret"
+      },
+      {
+       "t": "text",
+       "v": " is returned once and never again."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " There is no read path for it, over the API or in the database."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The URL must be "
+    },
+    {
+     "t": "strong",
+     "v": "public HTTPS on the default port",
+     "children": [
+      {
+       "t": "text",
+       "v": "public HTTPS on the default port"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". We fetch it from our own address on a schedule, which is the shape of a server-side request forgery, so private ranges, loopback, metadata hosts and non-default ports are refused."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pass "
+    },
+    {
+     "t": "code",
+     "v": "\"events\": [\"*\"]"
+    },
+    {
+     "t": "text",
+     "v": " to subscribe to everything, including event types added later. An unknown event name is a "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": " rather than a subscription that never fires — \"subscribed and silent\" is the hardest webhook failure to diagnose."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Events",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Events"
+    }
+   ],
+   "id": "events"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Event"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "When"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "board.created"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A board is created"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "board.updated"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Its name, view or parent changes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "board.deleted"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Soft-deleted, or removed outright"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "board.restored"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Brought back from the trash"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "card.created"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Cards are added to a board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "card.updated"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Their text or contents change"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "card.deleted"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Cards are removed"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "card.moved"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Cards move to another board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "image.created"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An upload completes"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Card events are grouped.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Card events are grouped."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " A single operation on a board produces one event carrying a count, not one per card — so importing a thousand cards is one delivery, not a thousand. "
+    },
+    {
+     "t": "code",
+     "v": "data.card_ids"
+    },
+    {
+     "t": "text",
+     "v": " carries the first 25 as a courtesy; past that, read the board."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "The payload",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The payload"
+    }
+   ],
+   "id": "the-payload"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"type\": \"card.created\",\n  \"resource\": { \"type\": \"card\", \"id\": \"…\" },\n  \"workspace\": { \"id\": \"3b7e…\" },\n  \"board\": { \"id\": \"9f1c…\" },\n  \"data\": { \"count\": 412, \"card_ids\": [\"…\", \"…\"] },\n  \"occurred_at\": \"2026-08-09T12:00:00.412Z\"\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Deliberately thin. A payload is a copy of the truth, and a copy goes stale between being sent and being read — worse, it goes stale "
+    },
+    {
+     "t": "em",
+     "v": "silently",
+     "children": [
+      {
+       "t": "text",
+       "v": "silently"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". You get enough to know what to look at; call back for current state, with "
+    },
+    {
+     "t": "link",
+     "v": "`?since=`",
+     "href": "/docs/api/boards",
+     "children": [
+      {
+       "t": "code",
+       "v": "?since="
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " if you want everything that moved."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Verifying a delivery",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Verifying a delivery"
+    }
+   ],
+   "id": "verifying-a-delivery"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Header"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "X-Soleil-Signature"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "v0=<hex>"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "X-Soleil-Request-Timestamp"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Unix seconds"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "X-Soleil-Event"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The event type"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "X-Soleil-Delivery"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "This delivery's id — useful in your own logs"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Compute "
+    },
+    {
+     "t": "code",
+     "v": "HMAC-SHA256(secret, \"v0:\" + timestamp + \":\" + rawBody)"
+    },
+    {
+     "t": "text",
+     "v": " and compare it with the signature. "
+    },
+    {
+     "t": "strong",
+     "v": "Use the raw body",
+     "children": [
+      {
+       "t": "text",
+       "v": "Use the raw body"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", before any JSON parsing — re-serializing changes the bytes and the signature will not match."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "python",
+   "code": "import hmac, hashlib, time\n\ndef verify(secret, headers, raw_body):\n    ts = headers[\"X-Soleil-Request-Timestamp\"]\n    if abs(time.time() - int(ts)) > 300:        # five-minute replay window\n        return False\n    expected = \"v0=\" + hmac.new(\n        secret.encode(), f\"v0:{ts}:\".encode() + raw_body, hashlib.sha256\n    ).hexdigest()\n    return hmac.compare_digest(expected, headers[\"X-Soleil-Signature\"])"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "This is the same scheme Frame.io uses, on purpose — if you have integrated with them, the verifier you already wrote works here."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Reject anything outside the five-minute window, and compare in constant time."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Retries",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Retries"
+    }
+   ],
+   "id": "retries"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Six attempts: after "
+    },
+    {
+     "t": "strong",
+     "v": "1 minute, 5 minutes, 25 minutes, ~2 hours and ~10 hours",
+     "children": [
+      {
+       "t": "text",
+       "v": "1 minute, 5 minutes, 25 minutes, ~2 hours and ~10 hours"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". That is over twelve hours in total, so an endpoint that is down overnight still receives its events."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Any non-2xx, or a connection failure, counts as a failure. Respond "
+    },
+    {
+     "t": "code",
+     "v": "2xx"
+    },
+    {
+     "t": "text",
+     "v": " as soon as you have durably accepted the delivery and do your work afterwards — a slow receiver is a retried receiver. We give up on a single delivery after ten seconds."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "After "
+    },
+    {
+     "t": "strong",
+     "v": "20 consecutive failures",
+     "children": [
+      {
+       "t": "text",
+       "v": "20 consecutive failures"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " across all deliveries a webhook is switched off, with "
+    },
+    {
+     "t": "code",
+     "v": "disabled_reason"
+    },
+    {
+     "t": "text",
+     "v": " saying why. A single success resets the counter, so this only ever fires for a genuinely dead endpoint. Re-enable with "
+    },
+    {
+     "t": "code",
+     "v": "PATCH /webhooks/:id {\"active\": true}"
+    },
+    {
+     "t": "text",
+     "v": ", which also clears the failure state."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "The delivery log",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The delivery log"
+    }
+   ],
+   "id": "the-delivery-log"
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl \"$SOLEIL_API/webhooks/$HOOK/deliveries?limit=50\" -H \"Authorization: Bearer $SOLEIL_TOKEN\""
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every attempt, with its status, duration, error and the exact payload sent. \"We sent it\" without a record is not an answer, so there is a record."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "# Send a real delivery through the real path, to check signing end to end\ncurl -X POST \"$SOLEIL_API/webhooks/$HOOK/test\" -H \"Authorization: Bearer $SOLEIL_TOKEN\"\n\n# Replay one you missed\ncurl -X POST \"$SOLEIL_API/webhooks/$HOOK/deliveries/$DELIVERY/redeliver\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\""
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /webhooks/:id/test"
+    },
+    {
+     "t": "text",
+     "v": " sends through the delivery path everything else uses, so what it proves is what will actually happen. "
+    },
+    {
+     "t": "code",
+     "v": "POST /webhooks/:id/deliveries/:deliveryId/redeliver"
+    },
+    {
+     "t": "text",
+     "v": " requeues rather than sending inline, so a replay is retried and recorded exactly like any other delivery."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Deliveries are kept for 30 days."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Managing them",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Managing them"
+    }
+   ],
+   "id": "managing-them"
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl \"$SOLEIL_API/webhooks?workspace=$WS\" -H \"Authorization: Bearer $SOLEIL_TOKEN\"\ncurl -X PATCH \"$SOLEIL_API/webhooks/$HOOK\" -H \"Authorization: Bearer $SOLEIL_TOKEN\" \\\n  -H \"Content-Type: application/json\" -d '{\"events\":[\"*\"],\"active\":true}'\ncurl -X DELETE \"$SOLEIL_API/webhooks/$HOOK\" -H \"Authorization: Bearer $SOLEIL_TOKEN\""
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Up to 20 active webhooks per workspace. Listing never returns the secret."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Timing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Timing"
+    }
+   ],
+   "id": "timing"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An event caused by an API call is delivered "
+    },
+    {
+     "t": "strong",
+     "v": "immediately",
+     "children": [
+      {
+       "t": "text",
+       "v": "immediately"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". An event caused by someone working in the app is picked up within a minute. Both go through the same queue and the same retry policy; only the pickup differs."
+    }
    ]
   }
  ],
@@ -34233,6 +35829,373 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "A useful rule: if losing access to it would interrupt someone other than you, it should be a service account."
+    }
+   ]
+  }
+ ],
+ "/docs/api/audit": [
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl \"$SOLEIL_API/audit?limit=100\" -H \"Authorization: Bearer $SOLEIL_TOKEN\""
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"entries\": [\n    { \"id\": \"80421\", \"at\": \"2026-08-09T12:00:04.120Z\",\n      \"actor\": \"Pipeline sync\", \"actor_id\": \"9f1c…\",\n      \"token_id\": \"a2c4…\", \"token_name\": \"Pipeline sync token\",\n      \"method\": \"POST\", \"route\": \"/boards/:id/cards\",\n      \"target_id\": \"3b7e…\", \"status\": 201, \"ms\": 214 }\n  ],\n  \"limit\": 100,\n  \"has_more\": true,\n  \"next_cursor\": \"80421\",\n  \"covers\": \"writes made through /api/v1 and reads of image bytes\"\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Newest first. Pass "
+    },
+    {
+     "t": "code",
+     "v": "next_cursor"
+    },
+    {
+     "t": "text",
+     "v": " back as "
+    },
+    {
+     "t": "code",
+     "v": "cursor"
+    },
+    {
+     "t": "text",
+     "v": ", and "
+    },
+    {
+     "t": "code",
+     "v": "since"
+    },
+    {
+     "t": "text",
+     "v": " to bound it by time."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "What is in it",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What is in it"
+    }
+   ],
+   "id": "what-is-in-it"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Writes",
+       "children": [
+        {
+         "t": "text",
+         "v": "Writes"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Every "
+      },
+      {
+       "t": "code",
+       "v": "POST"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "PATCH"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "DELETE"
+      },
+      {
+       "t": "text",
+       "v": " through "
+      },
+      {
+       "t": "code",
+       "v": "/api/v1"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Image reads",
+       "children": [
+        {
+         "t": "text",
+         "v": "Image reads"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Every fetch of "
+      },
+      {
+       "t": "code",
+       "v": "GET /images/:key"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Not included",
+       "children": [
+        {
+         "t": "text",
+         "v": "Not included"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Ordinary reads, and anything done in the app"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Retention",
+       "children": [
+        {
+         "t": "text",
+         "v": "Retention"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "30 days"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Ordinary reads are left out because they are the bulk of API traffic and are mostly noise. Image bytes are the exception, and deliberately so: that request is content "
+    },
+    {
+     "t": "strong",
+     "v": "leaving",
+     "children": [
+      {
+       "t": "text",
+       "v": "leaving"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which is the thing a security review actually asks about."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "route"
+    },
+    {
+     "t": "text",
+     "v": " is the "
+    },
+    {
+     "t": "strong",
+     "v": "templated",
+     "children": [
+      {
+       "t": "text",
+       "v": "templated"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " path — "
+    },
+    {
+     "t": "code",
+     "v": "/boards/:id/cards"
+    },
+    {
+     "t": "text",
+     "v": ", not the specific board — with the object in "
+    },
+    {
+     "t": "code",
+     "v": "target_id"
+    },
+    {
+     "t": "text",
+     "v": ". That way the log groups by operation and you can still see what each one touched."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Whose activity",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Whose activity"
+    }
+   ],
+   "id": "whose-activity"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Your own, plus every "
+    },
+    {
+     "t": "link",
+     "v": "service account",
+     "href": "/docs/api/service-accounts",
+     "children": [
+      {
+       "t": "text",
+       "v": "service account"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " belonging to a workspace you own. "
+    },
+    {
+     "t": "code",
+     "v": "actor"
+    },
+    {
+     "t": "text",
+     "v": " is the service account's name, or the person's display name."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "That pairing is the point. A service account is a credential a team depends on, and being unable to see what it did would make it exactly the kind of anonymous shared secret it exists to replace."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Disabling a service account does not remove it from the log: the record is kept so past entries still resolve to a name rather than a deleted id."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "What this is not",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What this is not"
+    }
+   ],
+   "id": "what-this-is-not"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It is not a complete history of a board. Changes made on the canvas do not appear here, because this records API traffic, not edits. If you need to know that a board changed — whoever changed it — use "
+    },
+    {
+     "t": "link",
+     "v": "`GET /boards?since=`",
+     "href": "/docs/api/boards",
+     "children": [
+      {
+       "t": "code",
+       "v": "GET /boards?since="
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or subscribe to a "
+    },
+    {
+     "t": "link",
+     "v": "webhook",
+     "href": "/docs/api/webhooks",
+     "children": [
+      {
+       "t": "text",
+       "v": "webhook"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", both of which see app activity too."
     }
    ]
   }

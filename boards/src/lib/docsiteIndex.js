@@ -2831,6 +2831,14 @@ export const DOCS_PAGES = [
         "text": "DELETE /boards/:id"
       },
       {
+        "id": "post-boards-move-restructure-in-one-call",
+        "text": "POST /boards/move — restructure in one call"
+      },
+      {
+        "id": "delete-boards-many-at-once",
+        "text": "DELETE /boards — many at once"
+      },
+      {
         "id": "post-boards-id-restore",
         "text": "POST /boards/:id/restore"
       },
@@ -2864,7 +2872,7 @@ export const DOCS_PAGES = [
     "title": "Cards API — Soleil Clusters",
     "metaDescription": "Add, read, update, move and delete Soleil Clusters cards over REST. Field reference, size limits, auto-placement and the delete-is-the-undo pattern.",
     "h1": "Cards API",
-    "answer": "Read a board's cards with GET /boards/:id/cards, add up to 100 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Four card kinds are accepted and an unknown kind is rejected rather than silently coerced.",
+    "answer": "Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Six card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.",
     "section": "developers",
     "order": 4,
     "updated": "2026-08-08",
@@ -2889,6 +2897,14 @@ export const DOCS_PAGES = [
       {
         "id": "post-boards-id-cards",
         "text": "POST /boards/:id/cards"
+      },
+      {
+        "id": "patch-boards-id-cards-many-at-once",
+        "text": "PATCH /boards/:id/cards — many at once"
+      },
+      {
+        "id": "delete-boards-id-cards-many-at-once",
+        "text": "DELETE /boards/:id/cards — many at once"
       },
       {
         "id": "patch-boards-id-cards-cardid",
@@ -3264,6 +3280,78 @@ export const DOCS_PAGES = [
     ]
   },
   {
+    "path": "/docs/api/webhooks",
+    "title": "Webhooks — Soleil Clusters API",
+    "metaDescription": "Get notified when boards and cards change, including changes made in the app. Signed deliveries, a delivery log you can inspect, and redelivery.",
+    "h1": "Webhooks",
+    "answer": "Register an HTTPS endpoint and Soleil Clusters posts to it when boards and cards change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.",
+    "section": "developers",
+    "order": 10,
+    "updated": "2026-08-09",
+    "navLabel": "Webhooks",
+    "headings": [
+      {
+        "id": "register-one",
+        "text": "Register one"
+      },
+      {
+        "id": "events",
+        "text": "Events"
+      },
+      {
+        "id": "the-payload",
+        "text": "The payload"
+      },
+      {
+        "id": "verifying-a-delivery",
+        "text": "Verifying a delivery"
+      },
+      {
+        "id": "retries",
+        "text": "Retries"
+      },
+      {
+        "id": "the-delivery-log",
+        "text": "The delivery log"
+      },
+      {
+        "id": "managing-them",
+        "text": "Managing them"
+      },
+      {
+        "id": "timing",
+        "text": "Timing"
+      }
+    ],
+    "related": [
+      "/docs/api/boards",
+      "/docs/api/cards",
+      "/docs/api/audit"
+    ],
+    "faq": [
+      {
+        "q": "Do webhooks fire for changes made in the app?",
+        "a": "Yes. That is the main point. Events come from the database itself, so a card someone drags on the canvas fires the same event as one added through the API."
+      },
+      {
+        "q": "How do I verify a delivery is really from you?",
+        "a": "HMAC-SHA256 of \"v0:{timestamp}:{body}\" using the secret from the create response, compared with the X-Soleil-Signature header. Reject anything with a timestamp more than five minutes old."
+      },
+      {
+        "q": "Does a thousand-card import send a thousand webhooks?",
+        "a": "No. Card events are grouped per board per operation, so that batch is one delivery carrying a count."
+      },
+      {
+        "q": "What if my endpoint is down?",
+        "a": "Six attempts over more than twelve hours. Every attempt is recorded, and you can replay any delivery from the log once you are back."
+      },
+      {
+        "q": "Why is there so little in the payload?",
+        "a": "A payload is a copy, and a copy goes stale. You get the type and the ids; call back for current state."
+      }
+    ]
+  },
+  {
     "path": "/docs/api/service-accounts",
     "title": "Service Accounts — Soleil Clusters API",
     "metaDescription": "Create a credential owned by a workspace rather than by a person, so an integration keeps working after the person who built it leaves.",
@@ -3328,6 +3416,54 @@ export const DOCS_PAGES = [
       {
         "q": "Does a service account count against my plan?",
         "a": "No. Storage and card limits are charged to the workspace owner no matter who does the writing, which is the same rule the app applies to collaborators."
+      }
+    ]
+  },
+  {
+    "path": "/docs/api/audit",
+    "title": "Audit Log — Soleil Clusters API",
+    "metaDescription": "Read who changed what through the API, and who fetched image bytes, with cursor paging. Covers your own calls and your service accounts'.",
+    "h1": "Audit log",
+    "answer": "GET /audit returns a record of every write made through the API and every fetch of image bytes, newest first, cursor-paged. You see your own activity, and if you own a workspace you also see everything its service accounts did. Entries carry the actor, the token used, the method and templated route, the object touched, the status and the duration.",
+    "section": "developers",
+    "order": 12,
+    "updated": "2026-08-09",
+    "navLabel": "Audit log",
+    "headings": [
+      {
+        "id": "what-is-in-it",
+        "text": "What is in it"
+      },
+      {
+        "id": "whose-activity",
+        "text": "Whose activity"
+      },
+      {
+        "id": "what-this-is-not",
+        "text": "What this is not"
+      }
+    ],
+    "related": [
+      "/docs/api/service-accounts",
+      "/docs/api/authentication",
+      "/docs/api/errors"
+    ],
+    "faq": [
+      {
+        "q": "Does this cover changes made in the app?",
+        "a": "No. It records writes through /api/v1 and reads of image bytes. Edits someone makes on the canvas are not in it."
+      },
+      {
+        "q": "Whose activity can I see?",
+        "a": "Your own, plus every service account belonging to a workspace you own."
+      },
+      {
+        "q": "Why are ordinary reads not recorded?",
+        "a": "They are the bulk of API traffic and mostly noise. Fetching image bytes is the exception, because that is content leaving."
+      },
+      {
+        "q": "How long is it kept?",
+        "a": "30 days."
       }
     ]
   }

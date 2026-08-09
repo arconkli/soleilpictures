@@ -1,9 +1,13 @@
 {
   "restEndpoints": [
+    "DELETE /boards {\"board_ids\":[…]} — bulk soft-delete",
     "DELETE /boards/:id",
+    "DELETE /boards/:id/cards {\"card_ids\":[…]} — bulk",
     "DELETE /boards/:id/cards/:cardId",
     "DELETE /service-accounts/:id",
     "DELETE /service-accounts/:id/tokens/:tokenId",
+    "DELETE /webhooks/:id",
+    "GET /audit?since=&cursor=&limit=",
     "GET /boards/:id",
     "GET /boards/:id/cards?source=live|index&since=&cursor=&include=&limit=&offset=",
     "GET /boards/:id/export?format=json|omc",
@@ -16,21 +20,29 @@
     "GET /search?q=&kind=&workspace=&limit=&offset=",
     "GET /service-accounts/:id/tokens",
     "GET /service-accounts?workspace=",
+    "GET /webhooks/:id/deliveries?limit=&cursor=",
+    "GET /webhooks?workspace=",
     "GET /workspaces",
     "PATCH /boards/:id",
+    "PATCH /boards/:id/cards {\"cards\":[…]} — bulk",
     "PATCH /boards/:id/cards/:cardId",
+    "PATCH /webhooks/:id",
     "POST /boards",
     "POST /boards {\"boards\":[…]} — bulk, up to 500",
     "POST /boards/:id/cards",
     "POST /boards/:id/cards/move",
     "POST /boards/:id/restore",
+    "POST /boards/move",
     "POST /service-accounts",
     "POST /service-accounts/:id/tokens",
     "POST /uploads/multipart/abort",
     "POST /uploads/multipart/complete",
     "POST /uploads/multipart/parts",
     "POST /uploads/multipart?board=:id",
-    "POST /uploads?board=:id"
+    "POST /uploads?board=:id",
+    "POST /webhooks",
+    "POST /webhooks/:id/deliveries/:deliveryId/redeliver",
+    "POST /webhooks/:id/test"
   ],
   "mcpTools": [
     {
@@ -100,9 +112,11 @@
   ],
   "apiCardKinds": [
     "doc",
+    "file",
     "image",
     "link",
-    "note"
+    "note",
+    "video"
   ],
   "apiScopes": [
     "delete",

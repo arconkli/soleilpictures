@@ -83,7 +83,7 @@ quietly failing.
 | `delete_card` | `board_id`, `card_id` |
 | `delete_board` | `board_id` |
 
-Card `kind` is `doc`, `image`, `link`, `note`, defaulting to `note`.
+Card `kind` is `doc`, `file`, `image`, `link`, `note`, `video`, defaulting to `note`.
 
 ## Adding an image
 
