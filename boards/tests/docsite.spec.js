@@ -27,11 +27,17 @@ test('hub renders: h1, extractable answer, nav sections, machine-readable footer
   await expect(page.locator('.docs-answer')).toHaveText(HUB.answer);
   await expect(page).toHaveTitle(HUB.title);
 
-  // Every section with pages appears in the nav.
+  // Every section with pages appears in the nav as a (collapsible) heading.
   const labels = DOCS_SECTIONS
     .filter((s) => DOCS_PAGES.some((p) => p.section === s.id))
     .map((s) => s.label);
-  await expect(page.locator('.docs-nav-section h3')).toHaveText(labels);
+  await expect(page.locator('.docs-nav-head')).toHaveText(labels);
+
+  // Sections are collapsed except the one you are in, so the nav reads as a
+  // map rather than a 55-item wall.
+  const openLinks = await page.locator('.docs-nav-section.is-open a').count();
+  expect(openLinks).toBeGreaterThan(0);
+  expect(openLinks).toBeLessThan(DOCS_PAGES.length);
 
   // The AI-facing artifacts are advertised, not just present.
   await expect(page.locator('.docs-footer a[href="/llms.txt"]')).toBeVisible();
@@ -64,6 +70,32 @@ test('a deep page renders every block type and links to its markdown twin', asyn
   await expect(page.locator(`.docs-meta a[href="${RICH.path}.md"]`)).toBeVisible();
 });
 
+test('the content actually scrolls', async ({ page }) => {
+  // Regression guard. html/body/#root are position:fixed + overflow:hidden
+  // app-wide, so a docs layout built on page scroll renders a page that cannot
+  // be scrolled at all — which is exactly what shipped the first time. The
+  // content must scroll inside .docs-scroll, and the nav must not move with it.
+  await routeAnalytics(page, []);
+  await page.goto(RICH.path);
+
+  const scroller = page.locator('.docs-scroll');
+  const overflows = await scroller.evaluate((el) => el.scrollHeight > el.clientHeight + 50);
+  expect(overflows, 'the docs content must overflow its scroll container').toBe(true);
+
+  // behavior:'instant' because the container sets scroll-behavior:smooth —
+  // a plain scrollTop assignment animates, and reads back mid-flight.
+  await scroller.evaluate((el) => el.scrollTo({ top: 400, behavior: 'instant' }));
+  expect(await scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(300);
+
+  // The window itself must NOT scroll — if it does, the app shell is unlocked
+  // and the canvas becomes pannable as a unit on iOS.
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+  // The sidebar stays put while the article moves.
+  const navTop = await page.locator('.docs-nav').evaluate((el) => el.getBoundingClientRect().top);
+  expect(navTop).toBeLessThan(200);
+});
+
 test('nav marks the current page and moves between pages', async ({ page }) => {
   await routeAnalytics(page, []);
   await page.goto(API.path);
@@ -84,15 +116,14 @@ test('search filters the nav and reports an honest empty state', async ({ page }
   await routeAnalytics(page, []);
   await page.goto(HUB.path);
 
-  // Search covers descriptions and answers as well as titles, so a real term
-  // legitimately matches several pages. Assert it NARROWED and that the
-  // obviously-correct page survived — not an exact count, which would just
-  // encode today's prose.
-  const all = await page.locator('.docs-nav-section a').count();
+  // A search must expand every section it matched — a hit hidden inside a
+  // collapsed section is a search that looks broken. Assert the obviously
+  // correct page surfaced, and that results stay a subset of the corpus; not an
+  // exact count, which would just encode today's prose.
   await page.locator('.docs-search').fill('screenplay');
   const hits = page.locator('.docs-nav-section a');
-  await expect(hits).not.toHaveCount(all);
   await expect(hits.filter({ hasText: getDocsPage('/docs/documents/screenplay').navLabel })).toHaveCount(1);
+  expect(await hits.count()).toBeLessThan(DOCS_PAGES.length);
 
   await page.locator('.docs-search').fill('zzzznothing');
   await expect(page.locator('.docs-nav-empty')).toBeVisible();
@@ -111,6 +142,8 @@ test('an unknown docs path renders not-found, never page content', async ({ page
 test('every page in the registry loads without a console error', async ({ page }) => {
   // Cheap insurance across the whole corpus: a block shape the renderer does
   // not handle would throw here rather than in front of a reader.
+  // 55 real navigations against the dev server does not fit the default 30s.
+  test.setTimeout(180_000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });

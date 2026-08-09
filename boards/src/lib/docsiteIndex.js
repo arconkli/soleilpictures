@@ -2800,31 +2800,31 @@ export const DOCS_PAGES = [
       },
       {
         "id": "get-workspaces",
-        "text": "`GET /workspaces`"
+        "text": "GET /workspaces"
       },
       {
         "id": "get-boards",
-        "text": "`GET /boards`"
+        "text": "GET /boards"
       },
       {
         "id": "post-boards",
-        "text": "`POST /boards`"
+        "text": "POST /boards"
       },
       {
         "id": "get-boards-id",
-        "text": "`GET /boards/:id`"
+        "text": "GET /boards/:id"
       },
       {
         "id": "patch-boards-id",
-        "text": "`PATCH /boards/:id`"
+        "text": "PATCH /boards/:id"
       },
       {
         "id": "delete-boards-id",
-        "text": "`DELETE /boards/:id`"
+        "text": "DELETE /boards/:id"
       },
       {
         "id": "post-boards-id-restore",
-        "text": "`POST /boards/:id/restore`"
+        "text": "POST /boards/:id/restore"
       },
       {
         "id": "worked-example",
@@ -2876,23 +2876,23 @@ export const DOCS_PAGES = [
       },
       {
         "id": "get-boards-id-cards",
-        "text": "`GET /boards/:id/cards`"
+        "text": "GET /boards/:id/cards"
       },
       {
         "id": "post-boards-id-cards",
-        "text": "`POST /boards/:id/cards`"
+        "text": "POST /boards/:id/cards"
       },
       {
         "id": "patch-boards-id-cards-cardid",
-        "text": "`PATCH /boards/:id/cards/:cardId`"
+        "text": "PATCH /boards/:id/cards/:cardId"
       },
       {
         "id": "post-boards-id-cards-move",
-        "text": "`POST /boards/:id/cards/move`"
+        "text": "POST /boards/:id/cards/move"
       },
       {
         "id": "delete-boards-id-cards-cardid",
-        "text": "`DELETE /boards/:id/cards/:cardId`"
+        "text": "DELETE /boards/:id/cards/:cardId"
       },
       {
         "id": "images",
@@ -2936,7 +2936,7 @@ export const DOCS_PAGES = [
     "headings": [
       {
         "id": "post-uploads-board-uuid",
-        "text": "`POST /uploads?board=<uuid>`"
+        "text": "POST /uploads?board=<uuid>"
       },
       {
         "id": "then-place-it",
@@ -2948,7 +2948,7 @@ export const DOCS_PAGES = [
       },
       {
         "id": "get-images-key",
-        "text": "`GET /images/:key`"
+        "text": "GET /images/:key"
       },
       {
         "id": "why-the-images-row-matters",
@@ -2992,7 +2992,7 @@ export const DOCS_PAGES = [
     "headings": [
       {
         "id": "get-search",
-        "text": "`GET /search`"
+        "text": "GET /search"
       },
       {
         "id": "results",

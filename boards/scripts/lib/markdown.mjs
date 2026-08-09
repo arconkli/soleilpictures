@@ -28,33 +28,50 @@
 // wrong on the page instead of quietly losing content.
 
 // ── Inline ──────────────────────────────────────────────────────────────────
-// Returns an array of {t,v[,href]} nodes. Order matters: code spans are matched
-// FIRST and never re-scanned, so `**not bold**` inside backticks stays literal.
+// Returns an array of {t,v[,href][,children]} nodes.
+//
+// Order matters: code spans are matched FIRST and are TERMINAL — never
+// re-scanned — so `**` inside backticks stays literal, which matters a lot in
+// API docs full of `**kwargs` and shell globs.
+//
+// Everything else nests. Technical writing reaches for bold-wrapping-code
+// constantly ("**`read_board` truncates by default.**") and for bold links
+// ("**[`⌘K`](/docs/organize/search)**"); rendering those as literal asterisks
+// and backticks looks broken, and there are 27 of them in this corpus alone.
+// So strong/em/link carry `children` (recursively parsed) alongside `v` (the
+// flattened text, kept so simple consumers can ignore the tree).
 const INLINE_RE = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*\n]+\*)|(\[[^\]]+\]\([^)\s]+\))/g;
 
 export function parseInline(src) {
   const out = [];
   let last = 0;
-  for (const m of String(src).matchAll(INLINE_RE)) {
-    if (m.index > last) out.push({ t: 'text', v: src.slice(last, m.index) });
+  const s = String(src);
+  for (const m of s.matchAll(INLINE_RE)) {
+    if (m.index > last) out.push({ t: 'text', v: s.slice(last, m.index) });
     const tok = m[0];
-    if (m[1]) out.push({ t: 'code', v: tok.slice(1, -1) });
-    else if (m[2]) out.push({ t: 'strong', v: tok.slice(2, -2) });
-    else if (m[3]) out.push({ t: 'em', v: tok.slice(1, -1) });
-    else {
+    if (m[1]) {
+      out.push({ t: 'code', v: tok.slice(1, -1) });          // terminal
+    } else if (m[2]) {
+      const inner = tok.slice(2, -2);
+      out.push({ t: 'strong', v: inner, children: parseInline(inner) });
+    } else if (m[3]) {
+      const inner = tok.slice(1, -1);
+      out.push({ t: 'em', v: inner, children: parseInline(inner) });
+    } else {
       const link = tok.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/);
-      out.push({ t: 'link', v: link[1], href: link[2] });
+      out.push({ t: 'link', v: link[1], href: link[2], children: parseInline(link[1]) });
     }
     last = m.index + tok.length;
   }
-  if (last < src.length) out.push({ t: 'text', v: src.slice(last) });
+  if (last < s.length) out.push({ t: 'text', v: s.slice(last) });
   return out.length ? out : [{ t: 'text', v: '' }];
 }
 
 // Plain text of an inline run — used for llms-full.txt, the extractable answer,
-// and the React/Worker parity assertion.
+// heading slugs, and the React/Worker parity assertion. Descends into children
+// so nested markup flattens to the words a reader would see, not the source.
 export function inlineText(nodes) {
-  return nodes.map((n) => n.v).join('');
+  return (nodes || []).map((n) => (n.children ? inlineText(n.children) : n.v)).join('');
 }
 
 export function slugify(s) {
@@ -74,11 +91,18 @@ export function parseMarkdown(src) {
   const seenIds = new Map();   // slug -> count, so duplicate headings get -2, -3…
   let i = 0;
 
-  const pushHeading = (depth, text) => {
+  // Headings carry BOTH forms. `inline` is the parsed run, because API docs are
+  // full of `## \`POST /boards/:id/cards\`` and rendering the backticks
+  // literally looks broken. `text` is the flattened plain string, which is what
+  // the slug, the table of contents and the search index want — a TOC entry
+  // wrapped in punctuation is noise.
+  const pushHeading = (depth, raw) => {
+    const inline = parseInline(raw);
+    const text = inlineText(inline);
     const base = slugify(text);
     const n = (seenIds.get(base) || 0) + 1;
     seenIds.set(base, n);
-    blocks.push({ type: 'heading', depth, text, id: n === 1 ? base : `${base}-${n}` });
+    blocks.push({ type: 'heading', depth, text, inline, id: n === 1 ? base : `${base}-${n}` });
   };
 
   while (i < lines.length) {
@@ -188,10 +212,16 @@ export function blocksToText(blocks) {
   return out.join('\n\n');
 }
 
-// Every internal link in a page, for the link checker.
+// Every internal link in a page, for the link checker. Descends into children,
+// or a link nested inside bold would never be checked.
 export function blockLinks(blocks) {
   const hrefs = [];
-  const walk = (nodes) => { for (const n of nodes || []) if (n.t === 'link') hrefs.push(n.href); };
+  const walk = (nodes) => {
+    for (const n of nodes || []) {
+      if (n.t === 'link') hrefs.push(n.href);
+      if (n.children) walk(n.children);
+    }
+  };
   for (const b of blocks) {
     if (b.type === 'para' || b.type === 'callout') walk(b.inline);
     else if (b.type === 'list') b.items.forEach(walk);

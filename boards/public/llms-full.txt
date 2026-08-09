@@ -27,9 +27,9 @@ If you are wiring up an AI assistant, start at MCP instead — it is the same AP
 Three machine-readable entry points exist for agents:
 
 Resource | What it is
-`/llms.txt` | Curated index of every documentation page, with descriptions
-`/llms-full.txt` | The entire documentation corpus in one plain-text file
-Any page + .md | The raw Markdown for that page — e.g. `/docs/api.md`
+/llms.txt | Curated index of every documentation page, with descriptions
+/llms-full.txt | The entire documentation corpus in one plain-text file
+Any page + .md | The raw Markdown for that page — e.g. /docs/api.md
 
 Guides, by what you are making
 
@@ -278,7 +278,7 @@ Not keys, but worth knowing:
 
 Double-click empty canvas opens an add menu at your cursor.
 Right-click anything for its full menu — cards, groups, and the canvas background each have their own.
-Hold `Alt` while dragging to bypass snapping.
+Hold Alt while dragging to bypass snapping.
 Paste a URL onto the canvas to create a link card that unfurls its preview.
 Drag files from your desktop straight onto the canvas.
 
@@ -324,15 +324,15 @@ Share link | A public link, always view-only
 
 By tool
 
-[PureRef](/vs/pureref) — the closest match for pure reference work. You gain collaboration, sharing and cloud storage; the tradeoff is that Clusters is a browser app rather than a native always-on-top window.
+PureRef — the closest match for pure reference work. You gain collaboration, sharing and cloud storage; the tradeoff is that Clusters is a browser app rather than a native always-on-top window.
 
-[Milanote](/vs/milanote) — very similar shape. Boards become clusters, nesting maps directly, and the card model is comparable.
+Milanote — very similar shape. Boards become clusters, nesting maps directly, and the card model is comparable.
 
-[Miro](/vs/miro) — the whiteboard-to-canvas mapping is direct. Clusters is built around media and reference rather than diagramming and facilitation.
+Miro — the whiteboard-to-canvas mapping is direct. Clusters is built around media and reference rather than diagramming and facilitation.
 
-[Boords](/vs/boords) and [Storyboarder](/vs/storyboarder) — storyboard tools. Panels become grid cells, and the script side becomes a screenplay document on the same board.
+Boords and Storyboarder — storyboard tools. Panels become grid cells, and the script side becomes a screenplay document on the same board.
 
-[StudioBinder](/vs/studiobinder) — production management. Clusters covers the visual and document side and the schedule; it is not a call-sheet-and-crew-management system.
+StudioBinder — production management. Clusters covers the visual and document side and the schedule; it is not a call-sheet-and-crew-management system.
 
 Comparisons and alternatives
 
@@ -557,7 +557,7 @@ Adding images
 Drag from the desktop — many at once is fine.
 Paste from the clipboard.
 The image tool in the rail, for a file picker.
-[Soleil Scout](/docs/scout) — text them from your phone.
+Soleil Scout — text them from your phone.
 
 Uploads go straight to storage from your browser. Large batches run a few at a time so one enormous file cannot block the rest.
 
@@ -820,7 +820,7 @@ Groups are not containers
 This is the distinction worth being clear about:
 
 A group marks cards on the current canvas as related. They remain cards on that canvas.
-A nested [cluster](/docs/clusters) is a different board. Its contents are somewhere else and you open into them.
+A nested cluster is a different board. Its contents are somewhere else and you open into them.
 
 Use a group for the four frames that make up one beat. Use a nested cluster for a whole scene that deserves its own surface.
 
@@ -926,7 +926,7 @@ Grids versus schedules
 They look similar and are not the same thing:
 
 A grid is a spatial layout. Cells mean position.
-A [schedule](/docs/canvas/schedule) is a calendar. Cells mean dates — real ones, with month, week, day and hour views.
+A schedule is a calendar. Cells mean dates — real ones, with month, week, day and hour views.
 
 If the cells represent time, you want a schedule.
 
@@ -1148,9 +1148,9 @@ Guides are culled to cards actually near the one you are moving. Without that, a
 
 Where snapping does not apply
 
-[Free-draw](/docs/canvas/shapes-and-drawing) strokes — freehand marks are freehand.
-Inside a [grid](/docs/canvas/grids) — cells are defined by dividers, and dragging a divider resizes rather than snapping.
-[Schedule](/docs/canvas/schedule) slots — a slot is a date, and dropping into it is exact by definition.
+Free-draw strokes — freehand marks are freehand.
+Inside a grid — cells are defined by dividers, and dragging a divider resizes rather than snapping.
+Schedule slots — a slot is a date, and dropping into it is exact by definition.
 
 ## Frequently asked questions
 
@@ -1449,17 +1449,17 @@ Views
 
 Every cluster has two views of the same contents:
 
-[Canvas](/docs/canvas) — the infinite surface, where position means something
-[List](/docs/clusters/list-view) — a sortable, searchable file browser
+Canvas — the infinite surface, where position means something
+List — a sortable, searchable file browser
 
 Switching does not convert anything. Settings → Defaults sets which view new clusters open in.
 
 Finding clusters
 
 The sidebar tree expands lazily, so a deep hierarchy stays fast
-[`⌘K`](/docs/organize/search) searches cluster names alongside everything else
+⌘K searches cluster names alongside everything else
 Recents surfaces what you have had open
-[Home](/docs/clusters/home-graph) shows the whole workspace as a relationship graph
+Home shows the whole workspace as a relationship graph
 Shared with me groups clusters other people have invited you to, by whose workspace they came from
 
 Deleting
@@ -1581,7 +1581,7 @@ What the edges mean
 Edges are derived from your content, not drawn by hand:
 
 Nesting — a cluster inside a cluster
-[Links and mentions](/docs/organize/links-and-mentions) — an @ mention, a document linking to a board
+Links and mentions — an @ mention, a document linking to a board
 Shared URLs — two boards referencing the same external page
 Documents and the boards they are embedded in
 
@@ -1595,7 +1595,7 @@ The graph is a heavy piece of code and is loaded only when you open Home, so it 
 
 When to use something else
 
-Looking for one specific thing you can name — `⌘K`
+Looking for one specific thing you can name — ⌘K
 Browsing the contents of one cluster — list view
 Finding everything on a theme — tags
 
@@ -1730,10 +1730,10 @@ Comments, tags and links
 
 The margins do a lot of work:
 
-[Inline comments](/docs/documents/comments-and-tags) on a text range, with dots in the right margin
-[Tag ranges](/docs/documents/comments-and-tags) underlining text, with dots in the left margin
+Inline comments on a text range, with dots in the right margin
+Tag ranges underlining text, with dots in the left margin
 Suggested entities — names the app noticed, with a tick or a cross in the margin to confirm or dismiss
-[Links and mentions](/docs/organize/links-and-mentions) — @ anything, with hover previews
+Links and mentions — @ anything, with hover previews
 Backlinks — everywhere this document is referenced from
 
 Screenplays
@@ -1846,8 +1846,8 @@ Format | Use it for
 PDF | Sending to someone who should not edit it
 Markdown | Moving text into another tool, or into version control
 HTML | Publishing, or pasting into a CMS
-Final Draft `.fdx` | Screenplays, into industry software
-Fountain `.fountain` | Screenplays, as plain text that opens anywhere
+Final Draft .fdx | Screenplays, into industry software
+Fountain .fountain | Screenplays, as plain text that opens anywhere
 
 The two screenplay formats appear only for documents in screenplay mode.
 
@@ -1963,9 +1963,9 @@ Tagging
 
 Right-click almost anything → tag. You can tag:
 
-A [card](/docs/canvas/cards)
-A [group](/docs/canvas/groups) — as a unit, not card by card
-A whole [cluster](/docs/clusters)
+A card
+A group — as a unit, not card by card
+A whole cluster
 A passage of text in a document
 
 The picker suggests as you type, and Enter creates a tag that does not exist yet. Multi-select is supported — most things carry more than one.
@@ -2016,7 +2016,7 @@ A tag applied to a group propagates to what is in it, and in documents a tag on 
 Finding by tag
 
 The sidebar lists workspace tags
-[`⌘K`](/docs/organize/search) searches tags alongside everything else
+⌘K searches tags alongside everything else
 The tag detail view is the full hierarchical browse
 
 ## Frequently asked questions
@@ -2203,10 +2203,10 @@ Clusters shared with you appear under Shared with me in the sidebar, grouped by 
 
 What collaboration looks like in use
 
-[Presence](/docs/collaborate/presence) — live cursors, who is here, jump to where someone is
-[Comments](/docs/collaborate/comments) — anchored to a card, a group, a point, or a text range
-[Messages](/docs/collaborate/messages) — direct and group conversations with anyone you share a board with
-[Notifications](/docs/collaborate/notifications) — mentions, replies, invitations
+Presence — live cursors, who is here, jump to where someone is
+Comments — anchored to a card, a group, a point, or a text range
+Messages — direct and group conversations with anyone you share a board with
+Notifications — mentions, replies, invitations
 
 Everything is real time. Two people can move cards on the same canvas, type in the same note, or write in the same document at once, and edits merge rather than overwriting.
 
@@ -2368,7 +2368,7 @@ What you can comment on
 
 Anchor | Reads as
 A card | "this image"
-A [group](/docs/canvas/groups) | "this sequence"
+A group | "this sequence"
 An empty point | "something should go here"
 The board | "the whole thing"
 A text range in a document | "this sentence"
@@ -2400,7 +2400,7 @@ Editors can. Viewers cannot — a viewer can read the board and vote, but leavin
 Comments versus votes
 
 A comment is a sentence: reasoning, a request, a decision, with a thread and a record.
-A [vote](/docs/canvas/vote-cards) is a count: which of these, quickly, with no discussion.
+A vote is a count: which of these, quickly, with no discussion.
 
 If you want to know why, use a comment.
 
@@ -2439,7 +2439,7 @@ Direct and group conversations in one list, ordered by recency.
 
 Attachments — send files, and drag one from a thread straight onto a canvas to make it a card
 Markdown and auto-links — formatting is rendered, URLs unfurl
-[Mentions](/docs/organize/links-and-mentions) — @ a person, board, document or card; boards and cards become navigable links
+Mentions — @ a person, board, document or card; boards and cards become navigable links
 Per-thread drafts — a half-written message survives closing the drawer
 Permalinks — a link to one specific message, which opens the thread scrolled to it
 
@@ -2451,7 +2451,7 @@ Messages versus comments
 
 The distinction worth keeping:
 
-A [comment](/docs/collaborate/comments) is attached to a thing on a board and stays with it. It is a record.
+A comment is attached to a thing on a board and stays with it. It is a record.
 A message is a conversation with a person. It is correspondence.
 
 Feedback on a specific image belongs in a comment, where whoever opens that board next will find it. Coordination belongs in a message.
@@ -2561,7 +2561,7 @@ Before you publish
 A published board is a portfolio piece. Worth checking:
 
 Names. "Untitled cluster" is visible to everyone.
-[Comments](/docs/collaborate/comments). Internal feedback is visible to viewers. Resolve or remove what should not be public.
+Comments. Internal feedback is visible to viewers. Resolve or remove what should not be public.
 Nested clusters. Decide whether sub-clusters should be reachable.
 Rights. Reference images you do not own become publicly visible and indexable.
 
@@ -2676,7 +2676,7 @@ Account
 
 Profile
 
-Profile picture, display name, email, and your [presence colour](/docs/collaborate/presence) — the colour your cursor and selection halos appear in to everyone else.
+Profile picture, display name, email, and your presence colour — the colour your cursor and selection halos appear in to everyone else.
 
 Scout
 
@@ -2769,8 +2769,8 @@ What is genuinely limited
 Exactly three things:
 
  | Demo | Creator
-Total [cards](/docs/canvas/cards) | 100 | Unlimited
-[File types](/docs/files) | Standard media | Anything
+Total cards | 100 | Unlimited
+File types | Standard media | Anything
 Per-file size | Video 30 MB · audio 50 MB · PDF 50 MB | No limit
 
 Everything else is the same on both plans.
@@ -2915,7 +2915,7 @@ Referrals versus collaboration
 
 Two different things:
 
-[Inviting a collaborator](/docs/collaborate) to a cluster is free, unlimited, and needs no referral link. That is how you work with someone.
+Inviting a collaborator to a cluster is free, unlimited, and needs no referral link. That is how you work with someone.
 A referral is inviting someone to have their own account and workspace.
 
 Inviting a collaborator to your board does not consume or produce referral credit — it is not a growth mechanism, it is how the product works.
@@ -2980,7 +2980,7 @@ Three routes:
 
 Upload from the add sheet — the camera roll picker.
 Share sheet from Photos.
-[Soleil Scout](/docs/scout) — text them, with no app at all. Note that Scout's phone line is not live yet.
+Soleil Scout — text them, with no app at all. Note that Scout's phone line is not live yet.
 
 What is worse on a small screen
 
@@ -3011,8 +3011,8 @@ Who can see a board
 
 Private by default. A new cluster is visible only to you until you do one of two things:
 
-[Invite someone](/docs/collaborate) — a named person, as editor or viewer
-[Create a public link](/docs/collaborate/sharing) — view-only, and by default carrying a noindex instruction so search engines skip it
+Invite someone — a named person, as editor or viewer
+Create a public link — view-only, and by default carrying a noindex instruction so search engines skip it
 
 Making a board genuinely public and discoverable is a separate, reviewed step — see Explore. Nothing becomes public by accident.
 
@@ -3036,10 +3036,10 @@ Getting your data out
 
 Nothing is trapped:
 
-[Board export](/docs/canvas/export) — PNG or PDF
-[Document export](/docs/documents/export) — PDF, Markdown, HTML, and .fdx / Fountain for screenplays
+Board export — PNG or PDF
+Document export — PDF, Markdown, HTML, and .fdx / Fountain for screenplays
 Original files — downloadable exactly as uploaded
-[REST API](/docs/api) — read every board and card programmatically
+REST API — read every board and card programmatically
 
 Accounts and access
 
@@ -3078,7 +3078,7 @@ The Soleil Clusters REST API lives at /api/v1 and is authenticated with a person
 
 Base URL: https://clusters.soleilpictures.com/api/v1
 
-Every response is JSON. Every error carries a machine-readable code and a human-readable error. A full OpenAPI description is at `/api/v1/openapi.json`, served without authentication — a spec you need a credential to read is not discoverable.
+Every response is JSON. Every error carries a machine-readable code and a human-readable error. A full OpenAPI description is at /api/v1/openapi.json, served without authentication — a spec you need a credential to read is not discoverable.
 
 The authorization model
 
@@ -3157,10 +3157,10 @@ That it works from a browser does not mean you should. A sk_live_ token in front
 
 For AI agents
 
-[Quickstart](/docs/api/quickstart) — working code in curl, TypeScript and Python
-[MCP](/docs/mcp) — the same API as tools an assistant can call directly
-[OpenAPI](https://clusters.soleilpictures.com/api/v1/openapi.json) — generate a client
-[`/llms.txt`](/llms.txt) and [`/llms-full.txt`](/llms-full.txt) — this documentation, machine-readable
+Quickstart — working code in curl, TypeScript and Python
+MCP — the same API as tools an assistant can call directly
+OpenAPI — generate a client
+/llms.txt and /llms-full.txt — this documentation, machine-readable
 Every docs page is available as raw Markdown by appending .md
 
 ## Frequently asked questions
@@ -3315,14 +3315,14 @@ DELETE on a card returns the full card it removed. There is no undo toast on an 
 
 Notes for agents
 
-Check `scopes` from `/me` first. Writing needs write; deleting needs delete, which is a separate grant.
-Always send `Idempotency-Key` on `POST`. Network retries are otherwise duplicate writes.
+Check scopes from /me first. Writing needs write; deleting needs delete, which is a separate grant.
+Always send Idempotency-Key on POST. Network retries are otherwise duplicate writes.
 Batch card creation. Up to 100 cards per call; one call with fifty cards beats fifty calls.
-Watch `x-ratelimit-remaining` on every response rather than waiting for the 429. On a 429, honour retry-after.
+Watch x-ratelimit-remaining on every response rather than waiting for the 429. On a 429, honour retry-after.
 Paginate. List endpoints return 100 by default; follow next_offset until it is null.
-Do not assume `live: true`. A false means saved-but-not-pushed to open canvases.
-*`404` means "not found or not yours".* Do not retry it as if it were transient.
-Branch on `code`, not the message. Error prose may be reworded; codes are the contract.
+Do not assume live: true. A false means saved-but-not-pushed to open canvases.
+*404 means "not found or not yours".* Do not retry it as if it were transient.
+Branch on code, not the message. Error prose may be reworded; codes are the contract.
 
 Full error semantics: Errors and status codes.
 
@@ -3476,11 +3476,11 @@ workspace_id | UUID
 parent_board_id | UUID, or null at the top level
 view | "canvas" or "list"
 
-`GET /workspaces`
+GET /workspaces
 
 { "workspaces": [ { "id": "…", "name": "Personal", "created_at": "…" } ] }
 
-`GET /boards`
+GET /boards
 
 Query | Effect
 workspace=<uuid> | Only boards in that workspace
@@ -3495,7 +3495,7 @@ curl "$SOLEIL_API/boards?parent=root&limit=50" -H "Authorization: Bearer $SOLEIL
 
 Follow next_offset until it comes back null.
 
-`POST /boards`
+POST /boards
 
 {
   "name": "Scene 4 — Diner",
@@ -3512,11 +3512,11 @@ view is "canvas" unless you pass exactly "list".
 
 Returns 201 with { "board": … }.
 
-`GET /boards/:id`
+GET /boards/:id
 
 { "board": … }, or 404 — which is also what you get for a board that exists but is not yours. The API never confirms the existence of something you cannot see.
 
-`PATCH /boards/:id`
+PATCH /boards/:id
 
 Every field optional:
 
@@ -3524,7 +3524,7 @@ Every field optional:
 
 Reparenting is cycle-safe: moving a board into one of its own descendants is refused with 409 conflict, not allowed to create a loop. parent_board_id: null moves it to the top level.
 
-`DELETE /boards/:id`
+DELETE /boards/:id
 
 A soft delete, requiring the delete scope. The board goes to the trash and stays restorable for 30 days.
 
@@ -3532,7 +3532,7 @@ A soft delete, requiring the delete scope. The board goes to the trash and stays
 
 Descendants are deliberately not touched — deleting a parent does not cascade.
 
-`POST /boards/:id/restore`
+POST /boards/:id/restore
 
 Puts a soft-deleted board back. Find deleted boards with GET /boards?deleted=.
 
@@ -3609,7 +3609,7 @@ title | string | 300 chars
 body | string | 20000 chars
 html | string | 40000 chars
 url | string | 2000 chars
-image_key | string | 500 chars — from `POST /uploads`
+image_key | string | 500 chars — from POST /uploads
 alt | string | 300 chars — image description
 color | string | 40 chars
 x, y | number | rounded; omit for auto-placement
@@ -3617,7 +3617,7 @@ w, h | number | clamped to 40–4000; default 280 × 180
 
 Anything else in the payload is ignored. A client-supplied id is ignored — the server generates one.
 
-`GET /boards/:id/cards`
+GET /boards/:id/cards
 
 Paginated with limit and offset — default 100, maximum 500.
 
@@ -3626,7 +3626,7 @@ Paginated with limit and offset — default 100, maximum 500.
 
 Follow next_offset until it is null. Do not assume one page is the whole board.
 
-`POST /boards/:id/cards`
+POST /boards/:id/cards
 
 Either shape works:
 
@@ -3638,9 +3638,9 @@ Up to 100 cards per call; more gets 400.
 
 Auto-placement. Cards without x/y are placed in free space, so a batch cannot land on top of existing content. Pass both to place one yourself.
 
-`live`. true means open canvases received the change immediately. false means it is saved but a canvas someone already has open needs a reload. Never treat false as failure.
+live. true means open canvases received the change immediately. false means it is saved but a canvas someone already has open needs a reload. Never treat false as failure.
 
-`PATCH /boards/:id/cards/:cardId`
+PATCH /boards/:id/cards/:cardId
 
 A partial patch — only the fields you send change. No defaults are applied, so patching title alone will not resize the card.
 
@@ -3648,13 +3648,13 @@ curl -X PATCH "$SOLEIL_API/boards/$BOARD/cards/$CARD" \
   -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \
   -d '{"title":"Tone — revised","x":400}'
 
-`POST /boards/:id/cards/move`
+POST /boards/:id/cards/move
 
 { "to_board_id": "…", "card_ids": ["api-…", "api-…"] }
 
 Write access is checked on both boards. Returns { "moved": 2, "cards": [ … ], "live": true }.
 
-`DELETE /boards/:id/cards/:cardId`
+DELETE /boards/:id/cards/:cardId
 
 Requires the delete scope — see Authentication.
 
@@ -3699,7 +3699,7 @@ POST raw image bytes to /uploads with a board id and you get back an image key, 
 
 Uploading is one request. No presign, no multi-step S3 dance — which is what makes it usable from a single tool call.
 
-`POST /uploads?board=<uuid>`
+POST /uploads?board=<uuid>
 
 Raw bytes in the body, Content-Type set to the image's real type.
 
@@ -3743,7 +3743,7 @@ An empty body gets 400. Over the size ceiling gets 413. Past the owner's storage
 
 25 MB is the API's own ceiling and is lower than what the app accepts, because a single buffered request is not the right shape for a very large file. Large media goes in through the app, which uploads in parts. See Files and uploads.
 
-`GET /images/:key`
+GET /images/:key
 
 Reads an image back. Access is authorized the same way as everything else — you get the image if your account can see a board that references it.
 
@@ -3776,9 +3776,9 @@ Updated: 2026-08-08
 
 GET /search finds boards and cards by text across everything your account can see. Pass q with at least two characters, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.
 
-The programmatic equivalent of `⌘K`.
+The programmatic equivalent of ⌘K.
 
-`GET /search`
+GET /search
 
 Parameter | Meaning
 q | The query. Minimum two characters — shorter gets 400.
@@ -3799,9 +3799,9 @@ Everything runs under your permissions. Boards you cannot open do not appear, an
 Notes for agents
 
 Two characters minimum. A one-character query is rejected rather than scanning a workspace to return everything.
-Narrow with `kind` when you know what you are after; it halves the work.
+Narrow with kind when you know what you are after; it halves the work.
 Paginate. The result set is capped per page like every list endpoint — follow next_offset rather than assuming one page is everything.
-Search then act. The usual loop is GET /search to find a card, then `PATCH /boards/:id/cards/:cardId` to change it.
+Search then act. The usual loop is GET /search to find a card, then PATCH /boards/:id/cards/:cardId to change it.
 
 ## Frequently asked questions
 
@@ -3826,7 +3826,7 @@ Every error looks like this:
 
 { "error": "at most 100 cards per call", "code": "bad_request" }
 
-Branch on `code`. The sentence is written for a person reading a log and may be reworded; the code is the contract.
+Branch on code. The sentence is written for a person reading a log and may be reworded; the code is the contract.
 
 Codes
 
@@ -3846,17 +3846,17 @@ Status | code | Means | Retry?
 
 The ones worth explaining
 
-`401` — unknown, revoked and expired tokens are indistinguishable on purpose, so probing cannot reveal which tokens existed.
+401 — unknown, revoked and expired tokens are indistinguishable on purpose, so probing cannot reveal which tokens existed.
 
-`403 insufficient_scope` — the response names the scope required in required_scope. Deleting needs the delete scope, which is separate from write precisely so "can add cards to my moodboard" and "can destroy my moodboard" are different grants.
+403 insufficient_scope — the response names the scope required in required_scope. Deleting needs the delete scope, which is separate from write precisely so "can add cards to my moodboard" and "can destroy my moodboard" are different grants.
 
-`402` versus `403` — 402 is a quota you could pay to lift; 403 is a permission you cannot.
+402 versus 403 — 402 is a quota you could pay to lift; 403 is a permission you cannot.
 
-`404` — returned both for things that do not exist and for things you cannot see. Do not retry it and do not treat it as transient.
+404 — returned both for things that do not exist and for things you cannot see. Do not retry it and do not treat it as transient.
 
-`409` — two causes. An Idempotency-Key whose first attempt is still in flight, in which case waiting briefly and retrying with the same key is correct; or a reparent that would create a cycle, which is permanent.
+409 — two causes. An Idempotency-Key whose first attempt is still in flight, in which case waiting briefly and retrying with the same key is correct; or a reparent that would create a cycle, which is permanent.
 
-`429` — respect the retry-after header, in seconds. Every response carries x-ratelimit-remaining and x-ratelimit-reset, so a well-behaved client never has to hit the wall to discover the wall.
+429 — respect the retry-after header, in seconds. Every response carries x-ratelimit-remaining and x-ratelimit-reset, so a well-behaved client never has to hit the wall to discover the wall.
 
 Retrying safely
 
@@ -3882,7 +3882,7 @@ A retried POST must carry the same Idempotency-Key as the original. A fresh key 
 
 Idempotency and errors
 
-A key is stored with its response when the request finishes with any status below 500, so a retry replays that response — including a `4xx`. A request that failed validation keeps reporting the same failure under that key, which is correct: the request was bad and still is.
+A key is stored with its response when the request finishes with any status below 500, so a retry replays that response — including a 4xx. A request that failed validation keeps reporting the same failure under that key, which is correct: the request was bad and still is.
 
 On a 5xx the key is released, so the retry genuinely re-runs.
 
@@ -3892,8 +3892,8 @@ Successes that are not quite successes
 
 Two responses mean less than they look:
 
-`"live": false` on a card write — saved, but open canvases will not show it until reload. Not a failure.
-`has_more: true` on a list — you have one page, not the answer. Follow next_offset.
+"live": false on a card write — saved, but open canvases will not show it until reload. Not a failure.
+has_more: true on a list — you have one page, not the answer. Follow next_offset.
 
 ## Frequently asked questions
 
@@ -3991,7 +3991,7 @@ Images are limited to 25 MB through the API and are charged to the board owner's
 
 What agents should know
 
-`read_board` truncates by default. Pass full: true for untruncated bodies, and expect it to be large. Both read_board and list_boards paginate — check for more rather than assuming one page is everything.
+read_board truncates by default. Pass full: true for untruncated bodies, and expect it to be large. Both read_board and list_boards paginate — check for more rather than assuming one page is everything.
 
 Deleting returns the card. delete_card responds with the full card it removed. That object is the undo — pass it back to add_cards to restore it. Worth keeping in context before destructive work.
 
@@ -4001,16 +4001,16 @@ Writes are idempotent by key. Every POST the server issues carries a generated i
 
 Batch. One add_cards call with forty cards is one request against the rate limit; forty calls are forty.
 
-`live: false` is not an error. The change is saved; a canvas someone already has open will not show it until reload.
+live: false is not an error. The change is saved; a canvas someone already has open will not show it until reload.
 
-Start with `whoami`. It reports the scopes and remaining rate budget, which is cheaper than discovering both through failures.
+Start with whoami. It reports the scopes and remaining rate budget, which is cheaper than discovering both through failures.
 
 Reading the docs as an agent
 
-`/llms.txt` — an index of every page with descriptions
-`/llms-full.txt` — the entire corpus in one file
+/llms.txt — an index of every page with descriptions
+/llms-full.txt — the entire corpus in one file
 OpenAPI — the machine-readable API spec
-Any page plus .md — for example `/docs/api/cards.md`
+Any page plus .md — for example /docs/api/cards.md
 
 ## Frequently asked questions
 

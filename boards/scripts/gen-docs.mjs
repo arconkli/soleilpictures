@@ -239,14 +239,17 @@ function loadPages() {
 const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// Recursive, so bold-wrapping-code and bold links render as the markup they
+// are. Must stay in lockstep with the <Inline> component in DocsPage.jsx —
+// docsite.test.mjs asserts the two produce the same text.
 function inlineHtml(nodes) {
-  return nodes.map((n) => {
-    const v = escapeHtml(n.v);
-    if (n.t === 'code') return `<code>${v}</code>`;
-    if (n.t === 'strong') return `<b>${v}</b>`;
-    if (n.t === 'em') return `<i>${v}</i>`;
-    if (n.t === 'link') return `<a href="${escapeHtml(n.href)}" style="color:#FFA500;">${v}</a>`;
-    return v;
+  return (nodes || []).map((n) => {
+    const inner = n.children ? inlineHtml(n.children) : escapeHtml(n.v);
+    if (n.t === 'code') return `<code>${escapeHtml(n.v)}</code>`;   // terminal
+    if (n.t === 'strong') return `<b>${inner}</b>`;
+    if (n.t === 'em') return `<i>${inner}</i>`;
+    if (n.t === 'link') return `<a href="${escapeHtml(n.href)}" style="color:#FFA500;">${inner}</a>`;
+    return escapeHtml(n.v);
   }).join('');
 }
 
@@ -265,7 +268,10 @@ function crawlableHtml(page) {
   for (const b of page.blocks) {
     if (b.type === 'heading') {
       const tag = b.depth === 2 ? 'h2' : 'h3';
-      out.push(`<${tag} id="${escapeHtml(b.id)}" style="${b.depth === 2 ? H2 : H3}">${escapeHtml(b.text)}</${tag}>`);
+      // inlineHtml, not escapeHtml(b.text): API headings are code spans, and the
+      // crawlable copy has to match what React renders (parity), not a
+      // backtick-littered plaintext version of it.
+      out.push(`<${tag} id="${escapeHtml(b.id)}" style="${b.depth === 2 ? H2 : H3}">${inlineHtml(b.inline)}</${tag}>`);
     } else if (b.type === 'para') {
       out.push(`<p>${inlineHtml(b.inline)}</p>`);
     } else if (b.type === 'list') {

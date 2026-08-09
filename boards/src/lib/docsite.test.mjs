@@ -122,6 +122,26 @@ test('parity: crawlable HTML contains the same prose as the React blocks', () =>
   }
 });
 
+test('parity: no unrendered markup leaks into the rendered output', () => {
+  // Regression guard. Two shipped bugs live here: headings were emitted as
+  // plain text, so `## \`POST /boards/:id/cards\`` rendered its backticks; and
+  // strong/em were terminal, so `**\`live\`.**` — a pattern this corpus uses 27
+  // times — rendered its backticks too. Both look broken on the page.
+  //
+  // Checks the RENDERED HTML, not the AST: code blocks legitimately contain
+  // asterisks and backticks, and they are escaped into <pre>, so scanning the
+  // output catches leaks without false-positiving on real code.
+  for (const p of DOCS_PAGES) {
+    const html = DOCS_HTML[p.path];
+    // Strip real code, where literal markup characters are expected.
+    const prose = html.replace(/<pre>[\s\S]*?<\/pre>/g, '').replace(/<code>[\s\S]*?<\/code>/g, '');
+    const backticks = prose.match(/`[^`\n]{1,60}`/g) || [];
+    const bold = prose.match(/\*\*[^*\n]{1,60}\*\*/g) || [];
+    assert.deepEqual(backticks, [], `${p.path}: unrendered code span(s): ${backticks.join(', ')}`);
+    assert.deepEqual(bold, [], `${p.path}: unrendered bold: ${bold.join(', ')}`);
+  }
+});
+
 test('parity: heading ids are unique per page (TOC + deep links depend on it)', () => {
   for (const p of DOCS_PAGES) {
     const ids = DOCS_CONTENT[p.path].filter((b) => b.type === 'heading').map((b) => b.id);

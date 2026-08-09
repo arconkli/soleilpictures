@@ -16,6 +16,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Start here",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Start here"
+    }
+   ],
    "id": "start-here"
   },
   {
@@ -28,7 +34,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Getting started",
-     "href": "/docs/getting-started"
+     "href": "/docs/getting-started",
+     "children": [
+      {
+       "t": "text",
+       "v": "Getting started"
+      }
+     ]
     },
     {
      "t": "text",
@@ -46,7 +58,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Core concepts",
-     "href": "/docs/concepts"
+     "href": "/docs/concepts",
+     "children": [
+      {
+       "t": "text",
+       "v": "Core concepts"
+      }
+     ]
     },
     {
      "t": "text",
@@ -54,7 +72,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "cluster"
+     "v": "cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "cluster"
+      }
+     ]
     },
     {
      "t": "text",
@@ -62,7 +86,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "board"
+     "v": "board",
+     "children": [
+      {
+       "t": "text",
+       "v": "board"
+      }
+     ]
     },
     {
      "t": "text",
@@ -74,6 +104,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "For developers and AI agents",
+   "inline": [
+    {
+     "t": "text",
+     "v": "For developers and AI agents"
+    }
+   ],
    "id": "for-developers-and-ai-agents"
   },
   {
@@ -86,7 +122,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "REST API",
-     "href": "/docs/api"
+     "href": "/docs/api",
+     "children": [
+      {
+       "t": "text",
+       "v": "REST API"
+      }
+     ]
     },
     {
      "t": "text",
@@ -104,7 +146,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "MCP",
-     "href": "/docs/mcp"
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "MCP"
+      }
+     ]
     },
     {
      "t": "text",
@@ -143,7 +191,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "`/llms.txt`",
-       "href": "/llms.txt"
+       "href": "/llms.txt",
+       "children": [
+        {
+         "t": "code",
+         "v": "/llms.txt"
+        }
+       ]
       }
      ],
      [
@@ -158,7 +212,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "`/llms-full.txt`",
-       "href": "/llms-full.txt"
+       "href": "/llms-full.txt",
+       "children": [
+        {
+         "t": "code",
+         "v": "/llms-full.txt"
+        }
+       ]
       }
      ],
      [
@@ -187,7 +247,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "`/docs/api.md`",
-       "href": "/docs/api.md"
+       "href": "/docs/api.md",
+       "children": [
+        {
+         "t": "code",
+         "v": "/docs/api.md"
+        }
+       ]
       }
      ]
     ]
@@ -197,6 +263,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Guides, by what you are making",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Guides, by what you are making"
+    }
+   ],
    "id": "guides-by-what-you-are-making"
   },
   {
@@ -216,7 +288,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "What you can make with Clusters",
-      "href": "/use-cases"
+      "href": "/use-cases",
+      "children": [
+       {
+        "t": "text",
+        "v": "What you can make with Clusters"
+       }
+      ]
      },
      {
       "t": "text",
@@ -227,7 +305,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Mood board maker",
-      "href": "/tools/mood-board-maker"
+      "href": "/tools/mood-board-maker",
+      "children": [
+       {
+        "t": "text",
+        "v": "Mood board maker"
+       }
+      ]
      },
      {
       "t": "text",
@@ -236,7 +320,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Storyboard maker",
-      "href": "/tools/storyboard-maker"
+      "href": "/tools/storyboard-maker",
+      "children": [
+       {
+        "t": "text",
+        "v": "Storyboard maker"
+       }
+      ]
      },
      {
       "t": "text",
@@ -245,7 +335,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Shot list maker",
-      "href": "/tools/shot-list-maker"
+      "href": "/tools/shot-list-maker",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shot list maker"
+       }
+      ]
      },
      {
       "t": "text",
@@ -254,14 +350,26 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Look book maker",
-      "href": "/tools/look-book-maker"
+      "href": "/tools/look-book-maker",
+      "children": [
+       {
+        "t": "text",
+        "v": "Look book maker"
+       }
+      ]
      }
     ],
     [
      {
       "t": "link",
       "v": "Coming from another tool",
-      "href": "/docs/migrating"
+      "href": "/docs/migrating",
+      "children": [
+       {
+        "t": "text",
+        "v": "Coming from another tool"
+       }
+      ]
      },
      {
       "t": "text",
@@ -274,6 +382,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "How to read these docs",
+   "inline": [
+    {
+     "t": "text",
+     "v": "How to read these docs"
+    }
+   ],
    "id": "how-to-read-these-docs"
   },
   {
@@ -319,6 +433,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "1. Sign in",
+   "inline": [
+    {
+     "t": "text",
+     "v": "1. Sign in"
+    }
+   ],
    "id": "1-sign-in"
   },
   {
@@ -331,7 +451,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "clusters.soleilpictures.com",
-     "href": "https://clusters.soleilpictures.com/"
+     "href": "https://clusters.soleilpictures.com/",
+     "children": [
+      {
+       "t": "text",
+       "v": "clusters.soleilpictures.com"
+      }
+     ]
     },
     {
      "t": "text",
@@ -352,6 +478,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "2. Make a cluster",
+   "inline": [
+    {
+     "t": "text",
+     "v": "2. Make a cluster"
+    }
+   ],
    "id": "2-make-a-cluster"
   },
   {
@@ -363,7 +495,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "New cluster"
+     "v": "New cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "New cluster"
+      }
+     ]
     },
     {
      "t": "text",
@@ -392,6 +530,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "3. Get things onto the canvas",
+   "inline": [
+    {
+     "t": "text",
+     "v": "3. Get things onto the canvas"
+    }
+   ],
    "id": "3-get-things-onto-the-canvas"
   },
   {
@@ -423,7 +567,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "tool rail"
+      "v": "tool rail",
+      "children": [
+       {
+        "t": "text",
+        "v": "tool rail"
+       }
+      ]
      },
      {
       "t": "text",
@@ -433,7 +583,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Right-click the canvas"
+      "v": "Right-click the canvas",
+      "children": [
+       {
+        "t": "text",
+        "v": "Right-click the canvas"
+       }
+      ]
      },
      {
       "t": "text",
@@ -588,6 +744,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "4. Arrange it",
+   "inline": [
+    {
+     "t": "text",
+     "v": "4. Arrange it"
+    }
+   ],
    "id": "4-arrange-it"
   },
   {
@@ -645,6 +807,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "5. Share it",
+   "inline": [
+    {
+     "t": "text",
+     "v": "5. Share it"
+    }
+   ],
    "id": "5-share-it"
   },
   {
@@ -656,7 +824,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Share"
+     "v": "Share",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share"
+      }
+     ]
     },
     {
      "t": "text",
@@ -671,7 +845,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Invite by email"
+      "v": "Invite by email",
+      "children": [
+       {
+        "t": "text",
+        "v": "Invite by email"
+       }
+      ]
      },
      {
       "t": "text",
@@ -681,7 +861,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Create a public link"
+      "v": "Create a public link",
+      "children": [
+       {
+        "t": "text",
+        "v": "Create a public link"
+       }
+      ]
      },
      {
       "t": "text",
@@ -694,6 +880,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Where to go next",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Where to go next"
+    }
+   ],
    "id": "where-to-go-next"
   },
   {
@@ -704,7 +896,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Core concepts",
-      "href": "/docs/concepts"
+      "href": "/docs/concepts",
+      "children": [
+       {
+        "t": "text",
+        "v": "Core concepts"
+       }
+      ]
      },
      {
       "t": "text",
@@ -715,7 +913,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "The canvas",
-      "href": "/docs/canvas"
+      "href": "/docs/canvas",
+      "children": [
+       {
+        "t": "text",
+        "v": "The canvas"
+       }
+      ]
      },
      {
       "t": "text",
@@ -726,7 +930,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Cards",
-      "href": "/docs/canvas/cards"
+      "href": "/docs/canvas/cards",
+      "children": [
+       {
+        "t": "text",
+        "v": "Cards"
+       }
+      ]
      },
      {
       "t": "text",
@@ -737,7 +947,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Sharing",
-      "href": "/docs/collaborate/sharing"
+      "href": "/docs/collaborate/sharing",
+      "children": [
+       {
+        "t": "text",
+        "v": "Sharing"
+       }
+      ]
      },
      {
       "t": "text",
@@ -748,7 +964,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "The API",
-      "href": "/docs/api"
+      "href": "/docs/api",
+      "children": [
+       {
+        "t": "text",
+        "v": "The API"
+       }
+      ]
      },
      {
       "t": "text",
@@ -772,6 +994,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Workspace",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Workspace"
+    }
+   ],
    "id": "workspace"
   },
   {
@@ -805,6 +1033,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Cluster (board)",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Cluster (board)"
+    }
+   ],
    "id": "cluster-board"
   },
   {
@@ -825,7 +1059,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "cluster"
+     "v": "cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "cluster"
+      }
+     ]
     },
     {
      "t": "text",
@@ -833,7 +1073,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "board"
+     "v": "board",
+     "children": [
+      {
+       "t": "text",
+       "v": "board"
+      }
+     ]
     },
     {
      "t": "text",
@@ -880,6 +1126,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Card",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Card"
+    }
+   ],
    "id": "card"
   },
   {
@@ -901,7 +1153,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Cards",
-     "href": "/docs/canvas/cards"
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "Cards"
+      }
+     ]
     },
     {
      "t": "text",
@@ -918,7 +1176,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "100 cards"
+     "v": "100 cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "100 cards"
+      }
+     ]
     },
     {
      "t": "text",
@@ -930,6 +1194,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Two views of the same cluster",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Two views of the same cluster"
+    }
+   ],
    "id": "two-views-of-the-same-cluster"
   },
   {
@@ -948,7 +1218,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Canvas"
+      "v": "Canvas",
+      "children": [
+       {
+        "t": "text",
+        "v": "Canvas"
+       }
+      ]
      },
      {
       "t": "text",
@@ -958,7 +1234,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "List"
+      "v": "List",
+      "children": [
+       {
+        "t": "text",
+        "v": "List"
+       }
+      ]
      },
      {
       "t": "text",
@@ -980,6 +1262,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What is not a container",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What is not a container"
+    }
+   ],
    "id": "what-is-not-a-container"
   },
   {
@@ -996,7 +1284,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Groups"
+     "v": "Groups",
+     "children": [
+      {
+       "t": "text",
+       "v": "Groups"
+      }
+     ]
     },
     {
      "t": "text",
@@ -1009,7 +1303,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Tags"
+     "v": "Tags",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tags"
+      }
+     ]
     },
     {
      "t": "text",
@@ -1056,6 +1356,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Tools",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tools"
+    }
+   ],
    "id": "tools"
   },
   {
@@ -1187,6 +1493,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Navigate",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Navigate"
+    }
+   ],
    "id": "navigate"
   },
   {
@@ -1275,6 +1587,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Edit",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Edit"
+    }
+   ],
    "id": "edit"
   },
   {
@@ -1440,6 +1758,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "View",
+   "inline": [
+    {
+     "t": "text",
+     "v": "View"
+    }
+   ],
    "id": "view"
   },
   {
@@ -1556,6 +1880,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Notes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Notes"
+    }
+   ],
    "id": "notes"
   },
   {
@@ -1639,6 +1969,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Document",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Document"
+    }
+   ],
    "id": "document"
   },
   {
@@ -1651,7 +1987,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "document",
-     "href": "/docs/documents"
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "document"
+      }
+     ]
     },
     {
      "t": "text",
@@ -1822,6 +2164,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Gestures",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Gestures"
+    }
+   ],
    "id": "gestures"
   },
   {
@@ -1840,7 +2188,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Double-click empty canvas"
+      "v": "Double-click empty canvas",
+      "children": [
+       {
+        "t": "text",
+        "v": "Double-click empty canvas"
+       }
+      ]
      },
      {
       "t": "text",
@@ -1850,7 +2204,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Right-click"
+      "v": "Right-click",
+      "children": [
+       {
+        "t": "text",
+        "v": "Right-click"
+       }
+      ]
      },
      {
       "t": "text",
@@ -1860,7 +2220,21 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Hold `Alt` while dragging"
+      "v": "Hold `Alt` while dragging",
+      "children": [
+       {
+        "t": "text",
+        "v": "Hold "
+       },
+       {
+        "t": "code",
+        "v": "Alt"
+       },
+       {
+        "t": "text",
+        "v": " while dragging"
+       }
+      ]
      },
      {
       "t": "text",
@@ -1869,7 +2243,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "snapping",
-      "href": "/docs/canvas/snapping-and-alignment"
+      "href": "/docs/canvas/snapping-and-alignment",
+      "children": [
+       {
+        "t": "text",
+        "v": "snapping"
+       }
+      ]
      },
      {
       "t": "text",
@@ -1879,7 +2259,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Paste a URL"
+      "v": "Paste a URL",
+      "children": [
+       {
+        "t": "text",
+        "v": "Paste a URL"
+       }
+      ]
      },
      {
       "t": "text",
@@ -1889,7 +2275,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Drag files from your desktop"
+      "v": "Drag files from your desktop",
+      "children": [
+       {
+        "t": "text",
+        "v": "Drag files from your desktop"
+       }
+      ]
      },
      {
       "t": "text",
@@ -1910,7 +2302,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "auto-arrange",
-     "href": "/docs/canvas/images"
+     "href": "/docs/canvas/images",
+     "children": [
+      {
+       "t": "text",
+       "v": "auto-arrange"
+      }
+     ]
     },
     {
      "t": "text",
@@ -1931,6 +2329,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What transfers",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What transfers"
+    }
+   ],
    "id": "what-transfers"
   },
   {
@@ -1954,7 +2358,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Images and files"
+       "v": "Images and files",
+       "children": [
+        {
+         "t": "text",
+         "v": "Images and files"
+        }
+       ]
       }
      ],
      [
@@ -1965,7 +2375,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Any type on Creator",
-       "href": "/docs/files"
+       "href": "/docs/files",
+       "children": [
+        {
+         "t": "text",
+         "v": "Any type on Creator"
+        }
+       ]
       },
       {
        "t": "text",
@@ -1977,7 +2393,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Screenplays"
+       "v": "Screenplays",
+       "children": [
+        {
+         "t": "text",
+         "v": "Screenplays"
+        }
+       ]
       }
      ],
      [
@@ -1996,7 +2418,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "screenplay mode",
-       "href": "/docs/documents/screenplay"
+       "href": "/docs/documents/screenplay",
+       "children": [
+        {
+         "t": "text",
+         "v": "screenplay mode"
+        }
+       ]
       }
      ]
     ],
@@ -2004,7 +2432,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Text"
+       "v": "Text",
+       "children": [
+        {
+         "t": "text",
+         "v": "Text"
+        }
+       ]
       }
      ],
      [
@@ -2015,7 +2449,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "notes",
-       "href": "/docs/canvas/notes"
+       "href": "/docs/canvas/notes",
+       "children": [
+        {
+         "t": "text",
+         "v": "notes"
+        }
+       ]
       },
       {
        "t": "text",
@@ -2024,7 +2464,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "documents",
-       "href": "/docs/documents"
+       "href": "/docs/documents",
+       "children": [
+        {
+         "t": "text",
+         "v": "documents"
+        }
+       ]
       }
      ]
     ],
@@ -2032,7 +2478,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Layout"
+       "v": "Layout",
+       "children": [
+        {
+         "t": "text",
+         "v": "Layout"
+        }
+       ]
       }
      ],
      [
@@ -2046,7 +2498,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Comments and history"
+       "v": "Comments and history",
+       "children": [
+        {
+         "t": "text",
+         "v": "Comments and history"
+        }
+       ]
       }
      ],
      [
@@ -2062,6 +2520,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Concept mapping",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Concept mapping"
+    }
+   ],
    "id": "concept-mapping"
   },
   {
@@ -2092,7 +2556,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Cluster",
-       "href": "/docs/clusters"
+       "href": "/docs/clusters",
+       "children": [
+        {
+         "t": "text",
+         "v": "Cluster"
+        }
+       ]
       }
      ]
     ],
@@ -2111,7 +2581,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "nesting is unlimited",
-       "href": "/docs/clusters"
+       "href": "/docs/clusters",
+       "children": [
+        {
+         "t": "text",
+         "v": "nesting is unlimited"
+        }
+       ]
       }
      ]
     ],
@@ -2130,7 +2606,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "grid",
-       "href": "/docs/canvas/grids"
+       "href": "/docs/canvas/grids",
+       "children": [
+        {
+         "t": "text",
+         "v": "grid"
+        }
+       ]
       },
       {
        "t": "text",
@@ -2153,7 +2635,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "note",
-       "href": "/docs/canvas/notes"
+       "href": "/docs/canvas/notes",
+       "children": [
+        {
+         "t": "text",
+         "v": "note"
+        }
+       ]
       }
      ]
     ],
@@ -2172,7 +2660,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "tag",
-       "href": "/docs/organize/tags"
+       "href": "/docs/organize/tags",
+       "children": [
+        {
+         "t": "text",
+         "v": "tag"
+        }
+       ]
       },
       {
        "t": "text",
@@ -2195,7 +2689,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "comment",
-       "href": "/docs/collaborate/comments"
+       "href": "/docs/collaborate/comments",
+       "children": [
+        {
+         "t": "text",
+         "v": "comment"
+        }
+       ]
       },
       {
        "t": "text",
@@ -2218,7 +2718,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "public link",
-       "href": "/docs/collaborate/sharing"
+       "href": "/docs/collaborate/sharing",
+       "children": [
+        {
+         "t": "text",
+         "v": "public link"
+        }
+       ]
       },
       {
        "t": "text",
@@ -2232,6 +2738,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "By tool",
+   "inline": [
+    {
+     "t": "text",
+     "v": "By tool"
+    }
+   ],
    "id": "by-tool"
   },
   {
@@ -2239,7 +2751,20 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "[PureRef](/vs/pureref)"
+     "v": "[PureRef](/vs/pureref)",
+     "children": [
+      {
+       "t": "link",
+       "v": "PureRef",
+       "href": "/vs/pureref",
+       "children": [
+        {
+         "t": "text",
+         "v": "PureRef"
+        }
+       ]
+      }
+     ]
     },
     {
      "t": "text",
@@ -2252,7 +2777,20 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "[Milanote](/vs/milanote)"
+     "v": "[Milanote](/vs/milanote)",
+     "children": [
+      {
+       "t": "link",
+       "v": "Milanote",
+       "href": "/vs/milanote",
+       "children": [
+        {
+         "t": "text",
+         "v": "Milanote"
+        }
+       ]
+      }
+     ]
     },
     {
      "t": "text",
@@ -2265,7 +2803,20 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "[Miro](/vs/miro)"
+     "v": "[Miro](/vs/miro)",
+     "children": [
+      {
+       "t": "link",
+       "v": "Miro",
+       "href": "/vs/miro",
+       "children": [
+        {
+         "t": "text",
+         "v": "Miro"
+        }
+       ]
+      }
+     ]
     },
     {
      "t": "text",
@@ -2278,7 +2829,20 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "[Boords](/vs/boords)"
+     "v": "[Boords](/vs/boords)",
+     "children": [
+      {
+       "t": "link",
+       "v": "Boords",
+       "href": "/vs/boords",
+       "children": [
+        {
+         "t": "text",
+         "v": "Boords"
+        }
+       ]
+      }
+     ]
     },
     {
      "t": "text",
@@ -2286,7 +2850,20 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "[Storyboarder](/vs/storyboarder)"
+     "v": "[Storyboarder](/vs/storyboarder)",
+     "children": [
+      {
+       "t": "link",
+       "v": "Storyboarder",
+       "href": "/vs/storyboarder",
+       "children": [
+        {
+         "t": "text",
+         "v": "Storyboarder"
+        }
+       ]
+      }
+     ]
     },
     {
      "t": "text",
@@ -2295,7 +2872,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "grid",
-     "href": "/docs/canvas/grids"
+     "href": "/docs/canvas/grids",
+     "children": [
+      {
+       "t": "text",
+       "v": "grid"
+      }
+     ]
     },
     {
      "t": "text",
@@ -2304,7 +2887,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "screenplay document",
-     "href": "/docs/documents/screenplay"
+     "href": "/docs/documents/screenplay",
+     "children": [
+      {
+       "t": "text",
+       "v": "screenplay document"
+      }
+     ]
     },
     {
      "t": "text",
@@ -2317,7 +2906,20 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "[StudioBinder](/vs/studiobinder)"
+     "v": "[StudioBinder](/vs/studiobinder)",
+     "children": [
+      {
+       "t": "link",
+       "v": "StudioBinder",
+       "href": "/vs/studiobinder",
+       "children": [
+        {
+         "t": "text",
+         "v": "StudioBinder"
+        }
+       ]
+      }
+     ]
     },
     {
      "t": "text",
@@ -2326,7 +2928,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "schedule",
-     "href": "/docs/canvas/schedule"
+     "href": "/docs/canvas/schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "schedule"
+      }
+     ]
     },
     {
      "t": "text",
@@ -2338,6 +2946,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Comparisons and alternatives",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Comparisons and alternatives"
+    }
+   ],
    "id": "comparisons-and-alternatives"
   },
   {
@@ -2357,21 +2971,39 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "The best PureRef alternatives",
-      "href": "/best/pureref-alternatives"
+      "href": "/best/pureref-alternatives",
+      "children": [
+       {
+        "t": "text",
+        "v": "The best PureRef alternatives"
+       }
+      ]
      }
     ],
     [
      {
       "t": "link",
       "v": "The best Milanote alternatives",
-      "href": "/best/milanote-alternatives"
+      "href": "/best/milanote-alternatives",
+      "children": [
+       {
+        "t": "text",
+        "v": "The best Milanote alternatives"
+       }
+      ]
      }
     ],
     [
      {
       "t": "link",
       "v": "The best mood board apps",
-      "href": "/best/mood-board-apps"
+      "href": "/best/mood-board-apps",
+      "children": [
+       {
+        "t": "text",
+        "v": "The best mood board apps"
+       }
+      ]
      }
     ]
    ]
@@ -2380,6 +3012,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Practical route in",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Practical route in"
+    }
+   ],
    "id": "practical-route-in"
   },
   {
@@ -2393,7 +3031,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "one"
+      "v": "one",
+      "children": [
+       {
+        "t": "text",
+        "v": "one"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2414,7 +3058,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "search",
-      "href": "/docs/organize/search"
+      "href": "/docs/organize/search",
+      "children": [
+       {
+        "t": "text",
+        "v": "search"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2435,7 +3085,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Editors are free",
-      "href": "/docs/collaborate"
+      "href": "/docs/collaborate",
+      "children": [
+       {
+        "t": "text",
+        "v": "Editors are free"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2457,6 +3113,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Moving out again",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Moving out again"
+    }
+   ],
    "id": "moving-out-again"
   },
   {
@@ -2469,7 +3131,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "board exports",
-     "href": "/docs/canvas/export"
+     "href": "/docs/canvas/export",
+     "children": [
+      {
+       "t": "text",
+       "v": "board exports"
+      }
+     ]
     },
     {
      "t": "text",
@@ -2478,7 +3146,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "document exports",
-     "href": "/docs/documents/export"
+     "href": "/docs/documents/export",
+     "children": [
+      {
+       "t": "text",
+       "v": "document exports"
+      }
+     ]
     },
     {
      "t": "text",
@@ -2495,7 +3169,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "REST API",
-     "href": "/docs/api"
+     "href": "/docs/api",
+     "children": [
+      {
+       "t": "text",
+       "v": "REST API"
+      }
+     ]
     },
     {
      "t": "text",
@@ -2524,7 +3204,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "list view",
-     "href": "/docs/clusters/list-view"
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "list view"
+      }
+     ]
     },
     {
      "t": "text",
@@ -2536,6 +3222,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Moving around",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Moving around"
+    }
+   ],
    "id": "moving-around"
   },
   {
@@ -2668,6 +3360,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The tool rail",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The tool rail"
+    }
+   ],
    "id": "the-tool-rail"
   },
   {
@@ -2686,7 +3384,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Select / move"
+      "v": "Select / move",
+      "children": [
+       {
+        "t": "text",
+        "v": "Select / move"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2704,7 +3408,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Pan"
+      "v": "Pan",
+      "children": [
+       {
+        "t": "text",
+        "v": "Pan"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2722,7 +3432,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Add image"
+      "v": "Add image",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add image"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2732,7 +3448,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Add note"
+      "v": "Add note",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add note"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2749,7 +3471,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "rich-text note",
-      "href": "/docs/canvas/notes"
+      "href": "/docs/canvas/notes",
+      "children": [
+       {
+        "t": "text",
+        "v": "rich-text note"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2759,7 +3487,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Add doc"
+      "v": "Add doc",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add doc"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2768,7 +3502,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "document card",
-      "href": "/docs/documents"
+      "href": "/docs/documents",
+      "children": [
+       {
+        "t": "text",
+        "v": "document card"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2778,7 +3518,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Add cluster"
+      "v": "Add cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add cluster"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2788,7 +3534,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Add grid"
+      "v": "Add grid",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add grid"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2805,7 +3557,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "grid",
-      "href": "/docs/canvas/grids"
+      "href": "/docs/canvas/grids",
+      "children": [
+       {
+        "t": "text",
+        "v": "grid"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2815,7 +3573,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Arrow"
+      "v": "Arrow",
+      "children": [
+       {
+        "t": "text",
+        "v": "Arrow"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2832,7 +3596,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "connect two things",
-      "href": "/docs/canvas/arrows"
+      "href": "/docs/canvas/arrows",
+      "children": [
+       {
+        "t": "text",
+        "v": "connect two things"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2850,7 +3620,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "+"
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
     },
     {
      "t": "text",
@@ -2865,7 +3641,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "em",
-      "v": "Tools"
+      "v": "Tools",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tools"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2883,7 +3665,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "em",
-      "v": "Create"
+      "v": "Create",
+      "children": [
+       {
+        "t": "text",
+        "v": "Create"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2893,7 +3681,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "em",
-      "v": "Annotate"
+      "v": "Annotate",
+      "children": [
+       {
+        "t": "text",
+        "v": "Annotate"
+       }
+      ]
      },
      {
       "t": "text",
@@ -2906,6 +3700,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Right-click",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Right-click"
+    }
+   ],
    "id": "right-click"
   },
   {
@@ -2922,7 +3722,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "On empty canvas:"
+     "v": "On empty canvas:",
+     "children": [
+      {
+       "t": "text",
+       "v": "On empty canvas:"
+      }
+     ]
     },
     {
      "t": "text",
@@ -2935,7 +3741,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "On a card:"
+     "v": "On a card:",
+     "children": [
+      {
+       "t": "text",
+       "v": "On a card:"
+      }
+     ]
     },
     {
      "t": "text",
@@ -2948,7 +3760,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "On a group:"
+     "v": "On a group:",
+     "children": [
+      {
+       "t": "text",
+       "v": "On a group:"
+      }
+     ]
     },
     {
      "t": "text",
@@ -2970,6 +3788,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Selection",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Selection"
+    }
+   ],
    "id": "selection"
   },
   {
@@ -2999,7 +3823,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "group",
-     "href": "/docs/canvas/groups"
+     "href": "/docs/canvas/groups",
+     "children": [
+      {
+       "t": "text",
+       "v": "group"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3011,6 +3841,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Drawing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Drawing"
+    }
+   ],
    "id": "drawing"
   },
   {
@@ -3039,7 +3875,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Clear all drawings"
+     "v": "Clear all drawings",
+     "children": [
+      {
+       "t": "text",
+       "v": "Clear all drawings"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3056,7 +3898,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "sketch pad"
+     "v": "sketch pad",
+     "children": [
+      {
+       "t": "text",
+       "v": "sketch pad"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3065,7 +3913,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "art canvas card",
-     "href": "/docs/canvas/shapes-and-drawing"
+     "href": "/docs/canvas/shapes-and-drawing",
+     "children": [
+      {
+       "t": "text",
+       "v": "art canvas card"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3077,6 +3931,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Background",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Background"
+    }
+   ],
    "id": "background"
   },
   {
@@ -3088,7 +3948,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Background colour"
+     "v": "Background colour",
+     "children": [
+      {
+       "t": "text",
+       "v": "Background colour"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3100,6 +3966,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Getting it out",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Getting it out"
+    }
+   ],
    "id": "getting-it-out"
   },
   {
@@ -3111,7 +3983,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Export"
+     "v": "Export",
+     "children": [
+      {
+       "t": "text",
+       "v": "Export"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3120,7 +3998,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Exporting a board",
-     "href": "/docs/canvas/export"
+     "href": "/docs/canvas/export",
+     "children": [
+      {
+       "t": "text",
+       "v": "Exporting a board"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3141,7 +4025,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "mood board maker",
-     "href": "/tools/mood-board-maker"
+     "href": "/tools/mood-board-maker",
+     "children": [
+      {
+       "t": "text",
+       "v": "mood board maker"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3150,7 +4040,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "reference board maker",
-     "href": "/tools/reference-board-maker"
+     "href": "/tools/reference-board-maker",
+     "children": [
+      {
+       "t": "text",
+       "v": "reference board maker"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3173,6 +4069,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Every kind",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every kind"
+    }
+   ],
    "id": "every-kind"
   },
   {
@@ -3196,7 +4098,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Image"
+       "v": "Image",
+       "children": [
+        {
+         "t": "text",
+         "v": "Image"
+        }
+       ]
       }
      ],
      [
@@ -3207,7 +4115,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "non-destructive adjustments",
-       "href": "/docs/canvas/images"
+       "href": "/docs/canvas/images",
+       "children": [
+        {
+         "t": "text",
+         "v": "non-destructive adjustments"
+        }
+       ]
       }
      ]
     ],
@@ -3215,14 +4129,26 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Note"
+       "v": "Note",
+       "children": [
+        {
+         "t": "text",
+         "v": "Note"
+        }
+       ]
       }
      ],
      [
       {
        "t": "link",
        "v": "Rich text",
-       "href": "/docs/canvas/notes"
+       "href": "/docs/canvas/notes",
+       "children": [
+        {
+         "t": "text",
+         "v": "Rich text"
+        }
+       ]
       },
       {
        "t": "text",
@@ -3234,7 +4160,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Link"
+       "v": "Link",
+       "children": [
+        {
+         "t": "text",
+         "v": "Link"
+        }
+       ]
       }
      ],
      [
@@ -3248,7 +4180,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Doc"
+       "v": "Doc",
+       "children": [
+        {
+         "t": "text",
+         "v": "Doc"
+        }
+       ]
       }
      ],
      [
@@ -3259,7 +4197,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "multi-page document",
-       "href": "/docs/documents"
+       "href": "/docs/documents",
+       "children": [
+        {
+         "t": "text",
+         "v": "multi-page document"
+        }
+       ]
       }
      ]
     ],
@@ -3267,7 +4211,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "PDF"
+       "v": "PDF",
+       "children": [
+        {
+         "t": "text",
+         "v": "PDF"
+        }
+       ]
       }
      ],
      [
@@ -3278,7 +4228,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "full viewer",
-       "href": "/docs/files/pdf"
+       "href": "/docs/files/pdf",
+       "children": [
+        {
+         "t": "text",
+         "v": "full viewer"
+        }
+       ]
       }
      ]
     ],
@@ -3286,14 +4242,26 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "File"
+       "v": "File",
+       "children": [
+        {
+         "t": "text",
+         "v": "File"
+        }
+       ]
       }
      ],
      [
       {
        "t": "link",
        "v": "Any other file",
-       "href": "/docs/files"
+       "href": "/docs/files",
+       "children": [
+        {
+         "t": "text",
+         "v": "Any other file"
+        }
+       ]
       },
       {
        "t": "text",
@@ -3305,7 +4273,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Video"
+       "v": "Video",
+       "children": [
+        {
+         "t": "text",
+         "v": "Video"
+        }
+       ]
       }
      ],
      [
@@ -3319,7 +4293,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Audio"
+       "v": "Audio",
+       "children": [
+        {
+         "t": "text",
+         "v": "Audio"
+        }
+       ]
       }
      ],
      [
@@ -3333,7 +4313,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Palette"
+       "v": "Palette",
+       "children": [
+        {
+         "t": "text",
+         "v": "Palette"
+        }
+       ]
       }
      ],
      [
@@ -3344,7 +4330,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "colours",
-       "href": "/docs/canvas/palettes-and-color"
+       "href": "/docs/canvas/palettes-and-color",
+       "children": [
+        {
+         "t": "text",
+         "v": "colours"
+        }
+       ]
       },
       {
        "t": "text",
@@ -3356,14 +4348,26 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Shape"
+       "v": "Shape",
+       "children": [
+        {
+         "t": "text",
+         "v": "Shape"
+        }
+       ]
       }
      ],
      [
       {
        "t": "link",
        "v": "Rectangle, ellipse, line, arrow, diamond, triangle, hexagon, star",
-       "href": "/docs/canvas/shapes-and-drawing"
+       "href": "/docs/canvas/shapes-and-drawing",
+       "children": [
+        {
+         "t": "text",
+         "v": "Rectangle, ellipse, line, arrow, diamond, triangle, hexagon, star"
+        }
+       ]
       }
      ]
     ],
@@ -3371,7 +4375,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Art canvas"
+       "v": "Art canvas",
+       "children": [
+        {
+         "t": "text",
+         "v": "Art canvas"
+        }
+       ]
       }
      ],
      [
@@ -3385,7 +4395,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Grid"
+       "v": "Grid",
+       "children": [
+        {
+         "t": "text",
+         "v": "Grid"
+        }
+       ]
       }
      ],
      [
@@ -3396,7 +4412,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "split-cell layout",
-       "href": "/docs/canvas/grids"
+       "href": "/docs/canvas/grids",
+       "children": [
+        {
+         "t": "text",
+         "v": "split-cell layout"
+        }
+       ]
       },
       {
        "t": "text",
@@ -3408,7 +4430,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Schedule"
+       "v": "Schedule",
+       "children": [
+        {
+         "t": "text",
+         "v": "Schedule"
+        }
+       ]
       }
      ],
      [
@@ -3419,7 +4447,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "real-date calendar",
-       "href": "/docs/canvas/schedule"
+       "href": "/docs/canvas/schedule",
+       "children": [
+        {
+         "t": "text",
+         "v": "real-date calendar"
+        }
+       ]
       },
       {
        "t": "text",
@@ -3431,7 +4465,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Vote"
+       "v": "Vote",
+       "children": [
+        {
+         "t": "text",
+         "v": "Vote"
+        }
+       ]
       }
      ],
      [
@@ -3442,7 +4482,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "up/down poll",
-       "href": "/docs/canvas/vote-cards"
+       "href": "/docs/canvas/vote-cards",
+       "children": [
+        {
+         "t": "text",
+         "v": "up/down poll"
+        }
+       ]
       },
       {
        "t": "text",
@@ -3454,7 +4500,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Cluster"
+       "v": "Cluster",
+       "children": [
+        {
+         "t": "text",
+         "v": "Cluster"
+        }
+       ]
       }
      ],
      [
@@ -3465,7 +4517,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "nested board",
-       "href": "/docs/clusters"
+       "href": "/docs/clusters",
+       "children": [
+        {
+         "t": "text",
+         "v": "nested board"
+        }
+       ]
       },
       {
        "t": "text",
@@ -3477,7 +4535,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Linked cluster"
+       "v": "Linked cluster",
+       "children": [
+        {
+         "t": "text",
+         "v": "Linked cluster"
+        }
+       ]
       }
      ],
      [
@@ -3493,6 +4557,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Adding one",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Adding one"
+    }
+   ],
    "id": "adding-one"
   },
   {
@@ -3511,7 +4581,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Drag a file in"
+      "v": "Drag a file in",
+      "children": [
+       {
+        "t": "text",
+        "v": "Drag a file in"
+       }
+      ]
      },
      {
       "t": "text",
@@ -3520,7 +4596,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Files and media",
-      "href": "/docs/files"
+      "href": "/docs/files",
+      "children": [
+       {
+        "t": "text",
+        "v": "Files and media"
+       }
+      ]
      },
      {
       "t": "text",
@@ -3530,7 +4612,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Paste."
+      "v": "Paste.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Paste."
+       }
+      ]
      },
      {
       "t": "text",
@@ -3540,7 +4628,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Double-click empty canvas"
+      "v": "Double-click empty canvas",
+      "children": [
+       {
+        "t": "text",
+        "v": "Double-click empty canvas"
+       }
+      ]
      },
      {
       "t": "text",
@@ -3550,7 +4644,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "The tool rail"
+      "v": "The tool rail",
+      "children": [
+       {
+        "t": "text",
+        "v": "The tool rail"
+       }
+      ]
      },
      {
       "t": "text",
@@ -3558,7 +4658,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "+"
+      "v": "+",
+      "children": [
+       {
+        "t": "text",
+        "v": "+"
+       }
+      ]
      },
      {
       "t": "text",
@@ -3580,6 +4686,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What every card does",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What every card does"
+    }
+   ],
    "id": "what-every-card-does"
   },
   {
@@ -3587,7 +4699,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Move"
+     "v": "Move",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3595,7 +4713,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Resize"
+     "v": "Resize",
+     "children": [
+      {
+       "t": "text",
+       "v": "Resize"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3612,7 +4736,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "snapping",
-     "href": "/docs/canvas/snapping-and-alignment"
+     "href": "/docs/canvas/snapping-and-alignment",
+     "children": [
+      {
+       "t": "text",
+       "v": "snapping"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3625,7 +4755,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Layer order"
+     "v": "Layer order",
+     "children": [
+      {
+       "t": "text",
+       "v": "Layer order"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3654,7 +4790,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Duplicate"
+     "v": "Duplicate",
+     "children": [
+      {
+       "t": "text",
+       "v": "Duplicate"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3675,7 +4817,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Delete"
+     "v": "Delete",
+     "children": [
+      {
+       "t": "text",
+       "v": "Delete"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3704,7 +4852,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Group"
+     "v": "Group",
+     "children": [
+      {
+       "t": "text",
+       "v": "Group"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3721,7 +4875,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Groups",
-     "href": "/docs/canvas/groups"
+     "href": "/docs/canvas/groups",
+     "children": [
+      {
+       "t": "text",
+       "v": "Groups"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3734,7 +4894,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Tag"
+     "v": "Tag",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tag"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3743,7 +4909,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Tags",
-     "href": "/docs/organize/tags"
+     "href": "/docs/organize/tags",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tags"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3756,7 +4928,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Comment"
+     "v": "Comment",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comment"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3765,7 +4943,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Comments",
-     "href": "/docs/collaborate/comments"
+     "href": "/docs/collaborate/comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comments"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3778,7 +4962,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Copy link"
+     "v": "Copy link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy link"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3790,6 +4980,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Titles",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Titles"
+    }
+   ],
    "id": "titles"
   },
   {
@@ -3810,7 +5006,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "list view",
-     "href": "/docs/clusters/list-view"
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "list view"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3829,7 +5031,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "group",
-     "href": "/docs/canvas/groups"
+     "href": "/docs/canvas/groups",
+     "children": [
+      {
+       "t": "text",
+       "v": "group"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3841,6 +5049,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The card limit",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The card limit"
+    }
+   ],
    "id": "the-card-limit"
   },
   {
@@ -3852,7 +5066,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "100 cards"
+     "v": "100 cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "100 cards"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3870,7 +5090,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Plans",
-     "href": "/docs/account/plans"
+     "href": "/docs/account/plans",
+     "children": [
+      {
+       "t": "text",
+       "v": "Plans"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3882,6 +5108,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Cards through the API",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Cards through the API"
+    }
+   ],
    "id": "cards-through-the-api"
   },
   {
@@ -3894,7 +5126,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "REST API",
-     "href": "/docs/api/cards"
+     "href": "/docs/api/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "REST API"
+      }
+     ]
     },
     {
      "t": "text",
@@ -3949,6 +5187,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Adding images",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Adding images"
+    }
+   ],
    "id": "adding-images"
   },
   {
@@ -3958,7 +5202,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Drag from the desktop"
+      "v": "Drag from the desktop",
+      "children": [
+       {
+        "t": "text",
+        "v": "Drag from the desktop"
+       }
+      ]
      },
      {
       "t": "text",
@@ -3968,7 +5218,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Paste"
+      "v": "Paste",
+      "children": [
+       {
+        "t": "text",
+        "v": "Paste"
+       }
+      ]
      },
      {
       "t": "text",
@@ -3978,7 +5234,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "The image tool"
+      "v": "The image tool",
+      "children": [
+       {
+        "t": "text",
+        "v": "The image tool"
+       }
+      ]
      },
      {
       "t": "text",
@@ -3988,7 +5250,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Soleil Scout](/docs/scout)"
+      "v": "[Soleil Scout](/docs/scout)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Soleil Scout",
+        "href": "/docs/scout",
+        "children": [
+         {
+          "t": "text",
+          "v": "Soleil Scout"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -4019,6 +5294,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Progressive loading",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Progressive loading"
+    }
+   ],
    "id": "progressive-loading"
   },
   {
@@ -4043,6 +5324,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Adjustments",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Adjustments"
+    }
+   ],
    "id": "adjustments"
   },
   {
@@ -4070,7 +5357,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Edit popover"
+      "v": "Edit popover",
+      "children": [
+       {
+        "t": "text",
+        "v": "Edit popover"
+       }
+      ]
      },
      {
       "t": "text",
@@ -4080,7 +5373,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Full screen editor"
+      "v": "Full screen editor",
+      "children": [
+       {
+        "t": "text",
+        "v": "Full screen editor"
+       }
+      ]
      },
      {
       "t": "text",
@@ -4090,7 +5389,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Lightbox"
+      "v": "Lightbox",
+      "children": [
+       {
+        "t": "text",
+        "v": "Lightbox"
+       }
+      ]
      },
      {
       "t": "text",
@@ -4108,7 +5413,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Reset"
+     "v": "Reset",
+     "children": [
+      {
+       "t": "text",
+       "v": "Reset"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4130,6 +5441,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Downloading",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Downloading"
+    }
+   ],
    "id": "downloading"
   },
   {
@@ -4145,6 +5462,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Auto-arranging a moodboard",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Auto-arranging a moodboard"
+    }
+   ],
    "id": "auto-arranging-a-moodboard"
   },
   {
@@ -4156,7 +5479,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "auto-arrange"
+     "v": "auto-arrange",
+     "children": [
+      {
+       "t": "text",
+       "v": "auto-arrange"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4174,7 +5503,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "grid",
-     "href": "/docs/canvas/grids"
+     "href": "/docs/canvas/grids",
+     "children": [
+      {
+       "t": "text",
+       "v": "grid"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4186,6 +5521,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Cropping and thumbnails",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Cropping and thumbnails"
+    }
+   ],
    "id": "cropping-and-thumbnails"
   },
   {
@@ -4197,7 +5538,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Upload custom thumbnail"
+     "v": "Upload custom thumbnail",
+     "children": [
+      {
+       "t": "text",
+       "v": "Upload custom thumbnail"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4205,7 +5552,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Reset to auto thumbnail"
+     "v": "Reset to auto thumbnail",
+     "children": [
+      {
+       "t": "text",
+       "v": "Reset to auto thumbnail"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4217,6 +5570,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Limits",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Limits"
+    }
+   ],
    "id": "limits"
   },
   {
@@ -4229,7 +5588,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "video, audio and PDF",
-     "href": "/docs/files"
+     "href": "/docs/files",
+     "children": [
+      {
+       "t": "text",
+       "v": "video, audio and PDF"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4259,7 +5624,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "mood board maker",
-     "href": "/tools/mood-board-maker"
+     "href": "/tools/mood-board-maker",
+     "children": [
+      {
+       "t": "text",
+       "v": "mood board maker"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4296,7 +5667,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "document",
-     "href": "/docs/documents"
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "document"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4308,6 +5685,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Writing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Writing"
+    }
+   ],
    "id": "writing"
   },
   {
@@ -4370,7 +5753,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "whole note"
+     "v": "whole note",
+     "children": [
+      {
+       "t": "text",
+       "v": "whole note"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4382,6 +5771,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Checklists",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Checklists"
+    }
+   ],
    "id": "checklists"
   },
   {
@@ -4397,6 +5792,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Mentions",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Mentions"
+    }
+   ],
    "id": "mentions"
   },
   {
@@ -4426,7 +5827,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Links and mentions",
-     "href": "/docs/organize/links-and-mentions"
+     "href": "/docs/organize/links-and-mentions",
+     "children": [
+      {
+       "t": "text",
+       "v": "Links and mentions"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4438,6 +5845,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Automatic links",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Automatic links"
+    }
+   ],
    "id": "automatic-links"
   },
   {
@@ -4462,6 +5875,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Working together",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Working together"
+    }
+   ],
    "id": "working-together"
   },
   {
@@ -4477,6 +5896,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Colours and defaults",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Colours and defaults"
+    }
+   ],
    "id": "colours-and-defaults"
   },
   {
@@ -4489,7 +5914,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "themes",
-     "href": "/docs/account/theme-and-defaults"
+     "href": "/docs/account/theme-and-defaults",
+     "children": [
+      {
+       "t": "text",
+       "v": "themes"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4506,7 +5937,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Defaults"
+     "v": "Defaults",
+     "children": [
+      {
+       "t": "text",
+       "v": "Defaults"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4518,6 +5955,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Spellcheck",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Spellcheck"
+    }
+   ],
    "id": "spellcheck"
   },
   {
@@ -4544,6 +5987,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Free-draw",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Free-draw"
+    }
+   ],
    "id": "free-draw"
   },
   {
@@ -4572,7 +6021,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "not"
+     "v": "not",
+     "children": [
+      {
+       "t": "text",
+       "v": "not"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4581,7 +6036,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "art canvas",
-     "href": "#art-canvas"
+     "href": "#art-canvas",
+     "children": [
+      {
+       "t": "text",
+       "v": "art canvas"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4598,7 +6059,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "eraser"
+     "v": "eraser",
+     "children": [
+      {
+       "t": "text",
+       "v": "eraser"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4606,7 +6073,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Clear all drawings"
+     "v": "Clear all drawings",
+     "children": [
+      {
+       "t": "text",
+       "v": "Clear all drawings"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4618,6 +6091,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Shapes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Shapes"
+    }
+   ],
    "id": "shapes"
   },
   {
@@ -4629,7 +6108,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "+"
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4637,7 +6122,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "em",
-     "v": "Tools"
+     "v": "Tools",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tools"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4645,7 +6136,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Shape"
+     "v": "Shape",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shape"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4671,7 +6168,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Defaults"
+     "v": "Defaults",
+     "children": [
+      {
+       "t": "text",
+       "v": "Defaults"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4689,7 +6192,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "arrow",
-     "href": "/docs/canvas/arrows"
+     "href": "/docs/canvas/arrows",
+     "children": [
+      {
+       "t": "text",
+       "v": "arrow"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4708,7 +6217,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "note",
-     "href": "/docs/canvas/notes"
+     "href": "/docs/canvas/notes",
+     "children": [
+      {
+       "t": "text",
+       "v": "note"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4717,7 +6232,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "group",
-     "href": "/docs/canvas/groups"
+     "href": "/docs/canvas/groups",
+     "children": [
+      {
+       "t": "text",
+       "v": "group"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4729,6 +6250,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The sketch pad",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The sketch pad"
+    }
+   ],
    "id": "the-sketch-pad"
   },
   {
@@ -4740,7 +6267,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "+"
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4748,7 +6281,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "em",
-     "v": "Tools"
+     "v": "Tools",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tools"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4756,7 +6295,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Draw"
+     "v": "Draw",
+     "children": [
+      {
+       "t": "text",
+       "v": "Draw"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4777,6 +6322,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Art canvas",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Art canvas"
+    }
+   ],
    "id": "art-canvas"
   },
   {
@@ -4788,7 +6339,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "card"
+     "v": "card",
+     "children": [
+      {
+       "t": "text",
+       "v": "card"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4797,7 +6354,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "grid",
-     "href": "/docs/canvas/grids"
+     "href": "/docs/canvas/grids",
+     "children": [
+      {
+       "t": "text",
+       "v": "grid"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4818,6 +6381,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Colours",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Colours"
+    }
+   ],
    "id": "colours"
   },
   {
@@ -4830,7 +6399,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "colour picker",
-     "href": "/docs/canvas/palettes-and-color"
+     "href": "/docs/canvas/palettes-and-color",
+     "children": [
+      {
+       "t": "text",
+       "v": "colour picker"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4839,7 +6414,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "palette cards",
-     "href": "/docs/canvas/palettes-and-color"
+     "href": "/docs/canvas/palettes-and-color",
+     "children": [
+      {
+       "t": "text",
+       "v": "palette cards"
+      }
+     ]
     },
     {
      "t": "text",
@@ -4860,6 +6441,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Tablets and styluses",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tablets and styluses"
+    }
+   ],
    "id": "tablets-and-styluses"
   },
   {
@@ -4886,6 +6473,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Drawing one",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Drawing one"
+    }
+   ],
    "id": "drawing-one"
   },
   {
@@ -4912,7 +6505,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Card to card"
+      "v": "Card to card",
+      "children": [
+       {
+        "t": "text",
+        "v": "Card to card"
+       }
+      ]
      },
      {
       "t": "text",
@@ -4922,7 +6521,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Empty space to empty space"
+      "v": "Empty space to empty space",
+      "children": [
+       {
+        "t": "text",
+        "v": "Empty space to empty space"
+       }
+      ]
      },
      {
       "t": "text",
@@ -4932,7 +6537,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Card to empty space"
+      "v": "Card to empty space",
+      "children": [
+       {
+        "t": "text",
+        "v": "Card to empty space"
+       }
+      ]
      },
      {
       "t": "text",
@@ -4970,6 +6581,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Routing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Routing"
+    }
+   ],
    "id": "routing"
   },
   {
@@ -5003,6 +6620,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Styling",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Styling"
+    }
+   ],
    "id": "styling"
   },
   {
@@ -5046,7 +6669,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "picker",
-       "href": "/docs/canvas/palettes-and-color"
+       "href": "/docs/canvas/palettes-and-color",
+       "children": [
+        {
+         "t": "text",
+         "v": "picker"
+        }
+       ]
       },
       {
        "t": "text",
@@ -5139,6 +6768,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Deleting",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Deleting"
+    }
+   ],
    "id": "deleting"
   },
   {
@@ -5162,6 +6797,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "When to use something else",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When to use something else"
+    }
+   ],
    "id": "when-to-use-something-else"
   },
   {
@@ -5176,7 +6817,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "group",
-      "href": "/docs/canvas/groups"
+      "href": "/docs/canvas/groups",
+      "children": [
+       {
+        "t": "text",
+        "v": "group"
+       }
+      ]
      },
      {
       "t": "text",
@@ -5191,7 +6838,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "free-draw",
-      "href": "/docs/canvas/shapes-and-drawing"
+      "href": "/docs/canvas/shapes-and-drawing",
+      "children": [
+       {
+        "t": "text",
+        "v": "free-draw"
+       }
+      ]
      },
      {
       "t": "text",
@@ -5206,7 +6859,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "grid",
-      "href": "/docs/canvas/grids"
+      "href": "/docs/canvas/grids",
+      "children": [
+       {
+        "t": "text",
+        "v": "grid"
+       }
+      ]
      },
      {
       "t": "text",
@@ -5247,6 +6906,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Groups are not containers",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Groups are not containers"
+    }
+   ],
    "id": "groups-are-not-containers"
   },
   {
@@ -5269,7 +6934,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "group"
+      "v": "group",
+      "children": [
+       {
+        "t": "text",
+        "v": "group"
+       }
+      ]
      },
      {
       "t": "text",
@@ -5283,7 +6954,24 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "nested [cluster](/docs/clusters)"
+      "v": "nested [cluster](/docs/clusters)",
+      "children": [
+       {
+        "t": "text",
+        "v": "nested "
+       },
+       {
+        "t": "link",
+        "v": "cluster",
+        "href": "/docs/clusters",
+        "children": [
+         {
+          "t": "text",
+          "v": "cluster"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -5305,6 +6993,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What a group has",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What a group has"
+    }
+   ],
    "id": "what-a-group-has"
   },
   {
@@ -5312,7 +7006,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "A name."
+     "v": "A name.",
+     "children": [
+      {
+       "t": "text",
+       "v": "A name."
+      }
+     ]
     },
     {
      "t": "text",
@@ -5333,7 +7033,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "An outline"
+     "v": "An outline",
+     "children": [
+      {
+       "t": "text",
+       "v": "An outline"
+      }
+     ]
     },
     {
      "t": "text",
@@ -5346,7 +7052,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Group operations"
+     "v": "Group operations",
+     "children": [
+      {
+       "t": "text",
+       "v": "Group operations"
+      }
+     ]
     },
     {
      "t": "text",
@@ -5442,7 +7154,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "comment",
-       "href": "/docs/collaborate/comments"
+       "href": "/docs/collaborate/comments",
+       "children": [
+        {
+         "t": "text",
+         "v": "comment"
+        }
+       ]
       },
       {
        "t": "text",
@@ -5465,7 +7183,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "tag",
-       "href": "/docs/organize/tags"
+       "href": "/docs/organize/tags",
+       "children": [
+        {
+         "t": "text",
+         "v": "tag"
+        }
+       ]
       },
       {
        "t": "text",
@@ -5493,6 +7217,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Moving and selecting",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Moving and selecting"
+    }
+   ],
    "id": "moving-and-selecting"
   },
   {
@@ -5517,6 +7247,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Comments and tags on a group",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Comments and tags on a group"
+    }
+   ],
    "id": "comments-and-tags-on-a-group"
   },
   {
@@ -5538,7 +7274,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "tag's detail view",
-     "href": "/docs/organize/tags"
+     "href": "/docs/organize/tags",
+     "children": [
+      {
+       "t": "text",
+       "v": "tag's detail view"
+      }
+     ]
     },
     {
      "t": "text",
@@ -5550,6 +7292,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "When the canvas gets crowded",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When the canvas gets crowded"
+    }
+   ],
    "id": "when-the-canvas-gets-crowded"
   },
   {
@@ -5562,7 +7310,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "power reveal",
-     "href": "/docs/canvas"
+     "href": "/docs/canvas",
+     "children": [
+      {
+       "t": "text",
+       "v": "power reveal"
+      }
+     ]
     },
     {
      "t": "text",
@@ -5602,6 +7356,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What a cell holds",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What a cell holds"
+    }
+   ],
    "id": "what-a-cell-holds"
   },
   {
@@ -5623,7 +7383,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "photo controls",
-     "href": "/docs/canvas/images"
+     "href": "/docs/canvas/images",
+     "children": [
+      {
+       "t": "text",
+       "v": "photo controls"
+      }
+     ]
     },
     {
      "t": "text",
@@ -5635,6 +7401,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Building a layout",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Building a layout"
+    }
+   ],
    "id": "building-a-layout"
   },
   {
@@ -5653,7 +7425,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Drag a divider"
+      "v": "Drag a divider",
+      "children": [
+       {
+        "t": "text",
+        "v": "Drag a divider"
+       }
+      ]
      },
      {
       "t": "text",
@@ -5663,7 +7441,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Split a cell"
+      "v": "Split a cell",
+      "children": [
+       {
+        "t": "text",
+        "v": "Split a cell"
+       }
+      ]
      },
      {
       "t": "text",
@@ -5673,7 +7457,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Merge"
+      "v": "Merge",
+      "children": [
+       {
+        "t": "text",
+        "v": "Merge"
+       }
+      ]
      },
      {
       "t": "text",
@@ -5695,6 +7485,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Presets",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Presets"
+    }
+   ],
    "id": "presets"
   },
   {
@@ -5800,7 +7596,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Generate matrix"
+     "v": "Generate matrix",
+     "children": [
+      {
+       "t": "text",
+       "v": "Generate matrix"
+      }
+     ]
     },
     {
      "t": "text",
@@ -5812,6 +7614,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Reading order",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Reading order"
+    }
+   ],
    "id": "reading-order"
   },
   {
@@ -5827,6 +7635,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Grid families",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Grid families"
+    }
+   ],
    "id": "grid-families"
   },
   {
@@ -5842,6 +7656,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Discovering grids",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Discovering grids"
+    }
+   ],
    "id": "discovering-grids"
   },
   {
@@ -5854,7 +7674,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "power reveal",
-     "href": "/docs/canvas"
+     "href": "/docs/canvas",
+     "children": [
+      {
+       "t": "text",
+       "v": "power reveal"
+      }
+     ]
     },
     {
      "t": "text",
@@ -5866,6 +7692,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Grids versus schedules",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Grids versus schedules"
+    }
+   ],
    "id": "grids-versus-schedules"
   },
   {
@@ -5888,7 +7720,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "grid"
+      "v": "grid",
+      "children": [
+       {
+        "t": "text",
+        "v": "grid"
+       }
+      ]
      },
      {
       "t": "text",
@@ -5902,7 +7740,20 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "[schedule](/docs/canvas/schedule)"
+      "v": "[schedule](/docs/canvas/schedule)",
+      "children": [
+       {
+        "t": "link",
+        "v": "schedule",
+        "href": "/docs/canvas/schedule",
+        "children": [
+         {
+          "t": "text",
+          "v": "schedule"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -5910,7 +7761,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "em",
-      "v": "dates"
+      "v": "dates",
+      "children": [
+       {
+        "t": "text",
+        "v": "dates"
+       }
+      ]
      },
      {
       "t": "text",
@@ -5941,7 +7798,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "storyboard maker",
-     "href": "/tools/storyboard-maker"
+     "href": "/tools/storyboard-maker",
+     "children": [
+      {
+       "t": "text",
+       "v": "storyboard maker"
+      }
+     ]
     },
     {
      "t": "text",
@@ -5969,7 +7832,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "+"
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
     },
     {
      "t": "text",
@@ -5977,7 +7846,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "em",
-     "v": "Create"
+     "v": "Create",
+     "children": [
+      {
+       "t": "text",
+       "v": "Create"
+      }
+     ]
     },
     {
      "t": "text",
@@ -5985,7 +7860,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Schedule"
+     "v": "Schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "Schedule"
+      }
+     ]
     },
     {
      "t": "text",
@@ -5997,6 +7878,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Views",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Views"
+    }
+   ],
    "id": "views"
   },
   {
@@ -6029,7 +7916,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Month"
+       "v": "Month",
+       "children": [
+        {
+         "t": "text",
+         "v": "Month"
+        }
+       ]
       }
      ],
      [
@@ -6043,7 +7936,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Week"
+       "v": "Week",
+       "children": [
+        {
+         "t": "text",
+         "v": "Week"
+        }
+       ]
       }
      ],
      [
@@ -6057,7 +7956,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Day"
+       "v": "Day",
+       "children": [
+        {
+         "t": "text",
+         "v": "Day"
+        }
+       ]
       }
      ],
      [
@@ -6071,7 +7976,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Hour"
+       "v": "Hour",
+       "children": [
+        {
+         "t": "text",
+         "v": "Hour"
+        }
+       ]
       }
      ],
      [
@@ -6097,7 +8008,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Go to today"
+     "v": "Go to today",
+     "children": [
+      {
+       "t": "text",
+       "v": "Go to today"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6109,6 +8026,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Putting things in it",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Putting things in it"
+    }
+   ],
    "id": "putting-things-in-it"
   },
   {
@@ -6124,6 +8047,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The peek panel",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The peek panel"
+    }
+   ],
    "id": "the-peek-panel"
   },
   {
@@ -6135,7 +8064,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "read-only"
+     "v": "read-only",
+     "children": [
+      {
+       "t": "text",
+       "v": "read-only"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6143,7 +8078,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "peek"
+     "v": "peek",
+     "children": [
+      {
+       "t": "text",
+       "v": "peek"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6164,6 +8105,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What a schedule is for",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What a schedule is for"
+    }
+   ],
    "id": "what-a-schedule-is-for"
   },
   {
@@ -6175,7 +8122,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "em",
-     "v": "time"
+     "v": "time",
+     "children": [
+      {
+       "t": "text",
+       "v": "time"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6222,7 +8175,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "em",
-     "v": "position"
+     "v": "position",
+     "children": [
+      {
+       "t": "text",
+       "v": "position"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6231,7 +8190,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "grid",
-     "href": "/docs/canvas/grids"
+     "href": "/docs/canvas/grids",
+     "children": [
+      {
+       "t": "text",
+       "v": "grid"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6259,7 +8224,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "+"
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6267,7 +8238,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "em",
-     "v": "Annotate"
+     "v": "Annotate",
+     "children": [
+      {
+       "t": "text",
+       "v": "Annotate"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6275,7 +8252,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Vote"
+     "v": "Vote",
+     "children": [
+      {
+       "t": "text",
+       "v": "Vote"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6287,6 +8270,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Anchoring",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Anchoring"
+    }
+   ],
    "id": "anchoring"
   },
   {
@@ -6299,7 +8288,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "comments",
-     "href": "/docs/collaborate/comments"
+     "href": "/docs/collaborate/comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "comments"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6318,7 +8313,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "card"
+      "v": "card",
+      "children": [
+       {
+        "t": "text",
+        "v": "card"
+       }
+      ]
      },
      {
       "t": "text",
@@ -6332,7 +8333,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "group"
+      "v": "group",
+      "children": [
+       {
+        "t": "text",
+        "v": "group"
+       }
+      ]
      },
      {
       "t": "text",
@@ -6346,7 +8353,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "empty point"
+      "v": "empty point",
+      "children": [
+       {
+        "t": "text",
+        "v": "empty point"
+       }
+      ]
      },
      {
       "t": "text",
@@ -6360,7 +8373,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "board"
+      "v": "board",
+      "children": [
+       {
+        "t": "text",
+        "v": "board"
+       }
+      ]
      },
      {
       "t": "text",
@@ -6382,6 +8401,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Voting",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Voting"
+    }
+   ],
    "id": "voting"
   },
   {
@@ -6393,7 +8418,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "including viewers"
+     "v": "including viewers",
+     "children": [
+      {
+       "t": "text",
+       "v": "including viewers"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6414,6 +8445,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What it is good for",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What it is good for"
+    }
+   ],
    "id": "what-it-is-good-for"
   },
   {
@@ -6444,6 +8481,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What it is not",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What it is not"
+    }
+   ],
    "id": "what-it-is-not"
   },
   {
@@ -6456,7 +8499,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "comment",
-     "href": "/docs/collaborate/comments"
+     "href": "/docs/collaborate/comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "comment"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6475,7 +8524,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "palette card"
+     "v": "palette card",
+     "children": [
+      {
+       "t": "text",
+       "v": "palette card"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6483,7 +8538,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "picker"
+     "v": "picker",
+     "children": [
+      {
+       "t": "text",
+       "v": "picker"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6495,6 +8556,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Palette cards",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Palette cards"
+    }
+   ],
    "id": "palette-cards"
   },
   {
@@ -6506,7 +8573,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "+"
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6514,7 +8587,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "em",
-     "v": "Tools"
+     "v": "Tools",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tools"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6522,7 +8601,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Palette"
+     "v": "Palette",
+     "children": [
+      {
+       "t": "text",
+       "v": "Palette"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6543,6 +8628,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The picker",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The picker"
+    }
+   ],
    "id": "the-picker"
   },
   {
@@ -6561,7 +8652,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Saturation-value pad"
+      "v": "Saturation-value pad",
+      "children": [
+       {
+        "t": "text",
+        "v": "Saturation-value pad"
+       }
+      ]
      },
      {
       "t": "text",
@@ -6569,7 +8666,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "hue slider"
+      "v": "hue slider",
+      "children": [
+       {
+        "t": "text",
+        "v": "hue slider"
+       }
+      ]
      },
      {
       "t": "text",
@@ -6579,7 +8682,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Hex field"
+      "v": "Hex field",
+      "children": [
+       {
+        "t": "text",
+        "v": "Hex field"
+       }
+      ]
      },
      {
       "t": "text",
@@ -6589,7 +8698,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Presets"
+      "v": "Presets",
+      "children": [
+       {
+        "t": "text",
+        "v": "Presets"
+       }
+      ]
      },
      {
       "t": "text",
@@ -6599,7 +8714,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Palette swatches"
+      "v": "Palette swatches",
+      "children": [
+       {
+        "t": "text",
+        "v": "Palette swatches"
+       }
+      ]
      },
      {
       "t": "text",
@@ -6609,7 +8730,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Recent colours"
+      "v": "Recent colours",
+      "children": [
+       {
+        "t": "text",
+        "v": "Recent colours"
+       }
+      ]
      },
      {
       "t": "text",
@@ -6619,7 +8746,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Eyedropper"
+      "v": "Eyedropper",
+      "children": [
+       {
+        "t": "text",
+        "v": "Eyedropper"
+       }
+      ]
      },
      {
       "t": "text",
@@ -6641,6 +8774,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Where colour applies",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Where colour applies"
+    }
+   ],
    "id": "where-colour-applies"
   },
   {
@@ -6665,7 +8804,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Notes",
-       "href": "/docs/canvas/notes"
+       "href": "/docs/canvas/notes",
+       "children": [
+        {
+         "t": "text",
+         "v": "Notes"
+        }
+       ]
       }
      ],
      [
@@ -6680,7 +8825,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Shapes",
-       "href": "/docs/canvas/shapes-and-drawing"
+       "href": "/docs/canvas/shapes-and-drawing",
+       "children": [
+        {
+         "t": "text",
+         "v": "Shapes"
+        }
+       ]
       }
      ],
      [
@@ -6695,7 +8846,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Arrows",
-       "href": "/docs/canvas/arrows"
+       "href": "/docs/canvas/arrows",
+       "children": [
+        {
+         "t": "text",
+         "v": "Arrows"
+        }
+       ]
       }
      ],
      [
@@ -6710,7 +8867,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Groups",
-       "href": "/docs/canvas/groups"
+       "href": "/docs/canvas/groups",
+       "children": [
+        {
+         "t": "text",
+         "v": "Groups"
+        }
+       ]
       }
      ],
      [
@@ -6763,7 +8926,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "presence colour",
-       "href": "/docs/collaborate/presence"
+       "href": "/docs/collaborate/presence",
+       "children": [
+        {
+         "t": "text",
+         "v": "presence colour"
+        }
+       ]
       }
      ]
     ]
@@ -6773,6 +8942,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Readability",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Readability"
+    }
+   ],
    "id": "readability"
   },
   {
@@ -6785,7 +8960,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "theme",
-     "href": "/docs/account/theme-and-defaults"
+     "href": "/docs/account/theme-and-defaults",
+     "children": [
+      {
+       "t": "text",
+       "v": "theme"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6797,6 +8978,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "One reserved colour",
+   "inline": [
+    {
+     "t": "text",
+     "v": "One reserved colour"
+    }
+   ],
    "id": "one-reserved-colour"
   },
   {
@@ -6821,7 +9008,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "look book maker",
-     "href": "/tools/look-book-maker"
+     "href": "/tools/look-book-maker",
+     "children": [
+      {
+       "t": "text",
+       "v": "look book maker"
+      }
+     ]
     },
     {
      "t": "text",
@@ -6844,6 +9037,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What happens as you drag",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What happens as you drag"
+    }
+   ],
    "id": "what-happens-as-you-drag"
   },
   {
@@ -6862,7 +9061,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Edges"
+      "v": "Edges",
+      "children": [
+       {
+        "t": "text",
+        "v": "Edges"
+       }
+      ]
      },
      {
       "t": "text",
@@ -6872,7 +9077,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Centres"
+      "v": "Centres",
+      "children": [
+       {
+        "t": "text",
+        "v": "Centres"
+       }
+      ]
      },
      {
       "t": "text",
@@ -6882,7 +9093,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Equal spacing"
+      "v": "Equal spacing",
+      "children": [
+       {
+        "t": "text",
+        "v": "Equal spacing"
+       }
+      ]
      },
      {
       "t": "text",
@@ -6904,6 +9121,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Turning it off for one drag",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Turning it off for one drag"
+    }
+   ],
    "id": "turning-it-off-for-one-drag"
   },
   {
@@ -6936,6 +9159,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Aligning a selection",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Aligning a selection"
+    }
+   ],
    "id": "aligning-a-selection"
   },
   {
@@ -6951,6 +9180,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "On a crowded board",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a crowded board"
+    }
+   ],
    "id": "on-a-crowded-board"
   },
   {
@@ -6966,6 +9201,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Where snapping does not apply",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Where snapping does not apply"
+    }
+   ],
    "id": "where-snapping-does-not-apply"
   },
   {
@@ -6975,7 +9216,24 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Free-draw](/docs/canvas/shapes-and-drawing) strokes"
+      "v": "[Free-draw](/docs/canvas/shapes-and-drawing) strokes",
+      "children": [
+       {
+        "t": "link",
+        "v": "Free-draw",
+        "href": "/docs/canvas/shapes-and-drawing",
+        "children": [
+         {
+          "t": "text",
+          "v": "Free-draw"
+         }
+        ]
+       },
+       {
+        "t": "text",
+        "v": " strokes"
+       }
+      ]
      },
      {
       "t": "text",
@@ -6985,7 +9243,24 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Inside a [grid](/docs/canvas/grids)"
+      "v": "Inside a [grid](/docs/canvas/grids)",
+      "children": [
+       {
+        "t": "text",
+        "v": "Inside a "
+       },
+       {
+        "t": "link",
+        "v": "grid",
+        "href": "/docs/canvas/grids",
+        "children": [
+         {
+          "t": "text",
+          "v": "grid"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -6995,7 +9270,24 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Schedule](/docs/canvas/schedule) slots"
+      "v": "[Schedule](/docs/canvas/schedule) slots",
+      "children": [
+       {
+        "t": "link",
+        "v": "Schedule",
+        "href": "/docs/canvas/schedule",
+        "children": [
+         {
+          "t": "text",
+          "v": "Schedule"
+         }
+        ]
+       },
+       {
+        "t": "text",
+        "v": " slots"
+       }
+      ]
      },
      {
       "t": "text",
@@ -7019,6 +9311,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The whole board",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The whole board"
+    }
+   ],
    "id": "the-whole-board"
   },
   {
@@ -7030,7 +9328,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Export"
+     "v": "Export",
+     "children": [
+      {
+       "t": "text",
+       "v": "Export"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7045,7 +9349,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "PNG"
+      "v": "PNG",
+      "children": [
+       {
+        "t": "text",
+        "v": "PNG"
+       }
+      ]
      },
      {
       "t": "text",
@@ -7055,7 +9365,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "PDF"
+      "v": "PDF",
+      "children": [
+       {
+        "t": "text",
+        "v": "PDF"
+       }
+      ]
      },
      {
       "t": "text",
@@ -7074,7 +9390,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "arrows",
-     "href": "/docs/canvas/arrows"
+     "href": "/docs/canvas/arrows",
+     "children": [
+      {
+       "t": "text",
+       "v": "arrows"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7083,7 +9405,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "drawings",
-     "href": "/docs/canvas/shapes-and-drawing"
+     "href": "/docs/canvas/shapes-and-drawing",
+     "children": [
+      {
+       "t": "text",
+       "v": "drawings"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7092,7 +9420,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "group",
-     "href": "/docs/canvas/groups"
+     "href": "/docs/canvas/groups",
+     "children": [
+      {
+       "t": "text",
+       "v": "group"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7110,7 +9444,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "nested cluster",
-     "href": "/docs/clusters"
+     "href": "/docs/clusters",
+     "children": [
+      {
+       "t": "text",
+       "v": "nested cluster"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7122,6 +9462,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "A single image",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A single image"
+    }
+   ],
    "id": "a-single-image"
   },
   {
@@ -7133,7 +9479,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Download"
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7152,7 +9504,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "original file"
+      "v": "original file",
+      "children": [
+       {
+        "t": "text",
+        "v": "original file"
+       }
+      ]
      },
      {
       "t": "text",
@@ -7167,7 +9525,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "adjustments",
-      "href": "/docs/canvas/images"
+      "href": "/docs/canvas/images",
+      "children": [
+       {
+        "t": "text",
+        "v": "adjustments"
+       }
+      ]
      },
      {
       "t": "text",
@@ -7189,6 +9553,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "A document",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A document"
+    }
+   ],
    "id": "a-document"
   },
   {
@@ -7197,7 +9567,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Documents",
-     "href": "/docs/documents"
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "Documents"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7206,7 +9582,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "screenplays",
-     "href": "/docs/documents/screenplay"
+     "href": "/docs/documents/screenplay",
+     "children": [
+      {
+       "t": "text",
+       "v": "screenplays"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7223,7 +9605,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Exporting documents",
-     "href": "/docs/documents/export"
+     "href": "/docs/documents/export",
+     "children": [
+      {
+       "t": "text",
+       "v": "Exporting documents"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7235,6 +9623,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Export or share a link?",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Export or share a link?"
+    }
+   ],
    "id": "export-or-share-a-link"
   },
   {
@@ -7247,7 +9641,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "share link",
-     "href": "/docs/collaborate/sharing"
+     "href": "/docs/collaborate/sharing",
+     "children": [
+      {
+       "t": "text",
+       "v": "share link"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7278,6 +9678,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "On mobile and in the native apps",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On mobile and in the native apps"
+    }
+   ],
    "id": "on-mobile-and-in-the-native-apps"
   },
   {
@@ -7304,6 +9710,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What each type becomes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What each type becomes"
+    }
+   ],
    "id": "what-each-type-becomes"
   },
   {
@@ -7338,7 +9750,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "image card",
-       "href": "/docs/canvas/images"
+       "href": "/docs/canvas/images",
+       "children": [
+        {
+         "t": "text",
+         "v": "image card"
+        }
+       ]
       },
       {
        "t": "text",
@@ -7361,7 +9779,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "player",
-       "href": "/docs/files/video-and-audio"
+       "href": "/docs/files/video-and-audio",
+       "children": [
+        {
+         "t": "text",
+         "v": "player"
+        }
+       ]
       }
      ]
     ],
@@ -7380,7 +9804,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "waveform player",
-       "href": "/docs/files/video-and-audio"
+       "href": "/docs/files/video-and-audio",
+       "children": [
+        {
+         "t": "text",
+         "v": "waveform player"
+        }
+       ]
       },
       {
        "t": "text",
@@ -7403,7 +9833,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "page-one thumbnail",
-       "href": "/docs/files/pdf"
+       "href": "/docs/files/pdf",
+       "children": [
+        {
+         "t": "text",
+         "v": "page-one thumbnail"
+        }
+       ]
       },
       {
        "t": "text",
@@ -7440,6 +9876,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Limits",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Limits"
+    }
+   ],
    "id": "limits"
   },
   {
@@ -7456,7 +9898,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "File type."
+     "v": "File type.",
+     "children": [
+      {
+       "t": "text",
+       "v": "File type."
+      }
+     ]
     },
     {
      "t": "text",
@@ -7493,7 +9941,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Size."
+     "v": "Size.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Size."
+      }
+     ]
     },
     {
      "t": "text",
@@ -7596,7 +10050,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "card cap",
-     "href": "/docs/canvas/cards"
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "card cap"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7608,6 +10068,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Large uploads",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Large uploads"
+    }
+   ],
    "id": "large-uploads"
   },
   {
@@ -7632,6 +10098,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Storage",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Storage"
+    }
+   ],
    "id": "storage"
   },
   {
@@ -7643,7 +10115,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → Billing"
+     "v": "Settings → Billing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Billing"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7660,7 +10138,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "owner of the cluster"
+     "v": "owner of the cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "owner of the cluster"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7669,7 +10153,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "card cap",
-     "href": "/docs/canvas/cards"
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "card cap"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7681,6 +10171,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "How files are stored",
+   "inline": [
+    {
+     "t": "text",
+     "v": "How files are stored"
+    }
+   ],
    "id": "how-files-are-stored"
   },
   {
@@ -7705,6 +10201,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Downloading",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Downloading"
+    }
+   ],
    "id": "downloading"
   },
   {
@@ -7717,7 +10219,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Images",
-     "href": "/docs/canvas/images"
+     "href": "/docs/canvas/images",
+     "children": [
+      {
+       "t": "text",
+       "v": "Images"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7726,7 +10234,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "PDFs",
-     "href": "/docs/files/pdf"
+     "href": "/docs/files/pdf",
+     "children": [
+      {
+       "t": "text",
+       "v": "PDFs"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7749,6 +10263,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The card",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The card"
+    }
+   ],
    "id": "the-card"
   },
   {
@@ -7760,7 +10280,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "first page"
+     "v": "first page",
+     "children": [
+      {
+       "t": "text",
+       "v": "first page"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7768,7 +10294,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "page count"
+     "v": "page count",
+     "children": [
+      {
+       "t": "text",
+       "v": "page count"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7786,7 +10318,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "grid",
-     "href": "/docs/canvas/grids"
+     "href": "/docs/canvas/grids",
+     "children": [
+      {
+       "t": "text",
+       "v": "grid"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7798,6 +10336,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The viewer",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The viewer"
+    }
+   ],
    "id": "the-viewer"
   },
   {
@@ -7814,7 +10358,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Download"
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7826,6 +10376,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What you cannot do",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What you cannot do"
+    }
+   ],
    "id": "what-you-cannot-do"
   },
   {
@@ -7853,7 +10409,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Draw on the canvas"
+      "v": "Draw on the canvas",
+      "children": [
+       {
+        "t": "text",
+        "v": "Draw on the canvas"
+       }
+      ]
      },
      {
       "t": "text",
@@ -7862,13 +10424,25 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Shapes and drawing",
-      "href": "/docs/canvas/shapes-and-drawing"
+      "href": "/docs/canvas/shapes-and-drawing",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shapes and drawing"
+       }
+      ]
      }
     ],
     [
      {
       "t": "strong",
-      "v": "Comment on the card"
+      "v": "Comment on the card",
+      "children": [
+       {
+        "t": "text",
+        "v": "Comment on the card"
+       }
+      ]
      },
      {
       "t": "text",
@@ -7877,13 +10451,25 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Comments",
-      "href": "/docs/collaborate/comments"
+      "href": "/docs/collaborate/comments",
+      "children": [
+       {
+        "t": "text",
+        "v": "Comments"
+       }
+      ]
      }
     ],
     [
      {
       "t": "strong",
-      "v": "Put a note beside it"
+      "v": "Put a note beside it",
+      "children": [
+       {
+        "t": "text",
+        "v": "Put a note beside it"
+       }
+      ]
      },
      {
       "t": "text",
@@ -7896,6 +10482,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Size limit",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Size limit"
+    }
+   ],
    "id": "size-limit"
   },
   {
@@ -7907,7 +10499,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "50 MB"
+     "v": "50 MB",
+     "children": [
+      {
+       "t": "text",
+       "v": "50 MB"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7916,7 +10514,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Plans",
-     "href": "/docs/account/plans"
+     "href": "/docs/account/plans",
+     "children": [
+      {
+       "t": "text",
+       "v": "Plans"
+      }
+     ]
     },
     {
      "t": "text",
@@ -7937,6 +10541,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Making PDFs",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Making PDFs"
+    }
+   ],
    "id": "making-pdfs"
   },
   {
@@ -7960,7 +10570,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Exporting a board",
-      "href": "/docs/canvas/export"
+      "href": "/docs/canvas/export",
+      "children": [
+       {
+        "t": "text",
+        "v": "Exporting a board"
+       }
+      ]
      }
     ],
     [
@@ -7971,7 +10587,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Exporting documents",
-      "href": "/docs/documents/export"
+      "href": "/docs/documents/export",
+      "children": [
+       {
+        "t": "text",
+        "v": "Exporting documents"
+       }
+      ]
      }
     ],
     [
@@ -7982,7 +10604,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "screenplay",
-      "href": "/docs/documents/screenplay"
+      "href": "/docs/documents/screenplay",
+      "children": [
+       {
+        "t": "text",
+        "v": "screenplay"
+       }
+      ]
      },
      {
       "t": "text",
@@ -8006,6 +10634,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Video",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Video"
+    }
+   ],
    "id": "video"
   },
   {
@@ -8026,7 +10660,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "30 MB"
+     "v": "30 MB",
+     "children": [
+      {
+       "t": "text",
+       "v": "30 MB"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8038,6 +10678,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Audio",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Audio"
+    }
+   ],
    "id": "audio"
   },
   {
@@ -8060,7 +10706,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "real waveform"
+      "v": "real waveform",
+      "children": [
+       {
+        "t": "text",
+        "v": "real waveform"
+       }
+      ]
      },
      {
       "t": "text",
@@ -8070,7 +10722,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Cover art"
+      "v": "Cover art",
+      "children": [
+       {
+        "t": "text",
+        "v": "Cover art"
+       }
+      ]
      },
      {
       "t": "text",
@@ -8090,7 +10748,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Only one audio card plays at a time"
+     "v": "Only one audio card plays at a time",
+     "children": [
+      {
+       "t": "text",
+       "v": "Only one audio card plays at a time"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8107,7 +10771,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "50 MB"
+     "v": "50 MB",
+     "children": [
+      {
+       "t": "text",
+       "v": "50 MB"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8119,6 +10789,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Formats",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Formats"
+    }
+   ],
    "id": "formats"
   },
   {
@@ -8140,7 +10816,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "file card",
-     "href": "/docs/files"
+     "href": "/docs/files",
+     "children": [
+      {
+       "t": "text",
+       "v": "file card"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8152,6 +10834,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What this is not",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What this is not"
+    }
+   ],
    "id": "what-this-is-not"
   },
   {
@@ -8173,7 +10861,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "photo adjustments",
-     "href": "/docs/canvas/images"
+     "href": "/docs/canvas/images",
+     "children": [
+      {
+       "t": "text",
+       "v": "photo adjustments"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8185,6 +10879,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Storage",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Storage"
+    }
+   ],
    "id": "storage"
   },
   {
@@ -8196,7 +10896,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → Billing"
+     "v": "Settings → Billing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Billing"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8216,7 +10922,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "API",
-     "href": "/docs/api/boards"
+     "href": "/docs/api/boards",
+     "children": [
+      {
+       "t": "text",
+       "v": "API"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8224,7 +10936,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "board"
+     "v": "board",
+     "children": [
+      {
+       "t": "text",
+       "v": "board"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8236,6 +10954,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Creating one",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Creating one"
+    }
+   ],
    "id": "creating-one"
   },
   {
@@ -8245,7 +10969,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "New cluster"
+      "v": "New cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "New cluster"
+       }
+      ]
      },
      {
       "t": "text",
@@ -8269,7 +10999,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "Add cluster"
+      "v": "Add cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add cluster"
+       }
+      ]
      },
      {
       "t": "text",
@@ -8293,7 +11029,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "unlimited on every plan"
+     "v": "unlimited on every plan",
+     "children": [
+      {
+       "t": "text",
+       "v": "unlimited on every plan"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8302,7 +11044,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "cards",
-     "href": "/docs/canvas/cards"
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "cards"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8314,6 +11062,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Nesting",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Nesting"
+    }
+   ],
    "id": "nesting"
   },
   {
@@ -8339,7 +11093,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Moving"
+     "v": "Moving",
+     "children": [
+      {
+       "t": "text",
+       "v": "Moving"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8352,7 +11112,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Linked clusters"
+     "v": "Linked clusters",
+     "children": [
+      {
+       "t": "text",
+       "v": "Linked clusters"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8364,6 +11130,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Thumbnails",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Thumbnails"
+    }
+   ],
    "id": "thumbnails"
   },
   {
@@ -8391,7 +11163,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Cover colour"
+      "v": "Cover colour",
+      "children": [
+       {
+        "t": "text",
+        "v": "Cover colour"
+       }
+      ]
      },
      {
       "t": "text",
@@ -8401,7 +11179,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Upload custom thumbnail"
+      "v": "Upload custom thumbnail",
+      "children": [
+       {
+        "t": "text",
+        "v": "Upload custom thumbnail"
+       }
+      ]
      },
      {
       "t": "text",
@@ -8411,7 +11195,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Reset to auto thumbnail"
+      "v": "Reset to auto thumbnail",
+      "children": [
+       {
+        "t": "text",
+        "v": "Reset to auto thumbnail"
+       }
+      ]
      },
      {
       "t": "text",
@@ -8433,6 +11223,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Views",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Views"
+    }
+   ],
    "id": "views"
   },
   {
@@ -8451,7 +11247,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Canvas](/docs/canvas)"
+      "v": "[Canvas](/docs/canvas)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Canvas",
+        "href": "/docs/canvas",
+        "children": [
+         {
+          "t": "text",
+          "v": "Canvas"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -8461,7 +11270,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[List](/docs/clusters/list-view)"
+      "v": "[List](/docs/clusters/list-view)",
+      "children": [
+       {
+        "t": "link",
+        "v": "List",
+        "href": "/docs/clusters/list-view",
+        "children": [
+         {
+          "t": "text",
+          "v": "List"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -8479,7 +11301,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Defaults"
+     "v": "Defaults",
+     "children": [
+      {
+       "t": "text",
+       "v": "Defaults"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8491,6 +11319,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Finding clusters",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Finding clusters"
+    }
+   ],
    "id": "finding-clusters"
   },
   {
@@ -8500,7 +11334,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "The sidebar tree"
+      "v": "The sidebar tree",
+      "children": [
+       {
+        "t": "text",
+        "v": "The sidebar tree"
+       }
+      ]
      },
      {
       "t": "text",
@@ -8510,7 +11350,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[`⌘K`](/docs/organize/search)"
+      "v": "[`⌘K`](/docs/organize/search)",
+      "children": [
+       {
+        "t": "link",
+        "v": "`⌘K`",
+        "href": "/docs/organize/search",
+        "children": [
+         {
+          "t": "code",
+          "v": "⌘K"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -8520,7 +11373,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Recents"
+      "v": "Recents",
+      "children": [
+       {
+        "t": "text",
+        "v": "Recents"
+       }
+      ]
      },
      {
       "t": "text",
@@ -8530,7 +11389,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Home](/docs/clusters/home-graph)"
+      "v": "[Home](/docs/clusters/home-graph)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Home",
+        "href": "/docs/clusters/home-graph",
+        "children": [
+         {
+          "t": "text",
+          "v": "Home"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -8540,7 +11412,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Shared with me"
+      "v": "Shared with me",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shared with me"
+       }
+      ]
      },
      {
       "t": "text",
@@ -8553,6 +11431,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Deleting",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Deleting"
+    }
+   ],
    "id": "deleting"
   },
   {
@@ -8564,7 +11448,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "soft delete"
+     "v": "soft delete",
+     "children": [
+      {
+       "t": "text",
+       "v": "soft delete"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8573,7 +11463,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Trash and recovery",
-     "href": "/docs/clusters/trash-and-recovery"
+     "href": "/docs/clusters/trash-and-recovery",
+     "children": [
+      {
+       "t": "text",
+       "v": "Trash and recovery"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8605,6 +11501,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Table and gallery",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Table and gallery"
+    }
+   ],
    "id": "table-and-gallery"
   },
   {
@@ -8612,7 +11514,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Table"
+     "v": "Table",
+     "children": [
+      {
+       "t": "text",
+       "v": "Table"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8625,7 +11533,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Gallery"
+     "v": "Gallery",
+     "children": [
+      {
+       "t": "text",
+       "v": "Gallery"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8637,6 +11551,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Sorting and filtering",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sorting and filtering"
+    }
+   ],
    "id": "sorting-and-filtering"
   },
   {
@@ -8648,7 +11568,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "name"
+     "v": "name",
+     "children": [
+      {
+       "t": "text",
+       "v": "name"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8656,7 +11582,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "type"
+     "v": "type",
+     "children": [
+      {
+       "t": "text",
+       "v": "type"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8664,7 +11596,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "size"
+     "v": "size",
+     "children": [
+      {
+       "t": "text",
+       "v": "size"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8672,7 +11610,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "date modified"
+     "v": "date modified",
+     "children": [
+      {
+       "t": "text",
+       "v": "date modified"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8680,7 +11624,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "date added"
+     "v": "date added",
+     "children": [
+      {
+       "t": "text",
+       "v": "date added"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8702,7 +11652,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Search"
+     "v": "Search",
+     "children": [
+      {
+       "t": "text",
+       "v": "Search"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8723,6 +11679,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Previews",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Previews"
+    }
+   ],
    "id": "previews"
   },
   {
@@ -8735,7 +11697,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "grids",
-     "href": "/docs/canvas/grids"
+     "href": "/docs/canvas/grids",
+     "children": [
+      {
+       "t": "text",
+       "v": "grids"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8744,7 +11712,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "docs",
-     "href": "/docs/documents"
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "docs"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8753,7 +11727,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "schedules",
-     "href": "/docs/canvas/schedule"
+     "href": "/docs/canvas/schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "schedules"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8765,6 +11745,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The detail panel",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The detail panel"
+    }
+   ],
    "id": "the-detail-panel"
   },
   {
@@ -8797,7 +11783,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Open on canvas"
+       "v": "Open on canvas",
+       "children": [
+        {
+         "t": "text",
+         "v": "Open on canvas"
+        }
+       ]
       }
      ],
      [
@@ -8811,7 +11803,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Download"
+       "v": "Download",
+       "children": [
+        {
+         "t": "text",
+         "v": "Download"
+        }
+       ]
       }
      ],
      [
@@ -8825,7 +11823,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Copy link"
+       "v": "Copy link",
+       "children": [
+        {
+         "t": "text",
+         "v": "Copy link"
+        }
+       ]
       }
      ],
      [
@@ -8839,7 +11843,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Delete"
+       "v": "Delete",
+       "children": [
+        {
+         "t": "text",
+         "v": "Delete"
+        }
+       ]
       }
      ],
      [
@@ -8856,7 +11866,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Open on canvas"
+     "v": "Open on canvas",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open on canvas"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8868,6 +11884,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Adding files here",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Adding files here"
+    }
+   ],
    "id": "adding-files-here"
   },
   {
@@ -8879,7 +11901,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Add files"
+     "v": "Add files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add files"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8891,6 +11919,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Presence",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Presence"
+    }
+   ],
    "id": "presence"
   },
   {
@@ -8903,7 +11937,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "presence",
-     "href": "/docs/collaborate/presence"
+     "href": "/docs/collaborate/presence",
+     "children": [
+      {
+       "t": "text",
+       "v": "presence"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8915,6 +11955,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Every cluster is a drive",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every cluster is a drive"
+    }
+   ],
    "id": "every-cluster-is-a-drive"
   },
   {
@@ -8948,7 +11994,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "how Clusters compares",
-     "href": "/docs/migrating"
+     "href": "/docs/migrating",
+     "children": [
+      {
+       "t": "text",
+       "v": "how Clusters compares"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8963,7 +12015,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Home"
+     "v": "Home",
+     "children": [
+      {
+       "t": "text",
+       "v": "Home"
+      }
+     ]
     },
     {
      "t": "text",
@@ -8975,6 +12033,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Why a graph",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Why a graph"
+    }
+   ],
    "id": "why-a-graph"
   },
   {
@@ -9008,6 +12072,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Moving around",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Moving around"
+    }
+   ],
    "id": "moving-around"
   },
   {
@@ -9026,7 +12096,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Hover"
+      "v": "Hover",
+      "children": [
+       {
+        "t": "text",
+        "v": "Hover"
+       }
+      ]
      },
      {
       "t": "text",
@@ -9036,7 +12112,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Right-click"
+      "v": "Right-click",
+      "children": [
+       {
+        "t": "text",
+        "v": "Right-click"
+       }
+      ]
      },
      {
       "t": "text",
@@ -9046,7 +12128,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Detail drawer"
+      "v": "Detail drawer",
+      "children": [
+       {
+        "t": "text",
+        "v": "Detail drawer"
+       }
+      ]
      },
      {
       "t": "text",
@@ -9068,6 +12156,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What the edges mean",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What the edges mean"
+    }
+   ],
    "id": "what-the-edges-mean"
   },
   {
@@ -9086,7 +12180,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Nesting"
+      "v": "Nesting",
+      "children": [
+       {
+        "t": "text",
+        "v": "Nesting"
+       }
+      ]
      },
      {
       "t": "text",
@@ -9096,7 +12196,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Links and mentions](/docs/organize/links-and-mentions)"
+      "v": "[Links and mentions](/docs/organize/links-and-mentions)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Links and mentions",
+        "href": "/docs/organize/links-and-mentions",
+        "children": [
+         {
+          "t": "text",
+          "v": "Links and mentions"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -9114,7 +12227,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Shared URLs"
+      "v": "Shared URLs",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shared URLs"
+       }
+      ]
      },
      {
       "t": "text",
@@ -9124,7 +12243,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Documents"
+      "v": "Documents",
+      "children": [
+       {
+        "t": "text",
+        "v": "Documents"
+       }
+      ]
      },
      {
       "t": "text",
@@ -9137,6 +12262,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "2D fallback",
+   "inline": [
+    {
+     "t": "text",
+     "v": "2D fallback"
+    }
+   ],
    "id": "2d-fallback"
   },
   {
@@ -9152,6 +12283,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Performance",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Performance"
+    }
+   ],
    "id": "performance"
   },
   {
@@ -9167,6 +12304,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "When to use something else",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When to use something else"
+    }
+   ],
    "id": "when-to-use-something-else"
   },
   {
@@ -9181,7 +12324,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "`⌘K`",
-      "href": "/docs/organize/search"
+      "href": "/docs/organize/search",
+      "children": [
+       {
+        "t": "code",
+        "v": "⌘K"
+       }
+      ]
      }
     ],
     [
@@ -9192,7 +12341,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "list view",
-      "href": "/docs/clusters/list-view"
+      "href": "/docs/clusters/list-view",
+      "children": [
+       {
+        "t": "text",
+        "v": "list view"
+       }
+      ]
      }
     ],
     [
@@ -9203,7 +12358,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "tags",
-      "href": "/docs/organize/tags"
+      "href": "/docs/organize/tags",
+      "children": [
+       {
+        "t": "text",
+        "v": "tags"
+       }
+      ]
      }
     ]
    ]
@@ -9223,6 +12384,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Undo",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Undo"
+    }
+   ],
    "id": "undo"
   },
   {
@@ -9247,7 +12414,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "not"
+     "v": "not",
+     "children": [
+      {
+       "t": "text",
+       "v": "not"
+      }
+     ]
     },
     {
      "t": "text",
@@ -9259,6 +12432,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Trash",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Trash"
+    }
+   ],
    "id": "trash"
   },
   {
@@ -9270,7 +12449,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "soft delete"
+     "v": "soft delete",
+     "children": [
+      {
+       "t": "text",
+       "v": "soft delete"
+      }
+     ]
     },
     {
      "t": "text",
@@ -9278,7 +12463,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "30 days"
+     "v": "30 days",
+     "children": [
+      {
+       "t": "text",
+       "v": "30 days"
+      }
+     ]
     },
     {
      "t": "text",
@@ -9303,7 +12494,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "restore"
+     "v": "restore",
+     "children": [
+      {
+       "t": "text",
+       "v": "restore"
+      }
+     ]
     },
     {
      "t": "text",
@@ -9311,7 +12508,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "remove permanently"
+     "v": "remove permanently",
+     "children": [
+      {
+       "t": "text",
+       "v": "remove permanently"
+      }
+     ]
     },
     {
      "t": "text",
@@ -9323,6 +12526,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Version history",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Version history"
+    }
+   ],
    "id": "version-history"
   },
   {
@@ -9347,6 +12556,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Workspace recovery",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Workspace recovery"
+    }
+   ],
    "id": "workspace-recovery"
   },
   {
@@ -9369,7 +12584,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "target moment"
+      "v": "target moment",
+      "children": [
+       {
+        "t": "text",
+        "v": "target moment"
+       }
+      ]
      }
     ],
     [
@@ -9379,7 +12600,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "impact preview"
+      "v": "impact preview",
+      "children": [
+       {
+        "t": "text",
+        "v": "impact preview"
+       }
+      ]
      },
      {
       "t": "text",
@@ -9416,6 +12643,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Anomaly alerts",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Anomaly alerts"
+    }
+   ],
    "id": "anomaly-alerts"
   },
   {
@@ -9440,6 +12673,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Files",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Files"
+    }
+   ],
    "id": "files"
   },
   {
@@ -9461,7 +12700,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Data and privacy",
-     "href": "/docs/account/data-and-privacy"
+     "href": "/docs/account/data-and-privacy",
+     "children": [
+      {
+       "t": "text",
+       "v": "Data and privacy"
+      }
+     ]
     },
     {
      "t": "text",
@@ -9489,7 +12734,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "doc"
+     "v": "doc",
+     "children": [
+      {
+       "t": "text",
+       "v": "doc"
+      }
+     ]
     },
     {
      "t": "text",
@@ -9501,6 +12752,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Opening",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Opening"
+    }
+   ],
    "id": "opening"
   },
   {
@@ -9519,7 +12776,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Full screen"
+      "v": "Full screen",
+      "children": [
+       {
+        "t": "text",
+        "v": "Full screen"
+       }
+      ]
      },
      {
       "t": "text",
@@ -9529,7 +12792,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Side"
+      "v": "Side",
+      "children": [
+       {
+        "t": "text",
+        "v": "Side"
+       }
+      ]
      },
      {
       "t": "text",
@@ -9542,6 +12811,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The three panes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The three panes"
+    }
+   ],
    "id": "the-three-panes"
   },
   {
@@ -9549,7 +12824,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Pages"
+     "v": "Pages",
+     "children": [
+      {
+       "t": "text",
+       "v": "Pages"
+      }
+     ]
     },
     {
      "t": "text",
@@ -9562,7 +12843,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "The body"
+     "v": "The body",
+     "children": [
+      {
+       "t": "text",
+       "v": "The body"
+      }
+     ]
     },
     {
      "t": "text",
@@ -9575,7 +12862,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Bookmarks"
+     "v": "Bookmarks",
+     "children": [
+      {
+       "t": "text",
+       "v": "Bookmarks"
+      }
+     ]
     },
     {
      "t": "text",
@@ -9596,6 +12889,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Writing and formatting",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Writing and formatting"
+    }
+   ],
    "id": "writing-and-formatting"
   },
   {
@@ -9608,7 +12907,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "keyboard shortcut",
-     "href": "/docs/keyboard-shortcuts#document"
+     "href": "/docs/keyboard-shortcuts#document",
+     "children": [
+      {
+       "t": "text",
+       "v": "keyboard shortcut"
+      }
+     ]
     },
     {
      "t": "text",
@@ -9629,7 +12934,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "find and replace"
+     "v": "find and replace",
+     "children": [
+      {
+       "t": "text",
+       "v": "find and replace"
+      }
+     ]
     },
     {
      "t": "text",
@@ -9650,6 +12961,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Insert",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Insert"
+    }
+   ],
    "id": "insert"
   },
   {
@@ -9661,7 +12978,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Insert"
+     "v": "Insert",
+     "children": [
+      {
+       "t": "text",
+       "v": "Insert"
+      }
+     ]
     },
     {
      "t": "text",
@@ -9676,31 +12999,61 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Image"
+      "v": "Image",
+      "children": [
+       {
+        "t": "text",
+        "v": "Image"
+       }
+      ]
      }
     ],
     [
      {
       "t": "strong",
-      "v": "Table"
+      "v": "Table",
+      "children": [
+       {
+        "t": "text",
+        "v": "Table"
+       }
+      ]
      }
     ],
     [
      {
       "t": "strong",
-      "v": "Divider"
+      "v": "Divider",
+      "children": [
+       {
+        "t": "text",
+        "v": "Divider"
+       }
+      ]
      }
     ],
     [
      {
       "t": "strong",
-      "v": "Code block"
+      "v": "Code block",
+      "children": [
+       {
+        "t": "text",
+        "v": "Code block"
+       }
+      ]
      }
     ],
     [
      {
       "t": "strong",
-      "v": "Embed board"
+      "v": "Embed board",
+      "children": [
+       {
+        "t": "text",
+        "v": "Embed board"
+       }
+      ]
      },
      {
       "t": "text",
@@ -9709,7 +13062,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "cluster",
-      "href": "/docs/clusters"
+      "href": "/docs/clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "cluster"
+       }
+      ]
      },
      {
       "t": "text",
@@ -9731,6 +13090,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Working together",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Working together"
+    }
+   ],
    "id": "working-together"
   },
   {
@@ -9746,6 +13111,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Comments, tags and links",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Comments, tags and links"
+    }
+   ],
    "id": "comments-tags-and-links"
   },
   {
@@ -9764,7 +13135,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Inline comments](/docs/documents/comments-and-tags)"
+      "v": "[Inline comments](/docs/documents/comments-and-tags)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Inline comments",
+        "href": "/docs/documents/comments-and-tags",
+        "children": [
+         {
+          "t": "text",
+          "v": "Inline comments"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -9774,7 +13158,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Tag ranges](/docs/documents/comments-and-tags)"
+      "v": "[Tag ranges](/docs/documents/comments-and-tags)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Tag ranges",
+        "href": "/docs/documents/comments-and-tags",
+        "children": [
+         {
+          "t": "text",
+          "v": "Tag ranges"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -9784,7 +13181,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Suggested entities"
+      "v": "Suggested entities",
+      "children": [
+       {
+        "t": "text",
+        "v": "Suggested entities"
+       }
+      ]
      },
      {
       "t": "text",
@@ -9794,7 +13197,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Links and mentions](/docs/organize/links-and-mentions)"
+      "v": "[Links and mentions](/docs/organize/links-and-mentions)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Links and mentions",
+        "href": "/docs/organize/links-and-mentions",
+        "children": [
+         {
+          "t": "text",
+          "v": "Links and mentions"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -9812,7 +13228,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Backlinks"
+      "v": "Backlinks",
+      "children": [
+       {
+        "t": "text",
+        "v": "Backlinks"
+       }
+      ]
      },
      {
       "t": "text",
@@ -9825,6 +13247,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Screenplays",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Screenplays"
+    }
+   ],
    "id": "screenplays"
   },
   {
@@ -9837,7 +13265,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "screenplay mode",
-     "href": "/docs/documents/screenplay"
+     "href": "/docs/documents/screenplay",
+     "children": [
+      {
+       "t": "text",
+       "v": "screenplay mode"
+      }
+     ]
     },
     {
      "t": "text",
@@ -9849,6 +13283,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Exporting",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Exporting"
+    }
+   ],
    "id": "exporting"
   },
   {
@@ -9877,7 +13317,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Exporting documents",
-     "href": "/docs/documents/export"
+     "href": "/docs/documents/export",
+     "children": [
+      {
+       "t": "text",
+       "v": "Exporting documents"
+      }
+     ]
     },
     {
      "t": "text",
@@ -9889,6 +13335,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Documents versus notes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Documents versus notes"
+    }
+   ],
    "id": "documents-versus-notes"
   },
   {
@@ -9904,7 +13356,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Note",
-      "href": "/docs/canvas/notes"
+      "href": "/docs/canvas/notes",
+      "children": [
+       {
+        "t": "text",
+        "v": "Note"
+       }
+      ]
      }
     ],
     [
@@ -10038,7 +13496,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "document",
-     "href": "/docs/documents"
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "document"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10050,6 +13514,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Elements",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Elements"
+    }
+   ],
    "id": "elements"
   },
   {
@@ -10111,6 +13581,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Pagination",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pagination"
+    }
+   ],
    "id": "pagination"
   },
   {
@@ -10122,7 +13598,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "The pages on screen are the pages in the PDF."
+     "v": "The pages on screen are the pages in the PDF.",
+     "children": [
+      {
+       "t": "text",
+       "v": "The pages on screen are the pages in the PDF."
+      }
+     ]
     }
    ]
   },
@@ -10139,6 +13621,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Title page",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Title page"
+    }
+   ],
    "id": "title-page"
   },
   {
@@ -10154,6 +13642,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Scene navigator",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Scene navigator"
+    }
+   ],
    "id": "scene-navigator"
   },
   {
@@ -10178,6 +13672,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Import and export",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Import and export"
+    }
+   ],
    "id": "import-and-export"
   },
   {
@@ -10295,6 +13795,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Alongside the board",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Alongside the board"
+    }
+   ],
    "id": "alongside-the-board"
   },
   {
@@ -10307,7 +13813,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "references",
-     "href": "/docs/canvas/images"
+     "href": "/docs/canvas/images",
+     "children": [
+      {
+       "t": "text",
+       "v": "references"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10316,7 +13828,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "storyboard grid",
-     "href": "/docs/canvas/grids"
+     "href": "/docs/canvas/grids",
+     "children": [
+      {
+       "t": "text",
+       "v": "storyboard grid"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10325,7 +13843,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "shot list",
-     "href": "/docs/clusters/list-view"
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "shot list"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10334,7 +13858,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "schedule",
-     "href": "/docs/canvas/schedule"
+     "href": "/docs/canvas/schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "schedule"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10343,7 +13873,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "docked beside the canvas",
-     "href": "/docs/documents"
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "docked beside the canvas"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10361,7 +13897,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "tagged",
-     "href": "/docs/organize/tags"
+     "href": "/docs/organize/tags",
+     "children": [
+      {
+       "t": "text",
+       "v": "tagged"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10370,7 +13912,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "mentioned",
-     "href": "/docs/organize/links-and-mentions"
+     "href": "/docs/organize/links-and-mentions",
+     "children": [
+      {
+       "t": "text",
+       "v": "mentioned"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10391,7 +13939,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "shot list maker",
-     "href": "/tools/shot-list-maker"
+     "href": "/tools/shot-list-maker",
+     "children": [
+      {
+       "t": "text",
+       "v": "shot list maker"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10414,6 +13968,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Formats",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Formats"
+    }
+   ],
    "id": "formats"
   },
   {
@@ -10437,7 +13997,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "PDF"
+       "v": "PDF",
+       "children": [
+        {
+         "t": "text",
+         "v": "PDF"
+        }
+       ]
       }
      ],
      [
@@ -10451,7 +14017,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Markdown"
+       "v": "Markdown",
+       "children": [
+        {
+         "t": "text",
+         "v": "Markdown"
+        }
+       ]
       }
      ],
      [
@@ -10465,7 +14037,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "HTML"
+       "v": "HTML",
+       "children": [
+        {
+         "t": "text",
+         "v": "HTML"
+        }
+       ]
       }
      ],
      [
@@ -10479,7 +14057,17 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Final Draft `.fdx`"
+       "v": "Final Draft `.fdx`",
+       "children": [
+        {
+         "t": "text",
+         "v": "Final Draft "
+        },
+        {
+         "t": "code",
+         "v": ".fdx"
+        }
+       ]
       }
      ],
      [
@@ -10493,7 +14081,17 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Fountain `.fountain`"
+       "v": "Fountain `.fountain`",
+       "children": [
+        {
+         "t": "text",
+         "v": "Fountain "
+        },
+        {
+         "t": "code",
+         "v": ".fountain"
+        }
+       ]
       }
      ],
      [
@@ -10515,7 +14113,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "screenplay mode",
-     "href": "/docs/documents/screenplay"
+     "href": "/docs/documents/screenplay",
+     "children": [
+      {
+       "t": "text",
+       "v": "screenplay mode"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10527,6 +14131,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "PDF",
+   "inline": [
+    {
+     "t": "text",
+     "v": "PDF"
+    }
+   ],
    "id": "pdf"
   },
   {
@@ -10548,7 +14158,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "pagination is computed the same way for both",
-     "href": "/docs/documents/screenplay"
+     "href": "/docs/documents/screenplay",
+     "children": [
+      {
+       "t": "text",
+       "v": "pagination is computed the same way for both"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10560,6 +14176,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Markdown",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Markdown"
+    }
+   ],
    "id": "markdown"
   },
   {
@@ -10584,6 +14206,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "HTML",
+   "inline": [
+    {
+     "t": "text",
+     "v": "HTML"
+    }
+   ],
    "id": "html"
   },
   {
@@ -10599,6 +14227,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "On mobile and in the native apps",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On mobile and in the native apps"
+    }
+   ],
    "id": "on-mobile-and-in-the-native-apps"
   },
   {
@@ -10610,7 +14244,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "system share sheet"
+     "v": "system share sheet",
+     "children": [
+      {
+       "t": "text",
+       "v": "system share sheet"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10622,6 +14262,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Exporting the board instead",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Exporting the board instead"
+    }
+   ],
    "id": "exporting-the-board-instead"
   },
   {
@@ -10634,7 +14280,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Exporting a board",
-     "href": "/docs/canvas/export"
+     "href": "/docs/canvas/export",
+     "children": [
+      {
+       "t": "text",
+       "v": "Exporting a board"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10657,6 +14309,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Comments on a range",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Comments on a range"
+    }
+   ],
    "id": "comments-on-a-range"
   },
   {
@@ -10668,7 +14326,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "range"
+     "v": "range",
+     "children": [
+      {
+       "t": "text",
+       "v": "range"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10685,7 +14349,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "right margin"
+     "v": "right margin",
+     "children": [
+      {
+       "t": "text",
+       "v": "right margin"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10711,7 +14381,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Comments",
-     "href": "/docs/collaborate/comments"
+     "href": "/docs/collaborate/comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comments"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10723,6 +14399,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Tags on a range",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tags on a range"
+    }
+   ],
    "id": "tags-on-a-range"
   },
   {
@@ -10735,7 +14417,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "tag",
-     "href": "/docs/organize/tags"
+     "href": "/docs/organize/tags",
+     "children": [
+      {
+       "t": "text",
+       "v": "tag"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10743,7 +14431,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "left margin"
+     "v": "left margin",
+     "children": [
+      {
+       "t": "text",
+       "v": "left margin"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10764,6 +14458,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Suggested entities",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Suggested entities"
+    }
+   ],
    "id": "suggested-entities"
   },
   {
@@ -10780,7 +14480,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Nothing is applied until you accept it."
+     "v": "Nothing is applied until you accept it.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Nothing is applied until you accept it."
+      }
+     ]
     },
     {
      "t": "text",
@@ -10810,6 +14516,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Links and mentions",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Links and mentions"
+    }
+   ],
    "id": "links-and-mentions"
   },
   {
@@ -10848,7 +14560,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Links and mentions",
-     "href": "/docs/organize/links-and-mentions"
+     "href": "/docs/organize/links-and-mentions",
+     "children": [
+      {
+       "t": "text",
+       "v": "Links and mentions"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10860,6 +14578,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Backlinks",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Backlinks"
+    }
+   ],
    "id": "backlinks"
   },
   {
@@ -10871,7 +14595,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Referenced by"
+     "v": "Referenced by",
+     "children": [
+      {
+       "t": "text",
+       "v": "Referenced by"
+      }
+     ]
     },
     {
      "t": "text",
@@ -10892,6 +14622,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Bookmarks",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Bookmarks"
+    }
+   ],
    "id": "bookmarks"
   },
   {
@@ -10918,6 +14654,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Tagging",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tagging"
+    }
+   ],
    "id": "tagging"
   },
   {
@@ -10940,7 +14682,20 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "[card](/docs/canvas/cards)"
+      "v": "[card](/docs/canvas/cards)",
+      "children": [
+       {
+        "t": "link",
+        "v": "card",
+        "href": "/docs/canvas/cards",
+        "children": [
+         {
+          "t": "text",
+          "v": "card"
+         }
+        ]
+       }
+      ]
      }
     ],
     [
@@ -10950,7 +14705,20 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "[group](/docs/canvas/groups)"
+      "v": "[group](/docs/canvas/groups)",
+      "children": [
+       {
+        "t": "link",
+        "v": "group",
+        "href": "/docs/canvas/groups",
+        "children": [
+         {
+          "t": "text",
+          "v": "group"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -10964,7 +14732,20 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "[cluster](/docs/clusters)"
+      "v": "[cluster](/docs/clusters)",
+      "children": [
+       {
+        "t": "link",
+        "v": "cluster",
+        "href": "/docs/clusters",
+        "children": [
+         {
+          "t": "text",
+          "v": "cluster"
+         }
+        ]
+       }
+      ]
      }
     ],
     [
@@ -10974,7 +14755,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "passage of text"
+      "v": "passage of text",
+      "children": [
+       {
+        "t": "text",
+        "v": "passage of text"
+       }
+      ]
      },
      {
       "t": "text",
@@ -10983,7 +14770,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "document",
-      "href": "/docs/documents/comments-and-tags"
+      "href": "/docs/documents/comments-and-tags",
+      "children": [
+       {
+        "t": "text",
+        "v": "document"
+       }
+      ]
      }
     ]
    ]
@@ -11014,7 +14807,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "not a location"
+     "v": "not a location",
+     "children": [
+      {
+       "t": "text",
+       "v": "not a location"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11026,6 +14825,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The tag detail view",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The tag detail view"
+    }
+   ],
    "id": "the-tag-detail-view"
   },
   {
@@ -11050,6 +14855,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Entity types",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Entity types"
+    }
+   ],
    "id": "entity-types"
   },
   {
@@ -11082,7 +14893,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Character"
+       "v": "Character",
+       "children": [
+        {
+         "t": "text",
+         "v": "Character"
+        }
+       ]
       }
      ],
      [
@@ -11096,7 +14913,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Setting"
+       "v": "Setting",
+       "children": [
+        {
+         "t": "text",
+         "v": "Setting"
+        }
+       ]
       }
      ],
      [
@@ -11110,7 +14933,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Organization"
+       "v": "Organization",
+       "children": [
+        {
+         "t": "text",
+         "v": "Organization"
+        }
+       ]
       }
      ],
      [
@@ -11124,7 +14953,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Concept"
+       "v": "Concept",
+       "children": [
+        {
+         "t": "text",
+         "v": "Concept"
+        }
+       ]
       }
      ],
      [
@@ -11138,7 +14973,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Thing"
+       "v": "Thing",
+       "children": [
+        {
+         "t": "text",
+         "v": "Thing"
+        }
+       ]
       }
      ],
      [
@@ -11160,7 +15001,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "links and mentions",
-     "href": "/docs/organize/links-and-mentions"
+     "href": "/docs/organize/links-and-mentions",
+     "children": [
+      {
+       "t": "text",
+       "v": "links and mentions"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11172,6 +15019,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Automatic tagging",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Automatic tagging"
+    }
+   ],
    "id": "automatic-tagging"
   },
   {
@@ -11188,7 +15041,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "The matcher"
+     "v": "The matcher",
+     "children": [
+      {
+       "t": "text",
+       "v": "The matcher"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11201,7 +15060,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "The AI tagger"
+     "v": "The AI tagger",
+     "children": [
+      {
+       "t": "text",
+       "v": "The AI tagger"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11209,7 +15074,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "on by default"
+     "v": "on by default",
+     "children": [
+      {
+       "t": "text",
+       "v": "on by default"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11230,6 +15101,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Emergent themes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Emergent themes"
+    }
+   ],
    "id": "emergent-themes"
   },
   {
@@ -11254,6 +15131,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Propagation and backfill",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Propagation and backfill"
+    }
+   ],
    "id": "propagation-and-backfill"
   },
   {
@@ -11275,7 +15158,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "group",
-     "href": "/docs/canvas/groups"
+     "href": "/docs/canvas/groups",
+     "children": [
+      {
+       "t": "text",
+       "v": "group"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11287,6 +15176,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Finding by tag",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Finding by tag"
+    }
+   ],
    "id": "finding-by-tag"
   },
   {
@@ -11300,7 +15195,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "sidebar"
+      "v": "sidebar",
+      "children": [
+       {
+        "t": "text",
+        "v": "sidebar"
+       }
+      ]
      },
      {
       "t": "text",
@@ -11310,7 +15211,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[`⌘K`](/docs/organize/search)"
+      "v": "[`⌘K`](/docs/organize/search)",
+      "children": [
+       {
+        "t": "link",
+        "v": "`⌘K`",
+        "href": "/docs/organize/search",
+        "children": [
+         {
+          "t": "code",
+          "v": "⌘K"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -11324,7 +15238,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "tag detail view"
+      "v": "tag detail view",
+      "children": [
+       {
+        "t": "text",
+        "v": "tag detail view"
+       }
+      ]
      },
      {
       "t": "text",
@@ -11348,6 +15268,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Mentioning",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Mentioning"
+    }
+   ],
    "id": "mentioning"
   },
   {
@@ -11368,7 +15294,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "note",
-     "href": "/docs/canvas/notes"
+     "href": "/docs/canvas/notes",
+     "children": [
+      {
+       "t": "text",
+       "v": "note"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11377,7 +15309,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "document",
-     "href": "/docs/documents"
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "document"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11386,7 +15324,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "message",
-     "href": "/docs/collaborate/messages"
+     "href": "/docs/collaborate/messages",
+     "children": [
+      {
+       "t": "text",
+       "v": "message"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11416,6 +15360,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Automatic links",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Automatic links"
+    }
+   ],
    "id": "automatic-links"
   },
   {
@@ -11432,7 +15382,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "URLs"
+     "v": "URLs",
+     "children": [
+      {
+       "t": "text",
+       "v": "URLs"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11441,7 +15397,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "link card",
-     "href": "/docs/canvas/cards"
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "link card"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11454,7 +15416,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Known names"
+     "v": "Known names",
+     "children": [
+      {
+       "t": "text",
+       "v": "Known names"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11474,6 +15442,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Backlinks",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Backlinks"
+    }
+   ],
    "id": "backlinks"
   },
   {
@@ -11494,7 +15468,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Referenced by"
+     "v": "Referenced by",
+     "children": [
+      {
+       "t": "text",
+       "v": "Referenced by"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11515,6 +15495,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Deep links",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Deep links"
+    }
+   ],
    "id": "deep-links"
   },
   {
@@ -11522,7 +15508,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Copy link"
+     "v": "Copy link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy link"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11543,6 +15535,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Where mentions work",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Where mentions work"
+    }
+   ],
    "id": "where-mentions-work"
   },
   {
@@ -11583,7 +15581,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Notes",
-       "href": "/docs/canvas/notes"
+       "href": "/docs/canvas/notes",
+       "children": [
+        {
+         "t": "text",
+         "v": "Notes"
+        }
+       ]
       }
      ],
      [
@@ -11610,7 +15614,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Documents",
-       "href": "/docs/documents"
+       "href": "/docs/documents",
+       "children": [
+        {
+         "t": "text",
+         "v": "Documents"
+        }
+       ]
       }
      ],
      [
@@ -11663,7 +15673,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Messages",
-       "href": "/docs/collaborate/messages"
+       "href": "/docs/collaborate/messages",
+       "children": [
+        {
+         "t": "text",
+         "v": "Messages"
+        }
+       ]
       }
      ],
      [
@@ -11690,7 +15706,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Comments",
-       "href": "/docs/collaborate/comments"
+       "href": "/docs/collaborate/comments",
+       "children": [
+        {
+         "t": "text",
+         "v": "Comments"
+        }
+       ]
       }
      ],
      [
@@ -11723,7 +15745,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "person"
+     "v": "person",
+     "children": [
+      {
+       "t": "text",
+       "v": "person"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11732,7 +15760,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Notifications",
-     "href": "/docs/collaborate/notifications"
+     "href": "/docs/collaborate/notifications",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notifications"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11744,6 +15778,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The graph",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The graph"
+    }
+   ],
    "id": "the-graph"
   },
   {
@@ -11756,7 +15796,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Home graph",
-     "href": "/docs/clusters/home-graph"
+     "href": "/docs/clusters/home-graph",
+     "children": [
+      {
+       "t": "text",
+       "v": "Home graph"
+      }
+     ]
     },
     {
      "t": "text",
@@ -11791,6 +15837,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What it searches",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What it searches"
+    }
+   ],
    "id": "what-it-searches"
   },
   {
@@ -11809,7 +15861,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Recents"
+      "v": "Recents",
+      "children": [
+       {
+        "t": "text",
+        "v": "Recents"
+       }
+      ]
      },
      {
       "t": "text",
@@ -11819,7 +15877,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Clusters"
+      "v": "Clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "Clusters"
+       }
+      ]
      },
      {
       "t": "text",
@@ -11829,7 +15893,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Cards and notes"
+      "v": "Cards and notes",
+      "children": [
+       {
+        "t": "text",
+        "v": "Cards and notes"
+       }
+      ]
      },
      {
       "t": "text",
@@ -11839,13 +15909,25 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Tags"
+      "v": "Tags",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tags"
+       }
+      ]
      }
     ],
     [
      {
       "t": "strong",
-      "v": "Docs"
+      "v": "Docs",
+      "children": [
+       {
+        "t": "text",
+        "v": "Docs"
+       }
+      ]
      },
      {
       "t": "text",
@@ -11867,6 +15949,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What it does",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What it does"
+    }
+   ],
    "id": "what-it-does"
   },
   {
@@ -11938,7 +16026,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "relationship graph",
-       "href": "/docs/clusters/home-graph"
+       "href": "/docs/clusters/home-graph",
+       "children": [
+        {
+         "t": "text",
+         "v": "relationship graph"
+        }
+       ]
       }
      ]
     ],
@@ -11985,7 +16079,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "share dialog",
-       "href": "/docs/collaborate/sharing"
+       "href": "/docs/collaborate/sharing",
+       "children": [
+        {
+         "t": "text",
+         "v": "share dialog"
+        }
+       ]
       }
      ]
     ],
@@ -12004,7 +16104,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "messages drawer",
-       "href": "/docs/collaborate/messages"
+       "href": "/docs/collaborate/messages",
+       "children": [
+        {
+         "t": "text",
+         "v": "messages drawer"
+        }
+       ]
       }
      ]
     ],
@@ -12047,7 +16153,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Deleted clusters",
-       "href": "/docs/clusters/trash-and-recovery"
+       "href": "/docs/clusters/trash-and-recovery",
+       "children": [
+        {
+         "t": "text",
+         "v": "Deleted clusters"
+        }
+       ]
       }
      ]
     ],
@@ -12076,7 +16188,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Plans",
-       "href": "/docs/account/plans"
+       "href": "/docs/account/plans",
+       "children": [
+        {
+         "t": "text",
+         "v": "Plans"
+        }
+       ]
       }
      ]
     ],
@@ -12091,7 +16209,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Referrals",
-       "href": "/docs/account/referrals"
+       "href": "/docs/account/referrals",
+       "children": [
+        {
+         "t": "text",
+         "v": "Referrals"
+        }
+       ]
       }
      ]
     ],
@@ -12115,6 +16239,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Pickers",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pickers"
+    }
+   ],
    "id": "pickers"
   },
   {
@@ -12138,6 +16268,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "When to use something else",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When to use something else"
+    }
+   ],
    "id": "when-to-use-something-else"
   },
   {
@@ -12152,7 +16288,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "list view",
-      "href": "/docs/clusters/list-view"
+      "href": "/docs/clusters/list-view",
+      "children": [
+       {
+        "t": "text",
+        "v": "list view"
+       }
+      ]
      }
     ],
     [
@@ -12163,7 +16305,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "tags",
-      "href": "/docs/organize/tags"
+      "href": "/docs/organize/tags",
+      "children": [
+       {
+        "t": "text",
+        "v": "tags"
+       }
+      ]
      }
     ],
     [
@@ -12174,7 +16322,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Home graph",
-      "href": "/docs/clusters/home-graph"
+      "href": "/docs/clusters/home-graph",
+      "children": [
+       {
+        "t": "text",
+        "v": "Home graph"
+       }
+      ]
      }
     ],
     [
@@ -12193,7 +16347,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "find and replace",
-      "href": "/docs/documents"
+      "href": "/docs/documents",
+      "children": [
+       {
+        "t": "text",
+        "v": "find and replace"
+       }
+      ]
      }
     ]
    ]
@@ -12213,6 +16373,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Roles",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Roles"
+    }
+   ],
    "id": "roles"
   },
   {
@@ -12236,7 +16402,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Owner"
+       "v": "Owner",
+       "children": [
+        {
+         "t": "text",
+         "v": "Owner"
+        }
+       ]
       }
      ],
      [
@@ -12250,7 +16422,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Editor"
+       "v": "Editor",
+       "children": [
+        {
+         "t": "text",
+         "v": "Editor"
+        }
+       ]
       }
      ],
      [
@@ -12264,7 +16442,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Viewer"
+       "v": "Viewer",
+       "children": [
+        {
+         "t": "text",
+         "v": "Viewer"
+        }
+       ]
       }
      ],
      [
@@ -12275,7 +16459,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "vote",
-       "href": "/docs/canvas/vote-cards"
+       "href": "/docs/canvas/vote-cards",
+       "children": [
+        {
+         "t": "text",
+         "v": "vote"
+        }
+       ]
       },
       {
        "t": "text",
@@ -12287,7 +16477,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Workspace member"
+       "v": "Workspace member",
+       "children": [
+        {
+         "t": "text",
+         "v": "Workspace member"
+        }
+       ]
       }
      ],
      [
@@ -12308,7 +16504,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "free on every plan"
+     "v": "free on every plan",
+     "children": [
+      {
+       "t": "text",
+       "v": "free on every plan"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12320,6 +16522,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Whose quota",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Whose quota"
+    }
+   ],
    "id": "whose-quota"
   },
   {
@@ -12331,7 +16539,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "cluster owner's"
+     "v": "cluster owner's",
+     "children": [
+      {
+       "t": "text",
+       "v": "cluster owner's"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12349,7 +16563,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "card allowance",
-     "href": "/docs/canvas/cards"
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "card allowance"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12358,7 +16578,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "storage",
-     "href": "/docs/files"
+     "href": "/docs/files",
+     "children": [
+      {
+       "t": "text",
+       "v": "storage"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12370,6 +16596,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Inviting",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Inviting"
+    }
+   ],
    "id": "inviting"
   },
   {
@@ -12377,7 +16609,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Share"
+     "v": "Share",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12392,7 +16630,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "By email"
+      "v": "By email",
+      "children": [
+       {
+        "t": "text",
+        "v": "By email"
+       }
+      ]
      },
      {
       "t": "text",
@@ -12402,7 +16646,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "By link"
+      "v": "By link",
+      "children": [
+       {
+        "t": "text",
+        "v": "By link"
+       }
+      ]
      },
      {
       "t": "text",
@@ -12421,7 +16671,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "public links",
-     "href": "/docs/collaborate/sharing"
+     "href": "/docs/collaborate/sharing",
+     "children": [
+      {
+       "t": "text",
+       "v": "public links"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12433,6 +16689,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Workspaces",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Workspaces"
+    }
+   ],
    "id": "workspaces"
   },
   {
@@ -12445,7 +16707,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "workspace",
-     "href": "/docs/concepts"
+     "href": "/docs/concepts",
+     "children": [
+      {
+       "t": "text",
+       "v": "workspace"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12462,7 +16730,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Shared with me"
+     "v": "Shared with me",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shared with me"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12474,6 +16748,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What collaboration looks like in use",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What collaboration looks like in use"
+    }
+   ],
    "id": "what-collaboration-looks-like-in-use"
   },
   {
@@ -12483,7 +16763,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Presence](/docs/collaborate/presence)"
+      "v": "[Presence](/docs/collaborate/presence)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Presence",
+        "href": "/docs/collaborate/presence",
+        "children": [
+         {
+          "t": "text",
+          "v": "Presence"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -12493,7 +16786,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Comments](/docs/collaborate/comments)"
+      "v": "[Comments](/docs/collaborate/comments)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Comments",
+        "href": "/docs/collaborate/comments",
+        "children": [
+         {
+          "t": "text",
+          "v": "Comments"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -12503,7 +16809,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Messages](/docs/collaborate/messages)"
+      "v": "[Messages](/docs/collaborate/messages)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Messages",
+        "href": "/docs/collaborate/messages",
+        "children": [
+         {
+          "t": "text",
+          "v": "Messages"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -12513,7 +16832,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Notifications](/docs/collaborate/notifications)"
+      "v": "[Notifications](/docs/collaborate/notifications)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Notifications",
+        "href": "/docs/collaborate/notifications",
+        "children": [
+         {
+          "t": "text",
+          "v": "Notifications"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -12532,7 +16864,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "note",
-     "href": "/docs/canvas/notes"
+     "href": "/docs/canvas/notes",
+     "children": [
+      {
+       "t": "text",
+       "v": "note"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12541,7 +16879,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "document",
-     "href": "/docs/documents"
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "document"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12553,6 +16897,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Undoing someone else's change",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Undoing someone else's change"
+    }
+   ],
    "id": "undoing-someone-else-s-change"
   },
   {
@@ -12568,7 +16918,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "your own"
+     "v": "your own",
+     "children": [
+      {
+       "t": "text",
+       "v": "your own"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12577,7 +16933,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Trash and recovery",
-     "href": "/docs/clusters/trash-and-recovery"
+     "href": "/docs/clusters/trash-and-recovery",
+     "children": [
+      {
+       "t": "text",
+       "v": "Trash and recovery"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12596,7 +16958,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Share"
+     "v": "Share",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12608,6 +16976,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Public links — view only, no account",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Public links — view only, no account"
+    }
+   ],
    "id": "public-links-view-only-no-account"
   },
   {
@@ -12619,7 +16993,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "read-only"
+     "v": "read-only",
+     "children": [
+      {
+       "t": "text",
+       "v": "read-only"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12657,7 +17037,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Expiry"
+       "v": "Expiry",
+       "children": [
+        {
+         "t": "text",
+         "v": "Expiry"
+        }
+       ]
       }
      ],
      [
@@ -12671,7 +17057,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Include sub-clusters"
+       "v": "Include sub-clusters",
+       "children": [
+        {
+         "t": "text",
+         "v": "Include sub-clusters"
+        }
+       ]
       }
      ],
      [
@@ -12682,7 +17074,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "nested clusters",
-       "href": "/docs/clusters"
+       "href": "/docs/clusters",
+       "children": [
+        {
+         "t": "text",
+         "v": "nested clusters"
+        }
+       ]
       },
       {
        "t": "text",
@@ -12694,7 +17092,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Allow indexing"
+       "v": "Allow indexing",
+       "children": [
+        {
+         "t": "text",
+         "v": "Allow indexing"
+        }
+       ]
       }
      ],
      [
@@ -12724,7 +17128,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "revoked"
+     "v": "revoked",
+     "children": [
+      {
+       "t": "text",
+       "v": "revoked"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12743,7 +17153,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "publish it to Explore",
-     "href": "/docs/publish/explore"
+     "href": "/docs/publish/explore",
+     "children": [
+      {
+       "t": "text",
+       "v": "publish it to Explore"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12764,6 +17180,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Inviting people — this is how editing is granted",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Inviting people — this is how editing is granted"
+    }
+   ],
    "id": "inviting-people-this-is-how-editing-is-granted"
   },
   {
@@ -12782,7 +17204,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "By email"
+      "v": "By email",
+      "children": [
+       {
+        "t": "text",
+        "v": "By email"
+       }
+      ]
      },
      {
       "t": "text",
@@ -12792,7 +17220,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "By invite link"
+      "v": "By invite link",
+      "children": [
+       {
+        "t": "text",
+        "v": "By invite link"
+       }
+      ]
      },
      {
       "t": "text",
@@ -12810,7 +17244,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "free on every plan"
+     "v": "free on every plan",
+     "children": [
+      {
+       "t": "text",
+       "v": "free on every plan"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12819,7 +17259,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Collaborating",
-     "href": "/docs/collaborate"
+     "href": "/docs/collaborate",
+     "children": [
+      {
+       "t": "text",
+       "v": "Collaborating"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12831,6 +17277,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Quick copy",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Quick copy"
+    }
+   ],
    "id": "quick-copy"
   },
   {
@@ -12842,7 +17294,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "copy view-only link"
+     "v": "copy view-only link",
+     "children": [
+      {
+       "t": "text",
+       "v": "copy view-only link"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12854,6 +17312,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Link previews",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Link previews"
+    }
+   ],
    "id": "link-previews"
   },
   {
@@ -12869,6 +17333,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Publishing instead",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Publishing instead"
+    }
+   ],
    "id": "publishing-instead"
   },
   {
@@ -12881,7 +17351,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Explore",
-     "href": "/docs/publish/explore"
+     "href": "/docs/publish/explore",
+     "children": [
+      {
+       "t": "text",
+       "v": "Explore"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12893,6 +17369,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Sharing a file instead of a link",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sharing a file instead of a link"
+    }
+   ],
    "id": "sharing-a-file-instead-of-a-link"
   },
   {
@@ -12905,7 +17387,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Exporting a board",
-     "href": "/docs/canvas/export"
+     "href": "/docs/canvas/export",
+     "children": [
+      {
+       "t": "text",
+       "v": "Exporting a board"
+      }
+     ]
     },
     {
      "t": "text",
@@ -12928,6 +17416,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "On a board",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a board"
+    }
+   ],
    "id": "on-a-board"
   },
   {
@@ -12937,7 +17431,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Live cursors"
+      "v": "Live cursors",
+      "children": [
+       {
+        "t": "text",
+        "v": "Live cursors"
+       }
+      ]
      },
      {
       "t": "text",
@@ -12947,7 +17447,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Selection halos"
+      "v": "Selection halos",
+      "children": [
+       {
+        "t": "text",
+        "v": "Selection halos"
+       }
+      ]
      },
      {
       "t": "text",
@@ -12957,7 +17463,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Text carets"
+      "v": "Text carets",
+      "children": [
+       {
+        "t": "text",
+        "v": "Text carets"
+       }
+      ]
      },
      {
       "t": "text",
@@ -12966,7 +17478,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "notes",
-      "href": "/docs/canvas/notes"
+      "href": "/docs/canvas/notes",
+      "children": [
+       {
+        "t": "text",
+        "v": "notes"
+       }
+      ]
      },
      {
       "t": "text",
@@ -12975,7 +17493,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "documents",
-      "href": "/docs/documents"
+      "href": "/docs/documents",
+      "children": [
+       {
+        "t": "text",
+        "v": "documents"
+       }
+      ]
      },
      {
       "t": "text",
@@ -12985,7 +17509,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "A facepile"
+      "v": "A facepile",
+      "children": [
+       {
+        "t": "text",
+        "v": "A facepile"
+       }
+      ]
      },
      {
       "t": "text",
@@ -12998,6 +17528,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Across the workspace",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Across the workspace"
+    }
+   ],
    "id": "across-the-workspace"
   },
   {
@@ -13014,7 +17550,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Click someone to jump to them"
+     "v": "Click someone to jump to them",
+     "children": [
+      {
+       "t": "text",
+       "v": "Click someone to jump to them"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13026,6 +17568,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Colours",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Colours"
+    }
+   ],
    "id": "colours"
   },
   {
@@ -13046,7 +17594,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → Profile"
+     "v": "Settings → Profile",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Profile"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13058,6 +17612,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "At scale",
+   "inline": [
+    {
+     "t": "text",
+     "v": "At scale"
+    }
+   ],
    "id": "at-scale"
   },
   {
@@ -13082,6 +17642,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What is real time",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What is real time"
+    }
+   ],
    "id": "what-is-real-time"
   },
   {
@@ -13133,7 +17699,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "note",
-       "href": "/docs/canvas/notes"
+       "href": "/docs/canvas/notes",
+       "children": [
+        {
+         "t": "text",
+         "v": "note"
+        }
+       ]
       }
      ],
      [
@@ -13152,7 +17724,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "document",
-       "href": "/docs/documents"
+       "href": "/docs/documents",
+       "children": [
+        {
+         "t": "text",
+         "v": "document"
+        }
+       ]
       }
      ],
      [
@@ -13167,7 +17745,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Comments",
-       "href": "/docs/collaborate/comments"
+       "href": "/docs/collaborate/comments",
+       "children": [
+        {
+         "t": "text",
+         "v": "Comments"
+        }
+       ]
       },
       {
        "t": "text",
@@ -13176,7 +17760,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "votes",
-       "href": "/docs/canvas/vote-cards"
+       "href": "/docs/canvas/vote-cards",
+       "children": [
+        {
+         "t": "text",
+         "v": "votes"
+        }
+       ]
       }
      ],
      [
@@ -13191,7 +17781,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "List view",
-       "href": "/docs/clusters/list-view"
+       "href": "/docs/clusters/list-view",
+       "children": [
+        {
+         "t": "text",
+         "v": "List view"
+        }
+       ]
       },
       {
        "t": "text",
@@ -13210,7 +17806,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Messages",
-       "href": "/docs/collaborate/messages"
+       "href": "/docs/collaborate/messages",
+       "children": [
+        {
+         "t": "text",
+         "v": "Messages"
+        }
+       ]
       }
      ],
      [
@@ -13235,6 +17837,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Working offline",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Working offline"
+    }
+   ],
    "id": "working-offline"
   },
   {
@@ -13261,6 +17869,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What you can comment on",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What you can comment on"
+    }
+   ],
    "id": "what-you-can-comment-on"
   },
   {
@@ -13288,7 +17902,13 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "strong",
-       "v": "card"
+       "v": "card",
+       "children": [
+        {
+         "t": "text",
+         "v": "card"
+        }
+       ]
       }
      ],
      [
@@ -13306,7 +17926,20 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "strong",
-       "v": "[group](/docs/canvas/groups)"
+       "v": "[group](/docs/canvas/groups)",
+       "children": [
+        {
+         "t": "link",
+         "v": "group",
+         "href": "/docs/canvas/groups",
+         "children": [
+          {
+           "t": "text",
+           "v": "group"
+          }
+         ]
+        }
+       ]
       }
      ],
      [
@@ -13324,7 +17957,13 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "strong",
-       "v": "empty point"
+       "v": "empty point",
+       "children": [
+        {
+         "t": "text",
+         "v": "empty point"
+        }
+       ]
       }
      ],
      [
@@ -13342,7 +17981,13 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "strong",
-       "v": "board"
+       "v": "board",
+       "children": [
+        {
+         "t": "text",
+         "v": "board"
+        }
+       ]
       }
      ],
      [
@@ -13360,7 +18005,13 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "strong",
-       "v": "text range"
+       "v": "text range",
+       "children": [
+        {
+         "t": "text",
+         "v": "text range"
+        }
+       ]
       },
       {
        "t": "text",
@@ -13369,7 +18020,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "document",
-       "href": "/docs/documents/comments-and-tags"
+       "href": "/docs/documents/comments-and-tags",
+       "children": [
+        {
+         "t": "text",
+         "v": "document"
+        }
+       ]
       }
      ],
      [
@@ -13390,7 +18047,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Comment"
+     "v": "Comment",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comment"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13398,7 +18061,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "+"
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13406,7 +18075,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "em",
-     "v": "Annotate"
+     "v": "Annotate",
+     "children": [
+      {
+       "t": "text",
+       "v": "Annotate"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13414,7 +18089,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Comment"
+     "v": "Comment",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comment"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13426,6 +18107,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Threads",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Threads"
+    }
+   ],
    "id": "threads"
   },
   {
@@ -13437,7 +18124,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Resolve"
+     "v": "Resolve",
+     "children": [
+      {
+       "t": "text",
+       "v": "Resolve"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13449,6 +18142,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Mentions",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Mentions"
+    }
+   ],
    "id": "mentions"
   },
   {
@@ -13469,7 +18168,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Notifications",
-     "href": "/docs/collaborate/notifications"
+     "href": "/docs/collaborate/notifications",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notifications"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13490,6 +18195,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Hiding them",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Hiding them"
+    }
+   ],
    "id": "hiding-them"
   },
   {
@@ -13505,6 +18216,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Bubbles on a crowded board",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Bubbles on a crowded board"
+    }
+   ],
    "id": "bubbles-on-a-crowded-board"
   },
   {
@@ -13520,6 +18237,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Who can comment",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Who can comment"
+    }
+   ],
    "id": "who-can-comment"
   },
   {
@@ -13531,7 +18254,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Viewers cannot"
+     "v": "Viewers cannot",
+     "children": [
+      {
+       "t": "text",
+       "v": "Viewers cannot"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13540,7 +18269,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "vote",
-     "href": "/docs/canvas/vote-cards"
+     "href": "/docs/canvas/vote-cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "vote"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13549,7 +18284,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Collaborating",
-     "href": "/docs/collaborate"
+     "href": "/docs/collaborate",
+     "children": [
+      {
+       "t": "text",
+       "v": "Collaborating"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13561,6 +18302,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Comments versus votes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Comments versus votes"
+    }
+   ],
    "id": "comments-versus-votes"
   },
   {
@@ -13574,7 +18321,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "comment"
+      "v": "comment",
+      "children": [
+       {
+        "t": "text",
+        "v": "comment"
+       }
+      ]
      },
      {
       "t": "text",
@@ -13588,7 +18341,20 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "[vote](/docs/canvas/vote-cards)"
+      "v": "[vote](/docs/canvas/vote-cards)",
+      "children": [
+       {
+        "t": "link",
+        "v": "vote",
+        "href": "/docs/canvas/vote-cards",
+        "children": [
+         {
+          "t": "text",
+          "v": "vote"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -13606,7 +18372,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "em",
-     "v": "why"
+     "v": "why",
+     "children": [
+      {
+       "t": "text",
+       "v": "why"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13646,6 +18418,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Who you can message",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Who you can message"
+    }
+   ],
    "id": "who-you-can-message"
   },
   {
@@ -13653,7 +18431,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Anyone you share at least one board with."
+     "v": "Anyone you share at least one board with.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Anyone you share at least one board with."
+      }
+     ]
     },
     {
      "t": "text",
@@ -13674,6 +18458,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Threads",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Threads"
+    }
+   ],
    "id": "threads"
   },
   {
@@ -13692,7 +18482,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Attachments"
+      "v": "Attachments",
+      "children": [
+       {
+        "t": "text",
+        "v": "Attachments"
+       }
+      ]
      },
      {
       "t": "text",
@@ -13702,7 +18498,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Markdown and auto-links"
+      "v": "Markdown and auto-links",
+      "children": [
+       {
+        "t": "text",
+        "v": "Markdown and auto-links"
+       }
+      ]
      },
      {
       "t": "text",
@@ -13712,7 +18514,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Mentions](/docs/organize/links-and-mentions)"
+      "v": "[Mentions](/docs/organize/links-and-mentions)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Mentions",
+        "href": "/docs/organize/links-and-mentions",
+        "children": [
+         {
+          "t": "text",
+          "v": "Mentions"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -13730,7 +18545,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Per-thread drafts"
+      "v": "Per-thread drafts",
+      "children": [
+       {
+        "t": "text",
+        "v": "Per-thread drafts"
+       }
+      ]
      },
      {
       "t": "text",
@@ -13740,7 +18561,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Permalinks"
+      "v": "Permalinks",
+      "children": [
+       {
+        "t": "text",
+        "v": "Permalinks"
+       }
+      ]
      },
      {
       "t": "text",
@@ -13753,6 +18580,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Unread",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Unread"
+    }
+   ],
    "id": "unread"
   },
   {
@@ -13764,7 +18597,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "browser tab title"
+     "v": "browser tab title",
+     "children": [
+      {
+       "t": "text",
+       "v": "browser tab title"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13792,6 +18631,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Messages versus comments",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Messages versus comments"
+    }
+   ],
    "id": "messages-versus-comments"
   },
   {
@@ -13814,7 +18659,20 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "[comment](/docs/collaborate/comments)"
+      "v": "[comment](/docs/collaborate/comments)",
+      "children": [
+       {
+        "t": "link",
+        "v": "comment",
+        "href": "/docs/collaborate/comments",
+        "children": [
+         {
+          "t": "text",
+          "v": "comment"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -13828,7 +18686,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "message"
+      "v": "message",
+      "children": [
+       {
+        "t": "text",
+        "v": "message"
+       }
+      ]
      },
      {
       "t": "text",
@@ -13857,7 +18721,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → Notifications"
+     "v": "Settings → Notifications",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Notifications"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13886,7 +18756,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "@-mentions"
+       "v": "@-mentions",
+       "children": [
+        {
+         "t": "text",
+         "v": "@-mentions"
+        }
+       ]
       }
      ],
      [
@@ -13900,7 +18776,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Comment replies"
+       "v": "Comment replies",
+       "children": [
+        {
+         "t": "text",
+         "v": "Comment replies"
+        }
+       ]
       }
      ],
      [
@@ -13914,7 +18796,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Workspace invites"
+       "v": "Workspace invites",
+       "children": [
+        {
+         "t": "text",
+         "v": "Workspace invites"
+        }
+       ]
       }
      ],
      [
@@ -13928,7 +18816,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Board shares"
+       "v": "Board shares",
+       "children": [
+        {
+         "t": "text",
+         "v": "Board shares"
+        }
+       ]
       }
      ],
      [
@@ -13942,7 +18836,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Product tips and check-ins"
+       "v": "Product tips and check-ins",
+       "children": [
+        {
+         "t": "text",
+         "v": "Product tips and check-ins"
+        }
+       ]
       }
      ],
      [
@@ -13967,6 +18867,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Where they appear",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Where they appear"
+    }
+   ],
    "id": "where-they-appear"
   },
   {
@@ -13974,7 +18880,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "In the app"
+     "v": "In the app",
+     "children": [
+      {
+       "t": "text",
+       "v": "In the app"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13983,7 +18895,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "messages",
-     "href": "/docs/collaborate/messages"
+     "href": "/docs/collaborate/messages",
+     "children": [
+      {
+       "t": "text",
+       "v": "messages"
+      }
+     ]
     },
     {
      "t": "text",
@@ -13996,7 +18914,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Browser notifications"
+     "v": "Browser notifications",
+     "children": [
+      {
+       "t": "text",
+       "v": "Browser notifications"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14009,7 +18933,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Email"
+     "v": "Email",
+     "children": [
+      {
+       "t": "text",
+       "v": "Email"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14021,6 +18951,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Unsubscribing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Unsubscribing"
+    }
+   ],
    "id": "unsubscribing"
   },
   {
@@ -14032,7 +18968,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "one-click unsubscribe"
+     "v": "one-click unsubscribe",
+     "children": [
+      {
+       "t": "text",
+       "v": "one-click unsubscribe"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14044,6 +18986,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Mentions",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Mentions"
+    }
+   ],
    "id": "mentions"
   },
   {
@@ -14064,7 +19012,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Links and mentions",
-     "href": "/docs/organize/links-and-mentions"
+     "href": "/docs/organize/links-and-mentions",
+     "children": [
+      {
+       "t": "text",
+       "v": "Links and mentions"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14080,7 +19034,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Explore",
-     "href": "https://clusters.soleilpictures.com/explore"
+     "href": "https://clusters.soleilpictures.com/explore",
+     "children": [
+      {
+       "t": "text",
+       "v": "Explore"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14092,6 +19052,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Publishing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Publishing"
+    }
+   ],
    "id": "publishing"
   },
   {
@@ -14103,7 +19069,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Share"
+     "v": "Share",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14111,7 +19083,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Publish to Explore"
+     "v": "Publish to Explore",
+     "children": [
+      {
+       "t": "text",
+       "v": "Publish to Explore"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14141,6 +19119,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What a published board gets",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What a published board gets"
+    }
+   ],
    "id": "what-a-published-board-gets"
   },
   {
@@ -14164,7 +19148,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "A clean URL"
+       "v": "A clean URL",
+       "children": [
+        {
+         "t": "text",
+         "v": "A clean URL"
+        }
+       ]
       }
      ],
      [
@@ -14178,7 +19168,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Indexable"
+       "v": "Indexable",
+       "children": [
+        {
+         "t": "text",
+         "v": "Indexable"
+        }
+       ]
       }
      ],
      [
@@ -14189,7 +19185,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "share link",
-       "href": "/docs/collaborate/sharing"
+       "href": "/docs/collaborate/sharing",
+       "children": [
+        {
+         "t": "text",
+         "v": "share link"
+        }
+       ]
       }
      ]
     ],
@@ -14197,7 +19199,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Listed"
+       "v": "Listed",
+       "children": [
+        {
+         "t": "text",
+         "v": "Listed"
+        }
+       ]
       }
      ],
      [
@@ -14211,7 +19219,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Link previews"
+       "v": "Link previews",
+       "children": [
+        {
+         "t": "text",
+         "v": "Link previews"
+        }
+       ]
       }
      ],
      [
@@ -14236,6 +19250,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The directory",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The directory"
+    }
+   ],
    "id": "the-directory"
   },
   {
@@ -14244,7 +19264,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "/explore",
-     "href": "https://clusters.soleilpictures.com/explore"
+     "href": "https://clusters.soleilpictures.com/explore",
+     "children": [
+      {
+       "t": "text",
+       "v": "/explore"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14256,6 +19282,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Published versus shared",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Published versus shared"
+    }
+   ],
    "id": "published-versus-shared"
   },
   {
@@ -14271,7 +19303,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "Share link",
-      "href": "/docs/collaborate/sharing"
+      "href": "/docs/collaborate/sharing",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share link"
+       }
+      ]
      }
     ],
     [
@@ -14397,6 +19435,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Before you publish",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Before you publish"
+    }
+   ],
    "id": "before-you-publish"
   },
   {
@@ -14415,7 +19459,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Names."
+      "v": "Names.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Names."
+       }
+      ]
      },
      {
       "t": "text",
@@ -14425,7 +19475,24 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Comments](/docs/collaborate/comments)."
+      "v": "[Comments](/docs/collaborate/comments).",
+      "children": [
+       {
+        "t": "link",
+        "v": "Comments",
+        "href": "/docs/collaborate/comments",
+        "children": [
+         {
+          "t": "text",
+          "v": "Comments"
+         }
+        ]
+       },
+       {
+        "t": "text",
+        "v": "."
+       }
+      ]
      },
      {
       "t": "text",
@@ -14435,7 +19502,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Nested clusters."
+      "v": "Nested clusters.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Nested clusters."
+       }
+      ]
      },
      {
       "t": "text",
@@ -14445,7 +19518,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Rights."
+      "v": "Rights.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Rights."
+       }
+      ]
      },
      {
       "t": "text",
@@ -14458,6 +19537,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Curated showcases",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Curated showcases"
+    }
+   ],
    "id": "curated-showcases"
   },
   {
@@ -14490,7 +19575,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "not fully live"
+     "v": "not fully live",
+     "children": [
+      {
+       "t": "text",
+       "v": "not fully live"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14499,7 +19590,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "/scout",
-     "href": "https://clusters.soleilpictures.com/scout"
+     "href": "https://clusters.soleilpictures.com/scout",
+     "children": [
+      {
+       "t": "text",
+       "v": "/scout"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14511,6 +19608,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The idea",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The idea"
+    }
+   ],
    "id": "the-idea"
   },
   {
@@ -14535,6 +19638,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "How it works",
+   "inline": [
+    {
+     "t": "text",
+     "v": "How it works"
+    }
+   ],
    "id": "how-it-works"
   },
   {
@@ -14544,7 +19653,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Text the number."
+      "v": "Text the number.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Text the number."
+       }
+      ]
      },
      {
       "t": "text",
@@ -14554,7 +19669,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Say what it is."
+      "v": "Say what it is.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Say what it is."
+       }
+      ]
      },
      {
       "t": "text",
@@ -14564,7 +19685,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Keep shooting."
+      "v": "Keep shooting.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Keep shooting."
+       }
+      ]
      },
      {
       "t": "text",
@@ -14574,7 +19701,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Tap the link."
+      "v": "Tap the link.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tap the link."
+       }
+      ]
      },
      {
       "t": "text",
@@ -14584,7 +19717,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "File it later."
+      "v": "File it later.",
+      "children": [
+       {
+        "t": "text",
+        "v": "File it later."
+       }
+      ]
      },
      {
       "t": "text",
@@ -14597,6 +19736,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Batching",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Batching"
+    }
+   ],
    "id": "batching"
   },
   {
@@ -14608,7 +19753,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "one"
+     "v": "one",
+     "children": [
+      {
+       "t": "text",
+       "v": "one"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14625,7 +19776,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "em",
-     "v": "Got 12 photos — working on it…"
+     "v": "Got 12 photos — working on it…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Got 12 photos — working on it…"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14633,7 +19790,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "em",
-     "v": "Uploading 3 of 12…"
+     "v": "Uploading 3 of 12…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Uploading 3 of 12…"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14641,7 +19804,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "em",
-     "v": "Arranging on Scout Inbox…"
+     "v": "Arranging on Scout Inbox…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Arranging on Scout Inbox…"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14653,6 +19822,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The Scout Bin",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The Scout Bin"
+    }
+   ],
    "id": "the-scout-bin"
   },
   {
@@ -14664,7 +19839,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Scout Bin"
+     "v": "Scout Bin",
+     "children": [
+      {
+       "t": "text",
+       "v": "Scout Bin"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14698,7 +19879,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "confirmed before they happen"
+     "v": "confirmed before they happen",
+     "children": [
+      {
+       "t": "text",
+       "v": "confirmed before they happen"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14710,6 +19897,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Commands",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Commands"
+    }
+   ],
    "id": "commands"
   },
   {
@@ -14838,6 +20031,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Connecting to an existing account",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Connecting to an existing account"
+    }
+   ],
    "id": "connecting-to-an-existing-account"
   },
   {
@@ -14849,7 +20048,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → Scout"
+     "v": "Settings → Scout",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Scout"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14874,7 +20079,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "claim"
+     "v": "claim",
+     "children": [
+      {
+       "t": "text",
+       "v": "claim"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14886,6 +20097,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Links",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Links"
+    }
+   ],
    "id": "links"
   },
   {
@@ -14901,6 +20118,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Limits",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Limits"
+    }
+   ],
    "id": "limits"
   },
   {
@@ -14913,7 +20136,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "card allowance",
-     "href": "/docs/canvas/cards"
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "card allowance"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14921,7 +20150,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "100 cards"
+     "v": "100 cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "100 cards"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14942,6 +20177,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Transport",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Transport"
+    }
+   ],
    "id": "transport"
   },
   {
@@ -14953,7 +20194,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "not"
+     "v": "not",
+     "children": [
+      {
+       "t": "text",
+       "v": "not"
+      }
+     ]
     },
     {
      "t": "text",
@@ -14984,12 +20231,24 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Account",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Account"
+    }
+   ],
    "id": "account"
   },
   {
    "type": "heading",
    "depth": 3,
    "text": "Profile",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Profile"
+    }
+   ],
    "id": "profile"
   },
   {
@@ -15001,7 +20260,20 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "[presence colour](/docs/collaborate/presence)"
+     "v": "[presence colour](/docs/collaborate/presence)",
+     "children": [
+      {
+       "t": "link",
+       "v": "presence colour",
+       "href": "/docs/collaborate/presence",
+       "children": [
+        {
+         "t": "text",
+         "v": "presence colour"
+        }
+       ]
+      }
+     ]
     },
     {
      "t": "text",
@@ -15013,6 +20285,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 3,
    "text": "Scout",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Scout"
+    }
+   ],
    "id": "scout"
   },
   {
@@ -15025,7 +20303,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Soleil Scout",
-     "href": "/docs/scout"
+     "href": "/docs/scout",
+     "children": [
+      {
+       "t": "text",
+       "v": "Soleil Scout"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15037,6 +20321,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 3,
    "text": "API",
+   "inline": [
+    {
+     "t": "text",
+     "v": "API"
+    }
+   ],
    "id": "api"
   },
   {
@@ -15049,7 +20339,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "personal access tokens",
-     "href": "/docs/api/authentication"
+     "href": "/docs/api/authentication",
+     "children": [
+      {
+       "t": "text",
+       "v": "personal access tokens"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15058,7 +20354,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "REST API",
-     "href": "/docs/api"
+     "href": "/docs/api",
+     "children": [
+      {
+       "t": "text",
+       "v": "REST API"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15067,7 +20369,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "MCP",
-     "href": "/docs/mcp"
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "MCP"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15084,7 +20392,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Allow writes"
+     "v": "Allow writes",
+     "children": [
+      {
+       "t": "text",
+       "v": "Allow writes"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15092,7 +20406,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "once"
+     "v": "once",
+     "children": [
+      {
+       "t": "text",
+       "v": "once"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15104,6 +20424,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 3,
    "text": "Invite & earn",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Invite & earn"
+    }
+   ],
    "id": "invite-earn"
   },
   {
@@ -15116,7 +20442,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "referral",
-     "href": "/docs/account/referrals"
+     "href": "/docs/account/referrals",
+     "children": [
+      {
+       "t": "text",
+       "v": "referral"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15128,6 +20460,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 3,
    "text": "Billing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Billing"
+    }
+   ],
    "id": "billing"
   },
   {
@@ -15139,7 +20477,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "storage meter"
+     "v": "storage meter",
+     "children": [
+      {
+       "t": "text",
+       "v": "storage meter"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15148,7 +20492,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Plans",
-     "href": "/docs/account/plans"
+     "href": "/docs/account/plans",
+     "children": [
+      {
+       "t": "text",
+       "v": "Plans"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15160,6 +20510,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 3,
    "text": "Notifications",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Notifications"
+    }
+   ],
    "id": "notifications"
   },
   {
@@ -15172,7 +20528,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Notifications",
-     "href": "/docs/collaborate/notifications"
+     "href": "/docs/collaborate/notifications",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notifications"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15184,12 +20546,24 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Workspace",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Workspace"
+    }
+   ],
    "id": "workspace"
   },
   {
    "type": "heading",
    "depth": 3,
    "text": "Defaults",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Defaults"
+    }
+   ],
    "id": "defaults"
   },
   {
@@ -15208,7 +20582,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Notes"
+      "v": "Notes",
+      "children": [
+       {
+        "t": "text",
+        "v": "Notes"
+       }
+      ]
      },
      {
       "t": "text",
@@ -15218,7 +20598,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Shapes"
+      "v": "Shapes",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shapes"
+       }
+      ]
      },
      {
       "t": "text",
@@ -15228,7 +20614,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Default view"
+      "v": "Default view",
+      "children": [
+       {
+        "t": "text",
+        "v": "Default view"
+       }
+      ]
      },
      {
       "t": "text",
@@ -15237,7 +20629,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "canvas or list",
-      "href": "/docs/clusters/list-view"
+      "href": "/docs/clusters/list-view",
+      "children": [
+       {
+        "t": "text",
+        "v": "canvas or list"
+       }
+      ]
      }
     ]
    ]
@@ -15246,6 +20644,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 3,
    "text": "Theme",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Theme"
+    }
+   ],
    "id": "theme"
   },
   {
@@ -15258,7 +20662,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Theme and defaults",
-     "href": "/docs/account/theme-and-defaults"
+     "href": "/docs/account/theme-and-defaults",
+     "children": [
+      {
+       "t": "text",
+       "v": "Theme and defaults"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15270,6 +20680,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 3,
    "text": "Display",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Display"
+    }
+   ],
    "id": "display"
   },
   {
@@ -15279,7 +20695,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Clean mode"
+      "v": "Clean mode",
+      "children": [
+       {
+        "t": "text",
+        "v": "Clean mode"
+       }
+      ]
      },
      {
       "t": "text",
@@ -15297,7 +20719,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Sidebar open by default"
+      "v": "Sidebar open by default",
+      "children": [
+       {
+        "t": "text",
+        "v": "Sidebar open by default"
+       }
+      ]
      }
     ]
    ]
@@ -15306,6 +20734,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Not in Settings",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Not in Settings"
+    }
+   ],
    "id": "not-in-settings"
   },
   {
@@ -15349,7 +20783,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "cluster",
-       "href": "/docs/clusters"
+       "href": "/docs/clusters",
+       "children": [
+        {
+         "t": "text",
+         "v": "cluster"
+        }
+       ]
       }
      ]
     ],
@@ -15368,7 +20808,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "canvas",
-       "href": "/docs/canvas"
+       "href": "/docs/canvas",
+       "children": [
+        {
+         "t": "text",
+         "v": "canvas"
+        }
+       ]
       }
      ]
     ],
@@ -15387,7 +20833,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Share",
-       "href": "/docs/collaborate/sharing"
+       "href": "/docs/collaborate/sharing",
+       "children": [
+        {
+         "t": "text",
+         "v": "Share"
+        }
+       ]
       },
       {
        "t": "text",
@@ -15404,7 +20856,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "comments",
-       "href": "/docs/collaborate/comments"
+       "href": "/docs/collaborate/comments",
+       "children": [
+        {
+         "t": "text",
+         "v": "comments"
+        }
+       ]
       }
      ],
      [
@@ -15431,6 +20889,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Demo — free",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Demo — free"
+    }
+   ],
    "id": "demo-free"
   },
   {
@@ -15440,7 +20904,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "100 cards"
+      "v": "100 cards",
+      "children": [
+       {
+        "t": "text",
+        "v": "100 cards"
+       }
+      ]
      },
      {
       "t": "text",
@@ -15465,6 +20935,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Creator",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Creator"
+    }
+   ],
    "id": "creator"
   },
   {
@@ -15472,7 +20948,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "$25/mo"
+     "v": "$25/mo",
+     "children": [
+      {
+       "t": "text",
+       "v": "$25/mo"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15480,7 +20962,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "$20/mo"
+     "v": "$20/mo",
+     "children": [
+      {
+       "t": "text",
+       "v": "$20/mo"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15535,7 +21023,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "100GB"
+      "v": "100GB",
+      "children": [
+       {
+        "t": "text",
+        "v": "100GB"
+       }
+      ]
      },
      {
       "t": "text",
@@ -15548,6 +21042,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What is genuinely limited",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What is genuinely limited"
+    }
+   ],
    "id": "what-is-genuinely-limited"
   },
   {
@@ -15586,7 +21086,24 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Total [cards](/docs/canvas/cards)"
+       "v": "Total [cards](/docs/canvas/cards)",
+       "children": [
+        {
+         "t": "text",
+         "v": "Total "
+        },
+        {
+         "t": "link",
+         "v": "cards",
+         "href": "/docs/canvas/cards",
+         "children": [
+          {
+           "t": "text",
+           "v": "cards"
+          }
+         ]
+        }
+       ]
       }
      ],
      [
@@ -15606,7 +21123,20 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "[File types](/docs/files)"
+       "v": "[File types](/docs/files)",
+       "children": [
+        {
+         "t": "link",
+         "v": "File types",
+         "href": "/docs/files",
+         "children": [
+          {
+           "t": "text",
+           "v": "File types"
+          }
+         ]
+        }
+       ]
       }
      ],
      [
@@ -15626,7 +21156,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Per-file size"
+       "v": "Per-file size",
+       "children": [
+        {
+         "t": "text",
+         "v": "Per-file size"
+        }
+       ]
       }
      ],
      [
@@ -15663,7 +21199,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "not"
+     "v": "not",
+     "children": [
+      {
+       "t": "text",
+       "v": "not"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15672,7 +21214,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "public links",
-     "href": "/docs/collaborate/sharing"
+     "href": "/docs/collaborate/sharing",
+     "children": [
+      {
+       "t": "text",
+       "v": "public links"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15681,7 +21229,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "screenplay mode",
-     "href": "/docs/documents/screenplay"
+     "href": "/docs/documents/screenplay",
+     "children": [
+      {
+       "t": "text",
+       "v": "screenplay mode"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15690,7 +21244,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "API",
-     "href": "/docs/api"
+     "href": "/docs/api",
+     "children": [
+      {
+       "t": "text",
+       "v": "API"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15702,6 +21262,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Whose allowance",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Whose allowance"
+    }
+   ],
    "id": "whose-allowance"
   },
   {
@@ -15713,7 +21279,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "cluster owner's"
+     "v": "cluster owner's",
+     "children": [
+      {
+       "t": "text",
+       "v": "cluster owner's"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15731,7 +21303,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Collaborating",
-     "href": "/docs/collaborate"
+     "href": "/docs/collaborate",
+     "children": [
+      {
+       "t": "text",
+       "v": "Collaborating"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15743,6 +21321,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Hitting the cap",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Hitting the cap"
+    }
+   ],
    "id": "hitting-the-cap"
   },
   {
@@ -15764,7 +21348,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "referrals",
-     "href": "/docs/account/referrals"
+     "href": "/docs/account/referrals",
+     "children": [
+      {
+       "t": "text",
+       "v": "referrals"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15776,6 +21366,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Billing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Billing"
+    }
+   ],
    "id": "billing"
   },
   {
@@ -15783,7 +21379,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Settings → Billing"
+     "v": "Settings → Billing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Billing"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15804,6 +21406,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Free forever",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Free forever"
+    }
+   ],
    "id": "free-forever"
   },
   {
@@ -15828,7 +21436,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "free mood board maker",
-     "href": "/tools/free-mood-board-maker"
+     "href": "/tools/free-mood-board-maker",
+     "children": [
+      {
+       "t": "text",
+       "v": "free mood board maker"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15842,6 +21456,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Theme",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Theme"
+    }
+   ],
    "id": "theme"
   },
   {
@@ -15849,7 +21469,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Settings → Theme."
+     "v": "Settings → Theme.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Theme."
+      }
+     ]
     }
    ]
   },
@@ -15860,7 +21486,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Mode"
+      "v": "Mode",
+      "children": [
+       {
+        "t": "text",
+        "v": "Mode"
+       }
+      ]
      },
      {
       "t": "text",
@@ -15878,7 +21510,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Accent"
+      "v": "Accent",
+      "children": [
+       {
+        "t": "text",
+        "v": "Accent"
+       }
+      ]
      },
      {
       "t": "text",
@@ -15888,7 +21526,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Body font"
+      "v": "Body font",
+      "children": [
+       {
+        "t": "text",
+        "v": "Body font"
+       }
+      ]
      },
      {
       "t": "text",
@@ -15906,7 +21550,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "account"
+     "v": "account",
+     "children": [
+      {
+       "t": "text",
+       "v": "account"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15918,6 +21568,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 3,
    "text": "Readability across themes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Readability across themes"
+    }
+   ],
    "id": "readability-across-themes"
   },
   {
@@ -15930,7 +21586,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "notes",
-     "href": "/docs/canvas/notes"
+     "href": "/docs/canvas/notes",
+     "children": [
+      {
+       "t": "text",
+       "v": "notes"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15939,7 +21601,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "documents",
-     "href": "/docs/documents"
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "documents"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15948,7 +21616,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "public link",
-     "href": "/docs/collaborate/sharing"
+     "href": "/docs/collaborate/sharing",
+     "children": [
+      {
+       "t": "text",
+       "v": "public link"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15960,6 +21634,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 3,
    "text": "The reserved accent",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The reserved accent"
+    }
+   ],
    "id": "the-reserved-accent"
   },
   {
@@ -15972,7 +21652,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "palette",
-     "href": "/docs/canvas/palettes-and-color"
+     "href": "/docs/canvas/palettes-and-color",
+     "children": [
+      {
+       "t": "text",
+       "v": "palette"
+      }
+     ]
     },
     {
      "t": "text",
@@ -15984,6 +21670,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Defaults",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Defaults"
+    }
+   ],
    "id": "defaults"
   },
   {
@@ -15991,7 +21683,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Settings → Defaults."
+     "v": "Settings → Defaults.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Defaults."
+      }
+     ]
     },
     {
      "t": "text",
@@ -16031,7 +21729,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "note",
-       "href": "/docs/canvas/notes"
+       "href": "/docs/canvas/notes",
+       "children": [
+        {
+         "t": "text",
+         "v": "note"
+        }
+       ]
       }
      ]
     ],
@@ -16050,7 +21754,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "shape",
-       "href": "/docs/canvas/shapes-and-drawing"
+       "href": "/docs/canvas/shapes-and-drawing",
+       "children": [
+        {
+         "t": "text",
+         "v": "shape"
+        }
+       ]
       }
      ]
     ],
@@ -16069,7 +21779,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "canvas or list",
-       "href": "/docs/clusters/list-view"
+       "href": "/docs/clusters/list-view",
+       "children": [
+        {
+         "t": "text",
+         "v": "canvas or list"
+        }
+       ]
       }
      ]
     ]
@@ -16088,6 +21804,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Display",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Display"
+    }
+   ],
    "id": "display"
   },
   {
@@ -16095,7 +21817,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Settings → Display."
+     "v": "Settings → Display.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Display."
+      }
+     ]
     }
    ]
   },
@@ -16106,7 +21834,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Clean mode"
+      "v": "Clean mode",
+      "children": [
+       {
+        "t": "text",
+        "v": "Clean mode"
+       }
+      ]
      },
      {
       "t": "text",
@@ -16124,7 +21858,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Sidebar open by default"
+      "v": "Sidebar open by default",
+      "children": [
+       {
+        "t": "text",
+        "v": "Sidebar open by default"
+       }
+      ]
      }
     ]
    ]
@@ -16133,6 +21873,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Custom fonts",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Custom fonts"
+    }
+   ],
    "id": "custom-fonts"
   },
   {
@@ -16150,7 +21896,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Screenplays",
-     "href": "/docs/documents/screenplay"
+     "href": "/docs/documents/screenplay",
+     "children": [
+      {
+       "t": "text",
+       "v": "Screenplays"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16165,7 +21917,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Settings → Invite and earn."
+     "v": "Settings → Invite and earn.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Invite and earn."
+      }
+     ]
     }
    ]
   },
@@ -16173,6 +21931,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "How it works",
+   "inline": [
+    {
+     "t": "text",
+     "v": "How it works"
+    }
+   ],
    "id": "how-it-works"
   },
   {
@@ -16184,7 +21948,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "and actually gets started"
+     "v": "and actually gets started",
+     "children": [
+      {
+       "t": "text",
+       "v": "and actually gets started"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16205,6 +21975,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Bonus cards",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Bonus cards"
+    }
+   ],
    "id": "bonus-cards"
   },
   {
@@ -16216,7 +21992,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "100"
+     "v": "100",
+     "children": [
+      {
+       "t": "text",
+       "v": "100"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16234,7 +22016,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Cards",
-     "href": "/docs/canvas/cards"
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "Cards"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16246,6 +22034,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Stats",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Stats"
+    }
+   ],
    "id": "stats"
   },
   {
@@ -16345,6 +22139,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Sharing the link",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sharing the link"
+    }
+   ],
    "id": "sharing-the-link"
   },
   {
@@ -16360,6 +22160,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Referrals versus collaboration",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Referrals versus collaboration"
+    }
+   ],
    "id": "referrals-versus-collaboration"
   },
   {
@@ -16378,7 +22184,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Inviting a collaborator](/docs/collaborate)"
+      "v": "[Inviting a collaborator](/docs/collaborate)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Inviting a collaborator",
+        "href": "/docs/collaborate",
+        "children": [
+         {
+          "t": "text",
+          "v": "Inviting a collaborator"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -16388,7 +22207,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "A referral"
+      "v": "A referral",
+      "children": [
+       {
+        "t": "text",
+        "v": "A referral"
+       }
+      ]
      },
      {
       "t": "text",
@@ -16421,6 +22246,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Touch on the canvas",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Touch on the canvas"
+    }
+   ],
    "id": "touch-on-the-canvas"
   },
   {
@@ -16525,6 +22356,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Layout differences",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Layout differences"
+    }
+   ],
    "id": "layout-differences"
   },
   {
@@ -16532,7 +22369,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Bottom navigation"
+     "v": "Bottom navigation",
+     "children": [
+      {
+       "t": "text",
+       "v": "Bottom navigation"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16545,7 +22388,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "A drawer"
+     "v": "A drawer",
+     "children": [
+      {
+       "t": "text",
+       "v": "A drawer"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16558,7 +22407,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "The add sheet"
+     "v": "The add sheet",
+     "children": [
+      {
+       "t": "text",
+       "v": "The add sheet"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16579,7 +22434,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Focus view"
+     "v": "Focus view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Focus view"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16591,6 +22452,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Tablets",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tablets"
+    }
+   ],
    "id": "tablets"
   },
   {
@@ -16612,7 +22479,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Home graph",
-     "href": "/docs/clusters/home-graph"
+     "href": "/docs/clusters/home-graph",
+     "children": [
+      {
+       "t": "text",
+       "v": "Home graph"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16624,6 +22497,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Installing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Installing"
+    }
+   ],
    "id": "installing"
   },
   {
@@ -16631,7 +22510,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "As a PWA"
+     "v": "As a PWA",
+     "children": [
+      {
+       "t": "text",
+       "v": "As a PWA"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16644,7 +22529,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Native apps"
+     "v": "Native apps",
+     "children": [
+      {
+       "t": "text",
+       "v": "Native apps"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16653,7 +22544,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "exports",
-     "href": "/docs/documents/export"
+     "href": "/docs/documents/export",
+     "children": [
+      {
+       "t": "text",
+       "v": "exports"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16665,6 +22562,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Getting photos in from a phone",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Getting photos in from a phone"
+    }
+   ],
    "id": "getting-photos-in-from-a-phone"
   },
   {
@@ -16683,7 +22586,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Upload"
+      "v": "Upload",
+      "children": [
+       {
+        "t": "text",
+        "v": "Upload"
+       }
+      ]
      },
      {
       "t": "text",
@@ -16693,7 +22602,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Share sheet"
+      "v": "Share sheet",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share sheet"
+       }
+      ]
      },
      {
       "t": "text",
@@ -16703,7 +22618,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Soleil Scout](/docs/scout)"
+      "v": "[Soleil Scout](/docs/scout)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Soleil Scout",
+        "href": "/docs/scout",
+        "children": [
+         {
+          "t": "text",
+          "v": "Soleil Scout"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -16716,6 +22644,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What is worse on a small screen",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What is worse on a small screen"
+    }
+   ],
    "id": "what-is-worse-on-a-small-screen"
   },
   {
@@ -16728,7 +22662,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "documents",
-     "href": "/docs/documents"
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "documents"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16737,7 +22677,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "screenplay",
-     "href": "/docs/documents/screenplay"
+     "href": "/docs/documents/screenplay",
+     "children": [
+      {
+       "t": "text",
+       "v": "screenplay"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16746,7 +22692,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "grid",
-     "href": "/docs/canvas/grids"
+     "href": "/docs/canvas/grids",
+     "children": [
+      {
+       "t": "text",
+       "v": "grid"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16769,6 +22721,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Who can see a board",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Who can see a board"
+    }
+   ],
    "id": "who-can-see-a-board"
   },
   {
@@ -16787,7 +22745,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Invite someone](/docs/collaborate)"
+      "v": "[Invite someone](/docs/collaborate)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Invite someone",
+        "href": "/docs/collaborate",
+        "children": [
+         {
+          "t": "text",
+          "v": "Invite someone"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -16797,7 +22768,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Create a public link](/docs/collaborate/sharing)"
+      "v": "[Create a public link](/docs/collaborate/sharing)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Create a public link",
+        "href": "/docs/collaborate/sharing",
+        "children": [
+         {
+          "t": "text",
+          "v": "Create a public link"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -16816,7 +22800,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Explore",
-     "href": "/docs/publish/explore"
+     "href": "/docs/publish/explore",
+     "children": [
+      {
+       "t": "text",
+       "v": "Explore"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16828,6 +22818,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Where files live",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Where files live"
+    }
+   ],
    "id": "where-files-live"
   },
   {
@@ -16839,7 +22835,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "signed URLs that expire"
+     "v": "signed URLs that expire",
+     "children": [
+      {
+       "t": "text",
+       "v": "signed URLs that expire"
+      }
+     ]
     },
     {
      "t": "text",
@@ -16860,6 +22862,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Retention",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Retention"
+    }
+   ],
    "id": "retention"
   },
   {
@@ -16894,7 +22902,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "trash",
-       "href": "/docs/clusters/trash-and-recovery"
+       "href": "/docs/clusters/trash-and-recovery",
+       "children": [
+        {
+         "t": "text",
+         "v": "trash"
+        }
+       ]
       },
       {
        "t": "text",
@@ -16939,7 +22953,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "comments",
-       "href": "/docs/collaborate/comments"
+       "href": "/docs/collaborate/comments",
+       "children": [
+        {
+         "t": "text",
+         "v": "comments"
+        }
+       ]
       }
      ],
      [
@@ -16964,6 +22984,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Getting your data out",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Getting your data out"
+    }
+   ],
    "id": "getting-your-data-out"
   },
   {
@@ -16982,7 +23008,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Board export](/docs/canvas/export)"
+      "v": "[Board export](/docs/canvas/export)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Board export",
+        "href": "/docs/canvas/export",
+        "children": [
+         {
+          "t": "text",
+          "v": "Board export"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -16992,7 +23031,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Document export](/docs/documents/export)"
+      "v": "[Document export](/docs/documents/export)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Document export",
+        "href": "/docs/documents/export",
+        "children": [
+         {
+          "t": "text",
+          "v": "Document export"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -17009,13 +23061,25 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "screenplays",
-      "href": "/docs/documents/screenplay"
+      "href": "/docs/documents/screenplay",
+      "children": [
+       {
+        "t": "text",
+        "v": "screenplays"
+       }
+      ]
      }
     ],
     [
      {
       "t": "strong",
-      "v": "Original files"
+      "v": "Original files",
+      "children": [
+       {
+        "t": "text",
+        "v": "Original files"
+       }
+      ]
      },
      {
       "t": "text",
@@ -17025,7 +23089,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[REST API](/docs/api)"
+      "v": "[REST API](/docs/api)",
+      "children": [
+       {
+        "t": "link",
+        "v": "REST API",
+        "href": "/docs/api",
+        "children": [
+         {
+          "t": "text",
+          "v": "REST API"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -17038,6 +23115,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Accounts and access",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Accounts and access"
+    }
+   ],
    "id": "accounts-and-access"
   },
   {
@@ -17055,7 +23138,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "API tokens",
-     "href": "/docs/api/authentication"
+     "href": "/docs/api/authentication",
+     "children": [
+      {
+       "t": "text",
+       "v": "API tokens"
+      }
+     ]
     },
     {
      "t": "text",
@@ -17067,6 +23156,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Error reporting",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Error reporting"
+    }
+   ],
    "id": "error-reporting"
   },
   {
@@ -17082,6 +23177,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Legal",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Legal"
+    }
+   ],
    "id": "legal"
   },
   {
@@ -17094,7 +23195,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Privacy",
-     "href": "https://clusters.soleilpictures.com/legal/privacy"
+     "href": "https://clusters.soleilpictures.com/legal/privacy",
+     "children": [
+      {
+       "t": "text",
+       "v": "Privacy"
+      }
+     ]
     },
     {
      "t": "text",
@@ -17103,7 +23210,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Terms",
-     "href": "https://clusters.soleilpictures.com/legal/terms"
+     "href": "https://clusters.soleilpictures.com/legal/terms",
+     "children": [
+      {
+       "t": "text",
+       "v": "Terms"
+      }
+     ]
     },
     {
      "t": "text",
@@ -17112,7 +23225,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Cookies",
-     "href": "https://clusters.soleilpictures.com/legal/cookies"
+     "href": "https://clusters.soleilpictures.com/legal/cookies",
+     "children": [
+      {
+       "t": "text",
+       "v": "Cookies"
+      }
+     ]
     },
     {
      "t": "text",
@@ -17170,7 +23289,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "`/api/v1/openapi.json`",
-     "href": "https://clusters.soleilpictures.com/api/v1/openapi.json"
+     "href": "https://clusters.soleilpictures.com/api/v1/openapi.json",
+     "children": [
+      {
+       "t": "code",
+       "v": "/api/v1/openapi.json"
+      }
+     ]
     },
     {
      "t": "text",
@@ -17178,7 +23303,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "without authentication"
+     "v": "without authentication",
+     "children": [
+      {
+       "t": "text",
+       "v": "without authentication"
+      }
+     ]
     },
     {
      "t": "text",
@@ -17190,6 +23321,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The authorization model",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The authorization model"
+    }
+   ],
    "id": "the-authorization-model"
   },
   {
@@ -17210,7 +23347,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "not a capability"
+     "v": "not a capability",
+     "children": [
+      {
+       "t": "text",
+       "v": "not a capability"
+      }
+     ]
     },
     {
      "t": "text",
@@ -17218,7 +23361,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "em",
-     "v": "you"
+     "v": "you",
+     "children": [
+      {
+       "t": "text",
+       "v": "you"
+      }
+     ]
     },
     {
      "t": "text",
@@ -17264,6 +23413,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Endpoints",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Endpoints"
+    }
+   ],
    "id": "endpoints"
   },
   {
@@ -17322,7 +23477,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Search",
-       "href": "/docs/api/search"
+       "href": "/docs/api/search",
+       "children": [
+        {
+         "t": "text",
+         "v": "Search"
+        }
+       ]
       },
       {
        "t": "text",
@@ -17341,7 +23502,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "List boards",
-       "href": "/docs/api/boards"
+       "href": "/docs/api/boards",
+       "children": [
+        {
+         "t": "text",
+         "v": "List boards"
+        }
+       ]
       },
       {
        "t": "text",
@@ -17430,7 +23597,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Cards",
-       "href": "/docs/api/cards"
+       "href": "/docs/api/cards",
+       "children": [
+        {
+         "t": "text",
+         "v": "Cards"
+        }
+       ]
       },
       {
        "t": "text",
@@ -17505,7 +23678,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Upload an image",
-       "href": "/docs/api/images"
+       "href": "/docs/api/images",
+       "children": [
+        {
+         "t": "text",
+         "v": "Upload an image"
+        }
+       ]
       },
       {
        "t": "text",
@@ -17546,6 +23725,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Authentication",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Authentication"
+    }
+   ],
    "id": "authentication"
   },
   {
@@ -17557,7 +23742,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → API"
+     "v": "Settings → API",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → API"
+      }
+     ]
     },
     {
      "t": "text",
@@ -17604,7 +23795,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Authentication",
-     "href": "/docs/api/authentication"
+     "href": "/docs/api/authentication",
+     "children": [
+      {
+       "t": "text",
+       "v": "Authentication"
+      }
+     ]
     },
     {
      "t": "text",
@@ -17616,6 +23813,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Pagination",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pagination"
+    }
+   ],
    "id": "pagination"
   },
   {
@@ -17643,7 +23846,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "100"
+     "v": "100",
+     "children": [
+      {
+       "t": "text",
+       "v": "100"
+      }
+     ]
     },
     {
      "t": "text",
@@ -17651,7 +23860,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "500"
+     "v": "500",
+     "children": [
+      {
+       "t": "text",
+       "v": "500"
+      }
+     ]
     },
     {
      "t": "text",
@@ -17697,6 +23912,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Rate limits",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Rate limits"
+    }
+   ],
    "id": "rate-limits"
   },
   {
@@ -17704,7 +23925,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "1000 requests per hour per token."
+     "v": "1000 requests per hour per token.",
+     "children": [
+      {
+       "t": "text",
+       "v": "1000 requests per hour per token."
+      }
+     ]
     },
     {
      "t": "text",
@@ -17808,6 +24035,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Idempotency",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Idempotency"
+    }
+   ],
    "id": "idempotency"
   },
   {
@@ -17885,6 +24118,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "CORS",
+   "inline": [
+    {
+     "t": "text",
+     "v": "CORS"
+    }
+   ],
    "id": "cors"
   },
   {
@@ -17918,7 +24157,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "em",
-     "v": "works"
+     "v": "works",
+     "children": [
+      {
+       "t": "text",
+       "v": "works"
+      }
+     ]
     },
     {
      "t": "text",
@@ -17938,6 +24183,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "For AI agents",
+   "inline": [
+    {
+     "t": "text",
+     "v": "For AI agents"
+    }
+   ],
    "id": "for-ai-agents"
   },
   {
@@ -17947,7 +24198,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Quickstart](/docs/api/quickstart)"
+      "v": "[Quickstart](/docs/api/quickstart)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Quickstart",
+        "href": "/docs/api/quickstart",
+        "children": [
+         {
+          "t": "text",
+          "v": "Quickstart"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -17957,7 +24221,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[MCP](/docs/mcp)"
+      "v": "[MCP](/docs/mcp)",
+      "children": [
+       {
+        "t": "link",
+        "v": "MCP",
+        "href": "/docs/mcp",
+        "children": [
+         {
+          "t": "text",
+          "v": "MCP"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -17967,7 +24244,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[OpenAPI](https://clusters.soleilpictures.com/api/v1/openapi.json)"
+      "v": "[OpenAPI](https://clusters.soleilpictures.com/api/v1/openapi.json)",
+      "children": [
+       {
+        "t": "link",
+        "v": "OpenAPI",
+        "href": "https://clusters.soleilpictures.com/api/v1/openapi.json",
+        "children": [
+         {
+          "t": "text",
+          "v": "OpenAPI"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -17977,7 +24267,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[`/llms.txt`](/llms.txt)"
+      "v": "[`/llms.txt`](/llms.txt)",
+      "children": [
+       {
+        "t": "link",
+        "v": "`/llms.txt`",
+        "href": "/llms.txt",
+        "children": [
+         {
+          "t": "code",
+          "v": "/llms.txt"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -17985,7 +24288,20 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "[`/llms-full.txt`](/llms-full.txt)"
+      "v": "[`/llms-full.txt`](/llms-full.txt)",
+      "children": [
+       {
+        "t": "link",
+        "v": "`/llms-full.txt`",
+        "href": "/llms-full.txt",
+        "children": [
+         {
+          "t": "code",
+          "v": "/llms-full.txt"
+         }
+        ]
+       }
+      ]
      },
      {
       "t": "text",
@@ -18010,6 +24326,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "1. Get a token",
+   "inline": [
+    {
+     "t": "text",
+     "v": "1. Get a token"
+    }
+   ],
    "id": "1-get-a-token"
   },
   {
@@ -18021,7 +24343,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → API → New token"
+     "v": "Settings → API → New token",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → API → New token"
+      }
+     ]
     },
     {
      "t": "text",
@@ -18029,7 +24357,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Allow writes"
+     "v": "Allow writes",
+     "children": [
+      {
+       "t": "text",
+       "v": "Allow writes"
+      }
+     ]
     },
     {
      "t": "text",
@@ -18046,6 +24380,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "2. Check it works",
+   "inline": [
+    {
+     "t": "text",
+     "v": "2. Check it works"
+    }
+   ],
    "id": "2-check-it-works"
   },
   {
@@ -18071,6 +24411,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "3. Create a board and add cards",
+   "inline": [
+    {
+     "t": "text",
+     "v": "3. Create a board and add cards"
+    }
+   ],
    "id": "3-create-a-board-and-add-cards"
   },
   {
@@ -18107,6 +24453,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "4. Add an image",
+   "inline": [
+    {
+     "t": "text",
+     "v": "4. Add an image"
+    }
+   ],
    "id": "4-add-an-image"
   },
   {
@@ -18133,7 +24485,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Images API",
-     "href": "/docs/api/images"
+     "href": "/docs/api/images",
+     "children": [
+      {
+       "t": "text",
+       "v": "Images API"
+      }
+     ]
     },
     {
      "t": "text",
@@ -18145,6 +24503,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "TypeScript",
+   "inline": [
+    {
+     "t": "text",
+     "v": "TypeScript"
+    }
+   ],
    "id": "typescript"
   },
   {
@@ -18156,6 +24520,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Python",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Python"
+    }
+   ],
    "id": "python"
   },
   {
@@ -18167,6 +24537,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The rest of the loop",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The rest of the loop"
+    }
+   ],
    "id": "the-rest-of-the-loop"
   },
   {
@@ -18199,6 +24575,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Notes for agents",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Notes for agents"
+    }
+   ],
    "id": "notes-for-agents"
   },
   {
@@ -18208,7 +24590,25 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Check `scopes` from `/me`"
+      "v": "Check `scopes` from `/me`",
+      "children": [
+       {
+        "t": "text",
+        "v": "Check "
+       },
+       {
+        "t": "code",
+        "v": "scopes"
+       },
+       {
+        "t": "text",
+        "v": " from "
+       },
+       {
+        "t": "code",
+        "v": "/me"
+       }
+      ]
      },
      {
       "t": "text",
@@ -18234,7 +24634,29 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Always send `Idempotency-Key` on `POST`."
+      "v": "Always send `Idempotency-Key` on `POST`.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Always send "
+       },
+       {
+        "t": "code",
+        "v": "Idempotency-Key"
+       },
+       {
+        "t": "text",
+        "v": " on "
+       },
+       {
+        "t": "code",
+        "v": "POST"
+       },
+       {
+        "t": "text",
+        "v": "."
+       }
+      ]
      },
      {
       "t": "text",
@@ -18244,7 +24666,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Batch card creation."
+      "v": "Batch card creation.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Batch card creation."
+       }
+      ]
      },
      {
       "t": "text",
@@ -18252,7 +24680,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "100"
+      "v": "100",
+      "children": [
+       {
+        "t": "text",
+        "v": "100"
+       }
+      ]
      },
      {
       "t": "text",
@@ -18262,7 +24696,17 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Watch `x-ratelimit-remaining`"
+      "v": "Watch `x-ratelimit-remaining`",
+      "children": [
+       {
+        "t": "text",
+        "v": "Watch "
+       },
+       {
+        "t": "code",
+        "v": "x-ratelimit-remaining"
+       }
+      ]
      },
      {
       "t": "text",
@@ -18296,7 +24740,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Paginate."
+      "v": "Paginate.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Paginate."
+       }
+      ]
      },
      {
       "t": "text",
@@ -18322,7 +24772,21 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Do not assume `live: true`."
+      "v": "Do not assume `live: true`.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Do not assume "
+       },
+       {
+        "t": "code",
+        "v": "live: true"
+       },
+       {
+        "t": "text",
+        "v": "."
+       }
+      ]
      },
      {
       "t": "text",
@@ -18344,7 +24808,17 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "em",
-      "v": "`404` means \"not found "
+      "v": "`404` means \"not found ",
+      "children": [
+       {
+        "t": "code",
+        "v": "404"
+       },
+       {
+        "t": "text",
+        "v": " means \"not found "
+       }
+      ]
      },
      {
       "t": "text",
@@ -18352,7 +24826,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "em",
-      "v": " not yours\"."
+      "v": " not yours\".",
+      "children": [
+       {
+        "t": "text",
+        "v": " not yours\"."
+       }
+      ]
      },
      {
       "t": "text",
@@ -18362,7 +24842,21 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Branch on `code`, not the message."
+      "v": "Branch on `code`, not the message.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Branch on "
+       },
+       {
+        "t": "code",
+        "v": "code"
+       },
+       {
+        "t": "text",
+        "v": ", not the message."
+       }
+      ]
      },
      {
       "t": "text",
@@ -18381,7 +24875,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Errors and status codes",
-     "href": "/docs/api/errors"
+     "href": "/docs/api/errors",
+     "children": [
+      {
+       "t": "text",
+       "v": "Errors and status codes"
+      }
+     ]
     },
     {
      "t": "text",
@@ -18395,6 +24895,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Minting a token",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Minting a token"
+    }
+   ],
    "id": "minting-a-token"
   },
   {
@@ -18402,7 +24908,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Settings → API → New token."
+     "v": "Settings → API → New token.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → API → New token."
+      }
+     ]
     },
     {
      "t": "text",
@@ -18415,7 +24927,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Allow writes"
+     "v": "Allow writes",
+     "children": [
+      {
+       "t": "text",
+       "v": "Allow writes"
+      }
+     ]
     },
     {
      "t": "text",
@@ -18432,7 +24950,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "once"
+     "v": "once",
+     "children": [
+      {
+       "t": "text",
+       "v": "once"
+      }
+     ]
     },
     {
      "t": "text",
@@ -18484,6 +25008,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Using it",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Using it"
+    }
+   ],
    "id": "using-it"
   },
   {
@@ -18528,6 +25058,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Scopes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Scopes"
+    }
+   ],
    "id": "scopes"
   },
   {
@@ -18649,7 +25185,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Deleting is deliberately separate from writing."
+     "v": "Deleting is deliberately separate from writing.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Deleting is deliberately separate from writing."
+      }
+     ]
     },
     {
      "t": "text",
@@ -18658,7 +25200,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "MCP tools",
-     "href": "/docs/mcp"
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "MCP tools"
+      }
+     ]
     },
     {
      "t": "text",
@@ -18716,6 +25264,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "A token acts as you",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A token acts as you"
+    }
+   ],
    "id": "a-token-acts-as-you"
   },
   {
@@ -18736,7 +25290,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "as that user"
+     "v": "as that user",
+     "children": [
+      {
+       "t": "text",
+       "v": "as that user"
+      }
+     ]
     },
     {
      "t": "text",
@@ -18799,6 +25359,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Revoking",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Revoking"
+    }
+   ],
    "id": "revoking"
   },
   {
@@ -18806,7 +25372,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Settings → API → Revoke"
+     "v": "Settings → API → Revoke",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → API → Revoke"
+      }
+     ]
     },
     {
      "t": "text",
@@ -18848,7 +25420,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "20 active tokens"
+     "v": "20 active tokens",
+     "children": [
+      {
+       "t": "text",
+       "v": "20 active tokens"
+      }
+     ]
     },
     {
      "t": "text",
@@ -18860,6 +25438,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Expiry",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Expiry"
+    }
+   ],
    "id": "expiry"
   },
   {
@@ -18875,6 +25459,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Keeping a token safe",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Keeping a token safe"
+    }
+   ],
    "id": "keeping-a-token-safe"
   },
   {
@@ -18902,7 +25492,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Never put one in front-end code."
+      "v": "Never put one in front-end code.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Never put one in front-end code."
+       }
+      ]
      },
      {
       "t": "text",
@@ -18912,7 +25508,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Never commit one."
+      "v": "Never commit one.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Never commit one."
+       }
+      ]
      },
      {
       "t": "text",
@@ -18922,7 +25524,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "One token per integration"
+      "v": "One token per integration",
+      "children": [
+       {
+        "t": "text",
+        "v": "One token per integration"
+       }
+      ]
      },
      {
       "t": "text",
@@ -18932,13 +25540,25 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Read-only unless you need writes."
+      "v": "Read-only unless you need writes.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Read-only unless you need writes."
+       }
+      ]
      }
     ],
     [
      {
       "t": "strong",
-      "v": "Rotate"
+      "v": "Rotate",
+      "children": [
+       {
+        "t": "text",
+        "v": "Rotate"
+       }
+      ]
      },
      {
       "t": "text",
@@ -18951,6 +25571,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Rate limiting",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Rate limiting"
+    }
+   ],
    "id": "rate-limiting"
   },
   {
@@ -18958,7 +25584,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "1000 requests per hour, per token."
+     "v": "1000 requests per hour, per token.",
+     "children": [
+      {
+       "t": "text",
+       "v": "1000 requests per hour, per token."
+      }
+     ]
     }
    ]
   },
@@ -19080,6 +25712,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Tokens and MCP",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tokens and MCP"
+    }
+   ],
    "id": "tokens-and-mcp"
   },
   {
@@ -19088,7 +25726,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "The MCP server",
-     "href": "/docs/mcp"
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "The MCP server"
+      }
+     ]
     },
     {
      "t": "text",
@@ -19108,7 +25752,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "cluster",
-     "href": "/docs/concepts"
+     "href": "/docs/concepts",
+     "children": [
+      {
+       "t": "text",
+       "v": "cluster"
+      }
+     ]
     },
     {
      "t": "text",
@@ -19120,6 +25770,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The board object",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The board object"
+    }
+   ],
    "id": "the-board-object"
   },
   {
@@ -19235,7 +25891,13 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "`GET /workspaces`",
+   "text": "GET /workspaces",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /workspaces"
+    }
+   ],
    "id": "get-workspaces"
   },
   {
@@ -19246,7 +25908,13 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "`GET /boards`",
+   "text": "GET /boards",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards"
+    }
+   ],
    "id": "get-boards"
   },
   {
@@ -19384,7 +26052,13 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "`POST /boards`",
+   "text": "POST /boards",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /boards"
+    }
+   ],
    "id": "post-boards"
   },
   {
@@ -19497,7 +26171,13 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "`GET /boards/:id`",
+   "text": "GET /boards/:id",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/:id"
+    }
+   ],
    "id": "get-boards-id"
   },
   {
@@ -19524,7 +26204,13 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "`PATCH /boards/:id`",
+   "text": "PATCH /boards/:id",
+   "inline": [
+    {
+     "t": "code",
+     "v": "PATCH /boards/:id"
+    }
+   ],
    "id": "patch-boards-id"
   },
   {
@@ -19550,7 +26236,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "cycle-safe"
+     "v": "cycle-safe",
+     "children": [
+      {
+       "t": "text",
+       "v": "cycle-safe"
+      }
+     ]
     },
     {
      "t": "text",
@@ -19577,7 +26269,13 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "`DELETE /boards/:id`",
+   "text": "DELETE /boards/:id",
+   "inline": [
+    {
+     "t": "code",
+     "v": "DELETE /boards/:id"
+    }
+   ],
    "id": "delete-boards-id"
   },
   {
@@ -19589,7 +26287,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "soft delete"
+     "v": "soft delete",
+     "children": [
+      {
+       "t": "text",
+       "v": "soft delete"
+      }
+     ]
     },
     {
      "t": "text",
@@ -19606,7 +26310,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "trash",
-     "href": "/docs/clusters/trash-and-recovery"
+     "href": "/docs/clusters/trash-and-recovery",
+     "children": [
+      {
+       "t": "text",
+       "v": "trash"
+      }
+     ]
     },
     {
      "t": "text",
@@ -19631,7 +26341,13 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "`POST /boards/:id/restore`",
+   "text": "POST /boards/:id/restore",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /boards/:id/restore"
+    }
+   ],
    "id": "post-boards-id-restore"
   },
   {
@@ -19655,6 +26371,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Worked example",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Worked example"
+    }
+   ],
    "id": "worked-example"
   },
   {
@@ -19672,7 +26394,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Cards API",
-     "href": "/docs/api/cards"
+     "href": "/docs/api/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "Cards API"
+      }
+     ]
     },
     {
      "t": "text",
@@ -19681,7 +26409,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Images",
-     "href": "/docs/api/images"
+     "href": "/docs/api/images",
+     "children": [
+      {
+       "t": "text",
+       "v": "Images"
+      }
+     ]
     },
     {
      "t": "text",
@@ -19690,7 +26424,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Search",
-     "href": "/docs/api/search"
+     "href": "/docs/api/search",
+     "children": [
+      {
+       "t": "text",
+       "v": "Search"
+      }
+     ]
     },
     {
      "t": "text",
@@ -19704,6 +26444,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The card object",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The card object"
+    }
+   ],
    "id": "the-card-object"
   },
   {
@@ -19724,6 +26470,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Kinds",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Kinds"
+    }
+   ],
    "id": "kinds"
   },
   {
@@ -19792,7 +26544,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "not"
+     "v": "not",
+     "children": [
+      {
+       "t": "text",
+       "v": "not"
+      }
+     ]
     },
     {
      "t": "text",
@@ -19810,7 +26568,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "what the canvas supports",
-     "href": "/docs/canvas/cards"
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "what the canvas supports"
+      }
+     ]
     },
     {
      "t": "text",
@@ -19822,6 +26586,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Writable fields",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Writable fields"
+    }
+   ],
    "id": "writable-fields"
   },
   {
@@ -19968,7 +26738,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "`POST /uploads`",
-       "href": "/docs/api/images"
+       "href": "/docs/api/images",
+       "children": [
+        {
+         "t": "code",
+         "v": "POST /uploads"
+        }
+       ]
       }
      ]
     ],
@@ -20090,7 +26866,13 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "`GET /boards/:id/cards`",
+   "text": "GET /boards/:id/cards",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/:id/cards"
+    }
+   ],
    "id": "get-boards-id-cards"
   },
   {
@@ -20151,7 +26933,13 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "`POST /boards/:id/cards`",
+   "text": "POST /boards/:id/cards",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /boards/:id/cards"
+    }
+   ],
    "id": "post-boards-id-cards"
   },
   {
@@ -20182,7 +26970,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "100"
+     "v": "100",
+     "children": [
+      {
+       "t": "text",
+       "v": "100"
+      }
+     ]
     },
     {
      "t": "text",
@@ -20203,7 +26997,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Auto-placement."
+     "v": "Auto-placement.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Auto-placement."
+      }
+     ]
     },
     {
      "t": "text",
@@ -20232,7 +27032,17 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "`live`."
+     "v": "`live`.",
+     "children": [
+      {
+       "t": "code",
+       "v": "live"
+      },
+      {
+       "t": "text",
+       "v": "."
+      }
+     ]
     },
     {
      "t": "text",
@@ -20267,7 +27077,13 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "`PATCH /boards/:id/cards/:cardId`",
+   "text": "PATCH /boards/:id/cards/:cardId",
+   "inline": [
+    {
+     "t": "code",
+     "v": "PATCH /boards/:id/cards/:cardId"
+    }
+   ],
    "id": "patch-boards-id-cards-cardid"
   },
   {
@@ -20295,7 +27111,13 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "`POST /boards/:id/cards/move`",
+   "text": "POST /boards/:id/cards/move",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /boards/:id/cards/move"
+    }
+   ],
    "id": "post-boards-id-cards-move"
   },
   {
@@ -20312,7 +27134,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "both"
+     "v": "both",
+     "children": [
+      {
+       "t": "text",
+       "v": "both"
+      }
+     ]
     },
     {
      "t": "text",
@@ -20331,7 +27159,13 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "`DELETE /boards/:id/cards/:cardId`",
+   "text": "DELETE /boards/:id/cards/:cardId",
+   "inline": [
+    {
+     "t": "code",
+     "v": "DELETE /boards/:id/cards/:cardId"
+    }
+   ],
    "id": "delete-boards-id-cards-cardid"
   },
   {
@@ -20352,7 +27186,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Authentication",
-     "href": "/docs/api/authentication"
+     "href": "/docs/api/authentication",
+     "children": [
+      {
+       "t": "text",
+       "v": "Authentication"
+      }
+     ]
     },
     {
      "t": "text",
@@ -20370,7 +27210,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "The response body is the undo."
+     "v": "The response body is the undo.",
+     "children": [
+      {
+       "t": "text",
+       "v": "The response body is the undo."
+      }
+     ]
     },
     {
      "t": "text",
@@ -20395,6 +27241,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Images",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Images"
+    }
+   ],
    "id": "images"
   },
   {
@@ -20407,7 +27259,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Images API",
-     "href": "/docs/api/images"
+     "href": "/docs/api/images",
+     "children": [
+      {
+       "t": "text",
+       "v": "Images API"
+      }
+     ]
     },
     {
      "t": "text",
@@ -20419,6 +27277,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Card caps",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Card caps"
+    }
+   ],
    "id": "card-caps"
   },
   {
@@ -20431,7 +27295,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "card allowance",
-     "href": "/docs/canvas/cards"
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "card allowance"
+      }
+     ]
     },
     {
      "t": "text",
@@ -20439,7 +27309,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "100"
+     "v": "100",
+     "children": [
+      {
+       "t": "text",
+       "v": "100"
+      }
+     ]
     },
     {
      "t": "text",
@@ -20447,7 +27323,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "board owner"
+     "v": "board owner",
+     "children": [
+      {
+       "t": "text",
+       "v": "board owner"
+      }
+     ]
     },
     {
      "t": "text",
@@ -20472,7 +27354,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Errors",
-     "href": "/docs/api/errors"
+     "href": "/docs/api/errors",
+     "children": [
+      {
+       "t": "text",
+       "v": "Errors"
+      }
+     ]
     },
     {
      "t": "text",
@@ -20491,7 +27379,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "one request"
+     "v": "one request",
+     "children": [
+      {
+       "t": "text",
+       "v": "one request"
+      }
+     ]
     },
     {
      "t": "text",
@@ -20502,7 +27396,13 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "`POST /uploads?board=<uuid>`",
+   "text": "POST /uploads?board=<uuid>",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /uploads?board=<uuid>"
+    }
+   ],
    "id": "post-uploads-board-uuid"
   },
   {
@@ -20562,6 +27462,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Then place it",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Then place it"
+    }
+   ],
    "id": "then-place-it"
   },
   {
@@ -20603,7 +27509,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "placed in free space",
-     "href": "/docs/api/cards"
+     "href": "/docs/api/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "placed in free space"
+      }
+     ]
     },
     {
      "t": "text",
@@ -20615,6 +27527,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Limits",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Limits"
+    }
+   ],
    "id": "limits"
   },
   {
@@ -20638,7 +27556,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Types"
+       "v": "Types",
+       "children": [
+        {
+         "t": "text",
+         "v": "Types"
+        }
+       ]
       }
      ],
      [
@@ -20652,7 +27576,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Size"
+       "v": "Size",
+       "children": [
+        {
+         "t": "text",
+         "v": "Size"
+        }
+       ]
       }
      ],
      [
@@ -20666,7 +27596,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Storage"
+       "v": "Storage",
+       "children": [
+        {
+         "t": "text",
+         "v": "Storage"
+        }
+       ]
       }
      ],
      [
@@ -20676,7 +27612,13 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "strong",
-       "v": "board owner's"
+       "v": "board owner's",
+       "children": [
+        {
+         "t": "text",
+         "v": "board owner's"
+        }
+       ]
       },
       {
        "t": "text",
@@ -20745,7 +27687,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Errors",
-     "href": "/docs/api/errors"
+     "href": "/docs/api/errors",
+     "children": [
+      {
+       "t": "text",
+       "v": "Errors"
+      }
+     ]
     },
     {
      "t": "text",
@@ -20764,7 +27712,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Files and uploads",
-     "href": "/docs/files"
+     "href": "/docs/files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files and uploads"
+      }
+     ]
     },
     {
      "t": "text",
@@ -20775,7 +27729,13 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "`GET /images/:key`",
+   "text": "GET /images/:key",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /images/:key"
+    }
+   ],
    "id": "get-images-key"
   },
   {
@@ -20791,6 +27751,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Why the images row matters",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Why the images row matters"
+    }
+   ],
    "id": "why-the-images-row-matters"
   },
   {
@@ -20811,7 +27777,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "fails and the object is deleted"
+     "v": "fails and the object is deleted",
+     "children": [
+      {
+       "t": "text",
+       "v": "fails and the object is deleted"
+      }
+     ]
     },
     {
      "t": "text",
@@ -20831,6 +27803,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Storage lifecycle",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Storage lifecycle"
+    }
+   ],
    "id": "storage-lifecycle"
   },
   {
@@ -20843,7 +27821,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "delete response",
-     "href": "/docs/api/cards"
+     "href": "/docs/api/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "delete response"
+      }
+     ]
     },
     {
      "t": "text",
@@ -20863,7 +27847,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "`⌘K`",
-     "href": "/docs/organize/search"
+     "href": "/docs/organize/search",
+     "children": [
+      {
+       "t": "code",
+       "v": "⌘K"
+      }
+     ]
     },
     {
      "t": "text",
@@ -20874,7 +27864,13 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "`GET /search`",
+   "text": "GET /search",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /search"
+    }
+   ],
    "id": "get-search"
   },
   {
@@ -20908,7 +27904,13 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "strong",
-       "v": "Minimum two characters"
+       "v": "Minimum two characters",
+       "children": [
+        {
+         "t": "text",
+         "v": "Minimum two characters"
+        }
+       ]
       },
       {
        "t": "text",
@@ -21003,6 +28005,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Results",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Results"
+    }
+   ],
    "id": "results"
   },
   {
@@ -21039,7 +28047,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "under your permissions"
+     "v": "under your permissions",
+     "children": [
+      {
+       "t": "text",
+       "v": "under your permissions"
+      }
+     ]
     },
     {
      "t": "text",
@@ -21051,6 +28065,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Notes for agents",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Notes for agents"
+    }
+   ],
    "id": "notes-for-agents"
   },
   {
@@ -21060,7 +28080,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Two characters minimum."
+      "v": "Two characters minimum.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Two characters minimum."
+       }
+      ]
      },
      {
       "t": "text",
@@ -21070,7 +28096,17 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Narrow with `kind`"
+      "v": "Narrow with `kind`",
+      "children": [
+       {
+        "t": "text",
+        "v": "Narrow with "
+       },
+       {
+        "t": "code",
+        "v": "kind"
+       }
+      ]
      },
      {
       "t": "text",
@@ -21080,7 +28116,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Paginate."
+      "v": "Paginate.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Paginate."
+       }
+      ]
      },
      {
       "t": "text",
@@ -21098,7 +28140,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Search then act."
+      "v": "Search then act.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Search then act."
+       }
+      ]
      },
      {
       "t": "text",
@@ -21115,7 +28163,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "`PATCH /boards/:id/cards/:cardId`",
-      "href": "/docs/api/cards"
+      "href": "/docs/api/cards",
+      "children": [
+       {
+        "t": "code",
+        "v": "PATCH /boards/:id/cards/:cardId"
+       }
+      ]
      },
      {
       "t": "text",
@@ -21145,7 +28199,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Branch on `code`."
+     "v": "Branch on `code`.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Branch on "
+      },
+      {
+       "t": "code",
+       "v": "code"
+      },
+      {
+       "t": "text",
+       "v": "."
+      }
+     ]
     },
     {
      "t": "text",
@@ -21157,6 +28225,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Codes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Codes"
+    }
+   ],
    "id": "codes"
   },
   {
@@ -21261,7 +28335,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "card cap",
-       "href": "/docs/canvas/cards"
+       "href": "/docs/canvas/cards",
+       "children": [
+        {
+         "t": "text",
+         "v": "card cap"
+        }
+       ]
       },
       {
        "t": "text",
@@ -21329,7 +28409,13 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "strong",
-       "v": "or"
+       "v": "or",
+       "children": [
+        {
+         "t": "text",
+         "v": "or"
+        }
+       ]
       },
       {
        "t": "text",
@@ -21416,7 +28502,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "image",
-       "href": "/docs/api/images"
+       "href": "/docs/api/images",
+       "children": [
+        {
+         "t": "text",
+         "v": "image"
+        }
+       ]
       },
       {
        "t": "text",
@@ -21477,7 +28569,13 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "Rate limited",
-       "href": "/docs/api/authentication"
+       "href": "/docs/api/authentication",
+       "children": [
+        {
+         "t": "text",
+         "v": "Rate limited"
+        }
+       ]
       }
      ],
      [
@@ -21549,6 +28647,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "The ones worth explaining",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The ones worth explaining"
+    }
+   ],
    "id": "the-ones-worth-explaining"
   },
   {
@@ -21556,7 +28660,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "`401`"
+     "v": "`401`",
+     "children": [
+      {
+       "t": "code",
+       "v": "401"
+      }
+     ]
     },
     {
      "t": "text",
@@ -21569,7 +28679,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "`403 insufficient_scope`"
+     "v": "`403 insufficient_scope`",
+     "children": [
+      {
+       "t": "code",
+       "v": "403 insufficient_scope"
+      }
+     ]
     },
     {
      "t": "text",
@@ -21606,7 +28722,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "`402` versus `403`"
+     "v": "`402` versus `403`",
+     "children": [
+      {
+       "t": "code",
+       "v": "402"
+      },
+      {
+       "t": "text",
+       "v": " versus "
+      },
+      {
+       "t": "code",
+       "v": "403"
+      }
+     ]
     },
     {
      "t": "text",
@@ -21635,7 +28765,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "`404`"
+     "v": "`404`",
+     "children": [
+      {
+       "t": "code",
+       "v": "404"
+      }
+     ]
     },
     {
      "t": "text",
@@ -21648,7 +28784,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "`409`"
+     "v": "`409`",
+     "children": [
+      {
+       "t": "code",
+       "v": "409"
+      }
+     ]
     },
     {
      "t": "text",
@@ -21664,7 +28806,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "with the same key"
+     "v": "with the same key",
+     "children": [
+      {
+       "t": "text",
+       "v": "with the same key"
+      }
+     ]
     },
     {
      "t": "text",
@@ -21677,7 +28825,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "`429`"
+     "v": "`429`",
+     "children": [
+      {
+       "t": "code",
+       "v": "429"
+      }
+     ]
     },
     {
      "t": "text",
@@ -21713,6 +28867,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Retrying safely",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Retrying safely"
+    }
+   ],
    "id": "retrying-safely"
   },
   {
@@ -21738,7 +28898,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "same"
+     "v": "same",
+     "children": [
+      {
+       "t": "text",
+       "v": "same"
+      }
+     ]
     },
     {
      "t": "text",
@@ -21758,6 +28924,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Idempotency and errors",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Idempotency and errors"
+    }
+   ],
    "id": "idempotency-and-errors"
   },
   {
@@ -21777,7 +28949,17 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "including a `4xx`"
+     "v": "including a `4xx`",
+     "children": [
+      {
+       "t": "text",
+       "v": "including a "
+      },
+      {
+       "t": "code",
+       "v": "4xx"
+      }
+     ]
     },
     {
      "t": "text",
@@ -21823,6 +29005,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Successes that are not quite successes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Successes that are not quite successes"
+    }
+   ],
    "id": "successes-that-are-not-quite-successes"
   },
   {
@@ -21841,7 +29029,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "`\"live\": false`"
+      "v": "`\"live\": false`",
+      "children": [
+       {
+        "t": "code",
+        "v": "\"live\": false"
+       }
+      ]
      },
      {
       "t": "text",
@@ -21851,7 +29045,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "`has_more: true`"
+      "v": "`has_more: true`",
+      "children": [
+       {
+        "t": "code",
+        "v": "has_more: true"
+       }
+      ]
      },
      {
       "t": "text",
@@ -21883,6 +29083,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What it is",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What it is"
+    }
+   ],
    "id": "what-it-is"
   },
   {
@@ -21895,7 +29101,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "REST API",
-     "href": "/docs/api"
+     "href": "/docs/api",
+     "children": [
+      {
+       "t": "text",
+       "v": "REST API"
+      }
+     ]
     },
     {
      "t": "text",
@@ -21904,7 +29116,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "personal access token",
-     "href": "/docs/api/authentication"
+     "href": "/docs/api/authentication",
+     "children": [
+      {
+       "t": "text",
+       "v": "personal access token"
+      }
+     ]
     },
     {
      "t": "text",
@@ -21916,6 +29134,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Setup",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Setup"
+    }
+   ],
    "id": "setup"
   },
   {
@@ -21929,7 +29153,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "Settings → API"
+      "v": "Settings → API",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings → API"
+       }
+      ]
      },
      {
       "t": "text",
@@ -21966,6 +29196,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Choosing scopes for an agent",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Choosing scopes for an agent"
+    }
+   ],
    "id": "choosing-scopes-for-an-agent"
   },
   {
@@ -22099,6 +29335,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Tools",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tools"
+    }
+   ],
    "id": "tools"
   },
   {
@@ -22106,7 +29348,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Reading"
+     "v": "Reading",
+     "children": [
+      {
+       "t": "text",
+       "v": "Reading"
+      }
+     ]
     }
    ]
   },
@@ -22330,7 +29578,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Writing"
+     "v": "Writing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Writing"
+      }
+     ]
     }
    ]
   },
@@ -22552,7 +29806,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Deleting"
+     "v": "Deleting",
+     "children": [
+      {
+       "t": "text",
+       "v": "Deleting"
+      }
+     ]
     },
     {
      "t": "text",
@@ -22684,6 +29944,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Adding an image",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Adding an image"
+    }
+   ],
    "id": "adding-an-image"
   },
   {
@@ -22746,7 +30012,13 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "25 MB"
+     "v": "25 MB",
+     "children": [
+      {
+       "t": "text",
+       "v": "25 MB"
+      }
+     ]
     },
     {
      "t": "text",
@@ -22755,7 +30027,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "Images API",
-     "href": "/docs/api/images"
+     "href": "/docs/api/images",
+     "children": [
+      {
+       "t": "text",
+       "v": "Images API"
+      }
+     ]
     },
     {
      "t": "text",
@@ -22767,6 +30045,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "What agents should know",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What agents should know"
+    }
+   ],
    "id": "what-agents-should-know"
   },
   {
@@ -22774,7 +30058,17 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "`read_board` truncates by default."
+     "v": "`read_board` truncates by default.",
+     "children": [
+      {
+       "t": "code",
+       "v": "read_board"
+      },
+      {
+       "t": "text",
+       "v": " truncates by default."
+      }
+     ]
     },
     {
      "t": "text",
@@ -22811,7 +30105,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Deleting returns the card."
+     "v": "Deleting returns the card.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Deleting returns the card."
+      }
+     ]
     },
     {
      "t": "text",
@@ -22840,7 +30140,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Deleting a board is destructive and confirmable."
+     "v": "Deleting a board is destructive and confirmable.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Deleting a board is destructive and confirmable."
+      }
+     ]
     },
     {
      "t": "text",
@@ -22869,7 +30175,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Writes are idempotent by key."
+     "v": "Writes are idempotent by key.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Writes are idempotent by key."
+      }
+     ]
     },
     {
      "t": "text",
@@ -22882,7 +30194,13 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Batch."
+     "v": "Batch.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Batch."
+      }
+     ]
     },
     {
      "t": "text",
@@ -22899,7 +30217,13 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "rate limit",
-     "href": "/docs/api/authentication"
+     "href": "/docs/api/authentication",
+     "children": [
+      {
+       "t": "text",
+       "v": "rate limit"
+      }
+     ]
     },
     {
      "t": "text",
@@ -22912,7 +30236,17 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "`live: false` is not an error."
+     "v": "`live: false` is not an error.",
+     "children": [
+      {
+       "t": "code",
+       "v": "live: false"
+      },
+      {
+       "t": "text",
+       "v": " is not an error."
+      }
+     ]
     },
     {
      "t": "text",
@@ -22925,7 +30259,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Start with `whoami`."
+     "v": "Start with `whoami`.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Start with "
+      },
+      {
+       "t": "code",
+       "v": "whoami"
+      },
+      {
+       "t": "text",
+       "v": "."
+      }
+     ]
     },
     {
      "t": "text",
@@ -22937,6 +30285,12 @@ export const DOCS_CONTENT = {
    "type": "heading",
    "depth": 2,
    "text": "Reading the docs as an agent",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Reading the docs as an agent"
+    }
+   ],
    "id": "reading-the-docs-as-an-agent"
   },
   {
@@ -22947,7 +30301,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "`/llms.txt`",
-      "href": "/llms.txt"
+      "href": "/llms.txt",
+      "children": [
+       {
+        "t": "code",
+        "v": "/llms.txt"
+       }
+      ]
      },
      {
       "t": "text",
@@ -22958,7 +30318,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "`/llms-full.txt`",
-      "href": "/llms-full.txt"
+      "href": "/llms-full.txt",
+      "children": [
+       {
+        "t": "code",
+        "v": "/llms-full.txt"
+       }
+      ]
      },
      {
       "t": "text",
@@ -22969,7 +30335,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "OpenAPI",
-      "href": "https://clusters.soleilpictures.com/api/v1/openapi.json"
+      "href": "https://clusters.soleilpictures.com/api/v1/openapi.json",
+      "children": [
+       {
+        "t": "text",
+        "v": "OpenAPI"
+       }
+      ]
      },
      {
       "t": "text",
@@ -22992,7 +30364,13 @@ export const DOCS_CONTENT = {
      {
       "t": "link",
       "v": "`/docs/api/cards.md`",
-      "href": "/docs/api/cards.md"
+      "href": "/docs/api/cards.md",
+      "children": [
+       {
+        "t": "code",
+        "v": "/docs/api/cards.md"
+       }
+      ]
      }
     ]
    ]

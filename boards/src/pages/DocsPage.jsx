@@ -23,17 +23,22 @@ import './docsite.css';
 // parser can produce must render here, or the page would silently differ from
 // the crawlable HTML the Worker injected.
 
+// Recursive: strong/em/link carry `children` so bold-wrapping-code and bold
+// links render as markup rather than literal asterisks and backticks. Code
+// spans are terminal by design — `**` inside backticks must stay literal.
+// Must stay in lockstep with inlineHtml() in scripts/gen-docs.mjs.
 function Inline({ nodes }) {
-  return nodes.map((n, i) => {
+  return (nodes || []).map((n, i) => {
+    const inner = n.children ? <Inline nodes={n.children} /> : n.v;
     if (n.t === 'code') return <code key={i}>{n.v}</code>;
-    if (n.t === 'strong') return <strong key={i}>{n.v}</strong>;
-    if (n.t === 'em') return <em key={i}>{n.v}</em>;
+    if (n.t === 'strong') return <strong key={i}>{inner}</strong>;
+    if (n.t === 'em') return <em key={i}>{inner}</em>;
     if (n.t === 'link') {
       const external = /^https?:/i.test(n.href);
       return (
         <a key={i} href={n.href}
            {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
-          {n.v}
+          {inner}
         </a>
       );
     }
@@ -75,7 +80,7 @@ function Block({ b }) {
       return (
         <Tag id={b.id} className="docs-heading">
           <a href={`#${b.id}`} className="docs-anchor" aria-label={`Link to ${b.text}`}>#</a>
-          {b.text}
+          <Inline nodes={b.inline} />
         </Tag>
       );
     }
@@ -109,7 +114,7 @@ function Block({ b }) {
 
 // ── Navigation ──────────────────────────────────────────────────────────────
 
-function Nav({ current, query, onNavigate }) {
+function Nav({ current, currentSection, query, onNavigate }) {
   const q = query.trim().toLowerCase();
   const sections = useMemo(() => DOCS_SECTIONS.map((s) => ({
     ...s,
@@ -119,34 +124,99 @@ function Nav({ current, query, onNavigate }) {
     )),
   })).filter((s) => s.pages.length), [q]);
 
+  // Only the section you are in is open. Eleven sections and fifty-odd pages
+  // expanded at once is a wall you scroll past rather than a map you read.
+  // A search expands everything that matched, because a hit hidden inside a
+  // collapsed section is a search that looks broken.
+  const [opened, setOpened] = useState(() => new Set([currentSection]));
+  useEffect(() => { setOpened(new Set([currentSection])); }, [currentSection]);
+
   if (!sections.length) {
     return <p className="docs-nav-empty">Nothing matches “{query}”.</p>;
   }
-  return sections.map((s) => (
-    <div className="docs-nav-section" key={s.id}>
-      <h3>{s.label}</h3>
-      <ul>
-        {s.pages.map((p) => (
-          <li key={p.path}>
-            <a
-              href={p.path}
-              aria-current={p.path === current ? 'page' : undefined}
-              onClick={onNavigate}
-            >{p.navLabel}</a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  ));
+
+  return sections.map((s) => {
+    const open = !!q || opened.has(s.id);
+    return (
+      <div className={`docs-nav-section${open ? ' is-open' : ''}`} key={s.id}>
+        <button
+          type="button"
+          className="docs-nav-head"
+          aria-expanded={open}
+          onClick={() => setOpened((prev) => {
+            const next = new Set(prev);
+            if (next.has(s.id)) next.delete(s.id); else next.add(s.id);
+            return next;
+          })}
+        >
+          <span>{s.label}</span>
+          <span className="docs-nav-caret" aria-hidden="true" />
+        </button>
+        {open && (
+          <ul>
+            {s.pages.map((p) => (
+              <li key={p.path}>
+                <a
+                  href={p.path}
+                  aria-current={p.path === current ? 'page' : undefined}
+                  onClick={onNavigate}
+                >{p.navLabel}</a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  });
 }
 
 export function DocsPage({ path }) {
   const page = getDocsPage(path || (typeof window !== 'undefined' ? window.location.pathname : ''));
   const [query, setQuery] = useState('');
   const [navOpen, setNavOpen] = useState(false);
-  const mainRef = useRef(null);
+  const [activeId, setActiveId] = useState(null);
+  const scrollRef = useRef(null);
 
   useEffect(() => { if (page) document.title = page.title; }, [page]);
+
+  // Highlight the section being read in the "On this page" rail. On a long
+  // reference page the TOC is otherwise a list of places you might be, which is
+  // not much use — the whole value is knowing where you are.
+  //
+  // The root is the scroll CONTAINER, not the viewport: html/body/#root are
+  // position:fixed with overflow:hidden app-wide (styles.css), so nothing here
+  // scrolls the window and a viewport-rooted observer would never fire.
+  // Deliberately a scroll handler and not an IntersectionObserver. An observer
+  // only reports headings that are ON SCREEN, so anywhere in the middle of a
+  // long section — the common case while reading — nothing intersects and the
+  // rail highlights nothing. What you want is "the last heading I scrolled
+  // past", which is a position question, not a visibility one.
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root || !page) return undefined;
+    const headings = [...root.querySelectorAll('.docs-article h2[id]')];
+    if (!headings.length) return undefined;
+
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const line = root.getBoundingClientRect().top + 100;   // just under the top bar
+      let current = headings[0];
+      for (const h of headings) {
+        if (h.getBoundingClientRect().top <= line) current = h; else break;
+      }
+      setActiveId(current.id);
+    };
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
+
+    update();
+    root.addEventListener('scroll', onScroll, { passive: true });
+    return () => { root.removeEventListener('scroll', onScroll); cancelAnimationFrame(frame); };
+  }, [page]);
+
+  // A new page means a new document: start at the top of the scroller rather
+  // than wherever the previous page happened to leave it.
+  useEffect(() => { scrollRef.current?.scrollTo?.(0, 0); }, [page?.path]);
 
   // Prev/next within the flat reading order the generator already sorted.
   const { prev, next } = useMemo(() => {
@@ -161,6 +231,7 @@ export function DocsPage({ path }) {
 
   const blocks = DOCS_CONTENT[page.path] || [];
   const toc = blocks.filter((b) => b.type === 'heading' && b.depth === 2);
+  const section = DOCS_SECTIONS.find((s) => s.id === page.section);
 
   return (
     // Same dark commitment as the other public surfaces (SeoLandingPage uses
@@ -191,26 +262,42 @@ export function DocsPage({ path }) {
         </a>
       </header>
 
+      {/* THE SCROLL ARCHITECTURE, and why it is not just `overflow: auto` on
+          the page: html/body/#root are position:fixed + overflow:hidden app-wide
+          so iOS cannot pan the canvas as a unit (styles.css). Nothing here can
+          scroll the window. So the shell is a fixed-height flex column and the
+          nav and the content each own a scroll region — which is also the right
+          docs layout: the sidebar stays put while you read. */}
       <div className="docs-body">
         <nav className={`docs-nav${navOpen ? ' is-open' : ''}`} aria-label="Documentation">
-          <Nav current={page.path} query={query} onNavigate={() => setNavOpen(false)} />
+          <Nav
+            current={page.path}
+            currentSection={page.section}
+            query={query}
+            onNavigate={() => setNavOpen(false)}
+          />
         </nav>
 
-        <main className="docs-main" ref={mainRef}>
+        <div className="docs-scroll" ref={scrollRef}>
+          <main className="docs-main">
           <article className="docs-article">
-            <h1>{page.h1}</h1>
-            {/* The extractable answer: what a reader needs if they read nothing
-                else, and the block AI answer engines lift. */}
-            <p className="docs-answer">{page.answer}</p>
-            <p className="docs-meta">
-              <time dateTime={page.updated}>
-                Updated {new Date(page.updated + 'T00:00:00Z').toLocaleDateString('en-US', {
-                  year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
-                })}
-              </time>
-              {' · '}
-              <a href={`${page.path}.md`}>View as Markdown</a>
-            </p>
+            <div className="docs-hero">
+              {section && <p className="docs-eyebrow">{section.label}</p>}
+              <h1>{page.h1}</h1>
+              {/* The extractable answer: what a reader needs if they read
+                  nothing else, and the block AI answer engines lift. Given its
+                  own surface so it reads as the summary it is. */}
+              <p className="docs-answer">{page.answer}</p>
+              <p className="docs-meta">
+                <time dateTime={page.updated}>
+                  Updated {new Date(page.updated + 'T00:00:00Z').toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
+                  })}
+                </time>
+                {' · '}
+                <a href={`${page.path}.md`}>View as Markdown</a>
+              </p>
+            </div>
 
             {blocks.map((b, i) => <Block key={i} b={b} />)}
 
@@ -242,8 +329,18 @@ export function DocsPage({ path }) {
             )}
 
             <nav className="docs-prevnext" aria-label="Previous and next">
-              {prev ? <a className="docs-prev" href={prev.path}>← {prev.navLabel}</a> : <span />}
-              {next ? <a className="docs-next" href={next.path}>{next.navLabel} →</a> : <span />}
+              {prev
+                ? <a className="docs-prev" href={prev.path}>
+                    <span className="docs-prevnext-dir">← Previous</span>
+                    <span className="docs-prevnext-label">{prev.navLabel}</span>
+                  </a>
+                : <span />}
+              {next
+                ? <a className="docs-next" href={next.path}>
+                    <span className="docs-prevnext-dir">Next →</span>
+                    <span className="docs-prevnext-label">{next.navLabel}</span>
+                  </a>
+                : <span />}
             </nav>
           </article>
 
@@ -251,17 +348,26 @@ export function DocsPage({ path }) {
             <aside className="docs-toc" aria-label="On this page">
               <h2>On this page</h2>
               <ul>
-                {toc.map((h) => <li key={h.id}><a href={`#${h.id}`}>{h.text}</a></li>)}
+                {toc.map((h) => (
+                  <li key={h.id}>
+                    <a href={`#${h.id}`} className={h.id === activeId ? 'is-active' : undefined}>
+                      {h.text}
+                    </a>
+                  </li>
+                ))}
               </ul>
             </aside>
           )}
-        </main>
-      </div>
+          </main>
 
-      <footer className="docs-footer">
-        <span>Machine-readable: <a href="/llms.txt">llms.txt</a> · <a href="/llms-full.txt">llms-full.txt</a> · <a href="/api/v1/openapi.json">OpenAPI</a></span>
-        <span><a href="/pricing">Pricing</a> · <a href="/explore">Explore</a> · <a href="/legal/privacy">Privacy</a></span>
-      </footer>
+          {/* Inside the scroller, so it sits at the end of the reading rather
+              than pinned across the bottom of every page. */}
+          <footer className="docs-footer">
+            <span>Machine-readable: <a href="/llms.txt">llms.txt</a> · <a href="/llms-full.txt">llms-full.txt</a> · <a href="/api/v1/openapi.json">OpenAPI</a></span>
+            <span><a href="/pricing">Pricing</a> · <a href="/explore">Explore</a> · <a href="/legal/privacy">Privacy</a></span>
+          </footer>
+        </div>
+      </div>
     </div>
   );
 }
