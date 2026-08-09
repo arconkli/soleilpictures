@@ -257,10 +257,11 @@ function crawlableHtml(page) {
   const H2 = 'font-size:1.35rem;font-weight:600;margin:1.4em 0 .4em;';
   const H3 = 'font-size:1.08rem;font-weight:600;margin:1.1em 0 .3em;';
   const out = [];
-  out.push(`<h1 style="font-size:1.9rem;font-weight:700;margin:0 0 .4em;">${escapeHtml(page.h1)}</h1>`);
+  out.push(`<h1 style="font-size:1.9rem;font-weight:650;margin:0 0 .4em;">${escapeHtml(page.h1)}</h1>`);
   // The extractable, self-contained answer: the block AI answer engines lift,
-  // and the first thing a reader sees. Same convention as seoLanding.js.
-  out.push(`<p style="color:#b7b1a6;font-size:1.12rem;margin:0 0 1.2em;"><b>${escapeHtml(page.answer)}</b></p>`);
+  // and the first thing a reader sees. A lead paragraph, matching what React
+  // renders — no box, no emphasis it has not earned.
+  out.push(`<p style="color:#d0d0d4;font-size:1.1rem;margin:0 0 1.2em;">${escapeHtml(page.answer)}</p>`);
   const pretty = new Date(page.updated + 'T00:00:00Z')
     .toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
   out.push(`<p style="color:#8a8a92;font-size:.85rem;"><time datetime="${escapeHtml(page.updated)}">Updated ${escapeHtml(pretty)}</time></p>`);
@@ -280,7 +281,7 @@ function crawlableHtml(page) {
     } else if (b.type === 'code') {
       out.push(`<pre><code>${escapeHtml(b.code)}</code></pre>`);
     } else if (b.type === 'callout') {
-      out.push(`<blockquote style="border-left:3px solid #FFA500;padding-left:1em;margin:1.2em 0;">${inlineHtml(b.inline)}</blockquote>`);
+      out.push(`<blockquote style="border-left:1px solid #3a3a40;padding-left:1em;margin:1.2em 0;color:#888890;">${inlineHtml(b.inline)}</blockquote>`);
     } else if (b.type === 'hr') {
       out.push('<hr>');
     } else if (b.type === 'table') {

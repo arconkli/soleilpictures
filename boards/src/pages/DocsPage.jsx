@@ -58,7 +58,6 @@ function CodeBlock({ code, lang }) {
   }, [copied]);
   return (
     <div className="docs-code">
-      {lang && <span className="docs-code-lang">{lang}</span>}
       <button
         type="button"
         className="docs-copy"
@@ -231,7 +230,6 @@ export function DocsPage({ path }) {
 
   const blocks = DOCS_CONTENT[page.path] || [];
   const toc = blocks.filter((b) => b.type === 'heading' && b.depth === 2);
-  const section = DOCS_SECTIONS.find((s) => s.id === page.section);
 
   return (
     // Same dark commitment as the other public surfaces (SeoLandingPage uses
@@ -282,11 +280,11 @@ export function DocsPage({ path }) {
           <main className="docs-main">
           <article className="docs-article">
             <div className="docs-hero">
-              {section && <p className="docs-eyebrow">{section.label}</p>}
               <h1>{page.h1}</h1>
               {/* The extractable answer: what a reader needs if they read
-                  nothing else, and the block AI answer engines lift. Given its
-                  own surface so it reads as the summary it is. */}
+                  nothing else, and the block AI answer engines lift. It is a
+                  lead paragraph, not a callout — the content earns the emphasis
+                  by being first, without a box around it. */}
               <p className="docs-answer">{page.answer}</p>
               <p className="docs-meta">
                 <time dateTime={page.updated}>
@@ -329,18 +327,8 @@ export function DocsPage({ path }) {
             )}
 
             <nav className="docs-prevnext" aria-label="Previous and next">
-              {prev
-                ? <a className="docs-prev" href={prev.path}>
-                    <span className="docs-prevnext-dir">← Previous</span>
-                    <span className="docs-prevnext-label">{prev.navLabel}</span>
-                  </a>
-                : <span />}
-              {next
-                ? <a className="docs-next" href={next.path}>
-                    <span className="docs-prevnext-dir">Next →</span>
-                    <span className="docs-prevnext-label">{next.navLabel}</span>
-                  </a>
-                : <span />}
+              {prev ? <a className="docs-prev" href={prev.path}>← {prev.navLabel}</a> : <span />}
+              {next ? <a className="docs-next" href={next.path}>{next.navLabel} →</a> : <span />}
             </nav>
           </article>
 
