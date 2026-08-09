@@ -70,7 +70,7 @@ quietly failing.
 |---|---|
 | `create_board` | `name`, `workspace_id?`, `parent_board_id?` |
 | `rename_board` | `board_id`, `name?`, `view?`, `parent_board_id?` |
-| `add_cards` | `board_id`, `cards[]` — up to 100 |
+| `add_cards` | `board_id`, `cards[]` — up to 1000 |
 | `upload_image` | `board_id`, `data` (base64), `content_type` |
 | `update_card` | `board_id`, `card_id`, plus any writable field |
 | `move_cards` | `from_board_id`, `to_board_id`, `card_ids[]` |

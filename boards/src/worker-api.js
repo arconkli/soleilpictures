@@ -44,7 +44,10 @@ import { bytesToB64 } from './lib/yhelpers.js';
 import { imageDimensions, extensionFor } from './lib/imageDims.js';
 import { openapiDocument } from './lib/apiOpenapi.js';
 
-const MAX_CARDS_PER_CALL = 100;
+// Raised from 100 once a positioned batch stopped costing O(the whole board):
+// the write is now one card_index insert and one small Yjs update, so the batch
+// size bounds the request body rather than the work.
+const MAX_CARDS_PER_CALL = 1000;
 // The ceiling on the SINGLE-SHOT upload, which buffers the whole body in the
 // isolate to read its header. Anything larger goes through /uploads/multipart,
 // where the bytes never touch this Worker at all.
@@ -1234,11 +1237,23 @@ async function dispatch(url, request, env, ctx) {
     // rather than a rejection halfway through a Y.Doc transaction.
     const built = incoming.map((c) => normalizeIncomingCard(c));
 
+    // THE SCALING RULE, and it is a contract worth stating plainly: a batch in
+    // which EVERY card carries its own x and y is appended without reading the
+    // board at all — O(batch), the same cost on a board of ten cards and a
+    // board of a hundred thousand. Leave out coordinates and we have to load
+    // the whole document to lay out around what is already there, which is
+    // correct, convenient, and O(board).
+    //
+    // A bulk import always knows where it wants things, so it always gets the
+    // fast path. An assistant adding one note does not, and should not have to.
+    const positioned = built.every((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+
     const result = await addCardsToBoard(env, {
       boardId: id,
       workspaceId: board.workspace_id,
       userId: auth.userId,
       accessToken: token,
+      ...(positioned ? { appendCards: built } : {}),
       buildCards: async (existing) => {
         // Positioned by the same helper Scout uses, so cards arriving from an
         // API call cannot land on top of what is already there. A caller that

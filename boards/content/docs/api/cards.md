@@ -123,6 +123,26 @@ Up to **{{fact:maxCardsPerCall}}** cards per call; more gets `400`.
 **Auto-placement.** Cards without `x`/`y` are placed in free space, so a batch
 cannot land on top of existing content. Pass both to place one yourself.
 
+### Pass coordinates when you are importing
+
+Placing cards for you means reading the whole board first, to know what to place
+them around. That is the right default — but it means the call costs more the
+more the board already holds.
+
+**A batch where every card carries its own `x` and `y` skips that read**, and
+costs the same on an empty board as on one with a hundred thousand cards. If you
+are importing a library, you already know your layout, so send it:
+
+```json
+{ "cards": [
+  { "kind": "image", "image_key": "…", "x": 0,   "y": 0,   "w": 300, "h": 200 },
+  { "kind": "image", "image_key": "…", "x": 320, "y": 0,   "w": 300, "h": 200 }
+] }
+```
+
+All or nothing: one card missing coordinates puts the whole batch on the
+read-the-board path.
+
 **`live`.** `true` means open canvases received the change immediately. `false`
 means it is saved but a canvas someone already has open needs a reload. Never
 treat `false` as failure.

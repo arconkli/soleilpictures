@@ -126,6 +126,33 @@ function pushUpdate(ws, update) {
   ws.send(encoding.toUint8Array(enc));
 }
 
+// Wait until the frame has actually left, rather than sleeping a flat 750ms and
+// hoping.
+//
+// There is no ack for an update in the y-websocket protocol, and the obvious
+// substitute — send syncStep1 and wait for the reply — is a trap here: the
+// server answers with the diff against OUR state vector, and a doc holding only
+// the new cards would be answered with the ENTIRE BOARD. That is precisely the
+// transfer this path exists to avoid.
+//
+// Draining the send buffer is the right barrier instead, because of what the
+// room does on receipt: y-partykit's bindState registers an update listener
+// that writes straight to Durable Object storage, so an update is durable the
+// moment the room applies it — the board_state flush is a second replica, not
+// the commit. Messages are ordered and the DO is single-threaded, so once the
+// bytes are gone they will be applied.
+async function drain(ws, timeoutMs = 5_000) {
+  if (typeof ws.bufferedAmount !== 'number') {
+    await sleep(FLUSH_GRACE_MS);          // no visibility → the old fixed wait
+    return true;
+  }
+  const t0 = Date.now();
+  while (ws.bufferedAmount > 0 && Date.now() - t0 < timeoutMs) await sleep(15);
+  if (ws.bufferedAmount > 0) return false;
+  await sleep(50);                        // let the last frame land
+  return true;
+}
+
 // ── Public API ───────────────────────────────────────────────────────────────
 //
 // addCardsToBoard — load, sync, let the caller decide what to add given the
@@ -137,9 +164,96 @@ function pushUpdate(ws, update) {
 // Returns { cards, live, cardCount }. `live` is false when the PartyKit push
 // didn't happen — the cards are still durable, they just won't show up on an
 // already-open canvas until it reloads.
+// Append pre-positioned cards WITHOUT ever loading the board.
+//
+// This is the whole reason bulk ingest is possible. The ordinary path below
+// downloads board_state, decodes it, syncs the entire document over a
+// WebSocket, re-encodes it and uploads it — to add one card. Production already
+// holds a document of 596,720 bytes for two cards (Yjs history tracks total
+// edits ever, not current cards), so the Nth write costs O(N) and a Worker
+// isolate has 128MB for the four copies that needs. Adding a million cards that
+// way is quadratic and dies long before it finishes.
+//
+// Here the update is built in a FRESH document holding only the new cards. That
+// is a valid Yjs update from a different client id, and because every key is a
+// new one it merges into the room with no baseline required. Cost is O(batch),
+// whatever the board already holds — the 30MB board and the empty one are the
+// same call.
+//
+// Requires: cards already carry x/y (there is nothing to lay out against, since
+// we deliberately have not read what is there), and a live room (which now owns
+// persisting board_state — see lib/boardStateSync.js). Returns null when the
+// room cannot take it, so the caller can fall back rather than leave the cards
+// half-written.
+async function appendViaRoom(env, { boardId, workspaceId, accessToken, stamped }) {
+  if (!accessToken || !stamped.length) return null;
+
+  let ws = null;
+  try {
+    ws = await connectPeer(env, boardId, accessToken);
+  } catch (_) {
+    return null;                          // no room → the caller's problem to solve
+  }
+
+  try {
+    // card_index FIRST, exactly as below: this is where the cap wall lives, and
+    // a refusal has to happen before anything reaches the canvas. A cap hit is
+    // a real answer and must NOT be retried down the slow path, so it is
+    // rethrown rather than turned into a null.
+    const indexRows = buildCardIndexRows({ workspaceId, boardId, cards: stamped });
+    if (indexRows.length) {
+      await scoutInsert(env, 'card_index', indexRows, { onConflict: 'board_id,card_id' });
+    }
+
+    const seed = new Y.Doc();
+    const map = seed.getMap('cards');
+    seed.transact(() => {
+      for (const c of stamped) map.set(c.id, cardToYMap(c));
+    }, 'scout');
+    const delta = Y.encodeStateAsUpdate(seed);
+    seed.destroy();
+
+    pushUpdate(ws, delta);
+    if (!await drain(ws)) return null;    // never left the buffer → not durable
+
+    return { cards: stamped, live: true, cardCount: null, delta: delta.length };
+  } catch (e) {
+    if (e?.isCapHit) throw e;
+    return null;
+  } finally {
+    try { ws?.close(); } catch (_) { /* already gone */ }
+  }
+}
+
+// Stamp ids, z and timestamps without needing to know what is already there.
+//
+// Ids are UUIDs on this path rather than the `api-<ts>-<rand>` form: the
+// collision check the slow path does needs the loaded document, and the whole
+// point here is not to load it. 122 bits of randomness is a better guarantee
+// than the check it replaces.
+function stampForAppend(cards, userId, startZ = 0) {
+  const nowIso = new Date().toISOString();
+  return cards.map((c, i) => ({
+    ...stampCard({ ...c, id: c.id || crypto.randomUUID() }, startZ + i, nowIso),
+    createdBy: userId || null,
+    updatedBy: userId || null,
+  }));
+}
+
 export async function addCardsToBoard(env, {
-  boardId, workspaceId, userId, accessToken, buildCards,
+  boardId, workspaceId, userId, accessToken, buildCards, appendCards,
 }) {
+  // The O(batch) path, when the caller has already decided where the cards go.
+  if (appendCards?.length) {
+    const stamped = stampForAppend(appendCards, userId);
+    const fast = await appendViaRoom(env, { boardId, workspaceId, accessToken, stamped });
+    if (fast) return fast;
+    // The room refused or was unreachable. Fall through to the read-modify-
+    // write with the SAME stamped cards, so the ids already written to
+    // card_index are the ids that reach the document.
+    buildCards = () => stamped;
+  }
+
   const doc = new Y.Doc();
 
   // Baseline from Postgres. Works with no network to PartyKit at all.
@@ -216,7 +330,7 @@ export async function addCardsToBoard(env, {
     if (ws) {
       try {
         pushUpdate(ws, delta);
-        await sleep(FLUSH_GRACE_MS);   // let the frame leave before we hang up
+        await drain(ws);               // let the frame leave before we hang up
       } catch (_) { live = false; }
     }
 
@@ -281,7 +395,7 @@ async function commitDoc(env, boardId, { doc, ws }, mutate) {
   if (ws) {
     try {
       pushUpdate(ws, delta);
-      await sleep(FLUSH_GRACE_MS);
+      await drain(ws);
       live = true;
     } catch (_) { /* durable write below still happens */ }
   }

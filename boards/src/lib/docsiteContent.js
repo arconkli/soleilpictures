@@ -24680,11 +24680,11 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "100",
+      "v": "1000",
       "children": [
        {
         "t": "text",
-        "v": "100"
+        "v": "1000"
        }
       ]
      },
@@ -27205,11 +27205,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "100",
+     "v": "1000",
      "children": [
       {
        "t": "text",
-       "v": "100"
+       "v": "1000"
       }
      ]
     },
@@ -27259,6 +27259,76 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " are placed in free space, so a batch cannot land on top of existing content. Pass both to place one yourself."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Pass coordinates when you are importing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pass coordinates when you are importing"
+    }
+   ],
+   "id": "pass-coordinates-when-you-are-importing"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Placing cards for you means reading the whole board first, to know what to place them around. That is the right default — but it means the call costs more the more the board already holds."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "A batch where every card carries its own `x` and `y` skips that read",
+     "children": [
+      {
+       "t": "text",
+       "v": "A batch where every card carries its own "
+      },
+      {
+       "t": "code",
+       "v": "x"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "y"
+      },
+      {
+       "t": "text",
+       "v": " skips that read"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and costs the same on an empty board as on one with a hundred thousand cards. If you are importing a library, you already know your layout, so send it:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"cards\": [\n  { \"kind\": \"image\", \"image_key\": \"…\", \"x\": 0,   \"y\": 0,   \"w\": 300, \"h\": 200 },\n  { \"kind\": \"image\", \"image_key\": \"…\", \"x\": 320, \"y\": 0,   \"w\": 300, \"h\": 200 }\n] }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "All or nothing: one card missing coordinates puts the whole batch on the read-the-board path."
     }
    ]
   },
@@ -30415,7 +30485,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — up to 100"
+       "v": " — up to 1000"
       }
      ]
     ],

@@ -3317,7 +3317,7 @@ Notes for agents
 
 Check scopes from /me first. Writing needs write; deleting needs delete, which is a separate grant.
 Always send Idempotency-Key on POST. Network retries are otherwise duplicate writes.
-Batch card creation. Up to 100 cards per call; one call with fifty cards beats fifty calls.
+Batch card creation. Up to 1000 cards per call; one call with fifty cards beats fifty calls.
 Watch x-ratelimit-remaining on every response rather than waiting for the 429. On a 429, honour retry-after.
 Paginate. List endpoints return 100 by default; follow next_offset until it is null.
 Do not assume live: true. A false means saved-but-not-pushed to open canvases.
@@ -3665,9 +3665,22 @@ Either shape works:
 
 { "kind": "note", "title": "Tone" }
 
-Up to 100 cards per call; more gets 400.
+Up to 1000 cards per call; more gets 400.
 
 Auto-placement. Cards without x/y are placed in free space, so a batch cannot land on top of existing content. Pass both to place one yourself.
+
+Pass coordinates when you are importing
+
+Placing cards for you means reading the whole board first, to know what to place them around. That is the right default — but it means the call costs more the more the board already holds.
+
+A batch where every card carries its own x and y skips that read, and costs the same on an empty board as on one with a hundred thousand cards. If you are importing a library, you already know your layout, so send it:
+
+{ "cards": [
+  { "kind": "image", "image_key": "…", "x": 0,   "y": 0,   "w": 300, "h": 200 },
+  { "kind": "image", "image_key": "…", "x": 320, "y": 0,   "w": 300, "h": 200 }
+] }
+
+All or nothing: one card missing coordinates puts the whole batch on the read-the-board path.
 
 live. true means open canvases received the change immediately. false means it is saved but a canvas someone already has open needs a reload. Never treat false as failure.
 
@@ -4080,7 +4093,7 @@ Writing
 Tool | Input
 create_board | name, workspace_id?, parent_board_id?
 rename_board | board_id, name?, view?, parent_board_id?
-add_cards | board_id, cards[] — up to 100
+add_cards | board_id, cards[] — up to 1000
 upload_image | board_id, data (base64), content_type
 update_card | board_id, card_id, plus any writable field
 move_cards | from_board_id, to_board_id, card_ids[]

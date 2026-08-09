@@ -114,7 +114,7 @@
     "503 storage_unavailable"
   ],
   "apiFacts": {
-    "maxCardsPerCall": 100,
+    "maxCardsPerCall": 1000,
     "maxBoardsPerCall": 500,
     "maxPartsPerCall": 1000,
     "titleMax": 300,

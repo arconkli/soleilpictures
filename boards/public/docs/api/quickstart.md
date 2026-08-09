@@ -160,7 +160,7 @@ an HTTP call, so the response body is the undo — `POST` it back to restore it.
 
 - **Check `scopes` from `/me`** first. Writing needs `write`; deleting needs `delete`, which is a separate grant.
 - **Always send `Idempotency-Key` on `POST`.** Network retries are otherwise duplicate writes.
-- **Batch card creation.** Up to **100** cards per call; one call with fifty cards beats fifty calls.
+- **Batch card creation.** Up to **1000** cards per call; one call with fifty cards beats fifty calls.
 - **Watch `x-ratelimit-remaining`** on every response rather than waiting for the `429`. On a `429`, honour `retry-after`.
 - **Paginate.** List endpoints return 100 by default; follow `next_offset` until it is `null`.
 - **Do not assume `live: true`.** A `false` means saved-but-not-pushed to open canvases.
