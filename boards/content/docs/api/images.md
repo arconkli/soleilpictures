@@ -127,6 +127,22 @@ requesting them as you need them.
 Not to this API. Each response carries an `ETag`; keep it with its part number.
 Parts may be uploaded in any order and in parallel.
 
+**Upload many parts at once.** Nothing sits between you and storage on this
+path, so your throughput is your own connection — but only if you keep it busy.
+Each part is a separate HTTPS request, and a few in flight spends most of its
+time in handshakes and TCP ramp-up rather than sending bytes. Measured over one
+324 Mbit link, same code, varying only how many parts were in flight:
+
+| in flight | throughput | share of the link |
+|---|---|---|
+| 4 | 18.5 MB/s | 46% |
+| 15 | 31.8 MB/s | 78% |
+| 30 | 36.9 MB/s | **91%** |
+
+Around 30 concurrent parts saturates a link; the remainder is protocol
+overhead. Uploading several files at once counts the same way — it is total
+requests in flight that matters, not how they are grouped.
+
 ### 4. Finish
 
 ```sh

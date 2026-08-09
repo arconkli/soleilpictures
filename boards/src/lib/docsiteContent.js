@@ -28209,6 +28209,125 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Upload many parts at once.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Upload many parts at once."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Nothing sits between you and storage on this path, so your throughput is your own connection — but only if you keep it busy. Each part is a separate HTTPS request, and a few in flight spends most of its time in handshakes and TCP ramp-up rather than sending bytes. Measured over one 324 Mbit link, same code, varying only how many parts were in flight:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "in flight"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "throughput"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "share of the link"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "4"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "18.5 MB/s"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "46%"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "15"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "31.8 MB/s"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "78%"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "30"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "36.9 MB/s"
+      }
+     ],
+     [
+      {
+       "t": "strong",
+       "v": "91%",
+       "children": [
+        {
+         "t": "text",
+         "v": "91%"
+        }
+       ]
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Around 30 concurrent parts saturates a link; the remainder is protocol overhead. Uploading several files at once counts the same way — it is total requests in flight that matters, not how they are grouped."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 3,
    "text": "4. Finish",
