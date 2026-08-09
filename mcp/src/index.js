@@ -251,11 +251,21 @@ server.registerTool('view_image', {
   // Base64 inflates by a third and every byte lands in the conversation, so a
   // full-resolution photo is a real cost. Refusing loudly beats silently
   // spending someone's context on one picture.
+  //
+  // This leaves a real gap: /api/v1/uploads accepts up to 25MB, so an image
+  // between 5MB and 25MB can be stored and then never looked at from here. The
+  // message has to be honest about that, and about what the person can actually
+  // DO — "send a smaller one" is not an action available to someone whose photo
+  // is already on the board. (The fix that would close it is serving the
+  // progressive preview variant the app generates; the API does not expose
+  // those yet, because a Worker cannot resize an image itself.)
   const MAX = 5 * 1024 * 1024;
   if (bytes.length > MAX) {
     throw new Error(
-      `That image is ${(bytes.length / 1048576).toFixed(1)}MB, over the ${MAX / 1048576}MB this tool will inline. `
-      + 'Ask the person to point you at a smaller one.');
+      `That image is ${(bytes.length / 1048576).toFixed(1)}MB, over the ${MAX / 1048576}MB this tool can inline — `
+      + 'reading it would use most of the conversation. It is fine on the board and opens normally in '
+      + 'Clusters; tell the person you cannot view this one here, and work from its title, caption and '
+      + 'the other cards instead.');
   }
   return {
     content: [

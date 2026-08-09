@@ -71,6 +71,11 @@ one as context in your client rather than having the model tool-call for it.
 - **`view_image`** returns the picture itself as an image block, so the model can
   see a moodboard rather than reading a list of opaque keys. Capped at 5MB —
   base64 inflates by a third and every byte lands in the conversation.
+  **Known gap:** uploads are allowed up to 25MB, so an image between 5MB and
+  25MB sits on the board perfectly well but cannot be viewed from here. The tool
+  says so plainly rather than failing vaguely. Closing it properly means serving
+  the smaller preview the app already generates, which the API does not expose
+  yet because a Worker cannot resize an image itself.
 - **`upload_image`** takes base64 bytes and returns an `image_key` for
   `add_cards`. Uploads are charged against the board owner's storage.
 - **`read_board`** shortens long card text by default so one call can't fill your
