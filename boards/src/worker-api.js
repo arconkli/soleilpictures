@@ -31,7 +31,7 @@
 
 import * as Y from 'yjs';
 import {
-  resolveApiToken, hasScope, apiUserSession, rateHeaders,
+  resolveApiToken, hasScope, apiUserSession, rateHeaders, normalizeApiError,
   userSelect, userRpc, userInsert, userPatch,
 } from './lib/apiAuth.js';
 import { scoutRpc, scoutDelete } from './lib/scoutDb.js';
@@ -346,14 +346,16 @@ export async function handleApiRoute(url, request, env, ctx) {
     });
     res = await dispatch(url, request, env, { auth, token, trace });
   } catch (e) {
-    const status = e?.status || 500;
+    // EVERY error leaves through normalizeApiError. Returning `e.message`
+    // directly is what put the raw PostgREST envelope — table name, SQLSTATE
+    // and all — into the response for the most common failure in the product
+    // (the card cap), because card mutations throw from lib/scoutDb.js and
+    // never touched the curation in restError.
+    const { status, code, message } = normalizeApiError(e);
     if (status >= 500) {
       console.error('[api]', request.method, url.pathname, e?.message, e?.detail || e?.cause?.message || '');
     }
-    res = json({
-      error: status >= 500 && status !== 502 ? 'something went wrong on our end' : e.message,
-      code: e?.code || (status >= 500 ? 'internal_error' : 'bad_request'),
-    }, status);
+    res = json({ error: message, code }, status);
   }
 
   if (idemKey) {

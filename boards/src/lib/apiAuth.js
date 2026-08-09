@@ -286,30 +286,62 @@ export async function userPatch(env, token, table, query, patch) {
 // names the table and tells the caller nothing they can use.
 const RAISED_BY_US = new Set(['P0001', '42501', '22023', '54000', '53400', '23505', '23514']);
 
-async function restError(res, what) {
-  const raw = await res.text().catch(() => '');
+// THE single place a PostgREST failure becomes an answer.
+//
+// It has to be shared, because the API reaches Postgres two different ways and
+// the second one used to bypass this entirely:
+//
+//   · AS THE USER   — userSelect/userRpc/userInsert/userPatch, here in this file.
+//   · AS THE SERVICE ROLE — lib/scoutDb.js, used by every card mutation, because
+//     cards live in a Y.Doc and the triple write cannot run under RLS.
+//
+// scoutDb throws its own shape (`insert card_index 403: {…raw body…}` with
+// err.body), and worker-api.js returned e.message verbatim for any 4xx. So the
+// single most common failure in the whole product — hitting the card cap —
+// answered with the raw PostgREST envelope, the table name and the SQLSTATE,
+// under status 403 and code `bad_request`, while the documentation promised
+// 402 `limit_reached`. Fixing it in one path and not the other is how that
+// happened; hence one function, called from both.
+export function describeUpstreamError(httpStatus, rawBody) {
   let body = null;
-  try { body = raw ? JSON.parse(raw) : null; } catch (_) { /* HTML error page */ }
+  try { body = rawBody ? JSON.parse(rawBody) : null; } catch (_) { /* not JSON */ }
   const pgMessage = typeof body?.message === 'string' ? body.message : '';
   const pgCode = typeof body?.code === 'string' ? body.code : '';
+
+  // A non-JSON body is not Postgres answering — it is something in front of it.
+  // Supabase sits behind Cloudflare, whose WAF returns an HTML block page for a
+  // query string that looks like SQL injection (`or 1=1 --`). Reporting that as
+  // "your account cannot do that" sends someone to debug permissions that are
+  // fine, so it gets a status and a code that point outward instead.
+  if (rawBody && !body && /^\s*<(!doctype|html)/i.test(rawBody)) {
+    return {
+      status: 502,
+      code: 'upstream_rejected',
+      message: 'that request was rejected before it reached the database — try rewording it',
+    };
+  }
 
   let status = 500;
   let code = 'upstream_error';
   let message = 'something went wrong on our end';
 
-  if (res.status === 401 || res.status === 403) {
+  if (httpStatus === 401 || httpStatus === 403) {
     status = 403; code = 'forbidden'; message = 'your account cannot do that';
-  } else if (res.status === 404) {
+  } else if (httpStatus === 404) {
     status = 404; code = 'not_found'; message = 'not found';
-  } else if (res.status === 409) {
+  } else if (httpStatus === 409) {
     status = 409; code = 'conflict'; message = 'that conflicts with something that already exists';
-  } else if (res.status === 400 || res.status === 422) {
+  } else if (httpStatus === 400 || httpStatus === 422) {
     status = 400; code = 'bad_request'; message = 'that request was not valid';
   }
 
+  // A message WE wrote. Our own RAISEs ("Demo accounts are limited to 100
+  // cards…") are written for a person and are the whole reason a 402 is useful,
+  // so those pass through — minus Postgres's own RLS text, which names the
+  // table and tells the caller nothing they can act on.
   if (RAISED_BY_US.has(pgCode) && pgMessage && !/row-level security/i.test(pgMessage)) {
     message = pgMessage;
-    if (/limited to \d+ cards|over[_ ]quota|storage|cap\b/i.test(pgMessage)) {
+    if (/limited to \d+ cards|over[_ ]quota|quota|storage|\bcap\b/i.test(pgMessage)) {
       status = 402; code = 'limit_reached';
     } else if (pgCode === '42501') {
       status = 403; code = 'forbidden';
@@ -318,6 +350,25 @@ async function restError(res, what) {
     }
   }
 
+  return { status, code, message };
+}
+
+// Any error on its way out of a route, made safe to hand a stranger.
+//
+// Errors arrive in three shapes and only the first is already curated:
+//   1. fail(status, code, message) from worker-api.js — ours, deliberate, clean.
+//   2. a scoutDb throw carrying .body — raw PostgREST text.
+//   3. anything else — a bug, a timeout, a parse failure.
+// Nothing that has not been through here should ever reach a response body.
+export function normalizeApiError(e) {
+  if (e?.code && e?.status) return { status: e.status, code: e.code, message: e.message };
+  if (typeof e?.body === 'string') return describeUpstreamError(e.status || 500, e.body);
+  return { status: e?.status || 500, code: 'internal_error', message: 'something went wrong on our end' };
+}
+
+async function restError(res, what) {
+  const raw = await res.text().catch(() => '');
+  const { status, code, message } = describeUpstreamError(res.status, raw);
   const err = new Error(message);
   err.status = status;
   err.code = code;
