@@ -105,9 +105,29 @@ const svcHeaders = (key, extra) => ({
 // this file: null means "carry on with DO storage alone", which is exactly
 // today's behaviour. Treating an unreachable database as an empty board is the
 // one bug here that would destroy data.
-export async function loadBoardState({ boardId, supabaseUrl, serviceRoleKey, fetchImpl = fetch, seen }) {
+export async function loadBoardState({
+  boardId, supabaseUrl, serviceRoleKey, fetchImpl = fetch, seen, storage,
+}) {
   if (!serviceRoleKey) return null;
   try {
+    // Skip the read entirely when the room already has its own persisted state.
+    //
+    // y-partykit calls `load` on EVERY doc construction, not only when its
+    // storage is empty, so without this check every cold boot of a room paid a
+    // full board_state download before the first client could finish
+    // connecting. Measured at 4.36MB that was ~6s added to opening a large
+    // board — a latency regression introduced by this file, in the one place
+    // users would actually feel it.
+    //
+    // Non-empty DO storage is authoritative: it IS the live room state, which
+    // is always a superset of board_state because that is what the flush below
+    // writes. The one case where board_state is deliberately NEWER — a restore
+    // — already wipes DO storage first (App.jsx forceResetBoardRoom), which is
+    // precisely the empty case this still handles.
+    if (storage) {
+      const existing = await storage.list({ limit: 1 }).catch(() => null);
+      if (existing && existing.size > 0) return null;
+    }
     const res = await fetchImpl(
       `${supabaseUrl}/rest/v1/board_state?board_id=eq.${encodeURIComponent(boardId)}&select=doc`,
       { headers: svcHeaders(serviceRoleKey), signal: AbortSignal.timeout(10_000) },

@@ -121,6 +121,34 @@ test('a board with no stored row loads as null, not as an empty doc', async () =
   assert.equal(await loadBoardState(opts(db)), null);
 });
 
+// y-partykit calls `load` on every doc construction, not only when its storage
+// is empty — so without this the read ran on every cold boot of every room, and
+// at 4.36MB that was ~6s added to opening a large board.
+test('a room that already has its own state does not re-read board_state', async () => {
+  const db = stubDb({ stored: snapshotOf(docWithCards(['a', 'b'])) });
+  let listed = 0;
+  const storage = { list: async () => { listed++; return new Map([['snapshot', 1]]); } };
+  const loaded = await loadBoardState(opts(db, { storage }));
+  assert.equal(loaded, null, 'DO storage is authoritative when it has content');
+  assert.equal(listed, 1);
+});
+
+test('an empty room DOES read board_state — this is the case that must not regress', async () => {
+  const db = stubDb({ stored: snapshotOf(docWithCards(['a', 'b'])) });
+  const storage = { list: async () => new Map() };
+  const loaded = await loadBoardState(opts(db, { storage }));
+  assert.ok(loaded, 'an empty room with a stored board must load it');
+  assert.deepEqual([...loaded.getMap('cards').keys()].sort(), ['a', 'b']);
+});
+
+test('a storage probe that throws falls back to reading, never to nothing', async () => {
+  const db = stubDb({ stored: snapshotOf(docWithCards(['a'])) });
+  const storage = { list: async () => { throw new Error('storage unavailable'); } };
+  const loaded = await loadBoardState(opts(db, { storage }));
+  assert.ok(loaded, 'an unreadable probe must not be treated as "the room has state"');
+  assert.deepEqual([...loaded.getMap('cards').keys()], ['a']);
+});
+
 test('no service-role key disables the sync entirely rather than writing', async () => {
   const db = stubDb({ stored: snapshotOf(docWithCards(['a'])) });
   const o = opts(db, { serviceRoleKey: undefined });

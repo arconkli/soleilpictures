@@ -60,6 +60,9 @@ export default class BoardParty implements Party.Server {
         boardId: this.room.id,
         supabaseUrl: roomEnv?.SUPABASE_URL || "https://ehlhlmbpwwalmeisvmdp.supabase.co",
         serviceRoleKey: roomEnv?.SUPABASE_SERVICE_ROLE_KEY,
+        // So the Postgres read can be skipped when this room already has its
+        // own persisted state — see loadBoardState.
+        storage: this.room.storage,
       }),
     };
 
