@@ -20,7 +20,7 @@
 // keys, so the legacy shared secret may not be honored. generate_link returns
 // the token to us rather than mailing it, so no email is ever sent.
 
-import { scoutRpc, scoutSelect, scoutInsert } from './scoutDb.js';
+import { scoutRpc } from './scoutDb.js';
 
 const TIMEOUT_MS = 15_000;
 
@@ -158,51 +158,107 @@ async function mintSession(env, email) {
   return await verifyRes.json();
 }
 
-// An access token for `userId`, reusing the cached refresh token where possible.
+// Mint a brand-new session for a user, from their address.
 //
-// The rotated refresh token is written back to api_sessions, which is why that
-// table exists: refresh tokens are single-use, so keeping the newest one is the
-// difference between one magiclink per user and one per request.
+// Safe to call concurrently: each magiclink verify creates a SEPARATE session
+// with its own refresh-token family, so two of these race harmlessly. It is
+// reusing ONE refresh token twice that is dangerous — see apiUserSession.
+async function freshSession(env, userId) {
+  const userRes = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      accept: 'application/json',
+    },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!userRes.ok) throw new Error('could not resolve the account for that token');
+  const email = (await userRes.json())?.email;
+  if (!email) throw new Error('that account has no address to sign in with');
+  return await mintSession(env, email);
+}
+
+function cacheSession(userId, accessToken) {
+  if (_sessionCache.size > 200) _sessionCache.clear();
+  _sessionCache.set(userId, { accessToken, expires: Date.now() + SESSION_TTL_MS });
+  return accessToken;
+}
+
+const nap = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// An access token for `userId`. ONE refresh per user per hour, at any
+// concurrency.
+//
+// WHAT THIS USED TO DO AND WHY IT DOES NOT SCALE. api_sessions holds a single
+// refresh token per user, and the only cache was `_sessionCache` — which is
+// per ISOLATE. Cloudflare spreads a burst across many isolates, so a client
+// opening 32 parallel connections produced 32 cold isolates that all read the
+// SAME refresh token and all tried to rotate it. Refresh tokens are single-use:
+// one wins, the other 31 fall back to minting a magiclink (two admin API calls
+// each), and Supabase's refresh-token REUSE DETECTION can respond to the
+// collision by revoking the entire family — which in this project has already
+// meant every user of an account being thrown back to an OTP prompt. A bulk
+// migration is exactly the traffic shape that triggers it, continuously.
+//
+// So the durable cache moved into Postgres next to the refresh token, and
+// api_session_begin (0221) hands out either a live access token or the
+// exclusive right to go and get one. The per-isolate cache stays in front of it
+// because it still absorbs the common burst without any round trip at all.
 export async function apiUserSession(env, userId) {
   const cached = _sessionCache.get(userId);
   if (cached && cached.expires > Date.now()) return cached.accessToken;
 
-  const rows = await scoutSelect(
-    env, 'api_sessions', `user_id=eq.${userId}&select=refresh_token`,
-  ).catch(() => []);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const rows = await scoutRpc(env, 'api_session_begin', { p_user_id: userId, p_skew: 120 })
+      .catch(() => null);
+    const s = (Array.isArray(rows) ? rows : [rows])?.[0] || {};
 
-  let session = null;
-  if (rows?.[0]?.refresh_token) session = await refreshSession(env, rows[0].refresh_token);
+    // Somebody already did the work and it is still good.
+    if (s.access_token) return cacheSession(userId, s.access_token);
 
-  if (!session?.access_token) {
-    const userRes = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
-      headers: {
-        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-        authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-        accept: 'application/json',
-      },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-    if (!userRes.ok) throw new Error('could not resolve the account for that token');
-    const email = (await userRes.json())?.email;
-    if (!email) throw new Error('that account has no address to sign in with');
-    session = await mintSession(env, email);
+    if (s.claimed) {
+      try {
+        // We hold the claim, so we are the only caller that may rotate this
+        // refresh token. Fall back to a fresh mint when it has expired or been
+        // rotated away.
+        let session = s.refresh_token ? await refreshSession(env, s.refresh_token) : null;
+        if (!session?.access_token) session = await freshSession(env, userId);
+        if (!session?.access_token) throw new Error('could not obtain a user session');
+
+        await scoutRpc(env, 'api_session_store', {
+          p_user_id: userId,
+          p_access_token: session.access_token,
+          p_refresh_token: session.refresh_token || null,
+          p_expires_in: session.expires_in || 3600,
+        }).catch(() => { /* the token is still usable; the next caller re-mints */ });
+
+        return cacheSession(userId, session.access_token);
+      } catch (e) {
+        // Hand the claim back rather than making every other caller wait out
+        // the full 20s window for a refresh that already failed.
+        await scoutRpc(env, 'api_session_release', { p_user_id: userId }).catch(() => {});
+        throw e;
+      }
+    }
+
+    // Another caller holds the claim. Give it a moment — it is about to publish
+    // a token that this request can use.
+    await nap(200 * (attempt + 1));
   }
+
+  // The claim holder is slow or died. Mint our own rather than fail the
+  // request: a fresh magiclink is its own session, so it cannot collide with
+  // whatever they are doing. Deliberately NOT reusing the stored refresh token
+  // here — that is the collision this whole function exists to avoid.
+  const session = await freshSession(env, userId);
   if (!session?.access_token) throw new Error('could not obtain a user session');
-
-  await scoutInsert(env, 'api_sessions', [{
-    user_id: userId,
-    refresh_token: session.refresh_token || rows?.[0]?.refresh_token || null,
-    access_token_exp: new Date(Date.now() + (session.expires_in || 3600) * 1000).toISOString(),
-    updated_at: new Date().toISOString(),
-  }], { onConflict: 'user_id' }).catch(() => {});
-
-  if (_sessionCache.size > 200) _sessionCache.clear();
-  _sessionCache.set(userId, {
-    accessToken: session.access_token,
-    expires: Date.now() + SESSION_TTL_MS,
-  });
-  return session.access_token;
+  await scoutRpc(env, 'api_session_store', {
+    p_user_id: userId,
+    p_access_token: session.access_token,
+    p_refresh_token: session.refresh_token || null,
+    p_expires_in: session.expires_in || 3600,
+  }).catch(() => {});
+  return cacheSession(userId, session.access_token);
 }
 
 // ── PostgREST, as the user ───────────────────────────────────────────────────
