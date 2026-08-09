@@ -621,7 +621,7 @@ async function dispatch(url, request, env, ctx) {
     // may read the original may read its own downscaled copy.
     const rows = await userSelect(env, token, 'images',
       `storage_path=eq.${encodeURIComponent(key)}&deleted_at=is.null`
-      + '&select=storage_path,preview_path,size_bytes,width,height,preview_w,preview_h&limit=1');
+      + '&select=storage_path,preview_path&limit=1');
     if (!rows?.length) throw fail(404, 'not_found', 'image not found');
     const row = rows[0];
 
