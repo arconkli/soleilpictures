@@ -26,6 +26,7 @@ import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { EmptyState } from '../components/EmptyState.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { Lock, Check, X } from '../lib/icons.js';
+import { consentError, consentRequestProblem } from '../lib/oauthConsentCopy.js';
 
 // What each scope actually lets an assistant do, in the words of the product
 // rather than the words of the API. "write" is not a permission anyone can
@@ -75,16 +76,12 @@ export function OAuthConsentPage() {
   const [problem, setProblem] = useState(null);
   const [busy, setBusy] = useState('');
 
-  // Everything wrong with the REQUEST itself, decided before any network call —
-  // a request this malformed was never going to work, and saying so precisely
-  // is more useful to whoever is integrating than a generic failure.
-  const requestProblem = !clientId ? 'This link is missing its client_id.'
-    : !redirectUri ? 'This link is missing its redirect_uri.'
-      : responseType !== 'code' ? `This server only supports response_type=code, not "${responseType || 'nothing'}".`
-        : !codeChallenge ? 'This link is missing its PKCE code_challenge.'
-          : (challengeMethod && challengeMethod !== 'S256')
-            ? 'This server only supports code_challenge_method=S256.'
-            : null;
+  // Everything wrong with the REQUEST itself, decided before any network call.
+  // Phrased for the person who clicked, not the person who integrated — see
+  // lib/oauthConsentCopy.js.
+  const requestProblem = consentRequestProblem({
+    clientId, redirectUri, responseType, codeChallenge, challengeMethod,
+  });
 
   useEffect(() => {
     if (requestProblem) return undefined;
@@ -96,19 +93,18 @@ export function OAuthConsentPage() {
         const body = await res.json().catch(() => null);
         if (!alive) return;
         if (!res.ok) {
-          setProblem(body?.error_description || 'That application is not registered here.');
+          setProblem(consentError(body?.error, body?.error_description));
           return;
         }
         if (!body?.redirect_uri_registered) {
           // Deliberately NOT redirected back with an error — an unregistered
           // callback is the thing we refuse to send anything to at all.
-          setProblem('That application asked to be sent back to an address it has not registered. '
-            + 'Nothing has been shared.');
+          setProblem(consentError('invalid_redirect_uri'));
           return;
         }
         setClient(body);
       } catch {
-        if (alive) setProblem('Could not check that application. Try again in a moment.');
+        if (alive) setProblem(consentError('server_error'));
       }
     })();
     return () => { alive = false; };
@@ -137,13 +133,13 @@ export function OAuthConsentPage() {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok || !body?.redirect_to) {
-        setProblem(body?.error_description || 'That did not work. Nothing has been shared.');
+        setProblem(consentError(body?.error, body?.error_description));
         setBusy('');
         return;
       }
       window.location.assign(body.redirect_to);
     } catch {
-      setProblem('Could not reach the server. Nothing has been shared.');
+      setProblem(consentError('server_error'));
       setBusy('');
     }
   };
@@ -154,8 +150,8 @@ export function OAuthConsentPage() {
       <Shell>
         <EmptyState
           icon={Lock}
-          title="This request cannot be approved"
-          body={fatal}
+          title={fatal.title}
+          body={fatal.body}
           action={{ label: 'Go to Clusters', onClick: () => window.location.assign('/') }}
         />
       </Shell>

@@ -69,6 +69,12 @@ test('server.json and package.json agree on the registry name', () => {
   // harder path.
   assert.ok((server.remotes || []).some((r) => r.type === 'streamable-http' && /\/api\/v1\/mcp$/.test(r.url)),
     'server.json must advertise the hosted streamable-http endpoint');
+
+  // The registry caps this at 100 and rejects the whole publish with a 422.
+  // Learned the hard way at 197 characters, with npm already published and
+  // therefore no way to back out and rethink the wording.
+  assert.ok(server.description.length <= 100,
+    `server.json description is ${server.description.length} chars; the MCP Registry allows 100`);
 });
 
 test('the npm package ships the same PROTOCOL the Worker serves', () => {

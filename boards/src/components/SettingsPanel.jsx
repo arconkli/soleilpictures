@@ -36,10 +36,7 @@ import { isShellEmail } from './ScoutClaimBanner.jsx';
 
 const TABS = [
   { id: 'profile',       label: 'Profile' },
-  // HELD ON PRODUCTION. The tab hands you a code to text, and Scout has no
-  // phone line connected — so connecting a phone here ends in silence. The
-  // ScoutTab component below is intact: restore this line and the render
-  // branch in the pane when the bot is answering.
+  { id: 'scout',         label: 'Scout' },
   { id: 'api',           label: 'API' },
   { id: 'invite',        label: 'Invite & earn' },
   { id: 'billing',       label: 'Billing' },
@@ -277,6 +274,9 @@ export function SettingsPanel({
           <div className="settings-pane">
             {tab === 'profile' && (
               <ProfileTab user={user} workspaceId={workspaceId} onSaved={onSaved} />
+            )}
+            {tab === 'scout' && (
+              <ScoutTab user={user} />
             )}
             {tab === 'api' && (
               <ApiTab user={user} />

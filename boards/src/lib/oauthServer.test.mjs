@@ -16,6 +16,7 @@ import {
   authorizationServerMetadata, protectedResourceMetadata,
 } from '../worker-oauth.js';
 import { mcpTraceName } from './mcpServer.js';
+import { consentError, consentRequestProblem } from './oauthConsentCopy.js';
 
 const ORIGIN = 'https://clusters.soleilpictures.com';
 
@@ -157,4 +158,48 @@ test('a hostile tool name cannot blow up the log column', () => {
   const long = 'x'.repeat(500);
   assert.ok(mcpTraceName({ method: 'tools/call', params: { name: long } }).length <= 80);
   assert.equal(mcpTraceName({ method: 'tools/call', params: { name: 12345 } }), 'tools/call');
+});
+
+// ── The consent screen's words ──────────────────────────────────────────────
+//
+// Added after landing on the real thing: a stale authorize link rendered
+// "THIS REQUEST CANNOT BE APPROVED / unknown client". Accurate, and useless to
+// the person reading it — they did not choose the client and cannot register it.
+
+test('a machine-facing error_description never reaches the person', () => {
+  const { title, body } = consentError('invalid_client', 'unknown client');
+  assert.ok(!/unknown client/i.test(body), 'the API string must not be echoed');
+  assert.ok(!/unknown client/i.test(title));
+  assert.match(body, /no longer registered/i);
+});
+
+test('every recognised failure says whether anything was shared', () => {
+  // It is the actual question someone has on that screen, and the answer is
+  // always no — each of these fires before a code is ever issued.
+  for (const code of ['invalid_client', 'invalid_request', 'invalid_redirect_uri',
+    'invalid_target', 'access_denied', 'server_error']) {
+    assert.match(consentError(code).body, /nothing has been shared/i, `${code} must say it`);
+    assert.ok(consentError(code).title.length > 0, `${code} needs a title`);
+  }
+});
+
+test('an unrecognised code still produces something sayable', () => {
+  assert.equal(consentError('some_new_code_we_have_not_seen').title, 'This request cannot be approved');
+  // A short description from the server beats nothing when there is no code to
+  // key on — but a giant one is not something to paste onto a page.
+  assert.match(consentError(null, 'the sky fell').body, /the sky fell/);
+  assert.ok(!/x{200}/.test(consentError(null, 'x'.repeat(400)).body));
+});
+
+test('a malformed authorize link is caught before any network call', () => {
+  const ok = { clientId: 'c', redirectUri: 'https://e/cb', responseType: 'code',
+    codeChallenge: 'x'.repeat(43), challengeMethod: 'S256' };
+  assert.equal(consentRequestProblem(ok), null);
+  for (const bad of [
+    { ...ok, clientId: '' }, { ...ok, redirectUri: '' }, { ...ok, responseType: 'token' },
+    { ...ok, codeChallenge: '' }, { ...ok, challengeMethod: 'plain' },
+  ]) {
+    assert.ok(consentRequestProblem(bad), 'must be refused');
+    assert.match(consentRequestProblem(bad).body, /nothing has been shared/i);
+  }
 });
