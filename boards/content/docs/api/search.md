@@ -4,7 +4,7 @@ metaDescription: Search Soleil Clusters boards and cards by text over REST. Quer
 h1: Search API
 navLabel: Search
 section: developers
-order: 8
+order: 9
 updated: 2026-08-08
 answer: GET /search finds boards and cards by text across everything your account can see. Pass q with at least two characters, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.
 faq:

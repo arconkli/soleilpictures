@@ -44,6 +44,7 @@ import { scoutRpc, scoutDelete, scoutInsert } from './lib/scoutDb.js';
 import {
   addCardsToBoard, moveCardsBetweenBoards, readBoardCards,
   updateCardOnBoard, updateCardsOnBoard, deleteCardsFromBoard,
+  readBoardGroups, writeBoardGroups,
 } from './lib/scoutBoard.js';
 import { arrangeExisting } from './lib/scoutCards.js';
 import { bytesToB64 } from './lib/yhelpers.js';
@@ -54,6 +55,9 @@ import {
   webhookUrlProblem, runWebhooks, hasPendingWork, WEBHOOK_EVENTS,
 } from './lib/webhooks.js';
 import { handleMcpRequest } from './lib/mcpServer.js';
+import {
+  arrange, rearrange, LAYOUTS, DEFAULT_LAYOUT, isLayout,
+} from './lib/layoutEngine.js';
 import {
   normalizeImportItems, cardSpecFor, kindForContentType, noteFor, mapWithConcurrency,
   IMPORT_CONCURRENCY, IMPORT_TIMEOUT_MS, SOURCE_SCOPE, provenanceProps,
@@ -201,7 +205,30 @@ export function publicCard(c) {
   if (c.mime) out.mime = c.mime;
   if (c.ext) out.ext = c.ext;
   if (Number.isFinite(c.sizeBytes)) out.size_bytes = c.sizeBytes;
+  // Conditional for the same reason the media fields are: an always-null field
+  // on the commonest card kind is paid for in every list response forever. Most
+  // cards are not rotated and belong to no group.
+  if (Number.isFinite(c.rotation) && c.rotation !== 0) out.rotation = c.rotation;
+  if (c.groupId) out.group_id = c.groupId;
+  if (c.sectionHeader) {
+    out.section_header = true;
+    if (c.sub) out.sub = c.sub;
+  }
   return out;
+}
+
+// A group on the wire. The app stores a few render-only fields (a cached
+// width, per-group options) that mean nothing to an integrator.
+function publicGroup(g) {
+  if (!g) return null;
+  return {
+    id: g.id,
+    name: g.name ?? null,
+    color: g.color ?? null,
+    shape: g.shape === 'hug' ? 'hug' : 'box',
+    outline: g.outline !== false,
+    created_at: g.createdAt ?? null,
+  };
 }
 
 function publicBoard(b) {
@@ -281,6 +308,36 @@ export function normalizeIncomingCard(input, { partial = false, existingKind = n
   if (Number.isFinite(c.y)) out.y = Math.round(c.y);
   if (Number.isFinite(c.w)) out.w = clampSize(c.w);
   if (Number.isFinite(c.h)) out.h = clampSize(c.h);
+
+  // Stacking. publicCard has always RETURNED z while this refused to set it,
+  // so layering was readable and unwritable — a caller could see two cards
+  // overlap, see which was on top, and have no way to swap them. Fractional
+  // values are deliberate: bringForward picks the midpoint between neighbours,
+  // so the app itself produces them.
+  if (Number.isFinite(c.z)) out.z = c.z;
+
+  // Degrees, as the app stores them — applied as a CSS rotate() on the card.
+  // Wrapped rather than clamped, so 370 means 10 rather than 180.
+  if (Number.isFinite(c.rotation)) {
+    const r = ((Math.round(c.rotation) % 360) + 540) % 360 - 180;
+    out.rotation = r;
+  }
+
+  // Membership of a group — the app's way of saying "these belong together",
+  // with a labelled outline drawn round them. Validated against the board's
+  // real groups by the caller, which is where the board is already open.
+  if ('group_id' in c) out.groupId = c.group_id ? str(c.group_id, 100) : null;
+
+  // A section header is a full-width note that renders as an <h2> on the
+  // public /c/<slug> page (card_index.meta.sectionHeader). `span` is set with
+  // it rather than separately: the app has never produced one without the
+  // other, and a half-set header is a card that reads as a header everywhere
+  // except where it matters.
+  if ('section_header' in c) {
+    out.sectionHeader = c.section_header === true;
+    out.span = c.section_header === true ? 'full' : null;
+  }
+  if ('sub' in c) out.sub = str(c.sub, 300);
   return out;
 }
 
@@ -291,7 +348,16 @@ export function normalizeIncomingCard(input, { partial = false, existingKind = n
 // undefined geometry — and one NaN card poisons boundsOfCards() for the whole
 // board, scattering everything the user already had. Dropping it is the only
 // safe answer; the response reports what actually landed.
-function layoutCards(built, existing) {
+function layoutCards(built, existing, layoutOpts = null) {
+  // A NAMED layout arranges the whole batch, including cards that arrived with
+  // coordinates: "lay these out as justified rows" and "put this one at x=40"
+  // are contradictory instructions, and the one the caller typed on purpose
+  // should win. Without a name, behaviour is exactly what it has always been —
+  // place only what is missing coordinates.
+  if (layoutOpts) {
+    return arrange(existing, built, layoutOpts)
+      .filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+  }
   const needsLayout = built.filter((c) => !Number.isFinite(c.x) || !Number.isFinite(c.y));
   const placed = needsLayout.length
     ? arrangeExisting({ existingCards: existing, cards: needsLayout })
@@ -300,6 +366,23 @@ function layoutCards(built, existing) {
   return built
     .map((c) => byId.get(c.id) || c)
     .filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+}
+
+// The layout knobs, read off a request body. Returns null when no layout was
+// named, which is what keeps the previous implicit behaviour intact.
+function layoutOptionsFrom(body) {
+  if (!body || body.layout == null) return null;
+  if (!isLayout(body.layout)) {
+    throw fail(400, 'bad_request',
+      `layout must be one of ${LAYOUTS.join(', ')} — got ${JSON.stringify(String(body.layout).slice(0, 40))}`);
+  }
+  return {
+    layout: body.layout,
+    ...(Number.isFinite(body.gap) ? { gap: body.gap } : {}),
+    ...(Number.isFinite(body.width) ? { width: body.width } : {}),
+    ...(Number.isFinite(body.row_height) ? { rowHeight: body.row_height } : {}),
+    ...(Number.isFinite(body.columns) ? { columns: body.columns } : {}),
+  };
 }
 
 // ── Identifiers and props on the wire ────────────────────────────────────────
@@ -811,6 +894,11 @@ async function dispatch(url, request, env, ctx) {
         'GET    /boards/:id',
         'GET    /boards/:id/export?format=json|omc',
         'POST   /boards/:id/import          {"items":[{"url":…}]}  — re-runnable',
+        'POST   /boards/:id/arrange         {"layout":"justified|masonry|grid|row|column"}',
+        'GET    /boards/:id/groups',
+        'POST   /boards/:id/groups',
+        'PATCH  /boards/:id/groups/:groupId',
+        'DELETE /boards/:id/groups/:groupId  — ungroups, never deletes cards',
         'PATCH  /boards/:id',
         'DELETE /boards/:id',
         'POST   /boards/:id/restore',
@@ -2217,9 +2305,23 @@ async function dispatch(url, request, env, ctx) {
       const specs = usable.map((r) => cardSpecFor(r.item, {
         kind: r.kind, stored: r.stored, importedAt,
       }));
+      // Justified by default: an import is almost always photographs, and the
+      // uniform-grid fallback leaves a hole around every portrait frame.
+      const importLayout = body.layout === null ? null : (body.layout || DEFAULT_LAYOUT);
+      if (importLayout !== null && !isLayout(importLayout)) {
+        throw fail(400, 'bad_request', `layout must be one of ${LAYOUTS.join(', ')}`);
+      }
       const res = await internalCall(url, env, ctx, { auth, token }, `/boards/${id}/cards`, {
         method: 'POST',
-        body: { cards: specs, on_conflict: 'identifier' },
+        body: {
+          cards: specs,
+          on_conflict: 'identifier',
+          ...(importLayout ? { layout: importLayout } : {}),
+          ...(Number.isFinite(body.gap) ? { gap: body.gap } : {}),
+          ...(Number.isFinite(body.width) ? { width: body.width } : {}),
+          ...(Number.isFinite(body.row_height) ? { row_height: body.row_height } : {}),
+          ...(Number.isFinite(body.columns) ? { columns: body.columns } : {}),
+        },
       });
       cards = res?.cards || [];
       created = res?.created ?? 0;
@@ -2264,6 +2366,146 @@ async function dispatch(url, request, env, ctx) {
       next: 'Re-running this manifest updates the same cards rather than duplicating them — '
         + `each carries a "${SOURCE_SCOPE}" identifier you can also look up with GET /resolve.`,
     }, 201);
+  }
+
+  // /boards/:id/arrange — lay out cards that already exist.
+  //
+  // Layout used to be a side effect: omit x and y on a write and the batch got
+  // packed. There was no way to ASK for one, and no way to tidy a board that
+  // was already a mess. This is that operation, by name.
+  //
+  // The block is re-anchored on its own current top-left rather than migrating
+  // to the bottom of the board, and is pushed clear of the cards it is NOT
+  // moving — tidying ten cards must not bury the other forty.
+  if (sub === 'arrange' && method === 'POST') {
+    trace.route = '/boards/:id/arrange';
+    const board = await boardForUser(env, token, id);
+    if (!board) throw fail(404, 'not_found', 'board not found');
+    await requireBoardWrite(env, token, id);
+
+    const layout = body.layout || DEFAULT_LAYOUT;
+    if (!isLayout(layout)) {
+      throw fail(400, 'bad_request', `layout must be one of ${LAYOUTS.join(', ')} — got ${JSON.stringify(String(body.layout).slice(0, 40))}`);
+    }
+
+    const all = await readBoardCards(env, id, token);
+    const requested = Array.isArray(body.card_ids) ? body.card_ids.map(String).filter(Boolean) : null;
+    const targetIds = requested ?? all.map((c) => String(c.id));
+    if (!targetIds.length) throw fail(400, 'bad_request', 'there is nothing on this board to arrange');
+    if (targetIds.length > MAX_CARDS_PER_CALL) {
+      throw fail(400, 'bad_request', `at most ${MAX_CARDS_PER_CALL} cards per arrange — got ${targetIds.length}`);
+    }
+    const known = new Set(all.map((c) => String(c.id)));
+    const notFound = targetIds.filter((c) => !known.has(c));
+
+    const placed = rearrange(all, targetIds, {
+      layout,
+      ...(Number.isFinite(body.gap) ? { gap: body.gap } : {}),
+      ...(Number.isFinite(body.width) ? { width: body.width } : {}),
+      ...(Number.isFinite(body.row_height) ? { rowHeight: body.row_height } : {}),
+      ...(Number.isFinite(body.columns) ? { columns: body.columns } : {}),
+    });
+
+    // A dry run computes the whole layout and writes nothing, so an agent can
+    // look at where things would land — and compare two layouts — before
+    // moving anybody's board.
+    if (body.dry_run === true) {
+      return json({
+        board_id: id,
+        layout,
+        dry_run: true,
+        arranged: placed.length,
+        not_found: notFound,
+        cards: placed.map(publicCard),
+      });
+    }
+
+    const updated = await updateCardsOnBoard(env, {
+      boardId: id, workspaceId: board.workspace_id, userId: auth.userId, accessToken: token,
+      patches: placed.map((c) => ({
+        cardId: c.id,
+        patch: { x: c.x, y: c.y, w: c.w, h: c.h },
+      })),
+    });
+
+    return json({
+      board_id: id,
+      layout,
+      arranged: updated.filter(Boolean).length,
+      not_found: notFound,
+      cards: updated.filter(Boolean).map(publicCard),
+    });
+  }
+
+  // /boards/:id/groups — the app's "these belong together", reachable at last.
+  if (sub === 'groups') {
+    if (method === 'GET') {
+      trace.route = '/boards/:id/groups';
+      const groups = await readBoardGroups(env, id, token);
+      return json({ board_id: id, groups: groups.map(publicGroup) });
+    }
+
+    const board = await boardForUser(env, token, id);
+    if (!board) throw fail(404, 'not_found', 'board not found');
+    await requireBoardWrite(env, token, id);
+
+    if (!subId && method === 'POST') {
+      trace.route = '/boards/:id/groups';
+      const name = str(body.name, 120);
+      if (!name) throw fail(400, 'bad_request', 'name is required');
+      const group = {
+        id: crypto.randomUUID(),
+        name,
+        color: str(body.color, 40) || null,
+        shape: body.shape === 'hug' ? 'hug' : 'box',
+        outline: body.outline !== false,
+        kind: null,
+        createdAt: new Date().toISOString(),
+        createdBy: auth.userId,
+      };
+      const out = await writeBoardGroups(env, {
+        boardId: id, accessToken: token, workspaceId: board.workspace_id,
+        userId: auth.userId, upserts: [group],
+      });
+      return json({
+        board_id: id,
+        group: publicGroup(out.groups.find((g) => g.id === group.id) || group),
+        next: `POST /api/v1/boards/${id}/cards with {"group_id":"${group.id}"} to put cards in it`,
+      }, 201);
+    }
+
+    if (subId && method === 'PATCH') {
+      trace.route = '/boards/:id/groups/:groupId';
+      const existing = (await readBoardGroups(env, id, token)).find((g) => String(g.id) === subId);
+      if (!existing) throw fail(404, 'not_found', 'group not found');
+      const patch = { id: subId };
+      if ('name' in body) patch.name = str(body.name, 120);
+      if ('color' in body) patch.color = str(body.color, 40) || null;
+      if ('shape' in body) patch.shape = body.shape === 'hug' ? 'hug' : 'box';
+      if ('outline' in body) patch.outline = body.outline !== false;
+      const out = await writeBoardGroups(env, {
+        boardId: id, accessToken: token, workspaceId: board.workspace_id,
+        userId: auth.userId, upserts: [patch],
+      });
+      return json({ board_id: id, group: publicGroup(out.groups.find((g) => String(g.id) === subId)) });
+    }
+
+    if (subId && method === 'DELETE') {
+      trace.route = '/boards/:id/groups/:groupId';
+      // Ungroup, never delete. Removing a group that holds forty cards must not
+      // be a way to delete forty cards, and there is no undo on an HTTP call.
+      const out = await writeBoardGroups(env, {
+        boardId: id, accessToken: token, workspaceId: board.workspace_id,
+        userId: auth.userId, removeIds: [subId],
+      });
+      return json({
+        board_id: id,
+        ungrouped: out.ungrouped,
+        note: 'the group is gone; its cards are not',
+      });
+    }
+
+    throw fail(405, 'method_not_allowed', `${method} is not supported here`);
   }
 
   if (sub === 'export' && method === 'GET') {
@@ -2430,6 +2672,7 @@ async function dispatch(url, request, env, ctx) {
     // identifiers is UPDATED rather than added a second time. This is what lets
     // an importer re-run over three million assets without producing six.
     if (body.on_conflict === 'identifier') {
+      const upsertLayout = layoutOptionsFrom(body);
       const all = metas.flatMap((m) => m.identifiers || []);
       const matches = await matchIdentifiers(env, token, {
         workspaceId: board.workspace_id, objectType: 'card', identifiers: all,
@@ -2460,11 +2703,11 @@ async function dispatch(url, request, env, ctx) {
       let createdCards = [];
       if (createIdx.length) {
         const fresh = createIdx.map((i) => built[i]);
-        const positionedFresh = fresh.every((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+        const positionedFresh = !upsertLayout && fresh.every((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
         const res = await addCardsToBoard(env, {
           boardId: id, workspaceId: board.workspace_id, userId: auth.userId, accessToken: token,
           ...(positionedFresh ? { appendCards: fresh } : {}),
-          buildCards: async (existing) => layoutCards(fresh, existing),
+          buildCards: async (existing) => layoutCards(fresh, existing, upsertLayout),
         });
         createdCards = res.cards;
       }
@@ -2504,7 +2747,10 @@ async function dispatch(url, request, env, ctx) {
     //
     // A bulk import always knows where it wants things, so it always gets the
     // fast path. An assistant adding one note does not, and should not have to.
-    const positioned = built.every((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+    // A named layout has to read the board to arrange around what is there, so
+    // it gives up the O(batch) fast path. That is the caller's explicit choice.
+    const layoutOpts = layoutOptionsFrom(body);
+    const positioned = !layoutOpts && built.every((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
 
     const result = await addCardsToBoard(env, {
       boardId: id,
@@ -2515,7 +2761,7 @@ async function dispatch(url, request, env, ctx) {
       // Positioned by the same helper Scout uses, so cards arriving from an API
       // call cannot land on top of what is already there. A caller that supplied
       // explicit x/y keeps them.
-      buildCards: async (existing) => layoutCards(built, existing),
+      buildCards: async (existing) => layoutCards(built, existing, layoutOpts),
     });
 
     // Metadata is keyed on the card id the server assigned, so it can only be

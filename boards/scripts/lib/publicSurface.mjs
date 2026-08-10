@@ -151,6 +151,21 @@ export function mcpProtocol() {
   };
 }
 
+// The named layouts. A public vocabulary in exactly the sense WEBHOOK_EVENTS is
+// — a caller passes one of these strings and gets a documented behaviour — so it
+// needs an extractor for the same reason. Renaming `justified` without touching
+// the docs would otherwise be a silent break for every integration that had
+// written it down.
+export function layoutAlgorithms() {
+  const file = 'boards/src/lib/layoutEngine.js';
+  let src;
+  try { src = read(file); } catch { return []; }
+  const m = src.match(/export const LAYOUTS = \[([^\]]+)\]/);
+  if (!m) throw new Error(`publicSurface: LAYOUTS not found in ${file}`);
+  const found = [...m[1].matchAll(/'([a-z]+)'/g)].map((x) => x[1]);
+  return expect(found, 3, 'layout algorithms', file).sort();
+}
+
 export function apiCardKinds() {
   const file = 'boards/src/worker-api.js';
   const m = read(file).match(/const CARD_KINDS = \[([^\]]+)\]/);
@@ -368,6 +383,7 @@ export function publicSurface() {
     mcpTools: mcpTools(),
     mcpPrompts: mcpPrompts(),
     mcpProtocol: mcpProtocol(),
+    layoutAlgorithms: layoutAlgorithms(),
     apiCardKinds: apiCardKinds(),
     apiScopes: apiScopes(),
     webhookEvents: webhookEvents(),

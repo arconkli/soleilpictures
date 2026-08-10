@@ -4,6 +4,7 @@
     "DELETE /boards/:id",
     "DELETE /boards/:id/cards {\"card_ids\":[…]} — bulk",
     "DELETE /boards/:id/cards/:cardId",
+    "DELETE /boards/:id/groups/:groupId — ungroups, never deletes cards",
     "DELETE /service-accounts/:id",
     "DELETE /service-accounts/:id/tokens/:tokenId",
     "DELETE /webhooks/:id",
@@ -11,6 +12,7 @@
     "GET /boards/:id",
     "GET /boards/:id/cards?source=live|index&since=&cursor=&include=&limit=&offset=",
     "GET /boards/:id/export?format=json|omc",
+    "GET /boards/:id/groups",
     "GET /boards/tree?root=&workspace=&depth=",
     "GET /boards?workspace=&parent=&deleted=&since=&cursor=&include=&limit=&offset=",
     "GET /images/:key?variant=preview",
@@ -26,11 +28,14 @@
     "PATCH /boards/:id",
     "PATCH /boards/:id/cards {\"cards\":[…]} — bulk",
     "PATCH /boards/:id/cards/:cardId",
+    "PATCH /boards/:id/groups/:groupId",
     "PATCH /webhooks/:id",
     "POST /boards",
     "POST /boards {\"boards\":[…]} — bulk, up to 500",
+    "POST /boards/:id/arrange {\"layout\":\"justified|masonry|grid|row|column\"}",
     "POST /boards/:id/cards",
     "POST /boards/:id/cards/move",
+    "POST /boards/:id/groups",
     "POST /boards/:id/import {\"items\":[{\"url\":…}]} — re-runnable",
     "POST /boards/:id/restore",
     "POST /boards/move",
@@ -49,7 +54,11 @@
   "mcpTools": [
     {
       "name": "add_cards",
-      "schema": "82949221b3ec"
+      "schema": "0b44b939820c"
+    },
+    {
+      "name": "arrange_board",
+      "schema": "0c0ed0233403"
     },
     {
       "name": "board_tree",
@@ -62,6 +71,10 @@
     {
       "name": "create_boards",
       "schema": "88c69d2a239f"
+    },
+    {
+      "name": "create_group",
+      "schema": "640de2eed15c"
     },
     {
       "name": "delete_board",
@@ -89,7 +102,7 @@
     },
     {
       "name": "import_urls",
-      "schema": "0227e6faa4cb"
+      "schema": "1de170ca654e"
     },
     {
       "name": "list_audit",
@@ -102,6 +115,10 @@
     {
       "name": "list_deleted_boards",
       "schema": "80e95ddda416"
+    },
+    {
+      "name": "list_groups",
+      "schema": "51d451cff7c1"
     },
     {
       "name": "list_images",
@@ -201,6 +218,13 @@
       "UNSUPPORTED_PROTOCOL_VERSION=-32022"
     ]
   },
+  "layoutAlgorithms": [
+    "column",
+    "grid",
+    "justified",
+    "masonry",
+    "row"
+  ],
   "apiCardKinds": [
     "doc",
     "file",

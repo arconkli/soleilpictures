@@ -4145,6 +4145,107 @@ A: Yes. Pass dry_run to validate every URL without fetching or creating anything
 
 
 ========================================================================
+# Arrange
+URL: https://clusters.soleilpictures.com/docs/api/arrange
+Updated: 2026-08-10
+
+POST /boards/:id/arrange lays out cards that already exist, and any card write accepts a layout to arrange what it adds. The default, justified, fits rows flush on both edges at each picture's true aspect ratio. For placing things yourself, cards carry x, y, w, h, z, rotation, a group_id, and a section_header flag.
+
+Placing cards is half of an API that works. The other half is that what lands looks composed rather than spilled.
+
+Automatic
+
+curl -X POST https://clusters.soleilpictures.com/api/v1/boards/$BOARD/arrange \
+  -H "Authorization: Bearer undefined…" \
+  -H "Content-Type: application/json" \
+  -d '{ "layout": "justified" }'
+
+Omit card_ids to arrange the whole board, or pass a subset to tidy part of it. The same layout works on adding cards and on import, so a batch can land arranged instead of needing a second call.
+
+The layouts
+
+column · grid · justified · masonry · row
+
+justified — the default. Rows of equal height, each picture at its true aspect ratio, flush on both edges. There are no holes in it, which is why it is the right answer for photographs.
+
+┌────────┐┌───┐┌─────────┐
+│        ││   ││         │
+└────────┘└───┘└─────────┘
+┌─────┐┌──────────┐┌─────┐
+│     ││          ││     │
+└─────┘└──────────┘└─────┘
+
+masonry — columns of equal width, balanced by height, ordered by colour so the board reads as a deliberate palette sweep rather than as arrival order. Leaves a ragged bottom edge, which is the trade for never cropping anything.
+
+grid — one uniform cell for everything, each card centred in its cell. The right answer for mixed kinds — an image beside a PDF beside an audio clip — where a shared cell reads as a clean matrix. For photographs of different shapes it leaves a hole around every portrait, which is what justified fixes.
+
+row and column — a single line, cross-axis centred.
+
+Knobs
+
+Field | Meaning
+gap | Space between cards. Default 24.
+width | The width the block is solved against. Omit it and a roughly square block is chosen from the number of items — a canvas has no edges, so there is no container to infer one from.
+row_height | Target row height. justified only.
+columns | Column cap. grid and masonry only.
+dry_run | Compute everything, write nothing.
+card_ids | Arrange a subset. At most 1000 per call.
+
+Two things worth knowing. justified resizes cards — fitting a row to a width is a resize, and it is the only layout that does. And a named layout arranges the whole batch including cards that carried their own x and y: "lay these out as rows" and "put this one at x=40" are contradictory, and the one you asked for by name wins.
+
+By hand
+
+Every card carries the full geometry:
+
+Field | Meaning
+x, y | Position, in canvas units
+w, h | Size
+z | Stacking. Higher is in front; fractional values are fine
+rotation | Degrees
+group_id | Membership of a group
+section_header | Render as a full-width heading
+
+z was readable but not writable until now — you could see which of two overlapping cards was on top and had no way to swap them.
+
+Groups
+
+A group is how a board says these belong together: a labelled outline round a set of cards, which then move as one.
+
+curl -X POST https://clusters.soleilpictures.com/api/v1/boards/$BOARD/groups \
+  -H "Authorization: Bearer undefined…" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "Costume — Act II", "shape": "box" }'
+
+The full set:
+
+Endpoint | What it does
+GET /boards/:id/groups | The groups on a board
+POST /boards/:id/groups | Create one
+PATCH /boards/:id/groups/:groupId | Rename or restyle it
+DELETE /boards/:id/groups/:groupId | Ungroup — removes the group, never its cards
+
+Pass the returned id as group_id on any card. shape is box (one rectangle round everything) or hug (following each card). Deleting a group ungroups; it never deletes the cards — there is no undo on an HTTP call, and a group holding forty cards must not be a way to lose forty cards.
+
+Section headings
+
+A card with section_header: true becomes a full-width heading, and if the board is published it renders as an <h2> in the article. Add sub for a line underneath. This is what turns a wall of references into something with a shape somebody else can read.
+
+## Frequently asked questions
+
+Q: How do I make a dump of images look like a moodboard?
+A: Pass layout when you import or add them, or call POST /boards/:id/arrange afterwards. The default, justified, gives rows of equal height flush on both edges, with every picture at its real aspect ratio.
+
+Q: Can I see where things would land before moving anything?
+A: Yes. Pass dry_run and the response contains the computed positions with nothing written, so you can compare two layouts before touching a board.
+
+Q: Will arranging move my cards somewhere else on the canvas?
+A: No. The block is re-anchored on its own current top-left, and pushed clear of any cards it is not moving, so tidying part of a board cannot bury the rest.
+
+Q: How do I say that a set of cards belongs together?
+A: Create a group with POST /boards/:id/groups and pass its id as group_id on each card. A group draws a labelled outline round its cards and moves them as one.
+
+
+========================================================================
 # Identifiers and properties
 URL: https://clusters.soleilpictures.com/docs/api/metadata
 Updated: 2026-08-09
@@ -4431,100 +4532,6 @@ A: Set omc.functionalType in the board's properties. Values outside the OMC cont
 
 
 ========================================================================
-# Errors and status codes
-URL: https://clusters.soleilpictures.com/docs/api/errors
-Updated: 2026-08-08
-
-Every error is JSON carrying a machine-readable code and a human sentence. Branch on the code, not the prose. Only 429 and 5xx are worth retrying; everything in the 400 range is a permanent statement about the request. A retried POST must reuse the same Idempotency-Key or it becomes a second real write.
-
-Every error looks like this:
-
-{ "error": "at most 100 cards per call", "code": "bad_request" }
-
-Branch on code. The sentence is written for a person reading a log and may be reworded; the code is the contract.
-
-Codes
-
-Status | code | Means | Retry?
-400 | bad_request | Malformed — bad UUID, missing field, unknown card kind, too many cards | No
-401 | — | Missing, malformed, unknown, revoked or expired token | No
-402 | limit_reached | A quota — card cap or storage | No
-403 | forbidden / insufficient_scope | Not permitted, or the token lacks the scope | No
-404 | not_found | Not found, or not visible to you | No
-405 | method_not_allowed | Wrong method for that path | No
-409 | conflict | Idempotency key in flight, or a refused reparent | Sometimes
-409 | identifier_conflict | An identifier already belongs to something else | No
-413 | payload_too_large | An image over 25 MB | No
-415 | unsupported_media_type | Upload with a missing or unrecognised Content-Type | No
-429 | — | Rate limited | Yes, after retry-after
-502 | session_unavailable | An upstream dependency is unreachable | Yes
-502 | upstream_error | A dependency answered, but not successfully | Yes
-503 | storage_unavailable | Image storage is temporarily unavailable | Yes
-
-The ones worth explaining
-
-401 — unknown, revoked and expired tokens are indistinguishable on purpose, so probing cannot reveal which tokens existed.
-
-403 insufficient_scope — the response names the scope required in required_scope. Deleting needs the delete scope, which is separate from write precisely so "can add cards to my moodboard" and "can destroy my moodboard" are different grants.
-
-402 versus 403 — 402 is a quota you could pay to lift; 403 is a permission you cannot.
-
-404 — returned both for things that do not exist and for things you cannot see. Do not retry it and do not treat it as transient.
-
-409 — two causes. An Idempotency-Key whose first attempt is still in flight, in which case waiting briefly and retrying with the same key is correct; or a reparent that would create a cycle, which is permanent.
-
-429 — respect the retry-after header, in seconds. Every response carries x-ratelimit-remaining and x-ratelimit-reset, so a well-behaved client never has to hit the wall to discover the wall.
-
-Retrying safely
-
-async function withRetry<T>(fn: () => Promise<Response>, tries = 4): Promise<T> {
-  for (let i = 0; ; i++) {
-    const res = await fn();
-    if (res.ok) return res.json() as Promise<T>;
-
-    const body = await res.json().catch(() => ({} as any));
-    const retryable = res.status === 429 || res.status >= 500;
-    if (!retryable || i >= tries - 1) {
-      throw new Error(`${res.status} ${body.code ?? ""} ${body.error ?? ""}`);
-    }
-    // Honour the server's own answer before guessing.
-    const after = Number(res.headers.get("retry-after"));
-    await new Promise((r) => setTimeout(r, Number.isFinite(after) && after > 0
-      ? after * 1000
-      : 2 ** i * 1000));
-  }
-}
-
-A retried POST must carry the same Idempotency-Key as the original. A fresh key on every attempt turns one intended write into several real ones.
-
-Idempotency and errors
-
-A key is stored with its response when the request finishes with any status below 500, so a retry replays that response — including a 4xx. A request that failed validation keeps reporting the same failure under that key, which is correct: the request was bad and still is.
-
-On a 5xx the key is released, so the retry genuinely re-runs.
-
-A replayed response carries idempotent-replay: true.
-
-Successes that are not quite successes
-
-Two responses mean less than they look:
-
-"live": false on a card write — saved, but open canvases will not show it until reload. Not a failure.
-has_more: true on a list — you have one page, not the answer. Follow next_offset.
-
-## Frequently asked questions
-
-Q: Should I branch on the code or the message?
-A: The code. The human sentence is written for a person reading a log and may be reworded; the code is the contract.
-
-Q: Why do I get 404 for a board I know exists?
-A: Because it is not yours. The API returns 404 rather than 403 for invisible resources so it cannot be used to confirm what exists.
-
-Q: What is the difference between 402 and 403?
-A: 402 means a quota — the card cap or storage. 403 means permission — an insufficient scope, or a board you cannot write to.
-
-
-========================================================================
 # MCP server
 URL: https://clusters.soleilpictures.com/docs/mcp
 Updated: 2026-08-09
@@ -4626,6 +4633,7 @@ board_tree | root? or workspace_id?, depth? — a whole hierarchy in one call
 get_board | board_id — one board, with how much of the card allowance is used
 resolve_identifier | scope, value — find something by an id from another system
 list_deleted_boards | workspace_id?
+list_groups | board_id — the labelled sets on a board
 
 Reading
 
@@ -4646,6 +4654,8 @@ add_cards | board_id, cards[] — up to 1000, on_conflict?
 upload_image | board_id, data (base64), content_type
 upload_file | board_id, path — local server only; handles large files
 import_urls | board_id, urls[], titles?, dry_run? — bring reference in from the web; safe to re-run
+arrange_board | board_id, layout?, card_ids?, dry_run? — lay a board out
+create_group | board_id, name, color?, shape? — say a set of cards is one thing
 rename_board | board_id, name?, view?, parent_board_id?
 move_boards | board_ids[], parent_board_id
 update_card | board_id, card_id, plus any writable field
@@ -4722,6 +4732,100 @@ A: Only the local server can, with upload_file, because the file has to be read 
 
 Q: Is it the same set of tools either way?
 A: Yes, apart from upload_file, which needs a filesystem. Both servers are built from one registry so they cannot drift apart.
+
+
+========================================================================
+# Errors and status codes
+URL: https://clusters.soleilpictures.com/docs/api/errors
+Updated: 2026-08-08
+
+Every error is JSON carrying a machine-readable code and a human sentence. Branch on the code, not the prose. Only 429 and 5xx are worth retrying; everything in the 400 range is a permanent statement about the request. A retried POST must reuse the same Idempotency-Key or it becomes a second real write.
+
+Every error looks like this:
+
+{ "error": "at most 100 cards per call", "code": "bad_request" }
+
+Branch on code. The sentence is written for a person reading a log and may be reworded; the code is the contract.
+
+Codes
+
+Status | code | Means | Retry?
+400 | bad_request | Malformed — bad UUID, missing field, unknown card kind, too many cards | No
+401 | — | Missing, malformed, unknown, revoked or expired token | No
+402 | limit_reached | A quota — card cap or storage | No
+403 | forbidden / insufficient_scope | Not permitted, or the token lacks the scope | No
+404 | not_found | Not found, or not visible to you | No
+405 | method_not_allowed | Wrong method for that path | No
+409 | conflict | Idempotency key in flight, or a refused reparent | Sometimes
+409 | identifier_conflict | An identifier already belongs to something else | No
+413 | payload_too_large | An image over 25 MB | No
+415 | unsupported_media_type | Upload with a missing or unrecognised Content-Type | No
+429 | — | Rate limited | Yes, after retry-after
+502 | session_unavailable | An upstream dependency is unreachable | Yes
+502 | upstream_error | A dependency answered, but not successfully | Yes
+503 | storage_unavailable | Image storage is temporarily unavailable | Yes
+
+The ones worth explaining
+
+401 — unknown, revoked and expired tokens are indistinguishable on purpose, so probing cannot reveal which tokens existed.
+
+403 insufficient_scope — the response names the scope required in required_scope. Deleting needs the delete scope, which is separate from write precisely so "can add cards to my moodboard" and "can destroy my moodboard" are different grants.
+
+402 versus 403 — 402 is a quota you could pay to lift; 403 is a permission you cannot.
+
+404 — returned both for things that do not exist and for things you cannot see. Do not retry it and do not treat it as transient.
+
+409 — two causes. An Idempotency-Key whose first attempt is still in flight, in which case waiting briefly and retrying with the same key is correct; or a reparent that would create a cycle, which is permanent.
+
+429 — respect the retry-after header, in seconds. Every response carries x-ratelimit-remaining and x-ratelimit-reset, so a well-behaved client never has to hit the wall to discover the wall.
+
+Retrying safely
+
+async function withRetry<T>(fn: () => Promise<Response>, tries = 4): Promise<T> {
+  for (let i = 0; ; i++) {
+    const res = await fn();
+    if (res.ok) return res.json() as Promise<T>;
+
+    const body = await res.json().catch(() => ({} as any));
+    const retryable = res.status === 429 || res.status >= 500;
+    if (!retryable || i >= tries - 1) {
+      throw new Error(`${res.status} ${body.code ?? ""} ${body.error ?? ""}`);
+    }
+    // Honour the server's own answer before guessing.
+    const after = Number(res.headers.get("retry-after"));
+    await new Promise((r) => setTimeout(r, Number.isFinite(after) && after > 0
+      ? after * 1000
+      : 2 ** i * 1000));
+  }
+}
+
+A retried POST must carry the same Idempotency-Key as the original. A fresh key on every attempt turns one intended write into several real ones.
+
+Idempotency and errors
+
+A key is stored with its response when the request finishes with any status below 500, so a retry replays that response — including a 4xx. A request that failed validation keeps reporting the same failure under that key, which is correct: the request was bad and still is.
+
+On a 5xx the key is released, so the retry genuinely re-runs.
+
+A replayed response carries idempotent-replay: true.
+
+Successes that are not quite successes
+
+Two responses mean less than they look:
+
+"live": false on a card write — saved, but open canvases will not show it until reload. Not a failure.
+has_more: true on a list — you have one page, not the answer. Follow next_offset.
+
+## Frequently asked questions
+
+Q: Should I branch on the code or the message?
+A: The code. The human sentence is written for a person reading a log and may be reworded; the code is the contract.
+
+Q: Why do I get 404 for a board I know exists?
+A: Because it is not yours. The API returns 404 rather than 403 for invisible resources so it cannot be used to confirm what exists.
+
+Q: What is the difference between 402 and 403?
+A: 402 means a quota — the card cap or storage. 403 means permission — an insufficient scope, or a board you cannot write to.
 
 
 ========================================================================

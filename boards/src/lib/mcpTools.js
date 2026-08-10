@@ -279,6 +279,72 @@ export const TOOLS = [
     })}`),
   },
   {
+    name: 'arrange_board',
+    title: 'Lay a board out',
+    description: 'ARRANGES cards spatially. "justified" fits rows flush on both edges with each '
+      + 'picture at its true aspect ratio — the right answer for photographs, and the default. '
+      + '"masonry" is colour-ordered columns, "grid" uniform cells (best for mixed kinds), '
+      + '"row" and "column" single lines. Omit card_ids to arrange the whole board. The block '
+      + 'stays where it already was and is kept clear of cards it is not moving. Use dry_run to '
+      + 'see where things would land, and to compare two layouts, before moving anyone’s board.',
+    annotations: EDITS,
+    inputSchema: schema({
+      board_id: uuid('The board'),
+      layout: str('Default justified', { enum: ['justified', 'masonry', 'grid', 'row', 'column'] }),
+      card_ids: { type: 'array', description: 'Omit to arrange everything', items: { type: 'string' } },
+      gap: num('Space between cards, default 24'),
+      width: num('Block width to solve against; defaults to a roughly square block'),
+      row_height: num('Target row height, justified only'),
+      columns: num('Column cap, grid and masonry only'),
+      dry_run: bool('Compute the layout and change nothing'),
+    }, ['board_id']),
+    outputSchema: looseObject({
+      layout: { type: 'string' },
+      arranged: num('How many cards moved'),
+      cards: { type: 'array', items: looseObject({}) },
+    }),
+    call: (a, { api }) => api(`/boards/${a.board_id}/arrange`, {
+      method: 'POST',
+      body: {
+        ...(a.layout ? { layout: a.layout } : {}),
+        ...(a.card_ids ? { card_ids: a.card_ids } : {}),
+        ...(Number.isFinite(a.gap) ? { gap: a.gap } : {}),
+        ...(Number.isFinite(a.width) ? { width: a.width } : {}),
+        ...(Number.isFinite(a.row_height) ? { row_height: a.row_height } : {}),
+        ...(Number.isFinite(a.columns) ? { columns: a.columns } : {}),
+        ...(a.dry_run ? { dry_run: true } : {}),
+      },
+    }),
+  },
+  {
+    name: 'list_groups',
+    title: 'The groups on a board',
+    description: 'Groups are how a board says "these cards belong together" — a labelled outline '
+      + 'drawn round a set. Read them before putting a card in one.',
+    annotations: READS,
+    inputSchema: schema({ board_id: uuid('The board') }, ['board_id']),
+    call: (a, { api }) => api(`/boards/${a.board_id}/groups`),
+  },
+  {
+    name: 'create_group',
+    title: 'Group a set of cards together',
+    description: 'CREATES a named group and returns its id. Pass that id as group_id when adding '
+      + 'or updating cards to put them in it. A group draws a labelled outline round its cards '
+      + 'and makes them move as one — it is how you say a set of references is one idea rather '
+      + 'than several.',
+    annotations: WRITES,
+    inputSchema: schema({
+      board_id: uuid('The board'),
+      name: str('What this set of cards is'),
+      color: str('Outline colour, e.g. "#c8a04a"'),
+      shape: str('box draws one rectangle round everything, hug follows each card', { enum: ['box', 'hug'] }),
+    }, ['board_id', 'name']),
+    call: (a, { api }) => api(`/boards/${a.board_id}/groups`, {
+      method: 'POST',
+      body: { name: a.name, ...(a.color ? { color: a.color } : {}), ...(a.shape ? { shape: a.shape } : {}) },
+    }),
+  },
+  {
     name: 'import_urls',
     title: 'Import reference from the web',
     description: 'BRINGS IN reference from wherever it currently lives: a shared drive folder, '
@@ -302,6 +368,8 @@ export const TOOLS = [
           + 'from each filename.',
         items: { type: 'string' },
       },
+      layout: str('How to arrange what lands. Default justified.',
+        { enum: ['justified', 'masonry', 'grid', 'row', 'column'] }),
       dry_run: bool('Check the list without fetching or creating anything'),
     }, ['board_id', 'urls']),
     outputSchema: looseObject({
@@ -317,6 +385,7 @@ export const TOOLS = [
           url: u,
           ...(a.titles?.[i] ? { title: a.titles[i] } : {}),
         })),
+        ...(a.layout ? { layout: a.layout } : {}),
         ...(a.dry_run ? { dry_run: true } : {}),
       },
     }),
@@ -438,13 +507,19 @@ export const TOOLS = [
           color: str('A colour for the card'),
           x: num('Left position'), y: num('Top position'),
           w: num('Width'), h: num('Height'),
+          z: num('Stacking order — higher is in front'),
+          rotation: num('Degrees'),
+          group_id: str('Put this card in a group, from create_group'),
+          section_header: bool('Render as a full-width heading; also becomes an <h2> if the board is published'),
           identifiers: IDENTIFIER,
           props: PROPS,
         }),
       },
+      layout: str('Arrange the whole batch this way instead of appending in free space',
+        { enum: ['justified', 'masonry', 'grid', 'row', 'column'] }),
     }, ['board_id', 'cards']),
     call: (a, { api }) => api(`/boards/${a.board_id}/cards`,
-      { method: 'POST', body: { cards: a.cards, on_conflict: a.on_conflict } }),
+      { method: 'POST', body: { cards: a.cards, on_conflict: a.on_conflict, ...(a.layout ? { layout: a.layout } : {}) } }),
   },
   {
     name: 'upload_image',

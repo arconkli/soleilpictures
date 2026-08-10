@@ -724,6 +724,56 @@ export function openapiDocument(origin) {
           }, ['board_ids']),
         }),
       },
+      '/boards/{id}/arrange': {
+        post: op('arrangeBoard', 'Lay out cards that already exist', {
+          parameters: [boardIdParam],
+          requestBody: jsonBody({
+            layout: {
+              type: 'string',
+              enum: ['justified', 'masonry', 'grid', 'row', 'column'],
+              description: 'justified (default) fits rows flush on both edges',
+            },
+            card_ids: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Omit to arrange the whole board',
+            },
+            gap: { type: 'number' },
+            width: { type: 'number', description: 'Block width to solve against' },
+            row_height: { type: 'number', description: 'Target row height, justified only' },
+            columns: { type: 'number', description: 'Column cap, grid and masonry only' },
+            dry_run: { type: 'boolean', description: 'Compute the layout and write nothing' },
+          }),
+        }),
+      },
+      '/boards/{id}/groups': {
+        get: op('listGroups', 'The groups on a board', { parameters: [boardIdParam] }),
+        post: op('createGroup', 'Create a group', {
+          parameters: [boardIdParam],
+          requestBody: jsonBody({
+            name: { type: 'string' },
+            color: { type: 'string' },
+            shape: { type: 'string', enum: ['box', 'hug'] },
+            outline: { type: 'boolean' },
+          }, ['name']),
+        }),
+      },
+      '/boards/{id}/groups/{groupId}': {
+        patch: op('updateGroup', 'Rename or restyle a group', {
+          parameters: [boardIdParam,
+            { name: 'groupId', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: jsonBody({
+            name: { type: 'string' },
+            color: { type: 'string' },
+            shape: { type: 'string', enum: ['box', 'hug'] },
+            outline: { type: 'boolean' },
+          }),
+        }),
+        delete: op('deleteGroup', 'Ungroup — removes the group, never its cards', {
+          parameters: [boardIdParam,
+            { name: 'groupId', in: 'path', required: true, schema: { type: 'string' } }],
+        }),
+      },
       '/boards/{id}/import': {
         post: op('importIntoBoard', 'Import reference from remote URLs — re-runnable', {
           parameters: [boardIdParam],
@@ -746,6 +796,11 @@ export function openapiDocument(origin) {
               },
             },
             dry_run: { type: 'boolean', description: 'Validate without fetching or creating' },
+            layout: {
+              type: 'string',
+              enum: ['justified', 'masonry', 'grid', 'row', 'column'],
+              description: 'How to arrange what lands. Defaults to justified.',
+            },
           }, ['items']),
         }),
       },

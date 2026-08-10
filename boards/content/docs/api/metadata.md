@@ -4,7 +4,7 @@ metaDescription: Attach foreign IDs and structured fields to boards and cards, l
 h1: Identifiers and properties
 navLabel: Identifiers and properties
 section: developers
-order: 7
+order: 8
 updated: 2026-08-09
 answer: An identifier is a scope and value pair assigned by another system, like shotgrid and Shot:12345. Attach as many as you like to a board or a card, look objects up by them with GET /resolve, and pass on_conflict identifier when creating so an object that already carries one is updated instead of duplicated. That is what makes an import re-runnable. Properties are a free-form JSON object on the same objects, for whatever fields your pipeline needs.
 faq:

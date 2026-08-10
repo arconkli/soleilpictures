@@ -31071,6 +31071,873 @@ export const DOCS_CONTENT = {
    ]
   }
  ],
+ "/docs/api/arrange": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Placing cards is half of an API that works. The other half is that what lands looks composed rather than spilled."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Automatic",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Automatic"
+    }
+   ],
+   "id": "automatic"
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST https://clusters.soleilpictures.com/api/v1/boards/$BOARD/arrange \\\n  -H \"Authorization: Bearer undefined…\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{ \"layout\": \"justified\" }'"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Omit "
+    },
+    {
+     "t": "code",
+     "v": "card_ids"
+    },
+    {
+     "t": "text",
+     "v": " to arrange the whole board, or pass a subset to tidy part of it. The same "
+    },
+    {
+     "t": "code",
+     "v": "layout"
+    },
+    {
+     "t": "text",
+     "v": " works on "
+    },
+    {
+     "t": "link",
+     "v": "adding cards",
+     "href": "/docs/api/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "adding cards"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and on "
+    },
+    {
+     "t": "link",
+     "v": "import",
+     "href": "/docs/api/import",
+     "children": [
+      {
+       "t": "text",
+       "v": "import"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so a batch can land arranged instead of needing a second call."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "The layouts",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The layouts"
+    }
+   ],
+   "id": "the-layouts"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "column"
+    },
+    {
+     "t": "text",
+     "v": " · "
+    },
+    {
+     "t": "code",
+     "v": "grid"
+    },
+    {
+     "t": "text",
+     "v": " · "
+    },
+    {
+     "t": "code",
+     "v": "justified"
+    },
+    {
+     "t": "text",
+     "v": " · "
+    },
+    {
+     "t": "code",
+     "v": "masonry"
+    },
+    {
+     "t": "text",
+     "v": " · "
+    },
+    {
+     "t": "code",
+     "v": "row"
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "`justified`",
+     "children": [
+      {
+       "t": "code",
+       "v": "justified"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — the default. Rows of equal height, each picture at its true aspect ratio, flush on "
+    },
+    {
+     "t": "strong",
+     "v": "both",
+     "children": [
+      {
+       "t": "text",
+       "v": "both"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " edges. There are no holes in it, which is why it is the right answer for photographs."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": null,
+   "code": "┌────────┐┌───┐┌─────────┐\n│        ││   ││         │\n└────────┘└───┘└─────────┘\n┌─────┐┌──────────┐┌─────┐\n│     ││          ││     │\n└─────┘└──────────┘└─────┘"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "`masonry`",
+     "children": [
+      {
+       "t": "code",
+       "v": "masonry"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — columns of equal width, balanced by height, ordered by colour so the board reads as a deliberate palette sweep rather than as arrival order. Leaves a ragged bottom edge, which is the trade for never cropping anything."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "`grid`",
+     "children": [
+      {
+       "t": "code",
+       "v": "grid"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — one uniform cell for everything, each card centred in its cell. The right answer for "
+    },
+    {
+     "t": "em",
+     "v": "mixed kinds",
+     "children": [
+      {
+       "t": "text",
+       "v": "mixed kinds"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — an image beside a PDF beside an audio clip — where a shared cell reads as a clean matrix. For photographs of different shapes it leaves a hole around every portrait, which is what "
+    },
+    {
+     "t": "code",
+     "v": "justified"
+    },
+    {
+     "t": "text",
+     "v": " fixes."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "`row`",
+     "children": [
+      {
+       "t": "code",
+       "v": "row"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "`column`",
+     "children": [
+      {
+       "t": "code",
+       "v": "column"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — a single line, cross-axis centred."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Knobs",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Knobs"
+    }
+   ],
+   "id": "knobs"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Field"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Meaning"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "gap"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Space between cards. Default 24."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "width"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The width the block is solved against. Omit it and a roughly square block is chosen from the number of items — a canvas has no edges, so there is no container to infer one from."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "row_height"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Target row height. "
+      },
+      {
+       "t": "code",
+       "v": "justified"
+      },
+      {
+       "t": "text",
+       "v": " only."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "columns"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Column cap. "
+      },
+      {
+       "t": "code",
+       "v": "grid"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "masonry"
+      },
+      {
+       "t": "text",
+       "v": " only."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "dry_run"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Compute everything, write nothing."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "card_ids"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Arrange a subset. At most 1000 per call."
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Two things worth knowing. "
+    },
+    {
+     "t": "code",
+     "v": "justified"
+    },
+    {
+     "t": "text",
+     "v": " "
+    },
+    {
+     "t": "strong",
+     "v": "resizes",
+     "children": [
+      {
+       "t": "text",
+       "v": "resizes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " cards — fitting a row to a width is a resize, and it is the only layout that does. And a named layout arranges the "
+    },
+    {
+     "t": "em",
+     "v": "whole",
+     "children": [
+      {
+       "t": "text",
+       "v": "whole"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " batch including cards that carried their own "
+    },
+    {
+     "t": "code",
+     "v": "x"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "y"
+    },
+    {
+     "t": "text",
+     "v": ": \"lay these out as rows\" and \"put this one at x=40\" are contradictory, and the one you asked for by name wins."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "By hand",
+   "inline": [
+    {
+     "t": "text",
+     "v": "By hand"
+    }
+   ],
+   "id": "by-hand"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every card carries the full geometry:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Field"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Meaning"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "x"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "y"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Position, in canvas units"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "w"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "h"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Size"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "z"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Stacking. Higher is in front; fractional values are fine"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "rotation"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Degrees"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "group_id"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Membership of a group"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "section_header"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Render as a full-width heading"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "z"
+    },
+    {
+     "t": "text",
+     "v": " was readable but not writable until now — you could see which of two overlapping cards was on top and had no way to swap them."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Groups",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Groups"
+    }
+   ],
+   "id": "groups"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A group is how a board says "
+    },
+    {
+     "t": "em",
+     "v": "these belong together",
+     "children": [
+      {
+       "t": "text",
+       "v": "these belong together"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": a labelled outline round a set of cards, which then move as one."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST https://clusters.soleilpictures.com/api/v1/boards/$BOARD/groups \\\n  -H \"Authorization: Bearer undefined…\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{ \"name\": \"Costume — Act II\", \"shape\": \"box\" }'"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The full set:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Endpoint"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What it does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET /boards/:id/groups"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The groups on a board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /boards/:id/groups"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Create one"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "PATCH /boards/:id/groups/:groupId"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Rename or restyle it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "DELETE /boards/:id/groups/:groupId"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Ungroup — removes the group, never its cards"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pass the returned "
+    },
+    {
+     "t": "code",
+     "v": "id"
+    },
+    {
+     "t": "text",
+     "v": " as "
+    },
+    {
+     "t": "code",
+     "v": "group_id"
+    },
+    {
+     "t": "text",
+     "v": " on any card. "
+    },
+    {
+     "t": "code",
+     "v": "shape"
+    },
+    {
+     "t": "text",
+     "v": " is "
+    },
+    {
+     "t": "code",
+     "v": "box"
+    },
+    {
+     "t": "text",
+     "v": " (one rectangle round everything) or "
+    },
+    {
+     "t": "code",
+     "v": "hug"
+    },
+    {
+     "t": "text",
+     "v": " (following each card). Deleting a group "
+    },
+    {
+     "t": "strong",
+     "v": "ungroups",
+     "children": [
+      {
+       "t": "text",
+       "v": "ungroups"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; it never deletes the cards — there is no undo on an HTTP call, and a group holding forty cards must not be a way to lose forty cards."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Section headings",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Section headings"
+    }
+   ],
+   "id": "section-headings"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A card with "
+    },
+    {
+     "t": "code",
+     "v": "section_header: true"
+    },
+    {
+     "t": "text",
+     "v": " becomes a full-width heading, and if the board is "
+    },
+    {
+     "t": "link",
+     "v": "published",
+     "href": "/docs/publish/explore",
+     "children": [
+      {
+       "t": "text",
+       "v": "published"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " it renders as an "
+    },
+    {
+     "t": "code",
+     "v": "<h2>"
+    },
+    {
+     "t": "text",
+     "v": " in the article. Add "
+    },
+    {
+     "t": "code",
+     "v": "sub"
+    },
+    {
+     "t": "text",
+     "v": " for a line underneath. This is what turns a wall of references into something with a shape somebody else can read."
+    }
+   ]
+  }
+ ],
  "/docs/api/metadata": [
   {
    "type": "para",
@@ -32661,963 +33528,6 @@ export const DOCS_CONTENT = {
    ]
   }
  ],
- "/docs/api/errors": [
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Every error looks like this:"
-    }
-   ]
-  },
-  {
-   "type": "code",
-   "lang": "json",
-   "code": "{ \"error\": \"at most 100 cards per call\", \"code\": \"bad_request\" }"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Branch on `code`.",
-     "children": [
-      {
-       "t": "text",
-       "v": "Branch on "
-      },
-      {
-       "t": "code",
-       "v": "code"
-      },
-      {
-       "t": "text",
-       "v": "."
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " The sentence is written for a person reading a log and may be reworded; the code is the contract."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Codes",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Codes"
-    }
-   ],
-   "id": "codes"
-  },
-  {
-   "type": "table",
-   "head": [
-    [
-     {
-      "t": "text",
-      "v": "Status"
-     }
-    ],
-    [
-     {
-      "t": "code",
-      "v": "code"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Means"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Retry?"
-     }
-    ]
-   ],
-   "rows": [
-    [
-     [
-      {
-       "t": "code",
-       "v": "400"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "bad_request"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Malformed — bad UUID, missing field, unknown card kind, too many cards"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "No"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "401"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "—"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Missing, malformed, unknown, revoked or expired token"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "No"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "402"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "limit_reached"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "A quota — "
-      },
-      {
-       "t": "link",
-       "v": "card cap",
-       "href": "/docs/canvas/cards",
-       "children": [
-        {
-         "t": "text",
-         "v": "card cap"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": " or storage"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "No"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "403"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "forbidden"
-      },
-      {
-       "t": "text",
-       "v": " / "
-      },
-      {
-       "t": "code",
-       "v": "insufficient_scope"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Not permitted, or the token lacks the scope"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "No"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "404"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "not_found"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Not found, "
-      },
-      {
-       "t": "strong",
-       "v": "or",
-       "children": [
-        {
-         "t": "text",
-         "v": "or"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": " not visible to you"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "No"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "405"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "method_not_allowed"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Wrong method for that path"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "No"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "409"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "conflict"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Idempotency key in flight, or a refused reparent"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Sometimes"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "409"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "identifier_conflict"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "An "
-      },
-      {
-       "t": "link",
-       "v": "identifier",
-       "href": "/docs/api/metadata",
-       "children": [
-        {
-         "t": "text",
-         "v": "identifier"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": " already belongs to something else"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "No"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "413"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "payload_too_large"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "An "
-      },
-      {
-       "t": "link",
-       "v": "image",
-       "href": "/docs/api/images",
-       "children": [
-        {
-         "t": "text",
-         "v": "image"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": " over 25 MB"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "No"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "415"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "unsupported_media_type"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Upload with a missing or unrecognised "
-      },
-      {
-       "t": "code",
-       "v": "Content-Type"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "No"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "429"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "—"
-      }
-     ],
-     [
-      {
-       "t": "link",
-       "v": "Rate limited",
-       "href": "/docs/api/authentication",
-       "children": [
-        {
-         "t": "text",
-         "v": "Rate limited"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Yes, after "
-      },
-      {
-       "t": "code",
-       "v": "retry-after"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "502"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "session_unavailable"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "An upstream dependency is unreachable"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Yes"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "502"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "upstream_error"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "A dependency answered, but not successfully"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Yes"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "503"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "storage_unavailable"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Image storage is temporarily unavailable"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Yes"
-      }
-     ]
-    ]
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "The ones worth explaining",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The ones worth explaining"
-    }
-   ],
-   "id": "the-ones-worth-explaining"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "`401`",
-     "children": [
-      {
-       "t": "code",
-       "v": "401"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — unknown, revoked and expired tokens are indistinguishable on purpose, so probing cannot reveal which tokens existed."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "`403 insufficient_scope`",
-     "children": [
-      {
-       "t": "code",
-       "v": "403 insufficient_scope"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — the response names the scope required in "
-    },
-    {
-     "t": "code",
-     "v": "required_scope"
-    },
-    {
-     "t": "text",
-     "v": ". Deleting needs the "
-    },
-    {
-     "t": "code",
-     "v": "delete"
-    },
-    {
-     "t": "text",
-     "v": " scope, which is separate from "
-    },
-    {
-     "t": "code",
-     "v": "write"
-    },
-    {
-     "t": "text",
-     "v": " precisely so \"can add cards to my moodboard\" and \"can destroy my moodboard\" are different grants."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "`402` versus `403`",
-     "children": [
-      {
-       "t": "code",
-       "v": "402"
-      },
-      {
-       "t": "text",
-       "v": " versus "
-      },
-      {
-       "t": "code",
-       "v": "403"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — "
-    },
-    {
-     "t": "code",
-     "v": "402"
-    },
-    {
-     "t": "text",
-     "v": " is a quota you could pay to lift; "
-    },
-    {
-     "t": "code",
-     "v": "403"
-    },
-    {
-     "t": "text",
-     "v": " is a permission you cannot."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "`404`",
-     "children": [
-      {
-       "t": "code",
-       "v": "404"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — returned both for things that do not exist and for things you cannot see. Do not retry it and do not treat it as transient."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "`409`",
-     "children": [
-      {
-       "t": "code",
-       "v": "409"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — two causes. An "
-    },
-    {
-     "t": "code",
-     "v": "Idempotency-Key"
-    },
-    {
-     "t": "text",
-     "v": " whose first attempt is still in flight, in which case waiting briefly and retrying "
-    },
-    {
-     "t": "strong",
-     "v": "with the same key",
-     "children": [
-      {
-       "t": "text",
-       "v": "with the same key"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " is correct; or a reparent that would create a cycle, which is permanent."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "`429`",
-     "children": [
-      {
-       "t": "code",
-       "v": "429"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — respect the "
-    },
-    {
-     "t": "code",
-     "v": "retry-after"
-    },
-    {
-     "t": "text",
-     "v": " header, in seconds. Every response carries "
-    },
-    {
-     "t": "code",
-     "v": "x-ratelimit-remaining"
-    },
-    {
-     "t": "text",
-     "v": " and "
-    },
-    {
-     "t": "code",
-     "v": "x-ratelimit-reset"
-    },
-    {
-     "t": "text",
-     "v": ", so a well-behaved client never has to hit the wall to discover the wall."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Retrying safely",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Retrying safely"
-    }
-   ],
-   "id": "retrying-safely"
-  },
-  {
-   "type": "code",
-   "lang": "ts",
-   "code": "async function withRetry<T>(fn: () => Promise<Response>, tries = 4): Promise<T> {\n  for (let i = 0; ; i++) {\n    const res = await fn();\n    if (res.ok) return res.json() as Promise<T>;\n\n    const body = await res.json().catch(() => ({} as any));\n    const retryable = res.status === 429 || res.status >= 500;\n    if (!retryable || i >= tries - 1) {\n      throw new Error(`${res.status} ${body.code ?? \"\"} ${body.error ?? \"\"}`);\n    }\n    // Honour the server's own answer before guessing.\n    const after = Number(res.headers.get(\"retry-after\"));\n    await new Promise((r) => setTimeout(r, Number.isFinite(after) && after > 0\n      ? after * 1000\n      : 2 ** i * 1000));\n  }\n}"
-  },
-  {
-   "type": "callout",
-   "variant": "warning",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A retried "
-    },
-    {
-     "t": "code",
-     "v": "POST"
-    },
-    {
-     "t": "text",
-     "v": " must carry the "
-    },
-    {
-     "t": "strong",
-     "v": "same",
-     "children": [
-      {
-       "t": "text",
-       "v": "same"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " "
-    },
-    {
-     "t": "code",
-     "v": "Idempotency-Key"
-    },
-    {
-     "t": "text",
-     "v": " as the original. A fresh key on every attempt turns one intended write into several real ones."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Idempotency and errors",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Idempotency and errors"
-    }
-   ],
-   "id": "idempotency-and-errors"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A key is stored with its response when the request finishes with any status below "
-    },
-    {
-     "t": "code",
-     "v": "500"
-    },
-    {
-     "t": "text",
-     "v": ", so a retry replays that response — "
-    },
-    {
-     "t": "strong",
-     "v": "including a `4xx`",
-     "children": [
-      {
-       "t": "text",
-       "v": "including a "
-      },
-      {
-       "t": "code",
-       "v": "4xx"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ". A request that failed validation keeps reporting the same failure under that key, which is correct: the request was bad and still is."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "On a "
-    },
-    {
-     "t": "code",
-     "v": "5xx"
-    },
-    {
-     "t": "text",
-     "v": " the key is released, so the retry genuinely re-runs."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A replayed response carries "
-    },
-    {
-     "t": "code",
-     "v": "idempotent-replay: true"
-    },
-    {
-     "t": "text",
-     "v": "."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Successes that are not quite successes",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Successes that are not quite successes"
-    }
-   ],
-   "id": "successes-that-are-not-quite-successes"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Two responses mean less than they look:"
-    }
-   ]
-  },
-  {
-   "type": "list",
-   "ordered": false,
-   "items": [
-    [
-     {
-      "t": "strong",
-      "v": "`\"live\": false`",
-      "children": [
-       {
-        "t": "code",
-        "v": "\"live\": false"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " on a card write — saved, but open canvases will not show it until reload. Not a failure."
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "`has_more: true`",
-      "children": [
-       {
-        "t": "code",
-        "v": "has_more: true"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " on a list — you have one page, not the answer. Follow "
-     },
-     {
-      "t": "code",
-      "v": "next_offset"
-     },
-     {
-      "t": "text",
-      "v": "."
-     }
-    ]
-   ]
-  }
- ],
  "/docs/mcp": [
   {
    "type": "para",
@@ -34685,6 +34595,24 @@ export const DOCS_CONTENT = {
        "v": "workspace_id?"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "list_groups"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": " — the labelled sets on a board"
+      }
+     ]
     ]
    ]
   },
@@ -35167,6 +35095,90 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": " — bring reference in from the web; safe to re-run"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "arrange_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "layout?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_ids?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "dry_run?"
+      },
+      {
+       "t": "text",
+       "v": " — lay a board out"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "create_group"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "name"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "color?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "shape?"
+      },
+      {
+       "t": "text",
+       "v": " — say a set of cards is one thing"
       }
      ]
     ],
@@ -36103,6 +36115,963 @@ export const DOCS_CONTENT = {
         "v": "/docs/api/cards.md"
        }
       ]
+     }
+    ]
+   ]
+  }
+ ],
+ "/docs/api/errors": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every error looks like this:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"error\": \"at most 100 cards per call\", \"code\": \"bad_request\" }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Branch on `code`.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Branch on "
+      },
+      {
+       "t": "code",
+       "v": "code"
+      },
+      {
+       "t": "text",
+       "v": "."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " The sentence is written for a person reading a log and may be reworded; the code is the contract."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Codes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Codes"
+    }
+   ],
+   "id": "codes"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Status"
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "code"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Means"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Retry?"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "400"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "bad_request"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Malformed — bad UUID, missing field, unknown card kind, too many cards"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "401"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "—"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Missing, malformed, unknown, revoked or expired token"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "402"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "limit_reached"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A quota — "
+      },
+      {
+       "t": "link",
+       "v": "card cap",
+       "href": "/docs/canvas/cards",
+       "children": [
+        {
+         "t": "text",
+         "v": "card cap"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " or storage"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "403"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "forbidden"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "insufficient_scope"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Not permitted, or the token lacks the scope"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "404"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "not_found"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Not found, "
+      },
+      {
+       "t": "strong",
+       "v": "or",
+       "children": [
+        {
+         "t": "text",
+         "v": "or"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " not visible to you"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "405"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "method_not_allowed"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Wrong method for that path"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "409"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "conflict"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Idempotency key in flight, or a refused reparent"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Sometimes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "409"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "identifier_conflict"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An "
+      },
+      {
+       "t": "link",
+       "v": "identifier",
+       "href": "/docs/api/metadata",
+       "children": [
+        {
+         "t": "text",
+         "v": "identifier"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " already belongs to something else"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "413"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "payload_too_large"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An "
+      },
+      {
+       "t": "link",
+       "v": "image",
+       "href": "/docs/api/images",
+       "children": [
+        {
+         "t": "text",
+         "v": "image"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " over 25 MB"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "415"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "unsupported_media_type"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Upload with a missing or unrecognised "
+      },
+      {
+       "t": "code",
+       "v": "Content-Type"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "429"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "—"
+      }
+     ],
+     [
+      {
+       "t": "link",
+       "v": "Rate limited",
+       "href": "/docs/api/authentication",
+       "children": [
+        {
+         "t": "text",
+         "v": "Rate limited"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes, after "
+      },
+      {
+       "t": "code",
+       "v": "retry-after"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "502"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "session_unavailable"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An upstream dependency is unreachable"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "502"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "upstream_error"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A dependency answered, but not successfully"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "503"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "storage_unavailable"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Image storage is temporarily unavailable"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "The ones worth explaining",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The ones worth explaining"
+    }
+   ],
+   "id": "the-ones-worth-explaining"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "`401`",
+     "children": [
+      {
+       "t": "code",
+       "v": "401"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — unknown, revoked and expired tokens are indistinguishable on purpose, so probing cannot reveal which tokens existed."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "`403 insufficient_scope`",
+     "children": [
+      {
+       "t": "code",
+       "v": "403 insufficient_scope"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — the response names the scope required in "
+    },
+    {
+     "t": "code",
+     "v": "required_scope"
+    },
+    {
+     "t": "text",
+     "v": ". Deleting needs the "
+    },
+    {
+     "t": "code",
+     "v": "delete"
+    },
+    {
+     "t": "text",
+     "v": " scope, which is separate from "
+    },
+    {
+     "t": "code",
+     "v": "write"
+    },
+    {
+     "t": "text",
+     "v": " precisely so \"can add cards to my moodboard\" and \"can destroy my moodboard\" are different grants."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "`402` versus `403`",
+     "children": [
+      {
+       "t": "code",
+       "v": "402"
+      },
+      {
+       "t": "text",
+       "v": " versus "
+      },
+      {
+       "t": "code",
+       "v": "403"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — "
+    },
+    {
+     "t": "code",
+     "v": "402"
+    },
+    {
+     "t": "text",
+     "v": " is a quota you could pay to lift; "
+    },
+    {
+     "t": "code",
+     "v": "403"
+    },
+    {
+     "t": "text",
+     "v": " is a permission you cannot."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "`404`",
+     "children": [
+      {
+       "t": "code",
+       "v": "404"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — returned both for things that do not exist and for things you cannot see. Do not retry it and do not treat it as transient."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "`409`",
+     "children": [
+      {
+       "t": "code",
+       "v": "409"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — two causes. An "
+    },
+    {
+     "t": "code",
+     "v": "Idempotency-Key"
+    },
+    {
+     "t": "text",
+     "v": " whose first attempt is still in flight, in which case waiting briefly and retrying "
+    },
+    {
+     "t": "strong",
+     "v": "with the same key",
+     "children": [
+      {
+       "t": "text",
+       "v": "with the same key"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is correct; or a reparent that would create a cycle, which is permanent."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "`429`",
+     "children": [
+      {
+       "t": "code",
+       "v": "429"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — respect the "
+    },
+    {
+     "t": "code",
+     "v": "retry-after"
+    },
+    {
+     "t": "text",
+     "v": " header, in seconds. Every response carries "
+    },
+    {
+     "t": "code",
+     "v": "x-ratelimit-remaining"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "x-ratelimit-reset"
+    },
+    {
+     "t": "text",
+     "v": ", so a well-behaved client never has to hit the wall to discover the wall."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Retrying safely",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Retrying safely"
+    }
+   ],
+   "id": "retrying-safely"
+  },
+  {
+   "type": "code",
+   "lang": "ts",
+   "code": "async function withRetry<T>(fn: () => Promise<Response>, tries = 4): Promise<T> {\n  for (let i = 0; ; i++) {\n    const res = await fn();\n    if (res.ok) return res.json() as Promise<T>;\n\n    const body = await res.json().catch(() => ({} as any));\n    const retryable = res.status === 429 || res.status >= 500;\n    if (!retryable || i >= tries - 1) {\n      throw new Error(`${res.status} ${body.code ?? \"\"} ${body.error ?? \"\"}`);\n    }\n    // Honour the server's own answer before guessing.\n    const after = Number(res.headers.get(\"retry-after\"));\n    await new Promise((r) => setTimeout(r, Number.isFinite(after) && after > 0\n      ? after * 1000\n      : 2 ** i * 1000));\n  }\n}"
+  },
+  {
+   "type": "callout",
+   "variant": "warning",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A retried "
+    },
+    {
+     "t": "code",
+     "v": "POST"
+    },
+    {
+     "t": "text",
+     "v": " must carry the "
+    },
+    {
+     "t": "strong",
+     "v": "same",
+     "children": [
+      {
+       "t": "text",
+       "v": "same"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " "
+    },
+    {
+     "t": "code",
+     "v": "Idempotency-Key"
+    },
+    {
+     "t": "text",
+     "v": " as the original. A fresh key on every attempt turns one intended write into several real ones."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Idempotency and errors",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Idempotency and errors"
+    }
+   ],
+   "id": "idempotency-and-errors"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A key is stored with its response when the request finishes with any status below "
+    },
+    {
+     "t": "code",
+     "v": "500"
+    },
+    {
+     "t": "text",
+     "v": ", so a retry replays that response — "
+    },
+    {
+     "t": "strong",
+     "v": "including a `4xx`",
+     "children": [
+      {
+       "t": "text",
+       "v": "including a "
+      },
+      {
+       "t": "code",
+       "v": "4xx"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". A request that failed validation keeps reporting the same failure under that key, which is correct: the request was bad and still is."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a "
+    },
+    {
+     "t": "code",
+     "v": "5xx"
+    },
+    {
+     "t": "text",
+     "v": " the key is released, so the retry genuinely re-runs."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A replayed response carries "
+    },
+    {
+     "t": "code",
+     "v": "idempotent-replay: true"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Successes that are not quite successes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Successes that are not quite successes"
+    }
+   ],
+   "id": "successes-that-are-not-quite-successes"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Two responses mean less than they look:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "`\"live\": false`",
+      "children": [
+       {
+        "t": "code",
+        "v": "\"live\": false"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on a card write — saved, but open canvases will not show it until reload. Not a failure."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "`has_more: true`",
+      "children": [
+       {
+        "t": "code",
+        "v": "has_more: true"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on a list — you have one page, not the answer. Follow "
+     },
+     {
+      "t": "code",
+      "v": "next_offset"
+     },
+     {
+      "t": "text",
+      "v": "."
      }
     ]
    ]

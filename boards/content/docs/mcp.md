@@ -164,6 +164,7 @@ quietly failing.
 | `get_board` | `board_id` — one board, with how much of the card allowance is used |
 | `resolve_identifier` | `scope`, `value` — find something by an id from another system |
 | `list_deleted_boards` | `workspace_id?` |
+| `list_groups` | `board_id` — the labelled sets on a board |
 
 **Reading**
 
@@ -186,6 +187,8 @@ quietly failing.
 | `upload_image` | `board_id`, `data` (base64), `content_type` |
 | `upload_file` | `board_id`, `path` — **local server only**; handles large files |
 | `import_urls` | `board_id`, `urls[]`, `titles?`, `dry_run?` — bring reference in from the web; safe to re-run |
+| `arrange_board` | `board_id`, `layout?`, `card_ids?`, `dry_run?` — lay a board out |
+| `create_group` | `board_id`, `name`, `color?`, `shape?` — say a set of cards is one thing |
 | `rename_board` | `board_id`, `name?`, `view?`, `parent_board_id?` |
 | `move_boards` | `board_ids[]`, `parent_board_id` |
 | `update_card` | `board_id`, `card_id`, plus any writable field |

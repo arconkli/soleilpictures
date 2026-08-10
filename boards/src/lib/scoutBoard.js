@@ -728,6 +728,88 @@ export async function readBoardCards(env, boardId, accessToken = null) {
   }
 }
 
+// ── Groups ───────────────────────────────────────────────────────────────────
+//
+// A group is the app's way of saying "these cards belong together": it draws a
+// labelled outline round them and makes them drag as one. It lives in its own
+// top-level Y.Map, and cards point at it by `groupId` — so a group is metadata
+// about a set, not a container that owns its members.
+//
+// The API had no access to any of this, which meant an integration could place
+// forty cards and not express that they were one thing.
+
+export async function readBoardGroups(env, boardId, accessToken = null) {
+  const board = await openBoard(env, boardId, accessToken);
+  try {
+    const out = [];
+    board.doc.getMap('groups').forEach((v, id) => {
+      const g = v && typeof v.toJSON === 'function' ? v.toJSON() : v;
+      if (g && typeof g === 'object') out.push({ ...g, id: g.id || id });
+    });
+    return out.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+  } finally {
+    try { board.ws?.close(); } catch (_) { /* already gone */ }
+    board.doc.destroy();
+  }
+}
+
+/**
+ * Create, patch or remove groups in one board open.
+ *
+ * `upserts` are whole group records; `removeIds` are ungrouped rather than
+ * deleted — the cards pointing at a removed group have their `groupId` cleared
+ * in the same transaction, because a card left pointing at a group that no
+ * longer exists renders as an untitled outline nobody can select or name.
+ */
+export async function writeBoardGroups(env, {
+  boardId, accessToken, workspaceId, userId, upserts = [], removeIds = [],
+}) {
+  const board = await openBoard(env, boardId, accessToken);
+  try {
+    const groups = board.doc.getMap('groups');
+    const cards = board.doc.getMap('cards');
+    const gone = new Set(removeIds.map(String));
+    const orphaned = [];
+
+    if (gone.size) {
+      for (const c of readCards(board.doc)) {
+        if (c.groupId && gone.has(String(c.groupId))) orphaned.push(c);
+      }
+    }
+
+    await commitDoc(env, boardId, board, () => {
+      for (const g of upserts) {
+        const existing = groups.get(String(g.id));
+        const before = existing && typeof existing.toJSON === 'function' ? existing.toJSON() : (existing || {});
+        groups.set(String(g.id), { ...before, ...g, id: String(g.id) });
+      }
+      for (const id of gone) groups.delete(String(id));
+      for (const c of orphaned) cards.set(String(c.id), cardToYMap({ ...c, groupId: null }));
+    });
+
+    // card_index carries groupId/groupName in meta, so ungrouping has to be
+    // reprojected or search and the public page keep showing the old grouping.
+    if (orphaned.length && workspaceId) {
+      const rows = buildCardIndexRows({
+        workspaceId,
+        boardId,
+        cards: orphaned.map((c) => ({ ...c, groupId: null })),
+      });
+      if (rows.length) await scoutInsert(env, 'card_index', rows, { onConflict: 'board_id,card_id' });
+    }
+
+    const out = [];
+    board.doc.getMap('groups').forEach((v, id) => {
+      const g = v && typeof v.toJSON === 'function' ? v.toJSON() : v;
+      if (g && typeof g === 'object') out.push({ ...g, id: g.id || id });
+    });
+    return { groups: out, ungrouped: orphaned.map((c) => String(c.id)), userId };
+  } finally {
+    try { board.ws?.close(); } catch (_) { /* already gone */ }
+    board.doc.destroy();
+  }
+}
+
 // Capacity pre-flight. Returns { used, cap, capped, remaining }. Called BEFORE
 // any R2 upload so we never spend bytes on a card that will be rejected.
 // Takes the user EXPLICITLY. get_board_capacity gates on can_read_board, which

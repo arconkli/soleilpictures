@@ -37,6 +37,7 @@ import {
   apiCardKinds as apiCardKindsList,
   apiScopes as apiScopeList,
   mcpProtocol as mcpProtocolSurface,
+  layoutAlgorithms as layoutAlgorithmList,
 } from './lib/publicSurface.mjs';
 
 import { DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
@@ -110,6 +111,8 @@ export const FACTS = {
   maxImportItems: String(MAX_IMPORT_ITEMS),
   importTimeoutSeconds: String(IMPORT_TIMEOUT_MS / 1000),
   importSourceScope: SOURCE_SCOPE,
+  layoutAlgorithms: layoutAlgorithmList().map((l) => `\`${l}\``).join(' · '),
+  maxCardsPerArrange: String(api.maxCardsPerCall ?? 1000),
   siteOrigin: SITE_ORIGIN,
 };
 
