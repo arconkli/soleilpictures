@@ -69,6 +69,10 @@ const CHANNEL_META = {
   youtube:       { variant: 'youtube',   display: 'YouTube',       glyph: '▶' },
   share_link:    { variant: 'share',     display: 'Share link',    dot: true },
   public_board:  { variant: 'public',    display: 'Public board',  dot: true },
+  // Arrived at /oauth/authorize — an assistant sent them to connect, so signing
+  // up was a side effect of wiring us into something they already use. Worth
+  // its own label rather than title-cased to "Mcp Connect" by the fallback.
+  mcp_connect:   { variant: 'referral',  display: 'MCP connect',   dot: true },
   direct:        { variant: 'direct',    display: 'Direct',        dot: true },
 };
 
