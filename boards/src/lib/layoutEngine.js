@@ -274,6 +274,103 @@ export function arrange(existingCards, items, opts = {}) {
   return avoid ? pushClearOf(solid, moved, gap) : moved;
 }
 
+// ── Align and distribute ─────────────────────────────────────────────────────
+//
+// The two commands every canvas has and this one did not. Its `Arrange` menu
+// held only z-order, so there was no way to line four cards up by hand short of
+// dragging each one and trusting the snap guides.
+//
+// Both preserve card SIZE — they only ever move things. Only justified resizes.
+
+export const ALIGNMENTS = ['left', 'center-x', 'right', 'top', 'middle', 'bottom'];
+export const AXES = ['horizontal', 'vertical'];
+
+/** Line a selection up on one edge of its own bounding box. */
+export function alignCards(cards, edge) {
+  const solid = withGeometry(cards);
+  if (solid.length < 2 || !ALIGNMENTS.includes(edge)) return [];
+  const b = blockBounds(solid);
+  const move = {
+    left: (c) => ({ x: b.x }),
+    right: (c) => ({ x: b.right - c.w }),
+    'center-x': (c) => ({ x: b.x + (b.w - c.w) / 2 }),
+    top: () => ({ y: b.y }),
+    bottom: (c) => ({ y: b.bottom - c.h }),
+    middle: (c) => ({ y: b.y + (b.h - c.h) / 2 }),
+  }[edge];
+  return solid
+    .map((c) => {
+      const next = move(c);
+      // No 8px floor here: this MOVES existing cards, and a card that
+      // legitimately sits at y=0 must not be dragged down by the act of
+      // aligning it — that is how distribute ended up with uneven gaps.
+      return { ...c, x: Math.round(next.x ?? c.x), y: Math.round(next.y ?? c.y) };
+    })
+    .filter((c, i) => c.x !== solid[i].x || c.y !== solid[i].y);
+}
+
+/**
+ * Even out the GAPS along an axis, holding the two outermost cards still.
+ *
+ * Equal gaps rather than equal centres: with mixed card sizes, equal centres
+ * leaves visibly uneven space, which is the thing the command is being asked
+ * to fix.
+ */
+export function distributeCards(cards, axis) {
+  const solid = withGeometry(cards);
+  if (solid.length < 3 || !AXES.includes(axis)) return [];
+  const horizontal = axis === 'horizontal';
+  const pos = (c) => (horizontal ? c.x : c.y);
+  const size = (c) => (horizontal ? c.w : c.h);
+
+  const sorted = [...solid].sort((a, b) => pos(a) - pos(b));
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  const span = (pos(last) + size(last)) - pos(first);
+  const occupied = sorted.reduce((s, c) => s + size(c), 0);
+  // Negative when the cards already overlap more than the span allows; they
+  // then simply sit flush rather than being pushed into a stack.
+  const gap = Math.max(0, (span - occupied) / (sorted.length - 1));
+
+  const moved = new Map();
+  let run = pos(first);
+  for (const c of sorted) {
+    const next = Math.round(run);
+    if (next !== pos(c)) moved.set(c.id, { ...c, [horizontal ? 'x' : 'y']: next });
+    run += size(c) + gap;
+  }
+  return [...moved.values()];
+}
+
+/**
+ * Lay a drop out as one block CENTRED on a point.
+ *
+ * What a canvas drop wants, and different from `arrange` in two ways: the block
+ * is centred on the cursor rather than hung below and to the right of it, and
+ * nothing is pushed clear of existing cards — the person pointed at a spot.
+ *
+ * Lives here rather than inline in the drop handler so the shape of a drop is
+ * something a test can assert. The behaviour being protected is that twenty
+ * photographs arrive as a block instead of a 5,200px strip.
+ */
+export function layoutDrop(items, { at, layout = DEFAULT_LAYOUT, gap } = {}) {
+  const placed = relativeLayout(items, { layout, gap });
+  if (!placed.length) return [];
+
+  const minX = Math.min(...placed.map((c) => c.x));
+  const minY = Math.min(...placed.map((c) => c.y));
+  const width = Math.max(...placed.map((c) => c.x + c.w)) - minX;
+  const height = Math.max(...placed.map((c) => c.y + c.h)) - minY;
+  const originX = (Number.isFinite(at?.x) ? at.x : MARGIN) - width / 2;
+  const originY = (Number.isFinite(at?.y) ? at.y : MARGIN) - height / 2;
+
+  return placed.map((c) => ({
+    ...c,
+    x: Math.round(c.x - minX + originX),
+    y: Math.round(c.y - minY + originY),
+  }));
+}
+
 /**
  * Re-arrange cards that ALREADY exist, in place.
  *

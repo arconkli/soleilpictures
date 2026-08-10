@@ -939,7 +939,7 @@ export const DOCS_PAGES = [
     "answer": "As you drag a card, guides appear showing where it lines up with the cards around it, and it snaps to their edges, centres and spacing. Hold Alt while dragging to switch snapping off for that drag. Nothing needs enabling — the guides only appear while you are actually moving something.",
     "section": "canvas",
     "order": 11,
-    "updated": "2026-08-08",
+    "updated": "2026-08-10",
     "navLabel": "Snapping and alignment",
     "headings": [
       {
@@ -953,6 +953,14 @@ export const DOCS_PAGES = [
       {
         "id": "aligning-a-selection",
         "text": "Aligning a selection"
+      },
+      {
+        "id": "tidying-up",
+        "text": "Tidying up"
+      },
+      {
+        "id": "dropping-a-lot-of-files-at-once",
+        "text": "Dropping a lot of files at once"
       },
       {
         "id": "on-a-crowded-board",
@@ -979,7 +987,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I align a selection all at once?",
-        "a": "Yes. Select several cards and use the alignment options in the right-click menu."
+        "a": "Yes. Select several cards, right-click, and use Arrange → Align or Distribute. To repack a whole board, Arrange → Tidy up."
       }
     ]
   },

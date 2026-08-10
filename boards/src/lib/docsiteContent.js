@@ -9188,7 +9188,294 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Select several cards and use the alignment options in the right-click menu to align or distribute them all at once, rather than dragging each one into place."
+     "v": "Select several cards and right-click. Under "
+    },
+    {
+     "t": "strong",
+     "v": "Arrange",
+     "children": [
+      {
+       "t": "text",
+       "v": "Arrange"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " you get:"
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Align",
+     "children": [
+      {
+       "t": "text",
+       "v": "Align"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — Left, Center, Right, Top, Middle, Bottom. Every selected card moves to that edge of the selection's own bounding box. Nothing is resized."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Distribute",
+     "children": [
+      {
+       "t": "text",
+       "v": "Distribute"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — Horizontally or Vertically. The two outermost cards stay put and the ones between them are spread so the "
+    },
+    {
+     "t": "strong",
+     "v": "gaps",
+     "children": [
+      {
+       "t": "text",
+       "v": "gaps"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " are equal. Equal gaps rather than equal centres, because with cards of different sizes equal centres still looks uneven, which is the thing you were trying to fix. Needs at least three cards — two have no gap between them to even out."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Tidying up",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tidying up"
+    }
+   ],
+   "id": "tidying-up"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Arrange → Tidy up",
+     "children": [
+      {
+       "t": "text",
+       "v": "Arrange → Tidy up"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " repacks cards rather than nudging them:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Justified rows",
+       "children": [
+        {
+         "t": "text",
+         "v": "Justified rows"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Rows of equal height with every picture at its true shape, flush on both edges. The best answer for photographs — there are no holes in it."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Masonry columns",
+       "children": [
+        {
+         "t": "text",
+         "v": "Masonry columns"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Even columns, ordered by colour, so the board reads as a deliberate sweep rather than as the order things arrived."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Grid",
+       "children": [
+        {
+         "t": "text",
+         "v": "Grid"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "One uniform cell for everything. Best when the cards are different "
+      },
+      {
+       "t": "em",
+       "v": "kinds",
+       "children": [
+        {
+         "t": "text",
+         "v": "kinds"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " — an image beside a PDF beside an audio clip."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Single row",
+       "children": [
+        {
+         "t": "text",
+         "v": "Single row"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "strong",
+       "v": "Single column",
+       "children": [
+        {
+         "t": "text",
+         "v": "Single column"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "One line."
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With cards selected it tidies those; with nothing selected it tidies the whole board. Either way the block stays where it already was and keeps clear of anything it is not moving, so tidying part of a board cannot bury the rest. It is one undo step."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Justified rows is the only one that resizes cards — fitting a row to a width is a resize. The rest only move things."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The same layouts are available over the "
+    },
+    {
+     "t": "link",
+     "v": "API",
+     "href": "/docs/api/arrange",
+     "children": [
+      {
+       "t": "text",
+       "v": "API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so an assistant can tidy a board too."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Dropping a lot of files at once",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Dropping a lot of files at once"
+    }
+   ],
+   "id": "dropping-a-lot-of-files-at-once"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Drop a folder of images onto the canvas and they arrive as a block centred on where you dropped, laid out as justified rows, rather than in a line running off the side of the screen."
     }
    ]
   },

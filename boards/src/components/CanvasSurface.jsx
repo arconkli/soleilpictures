@@ -113,7 +113,8 @@ import {
   computeSnap as computeSnapPure, computeResizeSnap as computeResizeSnapPure,
 } from '../lib/snapGuides.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
-import { classifyDropFile, sizeBucket } from '../lib/fileIngest.js';
+import { classifyDropFile, sizeBucket, fitImageDims } from '../lib/fileIngest.js';
+import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
@@ -2096,7 +2097,28 @@ export function CanvasSurface({
     }
   }, [mutators, onRequestUpgrade, onRequestStorageUpgrade, feedback]);
 
-  const optimisticDropImage = useCallback(async (file, cx, cy) => {
+  // Place the drop rect (w×h) centered on (cx, cy), clamped to the viewport.
+  //
+  // `rect` is an already-computed placement, and it WINS. A multi-file drop is
+  // laid out as one block before any card is created; clamping each card to the
+  // viewport individually afterwards is precisely what used to pile a dozen
+  // photographs on top of each other at the right-hand edge.
+  const placeDropRect = useCallback((cx, cy, w, h, rect = null) => {
+    if (rect && Number.isFinite(rect.x) && Number.isFinite(rect.y)) {
+      return { x: Math.round(rect.x), y: Math.round(rect.y), w: rect.w || w, h: rect.h || h };
+    }
+    let bounds = null;
+    const wrap = wrapRef.current;
+    if (wrap) {
+      const r = wrap.getBoundingClientRect();
+      const tl = clientToCanvas(r.left, r.top);
+      const br = clientToCanvas(r.right, r.bottom);
+      bounds = { minX: tl.x + 8, minY: tl.y + 8, maxX: br.x - 8, maxY: br.y - 8 };
+    }
+    return clampDropRect({ x: cx - w / 2, y: cy - h / 2, w, h }, bounds);
+  }, [clientToCanvas]);
+
+  const optimisticDropImage = useCallback(async (file, cx, cy, rect = null) => {
     if (!file) return;
     const dropBoardId = board?.id;
     if (useLocalImages) {
@@ -2149,15 +2171,7 @@ export function CanvasSurface({
     const id = `img-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     if (blobUrl) setLocalImagePreview(prev => ({ ...prev, [id]: blobUrl }));
     // Keep the whole card on-screen even when dropped near the right/bottom edge.
-    let bounds = null;
-    const wrap = wrapRef.current;
-    if (wrap) {
-      const r = wrap.getBoundingClientRect();
-      const tl = clientToCanvas(r.left, r.top);
-      const br = clientToCanvas(r.right, r.bottom);
-      bounds = { minX: tl.x + 8, minY: tl.y + 8, maxX: br.x - 8, maxY: br.y - 8 };
-    }
-    const placed = clampDropRect({ x: cx - w / 2, y: cy - h / 2, w, h }, bounds);
+    const placed = placeDropRect(cx, cy, w, h, rect);
     // src omitted here — blob URLs aren't useful to peers, so we keep the
     // doc clean and let localImagePreview drive the local view.
     mutators.addCard?.({
@@ -2196,20 +2210,12 @@ export function CanvasSurface({
   // page-1 thumbnail in the background (same optimistic pattern as images).
   // Distinct `pdf-` id prefix so card_index's `img-` src-recovery heuristics
   // don't mistake it for an image.
-  const optimisticDropPdf = useCallback(async (file, cx, cy) => {
+  const optimisticDropPdf = useCallback(async (file, cx, cy, rect = null) => {
     if (!file) return;
     const dropBoardId = board?.id;
     const id = `pdf-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     let w = 300, h = 388; // portrait fallback; corrected from real page-1 dims
-    let bounds = null;
-    const wrap = wrapRef.current;
-    if (wrap) {
-      const r = wrap.getBoundingClientRect();
-      const tl = clientToCanvas(r.left, r.top);
-      const br = clientToCanvas(r.right, r.bottom);
-      bounds = { minX: tl.x + 8, minY: tl.y + 8, maxX: br.x - 8, maxY: br.y - 8 };
-    }
-    const placed = clampDropRect({ x: cx - w / 2, y: cy - h / 2, w, h }, bounds);
+    const placed = placeDropRect(cx, cy, w, h, rect);
 
     if (useLocalImages) {
       // Local QA — no backend. Point the viewer straight at a blob URL
@@ -2243,29 +2249,16 @@ export function CanvasSurface({
     }
   }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, clientToCanvas, handleUploadReject]);
 
-  // Place the drop rect (w×h) centered on (cx, cy), clamped to the viewport.
-  const placeDropRect = useCallback((cx, cy, w, h) => {
-    let bounds = null;
-    const wrap = wrapRef.current;
-    if (wrap) {
-      const r = wrap.getBoundingClientRect();
-      const tl = clientToCanvas(r.left, r.top);
-      const br = clientToCanvas(r.right, r.bottom);
-      bounds = { minX: tl.x + 8, minY: tl.y + 8, maxX: br.x - 8, maxY: br.y - 8 };
-    }
-    return clampDropRect({ x: cx - w / 2, y: cy - h / 2, w, h }, bounds);
-  }, [clientToCanvas]);
-
   // Any file type → a generic, downloadable file card. Uploads via multipart
   // (boards/src/lib/uploads.js uploadFile), which gates on paid-owner + storage
   // quota server-side. Mirrors optimisticDropPdf's optimistic add → update → roll
   // back on failure.
-  const optimisticDropFile = useCallback(async (file, cx, cy) => {
+  const optimisticDropFile = useCallback(async (file, cx, cy, rect = null) => {
     if (!file) return;
     const dropBoardId = board?.id;
     const id = `file-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const w = 240, h = 150;
-    const placed = placeDropRect(cx, cy, w, h);
+    const placed = placeDropRect(cx, cy, w, h, rect);
     const ext = (file.name?.split('.').pop() || '').toLowerCase();
 
     if (useLocalImages) {
@@ -2296,7 +2289,7 @@ export function CanvasSurface({
 
   // Over-cap video/audio (paid only) → still an inline media card, but uploaded
   // via multipart so big files upload reliably + count against the quota.
-  const dropLargeMedia = useCallback(async (file, kind, cx, cy) => {
+  const dropLargeMedia = useCallback(async (file, kind, cx, cy, rect = null) => {
     if (!file) return;
     const dropBoardId = board?.id;
     let w, h, extra = {};
@@ -2310,7 +2303,7 @@ export function CanvasSurface({
       w = 380; h = 130; extra = { title: file.name || 'Audio', duration: meta.duration || null };
     }
     const id = `${kind === 'video' ? 'vid' : 'aud'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-    const placed = placeDropRect(cx, cy, w, h);
+    const placed = placeDropRect(cx, cy, w, h, rect);
     mutators.addCard?.({ id, kind, x: placed.x, y: placed.y, w, h, pending: true, ...extra });
     try {
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
@@ -2327,7 +2320,7 @@ export function CanvasSurface({
   // Upload a video file and place a video card centered on (cx, cy).
   // Validates duration via uploadVideo (default cap 60s, 30 MB). Toast
   // surfaces upload errors.
-  const dropVideoFile = useCallback(async (file, cx, cy, allowLong = false) => {
+  const dropVideoFile = useCallback(async (file, cx, cy, allowLong = false, rect = null) => {
     if (!workspaceId) throw new Error('workspaceId required');
     // Paid uploads (allowLong) drop the free-tier 60s clip cap; the byte cap is
     // moot here (this path only handles ≤ the free byte cap — larger goes
@@ -2342,8 +2335,8 @@ export function CanvasSurface({
       kind: 'video',
       src: up.src,
       ...(up.poster ? { poster: up.poster } : {}),
-      x: Math.round(cx - w / 2),
-      y: Math.round(cy - h / 2),
+      x: rect && Number.isFinite(rect.x) ? Math.round(rect.x) : Math.round(cx - w / 2),
+      y: rect && Number.isFinite(rect.y) ? Math.round(rect.y) : Math.round(cy - h / 2),
       w, h,
     });
   }, [workspaceId, board?.id, userId, mutators]);
@@ -2351,7 +2344,7 @@ export function CanvasSurface({
   // Audio file → audio card centered on (cx, cy). Default size matches
   // a compact waveform; the card carries the duration for instant later
   // renders. 50 MB cap enforced inside uploadAudio.
-  const dropAudioFile = useCallback(async (file, cx, cy) => {
+  const dropAudioFile = useCallback(async (file, cx, cy, rect = null) => {
     if (!workspaceId) throw new Error('workspaceId required');
     const up = await uploadAudio({ file, workspaceId, boardId: board?.id, userId });
     const w = 380, h = 130;
@@ -2361,8 +2354,8 @@ export function CanvasSurface({
       src: up.src,
       title: file.name || 'Audio',
       duration: up.duration || null,
-      x: Math.round(cx - w / 2),
-      y: Math.round(cy - h / 2),
+      x: rect && Number.isFinite(rect.x) ? Math.round(rect.x) : Math.round(cx - w / 2),
+      y: rect && Number.isFinite(rect.y) ? Math.round(rect.y) : Math.round(cy - h / 2),
       w, h,
     });
   }, [workspaceId, board?.id, userId, mutators]);
@@ -2380,36 +2373,80 @@ export function CanvasSurface({
     if (!files.length) return;
     const canAttemptFiles = !(ownsWorkspace && !isPaidPlan);
     const blockedForUpgrade = [];
-    let offsetX = 0;
+
+    // Classify everything FIRST, then lay the whole drop out as one block.
+    //
+    // This used to be an unbounded horizontal stagger — `cx + offsetX` with
+    // offsetX growing 260px per file — so twenty photographs marched 5,200px
+    // to the right, and everything past the viewport edge was clamped into a
+    // pile on top of itself. The list-view drop has always used a real packer;
+    // the canvas simply never did.
+    const accepted = [];
     for (const f of files) {
       // Shared routing/caps (lib/fileIngest.js) so canvas + list agree.
       const c = classifyDropFile(f, { canAttemptFiles });
-      try {
-        if (c.route === 'image') {
-          // Optimistic — adds the card and uploads in the background so
-          // multi-file drops aren't blocked one at a time.
-          optimisticDropImage(f, cx + offsetX, cy); offsetX += 260;
-        } else if (c.route === 'video') {
-          await dropVideoFile(f, cx + offsetX, cy, canAttemptFiles); offsetX += 320;
-        } else if (c.route === 'audio') {
-          await dropAudioFile(f, cx + offsetX, cy); offsetX += 380;
-        } else if (c.route === 'pdf') {
-          optimisticDropPdf(f, cx + offsetX, cy); offsetX += 320;
-        } else if (c.route === 'blocked') {
-          blockedForUpgrade.push(f);
-        } else if (c.route === 'largeMedia') {
-          // Over-cap clip — still an inline media card, uploaded via multipart.
-          dropLargeMedia(f, c.kind, cx + offsetX, cy);
-          offsetX += c.kind === 'video' ? 320 : 380;
-        } else {
-          // PDFs over the inline cap + every other type → downloadable file card.
-          optimisticDropFile(f, cx + offsetX, cy); offsetX += 260;
+      if (c.route === 'blocked') { blockedForUpgrade.push(f); continue; }
+      accepted.push({ file: f, ...c });
+    }
+
+    if (accepted.length) {
+      // Real dimensions before layout, not after: laying out at the fallback
+      // size and then letting each card resize itself is what makes a drop
+      // visibly jump. Same measurement the list path uses, so the two agree.
+      await Promise.all(accepted.map(async (it) => {
+        try {
+          if (it.route === 'image') {
+            const d = await readImageDims(it.file);
+            if (d.width && d.height) { const f = fitImageDims(d.width, d.height); it.w = f.w; it.h = f.h; }
+          } else if (it.kind === 'video') {
+            const meta = await readVideoMeta(it.file);
+            if (meta?.w) {
+              const w = Math.max(240, Math.min(560, meta.w || 360));
+              it.w = w;
+              it.h = Math.max(160, Math.round(w * (meta.h && meta.w ? meta.h / meta.w : 9 / 16)));
+            }
+          }
+        } catch (_) { /* keep the fallback dims from classifyDropFile */ }
+      }));
+
+      // A mixed drop keeps the uniform grid — an image beside a PDF beside an
+      // audio clip reads as a matrix. All photographs get justified rows.
+      const allImages = accepted.every((it) => it.route === 'image');
+      const rects = layoutDrop(accepted, {
+        at: { x: cx, y: cy },
+        layout: allImages ? 'justified' : 'grid',
+      });
+
+      for (let i = 0; i < accepted.length; i++) {
+        const { file: f, route, kind } = accepted[i];
+        const rect = rects[i];
+        const rcx = rect.x + rect.w / 2;
+        const rcy = rect.y + rect.h / 2;
+        try {
+          if (route === 'image') {
+            // Optimistic — adds the card and uploads in the background so
+            // multi-file drops aren't blocked one at a time.
+            optimisticDropImage(f, rcx, rcy, rect);
+          } else if (route === 'video') {
+            await dropVideoFile(f, rcx, rcy, canAttemptFiles, rect);
+          } else if (route === 'audio') {
+            await dropAudioFile(f, rcx, rcy, rect);
+          } else if (route === 'pdf') {
+            optimisticDropPdf(f, rcx, rcy, rect);
+          } else if (route === 'largeMedia') {
+            // Over-cap clip — still an inline media card, uploaded via multipart.
+            dropLargeMedia(f, kind, rcx, rcy, rect);
+          } else {
+            // PDFs over the inline cap + every other type → downloadable file card.
+            optimisticDropFile(f, rcx, rcy, rect);
+          }
+        } catch (err) {
+          console.error(err);
+          feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
         }
-      } catch (err) {
-        console.error(err);
-        feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
       }
     }
+
     if (blockedForUpgrade.length) {
       (onRequestStorageUpgrade || onRequestUpgrade)?.();
       try {
@@ -5201,6 +5238,64 @@ export function CanvasSurface({
       { id: 'backward', label: 'Send backward',  run: () => arrangeRun('backward') },
       { id: 'back',     label: 'Send to back',   run: () => arrangeRun('back') },
     ]});
+
+    // Spatial arrangement. Until now this menu was z-order ONLY — there was no
+    // way to line four cards up by hand short of dragging each and trusting the
+    // snap guides, and no way to tidy a board that had become a mess.
+    //
+    // Every one of these goes through mutators.updateCards, so a whole
+    // rearrangement is a single undo step rather than forty.
+    const geometryOf = (id) => cardByIdRef.current[id];
+    const applyMoves = (moved, withSize) => {
+      if (!moved.length) return;
+      mutators.updateCards?.(moved.map((c) => ({
+        id: c.id,
+        patch: withSize ? { x: c.x, y: c.y, w: c.w, h: c.h } : { x: c.x, y: c.y },
+      })));
+    };
+    // Nothing selected means the whole board — "tidy this up" is the request,
+    // and making someone select everything first to express it is friction.
+    const tidyRun = (name) => {
+      const all = Object.values(cardByIdRef.current || {});
+      const ids = selected.size >= 2 ? [...selected] : all.map((c) => String(c.id));
+      // justified is the only layout that resizes, so it is the only one whose
+      // patch may carry w/h.
+      applyMoves(rearrange(all, ids, { layout: name }), name === 'justified');
+    };
+    const alignRun = (edge) =>
+      applyMoves(alignCards([...selected].map(geometryOf).filter(Boolean), edge), false);
+    const distributeRun = (axis) =>
+      applyMoves(distributeCards([...selected].map(geometryOf).filter(Boolean), axis), false);
+
+    arrangeItems.push({
+      id: 'tidy',
+      label: selected.size >= 2 ? `Tidy up (${selected.size})` : 'Tidy up board',
+      submenu: [
+        { id: 'justified', label: 'Justified rows',  run: () => tidyRun('justified') },
+        { id: 'masonry',   label: 'Masonry columns', run: () => tidyRun('masonry') },
+        { id: 'grid',      label: 'Grid',            run: () => tidyRun('grid') },
+        { id: 'row',       label: 'Single row',      run: () => tidyRun('row') },
+        { id: 'column',    label: 'Single column',   run: () => tidyRun('column') },
+      ],
+    });
+
+    if (multi && selected.size >= 2) {
+      arrangeItems.push({ id: 'align', label: 'Align', submenu: [
+        { id: 'left',     label: 'Left',   run: () => alignRun('left') },
+        { id: 'center-x', label: 'Center', run: () => alignRun('center-x') },
+        { id: 'right',    label: 'Right',  run: () => alignRun('right') },
+        { id: 'top',      label: 'Top',    run: () => alignRun('top') },
+        { id: 'middle',   label: 'Middle', run: () => alignRun('middle') },
+        { id: 'bottom',   label: 'Bottom', run: () => alignRun('bottom') },
+      ]});
+    }
+    if (multi && selected.size >= 3) {
+      // Three is the minimum that HAS a gap to even out.
+      arrangeItems.push({ id: 'distribute', label: 'Distribute', submenu: [
+        { id: 'horizontal', label: 'Horizontally', run: () => distributeRun('horizontal') },
+        { id: 'vertical',   label: 'Vertically',   run: () => distributeRun('vertical') },
+      ]});
+    }
 
     // Grouping (stays in the ARRANGE group) ──
     if (multi && selected.size >= 2) {

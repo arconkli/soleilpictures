@@ -9,7 +9,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  arrange, rearrange, relativeLayout, justifiedRows, naturalWidth, isLayout,
+  arrange, rearrange, relativeLayout, justifiedRows, naturalWidth, isLayout, layoutDrop,
+  alignCards, distributeCards, ALIGNMENTS, AXES,
   LAYOUTS, DEFAULT_LAYOUT, LAYOUT_GAP, TARGET_ROW_HEIGHT,
 } from './layoutEngine.js';
 
@@ -300,4 +301,145 @@ test('relativeLayout starts at the origin so a caller can measure first', () => 
     assert.equal(Math.min(...out.map((c) => c.x)), 0, layout);
     assert.equal(Math.min(...out.map((c) => c.y)), 0, layout);
   }
+});
+
+// ── a drop ───────────────────────────────────────────────────────────────────
+
+test('a multi-image drop arrives as a BLOCK, not a strip', () => {
+  // The bug this replaces: the canvas staggered each file 260px to the right,
+  // so twenty photographs marched 5,200px off-screen and the ones past the
+  // viewport edge were clamped into a pile on top of each other.
+  const out = layoutDrop(many(20), { at: { x: 1000, y: 1000 }, layout: 'justified' });
+  const width = Math.max(...out.map((c) => c.x + c.w)) - Math.min(...out.map((c) => c.x));
+  assert.ok(width < 2600, `the drop is ${width}px wide — that is a strip again`);
+  assertNoOverlap(out, 'drop');
+});
+
+test('a drop is centred on the cursor', () => {
+  // The person pointed at a spot; the block belongs around it, not hanging
+  // below and to the right of it.
+  const at = { x: 4000, y: 2500 };
+  const out = layoutDrop(many(9), { at, layout: 'justified' });
+  const cx = (Math.min(...out.map((c) => c.x)) + Math.max(...out.map((c) => c.x + c.w))) / 2;
+  const cy = (Math.min(...out.map((c) => c.y)) + Math.max(...out.map((c) => c.y + c.h))) / 2;
+  assert.ok(Math.abs(cx - at.x) <= 2, `centre x is ${cx}, not ${at.x}`);
+  assert.ok(Math.abs(cy - at.y) <= 2, `centre y is ${cy}, not ${at.y}`);
+});
+
+test('a drop of one file lands under the cursor', () => {
+  const out = layoutDrop([{ id: 'one', w: 400, h: 300 }], { at: { x: 500, y: 500 } });
+  assert.equal(out.length, 1);
+  assert.ok(Math.abs((out[0].x + out[0].w / 2) - 500) <= 2);
+  assert.ok(Math.abs((out[0].y + out[0].h / 2) - 500) <= 2);
+});
+
+test('a mixed drop keeps the uniform grid and still does not overlap', () => {
+  // An image beside a PDF beside an audio clip reads as a matrix; justified
+  // rows would stretch a 380x130 audio card to a photograph's height.
+  const mixed = [
+    { id: 'img', w: 320, h: 240 }, { id: 'pdf', w: 300, h: 388 },
+    { id: 'vid', w: 360, h: 202 }, { id: 'aud', w: 380, h: 130 },
+    { id: 'file', w: 240, h: 150 },
+  ];
+  const out = layoutDrop(mixed, { at: { x: 0, y: 0 }, layout: 'grid' });
+  assertNoOverlap(out, 'mixed drop');
+  // Sizes are preserved: only justified resizes.
+  for (const c of out) {
+    const src = mixed.find((m) => m.id === c.id);
+    assert.equal(c.w, src.w, `${c.id} was resized`);
+    assert.equal(c.h, src.h, `${c.id} was resized`);
+  }
+});
+
+test('an empty drop is a no-op', () => {
+  assert.deepEqual(layoutDrop([], { at: { x: 1, y: 1 } }), []);
+  assert.deepEqual(layoutDrop(null, {}), []);
+});
+
+// ── align and distribute ─────────────────────────────────────────────────────
+
+const RAGGED = [
+  { id: 'a', x: 100, y: 100, w: 200, h: 100 },
+  { id: 'b', x: 340, y: 160, w: 120, h: 200 },
+  { id: 'c', x: 700, y: 130, w: 300, h: 140 },
+];
+
+test('align lines a selection up on its own bounding box', () => {
+  const b = { left: 100, right: 1000, top: 100, bottom: 360 };
+  assert.deepEqual(alignCards(RAGGED, 'left').map((c) => c.x).concat(100), [100, 100, 100]);
+  for (const c of alignCards(RAGGED, 'right')) {
+    assert.equal(c.x + c.w, b.right, `${c.id} is not flush right`);
+  }
+  for (const c of alignCards(RAGGED, 'top')) assert.equal(c.y, b.top);
+  for (const c of alignCards(RAGGED, 'bottom')) assert.equal(c.y + c.h, b.bottom);
+});
+
+test('align never resizes anything', () => {
+  for (const edge of ALIGNMENTS) {
+    for (const c of alignCards(RAGGED, edge)) {
+      const src = RAGGED.find((r) => r.id === c.id);
+      assert.equal(c.w, src.w, `${edge} resized ${c.id}`);
+      assert.equal(c.h, src.h, `${edge} resized ${c.id}`);
+    }
+  }
+});
+
+test('align returns only what actually moved', () => {
+  // The patch list becomes one undo step, and a card that did not move should
+  // not be in it.
+  const already = [
+    { id: 'a', x: 100, y: 0, w: 50, h: 50 },
+    { id: 'b', x: 100, y: 90, w: 50, h: 50 },
+  ];
+  assert.deepEqual(alignCards(already, 'left'), []);
+  assert.equal(alignCards(RAGGED, 'left').length, 2, 'a is already at the left edge');
+});
+
+test('align needs at least two cards, and a real edge', () => {
+  assert.deepEqual(alignCards([RAGGED[0]], 'left'), []);
+  assert.deepEqual(alignCards(RAGGED, 'diagonal'), []);
+  assert.deepEqual(alignCards(null, 'left'), []);
+});
+
+test('distribute evens out the GAPS, not the centres', () => {
+  // With mixed widths, equal centres still looks uneven — which is the thing
+  // the command is being asked to fix.
+  const out = distributeCards(RAGGED, 'horizontal');
+  const final = RAGGED.map((r) => out.find((c) => c.id === r.id) || r)
+    .sort((a, b) => a.x - b.x);
+  const gaps = [];
+  for (let i = 1; i < final.length; i++) {
+    gaps.push(final[i].x - (final[i - 1].x + final[i - 1].w));
+  }
+  assert.ok(Math.abs(gaps[0] - gaps[1]) <= 1, `gaps are ${gaps}`);
+  // The outermost two are held still, so the block does not creep.
+  assert.equal(final[0].x, 100);
+  assert.equal(final.at(-1).x + final.at(-1).w, 1000);
+});
+
+test('distribute works vertically too, and needs three cards', () => {
+  const col = [
+    { id: 'a', x: 0, y: 0, w: 100, h: 100 },
+    { id: 'b', x: 0, y: 130, w: 100, h: 40 },
+    { id: 'c', x: 0, y: 400, w: 100, h: 100 },
+  ];
+  const out = distributeCards(col, 'vertical');
+  const final = col.map((r) => out.find((c) => c.id === r.id) || r).sort((a, b) => a.y - b.y);
+  const g1 = final[1].y - (final[0].y + final[0].h);
+  const g2 = final[2].y - (final[1].y + final[1].h);
+  assert.ok(Math.abs(g1 - g2) <= 1, `gaps ${g1} vs ${g2}`);
+  // Two cards have nothing to distribute BETWEEN.
+  assert.deepEqual(distributeCards(col.slice(0, 2), 'vertical'), []);
+  assert.deepEqual(distributeCards(col, 'sideways'), []);
+});
+
+test('distributing cards that already overlap does not stack them', () => {
+  const crowded = [
+    { id: 'a', x: 0, y: 0, w: 300, h: 50 },
+    { id: 'b', x: 10, y: 0, w: 300, h: 50 },
+    { id: 'c', x: 20, y: 0, w: 300, h: 50 },
+  ];
+  const out = distributeCards(crowded, 'horizontal');
+  const xs = crowded.map((r) => (out.find((c) => c.id === r.id) || r).x);
+  assert.equal(new Set(xs).size, 3, 'three cards collapsed onto the same x');
 });
