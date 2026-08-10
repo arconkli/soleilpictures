@@ -382,6 +382,105 @@ RPCS.admin_paid_grants_status_counts = (() => {
   return { total: g.length, active: by('active'), forever: by('forever'), expired: by('expired'), revoked: by('revoked') };
 })();
 
+// ── API & MCP tab ───────────────────────────────────────────────────
+//
+// Deliberately shows a BUSY surface, which is the opposite of what production
+// looks like today. The empty state is the easy case and is reachable by
+// deleting these; what needs looking at is whether the tab still reads well
+// with a long tool list, a service account among the callers, and failures
+// mixed into the recent stream.
+const apiTools = [
+  ['add_cards', 412, 6], ['get_board', 388, 0], ['search', 201, 1],
+  ['arrange_board', 154, 3], ['import_urls', 96, 11], ['upload_image', 74, 2],
+  ['list_boards', 61, 0], ['create_board', 44, 0], ['tools/list', 38, 0],
+  ['export_board', 22, 0], ['view_image', 19, 1], ['delete_cards', 7, 0],
+];
+RPCS.admin_api_tools = apiTools.map(([tool, calls, errors], i) => ({
+  tool, calls, errors, callers: 1 + (i % 4),
+  p95_ms: 120 + i * 37, last_at: tsISO(20 * (i + 1)),
+}));
+// No /mcp here — admin_api_routes excludes it, because one route carrying 85%
+// of traffic would be the first row of every window and push the actual REST
+// surface below the fold.
+RPCS.admin_api_routes = [
+  ['POST', '/boards/:id/cards', 302, 4], ['GET', '/images/:key', 214, 0],
+  ['POST', '/boards/:id/import', 96, 11], ['POST', '/boards', 41, 0],
+  ['GET', '/boards', 33, 0], ['DELETE', '/boards/:id/cards/:cardId', 12, 1],
+].map(([method, route, calls, errors], i) => ({
+  method, route, calls, errors, p95_ms: 95 + i * 60, last_at: tsISO(15 * (i + 1)),
+}));
+RPCS.admin_api_callers = [
+  { user_id: 'u-1', email: 'lena@fictional-studio.example', display_name: 'Lena',
+    tier: 'paid', is_service_account: false, service_of: null, tokens: 2,
+    calls: 981, mcp_calls: 902, errors: 9, first_call_at: tsISO(60 * 24 * 12), last_call_at: tsISO(14) },
+  { user_id: 'u-svc', email: 'svc+3f2a@service.soleilpictures.com', display_name: 'Pipeline sync',
+    tier: 'paid', is_service_account: true, service_of: 'Northlight', tokens: 1,
+    calls: 704, mcp_calls: 61, errors: 22, first_call_at: tsISO(60 * 24 * 9), last_call_at: tsISO(6) },
+  { user_id: 'u-3', email: 'tomas@fictional-studio.example', display_name: 'Tomás',
+    tier: 'demo', is_service_account: false, service_of: null, tokens: 1,
+    calls: 96, mcp_calls: 96, errors: 3, first_call_at: tsISO(60 * 24 * 2), last_call_at: tsISO(120) },
+];
+RPCS.admin_api_recent = Array.from({ length: 24 }, (_, i) => {
+  const t = apiTools[i % apiTools.length];
+  const mcp = i % 3 !== 2;
+  const failed = i % 7 === 3;
+  return {
+    id: 90000 - i, at: tsISO(3 * (i + 1)),
+    user_id: i % 4 === 1 ? 'u-svc' : 'u-1',
+    email: i % 4 === 1 ? 'svc+3f2a@service.soleilpictures.com' : 'lena@fictional-studio.example',
+    is_service_account: i % 4 === 1,
+    token_name: i % 4 === 1 ? 'Pipeline sync token' : 'Claude Desktop',
+    method: mcp ? 'POST' : 'GET',
+    route: mcp ? '/mcp' : '/boards/:id/cards',
+    tool: mcp ? t[0] : null,
+    status: failed ? (i % 14 === 3 ? 500 : 402) : 200,
+    ms: 60 + (i * 43) % 900,
+    target_id: null,
+  };
+});
+RPCS.admin_api_series = Array.from({ length: 30 }, (_, i) => {
+  const day = new Date(Date.now() - (29 - i) * 86400000).toISOString().slice(0, 10);
+  const mcp = i < 8 ? 0 : Math.round(20 + i * 4 + (i % 5) * 11);
+  const rest = i < 4 ? 0 : Math.round(6 + i * 1.4 + (i % 3) * 5);
+  return { day, calls: mcp + rest, mcp_calls: mcp, rest_calls: rest,
+    errors: Math.round((mcp + rest) * 0.02), callers: i < 8 ? 0 : 1 + (i % 3) };
+});
+RPCS.admin_api_overview = {
+  days: 30,
+  tokens: { total: 6, live: 4, revoked: 2, expired: 0, used: 4, holders: 3 },
+  service_accounts: { total: 2, active: 1 },
+  webhooks: { total: 3, active: 2 },
+  identifiers: 1284,
+  calls: { total: 1781, mcp: 1516, rest: 265, errors: 34, callers: 3, p50_ms: 148, p95_ms: 902 },
+  first_call_at: tsISO(60 * 24 * 22),
+  last_call_at: tsISO(6),
+};
+RPCS.admin_user_api_usage = {
+  days: 30,
+  tokens: [
+    { id: 't-1', name: 'Claude Desktop', prefix: 'sk_mcp_9f2ab1', scopes: ['read', 'write'],
+      created_at: tsISO(60 * 24 * 12), last_used_at: tsISO(14), expires_at: tsISO(-40),
+      revoked_at: null, req_limit: null, req_count: 61, is_service_account: false },
+    { id: 't-2', name: 'shot-list script', prefix: 'sk_live_44ce', scopes: ['read'],
+      created_at: tsISO(60 * 24 * 30), last_used_at: null, expires_at: null,
+      revoked_at: null, req_limit: null, req_count: 0, is_service_account: false },
+  ],
+  service_accounts: [
+    { user_id: 'u-svc', name: 'Pipeline sync', workspace: 'Northlight',
+      created_at: tsISO(60 * 24 * 9), disabled_at: null },
+  ],
+  webhooks: [
+    { id: 'h-1', name: 'ShotGrid bridge', url: 'https://hooks.example/soleil',
+      events: ['card.created', 'board.updated'], active: true, failure_count: 0 },
+  ],
+  calls: { total: 1685, own: 981, service: 704, mcp: 963, rest: 722, errors: 31,
+    p95_ms: 902, first_call_at: tsISO(60 * 24 * 12), last_call_at: tsISO(6) },
+  top_tools: [{ tool: 'add_cards', calls: 412 }, { tool: 'get_board', calls: 388 },
+    { tool: 'arrange_board', calls: 154 }],
+  recent: RPCS.admin_api_recent.slice(0, 10).map(({ at, method, route, tool, status, ms }) =>
+    ({ at, method, route, tool, status, ms })),
+};
+
 const TABLES = {
   waitlist_entries: waitlistEntries,
   tags, workspaces: tagWorkspaces, tag_centroids: tagCentroids,

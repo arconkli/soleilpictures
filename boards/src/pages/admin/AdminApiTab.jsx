@@ -141,7 +141,7 @@ export function AdminApiTab() {
 
       <AdminAsync loading={loading} error={error} onRetry={refresh} skeleton={<AdminSkeleton variant="table" rows={8} />}>
         <div className={refreshing ? 'is-refreshing' : ''}>
-          <div className="admin-stat-grid">
+          <div className="admin-stat-grid is-api">
             <AdminStatCard
               label={`Calls · ${days}d`}
               value={formatCount(calls.total || 0)}
@@ -212,7 +212,7 @@ export function AdminApiTab() {
                       <td className={t.errors > 0 ? '' : 'admin-muted'}>{formatCount(t.errors)}</td>
                       <td>{formatCount(t.callers)}</td>
                       <td className="admin-muted">{ms(t.p95_ms)}</td>
-                      <td className="admin-muted" title={fmtDateTime(t.last_at)}>{relativeTime(t.last_at)}</td>
+                      <td className="admin-muted admin-api-when" title={fmtDateTime(t.last_at)}>{relativeTime(t.last_at)}</td>
                     </tr>
                   )}
                 />
@@ -228,7 +228,7 @@ export function AdminApiTab() {
                       <td>{formatCount(r.calls)}</td>
                       <td className={r.errors > 0 ? '' : 'admin-muted'}>{formatCount(r.errors)}</td>
                       <td className="admin-muted">{ms(r.p95_ms)}</td>
-                      <td className="admin-muted" title={fmtDateTime(r.last_at)}>{relativeTime(r.last_at)}</td>
+                      <td className="admin-muted admin-api-when" title={fmtDateTime(r.last_at)}>{relativeTime(r.last_at)}</td>
                     </tr>
                   )}
                 />
@@ -258,8 +258,8 @@ export function AdminApiTab() {
                     <td>{formatCount(c.mcp_calls)}</td>
                     <td className={c.errors > 0 ? '' : 'admin-muted'}>{formatCount(c.errors)}</td>
                     <td className="admin-muted">{formatCount(c.tokens)}</td>
-                    <td className="admin-muted" title={fmtDateTime(c.first_call_at)}>{relativeTime(c.first_call_at)}</td>
-                    <td className="admin-muted" title={fmtDateTime(c.last_call_at)}>{relativeTime(c.last_call_at)}</td>
+                    <td className="admin-muted admin-api-when" title={fmtDateTime(c.first_call_at)}>{relativeTime(c.first_call_at)}</td>
+                    <td className="admin-muted admin-api-when" title={fmtDateTime(c.last_call_at)}>{relativeTime(c.last_call_at)}</td>
                   </tr>
                 )}
               />
@@ -286,7 +286,7 @@ export function AdminApiTab() {
                       <tbody>
                         {data.recent.map((r) => (
                           <tr key={r.id}>
-                            <td className="admin-muted" title={fmtDateTime(r.at)}>{relativeTime(r.at)}</td>
+                            <td className="admin-muted admin-api-when" title={fmtDateTime(r.at)}>{relativeTime(r.at)}</td>
                             <td><DoorPill mcp={r.route === '/mcp'} /></td>
                             <td>
                               <code className="admin-api-tool">{r.tool || `${r.method} ${r.route}`}</code>

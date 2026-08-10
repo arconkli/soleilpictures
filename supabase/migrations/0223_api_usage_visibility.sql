@@ -261,6 +261,12 @@ revoke all on function public.admin_api_tools(integer, integer) from public, ano
 grant execute on function public.admin_api_tools(integer, integer) to authenticated;
 
 -- The REST half, by templated route.
+--
+-- `/mcp` is EXCLUDED. It is one route carrying the great majority of traffic,
+-- so leaving it in makes it the first row of every window and pushes the actual
+-- REST surface below the fold — a table that answers "how is MCP doing" twice
+-- and "how is REST doing" not at all. admin_api_tools is where MCP is broken
+-- down, and it breaks it down by something useful.
 create or replace function public.admin_api_routes(p_days integer default 30, p_limit integer default 25)
 returns table (method text, route text, calls bigint, errors bigint,
                p95_ms integer, last_at timestamptz)
@@ -284,6 +290,7 @@ begin
          max(l.created_at)
     from public.api_request_log l
    where l.created_at >= now() - make_interval(days => v_days)
+     and l.route is distinct from '/mcp'
    group by l.method, l.route
    order by count(*) desc, l.route
    limit v_limit;

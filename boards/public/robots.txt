@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
+
+# The OAuth consent screen. Every URL under here is a one-time authorization
+# request carrying a PKCE challenge and a redirect_uri — there is nothing to
+# index, and an indexed one is a stale request that can only fail.
+Disallow: /oauth/
+
 Sitemap: https://clusters.soleilpictures.com/sitemap.xml
 Sitemap: https://clusters.soleilpictures.com/sitemap-images.xml
