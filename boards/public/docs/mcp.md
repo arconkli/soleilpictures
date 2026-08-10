@@ -8,6 +8,11 @@ The MCP server puts Soleil Clusters in reach of Claude and any other
 Model Context Protocol client, so an assistant can read and build boards
 directly.
 
+If you are weighing up whether that is useful rather than how to wire it up,
+the [AI mood board maker](/tools/ai-mood-board-maker) page covers what an
+assistant can actually do with a board — and what it deliberately does not do,
+which is invent images.
+
 ## What it is
 
 A layer over the [REST API](/docs/api). It holds no credentials and implements

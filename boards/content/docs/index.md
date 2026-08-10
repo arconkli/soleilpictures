@@ -60,6 +60,7 @@ of board, start to finish.
 
 - [What you can make with Clusters](/use-cases) — the full index
 - [Mood board maker](/tools/mood-board-maker) · [Storyboard maker](/tools/storyboard-maker) · [Shot list maker](/tools/shot-list-maker) · [Look book maker](/tools/look-book-maker)
+- [Building a board with an AI assistant](/tools/ai-mood-board-maker) — what it can and cannot do for you
 - [Coming from another tool](/docs/migrating) — PureRef, Milanote, Miro and the rest
 
 ## How to read these docs

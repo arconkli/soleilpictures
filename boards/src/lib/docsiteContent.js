@@ -362,6 +362,23 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "link",
+      "v": "Building a board with an AI assistant",
+      "href": "/tools/ai-mood-board-maker",
+      "children": [
+       {
+        "t": "text",
+        "v": "Building a board with an AI assistant"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — what it can and cannot do for you"
+     }
+    ],
+    [
+     {
+      "t": "link",
       "v": "Coming from another tool",
       "href": "/docs/migrating",
       "children": [
@@ -35454,6 +35471,30 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "The MCP server puts Soleil Clusters in reach of Claude and any other Model Context Protocol client, so an assistant can read and build boards directly."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you are weighing up whether that is useful rather than how to wire it up, the "
+    },
+    {
+     "t": "link",
+     "v": "AI mood board maker",
+     "href": "/tools/ai-mood-board-maker",
+     "children": [
+      {
+       "t": "text",
+       "v": "AI mood board maker"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " page covers what an assistant can actually do with a board — and what it deliberately does not do, which is invent images."
     }
    ]
   },

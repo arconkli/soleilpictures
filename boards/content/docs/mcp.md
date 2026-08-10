@@ -15,9 +15,9 @@ faq:
   - q: Do I still need a personal access token?
     a: Only for a client that cannot do OAuth, or for your own scripts. Assistants that speak current MCP handle it themselves.
   - q: Does the MCP server have its own permissions?
-    a: No. It forwards your personal access token to the same API, so it inherits your account's permissions exactly. A token without the delete scope cannot delete.
+    a: No. It forwards whatever credential you connected with — an OAuth access token or a personal access token — to the same API, so it inherits your account's permissions exactly. A credential without the delete scope cannot delete.
   - q: How do I stop an agent deleting things?
-    a: Mint a token without the delete scope. Deleting is a separate grant from writing precisely so an agent can be allowed to build without being allowed to destroy.
+    a: Deleting is a separate grant from writing precisely so an agent can be allowed to build without being allowed to destroy, and it is never granted by default. Over OAuth, simply do not approve it; with a token, mint one without the delete scope.
   - q: Can an agent upload a video?
     a: Only the local server can, with upload_file, because the file has to be read from a disk. The hosted one handles images with upload_image.
   - q: Is it the same set of tools either way?
@@ -32,6 +32,11 @@ related:
 The MCP server puts Soleil Clusters in reach of Claude and any other
 Model Context Protocol client, so an assistant can read and build boards
 directly.
+
+If you are weighing up whether that is useful rather than how to wire it up,
+the [AI mood board maker](/tools/ai-mood-board-maker) page covers what an
+assistant can actually do with a board — and what it deliberately does not do,
+which is invent images.
 
 ## What it is
 
