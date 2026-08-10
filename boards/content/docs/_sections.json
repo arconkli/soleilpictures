@@ -1,0 +1,13 @@
+[
+  { "id": "start",        "label": "Getting started",  "blurb": "What Clusters is, the vocabulary, and your first board." },
+  { "id": "canvas",       "label": "The canvas",       "blurb": "The infinite surface and everything you can put on it." },
+  { "id": "files",        "label": "Files and media",  "blurb": "Uploading, what's supported, and where the limits are." },
+  { "id": "clusters",     "label": "Clusters",         "blurb": "Organizing boards, the list view, and getting work back." },
+  { "id": "documents",    "label": "Documents",        "blurb": "Long-form writing, screenplays, and exports." },
+  { "id": "organize",     "label": "Organize and find","blurb": "Tags, links, mentions and search across everything." },
+  { "id": "collaborate",  "label": "Collaborate",      "blurb": "Sharing, roles, presence, comments and messages." },
+  { "id": "publish",      "label": "Publish",          "blurb": "Public links and the Explore directory." },
+  { "id": "scout",        "label": "Soleil Scout",     "blurb": "Text photos from set straight onto a canvas." },
+  { "id": "account",      "label": "Account and plans","blurb": "Settings, billing, mobile, privacy." },
+  { "id": "developers",   "label": "Developers",       "blurb": "REST API, personal access tokens, and MCP for AI agents." }
+]

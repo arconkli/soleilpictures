@@ -23,7 +23,8 @@ export type TemplateName =
   | "reengage_1"
   | "welcome_board"
   | "board_waiting"
-  | "nudge_dormant_early";
+  | "nudge_dormant_early"
+  | "whats_new";
 
 export const TEMPLATE_NAMES: TemplateName[] = [
   "waitlist_submitted",
@@ -40,6 +41,7 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "welcome_board",
   "board_waiting",
   "nudge_dormant_early",
+  "whats_new",
 ];
 
 export interface RenderedEmail {
@@ -75,8 +77,19 @@ function unsubUrl(token: string): string {
   return `${UNSUB_BASE}?u=${encodeURIComponent(token)}&k=email_lifecycle`;
 }
 
-function utm(campaign: string): Record<string, string> {
-  return { utm_source: "email", utm_medium: "lifecycle", utm_campaign: campaign };
+// `lc` rides alongside the UTMs so the APP can record the landing itself.
+// Resend proxies every click through its own tracking host, which reports a
+// user agent of "Amazon CloudFront" on all of them — bot prefetch and real
+// humans are indistinguishable in the click webhook, and click->land can't be
+// derived from it at all. A first-party lc= param on arrival is the honest
+// signal. Survives consumeDeepLink (which strips only ?w/?b) into analytics.js.
+function utm(campaign: string, version?: string): Record<string, string> {
+  return {
+    utm_source: "email",
+    utm_medium: "lifecycle",
+    utm_campaign: campaign,
+    lc: version ? `${campaign}.${version}` : campaign,
+  };
 }
 
 const NOTE_FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
@@ -103,11 +116,100 @@ function noteBtn(label: string, url: string): string {
                 <p style="margin:0 0 18px; font:400 12px/1.5 ${NOTE_FONT}; color:#8a8780;">signed out? we'll email you a 6-digit code — no password to dig up.</p>`;
 }
 
+// A short bulleted run inside the note body (whats_new's shipped-features
+// list). Table rows rather than <ul> — Outlook's list indentation and bullet
+// glyph are unreliable, and a hand-rolled middot renders identically anywhere.
+function noteList(items: string[]): string {
+  if (!items.length) return "";
+  const rows = items.map((it) =>
+    `<tr><td style="padding:0 0 9px; font:400 15px/1.6 ${NOTE_FONT}; color:#1a1a1a;"><span style="color:#8a8780;">&middot;</span>&nbsp;&nbsp;${escapeHtml(it)}</td></tr>`
+  ).join("");
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 18px;">${rows}</table>`;
+}
+
 // A linked image inside the note body (welcome_board embeds the user's own
 // board thumbnail). width= attribute + inline max-width keep it bounded in
 // Outlook and fluid everywhere else.
 function noteImg(src: string, alt: string, href: string): string {
   return `<p style="margin:4px 0 18px;"><a href="${escapeHtml(href)}" style="text-decoration:none;"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" width="440" style="width:100%; max-width:440px; height:auto; display:block; border-radius:10px; border:1px solid #e7e4df;"></a></p>`;
+}
+
+// ── Factorial copy testing (migration 0219) ─────────────────────────────────
+// The four high-volume lifecycle types vary TWO factors independently: the
+// SUBJECT arm (subject line + preheader — everything visible before the open)
+// and the BODY arm (body copy + CTA label — everything visible after it). The
+// cron picks one of each and logs the pair as "<subject>.<body>"; the optimizer
+// scores each factor marginally, pooling over the other.
+//
+// Why split them rather than test whole emails: at ~14 sends/day clicks are far
+// too sparse to resolve anything (16 clicks in 5 weeks), but opens are not
+// (210). Scoring the subject on opens and the body on click-given-open lets
+// each factor learn from the signal dense enough to move it, and testing 5x3
+// costs the sample of 5 arms, not 15.
+//
+// The split is also what makes body scoring honest: opens depend only on the
+// subject factor, so conditioning a body's rate on "did they open" doesn't bias
+// the comparison between bodies. Keep the preheader with the SUBJECT arm for
+// exactly this reason — it's part of the inbox impression, not the body.
+type NoteBlock =
+  | { k: "p";    t: string }
+  | { k: "img" }
+  | { k: "btn";  label: string };
+
+// Everything the arms render against. `img` is pre-rendered by the caller (only
+// the types that embed the user's own thumbnail ever set it) and is "" when
+// there's no thumbnail, so an { k: "img" } block simply drops out.
+interface CopyCtx {
+  url: string;
+  unsub: string;
+  name: string | null;
+  img: string;
+}
+
+interface FactorialSpec {
+  subjects: Record<string, (c: CopyCtx) => { subject: string; preheader: string }>;
+  bodies:   Record<string, (c: CopyCtx) => NoteBlock[]>;
+  s0: string;   // control subject arm; also the legacy/unknown fallback
+  b0: string;   // control body arm
+}
+
+const SIGNOFF = "talk soon, the clusters team";
+
+// One source for both the HTML and the plaintext part. Every builder used to
+// hand-maintain the two in parallel, which is how they drift apart.
+function composeNote(blocks: NoteBlock[], c: CopyCtx, preheader: string): { html: string; text: string } {
+  const html: string[] = [];
+  const text: string[] = [];
+  for (const b of blocks) {
+    if (b.k === "p") { html.push(noteP(b.t)); text.push(b.t); }
+    else if (b.k === "img") { if (c.img) html.push(c.img); }   // no plaintext equivalent
+    else { html.push(noteBtn(b.label, c.url)); text.push(`${b.label}: ${c.url}`); }
+  }
+  return {
+    html: renderPlainNote({ preheader, bodyHtml: html.join(""), unsubscribeUrl: c.unsub }),
+    text: `${text.join("\n\n")}\n\nUnsubscribe: ${c.unsub}`,
+  };
+}
+
+// hasOwnProperty rather than a bare index: `variant` reaches here from an
+// admin-editable app_config row via two hops, and "constructor" must not
+// resolve to something callable.
+function armFn<T>(map: Record<string, T>, key: string, fallback: string): T {
+  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : map[fallback];
+}
+
+// Resolve "<subject>.<body>" to a rendered email. Legacy flat variants ("A"/"B"
+// from before 0219, still carried by in-flight sends and the testTo hook) and
+// any arm key the config no longer knows about both fall back to the control
+// arms rather than throwing.
+function renderFactorial(spec: FactorialSpec, variant: string | undefined, c: CopyCtx): RenderedEmail {
+  const v = String(variant ?? "");
+  const dot = v.indexOf(".");
+  const sFn = armFn(spec.subjects, dot > 0 ? v.slice(0, dot) : "", spec.s0);
+  const bFn = armFn(spec.bodies,   dot > 0 ? v.slice(dot + 1) : "", spec.b0);
+  const { subject, preheader } = sFn(c);
+  const { html, text } = composeNote(bFn(c), c, preheader);
+  return { subject, html, text };
 }
 
 function waitlistSubmitted(): RenderedEmail {
@@ -416,8 +518,10 @@ function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
 }
 
 // ── Lifecycle emails (founder-voice plain notes; see migration 0173) ────────
-// Each builder renders one of two copy variants ('A' default / 'B'); the bandit
-// (migration 0174) picks which variant a recipient gets and learns the winner.
+// The bandit (0174) picks which copy a recipient gets. The four high-volume
+// types below are factorial as of 0219 — subject and body vary independently
+// (see renderFactorial). reengage_1 / board_waiting / whats_new stay flat A/B:
+// at 26, 22 and 0 lifetime sends they can't fill five arms, let alone fifteen.
 interface ActivateNudgeData {
   workspaceId?: string;
   boardId?: string;     // the user's most recent cluster (nullable — see 0183)
@@ -432,129 +536,151 @@ function namedBoard(d: ActivateNudgeData): string | null {
   return n && !/^untitled/i.test(n) ? n : null;
 }
 
-function activateNudge1(d: ActivateNudgeData): RenderedEmail {
-  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("activate_nudge_1"));
-  const unsub = unsubUrl(d.unsubscribeToken);
-  const name = namedBoard(d);
-  if (d.variant === "B") {
-    const readyLine = name ? `"${name}" is ready when you are.` : "your board is ready when you are.";
-    return {
-      subject: "3 photos is all it takes",
-      html: renderPlainNote({
-        preheader: "drop three photos onto a board and it becomes something you can use and share.",
-        bodyHtml:
-          noteP("hey, the clusters team here.") +
-          noteP("the 60-second version of clusters: drop three photos onto a board — camera roll, screenshots, references — and it becomes something you can actually use and share.") +
-          noteP(readyLine) +
-          noteBtn("add 3 photos", url) +
-          noteP("talk soon, the clusters team"),
-        unsubscribeUrl: unsub,
-      }),
-      text:
-`hey, the clusters team here.
-
-the 60-second version of clusters: drop three photos onto a board — camera roll, screenshots, references — and it becomes something you can actually use and share.
-
-${readyLine}
-
-add 3 photos: ${url}
-
-talk soon, the clusters team
-
-Unsubscribe: ${unsub}`,
-    };
-  }
-  const opener = name
-    ? `you made "${name}" — it's just sitting empty. the fastest way to see what clusters can do: open it and drop in a few photos. camera roll, screenshots, references — we arrange them for you.`
-    : "you're in, but your canvas is still empty. drop a few photos on it — camera roll, screenshots, references — and clusters arranges them for you.";
-  const cta = name ? `open "${name}"` : "open clusters";
-  return {
-    subject: "your cluster is one photo away",
-    html: renderPlainNote({
-      preheader: "drop a few photos in — camera roll, screenshots, references — we arrange them.",
-      bodyHtml:
-        noteP("hey, quick note from the clusters team.") +
-        noteP(opener) +
-        noteP("give it a minute?") +
-        noteBtn(cta, url) +
-        noteP("talk soon, the clusters team"),
-      unsubscribeUrl: unsub,
-    }),
-    text:
-`hey, quick note from the clusters team.
-
-${opener}
-
-give it a minute?
-
-${cta}: ${url}
-
-talk soon, the clusters team
-
-Unsubscribe: ${unsub}`,
-  };
+// Shared CTA for the activation types: name the board when we know it.
+function openCta(c: CopyCtx): string {
+  return c.name ? `open "${c.name}"` : "open clusters";
 }
 
-function activateNudge2(d: ActivateNudgeData): RenderedEmail {
-  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("activate_nudge_2"));
-  const unsub = unsubUrl(d.unsubscribeToken);
-  const name = namedBoard(d);
-  if (d.variant === "B") {
-    return {
-      subject: "before you go",
-      html: renderPlainNote({
-        preheader: "most people start with one messy photo drop. it sorts itself out from there.",
-        bodyHtml:
-          noteP("hey, last one from us, promise.") +
-          noteP("most people who stick with clusters started with one messy photo drop: a moodboard, a project, a pile of references. it sorts itself out from there.") +
-          noteP("two minutes to see if it clicks?") +
-          noteBtn("drop in some photos", url) +
-          noteP("talk soon, the clusters team"),
-        unsubscribeUrl: unsub,
-      }),
-      text:
-`hey, last one from us, promise.
-
-most people who stick with clusters started with one messy photo drop: a moodboard, a project, a pile of references. it sorts itself out from there.
-
-two minutes to see if it clicks?
-
-drop in some photos: ${url}
-
-talk soon, the clusters team
-
-Unsubscribe: ${unsub}`,
-    };
-  }
-  const waiting = name
-    ? `"${name}" is still waiting. one photo drop is all it takes to see whether clusters clicks for you — everything you add arranges itself into a board you can share.`
-    : "your canvas is still waiting. one photo drop is all it takes to see whether clusters clicks for you — everything you add arranges itself into a board you can share.";
-  const cta = name ? `open "${name}"` : "open clusters";
-  return {
-    subject: "last note from us",
-    html: renderPlainNote({
-      preheader: "one photo drop is all it takes to see whether clusters clicks for you.",
-      bodyHtml:
-        noteP("hey again, we'll keep this one short, then we'll leave you be.") +
-        noteP(waiting) +
-        noteP("two minutes, in and out. if it's not your kind of thing, genuinely no hard feelings.") +
-        noteBtn(cta, url) +
-        noteP("talk soon, the clusters team"),
-      unsubscribeUrl: unsub,
+const activateNudge1Spec: FactorialSpec = {
+  s0: "s1", b0: "b1",
+  subjects: {
+    // The incumbent.
+    s1: () => ({
+      subject: "your cluster is one photo away",
+      preheader: "drop a few photos in — camera roll, screenshots, references — we arrange them.",
     }),
-    text:
-`hey again, we'll keep this one short, then we'll leave you be.
+    // Possessive + concrete noun + a plain statement of fact — the shape that
+    // beat a vague fragment 51% to 18% on nudge_dormant_early. Tests whether
+    // that shape carries to the activation stage.
+    s2: (c) => ({
+      subject: c.name ? `"${c.name}" is empty` : "your board is empty",
+      preheader: "it takes about a minute to fix that.",
+    }),
+    // A specific number instead of a possession. Previously the 'B' arm here.
+    s3: () => ({
+      subject: "3 photos is all it takes",
+      preheader: "drop three photos onto a board and it becomes something you can use and share.",
+    }),
+    // Question, no possession — assumes the blocker is not knowing where to begin.
+    s4: () => ({
+      subject: "stuck on where to start?",
+      preheader: "most people just dump their camera roll in. it works.",
+    }),
+    // Sells the outcome rather than the action.
+    s5: () => ({
+      subject: "watch your photos arrange themselves",
+      preheader: "drop a pile in — clusters lays them out for you.",
+    }),
+  },
+  bodies: {
+    // Incumbent body.
+    b1: (c) => [
+      { k: "p", t: "hey, quick note from the clusters team." },
+      { k: "p", t: c.name
+        ? `you made "${c.name}" — it's just sitting empty. the fastest way to see what clusters can do: open it and drop in a few photos. camera roll, screenshots, references — we arrange them for you.`
+        : "you're in, but your canvas is still empty. drop a few photos on it — camera roll, screenshots, references — and clusters arranges them for you." },
+      { k: "p", t: "give it a minute?" },
+      { k: "btn", label: openCta(c) },
+      { k: "p", t: SIGNOFF },
+    ],
+    // Brevity arm: three short lines, no preamble, no sign-off. If this wins,
+    // length is the lever and it's the cheapest one we have.
+    b2: (c) => [
+      { k: "p", t: "hey — quick one." },
+      { k: "p", t: c.name ? `"${c.name}" is still empty.` : "your board is still empty." },
+      { k: "p", t: "drop a few photos in and clusters arranges them for you. that's the whole thing." },
+      { k: "btn", label: openCta(c) },
+    ],
+    // Procedural arm: an exact recipe with a number, rather than a pitch.
+    b3: (c) => [
+      { k: "p", t: "hey, the clusters team here." },
+      { k: "p", t: "the 60-second version of clusters: drop three photos onto a board — camera roll, screenshots, references — and it becomes something you can actually use and share." },
+      { k: "p", t: c.name ? `"${c.name}" is ready when you are.` : "your board is ready when you are." },
+      { k: "btn", label: "add 3 photos" },
+      { k: "p", t: SIGNOFF },
+    ],
+  },
+};
 
-${waiting}
+function activateNudge1(d: ActivateNudgeData): RenderedEmail {
+  return renderFactorial(activateNudge1Spec, d.variant, {
+    url: deepLink({ w: d.workspaceId, b: d.boardId }, utm("activate_nudge_1")),
+    unsub: unsubUrl(d.unsubscribeToken),
+    name: namedBoard(d),
+    img: "",
+  });
+}
 
-two minutes, in and out. if it's not your kind of thing, genuinely no hard feelings.
+const activateNudge2Spec: FactorialSpec = {
+  s0: "s1", b0: "b1",
+  subjects: {
+    // The incumbent.
+    s1: () => ({
+      subject: "last note from us",
+      preheader: "one photo drop is all it takes to see whether clusters clicks for you.",
+    }),
+    // Possessive + concrete state, same shape as the proven winner.
+    s2: (c) => ({
+      subject: c.name ? `"${c.name}" is still empty` : "your board is still empty",
+      preheader: "one photo drop is all it takes.",
+    }),
+    // Previously the 'B' arm.
+    s3: () => ({
+      subject: "before you go",
+      preheader: "most people start with one messy photo drop. it sorts itself out from there.",
+    }),
+    // Asks a real question. On a last-chance send a reply is worth more than a
+    // click — it's the only channel that tells us why activation failed.
+    s4: () => ({
+      subject: "was it not what you expected?",
+      preheader: "genuinely asking — a one-line reply helps us more than you'd think.",
+    }),
+    // Bounds the ask in time and promises to stop.
+    s5: () => ({
+      subject: "two minutes, then we'll stop",
+      preheader: "in and out. if it's not your thing, no hard feelings.",
+    }),
+  },
+  bodies: {
+    // Incumbent body.
+    b1: (c) => [
+      { k: "p", t: "hey again, we'll keep this one short, then we'll leave you be." },
+      { k: "p", t: c.name
+        ? `"${c.name}" is still waiting. one photo drop is all it takes to see whether clusters clicks for you — everything you add arranges itself into a board you can share.`
+        : "your canvas is still waiting. one photo drop is all it takes to see whether clusters clicks for you — everything you add arranges itself into a board you can share." },
+      { k: "p", t: "two minutes, in and out. if it's not your kind of thing, genuinely no hard feelings." },
+      { k: "btn", label: openCta(c) },
+      { k: "p", t: SIGNOFF },
+    ],
+    // Brevity arm.
+    b2: () => [
+      { k: "p", t: "hey, last one from us, promise." },
+      { k: "p", t: "most people who stick with clusters started with one messy photo drop: a moodboard, a project, a pile of references. it sorts itself out from there." },
+      { k: "btn", label: "drop in some photos" },
+    ],
+    // Reply-ask arm: swaps the click for a question. Deliberately still carries
+    // the button, so this measures whether asking a question suppresses clicks
+    // — the reply itself lands in the inbox, not in any table we score.
+    b3: (c) => [
+      { k: "p", t: "hey — last one, and it's a question rather than a nudge." },
+      { k: "p", t: c.name
+        ? `you set up "${c.name}" and then didn't come back. that's useful information for us, and we'd rather know than guess.`
+        : "you signed up and then didn't come back. that's useful information for us, and we'd rather know than guess." },
+      { k: "p", t: "was it not what you expected? too much work to start? just bad timing? hit reply — one line is plenty, and it reaches a person." },
+      { k: "p", t: "and if you'd rather just have a look instead:" },
+      { k: "btn", label: openCta(c) },
+      { k: "p", t: SIGNOFF },
+    ],
+  },
+};
 
-${cta}: ${url}
-
-talk soon, the clusters team
-
-Unsubscribe: ${unsub}`,
-  };
+function activateNudge2(d: ActivateNudgeData): RenderedEmail {
+  return renderFactorial(activateNudge2Spec, d.variant, {
+    url: deepLink({ w: d.workspaceId, b: d.boardId }, utm("activate_nudge_2")),
+    unsub: unsubUrl(d.unsubscribeToken),
+    name: namedBoard(d),
+    img: "",
+  });
 }
 
 interface ReengageData {
@@ -659,85 +785,92 @@ function namedWelcomeBoard(d: WelcomeBoardData): string | null {
   return n && !/^untitled/i.test(n) && !/^studio$/i.test(n) ? n : null;
 }
 
+// A lot of new users sign up on a phone and never see the full app; a quiet,
+// device-neutral nudge to open it on a computer (the cron has no device signal,
+// so this rides every welcome_board body except the brevity arm).
+const DESK_TIP = "one tip: open it on your computer when you can — the full studio, a bigger canvas, every tool.";
+
+const welcomeBoardSpec: FactorialSpec = {
+  s0: "s1", b0: "b1",
+  subjects: {
+    // The incumbent.
+    s1: (c) => ({
+      subject: c.name ? `"${c.name}" is off to a good start` : "your board is off to a good start",
+      preheader: "it's saved and waiting whenever you want to keep going.",
+    }),
+    // Previously the 'B' arm — credits them rather than the board.
+    s2: () => ({
+      subject: "look what you made",
+      preheader: "one day in, and your board is already taking shape.",
+    }),
+    // Possessive + concrete noun, and it sets up the thumbnail waiting inside.
+    s3: () => ({
+      subject: "here's your board",
+      preheader: "a picture of it, one day in.",
+    }),
+    // Utility question that leads with the desktop tip — the one piece of
+    // advice in this email that changes what they can actually do.
+    s4: () => ({
+      subject: "want to see this on a big screen?",
+      preheader: "the full studio is on desktop — bigger canvas, every tool.",
+    }),
+    // Names the next action instead of describing the current state.
+    s5: () => ({
+      subject: "add three more photos",
+      preheader: "it's saved and waiting — a few more and it really takes shape.",
+    }),
+  },
+  bodies: {
+    // Incumbent body.
+    b1: (c) => [
+      { k: "p", t: "hey, the clusters team here." },
+      { k: "p", t: c.name
+        ? (c.img ? `you started "${c.name}" yesterday — here's how it's looking already.`
+                 : `you started "${c.name}" yesterday — it's already taking shape.`)
+        : (c.img ? "you started a board yesterday — here's how it's looking already."
+                 : "you started a board yesterday — it's already taking shape.") },
+      { k: "img" },
+      { k: "p", t: "it's saved and waiting whenever you want to keep going — drop in more photos, notes, or files and they arrange themselves." },
+      { k: "p", t: DESK_TIP },
+      { k: "btn", label: "pick up where you left off" },
+      { k: "p", t: SIGNOFF },
+    ],
+    // Brevity arm — the picture does the work, so this one drops the desk tip
+    // and the sign-off and lets the thumbnail sit right under one line.
+    b2: (c) => [
+      { k: "p", t: c.img
+        ? "hey — one day in, and your board already looks like this:"
+        : "hey — one day in, and your board is already taking shape." },
+      { k: "img" },
+      { k: "p", t: c.name
+        ? `"${c.name}" is saved and waiting. add a few more photos and watch it take shape.`
+        : "it's saved and waiting. add a few more photos and watch it take shape." },
+      { k: "btn", label: "keep building" },
+    ],
+    // Next-step arm: one specific instruction rather than an open invitation.
+    b3: (c) => [
+      { k: "p", t: "hey, the clusters team here." },
+      { k: "p", t: c.img ? "here's your board as of yesterday:" : "your board's up and running as of yesterday." },
+      { k: "img" },
+      { k: "p", t: "the single best next move: open your camera roll and drag in ten photos at once. clusters lays them out, and that's usually the moment it clicks." },
+      { k: "p", t: DESK_TIP },
+      { k: "btn", label: "add ten photos" },
+      { k: "p", t: SIGNOFF },
+    ],
+  },
+};
+
 function welcomeBoard(d: WelcomeBoardData): RenderedEmail {
   const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("welcome_board"));
-  const unsub = unsubUrl(d.unsubscribeToken);
   const name = namedWelcomeBoard(d);
-  // A lot of new users sign up on a phone and never see the full app; a quiet,
-  // device-neutral nudge to open it on a computer (the cron has no device
-  // signal, so this rides every welcome_board).
-  const deskTip = "one tip: open it on your computer when you can — the full studio, a bigger canvas, every tool.";
-  const img = d.thumbUrl && d.thumbUrl.startsWith(EMAIL_THUMB_PREFIX)
-    ? noteImg(d.thumbUrl, name ? `Your board "${name}"` : "Your board", url)
-    : "";
-  if (d.variant === "B") {
-    const openerB = img
-      ? "hey — one day in, and your board already looks like this:"
-      : "hey — one day in, and your board is already taking shape.";
-    const saved = name
-      ? `"${name}" is saved and waiting. add a few more photos and watch it take shape.`
-      : "it's saved and waiting. add a few more photos and watch it take shape.";
-    return {
-      subject: "look what you made",
-      html: renderPlainNote({
-        preheader: "one day in, and your board is already taking shape.",
-        bodyHtml:
-          noteP(openerB) +
-          img +
-          noteP(saved) +
-          noteP(deskTip) +
-          noteBtn("keep building", url) +
-          noteP("talk soon, the clusters team"),
-        unsubscribeUrl: unsub,
-      }),
-      text:
-`${openerB}
-
-${saved}
-
-${deskTip}
-
-keep building: ${url}
-
-talk soon, the clusters team
-
-Unsubscribe: ${unsub}`,
-    };
-  }
-  const opener = name
-    ? (img ? `you started "${name}" yesterday — here's how it's looking already.`
-           : `you started "${name}" yesterday — it's already taking shape.`)
-    : (img ? "you started a board yesterday — here's how it's looking already."
-           : "you started a board yesterday — it's already taking shape.");
-  return {
-    subject: name ? `"${name}" is off to a good start` : "your board is off to a good start",
-    html: renderPlainNote({
-      preheader: "it's saved and waiting whenever you want to keep going.",
-      bodyHtml:
-        noteP("hey, the clusters team here.") +
-        noteP(opener) +
-        img +
-        noteP("it's saved and waiting whenever you want to keep going — drop in more photos, notes, or files and they arrange themselves.") +
-        noteP(deskTip) +
-        noteBtn("pick up where you left off", url) +
-        noteP("talk soon, the clusters team"),
-      unsubscribeUrl: unsub,
-    }),
-    text:
-`hey, the clusters team here.
-
-${opener}
-
-it's saved and waiting whenever you want to keep going — drop in more photos, notes, or files and they arrange themselves.
-
-${deskTip}
-
-pick up where you left off: ${url}
-
-talk soon, the clusters team
-
-Unsubscribe: ${unsub}`,
-  };
+  return renderFactorial(welcomeBoardSpec, d.variant, {
+    url,
+    unsub: unsubUrl(d.unsubscribeToken),
+    name,
+    img: d.thumbUrl && d.thumbUrl.startsWith(EMAIL_THUMB_PREFIX)
+      ? noteImg(d.thumbUrl, name ? `Your board "${name}"` : "Your board", url)
+      : "",
+  });
 }
 
 // ── board_waiting (migration 0194) ──────────────────────────────────────────
@@ -824,20 +957,149 @@ Unsubscribe: ${unsub}`,
 // nudge window closed (activate_nudge_2 stops at day 14). reengage_1 gates on
 // first_populated_board_at, so these users otherwise get nothing ever again.
 // Gentle, low-pressure, activation-agnostic. Reuses ActivateNudgeData.
+//
+// The subject arms here are the reason 0219 exists. Over 167 delivered sends,
+// "your workspace is still here" opened at 51.4% and "still here whenever you
+// want it" at 17.7% — z ≈ 4.9, holding in every week independently and within
+// gmail.com alone. The loser is deleted rather than kept as a control: the
+// result is settled, and every send spent re-confirming it is a send wasted.
+//
+// The surviving arms test WHY it won. s1 is the incumbent; s2 keeps its shape
+// but swaps the generic noun for the board's own name (specificity vs mere
+// possession); s3/s4/s5 drop possession entirely for a question, a value
+// framing and pure brevity. If the possession arms beat all three, the pattern
+// generalises and should be applied everywhere.
+const nudgeDormantEarlySpec: FactorialSpec = {
+  s0: "s1", b0: "b1",
+  subjects: {
+    s1: () => ({
+      subject: "your workspace is still here",
+      preheader: "it's saved and waiting whenever you want to give it another look.",
+    }),
+    s2: (c) => ({
+      subject: c.name ? `"${c.name}" is still here` : "your board is still here",
+      preheader: "it's saved and waiting whenever you want to give it another look.",
+    }),
+    s3: () => ({
+      subject: "did clusters not click?",
+      preheader: "genuinely asking — it helps us know what to fix.",
+    }),
+    // These users never activated, so "what it's for" may land harder than
+    // "what you left" — there is nothing of theirs to come back to.
+    s4: () => ({
+      subject: "what clusters is actually for",
+      preheader: "the 60-second version, in case it never landed.",
+    }),
+    s5: () => ({
+      subject: "one quick thing",
+      preheader: "your workspace is saved and waiting.",
+    }),
+  },
+  bodies: {
+    // Incumbent body.
+    b1: (c) => [
+      { k: "p", t: "hey, quick note from the clusters team." },
+      { k: "p", t: c.name
+        ? `you started "${c.name}" a little while back, then things went quiet — no worries at all.`
+        : "you set up a workspace a little while back, then things went quiet — no worries at all." },
+      { k: "p", t: "the whole idea of clusters: drop in photos, notes, or files — camera roll, screenshots, references — and they arrange themselves into something you can actually use and share. two minutes is enough to see if it clicks." },
+      { k: "btn", label: openCta(c) },
+      { k: "p", t: SIGNOFF },
+    ],
+    // Brevity arm.
+    b2: (c) => [
+      { k: "p", t: "hey — quick one." },
+      { k: "p", t: c.name ? `"${c.name}" is still saved, still empty.` : "your workspace is still saved, still empty." },
+      { k: "p", t: "drop a few photos in and clusters arranges them for you. that's the whole thing." },
+      { k: "btn", label: openCta(c) },
+    ],
+    // Procedural arm: the exact motion and what they'll see, rather than a
+    // description of the idea. Aimed at users who never understood the product,
+    // which is most of this audience.
+    b3: (c) => [
+      { k: "p", t: "hey, the clusters team here." },
+      { k: "p", t: "here's the fastest possible version: open your board, select ten photos from your camera roll, drag them in. they land in a grid you can push around, group, and share as a link." },
+      { k: "p", t: "no setup, no folders, nothing to name." },
+      { k: "btn", label: openCta(c) },
+      { k: "p", t: SIGNOFF },
+    ],
+  },
+};
+
 function nudgeDormantEarly(d: ActivateNudgeData): RenderedEmail {
-  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("nudge_dormant_early"));
+  return renderFactorial(nudgeDormantEarlySpec, d.variant, {
+    url: deepLink({ w: d.workspaceId, b: d.boardId }, utm("nudge_dormant_early")),
+    unsub: unsubUrl(d.unsubscribeToken),
+    name: namedBoard(d),
+    img: "",
+  });
+}
+
+// ── whats_new (migration 0211) ──────────────────────────────────────────────
+// The news win-back. Every other dormant email says a version of "your stuff is
+// still here" — a status report, which for the ~172 never-activated dormant
+// users describes nothing they ever had. This one carries the only thing that
+// reliably earns a click from someone 30+ days gone: information they don't
+// have yet. Copy comes from app_config 'lifecycle_whats_new' so publishing an
+// edition is a row update, not a deploy.
+//
+// Two pictures may be in play and they are NOT interchangeable:
+//   • imageUrl  — the product screenshot for this edition (may be absent; an
+//                 edition is allowed to ship before its screenshot exists).
+//   • thumbUrl  — the user's OWN board, the one personalisation with evidence
+//                 behind it (welcome_board opens at 52.6%, board_waiting 48.0%).
+// Whichever exists leads; if both do, the product shot leads and their board
+// follows as the closing "and yours is still here" beat.
+const EMAIL_ASSET_PREFIX = "https://clusters.soleilpictures.com/email/";
+
+interface WhatsNewData {
+  workspaceId?: string;
+  boardId?: string;
+  boardName?: string;   // pre-sanitized in renderTemplate
+  thumbUrl?: string;    // signed /api/email-thumb URL (cron-computed)
+  imageUrl?: string;    // product screenshot for this edition (may be absent)
+  items: string[];
+  ctaLabel?: string;
+  version?: string;
+  unsubscribeToken: string;
+  variant?: string;
+}
+
+const COUNT_WORDS = ["", "one", "two", "three", "four", "five", "six"];
+
+function whatsNew(d: WhatsNewData): RenderedEmail {
+  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("whats_new", d.version));
   const unsub = unsubUrl(d.unsubscribeToken);
-  const name = namedBoard(d);
-  const cta = name ? `open "${name}"` : "open clusters";
+  const items = d.items.filter((s) => !!s && !!s.trim()).slice(0, 6);
+  const name = namedWelcomeBoard(d);
+  const cta = d.ctaLabel && d.ctaLabel.trim() ? d.ctaLabel.trim() : "take a look";
+
+  // Both prefixes are exact-origin checks: these URLs are embedded in mail that
+  // clients fetch unauthenticated, so anything else degrades to text.
+  const productImg = d.imageUrl && d.imageUrl.startsWith(EMAIL_ASSET_PREFIX)
+    ? noteImg(d.imageUrl, "What's new in Clusters", url)
+    : "";
+  const ownImg = d.thumbUrl && d.thumbUrl.startsWith(EMAIL_THUMB_PREFIX)
+    ? noteImg(d.thumbUrl, name ? `Your board "${name}"` : "Your board", url)
+    : "";
+
+  const countWord = COUNT_WORDS[items.length] || "a few";
+  const yours = name
+    ? `and "${name}" is still there, exactly how you left it.`
+    : "and your workspace is still there, exactly how you left it.";
+  const itemsText = items.map((i) => `· ${i}`).join("\n");
+
   if (d.variant === "B") {
     return {
-      subject: "still here whenever you want it",
+      subject: "a few things shipped while you were away",
       html: renderPlainNote({
-        preheader: "no rush — your workspace is saved and waiting whenever you are.",
+        preheader: "a quick note on what's changed in clusters lately.",
         bodyHtml:
           noteP("hey, the clusters team here.") +
-          noteP("we haven't seen you in a little while — totally fine, life happens. just wanted you to know your workspace is saved and waiting whenever you want it.") +
-          noteP("if you've got a project, a moodboard, or a pile of references sitting around, clusters is the easy place to drop them and watch them arrange themselves.") +
+          noteP("you've been away a bit, so here's the short version of what's changed:") +
+          productImg +
+          noteList(items) +
+          (ownImg ? noteP(yours) + ownImg : noteP(yours)) +
           noteBtn(cta, url) +
           noteP("talk soon, the clusters team"),
         unsubscribeUrl: unsub,
@@ -845,9 +1107,11 @@ function nudgeDormantEarly(d: ActivateNudgeData): RenderedEmail {
       text:
 `hey, the clusters team here.
 
-we haven't seen you in a little while — totally fine, life happens. just wanted you to know your workspace is saved and waiting whenever you want it.
+you've been away a bit, so here's the short version of what's changed:
 
-if you've got a project, a moodboard, or a pile of references sitting around, clusters is the easy place to drop them and watch them arrange themselves.
+${itemsText}
+
+${yours}
 
 ${cta}: ${url}
 
@@ -856,27 +1120,29 @@ talk soon, the clusters team
 Unsubscribe: ${unsub}`,
     };
   }
-  const opener = name
-    ? `you started "${name}" a little while back, then things went quiet — no worries at all.`
-    : "you set up a workspace a little while back, then things went quiet — no worries at all.";
+
   return {
-    subject: "your workspace is still here",
+    subject: `${countWord} new things in clusters since you left`,
     html: renderPlainNote({
-      preheader: "it's saved and waiting whenever you want to give it another look.",
+      preheader: "a few things have shipped since you were last here.",
       bodyHtml:
-        noteP("hey, quick note from the clusters team.") +
-        noteP(opener) +
-        noteP("the whole idea of clusters: drop in photos, notes, or files — camera roll, screenshots, references — and they arrange themselves into something you can actually use and share. two minutes is enough to see if it clicks.") +
+        noteP("hey, the clusters team here.") +
+        noteP("it's been a little while — a few things have shipped since you were last in:") +
+        productImg +
+        noteList(items) +
+        (ownImg ? noteP(yours) + ownImg : noteP(yours)) +
         noteBtn(cta, url) +
         noteP("talk soon, the clusters team"),
       unsubscribeUrl: unsub,
     }),
     text:
-`hey, quick note from the clusters team.
+`hey, the clusters team here.
 
-${opener}
+it's been a little while — a few things have shipped since you were last in:
 
-the whole idea of clusters: drop in photos, notes, or files — camera roll, screenshots, references — and they arrange themselves into something you can actually use and share. two minutes is enough to see if it clicks.
+${itemsText}
+
+${yours}
 
 ${cta}: ${url}
 
@@ -986,6 +1252,28 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardId:          data.boardId != null ? String(data.boardId) : undefined,
         boardName:        boardName || undefined,
         thumbUrl:         data.thumbUrl != null ? String(data.thumbUrl) : undefined,
+        unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        variant:          data.variant != null ? String(data.variant) : undefined,
+      });
+    }
+    case "whats_new": {
+      const boardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
+      // items come from an admin-edited app_config row, so they get the same
+      // newline-stripping / length-clamping every other free-text field gets
+      // before it reaches a subject line or an HTML body.
+      const rawItems = Array.isArray(data.items) ? data.items : [];
+      const items = rawItems
+        .map((i) => String(i ?? "").replace(/[\r\n]/g, "").slice(0, 120).trim())
+        .filter((i) => i.length > 0);
+      return whatsNew({
+        workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:          data.boardId != null ? String(data.boardId) : undefined,
+        boardName:        boardName || undefined,
+        thumbUrl:         data.thumbUrl != null ? String(data.thumbUrl) : undefined,
+        imageUrl:         data.imageUrl != null ? String(data.imageUrl) : undefined,
+        items,
+        ctaLabel:         data.ctaLabel != null ? String(data.ctaLabel).replace(/[\r\n]/g, "").slice(0, 40) : undefined,
+        version:          data.version != null ? String(data.version).replace(/[^A-Za-z0-9._-]/g, "").slice(0, 32) : undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
         variant:          data.variant != null ? String(data.variant) : undefined,
       });

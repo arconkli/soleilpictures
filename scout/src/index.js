@@ -8,7 +8,7 @@
 // otherwise. The interesting telemetry lands in analytics_events via the
 // SECURITY DEFINER RPCs, which is where the rest of the product looks.
 
-import { Spectrum, image } from 'spectrum-ts';
+import { Spectrum, attachment } from 'spectrum-ts';
 import { imessage } from 'spectrum-ts/providers/imessage';
 import { loadConfig } from './config.js';
 import { makeUploader } from './media.js';
@@ -33,13 +33,19 @@ function senderHandle(message, space) {
 }
 
 // Attaching an image is best-effort, exactly like editing a message is: the
-// provider may refuse, the channel may not carry attachments, or the SDK's
-// helper may not be shaped the way we expect. None of those are worth losing the
-// reply over — the text that follows always states the count and the board, so a
-// thread with no picture is degraded but never wrong.
+// provider may refuse or the channel may not carry attachments. Neither is worth
+// losing the reply over — the text that follows always states the count and the
+// board, so a thread with no picture is degraded but never wrong.
+//
+// The helper is `attachment`, and its input type is `string | Buffer | URL` —
+// NOT a Uint8Array. This was written as `image(bytes, …)`; there is no `image`
+// export, so the module failed to load and the process died at startup before it
+// ever read a message. Buffer.from() wraps the sheet's bytes without copying.
 async function sendImage(space, bytes) {
   try {
-    await space.send(image(bytes, { mimeType: 'image/jpeg', name: 'scout.jpg' }));
+    await space.send(attachment(Buffer.from(bytes), {
+      mimeType: 'image/jpeg', name: 'scout.jpg',
+    }));
     return true;
   } catch (e) {
     console.error('[scout] image send failed', e?.message);
@@ -158,6 +164,27 @@ async function main() {
       console.error('[scout] message handling failed', e?.stack || e?.message || e);
     }
   }
+
+  // REACHING HERE IS FATAL, and has to be made fatal explicitly.
+  //
+  // `for await` exits when Photon's stream ends — a dropped gRPC connection, a
+  // provider restart, a revoked token. Falling out of it used to just... return.
+  // main() resolved, the .catch() below never fired, and the process did NOT
+  // exit, because startInviteLoop's setTimeout keeps the event loop alive. The
+  // result was the worst possible failure: a machine that looks perfectly
+  // healthy, still texting new signups from the invite queue, while every photo
+  // anyone sends is silently ignored. Nothing would page, and the logs would be
+  // quiet, because nothing went wrong — the loop simply had nothing left to
+  // iterate.
+  //
+  // Exiting non-zero hands recovery to the supervisor, which reconnects
+  // everything from a clean slate. That is deliberately preferred over
+  // hand-rolled reconnection: this process holds a gRPC stream, an outbound
+  // PartyKit socket and in-memory burst state, and re-establishing all three
+  // correctly in-place is far more code — and far more ways to be subtly wrong —
+  // than letting the container restart. Pair with `[[restart]] policy = "always"`
+  // in fly.toml; the platform default only restarts on a NON-ZERO exit.
+  throw new Error('Photon message stream ended — no further messages will arrive');
 }
 
 main().catch((e) => {

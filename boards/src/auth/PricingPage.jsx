@@ -14,6 +14,7 @@ import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { useUpsellExposure } from '../hooks/useUpsellExposure.js';
 import { startCheckout, startPortal } from '../lib/checkout.js';
+import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
 import { useAuth } from './AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
@@ -78,7 +79,7 @@ export function PricingPage() {
       else             await startCheckout({ plan, surface: 'page' });
     } catch (err) {
       up.noteError();
-      setError(err?.message || String(err));
+      setError(checkoutErrorMessage(err));
       setBusy(false);
     }
   };

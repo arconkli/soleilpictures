@@ -1,0 +1,400 @@
+{
+  "restEndpoints": [
+    "DELETE /boards {\"board_ids\":[…]} — bulk soft-delete",
+    "DELETE /boards/:id",
+    "DELETE /boards/:id/cards {\"card_ids\":[…]} — bulk",
+    "DELETE /boards/:id/cards/:cardId",
+    "DELETE /boards/:id/groups/:groupId — ungroups, never deletes cards",
+    "DELETE /service-accounts/:id",
+    "DELETE /service-accounts/:id/tokens/:tokenId",
+    "DELETE /webhooks/:id",
+    "GET /audit?since=&cursor=&limit=",
+    "GET /boards/:id",
+    "GET /boards/:id/cards?source=live|index&since=&cursor=&include=&limit=&offset=",
+    "GET /boards/:id/export?format=json|omc",
+    "GET /boards/:id/groups",
+    "GET /boards/tree?root=&workspace=&depth=",
+    "GET /boards?workspace=&parent=&deleted=&since=&cursor=&include=&limit=&offset=",
+    "GET /images/:key?variant=preview",
+    "GET /images?workspace=&board=&since=&cursor=&limit=",
+    "GET /me",
+    "GET /resolve?scope=&value=&type=&workspace=",
+    "GET /search?q=&kind=&workspace=&limit=&offset=",
+    "GET /service-accounts/:id/tokens",
+    "GET /service-accounts?workspace=",
+    "GET /webhooks/:id/deliveries?limit=&cursor=",
+    "GET /webhooks?workspace=",
+    "GET /workspaces",
+    "PATCH /boards/:id",
+    "PATCH /boards/:id/cards {\"cards\":[…]} — bulk",
+    "PATCH /boards/:id/cards/:cardId",
+    "PATCH /boards/:id/groups/:groupId",
+    "PATCH /webhooks/:id",
+    "POST /boards",
+    "POST /boards {\"boards\":[…]} — bulk, up to 500",
+    "POST /boards/:id/arrange {\"layout\":\"justified|masonry|grid|row|column\"}",
+    "POST /boards/:id/cards",
+    "POST /boards/:id/cards/move",
+    "POST /boards/:id/groups",
+    "POST /boards/:id/import {\"items\":[{\"url\":…}]} — re-runnable",
+    "POST /boards/:id/restore",
+    "POST /boards/move",
+    "POST /mcp — Model Context Protocol, for AI agents",
+    "POST /service-accounts",
+    "POST /service-accounts/:id/tokens",
+    "POST /uploads/multipart/abort",
+    "POST /uploads/multipart/complete",
+    "POST /uploads/multipart/parts",
+    "POST /uploads/multipart?board=:id",
+    "POST /uploads?board=:id",
+    "POST /webhooks",
+    "POST /webhooks/:id/deliveries/:deliveryId/redeliver",
+    "POST /webhooks/:id/test"
+  ],
+  "mcpTools": [
+    {
+      "name": "add_cards",
+      "schema": "0b44b939820c"
+    },
+    {
+      "name": "arrange_board",
+      "schema": "0c0ed0233403"
+    },
+    {
+      "name": "board_tree",
+      "schema": "2ee2385bb700"
+    },
+    {
+      "name": "create_board",
+      "schema": "732f33f976a7"
+    },
+    {
+      "name": "create_boards",
+      "schema": "88c69d2a239f"
+    },
+    {
+      "name": "create_group",
+      "schema": "640de2eed15c"
+    },
+    {
+      "name": "delete_board",
+      "schema": "51d451cff7c1"
+    },
+    {
+      "name": "delete_card",
+      "schema": "0c70e576498a"
+    },
+    {
+      "name": "delete_cards",
+      "schema": "7f23997dbdce"
+    },
+    {
+      "name": "export_board",
+      "schema": "3ee79da6ad8e"
+    },
+    {
+      "name": "get_board",
+      "schema": "151312b54d3d"
+    },
+    {
+      "name": "get_metadata",
+      "schema": "f37d3aee7802"
+    },
+    {
+      "name": "import_urls",
+      "schema": "1de170ca654e"
+    },
+    {
+      "name": "list_audit",
+      "schema": "211b7fc571af"
+    },
+    {
+      "name": "list_boards",
+      "schema": "618a15b2b193"
+    },
+    {
+      "name": "list_deleted_boards",
+      "schema": "80e95ddda416"
+    },
+    {
+      "name": "list_groups",
+      "schema": "51d451cff7c1"
+    },
+    {
+      "name": "list_images",
+      "schema": "963e26f2bf1e"
+    },
+    {
+      "name": "list_workspaces",
+      "schema": "e3b0c44298fc"
+    },
+    {
+      "name": "move_boards",
+      "schema": "78b849270ae8"
+    },
+    {
+      "name": "move_cards",
+      "schema": "6c24680d4ff2"
+    },
+    {
+      "name": "read_board",
+      "schema": "b536d828d599"
+    },
+    {
+      "name": "rename_board",
+      "schema": "0a21becb78ba"
+    },
+    {
+      "name": "resolve_identifier",
+      "schema": "141f5f5b1e1f"
+    },
+    {
+      "name": "restore_board",
+      "schema": "51d451cff7c1"
+    },
+    {
+      "name": "search",
+      "schema": "fdbf75288110"
+    },
+    {
+      "name": "set_metadata",
+      "schema": "1232151219e0"
+    },
+    {
+      "name": "update_card",
+      "schema": "6d31ca1144e1"
+    },
+    {
+      "name": "update_cards",
+      "schema": "e0dce4228639"
+    },
+    {
+      "name": "upload_file",
+      "schema": "67948383d43c"
+    },
+    {
+      "name": "upload_image",
+      "schema": "7ede8ec923fe"
+    },
+    {
+      "name": "view_image",
+      "schema": "269e8d3e4d7d"
+    },
+    {
+      "name": "whoami",
+      "schema": "e3b0c44298fc"
+    }
+  ],
+  "mcpPrompts": [
+    "describe_board",
+    "import_plan",
+    "organize_board"
+  ],
+  "mcpProtocol": {
+    "versions": [
+      "2026-07-28",
+      "2025-11-25",
+      "2025-06-18"
+    ],
+    "methods": [
+      "initialize",
+      "ping",
+      "prompts/get",
+      "prompts/list",
+      "resources/list",
+      "resources/templates/list",
+      "server/discover",
+      "tools/call",
+      "tools/list"
+    ],
+    "errorCodes": [
+      "HEADER_MISMATCH=-32020",
+      "INTERNAL=-32603",
+      "INVALID_PARAMS=-32602",
+      "INVALID_REQUEST=-32600",
+      "METHOD_NOT_FOUND=-32601",
+      "MISSING_CLIENT_CAPABILITY=-32021",
+      "PARSE=-32700",
+      "UNSUPPORTED_PROTOCOL_VERSION=-32022"
+    ]
+  },
+  "layoutAlgorithms": [
+    "column",
+    "grid",
+    "justified",
+    "masonry",
+    "row"
+  ],
+  "apiCardKinds": [
+    "doc",
+    "file",
+    "image",
+    "link",
+    "note",
+    "video"
+  ],
+  "apiScopes": [
+    "delete",
+    "read",
+    "write"
+  ],
+  "webhookEvents": [
+    "board.created",
+    "board.deleted",
+    "board.restored",
+    "board.updated",
+    "card.created",
+    "card.deleted",
+    "card.moved",
+    "card.updated",
+    "image.created"
+  ],
+  "apiErrorCodes": [
+    "400 bad_request",
+    "402 limit_reached",
+    "403 forbidden",
+    "403 insufficient_scope",
+    "404 not_found",
+    "405 method_not_allowed",
+    "409 conflict",
+    "409 identifier_conflict",
+    "413 payload_too_large",
+    "415 unsupported_media_type",
+    "502 session_unavailable",
+    "502 upstream_error",
+    "503 storage_unavailable"
+  ],
+  "apiFacts": {
+    "maxCardsPerCall": 1000,
+    "maxBoardsPerCall": 500,
+    "maxPartsPerCall": 1000,
+    "titleMax": 300,
+    "bodyMax": 20000,
+    "htmlMax": 40000,
+    "urlMax": 2000,
+    "imageKeyMax": 500,
+    "maxPage": 500,
+    "defaultPage": 100,
+    "maxUploadMb": 25,
+    "rateLimitPerHour": 1000,
+    "serviceRateLimitPerHour": 10000,
+    "maxServiceAccounts": 10,
+    "maxWebhooks": 20,
+    "maxIdentifiersPerObject": 20,
+    "maxPropsBytes": 16384,
+    "maxPropKeys": 100,
+    "maxTokensPerAccount": 20
+  },
+  "settingsTabs": [
+    {
+      "id": "api",
+      "label": "API"
+    },
+    {
+      "id": "billing",
+      "label": "Billing"
+    },
+    {
+      "id": "defaults",
+      "label": "Defaults"
+    },
+    {
+      "id": "display",
+      "label": "Display"
+    },
+    {
+      "id": "invite",
+      "label": "Invite & earn"
+    },
+    {
+      "id": "notifications",
+      "label": "Notifications"
+    },
+    {
+      "id": "profile",
+      "label": "Profile"
+    },
+    {
+      "id": "scout",
+      "label": "Scout"
+    },
+    {
+      "id": "theme",
+      "label": "Theme"
+    }
+  ],
+  "powerRevealKeys": [
+    "docs",
+    "grids",
+    "group",
+    "list_drive",
+    "palette"
+  ],
+  "shortcutSections": [
+    {
+      "title": "Tools",
+      "rows": 6
+    },
+    {
+      "title": "Navigate",
+      "rows": 3
+    },
+    {
+      "title": "Edit",
+      "rows": 7
+    },
+    {
+      "title": "View",
+      "rows": 5
+    },
+    {
+      "title": "Notes",
+      "rows": 3
+    },
+    {
+      "title": "Document",
+      "rows": 7
+    }
+  ],
+  "publicRoutes": {
+    "routeMeta": [
+      "/",
+      "/legal/cookies",
+      "/legal/privacy",
+      "/legal/terms",
+      "/pricing"
+    ],
+    "landing": [
+      "/scout",
+      "/tools/free-mood-board-maker",
+      "/tools/look-book-maker",
+      "/tools/mood-board-maker",
+      "/tools/reference-board-maker",
+      "/tools/shot-list-maker",
+      "/tools/storyboard-maker",
+      "/use-cases",
+      "/vs/boords",
+      "/vs/milanote",
+      "/vs/miro",
+      "/vs/pureref",
+      "/vs/storyboarder",
+      "/vs/studiobinder"
+    ],
+    "listicle": [
+      "/best/milanote-alternatives",
+      "/best/mood-board-apps",
+      "/best/pureref-alternatives"
+    ],
+    "router": [
+      "docsMatch = /^\\/docs(?:\\/|$)/i.test(PATH)",
+      "exploreMatch = /^\\/explore\\/?$/.test(PATH)",
+      "legalMatch = PATH.match(/^\\/legal\\/(privacy|terms|cookies)\\/?$/i)",
+      "pricingMatch = PATH.match(/^\\/pricing\\/?$/i)",
+      "publicBoardMatch = PATH.match(/^\\/c\\/([a-z0-9][a-z0-9-]{0,79})\\/?$/)",
+      "scoutMatch = /^\\/scout\\/?$/i.test(PATH)",
+      "seoLandingMatch = /^\\/(?:tools\\/|vs\\/|use-cases(?:\\/|$))/i.test(PATH)",
+      "seoListicleMatch = /^\\/best\\//i.test(PATH)",
+      "shareMatch = PATH.match(/^\\/share\\/([0-9a-f-]{36})\\/?$/i)"
+    ]
+  }
+}

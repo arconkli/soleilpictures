@@ -4,7 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "prebuild": "node scripts/stamp-build.mjs",
+    "prebuild": "node scripts/stamp-build.mjs && node scripts/gen-docs.mjs",
+    "test": "node --test src/lib/*.test.mjs",
+    "test:docs": "node --test src/lib/docsite.test.mjs",
+    "docs:build": "node scripts/gen-docs.mjs",
+    "docs:check": "node scripts/gen-docs.mjs --check",
+    "docs:accept": "node scripts/gen-docs.mjs --accept-surface",
     "dev": "vite",
     "dev:party": "partykit dev --port 1999",
     "build": "vite build",

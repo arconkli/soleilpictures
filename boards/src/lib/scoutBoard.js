@@ -126,6 +126,33 @@ function pushUpdate(ws, update) {
   ws.send(encoding.toUint8Array(enc));
 }
 
+// Wait until the frame has actually left, rather than sleeping a flat 750ms and
+// hoping.
+//
+// There is no ack for an update in the y-websocket protocol, and the obvious
+// substitute — send syncStep1 and wait for the reply — is a trap here: the
+// server answers with the diff against OUR state vector, and a doc holding only
+// the new cards would be answered with the ENTIRE BOARD. That is precisely the
+// transfer this path exists to avoid.
+//
+// Draining the send buffer is the right barrier instead, because of what the
+// room does on receipt: y-partykit's bindState registers an update listener
+// that writes straight to Durable Object storage, so an update is durable the
+// moment the room applies it — the board_state flush is a second replica, not
+// the commit. Messages are ordered and the DO is single-threaded, so once the
+// bytes are gone they will be applied.
+async function drain(ws, timeoutMs = 5_000) {
+  if (typeof ws.bufferedAmount !== 'number') {
+    await sleep(FLUSH_GRACE_MS);          // no visibility → the old fixed wait
+    return true;
+  }
+  const t0 = Date.now();
+  while (ws.bufferedAmount > 0 && Date.now() - t0 < timeoutMs) await sleep(15);
+  if (ws.bufferedAmount > 0) return false;
+  await sleep(50);                        // let the last frame land
+  return true;
+}
+
 // ── Public API ───────────────────────────────────────────────────────────────
 //
 // addCardsToBoard — load, sync, let the caller decide what to add given the
@@ -137,9 +164,96 @@ function pushUpdate(ws, update) {
 // Returns { cards, live, cardCount }. `live` is false when the PartyKit push
 // didn't happen — the cards are still durable, they just won't show up on an
 // already-open canvas until it reloads.
+// Append pre-positioned cards WITHOUT ever loading the board.
+//
+// This is the whole reason bulk ingest is possible. The ordinary path below
+// downloads board_state, decodes it, syncs the entire document over a
+// WebSocket, re-encodes it and uploads it — to add one card. Production already
+// holds a document of 596,720 bytes for two cards (Yjs history tracks total
+// edits ever, not current cards), so the Nth write costs O(N) and a Worker
+// isolate has 128MB for the four copies that needs. Adding a million cards that
+// way is quadratic and dies long before it finishes.
+//
+// Here the update is built in a FRESH document holding only the new cards. That
+// is a valid Yjs update from a different client id, and because every key is a
+// new one it merges into the room with no baseline required. Cost is O(batch),
+// whatever the board already holds — the 30MB board and the empty one are the
+// same call.
+//
+// Requires: cards already carry x/y (there is nothing to lay out against, since
+// we deliberately have not read what is there), and a live room (which now owns
+// persisting board_state — see lib/boardStateSync.js). Returns null when the
+// room cannot take it, so the caller can fall back rather than leave the cards
+// half-written.
+async function appendViaRoom(env, { boardId, workspaceId, accessToken, stamped }) {
+  if (!accessToken || !stamped.length) return null;
+
+  let ws = null;
+  try {
+    ws = await connectPeer(env, boardId, accessToken);
+  } catch (_) {
+    return null;                          // no room → the caller's problem to solve
+  }
+
+  try {
+    // card_index FIRST, exactly as below: this is where the cap wall lives, and
+    // a refusal has to happen before anything reaches the canvas. A cap hit is
+    // a real answer and must NOT be retried down the slow path, so it is
+    // rethrown rather than turned into a null.
+    const indexRows = buildCardIndexRows({ workspaceId, boardId, cards: stamped });
+    if (indexRows.length) {
+      await scoutInsert(env, 'card_index', indexRows, { onConflict: 'board_id,card_id' });
+    }
+
+    const seed = new Y.Doc();
+    const map = seed.getMap('cards');
+    seed.transact(() => {
+      for (const c of stamped) map.set(c.id, cardToYMap(c));
+    }, 'scout');
+    const delta = Y.encodeStateAsUpdate(seed);
+    seed.destroy();
+
+    pushUpdate(ws, delta);
+    if (!await drain(ws)) return null;    // never left the buffer → not durable
+
+    return { cards: stamped, live: true, cardCount: null, delta: delta.length };
+  } catch (e) {
+    if (e?.isCapHit) throw e;
+    return null;
+  } finally {
+    try { ws?.close(); } catch (_) { /* already gone */ }
+  }
+}
+
+// Stamp ids, z and timestamps without needing to know what is already there.
+//
+// Ids are UUIDs on this path rather than the `api-<ts>-<rand>` form: the
+// collision check the slow path does needs the loaded document, and the whole
+// point here is not to load it. 122 bits of randomness is a better guarantee
+// than the check it replaces.
+function stampForAppend(cards, userId, startZ = 0) {
+  const nowIso = new Date().toISOString();
+  return cards.map((c, i) => ({
+    ...stampCard({ ...c, id: c.id || crypto.randomUUID() }, startZ + i, nowIso),
+    createdBy: userId || null,
+    updatedBy: userId || null,
+  }));
+}
+
 export async function addCardsToBoard(env, {
-  boardId, workspaceId, userId, accessToken, buildCards,
+  boardId, workspaceId, userId, accessToken, buildCards, appendCards,
 }) {
+  // The O(batch) path, when the caller has already decided where the cards go.
+  if (appendCards?.length) {
+    const stamped = stampForAppend(appendCards, userId);
+    const fast = await appendViaRoom(env, { boardId, workspaceId, accessToken, stamped });
+    if (fast) return fast;
+    // The room refused or was unreachable. Fall through to the read-modify-
+    // write with the SAME stamped cards, so the ids already written to
+    // card_index are the ids that reach the document.
+    buildCards = () => stamped;
+  }
+
   const doc = new Y.Doc();
 
   // Baseline from Postgres. Works with no network to PartyKit at all.
@@ -216,7 +330,7 @@ export async function addCardsToBoard(env, {
     if (ws) {
       try {
         pushUpdate(ws, delta);
-        await sleep(FLUSH_GRACE_MS);   // let the frame leave before we hang up
+        await drain(ws);               // let the frame leave before we hang up
       } catch (_) { live = false; }
     }
 
@@ -281,7 +395,7 @@ async function commitDoc(env, boardId, { doc, ws }, mutate) {
   if (ws) {
     try {
       pushUpdate(ws, delta);
-      await sleep(FLUSH_GRACE_MS);
+      await drain(ws);
       live = true;
     } catch (_) { /* durable write below still happens */ }
   }
@@ -309,6 +423,27 @@ export async function moveCardsBetweenBoards(env, {
   if (!cardIds.length || fromBoardId === toBoardId) {
     return { moved: [], count: 0, live: false };
   }
+
+  // Both workspaces, read from the BOARDS rather than taken from the caller.
+  //
+  // card_index rows carry workspace_id and every consumer joins on it:
+  // get_board_capacity sums weights per workspace owner, and the client caches
+  // board→workspace as immutable (boardsApi.js:1001). A row left pointing at the
+  // source workspace after the move is counted against the wrong person's cap
+  // and searched under the wrong workspace.
+  //
+  // The caller's `workspaceId` was right when source and destination shared a
+  // workspace, which was every caller until now. It cannot describe both ends
+  // of an adoption (shell account → real account) or of filing into a board
+  // found in another workspace, and both are now reachable — so it is used only
+  // as a fallback. Deriving these makes the invariant hold whoever calls.
+  const wsRows = await scoutSelect(
+    env, 'boards', `id=in.${encodeURIComponent(inList([fromBoardId, toBoardId]))}&select=id,workspace_id`,
+  ).catch(() => []);
+  const wsOf = (id) => wsRows.find((r) => r.id === id)?.workspace_id;
+  const fromWorkspaceId = wsOf(fromBoardId) || workspaceId;
+  const toWorkspaceId = wsOf(toBoardId) || workspaceId;
+  const crossWorkspace = !!fromWorkspaceId && !!toWorkspaceId && fromWorkspaceId !== toWorkspaceId;
 
   const src = await openBoard(env, fromBoardId, accessToken);
   const dst = await openBoard(env, toBoardId, accessToken);
@@ -352,7 +487,8 @@ export async function moveCardsBetweenBoards(env, {
     let droppedHeader = false;
     if (fresh.length) {
       try {
-        await scoutInsert(env, 'card_index', buildCardIndexRows({ workspaceId, boardId: toBoardId, cards: fresh }),
+        await scoutInsert(env, 'card_index',
+          buildCardIndexRows({ workspaceId: toWorkspaceId, boardId: toBoardId, cards: fresh }),
           { onConflict: 'board_id,card_id' });
       } catch (e) {
         if (!e?.isCapHit) throw e;
@@ -370,21 +506,56 @@ export async function moveCardsBetweenBoards(env, {
 
     // 2. card_index follows the cards. One bulk UPDATE for the common case;
     //    renamed ids (vanishingly rare) each need their own.
+    //
+    // UPDATE, never DELETE+INSERT: the cap, count and first-card triggers all
+    // fire on INSERT or DELETE only, so an update moves a card without
+    // consuming cap, without double-counting and without emitting a false
+    // "first card" signal (0209's header explains why that matters).
+    //
+    // 0209 said EVERY trigger on this table was INSERT/DELETE-only. That is no
+    // longer true — autotag_card_index now fires `AFTER INSERT OR UPDATE OF
+    // title, body`. It stays dormant here only because this patch touches
+    // neither column, which is load-bearing rather than incidental: adding
+    // title to the SET list would re-run tag matching for every moved card.
+    const patch = crossWorkspace
+      ? { board_id: toBoardId, workspace_id: toWorkspaceId }
+      : { board_id: toBoardId };
     const renamedTo = new Set(renames.values());
     const plain = prepared.map((c) => c.id).filter((id) => !renamedTo.has(id));
     if (plain.length) {
       await scoutPatch(env, 'card_index',
         `board_id=eq.${fromBoardId}&card_id=in.${encodeURIComponent(inList(plain))}`,
-        { board_id: toBoardId });
+        patch);
     }
     for (const [oldId, newId] of renames) {
       await scoutPatch(env, 'card_index',
         `board_id=eq.${fromBoardId}&card_id=eq.${encodeURIComponent(oldId)}`,
-        { board_id: toBoardId, card_id: newId }).catch(() => {});
+        { ...patch, card_id: newId }).catch(() => {});
     }
     if (dropIds.length) {
       await scoutDelete(env, 'card_index',
         `board_id=eq.${fromBoardId}&card_id=in.${encodeURIComponent(inList(dropIds))}`).catch(() => {});
+    }
+
+    // 2b. Auto-applied tag links are derived from the SOURCE workspace's tags,
+    //     and tags are workspace-scoped. Carried across a workspace boundary
+    //     they would claim a card is tagged with something that does not exist
+    //     where the card now lives. Drop them; the card is genuinely untagged
+    //     in its new workspace until autotag_card_index re-runs on the next
+    //     content edit. Only `auto` links — a human-applied link is a judgement,
+    //     not derived state, so it is re-pointed rather than discarded.
+    if (crossWorkspace) {
+      // Keyed on the ORIGINAL ids: a card re-named for a destination collision
+      // still appears in entity_links under the id it had here. Scoped to the
+      // source workspace too — source_id alone is not unique, and a card id
+      // collision across two workspaces, however unlikely, would mean editing
+      // a stranger's rows.
+      const originalIds = encodeURIComponent(inList(moving.map((c) => String(c.id))));
+      const scope = `source_kind=eq.card&source_workspace=eq.${fromWorkspaceId}&source_id=in.${originalIds}`;
+      await scoutDelete(env, 'entity_links', `${scope}&source=eq.auto`).catch(() => {});
+      await scoutPatch(env, 'entity_links', scope,
+        { source_workspace: toWorkspaceId, source_board_id: toBoardId },
+      ).catch(() => {});
     }
 
     // 3. SOURCE doc + board_state, last. Until this lands the cards exist on
@@ -408,6 +579,143 @@ export async function moveCardsBetweenBoards(env, {
   }
 }
 
+// ── Editing and removing single cards ────────────────────────────────────────
+//
+// Added for /api/v1, which offers full CRUD. Everything below is the SAME
+// triple write as above and must stay that way: a card edited in only the Y.Doc
+// reverts on the next cold load, and one deleted from only the Y.Doc leaves a
+// card_index row that still counts against the owner's cap and still turns up
+// in search.
+//
+// NOTE ON AUTHORIZATION. These run with the SERVICE ROLE (scoutDb.js bypasses
+// RLS), so they do not and cannot check whether the caller may write here. The
+// caller must have established that first — /api/v1 does it by calling
+// can_write_board as the user before reaching any of this.
+
+// Patch one card's fields. Returns the updated card, or null if it is gone.
+// Patch MANY cards with one board open.
+//
+// updateCardOnBoard opens the board, syncs it, commits and closes — perfectly
+// reasonable for one card and ruinous for five hundred, which is what a
+// re-runnable import does on its second pass. This does the same work once:
+// one open, one transaction, one card_index write.
+//
+// Returns the cards as they now are, in the order the patches were given,
+// with a null wherever the card did not exist.
+export async function updateCardsOnBoard(env, {
+  boardId, workspaceId, userId, accessToken, patches,
+}) {
+  if (!patches?.length) return [];
+  const board = await openBoard(env, boardId, accessToken);
+  try {
+    const cards = board.doc.getMap('cards');
+    const byId = new Map(readCards(board.doc).map((c) => [String(c.id), c]));
+    const stamp = new Date().toISOString();
+
+    const resolved = patches.map(({ cardId, patch }) => {
+      const before = byId.get(String(cardId));
+      if (!before) return null;
+      const p = typeof patch === 'function' ? (patch(before) || {}) : (patch || {});
+      // id can never be patched: it is the key in the Y.Map and in card_index,
+      // so changing it here would orphan the index row rather than rename it.
+      const { id: _ignored, ...safe } = p;
+      return { ...before, ...safe, id: before.id, updatedAt: stamp, updatedBy: userId || null };
+    });
+
+    const changed = resolved.filter(Boolean);
+    if (!changed.length) return resolved;
+
+    // One transaction, so collaborators see the batch land as a batch rather
+    // than as five hundred separate edits arriving over a second.
+    await commitDoc(env, boardId, board, () => {
+      for (const c of changed) cards.set(String(c.id), cardToYMap(c));
+    });
+
+    const rows = buildCardIndexRows({ workspaceId, boardId, cards: changed });
+    if (rows.length) {
+      await scoutInsert(env, 'card_index', rows, { onConflict: 'board_id,card_id' });
+    }
+    return resolved;
+  } finally {
+    try { board.ws?.close(); } catch (_) { /* already gone */ }
+    board.doc.destroy();
+  }
+}
+
+export async function updateCardOnBoard(env, {
+  boardId, workspaceId, userId, accessToken, cardId, patch,
+}) {
+  const board = await openBoard(env, boardId, accessToken);
+  try {
+    const cards = board.doc.getMap('cards');
+    const before = readCards(board.doc).find((c) => String(c.id) === String(cardId));
+    if (!before) return null;
+
+    // `patch` may be a function of the card as it stands. Some fields cannot be
+    // resolved without knowing what is already there — an image card keeps its
+    // text in `caption` and every other kind in `body`, so a caller handing over
+    // "the text" has to be told the kind before that can be turned into a field.
+    // Computing it here means one board open rather than a read followed by a
+    // write, and no window in between for the card to change kind.
+    const resolved = typeof patch === 'function' ? (patch(before) || {}) : (patch || {});
+
+    // id can never be patched: it is the key in the Y.Map and in card_index, so
+    // changing it here would orphan the index row rather than rename anything.
+    const { id: _ignored, ...safe } = resolved;
+    const updated = {
+      ...before, ...safe, id: before.id,
+      updatedAt: new Date().toISOString(),
+      updatedBy: userId || null,
+    };
+
+    await commitDoc(env, boardId, board, () => { cards.set(String(cardId), cardToYMap(updated)); });
+
+    // card_index is a projection of the card, so rebuild the row from the
+    // updated card rather than patching columns by hand — that way a new field
+    // in buildCardIndexRows is picked up here without anyone remembering to.
+    const rows = buildCardIndexRows({ workspaceId, boardId, cards: [updated] });
+    if (rows.length) {
+      await scoutInsert(env, 'card_index', rows, { onConflict: 'board_id,card_id' });
+    }
+    return updated;
+  } finally {
+    try { board.ws?.close(); } catch (_) { /* already gone */ }
+    board.doc.destroy();
+  }
+}
+
+// Remove cards. Returns the cards as they were — the API hands them back as the
+// response body, because an HTTP client has no undo toast and the removed card
+// is the only thing that can serve as one.
+export async function deleteCardsFromBoard(env, {
+  boardId, accessToken, cardIds = [],
+}) {
+  if (!cardIds.length) return [];
+  const board = await openBoard(env, boardId, accessToken);
+  try {
+    const cards = board.doc.getMap('cards');
+    const wanted = new Set(cardIds.map(String));
+    const removed = readCards(board.doc).filter((c) => wanted.has(String(c.id)));
+    if (!removed.length) return [];
+
+    await commitDoc(env, boardId, board, () => {
+      for (const c of removed) cards.delete(String(c.id));
+    });
+
+    // card_index last: while the row survives the card is merely invisible,
+    // which is recoverable. Deleting the index first would free cap for a card
+    // still sitting on the canvas.
+    await scoutDelete(env, 'card_index',
+      `board_id=eq.${boardId}&card_id=in.${encodeURIComponent(inList(removed.map((c) => c.id)))}`,
+    ).catch(() => {});
+
+    return removed;
+  } finally {
+    try { board.ws?.close(); } catch (_) { /* already gone */ }
+    board.doc.destroy();
+  }
+}
+
 // Read a board's cards without mutating anything — the confirmation step needs
 // to know what's in the Bin before it can ask about it.
 export async function readBoardCards(env, boardId, accessToken = null) {
@@ -420,10 +728,99 @@ export async function readBoardCards(env, boardId, accessToken = null) {
   }
 }
 
+// ── Groups ───────────────────────────────────────────────────────────────────
+//
+// A group is the app's way of saying "these cards belong together": it draws a
+// labelled outline round them and makes them drag as one. It lives in its own
+// top-level Y.Map, and cards point at it by `groupId` — so a group is metadata
+// about a set, not a container that owns its members.
+//
+// The API had no access to any of this, which meant an integration could place
+// forty cards and not express that they were one thing.
+
+export async function readBoardGroups(env, boardId, accessToken = null) {
+  const board = await openBoard(env, boardId, accessToken);
+  try {
+    const out = [];
+    board.doc.getMap('groups').forEach((v, id) => {
+      const g = v && typeof v.toJSON === 'function' ? v.toJSON() : v;
+      if (g && typeof g === 'object') out.push({ ...g, id: g.id || id });
+    });
+    return out.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+  } finally {
+    try { board.ws?.close(); } catch (_) { /* already gone */ }
+    board.doc.destroy();
+  }
+}
+
+/**
+ * Create, patch or remove groups in one board open.
+ *
+ * `upserts` are whole group records; `removeIds` are ungrouped rather than
+ * deleted — the cards pointing at a removed group have their `groupId` cleared
+ * in the same transaction, because a card left pointing at a group that no
+ * longer exists renders as an untitled outline nobody can select or name.
+ */
+export async function writeBoardGroups(env, {
+  boardId, accessToken, workspaceId, userId, upserts = [], removeIds = [],
+}) {
+  const board = await openBoard(env, boardId, accessToken);
+  try {
+    const groups = board.doc.getMap('groups');
+    const cards = board.doc.getMap('cards');
+    const gone = new Set(removeIds.map(String));
+    const orphaned = [];
+
+    if (gone.size) {
+      for (const c of readCards(board.doc)) {
+        if (c.groupId && gone.has(String(c.groupId))) orphaned.push(c);
+      }
+    }
+
+    await commitDoc(env, boardId, board, () => {
+      for (const g of upserts) {
+        const existing = groups.get(String(g.id));
+        const before = existing && typeof existing.toJSON === 'function' ? existing.toJSON() : (existing || {});
+        groups.set(String(g.id), { ...before, ...g, id: String(g.id) });
+      }
+      for (const id of gone) groups.delete(String(id));
+      for (const c of orphaned) cards.set(String(c.id), cardToYMap({ ...c, groupId: null }));
+    });
+
+    // card_index carries groupId/groupName in meta, so ungrouping has to be
+    // reprojected or search and the public page keep showing the old grouping.
+    if (orphaned.length && workspaceId) {
+      const rows = buildCardIndexRows({
+        workspaceId,
+        boardId,
+        cards: orphaned.map((c) => ({ ...c, groupId: null })),
+      });
+      if (rows.length) await scoutInsert(env, 'card_index', rows, { onConflict: 'board_id,card_id' });
+    }
+
+    const out = [];
+    board.doc.getMap('groups').forEach((v, id) => {
+      const g = v && typeof v.toJSON === 'function' ? v.toJSON() : v;
+      if (g && typeof g === 'object') out.push({ ...g, id: g.id || id });
+    });
+    return { groups: out, ungrouped: orphaned.map((c) => String(c.id)), userId };
+  } finally {
+    try { board.ws?.close(); } catch (_) { /* already gone */ }
+    board.doc.destroy();
+  }
+}
+
 // Capacity pre-flight. Returns { used, cap, capped, remaining }. Called BEFORE
 // any R2 upload so we never spend bytes on a card that will be rejected.
-export async function boardCapacity(env, boardId) {
-  const res = await scoutRpc(env, 'get_board_capacity', { p_board_id: boardId });
+// Takes the user EXPLICITLY. get_board_capacity gates on can_read_board, which
+// resolves the caller through auth.uid() — null for a service-role caller, so it
+// raised 42501 on every single ingest and the pre-flight never ran. 0216 adds
+// the explicit-user mirror; same numbers, same owner-keying, different access
+// check. See 0213 §1 for the first instance of this trap.
+export async function boardCapacity(env, boardId, userId) {
+  const res = await scoutRpc(env, 'scout_board_capacity', {
+    p_board_id: boardId, p_user_id: userId,
+  });
   const row = Array.isArray(res) ? res[0] : res;
   const used = Number(row?.used ?? 0);
   const cap = row?.cap == null ? Infinity : Number(row.cap);

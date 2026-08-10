@@ -19,15 +19,34 @@ import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { useUpsellExposure } from '../hooks/useUpsellExposure.js';
 import { startCheckout, startPortal } from '../lib/checkout.js';
+import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { FeatureList, PlanToggle, CreatorPriceRow } from './PricingBits.jsx';
-import { CTA, CREATOR_FEATURES, PRICING, COPY_REV } from '../lib/billingCopy.js';
+import { CTA, CREATOR_FEATURES, PRICING, COPY_REV, capHitSummary } from '../lib/billingCopy.js';
+import { useStorageUsage } from '../hooks/useStorageUsage.js';
+import { evaluateUpsell } from '../lib/upsellEligibility.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 
-export function PricingModal({ onClose, header = null, surface = 'modal', via = null }) {
+export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null }) {
   const { user } = useAuth();
   const { tier, demoCardCount, effectiveCardLimit } = useMyTier({ userId: user?.id });
+  // Only the wall gets personalized, so only the wall pays for the extra RPC.
+  const storage = useStorageUsage({ enabled: header === 'cap-hit' });
+  const capStats = header === 'cap-hit'
+    ? capHitSummary({ cards: demoCardCount, clusters: clusterCount, storageBytes: storage.used })
+    : null;
+  // Recomputed here rather than passed in: PricingModal is mounted from five
+  // places, and every exposure should carry the same targeting state whether or
+  // not its caller happened to thread it through.
+  const elig = evaluateUpsell({
+    tier,
+    demoCardCount,
+    cardLimit: effectiveCardLimit,
+    accountAgeDays: user?.created_at
+      ? Math.max(0, Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86400000))
+      : 0,
+  });
   const [plan, setPlan]   = useState('monthly'); // monthly-first: annual-default drove pricing abandons (24/28 in 30d)
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
@@ -44,7 +63,10 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     surface, header, via,
     uid: user?.id, tier,
     userState: tier != null
-      ? { demoCardCount, cardLimit: effectiveCardLimit, signupAt: user?.created_at }
+      ? {
+          demoCardCount, cardLimit: effectiveCardLimit, signupAt: user?.created_at,
+          elig: elig.eligible, eligReason: elig.reason, pressure: elig.pressure,
+        }
       : { signupAt: user?.created_at },
     getRootEl: () => modalRef.current,
   });
@@ -84,7 +106,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     } catch (err) {
       redirectingRef.current = false;
       up.noteError();
-      setError(err?.message || String(err));
+      setError(checkoutErrorMessage(err));
       setBusy(false);
     }
   };
@@ -126,13 +148,17 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
             <>
               <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
               <h2 className="upgrade-title">Your work outgrew the demo.</h2>
-              <p className="upgrade-sub t-body">You've built enough to feel it. Step into the complete studio — unlimited clusters, any file, full edit access — or invite friends to earn more free cards.</p>
+              {/* Their numbers, not ours. This is the one screen where the
+                  reader is provably motivated — and provably not reading the
+                  feature list — so it leads with what they've actually built. */}
+              {capStats && <p className="upgrade-caphit-stats t-body">You've built {capStats}.</p>}
+              <p className="upgrade-sub t-body">Creator lifts the cap — and every card you've already made stays exactly where it is.</p>
             </>
           ) : header === 'first-value' ? (
             <>
               <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
               <h2 className="upgrade-title">You're building something.</h2>
-              <p className="upgrade-sub t-body">Your first cluster is taking shape. Creator is the complete studio — unlimited space, any file, and full edit access. Everything your work deserves.</p>
+              <p className="upgrade-sub t-body">Your first cluster is taking shape. Creator is the complete studio — unlimited cards, any file type, any size. Everything your work deserves.</p>
             </>
           ) : header === 'storage' ? (
             <>
@@ -144,7 +170,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
             <>
               <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
               <h2 className="upgrade-title">Everything your work deserves.</h2>
-              <p className="upgrade-sub t-body">The complete studio — unlimited clusters and files, any type, any size, and full edit access everywhere you're invited.</p>
+              <p className="upgrade-sub t-body">The complete studio — unlimited cards, and any file you make, any type, any size.</p>
             </>
           )}
         </div>
@@ -157,7 +183,12 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
 
           {!alreadyPaid && <CreatorPriceRow plan={plan} />}
 
-          <FeatureList features={CREATOR_FEATURES} />
+          {/* At the wall the feature list moves BELOW the CTA so the price, the
+              user's own totals and the button are the whole of the first read.
+              It is demoted rather than deleted: the rows keep their data-up-feat
+              markers, so up_feature_hover can still say whether the demotion
+              changed what gets read. Row indices are unaffected by the move. */}
+          {header !== 'cap-hit' && <FeatureList features={CREATOR_FEATURES} />}
 
           {error && <div className="auth-error t-meta">{error}</div>}
 
@@ -167,19 +198,27 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
               ? (alreadyPaid ? CTA.manageBillingBusy : CTA.getCreatorBusy)
               : (alreadyPaid ? CTA.manageBilling : CTA.getCreator)}
           </button>
+
+          {header === 'cap-hit' && <FeatureList features={CREATOR_FEATURES} className="pricing-features upgrade-features-after" />}
         </article>
 
-        {/* Card-count contexts only: bonus cards from inviting friends unlock the
-            SAME thing the cap-hit/first-value paywall is about. Not shown for
-            shared-edit / storage, which are genuinely paid-only. Decoupled via a
-            window event so it works from every PricingModal mount. */}
-        {!alreadyPaid && tier === 'demo' && (header === 'cap-hit' || header === 'first-value' || header === null) && (
+        {/* Card-count contexts, EXCEPT the wall itself: bonus cards from inviting
+            friends unlock the SAME thing the first-value paywall is about, so the
+            alternative belongs on the warm nudges. It is deliberately NOT offered
+            on 'cap-hit' — at the wall it is the only thing competing with the
+            sale, and it is where a blocked user is most likely to take the free
+            exit instead of deciding. Not shown for storage, which is genuinely
+            paid-only. Decoupled via a window event so it works from every mount. */}
+        {!alreadyPaid && tier === 'demo' && (header === 'first-value' || header === null) && (
           <button
             type="button"
             className="upgrade-invite-alt"
             style={{
+              // Neutral ink, not --soleil: the gold accent is reserved for the
+              // CTA / active / focus states, and an accent-colored alternative
+              // competes with the primary button it sits beneath.
               background: 'none', border: 'none', cursor: 'pointer', marginTop: 2,
-              color: 'var(--soleil, #ffa500)', fontSize: 13, fontWeight: 600,
+              color: 'var(--ink-2)', fontSize: 13, fontWeight: 600,
               textDecoration: 'underline', textUnderlineOffset: 3,
             }}
             onClick={() => {

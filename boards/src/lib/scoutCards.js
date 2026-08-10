@@ -226,6 +226,23 @@ export function composeBatch({ existingCards = [], images = [], urls = [], noteT
   return pushClearOf(solid, [headerCard, ...laid]);
 }
 
+// Append an existing set of cards to a board, chronologically, without
+// re-sorting anything.
+//
+// This is composeBatch's positioning half applied to cards that already exist.
+// Adoption needs it: when a shell account's Bin is absorbed into a real
+// account's Bin, the cards are ARRIVING, not being filed. Per the split
+// described below, arrival is chronological and filing is the moodboard —
+// colour-sorting someone's staging collection the moment they connect their
+// account would rearrange work they had already made sense of.
+export function arrangeExisting({ existingCards = [], cards = [] }) {
+  const list = (cards || []).filter(Boolean);
+  if (!list.length) return [];
+  const solid = withGeometry(existingCards);
+  const laid = arrangeInFreeSpace(solid, list, { gap: 24, startBelowGap: 64, margin: 80 });
+  return pushClearOf(solid, laid);
+}
+
 // Re-position an existing set of cards as a colour-ordered moodboard on a
 // DESTINATION board. This is the filing path: the cards already exist (they were
 // sitting in the Bin), so nothing here mints ids or touches content — only x/y

@@ -77,6 +77,22 @@ test('rich preview marks: grid/doc/schedule/shape/note/link resolve real modes (
   expect(sched.preview.mode).toBe('schedule');
   expect(sched.preview.rows.length).toBe(2);
 
+  // New-model calendar container: items synthesize the same preview shape,
+  // the name falls back to the anchor month, sub counts items.
+  const cal = toListItem({
+    id: 'c', kind: 'schedule', schedView: 'month', anchor: '2026-07-15',
+    cells: {
+      'd:2026-07-15/i:a': { type: 'text', html: '<div>Call sheet</div>' },
+      'd:2026-07-16/h:09/i:b': { type: 'board', boardId: 'b1', name: 'Locations' },
+      'd:2026-07-17/i:ghost': { type: 'empty' },
+    },
+  }, {});
+  expect(cal.preview.mode).toBe('schedule');
+  expect(cal.preview.rows.length).toBe(2);
+  expect(cal.preview.rows[0].when).toBe('Jul 15');
+  expect(cal.name).toBe('July 2026');
+  expect(cal.sub).toBe('2 items');
+
   const shape = toListItem({ id: 'sh', kind: 'shape', shape: 'star', fill: '#f00', stroke: '#0f0' }, {});
   expect(shape.preview.mode).toBe('shape');
   expect(shape.preview.shape).toBe('star');

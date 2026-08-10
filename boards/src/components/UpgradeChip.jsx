@@ -16,16 +16,24 @@ import { useMyTier } from '../hooks/useMyTier.js';
 import { PricingModal } from './PricingModal.jsx';
 import { FirstValueUpgradeBanner } from './FirstValueUpgradeBanner.jsx';
 import { getOwnProfile, updateOwnSettings } from '../lib/boardsApi.js';
-import { logEvent, logEventNow } from '../lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { qaForceFirstValue } from '../lib/localMode.js';
 import { DEMO_CARD_LIMIT } from '../lib/demoCardCap.js';
 import { COPY_REV } from '../lib/billingCopy.js';
+import { evaluateUpsell, ELIGIBILITY_REV } from '../lib/upsellEligibility.js';
 
 export function UpgradeChip() {
   const { user } = useAuth();
   const { tier, demoCardCount, effectiveCardLimit } = useMyTier({ userId: user?.id });
   const cardLimit = effectiveCardLimit || DEMO_CARD_LIMIT;
+  // Days since signup — the one retention signal available without a server
+  // round-trip, and enough (with cap fraction) to qualify everyone the richer
+  // active-days signal would have.
+  const accountAgeDays = user?.created_at
+    ? Math.max(0, Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86400000))
+    : 0;
+  const elig = evaluateUpsell({ tier, demoCardCount, cardLimit, accountAgeDays });
   const [open, setOpen] = useState(false);       // chip-opened modal
   const [fvBanner, setFvBanner] = useState(false); // first-value banner
   const [fvModal, setFvModal] = useState(false);   // first-value modal
@@ -50,18 +58,52 @@ export function UpgradeChip() {
     if (tier !== 'demo') return;
     const trigger = () => {
       if (firedRef.current || fvShownAtRef.current) return; // this session / prior session
+      // Eligibility is checked HERE, before the once-per-account stamp is
+      // burned. App.jsx now re-dispatches on every card change, so a user who
+      // isn't ready at card #2 simply gets the banner later, at the first card
+      // placed after they qualify. Gating at the dispatch site instead would
+      // consume the one-shot on an ineligible user and kill the surface for
+      // good — the banner would never fire, for anyone, ever again.
+      // qaForceFirstValue is a RENDER seam, not a gate seam: the banner spec
+      // exercises how the banner looks and dismisses, not who qualifies for it
+      // (that's upsellEligibility.test.mjs's job), so it bypasses the check.
+      if (!elig.eligible && !qaForceFirstValue()) {
+        // Distinct from the chip's suppression row: this user reached the
+        // first-value moment (2+ genuine cards) and was still held back, which
+        // is a different and more interesting silence than "never qualified".
+        logEventOnce('up_suppressed:first_value', EV.UP_SUPPRESSED, {
+          surface: 'first_value',
+          reason: elig.reason,
+          cap_pct: elig.capPct,
+          demo_cards: demoCardCount,
+          limit: cardLimit,
+          acct_days: accountAgeDays,
+          elig_rev: ELIGIBILITY_REV,
+          copy_rev: COPY_REV,
+        });
+        return;
+      }
       firedRef.current = true;
       const at = new Date().toISOString();
       fvShownAtRef.current = at;
       setFvBanner(true);
-      logEvent(EV.FIRST_VALUE_UPGRADE_VIEW, { copy_rev: COPY_REV });
+      logEvent(EV.FIRST_VALUE_UPGRADE_VIEW, { copy_rev: COPY_REV, elig_reason: elig.reason, cap_pct: elig.capPct });
       // Persist on show so it's truly once-per-account. Best-effort.
       updateOwnSettings({ upgrade_prompts: { first_value_shown_at: at } }).catch(() => {});
+      // Local mirror of the same fact. App.jsx's activation effect reads this
+      // key to stop re-dispatching once the banner has actually been shown —
+      // the stamp lives here, at the point of showing, rather than at the
+      // dispatch site where it would be burned on users who never saw it.
+      try { if (user?.id) localStorage.setItem(`soleil_firstvalue_${user.id}`, '1'); } catch { /* ignore */ }
     };
     window.addEventListener('soleil:first-value', trigger);
     if (qaForceFirstValue()) trigger();
     return () => window.removeEventListener('soleil:first-value', trigger);
-  }, [tier]);
+    // elig.eligible is a dependency: the listener closes over it, and a user
+    // crosses the threshold mid-session. firedRef keeps the re-registration
+    // idempotent, and qaForceFirstValue stays a render seam that bypasses the
+    // gate so the banner spec doesn't need to construct an eligible user.
+  }, [tier, elig.eligible, elig.reason, elig.capPct, demoCardCount, cardLimit, accountAgeDays, user?.id]);
 
   // Publish the chip's measured width to --upgrade-chip-gutter so the topbar's
   // right cluster (.tb-right) can reserve exactly enough room and never sit
@@ -72,7 +114,9 @@ export function UpgradeChip() {
   useLayoutEffect(() => {
     const el = chipRef.current;
     const root = document.documentElement;
-    if (tier !== 'demo' || !el) {
+    // Also covers the suppressed case: without `!elig.eligible` here the
+    // topbar would keep reserving room for a chip that never renders.
+    if (tier !== 'demo' || !elig.eligible || !el) {
       root.style.setProperty('--upgrade-chip-gutter', '0px');
       return;
     }
@@ -84,11 +128,43 @@ export function UpgradeChip() {
       ro.disconnect();
       root.style.setProperty('--upgrade-chip-gutter', '0px');
     };
-  }, [tier]);
+  }, [tier, elig.eligible]);
+
+  // Record the suppression itself. Without this, "nobody converted" and "nobody
+  // was ever asked" are indistinguishable in the data, and the change made here
+  // would be unmeasurable. logEventOnce keys per page-load, so this is ~1 row
+  // per session per surface — analytics_events INSERT is anon-open, and a
+  // per-render beacon would make this the highest-volume event in the family.
+  useEffect(() => {
+    if (tier !== 'demo' || elig.eligible) return;
+    logEventOnce('up_suppressed:chip', EV.UP_SUPPRESSED, {
+      surface: 'chip',
+      reason: elig.reason,
+      cap_pct: elig.capPct,
+      demo_cards: demoCardCount,
+      limit: cardLimit,
+      acct_days: accountAgeDays,
+      elig_rev: ELIGIBILITY_REV,
+      copy_rev: COPY_REV,
+    });
+  }, [tier, elig.eligible, elig.reason, elig.capPct, demoCardCount, cardLimit, accountAgeDays]);
 
   if (tier !== 'demo') return null;
 
-  const near = demoCardCount >= cardLimit - 10;
+  // The CHIP is what eligibility gates: below the bar, the persistent ask
+  // disappears. The pitch is a finite resource, and spending it on someone with
+  // three cards on their first day is what taught this audience to dismiss it
+  // on sight.
+  //
+  // The banner and modals below are NOT gated here — they own their own
+  // entry conditions (the first-value listener checks eligibility before it
+  // burns the once-per-account stamp; the modals only exist once something
+  // opened them). Returning null for the whole component would silently break
+  // both, since a suppressed chip would also unmount an already-open modal.
+  const showChip = elig.eligible;
+
+  const near = elig.pressure === 'urgent';
+  const showCount = elig.pressure === 'urgent' || elig.pressure === 'count';
   const onSeeCreator = () => {
     logEventNow(EV.FIRST_VALUE_UPGRADE_CTA, { copy_rev: COPY_REV }); // must-land: a redirect may follow from the modal
     setFvBanner(false);
@@ -101,26 +177,37 @@ export function UpgradeChip() {
 
   return (
     <>
+      {showChip && (
       <button
         ref={chipRef}
         className={`upgrade-chip ${near ? 'upgrade-chip-near' : ''}`}
         onClick={() => {
           // Was dark: only the downstream modal pricing_view fired, so chip
           // clicks were indistinguishable from every other modal entry.
-          logEvent(EV.UP_CHIP_CLICK, { near, count: demoCardCount, limit: cardLimit });
+          logEvent(EV.UP_CHIP_CLICK, {
+            near, count: demoCardCount, limit: cardLimit,
+            pressure: elig.pressure, elig_reason: elig.reason, cap_pct: elig.capPct,
+          });
           setOpen(true);
         }}
         aria-label="Upgrade to Creator"
         title="Upgrade your demo to Creator"
       >
-        <span className="upgrade-chip-label">Get Creator</span>
-        {near && (
+        {/* The chip earns its pressure. It used to read "Get Creator" forever
+            and only reveal the count within 10 of the wall, so the ceiling was
+            invisible right up until it stopped you. Now the count appears once
+            usage is genuinely underway, and the ask sharpens only near the end. */}
+        <span className="upgrade-chip-label">
+          {near ? `${Math.max(0, cardLimit - demoCardCount)} cards left` : 'Get Creator'}
+        </span>
+        {showCount && !near && (
           <>
             <span className="upgrade-chip-sep">·</span>
             <span className="upgrade-chip-count">{demoCardCount}/{cardLimit}</span>
           </>
         )}
       </button>
+      )}
       {open && <PricingModal onClose={() => setOpen(false)} header={null} via="chip" />}
       {fvBanner && <FirstValueUpgradeBanner onSeeCreator={onSeeCreator} onDismiss={onDismiss} />}
       {fvModal && <PricingModal onClose={() => setFvModal(false)} header="first-value" surface="first_value" via="first_value_banner" />}

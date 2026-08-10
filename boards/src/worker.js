@@ -18,7 +18,11 @@
 import { handleTagsRoute } from './worker-tags.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
-import { handleScoutSession, handleScoutSessionMint, handleScoutSignup } from './worker-scout.js';
+import { handleApiRoute } from './worker-api.js';
+import { runWebhooks } from './lib/webhooks.js';
+import {
+  handleScoutSession, handleScoutSessionMint, handleScoutSignup, handleScoutClaim,
+} from './worker-scout.js';
 import { runCompactionJob1 } from './worker-compaction.js';
 // Self-authored SEO landing pages (tool / "alternative to" / hub). Pure-data
 // registry shared with the React component so the crawlable server-rendered
@@ -26,6 +30,13 @@ import { runCompactionJob1 } from './worker-compaction.js';
 import { getLandingSpec, SEO_LANDING_PAGES, landingOgPath, EXPLORE_INTRO, matchToolPath } from './lib/seoLanding.js';
 import { getListicleSpec, SEO_LISTICLE_PAGES } from './lib/seoListicles.js';
 import { buildListicleCrawlableHtml, buildListicleJsonLd } from './lib/seoListicleHtml.js';
+// Public documentation (/docs/*). Two GENERATED modules, both built from
+// content/docs/**.md by scripts/gen-docs.mjs: the light index for meta and the
+// sitemap, and the pre-rendered crawlable HTML. The Worker deliberately does
+// NOT import the block AST (lib/docsiteContent.js) — React renders from that,
+// and pulling it in here would double the prose in this bundle for no gain.
+import { DOCS_PAGES, getDocsPage, isDocsPath } from './lib/docsiteIndex.js';
+import { DOCS_HTML } from './lib/docsiteCrawlable.js';
 // /c/<slug> editorial article: shared model + renderer (imported by BOTH this
 // worker and PublicBoardView's article — parity by construction, like seoLanding).
 import { buildPageModel, renderArticleHtml } from './lib/publicPageModel.js';
@@ -289,7 +300,10 @@ function injectShareMeta(res, meta, token) {
 }
 
 export default {
-  async fetch(request, env) {
+  // `ctx` is here for /api/v1's audit log: api_log_request runs in
+  // ctx.waitUntil so recording a write is never what makes a request slow, and
+  // never what fails one.
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     // ── URL normalization (SEO): 301 duplicate-URL variants onto the canonical
@@ -302,7 +316,7 @@ export default {
         && !url.pathname.includes('.')) {
       let p = url.pathname;
       if (p.length > 1 && p.endsWith('/')) p = p.replace(/\/+$/, '') || '/';
-      if (/^\/(tools|vs|best|use-cases|pricing|legal|explore|c|scout)(\/|$)/i.test(p)) p = p.toLowerCase();
+      if (/^\/(tools|vs|best|use-cases|pricing|legal|explore|c|scout|docs)(\/|$)/i.test(p)) p = p.toLowerCase();
       // Bare section prefixes have no page of their own — send them to the hub.
       if (p === '/tools' || p === '/vs' || p === '/best') p = '/use-cases';
       if (p !== url.pathname) {
@@ -322,9 +336,19 @@ export default {
       // The /scout phone box. Public and unauthenticated — every cap lives in
       // scout_request_invite (0210), not here.
       if (url.pathname === '/api/scout/signup') return await handleScoutSignup(request, env);
+      // A shell account (texted first, never signed up) attaching a real email.
+      // Authenticated as that user; the address change itself is handed to
+      // Supabase's confirmation flow rather than written here.
+      if (url.pathname === '/api/scout/claim') return await handleScoutClaim(request, env);
       if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
       if (url.pathname.startsWith('/api/seo/')) return await handleSeoRoute(url, request, env);
       if (url.pathname.startsWith('/api/ai/')) return await handleAiRoute(url, request, env);
+      // The public API. Authenticated by a personal access token, which is
+      // exchanged for the user's OWN Supabase session — so everything below
+      // runs under ordinary RLS. See lib/apiAuth.js.
+      if (url.pathname === '/api/v1' || url.pathname.startsWith('/api/v1/')) {
+        return await handleApiRoute(url, request, env, ctx);
+      }
       const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
       if (resetMatch) return await handleBoardReset(resetMatch[1], request);
       const thumbMatch = url.pathname.match(/^\/api\/share-thumb\/([0-9a-f-]{36})$/i);
@@ -437,6 +461,20 @@ export default {
       }
     }
 
+    // Public documentation (/docs/*). Same discipline as the landing pages: a
+    // docs-SHAPED path that isn't in the generated registry is a definitive
+    // miss and gets a real 404, so /docs/<anything> can't become an unbounded
+    // soft-404 surface serving homepage meta at 200.
+    //
+    // NOTE this runs only for HTML page requests. The raw markdown mirrors
+    // (/docs/api/cards.md) are real files in dist/ and were already served by
+    // env.ASSETS long before we get here.
+    if (isPageReq && contentType.includes('text/html') && isDocsPath(url.pathname)) {
+      const docsPage = getDocsPage(url.pathname);
+      if (docsPage) return withRevalidate(injectDocs(res, docsPage));
+      return notFoundResponse(res, 'Page not found — Soleil Clusters docs');
+    }
+
     // Public marketing board (/c/<slug>): keyword-rich meta + crawlable
     // server-rendered content + JSON-LD. Never noindex — these are meant to
     // rank. Definitive not-found (P0002 sentinel) → real 404; transient RPC
@@ -491,7 +529,13 @@ export default {
     //
     // event.cron lets us distinguish which schedule fired this invocation.
     const which = event?.cron || '';
-    if (which === '15 * * * *') {
+    if (which === '* * * * *') {
+      // Webhook drain. Every minute because an outbox is only as timely as its
+      // slowest path, and the slow path here is a change made IN THE APP —
+      // API-driven events already leave immediately via waitUntil in
+      // worker-api.js. Costs one indexed probe when nothing is pending.
+      ctx.waitUntil(runWebhooks(env, { limit: 200 }));
+    } else if (which === '15 * * * *') {
       ctx.waitUntil(runCompactionJob1(env));
     } else if (which === '0 4 * * *') {
       // daily 04:00 UTC — fill in any missing image sizes (additive, runs live),
@@ -1040,6 +1084,81 @@ function injectLanding(res, spec) {
   return rw.transform(res);
 }
 
+// ── Public documentation (/docs/*) ──────────────────────────────────────────
+// Meta + crawlable body + JSON-LD for one docs page. The body is already
+// escaped HTML, generated from the same markdown parse that produces the block
+// AST React renders — which is what makes server and client provably say the
+// same thing rather than merely intending to (docsite.test.mjs asserts it).
+//
+// One shared OG card per section, not per page: 50-odd near-identical cards
+// would be churn in public/og/ for no meaningful difference in a link preview.
+function injectDocs(res, page) {
+  const canonical = `${SITE_ORIGIN}${page.path}`;
+  const og = `${SITE_ORIGIN}/og/docs-${page.section}.png?v=${page.updated}`;
+  const desc = page.metaDescription;
+  return new HTMLRewriter()
+    .on('title',                            new SetText(page.title))
+    .on('meta[name="description"]',         new SetContent(desc))
+    .on('meta[property="og:title"]',        new SetContent(page.title))
+    .on('meta[property="og:description"]',  new SetContent(desc))
+    .on('meta[property="og:url"]',          new SetContent(canonical))
+    .on('meta[property="og:image"]',        new SetContent(og))
+    .on('meta[property="og:image:alt"]',    new SetContent(page.h1))
+    .on('meta[name="twitter:title"]',       new SetContent(page.title))
+    .on('meta[name="twitter:description"]', new SetContent(desc))
+    .on('meta[name="twitter:image"]',       new SetContent(og))
+    .on('link[rel="canonical"]',            new SetHref(canonical))
+    .on('main#seo-fallback',                new SetInnerHtml(DOCS_HTML[page.path] || ''))
+    .on('head', new AppendHead(
+      '<script type="application/ld+json">'
+      + jsonLdSafe(buildDocsJsonLd(page, canonical)) + '</script>'
+      // Point machines at the markdown twin of this exact page. `alternate`
+      // with a text/markdown type is the honest way to say "same content,
+      // parseable format" without pretending it's a translation.
+      + `<link rel="alternate" type="text/markdown" href="${escapeHtml(page.path)}.md">`
+    ))
+    .transform(res);
+}
+
+// TechArticle + BreadcrumbList (+ FAQPage where the page has one). TechArticle
+// rather than the landing pages' SoftwareApplication: these describe how to use
+// the product, they are not each a product listing.
+function buildDocsJsonLd(page, url) {
+  const crumbs = [{ '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_ORIGIN}/` },
+    { '@type': 'ListItem', position: 2, name: 'Docs', item: `${SITE_ORIGIN}/docs` }];
+  if (page.path !== '/docs') {
+    crumbs.push({ '@type': 'ListItem', position: 3, name: page.h1, item: url });
+  }
+  const graph = [
+    {
+      '@type': 'TechArticle',
+      '@id': `${url}#article`,
+      url,
+      headline: page.h1,
+      name: page.title,
+      description: page.metaDescription,
+      abstract: page.answer,
+      dateModified: page.updated,
+      inLanguage: 'en',
+      isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+      about: { '@type': 'SoftwareApplication', name: 'Soleil Clusters' },
+      publisher: { '@id': `${SITE_ORIGIN}/#organization` },
+    },
+    { '@type': 'BreadcrumbList', itemListElement: crumbs },
+  ];
+  if (Array.isArray(page.faq) && page.faq.length) {
+    graph.push({
+      '@type': 'FAQPage',
+      '@id': `${url}#faq`,
+      mainEntity: page.faq.map((f) => ({
+        '@type': 'Question', name: f.q,
+        acceptedAnswer: { '@type': 'Answer', text: f.a },
+      })),
+    });
+  }
+  return { '@context': 'https://schema.org', '@graph': graph };
+}
+
 function buildLandingCrawlableHtml(spec) {
   const H2 = 'font-size:1.35rem;font-weight:600;margin:1.4em 0 .4em;';
   const parts = [];
@@ -1185,6 +1304,15 @@ async function handleSitemap(env, request) {
     // /best/* listicles (lib/seoListicles.js) — same honest-lastmod policy.
     ...SEO_LISTICLE_PAGES.map((s) => ({
       loc: `${SITE_ORIGIN}${s.path}`, lastmod: s.updated || null, changefreq: 'monthly', priority: '0.8',
+    })),
+    // Public documentation (generated from content/docs/**.md). The hub ranks
+    // as a section entry point; the rest are reference pages people arrive at
+    // from a query, so they sit just under the marketing set.
+    ...DOCS_PAGES.map((d) => ({
+      loc: `${SITE_ORIGIN}${d.path}`,
+      lastmod: d.updated || null,
+      changefreq: 'monthly',
+      priority: d.path === '/docs' ? '0.8' : '0.6',
     })),
     { loc: `${SITE_ORIGIN}/legal/privacy`,  changefreq: 'yearly',  priority: '0.3' },
     { loc: `${SITE_ORIGIN}/legal/terms`,    changefreq: 'yearly',  priority: '0.3' },

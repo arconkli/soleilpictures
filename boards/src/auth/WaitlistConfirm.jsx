@@ -16,6 +16,7 @@ import { supabase } from '../lib/supabase.js';
 import { useAuth } from './AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { startCheckout } from '../lib/checkout.js';
+import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { CTA } from '../lib/billingCopy.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
@@ -98,7 +99,7 @@ export function WaitlistConfirm() {
       logEventNow(EV.WAITLIST_SUBSCRIBE_CTA, { plan });
       await startCheckout({ plan, surface: 'waitlist_status' });
     } catch (err) {
-      setCheckoutError(err?.message || String(err));
+      setCheckoutError(checkoutErrorMessage(err));
       setCheckoutBusy(false);
     }
   };

@@ -18,7 +18,7 @@
 import { formatCount } from '../../../../lib/adminFormat.js';
 import { RateCell, Spark, PanelNote } from '../../SmallN.jsx';
 import { CHART } from '../../chartTheme.js';
-import { CREATOR_FEATURES, CREATOR_FEATURE_KEYS } from '../../../../lib/billingCopy.js';
+import { CREATOR_FEATURES, CREATOR_FEATURE_KEYS, LEGACY_FEATURE_KEYS } from '../../../../lib/billingCopy.js';
 
 // Medians rest on up_exposure_summary rows; below this many they'd be noise.
 const MIN_ENGAGEMENT_N = 5;
@@ -34,7 +34,11 @@ function fmtMs(ms) {
 }
 
 // Strip the bold markers from a billingCopy feature line for the strip labels.
-function featLabel(i) {
+// Live rows resolve to their current copy; retired rows have no copy left, so
+// they're labelled by their raw key and marked so the chart doesn't imply the
+// line is still being shown.
+function featLabel(i, row) {
+  if (row?.retired) return `${row.key} (retired)`;
   return (CREATOR_FEATURES[i] || '').replaceAll('**', '');
 }
 
@@ -57,11 +61,20 @@ function DismissChips({ methods }) {
 function PitchLineStrip({ groups }) {
   // feat_keys only — mixing in the feat_hover row counts as a fallback could
   // double-count an event whose (attacker-writable) row/key disagree.
+  //
+  // Retired keys are appended so the copy revision that dropped them doesn't
+  // erase their history from this chart. They carry no featLabel (the line no
+  // longer exists), so they render under their raw key and only when non-zero.
   const totals = CREATOR_FEATURE_KEYS.map((key, i) => {
     let n = 0;
     for (const g of groups) n += Number(g.feat_keys?.[key]) || 0;
     return { key, i, n };
   });
+  for (const key of LEGACY_FEATURE_KEYS) {
+    let n = 0;
+    for (const g of groups) n += Number(g.feat_keys?.[key]) || 0;
+    if (n > 0) totals.push({ key, i: -1, n, retired: true });
+  }
   const max = Math.max(1, ...totals.map((t) => t.n));
   const any = totals.some((t) => t.n > 0);
   return (
@@ -72,8 +85,8 @@ function PitchLineStrip({ groups }) {
       {!any && <div className="admin-muted t-meta">No feature-row reads recorded yet.</div>}
       {any && totals.map((t) => (
         <div key={t.key} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-          <div className="t-meta" style={{ width: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={featLabel(t.i)}>
-            {featLabel(t.i)}
+          <div className="t-meta" style={{ width: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={featLabel(t.i, t)}>
+            {featLabel(t.i, t)}
           </div>
           <div style={{ flex: 1, height: 8, background: 'var(--bg-2)', borderRadius: 4, overflow: 'hidden' }}>
             <div style={{ width: `${Math.round((t.n / max) * 100)}%`, height: '100%', background: 'var(--soleil)', borderRadius: 4 }} />
@@ -116,13 +129,68 @@ export function UpsellBehaviorPanel({ scorecard, exposures, days }) {
   const funnel = Array.isArray(scorecard?.funnel) ? scorecard.funnel : [];
   const ep = scorecard?.entry_points || {};
   const feed = Array.isArray(exposures) ? exposures : [];
+  const tg = scorecard?.targeting || {};
+  const cap = scorecard?.cap || {};
 
   if (!scorecard) {
     return <PanelNote>Upsell behavior data unavailable (admin_upsell_scorecard failed to load).</PanelNote>;
   }
 
+  const suppressed = Number(tg.suppressed) || 0;
+  const eligExp = Number(tg.eligible_exposures) || 0;
+  const reasons = Object.entries(tg.by_reason || {}).filter(([, n]) => Number(n) > 0);
+  const serverRejects = Number(cap.server_rejects) || 0;
+
   return (
     <div>
+      {/* Targeting — the pitch is deliberately withheld from users who have not
+          invested yet, so the exposure count alone no longer tells the story.
+          Reading CTA rate against ALL exposures would flatter the change (a
+          smaller denominator), which is why eligible-only is called out. */}
+      <div style={{
+        marginBottom: 12, padding: '8px 10px',
+        border: '1px solid var(--line-1)', borderRadius: 8, background: 'var(--bg-1)',
+      }}>
+        <div className="t-meta admin-muted" style={{ marginBottom: 4 }}>
+          Targeting — who we chose to pitch ({days}d)
+        </div>
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'baseline' }}>
+          <span className="t-meta">
+            Withheld <b>{formatCount(suppressed)}</b>
+            {Number(tg.suppressed_users) > 0 && <> · {formatCount(tg.suppressed_users)} users</>}
+          </span>
+          <span className="t-meta">
+            Pitched <b>{formatCount(eligExp)}</b> → CTA{' '}
+            <RateCell numer={Number(tg.eligible_cta) || 0} denom={eligExp} />
+          </span>
+          <span className="t-meta">
+            Cap blocks <b>{formatCount(cap.blocked)}</b>
+            {Number(cap.blocked_users) > 0 && <> · {formatCount(cap.blocked_users)} users</>}
+          </span>
+          <span className="t-meta">
+            Wall toast <b>{formatCount(cap.near_toast_views)}</b> → clicked{' '}
+            <RateCell numer={Number(cap.near_toast_ctas) || 0} denom={Number(cap.near_toast_views) || 0} />
+          </span>
+          {/* Client gate and server trigger disagreeing. Was silently swallowed
+              before; any sustained count here is a bug, not a metric. */}
+          {serverRejects > 0 && (
+            <span className="t-meta" style={{ color: 'var(--ink-error)' }}>
+              server-rejected writes <b>{formatCount(serverRejects)}</b>
+            </span>
+          )}
+        </div>
+        {reasons.length > 0 && (
+          <div className="t-meta admin-muted" style={{ marginTop: 4 }}>
+            withheld because: {reasons.map(([k, n]) => `${k} ${formatCount(n)}`).join(' · ')}
+          </div>
+        )}
+        {suppressed === 0 && eligExp === 0 && (
+          <div className="t-meta admin-muted" style={{ marginTop: 4 }}>
+            No targeting data yet — these fill in once the eligibility build is deployed.
+          </div>
+        )}
+      </div>
+
       {groups.length === 0 && (
         <PanelNote>
           No upsell exposures recorded in the last {days}d yet — up_exposure_summary rows

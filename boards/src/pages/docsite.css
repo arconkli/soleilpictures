@@ -1,0 +1,409 @@
+/* Public documentation (/docs/*, DocsPage.jsx).
+   Scoped under .docs-* so nothing here reaches the app or the other public
+   surfaces. The page commits to the dark brand world via .public-dark
+   (styles.css), so tokens always resolve dark.
+
+   KEEP IT PLAIN. Type, whitespace and hairlines — no tinted panels, no
+   gradients, no accent-coloured borders decorating things that are not
+   interactive. Gold means one thing here, the same thing it means everywhere
+   else in the product: active, selected or focused. If it is not a link and it
+   is not the thing you are on, it is not gold.
+
+   SCROLLING — READ THIS BEFORE CHANGING ANY height/overflow BELOW.
+   html, body and #root are `position: fixed; inset: 0; overflow: hidden`
+   app-wide (styles.css ~160), because iOS WebView will otherwise pan the whole
+   canvas app as a unit. Nothing on this page can scroll the window. So:
+
+     .docs-root    fixed 100dvh flex column, overflow hidden
+     .docs-nav     its own scroll region
+     .docs-scroll  its own scroll region — THE content scroller
+
+   A `min-height` + page scroll here silently produces a page that cannot be
+   scrolled at all. */
+
+.docs-root {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-0);
+  color: var(--ink-1);
+  font-family: var(--font-sans);
+}
+
+/* ── Top bar ──────────────────────────────────────────────────────────── */
+.docs-topbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px clamp(16px, 3vw, 28px);
+  border-bottom: 1px solid var(--line-1);
+}
+.docs-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink-0);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  flex: 0 0 auto;
+}
+.docs-brand span { color: var(--ink-2); font-weight: 500; }
+.docs-brand:hover span { color: var(--ink-1); }
+
+.docs-search {
+  flex: 1 1 auto;
+  max-width: 340px;
+  padding: 6px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--ink-0);
+  font: inherit;
+  font-size: 0.875rem;
+}
+.docs-search::placeholder { color: var(--ink-3); }
+.docs-search:focus { outline: none; border-color: var(--line-3); }
+
+.docs-cta {
+  flex: 0 0 auto;
+  padding: 6px 13px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  color: var(--ink-1);
+  font-size: 0.86rem;
+  text-decoration: none;
+}
+.docs-cta:hover { color: var(--ink-0); border-color: var(--line-3); }
+
+.docs-nav-toggle {
+  display: none;
+  flex: 0 0 auto;
+  padding: 6px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--ink-1);
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+/* ── Shell ────────────────────────────────────────────────────────────── */
+.docs-body {
+  flex: 1 1 auto;
+  min-height: 0;                 /* lets the children actually scroll */
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+}
+
+.docs-nav {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px 14px 60px clamp(16px, 3vw, 26px);
+  border-right: 1px solid var(--line-1);
+  font-size: 0.875rem;
+}
+.docs-nav-section { margin-bottom: 1px; }
+.docs-nav-section.is-open { margin-bottom: 14px; }
+.docs-nav-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.docs-nav-head:hover { color: var(--ink-0); }
+.docs-nav-caret {
+  width: 6px; height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  opacity: 0.5;
+  flex: 0 0 auto;
+}
+.docs-nav-section.is-open .docs-nav-caret { transform: rotate(45deg); }
+
+.docs-nav-section ul { list-style: none; margin: 2px 0 0; padding: 0 0 0 1px; }
+.docs-nav-section a {
+  display: block;
+  padding: 3px 0;
+  color: var(--ink-2);
+  text-decoration: none;
+  line-height: 1.5;
+}
+.docs-nav-section a:hover { color: var(--ink-0); }
+/* Gold = the page you are on. Colour alone, no block, no rail. */
+.docs-nav-section a[aria-current='page'] { color: var(--soleil); }
+.docs-nav-empty { color: var(--ink-3); font-size: 0.875rem; }
+
+/* ── The content scroller ─────────────────────────────────────────────── */
+.docs-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) { .docs-scroll { scroll-behavior: auto; } }
+
+.docs-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 48px;
+  padding: 48px clamp(16px, 4vw, 56px) 24px;
+  align-items: start;
+}
+
+/* ── Article ──────────────────────────────────────────────────────────── */
+.docs-article {
+  min-width: 0;
+  max-width: 44rem;              /* ~72 characters; wider reads as a wall */
+  font-size: 0.97rem;
+  line-height: 1.75;
+  color: var(--ink-1);
+}
+
+.docs-hero { margin-bottom: 2.6em; }
+.docs-article h1 {
+  margin: 0 0 0.45em;
+  font-size: clamp(1.9rem, 4vw, 2.35rem);
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.018em;
+  color: var(--ink-0);
+}
+/* The extractable answer. A lead paragraph — bigger and lighter than body
+   text, and nothing else. It does not need a box to be the first thing read. */
+.docs-answer {
+  margin: 0 0 0.9em;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--ink-1);
+}
+.docs-meta { margin: 0; font-size: 0.8rem; color: var(--ink-3); }
+.docs-meta a { color: var(--ink-3); text-decoration: underline; text-underline-offset: 2px; }
+.docs-meta a:hover { color: var(--ink-1); }
+
+.docs-article h2,
+.docs-article h3,
+.docs-article h4 {
+  color: var(--ink-0);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  scroll-margin-top: 18px;
+}
+.docs-article h2 { margin: 2.4em 0 0.5em; font-size: 1.3rem; font-weight: 620; }
+.docs-article h3 { margin: 1.9em 0 0.35em; font-size: 1.05rem; font-weight: 620; }
+.docs-article h4 { margin: 1.5em 0 0.3em; font-size: 0.97rem; font-weight: 600; }
+
+/* Self-linking headings — hover/focus only, so the text stays clean. */
+.docs-heading { position: relative; }
+.docs-anchor {
+  position: absolute;
+  left: -0.85em;
+  opacity: 0;
+  color: var(--ink-3);
+  text-decoration: none;
+  font-weight: 400;
+}
+.docs-heading:hover .docs-anchor { opacity: 1; }
+.docs-anchor:focus-visible { opacity: 1; color: var(--soleil); }
+
+.docs-article p { margin: 0 0 1.15em; }
+.docs-article ul,
+.docs-article ol { margin: 0 0 1.25em; padding-left: 1.3em; }
+.docs-article li { margin: 0.32em 0; }
+.docs-article li::marker { color: var(--ink-3); }
+.docs-article a { color: var(--soleil); text-decoration: underline; text-underline-offset: 2px; }
+.docs-article strong { color: var(--ink-0); font-weight: 620; }
+.docs-article hr { border: 0; border-top: 1px solid var(--line-1); margin: 2.5em 0; }
+
+.docs-article code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.87em;
+  color: var(--ink-0);
+  background: rgba(255, 255, 255, 0.055);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.docs-article a code { color: inherit; background: none; padding: 0; }
+.docs-article h2 code,
+.docs-article h3 code { font-size: 0.92em; background: none; padding: 0; }
+
+/* ── Code blocks ──────────────────────────────────────────────────────── */
+.docs-code { position: relative; margin: 0 0 1.5em; }
+.docs-code pre {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--line-1);
+  background: rgba(255, 255, 255, 0.022);
+  overflow-x: auto;              /* the block scrolls, never the page */
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.docs-code pre code {
+  background: none;
+  padding: 0;
+  color: var(--ink-1);
+  white-space: pre;
+}
+.docs-copy {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-1);
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 0.71rem;
+  cursor: pointer;
+  opacity: 0;
+}
+.docs-code:hover .docs-copy,
+.docs-copy:focus-visible { opacity: 1; }
+.docs-copy:hover { color: var(--ink-0); }
+@media (hover: none) { .docs-copy { opacity: 1; } }   /* touch has no hover */
+
+/* ── Callouts ─────────────────────────────────────────────────────────── */
+/* A quiet indent, not a coloured panel. Every callout in this corpus is a
+   sentence of prose; colour-coding them by severity was decoration. */
+.docs-callout {
+  margin: 0 0 1.5em;
+  padding: 0 0 0 16px;
+  border-left: 1px solid var(--line-3);
+  color: var(--ink-2);
+}
+.docs-callout strong { color: var(--ink-1); }
+
+/* ── Tables ───────────────────────────────────────────────────────────── */
+.docs-table-wrap { overflow-x: auto; margin: 0 0 1.6em; }
+.docs-table-wrap table { width: 100%; border-collapse: collapse; font-size: 0.91rem; }
+.docs-table-wrap th,
+.docs-table-wrap td {
+  padding: 9px 16px 9px 0;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line-1);
+}
+.docs-table-wrap th {
+  color: var(--ink-2);
+  font-weight: 600;
+  font-size: 0.82rem;
+  border-bottom-color: var(--line-2);
+  white-space: nowrap;
+}
+.docs-table-wrap td code { white-space: nowrap; }
+
+/* ── FAQ ──────────────────────────────────────────────────────────────── */
+.docs-faq { margin-top: 2.8em; }
+.docs-faq details { border-bottom: 1px solid var(--line-1); padding: 11px 0; }
+.docs-faq summary {
+  cursor: pointer;
+  font-weight: 550;
+  color: var(--ink-0);
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+.docs-faq summary::-webkit-details-marker { display: none; }
+.docs-faq summary::after { content: '+'; color: var(--ink-3); font-weight: 400; }
+.docs-faq details[open] summary::after { content: '−'; }
+.docs-faq p { margin: 0.7em 0 0.15em; color: var(--ink-2); }
+
+/* ── Related + prev/next ──────────────────────────────────────────────── */
+.docs-related { margin-top: 2.8em; }
+.docs-related h2 { font-size: 1.05rem; margin: 0 0 0.4em; }
+.docs-related ul { list-style: none; padding: 0; margin: 0; }
+.docs-related li { margin: 0.25em 0; }
+
+.docs-prevnext {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 3em;
+  padding-top: 1.4em;
+  border-top: 1px solid var(--line-1);
+  font-size: 0.92rem;
+}
+.docs-prevnext a { color: var(--ink-2); text-decoration: none; }
+.docs-prevnext a:hover { color: var(--ink-0); }
+.docs-next { text-align: right; }
+
+/* ── On this page ─────────────────────────────────────────────────────── */
+.docs-toc {
+  position: sticky;              /* sticky inside .docs-scroll, not the window */
+  top: 0;
+  padding-top: 6px;
+  font-size: 0.82rem;
+  max-height: calc(100dvh - 120px);
+  overflow-y: auto;
+}
+.docs-toc h2 {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+.docs-toc ul { list-style: none; margin: 0; padding: 0; }
+.docs-toc li { margin: 0; }
+.docs-toc a {
+  display: block;
+  padding: 3px 0;
+  color: var(--ink-3);
+  text-decoration: none;
+  line-height: 1.45;
+}
+.docs-toc a:hover { color: var(--ink-1); }
+.docs-toc a.is-active { color: var(--soleil); }   /* gold = where you are */
+
+/* ── Footer ───────────────────────────────────────────────────────────── */
+.docs-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 clamp(16px, 4vw, 56px);
+  padding: 18px 0 40px;
+  border-top: 1px solid var(--line-1);
+  font-size: 0.8rem;
+  color: var(--ink-3);
+}
+.docs-footer a { color: var(--ink-3); text-decoration: none; }
+.docs-footer a:hover { color: var(--ink-1); }
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+@media (max-width: 1080px) {
+  .docs-main { grid-template-columns: minmax(0, 1fr); }
+  .docs-toc { display: none; }
+}
+@media (max-width: 860px) {
+  .docs-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .docs-nav-toggle { display: inline-block; }
+  .docs-cta { display: none; }
+  .docs-search { max-width: none; }
+  .docs-nav {
+    display: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--line-1);
+    max-height: 55dvh;
+    padding: 16px clamp(16px, 4vw, 24px) 20px;
+  }
+  .docs-nav.is-open { display: block; }
+  .docs-main { padding: 28px clamp(16px, 4vw, 24px) 20px; }
+  .docs-article { font-size: 0.95rem; }
+}

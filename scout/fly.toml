@@ -18,6 +18,23 @@ primary_region = "sjc"
 
 # No [http_service]. Scout holds an OUTBOUND gRPC stream to Photon and never
 # accepts inbound HTTP, so there is nothing to route and nothing to expose.
+#
+# Two consequences of having no services, both load-bearing:
+#
+#   1. autostop/autostart CANNOT touch this Machine. Those are driven by Fly
+#      Proxy watching inbound traffic, and nothing routes here — so it runs
+#      continuously, which is exactly what a long-lived gRPC stream needs. That
+#      is the property that makes Fly a good fit rather than an arbitrary one.
+#   2. Nothing will ever autostart it again. A stopped Machine stays stopped,
+#      silently, because there is no request to wake it.
+#
+# (2) is why the restart policy below is not the default. `fly deploy` machines
+# default to on-failure, which ignores a CLEAN exit — and this process can end
+# cleanly whenever Photon's stream closes. index.js now turns that into a
+# non-zero exit, and this makes the machine come back regardless of exit code.
+# Belt and braces on the one failure mode that produces no error anywhere.
+[[restart]]
+  policy = "always"
 [[vm]]
   size = "shared-cpu-1x"
   memory = "512mb"

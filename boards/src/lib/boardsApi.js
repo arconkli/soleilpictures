@@ -5,8 +5,7 @@ import * as Y from 'yjs';
 import { supabase } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 import * as perf from './perf.js';
-import { cardWeight } from './gridCount.js';
-import { resolveTagText } from './gridSequence.js';
+import { buildCardIndexRow } from './cardIndexRow.js';
 
 const PARTYKIT_HOST = import.meta.env?.VITE_PARTYKIT_HOST || 'localhost:1999';
 
@@ -1018,15 +1017,6 @@ export async function syncCardIndex({ boardId, ydoc }) {
   }, wait);
 }
 
-function htmlToText(html) {
-  if (!html) return '';
-  // Cheap HTML-strip — drops tags + entities, collapses whitespace.
-  return String(html)
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&[a-z]+;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
 
 async function _doSyncCardIndex(boardId, ydoc) {
   if (!supabase || !boardId || !ydoc) return;
@@ -1063,70 +1053,13 @@ async function _doSyncCardIndex(boardId, ydoc) {
   cardsMap.forEach((v, id) => {
     if (!v) return;
     const get = (k) => v?.get?.(k) ?? v?.[k];
-    // Onboarding seeds never enter the entity-search index. The seeded "Ideas"
-    // board uses a real UUID card id, so an id-prefix test alone is insufficient
-    // — also honor the durable seed:true flag. Keeping these rows OUT of
-    // card_index stops the server triggers _stamp_first_card /
-    // _stamp_first_populated_board (migration 0120, which only exclude
-    // card_id like 'onb-%') from falsely stamping activation at seed time. Boards
-    // render from the `boards` table, not card_index, so the board stays fully
-    // functional; previously-indexed onb- rows are removed by the orphan sweep
-    // below once the live id set changes.
-    if (get('seed') === true || (id && String(id).startsWith('onb-'))) return;
-    const kind = get('kind') || 'note';
-    const title = get('title') || get('name') || get('label') || get('url') || '';
-    // Notes carry text in `html`, not `body` — fall through so we
-    // index the actual user-visible content. Strip HTML.
-    const rawBody = get('body') || get('caption') || '';
-    let body = rawBody || htmlToText(get('html') || '');
-    // Kind-aware bodies so search + the public page RPC see real content
-    // (lockstep with scripts/lib/cardEncode.mjs buildCardIndexRows).
-    if (kind === 'doc' && Array.isArray(get('lines'))) {
-      body = get('lines').map((l) => (l.bullet ? `• ${l.text}` : l.text || '')).join('\n').trim() || body;
-    } else if (kind === 'schedule' && Array.isArray(get('rows'))) {
-      body = get('rows').map((r) => [r.day, r.what, r.loc].filter(Boolean).join(' — ')).join('\n') || body;
-    }
-    const groupId = get('groupId') || null;
-    const groupName = groupId ? (groupNameById.get(String(groupId)) || '') : '';
-    // Per-kind preview data — drives the universal popover's
-    // visual previews (image thumbnails, palette swatches, etc).
-    // Migration 0021 added the `meta jsonb` column.
-    const baseMeta = buildCardMeta(kind, get) || {};
-    // Layout + section meta for get_public_board_page (0181): spatial article
-    // ordering and H2 section grouping on /c/<slug>. Lockstep with the generator.
-    const px = get('x'), py = get('y');
-    if (Number.isFinite(px) && Number.isFinite(py)) {
-      baseMeta.pos = { x: Math.round(px), y: Math.round(py),
-                       w: Math.round(get('w') || 0), h: Math.round(get('h') || 0) };
-    }
-    if (get('sectionHeader')) {
-      baseMeta.sectionHeader = true;
-      const sub = get('sub');
-      if (sub) baseMeta.sub = String(sub).slice(0, 300);
-    }
-    const meta = (groupId || groupName)
-      ? { ...baseMeta, groupId, groupName }
-      : baseMeta;
-    if (kind === 'image' && !meta.src) imageCardsNeedingSrc.push(id);
-    // Weighted card count: a grid weighs its FILLED cells (min 1), so a grid of
-    // 25 images counts ~25 toward the demo cap, not 1. Everything else weighs 1.
-    let weight = 1;
-    if (kind === 'grid') {
-      const cellsObj = {};
-      const gcm = get('gridCells');
-      if (gcm && typeof gcm.forEach === 'function') gcm.forEach((cv, ck) => { cellsObj[ck] = (cv && cv.toJSON) ? cv.toJSON() : cv; });
-      weight = cardWeight('grid', cellsObj);
-    }
-    rows.push({
-      workspace_id: workspaceId,
-      board_id: boardId,
-      card_id: id,
-      kind,
-      title: String(title).slice(0, 200),
-      body: String(body).slice(0, 500),
-      meta,
-      weight,
-    });
+    // ONE projection, shared with the server writer — see cardIndexRow.js.
+    // These used to be two hand-kept copies and they had drifted in four
+    // places, so the same card got a different row depending on who wrote it.
+    const row = buildCardIndexRow({ workspaceId, boardId, cardId: id, get, groupNameById });
+    if (!row) return;                       // onboarding seed — never indexed
+    if (row.kind === 'image' && !row.meta?.src) imageCardsNeedingSrc.push(id);
+    rows.push(row);
     liveIds.add(id);
   });
   if (_t0) {
@@ -1179,6 +1112,37 @@ async function _doSyncCardIndex(boardId, ydoc) {
     // UPSERT on (board_id, card_id). Idempotent — no race if two windows
     // run this concurrently.
     const ups = await supabase.from('card_index').upsert(changed, { onConflict: 'board_id,card_id' });
+    if (ups.error?.code === '42501' && /limited to \d+ cards/i.test(ups.error.message || '')) {
+      // The owner-pays card cap trigger (enforce_demo_card_cap_trg, 0187)
+      // refused this batch. This used to be swallowed as a generic warning,
+      // which was the worst possible outcome: the card renders on canvas from
+      // the Y.Doc but never reaches card_index, so it's invisible to search,
+      // tags and the graph — and the user is never told, at the exact moment a
+      // cap is supposed to be converting them.
+      //
+      // PostgREST fails the whole batch, but the trigger early-returns for
+      // (board_id, card_id) pairs that already exist. So only genuinely NEW
+      // cards were rejected: re-upsert the rest, or one over-cap card freezes
+      // card_index for the entire board.
+      const known = await supabase.from('card_index').select('card_id').eq('board_id', boardId);
+      const knownIds = new Set((known.data || []).map(r => r.card_id));
+      const retryable = changed.filter(r => knownIds.has(r.card_id));
+      const rejected  = changed.filter(r => !knownIds.has(r.card_id));
+      if (retryable.length > 0) {
+        const retry = await supabase.from('card_index').upsert(retryable, { onConflict: 'board_id,card_id' });
+        // Only cache signatures we actually persisted; rejected cards keep a
+        // stale signature on purpose so the next sync retries them (the user
+        // may have upgraded or freed space in the meantime).
+        if (!retry.error) for (const r of retryable) cache.sigs.set(r.card_id, sigFor(r));
+        else console.warn('syncCardIndex cap-retry', retry.error);
+      }
+      try {
+        window.dispatchEvent(new CustomEvent('soleil:card-index-capped', {
+          detail: { boardId, rejected: rejected.length },
+        }));
+      } catch (_) {}
+      return;
+    }
     if (ups.error) { console.warn('syncCardIndex upsert', ups.error); return; }
     for (const r of changed) cache.sigs.set(r.card_id, sigFor(r));
   }
@@ -1204,58 +1168,6 @@ async function _doSyncCardIndex(boardId, ydoc) {
 // Per-kind preview data baked into card_index.meta. Kept compact —
 // these rows are read often, and the universal popover only needs
 // what it can render without re-fetching from the Y.Doc.
-function buildCardMeta(kind, get) {
-  switch (kind) {
-    case 'image':
-      return { src: get('src') || null, alt: get('alt') || null,
-               w: get('w') || null, h: get('h') || null };
-    case 'palette':
-      return { swatches: (get('swatches') || []).slice(0, 12) };
-    case 'link':
-      return { url: get('link') || get('source') || get('url') || null };
-    case 'board':
-    case 'boardlink':
-      return { boardId: get('id') || get('target') || null };
-    case 'doc':
-      return { pageCount: (get('pages') || []).length || null,
-               lineCount: (get('lines') || []).length || null };
-    // The kinds below feed get_public_board_page (migration 0181) — the
-    // public /c/<slug> article renders schedules as tables, grids as cell
-    // lists, and shapes as labeled lines. MUST stay in lockstep with
-    // scripts/lib/cardEncode.mjs buildCardMeta or an in-app edit of a
-    // published board silently degrades its public article.
-    case 'schedule':
-      return { rows: (get('rows') || []).slice(0, 30) };
-    case 'grid': {
-      const gcm = get('gridCells');
-      const fmt = get('seqFormat') || {};
-      const out = [];
-      let idx = 0;
-      if (gcm && typeof gcm.forEach === 'function') {
-        gcm.forEach((cv) => {
-          const i = idx++;
-          const cell = (cv && cv.toJSON) ? cv.toJSON() : cv;
-          if (!cell || cell.type === 'empty') { out.push({ type: 'empty' }); return; }
-          out.push({
-            type: cell.type,
-            src: cell.src || null,
-            alt: cell.alt || null,
-            text: cell.type === 'text'
-              ? htmlToText(resolveTagText(cell.html || '', { index: i, format: fmt }))
-              : null,
-          });
-        });
-      }
-      return { cells: out.slice(0, 60) };
-    }
-    case 'shape':
-      return { shape: get('shape') || 'rect', label: get('label') || null };
-    case 'video':
-      return { src: get('src') || null, poster: get('poster') || null };
-    default:
-      return null;
-  }
-}
 
 // Workspace-wide palette library. Pulls from card_index (synced after every
 // board save by syncCardIndex / buildCardMeta), so swatches are queryable

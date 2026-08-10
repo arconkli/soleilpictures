@@ -1,0 +1,401 @@
+// publicSurface.mjs — extract the app's PUBLIC surface from source, so the
+// docs can be held to it mechanically.
+//
+// The problem this solves: documentation rots silently. Someone adds a card
+// kind, an /api/v1 endpoint, or a Settings tab, and the docs keep describing
+// the world as it was. There is no CI in this repo to catch it and no human
+// process that has ever survived contact with a busy week.
+//
+// The fix is to notice that every one of those surfaces is ALREADY an
+// enumeration maintained in code — `TABS`, the `endpoints:` array, the `kind`
+// union, `registerTool(...)` calls. This module reads those enumerations out of
+// the source text and hashes them. docsite.test.mjs diffs that hash against a
+// committed snapshot (src/lib/docsiteSurface.json). Change the surface without
+// touching the docs and the test goes red with a list of exactly what moved.
+//
+// WHY TEXT EXTRACTION AND NOT IMPORTS: most of these live in modules that pull
+// in React, the Workers runtime, or supabase-js and cannot be imported by a
+// plain `node --test` process. Regex over source is the only option that works
+// for all of them, so it is used for all of them — one mechanism, not two.
+//
+// EVERY EXTRACTOR MUST FAIL LOUDLY ON ZERO MATCHES. A regex that silently
+// returns [] because someone reformatted the file would turn this entire gate
+// into a no-op that still reports green — the worst possible outcome for a
+// test whose whole job is catching drift. `expect()` below enforces a floor.
+
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+export const BOARDS = resolve(HERE, '../..');      // <repo>/boards
+export const REPO = resolve(BOARDS, '..');         // <repo>
+
+const read = (p) => readFileSync(resolve(REPO, p), 'utf8');
+
+// A extractor that finds nothing is a broken extractor, not an empty surface.
+function expect(list, min, what, file) {
+  if (!Array.isArray(list) || list.length < min) {
+    throw new Error(
+      `publicSurface: extracted ${list?.length ?? 0} ${what} from ${file}, expected >= ${min}. ` +
+      `The source shape probably changed — fix the extractor in scripts/lib/publicSurface.mjs. ` +
+      `Do NOT lower the floor to make this pass.`
+    );
+  }
+  return list;
+}
+
+// Pull the contents of a bracketed literal that follows `anchor`, balancing
+// brackets so nested arrays/objects don't truncate the capture.
+function sliceLiteral(src, anchor, open = '[', close = ']') {
+  const at = src.indexOf(anchor);
+  if (at === -1) return null;
+  const start = src.indexOf(open, at);
+  if (start === -1) return null;
+  let depth = 0;
+  for (let i = start; i < src.length; i++) {
+    if (src[i] === open) depth++;
+    else if (src[i] === close) { depth--; if (depth === 0) return src.slice(start + 1, i); }
+  }
+  return null;
+}
+
+// ── REST: the endpoint list the API already publishes at GET /api/v1 ────────
+// worker-api.js maintains this array so `curl /api/v1` answers with the routes.
+// That makes it the canonical, already-kept-current list — reuse it rather
+// than inventing a second one that could disagree with it.
+export function restEndpoints() {
+  const file = 'boards/src/worker-api.js';
+  const body = sliceLiteral(read(file), 'endpoints: [') ?? '';
+  const found = [...body.matchAll(/'([A-Z]+\s+\/[^']*)'/g)]
+    .map((m) => m[1].replace(/\s+/g, ' ').trim());
+  return expect(found, 8, 'REST endpoints', file).sort();
+}
+
+// ── MCP: tool names + their input schema shape ──────────────────────────────
+// The schema text is hashed, not stored, so a changed zod shape (a new optional
+// field on update_card, say) trips the gate without bloating the snapshot with
+// unreadable serialized zod.
+export function mcpTools() {
+  // The registry moved to boards/src/lib/mcpTools.js so ONE definition serves
+  // both transports — the stdio server and the hosted one the Worker runs at
+  // /api/v1/mcp. The old extractor matched `registerTool('name'` in
+  // mcp/src/index.js, which now registers in a loop and would have matched
+  // nothing: the floor below is what would have caught that, loudly.
+  //
+  // Scoped to the TOOLS array specifically, because PROMPTS further down the
+  // same file uses the same `name:` shape and prompts are a different surface.
+  const file = 'boards/src/lib/mcpTools.js';
+  let src;
+  try { src = read(file); } catch { return []; }
+  const body = src.slice(src.indexOf('export const TOOLS = ['),
+    src.indexOf('export const HOSTED_TOOLS'));
+  const found = [...body.matchAll(/^\s*name: '([a-z_]+)',$/gm)].map((m) => {
+    const name = m[1];
+    const after = body.slice(m.index);
+    const schema = sliceLiteral(after, 'inputSchema:', '{', '}') ?? '';
+    return { name, schema: sha(schema.replace(/\s+/g, ' ').trim()).slice(0, 12) };
+  });
+  return expect(found, 5, 'MCP tools', file).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Prompts are user-invoked templates, so they are public surface too — and a
+// separate list, because a prompt is not a tool and documenting one does not
+// document the other.
+export function mcpPrompts() {
+  const file = 'boards/src/lib/mcpTools.js';
+  let src;
+  try { src = read(file); } catch { return []; }
+  const body = src.slice(src.indexOf('export const PROMPTS = ['));
+  const found = [...body.matchAll(/^\s*name: '([a-z_]+)',$/gm)].map((m) => m[1]);
+  return expect(found, 1, 'MCP prompts', file).sort();
+}
+
+// The wire protocol itself: which revisions the server accepts, and which
+// JSON-RPC methods it answers.
+//
+// This had NO extractor, and the hole proved itself: the whole server was
+// rewritten from a handshake protocol to the stateless 2026-07-28 revision —
+// `initialize` gone, `server/discover` added, `ping` removed, three new error
+// codes — and the gate stayed green, because it only ever looked at tool names.
+// An integrator writes against the protocol before they write against a single
+// tool. A version we claim to support is a promise, and this is what holds us
+// to documenting it.
+export function mcpProtocol() {
+  const file = 'boards/src/lib/mcpServer.js';
+  let src;
+  try { src = read(file); } catch { return { versions: [], methods: [] }; }
+
+  const vm = src.match(/SUPPORTED_PROTOCOL_VERSIONS = \[([^\]]+)\]/);
+  if (!vm) throw new Error(`publicSurface: SUPPORTED_PROTOCOL_VERSIONS not found in ${file}`);
+  const versions = [...vm[1].matchAll(/'([\d-]+)'/g)].map((m) => m[1]);
+
+  // The `case` labels of the dispatch switch ARE the method list — there is no
+  // second registry to fall out of step with it.
+  // Trailing `{` on the ones that open a block, so the pattern must not anchor
+  // to the end of the line — `initialize` and `ping` both do.
+  const methods = [...src.matchAll(/^\s*case '([a-z/_]+)':/gm)].map((m) => m[1]);
+
+  // The JSON-RPC error codes are their own vocabulary — a client branches on
+  // the number, not on the English — and they are NOT the API's `code` strings,
+  // so apiErrorCodes does not and should not cover them.
+  const eb = src.slice(src.indexOf('export const ERR = {'));
+  const codes = [...eb.slice(0, eb.indexOf('};')).matchAll(/^\s*([A-Z_]+): (-?\d+),$/gm)]
+    .map((m) => `${m[1]}=${m[2]}`);
+
+  return {
+    versions: expect(versions, 2, 'MCP protocol versions', file),
+    methods: expect([...new Set(methods)], 6, 'MCP methods', file).sort(),
+    errorCodes: expect(codes, 5, 'MCP error codes', file).sort(),
+  };
+}
+
+// The named layouts. A public vocabulary in exactly the sense WEBHOOK_EVENTS is
+// — a caller passes one of these strings and gets a documented behaviour — so it
+// needs an extractor for the same reason. Renaming `justified` without touching
+// the docs would otherwise be a silent break for every integration that had
+// written it down.
+export function layoutAlgorithms() {
+  const file = 'boards/src/lib/layoutEngine.js';
+  let src;
+  try { src = read(file); } catch { return []; }
+  const m = src.match(/export const LAYOUTS = \[([^\]]+)\]/);
+  if (!m) throw new Error(`publicSurface: LAYOUTS not found in ${file}`);
+  const found = [...m[1].matchAll(/'([a-z]+)'/g)].map((x) => x[1]);
+  return expect(found, 3, 'layout algorithms', file).sort();
+}
+
+export function apiCardKinds() {
+  const file = 'boards/src/worker-api.js';
+  const m = read(file).match(/const CARD_KINDS = \[([^\]]+)\]/);
+  if (!m) throw new Error(`publicSurface: CARD_KINDS not found in ${file}`);
+  const found = [...m[1].matchAll(/'([a-z]+)'/g)].map((x) => x[1]);
+  return expect(found, 3, 'API card kinds', file).sort();
+}
+
+// ── Settings tabs ───────────────────────────────────────────────────────────
+export function settingsTabs() {
+  const file = 'boards/src/components/SettingsPanel.jsx';
+  const body = sliceLiteral(read(file), 'const TABS =') ?? '';
+  const found = [...body.matchAll(/\{\s*id:\s*'([a-z]+)'\s*,\s*label:\s*'([^']+)'/g)]
+    .map((m) => ({ id: m[1], label: m[2] }));
+  return expect(found, 6, 'settings tabs', file).sort((a, b) => a.id.localeCompare(b.id));
+}
+
+// ── Just-in-time power reveals ──────────────────────────────────────────────
+// Each reveal teaches one feature. A new reveal means a feature we decided was
+// worth interrupting someone for — which is exactly a feature worth a doc page.
+export function powerRevealKeys() {
+  const file = 'boards/src/lib/powerReveals.js';
+  const found = [...read(file).matchAll(/^\s*key:\s*'([a-z_]+)'/gm)].map((m) => m[1]);
+  return expect(found, 4, 'power reveals', file).sort();
+}
+
+// ── Keyboard shortcuts ──────────────────────────────────────────────────────
+// Section titles + a per-section row count. Row COUNT rather than row content
+// keeps the snapshot readable while still tripping when a shortcut is added or
+// removed — the docs page mirrors this modal and must move with it.
+//
+// Rows are `[['V'], 'Select / move']` but ALSO `[[`${CMD}K`, '/'], '…']`, so
+// counting quote-opened rows undercounts every template-literal section. Split
+// on the title boundaries and count row-opening `[[` instead, which is the one
+// token every row shape shares. A section that counts zero rows is a broken
+// extractor, not an empty section — assert it.
+export function shortcutSections() {
+  const file = 'boards/src/components/ShortcutsOverlay.jsx';
+  const body = sliceLiteral(read(file), 'const SECTIONS =') ?? '';
+  const chunks = body.split(/title:\s*'([^']+)'/).slice(1);   // [title, rest, title, rest, …]
+  const found = [];
+  for (let i = 0; i < chunks.length; i += 2) {
+    found.push({ title: chunks[i], rows: (chunks[i + 1].match(/\[\s*\[/g) || []).length });
+  }
+  expect(found, 4, 'shortcut sections', file);
+  const empty = found.filter((s) => s.rows === 0).map((s) => s.title);
+  if (empty.length) {
+    throw new Error(`publicSurface: shortcut sections with zero rows (${empty.join(', ')}) — extractor is broken, not the source`);
+  }
+  return found;
+}
+
+// ── Public (signed-out reachable) routes ────────────────────────────────────
+// Three registries plus the hand-rolled router's own shape-matches. Together
+// these are every URL a logged-out visitor or crawler can land on.
+export function publicRoutes() {
+  const wf = 'boards/src/worker.js';
+  const worker = read(wf);
+  const meta = [...(sliceLiteral(worker, 'const ROUTE_META =', '{', '}') ?? '')
+    .matchAll(/^\s{2}'([^']+)':/gm)].map((m) => m[1]);
+  expect(meta, 4, 'ROUTE_META entries', wf);
+
+  const landing = [...read('boards/src/lib/seoLanding.js')
+    .matchAll(/^\s{4}path:\s*'(\/[^']+)'/gm)].map((m) => m[1]);
+  expect(landing, 8, 'landing paths', 'boards/src/lib/seoLanding.js');
+
+  const listicle = [...read('boards/src/lib/seoListicleIndex.js')
+    .matchAll(/path:\s*'(\/best\/[^']+)'/g)].map((m) => m[1]);
+  expect(listicle, 2, 'listicle paths', 'boards/src/lib/seoListicleIndex.js');
+
+  // Router branches in main.jsx that render BEFORE AuthGate. The whole
+  // right-hand side is captured verbatim: WIDENING a match is as much a public
+  // surface change as adding a route, and only the literal text catches that.
+  const router = [...read('boards/src/main.jsx')
+    .matchAll(/^const (\w*[Mm]atch\w*)\s*=\s*(.+?);\s*$/gm)]
+    .map((m) => `${m[1]} = ${m[2].replace(/window\.location\.pathname/g, 'PATH')}`);
+  expect(router, 5, 'router branches', 'boards/src/main.jsx');
+
+  return { routeMeta: meta.sort(), landing: landing.sort(), listicle: listicle.sort(), router: router.sort() };
+}
+
+// ── Token scopes ────────────────────────────────────────────────────────────
+// The DB check constraint is the real definition — the Worker's scope gate can
+// only ever enforce a subset of it, so this is the honest source.
+// ── Webhook events ──────────────────────────────────────────────────────────
+// A public vocabulary: webhooks.md documents each one in a table, and a caller
+// subscribing to a name that does not exist is refused. Adding an event without
+// documenting it would leave the table silently short — the same failure this
+// whole module exists to prevent, in a surface that had no extractor at all.
+export function webhookEvents() {
+  const file = 'boards/src/lib/webhooks.js';
+  const body = sliceLiteral(read(file), 'export const WEBHOOK_EVENTS =') ?? '';
+  const found = [...body.matchAll(/'([a-z]+\.[a-z]+)'/g)].map((m) => m[1]);
+  return expect(found, 4, 'webhook events', file).sort();
+}
+
+export function apiScopes() {
+  const file = 'supabase/migrations/0220_api_scopes_usage_log.sql';
+  const src = read(file);
+  const m = src.match(/check \(scopes <@ array\[([^\]]+)\]\)/);
+  if (!m) throw new Error(`publicSurface: scope constraint not found in ${file}`);
+  const found = [...m[1].matchAll(/'([a-z]+)'/g)].map((x) => x[1]);
+  return expect(found, 2, 'API scopes', file).sort();
+}
+
+// ── Machine-readable error codes ────────────────────────────────────────────
+// Every `fail(status, 'code', …)` in the Worker. These are part of the public
+// contract — a client branches on them — so a new one is a documentation event.
+// Every file that can put a code in a response body, not just the router.
+//
+// This was worker-api.js alone, and the day a refusal moved into a helper the
+// code silently left the snapshot — a green build for a surface that had not
+// actually changed. Anything that raises a documented code belongs on this
+// list; `e.code = '…'` is matched as well as fail(), because the helpers set the
+// fields directly rather than importing the router's fail().
+const ERROR_SOURCES = [
+  'boards/src/worker-api.js',
+  'boards/src/lib/objectMeta.js',
+  'boards/src/lib/apiAuth.js',
+];
+
+export function apiErrorCodes() {
+  const found = new Set();
+  for (const file of ERROR_SOURCES) {
+    const src = read(file);
+    for (const m of src.matchAll(/fail\((\d{3}),\s*'([a-z_]+)'/g)) found.add(`${m[1]} ${m[2]}`);
+    // `e.status = 409; e.code = 'identifier_conflict';` — the pair has to be
+    // read together, and they are always written adjacent.
+    for (const m of src.matchAll(/status\s*=\s*(\d{3});\s*(?:\w+\.)?code\s*=\s*'([a-z_]+)'/g)) {
+      found.add(`${m[1]} ${m[2]}`);
+    }
+  }
+  return expect([...found], 6, 'API error codes', ERROR_SOURCES.join(', ')).sort();
+}
+
+// ── Numeric/string facts docs are forbidden from retyping ───────────────────
+// Extracted here rather than imported because worker-api.js cannot be imported
+// outside the Workers runtime. gen-docs.mjs substitutes these into `{{fact:*}}`
+// placeholders so a doc physically cannot state a stale number.
+//
+// Field-cap patterns match on the SOURCE field (`c.title`) rather than the
+// destination (`out.title`): the destination is now computed for some fields
+// (`out[textFieldFor(kind)]`), and matching it silently broke this extractor
+// the moment that landed. The source name is the wire contract and is what a
+// caller actually sends.
+export function apiFacts() {
+  const file = 'boards/src/worker-api.js';
+  const src = read(file);
+  const pick = (re, what) => {
+    const m = src.match(re);
+    if (!m) throw new Error(`publicSurface: ${what} not found in ${file} — fix the extractor, do not delete the fact`);
+    return m[1];
+  };
+  const cap = (field) => Number(pick(new RegExp(`str\\(c\\.${field},\\s*(\\d+)\\)`), `${field} cap`));
+
+  const prefixSql = read('supabase/migrations/0215_api_tokens.sql');
+  const prefix = prefixSql.match(/v_token\s*:=\s*'([a-z_]+)'/);
+  if (!prefix) throw new Error('publicSurface: token prefix not found in 0215_api_tokens.sql');
+
+  // The rate limit moved in 0221: it is now per token, with this as the
+  // fallback for a token that has none. Read from the migration that actually
+  // defines the current api_token_resolve — 0215's hard-coded `> 1000` is dead
+  // code that happens to carry the same number, so pointing at it would keep
+  // "passing" long after the two diverged.
+  const rateSql = read('supabase/migrations/0221_scale_limits.sql');
+  const rate = rateSql.match(/coalesce\(t\.req_limit,\s*(\d+)\)/);
+  if (!rate) throw new Error('publicSurface: default rate limit not found in 0221_scale_limits.sql');
+
+  // Service-account numbers live in the migration that enforces them, same rule
+  // as the rate limit above: the fact is read from the code that refuses, so a
+  // doc claiming a different number cannot survive a build.
+  const svcSql = read('supabase/migrations/0222_integration_surface.sql');
+  const svcPick = (re, what) => {
+    const m = svcSql.match(re);
+    if (!m) throw new Error(`publicSurface: ${what} not found in 0222_integration_surface.sql`);
+    return Number(m[1]);
+  };
+
+  const mintSql = read('supabase/migrations/0220_api_scopes_usage_log.sql');
+  const tokens = mintSql.match(/where user_id = auth\.uid\(\) and revoked_at is null\) >= (\d+)/);
+  if (!tokens) throw new Error('publicSurface: token cap not found in 0220_api_scopes_usage_log.sql');
+
+  return {
+    maxCardsPerCall: Number(pick(/const MAX_CARDS_PER_CALL = (\d+)/, 'MAX_CARDS_PER_CALL')),
+    maxBoardsPerCall: Number(pick(/const MAX_BOARDS_PER_CALL = (\d+)/, 'MAX_BOARDS_PER_CALL')),
+    maxPartsPerCall: Number(pick(/const MAX_PARTS_PER_CALL = (\d+)/, 'MAX_PARTS_PER_CALL')),
+    titleMax: cap('title'),
+    bodyMax: cap('body'),
+    htmlMax: cap('html'),
+    urlMax: cap('url'),
+    imageKeyMax: cap('image_key'),
+    maxPage: Number(pick(/const MAX_PAGE = (\d+)/, 'MAX_PAGE')),
+    defaultPage: Number(pick(/const DEFAULT_PAGE = (\d+)/, 'DEFAULT_PAGE')),
+    maxUploadMb: Number(pick(/const MAX_UPLOAD_BYTES = (\d+) \* 1024 \* 1024/, 'MAX_UPLOAD_BYTES')),
+    rateLimitPerHour: Number(rate[1]),
+    serviceRateLimitPerHour: svcPick(/coalesce\(p_req_limit,\s*(\d+)\)/, 'service token rate default'),
+    maxServiceAccounts: svcPick(/at most (\d+) service accounts/, 'service account cap'),
+    maxWebhooks: svcPick(/at most (\d+) active webhooks/, 'webhook cap'),
+    maxIdentifiersPerObject: svcPick(/at most (\d+) identifiers/, 'identifier cap'),
+    maxPropsBytes: svcPick(/length\(p::text\) <= (\d+)/, 'props byte cap'),
+    maxPropKeys: svcPick(/jsonb_object_keys\(p\)\) <= (\d+)/, 'props key cap'),
+    maxTokensPerAccount: Number(tokens[1]),
+  };
+}
+
+export function sha(s) {
+  return createHash('sha256').update(s).digest('hex');
+}
+
+// The full snapshot. Key order is fixed and every list is sorted, so the JSON
+// is stable across machines and the diff on failure is readable.
+export function publicSurface() {
+  return {
+    restEndpoints: restEndpoints(),
+    mcpTools: mcpTools(),
+    mcpPrompts: mcpPrompts(),
+    mcpProtocol: mcpProtocol(),
+    layoutAlgorithms: layoutAlgorithms(),
+    apiCardKinds: apiCardKinds(),
+    apiScopes: apiScopes(),
+    webhookEvents: webhookEvents(),
+    apiErrorCodes: apiErrorCodes(),
+    apiFacts: apiFacts(),
+    settingsTabs: settingsTabs(),
+    powerRevealKeys: powerRevealKeys(),
+    shortcutSections: shortcutSections(),
+    publicRoutes: publicRoutes(),
+  };
+}
+
+export function surfaceJson() {
+  return JSON.stringify(publicSurface(), null, 2) + '\n';
+}

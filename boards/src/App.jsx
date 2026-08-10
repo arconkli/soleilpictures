@@ -73,7 +73,7 @@ import { CommandPalette } from './components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -106,11 +106,14 @@ import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
+import { evaluateUpsell, ELIGIBILITY_REV } from './lib/upsellEligibility.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel } from './lib/gridState.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from './lib/gridLayout.js';
 import { hasLabelTag } from './lib/gridSequence.js';
+import { todayISO } from './lib/schedDates.js';
+import { graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey } from './lib/schedLayout.js';
 import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio, uploadFile, readVideoMeta } from './lib/uploads.js';
 import { arrangeInFreeSpace } from './lib/canvasGeom.js';
 import { classifyDropFile, fitImageDims, sizeBucket } from './lib/fileIngest.js';
@@ -119,6 +122,7 @@ import { TrashModal } from './components/TrashModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
 import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
 import { WorkspaceAlertBanner } from './components/WorkspaceAlertBanner.jsx';
+import { ScoutClaimBanner } from './components/ScoutClaimBanner.jsx';
 import { useFeedback } from './components/AppFeedback.jsx';
 import { lazyWithReload } from './lib/lazyWithReload.js';
 // Lazy: HomeGraph pulls in three.js + react-force-graph-3d (~365KB gz) but only
@@ -947,6 +951,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         message: `This cluster is at the owner's ${cs.limit}-card limit — they'll need to upgrade or clear space before more cards fit.`,
       });
     };
+    // Approaching-limit warning, fired once per pageload from all three add
+    // paths (addCard / addCards / duplicateCards). The primary action is the
+    // upgrade: this used to offer "Invite friends" as its ONLY button, which
+    // put the free path in front of the paid one at the moment of most
+    // pressure. Inviting is still named in the copy — the toast API carries a
+    // single action, and extending it for this one caller would touch every
+    // other toast site.
+    const nearCapToast = (cs) => {
+      logEventOnce('up_cap_toast:near', EV.UP_CAP_TOAST_VIEW, { count: cs.count, limit: cs.limit, at: 'near' });
+      feedback.toast({
+        type: 'warning',
+        message: `You're at ${cs.count}/${cs.limit} cards. Creator lifts the cap — or invite friends to earn more free ones.`,
+        action: {
+          label: 'See Creator',
+          onClick: () => {
+            logEventNow(EV.UP_CAP_TOAST_CTA, { count: cs.count, limit: cs.limit, at: 'near' });
+            setUpgradeReason('cap-hit');
+          },
+        },
+      });
+    };
 
     const addCard = (card, { afterInsert = null } = {}) => {
       const m = cardsMap(); if (!m) { if (!isSeedCard(card)) noteBlocked('mutator_null'); return; }
@@ -962,14 +987,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             surfaceCapHit(cs);
             return;
           }
-          if (cs.own && cs.count === cs.limit - 10) {
-            logEventOnce('up_cap_toast:near', EV.UP_CAP_TOAST_VIEW, { count: cs.count, limit: cs.limit, at: 'near' });
-            feedback.toast({
-              type: 'warning',
-              message: `You're at ${cs.count}/${cs.limit} cards in your demo workspace. Invite friends or upgrade for more.`,
-              action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
-            });
-          }
+          if (cs.own && cs.count === cs.limit - 10) nearCapToast(cs);
         }
       }
       breakUndo();
@@ -1030,12 +1048,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           cardsToAdd = cardsToAdd.slice(0, accepted);
           surfaceCapHit(csBatch);
         } else if (csBatch.own && csBatch.count + cardsToAdd.length >= csBatch.limit - 10 && csBatch.count < csBatch.limit - 10) {
-          logEventOnce('up_cap_toast:near', EV.UP_CAP_TOAST_VIEW, { count: csBatch.count, limit: csBatch.limit, at: 'near' });
-          feedback.toast({
-            type: 'warning',
-            message: `You're approaching the ${csBatch.limit}-card demo limit. Invite friends or upgrade for more.`,
-            action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
-          });
+          nearCapToast(csBatch);
         }
       }
       breakUndo();
@@ -1196,12 +1209,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           sources = sources.slice(0, accepted);
           surfaceCapHit(csDup);
         } else if (csDup.own && csDup.count + sources.length >= csDup.limit - 10 && csDup.count < csDup.limit - 10) {
-          logEventOnce('up_cap_toast:near', EV.UP_CAP_TOAST_VIEW, { count: csDup.count, limit: csDup.limit, at: 'near' });
-          feedback.toast({
-            type: 'warning',
-            message: `You're approaching the ${csDup.limit}-card demo limit. Invite friends or upgrade for more.`,
-            action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
-          });
+          nearCapToast(csDup);
         }
       }
       const newIds = [];
@@ -1455,6 +1463,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       });
       setAutoFocusId(id);
+    };
+
+    // Schedule card — the real-date calendar container (Month/Week/Day/Hour
+    // views; slots hold grid-cell records at date-path keys — see
+    // lib/schedLayout.js). Mirrors addGrid: fresh card + the per-card Y store
+    // (gridCells/gridMeta) initialized in the SAME transaction (afterInsert)
+    // so create+init is ONE undo step. LEGACY schedule cards (rows table, no
+    // schedView) still render via the old table — this only creates new-model
+    // cards. Keep in lockstep with the LocalBoardsApp twin.
+    const SCHED_SIZES = { month: [420, 380], week: [420, 170], day: [300, 420], hour: [280, 300] };
+    const addSchedule = (clickPos = null, view = 'month') => {
+      const [w, h] = SCHED_SIZES[view] || SCHED_SIZES.month;
+      const x = clickPos ? Math.round(clickPos.x - w / 2) : 60;
+      const y = clickPos ? Math.round(clickPos.y - h / 2) : 60;
+      addCard({
+        id: `sched-${Date.now()}`, kind: 'schedule',
+        schedView: SCHED_SIZES[view] ? view : 'month',
+        anchor: todayISO(), anchorHour: 9,
+        x: Math.max(8, x), y: Math.max(8, y), w, h,
+      }, { afterInsert: (cardYM) => { if (cardYM) initCardGridStore(ydoc, cardYM); } });
     };
 
     const addDocCard = (clickPos = null) => {
@@ -1946,6 +1974,74 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
       clearGridCell(ydoc, cy, cellId);
     };
+    // True key delete (vs clear's {type:'empty'} tombstone) — a schedule slot
+    // lists its items by key prefix, so a removed chip must actually vanish.
+    const removeGridCellRecord = (gridId, cellId) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const cm = cy.get('gridCells'); if (!cm || !cm.delete) return;
+      ydoc.transact(() => { cm.delete(cellId); }, 'local');
+    };
+    // Break a schedule slot down inline ('hours' on a day, 'minutes' on an
+    // hour) or collapse it (null). Meta-only + whole-object LWW — items are
+    // untouched, so collapse is non-destructive (deep items re-aggregate as
+    // the slot's chips).
+    const setSchedSlotExpand = (cardId, slotPath, mode) => {
+      const m = cardsMap(); const cy = m && m.get(cardId); if (!cy) return;
+      const mm = cy.get('gridMeta'); if (!mm || !mm.set) return;
+      ydoc.transact(() => {
+        const next = { ...(mm.get('expand') || {}) };
+        if (mode) next[slotPath] = mode; else delete next[slotPath];
+        mm.set('expand', next);
+      }, 'local');
+    };
+    // Drag a Day-view schedule onto a Month/Week day slot (or an Hour-view onto
+    // an hour slot) → the slot subdivides INLINE and absorbs the source's items
+    // with their date prefix rewritten (pure schedLayout.graftKeyMap); the
+    // source card is consumed (mirrors graftGridIntoCell's move semantics +
+    // arrow cascade). Returns false — so the drag falls through to a normal
+    // move — on a granularity mismatch (hour card over a day slot) or when the
+    // source holds content OUTSIDE its anchor prefix (strays): deleting it
+    // would silently orphan that content.
+    const graftScheduleIntoSlot = (hostId, slotPath, srcId) => {
+      const m = cardsMap();
+      const hostCy = m && m.get(hostId); const srcCy = m && m.get(srcId);
+      if (!hostCy || !srcCy || hostId === srcId) return false;
+      if (!hostCy.get('schedView') || !srcCy.get('schedView')) return false;
+      const slot = parseSlotKey(slotPath);
+      const srcView = srcCy.get('schedView');
+      const match = (srcView === 'day' && slot?.kind === 'day') || (srcView === 'hour' && slot?.kind === 'hour');
+      if (!match) return false;
+      const srcAnchor = srcCy.get('anchor') || todayISO();
+      const srcPrefix = srcView === 'day' ? schedDayKey(srcAnchor) : schedHourKey(srcAnchor, srcCy.get('anchorHour') ?? 9);
+      const srcCells = {};
+      const scm = srcCy.get('gridCells');
+      if (scm && scm.forEach) scm.forEach((v, k) => { srcCells[k] = (v && v.toJSON) ? v.toJSON() : v; });
+      const srcExpand = (srcCy.get('gridMeta')?.get?.('expand')) || {};
+      const { cells, expand, strays } = graftKeyMap(srcCells, srcExpand, srcPrefix, slotPath);
+      if (strays.length) return false;
+      breakUndo();
+      ydoc.transact(() => {
+        const hcm = hostCy.get('gridCells');
+        if (hcm) Object.entries(cells).forEach(([k, rec]) => { if (rec && rec.type && rec.type !== 'empty') hcm.set(k, rec); });
+        const hmm = hostCy.get('gridMeta');
+        if (hmm && hmm.set) {
+          hmm.set('expand', { ...(hmm.get('expand') || {}), ...expand, [slotPath]: srcView === 'day' ? 'hours' : 'minutes' });
+        }
+        // Consume the source + cascade its arrow endpoints (no dangling arrows).
+        const a = arrowsArr();
+        if (a) {
+          const cardIdOf = (r) => (typeof r === 'string' ? r : (r && typeof r === 'object' && r.type === 'card' ? r.id : null));
+          for (let i = a.length - 1; i >= 0; i--) {
+            const ar = a.get(i);
+            const fromCard = cardIdOf(ar?.from ?? ar?.get?.('from'));
+            const toCard = cardIdOf(ar?.to ?? ar?.get?.('to'));
+            if (fromCard === srcId || toCard === srcId) a.delete(i, 1);
+          }
+        }
+        m.delete(srcId);
+      }, 'local');
+      return true;
+    };
     // ── shared / per-cell text style ──────────────────────────────────────────
     // The family (shared) text style: linked → the shared template; else the card.
     const familyStyleOf = (cy) => {
@@ -2221,11 +2317,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addArrow, addFreeArrow, deleteArrows, updateArrow,
       addNote, addTextLink, addImageAt, addPdfAt, ingestFilesArranged, updateCardSilent, addNewBoard, addPalette,
       addDocCard, addScriptCard, addGrid,
-      resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, setGridCellContent, clearGridCellContent,
+      resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, setGridCellContent, clearGridCellContent, removeGridCellRecord,
+      setSchedSlotExpand, graftScheduleIntoSlot,
       setGridTextStyle, pinCellStyle, unpinCellStyle, guardWeightedAdd,
       promoteGridToTemplate, linkGridToTemplate, unlinkGrid, resizeLinkedGrids, graftGridIntoCell,
       stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern, setGridSequenceStartAt,
-      addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
+      addShape, addSchedule, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
       setBoardBgColor,
       setBoardCover,
       // Workspace-scoped mutators (rename, delete, clone) close over outer
@@ -3055,6 +3152,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   });
   const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'storage' | 'manual' | null ('shared-edit' died with 0188)
 
+  // Should this demo user be pitched at all? Shared by every always-on upsell
+  // surface so the chip, the first-value banner and the list-toolbar chip agree
+  // rather than each inventing its own threshold. The cap-hit modal is
+  // deliberately NOT gated on this — hitting the wall is a consequence, not a
+  // promotion, and a blocked user always gets the explanation.
+  const upsellElig = useMemo(() => evaluateUpsell({
+    tier: myTier.tier,
+    demoCardCount: myTier.demoCardCount,
+    cardLimit: myTier.effectiveCardLimit,
+    accountAgeDays: user?.created_at
+      ? Math.max(0, Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86400000))
+      : 0,
+  }), [myTier.tier, myTier.demoCardCount, myTier.effectiveCardLimit, user?.created_at]);
+
   // Celebrate referral rewards: when bonus_card_credits grows (a friend you
   // invited just activated — granted server-side, picked up on the next
   // focus refetch), confirm it. The first known value sets a silent baseline
@@ -3079,6 +3190,46 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (_) {}
     }
   }, [myTier.bonusCardCredits, myTier.loading]);
+
+  // The server card-cap trigger rejected a card_index write (syncCardIndex
+  // dispatches this). Reaching here means the CLIENT gate let a card through
+  // that the server refused — a stale cached count, or a cap that moved under
+  // us. Refetch the tier so the client stops guessing, and show the same wall
+  // the client-side gate would have shown. Without this the card renders from
+  // the Y.Doc but is missing from search/tags/graph, and the user is told
+  // nothing at the one moment the cap is meant to be converting them.
+  useEffect(() => {
+    const onCapped = (e) => {
+      try {
+        logEvent(EV.CARD_CREATE_BLOCKED, {
+          reason: 'server_cap',
+          board_id: e?.detail?.boardId || null,
+          n: e?.detail?.rejected || 0,
+        });
+      } catch (_) {}
+      myTier.refetch?.();
+      setUpgradeReason('cap-hit');
+    };
+    window.addEventListener('soleil:card-index-capped', onCapped);
+    return () => window.removeEventListener('soleil:card-index-capped', onCapped);
+  }, [myTier]);
+
+  // The list-toolbar upsell chip's own suppression row, so the scorecard's
+  // by_surface breakdown isn't permanently zero for this surface.
+  useEffect(() => {
+    if (myTier.tier !== 'demo' || upsellElig.eligible) return;
+    if (workspace?.created_by !== user?.id) return;   // only the owner is ever pitched here
+    logEventOnce('up_suppressed:list_toolbar', EV.UP_SUPPRESSED, {
+      surface: 'list_toolbar',
+      reason: upsellElig.reason,
+      cap_pct: upsellElig.capPct,
+      demo_cards: myTier.demoCardCount,
+      limit: myTier.effectiveCardLimit,
+      elig_rev: ELIGIBILITY_REV,
+    });
+  }, [myTier.tier, myTier.demoCardCount, myTier.effectiveCardLimit,
+      upsellElig.eligible, upsellElig.reason, upsellElig.capPct,
+      workspace?.created_by, user?.id]);
 
   // Funnel: app_open fires once per mount with the caller's tier so we
   // can correlate retention (app opens / unique user / week).
@@ -3686,8 +3837,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // guided tour is running — the fv-banner would render dead under the tour's
     // pointer-events lock; this effect re-runs when the tour closes
     // (onboardingUiActive dep) and the nudge fires then, as the post-tour beat.
-    if (!fvDone && myTier.tier === 'demo' && !tourActive && genuine.length >= 2) {
-      try { localStorage.setItem(fvKey, '1'); } catch { /* ignore */ }
+    // NOTE: this deliberately does NOT stamp fvKey. UpgradeChip decides whether
+    // the user is far enough along to be pitched, and it owns the
+    // once-per-account stamp. Burning the one-shot here would mean a user who
+    // isn't ready at two cards never sees the banner at all — the surface would
+    // die silently for everyone it was re-timed to reach. Re-dispatching costs
+    // one event per card change; the listener is the guard.
+    if (myTier.tier === 'demo' && !tourActive && genuine.length >= 2) {
       window.dispatchEvent(new CustomEvent('soleil:first-value'));
     }
 
@@ -4712,6 +4868,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => setTrashOpen(true) },
     { id: 'settings', label: 'Open settings', icon: Settings, keywords: ['settings', 'preferences', 'workspace', 'display'],
       run: () => setSettingsOpen(true) },
+    // New tab: the docs are a separate reading surface, and losing an unsaved
+    // canvas to a same-tab navigation would be a poor trade for a help link.
+    { id: 'docs', label: 'Documentation', icon: BookOpen,
+      keywords: ['docs', 'documentation', 'help', 'guide', 'manual', 'api', 'mcp', 'how to'],
+      run: () => window.open('/docs', '_blank', 'noopener') },
     { id: 'account', label: 'Account & billing', icon: User, keywords: ['account', 'profile', 'billing', 'plan'],
       run: () => setAccountOpen(true) },
     { id: 'invite', label: 'Invite friends', icon: UserPlus, keywords: ['invite', 'referral', 'friends', 'earn'],
@@ -4807,7 +4968,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      gridTemplates={gridTemplates}
                      getGridModel={(card) => readGridModel(card, yd, gridTemplates)}
                      onRevealOnCanvas={(ids) => { setView('canvas', 'reveal'); setFocusRequest({ boardId: board.id, ids, token: Date.now() }); }}
-                     showStorageUpsell={myTier.tier === 'demo' && workspace?.created_by === user?.id}
+                     showStorageUpsell={myTier.tier === 'demo' && workspace?.created_by === user?.id && upsellElig.eligible}
                      onStorageUpsell={() => setUpgradeReason('storage')}
                      mutators={muts} />
       );
@@ -5140,6 +5301,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           workspaceId={workspace?.id}
           onOpenRecovery={() => setWorkspaceRecoveryOpen(true)}
         />
+        {/* Only renders for a Scout shell account — see the component header;
+            the check is a string test on the session email, not a round trip. */}
+        <ScoutClaimBanner user={user} />
         <div className="topbar">
           <div className="tb-left">
             {(tweak.compactSidebar || mobileShell) && (
@@ -5450,7 +5614,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       )}
 
       {upgradeReason && (
-        <UpgradeModal reason={upgradeReason} onClose={() => setUpgradeReason(null)} />
+        <UpgradeModal
+          reason={upgradeReason}
+          clusterCount={Object.keys(boards || {}).length || null}
+          onClose={() => setUpgradeReason(null)}
+        />
       )}
 
       {/* Arm B gets the guided tour (below) instead of the static pill. */}

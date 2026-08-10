@@ -3,12 +3,23 @@ import * as perf from '../lib/perf.js';
 import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
 import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
+import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey as mintSchedItemKey, newUid as schedUid, parseSlotKey as schedParseSlotKey } from '../lib/schedLayout.js';
+import { todayISO as schedTodayISO } from '../lib/schedDates.js';
+
+// Live expand map for a schedule card — Yjs gridMeta when present, else the
+// local shell's plain card.gridMeta.
+function schedExpandOf(card, ydoc) {
+  const mm = ydoc?.getMap?.('cards')?.get?.(card.id)?.get?.('gridMeta');
+  if (mm && typeof mm.get === 'function') return mm.get('expand') || {};
+  return card?.gridMeta?.expand || {};
+}
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
-  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard, FileCard, GridCard,
+  PaletteCard, DocCard, ScheduleCard as ScheduleTableCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard, FileCard, GridCard,
 } from './cards.jsx';
+import { ScheduleCard } from './cards/ScheduleCard.jsx';
 import { RichDocCard } from './DocCard.jsx';
 import { Spinner } from './Spinner.jsx';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
@@ -32,6 +43,7 @@ import {
   Eye, EyeOff, MessageCircle,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, Scribble, ArrowRight, Plus, Question,
   Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut,
+  Calendar as CalendarPh,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
@@ -101,7 +113,8 @@ import {
   computeSnap as computeSnapPure, computeResizeSnap as computeResizeSnapPure,
 } from '../lib/snapGuides.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
-import { classifyDropFile, sizeBucket } from '../lib/fileIngest.js';
+import { classifyDropFile, sizeBucket, fitImageDims } from '../lib/fileIngest.js';
+import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
@@ -339,7 +352,7 @@ function GuideLabel({ cx, cy, text, zoom }) {
 
 // Card kinds that can become grid-cell content when dragged onto a cell (see
 // routeCardIntoCell). Anything else keeps dragging/repositioning normally.
-const CELL_DROP_KINDS = new Set(['image', 'note', 'textlink', 'link', 'board', 'boardlink', 'video', 'file', 'pdf', 'grid']);
+const CELL_DROP_KINDS = new Set(['image', 'note', 'textlink', 'link', 'board', 'boardlink', 'video', 'file', 'pdf', 'grid', 'schedule']);
 
 // Inline "make a grid" control shown below a selected Grid: type cols × rows and
 // it replicates the Grid into a flush, connected matrix (the effortless path to a
@@ -817,16 +830,38 @@ export function CanvasSurface({
     cellDropTargetRef.current = next;
     if (!same) setCellDropTarget(next);
   }, []);
-  // Convert a dragged canvas card into the content of a grid cell. Content cards
-  // (image/note/link/file/video) MOVE (consumed); a board → a board cell (preview,
-  // reference kept); a grid → grafted inline (graftGridIntoCell consumes it).
-  // Returns true if the drop was consumed into the cell (so the caller skips the
-  // normal move-commit); false for kinds with no cell representation (doc/shape/
-  // palette/…) so those keep dragging/repositioning normally.
+  // Convert a dragged canvas card into the content of a grid cell OR a
+  // schedule slot. Content cards (image/note/link/file/video) MOVE (consumed);
+  // a board → a board cell (preview, reference kept); a grid → grafted inline
+  // (graftGridIntoCell consumes it). Schedule slots hold MULTIPLE items, so a
+  // drop APPENDS (mints a fresh `<slot>/i:<uid>` key; a drop landing on a chip
+  // normalizes to its slot — replacing would silently destroy an item).
+  // Returns true if the drop was consumed into the cell (so the caller skips
+  // the normal move-commit); false for kinds with no cell representation
+  // (doc/shape/palette/…) OR kind/target mismatches (grid over a schedule,
+  // schedule over a grid) so those keep dragging/repositioning normally —
+  // returning true on a write that no-ops would swallow the drag (snap-back).
   const routeCardIntoCell = useCallback((card, gridId, cellId) => {
     if (!card || !gridId || !cellId) return false;
     const k = card.kind;
-    if (k === 'grid') { mutators.graftGridIntoCell?.(gridId, cellId, card.id); return true; }
+    // cardById is the stable in-place singleton (declared below; initialized by
+    // the time any drop fires) — intentionally NOT in deps.
+    const target = cardById[gridId];
+    const targetIsSched = target?.kind === 'schedule' && !!target.schedView;
+    if (target && target.kind !== 'grid' && !targetIsSched) return false;
+    if (k === 'grid') {
+      if (targetIsSched) return false;               // a grid can't graft into a slot
+      mutators.graftGridIntoCell?.(gridId, cellId, card.id);
+      return true;
+    }
+    if (k === 'schedule') {
+      // Day card → day slot breaks the day into inline hour rows; hour card →
+      // hour slot breaks it into minute rows (source consumed). Legacy source,
+      // non-schedule target, a granularity mismatch, or off-prefix content in
+      // the source all return false → the drag stays a normal move.
+      if (!targetIsSched || !card.schedView) return false;
+      return mutators.graftScheduleIntoSlot?.(gridId, schedSlotOfItem(cellId), card.id) === true;
+    }
     let patch = null, consume = true;
     if (k === 'image') patch = { type: 'image', src: card.src, fit: 'cover', ...(card.adjust ? { adjust: card.adjust } : {}), ...(card.pos ? { pos: card.pos } : {}) };
     else if (k === 'note' || k === 'textlink') {
@@ -845,7 +880,8 @@ export function CanvasSurface({
     else if (k === 'video') patch = { type: 'video', src: card.src };
     else if (k === 'file' || k === 'pdf') patch = { type: 'file', fileSrc: card.fileSrc || card.src, fileName: card.fileName || card.name, mime: card.mime, sizeBytes: card.sizeBytes, ext: card.ext };
     if (!patch) return false;
-    mutators.setGridCellContent?.(gridId, cellId, patch);
+    const writeKey = targetIsSched ? mintSchedItemKey(schedSlotOfItem(cellId), schedUid()) : cellId;
+    mutators.setGridCellContent?.(gridId, writeKey, patch);
     if (consume) mutators.deleteCards?.([card.id]);
     return true;
   }, [mutators, boards]);
@@ -2033,7 +2069,56 @@ export function CanvasSurface({
   // boards before it finished (and avoid patching the wrong board's card).
   const boardIdRef = useRef(board?.id);
   boardIdRef.current = board?.id;
-  const optimisticDropImage = useCallback(async (file, cx, cy) => {
+
+  // Roll back an optimistic card on upload failure. 402 (over quota) / 403 (not
+  // a paid owner) open the upgrade prompt; anything else is a plain error toast.
+  // Defined above the optimistic drop handlers so all of them can list it as a
+  // dependency — every upload path must funnel through here, or a rejection
+  // silently loses both the upgrade prompt and the upload_blocked event.
+  const handleUploadReject = useCallback((err, id, dropBoardId) => {
+    if (boardIdRef.current === dropBoardId) mutators.deleteCard?.(id);
+    const upsell = onRequestStorageUpgrade || onRequestUpgrade;
+    if (err?.code === 402 || err?.code === 403) {
+      try {
+        logEvent(EV.UPLOAD_BLOCKED, {
+          reason: err.code === 402 ? 'server_quota' : 'server_403',
+          surface: 'canvas', n: 1, ext: null, size_bucket: null,
+        });
+      } catch (_) {}
+    }
+    if (err?.code === 402) {
+      upsell?.();
+      feedback.toast({ type: 'warning', message: "You're out of storage. Upgrade for more space." });
+    } else if (err?.code === 403) {
+      upsell?.();
+      feedback.toast({ type: 'warning', message: 'Uploading files needs a paid plan — upgrade to add any file type.' });
+    } else if (String(err?.message) !== 'aborted') {
+      feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
+    }
+  }, [mutators, onRequestUpgrade, onRequestStorageUpgrade, feedback]);
+
+  // Place the drop rect (w×h) centered on (cx, cy), clamped to the viewport.
+  //
+  // `rect` is an already-computed placement, and it WINS. A multi-file drop is
+  // laid out as one block before any card is created; clamping each card to the
+  // viewport individually afterwards is precisely what used to pile a dozen
+  // photographs on top of each other at the right-hand edge.
+  const placeDropRect = useCallback((cx, cy, w, h, rect = null) => {
+    if (rect && Number.isFinite(rect.x) && Number.isFinite(rect.y)) {
+      return { x: Math.round(rect.x), y: Math.round(rect.y), w: rect.w || w, h: rect.h || h };
+    }
+    let bounds = null;
+    const wrap = wrapRef.current;
+    if (wrap) {
+      const r = wrap.getBoundingClientRect();
+      const tl = clientToCanvas(r.left, r.top);
+      const br = clientToCanvas(r.right, r.bottom);
+      bounds = { minX: tl.x + 8, minY: tl.y + 8, maxX: br.x - 8, maxY: br.y - 8 };
+    }
+    return clampDropRect({ x: cx - w / 2, y: cy - h / 2, w, h }, bounds);
+  }, [clientToCanvas]);
+
+  const optimisticDropImage = useCallback(async (file, cx, cy, rect = null) => {
     if (!file) return;
     const dropBoardId = board?.id;
     if (useLocalImages) {
@@ -2086,15 +2171,7 @@ export function CanvasSurface({
     const id = `img-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     if (blobUrl) setLocalImagePreview(prev => ({ ...prev, [id]: blobUrl }));
     // Keep the whole card on-screen even when dropped near the right/bottom edge.
-    let bounds = null;
-    const wrap = wrapRef.current;
-    if (wrap) {
-      const r = wrap.getBoundingClientRect();
-      const tl = clientToCanvas(r.left, r.top);
-      const br = clientToCanvas(r.right, r.bottom);
-      bounds = { minX: tl.x + 8, minY: tl.y + 8, maxX: br.x - 8, maxY: br.y - 8 };
-    }
-    const placed = clampDropRect({ x: cx - w / 2, y: cy - h / 2, w, h }, bounds);
+    const placed = placeDropRect(cx, cy, w, h, rect);
     // src omitted here — blob URLs aren't useful to peers, so we keep the
     // doc clean and let localImagePreview drive the local view.
     mutators.addCard?.({
@@ -2116,33 +2193,29 @@ export function CanvasSurface({
       }
     } catch (err) {
       console.error('image upload failed', err);
-      feedback.toast({ type: 'error', message: 'Image upload failed: ' + (err.message || err) });
-      if (boardIdRef.current === dropBoardId) mutators.deleteCard?.(id);
+      // Shared handler: rolls the optimistic card back AND, for 402/403, opens
+      // the upgrade prompt and logs upload_blocked. This used to be a bespoke
+      // error toast, so an over-quota image drop — the one upload failure that
+      // is actually a sales moment — showed a red "failed" message with no
+      // upgrade path and no telemetry.
+      handleUploadReject(err, id, dropBoardId);
     } finally {
       setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
       setLocalImagePreview(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
       if (blobUrl) { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }
     }
-  }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, onDropFileImage]);
+  }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, onDropFileImage, handleUploadReject]);
 
   // Drop a PDF: add a pending card immediately, then upload + render the
   // page-1 thumbnail in the background (same optimistic pattern as images).
   // Distinct `pdf-` id prefix so card_index's `img-` src-recovery heuristics
   // don't mistake it for an image.
-  const optimisticDropPdf = useCallback(async (file, cx, cy) => {
+  const optimisticDropPdf = useCallback(async (file, cx, cy, rect = null) => {
     if (!file) return;
     const dropBoardId = board?.id;
     const id = `pdf-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     let w = 300, h = 388; // portrait fallback; corrected from real page-1 dims
-    let bounds = null;
-    const wrap = wrapRef.current;
-    if (wrap) {
-      const r = wrap.getBoundingClientRect();
-      const tl = clientToCanvas(r.left, r.top);
-      const br = clientToCanvas(r.right, r.bottom);
-      bounds = { minX: tl.x + 8, minY: tl.y + 8, maxX: br.x - 8, maxY: br.y - 8 };
-    }
-    const placed = clampDropRect({ x: cx - w / 2, y: cy - h / 2, w, h }, bounds);
+    const placed = placeDropRect(cx, cy, w, h, rect);
 
     if (useLocalImages) {
       // Local QA — no backend. Point the viewer straight at a blob URL
@@ -2167,60 +2240,25 @@ export function CanvasSurface({
       }
     } catch (err) {
       console.error('pdf upload failed', err);
-      feedback.toast({ type: 'error', message: 'PDF upload failed: ' + (err.message || err) });
-      if (boardIdRef.current === dropBoardId) mutators.deleteCard?.(id);
+      // Same shared handler as the image path — PDFs presign through the same
+      // route, so they hit the same over-quota rejection and need the same
+      // upgrade prompt rather than a dead-end error toast.
+      handleUploadReject(err, id, dropBoardId);
     } finally {
       setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
     }
-  }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, clientToCanvas]);
-
-  // Roll back an optimistic card on upload failure. 402 (over quota) / 403 (not
-  // a paid owner) open the upgrade prompt; anything else is a plain error toast.
-  const handleUploadReject = useCallback((err, id, dropBoardId) => {
-    if (boardIdRef.current === dropBoardId) mutators.deleteCard?.(id);
-    const upsell = onRequestStorageUpgrade || onRequestUpgrade;
-    if (err?.code === 402 || err?.code === 403) {
-      try {
-        logEvent(EV.UPLOAD_BLOCKED, {
-          reason: err.code === 402 ? 'server_quota' : 'server_403',
-          surface: 'canvas', n: 1, ext: null, size_bucket: null,
-        });
-      } catch (_) {}
-    }
-    if (err?.code === 402) {
-      upsell?.();
-      feedback.toast({ type: 'warning', message: "You're out of storage. Upgrade for more space." });
-    } else if (err?.code === 403) {
-      upsell?.();
-      feedback.toast({ type: 'warning', message: 'Uploading files needs a paid plan — upgrade to add any file type.' });
-    } else if (String(err?.message) !== 'aborted') {
-      feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
-    }
-  }, [mutators, onRequestUpgrade, onRequestStorageUpgrade, feedback]);
-
-  // Place the drop rect (w×h) centered on (cx, cy), clamped to the viewport.
-  const placeDropRect = useCallback((cx, cy, w, h) => {
-    let bounds = null;
-    const wrap = wrapRef.current;
-    if (wrap) {
-      const r = wrap.getBoundingClientRect();
-      const tl = clientToCanvas(r.left, r.top);
-      const br = clientToCanvas(r.right, r.bottom);
-      bounds = { minX: tl.x + 8, minY: tl.y + 8, maxX: br.x - 8, maxY: br.y - 8 };
-    }
-    return clampDropRect({ x: cx - w / 2, y: cy - h / 2, w, h }, bounds);
-  }, [clientToCanvas]);
+  }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, clientToCanvas, handleUploadReject]);
 
   // Any file type → a generic, downloadable file card. Uploads via multipart
   // (boards/src/lib/uploads.js uploadFile), which gates on paid-owner + storage
   // quota server-side. Mirrors optimisticDropPdf's optimistic add → update → roll
   // back on failure.
-  const optimisticDropFile = useCallback(async (file, cx, cy) => {
+  const optimisticDropFile = useCallback(async (file, cx, cy, rect = null) => {
     if (!file) return;
     const dropBoardId = board?.id;
     const id = `file-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const w = 240, h = 150;
-    const placed = placeDropRect(cx, cy, w, h);
+    const placed = placeDropRect(cx, cy, w, h, rect);
     const ext = (file.name?.split('.').pop() || '').toLowerCase();
 
     if (useLocalImages) {
@@ -2251,7 +2289,7 @@ export function CanvasSurface({
 
   // Over-cap video/audio (paid only) → still an inline media card, but uploaded
   // via multipart so big files upload reliably + count against the quota.
-  const dropLargeMedia = useCallback(async (file, kind, cx, cy) => {
+  const dropLargeMedia = useCallback(async (file, kind, cx, cy, rect = null) => {
     if (!file) return;
     const dropBoardId = board?.id;
     let w, h, extra = {};
@@ -2265,7 +2303,7 @@ export function CanvasSurface({
       w = 380; h = 130; extra = { title: file.name || 'Audio', duration: meta.duration || null };
     }
     const id = `${kind === 'video' ? 'vid' : 'aud'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-    const placed = placeDropRect(cx, cy, w, h);
+    const placed = placeDropRect(cx, cy, w, h, rect);
     mutators.addCard?.({ id, kind, x: placed.x, y: placed.y, w, h, pending: true, ...extra });
     try {
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
@@ -2282,7 +2320,7 @@ export function CanvasSurface({
   // Upload a video file and place a video card centered on (cx, cy).
   // Validates duration via uploadVideo (default cap 60s, 30 MB). Toast
   // surfaces upload errors.
-  const dropVideoFile = useCallback(async (file, cx, cy, allowLong = false) => {
+  const dropVideoFile = useCallback(async (file, cx, cy, allowLong = false, rect = null) => {
     if (!workspaceId) throw new Error('workspaceId required');
     // Paid uploads (allowLong) drop the free-tier 60s clip cap; the byte cap is
     // moot here (this path only handles ≤ the free byte cap — larger goes
@@ -2297,8 +2335,8 @@ export function CanvasSurface({
       kind: 'video',
       src: up.src,
       ...(up.poster ? { poster: up.poster } : {}),
-      x: Math.round(cx - w / 2),
-      y: Math.round(cy - h / 2),
+      x: rect && Number.isFinite(rect.x) ? Math.round(rect.x) : Math.round(cx - w / 2),
+      y: rect && Number.isFinite(rect.y) ? Math.round(rect.y) : Math.round(cy - h / 2),
       w, h,
     });
   }, [workspaceId, board?.id, userId, mutators]);
@@ -2306,7 +2344,7 @@ export function CanvasSurface({
   // Audio file → audio card centered on (cx, cy). Default size matches
   // a compact waveform; the card carries the duration for instant later
   // renders. 50 MB cap enforced inside uploadAudio.
-  const dropAudioFile = useCallback(async (file, cx, cy) => {
+  const dropAudioFile = useCallback(async (file, cx, cy, rect = null) => {
     if (!workspaceId) throw new Error('workspaceId required');
     const up = await uploadAudio({ file, workspaceId, boardId: board?.id, userId });
     const w = 380, h = 130;
@@ -2316,8 +2354,8 @@ export function CanvasSurface({
       src: up.src,
       title: file.name || 'Audio',
       duration: up.duration || null,
-      x: Math.round(cx - w / 2),
-      y: Math.round(cy - h / 2),
+      x: rect && Number.isFinite(rect.x) ? Math.round(rect.x) : Math.round(cx - w / 2),
+      y: rect && Number.isFinite(rect.y) ? Math.round(rect.y) : Math.round(cy - h / 2),
       w, h,
     });
   }, [workspaceId, board?.id, userId, mutators]);
@@ -2335,36 +2373,80 @@ export function CanvasSurface({
     if (!files.length) return;
     const canAttemptFiles = !(ownsWorkspace && !isPaidPlan);
     const blockedForUpgrade = [];
-    let offsetX = 0;
+
+    // Classify everything FIRST, then lay the whole drop out as one block.
+    //
+    // This used to be an unbounded horizontal stagger — `cx + offsetX` with
+    // offsetX growing 260px per file — so twenty photographs marched 5,200px
+    // to the right, and everything past the viewport edge was clamped into a
+    // pile on top of itself. The list-view drop has always used a real packer;
+    // the canvas simply never did.
+    const accepted = [];
     for (const f of files) {
       // Shared routing/caps (lib/fileIngest.js) so canvas + list agree.
       const c = classifyDropFile(f, { canAttemptFiles });
-      try {
-        if (c.route === 'image') {
-          // Optimistic — adds the card and uploads in the background so
-          // multi-file drops aren't blocked one at a time.
-          optimisticDropImage(f, cx + offsetX, cy); offsetX += 260;
-        } else if (c.route === 'video') {
-          await dropVideoFile(f, cx + offsetX, cy, canAttemptFiles); offsetX += 320;
-        } else if (c.route === 'audio') {
-          await dropAudioFile(f, cx + offsetX, cy); offsetX += 380;
-        } else if (c.route === 'pdf') {
-          optimisticDropPdf(f, cx + offsetX, cy); offsetX += 320;
-        } else if (c.route === 'blocked') {
-          blockedForUpgrade.push(f);
-        } else if (c.route === 'largeMedia') {
-          // Over-cap clip — still an inline media card, uploaded via multipart.
-          dropLargeMedia(f, c.kind, cx + offsetX, cy);
-          offsetX += c.kind === 'video' ? 320 : 380;
-        } else {
-          // PDFs over the inline cap + every other type → downloadable file card.
-          optimisticDropFile(f, cx + offsetX, cy); offsetX += 260;
+      if (c.route === 'blocked') { blockedForUpgrade.push(f); continue; }
+      accepted.push({ file: f, ...c });
+    }
+
+    if (accepted.length) {
+      // Real dimensions before layout, not after: laying out at the fallback
+      // size and then letting each card resize itself is what makes a drop
+      // visibly jump. Same measurement the list path uses, so the two agree.
+      await Promise.all(accepted.map(async (it) => {
+        try {
+          if (it.route === 'image') {
+            const d = await readImageDims(it.file);
+            if (d.width && d.height) { const f = fitImageDims(d.width, d.height); it.w = f.w; it.h = f.h; }
+          } else if (it.kind === 'video') {
+            const meta = await readVideoMeta(it.file);
+            if (meta?.w) {
+              const w = Math.max(240, Math.min(560, meta.w || 360));
+              it.w = w;
+              it.h = Math.max(160, Math.round(w * (meta.h && meta.w ? meta.h / meta.w : 9 / 16)));
+            }
+          }
+        } catch (_) { /* keep the fallback dims from classifyDropFile */ }
+      }));
+
+      // A mixed drop keeps the uniform grid — an image beside a PDF beside an
+      // audio clip reads as a matrix. All photographs get justified rows.
+      const allImages = accepted.every((it) => it.route === 'image');
+      const rects = layoutDrop(accepted, {
+        at: { x: cx, y: cy },
+        layout: allImages ? 'justified' : 'grid',
+      });
+
+      for (let i = 0; i < accepted.length; i++) {
+        const { file: f, route, kind } = accepted[i];
+        const rect = rects[i];
+        const rcx = rect.x + rect.w / 2;
+        const rcy = rect.y + rect.h / 2;
+        try {
+          if (route === 'image') {
+            // Optimistic — adds the card and uploads in the background so
+            // multi-file drops aren't blocked one at a time.
+            optimisticDropImage(f, rcx, rcy, rect);
+          } else if (route === 'video') {
+            await dropVideoFile(f, rcx, rcy, canAttemptFiles, rect);
+          } else if (route === 'audio') {
+            await dropAudioFile(f, rcx, rcy, rect);
+          } else if (route === 'pdf') {
+            optimisticDropPdf(f, rcx, rcy, rect);
+          } else if (route === 'largeMedia') {
+            // Over-cap clip — still an inline media card, uploaded via multipart.
+            dropLargeMedia(f, kind, rcx, rcy, rect);
+          } else {
+            // PDFs over the inline cap + every other type → downloadable file card.
+            optimisticDropFile(f, rcx, rcy, rect);
+          }
+        } catch (err) {
+          console.error(err);
+          feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
         }
-      } catch (err) {
-        console.error(err);
-        feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
       }
     }
+
     if (blockedForUpgrade.length) {
       (onRequestStorageUpgrade || onRequestUpgrade)?.();
       try {
@@ -4977,6 +5059,31 @@ export function CanvasSurface({
             { id: 'ord-snake', label: `Snake — alternating rows${pat === 'snake' ? ' ✓' : ''}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'snake') },
           ]});
         }
+      } else if (c.kind === 'schedule' && c.schedView) {
+        const setView = (v) => mutators.updateCard?.(c.id, { schedView: v });
+        items.push({ id: 'sched-view', label: 'View', submenu: [
+          { id: 'sv-month', label: `Month${c.schedView === 'month' ? ' ✓' : ''}`, run: () => setView('month') },
+          { id: 'sv-week', label: `Week${c.schedView === 'week' ? ' ✓' : ''}`, run: () => setView('week') },
+          { id: 'sv-day', label: `Day${c.schedView === 'day' ? ' ✓' : ''}`, run: () => setView('day') },
+          { id: 'sv-hour', label: `Hour${c.schedView === 'hour' ? ' ✓' : ''}`, run: () => setView('hour') },
+        ]});
+        items.push({ id: 'sched-today', label: 'Go to today', run: () => mutators.updateCard?.(c.id, { anchor: schedTodayISO() }) });
+        // Breakdown / collapse for the focused slot (click a slot first).
+        const fc = focusedCell;
+        if (fc?.gridId === c.id && fc.cellId) {
+          const slotPath = schedSlotOfItem(fc.cellId);
+          const slot = schedParseSlotKey(slotPath);
+          const expanded = schedExpandOf(c, ydoc)[slotPath];
+          if (slot?.kind === 'day') {
+            items.push(expanded === 'hours'
+              ? { id: 'sched-collapse', label: 'Collapse day', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, null) }
+              : { id: 'sched-break', label: 'Break day into hours', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, 'hours') });
+          } else if (slot?.kind === 'hour') {
+            items.push(expanded === 'minutes'
+              ? { id: 'sched-collapse', label: 'Collapse hour', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, null) }
+              : { id: 'sched-break', label: 'Break hour into minutes', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, 'minutes') });
+          }
+        }
       } else if (c.kind === 'board') {
         openItems.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
         const target = boards[c.id];
@@ -5131,6 +5238,64 @@ export function CanvasSurface({
       { id: 'backward', label: 'Send backward',  run: () => arrangeRun('backward') },
       { id: 'back',     label: 'Send to back',   run: () => arrangeRun('back') },
     ]});
+
+    // Spatial arrangement. Until now this menu was z-order ONLY — there was no
+    // way to line four cards up by hand short of dragging each and trusting the
+    // snap guides, and no way to tidy a board that had become a mess.
+    //
+    // Every one of these goes through mutators.updateCards, so a whole
+    // rearrangement is a single undo step rather than forty.
+    const geometryOf = (id) => cardByIdRef.current[id];
+    const applyMoves = (moved, withSize) => {
+      if (!moved.length) return;
+      mutators.updateCards?.(moved.map((c) => ({
+        id: c.id,
+        patch: withSize ? { x: c.x, y: c.y, w: c.w, h: c.h } : { x: c.x, y: c.y },
+      })));
+    };
+    // Nothing selected means the whole board — "tidy this up" is the request,
+    // and making someone select everything first to express it is friction.
+    const tidyRun = (name) => {
+      const all = Object.values(cardByIdRef.current || {});
+      const ids = selected.size >= 2 ? [...selected] : all.map((c) => String(c.id));
+      // justified is the only layout that resizes, so it is the only one whose
+      // patch may carry w/h.
+      applyMoves(rearrange(all, ids, { layout: name }), name === 'justified');
+    };
+    const alignRun = (edge) =>
+      applyMoves(alignCards([...selected].map(geometryOf).filter(Boolean), edge), false);
+    const distributeRun = (axis) =>
+      applyMoves(distributeCards([...selected].map(geometryOf).filter(Boolean), axis), false);
+
+    arrangeItems.push({
+      id: 'tidy',
+      label: selected.size >= 2 ? `Tidy up (${selected.size})` : 'Tidy up board',
+      submenu: [
+        { id: 'justified', label: 'Justified rows',  run: () => tidyRun('justified') },
+        { id: 'masonry',   label: 'Masonry columns', run: () => tidyRun('masonry') },
+        { id: 'grid',      label: 'Grid',            run: () => tidyRun('grid') },
+        { id: 'row',       label: 'Single row',      run: () => tidyRun('row') },
+        { id: 'column',    label: 'Single column',   run: () => tidyRun('column') },
+      ],
+    });
+
+    if (multi && selected.size >= 2) {
+      arrangeItems.push({ id: 'align', label: 'Align', submenu: [
+        { id: 'left',     label: 'Left',   run: () => alignRun('left') },
+        { id: 'center-x', label: 'Center', run: () => alignRun('center-x') },
+        { id: 'right',    label: 'Right',  run: () => alignRun('right') },
+        { id: 'top',      label: 'Top',    run: () => alignRun('top') },
+        { id: 'middle',   label: 'Middle', run: () => alignRun('middle') },
+        { id: 'bottom',   label: 'Bottom', run: () => alignRun('bottom') },
+      ]});
+    }
+    if (multi && selected.size >= 3) {
+      // Three is the minimum that HAS a gap to even out.
+      arrangeItems.push({ id: 'distribute', label: 'Distribute', submenu: [
+        { id: 'horizontal', label: 'Horizontally', run: () => distributeRun('horizontal') },
+        { id: 'vertical',   label: 'Vertically',   run: () => distributeRun('vertical') },
+      ]});
+    }
 
     // Grouping (stays in the ARRANGE group) ──
     if (multi && selected.size >= 2) {
@@ -5755,6 +5920,7 @@ export function CanvasSurface({
     { id: 'script',  group: 'card', label: 'Script',  icon: Clapperboard,  run: () => { noteCreateIntent(method); mutators.addScriptCard?.(pos); } },
     { id: 'shape',   group: 'card', label: 'Shape',   icon: Square,        run: () => { noteCreateIntent(method); mutators.addShape?.(pos, shapeOptions); } },
     { id: 'palette', group: 'card', label: 'Color palette', icon: Palette, run: () => { noteCreateIntent(method); mutators.addPalette?.(pos); } },
+    { id: 'schedule', group: 'card', label: 'Schedule', icon: CalendarPh, run: () => { noteCreateIntent(method); mutators.addSchedule?.(pos); } },
     { id: 'addurl',  group: 'card', label: 'Link', icon: Link, run: async () => {
       const v = await feedback.prompt({
         title: 'Add a link card',
@@ -5907,7 +6073,7 @@ export function CanvasSurface({
     };
     const addSubmenu = [
       { header: 'Cards' },
-      sub('note', 'Note'), sub('image'), sub('board'), sub('linkedcluster'), sub('grid'), sub('doc'), sub('file'),
+      sub('note', 'Note'), sub('image'), sub('board'), sub('linkedcluster'), sub('grid'), sub('schedule'), sub('doc'), sub('file'),
       { divider: true },
       { header: 'Visual' },
       sub('shape'), sub('palette', 'Palette'),
@@ -6552,9 +6718,23 @@ export function CanvasSurface({
     if (fc && !cards.some((c) => c.id === fc.gridId)) focusCell(null, null);
     setEditingCell((ec) => (ec && !cards.some((c) => c.id === ec.gridId) ? null : ec));
   }, [cards, focusCell]);
+  // The key a WRITE should land on. Grid cells write in place. A schedule
+  // SLOT key (day/hour/minute path) mints a fresh `<slot>/i:<uid>` so writes
+  // APPEND (multi-item slots); a schedule ITEM key writes in place (replace
+  // that item — an explicit act like paste-with-a-chip-focused). Resolved
+  // ONCE at operation entry and threaded through the whole operation — the
+  // async link-preview backfill reuses the SAME key, so it can never mint a
+  // second item.
+  const resolveCellWriteKey = useCallback((gridId, cellId) => {
+    if (!gridId || !cellId) return cellId;
+    const t = cardById[gridId];   // stable singleton — intentionally not in deps
+    if (!t || t.kind !== 'schedule' || !t.schedView) return cellId;
+    return isSchedItemKey(cellId) ? cellId : mintSchedItemKey(cellId, schedUid());
+  }, []);
   // Decode a file list into the right cell content (image / video / file).
   const fillCellFromFiles = useCallback(async (gridId, cellId, files) => {
     const f = files && files[0]; if (!f) return;
+    cellId = resolveCellWriteKey(gridId, cellId);
     if (!guardCellFill(gridId, cellId)) return;   // demo cap: filling counts as a card
     const mime = f.type || '';
     const key = `${gridId}:${cellId}`;
@@ -6573,12 +6753,13 @@ export function CanvasSurface({
       }
     } catch (e) { feedback.toast({ type: 'error', message: 'Upload failed: ' + (e.message || e) }); }
     finally { setCellUploads((p) => { const n = { ...p }; delete n[key]; return n; }); }
-  }, [mutators, workspaceId, board?.id, userId, feedback, guardCellFill]);
+  }, [mutators, workspaceId, board?.id, userId, feedback, guardCellFill, resolveCellWriteKey]);
   // Decode a clipboard/drag payload INTO a cell: files/images → upload; a bare URL
   // → link (with async preview); any other text → a text cell. Shared by paste +
   // external drop so a cell auto-formats whatever you give it.
   const pasteIntoCell = useCallback(async (gridId, cellId, dt) => {
     if (!dt) return false;
+    cellId = resolveCellWriteKey(gridId, cellId);
     if (dt.files && dt.files.length) { await fillCellFromFiles(gridId, cellId, dt.files); return true; }
     if (dt.items) {
       for (const it of dt.items) {
@@ -6607,7 +6788,7 @@ export function CanvasSurface({
       return true;
     }
     return false;
-  }, [fillCellFromFiles, mutators, guardCellFill]);
+  }, [fillCellFromFiles, mutators, guardCellFill, resolveCellWriteKey]);
 
   const gridActions = useMemo(() => ({
     focusCell,
@@ -6624,11 +6805,20 @@ export function CanvasSurface({
     removeDivider: (gridId, path, childIndex) => mutators.removeGridDivider?.(gridId, path, childIndex),
     setCellContent: (gridId, cellId, patch) => mutators.setGridCellContent?.(gridId, cellId, patch),
     clearCellContent: (gridId, cellId) => mutators.clearGridCellContent?.(gridId, cellId),
+    // True key delete — schedule item chips remove entirely (a {type:'empty'}
+    // tombstone would linger as a ghost entry in a multi-item slot).
+    removeCellRecord: (gridId, cellId) => mutators.removeGridCellRecord?.(gridId, cellId),
+    // Schedule breakdown: 'hours' on a day slot / 'minutes' on an hour slot /
+    // null to collapse (meta-only, non-destructive).
+    setSlotExpand: (cardId, slotPath, mode) => mutators.setSchedSlotExpand?.(cardId, slotPath, mode),
     unlinkGrid: (gridId) => mutators.unlinkGrid?.(gridId),
     promoteToTemplate: (gridId) => mutators.promoteGridToTemplate?.(gridId),
     stampNeighbor: (gridId, dir) => mutators.stampGridNeighbor?.(gridId, dir),
     bulkGenerate: (gridId, cols, rows) => mutators.bulkGenerateGrids?.(gridId, cols, rows),
     pickImageForCell: (gridId, cellId) => {
+      // Resolve the write key BEFORE the picker opens so the async onchange
+      // lands on the same (possibly freshly-minted schedule item) key.
+      cellId = resolveCellWriteKey(gridId, cellId);
       const input = document.createElement('input');
       input.type = 'file'; input.accept = 'image/*';
       // Route through fillCellFromFiles so the Image-picker gets the same in-cell
@@ -6638,6 +6828,7 @@ export function CanvasSurface({
     },
     fillCellFromFiles,
     addLinkToCell: async (gridId, cellId) => {
+      cellId = resolveCellWriteKey(gridId, cellId);
       if (!guardCellFill(gridId, cellId)) return;   // demo cap: a link counts as a card
       const v = await feedback.prompt({ title: 'Add a link', label: 'URL', placeholder: 'https://…', confirmLabel: 'Add' });
       if (!v) return;
@@ -6657,7 +6848,7 @@ export function CanvasSurface({
         if (Object.keys(np).length) mutators.setGridCellContent?.(gridId, cellId, np);
       });
     },
-  }), [mutators, workspaceId, board?.id, userId, feedback, focusCell, pasteIntoCell, fillCellFromFiles, guardCellFill]);
+  }), [mutators, workspaceId, board?.id, userId, feedback, focusCell, pasteIntoCell, fillCellFromFiles, guardCellFill, resolveCellWriteKey]);
 
   const renderCard = (c) => {
     const inDrag = drag && drag.ids.includes(c.id);
@@ -6862,8 +7053,26 @@ export function CanvasSurface({
                      onUpdate={onUpdate} />
       ) : <DocCard title={c.title} lines={c.lines} author={c.author} date={c.date} onUpdate={onUpdate} autoFocus={af} />;
     }
-    else if (c.kind === 'schedule')  inner = <ScheduleCard title={c.title} rows={c.rows} onUpdate={onUpdate}
-                                                           editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
+    else if (c.kind === 'schedule' && !c.schedView)
+      // LEGACY schedule (static rows table) — generator-seeded cards keep
+      // rendering; new-model cards (schedView) take the container branch below.
+      inner = <ScheduleTableCard title={c.title} rows={c.rows} onUpdate={onUpdate}
+                                 editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
+    else if (c.kind === 'schedule') {
+      // Schedule card — the real-date calendar container. Same cell plumbing as
+      // the grid branch below: cardYMap exposes the nested gridCells/gridMeta,
+      // and the per-card upload slice keys by the item path.
+      const cardYMap = ydoc?.getMap?.('cards')?.get?.(c.id) || null;
+      const schedUploads = {};
+      for (const k in cellUploads) { if (k.startsWith(`${c.id}:`)) schedUploads[k.slice(c.id.length + 1)] = cellUploads[k]; }
+      inner = <ScheduleCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
+                            isSelected={isSelected} canEdit={canEdit} onUpdate={onUpdate}
+                            focusedCellId={focusedCell?.gridId === c.id ? focusedCell.cellId : null}
+                            dropCellId={cellDropTarget?.gridId === c.id ? cellDropTarget.cellId : null}
+                            cellUploads={schedUploads}
+                            boards={boards} onOpenBoard={onOpenBoard}
+                            gridActions={gridActions} getAwareness={getAwareness} boardId={board.id} />;
+    }
     else if (c.kind === 'shape')     inner = <ShapeCard key={`shape-${c.shape}`} shape={c.shape} stroke={c.stroke} fill={c.fill} strokeWidth={c.strokeWidth} dash={c.dash}
                                                         label={c.label} onUpdate={onUpdate}
                                                         editLabelAt={editFieldSignal.id === c.id && editFieldSignal.field === 'shapeLabel' ? editFieldSignal.n : 0} />;
@@ -7555,6 +7764,7 @@ export function CanvasSurface({
     { title: 'Create', items: [
       { id: 'file',          label: 'File',           icon: Paperclip,      tip: 'Upload any file',         action: () => addFromRegistry('file') },
       { id: 'addurl',        label: 'Link',           icon: Link,           tip: 'Add a web link',          action: () => addFromRegistry('addurl') },
+      { id: 'schedule',      label: 'Schedule',       icon: CalendarPh,     tip: 'A calendar you can drop anything into', action: () => addFromRegistry('schedule') },
       { id: 'linkedcluster', label: 'Linked cluster', icon: ArrowSquareOut, tip: 'Link an existing cluster',action: () => onOpenPicker?.(resolvePastePos().pos) },
     ]},
     { title: 'Annotate', items: [

@@ -85,6 +85,35 @@ function consumeDeepLink(userId) {
   window.history.replaceState({}, document.title, url.pathname + url.search);
 }
 
+// Consume ?lc=<email_type>.<version> — the first-party "they actually arrived"
+// signal for lifecycle email. Separate from consumeDeepLink because it must run
+// even when there is no ?w/?b to consume: a dormant user with no board still
+// gets a CTA, and that landing counts just as much.
+//
+// Resend's click webhook can't answer this. It rewrites every CTA through its
+// own tracking host, and reports userAgent "Amazon CloudFront" on 100% of
+// clicks, so a scanner prefetching the link is indistinguishable from a human
+// — and a click event says nothing about whether the app ever loaded.
+//
+// Fires once per page-load, then strips the param so a refresh doesn't re-count.
+function consumeLifecycleLanding() {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  const lc = url.searchParams.get('lc');
+  if (!lc) return;
+  // "<email_type>.<version>" — version is optional and may itself contain dots.
+  const clean = lc.replace(/[^A-Za-z0-9._-]/g, '').slice(0, 64);
+  if (clean) {
+    const dot = clean.indexOf('.');
+    logEventOnce(`lifecycle_land:${clean}`, EV.LIFECYCLE_LAND, {
+      email_type:      dot === -1 ? clean : clean.slice(0, dot),
+      content_version: dot === -1 ? null  : clean.slice(dot + 1),
+    });
+  }
+  url.searchParams.delete('lc');
+  window.history.replaceState({}, document.title, url.pathname + url.search);
+}
+
 // Capture ?invite=<token> on first load and store it across the OTP
 // signup roundtrip. Runs whether the user is signed in or not — if the
 // recipient clicks the link while already signed in to a different
@@ -260,6 +289,7 @@ export function AuthGate({ children }) {
         // workspace + board on the very first render.
         if (data.session?.user?.id) {
           consumeDeepLink(data.session.user.id);
+          consumeLifecycleLanding();
           await consumePendingInvite(data.session.user.id);
           await consumePendingJoin(data.session.user.id);
         }
@@ -288,6 +318,10 @@ export function AuthGate({ children }) {
       (async () => {
         if (sess?.user?.id) {
           consumeDeepLink(sess.user.id);
+          // Deliberately gated on a user id, like consumeDeepLink: if the click
+          // lands signed-out, leave ?lc= in the URL so it survives the OTP
+          // roundtrip and lands here attributed, rather than firing user-less.
+          consumeLifecycleLanding();
           await consumePendingInvite(sess.user.id);
           await consumePendingJoin(sess.user.id);
         }

@@ -18,6 +18,10 @@
 
 import { expect, test } from '@playwright/test';
 import { routeAnalytics } from './helpers/share-fixture.js';
+// Derived from the source of truth rather than hardcoded: the pitch list is
+// edited whenever a claim stops being true, and a literal row count / key name
+// here turns every honest copy correction into a spurious test failure.
+import { CREATOR_FEATURE_KEYS } from '../src/lib/billingCopy.js';
 
 const byName = (rows, name) => rows.filter((r) => r.event === name);
 
@@ -51,7 +55,7 @@ test('chip → modal: entry click, feature-row read, toggle, and Escape dismiss 
   const rows = [];
   await routeAnalytics(page, rows);
   await seedAuthMarker(page);
-  await page.goto('/?local=1&reset=1&tier=demo');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=60');
 
   const chip = page.locator('.upgrade-chip');
   await expect(chip).toBeVisible();
@@ -60,7 +64,7 @@ test('chip → modal: entry click, feature-row read, toggle, and Escape dismiss 
   const modal = page.locator('.upgrade-modal');
   await expect(modal).toBeVisible();
 
-  // Read the storage pitch line (row 1), then the plan toggle, then bail via Esc.
+  // Read the second pitch line (row 1), then the plan toggle, then bail via Esc.
   await hoverAndLeave(page, '.upgrade-modal [data-up-feat="1"]', '.upgrade-modal .upgrade-title');
   await modal.getByRole('tab', { name: 'Annual' }).click();
   await page.keyboard.press('Escape');
@@ -84,7 +88,7 @@ test('chip → modal: entry click, feature-row read, toggle, and Escape dismiss 
 
   const hover = byName(rows, 'up_feature_hover')[0];
   expect(hover.props.row).toBe(1);
-  expect(hover.props.key).toBe('storage');
+  expect(hover.props.key).toBe(CREATOR_FEATURE_KEYS[1]);
   expect(hover.props.ms).toBeGreaterThanOrEqual(300);
 
   const abandon = byName(rows, 'pricing_abandon').find((r) => r.props.method === 'esc');
@@ -109,7 +113,7 @@ test('CTA click: enriched must-land intent fires, and the summary keeps outcome 
   const rows = [];
   await routeAnalytics(page, rows);
   await seedAuthMarker(page);
-  await page.goto('/?local=1&reset=1&tier=demo');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=60');
 
   await page.locator('.upgrade-chip').click();
   const modal = page.locator('.upgrade-modal');
@@ -145,7 +149,7 @@ test('the invite-friends alternative records its own event and the invite_alt ou
   const rows = [];
   await routeAnalytics(page, rows);
   await seedAuthMarker(page);
-  await page.goto('/?local=1&reset=1&tier=demo');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=60');
 
   await page.locator('.upgrade-chip').click();
   const modal = page.locator('.upgrade-modal');
@@ -214,7 +218,7 @@ test('public /pricing: envelope on pricing_view, Creator-only data attributes, a
   await expect(creator).toBeVisible();
 
   // The shared FeatureList stamps hover keys on the Creator list ONLY.
-  await expect(creator.locator('[data-up-feat]')).toHaveCount(5);
+  await expect(creator.locator('[data-up-feat]')).toHaveCount(CREATOR_FEATURE_KEYS.length);
   await expect(page.locator('.pricing-card-demo [data-up-feat]')).toHaveCount(0);
 
   // Interact, then leave — anon interaction belongs to lp_trace, not up_trace.

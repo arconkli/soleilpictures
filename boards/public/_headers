@@ -7,3 +7,24 @@
 # Self-hosted fonts (Courier Prime for screenplay mode) — content-stable.
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
+# Machine-readable documentation: the raw markdown mirror of every /docs page
+# (/docs/api/cards.md), plus the llms.txt corpus files. Short cache — an agent
+# reading these should get today's docs, and they change on deploy rather than
+# per-request. CORS is open so a browser-side agent can fetch them.
+#
+# DELIBERATELY NO Content-Type OVERRIDE HERE. The assets service already infers
+# text/markdown from the .md extension, and `/docs/*` splats across slashes —
+# so a Content-Type rule that over-matched would serve every HTML docs page as
+# markdown and break the entire site. Cache-Control over-matching is harmless
+# by comparison: the Worker sets its own on HTML via withRevalidate().
+/docs/*.md
+  Cache-Control: public, max-age=300, s-maxage=3600
+  Access-Control-Allow-Origin: *
+/llms.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=300, s-maxage=3600
+  Access-Control-Allow-Origin: *
+/llms-full.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=300, s-maxage=3600
+  Access-Control-Allow-Origin: *

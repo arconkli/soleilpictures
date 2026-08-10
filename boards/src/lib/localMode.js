@@ -82,6 +82,16 @@ export function isGridQaMode() {
   return new URLSearchParams(window.location.search).get('gridqa') === '1';
 }
 
+// Dev-only Schedule QA bridge. Active ONLY in a DEV build with ?schedqa=1
+// (same trust boundary as isGridQaMode). Publishes the PURE schedule date
+// math + slot-key grammar + calendar layout + graft helpers on
+// window.__soleilSchedTest so Playwright can verify the Schedule math without
+// a backend. See ../local/SchedQaHarness.jsx.
+export function isSchedQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('schedqa') === '1';
+}
+
 // Dev-only first-run guided-tour QA harness. Active ONLY in a DEV build with
 // ?tourqa=1 (same trust boundary as isAlignQaMode). Mounts the real
 // <OnboardingTour> over fake data-tour anchors, driven by the real tour engine,
@@ -154,6 +164,13 @@ export function qaShareNoPrefetch() {
 //
 //   /pricing?local=1&tier=paid&plan=annual&cards=42&cancel=1
 //
+// &cards / &limit also drive upsell eligibility (lib/upsellEligibility.js), so
+// every branch of the pitch-targeting rule is reachable from a URL:
+//   /?local=1&tier=demo&cards=0            → suppressed, no_cards
+//   /?local=1&tier=demo&cards=45           → eligible (invested), chip visible
+//   /?local=1&tier=demo&cards=95           → eligible, urgent pressure
+//   /?local=1&tier=demo&cards=45&limit=200 → suppressed (45/200 is only 22%)
+//
 // Returns the same shape useMyTier exposes, or null when not overriding.
 export function qaTierOverride() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return null;
@@ -164,6 +181,8 @@ export function qaTierOverride() {
   return {
     tier,
     demoCardCount:      Number(q.get('cards') ?? 0),
+    bonusCardCredits:   0,
+    effectiveCardLimit: Number(q.get('limit') ?? 100),
     subscriptionStatus: q.get('substatus') || (tier === 'paid' ? 'active' : null),
     currentPeriodEnd:   q.get('periodend') || null,
     cancelAtPeriodEnd:  q.get('cancel') === '1',

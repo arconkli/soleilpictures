@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -38,6 +38,7 @@ const PublicPricingPage = lazyWithReload(() => import('./auth/PublicPricingPage.
 const SeoLandingPage  = lazyWithReload(() => import('./pages/SeoLandingPage.jsx').then(m => ({ default: m.SeoLandingPage })));
 const ScoutPage       = lazyWithReload(() => import('./pages/ScoutPage.jsx').then(m => ({ default: m.ScoutPage })));
 const SeoListiclePage = lazyWithReload(() => import('./pages/SeoListiclePage.jsx').then(m => ({ default: m.SeoListiclePage })));
+const DocsPage        = lazyWithReload(() => import('./pages/DocsPage.jsx').then(m => ({ default: m.DocsPage })));
 
 // First-party error logging: capture uncaught errors + unhandled promise
 // rejections into our own client_errors table (see lib/errorReporting.js).
@@ -175,6 +176,16 @@ const scoutMatch = /^\/scout\/?$/i.test(window.location.pathname);
 // the Worker 404s unknown /best/* siblings and 301s bare /best to /use-cases.
 const seoListicleMatch = /^\/best\//i.test(window.location.pathname);
 
+// /docs/* = the public documentation (generated from content/docs/**.md).
+// Shape-matched here rather than resolved against the registry, for the same
+// reason as the landing pages: the entry chunk must not carry the corpus. The
+// code-split DocsPage resolves the exact page and renders its own not-found for
+// a path the Worker has already served with a real 404. The shape must cover
+// EVERYTHING the Worker 404s under /docs, or a 404 document would boot into
+// AuthGate instead. Note the raw markdown mirrors (/docs/x.md) never reach this
+// file — they are static assets served straight out of dist/.
+const docsMatch = /^\/docs(?:\/|$)/i.test(window.location.pathname);
+
 // /legal/<privacy|terms|cookies> = public legal documents. Like /share, these
 // render before the AuthGate so they're reachable signed-out (footer links,
 // ad-policy review, etc). SPA fallback in the Worker serves these deep links.
@@ -288,6 +299,17 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
       </StrictMode>
     );
   });
+} else if (import.meta.env.DEV && isSchedQaMode()) {
+  // Schedule QA (?schedqa=1). Pure logic bridge — installs
+  // window.__soleilSchedTest + a ready flag the spec waits on. DEV guard drops
+  // it (and its fixtures) from production builds.
+  import('./local/SchedQaHarness.jsx').then(({ SchedQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <SchedQaHarness />
+      </StrictMode>
+    );
+  });
 } else if (import.meta.env.DEV && isTourQaMode()) {
   // First-run guided-tour QA (?tourqa=1). Mounts the real <OnboardingTour> over
   // fake data-tour anchors driven by the real engine + installs
@@ -370,6 +392,8 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
               <SeoLandingPage path={window.location.pathname} />
             ) : seoListicleMatch ? (
               <SeoListiclePage path={window.location.pathname} />
+            ) : docsMatch ? (
+              <DocsPage path={window.location.pathname} />
             ) : showPublicPricing ? (
               <PublicPricingPage />
             ) : exploreMatch ? (

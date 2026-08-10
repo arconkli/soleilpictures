@@ -18,6 +18,7 @@ import sharp from 'sharp';
 
 import { SEO_LANDING_PAGES, landingOgPath } from '../src/lib/seoLanding.js';
 import { SEO_LISTICLE_PAGES } from '../src/lib/seoListicles.js';
+import { DOCS_SECTIONS } from '../src/lib/docsiteIndex.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -59,6 +60,15 @@ function cardHtml({ h1, subhead }) {
 const cards = [
   ...SEO_LANDING_PAGES.map((s) => ({ file: landingOgPath(s).slice(4), h1: s.h1, subhead: s.subhead })),
   ...SEO_LISTICLE_PAGES.map((s) => ({ file: landingOgPath(s).slice(4), h1: s.h1, subhead: s.subhead })),
+  // Documentation: ONE card per section, not per page. Fifty near-identical
+  // cards would be churn in public/og/ for a difference nobody can see in a
+  // link preview, and the section is the useful unit of "what is this about".
+  // worker.js injectDocs derives the filename from page.section — keep in step.
+  ...DOCS_SECTIONS.map((s) => ({
+    file: `docs-${s.id}.png`,
+    h1: `${s.label} — documentation`,
+    subhead: s.blurb,
+  })),
   {
     file: 'default.png',
     h1: 'Creative Workspace & Moodboard for Production Teams',

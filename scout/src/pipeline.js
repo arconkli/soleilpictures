@@ -14,15 +14,19 @@
 // never sees a card appear and then vanish.
 
 import {
-  resolveOrCreateIdentity, ensureScoutBin, normalizeHandle, SCOUT_BIN_NAME,
+  resolveOrCreateIdentity, ensureScoutBin, normalizeHandle, resolveEmail, SCOUT_BIN_NAME,
 } from '../../boards/src/lib/scoutIdentity.js';
 import {
   parseConfirmation, wantsEverything, isBinQuery,
   prepareMove, executeMove, undoMove, describeBin, PENDING_TTL_MS,
 } from './filing.js';
 import { extractIntent, parseCommand } from '../../boards/src/lib/scoutIntent.js';
-import { composeBatch, extractUrls, textWithoutUrls } from '../../boards/src/lib/scoutCards.js';
-import { addCardsToBoard, boardCapacity } from '../../boards/src/lib/scoutBoard.js';
+import {
+  composeBatch, extractUrls, textWithoutUrls, arrangeExisting,
+} from '../../boards/src/lib/scoutCards.js';
+import {
+  addCardsToBoard, boardCapacity, moveCardsBetweenBoards, readBoardCards,
+} from '../../boards/src/lib/scoutBoard.js';
 import { scoutRpc, scoutSelect, scoutSession } from '../../boards/src/lib/scoutDb.js';
 import { mintScoutSessionToken } from '../../boards/src/worker-scout.js';
 import { uploadImage, isImage } from './media.js';
@@ -98,19 +102,90 @@ function sessionFor(cfg, id) {
   };
 }
 
-async function findBoardByName(cfg, workspaceId, name) {
-  const rows = await scoutSelect(
-    cfg, 'boards',
-    `workspace_id=eq.${workspaceId}&deleted_at=is.null&select=id,name&limit=200`,
-  ).catch(() => []);
-  const want = String(name || '').trim().toLowerCase();
-  if (!want) return null;
-  // Exact, then prefix, then substring — "diner" should find "Diner Recce"
-  // without a fuzzy matcher that would also find "Dinner Party".
-  return rows.find((b) => b.name.toLowerCase() === want)
-    || rows.find((b) => b.name.toLowerCase().startsWith(want))
-    || rows.find((b) => b.name.toLowerCase().includes(want))
-    || null;
+// Find a board by name across EVERYTHING this user can write to.
+//
+// This used to list one workspace's boards and match them here in JS, which
+// meant a linked account's boards in a team workspace — or boards shared with
+// them — could not be named at all. Those are exactly the boards someone with a
+// pre-existing account wants to file into.
+//
+// The ranking (exact → prefix → substring) moved into scout_find_board unchanged
+// along with the reason for it: "diner" should find "Diner Recce" without a
+// fuzzy matcher that would also find "Dinner Party". What the RPC adds is that
+// the write check is now scout_can_write_board — the same predicate
+// scout_set_target_board uses — so the board we offer and the board we are
+// allowed to set can never disagree.
+async function findBoardByName(cfg, userId, name) {
+  if (!String(name || '').trim()) return null;
+  const rows = await scoutRpc(cfg, 'scout_find_board', {
+    p_user_id: userId, p_query: name, p_limit: 1,
+  }).catch(() => []);
+  const hit = (Array.isArray(rows) ? rows : [rows])[0];
+  return hit?.board_id ? { id: hit.board_id, name: hit.name } : null;
+}
+
+// ── Linking an account that already exists ───────────────────────────────────
+//
+// A code has just been claimed, so this handle now belongs to a real account.
+// Two cases, and the difference is whether this number had been texting before:
+//
+//   * fresh number → say hello, nothing to carry over.
+//   * this number already had a SHELL account → its Bin is holding photos the
+//     user sent before they connected, and those are the photos they are most
+//     worried about. Bring them across.
+//
+// The move is the ordinary triple write via moveCardsBetweenBoards, which puts
+// the destination first: interrupted, the cards are visible on BOTH bins, which
+// is recoverable, rather than on neither. scout_mark_adopted runs only AFTER the
+// move lands, so a failure part-way leaves the flag unset and re-texting the
+// code finishes the job.
+async function linkTo(cfg, ctx, hit) {
+  const email = await resolveEmail(cfg, hit.user_id) || 'your account';
+
+  // The claiming account's own Bin — created here if this is its first contact
+  // with Scout, which is the common case for a web user connecting a phone.
+  const bin = await ensureScoutBin(cfg, hit.user_id);
+
+  if (!hit.prior_user_id || !hit.prior_bin_board_id) {
+    return say.linked({ email });
+  }
+
+  try {
+    const accessToken = await scoutSession(cfg, hit.user_id, email).catch(() => null);
+    const orphaned = await readBoardCards(cfg, hit.prior_bin_board_id, null);
+    const carry = orphaned.filter((c) => !c.seed);
+    if (!carry.length) {
+      await scoutRpc(cfg, 'scout_mark_adopted', {
+        p_shell_user_id: hit.prior_user_id, p_new_user_id: hit.user_id,
+      }).catch(() => {});
+      return say.linked({ email });
+    }
+
+    const moved = await moveCardsBetweenBoards(cfg, {
+      fromBoardId: hit.prior_bin_board_id,
+      toBoardId: bin.boardId,
+      workspaceId: bin.workspaceId,
+      userId: hit.user_id,
+      accessToken,
+      cardIds: carry.map((c) => c.id),
+      layout: async (existing, moving) => arrangeExisting({ existingCards: existing, cards: moving }),
+    });
+
+    if (!moved.count) return say.linked({ email });
+
+    await scoutRpc(cfg, 'scout_mark_adopted', {
+      p_shell_user_id: hit.prior_user_id, p_new_user_id: hit.user_id,
+    }).catch(() => {});
+
+    return say.adopted({ email, count: moved.count });
+  } catch (e) {
+    // The link itself already succeeded — the handle is bound and everything
+    // they send from now on lands in the right account. Only the carry-over
+    // failed, and the cards are still sitting safely in the old Bin, so this
+    // must not read as a failed connection.
+    console.error('[scout] adopt failed', e?.message);
+    return say.linked({ email });
+  }
 }
 
 // ── Commands ─────────────────────────────────────────────────────────────────
@@ -142,7 +217,7 @@ async function runCommand(cfg, { command, arg }, ctx) {
         });
         return say.boardSwitched({ boardName: SCOUT_BIN_NAME, created: false });
       }
-      const found = await findBoardByName(cfg, ctx.workspaceId, arg);
+      const found = await findBoardByName(cfg, ctx.userId, arg);
       if (!found) return say.boardNotFound(arg);
       const ok = await scoutRpc(cfg, 'scout_set_target_board', {
         p_user_id: ctx.userId, p_platform: ctx.platform,
@@ -153,11 +228,12 @@ async function runCommand(cfg, { command, arg }, ctx) {
     }
 
     case 'code': {
-      const userId = await scoutRpc(cfg, 'scout_claim_link_code', {
+      const rows = await scoutRpc(cfg, 'scout_claim_link_code', {
         p_code: arg, p_platform: ctx.platform, p_handle: ctx.handle, p_service: ctx.service,
       });
-      if (!userId) return say.linkFailed();
-      return say.linked({ email: 'your account' });
+      const hit = (Array.isArray(rows) ? rows : [rows])[0];
+      if (!hit?.user_id) return say.linkFailed();
+      return await linkTo(cfg, ctx, hit);
     }
 
     case 'link':
@@ -349,7 +425,7 @@ export async function runBurst(cfg, r2, burst, progress = null) {
     : { topic: null, action: 'ingest', board: null, note: null };
 
   const fileTo = intent.action === 'file' && intent.board
-    ? await findBoardByName(cfg, id.workspaceId, intent.board)
+    ? await findBoardByName(cfg, id.userId, intent.board)
     : null;
 
   if (intent.action === 'file' && !images.length && !urls.length) {
@@ -375,7 +451,7 @@ export async function runBurst(cfg, r2, burst, progress = null) {
   if (!images.length && !urls.length && !leftover) return { reply: null, isNew: id.isNew };
 
   // 2. Capacity PRE-FLIGHT — before a single byte reaches R2.
-  const cap = await boardCapacity(cfg, id.boardId);
+  const cap = await boardCapacity(cfg, id.boardId, id.userId);
   const wanted = images.length + urls.length
     + (leftover && intent.action !== 'file' ? 1 : 0);
   if (cap.remaining <= 0) {

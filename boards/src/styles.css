@@ -5862,6 +5862,12 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   margin: 0;
 }
 .upgrade-sub { color: var(--ink-1); margin: 0; line-height: 1.55; max-width: 42ch; }
+/* Cap-hit only: the user's own totals, set above the supporting line. Reads as
+   a statement of what they've made, so it carries more weight than the sub. */
+.upgrade-caphit-stats { color: var(--ink-0); margin: 0 0 6px; line-height: 1.5; max-width: 42ch; font-weight: 600; }
+/* The same feature list, sitting under the CTA on the cap-hit variant. Quieter
+   than the default placement — it's supporting detail there, not the pitch. */
+.upgrade-features-after { margin-top: 14px; }
 .upgrade-card { box-shadow: none; }
 .upgrade-later {
   align-self: center;
@@ -6537,6 +6543,18 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 .admin-search-input  { width: 280px; max-width: 100%; }
 .admin-filter-select { width: 140px; }
+/* Inline checkbox filter in an admin toolbar (Emails tab: "other senders"). */
+.admin-inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+.admin-inline-check input { margin: 0; cursor: pointer; }
 .admin-filter-meta {
   margin-left: auto;
   color: var(--ink-3);
@@ -18303,6 +18321,110 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+}
+
+/* ───────────────────────── Settings → API tokens ───────────────────────── */
+.api-token-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.api-token-row .auth-input { flex: 1 1 240px; min-width: 0; }
+/* The freshly minted token. Bordered rather than tinted so it reads as
+   "something happened here that you have to act on", without borrowing the
+   red of an error — nothing is wrong, it just will not come back. */
+.api-token-fresh {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-2, rgba(255,255,255,.2));
+  border-radius: var(--radius-lg, 12px);
+  background: var(--bg-2, rgba(255,255,255,.045));
+}
+.api-token-fresh-title { font-weight: 500; font-size: 13px; }
+.api-token-value {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-1, rgba(255,255,255,.14));
+  background: var(--surface-2, rgba(255,255,255,.04));
+  color: var(--ink-0, inherit);
+  font: 500 13px/1.2 var(--font-mono, ui-monospace, monospace);
+}
+.api-token-scope {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 10px;
+  font: 400 12px/1.45 var(--font-sans);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.api-token-scope input { margin-top: 2px; flex: 0 0 auto; }
+.api-token-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--line-1, rgba(255,255,255,.1));
+  font-size: 13px;
+}
+.api-token-meta {
+  margin-top: 2px;
+  font: 400 11px/1.4 var(--font-sans);
+  color: var(--ink-3);
+}
+.api-token-meta code { font-family: var(--font-mono, ui-monospace, monospace); }
+
+/* ──────────────────────────── ScoutClaimBanner ─────────────────────────── */
+/* Shown to a Scout shell account — one that has photos but no real email yet.
+   Deliberately NOT the red of .ws-alert-banner: nothing is broken and nothing
+   is lost, there is just an account worth keeping. Gold stays reserved for
+   active/selection/focus, so this borrows the surface treatment instead. */
+.scout-claim {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-2, rgba(255, 255, 255, 0.045));
+  border-bottom: 1px solid var(--line-1, rgba(255, 255, 255, 0.12));
+  color: var(--ink-0);
+  font: 400 13px/1.45 var(--font-sans);
+}
+.scout-claim-body { flex: 1; min-width: 0; }
+.scout-claim-msg { margin: 0; }
+.scout-claim-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 9px;
+  flex-wrap: wrap;
+}
+/* Reuses .auth-input / .auth-btn from the sign-in surface — same field, same
+   button, already in the entry chunk, so this cannot drift out of step with
+   how every other email field in the product looks. */
+.scout-claim-form .auth-input { flex: 0 1 260px; min-width: 0; }
+.scout-claim-form .auth-btn { flex: 0 0 auto; }
+.scout-claim-err {
+  margin: 8px 0 0;
+  color: #d96b3e;
+  font-size: 12px;
+}
+.scout-claim-x {
+  flex: 0 0 auto;
+  background: none;
+  border: 0;
+  color: var(--ink-3);
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+.scout-claim-x:hover { color: var(--ink-0); background: var(--bg-3, rgba(255,255,255,.06)); }
+
+@media (max-width: 640px) {
+  .scout-claim-form .auth-input { flex: 1 1 100%; }
 }
 
 /* ───────── Admin Universe tab ───────── */

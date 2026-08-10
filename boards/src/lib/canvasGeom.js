@@ -54,13 +54,20 @@ export function arrangeInFreeSpace(existingCards, items, opts = {}) {
   // One uniform cell for the whole batch so mixed types (image 320×240,
   // pdf 300×388, video ~360×202, audio 380×130) line up in a clean matrix;
   // each item is centered in its cell so its real w/h is preserved.
+  //
+  // The cell is never SMALLER than the largest item. It used to be capped at
+  // 320×300, which silently overlapped anything wider — an audio card is 380
+  // wide and a pdf 388 tall, so even the in-app types were clipping by 30px a
+  // side, and a caller passing real pixel dimensions through the API got a
+  // 1600px photograph laid out in a 320px cell. A floor of 120×100 still keeps
+  // a batch of tiny items from collapsing into each other.
   let maxW = 0, maxH = 0;
   for (const it of list) {
     if ((it.w || 0) > maxW) maxW = it.w || 0;
     if ((it.h || 0) > maxH) maxH = it.h || 0;
   }
-  const cellW = Math.min(320, Math.max(120, maxW || 240));
-  const cellH = Math.min(300, Math.max(100, maxH || 200));
+  const cellW = Math.max(120, maxW || 240);
+  const cellH = Math.max(100, maxH || 200);
 
   return list.map((it, i) => {
     const col = i % cols;

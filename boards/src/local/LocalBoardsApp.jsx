@@ -11,6 +11,8 @@ import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from '../lib/gridLayout.js';
 import { hasLabelTag } from '../lib/gridSequence.js';
 import { readGridModel } from '../lib/gridState.js';
+import { todayISO } from '../lib/schedDates.js';
+import { graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey } from '../lib/schedLayout.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -567,6 +569,23 @@ export function LocalBoardsApp({ user, signOut }) {
     setAutoFocusId(id);
   };
 
+  // Keep in lockstep with App.jsx addSchedule (same shape/sizes). Local shell
+  // stores the cell/meta twins as plain fields (cells / gridMeta) — no Yjs.
+  const SCHED_SIZES = { month: [420, 380], week: [420, 170], day: [300, 420], hour: [280, 300] };
+  const addSchedule = (clickPos = null, view = 'month') => {
+    const id = createId('sched');
+    const [w, h] = SCHED_SIZES[view] || SCHED_SIZES.month;
+    addCard({
+      id, kind: 'schedule',
+      schedView: SCHED_SIZES[view] ? view : 'month',
+      anchor: todayISO(), anchorHour: 9,
+      cells: {}, gridMeta: {},
+      x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
+      y: Math.max(8, Math.round((clickPos?.y ?? 180) - h / 2)),
+      w, h,
+    });
+  };
+
   // Minimal doc card for the local QA harness — enough for the rail "Doc"
   // tool + the + / right-click Doc entries to place a card. There's no
   // ydoc-backed doc store here, so CanvasSurface renders the static
@@ -755,6 +774,44 @@ export function LocalBoardsApp({ user, signOut }) {
   };
   const clearGridCellContent = (gridId, cellId) =>
     mapGridCard(gridId, c => ({ ...c, cells: { ...(c.cells || {}), [cellId]: { type: 'empty' } } }));
+  // True key delete (twin of App.jsx removeGridCellRecord) — a schedule slot
+  // lists items by key prefix, so a removed chip must actually vanish.
+  const removeGridCellRecord = (gridId, cellId) =>
+    mapGridCard(gridId, c => { const cells = { ...(c.cells || {}) }; delete cells[cellId]; return { ...c, cells }; });
+  // Twin of App.jsx setSchedSlotExpand — breakdown meta on plain card.gridMeta.
+  const setSchedSlotExpand = (cardId, slotPath, mode) =>
+    mapGridCard(cardId, c => {
+      const expand = { ...(c.gridMeta?.expand || {}) };
+      if (mode) expand[slotPath] = mode; else delete expand[slotPath];
+      return { ...c, gridMeta: { ...(c.gridMeta || {}), expand } };
+    });
+  // Twin of App.jsx graftScheduleIntoSlot — same pure graftKeyMap, same refusal
+  // rules (granularity mismatch / stray content → false → normal move).
+  const graftScheduleIntoSlot = (hostId, slotPath, srcId) => {
+    const host = findLocalGrid(hostId); const src = findLocalGrid(srcId);
+    if (!host || !src || hostId === srcId || !host.schedView || !src.schedView) return false;
+    const slot = parseSlotKey(slotPath);
+    const match = (src.schedView === 'day' && slot?.kind === 'day') || (src.schedView === 'hour' && slot?.kind === 'hour');
+    if (!match) return false;
+    const srcPrefix = src.schedView === 'day'
+      ? schedDayKey(src.anchor || todayISO())
+      : schedHourKey(src.anchor || todayISO(), src.anchorHour ?? 9);
+    const { cells, expand, strays } = graftKeyMap(src.cells || {}, src.gridMeta?.expand || {}, srcPrefix, slotPath);
+    if (strays.length) return false;
+    mapGridCard(hostId, c => ({
+      ...c,
+      cells: {
+        ...(c.cells || {}),
+        ...Object.fromEntries(Object.entries(cells).filter(([, r]) => r && r.type && r.type !== 'empty')),
+      },
+      gridMeta: {
+        ...(c.gridMeta || {}),
+        expand: { ...(c.gridMeta?.expand || {}), ...expand, [slotPath]: src.schedView === 'day' ? 'hours' : 'minutes' },
+      },
+    }));
+    deleteCards([srcId]); // consume the source (move semantics; arrows cascade)
+    return true;
+  };
   // ── shared / per-cell text style (local twin of App.jsx) ───────────────────
   const localFamilyStyle = (card) => {
     if (card?.templateId) return gridTplState[currentId]?.[card.templateId]?.textStyle || {};
@@ -925,9 +982,11 @@ export function LocalBoardsApp({ user, signOut }) {
     addPdfAt,
     addNewBoard,
     addPalette,
+    addSchedule,
     addDocCard,
     addGrid,
-    resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,
+    resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent, removeGridCellRecord,
+    setSchedSlotExpand, graftScheduleIntoSlot,
     setGridTextStyle, pinCellStyle, unpinCellStyle,
     promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
     removeGridDivider, resizeLinkedGrids, graftGridIntoCell,

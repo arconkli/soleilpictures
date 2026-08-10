@@ -31,9 +31,13 @@ import { applyThemeNow } from '../lib/theme.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { planLabel, formatPeriodEnd, grantCopy } from '../lib/billingCopy.js';
 import { startPortal } from '../lib/checkout.js';
+import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
+import { isShellEmail } from './ScoutClaimBanner.jsx';
 
 const TABS = [
   { id: 'profile',       label: 'Profile' },
+  { id: 'scout',         label: 'Scout' },
+  { id: 'api',           label: 'API' },
   { id: 'invite',        label: 'Invite & earn' },
   { id: 'billing',       label: 'Billing' },
   { id: 'notifications', label: 'Notifications' },
@@ -198,10 +202,14 @@ export function SettingsPanel({
   //   account   = personal identity stuff (Profile + Billing + Notifications)
   //   workspace = cog-style settings (Defaults/Theme/Display)
   //   full      = every tab
+  // Scout is personal identity (which phone is bound to WHICH account), not a
+  // workspace setting — so it lives with Profile/Billing, not with
+  // Defaults/Theme/Display.
+  const ACCOUNT_TABS = new Set(['profile', 'scout', 'api', 'invite', 'billing', 'notifications']);
   const visibleTabs = mode === 'account'
-    ? TABS.filter(t => t.id === 'profile' || t.id === 'invite' || t.id === 'billing' || t.id === 'notifications')
+    ? TABS.filter(t => ACCOUNT_TABS.has(t.id))
     : mode === 'workspace'
-      ? TABS.filter(t => t.id !== 'profile' && t.id !== 'invite' && t.id !== 'billing' && t.id !== 'notifications')
+      ? TABS.filter(t => !ACCOUNT_TABS.has(t.id))
       : TABS;
   const [tab, setTab] = useState(visibleTabs[0]?.id || 'profile');
   // If the user reopens the panel in a different mode, the previously
@@ -266,6 +274,12 @@ export function SettingsPanel({
           <div className="settings-pane">
             {tab === 'profile' && (
               <ProfileTab user={user} workspaceId={workspaceId} onSaved={onSaved} />
+            )}
+            {tab === 'scout' && (
+              <ScoutTab user={user} />
+            )}
+            {tab === 'api' && (
+              <ApiTab user={user} />
             )}
             {tab === 'invite' && (
               <InviteTab user={user} />
@@ -713,6 +727,333 @@ function ReferralStat({ label, value, highlight }) {
   );
 }
 
+// Soleil Scout — connect a phone to THIS account.
+//
+// Two directions exist for linking. This is the web-first one: mint a
+// short-lived code here, text it to the bot, and the bot binds the handle.
+// It's one tap and never has to email anybody.
+//
+// Codes are minted lazily (on open, not on mount of the whole panel) and the
+// RPC reuses an unclaimed one rather than littering the table, so reopening
+// this tab shows the same code instead of invalidating what the user already
+// half-typed into their phone.
+function ScoutTab({ user }) {
+  const feedback = useFeedback();
+  const [code, setCode] = useState(null);
+  const [identities, setIdentities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        // scout_identities is self-readable by RLS (0206); everything else in
+        // the Scout schema is service-role only.
+        const [codeRes, idRes] = await Promise.all([
+          supabase.rpc('scout_create_link_code', { p_ttl_minutes: 15 }),
+          supabase.from('scout_identities').select('platform,handle,created_at').order('created_at'),
+          // Settle a stale is_shell flag. The address change happens in the
+          // user's inbox, out of band, with no webhook back — so the flag can
+          // only clear the next time someone asks, and this tab is where a
+          // Scout user turns up. Cheap, self-keyed on auth.uid(), and a no-op
+          // for the accounts that were never shells.
+          supabase.rpc('scout_settle_shell').catch(() => {}),
+        ]);
+        if (!alive) return;
+        if (codeRes.error) setErr(true); else setCode(codeRes.data || null);
+        setIdentities(idRes.data || []);
+      } catch (_) {
+        if (alive) setErr(true);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [user?.id]);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      feedback.toast({ type: 'success', message: 'Code copied.' });
+    } catch (_) {
+      feedback.toast({ type: 'error', message: 'Couldn’t copy — select the code and copy it manually.' });
+    }
+  };
+
+  // Mask the middle of a phone number: this panel can be open on a shared
+  // screen, and the last four are enough to tell two devices apart.
+  const maskHandle = (h) => {
+    const s = String(h || '');
+    if (s.includes('@')) return s;
+    return s.length > 6 ? `${s.slice(0, 3)}…${s.slice(-4)}` : s;
+  };
+
+  return (
+    <div className="settings-section">
+      <h3 className="settings-section-title">Soleil Scout</h3>
+      <p className="settings-section-hint">
+        Text photos, links and notes from set and they land on your canvas —
+        {' '}no app, nothing to open. Connect your phone once and everything you
+        {' '}send files into <b>your</b> boards.
+      </p>
+
+      {/* A shell account arrived here BY texting, so "connect your phone" is
+          advice it has already taken. What it is missing is an address. */}
+      {isShellEmail(user?.email) && (
+        <p className="settings-section-hint" style={{ marginTop: 12 }}>
+          <b>This account has no email address yet.</b> Add one from the banner on
+          {' '}your canvas and you will be able to sign in from anywhere — the
+          {' '}boards and photos you already have stay exactly where they are.
+        </p>
+      )}
+
+      {identities.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div className="settings-billing-label">Connected</div>
+          {identities.map((i) => (
+            <div key={`${i.platform}:${i.handle}`}
+                 style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6, fontSize: 13 }}>
+              <span aria-hidden="true">✓</span>
+              <b style={{ fontVariantNumeric: 'tabular-nums' }}>{maskHandle(i.handle)}</b>
+              <span style={{ opacity: 0.6 }}>{i.platform === 'imessage' ? 'iMessage' : i.platform}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="settings-empty" style={{ marginTop: 14 }}>Loading…</div>
+      ) : err || !code ? (
+        <div className="settings-empty" style={{ marginTop: 14 }}>
+          Couldn’t generate a code. Reopen this tab to try again.
+        </div>
+      ) : (
+        <>
+          <div style={{ marginTop: 18 }} className="settings-billing-label">
+            {identities.length ? 'Connect another phone' : 'Connect your phone'}
+          </div>
+          <p className="settings-section-hint" style={{ marginTop: 4 }}>
+            Text this code to Soleil Scout from the phone you want to connect.
+            {' '}It expires in 15 minutes.
+          </p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              readOnly
+              value={code}
+              onFocus={(e) => e.target.select()}
+              aria-label="Your Scout connect code"
+              style={{
+                flex: '0 1 190px', minWidth: 0, padding: '9px 12px', borderRadius: 10,
+                border: '1px solid var(--line-1, rgba(255,255,255,.14))',
+                background: 'var(--surface-2, rgba(255,255,255,.04))',
+                color: 'var(--text-1, inherit)',
+                fontSize: 18, fontWeight: 600, letterSpacing: '0.16em',
+                fontFamily: 'var(--font-mono, ui-monospace, monospace)',
+              }}
+            />
+            <button type="button" className="settings-btn settings-btn-primary" onClick={copy}>
+              Copy code
+            </button>
+          </div>
+          <p className="settings-section-hint" style={{ marginTop: 12 }}>
+            New to Scout? <a href="/scout">See how it works</a>.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Personal access tokens for /api/v1.
+//
+// The plaintext is shown ONCE and then never again — not because that is a
+// convention, but because only its SHA-256 is stored, so there is genuinely
+// nothing left to show. The UI has to be honest about that at the moment it
+// matters, which is why the freshly minted token gets its own panel with an
+// explicit warning rather than being dropped into the list.
+// Named for what the token can do, not for the array it holds. `read` is always
+// present so listing it adds nothing; what someone scanning this list needs to
+// know is whether that token can change or destroy their work.
+function scopeLabel(scopes) {
+  const s = Array.isArray(scopes) ? scopes : [];
+  if (s.includes('delete')) return 'read + write + delete';
+  if (s.includes('write')) return 'read + write';
+  return 'read only';
+}
+
+function ApiTab({ user }) {
+  const feedback = useFeedback();
+  const [tokens, setTokens] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState('');
+  // Two boxes, not one, because "may add to my boards" and "may destroy them"
+  // are different decisions — especially when the token is going to an AI
+  // assistant. The database normalizes the rest (delete implies write, read is
+  // always granted), so this only has to model the intent.
+  const [canWrite, setCanWrite] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
+  const [minting, setMinting] = useState(false);
+  const [fresh, setFresh] = useState(null);   // { token, prefix } — shown once
+
+  const load = async () => {
+    const { data, error } = await supabase.rpc('api_token_list');
+    if (!error) setTokens(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [user?.id]);
+
+  const mint = async (e) => {
+    e.preventDefault();
+    if (minting) return;
+    setMinting(true);
+    const scopes = ['read'];
+    if (canWrite || canDelete) scopes.push('write');
+    if (canDelete) scopes.push('delete');
+    const { data, error } = await supabase.rpc('api_token_mint', {
+      p_name: name.trim() || 'API token',
+      p_scopes: scopes,
+      p_ttl_days: null,
+    });
+    setMinting(false);
+    if (error) {
+      feedback.toast({ type: 'error', message: error.message || 'Could not create that token.' });
+      return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    setFresh({ token: row?.token, prefix: row?.prefix });
+    setName('');
+    setCanWrite(false);
+    setCanDelete(false);
+    load();
+  };
+
+  const revoke = async (id, label) => {
+    const { error } = await supabase.rpc('api_token_revoke', { p_id: id });
+    if (error) {
+      feedback.toast({ type: 'error', message: 'Could not revoke that token.' });
+      return;
+    }
+    feedback.toast({ type: 'success', message: `Revoked ${label}. It stops working immediately.` });
+    load();
+  };
+
+  const copy = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      feedback.toast({ type: 'success', message: 'Token copied.' });
+    } catch (_) {
+      feedback.toast({ type: 'error', message: 'Couldn’t copy — select the token and copy it manually.' });
+    }
+  };
+
+  const active = tokens.filter((t) => !t.revoked_at);
+
+  return (
+    <div className="settings-section">
+      <h3 className="settings-section-title">API access</h3>
+      <p className="settings-section-hint">
+        Drive your boards from your own software, or connect an AI assistant.
+        {' '}A token acts as you — it can reach exactly what you can reach, and
+        {' '}nothing more.
+      </p>
+
+      {fresh?.token && (
+        <div className="api-token-fresh">
+          <div className="api-token-fresh-title">Copy this now — it is not shown again.</div>
+          <p className="settings-section-hint" style={{ margin: '4px 0 10px' }}>
+            We only store a hash of it, so there is no way to look it up later.
+            {' '}Lost tokens get revoked and replaced.
+          </p>
+          <div className="api-token-row">
+            <input readOnly value={fresh.token} onFocus={(e) => e.target.select()}
+                   aria-label="Your new API token" className="api-token-value" />
+            <button type="button" className="settings-btn settings-btn-primary"
+                    onClick={() => copy(fresh.token)}>Copy</button>
+            <button type="button" className="settings-btn" onClick={() => setFresh(null)}>Done</button>
+          </div>
+        </div>
+      )}
+
+      <form className="api-token-new" onSubmit={mint}>
+        <div className="settings-billing-label" style={{ marginTop: 18 }}>New token</div>
+        <div className="api-token-row" style={{ marginTop: 8 }}>
+          <input
+            className="auth-input"
+            placeholder="What is it for? e.g. shot-list script"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            aria-label="Token name"
+            maxLength={80}
+          />
+          <button type="submit" className="settings-btn settings-btn-primary" disabled={minting}>
+            {minting ? 'Creating…' : 'Create token'}
+          </button>
+        </div>
+        <label className="api-token-scope">
+          <input type="checkbox" checked={canWrite || canDelete}
+                 onChange={(e) => { setCanWrite(e.target.checked); if (!e.target.checked) setCanDelete(false); }} />
+          <span>
+            <b>Allow writes.</b> Create boards, add cards and change them.
+            {' '}Without this the token can only read.
+          </span>
+        </label>
+        <label className="api-token-scope">
+          {/* Ticking this implies writes, so the box above follows it rather
+              than letting someone build a token that may destroy but not edit. */}
+          <input type="checkbox" checked={canDelete}
+                 onChange={(e) => { setCanDelete(e.target.checked); if (e.target.checked) setCanWrite(true); }} />
+          <span>
+            <b>Allow deletes.</b> Remove cards and boards. Leave this off for an AI
+            {' '}assistant unless you specifically want it able to throw things away —
+            {' '}deletes are recoverable, but you would have to notice first.
+          </span>
+        </label>
+      </form>
+
+      <div className="settings-billing-label" style={{ marginTop: 22 }}>Your tokens</div>
+      {loading ? (
+        <div className="settings-empty" style={{ marginTop: 8 }}>Loading…</div>
+      ) : !active.length ? (
+        <div className="settings-empty" style={{ marginTop: 8 }}>No tokens yet.</div>
+      ) : (
+        <div style={{ marginTop: 8 }}>
+          {active.map((t) => (
+            <div key={t.id} className="api-token-item">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 500 }}>{t.name}</div>
+                <div className="api-token-meta">
+                  <code>{t.prefix}…</code>
+                  {' · '}{scopeLabel(t.scopes)}
+                  {' · '}{t.last_used_at
+                    ? `last used ${new Date(t.last_used_at).toLocaleDateString()}`
+                    : 'never used'}
+                  {/* Only worth showing once a token is actually being used —
+                      "0 of 1000 this hour" on an idle token is noise. */}
+                  {t.req_count > 0 && ` · ${t.req_count} of 1000 requests this hour`}
+                </div>
+              </div>
+              <button type="button" className="settings-btn" onClick={() => revoke(t.id, t.name)}>
+                Revoke
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="settings-section-hint" style={{ marginTop: 18 }}>
+        Base URL <code>/api/v1</code>, sent as <code>Authorization: Bearer …</code>.
+        {' '}Read the{' '}
+        <a href="/docs/api" target="_blank" rel="noreferrer noopener">API reference</a>,
+        {' '}the{' '}
+        <a href="/docs/mcp" target="_blank" rel="noreferrer noopener">MCP setup</a>
+        {' '}for AI assistants, or the{' '}
+        <a href="/api/v1/openapi.json" target="_blank" rel="noreferrer noopener">OpenAPI spec</a>.
+      </p>
+    </div>
+  );
+}
+
 function InviteTab({ user }) {
   const feedback = useFeedback();
   const [code, setCode] = useState(null);
@@ -896,7 +1237,7 @@ function BillingTab({ user }) {
     try {
       await startPortal({ surface: 'settings' });
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not open billing portal: ' + (e?.message || e) });
+      feedback.toast({ type: 'error', message: checkoutErrorMessage(e) });
       setBusy(false);
     }
   };

@@ -69,11 +69,72 @@ const SYSTEM = [
   '           label for the photos.',
 ].join('\n');
 
+// ── Deterministic filing ─────────────────────────────────────────────────────
+//
+// "Put these in Diner Recce" has to work WITHOUT the model. It used to not:
+// fallbackIntent always answered `action: 'ingest'`, so with no Cloudflare AI
+// credentials — which are optional, and were unset — the sentence was ingested
+// as content and became a sticky note on the user's canvas, consuming a card to
+// do it. That is the exact failure pipeline.js's own comment warns about, and
+// filing is the product's second most important verb after "send a photo". It
+// should not depend on a third-party model being reachable.
+//
+// The matcher is deliberately NARROW. The risk of guessing is the mirror image
+// of the bug: reading "move the lighting rig into the truck" as a filing
+// instruction would swallow a note the user wanted kept. So the thing being
+// filed must be a PRONOUN or a quantifier — "these", "everything", "the photos"
+// — never an arbitrary noun phrase. Anything else falls through to ingest,
+// where the worst case is a note card the user can delete.
+const FILE_VERB = '(?:put|file|move|drop|stick|throw|add|save|chuck)';
+// What may sit between the verb and the preposition. Empty is fine ("file under
+// X"); a real noun phrase is not.
+const FILE_SUBJECT = '(?:the\\s+)?(?:these|this|those|them|it|all|both|everything|'
+  + 'all\\s+of\\s+(?:them|these|it)|the\\s+(?:photos?|pics?|pictures?|images?|shots?|files?|lot))?';
+const FILE_PREP = '(?:in|into|under|onto|on|to|inside)';
+
+const FILE_RE = new RegExp(
+  `^(?:(?:can|could|would)\\s+you\\s+|please\\s+|pls\\s+)*`
+  + `${FILE_VERB}\\s+${FILE_SUBJECT}\\s*${FILE_PREP}\\s+(?:the\\s+)?(.+)$`, 'i',
+);
+// "these go in X" / "this belongs in X" — same instruction, no leading verb.
+const FILE_RE_ALT = new RegExp(
+  `^(?:these|this|those|they|it)\\s+(?:all\\s+)?(?:go(?:es)?|belong(?:s)?)\\s+`
+  + `${FILE_PREP}\\s+(?:the\\s+)?(.+)$`, 'i',
+);
+
+// Strip the decoration people put around a board name: a trailing "board",
+// surrounding quotes, and end punctuation. "the diner board." → "diner".
+function cleanBoardName(s) {
+  let v = String(s || '').trim()
+    .replace(/^["'`“‘]+|["'`”’]+$/g, '')
+    .replace(/[.!?,;:]+$/, '')
+    .replace(/\s+board$/i, '')
+    .trim();
+  return v && v.length <= 60 ? v.slice(0, 48) : null;
+}
+
+// Returns { board } when the text is unmistakably a filing instruction, else null.
+export function parseFileIntent(text) {
+  const t = String(text || '').trim();
+  if (!t || t.length > 140) return null;      // a paragraph is content, not a command
+  const m = FILE_RE.exec(t) || FILE_RE_ALT.exec(t);
+  if (!m) return null;
+  const board = cleanBoardName(m[1]);
+  return board ? { board } : null;
+}
+
 // What we return when the model is unavailable, slow, or returns junk. Chosen so
-// the user still gets a usable board: everything lands in their inbox under a
-// label derived from their own words.
+// the user still gets a usable board: everything lands in their Bin under a
+// label derived from their own words — unless the words are plainly a filing
+// instruction, in which case they are honoured rather than pinned to the canvas.
 export function fallbackIntent(text) {
   const t = String(text || '').trim();
+  const filing = parseFileIntent(t);
+  if (filing) {
+    return {
+      topic: null, action: 'file', board: filing.board, note: null, viaFallback: true,
+    };
+  }
   return {
     topic: t ? t.slice(0, 48) : null,
     action: 'ingest',

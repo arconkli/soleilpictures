@@ -25,6 +25,7 @@
 // through the service role; the client never touches candidate_ai_cache.
 
 import { parseJsonArrayLoose, runWorkersAiChat } from './worker-llm.js';
+import { verifyUserToken } from './lib/workerAuth.js';
 
 const MODEL = '@cf/meta/llama-3.2-3b-instruct';
 const MAX_CANDIDATES = 60;     // matches get_candidate_names p_limit
@@ -65,21 +66,10 @@ function hashStr(s) {
   return (h >>> 0).toString(16);
 }
 
-// Verify the caller's Supabase JWT (any logged-in user). Mirrors the
-// verifyUser in worker-tags.js.
-async function verifyUser(env, token) {
-  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
-    return { ok: false, status: 500, error: 'supabase env not configured' };
-  }
-  const r = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
-    headers: { apikey: env.SUPABASE_ANON_KEY, authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!r.ok) return { ok: false, status: 401, error: 'invalid token' };
-  const u = await r.json().catch(() => null);
-  if (!u?.id) return { ok: false, status: 401, error: 'invalid token' };
-  return { ok: true, userId: u.id };
-}
+// Verifying the caller's Supabase JWT is shared — see lib/workerAuth.js. This
+// call site has the bare token rather than the request, hence the *Token form.
+// It previously kept its own copy of the fetch, without the token cache.
+const verifyUser = (env, token) => verifyUserToken(env, token);
 
 // Workspace membership check under the caller's JWT (so RLS/auth.uid()
 // applies). Prevents poisoning another workspace's cache / quota.

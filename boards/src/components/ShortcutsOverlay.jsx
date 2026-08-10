@@ -132,6 +132,10 @@ export function ShortcutsOverlay({ open, onClose }) {
         <ul>
           {TIPS.map((t) => <li key={t}>{t}</li>)}
         </ul>
+        <p style={{ marginTop: 12, opacity: 0.7, fontSize: '0.85em' }}>
+          Everything else is written up in the{' '}
+          <a href="/docs" target="_blank" rel="noreferrer noopener">documentation</a>.
+        </p>
       </div>
     </Modal>
   );

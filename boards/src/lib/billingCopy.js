@@ -14,7 +14,7 @@ export const PLAN_NAME = 'Creator';
 // pricing funnel events (pricing_view, pricing_creator_intent, first_value_*)
 // so conversion can be attributed before/after a copy change without an A/B
 // test (traffic is far too low for one). Bump on every material copy revision.
-export const COPY_REV = 'studio_v1';
+export const COPY_REV = 'studio_v2';
 
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 
@@ -47,28 +47,43 @@ export function planBilling(plan) {
 
 // Canonical Creator feature list — the public PricingPage wording, used on
 // EVERY Creator surface. `**text**` marks bold spans (rendered by FeatureList).
-// Completeness/identity leads ("the complete studio") — selling a professional
-// creative toolkit converts better than leading with storage/limits, which
-// reads like a hosting plan. Storage and edit access stay, as support.
+//
+// EVERY LINE HERE MUST BE TRUE AND ENFORCED IN CODE. The previous list sold
+// three things it should not have: two features that were never built, and
+// "full edit access, everywhere you're invited" — which migration 0188 made
+// FREE for every tier. Before adding a line, name the gate that enforces it.
+//
+// The real, enforced free/paid differences are exactly these three:
+//   1. cards      — enforce_demo_card_cap_trg (0187): demo stops at the cap
+//   2. file types — fileIngest.js routes non-standard files to 'blocked' for
+//                   free owners; authorize_upload() rejects owner_not_paid
+//   3. size/length— free caps video 30MB/60s, audio 50MB, PDF 50MB (uploads.js)
+//
+// NOTE: clusters/boards are NOT a paid difference — they were never capped.
 export const CREATOR_FEATURES = [
-  'The **complete studio** — unlimited clusters, boards & files',
-  'Any file, any size — your own **100GB** drive',
-  "Full **edit access**, everywhere you're invited",
-  'Every creative tool, unlocked',
-  'All Virtual + Social events',
+  'Unlimited cards — build without a ceiling',
+  'Any file type — .psd, .fig, .zip, video, audio, docs',
+  'No size limits, on your own **100GB** drive',
 ];
 
 // Stable analytics keys, parallel to CREATOR_FEATURES by index. The up_* hover
 // telemetry records WHICH pitch line a prospect read (up_feature_hover {row,key});
 // keying by these instead of the copy text means the data survives copy edits.
-// Keep this array in lockstep with CREATOR_FEATURES.
-export const CREATOR_FEATURE_KEYS = ['studio', 'storage', 'edit_access', 'tools', 'events'];
+// Keep this array in lockstep with CREATOR_FEATURES (billingCopy.test.mjs asserts it).
+export const CREATOR_FEATURE_KEYS = ['cards', 'filetypes', 'storage'];
 
-// Demo is intentionally minimal: it's a 100-card sandbox, and visitors only
-// get View Mode (no editing of boards shared by others). Nothing else to list.
+// Retired keys, kept so historical up_feature_hover rows stay readable in the
+// admin scorecard. 'studio'/'edit_access' described lines that are gone;
+// 'tools'/'events' described features that never existed.
+export const LEGACY_FEATURE_KEYS = ['studio', 'edit_access', 'tools', 'events'];
+
+// What the free tier genuinely is. It is NOT view-only: since migration 0188 a
+// free user can edit any cluster they are invited to as an editor, and
+// clusters/boards themselves were never capped. The only real limit is cards.
 export const DEMO_FEATURES = [
-  'Unlimited visitors with **View Mode only**',
-  '**100 cards** to explore the workspace',
+  `**${DEMO_CARD_LIMIT} cards** to build with`,
+  'Unlimited clusters & boards',
+  'Free collaboration — invite editors to any cluster',
 ];
 
 // CTA labels — one place so "Get Creator" / "Manage billing" stay consistent.
@@ -81,6 +96,44 @@ export const CTA = {
   manageBillingBusy: 'Opening…',
   subscribeShort: (plan) => `Subscribe — $${planPerMonth(plan)}/mo`,
 };
+
+// Compact byte label for the cap-hit summary ("233 MB", "1.4 GB"). Local to
+// billingCopy so this module stays pure and node-testable; SettingsPanel's
+// meter has its own equivalent tied to its own layout.
+function capBytes(n) {
+  const b = Number(n);
+  if (!Number.isFinite(b) || b <= 0) return null;
+  const units = [['GB', 1024 ** 3], ['MB', 1024 ** 2], ['KB', 1024]];
+  for (const [label, size] of units) {
+    if (b >= size) {
+      const v = b / size;
+      return `${v >= 10 ? Math.round(v) : Math.round(v * 10) / 10} ${label}`;
+    }
+  }
+  return `${Math.round(b)} B`;
+}
+
+// capHitSummary — the cap-hit modal's opening line, in the user's own numbers.
+//
+// The exposure telemetry is unambiguous that the abstract feature list goes
+// unread at this moment: zero feature rows were read on any of the real
+// cap-hitter's exposures. Someone who has just been stopped already knows what
+// they want; naming what they've built beats describing the product.
+//
+// Every field is optional and every clause degrades away rather than printing a
+// zero — a user with no uploads should not be told "0 B of your files".
+export function capHitSummary({ cards, clusters, storageBytes } = {}) {
+  const parts = [];
+  const n = Number(cards);
+  if (Number.isFinite(n) && n > 0) parts.push(`${n} card${n === 1 ? '' : 's'}`);
+  const c = Number(clusters);
+  if (Number.isFinite(c) && c > 0) parts.push(`${c} cluster${c === 1 ? '' : 's'}`);
+  const bytes = capBytes(storageBytes);
+  if (bytes) parts.push(`${bytes} of files`);
+  if (!parts.length) return null;
+  if (parts.length === 1) return parts[0];
+  return `${parts.slice(0, -1).join(', ')} · ${parts[parts.length - 1]}`;
+}
 
 export function planLabel({ tier, plan, demoCardCount, grantBacked } = {}) {
   if (tier === 'admin') return 'Admin · Unlimited';
