@@ -193,6 +193,32 @@ export function headerProblem(headers, msg) {
   return null;
 }
 
+/**
+ * What to record about one message, for a request log.
+ *
+ * The hosted server is a SINGLE HTTP route, `/mcp`, so a log keyed on the route
+ * says "POST /mcp" for every call an agent ever makes and answers nothing. The
+ * useful fact is which tool was reached for — that is the product feedback on
+ * the tool DESCRIPTIONS, since a model picks tools by reading them, and a tool
+ * nobody calls is usually a tool nobody understood.
+ *
+ * Falls back to the JSON-RPC method so `tools/list` stays distinguishable from
+ * an actual run. Returns null for a notification, which is not a call.
+ */
+export function mcpTraceName(msg) {
+  // A legacy batch is one HTTP request and gets one log row; name it for the
+  // first message rather than inventing a row per element, which would make
+  // the counts disagree with the rate limiter.
+  const first = Array.isArray(msg) ? msg[0] : msg;
+  const method = first?.method;
+  if (!method || String(method).startsWith('notifications/')) return null;
+  if (method === 'tools/call') {
+    const name = first?.params?.name;
+    return typeof name === 'string' && name ? name.slice(0, 80) : 'tools/call';
+  }
+  return String(method).slice(0, 80);
+}
+
 // ── Tool invocation ──────────────────────────────────────────────────────────
 
 // A tool's own failure is content, not a transport error. A model that gets an

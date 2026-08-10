@@ -13,7 +13,7 @@
 import { CopyableText } from '../../components/CopyableText.jsx';
 import { Icon } from '../../components/Icon.jsx';
 import {
-  User as UsersIcon, GlobeIcon, Sparkle, Clock, Tag, Star,
+  User as UsersIcon, GlobeIcon, Sparkle, Clock, Tag, Star, Code,
 } from '../../lib/icons.js';
 import { formatDuration } from '../../lib/formatDuration.js';
 import {
@@ -179,6 +179,86 @@ function EngagementSection({ eng, tier, lastSignInAt, device, geo }) {
   );
 }
 
+// Integrations — this person's API and MCP footprint.
+//
+// Rendered ONLY when there is something to say. Almost nobody has a token, and
+// an empty "Integrations" panel on every profile is noise that trains you to
+// scroll past the one profile where it matters.
+//
+// The `own` / `service` split is the point. A studio's integration runs as a
+// SERVICE ACCOUNT, which is its own auth identity — so a per-person view that
+// counted only their own calls would report zero for exactly the accounts doing
+// the most work. Both are shown, and labelled.
+function IntegrationsSection({ api }) {
+  if (!api) return null;
+  const tokens = Array.isArray(api.tokens) ? api.tokens : [];
+  const services = Array.isArray(api.service_accounts) ? api.service_accounts : [];
+  const hooks = Array.isArray(api.webhooks) ? api.webhooks : [];
+  const calls = api.calls || {};
+  const tools = Array.isArray(api.top_tools) ? api.top_tools : [];
+  if (!tokens.length && !services.length && !hooks.length && !Number(calls.total || 0)) return null;
+
+  const live = tokens.filter((t) => !t.revoked_at && (!t.expires_at || Date.parse(t.expires_at) > Date.now()));
+  const total = Number(calls.total || 0);
+
+  return (
+    <DetailSection title="Integrations" icon={Code}>
+      <dl className="admin-detail-kv">
+        <Row label="Tokens">
+          {tokens.length === 0 ? <span className="is-muted">None minted</span> : (
+            <>
+              <span className="is-strong">{formatCount(live.length)}</span> live
+              <span className="is-muted"> of {formatCount(tokens.length)}</span>
+              {/* Minted-but-never-presented is its own diagnosis: they got to
+                  Settings → API and never got the client working. */}
+              {live.length > 0 && live.every((t) => !t.last_used_at) && (
+                <span className="admin-detail-flag is-cancel" style={{ marginLeft: 6 }}>never used</span>
+              )}
+            </>
+          )}
+        </Row>
+        {services.length > 0 && (
+          <Row label="Service accounts">
+            <span className="is-strong">{formatCount(services.filter((s) => !s.disabled_at).length)}</span> active
+            <span className="is-muted"> · {services.map((s) => s.name).join(' · ')}</span>
+          </Row>
+        )}
+        {hooks.length > 0 && (
+          <Row label="Webhooks">
+            <span className="is-strong">{formatCount(hooks.filter((h) => h.active).length)}</span> active
+            {hooks.some((h) => h.failure_count > 0) && (
+              <span className="admin-detail-flag is-cancel" style={{ marginLeft: 6 }}>failing</span>
+            )}
+          </Row>
+        )}
+        <Row label={`Calls · ${api.days}d`}>
+          {total === 0 ? <span className="is-muted">No calls</span> : (
+            <>
+              <span className="is-strong">{formatCount(total)}</span>
+              <span className="is-muted">
+                {' '}· {formatCount(calls.mcp || 0)} MCP · {formatCount(calls.rest || 0)} REST
+                {Number(calls.service || 0) > 0 && ` · ${formatCount(calls.service)} as a service account`}
+              </span>
+            </>
+          )}
+        </Row>
+        {calls.errors > 0 && (
+          <Row label="Failures">
+            <span className="is-strong">{formatCount(calls.errors)}</span>
+            <span className="is-muted"> of {formatCount(total)}</span>
+          </Row>
+        )}
+        {tools.length > 0 && (
+          <Row label="Top tools">
+            <span className="is-muted">{tools.map((t) => `${t.tool} (${formatCount(t.calls)})`).join(' · ')}</span>
+          </Row>
+        )}
+        {calls.last_call_at && <Row label="Last call">{relativeTime(calls.last_call_at)}</Row>}
+      </dl>
+    </DetailSection>
+  );
+}
+
 function BillingSection({ billing }) {
   return (
     <DetailSection title="Billing" icon={Tag}>
@@ -235,7 +315,7 @@ function GrantsSection({ grants }) {
 }
 
 export function AdminUserDetail({
-  detail, loading, error, onRetry, refreshing,
+  detail, api, loading, error, onRetry, refreshing,
   selectedRow, currentUserId, busyId,
   onChangeTier, onBan, onUnban, onResync, onDelete,
   onLogOutreach, onDeleteOutreach,
@@ -373,6 +453,7 @@ export function AdminUserDetail({
             <Timeline activation={detail?.activation} />
           </DetailSection>
           <EngagementSection eng={detail?.engagement} tier={detail?.identity?.tier || row.tier} lastSignInAt={row.last_sign_in_at} device={detail?.device} geo={detail?.geo} />
+          <IntegrationsSection api={api} />
           <BillingSection billing={detail?.billing} />
           <GrantsSection grants={detail?.grants} />
         </div>

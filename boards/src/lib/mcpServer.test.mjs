@@ -37,6 +37,40 @@ test('the npm package ships the same registry the Worker serves', () => {
     + 'A tool present on one transport and missing on the other looks like a client bug.');
 });
 
+// The npm README and server.json are the two things a stranger reads BEFORE
+// installing anything, and neither is covered by the docs gate — that one reads
+// boards/content/docs. The README claimed "29 tools" for weeks after there were
+// 33, which is the sort of small lie that makes someone doubt the rest of it.
+test('the npm README states the real tool count', () => {
+  const readme = readFileSync(resolve(REPO, 'mcp/README.md'), 'utf8');
+  const claimed = readme.match(/(\d+)\s+tools:/);
+  assert.ok(claimed, 'mcp/README.md should say how many tools there are');
+  assert.equal(Number(claimed[1]), TOOLS.length,
+    `mcp/README.md says ${claimed[1]} tools; the registry has ${TOOLS.length}. `
+    + 'The local package serves TOOLS (the hosted one serves HOSTED_TOOLS, which is one fewer '
+    + '— upload_file needs a filesystem).');
+});
+
+test('server.json and package.json agree on the registry name', () => {
+  // The MCP Registry verifies ownership by matching `mcpName` in the published
+  // npm package against `name` in server.json. If they drift, publishing fails
+  // with a message about package validation that does not name either file.
+  const server = JSON.parse(readFileSync(resolve(REPO, 'mcp/server.json'), 'utf8'));
+  const pkg = JSON.parse(readFileSync(resolve(REPO, 'mcp/package.json'), 'utf8'));
+  assert.equal(server.name, pkg.mcpName,
+    'mcp/server.json `name` must equal mcp/package.json `mcpName`');
+  assert.equal(server.version, pkg.version,
+    'mcp/server.json `version` must match the package version being published');
+  const npmPackage = (server.packages || []).find((p) => p.registryType === 'npm');
+  assert.equal(npmPackage?.identifier, pkg.name);
+  assert.equal(npmPackage?.version, pkg.version);
+  // The hosted server is the recommended route, so it must actually be listed —
+  // a registry entry with only the npm package would send everyone down the
+  // harder path.
+  assert.ok((server.remotes || []).some((r) => r.type === 'streamable-http' && /\/api\/v1\/mcp$/.test(r.url)),
+    'server.json must advertise the hosted streamable-http endpoint');
+});
+
 test('the npm package ships the same PROTOCOL the Worker serves', () => {
   // This matters more than the registry copy. A tool missing from one
   // transport looks like a client bug; a protocol that differs between them

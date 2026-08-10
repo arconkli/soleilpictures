@@ -6342,6 +6342,74 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .admin-feedback-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }
 .admin-feedback-message { color: var(--ink-1); font: 500 13px/1.45 var(--font-sans); white-space: pre-wrap; word-break: break-word; }
 
+/* ── OAuth consent screen (/oauth/authorize) ──────────────────────────────
+   One card, centred, no app chrome. Whoever lands here arrived from another
+   application and may never have seen this product; the page has to say who is
+   asking, what they get, and offer two obvious answers. */
+.oauth-screen {
+  min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: var(--bg-0);
+}
+.oauth-card {
+  width: 100%; max-width: 440px;
+  background: var(--bg-1); border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg, 14px); padding: 28px 26px 22px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.28);
+}
+.oauth-brand { display: flex; justify-content: center; margin-bottom: 20px; }
+.oauth-title { font-size: 20px; line-height: 1.3; margin: 0 0 6px; text-align: center; }
+.oauth-title b { color: var(--soleil); font-weight: inherit; }
+.oauth-sub { text-align: center; color: var(--ink-2); margin-bottom: 20px; font-size: 13px; }
+.oauth-loading { text-align: center; color: var(--ink-2); padding: 28px 0; }
+
+.oauth-scopes { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 12px; }
+.oauth-scope { display: flex; gap: 10px; align-items: flex-start; }
+.oauth-scope-tick {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; margin-top: 1px; border-radius: 50%;
+  color: var(--soleil); background: color-mix(in srgb, var(--soleil) 14%, transparent);
+}
+.oauth-scope-title { display: block; font: 600 13.5px/1.4 var(--font-sans); color: var(--ink-1); }
+.oauth-scope-body { display: block; color: var(--ink-2); margin-top: 1px; }
+
+.oauth-note {
+  color: var(--ink-2); background: var(--bg-2); border: 1px solid var(--line-1);
+  border-radius: var(--radius-sm, 8px); padding: 10px 12px; margin-bottom: 18px; line-height: 1.5;
+}
+.oauth-actions { display: flex; gap: 10px; }
+.oauth-allow, .oauth-deny {
+  flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 40px; border-radius: var(--radius-sm, 8px); cursor: pointer;
+  font: 600 13.5px/1 var(--font-sans); border: 1px solid var(--line-2);
+}
+.oauth-deny { flex: 0 0 auto; padding: 0 16px; background: transparent; color: var(--ink-2); }
+.oauth-deny:hover:not(:disabled) { color: var(--ink-1); background: var(--bg-2); }
+.oauth-allow { background: var(--soleil); border-color: var(--soleil); color: #1a1206; }
+.oauth-allow:hover:not(:disabled) { filter: brightness(1.06); }
+.oauth-allow:disabled, .oauth-deny:disabled { opacity: .6; cursor: default; }
+.oauth-target { text-align: center; color: var(--ink-3); margin-top: 12px; overflow-wrap: anywhere; }
+
+/* Admin API tab — /api/v1 + MCP traffic.
+   `door` marks which entrance a call came through. MCP is gold ONLY here
+   because gold is reserved for active/selection/focus in the app itself, and
+   nothing on this page is selectable — so it reads as emphasis, not state. */
+.admin-api-door {
+  text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; font-weight: 700;
+  border-radius: 5px; padding: 1px 5px; white-space: nowrap;
+}
+.admin-api-door.is-mcp  { color: var(--soleil); background: color-mix(in srgb, var(--soleil) 14%, transparent); }
+.admin-api-door.is-rest { color: var(--ink-2); background: var(--bg-2); }
+.admin-api-tool {
+  font: 500 11.5px/1.4 var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  color: var(--ink-1); word-break: break-word;
+}
+/* Six cards against the shared auto-fit grid lands 5 + 1, which reads as a
+   layout bug rather than a choice. Three across makes it two even rows. */
+.admin-stat-grid.is-api { grid-template-columns: repeat(3, minmax(200px, 1fr)); }
+@media (max-width: 900px) { .admin-stat-grid.is-api { grid-template-columns: repeat(2, 1fr); } }
+/* "20m ago" must not become two lines because it sits in a half-width table. */
+.admin-api-when { white-space: nowrap; }
+
 /* Admin Errors tab — client_errors triage view. */
 .admin-error-kind {
   text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; font-weight: 600;

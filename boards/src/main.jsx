@@ -39,6 +39,7 @@ const SeoLandingPage  = lazyWithReload(() => import('./pages/SeoLandingPage.jsx'
 const ScoutPage       = lazyWithReload(() => import('./pages/ScoutPage.jsx').then(m => ({ default: m.ScoutPage })));
 const SeoListiclePage = lazyWithReload(() => import('./pages/SeoListiclePage.jsx').then(m => ({ default: m.SeoListiclePage })));
 const DocsPage        = lazyWithReload(() => import('./pages/DocsPage.jsx').then(m => ({ default: m.DocsPage })));
+const OAuthConsentPage = lazyWithReload(() => import('./pages/OAuthConsentPage.jsx').then(m => ({ default: m.OAuthConsentPage })));
 
 // First-party error logging: capture uncaught errors + unhandled promise
 // rejections into our own client_errors table (see lib/errorReporting.js).
@@ -190,6 +191,13 @@ const docsMatch = /^\/docs(?:\/|$)/i.test(window.location.pathname);
 // render before the AuthGate so they're reachable signed-out (footer links,
 // ad-policy review, etc). SPA fallback in the Worker serves these deep links.
 const legalMatch = window.location.pathname.match(/^\/legal\/(privacy|terms|cookies)\/?$/i);
+
+// /oauth/authorize = the OAuth consent screen (worker-oauth.js owns every other
+// verb and path under /oauth). Unlike the public pages above it renders INSIDE
+// AuthGate on purpose: an assistant sending someone here who has no account
+// gets them signed up, because our sign-in is one email box that creates the
+// account if there isn't one. The wall is the funnel.
+const oauthConsentMatch = /^\/oauth\/authorize\/?$/i.test(window.location.pathname);
 
 // /pricing = public, crawlable pricing for SIGNED-OUT visitors (and search
 // crawlers). Signed-in users skip this and fall through to AuthGate → the
@@ -402,6 +410,10 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
               <PublicBoardView slug={publicBoardMatch[1]} />
             ) : shareMatch ? (
               <PublicBoardView token={shareMatch[1]} />
+            ) : oauthConsentMatch ? (
+              <AuthGate>
+                <OAuthConsentPage />
+              </AuthGate>
             ) : (
               <AuthGate>
                 <AppShell />

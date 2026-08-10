@@ -19,6 +19,7 @@ import { AdminGrantsTab } from '../pages/admin/AdminGrantsTab.jsx';
 import { AdminWaitlistTab } from '../pages/admin/AdminWaitlistTab.jsx';
 import { AdminFeedbackTab } from '../pages/admin/AdminFeedbackTab.jsx';
 import { AdminErrorsTab } from '../pages/admin/AdminErrorsTab.jsx';
+import { AdminApiTab } from '../pages/admin/AdminApiTab.jsx';
 import { AdminTaggingTab } from '../pages/admin/AdminTaggingTab.jsx';
 
 // Install the fixture shim before any tab mounts + fetches.
@@ -32,6 +33,7 @@ const TABS = [
   { id: 'waitlist',  label: 'Waitlist',  Component: AdminWaitlistTab },
   { id: 'feedback',  label: 'Feedback',  Component: AdminFeedbackTab },
   { id: 'errors',    label: 'Errors',    Component: AdminErrorsTab },
+  { id: 'api',       label: 'API',       Component: AdminApiTab },
   { id: 'tagging',   label: 'Tagging',   Component: AdminTaggingTab },
   { id: 'universe',  label: 'Universe',  Component: null },
 ];

@@ -24,6 +24,7 @@ import {
   handleScoutSession, handleScoutSessionMint, handleScoutSignup, handleScoutClaim,
 } from './worker-scout.js';
 import { runCompactionJob1 } from './worker-compaction.js';
+import { isOAuthRoute, handleOAuthRoute } from './worker-oauth.js';
 // Self-authored SEO landing pages (tool / "alternative to" / hub). Pure-data
 // registry shared with the React component so the crawlable server-rendered
 // text can't drift from what the app renders (anti-cloaking).
@@ -327,6 +328,22 @@ export default {
     // Guard every /api/* route: an uncaught throw here would otherwise surface
     // as a contentless Cloudflare 500. await so rejected promises are caught.
     try {
+      // OAuth 2.1 — discovery, registration, consent, token, revocation.
+      //
+      // Ahead of everything else because two of these live under /.well-known,
+      // whose dot makes them look like a static file to the SPA fallback: they
+      // would 404 out of ASSETS before any handler saw them. And the whole
+      // point of RFC 9728 discovery is that a client can find it without
+      // knowing anything, so it must not depend on route order elsewhere.
+      //
+      // GET /oauth/authorize is the one exception: it is a PAGE, the consent
+      // screen, and falls through to the SPA. Every other verb and path here is
+      // machine-to-machine.
+      if (isOAuthRoute(url.pathname)
+          && !(request.method === 'GET' && url.pathname === '/oauth/authorize')) {
+        return await handleOAuthRoute(url, request, env);
+      }
+
       if (url.pathname === '/api/og') return await handleOg(url, request);
       // Soleil Scout instant session — trades a token texted to someone's phone
       // for a real Supabase session. Must be intercepted BEFORE env.ASSETS, or

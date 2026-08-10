@@ -5,7 +5,8 @@
 //     cancel-first, ban / unban / re-sync / delete).
 //   • Left  (<AdminUserList>):  compact searchable/filterable user list.
 //   • Right (<AdminUserDetail>): rich profile for the selected user, fed by the
-//     admin_user_detail RPC — acquisition, activation, engagement, billing, grants.
+//     admin_user_detail RPC — acquisition, activation, engagement, billing, grants —
+//     plus admin_user_api_usage for their API/MCP footprint (0223).
 //     The interactive tier pills (the one part worth keeping) live in its header.
 //   • Two useAdminData instances: #1 list, #2 detail (keyed by selection +
 //     detailEpoch). Every mutation refreshes BOTH so the row and the open
@@ -104,10 +105,17 @@ export function AdminUsersTab() {
 
   // ── Detail query (#2) — fetched on selection; re-runs on detailEpoch bump ──
   const { data: detailData, loading: detailLoading, error: detailError, refreshing: detailRefreshing } = useAdminData(async () => {
-    if (!selectedUserId) return { detail: null };
-    const { data: d, error: e } = await supabase.rpc('admin_user_detail', { p_user_id: selectedUserId });
-    if (e) throw e;
-    return { detail: d ?? null };
+    if (!selectedUserId) return { detail: null, api: null };
+    // Two RPCs rather than one: admin_user_detail is already a large function,
+    // and the integration footprint is a separate concern that most profiles
+    // have nothing of. Fetched together so the pane still paints once.
+    const [detailRes, apiRes] = await Promise.all([
+      supabase.rpc('admin_user_detail', { p_user_id: selectedUserId }),
+      supabase.rpc('admin_user_api_usage', { p_user_id: selectedUserId, p_days: 30 }),
+    ]);
+    if (detailRes.error) throw detailRes.error;
+    if (apiRes.error) throw apiRes.error;
+    return { detail: detailRes.data ?? null, api: apiRes.data ?? null };
   }, [selectedUserId, detailEpoch]);
 
   // Share-provenance roll-up — fetched once, feeds the detail pane's empty state
@@ -346,6 +354,7 @@ export function AdminUsersTab() {
 
         <AdminUserDetail
           detail={detailData?.detail || null}
+          api={detailData?.api || null}
           loading={detailLoading}
           error={detailError}
           onRetry={bumpDetailEpoch}

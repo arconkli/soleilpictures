@@ -5,8 +5,8 @@ h1: Authentication
 navLabel: Authentication
 section: developers
 order: 2
-updated: 2026-08-08
-answer: Create a personal access token under Settings then API and send it as a bearer token. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you, reaches only what your account reaches, and revoking one takes effect immediately.
+updated: 2026-08-10
+answer: Two ways in. For your own scripts, create a personal access token under Settings then API and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.
 faq:
   - q: I lost my token. Can I recover it?
     a: No. Only a hash is stored, by design. Revoke it and create a new one.
@@ -16,9 +16,21 @@ faq:
     a: Up to 20 active at once. Revoked ones do not count.
 related:
   - /docs/api
+  - /docs/api/oauth
   - /docs/api/errors
   - /docs/account/settings
 ---
+
+## Which one do you want
+
+| | |
+|---|---|
+| **A personal access token** | Your own scripts, your own pipeline, a cron job. You make it, you hold it. |
+| **[OAuth](/docs/api/oauth)** | An application that *other people* connect — including any MCP client. Nobody pastes a credential. |
+
+Both end at the same place: a bearer token that resolves to one person's own
+session. Everything on this page about scopes, what a credential can reach, and
+the audit trail applies to both.
 
 ## Minting a token
 

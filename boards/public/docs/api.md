@@ -73,12 +73,20 @@ person types by hand answers usefully.
 
 ## Authentication
 
-Mint a token under **Settings → API**, then:
+Two ways in, both ending at a bearer token that resolves to one person's own
+session.
+
+For **your own** scripts, mint a token under **Settings → API**:
 
 ```sh
 curl https://clusters.soleilpictures.com/api/v1/me \
   -H "Authorization: Bearer undefined…"
 ```
+
+For an application **other people** connect — including any MCP client — use
+[OAuth](/docs/api/oauth), so nobody is asked to paste a credential into
+somebody else's software. Registration is open and dynamic; discovery starts
+from the `WWW-Authenticate` header on any `401`.
 
 Three scopes: `delete` · `read` · `write`. Tokens are stored only as a hash — the value
 is shown once and cannot be recovered. See

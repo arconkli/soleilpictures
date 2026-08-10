@@ -1,8 +1,8 @@
 # MCP server
 
-> Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Connect to the hosted one with a URL and a personal access token, or run it locally with npx for tools that need your filesystem. Either way it holds no credentials of its own and forwards your token, so an agent reaches exactly what your account reaches and no more.
+> Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.
 
-_Source: https://clusters.soleilpictures.com/docs/mcp · Updated 2026-08-09_
+_Source: https://clusters.soleilpictures.com/docs/mcp · Updated 2026-08-10_
 
 The MCP server puts Soleil Clusters in reach of Claude and any other
 Model Context Protocol client, so an assistant can read and build boards
@@ -11,29 +11,47 @@ directly.
 ## What it is
 
 A layer over the [REST API](/docs/api). It holds no credentials and implements
-no permissions of its own — it forwards your
-[personal access token](/docs/api/authentication), so everything about the
-authorization model there applies here unchanged.
+no permissions of its own — it forwards whatever credential you connected with,
+so everything about the [authorization model](/docs/api/authentication) applies
+here unchanged. An OAuth access token and a personal access token resolve to the
+same thing: your own session, under ordinary row-level security.
 
 ## Two ways to connect
 
-### Hosted — nothing to install
+### Hosted — nothing to install, nothing to paste
 
 ```json
 {
   "mcpServers": {
     "soleil-clusters": {
       "type": "http",
-      "url": "https://clusters.soleilpictures.com/api/v1/mcp",
-      "headers": { "Authorization": "Bearer undefined…" }
+      "url": "https://clusters.soleilpictures.com/api/v1/mcp"
     }
   }
 }
 ```
 
-Mint the token in the app under **Settings → API**, or create a
-[service account](/docs/api/service-accounts) if this is for a team rather than
-for you. That is the whole setup.
+A URL. That is the whole setup.
+
+The first call comes back `401` with a pointer to our
+[OAuth](/docs/api/oauth) metadata; the client registers itself, opens a browser,
+and you approve the connection on one screen. No token is ever copied, and if
+you do not have an account yet you get one on that screen — signing in is a
+single email box.
+
+Afterwards the connection is listed under **Settings → API → Connected apps**,
+where you can see what it has done and disconnect it.
+
+**If your client cannot do OAuth**, a [personal access
+token](/docs/api/authentication) still works exactly as before:
+
+```json
+"headers": { "Authorization": "Bearer undefined…" }
+```
+
+For a team rather than a person, use a
+[service account](/docs/api/service-accounts) — a credential that does not stop
+working when someone leaves.
 
 ### Local — for files on your machine
 

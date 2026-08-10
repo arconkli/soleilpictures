@@ -54,7 +54,7 @@ import { boardToOmc } from './lib/omcExport.js';
 import {
   webhookUrlProblem, runWebhooks, hasPendingWork, WEBHOOK_EVENTS,
 } from './lib/webhooks.js';
-import { handleMcpRequest } from './lib/mcpServer.js';
+import { handleMcpRequest, mcpTraceName } from './lib/mcpServer.js';
 import {
   arrange, rearrange, LAYOUTS, DEFAULT_LAYOUT, isLayout,
 } from './lib/layoutEngine.js';
@@ -636,13 +636,30 @@ export async function handleApiRoute(url, request, env, ctx) {
     return json(openapiDocument(url.origin), 200, { 'cache-control': 'public, max-age=3600' });
   }
 
+  // Where a client with no credential is told to go.
+  //
+  // This one header is the entire entry point to the OAuth flow: an MCP client
+  // that gets a bare 401 can only give up, whereas one that reads
+  // `resource_metadata` fetches that document, finds the authorization server,
+  // registers itself and sends the person to a consent screen — without anyone
+  // having configured anything. RFC 9728 §5.1, and required of MCP servers.
+  //
+  // The path is the resource's own path, so /api/v1/mcp and /api/v1 each
+  // describe themselves rather than sharing one document that is wrong for one
+  // of them.
+  const resourcePath = url.pathname.startsWith('/api/v1/mcp') ? '/api/v1/mcp' : '/api/v1';
+  const challenge = (params) => ({
+    'www-authenticate': `Bearer realm="soleil", ${params}, `
+      + `resource_metadata="${url.origin}/.well-known/oauth-protected-resource${resourcePath}"`,
+  });
+
   const t0 = Date.now();
   const auth = await resolveApiToken(request, env);
   if (!auth.ok) {
     return json({ error: auth.error, code: auth.code }, auth.status, {
       ...rateHeaders(auth.rate, { retryAfter: auth.status === 429 }),
       ...(auth.status === 401
-        ? { 'www-authenticate': 'Bearer realm="soleil", error="invalid_token"' }
+        ? challenge('error="invalid_token", scope="read write"')
         : {}),
     });
   }
@@ -662,7 +679,10 @@ export async function handleApiRoute(url, request, env, ctx) {
       code: 'insufficient_scope',
       required_scope: need,
       scopes: auth.scopes,
-    }, 403, rl);
+      // A client holding an OAuth token can act on this: the challenge names
+      // the scope it is missing, so it can re-authorize for that one rather
+      // than guessing or asking for everything.
+    }, 403, { ...rl, ...challenge(`error="insufficient_scope", scope="${need}"`) });
   }
 
   // Replay protection. Claimed BEFORE the work so two deliveries of the same
@@ -697,7 +717,7 @@ export async function handleApiRoute(url, request, env, ctx) {
   // that key then gets a 409 — which is exactly backwards, since a failure here
   // is the case a retry exists for. Found by a session failure doing precisely
   // that during end-to-end testing.
-  const trace = { route: url.pathname.replace(/^\/api\/v1/, '') || '/', target: null };
+  const trace = { route: url.pathname.replace(/^\/api\/v1/, '') || '/', target: null, tool: null };
   let res;
   try {
     const token = await apiUserSession(env, auth.userId).catch((e) => {
@@ -759,6 +779,7 @@ export async function handleApiRoute(url, request, env, ctx) {
       p_status: res.status,
       p_ms: Date.now() - t0,
       p_target: trace.target,
+      p_tool: trace.tool || null,
     }).catch(() => {});
     if (ctx?.waitUntil) ctx.waitUntil(write);
   }
@@ -1176,6 +1197,9 @@ async function dispatch(url, request, env, ctx) {
   // REST is exactly what it can do over MCP, by construction.
   if (head === 'mcp') {
     trace.route = '/mcp';
+    // Which tool, not just which route. See mcpTraceName — one HTTP route
+    // serving thirty-three tools makes a route-keyed log useless.
+    trace.tool = mcpTraceName(body);
     const out = await handleMcpRequest(request, {
       api: (path, opts = {}) => internalCall(url, env, ctx, { auth, token }, path, opts),
     }, body);
@@ -1217,6 +1241,10 @@ async function dispatch(url, request, env, ctx) {
         token_name: r.token_name,
         method: r.method,
         route: r.route,
+        // The MCP tool, or the JSON-RPC method for a non-tool call. Null for
+        // REST, and null for MCP entries written before this was recorded —
+        // which is honest: those rows genuinely do not know.
+        tool: r.tool ?? null,
         target_id: r.target_id,
         status: r.status,
         ms: r.ms,

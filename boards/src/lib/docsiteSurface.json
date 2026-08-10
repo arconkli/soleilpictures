@@ -218,6 +218,26 @@
       "UNSUPPORTED_PROTOCOL_VERSION=-32022"
     ]
   },
+  "oauthEndpoints": [
+    "client_auth client_secret_basic",
+    "client_auth client_secret_post",
+    "client_auth none",
+    "grant authorization_code",
+    "grant refresh_token",
+    "pkce S256",
+    "response_type code",
+    "route /.well-known/oauth-authorization-server",
+    "route /.well-known/oauth-authorization-server/*",
+    "route /.well-known/oauth-protected-resource*",
+    "route /.well-known/openid-configuration",
+    "route /oauth/*",
+    "route /oauth/authorize",
+    "route /oauth/client",
+    "route /oauth/deny",
+    "route /oauth/register",
+    "route /oauth/revoke",
+    "route /oauth/token"
+  ],
   "layoutAlgorithms": [
     "column",
     "grid",
@@ -283,7 +303,12 @@
     "maxIdentifiersPerObject": 20,
     "maxPropsBytes": 16384,
     "maxPropKeys": 100,
-    "maxTokensPerAccount": 20
+    "maxTokensPerAccount": 20,
+    "oauthAccessTtlMinutes": 60,
+    "oauthRefreshDays": 90,
+    "oauthCodeTtlSeconds": 120,
+    "oauthMaxRedirectUris": 10,
+    "maxConnectedApps": 20
   },
   "settingsTabs": [
     {
@@ -313,6 +338,10 @@
     {
       "id": "profile",
       "label": "Profile"
+    },
+    {
+      "id": "scout",
+      "label": "Scout"
     },
     {
       "id": "theme",
@@ -385,6 +414,7 @@
       "docsMatch = /^\\/docs(?:\\/|$)/i.test(PATH)",
       "exploreMatch = /^\\/explore\\/?$/.test(PATH)",
       "legalMatch = PATH.match(/^\\/legal\\/(privacy|terms|cookies)\\/?$/i)",
+      "oauthConsentMatch = /^\\/oauth\\/authorize\\/?$/i.test(PATH)",
       "pricingMatch = PATH.match(/^\\/pricing\\/?$/i)",
       "publicBoardMatch = PATH.match(/^\\/c\\/([a-z0-9][a-z0-9-]{0,79})\\/?$/)",
       "scoutMatch = /^\\/scout\\/?$/i.test(PATH)",
