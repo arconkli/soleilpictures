@@ -3158,10 +3158,14 @@ GET /api/v1 returns this list plus your current scopes, so the one URL a person 
 
 Authentication
 
-Mint a token under Settings → API, then:
+Two ways in, both ending at a bearer token that resolves to one person's own session.
+
+For your own scripts, mint a token under Settings → API:
 
 curl https://clusters.soleilpictures.com/api/v1/me \
   -H "Authorization: Bearer undefined…"
+
+For an application other people connect — including any MCP client — use OAuth, so nobody is asked to paste a credential into somebody else's software. Registration is open and dynamic; discovery starts from the WWW-Authenticate header on any 401.
 
 Three scopes: delete · read · write. Tokens are stored only as a hash — the value is shown once and cannot be recovered. See Authentication.
 
@@ -3385,9 +3389,17 @@ A: Two requests. POST the bytes to /uploads to get an image_key, then create a c
 ========================================================================
 # Authentication
 URL: https://clusters.soleilpictures.com/docs/api/authentication
-Updated: 2026-08-08
+Updated: 2026-08-10
 
-Create a personal access token under Settings then API and send it as a bearer token. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you, reaches only what your account reaches, and revoking one takes effect immediately.
+Two ways in. For your own scripts, create a personal access token under Settings then API and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.
+
+Which one do you want
+
+ | 
+A personal access token | Your own scripts, your own pipeline, a cron job. You make it, you hold it.
+OAuth | An application that other people connect — including any MCP client. Nobody pastes a credential.
+
+Both end at the same place: a bearer token that resolves to one person's own session. Everything on this page about scopes, what a credential can reach, and the audit trail applies to both.
 
 Minting a token
 
@@ -3694,6 +3706,170 @@ A: Omit parent_board_id. Omit workspace_id too and it goes in your personal work
 
 Q: Can I undo a delete?
 A: Yes. DELETE is a soft delete and POST /boards/:id/restore puts it back.
+
+
+========================================================================
+# Connecting an app (OAuth)
+URL: https://clusters.soleilpictures.com/docs/api/oauth
+Updated: 2026-08-10
+
+Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, client registration is dynamic and open, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then API.
+
+There are two ways into this API.
+
+A personal access token is right for your own scripts — you make it, you hold it, you paste it once. OAuth is right for an application other people connect, because nobody should ever be asked to paste a credential into somebody else's software.
+
+If you are wiring up an MCP client, you almost certainly want this one, and you probably do not have to implement any of it — see MCP.
+
+Discovery
+
+Everything below is discoverable. Start from a 401:
+
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer realm="soleil", error="invalid_token", scope="read write",
+                  resource_metadata="https://clusters.soleilpictures.com/.well-known/oauth-protected-resource/api/v1/mcp"
+
+That header is the entry point. Follow it:
+
+ | 
+/.well-known/oauth-protected-resource/api/v1/mcp | What this resource is, and who authorizes it (RFC 9728)
+/.well-known/oauth-authorization-server | The endpoints and what they support (RFC 8414)
+
+Both are public and cacheable. A discovery document you need a credential to read is not discovery.
+
+Registering
+
+Registration is open and dynamic — no review, no application form, no key to request:
+
+curl -X POST https://clusters.soleilpictures.com/oauth/register \
+  -H 'content-type: application/json' \
+  -d '{
+    "client_name": "Shot Planner",
+    "redirect_uris": ["https://shotplanner.example/callback"],
+    "token_endpoint_auth_method": "none"
+  }'
+
+{ "client_id": "soleil_a1b2…", "client_id_issued_at": 1786000000,
+  "client_name": "Shot Planner", "redirect_uris": ["https://shotplanner.example/callback"] }
+
+At most 10 redirect URIs. They must be https, http on loopback (127.0.0.1, ::1, localhost — for a command-line client with no domain), or a private scheme like shotplanner://. A URI with a fragment is refused: the response is appended to the query, and a URI that already has a fragment cannot be extended safely.
+
+Leave token_endpoint_auth_method as none unless your client can genuinely keep a secret. A desktop app, a CLI and a browser extension cannot — PKCE is what proves identity there, and a "secret" shipped inside a download is not one.
+
+The flow
+
+  client                    browser                     Soleil
+    │                          │                           │
+    ├─ 401 + resource_metadata ─────────────────────────────┤
+    ├─ GET  /.well-known/… ─────────────────────────────────┤
+    ├─ POST /oauth/register ────────────────────────────────┤
+    ├─ open /oauth/authorize ─▶│                            │
+    │                          ├─ sign in (or sign up) ────▶│
+    │                          ├─ approve ─────────────────▶│
+    │◀─ redirect_uri?code=…&state=…&iss=… ──────────────────┤
+    ├─ POST /oauth/token ───────────────────────────────────┤
+    │◀─ access_token + refresh_token ───────────────────────┤
+
+Authorization. Send the person to:
+
+https://clusters.soleilpictures.com/oauth/authorize
+  ?response_type=code
+  &client_id=soleil_a1b2…
+  &redirect_uri=https://shotplanner.example/callback
+  &scope=read%20write
+  &state=<opaque>
+  &code_challenge=<base64url(sha256(verifier))>
+  &code_challenge_method=S256
+  &resource=https%3A%2F%2Fclusters.soleilpictures.com%2Fapi%2Fv1%2Fmcp
+
+code_challenge_method must be S256. resource names what the token is for (RFC 8707) — it is how a token minted here can never be valid anywhere else.
+
+If the person has no account, they get one: our sign-in is a single email box that creates the account if there isn't one. They never have to visit the site first.
+
+The response carries code, your state, and iss:
+
+https://shotplanner.example/callback?code=ac_…&state=…&iss=https://clusters.soleilpictures.com
+
+iss is RFC 9207 and we always send it, including on errors. Compare it to the issuer you recorded from the metadata before you send the code anywhere. That single comparison is what defeats a mix-up between two authorization servers.
+
+The exchange:
+
+curl -X POST https://clusters.soleilpictures.com/oauth/token \
+  -d grant_type=authorization_code \
+  -d code=ac_… \
+  -d redirect_uri=https://shotplanner.example/callback \
+  -d client_id=soleil_a1b2… \
+  -d code_verifier=<the original verifier>
+
+{ "access_token": "sk_mcp_…", "token_type": "Bearer",
+  "expires_in": 3600, "refresh_token": "rt_…", "scope": "read write" }
+
+The code is good for 120 seconds and is single-use. It is bound to the client, the redirect URI and the PKCE challenge it was issued against, and all four are checked in the same statement that consumes it — so a code that leaks is worth nothing without the verifier, and a replay finds nothing.
+
+Tokens
+
+ | 
+Access token | 60 minutes, sent as Authorization: Bearer …
+Refresh token | Rotates on every use; valid 90 days from last use
+Scopes | delete · read · write — the same three scopes a token has
+
+curl -X POST https://clusters.soleilpictures.com/oauth/token \
+  -d grant_type=refresh_token -d refresh_token=rt_… -d client_id=soleil_a1b2…
+
+Refresh tokens are single-use: the old one is replaced in the same statement that claims it, so a replayed refresh finds nothing. Store the new one.
+
+delete is never granted by default. Ask for it in scope only if the application genuinely needs to destroy things — the product's rule is that an assistant can be allowed to build without being allowed to destroy, and a default that quietly included delete would undo that for every connection.
+
+What the person sees
+
+One screen: who is asking, what each scope means in plain words, and two buttons. Afterwards the connection appears under Settings → API → Connected apps with its scopes, when it was connected, and how many calls it has made.
+
+Disconnecting revokes the access token in the same statement, so it stops working immediately rather than at its next expiry. Everything the app did is in the audit log, with the tool it used.
+
+At most 20 connected apps per account.
+
+What a token can reach
+
+Exactly what the person can reach. An OAuth access token is resolved to their own database session, under ordinary row-level security, by the same code path a personal access token uses. There is no separate permission model to get wrong: if they cannot see a cluster, neither can anything they connect.
+
+Errors
+
+Failures use the OAuth shape, so a client can branch on them:
+
+{ "error": "invalid_grant", "error_description": "that authorization code is not valid" }
+
+ | 
+invalid_client | Unknown client_id, or a confidential client failed to authenticate
+invalid_grant | Code or refresh token expired, already used, or not yours
+invalid_request | A required parameter is missing or malformed
+invalid_redirect_uri | Registration was refused — see the shape rules above
+invalid_target | The resource named is not served here
+unsupported_grant_type | Only authorization_code and refresh_token exist
+
+A bad redirect_uri is never redirected to. If the URI is not one the client registered, the person sees an error page and nothing is sent anywhere — bouncing an error to an unverified address is the open redirect the check exists to prevent.
+
+Revoking
+
+curl -X POST https://clusters.soleilpictures.com/oauth/revoke -d token=rt_… -d client_id=soleil_a1b2…
+
+Always answers 200, even for a token that was never valid, per RFC 7009. Saying "no such token" would turn the endpoint into a way to test whether a stolen string is live.
+
+## Frequently asked questions
+
+Q: Do I need to register an application first?
+A: No. Registration is dynamic and open — POST your client metadata to /oauth/register and you get a client_id back immediately. There is no review queue and no key to request.
+
+Q: Is PKCE required?
+A: Yes, with S256. The plain method is not supported at all, because OAuth 2.1 removes it.
+
+Q: How long do tokens last?
+A: An access token lasts 60 minutes. The refresh token rotates on every use and is good for 90 days from its last use.
+
+Q: What happens if someone disconnects the app?
+A: The access token is revoked in the same statement, so it stops working immediately rather than at its next expiry.
+
+Q: Can I still use a personal access token instead?
+A: Yes. Nothing about tokens has changed. OAuth is for applications that other people connect; a token is for your own scripts.
 
 
 ========================================================================
@@ -4575,31 +4751,40 @@ A: Set omc.functionalType in the board's properties. Values outside the OMC cont
 ========================================================================
 # MCP server
 URL: https://clusters.soleilpictures.com/docs/mcp
-Updated: 2026-08-09
+Updated: 2026-08-10
 
-Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Connect to the hosted one with a URL and a personal access token, or run it locally with npx for tools that need your filesystem. Either way it holds no credentials of its own and forwards your token, so an agent reaches exactly what your account reaches and no more.
+Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.
 
 The MCP server puts Soleil Clusters in reach of Claude and any other Model Context Protocol client, so an assistant can read and build boards directly.
 
 What it is
 
-A layer over the REST API. It holds no credentials and implements no permissions of its own — it forwards your personal access token, so everything about the authorization model there applies here unchanged.
+A layer over the REST API. It holds no credentials and implements no permissions of its own — it forwards whatever credential you connected with, so everything about the authorization model applies here unchanged. An OAuth access token and a personal access token resolve to the same thing: your own session, under ordinary row-level security.
 
 Two ways to connect
 
-Hosted — nothing to install
+Hosted — nothing to install, nothing to paste
 
 {
   "mcpServers": {
     "soleil-clusters": {
       "type": "http",
-      "url": "https://clusters.soleilpictures.com/api/v1/mcp",
-      "headers": { "Authorization": "Bearer undefined…" }
+      "url": "https://clusters.soleilpictures.com/api/v1/mcp"
     }
   }
 }
 
-Mint the token in the app under Settings → API, or create a service account if this is for a team rather than for you. That is the whole setup.
+A URL. That is the whole setup.
+
+The first call comes back 401 with a pointer to our OAuth metadata; the client registers itself, opens a browser, and you approve the connection on one screen. No token is ever copied, and if you do not have an account yet you get one on that screen — signing in is a single email box.
+
+Afterwards the connection is listed under Settings → API → Connected apps, where you can see what it has done and disconnect it.
+
+If your client cannot do OAuth, a personal access token still works exactly as before:
+
+"headers": { "Authorization": "Bearer undefined…" }
+
+For a team rather than a person, use a service account — a credential that does not stop working when someone leaves.
 
 Local — for files on your machine
 
@@ -4760,7 +4945,13 @@ Any page plus .md — for example /docs/api/cards.md
 ## Frequently asked questions
 
 Q: Do I have to install anything?
-A: No. Point an MCP client at https://clusters.soleilpictures.com/api/v1/mcp with your token. Running it locally is only needed for uploading files from your own machine.
+A: No. Point an MCP client at https://clusters.soleilpictures.com/api/v1/mcp. It discovers the sign-in flow on its own and opens a browser; you approve once. Running it locally is only needed for uploading files from your own machine.
+
+Q: Do I need an account before connecting?
+A: No. Sign-in is a single email box that creates the account if there isn't one, so you can go from Connect to a working assistant without visiting the site first.
+
+Q: Do I still need a personal access token?
+A: Only for a client that cannot do OAuth, or for your own scripts. Assistants that speak current MCP handle it themselves.
 
 Q: Does the MCP server have its own permissions?
 A: No. It forwards your personal access token to the same API, so it inherits your account's permissions exactly. A token without the delete scope cannot delete.
@@ -5126,9 +5317,9 @@ A: No. Storage and card limits are charged to the workspace owner no matter who 
 ========================================================================
 # Audit log
 URL: https://clusters.soleilpictures.com/docs/api/audit
-Updated: 2026-08-09
+Updated: 2026-08-10
 
-GET /audit returns a record of every write made through the API and every fetch of image bytes, newest first, cursor-paged. You see your own activity, and if you own a workspace you also see everything its service accounts did. Entries carry the actor, the token used, the method and templated route, the object touched, the status and the duration.
+GET /audit returns a record of every write made through the API and every fetch of image bytes, newest first, cursor-paged. You see your own activity, and if you own a workspace you also see everything its service accounts did. Entries carry the actor, the token used, the method and templated route, the MCP tool where one was called, the object touched, the status and the duration.
 
 curl "$SOLEIL_API/audit?limit=100" -H "Authorization: Bearer $SOLEIL_TOKEN"
 
@@ -5137,8 +5328,13 @@ curl "$SOLEIL_API/audit?limit=100" -H "Authorization: Bearer $SOLEIL_TOKEN"
     { "id": "80421", "at": "2026-08-09T12:00:04.120Z",
       "actor": "Pipeline sync", "actor_id": "9f1c…",
       "token_id": "a2c4…", "token_name": "Pipeline sync token",
-      "method": "POST", "route": "/boards/:id/cards",
-      "target_id": "3b7e…", "status": 201, "ms": 214 }
+      "method": "POST", "route": "/boards/:id/cards", "tool": null,
+      "target_id": "3b7e…", "status": 201, "ms": 214 },
+    { "id": "80420", "at": "2026-08-09T11:59:58.004Z",
+      "actor": "Ana", "actor_id": "1d0b…",
+      "token_id": "77fe…", "token_name": "Claude Desktop",
+      "method": "POST", "route": "/mcp", "tool": "add_cards",
+      "target_id": null, "status": 200, "ms": 331 }
   ],
   "limit": 100,
   "has_more": true,
@@ -5160,6 +5356,12 @@ Ordinary reads are left out because they are the bulk of API traffic and are mos
 
 route is the templated path — /boards/:id/cards, not the specific board — with the object in target_id. That way the log groups by operation and you can still see what each one touched.
 
+MCP calls
+
+The whole MCP server is one route, POST /mcp, so the route alone would tell you nothing about what an assistant did. tool carries the name of the tool that ran — add_cards, arrange_board, import_urls — or the JSON-RPC method for calls that are not tool runs, such as tools/list.
+
+It is null for REST calls, which have a route instead, and null on MCP entries recorded before the field existed. That is deliberate: those rows genuinely do not know, and a guessed value would be worse than an empty one.
+
 Whose activity
 
 Your own, plus every service account belonging to a workspace you own. actor is the service account's name, or the person's display name.
@@ -5176,6 +5378,9 @@ It is not a complete history of a board. Changes made on the canvas do not appea
 
 Q: Does this cover changes made in the app?
 A: No. It records writes through /api/v1 and reads of image bytes. Edits someone makes on the canvas are not in it.
+
+Q: Can I tell which MCP tool an assistant used?
+A: Yes. MCP entries carry a tool field with the tool name, or the JSON-RPC method for calls that are not tool runs. It is null for REST calls, and null for MCP entries recorded before the field existed.
 
 Q: Whose activity can I see?
 A: Your own, plus every service account belonging to a workspace you own.

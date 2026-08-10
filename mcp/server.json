@@ -1,0 +1,45 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.soleilpictures/clusters",
+  "title": "Soleil Clusters",
+  "description": "Read and build visual boards — moodboards, shot lists, lookbooks. Create clusters and cards, upload and import images, lay a board out as justified rows or masonry, and export it as JSON or MovieLabs OMC.",
+  "websiteUrl": "https://clusters.soleilpictures.com/docs/mcp",
+  "repository": {
+    "url": "https://github.com/arconkli/soleilpictures",
+    "source": "github",
+    "subfolder": "mcp"
+  },
+  "version": "2.1.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://clusters.soleilpictures.com/api/v1/mcp"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "soleil-clusters-mcp",
+      "version": "2.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "SOLEIL_API_TOKEN",
+          "description": "A personal access token from Settings → API. Optional: leave it unset and run `npx soleil-clusters-mcp login` instead, which signs you in through the browser and stores the credential itself.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "SOLEIL_API_BASE",
+          "description": "Override the host. Only needed against a preview deployment.",
+          "isRequired": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

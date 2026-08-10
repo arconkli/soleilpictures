@@ -33,14 +33,46 @@ import { basename, extname } from 'node:path';
 import { TOOLS } from './tools.js';
 import { handleMcpMessage, ERR } from './server.js';
 import { idempotencyKey } from './idempotency.js';
+import { login, resolveToken, clearCredentials, credentialsPath } from './auth.js';
 
 const BASE = (process.env.SOLEIL_API_BASE || 'https://clusters.soleilpictures.com').replace(/\/$/, '');
-const TOKEN = process.env.SOLEIL_API_TOKEN || '';
+
+// ── Subcommands ──────────────────────────────────────────────────────────────
+//
+// `npx soleil-clusters-mcp` with no argument is the MCP server on stdio, which
+// is what a client config runs. The two subcommands are for a person at a
+// terminal, and they exit rather than falling through to the server — an MCP
+// client would be talking to a process that had already printed prose to stdout.
+const subcommand = process.argv[2];
+
+if (subcommand === 'login') {
+  await login(BASE).catch((e) => {
+    console.error(`Could not sign in: ${e.message}`);
+    process.exit(1);
+  });
+  process.exit(0);
+}
+
+if (subcommand === 'logout') {
+  const had = await clearCredentials();
+  console.log(had
+    ? `Signed out. Removed ${credentialsPath()}.\n`
+      + 'The connection itself is still listed under Settings → API → Connected apps; '
+      + 'disconnect it there to revoke it for good.'
+    : 'Nothing stored — you were not signed in.');
+  process.exit(0);
+}
+
+// A stored sign-in, refreshed if it has expired, or SOLEIL_API_TOKEN if set.
+// The environment variable wins: anyone with a working config or a service
+// account should not have their setup changed by a new feature.
+const TOKEN = await resolveToken(BASE);
 
 if (!TOKEN) {
   // Fail here rather than on the first tool call. A server that starts and then
   // errors on every request looks like the API is down.
-  console.error('SOLEIL_API_TOKEN is not set. Mint one in Clusters under Settings → API.');
+  console.error('Not signed in. Run `npx soleil-clusters-mcp login`, '
+    + 'or set SOLEIL_API_TOKEN to a token from Settings → API.');
   process.exit(1);
 }
 

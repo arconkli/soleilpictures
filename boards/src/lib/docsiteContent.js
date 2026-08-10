@@ -24428,7 +24428,30 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Mint a token under "
+     "v": "Two ways in, both ending at a bearer token that resolves to one person's own session."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "For "
+    },
+    {
+     "t": "strong",
+     "v": "your own",
+     "children": [
+      {
+       "t": "text",
+       "v": "your own"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " scripts, mint a token under "
     },
     {
      "t": "strong",
@@ -24442,7 +24465,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", then:"
+     "v": ":"
     }
    ]
   },
@@ -24450,6 +24473,60 @@ export const DOCS_CONTENT = {
    "type": "code",
    "lang": "sh",
    "code": "curl https://clusters.soleilpictures.com/api/v1/me \\\n  -H \"Authorization: Bearer undefined…\""
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "For an application "
+    },
+    {
+     "t": "strong",
+     "v": "other people",
+     "children": [
+      {
+       "t": "text",
+       "v": "other people"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " connect — including any MCP client — use "
+    },
+    {
+     "t": "link",
+     "v": "OAuth",
+     "href": "/docs/api/oauth",
+     "children": [
+      {
+       "t": "text",
+       "v": "OAuth"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so nobody is asked to paste a credential into somebody else's software. Registration is open and dynamic; discovery starts from the "
+    },
+    {
+     "t": "code",
+     "v": "WWW-Authenticate"
+    },
+    {
+     "t": "text",
+     "v": " header on any "
+    },
+    {
+     "t": "code",
+     "v": "401"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
   },
   {
    "type": "para",
@@ -25581,6 +25658,107 @@ export const DOCS_CONTENT = {
   }
  ],
  "/docs/api/authentication": [
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Which one do you want",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Which one do you want"
+    }
+   ],
+   "id": "which-one-do-you-want"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "A personal access token",
+       "children": [
+        {
+         "t": "text",
+         "v": "A personal access token"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Your own scripts, your own pipeline, a cron job. You make it, you hold it."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "[OAuth](/docs/api/oauth)",
+       "children": [
+        {
+         "t": "link",
+         "v": "OAuth",
+         "href": "/docs/api/oauth",
+         "children": [
+          {
+           "t": "text",
+           "v": "OAuth"
+          }
+         ]
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An application that "
+      },
+      {
+       "t": "em",
+       "v": "other people",
+       "children": [
+        {
+         "t": "text",
+         "v": "other people"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " connect — including any MCP client. Nobody pastes a credential."
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Both end at the same place: a bearer token that resolves to one person's own session. Everything on this page about scopes, what a credential can reach, and the audit trail applies to both."
+    }
+   ]
+  },
   {
    "type": "heading",
    "depth": 2,
@@ -27835,6 +28013,1098 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  }
+ ],
+ "/docs/api/oauth": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "There are two ways into this API."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A "
+    },
+    {
+     "t": "link",
+     "v": "personal access token",
+     "href": "/docs/api/authentication",
+     "children": [
+      {
+       "t": "text",
+       "v": "personal access token"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is right for "
+    },
+    {
+     "t": "strong",
+     "v": "your own",
+     "children": [
+      {
+       "t": "text",
+       "v": "your own"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " scripts — you make it, you hold it, you paste it once. OAuth is right for an "
+    },
+    {
+     "t": "strong",
+     "v": "application other people connect",
+     "children": [
+      {
+       "t": "text",
+       "v": "application other people connect"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", because nobody should ever be asked to paste a credential into somebody else's software."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you are wiring up an MCP client, you almost certainly want this one, and you probably do not have to implement any of it — see "
+    },
+    {
+     "t": "link",
+     "v": "MCP",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "MCP"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Discovery",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Discovery"
+    }
+   ],
+   "id": "discovery"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Everything below is discoverable. Start from a "
+    },
+    {
+     "t": "code",
+     "v": "401"
+    },
+    {
+     "t": "text",
+     "v": ":"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "http",
+   "code": "HTTP/1.1 401 Unauthorized\nWWW-Authenticate: Bearer realm=\"soleil\", error=\"invalid_token\", scope=\"read write\",\n                  resource_metadata=\"https://clusters.soleilpictures.com/.well-known/oauth-protected-resource/api/v1/mcp\""
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "That header is the entry point. Follow it:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "/.well-known/oauth-protected-resource/api/v1/mcp"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "What this resource is, and who authorizes it ("
+      },
+      {
+       "t": "link",
+       "v": "RFC 9728",
+       "href": "https://datatracker.ietf.org/doc/html/rfc9728",
+       "children": [
+        {
+         "t": "text",
+         "v": "RFC 9728"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ")"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "/.well-known/oauth-authorization-server"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The endpoints and what they support ("
+      },
+      {
+       "t": "link",
+       "v": "RFC 8414",
+       "href": "https://datatracker.ietf.org/doc/html/rfc8414",
+       "children": [
+        {
+         "t": "text",
+         "v": "RFC 8414"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ")"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Both are public and cacheable. A discovery document you need a credential to read is not discovery."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Registering",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Registering"
+    }
+   ],
+   "id": "registering"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Registration is "
+    },
+    {
+     "t": "strong",
+     "v": "open and dynamic",
+     "children": [
+      {
+       "t": "text",
+       "v": "open and dynamic"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — no review, no application form, no key to request:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST https://clusters.soleilpictures.com/oauth/register \\\n  -H 'content-type: application/json' \\\n  -d '{\n    \"client_name\": \"Shot Planner\",\n    \"redirect_uris\": [\"https://shotplanner.example/callback\"],\n    \"token_endpoint_auth_method\": \"none\"\n  }'"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"client_id\": \"soleil_a1b2…\", \"client_id_issued_at\": 1786000000,\n  \"client_name\": \"Shot Planner\", \"redirect_uris\": [\"https://shotplanner.example/callback\"] }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "At most 10 redirect URIs. They must be "
+    },
+    {
+     "t": "code",
+     "v": "https"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "http"
+    },
+    {
+     "t": "text",
+     "v": " on loopback ("
+    },
+    {
+     "t": "code",
+     "v": "127.0.0.1"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "::1"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "localhost"
+    },
+    {
+     "t": "text",
+     "v": " — for a command-line client with no domain), or a private scheme like "
+    },
+    {
+     "t": "code",
+     "v": "shotplanner://"
+    },
+    {
+     "t": "text",
+     "v": ". A URI with a fragment is refused: the response is appended to the query, and a URI that already has a fragment cannot be extended safely."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Leave "
+    },
+    {
+     "t": "code",
+     "v": "token_endpoint_auth_method"
+    },
+    {
+     "t": "text",
+     "v": " as "
+    },
+    {
+     "t": "code",
+     "v": "none"
+    },
+    {
+     "t": "text",
+     "v": " unless your client can genuinely keep a secret. A desktop app, a CLI and a browser extension cannot — PKCE is what proves identity there, and a \"secret\" shipped inside a download is not one."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "The flow",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The flow"
+    }
+   ],
+   "id": "the-flow"
+  },
+  {
+   "type": "code",
+   "lang": null,
+   "code": "  client                    browser                     Soleil\n    │                          │                           │\n    ├─ 401 + resource_metadata ─────────────────────────────┤\n    ├─ GET  /.well-known/… ─────────────────────────────────┤\n    ├─ POST /oauth/register ────────────────────────────────┤\n    ├─ open /oauth/authorize ─▶│                            │\n    │                          ├─ sign in (or sign up) ────▶│\n    │                          ├─ approve ─────────────────▶│\n    │◀─ redirect_uri?code=…&state=…&iss=… ──────────────────┤\n    ├─ POST /oauth/token ───────────────────────────────────┤\n    │◀─ access_token + refresh_token ───────────────────────┤"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Authorization.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Authorization."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Send the person to:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": null,
+   "code": "https://clusters.soleilpictures.com/oauth/authorize\n  ?response_type=code\n  &client_id=soleil_a1b2…\n  &redirect_uri=https://shotplanner.example/callback\n  &scope=read%20write\n  &state=<opaque>\n  &code_challenge=<base64url(sha256(verifier))>\n  &code_challenge_method=S256\n  &resource=https%3A%2F%2Fclusters.soleilpictures.com%2Fapi%2Fv1%2Fmcp"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "code_challenge_method"
+    },
+    {
+     "t": "text",
+     "v": " must be "
+    },
+    {
+     "t": "code",
+     "v": "S256"
+    },
+    {
+     "t": "text",
+     "v": ". "
+    },
+    {
+     "t": "code",
+     "v": "resource"
+    },
+    {
+     "t": "text",
+     "v": " names what the token is for ("
+    },
+    {
+     "t": "link",
+     "v": "RFC 8707",
+     "href": "https://www.rfc-editor.org/rfc/rfc8707.html",
+     "children": [
+      {
+       "t": "text",
+       "v": "RFC 8707"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ") — it is how a token minted here can never be valid anywhere else."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If the person has no account, they get one: our sign-in is a single email box that creates the account if there isn't one. They never have to visit the site first."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "The response",
+     "children": [
+      {
+       "t": "text",
+       "v": "The response"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " carries "
+    },
+    {
+     "t": "code",
+     "v": "code"
+    },
+    {
+     "t": "text",
+     "v": ", your "
+    },
+    {
+     "t": "code",
+     "v": "state"
+    },
+    {
+     "t": "text",
+     "v": ", and "
+    },
+    {
+     "t": "code",
+     "v": "iss"
+    },
+    {
+     "t": "text",
+     "v": ":"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": null,
+   "code": "https://shotplanner.example/callback?code=ac_…&state=…&iss=https://clusters.soleilpictures.com"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "iss"
+    },
+    {
+     "t": "text",
+     "v": " is "
+    },
+    {
+     "t": "link",
+     "v": "RFC 9207",
+     "href": "https://datatracker.ietf.org/doc/html/rfc9207",
+     "children": [
+      {
+       "t": "text",
+       "v": "RFC 9207"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and we always send it, including on errors. Compare it to the issuer you recorded from the metadata "
+    },
+    {
+     "t": "strong",
+     "v": "before",
+     "children": [
+      {
+       "t": "text",
+       "v": "before"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " you send the code anywhere. That single comparison is what defeats a mix-up between two authorization servers."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "The exchange:",
+     "children": [
+      {
+       "t": "text",
+       "v": "The exchange:"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST https://clusters.soleilpictures.com/oauth/token \\\n  -d grant_type=authorization_code \\\n  -d code=ac_… \\\n  -d redirect_uri=https://shotplanner.example/callback \\\n  -d client_id=soleil_a1b2… \\\n  -d code_verifier=<the original verifier>"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"access_token\": \"sk_mcp_…\", \"token_type\": \"Bearer\",\n  \"expires_in\": 3600, \"refresh_token\": \"rt_…\", \"scope\": \"read write\" }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The code is good for 120 seconds and is "
+    },
+    {
+     "t": "strong",
+     "v": "single-use",
+     "children": [
+      {
+       "t": "text",
+       "v": "single-use"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". It is bound to the client, the redirect URI and the PKCE challenge it was issued against, and all four are checked in the same statement that consumes it — so a code that leaks is worth nothing without the verifier, and a replay finds nothing."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Tokens",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tokens"
+    }
+   ],
+   "id": "tokens"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Access token",
+       "children": [
+        {
+         "t": "text",
+         "v": "Access token"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "60 minutes, sent as "
+      },
+      {
+       "t": "code",
+       "v": "Authorization: Bearer …"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Refresh token",
+       "children": [
+        {
+         "t": "text",
+         "v": "Refresh token"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Rotates on every use; valid 90 days from last use"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Scopes",
+       "children": [
+        {
+         "t": "text",
+         "v": "Scopes"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "delete"
+      },
+      {
+       "t": "text",
+       "v": " · "
+      },
+      {
+       "t": "code",
+       "v": "read"
+      },
+      {
+       "t": "text",
+       "v": " · "
+      },
+      {
+       "t": "code",
+       "v": "write"
+      },
+      {
+       "t": "text",
+       "v": " — the same three "
+      },
+      {
+       "t": "link",
+       "v": "scopes",
+       "href": "/docs/api/authentication",
+       "children": [
+        {
+         "t": "text",
+         "v": "scopes"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " a token has"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST https://clusters.soleilpictures.com/oauth/token \\\n  -d grant_type=refresh_token -d refresh_token=rt_… -d client_id=soleil_a1b2…"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Refresh tokens are "
+    },
+    {
+     "t": "strong",
+     "v": "single-use",
+     "children": [
+      {
+       "t": "text",
+       "v": "single-use"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": the old one is replaced in the same statement that claims it, so a replayed refresh finds nothing. Store the new one."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "delete"
+    },
+    {
+     "t": "text",
+     "v": " is never granted by default. Ask for it in "
+    },
+    {
+     "t": "code",
+     "v": "scope"
+    },
+    {
+     "t": "text",
+     "v": " only if the application genuinely needs to destroy things — the product's rule is that an assistant can be allowed to build without being allowed to destroy, and a default that quietly included "
+    },
+    {
+     "t": "code",
+     "v": "delete"
+    },
+    {
+     "t": "text",
+     "v": " would undo that for every connection."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "What the person sees",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What the person sees"
+    }
+   ],
+   "id": "what-the-person-sees"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "One screen: who is asking, what each scope means in plain words, and two buttons. Afterwards the connection appears under "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → API → Connected apps",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → API → Connected apps"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " with its scopes, when it was connected, and how many calls it has made."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Disconnecting revokes the access token in the same statement, so it stops working immediately rather than at its next expiry. Everything the app did is in the "
+    },
+    {
+     "t": "link",
+     "v": "audit log",
+     "href": "/docs/api/audit",
+     "children": [
+      {
+       "t": "text",
+       "v": "audit log"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", with the tool it used."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "At most 20 connected apps per account."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "What a token can reach",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What a token can reach"
+    }
+   ],
+   "id": "what-a-token-can-reach"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Exactly what the person can reach. An OAuth access token is resolved to their own database session, under ordinary row-level security, by the same code path a personal access token uses. There is no separate permission model to get wrong: if they cannot see a cluster, neither can anything they connect."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Errors",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Errors"
+    }
+   ],
+   "id": "errors"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Failures use the OAuth shape, so a client can branch on them:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"error\": \"invalid_grant\", \"error_description\": \"that authorization code is not valid\" }"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "invalid_client"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Unknown "
+      },
+      {
+       "t": "code",
+       "v": "client_id"
+      },
+      {
+       "t": "text",
+       "v": ", or a confidential client failed to authenticate"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "invalid_grant"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Code or refresh token expired, already used, or not yours"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "invalid_request"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A required parameter is missing or malformed"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "invalid_redirect_uri"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Registration was refused — see the shape rules above"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "invalid_target"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The "
+      },
+      {
+       "t": "code",
+       "v": "resource"
+      },
+      {
+       "t": "text",
+       "v": " named is not served here"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "unsupported_grant_type"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Only "
+      },
+      {
+       "t": "code",
+       "v": "authorization_code"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "refresh_token"
+      },
+      {
+       "t": "text",
+       "v": " exist"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A bad "
+    },
+    {
+     "t": "code",
+     "v": "redirect_uri"
+    },
+    {
+     "t": "text",
+     "v": " is "
+    },
+    {
+     "t": "strong",
+     "v": "never",
+     "children": [
+      {
+       "t": "text",
+       "v": "never"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " redirected to. If the URI is not one the client registered, the person sees an error page and nothing is sent anywhere — bouncing an error to an unverified address is the open redirect the check exists to prevent."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Revoking",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Revoking"
+    }
+   ],
+   "id": "revoking"
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST https://clusters.soleilpictures.com/oauth/revoke -d token=rt_… -d client_id=soleil_a1b2…"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Always answers "
+    },
+    {
+     "t": "code",
+     "v": "200"
+    },
+    {
+     "t": "text",
+     "v": ", even for a token that was never valid, per "
+    },
+    {
+     "t": "link",
+     "v": "RFC 7009",
+     "href": "https://datatracker.ietf.org/doc/html/rfc7009",
+     "children": [
+      {
+       "t": "text",
+       "v": "RFC 7009"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Saying \"no such token\" would turn the endpoint into a way to test whether a stolen string is live."
     }
    ]
   }
@@ -34219,22 +35489,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". It holds no credentials and implements no permissions of its own — it forwards your "
+     "v": ". It holds no credentials and implements no permissions of its own — it forwards whatever credential you connected with, so everything about the "
     },
     {
      "t": "link",
-     "v": "personal access token",
+     "v": "authorization model",
      "href": "/docs/api/authentication",
      "children": [
       {
        "t": "text",
-       "v": "personal access token"
+       "v": "authorization model"
       }
      ]
     },
     {
      "t": "text",
-     "v": ", so everything about the authorization model there applies here unchanged."
+     "v": " applies here unchanged. An OAuth access token and a personal access token resolve to the same thing: your own session, under ordinary row-level security."
     }
    ]
   },
@@ -34253,40 +35523,129 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 3,
-   "text": "Hosted — nothing to install",
+   "text": "Hosted — nothing to install, nothing to paste",
    "inline": [
     {
      "t": "text",
-     "v": "Hosted — nothing to install"
+     "v": "Hosted — nothing to install, nothing to paste"
     }
    ],
-   "id": "hosted-nothing-to-install"
+   "id": "hosted-nothing-to-install-nothing-to-paste"
   },
   {
    "type": "code",
    "lang": "json",
-   "code": "{\n  \"mcpServers\": {\n    \"soleil-clusters\": {\n      \"type\": \"http\",\n      \"url\": \"https://clusters.soleilpictures.com/api/v1/mcp\",\n      \"headers\": { \"Authorization\": \"Bearer undefined…\" }\n    }\n  }\n}"
+   "code": "{\n  \"mcpServers\": {\n    \"soleil-clusters\": {\n      \"type\": \"http\",\n      \"url\": \"https://clusters.soleilpictures.com/api/v1/mcp\"\n    }\n  }\n}"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Mint the token in the app under "
+     "v": "A URL. That is the whole setup."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The first call comes back "
     },
     {
-     "t": "strong",
-     "v": "Settings → API",
+     "t": "code",
+     "v": "401"
+    },
+    {
+     "t": "text",
+     "v": " with a pointer to our "
+    },
+    {
+     "t": "link",
+     "v": "OAuth",
+     "href": "/docs/api/oauth",
      "children": [
       {
        "t": "text",
-       "v": "Settings → API"
+       "v": "OAuth"
       }
      ]
     },
     {
      "t": "text",
-     "v": ", or create a "
+     "v": " metadata; the client registers itself, opens a browser, and you approve the connection on one screen. No token is ever copied, and if you do not have an account yet you get one on that screen — signing in is a single email box."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Afterwards the connection is listed under "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → API → Connected apps",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → API → Connected apps"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", where you can see what it has done and disconnect it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "If your client cannot do OAuth",
+     "children": [
+      {
+       "t": "text",
+       "v": "If your client cannot do OAuth"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", a "
+    },
+    {
+     "t": "link",
+     "v": "personal access token",
+     "href": "/docs/api/authentication",
+     "children": [
+      {
+       "t": "text",
+       "v": "personal access token"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " still works exactly as before:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "\"headers\": { \"Authorization\": \"Bearer undefined…\" }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "For a team rather than a person, use a "
     },
     {
      "t": "link",
@@ -34301,7 +35660,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " if this is for a team rather than for you. That is the whole setup."
+     "v": " — a credential that does not stop working when someone leaves."
     }
    ]
   },
@@ -39158,7 +40517,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "json",
-   "code": "{\n  \"entries\": [\n    { \"id\": \"80421\", \"at\": \"2026-08-09T12:00:04.120Z\",\n      \"actor\": \"Pipeline sync\", \"actor_id\": \"9f1c…\",\n      \"token_id\": \"a2c4…\", \"token_name\": \"Pipeline sync token\",\n      \"method\": \"POST\", \"route\": \"/boards/:id/cards\",\n      \"target_id\": \"3b7e…\", \"status\": 201, \"ms\": 214 }\n  ],\n  \"limit\": 100,\n  \"has_more\": true,\n  \"next_cursor\": \"80421\",\n  \"covers\": \"writes made through /api/v1 and reads of image bytes\"\n}"
+   "code": "{\n  \"entries\": [\n    { \"id\": \"80421\", \"at\": \"2026-08-09T12:00:04.120Z\",\n      \"actor\": \"Pipeline sync\", \"actor_id\": \"9f1c…\",\n      \"token_id\": \"a2c4…\", \"token_name\": \"Pipeline sync token\",\n      \"method\": \"POST\", \"route\": \"/boards/:id/cards\", \"tool\": null,\n      \"target_id\": \"3b7e…\", \"status\": 201, \"ms\": 214 },\n    { \"id\": \"80420\", \"at\": \"2026-08-09T11:59:58.004Z\",\n      \"actor\": \"Ana\", \"actor_id\": \"1d0b…\",\n      \"token_id\": \"77fe…\", \"token_name\": \"Claude Desktop\",\n      \"method\": \"POST\", \"route\": \"/mcp\", \"tool\": \"add_cards\",\n      \"target_id\": null, \"status\": 200, \"ms\": 331 }\n  ],\n  \"limit\": 100,\n  \"has_more\": true,\n  \"next_cursor\": \"80421\",\n  \"covers\": \"writes made through /api/v1 and reads of image bytes\"\n}"
   },
   {
    "type": "para",
@@ -39399,6 +40758,115 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": ". That way the log groups by operation and you can still see what each one touched."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "MCP calls",
+   "inline": [
+    {
+     "t": "text",
+     "v": "MCP calls"
+    }
+   ],
+   "id": "mcp-calls"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The whole "
+    },
+    {
+     "t": "link",
+     "v": "MCP",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "MCP"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " server is one route, "
+    },
+    {
+     "t": "code",
+     "v": "POST /mcp"
+    },
+    {
+     "t": "text",
+     "v": ", so the route alone would tell you nothing about what an assistant did. "
+    },
+    {
+     "t": "code",
+     "v": "tool"
+    },
+    {
+     "t": "text",
+     "v": " carries the name of the tool that ran — "
+    },
+    {
+     "t": "code",
+     "v": "add_cards"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "arrange_board"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "import_urls"
+    },
+    {
+     "t": "text",
+     "v": " — or the JSON-RPC method for calls that are not tool runs, such as "
+    },
+    {
+     "t": "code",
+     "v": "tools/list"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It is "
+    },
+    {
+     "t": "code",
+     "v": "null"
+    },
+    {
+     "t": "text",
+     "v": " for REST calls, which have a route instead, and "
+    },
+    {
+     "t": "code",
+     "v": "null"
+    },
+    {
+     "t": "text",
+     "v": " on MCP entries recorded before the field existed. That is deliberate: those rows genuinely do not know, and a guessed value would be worse than an empty one."
     }
    ]
   },

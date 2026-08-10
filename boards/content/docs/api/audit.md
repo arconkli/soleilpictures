@@ -5,11 +5,13 @@ h1: Audit log
 navLabel: Audit log
 section: developers
 order: 14
-updated: 2026-08-09
-answer: GET /audit returns a record of every write made through the API and every fetch of image bytes, newest first, cursor-paged. You see your own activity, and if you own a workspace you also see everything its service accounts did. Entries carry the actor, the token used, the method and templated route, the object touched, the status and the duration.
+updated: 2026-08-10
+answer: GET /audit returns a record of every write made through the API and every fetch of image bytes, newest first, cursor-paged. You see your own activity, and if you own a workspace you also see everything its service accounts did. Entries carry the actor, the token used, the method and templated route, the MCP tool where one was called, the object touched, the status and the duration.
 faq:
   - q: Does this cover changes made in the app?
     a: No. It records writes through /api/v1 and reads of image bytes. Edits someone makes on the canvas are not in it.
+  - q: Can I tell which MCP tool an assistant used?
+    a: Yes. MCP entries carry a tool field with the tool name, or the JSON-RPC method for calls that are not tool runs. It is null for REST calls, and null for MCP entries recorded before the field existed.
   - q: Whose activity can I see?
     a: Your own, plus every service account belonging to a workspace you own.
   - q: Why are ordinary reads not recorded?
@@ -32,8 +34,13 @@ curl "$SOLEIL_API/audit?limit=100" -H "Authorization: Bearer $SOLEIL_TOKEN"
     { "id": "80421", "at": "2026-08-09T12:00:04.120Z",
       "actor": "Pipeline sync", "actor_id": "9f1c…",
       "token_id": "a2c4…", "token_name": "Pipeline sync token",
-      "method": "POST", "route": "/boards/:id/cards",
-      "target_id": "3b7e…", "status": 201, "ms": 214 }
+      "method": "POST", "route": "/boards/:id/cards", "tool": null,
+      "target_id": "3b7e…", "status": 201, "ms": 214 },
+    { "id": "80420", "at": "2026-08-09T11:59:58.004Z",
+      "actor": "Ana", "actor_id": "1d0b…",
+      "token_id": "77fe…", "token_name": "Claude Desktop",
+      "method": "POST", "route": "/mcp", "tool": "add_cards",
+      "target_id": null, "status": 200, "ms": 331 }
   ],
   "limit": 100,
   "has_more": true,
@@ -62,6 +69,17 @@ about.
 `route` is the **templated** path — `/boards/:id/cards`, not the specific board
 — with the object in `target_id`. That way the log groups by operation and you
 can still see what each one touched.
+
+## MCP calls
+
+The whole [MCP](/docs/mcp) server is one route, `POST /mcp`, so the route alone
+would tell you nothing about what an assistant did. `tool` carries the name of
+the tool that ran — `add_cards`, `arrange_board`, `import_urls` — or the
+JSON-RPC method for calls that are not tool runs, such as `tools/list`.
+
+It is `null` for REST calls, which have a route instead, and `null` on MCP
+entries recorded before the field existed. That is deliberate: those rows
+genuinely do not know, and a guessed value would be worse than an empty one.
 
 ## Whose activity
 

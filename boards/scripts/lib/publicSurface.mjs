@@ -262,6 +262,44 @@ export function webhookEvents() {
   return expect(found, 4, 'webhook events', file).sort();
 }
 
+// ── OAuth 2.1 ───────────────────────────────────────────────────────────────
+// The authorization server's endpoints and its advertised capabilities.
+//
+// This needs its own extractor because restEndpoints() reads the `endpoints:`
+// array in worker-api.js, and none of OAuth lives there — it is a separate
+// router mounted ahead of /api/v1 in worker.js. Without this, adding or moving
+// a discovery document, changing which PKCE methods are supported, or dropping
+// dynamic client registration would all be invisible to the gate. That is the
+// exact failure WEBHOOK_EVENTS had before it got one.
+//
+// The metadata values are extracted rather than the endpoint list alone,
+// because a client's behaviour is driven by the metadata: `S256` disappearing
+// from code_challenge_methods_supported is a bigger public change than any
+// route rename.
+export function oauthEndpoints() {
+  const file = 'boards/src/worker-oauth.js';
+  const src = read(file);
+
+  // Every path this router answers on, from the branches themselves.
+  const paths = new Set();
+  for (const m of src.matchAll(/pathname === '(\/[^']+)'/g)) paths.add(m[1]);
+  for (const m of src.matchAll(/pathname\.startsWith\('(\/[^']+)'\)/g)) paths.add(`${m[1]}*`);
+
+  const capability = (key) => {
+    const m = src.match(new RegExp(`${key}:\\s*\\[([^\\]]*)\\]`));
+    return m ? [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]) : [];
+  };
+
+  const found = [
+    ...[...paths].map((p) => `route ${p}`),
+    ...capability('grant_types_supported').map((g) => `grant ${g}`),
+    ...capability('code_challenge_methods_supported').map((c) => `pkce ${c}`),
+    ...capability('token_endpoint_auth_methods_supported').map((a) => `client_auth ${a}`),
+    ...capability('response_types_supported').map((r) => `response_type ${r}`),
+  ];
+  return expect(found, 8, 'OAuth endpoints and capabilities', file).sort();
+}
+
 export function apiScopes() {
   const file = 'supabase/migrations/0220_api_scopes_usage_log.sql';
   const src = read(file);
@@ -344,9 +382,24 @@ export function apiFacts() {
     return Number(m[1]);
   };
 
-  const mintSql = read('supabase/migrations/0220_api_scopes_usage_log.sql');
-  const tokens = mintSql.match(/where user_id = auth\.uid\(\) and revoked_at is null\) >= (\d+)/);
-  if (!tokens) throw new Error('publicSurface: token cap not found in 0220_api_scopes_usage_log.sql');
+  // The token cap moved to 0224 when api_token_mint learned to stop counting
+  // OAuth-issued rows. Read from the version that runs — 0220's predicate is
+  // still in the tree and still says 20, so pointing at it would keep "passing"
+  // long after the two diverged. Same rule as the rate limit above.
+  const mintSql = read('supabase/migrations/0224_oauth_authorization_server.sql');
+  const tokens = mintSql.match(/revoked_at is null and oauth_client_id is null\) >= (\d+)/);
+  if (!tokens) throw new Error('publicSurface: token cap not found in 0224_oauth_authorization_server.sql');
+
+  const oauthSql = read('supabase/migrations/0224_oauth_authorization_server.sql');
+  const connections = oauthSql.match(/where user_id = auth\.uid\(\) and revoked_at is null\) >= (\d+)/);
+  if (!connections) throw new Error('publicSurface: connection cap not found in 0224');
+
+  const oauthSrc = read('boards/src/worker-oauth.js');
+  const oauthPick = (re, what) => {
+    const m = oauthSrc.match(re);
+    if (!m) throw new Error(`publicSurface: ${what} not found in worker-oauth.js`);
+    return Number(m[1]);
+  };
 
   return {
     maxCardsPerCall: Number(pick(/const MAX_CARDS_PER_CALL = (\d+)/, 'MAX_CARDS_PER_CALL')),
@@ -368,6 +421,11 @@ export function apiFacts() {
     maxPropsBytes: svcPick(/length\(p::text\) <= (\d+)/, 'props byte cap'),
     maxPropKeys: svcPick(/jsonb_object_keys\(p\)\) <= (\d+)/, 'props key cap'),
     maxTokensPerAccount: Number(tokens[1]),
+    oauthAccessTtlMinutes: oauthPick(/const ACCESS_TTL_SECONDS = (\d+)/, 'ACCESS_TTL_SECONDS') / 60,
+    oauthRefreshDays: oauthPick(/const REFRESH_TTL_DAYS = (\d+)/, 'REFRESH_TTL_DAYS'),
+    oauthCodeTtlSeconds: oauthPick(/const CODE_TTL_SECONDS = (\d+)/, 'CODE_TTL_SECONDS'),
+    oauthMaxRedirectUris: oauthPick(/const MAX_REDIRECT_URIS = (\d+)/, 'MAX_REDIRECT_URIS'),
+    maxConnectedApps: Number(connections[1]),
   };
 }
 
@@ -383,6 +441,7 @@ export function publicSurface() {
     mcpTools: mcpTools(),
     mcpPrompts: mcpPrompts(),
     mcpProtocol: mcpProtocol(),
+    oauthEndpoints: oauthEndpoints(),
     layoutAlgorithms: layoutAlgorithms(),
     apiCardKinds: apiCardKinds(),
     apiScopes: apiScopes(),

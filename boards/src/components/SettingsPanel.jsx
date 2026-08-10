@@ -882,6 +882,76 @@ function scopeLabel(scopes) {
   return 'read only';
 }
 
+// Apps connected through OAuth (migration 0224 / worker-oauth.js).
+//
+// Kept separate from the token list above on purpose. A personal access token
+// is something a person deliberately made and must be shown their own list of;
+// a connection is something they APPROVED for an application, and listing its
+// access token as "a token you created" would be a lie they cannot act on.
+// api_token_list excludes them for the same reason.
+//
+// This section is the other half of consent. A connection you can grant but
+// cannot see or end is not consent — so it ships with the flow, not after it.
+function ConnectedApps({ user, feedback }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    const { data, error } = await supabase.rpc('oauth_connections_list');
+    if (!error) setRows(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [user?.id]);
+
+  const disconnect = async (row) => {
+    const ok = await feedback.confirm({
+      title: `Disconnect ${row.client_name}?`,
+      message: 'It stops being able to reach your clusters immediately. '
+        + 'Anything it already created stays where it is. You can connect it again later.',
+      confirmLabel: 'Disconnect',
+      danger: true,
+    });
+    if (!ok) return;
+    const { error } = await supabase.rpc('oauth_connection_revoke', { p_id: row.id });
+    if (error) {
+      feedback.toast({ type: 'error', message: 'Could not disconnect that app.' });
+      return;
+    }
+    feedback.toast({ type: 'success', message: `Disconnected ${row.client_name}.` });
+    load();
+  };
+
+  // Nothing connected is the ordinary case and does not deserve a heading — it
+  // would read as a feature that is broken rather than one not yet used.
+  if (loading || !rows.length) return null;
+
+  return (
+    <>
+      <div className="settings-billing-label" style={{ marginTop: 22 }}>Connected apps</div>
+      <div style={{ marginTop: 8 }}>
+        {rows.map((r) => (
+          <div key={r.id} className="api-token-item">
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 500 }}>{r.client_name}</div>
+              <div className="api-token-meta">
+                {scopeLabel(r.scope)}
+                {' · '}connected {new Date(r.created_at).toLocaleDateString()}
+                {r.last_used_at
+                  ? ` · last used ${new Date(r.last_used_at).toLocaleDateString()}`
+                  : ' · never used'}
+                {r.calls > 0 && ` · ${r.calls} call${r.calls === 1 ? '' : 's'}`}
+              </div>
+            </div>
+            <button type="button" className="settings-btn" onClick={() => disconnect(r)}>
+              Disconnect
+            </button>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 function ApiTab({ user }) {
   const feedback = useFeedback();
   const [tokens, setTokens] = useState([]);
@@ -956,6 +1026,14 @@ function ApiTab({ user }) {
         Drive your boards from your own software, or connect an AI assistant.
         {' '}A token acts as you — it can reach exactly what you can reach, and
         {' '}nothing more.
+      </p>
+      <p className="settings-section-hint">
+        {/* Said first because for most people it is the right answer and it
+            skips this entire screen. A token is for your own scripts. */}
+        <b>Connecting an AI assistant?</b> You probably do not need a token — point it at{' '}
+        <code>{typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/mcp</code>
+        {' '}and approve it in the browser. See the{' '}
+        <a href="/docs/mcp" target="_blank" rel="noreferrer noopener">MCP setup</a>.
       </p>
 
       {fresh?.token && (
@@ -1040,6 +1118,8 @@ function ApiTab({ user }) {
           ))}
         </div>
       )}
+
+      <ConnectedApps user={user} feedback={feedback} />
 
       <p className="settings-section-hint" style={{ marginTop: 18 }}>
         Base URL <code>/api/v1</code>, sent as <code>Authorization: Bearer …</code>.

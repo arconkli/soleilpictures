@@ -2728,12 +2728,16 @@ export const DOCS_PAGES = [
     "title": "API Authentication and Tokens — Soleil Clusters",
     "metaDescription": "Mint, scope and revoke Soleil Clusters personal access tokens. How bearer auth works, why a token acts as you, and how to keep one safe.",
     "h1": "Authentication",
-    "answer": "Create a personal access token under Settings then API and send it as a bearer token. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you, reaches only what your account reaches, and revoking one takes effect immediately.",
+    "answer": "Two ways in. For your own scripts, create a personal access token under Settings then API and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.",
     "section": "developers",
     "order": 2,
-    "updated": "2026-08-08",
+    "updated": "2026-08-10",
     "navLabel": "Authentication",
     "headings": [
+      {
+        "id": "which-one-do-you-want",
+        "text": "Which one do you want"
+      },
       {
         "id": "minting-a-token",
         "text": "Minting a token"
@@ -2777,6 +2781,7 @@ export const DOCS_PAGES = [
     ],
     "related": [
       "/docs/api",
+      "/docs/api/oauth",
       "/docs/api/errors",
       "/docs/account/settings"
     ],
@@ -2872,6 +2877,78 @@ export const DOCS_PAGES = [
       {
         "q": "Can I undo a delete?",
         "a": "Yes. DELETE is a soft delete and POST /boards/:id/restore puts it back."
+      }
+    ]
+  },
+  {
+    "path": "/docs/api/oauth",
+    "title": "Connect an App with OAuth — Soleil Clusters API",
+    "metaDescription": "Soleil Clusters is an OAuth 2.1 authorization server — open client registration, PKCE and RFC 9728 discovery, so an MCP client connects with no token to paste.",
+    "h1": "Connecting an app (OAuth)",
+    "answer": "Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, client registration is dynamic and open, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then API.",
+    "section": "developers",
+    "order": 3,
+    "updated": "2026-08-10",
+    "navLabel": "OAuth",
+    "headings": [
+      {
+        "id": "discovery",
+        "text": "Discovery"
+      },
+      {
+        "id": "registering",
+        "text": "Registering"
+      },
+      {
+        "id": "the-flow",
+        "text": "The flow"
+      },
+      {
+        "id": "tokens",
+        "text": "Tokens"
+      },
+      {
+        "id": "what-the-person-sees",
+        "text": "What the person sees"
+      },
+      {
+        "id": "what-a-token-can-reach",
+        "text": "What a token can reach"
+      },
+      {
+        "id": "errors",
+        "text": "Errors"
+      },
+      {
+        "id": "revoking",
+        "text": "Revoking"
+      }
+    ],
+    "related": [
+      "/docs/mcp",
+      "/docs/api/authentication",
+      "/docs/api/audit"
+    ],
+    "faq": [
+      {
+        "q": "Do I need to register an application first?",
+        "a": "No. Registration is dynamic and open — POST your client metadata to /oauth/register and you get a client_id back immediately. There is no review queue and no key to request."
+      },
+      {
+        "q": "Is PKCE required?",
+        "a": "Yes, with S256. The plain method is not supported at all, because OAuth 2.1 removes it."
+      },
+      {
+        "q": "How long do tokens last?",
+        "a": "An access token lasts 60 minutes. The refresh token rotates on every use and is good for 90 days from its last use."
+      },
+      {
+        "q": "What happens if someone disconnects the app?",
+        "a": "The access token is revoked in the same statement, so it stops working immediately rather than at its next expiry."
+      },
+      {
+        "q": "Can I still use a personal access token instead?",
+        "a": "Yes. Nothing about tokens has changed. OAuth is for applications that other people connect; a token is for your own scripts."
       }
     ]
   },
@@ -3288,10 +3365,10 @@ export const DOCS_PAGES = [
     "title": "MCP Server — Soleil Clusters for AI Agents",
     "metaDescription": "Connect Claude or any MCP client to Soleil Clusters — hosted over a URL, or run locally. Tools for reading, building, importing and exporting boards.",
     "h1": "MCP server",
-    "answer": "Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Connect to the hosted one with a URL and a personal access token, or run it locally with npx for tools that need your filesystem. Either way it holds no credentials of its own and forwards your token, so an agent reaches exactly what your account reaches and no more.",
+    "answer": "Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.",
     "section": "developers",
     "order": 10,
-    "updated": "2026-08-09",
+    "updated": "2026-08-10",
     "navLabel": "MCP",
     "headings": [
       {
@@ -3333,13 +3410,22 @@ export const DOCS_PAGES = [
     ],
     "related": [
       "/docs/api",
+      "/docs/api/oauth",
       "/docs/api/authentication",
       "/docs/api/metadata"
     ],
     "faq": [
       {
         "q": "Do I have to install anything?",
-        "a": "No. Point an MCP client at https://clusters.soleilpictures.com/api/v1/mcp with your token. Running it locally is only needed for uploading files from your own machine."
+        "a": "No. Point an MCP client at https://clusters.soleilpictures.com/api/v1/mcp. It discovers the sign-in flow on its own and opens a browser; you approve once. Running it locally is only needed for uploading files from your own machine."
+      },
+      {
+        "q": "Do I need an account before connecting?",
+        "a": "No. Sign-in is a single email box that creates the account if there isn't one, so you can go from Connect to a working assistant without visiting the site first."
+      },
+      {
+        "q": "Do I still need a personal access token?",
+        "a": "Only for a client that cannot do OAuth, or for your own scripts. Assistants that speak current MCP handle it themselves."
       },
       {
         "q": "Does the MCP server have its own permissions?",
@@ -3556,15 +3642,19 @@ export const DOCS_PAGES = [
     "title": "Audit Log — Soleil Clusters API",
     "metaDescription": "Read who changed what through the API, and who fetched image bytes, with cursor paging. Covers your own calls and your service accounts'.",
     "h1": "Audit log",
-    "answer": "GET /audit returns a record of every write made through the API and every fetch of image bytes, newest first, cursor-paged. You see your own activity, and if you own a workspace you also see everything its service accounts did. Entries carry the actor, the token used, the method and templated route, the object touched, the status and the duration.",
+    "answer": "GET /audit returns a record of every write made through the API and every fetch of image bytes, newest first, cursor-paged. You see your own activity, and if you own a workspace you also see everything its service accounts did. Entries carry the actor, the token used, the method and templated route, the MCP tool where one was called, the object touched, the status and the duration.",
     "section": "developers",
     "order": 14,
-    "updated": "2026-08-09",
+    "updated": "2026-08-10",
     "navLabel": "Audit log",
     "headings": [
       {
         "id": "what-is-in-it",
         "text": "What is in it"
+      },
+      {
+        "id": "mcp-calls",
+        "text": "MCP calls"
       },
       {
         "id": "whose-activity",
@@ -3584,6 +3674,10 @@ export const DOCS_PAGES = [
       {
         "q": "Does this cover changes made in the app?",
         "a": "No. It records writes through /api/v1 and reads of image bytes. Edits someone makes on the canvas are not in it."
+      },
+      {
+        "q": "Can I tell which MCP tool an assistant used?",
+        "a": "Yes. MCP entries carry a tool field with the tool name, or the JSON-RPC method for calls that are not tool runs. It is null for REST calls, and null for MCP entries recorded before the field existed."
       },
       {
         "q": "Whose activity can I see?",
