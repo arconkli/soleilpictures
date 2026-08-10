@@ -140,8 +140,22 @@ const WORKER_API = readFileSync(join(HERE, '..', 'src', 'worker-api.js'), 'utf8'
 
 // The `endpoints:` array in the index route, as the strings it actually ships.
 function indexEndpoints() {
-  const block = WORKER_API.match(/endpoints:\s*\[([\s\S]*?)\]/);
-  return [...block[1].matchAll(/'([A-Z]+)\s+([^']+)'/g)]
+  // A BALANCED scan, not a non-greedy regex. The list now carries example
+  // payloads — {"board_ids":[…]}, {"items":[{"url":…}]} — whose own brackets
+  // ended /[\s\S]*?\]/ at the first `]` it met, truncating the block mid-array
+  // so every endpoint after that line simply vanished. The comparison was then
+  // between the whole OpenAPI document and half an index.
+  const start = WORKER_API.indexOf('[', WORKER_API.indexOf('endpoints: ['));
+  let depth = 0;
+  let end = start;
+  for (let i = start; i < WORKER_API.length; i++) {
+    if (WORKER_API[i] === '[') depth++;
+    else if (WORKER_API[i] === ']' && --depth === 0) { end = i; break; }
+  }
+  const block = WORKER_API.slice(start + 1, end);
+  // The path stops at whitespace: everything after it is an example payload or
+  // a prose note, not part of the route.
+  return [...block.matchAll(/'([A-Z]+)\s+(\/[^'\s]*)/g)]
     .map(([, method, path]) => `${method} ${path.split('?')[0]}`);
 }
 
