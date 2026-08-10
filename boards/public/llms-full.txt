@@ -3096,7 +3096,7 @@ A: Export boards and documents, download original files, or read everything prog
 ========================================================================
 # The REST API
 URL: https://clusters.soleilpictures.com/docs/api
-Updated: 2026-08-08
+Updated: 2026-08-10
 
 The Soleil Clusters REST API lives at /api/v1 and is authenticated with a personal access token sent as a bearer token. A token acts as you — every call runs under exactly the permissions your account has in the app. Responses are JSON, errors carry both a machine-readable code and a human sentence, list endpoints paginate, and a full OpenAPI description is published at /api/v1/openapi.json.
 
@@ -3136,6 +3136,10 @@ GET /images/:key | Read an image back
 GET /resolve | Find an object by a foreign identifier
 GET /boards/tree | A whole board hierarchy in one call
 GET /boards/:id/export | Export a board, as JSON or MovieLabs OMC
+POST /boards/:id/import | Import from URLs — safe to re-run
+POST /boards/:id/arrange | Lay a board out — justified, masonry, grid
+GET /boards/:id/groups | The groups on a board
+POST /boards/:id/groups | Say a set of cards belongs together
 PATCH /boards/:id/cards | Change many cards in one call
 DELETE /boards/:id/cards | Remove many cards in one call
 POST /boards/move | Reparent many boards, cycle-safe
@@ -3695,7 +3699,7 @@ A: Yes. DELETE is a soft delete and POST /boards/:id/restore puts it back.
 ========================================================================
 # Cards API
 URL: https://clusters.soleilpictures.com/docs/api/cards
-Updated: 2026-08-08
+Updated: 2026-08-10
 
 Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Six card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
 
@@ -3756,6 +3760,11 @@ color | string | 40 chars
 props, identifiers | see Identifiers and properties | 
 x, y | number | rounded; omit for auto-placement
 w, h | number | clamped to 40–4000; default 280 × 180
+z | number | stacking; higher is in front, fractional is fine
+rotation | number | degrees, wrapped to −180…180
+group_id | string | a group from POST /boards/:id/groups
+section_header | boolean | render as a full-width heading
+sub | string | 300 chars — the line under a section heading
 
 Anything else in the payload is ignored. A client-supplied id is ignored — the server generates one.
 
@@ -3807,6 +3816,10 @@ Either shape works:
 Up to 1000 cards per call; more gets 400.
 
 Auto-placement. Cards without x/y are placed in free space, so a batch cannot land on top of existing content. Pass both to place one yourself.
+
+Laying cards out
+
+Pass layout — justified, masonry, grid, row or column — to arrange the whole batch as it lands instead of appending it in free space, and use POST /boards/:id/arrange to lay out cards that already exist. A named layout arranges everything you sent, including cards that carried their own x and y.
 
 Pass coordinates when you are importing
 
@@ -4081,7 +4094,7 @@ A: The board owner's, exactly as in the app. Going past it returns 402.
 ========================================================================
 # Import
 URL: https://clusters.soleilpictures.com/docs/api/import
-Updated: 2026-08-09
+Updated: 2026-08-10
 
 POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.
 
@@ -4146,6 +4159,10 @@ curl -X POST https://clusters.soleilpictures.com/api/v1/boards/$BOARD/import \
   -d '{ "items": [ … ], "dry_run": true }'
 
 Validates every URL and creates nothing. Worth doing before pointing a hundred-item manifest at a board.
+
+How it is laid out
+
+Imported cards are arranged as justified rows by default — equal-height rows at each picture's true aspect ratio, flush on both edges. Pass layout to choose another, or re-run POST /boards/:id/arrange afterwards to try a different one.
 
 Positioning and metadata
 

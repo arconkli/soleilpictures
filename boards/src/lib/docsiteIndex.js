@@ -2603,7 +2603,7 @@ export const DOCS_PAGES = [
     "answer": "The Soleil Clusters REST API lives at /api/v1 and is authenticated with a personal access token sent as a bearer token. A token acts as you — every call runs under exactly the permissions your account has in the app. Responses are JSON, errors carry both a machine-readable code and a human sentence, list endpoints paginate, and a full OpenAPI description is published at /api/v1/openapi.json.",
     "section": "developers",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-08-10",
     "navLabel": "API overview",
     "headings": [
       {
@@ -2883,7 +2883,7 @@ export const DOCS_PAGES = [
     "answer": "Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Six card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.",
     "section": "developers",
     "order": 4,
-    "updated": "2026-08-08",
+    "updated": "2026-08-10",
     "navLabel": "Cards",
     "headings": [
       {
@@ -2905,6 +2905,10 @@ export const DOCS_PAGES = [
       {
         "id": "post-boards-id-cards",
         "text": "POST /boards/:id/cards"
+      },
+      {
+        "id": "pass-coordinates-when-you-are-importing",
+        "text": "Pass coordinates when you are importing"
       },
       {
         "id": "patch-boards-id-cards-many-at-once",
@@ -3035,7 +3039,7 @@ export const DOCS_PAGES = [
     "answer": "POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.",
     "section": "developers",
     "order": 6,
-    "updated": "2026-08-09",
+    "updated": "2026-08-10",
     "navLabel": "Import",
     "headings": [
       {
@@ -3053,6 +3057,10 @@ export const DOCS_PAGES = [
       {
         "id": "checking-a-list-first",
         "text": "Checking a list first"
+      },
+      {
+        "id": "how-it-is-laid-out",
+        "text": "How it is laid out"
       },
       {
         "id": "positioning-and-metadata",

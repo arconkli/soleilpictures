@@ -24092,6 +24092,99 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "POST /boards/:id/import"
+      }
+     ],
+     [
+      {
+       "t": "link",
+       "v": "Import",
+       "href": "/docs/api/import",
+       "children": [
+        {
+         "t": "text",
+         "v": "Import"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " from URLs — safe to re-run"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /boards/:id/arrange"
+      }
+     ],
+     [
+      {
+       "t": "link",
+       "v": "Lay a board out",
+       "href": "/docs/api/arrange",
+       "children": [
+        {
+         "t": "text",
+         "v": "Lay a board out"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " — justified, masonry, grid"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET /boards/:id/groups"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The "
+      },
+      {
+       "t": "link",
+       "v": "groups",
+       "href": "/docs/api/arrange",
+       "children": [
+        {
+         "t": "text",
+         "v": "groups"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " on a board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /boards/:id/groups"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Say a set of cards belongs together"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "PATCH /boards/:id/cards"
       }
      ],
@@ -28596,6 +28689,117 @@ export const DOCS_CONTENT = {
        "v": "clamped to 40–4000; default 280 × 180"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "z"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "number"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "stacking; higher is in front, fractional is fine"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "rotation"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "number"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "degrees, wrapped to −180…180"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "group_id"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "string"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "a group from "
+      },
+      {
+       "t": "link",
+       "v": "`POST /boards/:id/groups`",
+       "href": "/docs/api/arrange",
+       "children": [
+        {
+         "t": "code",
+         "v": "POST /boards/:id/groups"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "section_header"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "boolean"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "render as a full-width heading"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "sub"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "string"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "300 chars — the line under a section heading"
+      }
+     ]
     ]
    ]
   },
@@ -29119,6 +29323,106 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 3,
+   "text": "Laying cards out",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Laying cards out"
+    }
+   ],
+   "id": "laying-cards-out"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pass "
+    },
+    {
+     "t": "code",
+     "v": "layout"
+    },
+    {
+     "t": "text",
+     "v": " — "
+    },
+    {
+     "t": "code",
+     "v": "justified"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "masonry"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "grid"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "row"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "column"
+    },
+    {
+     "t": "text",
+     "v": " — to arrange the whole batch as it lands instead of appending it in free space, and use "
+    },
+    {
+     "t": "link",
+     "v": "`POST /boards/:id/arrange`",
+     "href": "/docs/api/arrange",
+     "children": [
+      {
+       "t": "code",
+       "v": "POST /boards/:id/arrange"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to lay out cards that already exist. A named layout arranges everything you sent, including cards that carried their own "
+    },
+    {
+     "t": "code",
+     "v": "x"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "y"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Pass coordinates when you are importing",
    "inline": [
     {
@@ -31246,6 +31550,64 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Validates every URL and creates nothing. Worth doing before pointing a hundred-item manifest at a board."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "How it is laid out",
+   "inline": [
+    {
+     "t": "text",
+     "v": "How it is laid out"
+    }
+   ],
+   "id": "how-it-is-laid-out"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Imported cards are arranged as "
+    },
+    {
+     "t": "strong",
+     "v": "justified rows",
+     "children": [
+      {
+       "t": "text",
+       "v": "justified rows"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " by default — equal-height rows at each picture's true aspect ratio, flush on both edges. Pass "
+    },
+    {
+     "t": "code",
+     "v": "layout"
+    },
+    {
+     "t": "text",
+     "v": " to choose another, or re-run "
+    },
+    {
+     "t": "link",
+     "v": "`POST /boards/:id/arrange`",
+     "href": "/docs/api/arrange",
+     "children": [
+      {
+       "t": "code",
+       "v": "POST /boards/:id/arrange"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " afterwards to try a different one."
     }
    ]
   },

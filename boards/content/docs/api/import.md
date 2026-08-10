@@ -5,7 +5,7 @@ h1: Import
 navLabel: Import
 section: developers
 order: 6
-updated: 2026-08-09
+updated: 2026-08-10
 answer: POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.
 faq:
   - q: What happens if I run the same import twice?
@@ -109,6 +109,13 @@ curl -X POST {{fact:siteOrigin}}/api/v1/boards/$BOARD/import \
 
 Validates every URL and creates nothing. Worth doing before pointing a
 hundred-item manifest at a board.
+
+## How it is laid out
+
+Imported cards are arranged as **justified rows** by default — equal-height
+rows at each picture's true aspect ratio, flush on both edges. Pass `layout`
+to choose another, or re-run [`POST /boards/:id/arrange`](/docs/api/arrange)
+afterwards to try a different one.
 
 ## Positioning and metadata
 

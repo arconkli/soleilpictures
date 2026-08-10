@@ -2,7 +2,7 @@
 
 > Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Six card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
 
-_Source: https://clusters.soleilpictures.com/docs/api/cards · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/api/cards · Updated 2026-08-10_
 
 ## The card object
 
@@ -74,6 +74,11 @@ here, and `?include=raw` gives you their full contents.
 | `props`, `identifiers` | see [Identifiers and properties](/docs/api/metadata) | |
 | `x`, `y` | number | rounded; omit for auto-placement |
 | `w`, `h` | number | clamped to 40–4000; default 280 × 180 |
+| `z` | number | stacking; higher is in front, fractional is fine |
+| `rotation` | number | degrees, wrapped to −180…180 |
+| `group_id` | string | a group from [`POST /boards/:id/groups`](/docs/api/arrange) |
+| `section_header` | boolean | render as a full-width heading |
+| `sub` | string | 300 chars — the line under a section heading |
 
 Anything else in the payload is ignored. A client-supplied `id` is ignored — the
 server generates one.
@@ -153,7 +158,15 @@ Up to **1000** cards per call; more gets `400`.
 **Auto-placement.** Cards without `x`/`y` are placed in free space, so a batch
 cannot land on top of existing content. Pass both to place one yourself.
 
-### Pass coordinates when you are importing
+### Laying cards out
+
+Pass `layout` — `justified`, `masonry`, `grid`, `row` or `column` — to arrange
+the whole batch as it lands instead of appending it in free space, and use
+[`POST /boards/:id/arrange`](/docs/api/arrange) to lay out cards that already
+exist. A named layout arranges everything you sent, including cards that
+carried their own `x` and `y`.
+
+## Pass coordinates when you are importing
 
 Placing cards for you means reading the whole board first, to know what to place
 them around. That is the right default — but it means the call costs more the

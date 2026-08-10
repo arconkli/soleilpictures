@@ -5,7 +5,7 @@ h1: The REST API
 navLabel: API overview
 section: developers
 order: 0
-updated: 2026-08-08
+updated: 2026-08-10
 answer: The Soleil Clusters REST API lives at /api/v1 and is authenticated with a personal access token sent as a bearer token. A token acts as you — every call runs under exactly the permissions your account has in the app. Responses are JSON, errors carry both a machine-readable code and a human sentence, list endpoints paginate, and a full OpenAPI description is published at /api/v1/openapi.json.
 faq:
   - q: What can the API do?
@@ -66,6 +66,10 @@ permissions to drift out of step with app permissions.
 | `GET /resolve` | Find an object by a [foreign identifier](/docs/api/metadata) |
 | `GET /boards/tree` | A whole [board hierarchy](/docs/api/boards) in one call |
 | `GET /boards/:id/export` | [Export](/docs/api/export) a board, as JSON or MovieLabs OMC |
+| `POST /boards/:id/import` | [Import](/docs/api/import) from URLs — safe to re-run |
+| `POST /boards/:id/arrange` | [Lay a board out](/docs/api/arrange) — justified, masonry, grid |
+| `GET /boards/:id/groups` | The [groups](/docs/api/arrange) on a board |
+| `POST /boards/:id/groups` | Say a set of cards belongs together |
 | `PATCH /boards/:id/cards` | Change many cards in one call |
 | `DELETE /boards/:id/cards` | Remove many cards in one call |
 | `POST /boards/move` | Reparent many boards, cycle-safe |
