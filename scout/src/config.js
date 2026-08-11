@@ -44,7 +44,25 @@ export function loadConfig() {
     BURST_MS: Number(process.env.SCOUT_BURST_MS || 20_000),
 
     // Per-identity daily ceiling. Independent of the card cap — this is abuse
-    // protection, not monetization.
+    // protection, not monetization. The card cap stops a FREE account at 100;
+    // it does not bound a paid one at all, and a texting endpoint with no
+    // ceiling is an unbounded R2 bill. Enforced in the capacity pre-flight.
     DAILY_INGEST_MAX: Number(process.env.SCOUT_DAILY_INGEST_MAX || 500),
+
+    // The invite drain — the ONLY part of this process that texts a stranger
+    // rather than answering someone who texted first.
+    //
+    // It is a kill switch because of how it is normally exercised: the way you
+    // test Scout is to run this process on a laptop against the live Photon
+    // line. Without a switch that also drains the real signup queue and texts
+    // real people from a development machine, which is not a mistake you get to
+    // make twice — Photon documents burst sending as a cause of line flagging,
+    // and Scout has exactly one line.
+    //
+    // Defaults ON so the deployed machine behaves as before; local runs set
+    // SCOUT_INVITES_ENABLED=0. Anything other than "0"/"false" is on, so a typo
+    // fails toward the deployed behaviour rather than silently disabling the
+    // queue in production.
+    INVITES_ENABLED: !/^(0|false|no|off)$/i.test(String(process.env.SCOUT_INVITES_ENABLED ?? '1')),
   };
 }

@@ -47,7 +47,11 @@ async function syntheticEmail(platform, handle) {
 // Create a board the same way the app does: client-generated UUID + a seeded
 // empty snapshot. The UUID is generated here on purpose — see the comment at
 // boardsApi.js:684 for why INSERT…RETURNING trips the recursive SELECT policy.
-async function createBoard(env, { workspaceId, name, userId }) {
+// Exported since Scout can now create a board from a text message ("put these
+// in Diner Recce" for a board that does not exist yet). It is the same three
+// writes the Bin has always been made with, so there is one definition of what
+// a Scout-created board is.
+export async function createBoard(env, { workspaceId, name, userId }) {
   const id = crypto.randomUUID();
   await scoutInsert(env, 'boards', [{
     id,
@@ -159,6 +163,9 @@ export async function resolveOrCreateIdentity(env, { platform, handle, threadKey
       pendingMoveAt: hit.pending_move_at || null,
       lastMove: hit.last_move || null,
       lastMoveAt: hit.last_move_at || null,
+      // They asked us to stop. The caller checks this before doing anything
+      // with what they sent — see the opt-out branch in pipeline.js.
+      optedOutAt: hit.opted_out_at || null,
     };
   }
 
@@ -187,6 +194,7 @@ export async function resolveOrCreateIdentity(env, { platform, handle, threadKey
     userId, email, workspaceId, boardId, binBoardId: boardId,
     isNew: true, isShell: true, capWarnedAt: null,
     pendingMove: null, pendingMoveAt: null, lastMove: null, lastMoveAt: null,
+    optedOutAt: null,
   };
 }
 

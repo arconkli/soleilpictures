@@ -14,22 +14,27 @@
 // never sees a card appear and then vanish.
 
 import {
-  resolveOrCreateIdentity, ensureScoutBin, normalizeHandle, resolveEmail, SCOUT_BIN_NAME,
+  resolveOrCreateIdentity, ensureScoutBin, createBoard, normalizeHandle, resolveEmail,
+  SCOUT_BIN_NAME,
 } from '../../boards/src/lib/scoutIdentity.js';
 import {
-  parseConfirmation, wantsEverything, isBinQuery,
+  parseConfirmation, wantsEverything, isBinQuery, parseStopIntent, parseFindIntent,
+  isDeleteIntent, isCreateConfirmation,
   prepareMove, executeMove, undoMove, describeBin, PENDING_TTL_MS,
 } from './filing.js';
-import { extractIntent, parseCommand } from '../../boards/src/lib/scoutIntent.js';
+import { extractIntent, parseCommand, parseFileIntent } from '../../boards/src/lib/scoutIntent.js';
 import {
-  composeBatch, extractUrls, textWithoutUrls, arrangeExisting,
+  extractUrls, textWithoutUrls, arrangeExisting,
 } from '../../boards/src/lib/scoutCards.js';
 import {
   addCardsToBoard, boardCapacity, moveCardsBetweenBoards, readBoardCards,
+  deleteCardsFromBoard,
 } from '../../boards/src/lib/scoutBoard.js';
+import { groupIntoRuns, currentRun, countable } from '../../boards/src/lib/scoutRuns.js';
 import { scoutRpc, scoutSelect, scoutSession } from '../../boards/src/lib/scoutDb.js';
 import { mintScoutSessionToken } from '../../boards/src/worker-scout.js';
-import { uploadImage, isImage } from './media.js';
+import { isImage } from './media.js';
+import { ingestBurst, overDailyLimit } from './ingest.js';
 import * as say from './replies.js';
 import { STAGES } from './progress.js';
 import {
@@ -188,10 +193,231 @@ async function linkTo(cfg, ctx, hit) {
   }
 }
 
+// ── Pending proposals ────────────────────────────────────────────────────────
+//
+// scout_set_pending_move (0209) stores an arbitrary jsonb payload, so the
+// "propose, then act on the answer" mechanism built for moves carries the two
+// other irreversible-ish things Scout can now do without any new state. Each
+// payload names its own `kind`, and each answers to a DIFFERENT word — CREATE
+// makes a board, YES deletes — so a stray confirmation can never trigger the
+// wrong one.
+
+function clearPending(cfg, ctx) {
+  return scoutRpc(cfg, 'scout_set_pending_move', {
+    p_user_id: ctx.userId, p_platform: ctx.platform,
+    p_thread_key: ctx.threadKey, p_payload: null,
+  }).catch(() => {});
+}
+
+function setPending(cfg, ctx, payload) {
+  return scoutRpc(cfg, 'scout_set_pending_move', {
+    p_user_id: ctx.userId, p_platform: ctx.platform,
+    p_thread_key: ctx.threadKey, p_payload: payload,
+  }).catch(() => {});
+}
+
+// ── Creating a board by text ─────────────────────────────────────────────────
+//
+// Scout could name a board and could not make one, so "put these in Diner
+// Recce" for a board that did not exist yet was a dead end — and the very first
+// thing anybody tries is the board they have in their head, not the one already
+// on their canvas. say.boardSwitched({ created: true }) has existed since the
+// beginning with nothing able to reach it.
+async function offerBoardCreate(cfg, ctx, name) {
+  const clean = String(name || '').trim().slice(0, 48);
+  if (!clean) return say.boardNotFound('');
+  await setPending(cfg, ctx, { kind: 'create_board', board_name: clean });
+  return say.boardCreateOffer(clean);
+}
+
+async function createAndTarget(cfg, ctx, name) {
+  await clearPending(cfg, ctx);
+  try {
+    // The Bin's workspace, resolved the same way every other Scout write does —
+    // a board minted anywhere else would not be one this thread can write to.
+    const bin = await ensureScoutBin(cfg, ctx.userId, { binBoardId: ctx.binBoardId });
+    const boardId = await createBoard(cfg, {
+      workspaceId: bin.workspaceId, name, userId: ctx.userId,
+    });
+    // Point the thread at it, through the same predicate-checked RPC /board
+    // uses — so a board we just made and a board we are allowed to target
+    // cannot disagree.
+    await scoutRpc(cfg, 'scout_set_target_board', {
+      p_user_id: ctx.userId, p_platform: ctx.platform,
+      p_thread_key: ctx.threadKey, p_board_id: boardId,
+    });
+    return say.boardCreated({
+      boardName: name,
+      url: await boardUrl(cfg, {
+        boardId, cardIds: [], isShell: ctx.isShell, userId: ctx.userId,
+      }),
+    });
+  } catch (e) {
+    console.error('[scout] board create failed', e?.message);
+    return say.boardCreateFailed(name);
+  }
+}
+
+// ── Deleting the batch just sent ─────────────────────────────────────────────
+//
+// Scoped to the CURRENT RUN and never to the whole Bin, for exactly the reason
+// filing is (scoutRuns.js): "that" means what you just sent, and a delete that
+// quietly takes Monday's fourteen photos as well is unrecoverable in a way a
+// wrong move is not.
+//
+// Proposed, then confirmed, then answered with an UNDO — deleting shows an undo
+// everywhere else in this product and a text thread is no reason to drop the
+// convention. The undo is a real restore, not a promise: the cards are handed
+// back by deleteCardsFromBoard and stored in the same last_move slot the move
+// undo already uses.
+async function proposeDelete(cfg, ctx) {
+  const cards = countable(await readBoardCards(cfg, ctx.binBoardId, ctx.accessToken));
+  const run = currentRun(groupIntoRuns(cards));
+  if (!run?.cards?.length) return say.nothingToDelete();
+
+  const boardName = await boardNameFor(cfg, ctx.binBoardId);
+  await setPending(cfg, ctx, {
+    kind: 'delete',
+    board_id: ctx.binBoardId,
+    board_name: boardName,
+    card_ids: run.cards.map((c) => String(c.id)),
+  });
+  return say.deleteConfirm({ count: run.cards.length, boardName });
+}
+
+async function runDelete(cfg, ctx, pending) {
+  await clearPending(cfg, ctx);
+  const removed = await deleteCardsFromBoard(cfg, {
+    boardId: pending.board_id,
+    accessToken: ctx.accessToken,
+    cardIds: pending.card_ids || [],
+  });
+  if (!removed.length) return { reply: say.nothingToDelete() };
+
+  // The removed cards ARE the undo. They carry their own geometry and content,
+  // so restoring them is an append of exactly what was there rather than a
+  // reconstruction — which is why this is safe to offer at all.
+  await scoutRpc(cfg, 'scout_record_move', {
+    p_user_id: ctx.userId, p_platform: ctx.platform, p_thread_key: ctx.threadKey,
+    p_payload: {
+      kind: 'delete',
+      board_id: pending.board_id,
+      board_name: pending.board_name,
+      cards: removed,
+    },
+  }).catch(() => {});
+
+  return {
+    reply: say.deleteDone({ count: removed.length, boardName: pending.board_name }),
+    deleted: removed.length,
+  };
+}
+
+async function undoDelete(cfg, ctx, lastMove) {
+  const cards = lastMove?.cards || [];
+  if (!cards.length) return { reply: say.undoNothing() };
+  try {
+    // appendCards, not buildCards: these cards already carry x/y from when they
+    // were laid out, so they go back exactly where they were rather than being
+    // re-packed somewhere else on the canvas.
+    const result = await addCardsToBoard(cfg, {
+      boardId: lastMove.board_id,
+      workspaceId: ctx.workspaceId,
+      userId: ctx.userId,
+      accessToken: ctx.accessToken,
+      appendCards: cards,
+    });
+    await scoutRpc(cfg, 'scout_record_move', {
+      p_user_id: ctx.userId, p_platform: ctx.platform,
+      p_thread_key: ctx.threadKey, p_payload: null,
+    }).catch(() => {});
+    return { reply: say.deleteUndone({ count: result.cards.length }) };
+  } catch (e) {
+    console.error('[scout] undo delete failed', e?.message);
+    return { reply: say.undoNothing() };
+  }
+}
+
+// ── Search ───────────────────────────────────────────────────────────────────
+//
+// Grouped by board, because the question behind "find the diner photos" is
+// where they are, not which twenty card ids matched.
+async function runSearch(cfg, ctx, query, { progress = null } = {}) {
+  if (String(query || '').trim().length < 2) return say.searchTooShort();
+  await progress?.step(STAGES.searching());
+
+  const rows = await scoutRpc(cfg, 'scout_search', {
+    p_user_id: ctx.userId, p_query: query, p_limit: 30,
+  }).catch((e) => { console.error('[scout] search failed', e?.message); return []; });
+
+  const hits = Array.isArray(rows) ? rows : [];
+  if (!hits.length) return say.searchEmpty(query);
+
+  const byBoard = new Map();
+  for (const h of hits) {
+    const cur = byBoard.get(h.board_id) || { board: h.board_name, count: 0, cardIds: [] };
+    cur.count++;
+    if (cur.cardIds.length < 12) cur.cardIds.push(h.card_id);
+    byBoard.set(h.board_id, cur);
+  }
+  const groups = [...byBoard.values()].sort((a, b) => b.count - a.count);
+  const top = [...byBoard.entries()].sort((a, b) => b[1].count - a[1].count)[0];
+
+  return say.searchResults({
+    query,
+    groups,
+    total: hits.length,
+    // Deep-link into the board with the most hits, framing the cards that
+    // matched — the same mechanism a fresh ingest confirmation uses.
+    url: await boardUrl(cfg, {
+      boardId: top[0], cardIds: top[1].cardIds, isShell: ctx.isShell, userId: ctx.userId,
+    }),
+  });
+}
+
+// ── Connecting a waitlist signup to the account they made on the web ─────────
+//
+// Somebody left their number on /scout, was told the bot is invite-only, and
+// made a Clusters account in the meantime. That recorded a CLAIM — an account
+// asking to be connected to this number — and deliberately not a binding: at
+// the moment it was recorded, nobody had proved they hold the phone. Anyone can
+// type anyone's number into a web form.
+//
+// Texting is the proof. So the binding happens HERE, the first time that number
+// says anything, and it still asks — because possession proves they hold the
+// phone, not that they meant this account.
+//
+// Keyed on the claim itself rather than on a pending-payload, deliberately: the
+// offer is usually made in the INVITE text, which goes out before any inbound
+// message exists, so there is no thread state to have written. A claim is the
+// durable fact; the conversation around it is not.
+async function pendingClaimFor(cfg, handle) {
+  const rows = await scoutRpc(cfg, 'scout_pending_claim', { p_handle: handle })
+    .catch(() => []);
+  const hit = (Array.isArray(rows) ? rows : [rows])[0];
+  return hit?.claimed_by ? { userId: hit.claimed_by, email: hit.email } : null;
+}
+
+// Bind, then hand off to the SAME adoption path /code uses.
+//
+// scout_claim_pending_signup returns scout_claim_link_code's exact shape for
+// this reason: linkTo() already knows how to carry a shell account's Bin across
+// — destination first, scout_mark_adopted only once the move lands — and a
+// second implementation of that would be a second chance to lose someone's
+// photos.
+async function connectClaimedAccount(cfg, ctx) {
+  const rows = await scoutRpc(cfg, 'scout_claim_pending_signup', {
+    p_platform: ctx.platform, p_handle: ctx.handle, p_service: ctx.service,
+  }).catch((e) => { console.error('[scout] connect failed', e?.message); return []; });
+  const hit = (Array.isArray(rows) ? rows : [rows])[0];
+  if (!hit?.user_id) return say.connectNothingPending();
+  return await linkTo(cfg, ctx, hit);
+}
+
 // ── Commands ─────────────────────────────────────────────────────────────────
 // Handled before the model runs. They're unambiguous, and routing them through
 // an LLM is both slower and a way to get them wrong.
-async function runCommand(cfg, { command, arg }, ctx) {
+async function runCommand(cfg, { command, arg }, ctx, opts = {}) {
   switch (command) {
     case 'help':
       return say.help({
@@ -218,7 +444,9 @@ async function runCommand(cfg, { command, arg }, ctx) {
         return say.boardSwitched({ boardName: SCOUT_BIN_NAME, created: false });
       }
       const found = await findBoardByName(cfg, ctx.userId, arg);
-      if (!found) return say.boardNotFound(arg);
+      // Offer to make it rather than dead-ending. The offer is confirmed, so a
+      // mistyped name costs one message and not a stray board.
+      if (!found) return await offerBoardCreate(cfg, ctx, arg);
       const ok = await scoutRpc(cfg, 'scout_set_target_board', {
         p_user_id: ctx.userId, p_platform: ctx.platform,
         p_thread_key: ctx.threadKey, p_board_id: found.id,
@@ -226,6 +454,34 @@ async function runCommand(cfg, { command, arg }, ctx) {
       return ok ? say.boardSwitched({ boardName: found.name, created: false })
                 : say.boardNotFound(arg);
     }
+
+    case 'find':
+      return arg
+        ? await runSearch(cfg, ctx, arg, { progress: opts?.progress })
+        : say.searchTooShort();
+
+    case 'delete':
+      return await proposeDelete(cfg, ctx);
+
+    case 'stop':
+      await scoutRpc(cfg, 'scout_set_opt_out', {
+        p_platform: ctx.platform, p_handle: ctx.handle, p_opt_out: true,
+      }).catch(() => {});
+      return say.stopped();
+
+    // /start is BOTH the opt-in keyword and the conventional "what is this"
+    // command, and someone who has never opted out and texts /start means the
+    // second. Clearing a flag that is not set costs nothing and makes the one
+    // word do the right thing in either state.
+    case 'start':
+      await scoutRpc(cfg, 'scout_set_opt_out', {
+        p_platform: ctx.platform, p_handle: ctx.handle, p_opt_out: false,
+      }).catch(() => {});
+      return say.help({
+        url: await boardUrl(cfg, {
+          boardId: ctx.boardId, cardIds: [], isShell: ctx.isShell, userId: ctx.userId,
+        }),
+      });
 
     case 'code': {
       const rows = await scoutRpc(cfg, 'scout_claim_link_code', {
@@ -282,9 +538,38 @@ async function answerQuestion(cfg, text, ctx) {
 // `progress` is optional; when present the caller gets narrated stages edited
 // into a single message instead of silence followed by a wall of text.
 export async function runBurst(cfg, r2, burst, progress = null) {
+  // `trace` exists so the caller learns WHO this burst belonged to without every
+  // one of the twenty-odd exits below having to remember to say so. The ingest
+  // log is claimed before an identity is known — the message arrives long before
+  // we resolve it — and scout_complete_ingest back-fills the user id so the
+  // daily-ceiling count has something to count.
+  const trace = {};
+  const out = await runBurstBody(cfg, r2, burst, progress, trace);
+  return { ...(out || {}), userId: out?.userId ?? trace.userId ?? null };
+}
+
+async function runBurstBody(cfg, r2, burst, progress, trace) {
   // Normalize ONCE, with the provider's country hint — a national-format number
   // from outside North America is indistinguishable from a US number without it.
   const handle = normalizeHandle(burst.handle, burst.country);
+  const text0 = burst.texts.join('\n').trim();
+
+  // 0. STOP, BEFORE ANY ACCOUNT EXISTS.
+  //
+  // Checked ahead of identity resolution on purpose: resolveOrCreateIdentity
+  // MINTS an account on first contact, and minting one for somebody whose first
+  // and only word is "unsubscribe" would be the opposite of what they asked for.
+  // The opt-out is recorded against (platform, handle), which needs no account.
+  //
+  // A bare "stop" is left to the pending-move branch below — see
+  // parseStopIntent's note on why context decides that one.
+  if (!burst.attachments.length && parseStopIntent(text0) === 'stop') {
+    await scoutRpc(cfg, 'scout_set_opt_out', {
+      p_platform: burst.platform, p_handle: handle, p_opt_out: true,
+    }).catch(() => {});
+    return { reply: say.stopped(), optedOut: true };
+  }
+
   const id = await resolveOrCreateIdentity(cfg, {
     platform: burst.platform,
     handle: burst.handle,
@@ -292,6 +577,8 @@ export async function runBurst(cfg, r2, burst, progress = null) {
     service: burst.service,
     country: burst.country,
   });
+
+  trace.userId = id.userId;
 
   const ctx = {
     ...id,
@@ -311,19 +598,49 @@ export async function runBurst(cfg, r2, burst, progress = null) {
   }
 
   const getSession = sessionFor(cfg, id);
-  const text = burst.texts.join('\n').trim();
+  const text = text0;
+
+  // 0b. Already opted out.
+  //
+  // They told us to stop and have texted anyway. We answer — replying to
+  // somebody's own message is never unsolicited, and silence here would look
+  // like the bot is broken rather than respecting them — but we file nothing
+  // until they say so explicitly. START is the only thing that resumes;
+  // treating "here are twelve photos" as implied consent would make the opt-out
+  // meaningless the first time somebody forgot they had used it.
+  if (id.optedOutAt) {
+    if (parseStopIntent(text) === 'start') {
+      await scoutRpc(cfg, 'scout_set_opt_out', {
+        p_platform: burst.platform, p_handle: handle, p_opt_out: false,
+      }).catch(() => {});
+      return {
+        reply: say.resumed({
+          url: await boardUrl(cfg, {
+            boardId: id.boardId, cardIds: [], isShell: id.isShell, userId: id.userId,
+          }),
+        }),
+      };
+    }
+    return { reply: say.stoppedAlready() };
+  }
 
   // 1. Commands short-circuit everything.
   const cmd = parseCommand(text);
   if (cmd) {
     ctx.accessToken = await getSession();
-    const reply = await runCommand(cfg, cmd, ctx);
+    const reply = await runCommand(cfg, cmd, ctx, { r2, progress });
     if (reply) return { reply, isNew: id.isNew };
   }
 
-  const images = burst.attachments.filter((a) => isImage(a.mimeType));
   const urls = extractUrls(text);
   const leftover = textWithoutUrls(text);
+  // `bare` means "a text-only message" — no attachment of any kind, no link.
+  // Every conversational branch below requires it, for the reason the pending
+  // branch spells out: content arriving with a word means the user has moved on
+  // to sending things, and acting on the word instead would act on the wrong
+  // cards. This used to be spelled `!images.length`, which stopped being the
+  // same question the moment Scout accepted anything that is not a photo.
+  const bare = !burst.attachments.length && !urls.length;
 
   // 2. A reply to a move we proposed. Checked before everything else: a bare
   //    "yes" means nothing on its own, and letting it fall through to intent
@@ -335,8 +652,30 @@ export async function runBurst(cfg, r2, burst, progress = null) {
   const pending = id.pendingMove;
   const pendingFresh = pending && id.pendingMoveAt
     && (Date.now() - Date.parse(id.pendingMoveAt)) < PENDING_TTL_MS;
-  if (pending && !images.length && !urls.length) {
-    const answer = parseConfirmation(leftover);
+  if (pending && bare) {
+    // A pending proposal that is not a move — creating a board, or deleting a
+    // batch — answers to its own word, so a stray "yes" cannot trigger it.
+    if (pending.kind === 'create_board') {
+      if (isCreateConfirmation(leftover)) {
+        ctx.accessToken = await getSession();
+        return { reply: await createAndTarget(cfg, ctx, pending.board_name), isNew: id.isNew };
+      }
+      if (parseConfirmation(leftover) === 'no') {
+        await clearPending(cfg, ctx);
+        return { reply: say.moveCancelled(), isNew: id.isNew };
+      }
+    }
+    if (pending.kind === 'delete') {
+      if (parseConfirmation(leftover) === 'yes') {
+        ctx.accessToken = await getSession();
+        return { ...(await runDelete(cfg, ctx, pending)), isNew: id.isNew };
+      }
+      if (parseConfirmation(leftover) === 'no') {
+        await clearPending(cfg, ctx);
+        return { reply: say.moveCancelled(), isNew: id.isNew };
+      }
+    }
+    const answer = pending.kind ? null : parseConfirmation(leftover);
     if (answer === 'no') {
       await scoutRpc(cfg, 'scout_set_pending_move', {
         p_user_id: id.userId, p_platform: burst.platform,
@@ -375,18 +714,75 @@ export async function runBurst(cfg, r2, burst, progress = null) {
     }
   }
 
-  // 3. UNDO — valid for 24h after a move, regardless of anything pending.
-  if (!images.length && !urls.length && parseConfirmation(leftover) === 'undo') {
+  // 2b. Connecting the account they made on the web while waiting.
+  //
+  //     After the pending-move branch, so a YES that answers a proposal still
+  //     answers that proposal — a move on the table is the more specific
+  //     reading and the one they are looking at.
+  //
+  //     The lookup only runs for a message that could possibly be an answer,
+  //     so the ordinary photo burst never pays for it.
+  if (bare && (parseConfirmation(leftover) === 'yes' || /^\s*connect\s*[.!]*\s*$/i.test(leftover))) {
+    const claim = await pendingClaimFor(cfg, handle);
+    if (claim) {
+      ctx.accessToken = await getSession();
+      return { reply: await connectClaimedAccount(cfg, ctx), isNew: id.isNew, connected: true };
+    }
+  }
+
+  // 3. UNDO — valid for 24h after a move OR a delete, regardless of anything
+  //    pending. Deleting shows an undo; that is the house convention everywhere
+  //    else in this product and a text thread is no reason to drop it.
+  if (bare && parseConfirmation(leftover) === 'undo') {
     const fresh = id.lastMove && id.lastMoveAt
       && (Date.now() - Date.parse(id.lastMoveAt)) < 24 * 60 * 60 * 1000;
     if (!fresh) return { reply: say.undoNothing(), isNew: id.isNew };
     ctx.accessToken = await getSession();
+    if (id.lastMove.kind === 'delete') {
+      return { ...(await undoDelete(cfg, ctx, id.lastMove)), isNew: id.isNew };
+    }
     const back = await undoMove(cfg, ctx, id.lastMove);
     return { reply: back.reply, isNew: id.isNew };
   }
 
+  // 3b. STOP, in its ambiguous bare form. Reached only once no move is pending,
+  //     which is exactly the condition under which "stop" cannot mean "cancel
+  //     that" — see parseStopIntent.
+  if (bare && parseStopIntent(leftover, { movePending: !!pending }) === 'stop') {
+    await scoutRpc(cfg, 'scout_set_opt_out', {
+      p_platform: burst.platform, p_handle: handle, p_opt_out: true,
+    }).catch(() => {});
+    return { reply: say.stopped(), isNew: id.isNew, optedOut: true };
+  }
+
+  // 3c. FILING, ahead of the question gate.
+  //
+  // This ordering is the fix for a real defect: looksLikeQuestion fires on any
+  // message opening with can/do/could/will, so "can you put these in Diner
+  // Recce" — the ordinary polite form of the product's second most important
+  // verb — was answered with the help menu and never filed anything.
+  // parseFileIntent has always handled that phrasing (scoutIntent.js:96); it
+  // was simply unreachable. An unmistakable instruction is an instruction, and
+  // it is never a question, whatever word it opens with.
+  const fileIntent = bare ? parseFileIntent(leftover) : null;
+
+  // 3d. SEARCH. Also ahead of the question gate, and for the same reason —
+  //     "where are the diner photos" opens with a question word and is a
+  //     search, not a question about the product.
+  const findIntent = !fileIntent && bare ? parseFindIntent(leftover) : null;
+  if (findIntent) {
+    ctx.accessToken = await getSession();
+    return { reply: await runSearch(cfg, ctx, findIntent.query, { progress }), isNew: id.isNew };
+  }
+
+  // 3e. DELETE the batch just sent. Proposed, never immediate.
+  if (!fileIntent && bare && isDeleteIntent(leftover)) {
+    ctx.accessToken = await getSession();
+    return { reply: await proposeDelete(cfg, ctx), isNew: id.isNew };
+  }
+
   // 4. "What's in my Bin?" phrased in words rather than as /bin.
-  if (!images.length && !urls.length && isBinQuery(leftover)) {
+  if (bare && isBinQuery(leftover)) {
     ctx.accessToken = await getSession();
     return {
       reply: await describeBin(cfg, ctx, {
@@ -400,37 +796,49 @@ export async function runBurst(cfg, r2, burst, progress = null) {
 
   // 5. A question with nothing attached is a conversation, not an ingest.
   //    Checked BEFORE the capacity pre-flight so someone at their cap can still
-  //    ask "how much is this?" and get an answer instead of the paywall.
-  if (!images.length && !urls.length && leftover && looksLikeQuestion(leftover)) {
+  //    ask "how much is this?" and get an answer instead of the paywall — and
+  //    AFTER the instruction gates above, so a politely-phrased instruction is
+  //    obeyed rather than answered.
+  if (!fileIntent && bare && leftover && looksLikeQuestion(leftover)) {
     const boardName = await boardNameFor(cfg, id.boardId);
     const url = await boardUrl(cfg, {
       boardId: id.boardId, cardIds: [], isShell: id.isShell, userId: id.userId,
     });
+    // Their REAL cap, not the constant. Since 0229 the limit is per-account, so
+    // an answer that states a flat number is wrong for most people — see the
+    // pricing topic. One extra RPC, only on the question path, which is rare.
+    const cap = await boardCapacity(cfg, id.boardId, id.userId)
+      .catch(() => ({ cap: null, used: null }));
     const reply = await answerQuestion(cfg, leftover, {
-      boardName, url, origin: cfg.APP_ORIGIN,
+      boardName, url, origin: cfg.APP_ORIGIN, cap: cap.cap, used: cap.used,
     });
     return { reply, isNew: id.isNew, answered: true };
   }
-
-  await progress?.step(STAGES.received({
-    images: images.length, links: urls.length, notes: leftover ? 1 : 0,
-  }));
 
   // 6. Intent. Extracted BEFORE the capacity pre-flight because a bare "put
   //    these in Diner Recce" is an instruction, not content — running it through
   //    the ingest path would turn the user's own sentence into a sticky note on
   //    their canvas and consume a card doing it.
-  const intent = images.length || urls.length || leftover
-    ? await extractIntent(cfg, { text, attachmentCount: images.length })
-    : { topic: null, action: 'ingest', board: null, note: null };
+  //
+  //    The deterministic parse from 3c wins outright when it fired: it is
+  //    narrower than the model and free, and a model that disagrees with an
+  //    unmistakable instruction is a model that is wrong.
+  const intent = fileIntent
+    ? { topic: null, action: 'file', board: fileIntent.board, note: null }
+    : (burst.attachments.length || urls.length || leftover
+      ? await extractIntent(cfg, { text, attachmentCount: burst.attachments.length })
+      : { topic: null, action: 'ingest', board: null, note: null });
 
   const fileTo = intent.action === 'file' && intent.board
     ? await findBoardByName(cfg, id.userId, intent.board)
     : null;
 
-  if (intent.action === 'file' && !images.length && !urls.length) {
-    if (!fileTo) return { reply: say.boardNotFound(intent.board || ''), isNew: id.isNew };
+  if (intent.action === 'file' && bare) {
     ctx.accessToken = await getSession();
+    // An unrecognised name is now an OFFER rather than a dead end. Confirmed,
+    // not created on sight: a typo silently minting "Dinner Recce" would put
+    // half a scout's work in a board they find a week later.
+    if (!fileTo) return { reply: await offerBoardCreate(cfg, ctx, intent.board || ''), isNew: id.isNew };
     const proposal = await prepareMove(cfg, r2, ctx, {
       boardId: fileTo.id, boardName: fileTo.name, everything: wantsEverything(text), progress,
     });
@@ -442,36 +850,39 @@ export async function runBurst(cfg, r2, burst, progress = null) {
   // A brand-new user who said nothing yet gets oriented, not confirmed. This is
   // the /start experience, and it's the first link they'll ever tap — so it has
   // to sign them in, not show them a login screen.
-  if (id.isNew && !images.length && !urls.length && !leftover) {
+  if (id.isNew && bare && !leftover) {
     const url = await boardUrl(cfg, {
       boardId: id.boardId, cardIds: [], isShell: id.isShell, userId: id.userId,
     });
-    return { reply: say.welcome({ url }), isNew: true };
-  }
-  if (!images.length && !urls.length && !leftover) return { reply: null, isNew: id.isNew };
-
-  // 2. Capacity PRE-FLIGHT — before a single byte reaches R2.
-  const cap = await boardCapacity(cfg, id.boardId, id.userId);
-  const wanted = images.length + urls.length
-    + (leftover && intent.action !== 'file' ? 1 : 0);
-  if (cap.remaining <= 0) {
+    const claim = await pendingClaimFor(cfg, handle);
     return {
-      reply: say.capReached({ cap: cap.cap, billingUrl: `${cfg.APP_ORIGIN}/pricing`, kept: 0 }),
-      isNew: id.isNew,
-      capped: true,
+      reply: claim ? say.welcomeWithClaim({ url, email: claim.email }) : say.welcome({ url }),
+      isNew: true,
     };
   }
+  // NEVER SILENT. This used to `return { reply: null }`, and it was reachable —
+  // any attachment that was not an image fell through every branch above and
+  // arrived here, so texting a video or a voice memo produced no card, no error
+  // and no reply at all. Silence is the one answer indistinguishable from being
+  // ignored, and it is the answer this bot must never give.
+  if (bare && !leftover) {
+    return { reply: say.nothingUsable(), isNew: id.isNew };
+  }
 
-  // Partial acceptance: take what fits rather than rejecting the whole burst.
-  // Someone texting 40 photos with 12 slots left should keep 12.
-  const budget = Math.min(wanted, cap.remaining);
-  const truncated = budget < wanted;
-  const takeImages = images.slice(0, budget);
-  const takeUrls = urls.slice(0, Math.max(0, budget - takeImages.length));
-  // "put these in Diner Recce" attached to a photo burst is an instruction, not
-  // a caption — it must not become a sticky note next to the photos it filed.
-  const noteText = intent.action === 'file' ? null : leftover;
-  const takeNote = (budget - takeImages.length - takeUrls.length) > 0 ? noteText : null;
+  await progress?.step(STAGES.received({
+    images: burst.attachments.filter((a) => isImage(a.mimeType)).length,
+    videos: burst.attachments.filter((a) => String(a.mimeType || '').startsWith('video/')).length,
+    audio: burst.attachments.filter((a) => a.voice || String(a.mimeType || '').startsWith('audio/')).length,
+    files: burst.attachments.filter((a) => !/^(image|video|audio)\//.test(String(a.mimeType || ''))).length,
+    links: urls.length,
+    notes: leftover ? 1 : 0,
+  }));
+
+  // 6b. The daily ceiling. Abuse protection, and the only bound a PAID account
+  //     has at all — the card cap does not apply to one.
+  if (await overDailyLimit(cfg, id.userId)) {
+    return { reply: say.dailyLimit(), isNew: id.isNew, throttled: true };
+  }
 
   // Ingest ALWAYS lands where the thread currently collects — the Bin, unless
   // /board pinned somewhere else. "put these in X" no longer redirects future
@@ -480,61 +891,61 @@ export async function runBurst(cfg, r2, burst, progress = null) {
   const boardId = id.boardId;
   const boardName = await boardNameFor(cfg, boardId);
 
-  // 4. Media → R2. Card ids are minted here so the images row can point at the
-  //    exact card that will reference it.
-  const uploaded = [];
-  for (const [i, att] of takeImages.entries()) {
-    // Narrate per photo — on a slow connection this is the difference between
-    // "it's working" and "it's broken".
-    await progress?.step(STAGES.uploading(i + 1, takeImages.length));
-    const cardId = `img-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-    try {
-      const up = await uploadImage(cfg, r2, {
-        bytes: att.bytes, mimeType: att.mimeType, name: att.name,
-        workspaceId: id.workspaceId, boardId, cardId, userId: id.userId,
-      });
-      uploaded.push({ ...up, cardId, alt: intent.topic || null });
-    } catch (e) {
-      console.error('[scout] upload failed', e?.message);
-    }
-  }
+  // A user session is required for the live peer — PartyKit validates via
+  // PostgREST as the user, so the service key won't do.
+  ctx.accessToken = await getSession();
+  ctx.boardId = boardId;
+  ctx.boardName = boardName;
 
   const previews = [];
-  for (const u of takeUrls) previews.push({ url: u, preview: await linkPreview(cfg, u) });
+  for (const u of urls) previews.push({ url: u, preview: await linkPreview(cfg, u) });
 
-  // 7. Triple write. A user session is required for the live peer — PartyKit
-  //    validates via PostgREST as the user, so the service key won't do.
-  const accessToken = await getSession();
-  ctx.accessToken = accessToken;
+  // "put these in Diner Recce" attached to a photo burst is an instruction, not
+  // a caption — it must not become a sticky note next to the photos it filed.
+  const noteText = intent.action === 'file' ? null : (leftover || intent.note || null);
 
-  await progress?.step(STAGES.arranging(boardName));
-
-  let result;
+  let out;
   try {
-    result = await addCardsToBoard(cfg, {
-      boardId,
-      workspaceId: id.workspaceId,
-      userId: id.userId,
-      accessToken,
-      buildCards: (existing) => composeBatch({
-        existingCards: existing,
-        images: uploaded.map((u) => ({
-          key: u.key, width: u.width, height: u.height, alt: u.alt, lab: u.lab,
-        })),
-        urls: previews,
-        noteText: takeNote || (intent.note ?? null),
-        topic: intent.topic,
-      }),
+    out = await ingestBurst(cfg, r2, ctx, {
+      attachments: burst.attachments,
+      urls,
+      previews,
+      noteText,
+      topic: intent.topic,
+      progress,
     });
   } catch (e) {
     if (e?.isCapHit) {
       return {
-        reply: say.capReached({ cap: cap.cap, billingUrl: `${cfg.APP_ORIGIN}/pricing`, kept: 0 }),
+        reply: say.capReached({ cap: '', billingUrl: `${cfg.APP_ORIGIN}/pricing`, kept: 0 }),
         isNew: id.isNew, capped: true,
       };
     }
-    console.error('[scout] board write failed', e?.message);
-    return { reply: say.ingestFailed({ retained: uploaded.length > 0 }), isNew: id.isNew };
+    console.error('[scout] ingest failed', e?.stack || e?.message);
+    return { reply: say.ingestFailed({ retained: false }), isNew: id.isNew };
+  }
+
+  const { cap } = out;
+  if (out.capped) {
+    return {
+      reply: say.capReached({ cap: cap.cap, billingUrl: `${cfg.APP_ORIGIN}/pricing`, kept: 0 }),
+      isNew: id.isNew,
+      capped: true,
+    };
+  }
+
+  // Nothing survived — every file refused, every upload failed. Say so rather
+  // than confirming an empty batch.
+  if (!out.cards.length) {
+    const messages = [];
+    if (out.blocked.length) {
+      messages.push(say.needsPaidPlan({
+        count: out.blocked.length, billingUrl: `${cfg.APP_ORIGIN}/pricing`,
+      }));
+    }
+    if (out.oversize.length) messages.push(say.tooLarge({ count: out.oversize.length }));
+    if (!messages.length) messages.push(say.ingestFailed({ retained: false }));
+    return { reply: messages.join('\n\n'), isNew: id.isNew };
   }
 
   // 8. The message also said where things go — propose the move now that this
@@ -549,24 +960,19 @@ export async function runBurst(cfg, r2, burst, progress = null) {
   }
 
   // 9. One reply.
-  const counts = {
-    images: uploaded.length,
-    links: previews.length,
-    notes: (takeNote || intent.note) ? 1 : 0,
-  };
-  const used = cap.used + result.cards.length;
+  const used = cap.used + out.cards.length;
   const messages = [];
 
-  if (intent.action === 'file' && intent.board) {
+  if (intent.action === 'file' && intent.board && !fileTo) {
     messages.push(say.boardNotFound(intent.board));
   }
 
   messages.push(say.ingestConfirmation({
-    counts,
+    counts: out.counts,
     boardName,
     url: await boardUrl(cfg, {
       boardId,
-      cardIds: result.cards.filter((c) => !c.sectionHeader).map((c) => c.id),
+      cardIds: out.cards.filter((c) => !c.sectionHeader).map((c) => c.id),
       isShell: id.isShell,
       userId: id.userId,
     }),
@@ -574,14 +980,38 @@ export async function runBurst(cfg, r2, burst, progress = null) {
     cap: cap.cap,
   }));
 
-  if (truncated) {
+  // Name what we could NOT take, always. A count that quietly omits the three
+  // files we refused is the reply that gets read as "it worked" and discovered
+  // as a gap a week later.
+  if (out.blocked.length) {
+    messages.push(say.needsPaidPlan({
+      count: out.blocked.length, billingUrl: `${cfg.APP_ORIGIN}/pricing`,
+    }));
+  }
+  if (out.oversize.length) messages.push(say.tooLarge({ count: out.oversize.length }));
+
+  if (out.truncated) {
     messages.push(say.capReached({
-      cap: cap.cap, billingUrl: `${cfg.APP_ORIGIN}/pricing`, kept: result.cards.length,
+      cap: cap.cap, billingUrl: `${cfg.APP_ORIGIN}/pricing`, kept: out.cards.length,
     }));
   } else if (Number.isFinite(cap.cap) && !id.capWarnedAt && used / cap.cap >= 0.75) {
     messages.push(say.capWarning({ used, cap: cap.cap }));
     await scoutRpc(cfg, 'scout_mark_cap_warned', { p_user_id: id.userId }).catch(() => {});
   }
 
-  return { reply: messages.join('\n\n'), isNew: id.isNew, live: result.live };
+  // Somebody whose FIRST message is a photo rather than a hello never sees the
+  // welcome, and they are the ones most likely to have an account waiting —
+  // they were told to make one and then went straight to using the thing. Asked
+  // once, on that first burst only, so it is an offer and not a nag.
+  if (id.isNew) {
+    const claim = await pendingClaimFor(cfg, handle);
+    if (claim) {
+      messages.push(
+        `These are on a board of their own for now. You already made a Clusters `
+        + `account — ${claim.email} — so reply YES and I'll move them into it.`,
+      );
+    }
+  }
+
+  return { reply: messages.join('\n\n'), isNew: id.isNew, live: out.live };
 }

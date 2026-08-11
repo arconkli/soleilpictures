@@ -58,7 +58,7 @@ curl "https://clusters.soleilpictures.com/api/v1/resolve?scope=source_url&value=
 
 | The source is | You get |
 |---|---|
-| An image format the API stores (`doc`, `file`, `image`, `link`, `note`, `video` covers the card kinds; see [Images](/docs/api/images)) | An **image card** — the bytes are copied into your workspace |
+| An image format the API stores (`audio`, `doc`, `file`, `image`, `link`, `note`, `pdf`, `video` covers the card kinds; see [Images](/docs/api/images)) | An **image card** — the bytes are copied into your workspace |
 | Anything else — a PDF, a web page, a video | A **link card** pointing at the original, with a `note` saying why |
 
 Only images are copied. Large media goes through the

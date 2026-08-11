@@ -2324,6 +2324,28 @@ body {
 }
 .share-link-opt input[type="checkbox"] { cursor: pointer; }
 
+/* The one action the whole modal exists for: mint-or-copy an invite link.
+   Full width so it reads as the primary move rather than one control in a
+   row of three — the role/expiry selects now sit inside .share-link-options
+   below it, since their defaults are what nearly every invite wants. */
+.share-invite-btn-primary {
+  flex: 1 1 100%;
+  padding: 11px 14px;
+  font-size: 13px;
+}
+
+/* Disclosure holding the invite link's role + expiry selects. Closed by
+   default; the marker is the only affordance, so keep it visible. */
+.share-link-options { margin-top: 10px; }
+.share-link-options > summary {
+  cursor: pointer;
+  user-select: none;
+  width: fit-content;
+}
+.share-link-options > summary:hover { color: var(--ink-2); }
+.share-link-options > summary::marker { color: var(--ink-3); }
+.share-link-options[open] > summary { margin-bottom: 8px; }
+
 .share-list { display: flex; flex-direction: column; gap: 2px; }
 .share-empty {
   font: 500 12px/1.45 var(--font-sans);
@@ -2457,6 +2479,22 @@ body {
 .public-brand-name {
   font: 700 14px/1 var(--font-sans);
   letter-spacing: 0.02em;
+}
+/* Title block in the public topbar: an orienting eyebrow over the board name.
+   The wrapper carries the flex sizing so a long name still ellipsizes instead
+   of shoving the CTA off-screen. */
+.public-board-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+}
+.public-board-eyebrow {
+  font: 600 9px/1.2 var(--font-sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .public-board-name {
   flex: 1 1 auto;
@@ -2746,6 +2784,13 @@ body {
 }
 @media (max-width: 400px) {
   .public-brand-name { display: none; } /* mark only — keep room for the board name + CTA */
+  /* The eyebrow deliberately STAYS on phones. It sits on its own line above
+     the name, so it costs height (~14px inside a 52px min-height bar) rather
+     than the width the name and CTA compete for. Half of all share traffic is
+     mobile, and that half arrives from a text message with no surrounding
+     context at all — "shared with you · view only" is worth more there than
+     on desktop, not less. */
+  .public-board-eyebrow { font-size: 8px; letter-spacing: 0.08em; }
 }
 
 /* Sidebar footer — settings + avatar/sign-out, anchored at the bottom. */

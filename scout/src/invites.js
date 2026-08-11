@@ -59,7 +59,21 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // thing they asked for (they typed their number minutes-to-hours ago), say
 // exactly what to do next, and be worth replying to. No link — there is no
 // board yet, and a link to nothing is worse than no link.
-export function inviteText() {
+export function inviteText({ hasClaim = false } = {}) {
+  if (hasClaim) {
+    // They joined the waitlist, were told the canvas was open, and went and
+    // made an account. This message is the first thing they see months later,
+    // and the offer belongs IN it: making them discover the connection
+    // afterwards is how the account they made ends up empty next to a board
+    // full of their photos.
+    return [
+      'This is Soleil Scout — you asked us to text you, and you\'re in.',
+      '',
+      'Send a photo and it lands on a canvas. Add a line like "Scene 4 diner" and it gets filed under that.',
+      '',
+      'You already made a Clusters account, so reply YES any time and this number connects to it.',
+    ].join('\n');
+  }
   return [
     'This is Soleil Scout — you asked us to text you.',
     '',
@@ -75,12 +89,12 @@ export function inviteText() {
 // the same E.164 handle format the inbound stream reports — so a signup who has
 // coincidentally already texted us lands in their existing thread rather than a
 // second one.
-async function sendInvite(app, phone) {
+async function sendInvite(app, phone, { hasClaim = false } = {}) {
   const space = await imessage(app).space.create(phone);
   if (!space || typeof space.send !== 'function') {
     throw new Error('could not open a conversation with that number');
   }
-  await space.send(textMsg(inviteText()));
+  await space.send(textMsg(inviteText({ hasClaim })));
 }
 
 // One pass. Exported so the dry run can exercise it without the timer.
@@ -92,7 +106,7 @@ export async function drainOnce(cfg, app, { batch = BATCH, gapMs = GAP_MS } = {}
   let sent = 0;
   for (const row of rows) {
     try {
-      await sendInvite(app, row.phone_e164);
+      await sendInvite(app, row.phone_e164, { hasClaim: !!row.has_claim });
       sent++;
       await scoutRpc(cfg, 'scout_mark_invite_sent', { p_id: row.id, p_ok: true });
     } catch (e) {

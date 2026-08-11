@@ -5,7 +5,13 @@
 _Source: https://clusters.soleilpictures.com/docs/collaborate/sharing · Updated 2026-08-08_
 
 Two different mechanisms live behind the **Share** button, and mixing them up is
-the main thing to avoid.
+the main thing to avoid. The dialog leads with inviting people, because that is
+the one that puts someone *inside* the cluster with you; the view-only link
+follows it.
+
+You can open it from the board header, from `⌘K` → "Share this cluster", or by
+right-clicking any cluster in the sidebar and choosing **Share…** — the last of
+these shares the cluster you right-clicked, not the one currently on screen.
 
 ## Public links — view only, no account
 

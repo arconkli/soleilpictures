@@ -524,7 +524,16 @@ export function ScoutPage() {
                 <p className="scout-eyebrow">Soleil Scout</p>
                 <h1 className="scout-h1">{spec.h1}</h1>
                 <p className="scout-sub">{spec.subhead}</p>
-                <ScoutSignupBox pos="hero" />
+                {/* The success state's "Create your account" button is the one
+                    CTA on this page that leads to the product, so it is tracked
+                    like every other public CTA and shows up in the landing
+                    scorecard's CTR column. Whether warm Scout traffic actually
+                    converts into web signups is the entire question this change
+                    asks, and lp_cta_click is what answers it. */}
+                <ScoutSignupBox
+                  pos="hero"
+                  cta={lp.ctaProps('waitlist_signup', '/', { intent: 'signup' })}
+                />
                 <p className="sb-trust">Made by a film studio, for creative professionals.</p>
               </div>
             </div>

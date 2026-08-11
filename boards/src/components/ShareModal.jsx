@@ -146,8 +146,22 @@ export function ShareModal({
   }, [board?.id, canInvite]);
 
   // Copy a link's URL to the clipboard; returns whether the write worked.
-  const copyLinkUrl = async (token) => {
+  //
+  // Every copy path funnels through here so the act of putting a link on the
+  // clipboard — the step that actually sends a cluster to another human — is
+  // recorded exactly once. It used to emit nothing at all from inside this
+  // modal, leaving share_open as the last observable step of the funnel.
+  // `kind` must be passed on the mint paths: a freshly created link isn't in
+  // publicLinks until the list refetches.
+  const copyLinkUrl = async (token, kind) => {
     const url = `${window.location.origin}/share/${token}`;
+    try {
+      logEventNow(EV.SHARE_LINK_COPIED, {
+        kind: kind || (publicLinks.find(l => l.token === token)?.kind === 'invite' ? 'invite' : 'view'),
+        surface: 'share_modal',
+        board_id: board.id,
+      });
+    } catch (_) {}
     try { await navigator.clipboard.writeText(url); return true; }
     catch (_) { return false; }
   };
@@ -173,7 +187,7 @@ export function ShareModal({
       const token = await createPublicLink({ boardId: board.id, expiresAt, includeSubboards: linkIncludeSubboards });
       // Refresh the board's OG thumbnail so the link unfurls with a real preview.
       try { onLinkCreated?.(); } catch (_) {}
-      const copied = await copyLinkUrl(token);
+      const copied = await copyLinkUrl(token, 'view');
       // If the clipboard write failed (permissions, non-secure context),
       // say so — the link still appears in the list below with a Copy
       // button, so point there instead of pretending it copied.
@@ -190,13 +204,10 @@ export function ShareModal({
   };
 
   const onCopyPublicLink = async (token) => {
-    const url = `${window.location.origin}/share/${token}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      feedback.toast({ type: 'success', message: 'Link copied to clipboard.' });
-    } catch (_) {
-      feedback.toast({ type: 'info', message: url });
-    }
+    const copied = await copyLinkUrl(token);
+    feedback.toast(copied
+      ? { type: 'success', message: 'Link copied to clipboard.' }
+      : { type: 'info', message: `${window.location.origin}/share/${token}` });
   };
 
   // Mint (or reuse) an INVITE link — "anyone with this link joins as
@@ -222,7 +233,7 @@ export function ShareModal({
         role: inviteLinkRole, expiry: inviteLinkExpiry, board_id: board.id, surface: 'share_modal',
       });
       try { onLinkCreated?.(); } catch (_) {}
-      const copied = await copyLinkUrl(token);
+      const copied = await copyLinkUrl(token, 'invite');
       feedback.toast(copied
         ? { type: 'success', message: `Invite link copied — anyone with it can join as ${inviteLinkRole}.` }
         : { type: 'warning', message: 'Invite link created — copying failed, use the Copy button below.', ttl: 7000 });
@@ -524,10 +535,90 @@ export function ShareModal({
           </button>
         </div>
 
-        {/* INVITE */}
+        {/* INVITE TO COLLABORATE — one section, ordered by what people
+            actually do. The invite LINK leads: it needs nothing from the
+            sender but a click, and it is the only mechanism that puts a
+            second human inside the cluster without knowing their address.
+            Email invite sits underneath as the addressed alternative.
+
+            This used to be two sections in the opposite order, with the email
+            form first and the link behind two <select>s. The selects now live
+            in a disclosure so the primary action is the first thing you can
+            press — their defaults (editor / 30 days) are what almost every
+            invite wants anyway. */}
         {canInvite && (
-          <div className="share-section">
-            <div className="share-eyebrow">INVITE PEOPLE</div>
+          <div className="share-section" ref={inviteLinkSectionRef}>
+            <div className="share-eyebrow">INVITE TO COLLABORATE{inviteLinks.length > 0 ? ` · ${inviteLinks.length} link${inviteLinks.length === 1 ? '' : 's'} active` : ''}</div>
+
+            <div className="share-link-create">
+              <button className="share-invite-btn share-invite-btn-primary"
+                      onClick={onCreateInviteLink}
+                      disabled={creatingInviteLink}
+                      title="Copies your existing invite link when one with this role is already active.">
+                {creatingInviteLink
+                  ? 'Creating…'
+                  : inviteLinks.some(l => l.role === inviteLinkRole && l.created_by === selfUserId)
+                    ? `Copy ${inviteLinkRole} invite link`
+                    : `Create ${inviteLinkRole} invite link`}
+              </button>
+            </div>
+            <div className="share-hint">
+              Anyone with this link can preview the cluster and join with one
+              click — no email needed. It covers sub-clusters too; revoke it
+              any time.
+            </div>
+
+            <details className="share-link-options">
+              <summary className="share-hint">Link options</summary>
+              <div className="share-link-create">
+                <label className="share-link-opt">
+                  Joins as:
+                  <select className="share-role-select"
+                          value={inviteLinkRole}
+                          onChange={(e) => setInviteLinkRole(e.target.value)}>
+                    <option value="editor">Editor</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                </label>
+                <label className="share-link-opt">
+                  Expires:
+                  <select className="share-role-select"
+                          value={inviteLinkExpiry}
+                          onChange={(e) => setInviteLinkExpiry(e.target.value)}>
+                    <option value="30d">In 30 days</option>
+                    <option value="7d">In 7 days</option>
+                    <option value="never">Never</option>
+                  </select>
+                </label>
+              </div>
+            </details>
+
+            {inviteLinks.length > 0 && (
+              <div className="share-list" style={{ marginTop: 8 }}>
+                {inviteLinks.map(l => (
+                  <div key={l.token} className="share-row">
+                    <span className="share-avatar" style={{ background: 'var(--bg-3)', color: 'var(--ink-1)' }}>🤝</span>
+                    <div className="share-row-text">
+                      <div className="share-row-name">/share/{l.token.slice(0, 8)}…</div>
+                      <div className="share-row-sub">
+                        Joins as {l.role} · {l.joined_count > 0 ? `${l.joined_count} joined` : 'nobody joined yet'}
+                        {l.expires_at ? ` · expires ${new Date(l.expires_at).toLocaleDateString()}` : ' · never expires'}
+                      </div>
+                    </div>
+                    <button className="share-remove" onClick={() => onCopyPublicLink(l.token)} title="Copy URL">
+                      Copy
+                    </button>
+                    {(isOwner || l.created_by === selfUserId) && (
+                      <button className="share-remove" onClick={() => onRevokePublicLink(l.token)}>
+                        Revoke
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="share-subhead" style={{ marginTop: 14 }}>Or invite by email</div>
             <div className="share-invite-row">
               <input className="share-input"
                      type="text"
@@ -560,24 +651,74 @@ export function ShareModal({
           </div>
         )}
 
-        {/* INVITE WITH A LINK — a claimable link anyone can use to join as
-            editor/viewer (0189). Opening the link previews the board; access
-            is granted only when they click Join (and sign in). */}
+        {/* ANYONE WITH THE LINK — anonymous, account-free, view-only access.
+            Scope is THIS board only unless the sub-boards toggle is on, in
+            which case viewers can also navigate into its sub-boards. */}
         {canInvite && (
-          <div className="share-section" ref={inviteLinkSectionRef}>
-            <div className="share-eyebrow">INVITE WITH A LINK{inviteLinks.length > 0 ? ` · ${inviteLinks.length} active` : ''}</div>
-            {inviteLinks.length > 0 && (
-              <div className="share-list" style={{ marginBottom: 8 }}>
-                {inviteLinks.map(l => (
+          <div className="share-section">
+            <div className="share-eyebrow">ANYONE WITH THE LINK · {viewLinks.length} active</div>
+            {viewLinks.length === 0 ? (
+              <>
+                <div className="share-hint" style={{ marginBottom: 8 }}>
+                  Create a link that lets anyone view this cluster without signing
+                  in — view-only, no account needed.{' '}
+                  {linkIncludeSubboards
+                    ? 'Viewers can also open its sub-clusters.'
+                    : 'Sub-clusters are not included.'}
+                </div>
+                <div className="share-link-create">
+                  <label className="share-link-opt">
+                    <input type="checkbox"
+                           checked={linkIncludeSubboards}
+                           onChange={(e) => setLinkIncludeSubboards(e.target.checked)} />
+                    Include sub-clusters
+                  </label>
+                  <label className="share-link-opt">
+                    Expires:
+                    <select className="share-role-select"
+                            value={linkExpiry}
+                            onChange={(e) => setLinkExpiry(e.target.value)}>
+                      <option value="never">Never</option>
+                      <option value="7d">In 7 days</option>
+                      <option value="30d">In 30 days</option>
+                    </select>
+                  </label>
+                  <button className="share-invite-btn"
+                          onClick={onCreatePublicLink}
+                          disabled={creatingLink}>
+                    {creatingLink ? 'Creating…' : 'Create view-only link'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="share-list">
+                {viewLinks.map(l => (
                   <div key={l.token} className="share-row">
-                    <span className="share-avatar" style={{ background: 'var(--bg-3)', color: 'var(--ink-1)' }}>🤝</span>
+                    <span className="share-avatar" style={{ background: 'var(--bg-3)', color: 'var(--ink-1)' }}>🔗</span>
                     <div className="share-row-text">
                       <div className="share-row-name">/share/{l.token.slice(0, 8)}…</div>
                       <div className="share-row-sub">
-                        Joins as {l.role} · {l.joined_count > 0 ? `${l.joined_count} joined` : 'nobody joined yet'}
-                        {l.expires_at ? ` · expires ${new Date(l.expires_at).toLocaleDateString()}` : ' · never expires'}
+                        View-only · {l.include_subboards ? 'with sub-clusters' : 'this cluster only'} · created {new Date(l.created_at).toLocaleDateString()}
+                        {l.expires_at ? ` · expires ${new Date(l.expires_at).toLocaleDateString()}` : ''}
+                        {l.allow_indexing ? ' · indexable by search' : ''}
                       </div>
                     </div>
+                    {(isOwner || l.created_by === selfUserId) && (
+                      <>
+                        <button className="share-remove"
+                                onClick={() => onToggleLinkSubboards(l)}
+                                title={l.include_subboards ? 'Stop sharing sub-clusters' : 'Also share sub-clusters'}>
+                          {l.include_subboards ? 'Hide sub-clusters' : 'Add sub-clusters'}
+                        </button>
+                        <button className="share-remove"
+                                onClick={() => onToggleLinkIndexing(l)}
+                                title={l.allow_indexing
+                                  ? 'Search engines may index this link — click to hide it from search'
+                                  : 'Hidden from search engines — click to let this link rank (for marketing clusters)'}>
+                          {l.allow_indexing ? 'Hide from search' : 'Allow indexing'}
+                        </button>
+                      </>
+                    )}
                     <button className="share-remove" onClick={() => onCopyPublicLink(l.token)} title="Copy URL">
                       Copy
                     </button>
@@ -588,44 +729,36 @@ export function ShareModal({
                     )}
                   </div>
                 ))}
+                <div className="share-link-create" style={{ marginTop: 8 }}>
+                  <label className="share-link-opt">
+                    <input type="checkbox"
+                           checked={linkIncludeSubboards}
+                           onChange={(e) => setLinkIncludeSubboards(e.target.checked)} />
+                    Include sub-clusters
+                  </label>
+                  <label className="share-link-opt">
+                    Expires:
+                    <select className="share-role-select"
+                            value={linkExpiry}
+                            onChange={(e) => setLinkExpiry(e.target.value)}>
+                      <option value="never">Never</option>
+                      <option value="7d">In 7 days</option>
+                      <option value="30d">In 30 days</option>
+                    </select>
+                  </label>
+                  <button className="share-invite-btn"
+                          onClick={onCreatePublicLink}
+                          disabled={creatingLink}
+                          title="Copies your existing link when one with these settings is already active — a new link is only minted for a new scope.">
+                    {creatingLink
+                      ? 'Creating…'
+                      : viewLinks.some(l => !!l.include_subboards === !!linkIncludeSubboards)
+                        ? 'Copy existing link'
+                        : 'New link'}
+                  </button>
+                </div>
               </div>
             )}
-            <div className="share-link-create">
-              <label className="share-link-opt">
-                Joins as:
-                <select className="share-role-select"
-                        value={inviteLinkRole}
-                        onChange={(e) => setInviteLinkRole(e.target.value)}>
-                  <option value="editor">Editor</option>
-                  <option value="viewer">Viewer</option>
-                </select>
-              </label>
-              <label className="share-link-opt">
-                Expires:
-                <select className="share-role-select"
-                        value={inviteLinkExpiry}
-                        onChange={(e) => setInviteLinkExpiry(e.target.value)}>
-                  <option value="30d">In 30 days</option>
-                  <option value="7d">In 7 days</option>
-                  <option value="never">Never</option>
-                </select>
-              </label>
-              <button className="share-invite-btn"
-                      onClick={onCreateInviteLink}
-                      disabled={creatingInviteLink}
-                      title="Copies your existing invite link when one with this role is already active.">
-                {creatingInviteLink
-                  ? 'Creating…'
-                  : inviteLinks.some(l => l.role === inviteLinkRole && l.created_by === selfUserId)
-                    ? 'Copy invite link'
-                    : 'Create invite link'}
-              </button>
-            </div>
-            <div className="share-hint">
-              Anyone with this link can preview the cluster and join with one
-              click — no email needed. It covers sub-clusters too; revoke it
-              any time.
-            </div>
           </div>
         )}
 
@@ -764,117 +897,6 @@ export function ShareModal({
             </>
           )}
         </div>
-
-        {/* ANYONE WITH THE LINK — anonymous, account-free, view-only access.
-            Scope is THIS board only unless the sub-boards toggle is on, in
-            which case viewers can also navigate into its sub-boards. */}
-        {canInvite && (
-          <div className="share-section">
-            <div className="share-eyebrow">ANYONE WITH THE LINK · {viewLinks.length} active</div>
-            {viewLinks.length === 0 ? (
-              <>
-                <div className="share-hint" style={{ marginBottom: 8 }}>
-                  Create a link that lets anyone view this cluster without signing
-                  in — view-only, no account needed.{' '}
-                  {linkIncludeSubboards
-                    ? 'Viewers can also open its sub-clusters.'
-                    : 'Sub-clusters are not included.'}
-                </div>
-                <div className="share-link-create">
-                  <label className="share-link-opt">
-                    <input type="checkbox"
-                           checked={linkIncludeSubboards}
-                           onChange={(e) => setLinkIncludeSubboards(e.target.checked)} />
-                    Include sub-clusters
-                  </label>
-                  <label className="share-link-opt">
-                    Expires:
-                    <select className="share-role-select"
-                            value={linkExpiry}
-                            onChange={(e) => setLinkExpiry(e.target.value)}>
-                      <option value="never">Never</option>
-                      <option value="7d">In 7 days</option>
-                      <option value="30d">In 30 days</option>
-                    </select>
-                  </label>
-                  <button className="share-invite-btn"
-                          onClick={onCreatePublicLink}
-                          disabled={creatingLink}>
-                    {creatingLink ? 'Creating…' : 'Create view-only link'}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="share-list">
-                {viewLinks.map(l => (
-                  <div key={l.token} className="share-row">
-                    <span className="share-avatar" style={{ background: 'var(--bg-3)', color: 'var(--ink-1)' }}>🔗</span>
-                    <div className="share-row-text">
-                      <div className="share-row-name">/share/{l.token.slice(0, 8)}…</div>
-                      <div className="share-row-sub">
-                        View-only · {l.include_subboards ? 'with sub-clusters' : 'this cluster only'} · created {new Date(l.created_at).toLocaleDateString()}
-                        {l.expires_at ? ` · expires ${new Date(l.expires_at).toLocaleDateString()}` : ''}
-                        {l.allow_indexing ? ' · indexable by search' : ''}
-                      </div>
-                    </div>
-                    {(isOwner || l.created_by === selfUserId) && (
-                      <>
-                        <button className="share-remove"
-                                onClick={() => onToggleLinkSubboards(l)}
-                                title={l.include_subboards ? 'Stop sharing sub-clusters' : 'Also share sub-clusters'}>
-                          {l.include_subboards ? 'Hide sub-clusters' : 'Add sub-clusters'}
-                        </button>
-                        <button className="share-remove"
-                                onClick={() => onToggleLinkIndexing(l)}
-                                title={l.allow_indexing
-                                  ? 'Search engines may index this link — click to hide it from search'
-                                  : 'Hidden from search engines — click to let this link rank (for marketing clusters)'}>
-                          {l.allow_indexing ? 'Hide from search' : 'Allow indexing'}
-                        </button>
-                      </>
-                    )}
-                    <button className="share-remove" onClick={() => onCopyPublicLink(l.token)} title="Copy URL">
-                      Copy
-                    </button>
-                    {(isOwner || l.created_by === selfUserId) && (
-                      <button className="share-remove" onClick={() => onRevokePublicLink(l.token)}>
-                        Revoke
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <div className="share-link-create" style={{ marginTop: 8 }}>
-                  <label className="share-link-opt">
-                    <input type="checkbox"
-                           checked={linkIncludeSubboards}
-                           onChange={(e) => setLinkIncludeSubboards(e.target.checked)} />
-                    Include sub-clusters
-                  </label>
-                  <label className="share-link-opt">
-                    Expires:
-                    <select className="share-role-select"
-                            value={linkExpiry}
-                            onChange={(e) => setLinkExpiry(e.target.value)}>
-                      <option value="never">Never</option>
-                      <option value="7d">In 7 days</option>
-                      <option value="30d">In 30 days</option>
-                    </select>
-                  </label>
-                  <button className="share-invite-btn"
-                          onClick={onCreatePublicLink}
-                          disabled={creatingLink}
-                          title="Copies your existing link when one with these settings is already active — a new link is only minted for a new scope.">
-                    {creatingLink
-                      ? 'Creating…'
-                      : viewLinks.some(l => !!l.include_subboards === !!linkIncludeSubboards)
-                        ? 'Copy existing link'
-                        : 'New link'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         <ExplorePublishSection board={board} canManage={canInvite} />
 

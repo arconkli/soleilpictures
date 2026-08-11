@@ -36,10 +36,7 @@ import { isShellEmail } from './ScoutClaimBanner.jsx';
 
 const TABS = [
   { id: 'profile',       label: 'Profile' },
-  // HELD ON PRODUCTION. The tab hands you a code to text, and Scout has no
-  // phone line connected — so connecting a phone here ends in silence. The
-  // ScoutTab component below is intact: restore this line and the render
-  // branch in the pane when the bot is answering.
+  { id: 'scout',         label: 'Scout' },
   { id: 'api',           label: 'API' },
   { id: 'invite',        label: 'Invite & earn' },
   { id: 'billing',       label: 'Billing' },
@@ -277,6 +274,9 @@ export function SettingsPanel({
           <div className="settings-pane">
             {tab === 'profile' && (
               <ProfileTab user={user} workspaceId={workspaceId} onSaved={onSaved} />
+            )}
+            {tab === 'scout' && (
+              <ScoutTab user={user} />
             )}
             {tab === 'api' && (
               <ApiTab user={user} />
@@ -741,6 +741,7 @@ function ScoutTab({ user }) {
   const feedback = useFeedback();
   const [code, setCode] = useState(null);
   const [identities, setIdentities] = useState([]);
+  const [pendingClaim, setPendingClaim] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(false);
 
@@ -750,9 +751,18 @@ function ScoutTab({ user }) {
       try {
         // scout_identities is self-readable by RLS (0206); everything else in
         // the Scout schema is service-role only.
-        const [codeRes, idRes] = await Promise.all([
+        const [codeRes, idRes, statusRes] = await Promise.all([
           supabase.rpc('scout_create_link_code', { p_ttl_minutes: 15 }),
           supabase.from('scout_identities').select('platform,handle,created_at').order('created_at'),
+          // An UNCONFIRMED claim: a phone number this account asked to be
+          // connected to, from the /scout waitlist box, which has not yet
+          // texted to prove anyone holds it. It is shown because a claim
+          // nobody can see is a claim nobody can dispute — and anyone can type
+          // anyone's number into a web form. (0233)
+          //
+          // Third, not last: the destructure above is positional, and the
+          // fire-and-forget below returns nothing worth reading.
+          supabase.rpc('scout_my_status'),
           // Settle a stale is_shell flag. The address change happens in the
           // user's inbox, out of band, with no webhook back — so the flag can
           // only clear the next time someone asks, and this tab is where a
@@ -763,6 +773,8 @@ function ScoutTab({ user }) {
         if (!alive) return;
         if (codeRes.error) setErr(true); else setCode(codeRes.data || null);
         setIdentities(idRes.data || []);
+        const status = Array.isArray(statusRes?.data) ? statusRes.data[0] : statusRes?.data;
+        setPendingClaim(status?.pending_claim_masked || null);
       } catch (_) {
         if (alive) setErr(true);
       } finally {
@@ -806,6 +818,25 @@ function ScoutTab({ user }) {
           {' '}your canvas and you will be able to sign in from anywhere — the
           {' '}boards and photos you already have stay exactly where they are.
         </p>
+      )}
+
+      {/* A number waiting on proof. Worded so it is unmistakably NOT connected
+          yet — somebody reading this who does not recognise the last four needs
+          to understand that nothing has happened to their account, and that
+          nothing will until that phone texts. */}
+      {pendingClaim && (
+        <div style={{ marginTop: 14 }}>
+          <div className="settings-billing-label">Waiting to connect</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6, fontSize: 13 }}>
+            <span aria-hidden="true" style={{ opacity: 0.6 }}>◦</span>
+            <b style={{ fontVariantNumeric: 'tabular-nums' }}>{pendingClaim}</b>
+            <span style={{ opacity: 0.6 }}>from the Scout waitlist</span>
+          </div>
+          <p className="settings-section-hint" style={{ marginTop: 6 }}>
+            Not connected yet. It links to this account the first time that phone
+            {' '}texts Scout and confirms — never before.
+          </p>
+        </div>
       )}
 
       {identities.length > 0 && (

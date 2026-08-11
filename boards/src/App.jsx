@@ -2861,8 +2861,35 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Which section ShareModal scrolls to on open ('invite-link' from the
   // collab nudge CTA); cleared on close so plain opens start at the top.
   const [shareInitialSection, setShareInitialSection] = useState(null);
+  // Which entry point opened the panel, so the share funnel can tell a toolbar
+  // click from a context-menu click from the nudge CTA. Set by the caller
+  // immediately before setShareOpen(true); read (and reset) by the effect below.
+  const shareSurfaceRef = useRef('topbar');
   // Collaboration-loop signal: fire when the share surface opens (any path).
-  useEffect(() => { if (shareOpen) logEvent(EV.SHARE_OPEN, { board_id: currentId }); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [shareOpen]);
+  useEffect(() => {
+    if (!shareOpen) return;
+    logEvent(EV.SHARE_OPEN, { board_id: currentId, surface: shareSurfaceRef.current });
+    shareSurfaceRef.current = 'topbar';
+    /* eslint-disable-line react-hooks/exhaustive-deps */
+  }, [shareOpen]);
+  // Open the Share panel for ANY cluster, navigating there first when it isn't
+  // the one on screen. The sidebar context menu needs this: openCollabInvite
+  // only navigates when the current surface isn't a board, so right-clicking
+  // cluster B while viewing cluster A would have shared A.
+  const openShareForBoard = React.useCallback((boardId) => {
+    if (!boardId) return;
+    // Same navigation the sidebar row itself performs (replace the stack, not
+    // push onto it) — openBoard treats the target as a sub-board and would
+    // leave a bogus breadcrumb trail when sharing from a different branch.
+    if (boardId !== currentId || currentSurface !== 'board') {
+      setStack([boardId]);
+      setCurrentSurface('board');
+    }
+    shareSurfaceRef.current = 'sidebar_menu';
+    setShareInitialSection(null);
+    setShareOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentId, currentSurface]);
   // "Build this together" banner CTA → the Share panel scrolled to the
   // invite-link section. The nudge passes the board it fired for, so an
   // off-board surface (tag view, cluster browser home) first navigates to
@@ -2872,6 +2899,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const openCollabInvite = React.useCallback((surface, boardId = null) => {
     const goShare = () => {
       try { logEvent(EV.REFERRAL_OPEN, { surface }); } catch (_) {}
+      shareSurfaceRef.current = surface || 'nudge';
       setShareInitialSection('invite-link');
       setShareOpen(true);
     };
@@ -3843,9 +3871,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // isn't ready at two cards never sees the banner at all — the surface would
     // die silently for everyone it was re-timed to reach. Re-dispatching costs
     // one event per card change; the listener is the guard.
-    if (myTier.tier === 'demo' && !tourActive && genuine.length >= 2) {
-      window.dispatchEvent(new CustomEvent('soleil:first-value'));
-    }
+    // (dispatched below, AFTER the collaborator nudge — see the ordering note there)
 
     // Moment-of-value collaborator invite: once this board crosses the
     // activation bar (≥3 genuine cards), suggest bringing a second person
@@ -3859,8 +3885,34 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // ReferralNudge owns the tier-gate + once-per-account guard + the
     // fv-banner stacking guard; repeated dispatches as the count grows are
     // its retry mechanism, not a bug.
+    //
+    // ORDERING: the collaborator nudge is dispatched BEFORE the first-value
+    // upsell, and claims the beat when both are eligible on the same card
+    // change. A photo drop routinely takes a board from 0 to 5+ genuine cards
+    // in one change, so both used to fire in the same synchronous batch and
+    // the upsell — dispatched first, at the lower threshold — always won; the
+    // collaborator banner then declined on its own anti-stacking guard. Across
+    // the whole base that left it seen by a handful of people while sharing
+    // was still the single strongest retention signal we have.
+    //
+    // The event is cancelable and ReferralNudge calls preventDefault() only
+    // when it actually shows the banner. So this yields the beat to
+    // collaboration exactly when collaboration can use it: if the nudge is
+    // capped, cooling down, already-fired or ineligible, it declines and the
+    // upsell dispatches in the same tick, unchanged.
+    //
+    // This does NOT re-time the upsell's own 2-card threshold — a user who
+    // places cards one at a time still meets the upsell at card 2, before the
+    // collaborator beat at card 3 exists. That threshold was deliberately
+    // chosen and is not ours to move here.
+    let collabTookTheBeat = false;
     if ((myTier.tier === 'demo' || myTier.tier === 'paid') && !tourActive && genuine.length >= POP_BOARD_THRESHOLD) {
-      window.dispatchEvent(new CustomEvent('soleil:collab-nudge', { detail: { boardId: currentId } }));
+      const ev = new CustomEvent('soleil:collab-nudge', { detail: { boardId: currentId }, cancelable: true });
+      window.dispatchEvent(ev);
+      collabTookTheBeat = ev.defaultPrevented;
+    }
+    if (myTier.tier === 'demo' && !tourActive && genuine.length >= 2 && !collabTookTheBeat) {
+      window.dispatchEvent(new CustomEvent('soleil:first-value'));
     }
 
     // Close the coachmark when a genuine card lands while it's showing (UI only;
@@ -5205,6 +5257,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             workspaceId={workspace.id}
             activeBoardId={currentSurface === 'board' ? currentId : null}
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
+            onShareBoard={openShareForBoard}
             onRenameBoard={renameBoardById}
             onCreateBoard={canEditCurrent ? () => { setCurrentSurface('board'); mainMutators.addNewBoard?.(); } : null}
             onCreateBoardInside={createBoardInside}

@@ -21,9 +21,10 @@ import { isLocalQaMode } from '../lib/localMode.js';
 import { logEvent, logEventOnce, getFirstSource } from '../lib/analytics.js';
 import { EV, classifyAuthError } from '../lib/analyticsEvents.js';
 import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat.js';
-import { peekPendingInviteEmail, claimPendingInvite, claimCollabLink } from '../lib/inviteApi.js';
+import { peekPendingInviteEmail, peekJoinBoardName, claimPendingInvite, claimCollabLink } from '../lib/inviteApi.js';
 import { parseRemixParam, stashRemix } from '../lib/remix.js';
 import { parseJoinParam, stashJoin, readJoin, clearJoin } from '../lib/joinLink.js';
+import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
 import { getFbCookies } from '../lib/metaPixel.js';
 import { lpCtaClick } from '../hooks/useLandingEngagement.js';
 import { SoleilMark } from '../components/primitives.jsx';
@@ -171,6 +172,11 @@ async function consumePendingJoin(userId) {
   if (!token) return;
   try {
     const row = await claimCollabLink(token);
+    // Record EVERY outcome. claim_collab_link only writes its own
+    // invite_link_claimed row on the fresh-join branch — 'upgraded', 'already'
+    // and 'noop' each return early, so those claims used to leave no trace at
+    // all and a join click could vanish with neither a success nor a failure.
+    try { logEvent(EV.INVITE_LINK_CLAIM_RESULT, { status: row?.status || 'unknown' }); } catch (_) {}
     if (row?.workspace_id) {
       const wsKey = `soleil.boards.session.${userId}.workspace`;
       localStorage.setItem(wsKey, JSON.stringify({ activeWorkspaceId: row.workspace_id }));
@@ -186,6 +192,34 @@ async function consumePendingJoin(userId) {
     try { logEvent(EV.INVITE_LINK_CLAIM_FAILED, { reason: String(e?.message || e).slice(0, 120) }); } catch (_) {}
   } finally {
     clearJoin();
+  }
+}
+
+// Attach a freshly-made account to the Scout waitlist row for the number they
+// left on /scout, so when Scout eventually reaches them their photos land in
+// the workspace they already have rather than in a new shell account.
+//
+// A CLAIM IS NOT A BINDING. scout_claim_signup records that this account asked
+// to be connected to that number and grants no ability to receive its messages
+// — the binding happens later, when the number actually texts Scout and
+// confirms, because that is the only point at which anyone proves they hold the
+// phone. Doing it here instead would let anybody type a stranger's number on
+// /scout, make an account, and quietly receive that stranger's photos.
+// See lib/scoutClaim.js and migration 0233.
+//
+// Best-effort and silent, like the two claims below it: somebody signing in has
+// no idea this is happening and must not be shown an error about it. Cleared on
+// ANY outcome so a number that will never match cannot retry forever.
+async function consumeScoutClaim(userId) {
+  if (typeof window === 'undefined' || !userId) return;
+  const phone = readScoutPhone();
+  if (!phone) return;
+  try {
+    await supabase.rpc('scout_claim_signup', { p_phone: phone });
+  } catch (e) {
+    console.warn('[scout] claim failed', e?.message || e);
+  } finally {
+    clearScoutPhone();
   }
 }
 
@@ -292,6 +326,7 @@ export function AuthGate({ children }) {
           consumeLifecycleLanding();
           await consumePendingInvite(data.session.user.id);
           await consumePendingJoin(data.session.user.id);
+          await consumeScoutClaim(data.session.user.id);
         }
         if (!cancelled) setSession(data.session);
       } catch (error) {
@@ -324,6 +359,7 @@ export function AuthGate({ children }) {
           consumeLifecycleLanding();
           await consumePendingInvite(sess.user.id);
           await consumePendingJoin(sess.user.id);
+          await consumeScoutClaim(sess.user.id);
         }
         if (!cancelled) setSession(sess);
       })();
@@ -392,6 +428,10 @@ function SignIn() {
   // Non-null when the user arrived via an /?invite=<token> link.
   // We pre-fill the email field and show an "invited as ..." banner.
   const [inviteHint, setInviteHint] = useState(null);
+  // Non-null when the user arrived via an /?join=<token> collab link. There is
+  // no email to pre-fill (the link is multi-use, not addressed to anyone), so
+  // the payoff is purely context: name the cluster they were invited to.
+  const [joinHint, setJoinHint] = useState(null);
   const codeRef = useRef(null);
   const emailEngagedRef = useRef(false);   // fire landing_field_engage once per field
   const codeEngagedRef  = useRef(false);
@@ -425,6 +465,26 @@ function SignIn() {
         })
         .catch(() => {});
     } catch (_) {}
+    return () => { cancelled = true; };
+  }, []);
+
+  // Name the cluster behind a stashed ?join=<token>. Someone who clicked
+  // "Join as editor" on a /share preview used to land on the bare sign-in
+  // screen with nothing tying it to the cluster they'd just been looking at —
+  // the ?invite= path has carried that context since 0086, ?join= never did.
+  // Best-effort and non-blocking: a revoked/expired/deleted token raises P0002,
+  // and the right response is the ordinary landing, not an error.
+  useEffect(() => {
+    let cancelled = false;
+    const token = readJoin();
+    if (!token) return undefined;
+    peekJoinBoardName(token)
+      .then((name) => {
+        if (cancelled) return;
+        setJoinHint({ name });
+        logEvent(EV.LANDING_JOIN_PREFILL, { had_name: !!name });
+      })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
@@ -545,6 +605,16 @@ function SignIn() {
       {inviteHint && (
         <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
           You've been invited. Sign in with <b>{inviteHint.email}</b> to accept.
+        </div>
+      )}
+
+      {/* ?join= has no addressed email, so it can't pre-fill — but it must still
+          say what you're joining, or the sign-in wall reads as a dead end. */}
+      {!inviteHint && joinHint && (
+        <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
+          {joinHint.name
+            ? <>You've been invited to collaborate on <b>{joinHint.name}</b>. Sign in to join.</>
+            : <>You've been invited to collaborate. Sign in to join.</>}
         </div>
       )}
 

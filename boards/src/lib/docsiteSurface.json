@@ -246,11 +246,13 @@
     "row"
   ],
   "apiCardKinds": [
+    "audio",
     "doc",
     "file",
     "image",
     "link",
     "note",
+    "pdf",
     "video"
   ],
   "apiScopes": [
@@ -338,6 +340,10 @@
     {
       "id": "profile",
       "label": "Profile"
+    },
+    {
+      "id": "scout",
+      "label": "Scout"
     },
     {
       "id": "theme",

@@ -274,9 +274,16 @@ export async function handleScoutSignup(request, env) {
   // `status` here is the SIGNUP's state, and it is what the page renders. It
   // says 'pending' until the bot has actually sent something, so the success
   // copy can never claim a text went out that didn't.
+  //
+  // The normalized number goes back too. The visitor typed "(555) 012-3456";
+  // only this endpoint knows the cf-ipcountry it was read against, so the
+  // client cannot derive the E.164 string the database actually holds — and it
+  // needs exactly that string to claim the signup after they make an account.
+  // Echoing back the number they just typed reveals nothing they do not have.
   return jsonRes({
     status: row.status === 'sent' ? 'texted' : 'queued',
     is_new: row.is_new !== false,
+    phone,
   });
 }
 

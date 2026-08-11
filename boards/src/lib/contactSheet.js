@@ -73,7 +73,13 @@ export function sheetLayout(groups, opts = {}) {
     out.push({
       label: g.label || null,
       dim: !!g.dim,
-      count: items.length,
+      // The label's number is HOW MANY CARDS ARE MOVING, which is not always
+      // how many tiles there are: a voice note, a PDF and a plain note are
+      // cards you cannot draw. The caller passes the true count so the picture
+      // and the words agree — a sheet labelled "6" showing four tiles reads as
+      // "I am about to move four things", and that mismatch is exactly the
+      // misunderstanding the confirmation exists to prevent.
+      count: Number.isFinite(g?.count) ? g.count : items.length,
       labelY: y,
       items: laid,
     });

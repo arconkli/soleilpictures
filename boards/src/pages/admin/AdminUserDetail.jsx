@@ -337,7 +337,12 @@ export function AdminUserDetail({
       <div className="admin-users-detail">
         {shares.length > 0 ? (
           <div className="admin-detail-shares">
-            <div className="admin-detail-subhead">Shares driving signups</div>
+            {/* "Signups" is load-bearing and used to be implicit: these are
+                people who signed up for the PRODUCT after landing on a shared
+                cluster — NOT people who joined that cluster. Joining a cluster
+                is a different and far rarer event; see the Multiplayer panel
+                under Acquisition. The old heading read as board joins. */}
+            <div className="admin-detail-subhead">Shares driving product signups</div>
             <div className="admin-share-rollup">
               {shares.map((s, i) => (
                 <div key={i} className="admin-share-row">

@@ -29,7 +29,22 @@ const JPEG_QUALITY = 82;
 // Historical groups render knocked back. Enough to read as "not these".
 const DIM_BRIGHTNESS = 0.5;
 
-const keyOf = (card) => String(card?.src || '').replace(/^r2:/, '') || null;
+// The R2 key of the picture that REPRESENTS a card, which is not always the
+// card's own bytes.
+//
+// A video card's `src` is an .mp4, and handing that to sharp fails with
+// "unsupported image format" — which is how every clip silently vanished from
+// the confirmation sheet the moment Scout started accepting video. The poster
+// frame is the picture of a clip, and it is a real frame from it.
+//
+// A voice note, a plain note and a PDF with no page-1 raster have nothing to
+// draw at all. They return null, are left out of the tiles, and are still
+// counted in the label — see `count` in sheetLayout.
+const keyOf = (card) => {
+  if (!card) return null;
+  const raw = card.kind === 'video' ? card.poster : card.src;
+  return String(raw || '').replace(/^r2:/, '') || null;
+};
 
 // Resolve the bytes to draw for a set of image cards.
 //
@@ -122,7 +137,10 @@ export async function confirmationSheet(cfg, r2, groups) {
   const laid = sheetLayout(groups.map((g) => ({
     label: g.label,
     dim: g.dim,
-    items: (g.cards || []).map((c) => ({
+    // The label counts every card that is about to move; the tiles are only the
+    // ones there is a picture for.
+    count: (g.cards || []).length,
+    items: (g.cards || []).filter((c) => keyOf(c)).map((c) => ({
       key: keyOf(c),
       width: c.w || bitmaps.get(keyOf(c))?.width || 4,
       height: c.h || bitmaps.get(keyOf(c))?.height || 3,
@@ -149,8 +167,12 @@ export async function confirmationSheet(cfg, r2, groups) {
 }
 
 // A miniature of the arrangement just written to the destination board.
+//
+// Anything with a picture, not just `kind === 'image'` — a clip laid out among
+// the photos is part of the arrangement, and a preview that quietly leaves it
+// out is a preview of a board that does not exist.
 export async function moodboardSheet(cfg, r2, cards) {
-  const images = (cards || []).filter((c) => c?.kind === 'image' && keyOf(c));
+  const images = (cards || []).filter((c) => keyOf(c));
   if (!images.length) return null;
 
   const laid = previewLayout(images);

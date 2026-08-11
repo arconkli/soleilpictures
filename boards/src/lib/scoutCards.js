@@ -15,6 +15,9 @@
 import { detectEmbed } from './oembed.js';
 import { arrangeInFreeSpace } from './canvasGeom.js';
 import { layoutMoodboard, pushClearOf, withGeometry } from './moodboard.js';
+// The canvas' own intrinsic sizes for each media kind. Imported rather than
+// restated so a texted clip and a dragged clip produce the same card.
+import { FALLBACK_DIMS } from './fileIngest.js';
 
 // Collision safety lives in moodboard.js now (both layout paths need it and it
 // must behave identically for each). Re-exported because it's part of this
@@ -102,12 +105,93 @@ function uid(prefix) {
 // migration, and — the reason that matters — travels with the card when it moves
 // between boards, so filing can sort a moodboard without re-downloading and
 // re-decoding every photo from R2.
-export function buildImageCard({ key, width, height, alt, lab = null }) {
+export function buildImageCard({ key, width, height, alt, lab = null, shotAt = null, geo = null }) {
   const { w, h } = imageCardSize(width, height);
   const card = { id: uid('img'), kind: 'image', src: `r2:${key}`, alt: alt || null, w, h };
+  // `caption`, not just `alt`. cardIndexBody reads `body` then `caption`
+  // (cardIndexRow.js:139) and reads `alt` never — so a photo texted with
+  // "scene 4 diner" was landing on the canvas correctly labelled and was
+  // simultaneously invisible to ⌘K, to /api/v1 /search, to the public /c/<slug>
+  // page and to Scout's own search. The one word someone said about a photo is
+  // the only thing they will ever search for it by.
+  if (alt) card.caption = alt;
   if (lab && Number.isFinite(lab.L)) {
     card.lab = [round4(lab.L), round4(lab.a), round4(lab.b)];
   }
+  // Where and when it was taken, carried as flat fields for the same reasons
+  // `lab` is: no migration, ~40 bytes, and they travel with the card when
+  // filing moves it to another board.
+  if (shotAt) card.shotAt = shotAt;
+  if (Array.isArray(geo) && geo.length === 2) card.geo = geo;
+  return card;
+}
+
+// Video, audio, PDF and generic files.
+//
+// One builder rather than four, because the differences are three fields and
+// the sizing table; four near-identical functions is how the browser's drop
+// handlers and the list-view's drop handlers drifted apart before fileIngest.js
+// was extracted to stop it happening again.
+//
+// FALLBACK_DIMS is that same module's table, so a texted clip and a dragged
+// clip get the same card geometry. Real video dimensions refine it when ffmpeg
+// could read them; everything else keeps the intrinsic default, which is what
+// the canvas uses too.
+export function buildMediaCard(up, { title = null, transcript = null } = {}) {
+  const base = FALLBACK_DIMS[up.kind] || FALLBACK_DIMS.file;
+  const card = { id: uid(up.kind.slice(0, 3)), kind: up.kind, ...base };
+
+  if (up.kind === 'video') {
+    card.src = up.src;
+    if (up.poster) card.poster = up.poster;
+    if (up.width && up.height) {
+      // Same window the canvas uses for a dropped clip (CanvasSurface.jsx:2330):
+      // wide enough to read, never wide enough to bury the board.
+      const w = Math.max(240, Math.min(560, up.width));
+      card.w = w;
+      card.h = Math.max(160, Math.round(w * (up.height / up.width)));
+    }
+    if (up.duration) card.duration = up.duration;
+    if (title) { card.title = title; card.caption = title; }
+    return card;
+  }
+
+  if (up.kind === 'audio') {
+    card.src = up.src;
+    card.title = title || 'Voice note';
+    if (up.duration) card.duration = up.duration;
+    // The transcript is the WHOLE point of transcribing: `body` is what
+    // cardIndexBody projects into card_index, so this is what makes a spoken
+    // note findable by its words. A taller card, because there is now something
+    // on it worth reading.
+    if (transcript) {
+      card.body = transcript;
+      card.h = Math.max(base.h, 170);
+    }
+    return card;
+  }
+
+  if (up.kind === 'pdf') {
+    // `pdfSrc` + a null `src`: the viewer reads pdfSrc, and `src` is where a
+    // page-1 raster would go if we had one (uploads.js:754). Explicitly null
+    // rather than absent, matching CanvasSurface.jsx:2230.
+    card.pdfSrc = up.src;
+    card.src = null;
+    card.name = title || up.name || 'PDF';
+    return card;
+  }
+
+  // Field names match the durable shape the canvas writes after its upload
+  // resolves (CanvasSurface.jsx:2279) — fileSrc/fileName/mime/sizeBytes/ext —
+  // not the optimistic placeholder. A file card the app cannot open is worse
+  // than no card.
+  card.fileSrc = up.src;
+  card.fileName = up.name || 'File';
+  if (up.mimeType) card.mime = up.mimeType;
+  if (up.size) card.sizeBytes = up.size;
+  const ext = String(up.name || '').split('.').pop();
+  if (ext && ext !== up.name) card.ext = ext.toLowerCase();
+  if (title) card.caption = title;
   return card;
 }
 
@@ -158,6 +242,28 @@ export function buildNoteCard(text) {
   return { id: uid('note'), kind: 'note', html: textToNoteHtml(text), w: 280, h: 160 };
 }
 
+// Where a batch was shot, as one line under its title.
+//
+// The MEDIAN coordinate, not the mean: a scouting run is a cluster of frames
+// around one place plus, quite often, one photo taken from the car on the way.
+// A mean is dragged into the road by that outlier; a median ignores it.
+//
+// The link is a plain geo query rather than a provider's app URL, so it opens
+// in whatever maps application the reader actually uses.
+export function placeSubtitle(images = []) {
+  const pts = images.map((i) => i?.geo).filter((g) => Array.isArray(g) && g.length === 2);
+  if (!pts.length) return null;
+  const mid = (vals) => {
+    const s = vals.slice().sort((a, b) => a - b);
+    const h = s.length >> 1;
+    return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2;
+  };
+  const lat = Math.round(mid(pts.map((p) => Number(p[0]))) * 1e5) / 1e5;
+  const lon = Math.round(mid(pts.map((p) => Number(p[1]))) * 1e5) / 1e5;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return `${lat}, ${lon} · https://maps.apple.com/?ll=${lat},${lon}&q=${encodeURIComponent('Scout')}`;
+}
+
 // A full-width labelled band above the batch. Section headers are how generated
 // boards already express structure (see cardEncode.mjs:222) — card_index mirrors
 // meta.sectionHeader, which the public /c/<slug> page turns into an H2.
@@ -185,12 +291,23 @@ export function buildSectionHeader(topic, subtitle) {
 // Order is deliberate: header, then photos, then links, then the note — so the
 // note lands nearest the imagery it refers to, which is what the outline meant
 // by placing a reminder "contextually near the diner scout photos".
-export function composeBatch({ existingCards = [], images = [], urls = [], noteText = null, topic = null }) {
+//   media         — [{ up, title, transcript }] for every non-photo kind
+//
+// The header's SUBTITLE is where a batch's coordinates surface. There is no
+// location card kind and inventing one would mean a migration, an API kind, a
+// renderer and a doc page; `sub` already exists, already renders, and is already
+// projected into card_index (cardIndexRow.js:194). One line of provenance above
+// the photos is what someone actually wants — not a pin per frame.
+export function composeBatch({
+  existingCards = [], images = [], media = [], urls = [], noteText = null, topic = null,
+}) {
   const batch = [];
-  if (topic && (images.length || urls.length || noteText)) {
-    batch.push(buildSectionHeader(topic, null));
+  const hasContent = images.length || media.length || urls.length || noteText;
+  if (topic && hasContent) {
+    batch.push(buildSectionHeader(topic, placeSubtitle(images)));
   }
   for (const img of images) batch.push(buildImageCard(img));
+  for (const m of media) batch.push(buildMediaCard(m.up, m));
   for (const u of urls) batch.push(buildLinkCard(u.url, u.preview));
   if (noteText) batch.push(buildNoteCard(noteText));
   if (!batch.length) return [];

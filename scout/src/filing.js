@@ -29,7 +29,8 @@ export const PENDING_TTL_MS = 30 * 60 * 1000;
 // logic, so they can be tested (and reused by the Worker) without pulling sharp
 // and the provider SDK along.
 export {
-  parseConfirmation, wantsEverything, isBinQuery,
+  parseConfirmation, wantsEverything, isBinQuery, parseStopIntent, parseFindIntent,
+  isDeleteIntent, isCreateConfirmation,
 } from '../../boards/src/lib/scoutConfirm.js';
 
 // Group the Bin for display: the run being acted on, then everything older.

@@ -1,17 +1,21 @@
 ---
 title: Soleil Scout — Text Photos onto a Board
-metaDescription: Soleil Scout turns texted photos, links and notes into cards on a Soleil Clusters canvas. No app, no login. Commands, batching and the Scout Bin explained.
+metaDescription: Text photos, clips, voice notes, PDFs and links to Soleil Scout and they land as cards on a Clusters canvas. No app, no login. Commands, batching and search.
 h1: Soleil Scout
 navLabel: Soleil Scout
 section: scout
 order: 0
-updated: 2026-08-08
-answer: Soleil Scout is a text-message ingest bot. You text photos, links or notes from your phone and they land arranged on a Soleil Clusters canvas, grouped by what you said about them. There is no app to install and no signup — an account and a board are created behind you the first time you text. The web half is live; the phone line is not connected yet, so signups are queued.
+updated: 2026-08-11
+answer: Soleil Scout is a text-message ingest bot. You text photos, clips, voice notes, PDFs or links and they land arranged on a Soleil Clusters canvas, grouped by what you said about them. No app, and no signup — an account and a board are created behind you the first time you text, and voice notes are transcribed so you can search them. Scout is invite-only for now, so /scout puts you on the list; the canvas is open today and the number you leave connects to the account you make.
 faq:
   - q: Can I use Scout right now?
-    a: Not yet end to end. You can join the list at /scout and the web side is live, but Scout has no phone line connected, so nothing is sent or received. Signups are queued and you are texted when the line goes live.
+    a: Not yet end to end. Scout is invite-only while we scale the line, so joining at /scout puts you on the list and you are texted when you are in. The canvas itself is open today — make an account and the number you left connects to it the first time you text Scout.
   - q: Do I need an account first?
-    a: No. That is the point. An account, a workspace and a board are created behind your phone number the first time you text, with no form and no password. You can attach an email address later.
+    a: No. An account, a workspace and a board are created behind your phone number the first time you text, with no form and no password. If you already made one on the web after joining the waitlist, Scout offers to connect this number to it instead — you reply YES once.
+  - q: Can it take video and voice notes?
+    a: Yes. Video, audio, PDFs and photos all become real cards, and a voice note is transcribed so its words are searchable. iPhone clips are converted from HEVC so they play outside Safari.
+  - q: How do I make it stop?
+    a: Text STOP. It is recorded against your number, nothing further is sent, and the signup queue is blocked too. START brings it back. Your boards and photos are untouched either way.
   - q: Does it work on Android?
     a: iMessage is the confirmed transport. SMS and RCS are not confirmed yet, and nothing here promises Android until they are.
 related:
@@ -23,11 +27,15 @@ related:
 Scout exists because nobody installs an app in a parking lot on one bar of
 signal. It lives in the messages app already open on the phone.
 
-> **Warning:** Scout is **not fully live**. The web half — the signup box, the
-> instant sign-in links, the account plumbing — is deployed. The bot itself has
-> no phone line connected, so no message is sent or received today. Joining at
+> **Warning:** Scout is **invite-only** and not yet running. The web half — the
+> signup box, the instant sign-in links, the account plumbing — is deployed. The
+> bot itself is not, so no message is sent or received today. Joining at
 > [/scout]({{fact:siteOrigin}}/scout) puts you on the list and you are texted
-> when the line is live. This page describes how it behaves once it is.
+> when you are in.
+>
+> The canvas is open in the meantime. Make an account and the number you left
+> connects to it when Scout reaches you — see
+> [Joining from the waitlist](#joining-from-the-waitlist).
 
 ## The idea
 
@@ -46,6 +54,33 @@ moment to organize it — and it is the only moment when you actually know.
 4. **Tap the link.** Land on your canvas, signed in, with exactly the photos you just sent already selected.
 5. **File it later.** Everything collects in your Scout Bin. Say "put these in Diner Recce" and Scout confirms what will move before it moves anything.
 
+## What you can send
+
+| You send | You get |
+|---|---|
+| Photos | Image cards at full resolution. iPhone HEIC is converted so it opens outside Safari |
+| Video | A [video card](/docs/canvas/cards) with a poster frame. iPhone HEVC is converted so it plays in Chrome and Firefox |
+| Voice notes | An audio card **plus a transcript**, so the words are searchable |
+| Audio files | An audio card |
+| PDFs | A [PDF card](/docs/files/pdf) that opens in the viewer |
+| Links | A rich embed for YouTube, Vimeo, TikTok and the like; a preview card otherwise |
+| Plain text | A sticky note next to the imagery it refers to |
+
+Free-plan size limits are the same ones the canvas applies to a dropped file —
+{{fact:freeVideoCap}} for video, {{fact:freeAudioCap}} for audio,
+{{fact:freePdfCap}} for a PDF. Anything larger, and any other file type, needs
+[Creator](/docs/account/plans). Scout says which files it could not take rather
+than dropping them quietly.
+
+### Where and when a photo was taken
+
+Scout reads the capture time and, where the phone included it, the coordinates
+from a photo's EXIF data and keeps both on the card. When a batch has
+coordinates, the group's heading carries a map link for the place.
+
+Nothing is looked up, sent anywhere, or shown publicly — it travels with the
+card, the same way a photo's average colour does.
+
 ## Batching
 
 Twelve photos means twelve messages seconds apart. Scout waits until you have
@@ -54,7 +89,7 @@ sends **one** reply.
 
 While it works, a single message is edited in place through the stages rather
 than sending a new one each time: *Got 12 photos — working on it…* → *Uploading
-3 of 12…* → *Arranging on Scout Inbox…* → the confirmation.
+3 of 12…* → *Arranging on Scout Bin…* → the confirmation.
 
 ## The Scout Bin
 
@@ -62,30 +97,79 @@ Unfiled things collect in your **Scout Bin**. It is the default destination, so
 you never have to decide where something goes at the moment you are shooting it.
 
 Say `/board Diner Recce` and that thread's target changes — the target is
-sticky, so everything after goes there until you change it again.
+sticky, so everything after goes there until you change it again. `/board` with
+no name puts you back in the Bin.
+
+If the board does not exist, Scout offers to make it and waits for you to reply
+`CREATE`. It never invents a board from a name it merely heard, because a typo
+would otherwise become a second board with half your work in it.
 
 Moves are always **confirmed before they happen**, and a rendered contact sheet
 of what is about to move is sent before the text asking you to confirm. Moves
 can be undone.
 
+## Finding things again
+
+Say `find diner`, or `/find diner`, and Scout tells you which boards match and
+links you to the one with the most hits.
+
+It searches titles, notes, whatever you said about a photo when you sent it, and
+**the text of your voice notes** — which is the whole reason they are
+transcribed. It only ever searches boards you can already write to.
+
 ## Commands
 
 | Command | Effect |
 |---|---|
-| `/help` (or `/start`) | What Scout can do |
-| `/board <name>` | Send everything after this to that cluster |
-| `/bin` (or `/inbox`) | Back to the Scout Bin |
-| `/link` | A signed link into your canvas |
+| `/help` | What Scout can do |
+| `/board <name>` | Send everything after this to that cluster; offers to create it if it does not exist |
+| `/board` | Back to the Scout Bin |
+| `/bin` | What is waiting to be filed, and how old |
+| `/find <text>` | Search everything you have sent |
+| `/delete` | Remove the batch you just sent, with an undo |
 | `/code <code>` | Connect this phone to an existing account |
+| `STOP` | Stop messaging you entirely. `START` resumes |
 
-Anything that is not a command is treated as content — or, if it is a question,
-answered.
+Anything that is not a command is treated as content — or, if it is an
+instruction ("put these in Diner Recce") it is obeyed, and if it is a question
+it is answered.
+
+## Stopping
+
+Text **STOP** and Scout stops. It is recorded against your number, so nothing
+further is sent and the signup queue is blocked as well. **START** resumes.
+
+Stopping does not touch your boards, your photos or your account. To delete the
+account itself, use Settings → Profile in the app.
+
+## Joining from the waitlist
+
+Leaving your number at [/scout]({{fact:siteOrigin}}/scout) puts you on the list
+and offers you the web app, which is open today. If you make an account there,
+the number you left is **claimed** by it.
+
+A claim is a request, not a connection. It gives that account no ability to
+receive your messages, and nothing is bound until the phone itself says so —
+because anyone can type anyone's number into a web form, and the only proof
+that you hold a phone is that you texted from it.
+
+So the first time that number texts Scout, Scout offers:
+
+> You already made a Clusters account — you@studio.com. Reply **YES** and this
+> number connects to it, so everything you send goes straight there.
+
+Reply `YES` and the phone is bound, along with anything you had already sent.
+Ignore it and everything stays where it is; the offer keeps until you take it.
+
+A pending claim on your account is listed in **Settings → Scout**, so a number
+you do not recognise is something you can see.
 
 ## Connecting to an existing account
 
-Binding a phone to an account you already have is built but not switched on,
-for the same reason as everything else here: there is no line to text. When it
-is, you will get a connect code from your settings and text it once.
+If you already have a Clusters account and never joined the waitlist,
+**Settings → Scout** gives you a connect code. Text `/code <code>` and the phone
+is bound to your account, so texted photos land in the workspace you already
+use.
 
 If you started from Scout with no account, a **claim** flow attaches an email
 address to the shell account created behind your number.
@@ -100,11 +184,16 @@ another.
 ## Limits
 
 Texted cards count against your [card allowance](/docs/canvas/cards) like any
-other. On the free plan that is **{{fact:demoCardLimit}} cards**.
+other. The free allowance is per account — see [Plans](/docs/account/plans) — and
+Scout tells you your own number if you ask it "how much is this?".
 
 Scout warns you once, at 75% of the cap, and tells you where you stand in each
 confirmation past halfway. At the cap it says so plainly rather than silently
 dropping photos.
+
+There is also a rolling daily ceiling on how much one number can send. It is
+abuse protection rather than a plan limit, and it sits far above anything a
+day's scouting produces.
 
 ## Transport
 

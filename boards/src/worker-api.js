@@ -107,12 +107,27 @@ const EXTRA_TYPES = {
 // those carries structured interior state the wire format does not describe —
 // they stay readable but not creatable, rather than creatable and broken.
 // `?include=raw` is how you get at their interiors.
-const CARD_KINDS = ['note', 'image', 'link', 'doc', 'video', 'file'];
+//
+// `audio` and `pdf` joined them for the same reason, found while giving Soleil
+// Scout the ability to accept anything you can text it: the CANVAS creates both
+// (CanvasSurface.jsx:2230 and :2353) and this list rejected both, so the API
+// refused two card kinds the product itself produces. A kind you can make by
+// dropping a file and cannot make through the API is a hole with no workaround,
+// which is the same test `video` and `file` were admitted under.
+const CARD_KINDS = ['note', 'image', 'link', 'doc', 'video', 'audio', 'pdf', 'file'];
 
-// Which Y.Doc field holds the bytes, per kind. Images and video both use `src`;
-// files use `fileSrc`. Getting this wrong produces a card that renders nothing,
-// which is exactly what happened when this file wrote `key` instead of `src`.
-const BYTES_FIELD = { image: 'src', video: 'src', file: 'fileSrc', pdf: 'fileSrc' };
+// Which Y.Doc field holds the bytes, per kind. Images, video and audio all use
+// `src`; files use `fileSrc`; a PDF uses `pdfSrc` and keeps `src` for its
+// page-1 raster. Getting this wrong produces a card that renders nothing, which
+// is exactly what happened when this file wrote `key` instead of `src`.
+//
+// `pdf` was already listed here — mapped to `fileSrc`, which is not the field a
+// PDF card reads and never has been. It was unreachable while `pdf` was absent
+// from CARD_KINDS above; admitting the kind is what would have made a
+// long-standing typo start producing blank cards.
+const BYTES_FIELD = {
+  image: 'src', video: 'src', audio: 'src', file: 'fileSrc', pdf: 'pdfSrc',
+};
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -300,7 +315,10 @@ export function normalizeIncomingCard(input, { partial = false, existingKind = n
     const k = str(c.poster_key, 500);
     out.poster = k ? `r2:${k}` : null;
   }
-  if ('file_name' in c) out.fileName = str(c.file_name, 300);
+  // A PDF card keeps its filename in `name` (PdfCard.jsx:27 renders `name ||
+  // 'PDF'`); everything else uses `fileName`. Writing the wrong one produces a
+  // card labelled "PDF" whatever the caller said it was.
+  if ('file_name' in c) out[kind === 'pdf' ? 'name' : 'fileName'] = str(c.file_name, 300);
   if ('mime' in c) out.mime = str(c.mime, 200);
   if ('ext' in c) out.ext = str(c.ext, 20);
   if (Number.isFinite(c.size_bytes)) out.sizeBytes = Math.max(0, Math.round(c.size_bytes));
@@ -2122,12 +2140,21 @@ async function dispatch(url, request, env, ctx) {
       // cap BEFORE a write fails with a 402 it has to interpret.
       const capRows = await userRpc(env, token, 'get_board_capacity', { p_board_id: id }).catch(() => null);
       const cap = Array.isArray(capRows) ? capRows[0] : capRows;
+      // `is_capped` is the gate, NOT the number. An uncapped (paid) owner comes
+      // back as (false, 0, 0) — see the header of migration 0216 — so reading
+      // the zeros literally reports `remaining: 0` to a client that has no
+      // limit at all, which reads as "you are full" and is the exact confusion
+      // 0216 chose that shape to avoid. null means "no ceiling", and only a
+      // capped owner gets numbers.
+      const uncapped = !cap || cap.is_capped !== true;
       return json({
         board: (await decorateBoards(env, token, [b], include))[0],
         capacity: cap ? {
-          used: Number(cap.used ?? 0),
-          cap: cap.cap == null ? null : Number(cap.cap),
-          remaining: cap.cap == null ? null : Math.max(0, Number(cap.cap) - Number(cap.used ?? 0)),
+          used: uncapped ? 0 : Number(cap.used ?? 0),
+          cap: uncapped || cap.cap == null ? null : Number(cap.cap),
+          remaining: uncapped || cap.cap == null
+            ? null
+            : Math.max(0, Number(cap.cap) - Number(cap.used ?? 0)),
           capped: !!cap.is_capped,
         } : null,
       });

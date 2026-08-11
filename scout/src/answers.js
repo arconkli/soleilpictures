@@ -9,6 +9,13 @@
 // Matching is keyword-first (free, instant, no model call) and falls back to
 // classification only when the wording is unusual.
 
+import {
+  FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP,
+} from '../../boards/src/lib/fileIngest.js';
+import { DEMO_CARD_LIMIT } from '../../boards/src/lib/demoCardCap.js';
+
+const mb = (bytes) => `${Math.round(bytes / 1024 / 1024)}MB`;
+
 export const TOPICS = {
   how_it_works: {
     keywords: ['how do you work', 'how does this work', 'how do you', 'what do you do',
@@ -29,18 +36,41 @@ export const TOPICS = {
   what_can_i_send: {
     keywords: ['what can i upload', 'what can i send', 'what can you take',
                'what file', 'can i send video', 'can i send a pdf', 'what formats',
-               'can you take video', 'do you take'],
+               'can you take video', 'do you take', 'voice note', 'voice memo'],
+    // The caps are INTERPOLATED FROM fileIngest.js, never typed here. This
+    // answer used to say "video and audio files need a Creator plan", which was
+    // simply false — the free tier takes all three inline, and only oversize
+    // media and arbitrary file types are paid. Wrong copy about the paywall is
+    // worse than no copy: it talks people out of the product for a reason that
+    // does not exist.
     answer: () => [
       'Photos — as many as you like, at full resolution. iPhone HEIC is fine;',
       'I convert it so it opens everywhere.',
+      '',
+      `Video up to ${mb(FREE_VIDEO_CAP)} and audio up to ${mb(FREE_AUDIO_CAP)}, free.`,
+      'iPhone clips get converted so they play outside Safari too.',
+      '',
+      'Voice notes — I transcribe them, so you can search what you said later.',
+      '',
+      `PDFs up to ${mb(FREE_PDF_CAP)}. Bigger files, and any other file type,`,
+      'need a Creator plan.',
       '',
       'Links — YouTube, Vimeo, TikTok and the like become real embedded cards.',
       'Anything else becomes a preview card with its title and image.',
       '',
       'Text — anything you write becomes a sticky note next to the photos it',
       'refers to.',
+    ].join('\n'),
+  },
+
+  search: {
+    keywords: ['can i search', 'how do i find', 'find a photo', 'search my',
+               'look for something'],
+    answer: () => [
+      'Say "find diner" — or /find diner — and I\'ll tell you which boards it\'s on.',
       '',
-      'Video and audio files need a Creator plan. Everything above is free.',
+      'I search titles, notes, whatever you said about a photo, and the text of',
+      'any voice note you sent.',
     ].join('\n'),
   },
 
@@ -71,13 +101,34 @@ export const TOPICS = {
   pricing: {
     keywords: ['how much', 'is this free', 'is it free', 'cost', 'price', 'pricing',
                'do i have to pay', 'what happens when i run out', 'limit', 'card limit'],
-    answer: (ctx) => [
-      'Free to use. Your free plan covers 100 cards across as many boards as you',
-      'like, with collaborators included. Every photo, link or note is one card.',
-      '',
-      'When you hit the wall I\'ll tell you. Creator lifts the cap and adds 100GB',
-      `and any file type: ${ctx.origin}/pricing`,
-    ].join('\n'),
+    // THE NUMBER IS THE USER'S OWN. Since migration 0229 the cap lives in
+    // profiles.card_cap_base and differs per account — accounts predating it are
+    // grandfathered higher — so demoCardCap.js says in as many words: never
+    // render the constant as somebody's actual limit. This answer used to state
+    // a flat "100 cards", which is now wrong for every new account and right
+    // only by accident for old ones. ctx.cap is what scout_board_capacity says
+    // about THIS person; the constant is the fallback when we could not ask.
+    answer: (ctx) => {
+      if (ctx.cap === Infinity) {
+        return [
+          'You\'re on Creator — no card limit, 100GB of storage, and any file type.',
+          '',
+          'Send as much as you like.',
+        ].join('\n');
+      }
+      const cap = Number.isFinite(ctx.cap) ? ctx.cap : DEMO_CARD_LIMIT;
+      const used = Number.isFinite(ctx.used) ? ctx.used : null;
+      const lines = [
+        `Free to use. Your plan covers ${cap} cards across as many boards as you`,
+        'like, with collaborators included. Every photo, clip, link or note is one card.',
+      ];
+      // Built by pushing, not filtered: a `.filter(Boolean)` over this array
+      // silently eats the '' that separates the paragraphs, because '' is falsy.
+      if (used !== null) lines.push('', `You're at ${used} of ${cap}.`);
+      lines.push('', 'When you hit the wall I\'ll tell you. Creator lifts the cap and adds 100GB',
+        `and any file type: ${ctx.origin}/pricing`);
+      return lines.join('\n');
+    },
   },
 
   privacy: {
@@ -112,14 +163,19 @@ export const TOPICS = {
     ].join('\n'),
   },
 
+  // Reaching this topic means someone asked ABOUT stopping rather than saying
+  // the word — a real "stop" is handled long before the classifier runs, sets
+  // scout_identities.opted_out_at, and blocks the invite queue. This answer is
+  // therefore about how, and about the difference between stopping and deleting.
   stop: {
-    keywords: ['stop', 'unsubscribe', 'delete my', 'remove me', 'opt out',
-               'cancel', 'go away', 'leave me alone'],
+    keywords: ['how do i stop', 'how do i unsubscribe', 'delete my account',
+               'delete my data', 'stop messaging me', 'opt out'],
     answer: (ctx) => [
-      'Understood — I won\'t send anything unless you text me first.',
+      'Text STOP and I won\'t message you again. START brings me back.',
       '',
-      `To delete your board and account, open ${ctx.origin} and go to`,
-      'Settings → Profile. Everything goes with it.',
+      `Stopping leaves your boards and photos exactly as they are. To delete the`,
+      `account itself, open ${ctx.origin} and go to Settings → Profile —`,
+      'everything goes with it.',
     ].join('\n'),
   },
 };

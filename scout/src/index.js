@@ -32,6 +32,57 @@ function senderHandle(message, space) {
     || '';
 }
 
+// Turn one inbound message's content into something the burst can carry.
+//
+// THIS FUNCTION EXISTS BECAUSE OF A SILENT FAILURE. It used to be an inline
+// if/else if/else chain whose final branch was a bare `continue` for "reactions,
+// read receipts, membership events". That comment was true about what it MEANT
+// to drop and wrong about what it ACTUALLY dropped: the provider ships a
+// first-class `voice` content type, so a voice memo — the single most natural
+// thing to send from a location with your hands full — matched neither `text`
+// nor `attachment` and was discarded before anything downstream could see it.
+// No card, no error, no reply. Total silence, which is the worst answer a bot
+// can give, because the user cannot tell it from being ignored.
+//
+// So the drop list is now EXPLICIT and everything else is loud. A content type
+// we have never seen returns 'unknown', which the caller logs with its type —
+// the next provider feature shows up in the logs instead of vanishing.
+//
+// `voice` carries a duration the attachment type does not, and it is a stronger
+// signal than a mime sniff: a .m4a sent as a file is a music track, a .m4a sent
+// as a voice message is somebody talking. Only the latter is worth transcribing.
+async function readContent(content) {
+  const type = content?.type;
+
+  if (type === 'text') return { kind: 'text', text: content.text };
+
+  if (type === 'attachment' || type === 'voice') {
+    const bytes = await content.read();
+    return {
+      kind: 'media',
+      media: {
+        bytes: bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes),
+        mimeType: content.mimeType,
+        name: content.name,
+        size: content.size ?? null,
+        duration: content.duration ?? null,
+        voice: type === 'voice',
+      },
+    };
+  }
+
+  // Deliberately silent. These are things that happen AROUND a conversation
+  // rather than things somebody sent us, and replying to them is how a bot
+  // becomes noise: a thumbs-up on our own confirmation is not an instruction.
+  if (type === 'reaction' || type === 'read' || type === 'typing'
+      || type === 'addMember' || type === 'removeMember' || type === 'leaveSpace'
+      || type === 'rename' || type === 'avatar' || type === 'unsend') {
+    return { kind: 'ignored' };
+  }
+
+  return { kind: 'unknown', type };
+}
+
 // Attaching an image is best-effort, exactly like editing a message is: the
 // provider may refuse or the channel may not carry attachments. Neither is worth
 // losing the reply over — the text that follows always states the count and the
@@ -69,6 +120,20 @@ const batcher = makeBatcher({
       // question in the thread rather than below it.
       if (out?.attachment) await sendImage(space, out.attachment);
       if (out?.reply) await progress.done(out.reply);
+
+      // The burst landed — release the ingest claims. Until this runs those
+      // message ids are stale-recoverable, so a crash anywhere above means the
+      // provider's redelivery is honoured instead of dropped as a duplicate.
+      // AFTER the reply, deliberately: an exception between here and there
+      // should leave the burst re-deliverable, and the worst case of marking
+      // late is doing the same safe work twice.
+      if (burst.messageIds?.length) {
+        await scoutRpc(cfg, 'scout_complete_ingest', {
+          p_platform: burst.platform,
+          p_message_ids: burst.messageIds,
+          p_user_id: out?.userId || null,
+        }).catch((e) => console.error('[scout] complete_ingest failed', e?.message));
+      }
       console.log('[scout] burst', {
         platform: burst.platform,
         images: burst.attachments.length,
@@ -102,6 +167,7 @@ async function main() {
     partykit: cfg.PARTYKIT_HOST,
     burstMs: cfg.BURST_MS,
     ai: cfg.CF_AI_TOKEN ? 'workers-ai' : 'deterministic-only',
+    invites: cfg.INVITES_ENABLED ? 'draining' : 'DISABLED',
   });
 
   // Website signups (/scout's phone box) queue in scout_signups; this drains
@@ -109,11 +175,33 @@ async function main() {
   // because it needs the same authenticated Photon connection, and because
   // pacing sends against the SAME line the ingest stream uses is the only way
   // the daily new-conversation budget means anything.
-  const stopInvites = startInviteLoop(cfg, app);
+  //
+  // Gated, because the supported way to test Scout is to run this file against
+  // the live line — and inbound handling is safe to exercise that way while
+  // outbound cold-starts to strangers are not. See config.js:INVITES_ENABLED.
+  const stopInvites = cfg.INVITES_ENABLED ? startInviteLoop(cfg, app) : () => {};
+
+  // A row that says when this process was last definitely alive.
+  //
+  // The `for await` below turns the stream ENDING into a fatal error, which the
+  // supervisor restarts. It can do nothing about the stream that stays OPEN and
+  // stops delivering — the process looks healthy, the logs stay quiet, and every
+  // photo anyone sends is silently ignored. That is the failure this file's own
+  // closing comment calls the worst possible one, and it was the one still
+  // uncovered. Nothing pages on this; the admin Scout tab reads it, and a human
+  // can see in one glance whether the bot is there.
+  const beat = () => scoutRpc(cfg, 'scout_heartbeat', {
+    p_version: process.env.FLY_MACHINE_VERSION || 'local',
+    p_detail: { invites: cfg.INVITES_ENABLED, ai: !!cfg.CF_AI_TOKEN, pending: batcher.size },
+  }).catch(() => {});
+  beat();
+  const heartbeat = setInterval(beat, 60_000);
+  heartbeat.unref?.();
 
   const shutdown = async (sig) => {
     console.log(`[scout] ${sig} — draining ${batcher.size} pending burst(s)`);
     stopInvites();
+    clearInterval(heartbeat);
     await batcher.drain();
     process.exit(0);
   };
@@ -134,8 +222,14 @@ async function main() {
       if (fresh === false) continue;
 
       const key = `${platform}:${space.id}`;
-      const content = message.content;
-      const msg = {
+      const parsed = await readContent(message.content);
+      if (parsed.kind === 'ignored') continue;
+      if (parsed.kind === 'unknown') {
+        console.warn('[scout] unhandled content type', parsed.type, 'from', platform);
+        continue;
+      }
+
+      batcher.add(key, {
         platform,
         threadKey: space.id,
         handle,
@@ -144,22 +238,11 @@ async function main() {
         // outside North America normalizes to a plausible-but-wrong US number.
         country: message?.sender?.country || null,
         space,
-      };
-
-      if (content?.type === 'text') {
-        msg.text = content.text;
-      } else if (content?.type === 'attachment') {
-        const bytes = await content.read();
-        msg.attachment = {
-          bytes: bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes),
-          mimeType: content.mimeType,
-          name: content.name,
-        };
-      } else {
-        continue;   // reactions, read receipts, membership events — not ingest
-      }
-
-      batcher.add(key, msg);
+        // Carried so the burst can mark exactly these ids complete once its
+        // work has actually landed — see scout_complete_ingest.
+        messageId: String(message.id),
+        ...(parsed.kind === 'text' ? { text: parsed.text } : { attachment: parsed.media }),
+      });
     } catch (e) {
       console.error('[scout] message handling failed', e?.stack || e?.message || e);
     }

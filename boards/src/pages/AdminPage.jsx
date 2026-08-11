@@ -35,6 +35,7 @@ import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
 import { AdminFeedbackTab } from './admin/AdminFeedbackTab.jsx';
 import { AdminErrorsTab } from './admin/AdminErrorsTab.jsx';
 import { AdminApiTab } from './admin/AdminApiTab.jsx';
+import { AdminScoutTab } from './admin/AdminScoutTab.jsx';
 import { AdminEmailsTab } from './admin/AdminEmailsTab.jsx';
 import { AdminTaggingTab } from './admin/AdminTaggingTab.jsx';
 import { AdminMoreMenu } from './admin/AdminMoreMenu.jsx';
@@ -55,6 +56,7 @@ const TABS = [
   { id: 'feedback',  label: 'Feedback' },
   { id: 'errors',    label: 'Errors' },
   { id: 'api',       label: 'API' },
+  { id: 'scout',     label: 'Scout' },
   { id: 'emails',    label: 'Emails' },
   { id: 'tagging',   label: 'Tagging' },
   { id: 'universe',  label: 'Universe' },
@@ -67,7 +69,7 @@ const STORAGE_KEY = 'admin.tab';
 // PRIMARY_IDS is the one knob — reorder/trim it and the overflow recomputes.
 const PRIMARY_IDS = ['overview', 'analytics', 'users', 'approvals', 'waitlist'];
 // Overflow order is triage-first, then rare/config, split by a single divider.
-const OVERFLOW_IDS = ['discover', 'feedback', 'errors', 'api', 'emails', 'grants', 'campaign', 'tagging', 'universe'];
+const OVERFLOW_IDS = ['discover', 'feedback', 'errors', 'api', 'scout', 'emails', 'grants', 'campaign', 'tagging', 'universe'];
 const OVERFLOW_SEP_AFTER = 'grants';      // divider between triage and rare-config
 const HEAVY_IDS = new Set(['universe']);  // heaviest to mount → flagged in the menu
 
@@ -271,6 +273,7 @@ export function AdminPage() {
         {tab === 'approvals' && <AdminApprovalsTab onCountsChange={(c) => setPendingApprovals(c?.pending ?? 0)} />}
         {tab === 'waitlist'  && <AdminWaitlistTab />}
         {tab === 'feedback'  && <AdminFeedbackTab />}
+        {tab === 'scout'     && <AdminScoutTab />}
         {tab === 'errors'    && <AdminErrorsTab />}
         {tab === 'api'       && <AdminApiTab />}
         {tab === 'emails'    && <AdminEmailsTab />}

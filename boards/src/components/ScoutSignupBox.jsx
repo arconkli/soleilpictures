@@ -17,6 +17,7 @@
 import { useRef, useState } from 'react';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { stashScoutPhone } from '../lib/scoutClaim.js';
 
 // Campaign attribution, read off the URL at submit time rather than stored, so
 // this doesn't need its own persistence and can't go stale.
@@ -33,7 +34,13 @@ function campaignFields() {
   return out;
 }
 
-export function ScoutSignupBox({ pos = 'hero', ctaLabel = 'Text me Scout', autoFocus = false, onSubmitted }) {
+// `cta` is the caller's landing-engagement props for the success-state button
+// (lp.ctaProps(...)), passed in rather than grown here: the page already owns an
+// engagement tracker, and a second one inside this box would double-count every
+// view on a page that renders it twice.
+export function ScoutSignupBox({
+  pos = 'hero', ctaLabel = 'Text me Scout', autoFocus = false, onSubmitted, cta = null,
+}) {
   const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -66,6 +73,12 @@ export function ScoutSignupBox({ pos = 'hero', ctaLabel = 'Text me Scout', autoF
       }
 
       logEvent(EV.SCOUT_SIGNUP_OK, { pos, status: body.status, is_new: body.is_new });
+      // Carry the NORMALIZED number (the endpoint's, not the one they typed —
+      // only it knows the country the digits were read against) across the
+      // signup hop, so the account they are about to make can be attached to
+      // this waitlist row. See lib/scoutClaim.js for why this is a convenience
+      // and emphatically not a credential.
+      stashScoutPhone(body.phone);
       setDone({ status: body.status, is_new: body.is_new });
       onSubmitted?.(body);
     } catch (_) {
@@ -77,6 +90,17 @@ export function ScoutSignupBox({ pos = 'hero', ctaLabel = 'Text me Scout', autoF
 
   if (done) {
     const texted = done.status === 'texted';
+    // The QUEUED branch used to end the conversation: "Scout texts you the
+    // moment its line is live. Nothing else to do." True, and terminal — the
+    // visitor arrived warm, handed over a number, and left with nothing, while
+    // the canvas itself is open to them today.
+    //
+    // So it now points at the thing they CAN use. The queue framing is
+    // "invite-only while we scale the line", which is true (the bot is not
+    // running) and does not invent a demand figure we cannot stand behind —
+    // this box's whole contract is that it never claims what it can't back up.
+    //
+    // The TEXTED branch is unchanged. It is true when it happens.
     return (
       <div className="sb-frost scout-box scout-box-done" role="status">
         <div className="scout-done-mark" aria-hidden="true">✓</div>
@@ -85,11 +109,27 @@ export function ScoutSignupBox({ pos = 'hero', ctaLabel = 'Text me Scout', autoF
             ? 'Sent — check your messages.'
             : done.is_new ? "You're on the list." : "You're already on the list."}
         </p>
-        <p className="scout-done-sub">
-          {texted
-            ? 'Reply with a photo and your first board exists.'
-            : 'Scout texts you the moment its line is live. Nothing else to do.'}
-        </p>
+        {texted ? (
+          <p className="scout-done-sub">Reply with a photo and your first board exists.</p>
+        ) : (
+          <>
+            <p className="scout-done-sub">
+              Scout is invite-only while we scale the line — we’ll text you the
+              {' '}moment you’re in.
+            </p>
+            <p className="scout-done-sub">
+              <b>Meanwhile, the canvas is open right now.</b> Make your account and
+              {' '}your boards will be waiting when Scout reaches you.
+            </p>
+            <a
+              className="auth-btn scout-done-cta"
+              href="/"
+              {...(cta || {})}
+            >
+              Create your account →
+            </a>
+          </>
+        )}
       </div>
     );
   }

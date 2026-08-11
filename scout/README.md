@@ -1,8 +1,11 @@
 # Soleil Scout
 
-Text photos, links and notes to a number; they land arranged on a Clusters
-canvas. An account, workspace and board materialize behind a first-time sender —
-no form, no password, no app.
+Text photos, clips, voice notes, PDFs, links and plain text to a number; they
+land arranged on a Clusters canvas. An account, workspace and board materialize
+behind a first-time sender — no form, no password, no app.
+
+Voice notes are transcribed, so what you said is searchable. Photos keep their
+capture time and, where the phone recorded it, their coordinates.
 
 ## Why this is a separate service
 
@@ -23,14 +26,24 @@ Safari can. Testing on a Mac in Safari will hide that bug completely.
 
 ```
 scout/src/
-  index.js     entry — consumes Photon's async-iterator message stream
-  batcher.js   per-conversation burst debounce
-  pipeline.js  the ingest pipeline (see the ordering comment at the top)
-  media.js     HEIC → JPEG, dimension probing, R2 upload, images row
-  replies.js   everything the bot says
-  config.js    env → the `env` object the shared modules expect
-  dryrun.js    exercise the whole pipeline with no messaging provider
+  index.js      entry — consumes Photon's async-iterator message stream
+  batcher.js    per-conversation burst debounce
+  pipeline.js   the ROUTER: what does this message mean
+  ingest.js     the UPLOADER: what happens to the bytes once it means "ingest"
+  media.js      HEIC → JPEG, EXIF, dimension probing, R2 upload, images row
+  ffmpeg.js     video probe, poster frame, HEVC → H.264, audio down-convert
+  transcribe.js voice note → text, via Workers AI
+  filing.js     propose / confirm / undo a move between boards
+  sheets.js     the pictures the bot texts back
+  answers.js    curated replies to the questions people actually ask
+  replies.js    everything else the bot says
+  config.js     env → the `env` object the shared modules expect
+  dryrun.js     exercise the whole pipeline with no messaging provider
 ```
+
+`pipeline.js` and `ingest.js` were one file. They have genuinely different
+reasons to change — one follows the conversation, the other follows the media
+stack — and splitting them is what keeps either readable.
 
 The canvas-writing logic is **not** here. It lives in `boards/src/lib/scout*.js`
 and is shared with the Worker, so there is one implementation of the thing that
@@ -66,6 +79,20 @@ npm install
 npm start
 ```
 
+**Running it on a laptop against the LIVE line is the supported way to test it,
+and the one thing that must not happen while you do is the invite queue
+draining** — that texts real strangers from a development machine, and Photon
+documents burst sending as a cause of line flagging. Scout has exactly one line.
+
+```sh
+SCOUT_INVITES_ENABLED=0 npm start
+```
+
+`ffmpeg` should be on the PATH. Without it the service still runs — video keeps
+its original codec, gets no poster frame, and audio reports no duration — but
+that is not what the deployed container does, so a clip you check locally is not
+the clip your users get. The image installs it.
+
 Deploy from the **repo root**, because the image needs `boards/`:
 
 ```sh
@@ -81,28 +108,45 @@ layout passes and two replies for one dump of photos.
 ## Verifying without a provider
 
 ```sh
-node src/dryrun.js +15555550123 "scene 4 diner, check power drops" a.heic b.jpg
+node src/dryrun.js +15555550123 "scene 4 diner" a.heic b.mov c.m4a d.pdf --file --voice
 ```
 
 Runs a synthetic burst through the real pipeline against real Supabase + R2,
 then asserts that `board_state` decodes to the cards written, `card_index`
-mirrors them, no two cards overlap, and — the one that matters most —
-**every image references the board**, so the orphan sweep can't reclaim them.
-That failure is invisible for 30 days, which is why it's a hard assertion.
+mirrors them, every kind points at bytes it can actually load, no two cards
+overlap, a portrait photo got a portrait card, the bot **said something**, and —
+the one that matters most — **every file references the board**, so the orphan
+sweep can't reclaim it. That failure is invisible for 30 days, which is why it
+is a hard assertion, and `--file` re-checks it after a move, where two boards'
+docs are rewritten and a card is briefly referenced by neither.
 
-Then open a converted HEIC card **in Chrome, not Safari**.
+It writes to the real database. Use a number in the reserved `555-01xx` range
+and delete the account afterwards.
+
+The pure logic — what a short reply means, what "these" refers to, how a batch
+is laid out — is covered by `npm test` from `boards/`, which needs no network.
+
+Then open a converted HEIC card and a converted clip **in Chrome, not Safari**.
+That is the check neither the harness nor a Mac can do for you.
 
 ## Open questions for Photon
 
-Unresolved at time of writing; the answers change the launch plan, not the code:
+Unresolved; the answers change the launch plan, not the code:
 
 1. What counts as a "user" for the 10/100 tier limits — total, monthly active,
    or concurrent?
 2. Can a **Pro** project send the first message to someone who submitted their
    own number on our site? Pricing lists cold outreach as a Business feature;
    the deliverability docs give 50 new conversations/line/day with no tier
-   distinction.
-3. Is SMS/RCS shipped? Pricing lists it as included, but there's no provider
-   doc and their own FAQ asks when it's coming. If it isn't, v1 is Apple-only
-   and the landing copy has to say so.
-4. Do inbound photos arrive as original HEIC bytes at full resolution?
+   distinction. Until this is answered the invite queue cannot be trusted to
+   drain, and `SCOUT_INVITES_ENABLED=0` is the safe default for any run that is
+   not the deployed machine.
+3. Do inbound photos arrive as original HEIC bytes at full resolution, **and do
+   they keep their EXIF**? iOS strips location on some share paths. If it does,
+   `shotAt`/`geo` quietly stop appearing — they are best-effort by construction,
+   so nothing breaks, but the docs claim less than they should.
+
+**Answered:** SMS/RCS is NOT shipped. The installed `@spectrum-ts` ships
+providers for imessage, whatsapp-business, telegram, slack and terminal — there
+is no SMS provider at all, so v1 is Apple-only and the landing copy says so.
+WhatsApp Business is the nearest route to Android if that becomes the priority.

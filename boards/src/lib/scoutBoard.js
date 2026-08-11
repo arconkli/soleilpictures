@@ -817,17 +817,31 @@ export async function writeBoardGroups(env, {
 // raised 42501 on every single ingest and the pre-flight never ran. 0216 adds
 // the explicit-user mirror; same numbers, same owner-keying, different access
 // check. See 0213 §1 for the first instance of this trap.
+//
+// `is_capped` IS THE GATE — not the number. A paid owner comes back as
+// (is_capped=false, used=0, cap=0), which 0216's own header warns about in so
+// many words: "reports (false, 0, 0) rather than a number so no caller can
+// accidentally treat 'no cap' as 'zero room'". This function did exactly that.
+// It special-cased a NULL cap and nothing else, so a paid account resolved to
+// cap 0 / remaining 0, and pipeline.js's `if (cap.remaining <= 0)` answered
+// every single ingest with "That's the wall — 0/0 cards on your free plan".
+//
+// Paying for the product therefore turned Scout off completely, and it would
+// have looked like a billing bug rather than an ingest one. The app's own
+// consumers have always read it correctly (App.jsx:942 gates on `isCapped`);
+// only this mirror did not.
 export async function boardCapacity(env, boardId, userId) {
   const res = await scoutRpc(env, 'scout_board_capacity', {
     p_board_id: boardId, p_user_id: userId,
   });
   const row = Array.isArray(res) ? res[0] : res;
-  const used = Number(row?.used ?? 0);
-  const cap = row?.cap == null ? Infinity : Number(row.cap);
+  const capped = !!row?.is_capped;
+  const used = capped ? Number(row?.used ?? 0) : 0;
+  const cap = !capped || row?.cap == null ? Infinity : Number(row.cap);
   return {
     used,
     cap,
-    capped: !!row?.is_capped,
+    capped,
     remaining: cap === Infinity ? Infinity : Math.max(0, cap - used),
   };
 }

@@ -38,8 +38,10 @@ const flags = new Set(argv.filter((a) => a.startsWith('--')));
 const [handleArg, textArg, ...files] = argv.filter((a) => !a.startsWith('--'));
 
 if (!handleArg) {
-  console.error('usage: node scout/src/dryrun.js <handle> [text] [image files...] [--file]');
+  console.error('usage: node scout/src/dryrun.js <handle> [text] [files...] [--file] [--voice]');
+  console.error('  files   photos, .mov/.mp4, .m4a/.mp3, .pdf, anything');
   console.error('  --file  also exercise filing: move the run onto a real board');
+  console.error('  --voice treat audio files as voice memos, so they get transcribed');
   process.exit(1);
 }
 
@@ -52,16 +54,33 @@ function ok(label, cond, detail = '') {
   return cond;
 }
 
+// Every type Scout accepts, not just photos. A .mov, a .m4a and a .pdf are all
+// ordinary inputs now, and the assertions below are the only place their
+// storage and sweep-safety get checked without a phone.
+//
+// A file named like a voice memo — or passed with --voice — is marked as one,
+// because `voice` is a distinct provider content type and is the only thing
+// that gets transcribed. A .m4a sent as a file is a music track; a .m4a sent as
+// a voice message is somebody talking.
+const MIME = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+  heic: 'image/heic', heif: 'image/heif', webp: 'image/webp', gif: 'image/gif',
+  mov: 'video/quicktime', mp4: 'video/mp4', m4v: 'video/x-m4v',
+  m4a: 'audio/mp4', mp3: 'audio/mpeg', wav: 'audio/wav', caf: 'audio/x-caf',
+  pdf: 'application/pdf', zip: 'application/zip',
+};
+
 const attachments = [];
 for (const f of files) {
   const bytes = new Uint8Array(await readFile(f));
   const name = basename(f);
   const ext = name.split('.').pop().toLowerCase();
-  const mimeType = ({
-    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-    heic: 'image/heic', heif: 'image/heif', webp: 'image/webp', gif: 'image/gif',
-  })[ext] || 'application/octet-stream';
-  attachments.push({ bytes, mimeType, name });
+  attachments.push({
+    bytes,
+    mimeType: MIME[ext] || 'application/octet-stream',
+    name,
+    voice: flags.has('--voice') && /^(m4a|caf|wav|mp3)$/.test(ext),
+  });
 }
 
 console.log(`\nScout dry run — ${attachments.length} attachment(s), text: ${textArg ? JSON.stringify(textArg) : '(none)'}\n`);
@@ -133,6 +152,35 @@ const sweepWouldReclaim = (i) => {
   return !(lock && lock > Date.now());
 };
 
+// A burst that reached the pipeline must always produce words. Silence was a
+// real defect — any attachment that was not an image fell through every branch
+// and returned nothing at all — and it is invisible in every other assertion
+// here, because the cards check passes just fine when the reply is empty.
+ok('the bot said something', typeof out.reply === 'string' && out.reply.length > 0,
+   out.reply ? '' : 'SILENT — a burst must never produce no reply');
+
+// Every kind that arrived should have become its own kind of card, and each
+// one's bytes must be reachable. `pdfSrc`/`fileSrc` are different fields from
+// `src`, and a card pointing at the wrong one renders nothing.
+const SRC_FIELD = { image: 'src', video: 'src', audio: 'src', pdf: 'pdfSrc', file: 'fileSrc' };
+for (const kind of ['video', 'audio', 'pdf', 'file']) {
+  const got = cards.filter((c) => c.kind === kind);
+  if (!got.length) continue;
+  ok(`${kind} cards point at their bytes`,
+     got.every((c) => String(c[SRC_FIELD[kind]] || '').startsWith('r2:')),
+     `${got.length} card(s)`);
+}
+const audioCards = cards.filter((c) => c.kind === 'audio');
+if (audioCards.length && flags.has('--voice')) {
+  // Not a hard failure: transcription needs CF credentials and a model that may
+  // be busy, and the design is that a missing transcript costs the transcript
+  // and never the card. Reported so a silent regression is still visible.
+  const withText = audioCards.filter((c) => c.body);
+  console.log(`  ${withText.length ? 'PASS' : 'note'}  voice notes transcribed`
+    + `  ${withText.length}/${audioCards.length}`
+    + (withText.length ? `  "${String(withText[0].body).slice(0, 60)}…"` : '  (no CF_AI_TOKEN?)'));
+}
+
 const imageCards = cards.filter((c) => c.kind === 'image');
 if (imageCards.length) {
   const imgs = await scoutSelect(cfg, 'images',
@@ -153,7 +201,53 @@ if (imageCards.length) {
   ok('SWEEP SAFETY: nothing here is sweep-eligible', doomed.length === 0,
      doomed.length ? `${doomed.length} row(s) the sweep would delete: ${doomed.map((i) => i.storage_path).join(', ')}`
                    : `${originals.length} referenced, ${imgs.length - originals.length} retention-locked`);
-  ok('image dimensions were probed', imgs.every((i) => i.width && i.height));
+  // Scoped to the keys IMAGE CARDS actually point at. The `images` table is the
+  // universal object registry — a video, an audio file and a PDF all get rows
+  // there so /sign-reads will authorize them — and those rows legitimately carry
+  // no dimensions. Asserting over the whole table was right when Scout only
+  // handled photos and became a false alarm the moment it did not.
+  const photoKeys = new Set(imageCards.map((c) => String(c.src || '').replace(/^r2:/, '')));
+  const photoRows = imgs.filter((i) => photoKeys.has(i.storage_path));
+  ok('image dimensions were probed', photoRows.length > 0 && photoRows.every((i) => i.width && i.height),
+     `${photoRows.length} photo row(s)`);
+
+  // The orientation regression, against real bytes: a portrait frame is stored
+  // landscape with an EXIF tag, and sharp's metadata() reports the UNROTATED
+  // size — so the stored dimensions must match the card, and both must be
+  // portrait. Checked by comparing the two rather than trusting either.
+  for (const c of imageCards) {
+    const row = imgs.find((i) => i.storage_path === String(c.src || '').replace(/^r2:/, ''));
+    if (!row?.width || !row?.height) continue;
+    const rowPortrait = row.height > row.width;
+    const cardPortrait = c.h > c.w;
+    ok(`orientation agrees for ${row.storage_path.slice(-12)}`, rowPortrait === cardPortrait,
+       `stored ${row.width}x${row.height}, card ${c.w}x${c.h}`);
+  }
+
+  // A portrait frame must have a portrait card. sharp's metadata() reports the
+  // UNROTATED size after .rotate(), so this is where that regression shows up
+  // against real camera files rather than a synthetic fixture.
+  const portrait = imageCards.filter((c) => c.h > c.w);
+  console.log(`  note  ${portrait.length}/${imageCards.length} card(s) are portrait`
+    + ' — check this matches the photos you sent');
+}
+
+// Sweep safety for EVERY kind, not just photos. recompute_image_refs scans the
+// decoded doc for `r2:` keys regardless of which field holds them, so a video
+// src and a pdfSrc are covered by the same trigger — but that is a claim worth
+// checking rather than believing, because being wrong deletes somebody's file
+// thirty days later with no warning.
+const mediaCards = cards.filter((c) => ['video', 'audio', 'pdf', 'file'].includes(c.kind));
+if (mediaCards.length) {
+  const rows = await scoutSelect(cfg, 'images',
+    `board_id=eq.${board.id}&select=storage_path,referenced_in_board_ids,retention_locked_until`);
+  const keys = new Set(mediaCards.map((c) => String(c[SRC_FIELD[c.kind]] || '').replace(/^r2:/, '')));
+  const theirs = rows.filter((r) => keys.has(r.storage_path));
+  ok('an images row exists for every non-photo card', theirs.length >= keys.size,
+     `${theirs.length}/${keys.size}`);
+  ok('SWEEP SAFETY: every non-photo file is referenced by the board',
+     theirs.length > 0 && theirs.every((r) => (r.referenced_in_board_ids || []).includes(board.id)),
+     `${theirs.length} row(s)`);
 }
 
 const rectsOverlap = (a, b) =>
