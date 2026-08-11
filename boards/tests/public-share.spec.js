@@ -5,6 +5,7 @@
 // (tests/helpers/share-fixture.js) — no PartyKit, no Supabase.
 
 import { expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { TOKEN, ROOT_ID, SUB_ID, routeShareBundle, routeAnalytics } from './helpers/share-fixture.js';
 
 // Open the sub-board tile. Board cards open on a click that lands in their
@@ -21,13 +22,16 @@ test('topbar brand + CTAs render and share attribution is seeded', async ({ page
   await page.goto(`/share/${TOKEN}`);
 
   await expect(page.locator('.public-brand-name')).toHaveText('Clusters');
-  // For a valid loaded board the primary CTA is "Make a copy" (remix THIS board);
-  // "Try free" + "Sign in" step back to secondary (both .public-signin-quiet).
+  // For a valid loaded board the primary CTA is "Make a copy" (remix THIS
+  // board). The old secondary "Try free" is gone: to a first-time visitor it
+  // was the same offer as "Make a copy" worded twice, and the topbar was
+  // answering one question with three choices. "Sign in" stays, quiet — it is
+  // for people who already have an account, not a competing pitch.
   const cta = page.locator('.public-topbar .public-cta');
   await expect(cta).toHaveText('Make a copy');
   await expect(cta).toHaveAttribute('href', /utm_medium=remix/);
   await expect(cta).toHaveAttribute('href', /[?&]remix=/);
-  await expect(page.locator('.public-topbar .public-signin-quiet', { hasText: 'Try free' })).toBeVisible();
+  await expect(page.locator('.public-topbar .public-signin-quiet', { hasText: 'Try free' })).toHaveCount(0);
   await expect(page.locator('.public-topbar .public-signin-quiet', { hasText: 'Sign in' })).toBeVisible();
   await expect(page.locator('.public-board-name')).toHaveText('Marketing Root');
   await expect(page).toHaveTitle('Marketing Root — Soleil Clusters');
@@ -115,6 +119,51 @@ test('engagement prompt: dwell trigger (QA override) and 14-day dismissal memory
   await expect(page.locator('.public-board-name')).toHaveText('Marketing Root');
   await page.waitForTimeout(900);
   await expect(page.locator('.share-prompt')).toHaveCount(0);
+});
+
+test('the topbar offers exactly one green-field action, and says what the page is', async ({ page }) => {
+  await routeAnalytics(page, []);
+  await routeShareBundle(page);
+  await page.goto(`/share/${TOKEN}`);
+  await expect(page.locator('.public-board-name')).toHaveText('Marketing Root');
+
+  // "Make a copy" and "Try free" are the same offer worded twice to someone
+  // who has never heard of Clusters. Three CTAs answering one question is
+  // what "hard to understand" looked like; there is now one gold action,
+  // plus a quiet Sign in for people who already have an account.
+  await expect(page.locator('.public-topbar .public-cta')).toHaveCount(1);
+  await expect(page.locator('.public-topbar .public-signin-quiet')).toHaveCount(1);
+  await expect(page.locator('.public-topbar')).not.toContainText('Try free');
+
+  // A token share is something a person sent you, and it is read-only —
+  // both facts belong on screen before you try to drag a card and conclude
+  // the page is broken.
+  await expect(page.locator('.public-board-eyebrow')).toHaveText('Shared with you · view only');
+
+  // Half of all share traffic is mobile, and that half arrives from a text
+  // message with no surrounding context — the orientation must survive the
+  // narrow breakpoints, where it costs height rather than the width the name
+  // and CTA compete for. Down to the smallest phone we support.
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 720 });
+    await expect(page.locator('.public-board-eyebrow')).toBeVisible();
+    await expect(page.locator('.public-topbar .public-cta')).toBeVisible();
+    const bar = await page.locator('.public-topbar').boundingBox();
+    expect(bar.height, `topbar must not swallow the canvas at ${width}px`).toBeLessThan(100);
+  }
+});
+
+test('the signup prompt fires at the dwell the median visitor actually reaches', () => {
+  // Shipped at 30s against a ~13s median visit: only 24.6% of recorded visits
+  // ever reached the trigger, so three quarters of the audience could not see
+  // this prompt no matter how good it was. Guard the constant — the reach
+  // math is in the component header and must be re-derived before it moves.
+  const src = readFileSync(new URL('../src/components/SharePrompt.jsx', import.meta.url), 'utf8');
+  const m = src.match(/const DWELL_MS = qaSharePromptMs\(\) \?\? ([\d_]+);/);
+  expect(m, 'DWELL_MS declaration shape changed').toBeTruthy();
+  const ms = Number(m[1].replace(/_/g, ''));
+  expect(ms).toBeGreaterThanOrEqual(5_000);   // below this it's an ambush on arrival
+  expect(ms).toBeLessThanOrEqual(15_000);     // above this it outruns the median visit
 });
 
 test('engagement prompt: sub-board navigation trigger', async ({ page }) => {

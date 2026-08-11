@@ -105,9 +105,20 @@ function remixHref(ctx) {
 }
 
 // Branded top bar — rendered in every viewer state (loading / invalid / ok)
-// so the wordmark and signup CTA are visible from the first paint. When a valid
-// board is loaded (remixUrl set), "Make a copy" is the primary action (highest
-// intent: clone THIS board) and "Try free" steps back to secondary.
+// so the wordmark and signup CTA are visible from the first paint.
+//
+// EXACTLY ONE green-field call to action. This used to carry three: "Make a
+// copy", "Try free" and "Sign in". To someone who has never heard of Clusters
+// the first two are the same offer worded twice, and the third is for people
+// who already have an account — three choices to answer one question. The
+// most-clicked element on the page was neither of the buttons but the brand
+// mark, which is what "I don't understand what this is yet" looks like in
+// event data. So: brand (what is this) · title (what am I looking at) ·
+// Sign in, quiet (not for you) · one gold action.
+//
+// "Make a copy" wins that slot whenever the board is remixable, because it
+// answers the visitor's actual question — how do I get one of these — and
+// hands them this board rather than an empty workspace.
 function PublicTopbar({ ctx, center, busy, onCta, remixUrl, remixLabel = 'Make a copy' }) {
   return (
     <div className="public-topbar">
@@ -118,14 +129,9 @@ function PublicTopbar({ ctx, center, busy, onCta, remixUrl, remixLabel = 'Make a
       {center}
       <div className="public-topbar-actions">
         <a className="public-signin-quiet" href={ctaHref(ctx, 'signin')} onClick={onCta('signin')}>Sign in</a>
-        {remixUrl ? (
-          <>
-            <a className="public-cta" href={remixUrl} onClick={onCta('remix')}>{remixLabel}</a>
-            <a className="public-signin-quiet" href={ctaHref(ctx, 'topbar')} onClick={onCta('topbar')}>Try free</a>
-          </>
-        ) : (
-          <a className="public-cta" href={ctaHref(ctx, 'topbar')} onClick={onCta('topbar')}>Try Clusters free</a>
-        )}
+        {remixUrl
+          ? <a className="public-cta" href={remixUrl} onClick={onCta('remix')}>{remixLabel}</a>
+          : <a className="public-cta" href={ctaHref(ctx, 'topbar')} onClick={onCta('topbar')}>Try Clusters free</a>}
       </div>
       {busy && <div className="public-nav-progress" aria-hidden="true" />}
     </div>
@@ -711,7 +717,15 @@ export function PublicBoardView({ token, slug }) {
             })}
           </nav>
         ) : (
-          <div className="public-board-name">{board.name || 'Untitled'}</div>
+          // The board name alone doesn't tell a first-time visitor what they
+          // are looking at or whether they're allowed to touch it. Two words
+          // above it answer both, and the read-only fact stops people from
+          // trying to edit and concluding the page is broken. Token shares
+          // only: a /c/ page is a published page, not something sent to you.
+          <div className="public-board-title">
+            {!slug && <div className="public-board-eyebrow">Shared with you · view only</div>}
+            <div className="public-board-name">{board.name || 'Untitled'}</div>
+          </div>
         )}
       />
 

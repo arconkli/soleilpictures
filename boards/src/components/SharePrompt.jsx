@@ -1,7 +1,7 @@
 // SharePrompt — dismissible signup prompt on the public /share viewer.
 //
 // Shows at most once per pageload, after real engagement rather than on
-// arrival: 30 seconds of VISIBLE dwell (the timer pauses while the tab is
+// arrival: DWELL_MS of VISIBLE dwell (the timer pauses while the tab is
 // hidden and resumes with the remainder) or the first sub-board navigation,
 // whichever comes first. Dismissal is remembered for 14 days (localStorage),
 // and a CTA click anywhere on the page this load suppresses it entirely —
@@ -21,7 +21,18 @@ const DISMISS_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 // QA override captured at module load: the viewer normalizes the URL via
 // history.replaceState (dropping query params) before this component ever
 // mounts, so reading location.search lazily would miss ?shareqa=1&promptms=.
-const DWELL_MS = qaSharePromptMs() ?? 30_000;
+// 12s, not the 30s this shipped with. Measured against every share_dwell row
+// recorded: the median visit is ~13 seconds and only 24.6% of visits reach 30
+// seconds at all, so the prompt was timed for a visitor who mostly doesn't
+// exist — it could never be seen by three quarters of the audience no matter
+// how good it was. 12s reaches 52.5%, more than double, while still requiring
+// someone to have stayed rather than bounced. Mobile is half of all share
+// traffic and the shorter half (12.5s median vs 14.6s), so it gains most.
+//
+// Re-derive before changing:
+//   select count(*) filter (where (props->>'ms')::numeric >= 12000) * 100.0
+//        / count(*) from analytics_events where event = 'share_dwell';
+const DWELL_MS = qaSharePromptMs() ?? 12_000;
 
 function dismissedRecently() {
   try {
