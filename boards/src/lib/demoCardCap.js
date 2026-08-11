@@ -8,10 +8,23 @@
 // means it is unit-testable without a backend (see demoCardCap.test.mjs).
 //
 // NOTE: this mirrors the client-cached count. The authoritative backstop is the
-// server BEFORE-INSERT trigger on card_index (migration 0091), which does a live
-// COUNT; this client gate is what users actually see.
+// server BEFORE-INSERT trigger on card_index (live definition: migration 0227,
+// re-keyed to the workspace owner by 0187), which does a live COUNT; this client
+// gate is what users actually see.
+//
+// THE CAP IS PER-USER. Since 0227 the real cap lives in profiles.card_cap_base
+// and reaches the client as get_my_tier().effective_card_limit, threaded through
+// useMyTier. DEMO_CARD_LIMIT is only (a) the value new accounts get, and (b) a
+// pre-resolution fallback for callers that have no resolved tier yet. Never
+// render it as a user's actual limit — accounts created before 0227 are
+// grandfathered at LEGACY_DEMO_CARD_LIMIT and would see the wrong number.
 
-export const DEMO_CARD_LIMIT = 100;
+export const DEMO_CARD_LIMIT = 50;
+
+// What accounts created before migration 0227 keep, permanently. Exported so the
+// public docs can state the grandfather rule through {{fact:legacyDemoCardLimit}}
+// instead of hand-typing it — see scripts/gen-docs.mjs FACTS.
+export const LEGACY_DEMO_CARD_LIMIT = 100;
 
 // evaluateDemoCap({ tier, demoCardCount, requested, limit }) -> { accepted, capHit, remaining }
 //   accepted  — how many of `requested` may be created (0..requested)
@@ -20,9 +33,11 @@ export const DEMO_CARD_LIMIT = 100;
 //               that fit. requested:0 -> { accepted:0, capHit:false } so an
 //               empty/no-op request never spuriously triggers the modal.
 //   remaining — room left before the cap (Infinity for non-demo tiers)
-//   limit     — the effective cap (default DEMO_CARD_LIMIT). Referral bonus cards
-//               raise it: the server returns 100 + bonus_card_credits via
-//               get_my_tier().effective_card_limit; callers thread that through.
+//   limit     — the effective cap (default DEMO_CARD_LIMIT). The server returns
+//               card_cap_base + bonus_card_credits via
+//               get_my_tier().effective_card_limit; callers thread that through,
+//               so both the grandfathered cohort and referral bonuses are already
+//               accounted for by the time the value arrives here.
 export function evaluateDemoCap({ tier, demoCardCount, requested, limit = DEMO_CARD_LIMIT }) {
   const req = Math.max(0, requested | 0);
   if (tier !== 'demo') return { accepted: req, capHit: false, remaining: Infinity };

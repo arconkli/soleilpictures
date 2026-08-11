@@ -1193,11 +1193,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "100 cards",
+     "v": "50 cards",
      "children": [
       {
        "t": "text",
-       "v": "100 cards"
+       "v": "50 cards"
       }
      ]
     },
@@ -5083,11 +5083,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "100 cards",
+     "v": "50 cards",
      "children": [
       {
        "t": "text",
-       "v": "100 cards"
+       "v": "50 cards"
       }
      ]
     },
@@ -20515,11 +20515,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "100 cards",
+     "v": "50 cards",
      "children": [
       {
        "t": "text",
-       "v": "100 cards"
+       "v": "50 cards"
       }
      ]
     },
@@ -21269,11 +21269,11 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "100 cards",
+      "v": "50 cards",
       "children": [
        {
         "t": "text",
-        "v": "100 cards"
+        "v": "50 cards"
        }
       ]
      },
@@ -21474,7 +21474,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "100"
+       "v": "50"
       }
      ],
      [
@@ -21551,6 +21551,41 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Everything else is the same on both plans."
+    }
+   ]
+  },
+  {
+   "type": "callout",
+   "variant": "note",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Older accounts keep a higher cap.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Older accounts keep a higher cap."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " The free allowance used to be 100 cards. Every account created while that was the plan keeps it, permanently — no existing cap was ever lowered. Your own figure is on the Upgrade pill and in Settings → Billing, and it is the one enforced. "
+    },
+    {
+     "t": "link",
+     "v": "Referral credits",
+     "href": "/docs/account/referrals",
+     "children": [
+      {
+       "t": "text",
+       "v": "Referral credits"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " add to whichever cap you have."
     }
    ]
   },
@@ -21784,7 +21819,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The Demo plan is not a trial. It does not expire and it does not degrade. If 100 cards is enough for what you do, that is a complete account."
+     "v": "The Demo plan is not a trial. It does not expire and it does not degrade. If 50 cards is enough for what you do, that is a complete account."
     }
    ]
   },
@@ -22357,11 +22392,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "100",
+     "v": "50",
      "children": [
       {
        "t": "text",
-       "v": "100"
+       "v": "50"
       }
      ]
     },
@@ -31358,11 +31393,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "100",
+     "v": "50",
      "children": [
       {
        "t": "text",
-       "v": "100"
+       "v": "50"
       }
      ]
     },

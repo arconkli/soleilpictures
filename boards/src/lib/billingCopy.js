@@ -135,7 +135,13 @@ export function capHitSummary({ cards, clusters, storageBytes } = {}) {
   return `${parts.slice(0, -1).join(', ')} · ${parts[parts.length - 1]}`;
 }
 
-export function planLabel({ tier, plan, demoCardCount, grantBacked } = {}) {
+// `cardLimit` is the caller's EFFECTIVE cap (get_my_tier().effective_card_limit
+// = card_cap_base + bonus_card_credits). It must be threaded: the cap is
+// per-user since migration 0227, so falling back to DEMO_CARD_LIMIT would tell
+// every grandfathered account — which is every account that existed before the
+// change — that its limit is the new-account one. It also silently under-reported
+// referral bonuses before that.
+export function planLabel({ tier, plan, demoCardCount, grantBacked, cardLimit } = {}) {
   if (tier === 'admin') return 'Admin · Unlimited';
   if (tier === 'paid') {
     // Comped via an admin grant (no paying Stripe sub) — say so honestly.
@@ -146,7 +152,8 @@ export function planLabel({ tier, plan, demoCardCount, grantBacked } = {}) {
   }
   if (tier === 'demo') {
     const n = Number.isFinite(demoCardCount) ? demoCardCount : 0;
-    return `Free Demo · ${n}/${DEMO_CARD_LIMIT} cards`;
+    const cap = Number.isFinite(cardLimit) && cardLimit > 0 ? cardLimit : DEMO_CARD_LIMIT;
+    return `Free Demo · ${n}/${cap} cards`;
   }
   return 'Waitlist · not yet active';
 }

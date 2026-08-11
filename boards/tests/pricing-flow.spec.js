@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
 
 // Pricing / upgrade / billing flow specs.
 //
@@ -68,7 +69,9 @@ test('pricing page shows the canonical Creator list and the trimmed Demo list', 
   // 0188 made editor collaboration free for every tier — and clusters/boards
   // were never capped, so the free tier says so plainly.
   const demo = page.locator('.pricing-card-demo');
-  await expect(demo).toContainText('100 cards');
+  // The public pricing page describes the plan a NEW account gets, so this is
+  // DEMO_CARD_LIMIT and not whatever cap the viewer's own account carries.
+  await expect(demo).toContainText(`${DEMO_CARD_LIMIT} cards`);
   await expect(demo).toContainText('Unlimited clusters');
   await expect(demo).toContainText('Free collaboration');
   await expect(demo).not.toContainText('View Mode only');
@@ -88,7 +91,7 @@ test('an already-paid user is routed to manage billing, not a second checkout', 
 });
 
 test('the in-app upgrade modal matches the pricing page copy', async ({ page }) => {
-  await page.goto('/?local=1&reset=1&tier=demo&cards=60');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=60&limit=100');
 
   const chip = page.locator('.upgrade-chip');
   await expect(chip).toBeVisible();

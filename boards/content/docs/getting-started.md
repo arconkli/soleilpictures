@@ -6,7 +6,7 @@ navLabel: Getting started
 section: start
 order: 1
 updated: 2026-08-08
-answer: Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 100 cards and unlimited collaborators.
+answer: Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes {{fact:demoCardLimit}} cards and unlimited collaborators.
 faq:
   - q: Do I need to install anything?
     a: No. Clusters runs in the browser. There are also iOS and Android builds and it installs as a PWA, but nothing is required to start.

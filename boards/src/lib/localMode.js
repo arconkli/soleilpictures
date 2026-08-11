@@ -1,3 +1,5 @@
+import { DEMO_CARD_LIMIT } from './demoCardCap.js';
+
 export function isLocalQaMode() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return false;
   return new URLSearchParams(window.location.search).get('local') === '1';
@@ -182,7 +184,9 @@ export function qaTierOverride() {
     tier,
     demoCardCount:      Number(q.get('cards') ?? 0),
     bonusCardCredits:   0,
-    effectiveCardLimit: Number(q.get('limit') ?? 100),
+    // ?limit=100 exercises the grandfathered (pre-0227) cohort; the default is
+    // what a new account gets.
+    effectiveCardLimit: Number(q.get('limit') ?? DEMO_CARD_LIMIT),
     subscriptionStatus: q.get('substatus') || (tier === 'paid' ? 'active' : null),
     currentPeriodEnd:   q.get('periodend') || null,
     cancelAtPeriodEnd:  q.get('cancel') === '1',

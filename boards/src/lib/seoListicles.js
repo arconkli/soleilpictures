@@ -706,7 +706,7 @@ const PAGES = [
     "h1": "The 12 Best Milanote Alternatives in 2026",
     "subhead": "Twelve tools, ranked by the only question that matters: what does your board have to become next?",
     "answerHeading": "What is the best Milanote alternative in 2026?",
-    "answer": "Soleil Clusters is the best Milanote alternative for production teams in 2026: a free tier without the 100-card wall, flat $25/mo pricing instead of per-person seats, and real-time boards that carry a project from mood board to shot list. Miro is the runner-up for team whiteboarding, Obsidian Canvas for free offline work, Canva for polished deliverables.",
+    "answer": "Soleil Clusters is the best Milanote alternative for production teams in 2026: a free tier with no upload ceiling, where Milanote stops at 10 file uploads ever, plus flat $25/mo pricing instead of per-person seats and real-time boards that carry a project from mood board to shot list. Miro is the runner-up for team whiteboarding, Obsidian Canvas for free offline work, Canva for polished deliverables.",
     "disclosure": "Soleil Clusters is our app. We are Soleil Pictures, a working film studio, and we built Clusters because our own pre-production kept outgrowing tools like Milanote. We rank it first for one job only — taking a production team from mood board to call sheet — and we say plainly where rivals beat us: Milanote's templates and mobile apps are better than ours, Miro's ecosystem is deeper, and Obsidian and PureRef work offline where we do not.",
     "published": "2026-08-04",
     "updated": "2026-08-04",
@@ -715,7 +715,7 @@ const PAGES = [
       "paras": [
         "Milanote is a genuinely lovely place to collect ideas — calm, structured, pleasant to think in. But on a real project the board does not get to stay a collection. The mood board has to become a look book, the look book a shot list, the shot list a schedule, and the schedule has to survive contact with a crew, a client, and a calendar. Every tool here is judged by that arc — how far down the pipeline the board travels before you must export it and start over somewhere else.",
         "Milanote's limits show up exactly at that handoff. The free plan is a hard wall: 100 notes, images, and links in total, plus 10 file uploads, ever — a budget one scene's reference pull can spend in an afternoon. It is not a monthly allowance; it does not reset. And paid is per person, so bringing in your DP, production designer, and editor multiplies the bill. A tool for ideas that gets more expensive the moment other people show up has the economics backwards for production work.",
-        "So choose by naming what your board must become. A live team workspace: a real-time canvas without item walls. A polished client deliverable: templates and export. A private research archive that works on a plane: local files and no account. And if it only ever needs to be a beautiful collection under 100 cards, you may not need an alternative at all — we say so below.",
+        "So choose by naming what your board must become. A live team workspace: a real-time canvas whose limits are not an upload budget you spend in an afternoon. A polished client deliverable: templates and export. A private research archive that works on a plane: local files and no account. And if it only ever needs to be a beautiful collection under 100 cards, you may not need an alternative at all — we say so below.",
         "One more thing most listicles on this SERP skip: we checked whether the tools still exist. Kosmik, still recommended by several rival roundups, shut down May 31, 2026. InVision shut down at the end of 2024. Products die, and a roundup that still recommends them was not tested. Everything here was verified against primary sources in August 2026."
       ]
     },
@@ -756,7 +756,7 @@ const PAGES = [
         "verdict": "The one tool on this list built so the board never has to be exported to become the next thing.",
         "paras": [
           "Clusters is what we built when our own pre-production kept splintering across four apps: a real-time multiplayer canvas in the browser whose boards hold images, video, audio, PDFs, links, notes, docs, color palettes, image grids, schedules, and vote cards, with non-destructive photo adjustments built in. The point is not the format list — it is that the mood board, storyboard, shot list, and schedule live as connected boards in one project, tied together by a relationship graph. The board becomes the next thing instead of being rebuilt as it.",
-          "Against Milanote, two structural differences. First, the wall: the free Demo tier has no trial clock and a generous card cap sized for real projects, not a hard budget of 100 items that one reference pull exhausts. Second, the team math: Creator is a flat $25/mo — not per person — for unlimited boards, 100GB of storage, any file type, and Edit Mode. On Milanote, adding your DP and production designer multiplies the bill. On Clusters it does not, and free editors can collaborate.",
+          "Against Milanote, two structural differences. First, the wall: Milanote's free plan spends a 10-file upload budget that never resets, so one scene's reference pull can end it in an afternoon — Clusters does not meter uploads at all, and the free Demo tier has no trial clock or credit card. Second, the team math: Creator is a flat $25/mo — not per person — for unlimited cards, 100GB of storage, any file type, and Edit Mode. On Milanote, adding your DP and production designer multiplies the bill. On Clusters it does not, and free editors can collaborate.",
           "Sharing is one link. Viewers need no account — a producer opens the live board in a browser, sees cursors and presence, and comments land on the exact image they are about. Drop a folder of references and auto-tagging files them to the right board — at hour three of a pull, nobody hand-sorts. Screenplay mode lives in docs, so the script draft sits beside the imagery it describes. We use all of this daily; the features exist because a shoot demanded them.",
           "The honest limits: Clusters is browser-only — no offline mode, no always-on-top overlay over your paint tool; PureRef keeps that crown. The template library is smaller than Milanote's or Canva's, there is no integrations marketplace, and it is a young product from a small studio. If your work is solo, offline, and image-only, tools further down this list fit better. If your board has to reach a call sheet with other people involved, this is the one built for that."
         ],
@@ -1331,7 +1331,7 @@ const PAGES = [
     "faq": [
       {
         "q": "Is there a free Milanote alternative without item caps?",
-        "a": "Yes. Soleil Clusters' free tier has no trial clock and a generous card cap sized for real projects rather than a hard 100-item wall, and Obsidian Canvas is entirely free with no caps at all — boards are local files on your own disk. Canva's free plan also allows unlimited whiteboards, though premium assets are paywalled."
+        "a": "Yes. Soleil Clusters' free tier has no trial clock and no upload ceiling, so the reference pull that spends Milanote's 10-file budget in an afternoon costs nothing here. Obsidian Canvas is entirely free with no caps at all — boards are local files on your own disk. Canva's free plan also allows unlimited whiteboards, though premium assets are paywalled."
       },
       {
         "q": "What are Milanote's free plan limits?",
@@ -2020,7 +2020,7 @@ const PAGES = [
     "faq": [
       {
         "q": "What is the best free mood board app?",
-        "a": "For production work, Soleil Clusters — the free Demo tier has no credit card and no trial clock, with a card cap sized for a real project. Canva's free tier is generous too (unlimited whiteboards, 5GB), and Pinterest is entirely free for discovery. Milanote's free plan caps at 100 total cards, which real boards exhaust quickly."
+        "a": "For production work, Soleil Clusters — the free Demo tier has no credit card, no trial clock, and no ceiling on image uploads, which is what a reference pull actually spends. Canva's free tier is generous too (unlimited whiteboards, 5GB), and Pinterest is entirely free for discovery. Milanote's free plan stops at 10 file uploads, ever."
       },
       {
         "q": "Which mood board apps do not add watermarks?",

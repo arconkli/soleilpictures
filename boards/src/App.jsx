@@ -106,7 +106,7 @@ import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
-import { evaluateUpsell, ELIGIBILITY_REV } from './lib/upsellEligibility.js';
+import { evaluateUpsell, ELIGIBILITY_REV, nearCapAt } from './lib/upsellEligibility.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel } from './lib/gridState.js';
@@ -987,7 +987,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             surfaceCapHit(cs);
             return;
           }
-          if (cs.own && cs.count === cs.limit - 10) nearCapToast(cs);
+          if (cs.own && cs.count === nearCapAt(cs.limit)) nearCapToast(cs);
         }
       }
       breakUndo();
@@ -1047,7 +1047,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (capHit) {
           cardsToAdd = cardsToAdd.slice(0, accepted);
           surfaceCapHit(csBatch);
-        } else if (csBatch.own && csBatch.count + cardsToAdd.length >= csBatch.limit - 10 && csBatch.count < csBatch.limit - 10) {
+        } else if (csBatch.own && csBatch.count + cardsToAdd.length >= nearCapAt(csBatch.limit) && csBatch.count < nearCapAt(csBatch.limit)) {
           nearCapToast(csBatch);
         }
       }
@@ -1208,7 +1208,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (capHit) {
           sources = sources.slice(0, accepted);
           surfaceCapHit(csDup);
-        } else if (csDup.own && csDup.count + sources.length >= csDup.limit - 10 && csDup.count < csDup.limit - 10) {
+        } else if (csDup.own && csDup.count + sources.length >= nearCapAt(csDup.limit) && csDup.count < nearCapAt(csDup.limit)) {
           nearCapToast(csDup);
         }
       }
