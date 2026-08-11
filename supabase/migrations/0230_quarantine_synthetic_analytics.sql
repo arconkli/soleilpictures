@@ -1,4 +1,4 @@
--- 0228_quarantine_synthetic_analytics.sql — keep QA-harness traffic out of the
+-- 0230_quarantine_synthetic_analytics.sql — keep QA-harness traffic out of the
 -- numbers.
 --
 -- The e2e suite drives the REAL app with the REAL analytics client. Its rows
@@ -50,7 +50,7 @@ alter table public.analytics_events_synthetic enable row level security;
 revoke all on public.analytics_events_synthetic from anon, authenticated;
 
 comment on table public.analytics_events_synthetic is
-  'Quarantined QA-harness analytics rows (migration 0228). Written by the '
+  'Quarantined QA-harness analytics rows (migration 0230). Written by the '
   'BEFORE INSERT divert trigger on analytics_events. Never read by product '
   'analytics; kept only so the quarantine is reversible.';
 
@@ -79,7 +79,7 @@ with syn as (
   insert into public.analytics_events_synthetic
     (id, session_id, user_id, event, props, path, occurred_at, country, reason)
   select id, session_id, user_id, event, props, path, occurred_at, country,
-         'backfill_0228_anon_with_resolved_tier'
+         'backfill_0230_anon_with_resolved_tier'
     from syn
   returning id
 )

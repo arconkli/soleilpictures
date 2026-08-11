@@ -8,6 +8,21 @@
 // vibrance (exact) → clarity (exact, mid-tone-weighted) → sharpen.
 
 import { resolveSrc } from './r2.js';
+import { logEvent } from './analytics.js';
+import { EV } from './analyticsEvents.js';
+
+// True when this download is being taken by an anonymous visitor on a public
+// surface. The public viewer renders the same card action cluster as the app
+// and its Download button is wired purely on `src` being present, so today a
+// share link hands every full-resolution image to anyone who opens it. That is
+// either fine or a leak depending on what the link is for — and until now there
+// was no way to tell how often it happens.
+function isPublicSurface() {
+  try {
+    const p = window.location.pathname;
+    return p.startsWith('/share/') || p.startsWith('/c/');
+  } catch (_) { return false; }
+}
 import { loadCorsCleanImage } from './corsImage.js';
 import {
   isAdjusted, normalizeAdjust, toneActive,
@@ -154,6 +169,12 @@ export async function downloadImage({ src, title, adjust }) {
   let url = null;
   try { url = await resolveSrc(src); } catch (_) { url = null; }
   if (!url) return;
+
+  logEvent(EV.FILE_DOWNLOAD, {
+    kind: 'image',
+    adjusted: isAdjusted(adjust),
+    is_public: isPublicSurface(),
+  });
 
   const downloadOriginal = async () => {
     const res = await fetch(url);

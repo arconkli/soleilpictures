@@ -9,6 +9,9 @@
 // the same SVG and call window.print() so the user can "Save as PDF."
 // Avoids adding a heavy dep just for export.
 
+import { logEvent } from './analytics.js';
+import { EV } from './analyticsEvents.js';
+
 function svgToString(svg) {
   // Inline computed styles so the snapshot survives outside of our
   // global stylesheet. This is intentionally a thin best-effort —
@@ -70,6 +73,7 @@ export async function exportBoardAsPng(svg, boardName) {
   const blob = await svgToPngBlob(svg, { width: 2400 });
   const safe = (boardName || 'board').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80);
   downloadBlob(blob, `${safe}.png`);
+  logEvent(EV.EXPORT_RUN, { format: 'png', surface: 'canvas' });
 }
 
 // Open a print window with the SVG sized to the page so the user can
@@ -81,7 +85,13 @@ export function exportBoardAsPdf(svg, boardName) {
   // NOTE: do NOT pass 'noopener' — window.open(..., 'noopener') returns null, so
   // we'd never get the handle to write the SVG into (or fire window.print()).
   const w = window.open('', '_blank');
-  if (!w) { throw new Error('Please allow pop-ups for export.'); }
+  if (!w) {
+    // A blocked pop-up is the single most common way this export fails, and it
+    // looked identical to "nobody exports" from the data.
+    logEvent(EV.EXPORT_ERROR, { format: 'pdf', surface: 'canvas', reason: 'popup_blocked' });
+    throw new Error('Please allow pop-ups for export.');
+  }
+  logEvent(EV.EXPORT_RUN, { format: 'pdf', surface: 'canvas' });
   w.document.open();
   w.document.write(`<!doctype html>
 <html>

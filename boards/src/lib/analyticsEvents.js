@@ -181,6 +181,17 @@ export const EV = Object.freeze({
   LIST_UPSELL_CTA:         'list_upsell_cta',             // "Any file, any size — Creator" clicked in the list toolbar {board_id} (must-land)
   UPLOAD_BLOCKED:          'upload_blocked',              // an upload was refused {reason:'owner_not_paid'|'server_403'|'server_quota',surface:'canvas'|'list',ext,size_bucket,n} — owner_not_paid = client hard-block (free owner, non-standard file); server_* = party /mpu 403/402
 
+  // ── Export + download (previously COMPLETELY DARK) ──
+  // Everything the product can turn a board INTO — board PNG/PDF, screenplay
+  // Fountain/Final Draft/PDF, doc HTML/Markdown/JSON, and the per-image
+  // download — shipped with zero instrumentation. So "does anyone export?" and
+  // "is anyone pulling full-res images off a public share link?" were both
+  // unanswerable, which is exactly what you need to know before deciding
+  // whether output is worth gating.
+  EXPORT_RUN:              'export_run',                  // an export was produced {format:'png'|'pdf'|'fountain'|'fdx'|'html'|'markdown'|'json',surface:'canvas'|'doc',doc_mode,board_id}
+  EXPORT_ERROR:            'export_error',                // the export threw {format,surface,reason}
+  FILE_DOWNLOAD:           'file_download',               // a single asset was downloaded {kind:'image',adjusted,is_public} — is_public marks a download taken by an anonymous visitor on /share or /c, which is currently unrestricted
+
   // ── Public share viewer (/share/<token>, anonymous) ──
   SHARE_VIEW:              'share_view',                  // public viewer mounted {share_token,board_id,root_id,include_subboards,valid}
   SHARE_SUBBOARD_OPEN:     'share_subboard_open',         // navigated into a sub-board {share_token,board_id,from_board_id,depth,cached}

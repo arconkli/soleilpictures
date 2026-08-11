@@ -36,7 +36,7 @@ export function useMyTier({ userId } = {}) {
     adOfferPending: false,
     onboarding: {},
     // The server returns effective_card_limit = card_cap_base + bonus_card_credits
-    // (per-user since 0227: pre-0227 accounts are grandfathered at 100, new ones
+    // (per-user since 0229: pre-0229 accounts are grandfathered at 100, new ones
     // start at DEMO_CARD_LIMIT). The cap gates and the Upgrade pill read it.
     // This is a PLACEHOLDER only — `tier` is null until the RPC lands, and every
     // consumer gates on a resolved tier, so a grandfathered user never flashes

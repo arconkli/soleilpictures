@@ -8,20 +8,20 @@
 // means it is unit-testable without a backend (see demoCardCap.test.mjs).
 //
 // NOTE: this mirrors the client-cached count. The authoritative backstop is the
-// server BEFORE-INSERT trigger on card_index (live definition: migration 0227,
+// server BEFORE-INSERT trigger on card_index (live definition: migration 0229,
 // re-keyed to the workspace owner by 0187), which does a live COUNT; this client
 // gate is what users actually see.
 //
-// THE CAP IS PER-USER. Since 0227 the real cap lives in profiles.card_cap_base
+// THE CAP IS PER-USER. Since 0229 the real cap lives in profiles.card_cap_base
 // and reaches the client as get_my_tier().effective_card_limit, threaded through
 // useMyTier. DEMO_CARD_LIMIT is only (a) the value new accounts get, and (b) a
 // pre-resolution fallback for callers that have no resolved tier yet. Never
-// render it as a user's actual limit — accounts created before 0227 are
+// render it as a user's actual limit — accounts created before 0229 are
 // grandfathered at LEGACY_DEMO_CARD_LIMIT and would see the wrong number.
 
 export const DEMO_CARD_LIMIT = 50;
 
-// What accounts created before migration 0227 keep, permanently. Exported so the
+// What accounts created before migration 0229 keep, permanently. Exported so the
 // public docs can state the grandfather rule through {{fact:legacyDemoCardLimit}}
 // instead of hand-typing it — see scripts/gen-docs.mjs FACTS.
 export const LEGACY_DEMO_CARD_LIMIT = 100;
