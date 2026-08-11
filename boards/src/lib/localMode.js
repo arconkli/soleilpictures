@@ -135,6 +135,36 @@ export function isPresenceQaMode() {
   return new URLSearchParams(window.location.search).get('presenceqa') === '1';
 }
 
+// Is ANY dev-only QA harness driving this pageload?
+//
+// Why this exists: the e2e suite drives the real app with a real analytics
+// client, and `?local=1&tier=demo&cards=N` produces events that are shaped
+// exactly like a real user's. Those rows reached the production analytics table
+// — playwright.config.js only supplies fake Supabase credentials as a FALLBACK
+// (`process.env.X || fake`) and sets reuseExistingServer, so a dev server
+// already running with the real .env.local gets reused and the fixtures are
+// written straight to production. The result was an upsell funnel where roughly
+// half the recent rows were a robot replaying `cards=60`, which is not a funnel
+// anyone can read.
+//
+// Every predicate here is import.meta.env.DEV-guarded, so this is always false
+// in a production build and the stamp can never suppress a real user's event.
+// Analytics uses it to mark rows `synthetic: true` rather than to drop them:
+// several specs assert on the intercepted request body, so the event still has
+// to be SENT — it just has to be labelled.
+const QA_MODE_PARAMS = [
+  'local', 'adminpreview', 'docqa', 'noteqa', 'thumbqa', 'dndqa', 'arrowqa',
+  'alignqa', 'gridqa', 'schedqa', 'tourqa', 'revealqa', 'imageeditqa',
+  'presenceqa', 'shareqa',
+];
+export function isAnyQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  try {
+    const q = new URLSearchParams(window.location.search);
+    return QA_MODE_PARAMS.some((k) => q.get(k) === '1');
+  } catch (_) { return false; }
+}
+
 // Dev-only override for the public-share engagement prompt's dwell trigger.
 // Active ONLY in a DEV build with ?shareqa=1 (same trust boundary as
 // qaTierOverride), so the 30s threshold can never be shortened in production.
