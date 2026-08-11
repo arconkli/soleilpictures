@@ -37,6 +37,7 @@ These are walkthroughs rather than reference — the whole workflow for one kind
 
 What you can make with Clusters — the full index
 Mood board maker · Storyboard maker · Shot list maker · Look book maker
+Building a board with an AI assistant — what it can and cannot do for you
 Coming from another tool — PureRef, Milanote, Miro and the rest
 
 How to read these docs
@@ -2657,7 +2658,7 @@ Anything that is not a command is treated as content — or, if it is a question
 
 Connecting to an existing account
 
-Binding a phone to an account you already have is built but not switched on, for the same reason as everything else here: there is no line to text. When it is, you will get a connect code from your settings and text it once.
+If you already have a Clusters account, Settings → Scout gives you a connect code. Text /code <code> and the phone is bound to your account, so texted photos land in the workspace you already use.
 
 If you started from Scout with no account, a claim flow attaches an email address to the shell account created behind your number.
 
@@ -4757,6 +4758,8 @@ Soleil Clusters ships an MCP server exposing the API as tools an AI assistant ca
 
 The MCP server puts Soleil Clusters in reach of Claude and any other Model Context Protocol client, so an assistant can read and build boards directly.
 
+If you are weighing up whether that is useful rather than how to wire it up, the AI mood board maker page covers what an assistant can actually do with a board — and what it deliberately does not do, which is invent images.
+
 What it is
 
 A layer over the REST API. It holds no credentials and implements no permissions of its own — it forwards whatever credential you connected with, so everything about the authorization model applies here unchanged. An OAuth access token and a personal access token resolve to the same thing: your own session, under ordinary row-level security.
@@ -4954,10 +4957,10 @@ Q: Do I still need a personal access token?
 A: Only for a client that cannot do OAuth, or for your own scripts. Assistants that speak current MCP handle it themselves.
 
 Q: Does the MCP server have its own permissions?
-A: No. It forwards your personal access token to the same API, so it inherits your account's permissions exactly. A token without the delete scope cannot delete.
+A: No. It forwards whatever credential you connected with — an OAuth access token or a personal access token — to the same API, so it inherits your account's permissions exactly. A credential without the delete scope cannot delete.
 
 Q: How do I stop an agent deleting things?
-A: Mint a token without the delete scope. Deleting is a separate grant from writing precisely so an agent can be allowed to build without being allowed to destroy.
+A: Deleting is a separate grant from writing precisely so an agent can be allowed to build without being allowed to destroy, and it is never granted by default. Over OAuth, simply do not approve it; with a token, mint one without the delete scope.
 
 Q: Can an agent upload a video?
 A: Only the local server can, with upload_file, because the file has to be read from a disk. The hosted one handles images with upload_image.

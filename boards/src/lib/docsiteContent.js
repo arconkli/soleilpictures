@@ -362,6 +362,23 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "link",
+      "v": "Building a board with an AI assistant",
+      "href": "/tools/ai-mood-board-maker",
+      "children": [
+       {
+        "t": "text",
+        "v": "Building a board with an AI assistant"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — what it can and cannot do for you"
+     }
+    ],
+    [
+     {
+      "t": "link",
       "v": "Coming from another tool",
       "href": "/docs/migrating",
       "children": [
@@ -20347,7 +20364,29 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Binding a phone to an account you already have is built but not switched on, for the same reason as everything else here: there is no line to text. When it is, you will get a connect code from your settings and text it once."
+     "v": "If you already have a Clusters account, "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Scout",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Scout"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " gives you a connect code. Text "
+    },
+    {
+     "t": "code",
+     "v": "/code <code>"
+    },
+    {
+     "t": "text",
+     "v": " and the phone is bound to your account, so texted photos land in the workspace you already use."
     }
    ]
   },
@@ -35432,6 +35471,30 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "The MCP server puts Soleil Clusters in reach of Claude and any other Model Context Protocol client, so an assistant can read and build boards directly."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you are weighing up whether that is useful rather than how to wire it up, the "
+    },
+    {
+     "t": "link",
+     "v": "AI mood board maker",
+     "href": "/tools/ai-mood-board-maker",
+     "children": [
+      {
+       "t": "text",
+       "v": "AI mood board maker"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " page covers what an assistant can actually do with a board — and what it deliberately does not do, which is invent images."
     }
    ]
   },

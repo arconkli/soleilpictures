@@ -3429,11 +3429,11 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Does the MCP server have its own permissions?",
-        "a": "No. It forwards your personal access token to the same API, so it inherits your account's permissions exactly. A token without the delete scope cannot delete."
+        "a": "No. It forwards whatever credential you connected with — an OAuth access token or a personal access token — to the same API, so it inherits your account's permissions exactly. A credential without the delete scope cannot delete."
       },
       {
         "q": "How do I stop an agent deleting things?",
-        "a": "Mint a token without the delete scope. Deleting is a separate grant from writing precisely so an agent can be allowed to build without being allowed to destroy."
+        "a": "Deleting is a separate grant from writing precisely so an agent can be allowed to build without being allowed to destroy, and it is never granted by default. Over OAuth, simply do not approve it; with a token, mint one without the delete scope."
       },
       {
         "q": "Can an agent upload a video?",

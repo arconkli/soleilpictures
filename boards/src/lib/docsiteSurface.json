@@ -340,6 +340,10 @@
       "label": "Profile"
     },
     {
+      "id": "scout",
+      "label": "Scout"
+    },
+    {
       "id": "theme",
       "label": "Theme"
     }
@@ -387,6 +391,7 @@
     ],
     "landing": [
       "/scout",
+      "/tools/ai-mood-board-maker",
       "/tools/free-mood-board-maker",
       "/tools/look-book-maker",
       "/tools/mood-board-maker",

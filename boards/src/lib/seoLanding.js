@@ -154,7 +154,7 @@ const PAGES = [
       'Pull your references, colors, and notes onto one infinite canvas — then share the whole board with a single link.',
     answer:
       'Soleil Clusters is a free online mood board maker: drag images, links, video, and color palettes onto an infinite canvas, arrange them freely, and share the finished board with one link. It runs in the browser with no download, supports real-time collaboration, and is built for film, photo, and design teams.',
-    updated: '2026-07-07',
+    updated: '2026-08-10',
     cta: { label: 'Start a mood board — free', sub: 'No credit card. Your first board in seconds.' },
     stepsHeading: 'How to make a mood board',
     steps: [
@@ -189,8 +189,96 @@ const PAGES = [
       { q: 'What can I put on a mood board?', a: 'Images, screenshots, links, video, audio, PDFs, rich-text notes, color palettes, and any other file type. Everything lives on one infinite canvas you can pan and zoom.' },
       { q: 'Can I share a mood board without making people sign up?', a: 'Yes. Every board can be shared with a single public link that opens a clean, interactive read-only preview — no account required for viewers.' },
       { q: 'Do I need to install anything?', a: 'No. Clusters runs in your browser, with native iOS and Android apps if you want them. There is nothing to download to get started.' },
+          { q: 'Can an AI assistant make the board for me?', a: 'Yes. Connect Claude or any MCP client with one URL and ask. It creates the cluster, brings in references from links you give it, and arranges them as justified rows or masonry. It works with your own images rather than generating them — see the AI mood board maker page.' },
+],
+    related: ['/tools/storyboard-maker', '/tools/look-book-maker', '/best/mood-board-apps', '/vs/milanote', '/vs/pureref', '/use-cases', '/tools/ai-mood-board-maker'],
+  },
+
+  // ────────────────────────────────────────────────────────────────────────
+  // The assistant angle. Every other page here sells the canvas; this one
+  // sells the thing none of the tools we compare against can do, which only
+  // became true the day the OAuth flow shipped: you point Claude at a URL and
+  // it builds the board.
+  //
+  // COPY HONESTY — the whole page turns on it. "AI mood board" searches are
+  // dominated by image GENERATORS, and we are not one. Saying so in the first
+  // paragraph loses the visitor who wanted a generator, and that is correct:
+  // they were never going to stay, and a reference board made of invented
+  // pictures is not reference. What is left is the person who has the images
+  // already, which is who the product is for.
+  //
+  // Nothing here claims a competitor cannot be reached by an assistant.
+  // Checked before writing: Miro HAS MCP servers in the official registry, so
+  // a blanket "only we can do this" would have been false. Milanote, PureRef,
+  // Boords and StudioBinder return nothing there, and those are named.
+  // ────────────────────────────────────────────────────────────────────────
+  {
+    path: '/tools/ai-mood-board-maker',
+    kind: 'tool',
+    title: 'AI Mood Board Maker — Build Boards with Claude',
+    metaDescription:
+      'Connect Claude or any MCP client to Soleil Clusters and ask for a mood board. It gathers and arranges your own references — it does not invent pictures.',
+    h1: 'AI Mood Board Maker',
+    subhead:
+      'Point Claude at your clusters and ask. It builds the board, brings in the references, and lays them out.',
+    answer:
+      'Soleil Clusters connects to Claude and any other MCP client, so you can ask an assistant to build a mood board for you. It creates the board, pulls in images from links you give it, and lays them out as justified rows or masonry. It arranges your own references rather than generating pictures, and reaches only what your account reaches.',
+    updated: '2026-08-10',
+    cta: { label: 'Connect your assistant — free', sub: 'One URL. Approve it in the browser. No token to paste.' },
+    stepsHeading: 'How to build a mood board with your assistant',
+    steps: [
+      { t: 'Add the URL to your client', d: 'In Claude, or any MCP client, add https://clusters.soleilpictures.com/api/v1/mcp as a connector. There is nothing to install.' },
+      { t: 'Approve it once', d: 'A browser opens, you sign in with your email, and you press Allow. If you do not have an account yet, that screen makes one.' },
+      { t: 'Ask for what you want', d: 'Describe the board in plain language — the project, the references you have, how you want them grouped.' },
+      { t: 'Open it and take over', d: 'The board is a normal cluster. Drag things, add notes, share the link. The assistant started it; it is yours.' },
     ],
-    related: ['/tools/storyboard-maker', '/tools/look-book-maker', '/best/mood-board-apps', '/vs/milanote', '/vs/pureref', '/use-cases'],
+    sections: [
+      {
+        heading: 'It arranges your references. It does not invent them.',
+        body: 'Most tools that answer to "AI mood board" generate the images. This one does not, and that is the point. A reference board is an argument about a real look — a lens, a film stock, a colourist’s hand, a frame somebody actually shot. Fill it with pictures that never existed and you have a board nobody can match on the day. Bring your own references and the assistant does the tedious half: collecting, arranging, labelling, keeping it tidy as it grows.',
+        bullets: [
+          'Works with the images and links you already have',
+          'Pulls references from URLs you give it, in one pass',
+          'Lays them out as justified rows or balanced masonry columns',
+        ],
+      },
+      {
+        heading: 'What "ask for a mood board" actually does',
+        body: 'The assistant gets a set of tools, not a text box. It can make a cluster, add image, note, link, video and PDF cards, import a list of URLs in one go, group cards that belong together, put section headings over them, and re-arrange the whole board on request. Ask it to tidy up and it re-flows the layout; ask it to pull twelve references and it fetches them and files them.',
+        bullets: [
+          'Creates clusters and cards, in bulk',
+          'Imports from a list of links — safe to run twice, nothing duplicates',
+          'Re-arranges an existing board without touching what you positioned by hand',
+        ],
+      },
+      {
+        heading: 'Connecting is a URL and one button',
+        body: 'Soleil Clusters is its own OAuth 2.1 authorization server, listed in the official Model Context Protocol registry as com.soleilpictures/clusters. Your client discovers the sign-in flow by itself, opens a browser, and you approve once. No key to generate, nothing to paste into a configuration file, and no separate account — signing in is a single email box that makes the account if you do not have one.',
+        bullets: [
+          'Nothing to install for the hosted server',
+          'An npm package for local files, if you want to upload video from your own disk',
+          'Disconnect any time under Settings → API',
+        ],
+      },
+      {
+        heading: 'It reaches exactly what you reach',
+        body: 'A connected assistant runs as you, under the same permissions as your browser session — so it can see the clusters you can see, and nothing else. Deleting is a separate permission from writing, deliberately, so an assistant can be allowed to build without being allowed to throw anything away. Every call it makes is recorded, with the name of the tool it used, in an audit log you can read.',
+        bullets: [
+          'Same permissions as your own account, enforced by the database',
+          'Deleting is opt-in and off by default',
+          'An audit log of every action, naming the tool',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Does it generate images with AI?', a: 'No. It works with references you already have, or that you point it at with a link. It builds and arranges the board; it does not invent pictures. For reference work that is the right way round — a board full of images nobody can actually shoot is not much use on the day.' },
+      { q: 'Which assistants work with it?', a: 'Claude, and any other client that speaks the Model Context Protocol. The hosted server is a URL, so anything that can add a remote MCP connector can use it. There is also an npm package, soleil-clusters-mcp, for clients that need to read files off your own machine.' },
+      { q: 'Do I need to be a developer?', a: 'No. You add one URL to your assistant and press Allow in the browser. There is no key to generate and nothing to paste into a configuration file.' },
+      { q: 'Can the assistant delete my work?', a: 'Only if you let it. Deleting is a separate permission from writing and is not granted by default, so an assistant can build boards without being able to remove anything. You can disconnect it at any time under Settings → API, which stops it working immediately.' },
+      { q: 'Can it see all of my boards?', a: 'It sees exactly what your account sees — no more. It runs as you, under the same database permissions as your browser session, so a cluster you cannot open is one it cannot open either.' },
+      { q: 'Is it free?', a: 'Yes. Connecting an assistant costs nothing and works on the free plan. The usual plan limits apply to what it creates, exactly as they would if you made those cards yourself.' },
+    ],
+    related: ['/tools/mood-board-maker', '/tools/shot-list-maker', '/tools/reference-board-maker', '/best/mood-board-apps', '/vs/pureref', '/use-cases'],
   },
   {
     path: '/tools/storyboard-maker',
@@ -305,7 +393,7 @@ const PAGES = [
       { q: 'Does Clusters have a shot list template?', a: 'The fastest start is the public short-film shot list example board — open it, see how the shot cards and schedule are structured, and rebuild that structure in your own board in a few minutes.' },
       { q: 'Is this a shot planner?', a: 'Yes — planning the shots is the whole point. Each shot card carries its reference frame, lens, and movement, the schedule card maps shots to shoot days and locations, and the crew works from one live board. If what you searched for was a shot planner, this is that tool with the pictures kept in.' },
     ],
-    related: ['/tools/storyboard-maker', '/tools/mood-board-maker', '/vs/studiobinder', '/use-cases'],
+    related: ['/tools/storyboard-maker', '/tools/mood-board-maker', '/vs/studiobinder', '/use-cases', '/tools/ai-mood-board-maker'],
   },
   {
     path: '/tools/look-book-maker',
@@ -354,7 +442,7 @@ const PAGES = [
       { q: 'Can I keep multiple look books organized?', a: 'Yes. Nest boards inside boards so each season, campaign, or client has its own space, and navigate between them with the relationship graph.' },
       { q: 'Is it free?', a: 'You can start free on the Demo tier. Creator ($25/mo) adds unlimited boards, 100GB storage, and any file type.' },
     ],
-    related: ['/tools/mood-board-maker', '/vs/milanote', '/use-cases'],
+    related: ['/tools/mood-board-maker', '/vs/milanote', '/use-cases', '/tools/ai-mood-board-maker'],
   },
   {
     path: '/tools/free-mood-board-maker',
@@ -476,7 +564,7 @@ const PAGES = [
       { q: 'Can a reference board include video or other files?', a: 'Yes. Cards can be images, screenshots, links, video, audio, PDFs, notes, and color palettes — and on Creator, any file type. Motion reference sits on the board right next to your stills.' },
       { q: 'How does an online reference board compare to PureRef?', a: 'PureRef is a beloved offline desktop app — free to use personally, and excellent when the board never leaves your machine. Clusters trades offline for a board that follows you across devices and shares with a link. Our full PureRef comparison breaks it down feature by feature.' },
     ],
-    related: ['/vs/pureref', '/tools/mood-board-maker', '/tools/free-mood-board-maker', '/use-cases'],
+    related: ['/vs/pureref', '/tools/mood-board-maker', '/tools/free-mood-board-maker', '/use-cases', '/tools/ai-mood-board-maker'],
   },
 
   // ────────────────────────────────────────────────────────────────────────
@@ -493,8 +581,8 @@ const PAGES = [
     subhead:
       'Milanote is a lovely place to think. Clusters is where a team pulls a whole production together — live, on one canvas.',
     answer:
-      'Soleil Clusters is a free Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, auto-tagging that files dropped references for you, a relationship graph connecting whole projects, and no hard item cap on the free tier — Creator is a flat $25/mo with 100GB storage. Milanote remains strong for solo planning; Clusters is for visual, media-heavy, collaborative work.',
-    updated: '2026-07-22',
+      'Soleil Clusters is a free Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, auto-tagging that files dropped references, a relationship graph across projects, and no hard item cap on the free tier — Creator is a flat $25/mo with 100GB storage. Milanote is strong for solo planning; Clusters is for visual, media-heavy, collaborative work.',
+    updated: '2026-08-10',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     sections: [
       {
@@ -559,9 +647,10 @@ const PAGES = [
       { q: 'Is there a free Milanote alternative without item caps?', a: 'Yes — Soleil Clusters. The free Demo tier has no trial clock and a generous card cap sized for real projects, instead of a hard limit of around a hundred total items. Creator ($25/mo, flat) removes the cap entirely.' },
       { q: 'What do filmmakers use instead of Milanote?', a: 'Many use Clusters, because pre-production is connected there: the mood board links to the storyboard, the shot list, and the schedule as one project, with screenplay mode built in — and the whole crew edits the same boards in real time.' },
       { q: 'Milanote vs Canva — and where does Clusters fit?', a: 'Canva is a template-driven graphics editor, strongest when the goal is a finished design. Milanote is a board app for planning and collecting ideas. Clusters covers that planning ground for production teams — a real-time multiplayer canvas with no hard item cap, where the finished board shares with one link a client can open without an account.' },
-    ],
+          { q: 'Can I drive it from an AI assistant?', a: 'Clusters connects to Claude and any other MCP client with a single URL, so you can ask an assistant to build a board, import references and arrange them. No Milanote server is listed in the official Model Context Protocol registry at the time of writing. Clusters works with the images you already have — it does not generate them.' },
+],
     siblingListicle: { path: '/best/milanote-alternatives', label: 'See all 12 Milanote alternatives, ranked by a film studio.' },
-    related: ['/best/milanote-alternatives', '/tools/mood-board-maker', '/tools/storyboard-maker', '/tools/shot-list-maker', '/vs/pureref', '/vs/miro', '/use-cases'],
+    related: ['/best/milanote-alternatives', '/tools/mood-board-maker', '/tools/storyboard-maker', '/tools/shot-list-maker', '/vs/pureref', '/vs/miro', '/use-cases', '/tools/ai-mood-board-maker'],
   },
   {
     path: '/vs/pureref',
@@ -577,7 +666,7 @@ const PAGES = [
       'PureRef is a fast, offline reference window. Clusters is a collaborative reference workspace you can share and grow.',
     answer:
       'Soleil Clusters is a PureRef alternative that runs free in your browser: reference boards sync across devices, share with one link, and support real-time team editing. Boards hold notes, docs, video, and color palettes alongside images. PureRef still wins for a tiny offline desktop overlay; Clusters wins when reference needs to be shared.',
-    updated: '2026-07-22',
+    updated: '2026-08-10',
     cta: { label: 'Try Clusters free', sub: 'Runs in your browser. Free to start.' },
     stepsHeading: 'How to move a PureRef board to Clusters',
     steps: [
@@ -633,6 +722,15 @@ const PAGES = [
         ],
       },
       {
+        heading: 'Something PureRef cannot do at all',
+        body: 'PureRef is a local window on one machine. There is no API and nothing for an assistant to talk to, so a reference board built there is a board only you can touch. Clusters connects to Claude and other MCP clients: you can ask an assistant to pull a set of references, build the board and arrange it, then open the result and take over by hand. The images are still yours — it collects and arranges, it does not invent pictures.',
+        bullets: [
+          'Ask an assistant to gather and lay out a reference board',
+          'Connect with a URL — nothing to install, no key to paste',
+          'It reaches only what your account reaches, and deleting is off by default',
+        ],
+      },
+      {
         heading: 'When PureRef is still the right call',
         body: 'If you want a tiny, free, fully-offline window that floats over your art app and does one thing perfectly, PureRef is excellent and we will not pretend otherwise. Clusters is for when reference needs to be shared, collaborative, multi-media, and organized into a larger project.',
       },
@@ -652,7 +750,7 @@ const PAGES = [
         { feature: 'Organize boards into projects', us: 'Yes — nested boards + graph', them: 'One file per board' },
         { feature: 'Fully offline', us: 'No', them: 'Yes' },
         { feature: 'Free to start', us: 'Yes', them: 'Pay what you want' },
-      ],
+],
     },
     faq: [
       { q: 'What is a good PureRef alternative with collaboration?', a: 'Among apps like PureRef, Soleil Clusters is the one built for collaboration: it keeps the fast, freeform reference-board feel but adds real-time editing, link sharing, cloud sync, and support for notes, docs, palettes, and video — not just images.' },
@@ -669,9 +767,10 @@ const PAGES = [
       { q: 'Does Clusters work offline like PureRef?', a: 'Clusters is a cloud, browser-based workspace, so it is not a fully-offline desktop window the way PureRef is. In exchange you get sharing, collaboration, and cross-device sync.' },
       { q: 'Can I put more than images on a Clusters board?', a: 'Yes — images, notes, links, video, PDFs, docs, and color palettes all live on the same canvas, with non-destructive image adjustments built in.' },
       { q: 'Is Clusters free?', a: 'Yes, the Demo tier is free with no credit card. Creator ($25/mo) adds unlimited boards, 100GB storage, and Edit Mode.' },
-    ],
+          { q: 'Can an AI assistant work with my reference board?', a: 'In Clusters, yes — connect Claude or any MCP client with one URL and ask it to build or tidy a board. PureRef is an offline desktop app with no API, so there is nothing for an assistant to connect to. Clusters arranges the references you already have rather than generating images.' },
+],
     siblingListicle: { path: '/best/pureref-alternatives', label: 'See all 10 PureRef alternatives, ranked by a film studio.' },
-    related: ['/best/pureref-alternatives', '/tools/reference-board-maker', '/tools/mood-board-maker', '/tools/free-mood-board-maker', '/vs/milanote', '/use-cases'],
+    related: ['/best/pureref-alternatives', '/tools/reference-board-maker', '/tools/mood-board-maker', '/tools/free-mood-board-maker', '/vs/milanote', '/use-cases', '/tools/ai-mood-board-maker'],
   },
   {
     path: '/vs/miro',
@@ -738,7 +837,7 @@ const PAGES = [
       { q: 'Is there a simpler Miro alternative for mood boards?', a: 'Yes — Clusters. It keeps the infinite collaborative canvas but strips the diagramming clutter, and adds the creative pieces Miro lacks: photo adjustments, color palettes, docs, and screenplay mode.' },
       { q: 'Can my team use Clusters without per-seat pricing?', a: 'Yes. Creator is a flat $25/mo — not a per-member subscription — and anyone you share with can open a board free with one link.' },
     ],
-    related: ['/tools/storyboard-maker', '/tools/mood-board-maker', '/vs/milanote', '/use-cases'],
+    related: ['/tools/storyboard-maker', '/tools/mood-board-maker', '/vs/milanote', '/use-cases', '/tools/ai-mood-board-maker'],
   },
   {
     path: '/vs/storyboarder',
@@ -1067,6 +1166,7 @@ const PAGES = [
       '/vs/storyboarder',
       '/vs/boords',
       '/vs/studiobinder',
+      '/tools/ai-mood-board-maker',
     ],
   },
 ];
