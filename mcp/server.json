@@ -9,7 +9,7 @@
     "source": "github",
     "subfolder": "mcp"
   },
-  "version": "2.1.0",
+  "version": "2.1.1",
   "remotes": [
     {
       "type": "streamable-http",
@@ -21,14 +21,14 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "soleil-clusters-mcp",
-      "version": "2.1.0",
+      "version": "2.1.1",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
         {
           "name": "SOLEIL_API_TOKEN",
-          "description": "A personal access token from Settings → API. Optional: leave it unset and run `npx soleil-clusters-mcp login` instead, which signs you in through the browser and stores the credential itself.",
+          "description": "A personal access token from Settings \u2192 API. Optional: leave it unset and run `npx soleil-clusters-mcp login` instead, which signs you in through the browser and stores the credential itself.",
           "isRequired": false,
           "isSecret": true,
           "format": "string"
