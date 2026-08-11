@@ -30,11 +30,29 @@ test('the questions people actually ask are matched', () => {
     ['who can see my photos', 'privacy'],
     ['can i share this with my director', 'sharing'],
     ['does this work on android', 'android'],
-    ['stop', 'stop'],
+    ['how do i stop', 'stop'],
   ];
   for (const [text, expected] of cases) {
     expect(matchTopic(text), `"${text}"`).toBe(expected);
   }
+});
+
+test('a bare STOP is a command, not a question — the classifier must not answer it', () => {
+  // This used to match the `stop` topic, and answering it was the bug: the reply
+  // said "Understood — I won't send anything unless you text me first" while
+  // recording no opt-out anywhere, so the next photo was ingested exactly as
+  // before and the invite queue was untouched.
+  //
+  // STOP is now handled by parseStopIntent BEFORE the classifier ever runs, and
+  // it really stops. So the topic exists only for somebody asking ABOUT
+  // stopping, and a bare stop word reaching this function at all would mean the
+  // command path had been bypassed.
+  for (const word of ['stop', 'STOP', 'unsubscribe', 'quit']) {
+    expect(matchTopic(word), `"${word}" must not be answered as a topic`).toBe(null);
+  }
+  // The question form still is one, and it explains the command.
+  expect(matchTopic('how do i unsubscribe')).toBe('stop');
+  expect(renderAnswer('stop', CTX)).toContain('STOP');
 });
 
 test('the longest keyword wins, so specific questions beat generic ones', () => {
