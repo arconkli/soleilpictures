@@ -246,11 +246,13 @@
     "row"
   ],
   "apiCardKinds": [
+    "audio",
     "doc",
     "file",
     "image",
     "link",
     "note",
+    "pdf",
     "video"
   ],
   "apiScopes": [

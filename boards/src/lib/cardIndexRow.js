@@ -121,14 +121,46 @@ export function buildCardMeta(kind, get) {
     case 'shape':
       return { shape: get('shape') || 'rect', label: get('label') || null };
     case 'video':
-      return { src: get('src') || null, poster: get('poster') || null };
+      return {
+        src: get('src') || null,
+        poster: get('poster') || null,
+        duration: get('duration') || null,
+      };
+    // audio / pdf / file had no case, so every one of them projected null meta —
+    // no preview in the universal popover, nothing on the public /c/<slug> page,
+    // and nothing for a search hit to render. The app has created all three
+    // since the "upload anything" work; only this projection never learned about
+    // them. Scout now creates them too, which is what surfaced it.
+    case 'audio':
+      return { src: get('src') || null, duration: get('duration') || null };
+    case 'pdf':
+      return {
+        // The bytes and the page-1 raster are different objects, and a viewer
+        // needs to know which is which.
+        pdfSrc: get('pdfSrc') || null,
+        src: get('src') || null,
+        name: get('name') || null,
+        pageCount: get('pageCount') || null,
+      };
+    case 'file':
+      return {
+        fileSrc: get('fileSrc') || null,
+        fileName: get('fileName') || null,
+        mime: get('mime') || null,
+        sizeBytes: get('sizeBytes') || null,
+      };
     default:
       return null;
   }
 }
 
 export function cardIndexTitle(get) {
-  return String(get('title') || get('name') || get('label') || get('url') || '').slice(0, TITLE_MAX);
+  // `fileName` is where a generic file card keeps its name (CanvasSurface.jsx:2279)
+  // and it was not read here, so every uploaded file was indexed with an empty
+  // title — invisible to search under the only string anybody knows it by.
+  return String(
+    get('title') || get('name') || get('fileName') || get('label') || get('url') || '',
+  ).slice(0, TITLE_MAX);
 }
 
 // Kind-aware, so search and the public page RPC see the real content rather

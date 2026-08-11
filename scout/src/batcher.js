@@ -53,6 +53,11 @@ export function makeBatcher({ waitMs = 20_000, maxWaitMs = 90_000, onFlush }) {
             space: msg.space,
             texts: [],
             attachments: [],
+            // Every provider message id folded into this burst. The ingest log
+            // CLAIMS these on arrival and only marks them done once the burst
+            // has landed, so a crash mid-flush leaves them re-deliverable
+            // rather than permanently swallowed.
+            messageIds: [],
           },
           timer: null,
           firstAt: Date.now(),
@@ -61,6 +66,7 @@ export function makeBatcher({ waitMs = 20_000, maxWaitMs = 90_000, onFlush }) {
       }
       if (msg.text) entry.burst.texts.push(msg.text);
       if (msg.attachment) entry.burst.attachments.push(msg.attachment);
+      if (msg.messageId) entry.burst.messageIds.push(msg.messageId);
       // Keep the freshest space handle — replying through a stale one after a
       // reconnect silently drops the confirmation.
       if (msg.space) entry.burst.space = msg.space;

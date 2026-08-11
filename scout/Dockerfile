@@ -6,14 +6,27 @@ FROM node:22-slim
 
 WORKDIR /app
 
-# fonts-dejavu-core is NOT optional. The contact sheets Scout texts back draw
-# their group labels ("TODAY · 6", "3 DAYS AGO · 14") by compositing an SVG,
-# which sharp renders through librsvg → fontconfig. node:22-slim ships zero
-# fonts, and with none installed the text renders BLANK — silently, with no
-# error — leaving an unlabelled grid that defeats the whole point of showing the
-# groups. ~1MB.
+# NEITHER OF THESE IS OPTIONAL, and both fail silently rather than loudly.
+#
+# fonts-dejavu-core — the contact sheets Scout texts back draw their group
+# labels ("TODAY · 6", "3 DAYS AGO · 14") by compositing an SVG, which sharp
+# renders through librsvg → fontconfig. node:22-slim ships zero fonts, and with
+# none installed the text renders BLANK — silently, with no error — leaving an
+# unlabelled grid that defeats the whole point of showing the groups. ~1MB.
+#
+# ffmpeg — iPhone video is HEVC in a .mov, and CHROME AND FIREFOX CANNOT PLAY
+# HEVC. Only Safari can. Without ffmpeg a texted clip uploads fine, produces a
+# card that looks correct, and is a black rectangle for most of the people the
+# board gets shared with — the HEIC problem (media.js) one media type over, and
+# testing on a Mac in Safari hides it completely. It also supplies the duration
+# probe and the poster frame that uploads.js reads off a <video> element in the
+# browser, and the audio down-convert that makes a voice memo transcribable.
+#
+# ffmpeg.js degrades to "store the original untouched" when the binary is
+# missing, so a laptop without it still runs — but a deployment without it ships
+# clips most of the audience cannot watch. ~100MB, and worth it.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends fonts-dejavu-core \
+  && apt-get install -y --no-install-recommends fonts-dejavu-core ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
 # Dependencies are installed ONCE at the image root. Node resolves bare

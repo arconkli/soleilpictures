@@ -530,7 +530,7 @@ Creator removes the limit entirely. See Plans.
 
 Cards through the API
 
-The REST API exposes a deliberately narrower card model than the canvas: doc, file, image, link, note, video. An API caller can set position, size, title, body, HTML, URL, image key and colour, and nothing else — interior state that belongs to the editor is not writable from outside.
+The REST API exposes a deliberately narrower card model than the canvas: audio, doc, file, image, link, note, pdf, video. An API caller can set position, size, title, body, HTML, URL, image key and colour, and nothing else — interior state that belongs to the editor is not writable from outside.
 
 ## Frequently asked questions
 
@@ -2611,13 +2611,13 @@ A: Yes. Publishing is reversible from the same place you submitted it.
 ========================================================================
 # Soleil Scout
 URL: https://clusters.soleilpictures.com/docs/scout
-Updated: 2026-08-08
+Updated: 2026-08-11
 
-Soleil Scout is a text-message ingest bot. You text photos, links or notes from your phone and they land arranged on a Soleil Clusters canvas, grouped by what you said about them. There is no app to install and no signup — an account and a board are created behind you the first time you text. The web half is live; the phone line is not connected yet, so signups are queued.
+Soleil Scout is a text-message ingest bot. You text photos, clips, voice notes, PDFs, links or notes from your phone and they land arranged on a Soleil Clusters canvas, grouped by what you said about them. There is no app to install and no signup — an account and a board are created behind you the first time you text. Voice notes are transcribed so you can search what you said. The web half is live; the bot is not deployed yet, so signups are queued.
 
 Scout exists because nobody installs an app in a parking lot on one bar of signal. It lives in the messages app already open on the phone.
 
-Scout is not fully live. The web half — the signup box, the instant sign-in links, the account plumbing — is deployed. The bot itself has no phone line connected, so no message is sent or received today. Joining at /scout puts you on the list and you are texted when the line is live. This page describes how it behaves once it is.
+Scout is not fully live. The web half — the signup box, the instant sign-in links, the account plumbing — is deployed. The bot itself is not running, so no message is sent or received today. Joining at /scout puts you on the list and you are texted when it goes live. This page describes how it behaves once it is.
 
 The idea
 
@@ -2633,30 +2633,66 @@ Keep shooting. Send twelve more. They batch into one tidy grid instead of twelve
 Tap the link. Land on your canvas, signed in, with exactly the photos you just sent already selected.
 File it later. Everything collects in your Scout Bin. Say "put these in Diner Recce" and Scout confirms what will move before it moves anything.
 
+What you can send
+
+You send | You get
+Photos | Image cards at full resolution. iPhone HEIC is converted so it opens outside Safari
+Video | A video card with a poster frame. iPhone HEVC is converted so it plays in Chrome and Firefox
+Voice notes | An audio card plus a transcript, so the words are searchable
+Audio files | An audio card
+PDFs | A PDF card that opens in the viewer
+Links | A rich embed for YouTube, Vimeo, TikTok and the like; a preview card otherwise
+Plain text | A sticky note next to the imagery it refers to
+
+Free-plan size limits are the same ones the canvas applies to a dropped file — 30 MB for video, 50 MB for audio, 50 MB for a PDF. Anything larger, and any other file type, needs Creator. Scout says which files it could not take rather than dropping them quietly.
+
+Where and when a photo was taken
+
+Scout reads the capture time and, where the phone included it, the coordinates from a photo's EXIF data and keeps both on the card. When a batch has coordinates, the group's heading carries a map link for the place.
+
+Nothing is looked up, sent anywhere, or shown publicly — it travels with the card, the same way a photo's average colour does.
+
 Batching
 
 Twelve photos means twelve messages seconds apart. Scout waits until you have stopped — roughly twenty seconds of quiet — then lays everything out once and sends one reply.
 
-While it works, a single message is edited in place through the stages rather than sending a new one each time: Got 12 photos — working on it… → Uploading 3 of 12… → Arranging on Scout Inbox… → the confirmation.
+While it works, a single message is edited in place through the stages rather than sending a new one each time: Got 12 photos — working on it… → Uploading 3 of 12… → Arranging on Scout Bin… → the confirmation.
 
 The Scout Bin
 
 Unfiled things collect in your Scout Bin. It is the default destination, so you never have to decide where something goes at the moment you are shooting it.
 
-Say /board Diner Recce and that thread's target changes — the target is sticky, so everything after goes there until you change it again.
+Say /board Diner Recce and that thread's target changes — the target is sticky, so everything after goes there until you change it again. /board with no name puts you back in the Bin.
+
+If the board does not exist, Scout offers to make it and waits for you to reply CREATE. It never invents a board from a name it merely heard, because a typo would otherwise become a second board with half your work in it.
 
 Moves are always confirmed before they happen, and a rendered contact sheet of what is about to move is sent before the text asking you to confirm. Moves can be undone.
+
+Finding things again
+
+Say find diner, or /find diner, and Scout tells you which boards match and links you to the one with the most hits.
+
+It searches titles, notes, whatever you said about a photo when you sent it, and the text of your voice notes — which is the whole reason they are transcribed. It only ever searches boards you can already write to.
 
 Commands
 
 Command | Effect
-/help (or /start) | What Scout can do
-/board <name> | Send everything after this to that cluster
-/bin (or /inbox) | Back to the Scout Bin
-/link | A signed link into your canvas
+/help | What Scout can do
+/board <name> | Send everything after this to that cluster; offers to create it if it does not exist
+/board | Back to the Scout Bin
+/bin | What is waiting to be filed, and how old
+/find <text> | Search everything you have sent
+/delete | Remove the batch you just sent, with an undo
 /code <code> | Connect this phone to an existing account
+STOP | Stop messaging you entirely. START resumes
 
-Anything that is not a command is treated as content — or, if it is a question, answered.
+Anything that is not a command is treated as content — or, if it is an instruction ("put these in Diner Recce") it is obeyed, and if it is a question it is answered.
+
+Stopping
+
+Text STOP and Scout stops. It is recorded against your number, so nothing further is sent and the signup queue is blocked as well. START resumes.
+
+Stopping does not touch your boards, your photos or your account. To delete the account itself, use Settings → Profile in the app.
 
 Connecting to an existing account
 
@@ -2670,9 +2706,11 @@ Confirmations include a link into the canvas with the cards you just sent alread
 
 Limits
 
-Texted cards count against your card allowance like any other. On the free plan that is 50 cards.
+Texted cards count against your card allowance like any other. The free allowance is per account — see Plans — and Scout tells you your own number if you ask it "how much is this?".
 
 Scout warns you once, at 75% of the cap, and tells you where you stand in each confirmation past halfway. At the cap it says so plainly rather than silently dropping photos.
+
+There is also a rolling daily ceiling on how much one number can send. It is abuse protection rather than a plan limit, and it sits far above anything a day's scouting produces.
 
 Transport
 
@@ -2681,10 +2719,16 @@ iMessage is the confirmed transport. SMS and RCS are not confirmed, and nothing 
 ## Frequently asked questions
 
 Q: Can I use Scout right now?
-A: Not yet end to end. You can join the list at /scout and the web side is live, but Scout has no phone line connected, so nothing is sent or received. Signups are queued and you are texted when the line goes live.
+A: Not yet end to end. You can join the list at /scout and the web side is live, but the bot is not running, so nothing is sent or received. Signups are queued and you are texted when it goes live.
 
 Q: Do I need an account first?
 A: No. That is the point. An account, a workspace and a board are created behind your phone number the first time you text, with no form and no password. You can attach an email address later.
+
+Q: Can it take video and voice notes?
+A: Yes. Video, audio, PDFs and photos all become real cards, and a voice note is transcribed so its words are searchable. iPhone clips are converted from HEVC so they play outside Safari.
+
+Q: How do I make it stop?
+A: Text STOP. It is recorded against your number, nothing further is sent, and the signup queue is blocked too. START brings it back. Your boards and photos are untouched either way.
 
 Q: Does it work on Android?
 A: iMessage is the confirmed transport. SMS and RCS are not confirmed yet, and nothing here promises Android until they are.
@@ -3885,7 +3929,7 @@ A: Yes. Nothing about tokens has changed. OAuth is for applications that other p
 URL: https://clusters.soleilpictures.com/docs/api/cards
 Updated: 2026-08-10
 
-Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Six card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
+Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
 
 The card object
 
@@ -3908,7 +3952,7 @@ Interior state the editor owns — grid layouts, adjustment settings, collaborat
 
 Kinds
 
-The API accepts doc, file, image, link, note, video.
+The API accepts audio, doc, file, image, link, note, pdf, video.
 
 Kind | Carries
 note | title, body, html
@@ -3916,9 +3960,15 @@ image | image_key, alt, body as the caption
 link | url, title, body
 doc | title, body, html
 video | file_key, optional poster_key
+audio | file_key, title, body as a transcript
+pdf | file_key, file_name, optional image_key for the page-1 still
 file | file_key, file_name, mime, ext, size_bytes
 
 video and file exist because multipart upload accepts ProRes, MXF, DPX and camera raw — so without them you could upload a two-terabyte camera master and then have no way to put it on a board. An upload you cannot place is not an upload.
+
+audio and pdf exist for the narrower version of the same problem: the canvas creates both when you drop a file on it, and the API refused both — so a kind you could make by dragging could not be made through the API. Soleil Scout creates them too, from a texted voice note or PDF.
+
+An audio card's body is its transcript where one exists, which is what makes a spoken note findable through search rather than something you have to play to identify.
 
 An unrecognised kind gets a 400 naming the valid ones. It is not coerced — silently turning an unknown kind into a note produced boards full of notes that were meant to be links.
 
@@ -3927,15 +3977,15 @@ This is still narrower than what the canvas supports. Grids, schedules, palettes
 Writable fields
 
 Field | Type | Limit
-kind | string | one of the six above
+kind | string | one of the eight above
 title | string | 300 chars
 body | string | 20000 chars
 html | string | 40000 chars
 url | string | 2000 chars
 image_key | string | 500 chars — from POST /uploads
-file_key | string | 500 chars — for video and file
+file_key | string | 500 chars — for video, audio, pdf and file
 poster_key | string | 500 chars — a still for a video
-file_name | string | 300 chars
+file_name | string | 300 chars — the displayed name of a pdf or file
 mime | string | 200 chars
 ext | string | 20 chars
 size_bytes | number | rounded
@@ -4322,7 +4372,7 @@ curl "https://clusters.soleilpictures.com/api/v1/resolve?scope=source_url&value=
 What each source becomes
 
 The source is | You get
-An image format the API stores (doc, file, image, link, note, video covers the card kinds; see Images) | An image card — the bytes are copied into your workspace
+An image format the API stores (audio, doc, file, image, link, note, pdf, video covers the card kinds; see Images) | An image card — the bytes are copied into your workspace
 Anything else — a PDF, a web page, a video | A link card pointing at the original, with a note saying why
 
 Only images are copied. Large media goes through the multipart upload endpoints, which stream from the client rather than pulling gigabytes through the API — a link card is the honest answer here rather than a silent half-import.
@@ -4907,7 +4957,7 @@ delete_card | board_id, card_id
 delete_cards | board_id, card_ids[]
 delete_board | board_id
 
-Card kind is doc, file, image, link, note, video, defaulting to note.
+Card kind is audio, doc, file, image, link, note, pdf, video, defaulting to note.
 
 Every tool carries annotations — readOnlyHint, destructiveHint, idempotentHint — which is what a client reads when deciding whether a call needs confirming. They are structured, so unlike a warning in a description they actually participate in that decision.
 

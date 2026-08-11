@@ -208,7 +208,7 @@ quietly failing.
 | `delete_cards` | `board_id`, `card_ids[]` |
 | `delete_board` | `board_id` |
 
-Card `kind` is `doc`, `file`, `image`, `link`, `note`, `video`, defaulting to `note`.
+Card `kind` is `audio`, `doc`, `file`, `image`, `link`, `note`, `pdf`, `video`, defaulting to `note`.
 
 Every tool carries **annotations** — `readOnlyHint`, `destructiveHint`,
 `idempotentHint` — which is what a client reads when deciding whether a call

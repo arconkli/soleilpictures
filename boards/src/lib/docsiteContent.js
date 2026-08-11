@@ -5157,6 +5157,14 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
+     "v": "audio"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
      "v": "doc"
     },
     {
@@ -5190,6 +5198,14 @@ export const DOCS_CONTENT = {
     {
      "t": "code",
      "v": "note"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "pdf"
     },
     {
      "t": "text",
@@ -19950,7 +19966,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". The web half — the signup box, the instant sign-in links, the account plumbing — is deployed. The bot itself has no phone line connected, so no message is sent or received today. Joining at "
+     "v": ". The web half — the signup box, the instant sign-in links, the account plumbing — is deployed. The bot itself is not running, so no message is sent or received today. Joining at "
     },
     {
      "t": "link",
@@ -19965,7 +19981,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " puts you on the list and you are texted when the line is live. This page describes how it behaves once it is."
+     "v": " puts you on the list and you are texted when it goes live. This page describes how it behaves once it is."
     }
    ]
   },
@@ -20100,6 +20116,233 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "What you can send",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What you can send"
+    }
+   ],
+   "id": "what-you-can-send"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "You send"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "You get"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "Photos"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Image cards at full resolution. iPhone HEIC is converted so it opens outside Safari"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Video"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A "
+      },
+      {
+       "t": "link",
+       "v": "video card",
+       "href": "/docs/canvas/cards",
+       "children": [
+        {
+         "t": "text",
+         "v": "video card"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " with a poster frame. iPhone HEVC is converted so it plays in Chrome and Firefox"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Voice notes"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An audio card "
+      },
+      {
+       "t": "strong",
+       "v": "plus a transcript",
+       "children": [
+        {
+         "t": "text",
+         "v": "plus a transcript"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", so the words are searchable"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Audio files"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An audio card"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "PDFs"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A "
+      },
+      {
+       "t": "link",
+       "v": "PDF card",
+       "href": "/docs/files/pdf",
+       "children": [
+        {
+         "t": "text",
+         "v": "PDF card"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " that opens in the viewer"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Links"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A rich embed for YouTube, Vimeo, TikTok and the like; a preview card otherwise"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Plain text"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A sticky note next to the imagery it refers to"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Free-plan size limits are the same ones the canvas applies to a dropped file — 30 MB for video, 50 MB for audio, 50 MB for a PDF. Anything larger, and any other file type, needs "
+    },
+    {
+     "t": "link",
+     "v": "Creator",
+     "href": "/docs/account/plans",
+     "children": [
+      {
+       "t": "text",
+       "v": "Creator"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Scout says which files it could not take rather than dropping them quietly."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Where and when a photo was taken",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Where and when a photo was taken"
+    }
+   ],
+   "id": "where-and-when-a-photo-was-taken"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Scout reads the capture time and, where the phone included it, the coordinates from a photo's EXIF data and keeps both on the card. When a batch has coordinates, the group's heading carries a map link for the place."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Nothing is looked up, sent anywhere, or shown publicly — it travels with the card, the same way a photo's average colour does."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Batching",
    "inline": [
     {
@@ -20169,11 +20412,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "em",
-     "v": "Arranging on Scout Inbox…",
+     "v": "Arranging on Scout Bin…",
      "children": [
       {
        "t": "text",
-       "v": "Arranging on Scout Inbox…"
+       "v": "Arranging on Scout Bin…"
       }
      ]
     },
@@ -20231,7 +20474,32 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " and that thread's target changes — the target is sticky, so everything after goes there until you change it again."
+     "v": " and that thread's target changes — the target is sticky, so everything after goes there until you change it again. "
+    },
+    {
+     "t": "code",
+     "v": "/board"
+    },
+    {
+     "t": "text",
+     "v": " with no name puts you back in the Bin."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If the board does not exist, Scout offers to make it and waits for you to reply "
+    },
+    {
+     "t": "code",
+     "v": "CREATE"
+    },
+    {
+     "t": "text",
+     "v": ". It never invents a board from a name it merely heard, because a typo would otherwise become a second board with half your work in it."
     }
    ]
   },
@@ -20255,6 +20523,66 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": ", and a rendered contact sheet of what is about to move is sent before the text asking you to confirm. Moves can be undone."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Finding things again",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Finding things again"
+    }
+   ],
+   "id": "finding-things-again"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Say "
+    },
+    {
+     "t": "code",
+     "v": "find diner"
+    },
+    {
+     "t": "text",
+     "v": ", or "
+    },
+    {
+     "t": "code",
+     "v": "/find diner"
+    },
+    {
+     "t": "text",
+     "v": ", and Scout tells you which boards match and links you to the one with the most hits."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It searches titles, notes, whatever you said about a photo when you sent it, and "
+    },
+    {
+     "t": "strong",
+     "v": "the text of your voice notes",
+     "children": [
+      {
+       "t": "text",
+       "v": "the text of your voice notes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — which is the whole reason they are transcribed. It only ever searches boards you can already write to."
     }
    ]
   },
@@ -20292,18 +20620,6 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "/help"
-      },
-      {
-       "t": "text",
-       "v": " (or "
-      },
-      {
-       "t": "code",
-       "v": "/start"
-      },
-      {
-       "t": "text",
-       "v": ")"
       }
      ],
      [
@@ -20323,7 +20639,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Send everything after this to that cluster"
+       "v": "Send everything after this to that cluster; offers to create it if it does not exist"
       }
      ]
     ],
@@ -20331,19 +20647,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "/bin"
-      },
-      {
-       "t": "text",
-       "v": " (or "
-      },
-      {
-       "t": "code",
-       "v": "/inbox"
-      },
-      {
-       "t": "text",
-       "v": ")"
+       "v": "/board"
       }
      ],
      [
@@ -20357,13 +20661,41 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "/link"
+       "v": "/bin"
       }
      ],
      [
       {
        "t": "text",
-       "v": "A signed link into your canvas"
+       "v": "What is waiting to be filed, and how old"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "/find <text>"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Search everything you have sent"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "/delete"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Remove the batch you just sent, with an undo"
       }
      ]
     ],
@@ -20380,6 +20712,28 @@ export const DOCS_CONTENT = {
        "v": "Connect this phone to an existing account"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "STOP"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Stop messaging you entirely. "
+      },
+      {
+       "t": "code",
+       "v": "START"
+      },
+      {
+       "t": "text",
+       "v": " resumes"
+      }
+     ]
     ]
    ]
   },
@@ -20388,7 +20742,65 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Anything that is not a command is treated as content — or, if it is a question, answered."
+     "v": "Anything that is not a command is treated as content — or, if it is an instruction (\"put these in Diner Recce\") it is obeyed, and if it is a question it is answered."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Stopping",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Stopping"
+    }
+   ],
+   "id": "stopping"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Text "
+    },
+    {
+     "t": "strong",
+     "v": "STOP",
+     "children": [
+      {
+       "t": "text",
+       "v": "STOP"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and Scout stops. It is recorded against your number, so nothing further is sent and the signup queue is blocked as well. "
+    },
+    {
+     "t": "strong",
+     "v": "START",
+     "children": [
+      {
+       "t": "text",
+       "v": "START"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " resumes."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Stopping does not touch your boards, your photos or your account. To delete the account itself, use Settings → Profile in the app."
     }
    ]
   },
@@ -20511,21 +20923,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " like any other. On the free plan that is "
+     "v": " like any other. The free allowance is per account — see "
     },
     {
-     "t": "strong",
-     "v": "50 cards",
+     "t": "link",
+     "v": "Plans",
+     "href": "/docs/account/plans",
      "children": [
       {
        "t": "text",
-       "v": "50 cards"
+       "v": "Plans"
       }
      ]
     },
     {
      "t": "text",
-     "v": "."
+     "v": " — and Scout tells you your own number if you ask it \"how much is this?\"."
     }
    ]
   },
@@ -20535,6 +20948,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Scout warns you once, at 75% of the cap, and tells you where you stand in each confirmation past halfway. At the cap it says so plainly rather than silently dropping photos."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "There is also a rolling daily ceiling on how much one number can send. It is abuse protection rather than a plan limit, and it sits far above anything a day's scouting produces."
     }
    ]
   },
@@ -29254,6 +29676,14 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
+     "v": "audio"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
      "v": "doc"
     },
     {
@@ -29287,6 +29717,14 @@ export const DOCS_CONTENT = {
     {
      "t": "code",
      "v": "note"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "pdf"
     },
     {
      "t": "text",
@@ -29469,6 +29907,74 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "audio"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "file_key"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "title"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "body"
+      },
+      {
+       "t": "text",
+       "v": " as a transcript"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "pdf"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "file_key"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "file_name"
+      },
+      {
+       "t": "text",
+       "v": ", optional "
+      },
+      {
+       "t": "code",
+       "v": "image_key"
+      },
+      {
+       "t": "text",
+       "v": " for the page-1 still"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "file"
       }
      ],
@@ -29546,6 +30052,81 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " accepts ProRes, MXF, DPX and camera raw — so without them you could upload a two-terabyte camera master and then have no way to put it on a board. An upload you cannot place is not an upload."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "audio"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "pdf"
+    },
+    {
+     "t": "text",
+     "v": " exist for the narrower version of the same problem: the canvas creates both when you drop a file on it, and the API refused both — so a kind you could make by dragging could not be made through the API. Soleil Scout creates them too, from a texted voice note or PDF."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An "
+    },
+    {
+     "t": "code",
+     "v": "audio"
+    },
+    {
+     "t": "text",
+     "v": " card's "
+    },
+    {
+     "t": "code",
+     "v": "body"
+    },
+    {
+     "t": "text",
+     "v": " is its "
+    },
+    {
+     "t": "strong",
+     "v": "transcript",
+     "children": [
+      {
+       "t": "text",
+       "v": "transcript"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " where one exists, which is what makes a spoken note findable through "
+    },
+    {
+     "t": "link",
+     "v": "search",
+     "href": "/docs/api/search",
+     "children": [
+      {
+       "t": "text",
+       "v": "search"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " rather than something you have to play to identify."
     }
    ]
   },
@@ -29671,7 +30252,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "one of the six above"
+       "v": "one of the eight above"
       }
      ]
     ],
@@ -29810,6 +30391,22 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "audio"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "pdf"
+      },
+      {
+       "t": "text",
        "v": " and "
       },
       {
@@ -29858,7 +30455,19 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "300 chars"
+       "v": "300 chars — the displayed name of a "
+      },
+      {
+       "t": "code",
+       "v": "pdf"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "file"
       }
      ]
     ],
@@ -32645,6 +33254,14 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
+       "v": "audio"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
        "v": "doc"
       },
       {
@@ -32678,6 +33295,14 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "note"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "pdf"
       },
       {
        "t": "text",
@@ -37628,6 +38253,14 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
+     "v": "audio"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
      "v": "doc"
     },
     {
@@ -37661,6 +38294,14 @@ export const DOCS_CONTENT = {
     {
      "t": "code",
      "v": "note"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "pdf"
     },
     {
      "t": "text",

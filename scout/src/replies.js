@@ -10,10 +10,13 @@
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
-// Describe what actually landed, e.g. "5 photos + 1 note".
-function describe({ images = 0, links = 0, notes = 0 }) {
+// Describe what actually landed, e.g. "5 photos + 1 voice note".
+function describe({ images = 0, videos = 0, audio = 0, files = 0, links = 0, notes = 0 }) {
   const parts = [];
   if (images) parts.push(plural(images, 'photo', 'photos'));
+  if (videos) parts.push(plural(videos, 'clip', 'clips'));
+  if (audio) parts.push(plural(audio, 'voice note', 'voice notes'));
+  if (files) parts.push(plural(files, 'file', 'files'));
   if (links) parts.push(plural(links, 'link', 'links'));
   if (notes) parts.push(plural(notes, 'note', 'notes'));
   if (!parts.length) return 'nothing';
@@ -25,14 +28,29 @@ function describe({ images = 0, links = 0, notes = 0 }) {
 // Deliberately concrete: "Got 12 photos" proves the bot saw all twelve, which
 // is the exact thing you're anxious about standing in a parking lot.
 export const STAGES = {
-  received: ({ images, links, notes }) => {
+  received: ({ images, videos, audio, files, links, notes }) => {
     const bits = [];
     if (images) bits.push(plural(images, 'photo', 'photos'));
+    if (videos) bits.push(plural(videos, 'clip', 'clips'));
+    if (audio) bits.push(plural(audio, 'voice note', 'voice notes'));
+    if (files) bits.push(plural(files, 'file', 'files'));
     if (links) bits.push(plural(links, 'link', 'links'));
     if (notes) bits.push('a note');
     return `Got ${bits.join(' + ') || 'that'} — working on it…`;
   },
-  uploading: (n, total) => `Uploading ${total ? `${n} of ${total} photos` : 'photos'}…`,
+  // Named by KIND. "Uploading 3 of 12 photos" while converting a video is a
+  // small lie, and on a slow connection the narration is the only thing telling
+  // someone the bot is still alive — it has to be true.
+  uploading: (n, total, kind = 'image') => {
+    const noun = kind === 'video' ? 'clips' : kind === 'audio' ? 'voice notes'
+      : kind === 'image' ? 'photos' : 'files';
+    return `Uploading ${total ? `${n} of ${total} ${noun}` : noun}…`;
+  },
+  // Transcoding is the slowest thing Scout does and it happens on the one media
+  // type people will not wait for in silence.
+  converting: (n, total) => `Converting ${total > 1 ? `clip ${n} of ${total}` : 'the clip'} so it plays everywhere…`,
+  transcribing: () => 'Listening to that…',
+  searching: () => 'Looking…',
   arranging: (boardName) => `Arranging on ${boardName}…`,
   // Filing does real work — reading two boards, sorting by colour, rendering a
   // sheet — so it narrates too rather than going quiet mid-instruction.
@@ -182,17 +200,149 @@ export function linkFailed() {
 
 export function help({ url }) {
   return [
-    'Text me photos, links or notes — they collect in your Scout Bin.',
+    'Text me photos, clips, voice notes, files or links — they collect in your Scout Bin.',
     'When you\'re ready, tell me where they go and I\'ll arrange them.',
     '',
     '"put these in Diner Recce"  file the batch you just sent',
     '"put everything in ..."     file the whole Bin',
     '/bin                        what\'s waiting, and how old',
+    '/find diner                 search everything you\'ve sent',
+    '/board Diner Recce          send what follows straight there',
+    '/delete                     remove the batch you just sent',
     // Settings → Scout, not an email round-trip. /link used to promise one and
     // there has never been anything behind it.
     '/code ABCD1234              connect an account you already have',
+    'STOP                        I stop messaging you',
     '',
     url,
+  ].join('\n');
+}
+
+// ── Creating a board ─────────────────────────────────────────────────────────
+//
+// Confirmed rather than created on sight. A typo used to be a dead end ("I
+// couldn't find a board called Dinner Recce"), which was at least honest;
+// creating it silently would turn the typo into a permanent second board with
+// half the work in it, discovered a week later.
+export function boardCreateOffer(name) {
+  return [
+    `I don't have a board called "${name}".`,
+    '',
+    'Reply CREATE and I\'ll make one, or say the name again if I misheard it.',
+  ].join('\n');
+}
+
+export function boardCreated({ boardName, url }) {
+  const lines = [`Made ${boardName}. Everything from here goes there.`];
+  if (url) lines.push(url);
+  lines.push('');
+  lines.push('Say /bin to go back to collecting in your Bin.');
+  return lines.join('\n');
+}
+
+export function boardCreateFailed(name) {
+  return `I couldn't make "${name}" just now. Try again in a moment.`;
+}
+
+// ── Deleting ─────────────────────────────────────────────────────────────────
+//
+// Confirmed like a move, and answered with an undo — the app's convention is
+// that deleting always shows an undo, and a thread is no reason to drop it.
+export function deleteConfirm({ count, boardName }) {
+  return [
+    `Delete ${plural(count, 'card', 'cards')} from ${boardName}?`,
+    '',
+    'Reply YES.',
+  ].join('\n');
+}
+
+export function deleteDone({ count, boardName }) {
+  return [
+    `Deleted ${plural(count, 'card', 'cards')} from ${boardName}.`,
+    '',
+    'Reply UNDO in the next day and I\'ll put them back.',
+  ].join('\n');
+}
+
+export function deleteUndone({ count }) {
+  return `Put ${plural(count, 'card', 'cards')} back.`;
+}
+
+export function nothingToDelete() {
+  return 'Nothing recent to delete. /bin shows what\'s waiting.';
+}
+
+// ── Search ───────────────────────────────────────────────────────────────────
+//
+// Grouped by board, because "where is it" is the question — a flat list of
+// twenty card ids answers nothing anybody asked.
+export function searchResults({ query, groups, total, url }) {
+  const lines = [`${plural(total, 'match', 'matches')} for "${query}":`];
+  for (const g of groups) lines.push(`  ${g.board} · ${g.count}`);
+  if (url) { lines.push(''); lines.push(url); }
+  return lines.join('\n');
+}
+
+export function searchEmpty(query) {
+  return `Nothing matching "${query}". I search titles and text — including what you say in voice notes.`;
+}
+
+export function searchTooShort() {
+  return 'Give me at least two characters to go on — try "find diner".';
+}
+
+// ── Files we won't take ──────────────────────────────────────────────────────
+//
+// Named specifically. "That didn't work" is the reply that generates a support
+// message; saying WHICH file and WHY is the one that doesn't.
+export function needsPaidPlan({ count, billingUrl }) {
+  return [
+    `${plural(count, 'file', 'files')} needs a Creator plan — big clips and`,
+    'anything that isn\'t a photo, video, audio file or PDF.',
+    '',
+    `Creator lifts it and adds 100GB: ${billingUrl}`,
+  ].join('\n');
+}
+
+export function tooLarge({ count }) {
+  return `${plural(count, 'file was', 'files were')} too big for me to take over a text. Drag them onto the board instead.`;
+}
+
+// Something arrived that we could not turn into anything at all. This exists so
+// that a burst which reached the service ALWAYS gets an answer — silence is the
+// one reply that is indistinguishable from being ignored.
+export function nothingUsable() {
+  return [
+    'That came through but I couldn\'t make anything of it.',
+    '',
+    'Photos, clips, voice notes, PDFs, links and plain text all work. /help for the rest.',
+  ].join('\n');
+}
+
+// ── Stopping ─────────────────────────────────────────────────────────────────
+export function stopped() {
+  return [
+    'Done — I won\'t message you again.',
+    '',
+    'Your boards and photos are untouched. Text START if you change your mind.',
+  ].join('\n');
+}
+
+export function stoppedAlready() {
+  return 'You asked me to stop, so I\'m not filing anything. Text START and I\'ll pick right back up.';
+}
+
+export function resumed({ url }) {
+  const lines = ['Back on. Send me anything and it lands on your canvas.'];
+  if (url) lines.push(url);
+  return lines.join('\n');
+}
+
+export function dailyLimit() {
+  return [
+    'That\'s a lot in one day — I\'ve stopped taking new things for now so nothing gets lost.',
+    '',
+    'It resets on a rolling 24 hours. Everything you already sent is safe.',
   ].join('\n');
 }
 

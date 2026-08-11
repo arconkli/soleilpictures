@@ -1,6 +1,6 @@
 # Cards API
 
-> Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Six card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
+> Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
 
 _Source: https://clusters.soleilpictures.com/docs/api/cards · Updated 2026-08-10_
 
@@ -29,7 +29,7 @@ should not be able to write arbitrary internals into everyone's board.
 
 ## Kinds
 
-The API accepts `doc`, `file`, `image`, `link`, `note`, `video`.
+The API accepts `audio`, `doc`, `file`, `image`, `link`, `note`, `pdf`, `video`.
 
 | Kind | Carries |
 |---|---|
@@ -38,12 +38,23 @@ The API accepts `doc`, `file`, `image`, `link`, `note`, `video`.
 | `link` | `url`, `title`, `body` |
 | `doc` | `title`, `body`, `html` |
 | `video` | `file_key`, optional `poster_key` |
+| `audio` | `file_key`, `title`, `body` as a transcript |
+| `pdf` | `file_key`, `file_name`, optional `image_key` for the page-1 still |
 | `file` | `file_key`, `file_name`, `mime`, `ext`, `size_bytes` |
 
 `video` and `file` exist because [multipart upload](/docs/api/images) accepts
 ProRes, MXF, DPX and camera raw — so without them you could upload a two-terabyte
 camera master and then have no way to put it on a board. An upload you cannot
 place is not an upload.
+
+`audio` and `pdf` exist for the narrower version of the same problem: the canvas
+creates both when you drop a file on it, and the API refused both — so a kind you
+could make by dragging could not be made through the API. Soleil Scout creates
+them too, from a texted voice note or PDF.
+
+An `audio` card's `body` is its **transcript** where one exists, which is what
+makes a spoken note findable through [search](/docs/api/search) rather than
+something you have to play to identify.
 
 An unrecognised `kind` gets a `400` naming the valid ones. It is **not**
 coerced — silently turning an unknown kind into a note produced boards full of
@@ -57,15 +68,15 @@ here, and `?include=raw` gives you their full contents.
 
 | Field | Type | Limit |
 |---|---|---|
-| `kind` | string | one of the six above |
+| `kind` | string | one of the eight above |
 | `title` | string | 300 chars |
 | `body` | string | 20000 chars |
 | `html` | string | 40000 chars |
 | `url` | string | 2000 chars |
 | `image_key` | string | 500 chars — from [`POST /uploads`](/docs/api/images) |
-| `file_key` | string | 500 chars — for `video` and `file` |
+| `file_key` | string | 500 chars — for `video`, `audio`, `pdf` and `file` |
 | `poster_key` | string | 500 chars — a still for a `video` |
-| `file_name` | string | 300 chars |
+| `file_name` | string | 300 chars — the displayed name of a `pdf` or `file` |
 | `mime` | string | 200 chars |
 | `ext` | string | 20 chars |
 | `size_bytes` | number | rounded |

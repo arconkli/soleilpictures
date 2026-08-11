@@ -74,7 +74,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 ## Soleil Scout
 
-- [Soleil Scout](https://clusters.soleilpictures.com/docs/scout): Soleil Scout turns texted photos, links and notes into cards on a Soleil Clusters canvas. No app, no login. Commands, batching and the Scout Bin explained.
+- [Soleil Scout](https://clusters.soleilpictures.com/docs/scout): Text photos, clips, voice notes, PDFs and links to Soleil Scout and they land as cards on a Clusters canvas. No app, no login. Commands, batching and search.
 
 ## Account and plans
 

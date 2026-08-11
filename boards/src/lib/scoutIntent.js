@@ -88,7 +88,11 @@ const SYSTEM = [
 const FILE_VERB = '(?:put|file|move|drop|stick|throw|add|save|chuck)';
 // What may sit between the verb and the preposition. Empty is fine ("file under
 // X"); a real noun phrase is not.
-const FILE_SUBJECT = '(?:the\\s+)?(?:these|this|those|them|it|all|both|everything|'
+// `that` was missing, and the SYSTEM prompt six lines above gives "file that
+// under locations" as its own worked example — so the deterministic matcher did
+// not handle the phrasing this file documents. It is a pronoun, which is exactly
+// what the rule below requires, so it is safe by the same reasoning as the rest.
+const FILE_SUBJECT = '(?:the\\s+)?(?:these|this|those|that|them|it|all|both|everything|'
   + 'all\\s+of\\s+(?:them|these|it)|the\\s+(?:photos?|pics?|pictures?|images?|shots?|files?|lot))?';
 const FILE_PREP = '(?:in|into|under|onto|on|to|inside)';
 
@@ -206,9 +210,17 @@ export function parseCommand(text) {
     // collection they're different questions.
     case 'bin':
     case 'inbox':  return { command: 'bin', arg };
-    case 'start':
     case 'help':   return { command: 'help', arg };
     case 'code':   return { command: 'code', arg };
+    // /start no longer aliases /help. It is also the conventional opt-IN
+    // keyword, so it has to be able to clear an opt-out — which it cannot do
+    // if it resolves to a command that only prints a menu. It still ANSWERS
+    // with the menu; see runCommand.
+    case 'start':  return { command: 'start', arg };
+    case 'stop':   return { command: 'stop', arg };
+    case 'find':
+    case 'search': return { command: 'find', arg };
+    case 'delete': return { command: 'delete', arg };
     default:       return null;
   }
 }

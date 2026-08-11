@@ -2210,12 +2210,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/scout",
     "title": "Soleil Scout — Text Photos onto a Board",
-    "metaDescription": "Soleil Scout turns texted photos, links and notes into cards on a Soleil Clusters canvas. No app, no login. Commands, batching and the Scout Bin explained.",
+    "metaDescription": "Text photos, clips, voice notes, PDFs and links to Soleil Scout and they land as cards on a Clusters canvas. No app, no login. Commands, batching and search.",
     "h1": "Soleil Scout",
-    "answer": "Soleil Scout is a text-message ingest bot. You text photos, links or notes from your phone and they land arranged on a Soleil Clusters canvas, grouped by what you said about them. There is no app to install and no signup — an account and a board are created behind you the first time you text. The web half is live; the phone line is not connected yet, so signups are queued.",
+    "answer": "Soleil Scout is a text-message ingest bot. You text photos, clips, voice notes, PDFs, links or notes from your phone and they land arranged on a Soleil Clusters canvas, grouped by what you said about them. There is no app to install and no signup — an account and a board are created behind you the first time you text. Voice notes are transcribed so you can search what you said. The web half is live; the bot is not deployed yet, so signups are queued.",
     "section": "scout",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-08-11",
     "navLabel": "Soleil Scout",
     "headings": [
       {
@@ -2227,6 +2227,10 @@ export const DOCS_PAGES = [
         "text": "How it works"
       },
       {
+        "id": "what-you-can-send",
+        "text": "What you can send"
+      },
+      {
         "id": "batching",
         "text": "Batching"
       },
@@ -2235,8 +2239,16 @@ export const DOCS_PAGES = [
         "text": "The Scout Bin"
       },
       {
+        "id": "finding-things-again",
+        "text": "Finding things again"
+      },
+      {
         "id": "commands",
         "text": "Commands"
+      },
+      {
+        "id": "stopping",
+        "text": "Stopping"
       },
       {
         "id": "connecting-to-an-existing-account",
@@ -2263,11 +2275,19 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Can I use Scout right now?",
-        "a": "Not yet end to end. You can join the list at /scout and the web side is live, but Scout has no phone line connected, so nothing is sent or received. Signups are queued and you are texted when the line goes live."
+        "a": "Not yet end to end. You can join the list at /scout and the web side is live, but the bot is not running, so nothing is sent or received. Signups are queued and you are texted when it goes live."
       },
       {
         "q": "Do I need an account first?",
         "a": "No. That is the point. An account, a workspace and a board are created behind your phone number the first time you text, with no form and no password. You can attach an email address later."
+      },
+      {
+        "q": "Can it take video and voice notes?",
+        "a": "Yes. Video, audio, PDFs and photos all become real cards, and a voice note is transcribed so its words are searchable. iPhone clips are converted from HEVC so they play outside Safari."
+      },
+      {
+        "q": "How do I make it stop?",
+        "a": "Text STOP. It is recorded against your number, nothing further is sent, and the signup queue is blocked too. START brings it back. Your boards and photos are untouched either way."
       },
       {
         "q": "Does it work on Android?",
@@ -2961,7 +2981,7 @@ export const DOCS_PAGES = [
     "title": "Cards API — Soleil Clusters",
     "metaDescription": "Add, read, update, move and delete Soleil Clusters cards over REST. Field reference, size limits, auto-placement and the delete-is-the-undo pattern.",
     "h1": "Cards API",
-    "answer": "Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Six card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.",
+    "answer": "Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.",
     "section": "developers",
     "order": 4,
     "updated": "2026-08-10",
