@@ -158,13 +158,43 @@ export function binSummary({ groups, url }) {
 
 export function welcome({ url }) {
   return [
-    'This is Soleil Scout. Text me photos, links or notes and they land on a canvas.',
+    'This is Soleil Scout. Text me photos, clips, voice notes or links and they land on a canvas.',
     '',
     'Your board is here — no signup needed:',
     url,
     '',
     'Say "put these in <board>" any time to file things somewhere specific.',
   ].join('\n');
+}
+
+// The same hello, for somebody who joined the waitlist on the web and then made
+// an account there.
+//
+// The offer is folded into the message Scout was going to send anyway, so
+// connecting costs one word and no extra round trip — which is the whole reason
+// the binding waits for this moment instead of happening at signup. Texting is
+// the only proof anyone can give that they hold this phone.
+//
+// The account is named. "An account is waiting" leaves someone unable to tell
+// whether it is theirs, and the entire decision rests on that.
+export function welcomeWithClaim({ url, email }) {
+  return [
+    'This is Soleil Scout. Text me photos, clips, voice notes or links and they land on a canvas.',
+    '',
+    `You already made a Clusters account — ${email}. Reply YES and this number`,
+    'connects to it, so everything you send goes straight there.',
+    '',
+    'Or just start sending. Your board is here either way:',
+    url,
+  ].join('\n');
+}
+
+export function connectDeclined() {
+  return 'No problem — I\'ll keep everything here. Say "connect" whenever you want it moved across.';
+}
+
+export function connectNothingPending() {
+  return 'Nothing waiting to connect to this number. Settings → Scout in the app gives you a code if you want to link an account.';
 }
 
 export function boardSwitched({ boardName, created }) {

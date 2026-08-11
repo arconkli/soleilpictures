@@ -243,6 +243,20 @@
 }
 .scout-done-head { margin: 0; font: 600 15px/1.4 var(--font-sans); color: var(--ink-0); }
 .scout-done-sub { margin: 0; font: 400 13px/1.5 var(--font-sans); color: var(--ink-3); max-width: 26rem; }
+.scout-done-sub b { color: var(--ink-1); font-weight: 600; }
+
+/* The one CTA on this page that leads into the product. Reuses .auth-btn — the
+   same button as the phone box above it — so the success state reads as the
+   next step in one flow rather than as a different component. `display: block`
+   because .auth-btn is styled for a <button> in a form, and an <a> needs the
+   box model restated to fill the frosted card the same way. */
+.scout-done-cta {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  text-align: center;
+  text-decoration: none;
+}
 
 .scout-scene .sb-trust { margin: 2px 0 0; }
 

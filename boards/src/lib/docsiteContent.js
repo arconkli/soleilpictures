@@ -19956,17 +19956,17 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "not fully live",
+     "v": "invite-only",
      "children": [
       {
        "t": "text",
-       "v": "not fully live"
+       "v": "invite-only"
       }
      ]
     },
     {
      "t": "text",
-     "v": ". The web half — the signup box, the instant sign-in links, the account plumbing — is deployed. The bot itself is not running, so no message is sent or received today. Joining at "
+     "v": " and not yet running. The web half — the signup box, the instant sign-in links, the account plumbing — is deployed. The bot itself is not, so no message is sent or received today. Joining at "
     },
     {
      "t": "link",
@@ -19981,7 +19981,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " puts you on the list and you are texted when it goes live. This page describes how it behaves once it is."
+     "v": " puts you on the list and you are texted when you are in.  The canvas is open in the meantime. Make an account and the number you left connects to it when Scout reaches you — see "
+    },
+    {
+     "t": "link",
+     "v": "Joining from the waitlist",
+     "href": "#joining-from-the-waitlist",
+     "children": [
+      {
+       "t": "text",
+       "v": "Joining from the waitlist"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -20807,6 +20822,138 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Joining from the waitlist",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Joining from the waitlist"
+    }
+   ],
+   "id": "joining-from-the-waitlist"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Leaving your number at "
+    },
+    {
+     "t": "link",
+     "v": "/scout",
+     "href": "https://clusters.soleilpictures.com/scout",
+     "children": [
+      {
+       "t": "text",
+       "v": "/scout"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " puts you on the list and offers you the web app, which is open today. If you make an account there, the number you left is "
+    },
+    {
+     "t": "strong",
+     "v": "claimed",
+     "children": [
+      {
+       "t": "text",
+       "v": "claimed"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " by it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A claim is a request, not a connection. It gives that account no ability to receive your messages, and nothing is bound until the phone itself says so — because anyone can type anyone's number into a web form, and the only proof that you hold a phone is that you texted from it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "So the first time that number texts Scout, Scout offers:"
+    }
+   ]
+  },
+  {
+   "type": "callout",
+   "variant": "note",
+   "inline": [
+    {
+     "t": "text",
+     "v": "You already made a Clusters account — you@studio.com. Reply "
+    },
+    {
+     "t": "strong",
+     "v": "YES",
+     "children": [
+      {
+       "t": "text",
+       "v": "YES"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and this number connects to it, so everything you send goes straight there."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Reply "
+    },
+    {
+     "t": "code",
+     "v": "YES"
+    },
+    {
+     "t": "text",
+     "v": " and the phone is bound, along with anything you had already sent. Ignore it and everything stays where it is; the offer keeps until you take it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A pending claim on your account is listed in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Scout",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Scout"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so a number you do not recognise is something you can see."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Connecting to an existing account",
    "inline": [
     {
@@ -20821,7 +20968,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "If you already have a Clusters account, "
+     "v": "If you already have a Clusters account and never joined the waitlist, "
     },
     {
      "t": "strong",

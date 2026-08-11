@@ -24,6 +24,7 @@ import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat.js';
 import { peekPendingInviteEmail, peekJoinBoardName, claimPendingInvite, claimCollabLink } from '../lib/inviteApi.js';
 import { parseRemixParam, stashRemix } from '../lib/remix.js';
 import { parseJoinParam, stashJoin, readJoin, clearJoin } from '../lib/joinLink.js';
+import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
 import { getFbCookies } from '../lib/metaPixel.js';
 import { lpCtaClick } from '../hooks/useLandingEngagement.js';
 import { SoleilMark } from '../components/primitives.jsx';
@@ -194,6 +195,34 @@ async function consumePendingJoin(userId) {
   }
 }
 
+// Attach a freshly-made account to the Scout waitlist row for the number they
+// left on /scout, so when Scout eventually reaches them their photos land in
+// the workspace they already have rather than in a new shell account.
+//
+// A CLAIM IS NOT A BINDING. scout_claim_signup records that this account asked
+// to be connected to that number and grants no ability to receive its messages
+// — the binding happens later, when the number actually texts Scout and
+// confirms, because that is the only point at which anyone proves they hold the
+// phone. Doing it here instead would let anybody type a stranger's number on
+// /scout, make an account, and quietly receive that stranger's photos.
+// See lib/scoutClaim.js and migration 0233.
+//
+// Best-effort and silent, like the two claims below it: somebody signing in has
+// no idea this is happening and must not be shown an error about it. Cleared on
+// ANY outcome so a number that will never match cannot retry forever.
+async function consumeScoutClaim(userId) {
+  if (typeof window === 'undefined' || !userId) return;
+  const phone = readScoutPhone();
+  if (!phone) return;
+  try {
+    await supabase.rpc('scout_claim_signup', { p_phone: phone });
+  } catch (e) {
+    console.warn('[scout] claim failed', e?.message || e);
+  } finally {
+    clearScoutPhone();
+  }
+}
+
 // Claim the pending invite associated with the stored token and wire
 // the returned workspace_id/board_id into the deep-link localStorage
 // slots so the app lands on the right board after sign-in. Idempotent —
@@ -297,6 +326,7 @@ export function AuthGate({ children }) {
           consumeLifecycleLanding();
           await consumePendingInvite(data.session.user.id);
           await consumePendingJoin(data.session.user.id);
+          await consumeScoutClaim(data.session.user.id);
         }
         if (!cancelled) setSession(data.session);
       } catch (error) {
@@ -329,6 +359,7 @@ export function AuthGate({ children }) {
           consumeLifecycleLanding();
           await consumePendingInvite(sess.user.id);
           await consumePendingJoin(sess.user.id);
+          await consumeScoutClaim(sess.user.id);
         }
         if (!cancelled) setSession(sess);
       })();

@@ -2212,7 +2212,7 @@ export const DOCS_PAGES = [
     "title": "Soleil Scout — Text Photos onto a Board",
     "metaDescription": "Text photos, clips, voice notes, PDFs and links to Soleil Scout and they land as cards on a Clusters canvas. No app, no login. Commands, batching and search.",
     "h1": "Soleil Scout",
-    "answer": "Soleil Scout is a text-message ingest bot. You text photos, clips, voice notes, PDFs, links or notes from your phone and they land arranged on a Soleil Clusters canvas, grouped by what you said about them. There is no app to install and no signup — an account and a board are created behind you the first time you text. Voice notes are transcribed so you can search what you said. The web half is live; the bot is not deployed yet, so signups are queued.",
+    "answer": "Soleil Scout is a text-message ingest bot. You text photos, clips, voice notes, PDFs or links and they land arranged on a Soleil Clusters canvas, grouped by what you said about them. No app, and no signup — an account and a board are created behind you the first time you text, and voice notes are transcribed so you can search them. Scout is invite-only for now, so /scout puts you on the list; the canvas is open today and the number you leave connects to the account you make.",
     "section": "scout",
     "order": 0,
     "updated": "2026-08-11",
@@ -2251,6 +2251,10 @@ export const DOCS_PAGES = [
         "text": "Stopping"
       },
       {
+        "id": "joining-from-the-waitlist",
+        "text": "Joining from the waitlist"
+      },
+      {
         "id": "connecting-to-an-existing-account",
         "text": "Connecting to an existing account"
       },
@@ -2275,11 +2279,11 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Can I use Scout right now?",
-        "a": "Not yet end to end. You can join the list at /scout and the web side is live, but the bot is not running, so nothing is sent or received. Signups are queued and you are texted when it goes live."
+        "a": "Not yet end to end. Scout is invite-only while we scale the line, so joining at /scout puts you on the list and you are texted when you are in. The canvas itself is open today — make an account and the number you left connects to it the first time you text Scout."
       },
       {
         "q": "Do I need an account first?",
-        "a": "No. That is the point. An account, a workspace and a board are created behind your phone number the first time you text, with no form and no password. You can attach an email address later."
+        "a": "No. An account, a workspace and a board are created behind your phone number the first time you text, with no form and no password. If you already made one on the web after joining the waitlist, Scout offers to connect this number to it instead — you reply YES once."
       },
       {
         "q": "Can it take video and voice notes?",

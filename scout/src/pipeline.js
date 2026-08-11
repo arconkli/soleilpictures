@@ -375,6 +375,45 @@ async function runSearch(cfg, ctx, query, { progress = null } = {}) {
   });
 }
 
+// ── Connecting a waitlist signup to the account they made on the web ─────────
+//
+// Somebody left their number on /scout, was told the bot is invite-only, and
+// made a Clusters account in the meantime. That recorded a CLAIM — an account
+// asking to be connected to this number — and deliberately not a binding: at
+// the moment it was recorded, nobody had proved they hold the phone. Anyone can
+// type anyone's number into a web form.
+//
+// Texting is the proof. So the binding happens HERE, the first time that number
+// says anything, and it still asks — because possession proves they hold the
+// phone, not that they meant this account.
+//
+// Keyed on the claim itself rather than on a pending-payload, deliberately: the
+// offer is usually made in the INVITE text, which goes out before any inbound
+// message exists, so there is no thread state to have written. A claim is the
+// durable fact; the conversation around it is not.
+async function pendingClaimFor(cfg, handle) {
+  const rows = await scoutRpc(cfg, 'scout_pending_claim', { p_handle: handle })
+    .catch(() => []);
+  const hit = (Array.isArray(rows) ? rows : [rows])[0];
+  return hit?.claimed_by ? { userId: hit.claimed_by, email: hit.email } : null;
+}
+
+// Bind, then hand off to the SAME adoption path /code uses.
+//
+// scout_claim_pending_signup returns scout_claim_link_code's exact shape for
+// this reason: linkTo() already knows how to carry a shell account's Bin across
+// — destination first, scout_mark_adopted only once the move lands — and a
+// second implementation of that would be a second chance to lose someone's
+// photos.
+async function connectClaimedAccount(cfg, ctx) {
+  const rows = await scoutRpc(cfg, 'scout_claim_pending_signup', {
+    p_platform: ctx.platform, p_handle: ctx.handle, p_service: ctx.service,
+  }).catch((e) => { console.error('[scout] connect failed', e?.message); return []; });
+  const hit = (Array.isArray(rows) ? rows : [rows])[0];
+  if (!hit?.user_id) return say.connectNothingPending();
+  return await linkTo(cfg, ctx, hit);
+}
+
 // ── Commands ─────────────────────────────────────────────────────────────────
 // Handled before the model runs. They're unambiguous, and routing them through
 // an LLM is both slower and a way to get them wrong.
@@ -675,6 +714,22 @@ async function runBurstBody(cfg, r2, burst, progress, trace) {
     }
   }
 
+  // 2b. Connecting the account they made on the web while waiting.
+  //
+  //     After the pending-move branch, so a YES that answers a proposal still
+  //     answers that proposal — a move on the table is the more specific
+  //     reading and the one they are looking at.
+  //
+  //     The lookup only runs for a message that could possibly be an answer,
+  //     so the ordinary photo burst never pays for it.
+  if (bare && (parseConfirmation(leftover) === 'yes' || /^\s*connect\s*[.!]*\s*$/i.test(leftover))) {
+    const claim = await pendingClaimFor(cfg, handle);
+    if (claim) {
+      ctx.accessToken = await getSession();
+      return { reply: await connectClaimedAccount(cfg, ctx), isNew: id.isNew, connected: true };
+    }
+  }
+
   // 3. UNDO — valid for 24h after a move OR a delete, regardless of anything
   //    pending. Deleting shows an undo; that is the house convention everywhere
   //    else in this product and a text thread is no reason to drop it.
@@ -799,7 +854,11 @@ async function runBurstBody(cfg, r2, burst, progress, trace) {
     const url = await boardUrl(cfg, {
       boardId: id.boardId, cardIds: [], isShell: id.isShell, userId: id.userId,
     });
-    return { reply: say.welcome({ url }), isNew: true };
+    const claim = await pendingClaimFor(cfg, handle);
+    return {
+      reply: claim ? say.welcomeWithClaim({ url, email: claim.email }) : say.welcome({ url }),
+      isNew: true,
+    };
   }
   // NEVER SILENT. This used to `return { reply: null }`, and it was reachable —
   // any attachment that was not an image fell through every branch above and
@@ -938,6 +997,20 @@ async function runBurstBody(cfg, r2, burst, progress, trace) {
   } else if (Number.isFinite(cap.cap) && !id.capWarnedAt && used / cap.cap >= 0.75) {
     messages.push(say.capWarning({ used, cap: cap.cap }));
     await scoutRpc(cfg, 'scout_mark_cap_warned', { p_user_id: id.userId }).catch(() => {});
+  }
+
+  // Somebody whose FIRST message is a photo rather than a hello never sees the
+  // welcome, and they are the ones most likely to have an account waiting —
+  // they were told to make one and then went straight to using the thing. Asked
+  // once, on that first burst only, so it is an offer and not a nag.
+  if (id.isNew) {
+    const claim = await pendingClaimFor(cfg, handle);
+    if (claim) {
+      messages.push(
+        `These are on a board of their own for now. You already made a Clusters `
+        + `account — ${claim.email} — so reply YES and I'll move them into it.`,
+      );
+    }
   }
 
   return { reply: messages.join('\n\n'), isNew: id.isNew, live: out.live };
