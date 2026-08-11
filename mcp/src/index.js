@@ -85,6 +85,18 @@ async function api(path, { method = 'GET', body, rawBody, raw = false, headers, 
       authorization: `Bearer ${TOKEN}`,
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
       ...(method === 'POST' ? { 'idempotency-key': await idempotencyKey(tool || path, args) } : {}),
+      // Say which tool this call is on behalf of.
+      //
+      // This server implements MCP locally and then speaks plain REST, so
+      // without this every request it makes is indistinguishable from a
+      // hand-written script and the audit log cannot say which tool ran. That
+      // was true for as long as the package has existed, and it was found by
+      // installing it from npm and reading the log afterwards.
+      //
+      // `Mcp-Name` is the header the 2026-07-28 revision already defines for
+      // the name of the thing being invoked; the hosted transport validates it
+      // against the body, and here it is simply reported.
+      ...(tool ? { 'mcp-method': 'tools/call', 'mcp-name': tool } : {}),
       ...(headers || {}),
     },
     body: rawBody !== undefined ? Buffer.from(rawBody, 'base64')

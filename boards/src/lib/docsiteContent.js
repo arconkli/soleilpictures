@@ -20364,7 +20364,29 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Binding a phone to an account you already have is built but not switched on, for the same reason as everything else here: there is no line to text. When it is, you will get a connect code from your settings and text it once."
+     "v": "If you already have a Clusters account, "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Scout",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Scout"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " gives you a connect code. Text "
+    },
+    {
+     "t": "code",
+     "v": "/code <code>"
+    },
+    {
+     "t": "text",
+     "v": " and the phone is bound to your account, so texted photos land in the workspace you already use."
     }
    ]
   },

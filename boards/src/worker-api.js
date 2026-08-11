@@ -117,7 +117,8 @@ const BYTES_FIELD = { image: 'src', video: 'src', file: 'fileSrc', pdf: 'fileSrc
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
-  'access-control-allow-headers': 'authorization,content-type,idempotency-key',
+  'access-control-allow-headers': 'authorization,content-type,idempotency-key,'
+    + 'mcp-protocol-version,mcp-method,mcp-name',
   'access-control-expose-headers':
     'x-ratelimit-limit,x-ratelimit-remaining,x-ratelimit-reset,retry-after,'
     + 'idempotent-replay,x-image-variant',
@@ -718,6 +719,26 @@ export async function handleApiRoute(url, request, env, ctx) {
   // is the case a retry exists for. Found by a session failure doing precisely
   // that during end-to-end testing.
   const trace = { route: url.pathname.replace(/^\/api\/v1/, '') || '/', target: null, tool: null };
+
+  // Which MCP tool a REST call is standing in for, when one is.
+  //
+  // FOUND BY USING IT. The npm package is not an MCP client talking to /mcp —
+  // it IS an MCP server, implementing the protocol locally and translating each
+  // tool into ordinary /api/v1 calls. So every one of its requests looked like
+  // hand-written REST, `tool` stayed null, and the admin tools table showed
+  // nothing at all for anybody using the package. Only the HOSTED transport was
+  // ever attributed.
+  //
+  // `Mcp-Name` is the header 2026-07-28 already defines for exactly this — the
+  // name of the thing being invoked, mirrored beside the body so an
+  // intermediary can route on it without parsing. The stdio server now sends it
+  // on the calls it makes on a tool's behalf, and the /mcp branch below
+  // overwrites this from the body it can actually see.
+  //
+  // It is a log annotation and nothing more. A client can put anything here and
+  // gain nothing by it; the RPC truncates, and no decision is taken on it.
+  const declaredTool = request.headers.get('mcp-name');
+  if (declaredTool && /^[a-z0-9_/.-]{1,80}$/i.test(declaredTool)) trace.tool = declaredTool;
   let res;
   try {
     const token = await apiUserSession(env, auth.userId).catch((e) => {

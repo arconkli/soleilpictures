@@ -77,6 +77,28 @@ test('server.json and package.json agree on the registry name', () => {
     `server.json description is ${server.description.length} chars; the MCP Registry allows 100`);
 });
 
+// Found by installing the package from npm and reading the audit log: the stdio
+// server is not an MCP client talking to /mcp, it IS an MCP server that speaks
+// plain REST. Without this header every call it makes is indistinguishable from
+// a hand-written script and the admin tools table is empty for its users.
+test('the stdio package tells the API which tool it is acting for', () => {
+  const pkg = readFileSync(resolve(REPO, 'mcp/src/index.js'), 'utf8');
+  assert.match(pkg, /'mcp-name': tool/,
+    'mcp/src/index.js must send Mcp-Name on calls made on behalf of a tool');
+  assert.match(pkg, /'mcp-method': 'tools\/call'/,
+    'and Mcp-Method beside it, as the revision defines');
+
+  const worker = readFileSync(resolve(REPO, 'boards/src/worker-api.js'), 'utf8');
+  assert.match(worker, /request\.headers\.get\('mcp-name'\)/,
+    'worker-api.js must read Mcp-Name into the request trace');
+  // It is a log annotation, so it must be bounded and never trusted for a
+  // decision — the header is attacker-controlled.
+  assert.match(worker, /\[a-z0-9_\/\.-\]\{1,80\}/i,
+    'the header must be length- and charset-bounded before it is recorded');
+  assert.match(worker, /access-control-allow-headers[\s\S]{0,160}mcp-name/,
+    'and be allowed through CORS, or a browser-based client cannot send it');
+});
+
 test('the npm package ships the same PROTOCOL the Worker serves', () => {
   // This matters more than the registry copy. A tool missing from one
   // transport looks like a client bug; a protocol that differs between them

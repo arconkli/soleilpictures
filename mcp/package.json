@@ -1,22 +1,41 @@
 {
   "name": "soleil-clusters-mcp",
-  "version": "2.1.0",
-  "description": "MCP server for Soleil Clusters — read and write visual boards from an AI assistant.",
+  "version": "2.1.1",
+  "description": "MCP server for Soleil Clusters \u2014 read and write visual boards from an AI assistant.",
   "type": "module",
   "license": "MIT",
   "_mcpNameNote": "mcpName is how the MCP Registry verifies that this package belongs to the server it claims to be. It MUST equal `name` in server.json, and the com.soleilpictures namespace is granted by a DNS TXT record on the apex of soleilpictures.com. Changing either without the other makes publishing fail.",
   "mcpName": "com.soleilpictures/clusters",
-  "bin": { "soleil-clusters-mcp": "src/index.js" },
+  "bin": {
+    "soleil-clusters-mcp": "src/index.js"
+  },
   "main": "src/index.js",
-  "files": ["src", "README.md"],
+  "files": [
+    "src",
+    "README.md"
+  ],
   "scripts": {
     "start": "node src/index.js",
     "sync": "node scripts/sync-tools.mjs",
     "prepack": "node scripts/sync-tools.mjs"
   },
-  "keywords": ["mcp", "modelcontextprotocol", "soleil", "clusters", "moodboard", "ai"],
-  "repository": { "type": "git", "url": "https://github.com/arconkli/soleilpictures" },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "soleil",
+    "clusters",
+    "moodboard",
+    "ai"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arconkli/soleilpictures"
+  },
   "homepage": "https://clusters.soleilpictures.com/docs/mcp",
-  "publishConfig": { "access": "public" },
-  "engines": { "node": ">=20" }
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  }
 }
