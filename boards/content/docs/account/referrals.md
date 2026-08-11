@@ -11,7 +11,7 @@ faq:
   - q: When does the reward land?
     a: When the person you invited actually gets started, not when they sign up. A dormant signup earns nothing for either of you.
   - q: What do bonus cards do?
-    a: They raise your card limit above the free plan's 100. They stack, and they do not expire.
+    a: They raise your card limit above the free plan's {{fact:demoCardLimit}}. They stack, and they do not expire.
   - q: Where do I see how it is going?
     a: Settings, under Invite and earn — friends joined, how many got started, cards earned, free months.
 related:

@@ -40,6 +40,19 @@ export function workFloor(cardLimit) {
   return Math.max(THRESHOLDS.floorMin, Math.round(cardLimit * THRESHOLDS.floorFrac));
 }
 
+// The count at which the approaching-limit toast fires.
+//
+// This was a hardcoded `cap - 10` in App.jsx — which, against the 100-card cap it
+// was written for, is exactly the 90% urgentFrac line the chip already used. The
+// cap is per-user since 0227, so the literal had to become the fraction it always
+// was: at a 100-card cap this returns 90, bit-identical to the old arithmetic;
+// at 50 it returns 45 instead of the 40 the literal would have given.
+export function nearCapAt(cardLimit) {
+  const n = Number(cardLimit);
+  if (!Number.isFinite(n) || n <= 0) return Infinity;   // unknown cap → never fire
+  return Math.max(1, Math.round(n * THRESHOLDS.urgentFrac));
+}
+
 // evaluateUpsell({ tier, demoCardCount, cardLimit, accountAgeDays, activeDays })
 //   -> { eligible, pressure, reason, capFrac, capPct }
 //

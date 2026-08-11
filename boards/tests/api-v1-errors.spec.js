@@ -29,11 +29,11 @@ const pg = (code, message) => JSON.stringify({ code, details: null, hint: null, 
 
 test('the card cap is a 402 a caller can act on', () => {
   const out = describeUpstreamError(403,
-    pg('42501', 'Demo accounts are limited to 100 cards. Invite friends or upgrade to add more.'));
+    pg('42501', 'Demo accounts are limited to 50 cards. Invite friends or upgrade to add more.'));
   expect(out.status).toBe(402);
   expect(out.code).toBe('limit_reached');
   // Our own words survive — they are the reason a 402 is useful.
-  expect(out.message).toBe('Demo accounts are limited to 100 cards. Invite friends or upgrade to add more.');
+  expect(out.message).toBe('Demo accounts are limited to 50 cards. Invite friends or upgrade to add more.');
 });
 
 test('the storage quota is also a 402', () => {
@@ -102,13 +102,13 @@ test('a scoutDb throw is curated by its raw body', () => {
   // Exactly what lib/scoutDb.js produces on a cap hit: a raw message plus the
   // PostgREST body on .body.
   const e = Object.assign(
-    new Error('insert card_index 403: {"code":"42501","message":"Demo accounts are limited to 100 cards."}'),
-    { status: 403, body: pg('42501', 'Demo accounts are limited to 100 cards.'), isCapHit: true },
+    new Error('insert card_index 403: {"code":"42501","message":"Demo accounts are limited to 50 cards."}'),
+    { status: 403, body: pg('42501', 'Demo accounts are limited to 50 cards.'), isCapHit: true },
   );
   const out = normalizeApiError(e);
   expect(out.status).toBe(402);
   expect(out.code).toBe('limit_reached');
-  expect(out.message).toBe('Demo accounts are limited to 100 cards.');
+  expect(out.message).toBe('Demo accounts are limited to 50 cards.');
   expect(out.message).not.toContain('card_index');
 });
 

@@ -96,7 +96,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is Soleil Clusters free?",
-        "a": "Yes. The free Demo plan gives you 100 cards, unlimited clusters, and unlimited collaborators. Creator removes the card limit and adds any-file-type uploads on a 100GB drive."
+        "a": "Yes. The free Demo plan gives you 50 cards, unlimited clusters, and unlimited collaborators. Creator removes the card limit and adds any-file-type uploads on a 100GB drive."
       },
       {
         "q": "What is a cluster?",
@@ -113,7 +113,7 @@ export const DOCS_PAGES = [
     "title": "Getting Started with Soleil Clusters",
     "metaDescription": "Sign in, make your first cluster, get images onto the canvas and share it. A five-minute walkthrough of Soleil Clusters from empty account to shareable board.",
     "h1": "Getting started",
-    "answer": "Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 100 cards and unlimited collaborators.",
+    "answer": "Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and unlimited collaborators.",
     "section": "start",
     "order": 1,
     "updated": "2026-08-08",
@@ -435,7 +435,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Is there a limit on cards?",
-        "a": "The free Demo plan allows 100 cards across every cluster you create. Creator removes the limit. Clusters themselves are never capped."
+        "a": "The free Demo plan allows 50 cards across every cluster you create. Creator removes the limit. Clusters themselves are never capped."
       },
       {
         "q": "What happens if I delete a card by accident?",
@@ -1247,7 +1247,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is there a limit on how many clusters I can make?",
-        "a": "No. Clusters are unlimited on every plan, including free. Only cards are capped, at 100 on the free Demo plan."
+        "a": "No. Clusters are unlimited on every plan, including free. Only cards are capped, at 50 on the free Demo plan."
       },
       {
         "q": "How do I move a cluster somewhere else?",
@@ -2322,9 +2322,9 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/account/plans",
     "title": "Plans and Pricing — Soleil Clusters",
-    "metaDescription": "Soleil Clusters is free with 100 cards, unlimited clusters and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.",
+    "metaDescription": "Soleil Clusters is free with 50 cards, unlimited clusters and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.",
     "h1": "Plans and pricing",
-    "answer": "The free Demo plan gives you 100 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a 100GB drive.",
+    "answer": "The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a 100GB drive.",
     "section": "account",
     "order": 1,
     "updated": "2026-08-08",
@@ -2376,6 +2376,10 @@ export const DOCS_PAGES = [
       {
         "q": "What happens when I hit the card cap?",
         "a": "You are told, and asked to upgrade. Nothing already made is taken away or locked."
+      },
+      {
+        "q": "My card limit is 100, not 50. Why?",
+        "a": "Accounts created before the free plan changed keep the 100-card allowance they signed up under, permanently. Nobody's cap was lowered."
       }
     ]
   },
@@ -2471,7 +2475,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "What do bonus cards do?",
-        "a": "They raise your card limit above the free plan's 100. They stack, and they do not expire."
+        "a": "They raise your card limit above the free plan's 50. They stack, and they do not expire."
       },
       {
         "q": "Where do I see how it is going?",

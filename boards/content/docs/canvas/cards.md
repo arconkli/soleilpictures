@@ -11,7 +11,7 @@ faq:
   - q: How do I change what kind a card is?
     a: You do not convert cards between kinds. Create the kind you want and move the content across. The one exception is dropping a file, which picks the right kind for you automatically.
   - q: Is there a limit on cards?
-    a: The free Demo plan allows 100 cards across every cluster you create. Creator removes the limit. Clusters themselves are never capped.
+    a: The free Demo plan allows {{fact:demoCardLimit}} cards across every cluster you create. Creator removes the limit. Clusters themselves are never capped.
   - q: What happens if I delete a card by accident?
     a: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster is a soft delete that stays in the trash for 30 days.
 related:

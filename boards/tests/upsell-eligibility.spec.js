@@ -31,7 +31,7 @@ test.beforeEach(async ({ page }) => {
 test('a day-one user with no cards is not pitched, and the suppression is recorded', async ({ page }) => {
   const rows = [];
   await routeAnalytics(page, rows);
-  await page.goto('/?local=1&reset=1&tier=demo&cards=0');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=0&limit=100');
 
   await expect(chipOf(page)).toHaveCount(0);
 
@@ -51,12 +51,12 @@ test('a day-one user with no cards is not pitched, and the suppression is record
 });
 
 test('a barely-started user is not pitched either', async ({ page }) => {
-  await page.goto('/?local=1&reset=1&tier=demo&cards=3');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=3&limit=100');
   await expect(chipOf(page)).toHaveCount(0);
 });
 
 test('an invested user gets the chip, with no count and no price pressure yet', async ({ page }) => {
-  await page.goto('/?local=1&reset=1&tier=demo&cards=45');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=45&limit=100');
 
   const chip = chipOf(page);
   await expect(chip).toBeVisible();
@@ -67,7 +67,7 @@ test('an invested user gets the chip, with no count and no price pressure yet', 
 });
 
 test('past halfway the chip becomes a meter', async ({ page }) => {
-  await page.goto('/?local=1&reset=1&tier=demo&cards=70');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=70&limit=100');
 
   const chip = chipOf(page);
   await expect(chip).toBeVisible();
@@ -76,7 +76,7 @@ test('past halfway the chip becomes a meter', async ({ page }) => {
 });
 
 test('near the wall the chip goes urgent and counts down', async ({ page }) => {
-  await page.goto('/?local=1&reset=1&tier=demo&cards=95');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=95&limit=100');
 
   const chip = chipOf(page);
   await expect(chip).toBeVisible();
@@ -97,7 +97,7 @@ test('thresholds are relative to the live cap, not absolute card counts', async 
 test('the chip click carries the pressure state for the scorecard', async ({ page }) => {
   const rows = [];
   await routeAnalytics(page, rows);
-  await page.goto('/?local=1&reset=1&tier=demo&cards=95');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=95&limit=100');
 
   await chipOf(page).click();
   await expect(page.locator('.upgrade-modal')).toBeVisible();
@@ -112,7 +112,7 @@ test('the chip click carries the pressure state for the scorecard', async ({ pag
 test('a paid user is never pitched and never counted as suppressed', async ({ page }) => {
   const rows = [];
   await routeAnalytics(page, rows);
-  await page.goto('/?local=1&reset=1&tier=paid&cards=95');
+  await page.goto('/?local=1&reset=1&tier=paid&cards=95&limit=100');
 
   await expect(chipOf(page)).toHaveCount(0);
   // 'not_demo' is an eligibility reason, but a paying customer is not a

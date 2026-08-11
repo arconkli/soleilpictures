@@ -292,6 +292,6 @@ Two requests: upload the bytes, then create the card. See
 ## Card caps
 
 Card creation is subject to the account's [card allowance](/docs/canvas/cards) —
-**100** on the free plan, counted against the **board
+**50** on the free plan, counted against the **board
 owner**. Exceeding it returns `402 limit_reached`, not `403`. See
 [Errors](/docs/api/errors).

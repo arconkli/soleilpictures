@@ -1,6 +1,6 @@
 # Getting started
 
-> Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 100 cards and unlimited collaborators.
+> Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and unlimited collaborators.
 
 _Source: https://clusters.soleilpictures.com/docs/getting-started · Updated 2026-08-08_
 

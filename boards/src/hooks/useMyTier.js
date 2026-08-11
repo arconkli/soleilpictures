@@ -19,6 +19,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { qaTierOverride } from '../lib/localMode.js';
+import { DEMO_CARD_LIMIT } from '../lib/demoCardCap.js';
 
 export function useMyTier({ userId } = {}) {
   // Dev/Playwright-only forced tier (no-op in production builds). Computed once.
@@ -34,11 +35,14 @@ export function useMyTier({ userId } = {}) {
     banned: false,
     adOfferPending: false,
     onboarding: {},
-    // Referral bonus: extra demo cards earned by inviting friends. The server
-    // returns effective_card_limit = 100 + bonus_card_credits; the cap gates
-    // and the Upgrade pill read it (falling back to DEMO_CARD_LIMIT).
+    // The server returns effective_card_limit = card_cap_base + bonus_card_credits
+    // (per-user since 0227: pre-0227 accounts are grandfathered at 100, new ones
+    // start at DEMO_CARD_LIMIT). The cap gates and the Upgrade pill read it.
+    // This is a PLACEHOLDER only — `tier` is null until the RPC lands, and every
+    // consumer gates on a resolved tier, so a grandfathered user never flashes
+    // the new-account number.
     bonusCardCredits: 0,
-    effectiveCardLimit: 100,
+    effectiveCardLimit: DEMO_CARD_LIMIT,
   });
   const [loading, setLoading] = useState(!override);
   const [error, setError] = useState(null);
@@ -64,7 +68,7 @@ export function useMyTier({ userId } = {}) {
         // seed + first-card coachmark in App.jsx. {} for users predating the flag.
         onboarding:         row?.onboarding || {},
         bonusCardCredits:   Number(row?.bonus_card_credits ?? 0),
-        effectiveCardLimit: Number(row?.effective_card_limit ?? 100),
+        effectiveCardLimit: Number(row?.effective_card_limit ?? DEMO_CARD_LIMIT),
       });
       setError(null);
     } catch (e) {

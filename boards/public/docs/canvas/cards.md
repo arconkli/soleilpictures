@@ -75,7 +75,7 @@ called "Untitled" is a card you will not find later.
 
 ## The card limit
 
-The free Demo plan allows **100 cards** in total across every
+The free Demo plan allows **50 cards** in total across every
 cluster you create. Cards on clusters someone else owns do not count against
 you — if you are invited as an editor, you are spending their allowance, not
 yours.

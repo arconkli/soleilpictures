@@ -21,6 +21,7 @@ import {
   planBilling,
   capHitSummary,
 } from './billingCopy.js';
+import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from './demoCardCap.js';
 
 let failed = 0;
 let passed = 0;
@@ -89,9 +90,31 @@ assertEq(
   'grant-backed paid label is honest about being comped',
 );
 assertEq(
-  planLabel({ tier: 'demo', demoCardCount: 42 }),
-  'Free Demo · 42/100 cards',
+  planLabel({ tier: 'demo', demoCardCount: 42, cardLimit: DEMO_CARD_LIMIT }),
+  `Free Demo · 42/${DEMO_CARD_LIMIT} cards`,
   'demo label carries the live count',
+);
+// The cap is per-user since migration 0227. A grandfathered account passes its
+// own higher effective_card_limit through, and Settings must show THAT, not the
+// new-account default — otherwise every pre-0227 user is told their limit is
+// lower than the one actually enforced.
+assertEq(
+  planLabel({ tier: 'demo', demoCardCount: 42, cardLimit: LEGACY_DEMO_CARD_LIMIT }),
+  `Free Demo · 42/${LEGACY_DEMO_CARD_LIMIT} cards`,
+  'demo label honors a grandfathered cap',
+);
+// Referral bonuses ride in on the same field (card_cap_base + bonus_card_credits).
+assertEq(
+  planLabel({ tier: 'demo', demoCardCount: 42, cardLimit: DEMO_CARD_LIMIT + 25 }),
+  `Free Demo · 42/${DEMO_CARD_LIMIT + 25} cards`,
+  'demo label honors referral bonus cards',
+);
+// No limit resolved yet (useMyTier placeholder) — fall back to the conservative
+// new-account cap rather than inventing a bigger one.
+assertEq(
+  planLabel({ tier: 'demo', demoCardCount: 42 }),
+  `Free Demo · 42/${DEMO_CARD_LIMIT} cards`,
+  'demo label falls back to DEMO_CARD_LIMIT when no cap is threaded',
 );
 assertEq(planBilling('annual').save, 'Save $60/yr', 'annual savings line');
 assertEq(planBilling('monthly').save, null, 'monthly has no savings line');

@@ -16,6 +16,7 @@ import {
   User as UsersIcon, GlobeIcon, Sparkle, Clock, Tag, Star, Code,
 } from '../../lib/icons.js';
 import { formatDuration } from '../../lib/formatDuration.js';
+import { DEMO_CARD_LIMIT } from '../../lib/demoCardCap.js';
 import {
   formatCount, formatMoney, formatExpires, fmtDate, relativeTime, formatBytes,
 } from '../../lib/adminFormat.js';
@@ -131,9 +132,15 @@ function EngagementSection({ eng, tier, lastSignInAt, device, geo }) {
         {lastSignInAt && <Row label="Last sign-in">{relativeTime(lastSignInAt)}</Row>}
         {tier === 'demo' && (
           <Row label="Demo cards">
-            {formatCount(eng.demo_card_count)} / {eng.effective_card_limit || eng.demo_card_cap || 100}
+            {formatCount(eng.demo_card_count)} / {eng.effective_card_limit || eng.demo_card_cap || DEMO_CARD_LIMIT}
             {eng.bonus_card_credits > 0 && (
               <span className="is-muted" style={{ marginLeft: 6 }}>(+{formatCount(eng.bonus_card_credits)} from referrals)</span>
+            )}
+            {/* Which cap cohort this account is in. Accounts predating migration
+                0227 keep the base cap they signed up under, so a support answer
+                about "why can they add more than I can" is one glance away. */}
+            {eng.card_cap_base > DEMO_CARD_LIMIT && (
+              <span className="is-muted" style={{ marginLeft: 6 }}>(grandfathered at {eng.card_cap_base})</span>
             )}
           </Row>
         )}

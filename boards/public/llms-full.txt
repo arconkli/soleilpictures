@@ -51,7 +51,7 @@ Screenshots are deliberately sparse. The interface moves faster than screenshots
 ## Frequently asked questions
 
 Q: Is Soleil Clusters free?
-A: Yes. The free Demo plan gives you 100 cards, unlimited clusters, and unlimited collaborators. Creator removes the card limit and adds any-file-type uploads on a 100GB drive.
+A: Yes. The free Demo plan gives you 50 cards, unlimited clusters, and unlimited collaborators. Creator removes the card limit and adds any-file-type uploads on a 100GB drive.
 
 Q: What is a cluster?
 A: A cluster is a board. The interface says "cluster" everywhere; the API and database call the same object a board. They are the same thing, and the two words are used interchangeably in these docs where the API is involved.
@@ -65,7 +65,7 @@ A: Yes. Mint a personal access token under Settings, then use the REST API at /a
 URL: https://clusters.soleilpictures.com/docs/getting-started
 Updated: 2026-08-08
 
-Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 100 cards and unlimited collaborators.
+Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and unlimited collaborators.
 
 From an empty account to a board you would show someone, in about five minutes.
 
@@ -170,7 +170,7 @@ A card is one thing on a board. Images, notes, links, documents, PDFs, video, au
 
 Cards carry a position, a size and a stacking order, which is what makes the canvas a canvas rather than a list. Everything else about a card depends on what kind it is — see Cards.
 
-The free Demo plan allows 100 cards in total across every cluster you create. Clusters themselves are unlimited, and so are collaborators.
+The free Demo plan allows 50 cards in total across every cluster you create. Clusters themselves are unlimited, and so are collaborators.
 
 Two views of the same cluster
 
@@ -524,7 +524,7 @@ Shape cards are the exception — they have no title. If you need a labelled sha
 
 The card limit
 
-The free Demo plan allows 100 cards in total across every cluster you create. Cards on clusters someone else owns do not count against you — if you are invited as an editor, you are spending their allowance, not yours.
+The free Demo plan allows 50 cards in total across every cluster you create. Cards on clusters someone else owns do not count against you — if you are invited as an editor, you are spending their allowance, not yours.
 
 Creator removes the limit entirely. See Plans.
 
@@ -538,7 +538,7 @@ Q: How do I change what kind a card is?
 A: You do not convert cards between kinds. Create the kind you want and move the content across. The one exception is dropping a file, which picks the right kind for you automatically.
 
 Q: Is there a limit on cards?
-A: The free Demo plan allows 100 cards across every cluster you create. Creator removes the limit. Clusters themselves are never capped.
+A: The free Demo plan allows 50 cards across every cluster you create. Creator removes the limit. Clusters themselves are never capped.
 
 Q: What happens if I delete a card by accident?
 A: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster is a soft delete that stays in the trash for 30 days.
@@ -1494,7 +1494,7 @@ Deleting a cluster is a soft delete. It goes to the trash and stays restorable f
 ## Frequently asked questions
 
 Q: Is there a limit on how many clusters I can make?
-A: No. Clusters are unlimited on every plan, including free. Only cards are capped, at 100 on the free Demo plan.
+A: No. Clusters are unlimited on every plan, including free. Only cards are capped, at 50 on the free Demo plan.
 
 Q: How do I move a cluster somewhere else?
 A: Drag it in the sidebar tree, or drag it onto another cluster's card on a canvas. Moves are cycle-safe — you cannot make a cluster its own ancestor.
@@ -2668,7 +2668,7 @@ Confirmations include a link into the canvas with the cards you just sent alread
 
 Limits
 
-Texted cards count against your card allowance like any other. On the free plan that is 100 cards.
+Texted cards count against your card allowance like any other. On the free plan that is 50 cards.
 
 Scout warns you once, at 75% of the cap, and tells you where you stand in each confirmation past halfway. At the cap it says so plainly rather than silently dropping photos.
 
@@ -2771,13 +2771,13 @@ A: Under the API tab. Tokens are shown once at creation and cannot be recovered 
 URL: https://clusters.soleilpictures.com/docs/account/plans
 Updated: 2026-08-08
 
-The free Demo plan gives you 100 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a 100GB drive.
+The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a 100GB drive.
 
 Two plans. The difference between them is deliberately small and deliberately honest — three enforced limits, listed below, and nothing else.
 
 Demo — free
 
-100 cards to build with
+50 cards to build with
 Unlimited clusters and boards
 Free collaboration — invite editors to any cluster
 
@@ -2794,11 +2794,13 @@ What is genuinely limited
 Exactly three things:
 
  | Demo | Creator
-Total cards | 100 | Unlimited
+Total cards | 50 | Unlimited
 File types | Standard media | Anything
 Per-file size | Video 30 MB · audio 50 MB · PDF 50 MB | No limit
 
 Everything else is the same on both plans.
+
+Older accounts keep a higher cap. The free allowance used to be 100 cards. Every account created while that was the plan keeps it, permanently — no existing cap was ever lowered. Your own figure is on the Upgrade pill and in Settings → Billing, and it is the one enforced. Referral credits add to whichever cap you have.
 
 Clusters are not capped. Neither are collaborators, editing, sharing, public links, comments, documents, screenplay mode or the API. Images have no size cap on any plan.
 
@@ -2822,7 +2824,7 @@ Annual and monthly are the same product. Annual is cheaper per month.
 
 Free forever
 
-The Demo plan is not a trial. It does not expire and it does not degrade. If 100 cards is enough for what you do, that is a complete account.
+The Demo plan is not a trial. It does not expire and it does not degrade. If 50 cards is enough for what you do, that is a complete account.
 
 More on the free tier specifically: free mood board maker.
 
@@ -2836,6 +2838,9 @@ A: No. Editors are free on every plan. Whatever they add counts against the clus
 
 Q: What happens when I hit the card cap?
 A: You are told, and asked to upgrade. Nothing already made is taken away or locked.
+
+Q: My card limit is 100, not 50. Why?
+A: Accounts created before the free plan changed keep the 100-card allowance they signed up under, permanently. Nobody's cap was lowered.
 
 
 ========================================================================
@@ -2916,7 +2921,7 @@ The activation gate is the important detail. The reward is not for a signup, it 
 
 Bonus cards
 
-Bonus cards raise your card limit above the free plan's 100. They stack across referrals and they do not expire.
+Bonus cards raise your card limit above the free plan's 50. They stack across referrals and they do not expire.
 
 They apply on top of your allowance, so a free account with referrals genuinely has more room rather than a temporary boost. See Cards.
 
@@ -2951,7 +2956,7 @@ Q: When does the reward land?
 A: When the person you invited actually gets started, not when they sign up. A dormant signup earns nothing for either of you.
 
 Q: What do bonus cards do?
-A: They raise your card limit above the free plan's 100. They stack, and they do not expire.
+A: They raise your card limit above the free plan's 50. They stack, and they do not expire.
 
 Q: Where do I see how it is going?
 A: Settings, under Invite and earn — friends joined, how many got started, cards earned, free months.
@@ -4084,7 +4089,7 @@ Two requests: upload the bytes, then create the card. See Images API.
 
 Card caps
 
-Card creation is subject to the account's card allowance — 100 on the free plan, counted against the board owner. Exceeding it returns 402 limit_reached, not 403. See Errors.
+Card creation is subject to the account's card allowance — 50 on the free plan, counted against the board owner. Exceeding it returns 402 limit_reached, not 403. See Errors.
 
 ## Frequently asked questions
 

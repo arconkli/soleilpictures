@@ -46,7 +46,7 @@ Cards carry a position, a size and a stacking order, which is what makes the
 canvas a canvas rather than a list. Everything else about a card depends on
 what kind it is — see [Cards](/docs/canvas/cards).
 
-The free Demo plan allows **100 cards** in total across every
+The free Demo plan allows **50 cards** in total across every
 cluster you create. Clusters themselves are unlimited, and so are collaborators.
 
 ## Two views of the same cluster

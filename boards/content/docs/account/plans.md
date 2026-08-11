@@ -1,12 +1,12 @@
 ---
 title: Plans and Pricing — Soleil Clusters
-metaDescription: Soleil Clusters is free with 100 cards, unlimited clusters and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.
+metaDescription: Soleil Clusters is free with {{fact:demoCardLimit}} cards, unlimited clusters and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.
 h1: Plans and pricing
 navLabel: Plans and pricing
 section: account
 order: 1
 updated: 2026-08-08
-answer: The free Demo plan gives you 100 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a 100GB drive.
+answer: The free Demo plan gives you {{fact:demoCardLimit}} cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a 100GB drive.
 faq:
   - q: What is actually limited on the free plan?
     a: Three things and only three — total cards, which file types you can upload, and per-file size caps on video, audio and PDF. Clusters, collaborators and editing are not limited.
@@ -14,6 +14,8 @@ faq:
     a: No. Editors are free on every plan. Whatever they add counts against the cluster owner's allowance, not theirs.
   - q: What happens when I hit the card cap?
     a: You are told, and asked to upgrade. Nothing already made is taken away or locked.
+  - q: My card limit is {{fact:legacyDemoCardLimit}}, not {{fact:demoCardLimit}}. Why?
+    a: Accounts created before the free plan changed keep the {{fact:legacyDemoCardLimit}}-card allowance they signed up under, permanently. Nobody's cap was lowered.
 related:
   - /docs/canvas/cards
   - /docs/files
@@ -50,6 +52,12 @@ Exactly three things:
 | **Per-file size** | Video {{fact:freeVideoCap}} · audio {{fact:freeAudioCap}} · PDF {{fact:freePdfCap}} | No limit |
 
 Everything else is the same on both plans.
+
+> **Older accounts keep a higher cap.** The free allowance used to be
+> {{fact:legacyDemoCardLimit}} cards. Every account created while that was the
+> plan keeps it, permanently — no existing cap was ever lowered. Your own figure
+> is on the Upgrade pill and in Settings → Billing, and it is the one enforced.
+> [Referral credits](/docs/account/referrals) add to whichever cap you have.
 
 > **Note:** Clusters are **not** capped. Neither are collaborators, editing,
 > sharing, [public links](/docs/collaborate/sharing), comments, documents,

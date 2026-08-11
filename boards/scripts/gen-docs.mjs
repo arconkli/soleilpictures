@@ -40,7 +40,7 @@ import {
   layoutAlgorithms as layoutAlgorithmList,
 } from './lib/publicSurface.mjs';
 
-import { DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
+import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
 import { PLAN_NAME, PRICING, CREATOR_FEATURES } from '../src/lib/billingCopy.js';
 import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP } from '../src/lib/fileIngest.js';
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
@@ -70,6 +70,10 @@ const api = apiFacts();
 
 export const FACTS = {
   demoCardLimit: String(DEMO_CARD_LIMIT),
+  // The cap accounts created before migration 0227 keep, permanently. The plans
+  // page states the grandfather rule; both cohorts are real, so both numbers
+  // have to come from code rather than being typed into the markdown.
+  legacyDemoCardLimit: String(LEGACY_DEMO_CARD_LIMIT),
   planName: PLAN_NAME,
   priceMonthly: PRICING.monthly.billedLabel,
   priceAnnual: PRICING.annual.billedLabel,

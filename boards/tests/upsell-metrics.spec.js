@@ -55,7 +55,7 @@ test('chip → modal: entry click, feature-row read, toggle, and Escape dismiss 
   const rows = [];
   await routeAnalytics(page, rows);
   await seedAuthMarker(page);
-  await page.goto('/?local=1&reset=1&tier=demo&cards=60');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=60&limit=100');
 
   const chip = page.locator('.upgrade-chip');
   await expect(chip).toBeVisible();
@@ -113,7 +113,7 @@ test('CTA click: enriched must-land intent fires, and the summary keeps outcome 
   const rows = [];
   await routeAnalytics(page, rows);
   await seedAuthMarker(page);
-  await page.goto('/?local=1&reset=1&tier=demo&cards=60');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=60&limit=100');
 
   await page.locator('.upgrade-chip').click();
   const modal = page.locator('.upgrade-modal');
@@ -149,7 +149,7 @@ test('the invite-friends alternative records its own event and the invite_alt ou
   const rows = [];
   await routeAnalytics(page, rows);
   await seedAuthMarker(page);
-  await page.goto('/?local=1&reset=1&tier=demo&cards=60');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=60&limit=100');
 
   await page.locator('.upgrade-chip').click();
   const modal = page.locator('.upgrade-modal');

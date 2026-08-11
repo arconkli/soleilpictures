@@ -84,7 +84,7 @@ another.
 ## Limits
 
 Texted cards count against your [card allowance](/docs/canvas/cards) like any
-other. On the free plan that is **100 cards**.
+other. On the free plan that is **50 cards**.
 
 Scout warns you once, at 75% of the cap, and tells you where you stand in each
 confirmation past halfway. At the cap it says so plainly rather than silently

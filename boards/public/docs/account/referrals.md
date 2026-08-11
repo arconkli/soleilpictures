@@ -18,7 +18,7 @@ reflects people who are actually there.
 ## Bonus cards
 
 Bonus cards raise your card limit above the free plan's
-**100**. They stack across referrals and they do not expire.
+**50**. They stack across referrals and they do not expire.
 
 They apply on top of your allowance, so a free account with referrals genuinely
 has more room rather than a temporary boost. See

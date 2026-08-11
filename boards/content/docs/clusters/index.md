@@ -9,7 +9,7 @@ updated: 2026-08-08
 answer: A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. Clusters are never capped on any plan. Each one gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 faq:
   - q: Is there a limit on how many clusters I can make?
-    a: No. Clusters are unlimited on every plan, including free. Only cards are capped, at 100 on the free Demo plan.
+    a: No. Clusters are unlimited on every plan, including free. Only cards are capped, at {{fact:demoCardLimit}} on the free Demo plan.
   - q: How do I move a cluster somewhere else?
     a: Drag it in the sidebar tree, or drag it onto another cluster's card on a canvas. Moves are cycle-safe — you cannot make a cluster its own ancestor.
   - q: Where do deleted clusters go?
