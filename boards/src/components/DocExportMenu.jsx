@@ -22,6 +22,8 @@ import { deliverFile } from '../lib/exportDelivery.js';
 import { docPrintCSS } from '../lib/docTypography.js';
 import { getTitlePage, setTitlePage, getSceneNumbersShow } from '../lib/docState.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 
 // Whole-doc export. When ydoc+scope are provided we serialize EVERY page ×
 // EVERY sheet (the single-focused-sheet path was silent data loss); the bare
@@ -97,10 +99,16 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
   // Deliver a generated blob: a download on web, the native share sheet inside
   // the app (where <a download> doesn't save). Surfaces a toast on failure.
   // Named after the document (computed fresh so a just-typed title is honored).
+  // The shared delivery funnel for html / md / fountain / fdx — so those four
+  // formats are counted in one place rather than at four call sites. The PDF
+  // paths don't come through here (they branch on docMode) and log their own.
   const saveFile = async (blob, ext) => {
-    try { await deliverFile(blob, `${sanitizeName(currentDocTitle())}.${ext}`); }
-    catch (err) {
+    try {
+      await deliverFile(blob, `${sanitizeName(currentDocTitle())}.${ext}`);
+      logEvent(EV.EXPORT_RUN, { format: ext === 'md' ? 'markdown' : ext, surface: 'doc', doc_mode: docMode });
+    } catch (err) {
       console.error('[export] delivery failed', err);
+      logEvent(EV.EXPORT_ERROR, { format: ext, surface: 'doc', reason: 'delivery_failed' });
       feedback.toast({ type: 'error', message: 'Export failed — please try again.' });
     }
   };
@@ -166,9 +174,13 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
         // window.open(...'noopener') === null gotcha that silently no-op'd).
         await printHtmlViaIframe(printableHTML(await fullBodyHtml()));
       }
+      // Screenplay PDF is the most defensibly professional artifact the product
+      // makes — industry format, real vector output — and it was invisible.
+      logEvent(EV.EXPORT_RUN, { format: 'pdf', surface: 'doc', doc_mode: docMode });
       setOpen(false);
     } catch (err) {
       console.error('[export] PDF failed', err);
+      logEvent(EV.EXPORT_ERROR, { format: 'pdf', surface: 'doc', doc_mode: docMode, reason: 'threw' });
       feedback.toast({ type: 'error', message: 'Couldn’t export this document — please try again.' });
     } finally { setBusy(false); }
   };

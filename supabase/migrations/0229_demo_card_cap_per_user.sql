@@ -1,4 +1,4 @@
--- 0227_demo_card_cap_per_user.sql — the demo card cap becomes PER-USER state.
+-- 0229_demo_card_cap_per_user.sql — the demo card cap becomes PER-USER state.
 --
 -- Until now the cap was a literal `100` compiled into five separate functions.
 -- New accounts should start at 50, but every account that already exists keeps
@@ -54,9 +54,9 @@ alter table public.profiles alter column card_cap_base set not null;
 
 comment on column public.profiles.card_cap_base is
   'Base demo card cap for this account, before bonus_card_credits. 100 for '
-  'accounts created before migration 0227 (grandfathered); 50 by default for '
+  'accounts created before migration 0229 (grandfathered); 50 by default for '
   'accounts created after. Never client-writable — see the column grants at the '
-  'foot of 0227.';
+  'foot of 0229.';
 
 -----------------------------------------------------------------------
 -- 2. enforce_demo_card_cap_trg — the authoritative gate.
