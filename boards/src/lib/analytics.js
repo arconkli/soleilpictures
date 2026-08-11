@@ -17,6 +17,7 @@
 import { supabase } from './supabase.js';
 import { setErrorUser } from './errorReporting.js';
 import { getDeviceInfo } from './device.js';
+import { isAnyQaMode } from './localMode.js';
 
 const SESSION_KEY     = 'soleil_session_id';
 const SOURCE_KEY      = 'soleil_first_source';   // sessionStorage — first-touch acquisition
@@ -349,6 +350,12 @@ function buildRow(name, props) {
   // A/B arm(s) the user is enrolled in, so any event can be sliced by treatment.
   const exp = getExperiments();
   for (const k in exp) if (merged[k] === undefined) merged[k] = exp[k];
+  // Rows produced by a dev-only QA harness (the e2e suite driving the real app
+  // through ?local=1 & friends) are labelled at the source, because they can and
+  // do reach the production table — see isAnyQaMode. Reads filter on this, so a
+  // test run can never again be mistaken for demand. Always false in a
+  // production build.
+  if (isAnyQaMode()) merged.synthetic = true;
   return {
     session_id:  getSessionId(),
     user_id:     cachedUserId,   // best-effort; backfilled at flush if it resolves late

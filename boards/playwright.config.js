@@ -15,17 +15,33 @@ export default defineConfig({
   testDir: './tests',
   reporter: 'list',
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: 'http://127.0.0.1:5174',
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1',
+    // Port 5174, NOT the 5173 a hand-started `npm run dev` uses. The suite used
+    // to share 5173 with reuseExistingServer, so whenever a dev server was
+    // already up it was reused — and that one loads the real .env.local. The
+    // fake credentials below were only a `process.env.X ||` fallback, so they
+    // never applied, and the fixtures (?local=1&tier=demo&cards=60 …) were
+    // written straight into the PRODUCTION analytics table. Owning a dedicated
+    // port means the suite always gets a server it configured itself.
+    command: 'npm run dev -- --host 127.0.0.1 --port 5174 --strictPort',
     env: {
       ...process.env,
-      VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL || 'https://example.supabase.co',
-      VITE_SUPABASE_PUBLISHABLE_KEY: process.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'local-playwright-key',
+      // Forced, not defaulted. These specs are written against a backend that
+      // cannot answer (see the pricing-flow header); pointing them at a real
+      // project makes them both flaky and destructive.
+      VITE_SUPABASE_URL: 'https://example.supabase.co',
+      VITE_SUPABASE_PUBLISHABLE_KEY: 'local-playwright-key',
+      VITE_SUPABASE_ANON_KEY: 'local-playwright-key',
     },
-    url: 'http://127.0.0.1:5173',
+    url: 'http://127.0.0.1:5174',
+    // Safe to reuse now that the port is ours: nothing but this config ever
+    // starts a server on 5174, and it always starts it with the forced fake
+    // credentials above. Reuse also keeps the server warm between runs, which
+    // matters — a cold Vite answers the URL poll before it has compiled the
+    // lazy AppShell chunk, and the first spec of a run then races it.
     reuseExistingServer: true,
     timeout: 120_000,
   },
