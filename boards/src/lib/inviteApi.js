@@ -25,6 +25,25 @@ export async function claimPendingInvite(token) {
   return row || null;
 }
 
+// Anon-callable. Names the cluster behind a stashed ?join=<token> so the
+// signed-out landing can say WHAT the visitor was invited to — the ?invite=
+// path has had that context since 0086 (peekPendingInviteEmail) and the
+// ?join= path never did, which is where invited people were bouncing.
+//
+// Reuses get_share_meta rather than adding a peek RPC: it is already granted
+// to anon, and it returns nothing the same token doesn't already expose via
+// get_share_bundle (the /share preview renders the whole cluster). Token
+// possession is the trust boundary, exactly as with peekPendingInviteEmail.
+// Returns null on any invalid/revoked/expired/deleted token — _resolve_share_target
+// raises P0002 and the caller must degrade to the plain landing, never block.
+export async function peekJoinBoardName(token) {
+  const { data, error } = await supabase
+    .rpc('get_share_meta', { p_token: token });
+  if (error) throw error;
+  const name = (Array.isArray(data) ? data[0] : data)?.name;
+  return typeof name === 'string' && name.trim() ? name.trim() : null;
+}
+
 // Authed call — claim a multi-use invite LINK (?join=<token>, 0189).
 // Returns { workspace_id, board_id, role, status } where status is
 // 'joined' | 'upgraded' | 'already' | 'noop'. Idempotent; safe to call on

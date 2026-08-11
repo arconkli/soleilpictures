@@ -2324,6 +2324,28 @@ body {
 }
 .share-link-opt input[type="checkbox"] { cursor: pointer; }
 
+/* The one action the whole modal exists for: mint-or-copy an invite link.
+   Full width so it reads as the primary move rather than one control in a
+   row of three — the role/expiry selects now sit inside .share-link-options
+   below it, since their defaults are what nearly every invite wants. */
+.share-invite-btn-primary {
+  flex: 1 1 100%;
+  padding: 11px 14px;
+  font-size: 13px;
+}
+
+/* Disclosure holding the invite link's role + expiry selects. Closed by
+   default; the marker is the only affordance, so keep it visible. */
+.share-link-options { margin-top: 10px; }
+.share-link-options > summary {
+  cursor: pointer;
+  user-select: none;
+  width: fit-content;
+}
+.share-link-options > summary:hover { color: var(--ink-2); }
+.share-link-options > summary::marker { color: var(--ink-3); }
+.share-link-options[open] > summary { margin-bottom: 8px; }
+
 .share-list { display: flex; flex-direction: column; gap: 2px; }
 .share-empty {
   font: 500 12px/1.45 var(--font-sans);

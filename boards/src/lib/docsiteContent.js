@@ -17288,7 +17288,52 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " button, and mixing them up is the main thing to avoid."
+     "v": " button, and mixing them up is the main thing to avoid. The dialog leads with inviting people, because that is the one that puts someone "
+    },
+    {
+     "t": "em",
+     "v": "inside",
+     "children": [
+      {
+       "t": "text",
+       "v": "inside"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " the cluster with you; the view-only link follows it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "You can open it from the board header, from "
+    },
+    {
+     "t": "code",
+     "v": "⌘K"
+    },
+    {
+     "t": "text",
+     "v": " → \"Share this cluster\", or by right-clicking any cluster in the sidebar and choosing "
+    },
+    {
+     "t": "strong",
+     "v": "Share…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — the last of these shares the cluster you right-clicked, not the one currently on screen."
     }
    ]
   },

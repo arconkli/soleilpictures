@@ -9,6 +9,7 @@ import { useAnalyticsFilters, useRegisterViewRuntime } from '../AnalyticsFilters
 import { SignupFunnelPanel } from '../widgets/SignupFunnelPanel.jsx';
 import { AcquisitionBreakdown } from '../widgets/AcquisitionBreakdown.jsx';
 import { AdminReferralsSection } from '../widgets/AdminReferralsSection.jsx';
+import { AdminMultiplayerSection } from '../widgets/AdminMultiplayerSection.jsx';
 import { DeviceBreakdown } from '../widgets/DeviceBreakdown.jsx';
 import { GeoBreakdown } from '../widgets/GeoBreakdown.jsx';
 import { CloudflareAnalyticsLink } from '../widgets/CloudflareAnalyticsLink.jsx';
@@ -16,7 +17,7 @@ import { CloudflareAnalyticsLink } from '../widgets/CloudflareAnalyticsLink.jsx'
 export function AcquisitionView() {
   const f = useAnalyticsFilters();
   const q = useAdminData(async () => {
-    const [ab, fn, fb, dv, rf, geo] = await Promise.allSettled([
+    const [ab, fn, fb, dv, rf, mp, geo] = await Promise.allSettled([
       supabase.rpc('admin_acquisition_breakdown', { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_signup_funnel',         { p_days: f.days, p_source: f.source || null, p_campaign: f.campaign || null, p_content: f.content || null, p_exclude_internal: f.excludeInternal }),
       // The FB/IG segment is its OWN funnel shape (admin_fb_funnel) — fbclid ad
@@ -30,6 +31,11 @@ export function AcquisitionView() {
       // Referral growth loop (invite → join → activate → cards). Graceful via
       // val() — a failure renders the referral panel empty, never the funnel.
       supabase.rpc('admin_referral_stats',        { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+      // Multiplayer state + the share funnel that precedes it (0226). Separate
+      // from admin_referral_stats because it answers a different question:
+      // referrals count people who joined the PRODUCT from a shared cluster,
+      // this counts people who joined a CLUSTER. Graceful via val().
+      supabase.rpc('admin_multiplayer_stats',     { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       // Country mix (traffic + signups). Must stay LAST — the destructuring
       // above is positional. Graceful via val(); never blocks the funnel.
       supabase.rpc('admin_geo_breakdown',         { p_days: f.days, p_exclude_internal: f.excludeInternal }),
@@ -37,7 +43,7 @@ export function AcquisitionView() {
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
     if (fn.status !== 'fulfilled' || fn.value.error) throw errOf(fn) || new Error('Failed to load funnel');
-    return { acquisition: val(ab) || [], steps: val(fn) || [], fbSteps: val(fb) || [], device: val(dv) || null, referrals: val(rf) || null, geo: val(geo) || null };
+    return { acquisition: val(ab) || [], steps: val(fn) || [], fbSteps: val(fb) || [], device: val(dv) || null, referrals: val(rf) || null, multiplayer: val(mp) || null, geo: val(geo) || null };
   }, [f.days, f.source, f.campaign, f.content, f.excludeInternal, f.verifiedOnly]);
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
@@ -48,6 +54,7 @@ export function AcquisitionView() {
         <h2 className="admin-section-title">Acquisition</h2>
         <div className="admin-section-sub">First-touch source attribution and the segment-filtered signup funnel.</div>
         <AcquisitionBreakdown rows={q.data?.acquisition || []} days={f.days} />
+        <AdminMultiplayerSection data={q.data?.multiplayer} days={f.days} />
         <AdminReferralsSection data={q.data?.referrals} days={f.days} />
         <DeviceBreakdown data={q.data?.device} days={f.days} />
         <GeoBreakdown data={q.data?.geo} days={f.days} />

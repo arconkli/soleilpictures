@@ -59,7 +59,8 @@ export function AdminReferralsSection({ data, days = 30 }) {
           <AdminStatCard
             label="Friends joined"
             value={formatCount(d.total)}
-            sub={`${formatCount(d.pending)} not yet activated`} />
+            sub={`${formatCount(d.pending)} not yet activated`}
+            title="Referral rows: people who signed up for Clusters credited to a referrer. NOT people who joined someone's cluster — that's the Multiplayer panel above." />
           <AdminStatCard
             label="Activated"
             value={formatCount(d.activated)}

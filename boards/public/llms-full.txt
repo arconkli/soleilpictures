@@ -2258,7 +2258,9 @@ Updated: 2026-08-08
 
 A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, can be set to expire after 7 or 30 days, can include or exclude nested clusters, and can be marked as not indexable by search engines. Inviting by email is separate and is how you grant edit access.
 
-Two different mechanisms live behind the Share button, and mixing them up is the main thing to avoid.
+Two different mechanisms live behind the Share button, and mixing them up is the main thing to avoid. The dialog leads with inviting people, because that is the one that puts someone inside the cluster with you; the view-only link follows it.
+
+You can open it from the board header, from ⌘K → "Share this cluster", or by right-clicking any cluster in the sidebar and choosing Share… — the last of these shares the cluster you right-clicked, not the one currently on screen.
 
 Public links — view only, no account
 

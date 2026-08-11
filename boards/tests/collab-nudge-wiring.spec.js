@@ -23,8 +23,9 @@ test.describe('collab-invite nudge wiring', () => {
     // reachable mid-tour, where a banner renders dead under the pointer lock.
     expect(s).toMatch(/!tourActive && genuine\.length >= POP_BOARD_THRESHOLD/);
     // The event carries WHICH board crossed the bar — the banner's per-board
-    // eligibility and the CTA's navigate-then-share routing both need it.
-    expect(s).toMatch(/new CustomEvent\('soleil:collab-nudge', \{ detail: \{ boardId: currentId \} \}\)/);
+    // eligibility and the CTA's navigate-then-share routing both need it —
+    // and is cancelable so the banner can claim the beat (see below).
+    expect(s).toMatch(/new CustomEvent\('soleil:collab-nudge', \{ detail: \{ boardId: currentId \}, cancelable: true \}\)/);
     // The old 5-card referral dispatch must not come back alongside it.
     expect(s).not.toContain('soleil:referral-nudge');
     expect(s).not.toMatch(/genuine\.length >= 5\b/);
@@ -59,6 +60,27 @@ test.describe('collab-invite nudge wiring', () => {
     // the same synchronous batch, before React rendered either banner).
     expect(s).toMatch(/querySelector\('\.fv-banner'\)/);
     expect(s).toContain("addEventListener('soleil:first-value'");
+  });
+
+  test('collaboration claims the activation beat when both nudges are eligible', () => {
+    // A photo drop takes a board from 0 to 5+ genuine cards in ONE change, so
+    // both nudges used to fire in the same synchronous batch — and the upsell,
+    // dispatched first at the lower threshold, always won. The collab dispatch
+    // must now come first and hold the upsell back only when it actually shows.
+    const s = app();
+    const collabAt = s.indexOf("soleil:collab-nudge");
+    const fvAt     = s.indexOf("soleil:first-value'");
+    expect(collabAt).toBeGreaterThan(-1);
+    expect(fvAt).toBeGreaterThan(-1);
+    expect(collabAt).toBeLessThan(fvAt);
+    // The upsell yields only on an actual show, never merely on eligibility.
+    expect(s).toMatch(/collabTookTheBeat = ev\.defaultPrevented/);
+    expect(s).toMatch(/genuine\.length >= 2 && !collabTookTheBeat/);
+    // The banner claims it by cancelling — AFTER every early return, so a
+    // capped / cooling-down / already-fired nudge hands the tick straight on.
+    const n = nudge();
+    expect(n).toMatch(/e\?\.preventDefault\?\.\(\)/);
+    expect(n.indexOf('preventDefault')).toBeGreaterThan(n.indexOf('boards.includes(boardId)'));
   });
 
   test('the CTA routes to the Share panel on the nudged board, invite-link section first', () => {

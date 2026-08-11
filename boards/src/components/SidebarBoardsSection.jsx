@@ -27,6 +27,7 @@ export function SidebarBoardsSection({
   workspaceId,
   activeBoardId,
   onOpenBoard,
+  onShareBoard,             // (boardId) => void — context-menu "Share…"
   onRenameBoard,
   onCreateBoard = null,     // () => void — also used as the header "+" when present
   onCreateBoardInside,      // (parentBoardId) => void — context-menu "New board inside"
@@ -74,6 +75,7 @@ export function SidebarBoardsSection({
             workspaceId={workspaceId}
             activeBoardId={activeBoardId}
             onOpenBoard={onOpenBoard}
+            onShareBoard={onShareBoard}
             onRenameBoard={onRenameBoard}
             onCreateBoard={onCreateBoard}
             onCreateBoardInside={onCreateBoardInside}

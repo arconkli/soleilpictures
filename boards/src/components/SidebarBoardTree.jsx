@@ -38,6 +38,7 @@ export function SidebarBoardTree({
   workspaceId,
   activeBoardId,
   onOpenBoard,
+  onShareBoard,            // (boardId) => void — open the Share panel on that cluster
   onRenameBoard,           // (boardId, newName) => Promise — called on commit
   onCreateBoard = null,    // () => void — empty-state "create first board" CTA
   onCreateBoardInside,     // (parentBoardId) => void — context-menu "New board inside"
@@ -158,7 +159,15 @@ export function SidebarBoardTree({
 
     // Same grouped vocabulary as the canvas menus: primary (Open) · EDIT ·
     // CLIPBOARD · meta (Delete). Empty groups drop out for non-editors.
-    const openItems = [{ id: 'open', label: 'Open', run: () => onOpenBoard?.(board.id) }];
+    // Share sits with Open as a primary action, not under a labeled group:
+    // it was previously reachable only from the board toolbar and ⌘K, which
+    // is the whole reason most owners never found it. Anyone who can read a
+    // cluster can hand out a view link, so this is not gated on canEdit —
+    // the modal itself renders read-only for viewers.
+    const openItems = [
+      { id: 'open', label: 'Open', run: () => onOpenBoard?.(board.id) },
+      { id: 'share', label: 'Share…', run: () => onShareBoard?.(board.id) },
+    ];
     const editItems = [];
     const clipboardItems = [{ id: 'copy', label: 'Copy', run: () => onCopyBoard?.(board) }];
     const metaItems = [];

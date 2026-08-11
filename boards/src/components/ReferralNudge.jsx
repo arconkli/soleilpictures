@@ -95,6 +95,11 @@ export function ReferralNudge({ tier, onCollaborate }) {
       if (fvFiredAtRef.current && Date.now() - fvFiredAtRef.current < 60_000) return;
       firedRef.current = true;
       boardIdRef.current = boardId;
+      // Claim the activation beat. App dispatches this cancelable and holds
+      // the first-value upsell back only when we actually take it — every
+      // early return above leaves the event un-cancelled, so declining hands
+      // the same tick straight to the upsell.
+      try { e?.preventDefault?.(); } catch (_) {}
       const at = new Date().toISOString();
       const next = {
         count: st.count + 1,

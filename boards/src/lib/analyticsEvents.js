@@ -9,6 +9,7 @@ export const EV = Object.freeze({
   LANDING_VIEW:            'landing_view',                // SignIn screen mounted
   LANDING_FIELD_ENGAGE:    'landing_field_engage',        // first input into a field {field:'email'|'code'}
   LANDING_INVITE_PREFILL:  'landing_invite_prefill_seen', // invite email pre-filled
+  LANDING_JOIN_PREFILL:    'landing_join_prefill_seen',   // ?join= landing named the cluster {had_name}
   EMAIL_SUBMIT:            'email_submit',                // OTP send ok {resend}
   EMAIL_SUBMIT_ERROR:      'email_submit_error',          // OTP send failed {reason,resend}
   OTP_VERIFY:              'otp_verify',                  // code verified ok
@@ -163,6 +164,11 @@ export const EV = Object.freeze({
   DOC_EDIT:                'doc_edit',                    // edited a doc surface (once per doc per session) {board_id}
   SEARCH_RUN:              'search_run',                  // ran a search / command {has_results}
   SHARE_OPEN:              'share_open',                  // opened the share surface {board_id}
+  // A link was actually put on the clipboard. Previously DARK for every copy
+  // made from inside the ShareModal (only the one-tap toolbar path emitted
+  // anything, as share_open{quick:true}), so "opened the dialog" was the last
+  // observable step and the copy itself was invisible. {kind:'view'|'invite',surface,board_id}
+  SHARE_LINK_COPIED:       'share_link_copied',
   RETURN_SESSION:          'return_session',              // app_open on a later calendar day than last-seen {days_since_last_seen,tier}
   LIFECYCLE_LAND:          'lifecycle_land',              // arrived from a lifecycle email CTA, read off ?lc=<email_type>.<version> {email_type,content_version} — the FIRST-PARTY click signal. Resend proxies every click through its own host and reports userAgent "Amazon CloudFront" on all of them, so its click webhook can't separate bot prefetch from a human and can't show whether anyone actually landed. This can. Fires once per page-load; the param is stripped after so a reload doesn't re-count
 
@@ -212,6 +218,11 @@ export const EV = Object.freeze({
   INVITE_LINK_JOIN_CLICK:  'invite_link_join_click',      // "Join as …" clicked {share_token,role} (must-land)
   INVITE_LINK_CLAIMED:     'invite_link_claimed',         // SERVER: claim_collab_link granted access {board_id,role,status}
   INVITE_LINK_CLAIM_FAILED:'invite_link_claim_failed',    // claim_collab_link raised after signup/click {reason}
+  // Client-side outcome for EVERY claim, not just the granting one. The server
+  // event above only fires on the fresh-join branch — 'upgraded' | 'already' |
+  // 'noop' all return early and left the funnel dark (join clicks with neither
+  // a success nor a failure recorded). {status} (must-land)
+  INVITE_LINK_CLAIM_RESULT:'invite_link_claim_result',
 
   // ── Remix ("Make a copy" — clone a public board into your workspace, 0168) ──
   REMIX_CLONE:             'remix_clone',                 // a shared/public board was cloned into the user's workspace {kind:'token'|'slug',n}
