@@ -83,9 +83,9 @@ answered.
 
 ## Connecting to an existing account
 
-If you already have a Clusters account, **Settings → Scout** gives you a connect
-code. Text `/code <code>` and the phone is bound to your account, so texted
-photos land in the workspace you already use.
+Binding a phone to an account you already have is built but not switched on,
+for the same reason as everything else here: there is no line to text. When it
+is, you will get a connect code from your settings and text it once.
 
 If you started from Scout with no account, a **claim** flow attaches an email
 address to the shell account created behind your number.
