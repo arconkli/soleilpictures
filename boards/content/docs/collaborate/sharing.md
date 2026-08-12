@@ -54,6 +54,11 @@ Links can be **revoked** at any time from the same dialog.
 The board renders in a real canvas — viewers pan, zoom and open images at full
 size. It is not a flattened image.
 
+On a phone, a large board opens framed on its top-left corner at a size you can
+actually read, rather than fitting the whole thing into an unreadable speck.
+Pinch out to see everything; nothing is hidden, only the starting view differs.
+Boards small enough to fit legibly still open showing all of themselves.
+
 ## Inviting people — this is how editing is granted
 
 Separate from public links, and the only way anyone gets edit access.

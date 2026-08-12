@@ -17558,6 +17558,15 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone, a large board opens framed on its top-left corner at a size you can actually read, rather than fitting the whole thing into an unreadable speck. Pinch out to see everything; nothing is hidden, only the starting view differs. Boards small enough to fit legibly still open showing all of themselves."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Inviting people — this is how editing is granted",

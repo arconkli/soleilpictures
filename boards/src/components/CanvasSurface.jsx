@@ -176,6 +176,23 @@ const CANVAS_PROMOTE_ON_ABOVE = 0.42;
 // screen) doesn't shrink the content to a tiny zoom. Keeps desktop/tablet framing
 // unchanged.
 const fitMargin = (r) => (r.width > 640 ? 80 : Math.max(16, Math.round(r.width * 0.05)));
+// Below this canvas width a fit-everything open is a phone, not a desktop.
+const NARROW_FIT_MAX_W = 640;
+// How many cards a public board should span on a phone when fitting everything
+// would open it too small to read. Expressed in CARDS, not zoom: a fixed zoom
+// floor is meaningless because card sizes differ by an order of magnitude
+// between boards — 0.5 shows two notes side by side (240pt) but a single
+// cropped photo (800pt). Targeting a card count adapts to whatever this board
+// is made of. ~2.4 leaves the focused card whole with its neighbours visible,
+// so the opening view reads as a composition rather than a crop.
+const NARROW_CARDS_ACROSS = 2.4;
+// Never magnify past 1:1 — a board of small cards should not open zoomed in.
+const NARROW_MAX_ZOOM = 1;
+// …and only step in when fitting everything would render the median card
+// narrower than this many screen pixels — i.e. when it is genuinely too small
+// to make out. A board that already fits legibly keeps the centred
+// see-everything view, which is the better opening shot when it's available.
+const NARROW_MIN_CARD_PX = 90;
 const DRAW_DEFAULT_COLOR = '#f5f5f6';
 const DRAW_DEFAULT_WIDTH = 3;
 const ERASER_DEFAULT_WIDTH = 16;
@@ -1469,13 +1486,56 @@ export function CanvasSurface({
       maxX = initialFrame.x + initialFrame.w;
       maxY = initialFrame.y + Math.max(1, initialFrame.h);
     }
-    const contentW = Math.max(1, maxX - minX);
-    const contentH = Math.max(1, maxY - minY);
+    let contentW = Math.max(1, maxX - minX);
+    let contentH = Math.max(1, maxY - minY);
     const margin = fitMargin(r);
-    const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.min(
+    let z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.min(
       (r.width - margin * 2) / contentW,
       (r.height - margin * 2) / contentH,
     )));
+    // Phone rescue: fit-everything is the wrong opening view on a narrow
+    // screen. Measured across every board behind a live share link, the median
+    // opening zoom on a 390px phone is 0.108 — a 14px label renders at 1.5px —
+    // and every one of them is wider than a portrait viewport, so the board
+    // also letterboxes into a band with dead space above and below. Half of
+    // all share traffic is mobile and it leaves in ~13 seconds; there is
+    // nothing legible for it to stay for.
+    //
+    // So open framed to the board's top-left at a zoom that shows a readable
+    // handful of cards, filling the viewport. The whole board stays one pinch
+    // away — this changes where the canvas STARTS, never what it can show.
+    // Desktop is untouched: it fits at ~3x the zoom and dwells ~7x longer, so
+    // seeing everything at once still wins there.
+    //
+    // The target is derived from the MEDIAN CARD WIDTH on this board, not a
+    // fixed zoom. Card sizes differ by an order of magnitude between boards
+    // (a 240pt note vs an 800pt photo), so any constant zoom that frames notes
+    // sensibly opens an image board on a single cropped picture. Median rather
+    // than mean so one outsized banner card can't drag the whole view in.
+    if (isPublic && !initialFrame && r.width <= NARROW_FIT_MAX_W) {
+      const widths = cards.map(c => c.w).filter(w => Number.isFinite(w) && w > 0).sort((a, b) => a - b);
+      const medianW = widths.length ? widths[widths.length >> 1] : 0;
+      // The trigger is physical: how big is a card actually going to be on
+      // this screen? A board that already fits at a legible size keeps the
+      // centred see-everything view — that is the better opening shot whenever
+      // it's on offer, and reframing it to a corner for a few percent of extra
+      // zoom would be a straight downgrade.
+      if (medianW > 0 && medianW * z < NARROW_MIN_CARD_PX) {
+        const target = Math.min(
+          NARROW_MAX_ZOOM,
+          (r.width - margin * 2) / (medianW * NARROW_CARDS_ACROSS),
+        );
+        if (target > z) {
+          z = target;
+          // A frame of exactly the visible area at this zoom, anchored at the
+          // content's top-left: the centering math below then places the
+          // board's first corner at the margin instead of centring a
+          // shrunken whole.
+          contentW = (r.width  - margin * 2) / z;
+          contentH = (r.height - margin * 2) / z;
+        }
+      }
+    }
     setZoom(z);
     setPan({
       x: (r.width  - contentW * z) / 2 - minX * z,

@@ -153,6 +153,100 @@ test('the topbar offers exactly one green-field action, and says what the page i
   }
 });
 
+// Opening zoom of the public canvas, read off the .canvas transform matrix.
+async function openingView(page) {
+  return page.evaluate(() => {
+    const t = getComputedStyle(document.querySelector('.canvas')).transform;
+    const m = t && t !== 'none' ? t.match(/matrix\(([^,]+)/) : null;
+    const shown = [...document.querySelectorAll('.card')].filter((c) => {
+      const r = c.getBoundingClientRect();
+      return r.right > 8 && r.left < innerWidth - 8 && r.bottom > 60 && r.top < innerHeight - 8;
+    });
+    return {
+      zoom: m ? Number(m[1]) : null,
+      visible: shown.length,
+      cardPx: shown.length ? shown[0].getBoundingClientRect().width : 0,
+    };
+  });
+}
+
+test('a big board opens legibly on a phone instead of as a fit-everything speck', async ({ page }) => {
+  // Measured across every board behind a live share link: the median opening
+  // zoom on a 390px phone was 0.108, and all of them are wider than a portrait
+  // viewport, so they letterboxed into an unreadable band. Mobile is half of
+  // all share traffic and leaves in ~13 seconds.
+  await routeAnalytics(page, []);
+  await routeShareBundle(page, { dense: true });   // 60 notes over ~3700×2400
+
+  await page.setViewportSize({ width: 390, height: 760 });
+  await page.goto(`/share/${TOKEN}`);
+  await expect(page.locator('.public-board-name')).toBeVisible();
+  await expect.poll(async () => (await openingView(page)).visible, { timeout: 10_000 })
+    .toBeGreaterThan(0);
+
+  const phone = await openingView(page);
+  // A card must be big enough to actually look at. Fit-everything put this
+  // board at ~0.095, i.e. a 240pt note rendered ~23px wide.
+  expect(phone.cardPx, 'cards must be legible, not specks').toBeGreaterThan(90);
+  // …and it must still read as a composition, not one cropped card.
+  expect(phone.visible, 'several cards should be in view').toBeGreaterThan(2);
+});
+
+test('the phone framing adapts to the card size, and leaves desktop alone', async ({ page }) => {
+  // The trigger and target are both derived from the median CARD width, not a
+  // fixed zoom: card sizes differ ~10x between boards, so any constant zoom
+  // that frames 240pt notes sensibly opens an 800pt image board on a single
+  // cropped picture. The rendered card size is what should stay constant.
+  await routeAnalytics(page, []);
+  await routeShareBundle(page, { withImages: true });  // 800×600 image cards
+
+  await page.setViewportSize({ width: 390, height: 760 });
+  await page.goto(`/share/${TOKEN}`);
+  await expect(page.locator('.public-board-name')).toBeVisible();
+  await expect.poll(async () => (await openingView(page)).visible, { timeout: 10_000 })
+    .toBeGreaterThan(0);
+
+  const phone = await openingView(page);
+  expect(phone.cardPx).toBeGreaterThan(90);
+  expect(phone.visible, 'an image board must not open on one cropped photo').toBeGreaterThan(2);
+  // Big cards ⇒ the adaptive target is a SMALL zoom. A fixed floor would have
+  // opened this board ~3x too close.
+  expect(phone.zoom).toBeLessThan(0.35);
+
+  // Desktop fits everything, exactly as before: it opens at ~3x the phone zoom
+  // and dwells ~7x longer, so see-everything is still the better first shot.
+  await page.setViewportSize({ width: 1440, height: 820 });
+  await page.reload();
+  await expect(page.locator('.public-board-name')).toBeVisible();
+  await expect.poll(async () => (await openingView(page)).visible, { timeout: 10_000 })
+    .toBeGreaterThan(0);
+  const desk = await openingView(page);
+  expect(desk.visible, 'desktop still shows the whole board').toBeGreaterThanOrEqual(9);
+});
+
+test('a board that already fits keeps the centred see-everything view', async ({ page }) => {
+  // The rescue is for boards that would be too small to read. A small board
+  // must NOT be reframed into a corner for a few percent of extra zoom —
+  // that would be a straight downgrade.
+  await routeAnalytics(page, []);
+  await routeShareBundle(page);   // the small 4-card root
+
+  await page.setViewportSize({ width: 390, height: 760 });
+  await page.goto(`/share/${TOKEN}`);
+  await expect(page.locator('.public-board-name')).toBeVisible();
+  await expect.poll(async () => (await openingView(page)).visible, { timeout: 10_000 })
+    .toBeGreaterThan(0);
+
+  const v = await openingView(page);
+  expect(v.cardPx).toBeGreaterThan(90);   // already legible without help
+  // Centred, not anchored top-left: there is space above the topmost card.
+  const gap = await page.evaluate(() => {
+    const rs = [...document.querySelectorAll('.card')].map(c => c.getBoundingClientRect());
+    return rs.length ? Math.min(...rs.map(r => r.top)) : 0;
+  });
+  expect(gap, 'small boards stay centred, not corner-anchored').toBeGreaterThan(80);
+});
+
 test('the signup prompt fires at the dwell the median visitor actually reaches', () => {
   // Shipped at 30s against a ~13s median visit: only 24.6% of recorded visits
   // ever reached the trigger, so three quarters of the audience could not see
