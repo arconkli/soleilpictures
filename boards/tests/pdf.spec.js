@@ -3,7 +3,13 @@
 // opening the fullscreen PdfViewer, page rendering via pdf.js (incl. the
 // worker-resolves-under-Vite smoke check), zoom, and close.
 
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
+
+// The fixture the local harness has always used, now uploaded through the real
+// picker instead of conjured by a menu item.
+const SAMPLE_PDF = resolve(dirname(fileURLToPath(import.meta.url)), '../public/sample.pdf');
 
 async function go(page) {
   await page.goto('/?local=1&reset=1');
@@ -13,19 +19,39 @@ async function go(page) {
   await expect(page.locator('.rail-brand')).toBeVisible();
 }
 
+// Add menu → File → choose a PDF.
+//
+// There is no "PDF" menu item any more, and there should not be: PDF creation
+// was consolidated into the one file picker, which routes on type through
+// classifyDropFile. This drives THAT path — the one a user actually takes —
+// rather than a dedicated entry that no longer exists.
+//
+// openFilePicker builds a detached <input type=file> and clicks it, so there is
+// no element to setInputFiles on; the filechooser event is how Playwright
+// drives a real OS picker.
 async function addPdf(page) {
-  await page.getByRole('button', { name: 'Add menu', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'PDF', exact: true }).click();
-  await expect(page.locator('.pdfc').first()).toBeVisible();
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    (async () => {
+      await page.getByRole('button', { name: 'Add menu', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'File', exact: true }).click();
+    })(),
+  ]);
+  await chooser.setFiles(SAMPLE_PDF);
+  await expect(page.locator('.pdfc').first()).toBeVisible({ timeout: 15000 });
 }
 
 test.describe('PDF card', () => {
-  test('Add menu has a PDF entry that spawns a PDF card', async ({ page }) => {
+  test('uploading a PDF through the file picker spawns a PDF card', async ({ page }) => {
     await go(page);
     await addPdf(page);
     const card = page.locator('.pdfc').first();
     await expect(card.locator('.pdfc-info-name')).toContainText('sample.pdf');
-    await expect(card.locator('.pdfc-info-pages')).toContainText('3 pages');
+    // Page count is deliberately NOT asserted here. Local QA mode points the
+    // card at a blob URL and sets no pageCount (CanvasSurface.jsx:2225) — only
+    // the uploaded path learns it, from uploadPdf. The viewer test below
+    // asserts "1 / 3" instead, where pdf.js has actually parsed the file, which
+    // is a stronger claim than a fixture constant ever was.
   });
 
   test('opens the in-app viewer, renders pages, zooms, and closes', async ({ page }) => {

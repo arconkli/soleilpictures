@@ -16,6 +16,22 @@ async function go(page) {
   await expect(page.locator('.canvas-wrap')).toBeVisible();
 }
 
+// Same, but with an EMPTY board.
+//
+// `blank=1` does two things these tests need: it skips the local seed, so a
+// fixed-position right-click cannot land on a seeded card and open a CARD menu
+// instead of the background one; and it sets autoFrame=false
+// (CanvasSurface.jsx:425) so the camera does not move under the click. The
+// seeded board grew to ~10 cards, which is when the "right-click empty canvas"
+// tests started failing — nothing about the menus changed.
+async function goBlank(page) {
+  await page.goto('/?local=1&reset=1&blank=1');
+  await page.evaluate(() => { try { localStorage.removeItem('soleil-boards-tweaks'); } catch (_) {} });
+  await page.goto('/?local=1&reset=1&blank=1');
+  await page.evaluate(() => window.history.replaceState(null, '', '/?local=1&blank=1'));
+  await expect(page.locator('.canvas-wrap')).toBeVisible();
+}
+
 // Walks every styleSheet and matches a regex against its selectorText.
 // Returns true if any rule matches. Useful for "did this class ship".
 async function hasCssRule(page, regex) {
@@ -97,17 +113,22 @@ test.describe('Phase 1 — polish & bug fixes', () => {
 
   test('tt-editor heading sizes were polished', async ({ page }) => {
     await go(page);
+    // Measured off REAL elements, not by hunting document.styleSheets for a rule
+    // whose selectorText is exactly '.tt-editor h1'. That match broke the moment
+    // the headings were consolidated into a grouped selector
+    // (`.tt-editor h1, .tt-editor h2, .tt-editor h3, …` — styles.css:13033):
+    // the rule still applies, the sizes are still right, and the lookup silently
+    // returned undefined. Computed style is what the user actually sees, and it
+    // cannot be broken by a refactor that changes nothing visible.
     const fontSizes = await page.evaluate(() => {
-      const sizes = {};
-      for (const s of document.styleSheets) {
-        try {
-          for (const r of s.cssRules) {
-            if (r.selectorText === '.tt-editor h1') sizes.h1 = r.style.fontSize;
-            if (r.selectorText === '.tt-editor h2') sizes.h2 = r.style.fontSize;
-            if (r.selectorText === '.tt-editor h3') sizes.h3 = r.style.fontSize;
-          }
-        } catch { /* cross-origin */ }
-      }
+      const host = document.createElement('div');
+      host.className = 'tt-editor';
+      host.style.cssText = 'position:fixed;left:-9999px;top:0;visibility:hidden';
+      host.innerHTML = '<h1>h1</h1><h2>h2</h2><h3>h3</h3>';
+      document.body.appendChild(host);
+      const read = (t) => getComputedStyle(host.querySelector(t)).fontSize;
+      const sizes = { h1: read('h1'), h2: read('h2'), h3: read('h3') };
+      host.remove();
       return sizes;
     });
     expect(fontSizes.h1).toBe('32px');
@@ -184,7 +205,7 @@ test.describe('Phase 3 — anywhere-comments', () => {
   });
 
   test('right-click empty canvas → "Add comment" item appears', async ({ page }) => {
-    await go(page);
+    await goBlank(page);
     // Right-click an empty area of the canvas (away from cards).
     const wrap = page.locator('.canvas-wrap');
     await wrap.click({ button: 'right', position: { x: 80, y: 80 } });
@@ -203,7 +224,7 @@ test.describe('Phase 3 — anywhere-comments', () => {
   });
 
   test('clicking "Add comment" mounts an inline draft (no feedback dialog)', async ({ page }) => {
-    await go(page);
+    await goBlank(page);
     const wrap = page.locator('.canvas-wrap');
     await wrap.click({ button: 'right', position: { x: 200, y: 200 } });
     await page.locator('.ctx-menu').getByText('Add comment', { exact: true }).click();
@@ -213,7 +234,7 @@ test.describe('Phase 3 — anywhere-comments', () => {
   });
 
   test('Escape on the draft cancels without leaving artifacts', async ({ page }) => {
-    await go(page);
+    await goBlank(page);
     const wrap = page.locator('.canvas-wrap');
     await wrap.click({ button: 'right', position: { x: 200, y: 200 } });
     await page.locator('.ctx-menu').getByText('Add comment', { exact: true }).click();
@@ -489,7 +510,7 @@ test.describe('Phase 7 — arrows + export + docs', () => {
   });
 
   test('right-click empty canvas → Save as template + Export entries', async ({ page }) => {
-    await go(page);
+    await goBlank(page);
     const wrap = page.locator('.canvas-wrap');
     await wrap.click({ button: 'right', position: { x: 80, y: 80 } });
     const menu = page.locator('.ctx-menu');
@@ -499,7 +520,7 @@ test.describe('Phase 7 — arrows + export + docs', () => {
   });
 
   test('right-click → Add link… entry', async ({ page }) => {
-    await go(page);
+    await goBlank(page);
     const wrap = page.locator('.canvas-wrap');
     await wrap.click({ button: 'right', position: { x: 80, y: 80 } });
     await expect(page.locator('.ctx-menu').getByText('Add link…')).toBeVisible();
@@ -683,7 +704,7 @@ test.describe('readCards id-from-key invariant (orphan sweep regression)', () =>
 
 test.describe('Integration — new right-click items don\'t conflict', () => {
   test('background context menu has both new and old items in the right order', async ({ page }) => {
-    await go(page);
+    await goBlank(page);
     const wrap = page.locator('.canvas-wrap');
     await wrap.click({ button: 'right', position: { x: 80, y: 80 } });
     const menu = page.locator('.ctx-menu');

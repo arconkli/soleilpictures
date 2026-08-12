@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-// Right-click → Add → "Text note" must drop the new card CENTERED on the
+// Right-click → Add → "Note" must drop the new card CENTERED on the
 // cursor, including right after a wheel/trackpad pan. Regression guard for the
 // stale-state bug: clientToCanvas read debounced React pan/zoom state, so a
 // right-click inside the 140ms commit window (kept open by trackpad momentum)
@@ -12,6 +12,14 @@ import { expect, test } from '@playwright/test';
 // and compare it to the created card's measured center, also in canvas space.
 
 const TOL = 2; // canvas px (mutators Math.round + sub-pixel rounding)
+// `blank=1` is REQUIRED, not cosmetic: it sets autoFrame=false
+// (CanvasSurface.jsx:425). Without it the board auto-fits to its seeded content
+// shortly after load, and that camera move lands BETWEEN this spec capturing the
+// cursor's expected canvas point and the card being created — so the card was
+// measured ~137px from where the cursor had been, and the spec reported a
+// placement bug that does not exist. The wheel/zoom variants passed only
+// because dispatching those events calls markViewSettled() first, which is what
+// made the failure look selective rather than systemic.
 // Local-mode addNote creation width (LocalBoardsApp.jsx addNote). A new note is
 // HORIZONTALLY centered on the cursor but TOP-anchored to it (top edge at the
 // click), because the note auto-sizes its height down after mount — so we
@@ -81,7 +89,11 @@ async function newCardTopLeft(page, beforeIds) {
 async function addTextNoteViaMenu(page) {
   await expect(page.locator('.ctx-menu')).toBeVisible();
   await page.locator('.ctx-submenu-wrap').filter({ hasText: 'Add' }).hover();
-  await page.locator('.ctx-submenu').getByText('Text note', { exact: true }).click();
+  // 'Note', not 'Text note'. buildAddActions still calls it 'Text note' (the
+  // mobile sheet uses that label), but the right-click submenu overrides it via
+  // sub('note', 'Note') — CanvasSurface.jsx. Asserting the action's own label
+  // here was reading the wrong one of the two.
+  await page.locator('.ctx-submenu').getByText('Note', { exact: true }).click();
 }
 
 async function runScenario(page, { wheel } = {}) {
@@ -106,7 +118,7 @@ async function runScenario(page, { wheel } = {}) {
 
 test.describe('right-click Add drops the card centered on the cursor', () => {
   test('at rest', async ({ page }) => {
-    await page.goto('/?local=1&reset=1');
+    await page.goto('/?local=1&reset=1&blank=1');
     await expect(page.locator('.canvas-wrap')).toBeVisible();
     const { dx, dy } = await runScenario(page);
     expect(dx).toBeLessThanOrEqual(TOL);
@@ -114,7 +126,7 @@ test.describe('right-click Add drops the card centered on the cursor', () => {
   });
 
   test('at a non-default (settled) zoom', async ({ page }) => {
-    await page.goto('/?local=1&reset=1');
+    await page.goto('/?local=1&reset=1&blank=1');
     await expect(page.locator('.canvas-wrap')).toBeVisible();
     // Zoom IN via ctrl+wheel anchored at viewport center (keeps canvas coords
     // positive), then let the debounced state commit (>140ms) so refs == state
@@ -138,7 +150,7 @@ test.describe('right-click Add drops the card centered on the cursor', () => {
   });
 
   test('immediately after a wheel pan (stale-state regression)', async ({ page }) => {
-    await page.goto('/?local=1&reset=1');
+    await page.goto('/?local=1&reset=1&blank=1');
     await expect(page.locator('.canvas-wrap')).toBeVisible();
     // Wheel burst + contextmenu fire in the same tick, so React pan state is
     // still stale when canvasPos is captured. Pre-fix this offset the card by
@@ -152,7 +164,7 @@ test.describe('right-click Add drops the card centered on the cursor', () => {
   // background menu and must place at the touch point. Drives the
   // useLongPress path (CanvasSurface.jsx onLongPress → clientToCanvas).
   test('touch long-press Add drops the card centered on the touch point', async ({ page }) => {
-    await page.goto('/?local=1&reset=1');
+    await page.goto('/?local=1&reset=1&blank=1');
     await expect(page.locator('.canvas-wrap')).toBeVisible();
     const before = await cardIds(page);
     const exp = await page.evaluate(() => {

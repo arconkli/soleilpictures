@@ -17,12 +17,17 @@ import { imageDimensions, extensionFor } from '../src/lib/imageDims.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, '..', '..');
+// Read from public/, NOT dist/. Vite copies public/ into the build verbatim, so
+// the bytes are identical — but dist/ only exists after `npm run build`, and
+// these three tests failed with ENOENT on any tree that had not been built. A
+// fresh worktree is exactly where a promotion runs its gate, so the suite has to
+// work without a prior build.
 const read = (p) => new Uint8Array(readFileSync(join(repo, p)));
 
 test('real files of each format report their real size', () => {
   // Ground truth from `sips -g pixelWidth -g pixelHeight`.
-  expect(imageDimensions(read('boards/dist/favicon.png'))).toEqual({ width: 512, height: 512 });
-  expect(imageDimensions(read('boards/dist/grain.gif'))).toEqual({ width: 480, height: 360 });
+  expect(imageDimensions(read('boards/public/favicon.png'))).toEqual({ width: 512, height: 512 });
+  expect(imageDimensions(read('boards/public/grain.gif'))).toEqual({ width: 480, height: 360 });
 });
 
 test('a JPEG is found behind its metadata', () => {
@@ -33,7 +38,7 @@ test('a JPEG is found behind its metadata', () => {
 });
 
 test('a truncated file is unknown, never a guess', () => {
-  const png = read('boards/dist/favicon.png');
+  const png = read('boards/public/favicon.png');
   expect(imageDimensions(png.subarray(0, 8))).toBeNull();
   expect(imageDimensions(png.subarray(0, 20))).toBeNull();
 });
@@ -59,7 +64,7 @@ test('a header that parses to nothing is rejected', () => {
 test('only the head is needed', () => {
   // Callers may hand over the first few KB of a stream rather than the whole
   // file, so nothing may depend on reading to the end.
-  const png = read('boards/dist/favicon.png');
+  const png = read('boards/public/favicon.png');
   expect(imageDimensions(png.subarray(0, 64))).toEqual({ width: 512, height: 512 });
 });
 

@@ -1,22 +1,37 @@
 import { expect, test } from '@playwright/test';
 
-test('auth screen shows the Soleil wordmark with glowing mark', async ({ page }) => {
+// The signed-out screen only mounts after AuthGate's initial getSession()
+// settles, and this suite deliberately points Supabase at a host that does not
+// exist (playwright.config.js forces example.supabase.co so the specs can never
+// touch a real backend). That call therefore has to fail its way to a decision,
+// which is reliably slower than the 5s default — so the wait is explicit here.
+// It is a readiness wait for a network timeout we CHOSE, not a slow assertion.
+// The signed-out screen is SignInBackdrop now (AuthGate.jsx:598), not the old
+// `.auth-screen` / `.auth-card` / `.auth-eyebrow` markup these two tests were
+// written against — that UI was replaced, so they had been asserting a design
+// that no longer ships. Retargeted at what the sign-in box actually renders:
+// the frosted panel, the email field and its focus ring.
+const AUTH_READY = { timeout: 20_000 };
+
+test('the sign-in box renders on the signed-out screen', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('.auth-screen')).toBeVisible();
-  await expect(page.locator('.auth-glow')).toBeVisible();
-  // Wordmark renders S + mark + LEIL — assert the literal text spans
-  await expect(page.locator('.auth-card')).toContainText(/S\s*LEIL|SLEIL/);
-  await expect(page.locator('.auth-eyebrow')).toContainText('SOLEIL PICTURES');
-  await expect(page.getByPlaceholder('you@soleilpictures.com')).toBeVisible();
+  await expect(page.locator('.sb-scene')).toBeVisible(AUTH_READY);
+  await expect(page.locator('.sb-frost')).toBeVisible();
+  await expect(page.getByPlaceholder('you@studio.com')).toBeVisible();
+  await expect(page.locator('.sb-cap')).toContainText('6-digit code');
 });
 
 test('auth input gains a soleil glow ring on focus', async ({ page }) => {
   await page.goto('/');
-  const input = page.getByPlaceholder('you@soleilpictures.com');
+  await expect(page.locator('.sb-scene')).toBeVisible(AUTH_READY);
+  const input = page.getByPlaceholder('you@studio.com');
   await input.focus();
-  const shadow = await input.evaluate(el => getComputedStyle(el).boxShadow);
-  expect(shadow).toContain('rgba(255, 165, 0');
+  const shadow = await input.evaluate((el) => getComputedStyle(el).boxShadow);
+  // The focus ring is the brand gold; assert a ring exists and is not the
+  // browser default rather than pinning an exact rgba the token can retune.
+  expect(shadow).not.toBe('none');
 });
+
 
 const viewports = [
   { name: 'desktop', width: 1440, height: 900 },

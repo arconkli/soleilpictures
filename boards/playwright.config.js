@@ -14,6 +14,12 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   reporter: 'list',
+  // Compile the lazy chunks ONCE, before any spec navigates. See the file for
+  // why: a cold Vite answers the URL poll below long before it has transformed
+  // AppShell, so the first specs of a run race a 7,000-module compile with a 5s
+  // expect timeout — and the failures land on whichever specs drew the short
+  // straw, which makes a moving set of unrelated-looking flakes.
+  globalSetup: './tests/global-setup.js',
   use: {
     baseURL: 'http://127.0.0.1:5174',
     trace: 'on-first-retry',
@@ -49,6 +55,12 @@ export default defineConfig({
     {
       name: 'desktop-chrome',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
+      // mobile/** and visual/** are assigned to the phone projects below, which
+      // give them a touch device and a phone viewport. Without this they ALSO
+      // ran here, on a 1280×800 desktop with no touch — asserting a Pages
+      // drawer and a selection bubble that only exist on a phone, and failing
+      // every run. They were never desktop tests.
+      testIgnore: ['mobile/**', 'visual/**'],
     },
     {
       name: 'mobile-chrome',
