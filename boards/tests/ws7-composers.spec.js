@@ -1,7 +1,11 @@
+// `blank=1`: these right-click the bare canvas, and the local seed grew to
+// ~10 cards — a fixed-position click lands on one and opens the CARD menu
+// instead of the background one. It also pins autoFrame off so the camera does
+// not move under the click.
 import { expect, test } from '@playwright/test';
 
 test('canvas comment draft autofocuses its input on open', async ({ page }) => {
-  await page.goto('/?local=1&reset=1');
+  await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
   const cb = await page.locator('.canvas-wrap').boundingBox();
   // Right-click an empty area → background menu → Add comment.
