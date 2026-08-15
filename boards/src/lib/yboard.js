@@ -598,9 +598,21 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
 // snapshot) so the next cold-load pulls clean state from the server instead of
 // re-applying a possibly-corrupt cached/draft update. Used by the Yjs
 // corruption self-heal in useYBoard.
+//
+// The draft is STASHED (not silently destroyed) under a `corrupt.` key first:
+// any edits that never reached board_state ride in that draft, and support can
+// recover them. One stash per board — a repeat corruption overwrites it.
 export function purgeLocalBoardState(boardId, uid = null) {
   if (!boardId) return;
-  try { if (typeof localStorage !== 'undefined') localStorage.removeItem(draftKey(boardId)); } catch (_) {}
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const draft = localStorage.getItem(draftKey(boardId));
+      if (draft) {
+        try { localStorage.setItem(`soleil.boards.ydoc.corrupt.${boardId}`, draft); } catch (_) {}
+      }
+      localStorage.removeItem(draftKey(boardId));
+    }
+  } catch (_) {}
   try { void deleteSnapshot(boardId, uid); } catch (_) {}
 }
 

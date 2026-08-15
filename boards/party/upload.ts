@@ -418,6 +418,17 @@ export default class UploadParty implements Party.Server {
     // mint a random UUID key. The can_write_board(boardId) / membership check
     // above already gated this request.
     const canonicalThumbKey = body.boardId ? `${workspaceId}/thumbs/${body.boardId}.webp` : null;
+    const thumbKeyPrefix = body.boardId ? `${workspaceId}/thumbs/${body.boardId}` : null;
+    // Two accepted thumb shapes: the canonical overwrite-in-place key (auto
+    // thumbnails), and a VERSIONED custom key `<boardId>-c<ts>.webp` — custom
+    // thumbnails stopped overwriting the canonical key so "set custom" and
+    // "reset to auto" are revertible (the previous bytes survive at their own
+    // key). Still prefix-locked to this workspace + board.
+    const isValidThumbKey = (k?: string) =>
+      typeof k === "string" && !!thumbKeyPrefix
+      && k.startsWith(thumbKeyPrefix)
+      && (k === canonicalThumbKey || /^-c\d{1,16}\.webp$/.test(k.slice(thumbKeyPrefix.length)))
+      && k.length < 256;
     const previewPrefix = `${workspaceId}/previews/`;
     const isValidPreviewKey = (k?: string) =>
       typeof k === "string"
@@ -425,7 +436,7 @@ export default class UploadParty implements Party.Server {
       && /^[a-z0-9-]+\.webp$/i.test(k.slice(previewPrefix.length))  // uuid.webp — no slashes/traversal
       && k.length < 256;
     const key =
-      (body.thumbKey && canonicalThumbKey && body.thumbKey === canonicalThumbKey) ? canonicalThumbKey
+      (body.thumbKey && isValidThumbKey(body.thumbKey)) ? body.thumbKey
       : (body.previewKey && isValidPreviewKey(body.previewKey)) ? body.previewKey
       : `${workspaceId}/${crypto.randomUUID()}.${ext}`;
 
@@ -436,7 +447,7 @@ export default class UploadParty implements Party.Server {
     // A null verdict (RPC error) fails OPEN — the prior behavior was no check
     // at all, and blocking core image drops on a transient RPC failure is the
     // worse trade.
-    const isDerivedKey = key === canonicalThumbKey || key.startsWith(previewPrefix);
+    const isDerivedKey = isValidThumbKey(key) || key.startsWith(previewPrefix);
     if (body.boardId && !isDerivedKey) {
       const authRows = await supabaseRpc("authorize_image_upload", {
         p_board_id: body.boardId,

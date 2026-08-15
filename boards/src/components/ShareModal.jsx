@@ -21,6 +21,7 @@ import {
   revokePendingInvite,
 } from '../lib/boardsApi.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
+import { undoToast } from '../lib/undoToast.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { ExplorePublishSection } from './ExplorePublishSection.jsx';
 import { useFeedback } from './AppFeedback.jsx';
@@ -468,7 +469,7 @@ export function ShareModal({
   const onRemoveShare = async (share) => {
     const ok = await feedback.confirm({
       title: `Remove ${share.email}'s access?`,
-      message: `They'll lose access to "${board.name}" immediately.`,
+      message: `They'll lose access to "${board.name}" immediately. You can undo right after.`,
       confirmLabel: 'Remove',
       danger: true,
     });
@@ -477,6 +478,21 @@ export function ShareModal({
       await unshareBoard({ boardId: board.id, userId: share.user_id });
       setShares(s => s.filter(x => x.user_id !== share.user_id));
       onSharesChanged?.();
+      // share_board is an email-keyed upsert, so re-sharing with the same
+      // role is a faithful inverse (their account still exists — only the
+      // share row was removed).
+      undoToast(feedback, {
+        message: `Removed ${share.email}'s access`,
+        onUndo: async () => {
+          try {
+            await shareBoard({ boardId: board.id, email: share.email, role: share.role || 'viewer' });
+            setShares(s => (s.some(x => x.user_id === share.user_id) ? s : [...s, share]));
+            onSharesChanged?.();
+          } catch (e) {
+            feedback.toast({ type: 'error', message: 'Could not restore access: ' + (e.message || e) });
+          }
+        },
+      });
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Could not remove: ' + (e.message || e) });
     }

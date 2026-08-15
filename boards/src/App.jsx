@@ -2399,10 +2399,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // ── Postgres board rename ─────────────────────────────────────────────────
   const renameBoardById = async (boardId, name) => {
     if (!name || !name.trim()) return;
+    const prevName = boards[boardId]?.name || null;
     try {
       await renameBoard(boardId, name.trim());
       await refreshBoards();
       tourFireRef.current?.({ type: 'cluster_renamed', boardId });
+      // Server-side meta is outside the Yjs UndoManager — the toast closure
+      // is the undo engine (skip when the name didn't actually change).
+      if (prevName && prevName !== name.trim()) {
+        undoToast(feedback, {
+          message: `Renamed to “${name.trim()}”`,
+          onUndo: async () => {
+            try { await renameBoard(boardId, prevName); await refreshBoards(); }
+            catch (e) { feedback.toast({ type: 'error', message: 'Could not restore the name: ' + (e.message || e) }); }
+          },
+        });
+      }
     } catch (e) {
       console.error('renameBoard failed', e);
       feedback.toast({ type: 'error', message: 'Could not rename: ' + (e.message || e) });
@@ -2659,11 +2671,33 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the three auto-regen paths never clobber it.
   const setBoardCustomThumbById = async (boardId, blob) => {
     const wsId = boards[boardId]?.workspace_id || workspace.id;
+    // Previous pointer, captured for the Undo. The versioned upload key means
+    // the previous image's bytes still exist wherever thumb_key pointed.
+    const prev = {
+      thumbKey: boards[boardId]?.thumb_key || null,
+      thumbVersion: boards[boardId]?.thumb_version ?? 0,
+      custom: !!boards[boardId]?.thumb_custom,
+    };
     try {
-      const { src } = await uploadBoardThumbnail({ workspaceId: wsId, boardId, blob, userId: user.id });
+      const { src } = await uploadBoardThumbnail({ workspaceId: wsId, boardId, blob, userId: user.id, versioned: true });
       await updateBoardThumb(boardId, { thumbKey: src, thumbVersion: THUMB_VERSION, custom: true });
       await refreshBoards();
-      feedback.toast({ type: 'success', message: 'Custom thumbnail set.' });
+      undoToast(feedback, {
+        message: 'Custom thumbnail set',
+        onUndo: async () => {
+          try {
+            if (prev.thumbKey) {
+              await updateBoardThumb(boardId, { thumbKey: prev.thumbKey, thumbVersion: prev.thumbVersion, custom: prev.custom });
+            } else {
+              await updateBoardThumb(boardId, { thumbVersion: 0, custom: false });
+              forgetThumbnailAttempt(boardId);
+            }
+            await refreshBoards();
+          } catch (e) {
+            feedback.toast({ type: 'error', message: 'Could not restore thumbnail: ' + (e.message || e) });
+          }
+        },
+      });
     } catch (e) {
       console.error('setBoardCustomThumbById failed', e);
       feedback.toast({ type: 'error', message: 'Could not set thumbnail: ' + (e.message || e) });
@@ -2674,13 +2708,32 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // stored version so the self-healing backfill (useThumbnailBackfill) renders a
   // fresh canvas-derived preview into the same key on the next tile view.
   const resetBoardThumbById = async (boardId) => {
+    // The custom image lives at its own versioned key (never overwritten by
+    // the auto regen, which renders into the canonical key) — so this reset
+    // is undoable by pointing thumb_key back.
+    const prev = {
+      thumbKey: boards[boardId]?.thumb_key || null,
+      thumbVersion: boards[boardId]?.thumb_version ?? 0,
+      custom: !!boards[boardId]?.thumb_custom,
+    };
     try {
       await updateBoardThumb(boardId, { thumbVersion: 0, custom: false });
       // Re-arm the per-session backfill one-shot so the auto thumbnail
       // regenerates now, not only after a page reload.
       forgetThumbnailAttempt(boardId);
       await refreshBoards();
-      feedback.toast({ type: 'success', message: 'Reverted to auto thumbnail.' });
+      undoToast(feedback, {
+        message: 'Reverted to auto thumbnail',
+        onUndo: async () => {
+          try {
+            if (!prev.custom || !prev.thumbKey) return;
+            await updateBoardThumb(boardId, { thumbKey: prev.thumbKey, thumbVersion: prev.thumbVersion, custom: true });
+            await refreshBoards();
+          } catch (e) {
+            feedback.toast({ type: 'error', message: 'Could not restore thumbnail: ' + (e.message || e) });
+          }
+        },
+      });
     } catch (e) {
       console.error('resetBoardThumbById failed', e);
       feedback.toast({ type: 'error', message: 'Could not reset thumbnail: ' + (e.message || e) });
@@ -4886,7 +4939,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }
       }
 
-      // 7) Tell the user.
+      // 7) Tell the user — with an Undo. Reparent was a one-way door: the
+      //    move is a Postgres write (outside any UndoManager) and
+      //    board_meta_history recorded it without anything able to read it
+      //    back. The closure returns every moved board to its previous
+      //    parent through the same sanctioned move_boards_under path.
       if (moved.length) {
         const msg = moved.length === 1
           ? `Moved “${boards[moved[0]]?.name || 'board'}” into ${targetName === 'top level' ? 'top level' : `“${targetName}”`}`
@@ -4894,7 +4951,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const extra = (result?.skipped?.length)
           ? ` · skipped ${result.skipped.length}`
           : '';
-        feedback.toast({ type: 'success', message: msg + extra });
+        const homes = new Map(); // previous parent (null = top level) → ids
+        for (const id of moved) {
+          const p = prevParents.get(id) ?? null;
+          if (!homes.has(p)) homes.set(p, []);
+          homes.get(p).push(id);
+        }
+        undoToast(feedback, {
+          type: 'success',
+          message: msg + extra,
+          onUndo: async () => {
+            try {
+              for (const [home, ids] of homes) {
+                await moveBoardsUnder(ids, home, { userId: user?.id || null, sessionId: yb?.sessionId || null });
+              }
+              await refreshBoards();
+              // Stale mirror cards on the target are hidden by the orphan
+              // render filter and healed by reconcile-drift on next open.
+            } catch (err) {
+              feedback.toast({ type: 'error', message: 'Undo failed: ' + (err.message || err) });
+            }
+          },
+        });
       } else if (result?.skipped?.length) {
         const reasons = [...new Set(result.skipped.map(s => REASON_TEXT[s.reason] || s.reason))];
         feedback.toast({ type: 'info', message: `Nothing moved — ${reasons.join(', ')}.` });
@@ -4908,6 +4986,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     document.addEventListener('soleil-board-reparent-drop', onReparent);
     return () => document.removeEventListener('soleil-board-reparent-drop', onReparent);
   }, [boards, feedback, currentYDoc, currentId, user?.id, refreshBoards]);
+
+  // Corruption self-heal notice: useYBoard poisoned the handle, stashed +
+  // purged the local caches, and re-synced from the server. This used to be
+  // COMPLETELY silent — any unflushed edits vanished without a trace. The
+  // draft now survives under a `corrupt.` localStorage key for recovery.
+  useEffect(() => {
+    const onHealed = (e) => {
+      const name = boards[e?.detail?.boardId]?.name;
+      feedback.toast({
+        type: 'warning',
+        message: `${name ? `“${name}”` : 'A cluster'} hit a sync error and was reloaded from the server. If a very recent edit looks missing, it may need to be redone.`,
+        ttl: 10000,
+      });
+    };
+    window.addEventListener('soleil-board-selfhealed', onHealed);
+    return () => window.removeEventListener('soleil-board-selfhealed', onHealed);
+  }, [boards, feedback]);
 
   // ⌘B / Ctrl-B — toggle compact sidebar.
   useEffect(() => {

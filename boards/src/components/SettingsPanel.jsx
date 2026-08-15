@@ -1030,6 +1030,16 @@ function ApiTab({ user }) {
   };
 
   const revoke = async (id, label) => {
+    // Revocation is deliberately NOT undoable — a revoked credential must be
+    // dead the moment you decide it is. Which is exactly why this needs the
+    // confirm it never had: one misclick permanently killed an integration.
+    const ok = await feedback.confirm({
+      title: `Revoke ${label}?`,
+      message: 'Anything using this token stops working immediately. This cannot be undone — you would need to create a new token.',
+      confirmLabel: 'Revoke',
+      danger: true,
+    });
+    if (!ok) return;
     const { error } = await supabase.rpc('api_token_revoke', { p_id: id });
     if (error) {
       feedback.toast({ type: 'error', message: 'Could not revoke that token.' });
