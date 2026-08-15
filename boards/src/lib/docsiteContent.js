@@ -667,13 +667,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Add an image"
+       "v": "Add images"
       }
      ],
      [
       {
        "t": "text",
-       "v": "Drag it in, or paste from the clipboard"
+       "v": "Drag them in, paste from the clipboard, or use the image tool — the picker is multi-select, so a whole folder lands in one go"
       }
      ]
     ],
