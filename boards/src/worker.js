@@ -457,13 +457,25 @@ export default {
     // the header matters as much as the meta tag: non-HTML-parsing fetchers
     // (and any crawler that only reads headers) never see the tag. Same
     // fail-closed posture as the tokened /share URLs above.
+    //
+    // Headers are COPIED into a fresh Headers and the response rebuilt, exactly
+    // as notFoundResponse does — do not "simplify" this to out.headers.set().
+    //
+    // HTMLRewriter returns a NEW streaming Response (mutable headers) when
+    // there is a body to transform, but passes the original straight through
+    // when there isn't. A HEAD request has no body, so .set() then hits the
+    // asset fetch's IMMUTABLE headers and throws. The result is a route that
+    // answers GET perfectly and 500s on HEAD — invisible in a browser, caught
+    // on the preview deploy where /resume was the only route failing, and
+    // reproduced locally under `wrangler dev` both ways before this fix landed.
     if (isPageReq && normalizePath(url.pathname) === '/resume' && contentType.includes('text/html')) {
       const out = new HTMLRewriter()
         .on('head', new AppendHead('<meta name="robots" content="noindex">'))
         .transform(res);
-      out.headers.set('x-robots-tag', 'noindex');
-      out.headers.set('cache-control', 'no-store');
-      return out;
+      const headers = new Headers(out.headers);
+      headers.set('x-robots-tag', 'noindex');
+      headers.set('cache-control', 'no-store');
+      return new Response(out.body, { status: out.status, statusText: out.statusText, headers });
     }
 
     // Inject per-route SEO metadata for HTML document navigations to a known
