@@ -14,6 +14,8 @@ function schedExpandOf(card, ydoc) {
   return card?.gridMeta?.expand || {};
 }
 import { isEditableTarget } from '../lib/isEditableTarget.js';
+import { setActivePane, getActivePane } from '../lib/activePane.js';
+import { undoToast } from '../lib/undoToast.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
@@ -439,6 +441,13 @@ export function CanvasSurface({
   firstCardPrompt = false, // onboarding_v2 arm B: surface the "Start your cluster"
                            // tiles even on a SEEDED (non-empty) root until the user
                            // places their own genuine card (the guided first-card flow).
+  paneId = 'main',         // which pane this surface is ('main' | 'split') —
+                           // arbitrates the window-level keyboard/paste
+                           // listeners so a split view doesn't double-fire
+                           // Cmd+Z (and C/X/V/D/A) on both boards at once.
+  hasSplit = false,        // true while a split pane is open; the pane gate
+                           // only applies then, so single-pane never depends
+                           // on pointer history.
   autoFrame = true,        // false (LocalBoardsApp ?blank=1, tests) → don't auto-fit
                            // the viewport to content; keep zoom 1 so placement specs
                            // aren't thrown off by the empty→first-card fit (~3x).
@@ -456,6 +465,28 @@ export function CanvasSurface({
 }) {
   perf.bump('cs.renderCount');
   const wrapRef = useRef(null);
+
+  // Claim the global shortcut listeners for this pane. Follows the pointer
+  // (enter or press) so in a split view Cmd+Z targets the board the cursor
+  // is over — matching how every split-pane canvas tool behaves. The window
+  // keydown/paste handlers below check getActivePane() while hasSplit.
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return undefined;
+    const claim = () => setActivePane(paneId);
+    el.addEventListener('pointerdown', claim, { capture: true });
+    el.addEventListener('pointerenter', claim, { capture: true });
+    return () => {
+      el.removeEventListener('pointerdown', claim, { capture: true });
+      el.removeEventListener('pointerenter', claim, { capture: true });
+    };
+  }, [paneId]);
+  // Closing the split hands the shortcuts back to the main pane — otherwise
+  // a split that closed while active would leave 'split' claimed forever and
+  // dead-key the whole app.
+  useEffect(() => {
+    if (!hasSplit) setActivePane('main');
+  }, [hasSplit]);
 
   // Force one syncCardIndex run when the board opens. card_index
   // only refreshes on yjs edits or tab-close, so a user who just
@@ -899,7 +930,9 @@ export function CanvasSurface({
     if (!patch) return false;
     const writeKey = targetIsSched ? mintSchedItemKey(schedSlotOfItem(cellId), schedUid()) : cellId;
     mutators.setGridCellContent?.(gridId, writeKey, patch);
-    if (consume) mutators.deleteCards?.([card.id]);
+    // boundary:false — the source-card consume must merge with the cell write
+    // above so one Cmd+Z reverses the whole "card dropped into cell" gesture.
+    if (consume) mutators.deleteCards?.([card.id], { boundary: false });
     return true;
   }, [mutators, boards]);
   // Tracks the last endpoint-handle click so a second click within
@@ -2138,7 +2171,9 @@ export function CanvasSurface({
   // dependency — every upload path must funnel through here, or a rejection
   // silently loses both the upgrade prompt and the upload_blocked event.
   const handleUploadReject = useCallback((err, id, dropBoardId) => {
-    if (boardIdRef.current === dropBoardId) mutators.deleteCard?.(id);
+    // Silent (off-stack) rollback: the failed upload is not a user action,
+    // so Cmd+Z must not resurrect the dead card.
+    if (boardIdRef.current === dropBoardId) mutators.deleteCardsSilent?.([id]);
     const upsell = onRequestStorageUpgrade || onRequestUpgrade;
     if (err?.code === 402 || err?.code === 403) {
       try {
@@ -2251,7 +2286,11 @@ export function CanvasSurface({
       // mutators no longer target the board this card lives on — skip the
       // patch (the abandoned-pending sweep cleans the card on next open).
       if (boardIdRef.current === dropBoardId) {
-        mutators.updateCard?.(id, { src: up.src, pending: false });
+        // Silent (origin 'upload'): the async src patch must not be its own
+        // undo step, or Cmd+Z first "peels" the image back to pending
+        // before a second Cmd+Z removes the card (the list-drop path has
+        // always done this — the canvas path had drifted).
+        mutators.updateCardSilent?.(id, { src: up.src, pending: false });
       }
     } catch (err) {
       console.error('image upload failed', err);
@@ -2295,7 +2334,7 @@ export function CanvasSurface({
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
       const up = await uploadPdf({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
       if (boardIdRef.current === dropBoardId) {
-        mutators.updateCard?.(id, {
+        mutators.updateCardSilent?.(id, {
           src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount,
           name: up.name, w: up.w, h: up.h, pending: false,
         });
@@ -2337,7 +2376,7 @@ export function CanvasSurface({
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
       const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
       if (boardIdRef.current === dropBoardId) {
-        mutators.updateCard?.(id, {
+        mutators.updateCardSilent?.(id, {
           fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false,
         });
       }
@@ -2370,7 +2409,7 @@ export function CanvasSurface({
     try {
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
       const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
-      if (boardIdRef.current === dropBoardId) mutators.updateCard?.(id, { src: up.src, pending: false });
+      if (boardIdRef.current === dropBoardId) mutators.updateCardSilent?.(id, { src: up.src, pending: false });
     } catch (err) {
       console.error('large media upload failed', err);
       handleUploadReject(err, id, dropBoardId);
@@ -2890,7 +2929,7 @@ export function CanvasSurface({
     return null;
   }, [cardById, boards]);
 
-  const doDeleteIds = useCallback(async (ids) => {
+  const doDeleteIds = useCallback(async (ids, { boundary = true } = {}) => {
     if (!ids?.length) return;
     const msg = buildDeleteMessage(ids);
     if (msg) {
@@ -2912,20 +2951,21 @@ export function CanvasSurface({
         opSummary: { action: 'bulk-delete', card_count: ids.length },
       });
     }
-    mutators.deleteCards?.(ids);
+    const deleted = await mutators.deleteCards?.(ids, { boundary });
     setSelected(prev => {
       const next = new Set(prev);
       ids.forEach(id => next.delete(id));
       return next;
     });
-    // Undo toast: the whole delete collapses into a single undo step
-    // (see doDeleteSelected's breakUndo), and undoing also restores the
-    // selection via the UndoManager's stack-item meta.
-    feedback.toast({
-      type: 'info',
+    // Undo toast, guarded on the delete's own stack item: if the user did
+    // anything else during the toast window, the click explains instead of
+    // undoing that newer action (lib/undoToast.js). Undoing also restores
+    // the selection via the UndoManager's stack-item meta.
+    undoToast(feedback, {
       message: ids.length === 1 ? 'Card deleted' : `${ids.length} cards deleted`,
-      action: { label: 'Undo', onClick: () => mutators.undo?.() },
-      ttl: 6000,
+      undoManager: mutators.undoManager,
+      stackItem: deleted?.stackItem || null,
+      onUndo: () => mutators.undo?.(),
     });
   }, [buildDeleteMessage, feedback, mutators, ydoc, board?.id, sessionId, userId]);
 
@@ -2935,7 +2975,8 @@ export function CanvasSurface({
     // are separate mutator calls but should collapse into a single Cmd+Z.
     // breakUndo() ends the prior action's merge window so the delete is its
     // own step; the leaf delete mutators deliberately DON'T call breakUndo
-    // (that would fragment a mixed delete into several steps).
+    // (that would fragment a mixed delete into several steps) — hence
+    // boundary:false on the card leg below.
     mutators.breakUndo?.();
     if (selectedStrokes.size > 0) {
       mutators.deleteStrokes?.([...selectedStrokes]);
@@ -2945,7 +2986,7 @@ export function CanvasSurface({
       mutators.deleteArrows?.([...selectedArrows]);
       setSelectedArrows(new Set());
     }
-    if (selected.size > 0) await doDeleteIds([...selected]);
+    if (selected.size > 0) await doDeleteIds([...selected], { boundary: false });
   }, [doDeleteIds, selected, selectedStrokes, selectedArrows, mutators]);
 
   // ── Internal clipboard ───────────────────────────────────────────────────
@@ -3160,7 +3201,9 @@ export function CanvasSurface({
           if (p.description) patch.description = p.description;
           if (p.favicon) patch.favicon = p.favicon;
           if (p.image) { patch.w = 280; patch.h = 290; }
-          if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
+          // Silent: the async preview backfill must not add an undo step
+          // between the card-create and whatever the user does next.
+          if (Object.keys(patch).length) mutators.updateCardSilent?.(newId, patch);
         });
       }
     };
@@ -3187,6 +3230,9 @@ export function CanvasSurface({
     };
 
     const onPaste = async (e) => {
+      // Same pane arbitration as the keydown listener — a split view must not
+      // paste the clipboard onto both boards.
+      if (hasSplit && getActivePane() !== paneId) return;
       // 0) A grid cell is focused → paste anything INTO that cell (auto-formatted:
       //    image/file → upload, URL → link, text → text). This runs BEFORE the
       //    isEditorTarget guard on purpose: clicking a cell sets focus STATE but not
@@ -3299,11 +3345,15 @@ export function CanvasSurface({
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
   }, [feedback, optimisticDropImage, optimisticDropPdf, optimisticDropFile, doPaste, mutators,
-      ownsWorkspace, isPaidPlan, onRequestUpgrade, onRequestStorageUpgrade]);
+      ownsWorkspace, isPaidPlan, onRequestUpgrade, onRequestStorageUpgrade, hasSplit, paneId]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e) => {
+      // Split view: both panes register this window listener — only the
+      // pane the pointer last touched may act, or one Cmd+Z would undo on
+      // BOTH boards (see lib/activePane.js).
+      if (hasSplit && getActivePane() !== paneId) return;
       if (isEditorTarget(e)) return;
       const cmd = e.metaKey || e.ctrlKey;
 
@@ -3390,7 +3440,8 @@ export function CanvasSurface({
     return () => window.removeEventListener('keydown', onKey);
   }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform,
       zoomAroundCenter, zoomToSelection, fitToContent, arrangeSelected, groupSelected, canEdit,
-      ctx.open, bgCtx.open, addMenuOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing]);
+      ctx.open, bgCtx.open, addMenuOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing,
+      hasSplit, paneId]);
 
   // ── Preserve card selection across undo/redo ──────────────────────────────
   // On each undoable action the UndoManager fires 'stack-item-added'; we stash
@@ -3403,30 +3454,47 @@ export function CanvasSurface({
     const um = mutators.undoManager;
     if (!um) return;
     const SEL_KEY = 'soleil-selection';
-    const onAdded = (e) => {
-      try { e.stackItem.meta.set(SEL_KEY, { cards: [...selectedRef.current] }); } catch (_) {}
+    const stamp = (item) => {
+      try { item.meta.set(SEL_KEY, { cards: [...selectedRef.current] }); } catch (_) {}
     };
+    const onAdded = (e) => {
+      // Skip items minted BY undo()/redo() (their transactions carry the
+      // UndoManager as origin): stamping those with the mid-undo selection
+      // would clobber the stamp onPopped copies across the stacks.
+      if (e.origin === um) return;
+      stamp(e.stackItem);
+    };
+    // A follow-up merged into the step within captureTimeout — refresh the
+    // stamp so the coalesced gesture restores its LATEST selection.
+    const onUpdated = (e) => { if (e.origin !== um) stamp(e.stackItem); };
     const onPopped = (e) => {
       try {
         const saved = e.stackItem.meta.get(SEL_KEY);
         if (!saved) return;
-        // Defer one frame: undoing a delete repopulates `cards` via the
-        // RAF-coalesced useYBoard refresh, so cardsRef isn't fresh yet. We
-        // filter to ids that actually exist after the cards land.
-        requestAnimationFrame(() => {
-          const live = new Set((cardsRef.current || []).map(c => c.id));
-          const ids = (saved.cards || []).filter(id => live.has(id));
-          setSelected(new Set(ids));
-        });
+        // Carry the stamp onto the opposite stack's fresh top so redo after
+        // undo (and vice versa) restores the same selection.
+        const opposite = e.type === 'undo' ? um.redoStack : um.undoStack;
+        const top = opposite[opposite.length - 1];
+        try { top?.meta.set(SEL_KEY, saved); } catch (_) {}
+        // Read the Y.Doc directly — it is already updated when this event
+        // fires. The old RAF-deferred cardsRef read lost the race with
+        // useYBoard's own RAF refresh (React commits as a task, after both
+        // RAFs), so undoing a delete CLEARED the selection instead of
+        // restoring it: the just-revived ids weren't in cardsRef yet.
+        const live = ydoc?.getMap ? ydoc.getMap('cards') : null;
+        const ids = (saved.cards || []).filter(id => !!live && live.has(id));
+        setSelected(new Set(ids));
       } catch (_) {}
     };
     um.on('stack-item-added', onAdded);
+    um.on('stack-item-updated', onUpdated);
     um.on('stack-item-popped', onPopped);
     return () => {
       um.off('stack-item-added', onAdded);
+      um.off('stack-item-updated', onUpdated);
       um.off('stack-item-popped', onPopped);
     };
-  }, [mutators.undoManager]);
+  }, [mutators.undoManager, ydoc]);
 
   // ── Pan helpers ───────────────────────────────────────────────────────────
   // Same ref-driven, direct-DOM-mutation pattern as the wheel handler so a
@@ -4344,7 +4412,9 @@ export function CanvasSurface({
                       ttl: 12000,
                     });
                   } else {
-                    feedback.toast({ type: 'error', message: 'Drag caused unexpected state loss; manual recovery needed (History → Restore).' });
+                    // (The removed time-travel tool used to be named here; a
+                    // pre-drag board_versions snapshot exists server-side.)
+                    feedback.toast({ type: 'error', message: 'Drag caused unexpected state loss. A safety snapshot was saved — contact support to restore it.' });
                   }
                 } else {
                   feedback.toast({ type: 'error', message: 'Drag caused unexpected state loss; manual recovery needed.' });
@@ -6028,7 +6098,9 @@ export function CanvasSurface({
           if (p.description) patch.description = p.description;
           if (p.favicon) patch.favicon = p.favicon;
           if (p.image) { patch.w = 280; patch.h = 290; }
-          if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
+          // Silent: the async preview backfill must not add an undo step
+          // between the card-create and whatever the user does next.
+          if (Object.keys(patch).length) mutators.updateCardSilent?.(newId, patch);
         });
       }
     }},
@@ -7480,7 +7552,7 @@ export function CanvasSurface({
         if (p.description) patch.description = p.description;
         if (p.favicon) patch.favicon = p.favicon;
         if (p.image) { patch.w = 280; patch.h = 290; }
-        if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
+        if (Object.keys(patch).length) mutators.updateCardSilent?.(newId, patch);
       });
       return;
     }
@@ -9277,13 +9349,12 @@ export function CanvasSurface({
         <ShowcaseBanner boardId={board?.id} onClear={async () => {
           const ids = cards.filter(isShowcaseCard).map((c) => c.id);
           if (!ids.length) return;
-          mutators.breakUndo?.();                 // collapse to one undo step
-          await mutators.deleteCards?.(ids);
-          feedback.toast({
-            type: 'info',
+          const deleted = await mutators.deleteCards?.(ids); // one undo step (boundary default)
+          undoToast(feedback, {
             message: 'Demo cleared — your canvas is yours',
-            action: { label: 'Undo', onClick: () => mutators.undo?.() },
-            ttl: 6000,
+            undoManager: mutators.undoManager,
+            stackItem: deleted?.stackItem || null,
+            onUndo: () => mutators.undo?.(),
           });
           try { logEvent(EV.ONBOARDING_SHOWCASE_CLEARED, { n: ids.length, board_id: board?.id }); } catch (_) {}
         }} />

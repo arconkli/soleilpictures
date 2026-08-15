@@ -14,6 +14,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cardScope, readDocSummary, initCardDocStore } from '../lib/docState.js';
+import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { Avatar } from './primitives.jsx';
 import { useMessagesUi } from '../hooks/useOpenDm.js';
@@ -314,9 +315,15 @@ function DocCardOverlay({
   canEdit = true,
   isPublic = false,
 }) {
-  // Esc closes from either mode.
+  // Esc closes from either mode — but never while typing: Escape inside the
+  // title input / editor / a mention popover belongs to that control, and
+  // closing the whole overlay mid-edit was how doc text got "lost".
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      if (isEditableTarget(e)) return;
+      onClose();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);

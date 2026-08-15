@@ -1364,7 +1364,7 @@ export async function fetchNextVersion(boardId, currentSnapshotAt) {
 }
 
 // ── Bulletproof restore ────────────────────────────────────────────────────
-// The naive restoreVersionInto() approach (clear local Y.Doc, applyUpdate
+// The naive restoreVersionInto() approach (since removed — clear local Y.Doc, applyUpdate
 // snapshot bytes) is BROKEN for Yjs: the clear-ops record new lamport
 // clocks, then the snapshot's set-ops merge in but lose to the newer
 // deletes. Net result: doc gets emptied, not restored. Confirmed in

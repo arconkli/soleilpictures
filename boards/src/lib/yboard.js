@@ -604,37 +604,7 @@ export function purgeLocalBoardState(boardId, uid = null) {
   try { void deleteSnapshot(boardId, uid); } catch (_) {}
 }
 
-export function restoreVersionInto(ydoc, b64) {
-  if (!b64) return;
-  const bytes = b64ToBytes(b64);
-  ydoc.transact(() => {
-    const cards = ydoc.getMap('cards');
-    cards.forEach((_v, k) => cards.delete(k));
-    const arrows = ydoc.getArray('arrows');
-    if (arrows.length > 0) arrows.delete(0, arrows.length);
-    const strokes = ydoc.getArray('strokes');
-    if (strokes.length > 0) strokes.delete(0, strokes.length);
-    const groups = ydoc.getMap('groups');
-    groups.forEach((_v, k) => groups.delete(k));
-    const docPages = ydoc.getArray('docPages');
-    if (docPages.length > 0) docPages.delete(0, docPages.length);
-    const docPageContent = ydoc.getMap('docPageContent');
-    docPageContent.forEach((_v, k) => docPageContent.delete(k));
-    const docBookmarks = ydoc.getMap('docBookmarks');
-    docBookmarks.forEach((_v, k) => docBookmarks.delete(k));
-    const docComments = ydoc.getMap('docComments');
-    docComments.forEach((_v, k) => docComments.delete(k));
-    const gridTemplates = ydoc.getMap('gridTemplates');
-    gridTemplates.forEach((_v, k) => gridTemplates.delete(k));
-    const gridSequences = ydoc.getMap('gridSequences');
-    gridSequences.forEach((_v, k) => gridSequences.delete(k));
-  }, 'restore');
-  const _t0 = perf.isEnabled() ? performance.now() : 0;
-  Y.applyUpdate(ydoc, bytes, 'restore');
-  if (_t0) {
-    const ms = performance.now() - _t0;
-    perf.mark('yboard.applyRestore.ms', ms);
-    perf.bump('yboard.applyRestore');
-    if (ms > 100) console.warn('[perf] slow yboard.applyRestore', `${ms.toFixed(0)}ms`, `${(bytes.length/1024).toFixed(1)}KB`);
-  }
-}
+// (restoreVersionInto lived here until 2026-08: clear-the-doc + applyUpdate
+// is BROKEN for Yjs — the clear-ops out-clock the snapshot's set-ops and the
+// doc empties instead of restoring. All restores go through boardsApi's
+// bulletproofRestore, which replaces board_state and resets the room.)

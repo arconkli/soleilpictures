@@ -442,7 +442,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     feedback.toast({
       type: 'info',
       message: 'Page deleted',
-      duration: 6000,
+      // ttl, not duration — AppFeedback.toast only reads `ttl`. The old
+      // `duration:` fell back to the 4200ms default, so the Undo button
+      // vanished 2.3s BEFORE the purge below made the delete permanent.
+      ttl: 6000,
       action: {
         label: 'Undo',
         onClick: () => { undone = true; reattachPageSheet(ydoc, activePageId, sheetId, idx, scope); },

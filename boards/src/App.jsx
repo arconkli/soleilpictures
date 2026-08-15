@@ -99,7 +99,8 @@ const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx')
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion, cleanupDocCards, ensurePublicLink, listBoardShares, updateBoardThumb } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, ensurePublicLink, listBoardShares, updateBoardThumb } from './lib/boardsApi.js';
+import { undoToast } from './lib/undoToast.js';
 import { forceBoardThumbnail } from './lib/yboard.js';
 import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
@@ -1110,9 +1111,40 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }, 'upload');
     };
 
-    const deleteCards = async (ids) => {
-      if (!ids?.length) return;
+    // Shared card + arrow-cascade removal, used by deleteCards (origin
+    // 'local', undoable) and deleteCardsSilent (origin 'upload', off-stack).
+    // Must run inside a ydoc.transact.
+    const removeCardsFromDoc = (idSet) => {
       const m = cardsMap(); if (!m) return;
+      const a = arrowsArr();
+      idSet.forEach(id => m.delete(id));
+      if (a) {
+        // An arrow endpoint can be a bare card id (legacy), a tagged
+        // ref {type, id}, or a free {x,y} point. Only card refs cascade.
+        const cardIdOf = (r) => {
+          if (typeof r === 'string') return r;
+          if (r && typeof r === 'object' && r.type === 'card') return r.id;
+          return null;
+        };
+        for (let i = a.length - 1; i >= 0; i--) {
+          const ar = a.get(i);
+          const fromCard = cardIdOf(ar?.from ?? ar?.get?.('from'));
+          const toCard   = cardIdOf(ar?.to   ?? ar?.get?.('to'));
+          if ((fromCard && idSet.has(fromCard)) || (toCard && idSet.has(toCard))) a.delete(i, 1);
+        }
+      }
+    };
+
+    // `boundary` (default true) makes this delete its own undo step. Pass
+    // false ONLY when the caller already opened a step boundary and wants
+    // the cards to merge into it (doDeleteSelected: strokes + arrows + cards
+    // must collapse into a single Cmd+Z).
+    // Resolves to { stackItem } — the undo step containing the delete — so
+    // toast affordances can guard "still top-of-stack?" (lib/undoToast.js),
+    // or null when nothing was actually deleted.
+    const deleteCards = async (ids, { boundary = true } = {}) => {
+      if (!ids?.length) return null;
+      const m = cardsMap(); if (!m) return null;
       const idSet = new Set(ids);
       const boardIdsToCascade = [];
       const docCardIds = [];
@@ -1126,6 +1158,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         boardIdsToCascade,
         boardThisIsOn: boardId,
       });
+      if (boundary) breakUndo();
       // Pre-delete-board snapshot for THIS board (the one the card lives
       // on) so the boardcard itself comes back via time-travel undo. The
       // underlying sub-board is now soft-deleted (boardsApi.deleteBoard)
@@ -1154,45 +1187,54 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (boardIdsToCascade.length) {
         console.log('[delete] refreshBoards after cascade');
         await refreshBoards();
+        // The awaits above held the door open: any local edit made while the
+        // network calls ran would otherwise MERGE with the delete transact
+        // below (500ms captureTimeout) — and the BOARD_DELETE_META stamp on
+        // top-of-stack would then attach board-restore side effects to that
+        // unrelated edit. Close the window before deleting.
+        breakUndo();
       }
-      const a = arrowsArr();
       const cardsBefore = m.size;
-      ydoc.transact(() => {
-        idSet.forEach(id => m.delete(id));
-        if (a) {
-          // An arrow endpoint can be a bare card id (legacy), a tagged
-          // ref {type, id}, or a free {x,y} point. Only card refs cascade.
-          const cardIdOf = (r) => {
-            if (typeof r === 'string') return r;
-            if (r && typeof r === 'object' && r.type === 'card') return r.id;
-            return null;
-          };
-          for (let i = a.length - 1; i >= 0; i--) {
-            const ar = a.get(i);
-            const fromCard = cardIdOf(ar?.from ?? ar?.get?.('from'));
-            const toCard   = cardIdOf(ar?.to   ?? ar?.get?.('to'));
-            if ((fromCard && idSet.has(fromCard)) || (toCard && idSet.has(toCard))) a.delete(i, 1);
-          }
-        }
-      }, 'local');
+      ydoc.transact(() => removeCardsFromDoc(idSet), 'local');
       const cardsAfter = m.size;
       const stillPresent = ids.filter(id => m.has(id));
       console.log('[delete] deleteCards done', {
         ids, cardsBefore, cardsAfter, stillPresent,
       });
-      // Clean up derived-index rows for deleted doc cards so the universal
-      // "Appears in" / backlinks stop surfacing a doc that no longer exists.
-      if (docCardIds.length) cleanupDocCards(docCardIds).catch(() => {});
+      // Nothing actually deleted (ids already gone) → no stack item was
+      // created; bail before stamping meta onto an unrelated step.
+      if (cardsAfter === cardsBefore) return null;
+      const stackItem = undoManager?.undoStack?.length
+        ? undoManager.undoStack[undoManager.undoStack.length - 1]
+        : null;
       // Boards were soft-deleted in Postgres above (deleteBoard). The Yjs
       // UndoManager can't reverse that, so tag this undo step with the board
       // ids; undo()/redo() below restore / re-delete them so the board (not
       // just its canvas card) actually comes back.
-      if (boardIdsToCascade.length && undoManager?.undoStack?.length) {
-        const top = undoManager.undoStack[undoManager.undoStack.length - 1];
-        try { top?.meta.set(BOARD_DELETE_META, boardIdsToCascade.slice()); } catch (_) {}
+      if (boardIdsToCascade.length && stackItem) {
+        try { stackItem.meta.set(BOARD_DELETE_META, boardIdsToCascade.slice()); } catch (_) {}
       }
+      // End the merge window so a quick follow-up edit can never merge INTO
+      // the delete step (it would ride along on undo).
+      breakUndo();
+      // Clean up derived-index rows for deleted doc cards so the universal
+      // "Appears in" / backlinks stop surfacing a doc that no longer exists.
+      if (docCardIds.length) cleanupDocCards(docCardIds).catch(() => {});
+      return { stackItem };
     };
     const deleteCard = (cardId) => deleteCards([cardId]);
+
+    // Off-stack delete for rolling back an optimistic card after a FAILED
+    // upload. Not a user action, so it must not become a Cmd+Z step —
+    // undoing would resurrect a card whose bytes never landed. Origin
+    // 'upload' is untracked but still replicates + persists (matching
+    // updateCardSilent).
+    const deleteCardsSilent = (ids) => {
+      if (!ids?.length) return;
+      const m = cardsMap(); if (!m) return;
+      const idSet = new Set(ids);
+      ydoc.transact(() => removeCardsFromDoc(idSet), 'upload');
+    };
 
     const duplicateCards = (ids) => {
       const m = cardsMap(); if (!m || !ids?.length) { if (!m && ids?.length) noteBlocked('mutator_null'); return []; }
@@ -1648,14 +1690,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         });
         try {
           const up = await uploadPdf({ file: f, workspaceId: workspace.id, boardId, cardId, userId: user.id });
-          updateCard(cardId, {
+          // Silent (origin 'upload'): the async src patch must not become its
+          // own undo step, or Cmd+Z "peels" the PDF back to pending before
+          // removing the card.
+          updateCardSilent(cardId, {
             src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount,
             name: up.name, w: up.w, h: up.h, pending: false,
           });
         } catch (e) {
           console.error(e);
           feedback.toast({ type: 'error', message: 'PDF upload failed: ' + (e.message || e) });
-          deleteCard(cardId);
+          deleteCardsSilent([cardId]);
         }
       };
       input.click();
@@ -1807,7 +1852,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             });
           }
           else if (String(err?.message) !== 'aborted') feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
-          deleteCard(id);
+          // Silent rollback: a failed upload is not a user action — it must
+          // not leave a Cmd+Z step that resurrects the dead card.
+          deleteCardsSilent([id]);
         }
       })));
     };
@@ -2309,7 +2356,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
 
     return {
-      updateCard, updateCards, deleteCard, deleteCards,
+      updateCard, updateCards, deleteCard, deleteCards, deleteCardsSilent,
       duplicateCard, duplicateCards, addCard, addCards,
       bringToFront, sendToBack, bringForward, sendBackward,
       createGroup, ungroup, renameGroup, setGroupOutline,
@@ -2371,24 +2418,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
     await refreshBoards();
     // Also strip any stale 'board' canvas cards in the current Y.Doc.
+    // Origin 'board-delete' (NOT 'local'): the toast below is the single
+    // undo engine for this path. With 'local' the card strip also landed on
+    // the Yjs undo stack, so toast-Undo + a later Cmd+Z could each restore
+    // half of the same delete and diverge (card back without the board row,
+    // or double-restore).
     if (currentYDoc) {
       const m = currentYDoc.getMap('cards');
       const idSet = new Set(ids);
       currentYDoc.transact(() => {
         idSet.forEach(id => { if (m.has(id)) m.delete(id); });
-      }, 'local');
+      }, 'board-delete');
     }
-    // This path doesn't go through the Yjs UndoManager, so give it its own
-    // Undo toast that reverses the soft-delete. refreshBoards() brings the
+    // Closure-based Undo reverses the soft-delete. refreshBoards() brings the
     // board back to the grid; the drift-reconcile effect re-adds any canvas card.
-    feedback.toast({
-      type: 'info',
+    undoToast(feedback, {
       message: ids.length === 1 ? 'Cluster deleted' : `${ids.length} clusters deleted`,
-      action: { label: 'Undo', onClick: async () => {
+      onUndo: async () => {
         for (const id of ids) { try { await restoreBoard(id); } catch (e) { console.error('[undo] restoreBoard failed', id, e); } }
         await refreshBoards();
-      } },
-      ttl: 6000,
+      },
     });
   };
 
@@ -5022,6 +5071,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      onRevealOnCanvas={(ids) => { setView('canvas', 'reveal'); setFocusRequest({ boardId: board.id, ids, token: Date.now() }); }}
                      showStorageUpsell={myTier.tier === 'demo' && workspace?.created_by === user?.id && upsellElig.eligible}
                      onStorageUpsell={() => setUpgradeReason('storage')}
+                     paneId={isMain ? 'main' : 'split'}
+                     hasSplit={!!splitId}
                      mutators={muts} />
       );
       return (
@@ -5053,6 +5104,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          autotagSuggest={autotagSuggest}
                          autotagReady={autotagReady}
                          sessionId={yh?.sessionId || null}
+                         paneId={isMain ? 'main' : 'split'}
+                         hasSplit={!!splitId}
                          frictionStuck={isMain ? frictionStuck : false}
                          /* The bold "Start your cluster" tiles are the DEFAULT
                             empty-canvas affordance. firstCardPrompt ALSO surfaces
