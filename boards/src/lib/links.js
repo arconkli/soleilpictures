@@ -1,4 +1,5 @@
 import * as Y from 'yjs';
+import { DOC_ORIGIN } from './docState.js';
 
 // Y.Doc surface for cross-entity Links inside a doc card.
 //
@@ -9,6 +10,13 @@ import * as Y from 'yjs';
 //
 // Targets are plain JS objects (not Y types) — they're small and fully
 // replaced when edited.
+//
+// Every write here transacts under DOC_ORIGIN. These used to be BARE writes
+// (implicit transaction, origin null) — invisible to every UndoManager and
+// inconsistent with the rest of the doc structure. The board UndoManager
+// tracks only 'local', so link records still can't be reverted by canvas
+// Cmd+Z (deliberate: the @-mention MARK lives in the editor's own undo
+// stack, and the record is derived bookkeeping keyed by the mark's id).
 
 export function linksMap(ydoc) { return ydoc.getMap('links'); }
 
@@ -25,35 +33,39 @@ export function getLink(ydoc, id) {
 }
 
 export function addLink(ydoc, { id, name, pageId, anchor, targets, createdBy }) {
-  const m = linksMap(ydoc);
-  const v = new Y.Map();
-  v.set('id', id);
-  if (name) v.set('name', name);
-  v.set('createdAt', Date.now());
-  if (createdBy) v.set('createdBy', createdBy);
-  v.set('pageId', pageId);
-  v.set('anchor', { from: anchor.from, to: anchor.to });
-  const arr = new Y.Array();
-  arr.insert(0, targets);
-  v.set('targets', arr);
-  m.set(id, v);
+  ydoc.transact(() => {
+    const m = linksMap(ydoc);
+    const v = new Y.Map();
+    v.set('id', id);
+    if (name) v.set('name', name);
+    v.set('createdAt', Date.now());
+    if (createdBy) v.set('createdBy', createdBy);
+    v.set('pageId', pageId);
+    v.set('anchor', { from: anchor.from, to: anchor.to });
+    const arr = new Y.Array();
+    arr.insert(0, targets);
+    v.set('targets', arr);
+    m.set(id, v);
+  }, DOC_ORIGIN);
 }
 
 export function updateLinkTargets(ydoc, id, targets) {
   const v = linksMap(ydoc).get(id);
   if (!v) return;
-  const arr = v.get('targets');
-  arr.delete(0, arr.length);
-  arr.insert(0, targets);
+  ydoc.transact(() => {
+    const arr = v.get('targets');
+    arr.delete(0, arr.length);
+    arr.insert(0, targets);
+  }, DOC_ORIGIN);
 }
 
 export function renameLink(ydoc, id, name) {
   const v = linksMap(ydoc).get(id);
-  if (v) v.set('name', name);
+  if (v) ydoc.transact(() => { v.set('name', name); }, DOC_ORIGIN);
 }
 
 export function deleteLink(ydoc, id) {
-  linksMap(ydoc).delete(id);
+  ydoc.transact(() => { linksMap(ydoc).delete(id); }, DOC_ORIGIN);
 }
 
 function yLinkToJSON(v) {
@@ -77,6 +89,7 @@ export function migrateBookmarksToLinks(ydoc, { docCardId } = {}) {
   if (bm.size === 0) return 0;
   let migrated = 0;
   ydoc.transact(() => {
+    // (nested addLink transacts join this one; DOC_ORIGIN set below)
     bm.forEach((v, id) => {
       if (linksMap(ydoc).has(id)) return; // already migrated
       // Bookmarks may be stored as Y.Map or plain object — handle both.
@@ -94,6 +107,6 @@ export function migrateBookmarksToLinks(ydoc, { docCardId } = {}) {
       migrated++;
     });
     bm.clear();
-  });
+  }, DOC_ORIGIN);
   return migrated;
 }

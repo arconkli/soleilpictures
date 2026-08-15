@@ -33,6 +33,7 @@ import {
   noteFragmentToHtml,
   setNoteCacheFields,
   noteCommentScope,
+  getNoteUndoManager,
 } from '../lib/noteDocState.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { CommentInlinePopover } from './CommentInlinePopover.jsx';
@@ -68,6 +69,14 @@ export function NoteTiptapSurface({
     return ensureNoteFragment(ydoc, cardYMap);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ydoc, cardYMap]);
+
+  // The note's PERSISTENT UndoManager (cached per fragment in noteDocState) —
+  // handing it to Collaboration below means Cmd+Z history survives closing
+  // and reopening the note instead of dying with the editor view.
+  const noteUndoManager = useMemo(
+    () => (ydoc && cardYMap ? getNoteUndoManager(ydoc, cardYMap) : null),
+    [ydoc, cardYMap]
+  );
 
   // Word-level comments, same stack as the doc editor: the CommentMark carries
   // the anchor (inside the fragment, so the range survives concurrent edits)
@@ -176,7 +185,12 @@ export function NoteTiptapSurface({
       // Keep per-span colors readable on this note's surface in both themes
       // (scoped stylesheet override; never mutates content).
       ReadableColors,
-      ...(fragment ? [Collaboration.configure({ fragment })] : []),
+      ...(fragment ? [Collaboration.configure({
+        fragment,
+        // Persistent per-note undo (see getNoteUndoManager). Without this the
+        // yUndoPlugin mints a fresh manager per mount and destroys it on exit.
+        ...(noteUndoManager ? { yUndoOptions: { undoManager: noteUndoManager } } : {}),
+      })] : []),
     ],
     // The surface mounts ONLY to edit (double-click / tap / new card), so always
     // place the caret at the end on mount — matching the legacy editor, which

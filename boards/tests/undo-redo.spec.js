@@ -185,10 +185,17 @@ test.describe('Phase-0 undo hardening (source guard)', () => {
     expect(app).toMatch(/\}, 'board-delete'\);/);
   });
 
-  test('doc sheet-delete toast outlives its purge window (ttl, not duration)', () => {
+  test('doc sheet-delete has no purge timer left to race (UndoManager owns it)', () => {
     const ds = read('src/components/DocSurface.jsx');
+    // Two generations of bug here: `duration:` (toast died before the purge
+    // fired), then the purge timer itself (content unrecoverable at 6.5s).
+    // Now the DOC_ORIGIN UndoManager reverses deletePageSheet outright.
     expect(ds).not.toMatch(/duration:\s*6000/);
-    expect(ds).toMatch(/ttl:\s*6000/);
+    expect(ds).not.toMatch(/purgeSheetContent/);
+    expect(ds).toMatch(/undoToast\(feedback, \{/);
+    const dstate = read('src/lib/docState.js');
+    expect(dstate).toMatch(/export function getDocUndoManager/);
+    expect(dstate).not.toMatch(/export function detachPageSheet/);
   });
 
   test('doc overlay Escape never fires while typing', () => {

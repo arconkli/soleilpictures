@@ -15,7 +15,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { PAGE_W } from './docExtensions/DocPagination.js';
-import { addBookmark, addPage, addPageSheet, detachPageSheet, reattachPageSheet, purgeSheetContent, renamePage, getDocMode, setDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap } from '../lib/docState.js';
+import { addBookmark, addPage, addPageSheet, deletePageSheet, renamePage, getDocMode, setDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager } from '../lib/docState.js';
+import { setDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
+import { isEditableTarget } from '../lib/isEditableTarget.js';
+import { undoToast } from '../lib/undoToast.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { uploadImage } from '../lib/uploads.js';
 import { isDocQaMode } from '../lib/localMode.js';
@@ -94,6 +97,33 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                               isPublic = false,
                               onClose }) {
   const { pages, bookmarks, comments } = useDocBoard(ydoc, scope);
+
+  // Doc STRUCTURAL undo: one cached UndoManager per doc scope (DOC_ORIGIN —
+  // page add/delete/move/rename, sheets, bookmarks, comment threads, mode
+  // flips). Text editing keeps its own y-undo stack inside Tiptap; these are
+  // separate by design (see docState.js). While this surface is mounted it
+  // OWNS Cmd+Z: CanvasSurface stands down (lib/overlayRouting.js) so a
+  // shortcut can never silently undo canvas ops hidden behind the overlay.
+  const docUndoManager = useMemo(() => (ydoc ? getDocUndoManager(ydoc, scope) : null), [ydoc, scope]);
+  useEffect(() => {
+    if (!canEdit || !docUndoManager) return undefined;
+    setDocUndoTarget(docUndoManager);
+    const onKey = (e) => {
+      const cmd = e.metaKey || e.ctrlKey;
+      if (!cmd || (e.key !== 'z' && e.key !== 'y')) return;
+      // Typing in the text editor / title input: Tiptap's y-undo (or the
+      // input's native undo) owns the shortcut.
+      if (isEditableTarget(e)) return;
+      e.preventDefault();
+      const isRedo = e.key === 'y' || e.shiftKey;
+      try { if (isRedo) docUndoManager.redo(); else docUndoManager.undo(); } catch (_) {}
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      if (getDocUndoTarget() === docUndoManager) setDocUndoTarget(null);
+    };
+  }, [canEdit, docUndoManager]);
   // Subscribe to the awareness instance lazily — it's only created after the
   // realtime channel attaches in yboard.js. getAwareness() returns null
   // until then, and yboard doesn't trigger a re-render here when realtime
@@ -433,26 +463,25 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const feedback = useFeedback();
   const deleteSheet = useCallback((sheetId) => {
     if (!activePageId || !sheetId || sheetId === activePageId) return;
-    // Detach (keep content) + offer Undo, matching the app's delete→Undo-toast
-    // convention. Doc-structural ops are DOC_ORIGIN (untracked by the canvas
-    // UndoManager), so restore is explicit. Purge the orphaned content only if
-    // the user doesn't undo within the toast window.
-    const idx = detachPageSheet(ydoc, activePageId, sheetId, scope);
-    let undone = false;
-    feedback.toast({
-      type: 'info',
+    // One DOC_ORIGIN transaction (sheet entry + content fragment) that the
+    // doc UndoManager reverses atomically — via the toast OR Cmd+Z, with no
+    // expiry. This replaces the old detach → purge-after-6.5s dance, whose
+    // content was unrecoverable the moment the timer fired (and whose toast
+    // used to die 2.3s before that).
+    docUndoManager?.stopCapturing();
+    deletePageSheet(ydoc, activePageId, sheetId, scope);
+    const item = docUndoManager?.undoStack?.length
+      ? docUndoManager.undoStack[docUndoManager.undoStack.length - 1]
+      : null;
+    docUndoManager?.stopCapturing();
+    undoToast(feedback, {
       message: 'Page deleted',
-      // ttl, not duration — AppFeedback.toast only reads `ttl`. The old
-      // `duration:` fell back to the 4200ms default, so the Undo button
-      // vanished 2.3s BEFORE the purge below made the delete permanent.
-      ttl: 6000,
-      action: {
-        label: 'Undo',
-        onClick: () => { undone = true; reattachPageSheet(ydoc, activePageId, sheetId, idx, scope); },
-      },
+      undoManager: docUndoManager,
+      stackItem: item,
+      onUndo: () => { try { docUndoManager?.undo(); } catch (_) {} },
+      supersededMessage: 'The document changed since — press ⌘Z in it to step back instead.',
     });
-    setTimeout(() => { if (!undone) purgeSheetContent(ydoc, sheetId, scope); }, 6500);
-  }, [activePageId, ydoc, scope, feedback]);
+  }, [activePageId, ydoc, scope, feedback, docUndoManager]);
 
   // Prose pagination is now handled inside the editor by the DocPagination
   // plugin (true reflow: content flows + splits line-level across real pages,

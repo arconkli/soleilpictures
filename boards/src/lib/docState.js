@@ -23,6 +23,42 @@ import * as Y from 'yjs';
 // running initCardDocStore), Yjs transact is reentrant so the OUTER 'local'
 // origin wins and the doc-store init stays part of that one canvas undo step.
 const DOC_ORIGIN = 'doc-struct';
+export { DOC_ORIGIN };
+
+// ── Doc STRUCTURAL undo ──────────────────────────────────────────────────────
+// One Y.UndoManager per doc scope, tracking DOC_ORIGIN over that scope's own
+// types. This is what makes page delete/move/rename, sheets, bookmarks,
+// comment threads and mode flips reversible: deletePage cascades an entire
+// subtree (pages + content + sheets + bookmarks + comments) in ONE DOC_ORIGIN
+// transaction, so one undo() reverses the whole cascade atomically —
+// including nested Y.XmlFragment contents.
+//
+// Deliberately separate from both the board UndoManager ('local' — the
+// split-brain ⌘Z rationale above) and the text editor's y-undo (per-fragment,
+// ySync origin): text undo and structure undo are different stacks by design.
+// Reentrant DOC_ORIGIN transacts inside a canvas 'local' transaction (e.g.
+// initCardDocStore in addCard's afterInsert) keep the OUTER origin, so card
+// creation stays one canvas step and is never double-captured here.
+//
+// Cached per scope (WeakMap on scope.pages — a stable Y type) so the manager
+// and its history survive closing and reopening the doc overlay; entries die
+// with the board's Y.Doc. Per-card scopes are disjoint type sets, so two doc
+// cards' managers can never capture each other's edits.
+const docUndoManagers = new WeakMap();
+export function getDocUndoManager(ydoc, scope) {
+  const s = scope || (ydoc ? rootScope(ydoc) : null);
+  if (!s || !s.pages) return null;
+  let um = docUndoManagers.get(s.pages);
+  if (!um) {
+    const types = [s.pages, s.content, s.bookmarks, s.comments, s.pageSheets, s.sheetContent, s.meta].filter(Boolean);
+    um = new Y.UndoManager(types, {
+      trackedOrigins: new Set([DOC_ORIGIN]),
+      captureTimeout: 500,
+    });
+    docUndoManagers.set(s.pages, um);
+  }
+  return um;
+}
 
 // ── Scope plumbing ───────────────────────────────────────────────────────────
 // A "scope" is just a bag of Y types — pages / content / bookmarks / comments.
@@ -413,40 +449,9 @@ export function deletePageSheet(ydoc, pageId, sheetId, scope) {
   }, DOC_ORIGIN);
 }
 
-// Detach a sheet from a page's array but KEEP its content fragment — so a
-// delete→Undo toast can restore the exact sheet (same id + content). Returns
-// the array index it was at (for reattach), or -1.
-export function detachPageSheet(ydoc, pageId, sheetId, scope) {
-  if (!pageId || !sheetId || sheetId === pageId) return -1;
-  const sm = pageSheetsMap(ydoc, scope);
-  if (!sm) return -1;
-  let idx = -1;
-  ydoc.transact(() => {
-    const arr = sm.get(pageId);
-    if (arr) {
-      for (let i = arr.length - 1; i >= 0; i--) {
-        if (arr.get(i)?.id === sheetId) { idx = i; arr.delete(i, 1); }
-      }
-    }
-  }, DOC_ORIGIN);
-  return idx;
-}
-// Re-insert a detached sheet at its old index (content fragment is untouched).
-export function reattachPageSheet(ydoc, pageId, sheetId, index, scope) {
-  const sm = pageSheetsMap(ydoc, scope);
-  if (!sm) return;
-  ydoc.transact(() => {
-    let arr = sm.get(pageId);
-    if (!arr) { arr = new Y.Array(); sm.set(pageId, arr); }
-    const at = Math.max(0, Math.min(index < 0 ? arr.length : index, arr.length));
-    arr.insert(at, [{ id: sheetId }]);
-  }, DOC_ORIGIN);
-}
-// Permanently drop a detached sheet's orphaned content (after the undo window).
-export function purgeSheetContent(ydoc, sheetId, scope) {
-  const sc = sheetContentMap(ydoc, scope);
-  if (sc && sc.has(sheetId)) ydoc.transact(() => { sc.delete(sheetId); }, DOC_ORIGIN);
-}
+// (detachPageSheet / reattachPageSheet / purgeSheetContent are gone: the
+// sheet-delete Undo toast now reverses deletePageSheet via the DOC_ORIGIN
+// UndoManager, so nothing needs to park content in limbo behind a timer.)
 
 function nextPageId() {
   return 'p_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);

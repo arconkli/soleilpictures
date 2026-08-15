@@ -1,6 +1,7 @@
 import { useEffect, useState, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { commentsMap, addCommentReply, deleteCommentThread, resolveComment } from '../lib/docState.js';
+import { commentsMap, addCommentReply, deleteCommentThread, resolveComment, getDocUndoManager } from '../lib/docState.js';
+import { undoToast } from '../lib/undoToast.js';
 import { notifyCommentMentions } from '../lib/commentMentions.js';
 import { EntityPicker } from './EntityPicker.jsx';
 import { caretRect } from '../lib/caretRect.js';
@@ -137,6 +138,37 @@ export function CommentInlinePopover({
           className="comment-inline-x"
           title="Delete"
           onClick={async () => {
+            // Docs (full scope): no confirm — the DOC_ORIGIN UndoManager makes
+            // the delete reversible, so the house delete→Undo-toast convention
+            // applies. The highlight-mark strip is DEFERRED past the undo
+            // window: an undo (toast or Cmd+Z) restores a still-anchored
+            // thread; the strip only runs once the delete has stuck.
+            const docUm = scope?.pages ? getDocUndoManager(ydoc, scope) : null;
+            if (docUm) {
+              docUm.stopCapturing();
+              deleteCommentThread(ydoc, threadId, scope);
+              const item = docUm.undoStack.length ? docUm.undoStack[docUm.undoStack.length - 1] : null;
+              docUm.stopCapturing();
+              undoToast(feedback, {
+                message: 'Comment thread deleted',
+                undoManager: docUm,
+                stackItem: item,
+                onUndo: () => { try { docUm.undo(); } catch (_) {} },
+              });
+              setTimeout(() => {
+                // Strip the dead underline only if the thread is still gone
+                // (covers toast-undo AND a Cmd+Z inside the window).
+                if (!commentsMap(ydoc, scope)?.get(threadId)) {
+                  try {
+                    window.dispatchEvent(new CustomEvent('soleil-remove-comment-mark', { detail: { id: threadId } }));
+                  } catch (_) {}
+                }
+              }, 6500);
+              onClose?.();
+              return;
+            }
+            // Notes (comments-only scope — no structural UndoManager): keep
+            // the confirm until the comments recovery pass wires a restore.
             const ok = await feedback.confirm({
               title: 'Delete this thread?',
               message: 'Replies will be removed too.',
@@ -146,8 +178,8 @@ export function CommentInlinePopover({
             if (ok) {
               deleteCommentThread(ydoc, threadId, scope);
               // Also strip the now-orphaned highlight mark from the text
-              // (DocPageEditor listens + runs removeCommentById) so deleting a
-              // thread doesn't leave a dead underline behind.
+              // (the note editor listens + runs removeCommentById) so deleting
+              // a thread doesn't leave a dead underline behind.
               try {
                 window.dispatchEvent(new CustomEvent('soleil-remove-comment-mark', { detail: { id: threadId } }));
               } catch (_) {}

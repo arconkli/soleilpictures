@@ -15,6 +15,7 @@ function schedExpandOf(card, ydoc) {
 }
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { setActivePane, getActivePane } from '../lib/activePane.js';
+import { getDocUndoTarget } from '../lib/overlayRouting.js';
 import { undoToast } from '../lib/undoToast.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import {
@@ -3358,6 +3359,10 @@ export function CanvasSurface({
       const cmd = e.metaKey || e.ctrlKey;
 
       if (cmd && e.key === 'z' && !e.shiftKey) {
+        // While a doc overlay is open its STRUCTURAL UndoManager owns Cmd+Z
+        // (DocSurface registers itself + its own listener) — undoing hidden
+        // canvas ops behind the overlay would be silent data mangling.
+        if (getDocUndoTarget()) return;
         // In-session UndoManager only — synchronous and CRDT-correct, so it
         // can't network-fail. preventDefault unconditionally so a stray
         // focused input can't trigger native browser undo; an empty stack is
@@ -3368,6 +3373,7 @@ export function CanvasSurface({
         return;
       }
       if ((cmd && e.key === 'z' && e.shiftKey) || (cmd && e.key === 'y')) {
+        if (getDocUndoTarget()) return;
         e.preventDefault();
         mutators.redo?.();
         return;
