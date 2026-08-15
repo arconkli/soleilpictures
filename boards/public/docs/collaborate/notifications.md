@@ -1,8 +1,8 @@
 # Notifications
 
-> Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, and occasional product tips. Each of the five is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in.
+> Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, and occasional product tips. Each of the five is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/notifications · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/notifications · Updated 2026-08-14_
 
 Five categories, five independent switches, in **Settings → Notifications**.
 
@@ -28,6 +28,20 @@ until there is an actual reason to ask.
 
 **Email** — for things you would want to know about while not looking at the
 app.
+
+## Getting back in from an email
+
+The button in a product email goes to `/resume`, not to the sign-in form. Press
+**Open my clusters** and you are signed in and taken to the board the email is
+about — no code to fetch from a second email, no password.
+
+The link is good for **one press** and expires after **seven days**. Press it
+twice, forward the email, or leave it a fortnight and it politely falls back to
+ordinary sign-in, which still gets you to the same place.
+
+It only signs you in when you press the button. Loading the page does nothing —
+mail providers and security scanners routinely open links in your mail before
+you do, and a link that signed you in on load would be spent by a robot.
 
 ## Unsubscribing
 

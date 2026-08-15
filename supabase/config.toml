@@ -24,3 +24,10 @@ verify_jwt = false
 # user JWT. We verify the svix signature in the handler (the real auth boundary).
 [functions.resend-webhook]
 verify_jwt = false
+
+# The whole point of /resume is that the caller has NO session — a dormant user
+# clicking a win-back CTA 27 days after their last sign-in. The single-use token
+# in the body is the credential (migration 0235); requiring a JWT here would
+# 401 exactly the population the endpoint exists to rescue.
+[functions.resume-session]
+verify_jwt = false

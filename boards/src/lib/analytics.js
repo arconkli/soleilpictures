@@ -53,6 +53,12 @@ function readUrlCampaignSignals(params) {
   if (shareToken) out.share_token = shareToken.slice(0, 40);
   const publicSlug = params.get('public_slug');
   if (publicSlug) out.public_slug = publicSlug.slice(0, 80);
+  // Lifecycle campaign marker (?lc=<email_type>.<version>), appended by the
+  // email CTAs alongside their utm_*. Carried here as well as in the dedicated
+  // lifecycle_land event so a lifecycle arrival brands last-touch like any other
+  // click — without it the only record of the campaign is the event itself.
+  const lc = params.get('lc');
+  if (lc) out.lc = lc.replace(/[^A-Za-z0-9._-]/g, '').slice(0, 64);
   // Referral code (?ref=<code>): a friend's personal invite link. Normalized to
   // the mint alphabet so it round-trips cleanly into signup metadata, where the
   // signup trigger resolves it to the referrer and grants both sides bonus cards.

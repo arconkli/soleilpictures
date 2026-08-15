@@ -200,12 +200,27 @@ Deno.serve(async (req) => {
       newsPreview = await whatsNewConfig(previewDb, /* ignoreEnabled */ true);
       if (!newsPreview) return json({ error: "no lifecycle_whats_new edition authored" }, 409);
     }
+    // Mint a REAL resume token for the preview when a user id is supplied, so
+    // the /resume flow can be walked end to end from a test inbox rather than
+    // only inspected as a rendered URL. Without testUserId the preview renders
+    // the fallback (plain app link + sign-in caveat), which is also worth
+    // being able to see.
+    let testResumeToken: string | undefined;
+    if (reqBody.testUserId) {
+      const mintDb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+      const mint = await mintDb.rpc("lifecycle_mint_resume_token", {
+        p_user_id: String(reqBody.testUserId), p_email_type: type, p_log_id: null,
+      });
+      if (mint.error) return json({ error: `mint failed: ${mint.error.message}` }, 500);
+      if (typeof mint.data === "string") testResumeToken = mint.data;
+    }
     const r = await sendOne(type, String(reqBody.testTo), {
       firstName: "there",
       workspaceId: reqBody.workspaceId ? String(reqBody.workspaceId) : undefined,
       boardId: reqBody.boardId ? String(reqBody.boardId) : undefined,
       boardName: reqBody.boardName ? String(reqBody.boardName) : undefined,
       thumbUrl,
+      resumeToken: testResumeToken,
       imageUrl: newsPreview?.imageUrl,
       items: newsPreview?.items,
       ctaLabel: newsPreview?.ctaLabel,
@@ -267,7 +282,30 @@ Deno.serve(async (req) => {
           if (!logId) { skipped++; continue; }   // cap hit or consent withdrawn
           mailed.add(userId);
 
-          const payload = { ...(await toData(row)), firstName: row.display_name, unsubscribeToken: row.unsub_token, variant };
+          // Single-use resume token (migration 0235) — what turns this CTA from
+          // a link to a login form into a link to their board. Minted AFTER the
+          // claim and BEFORE the send, deliberately: a token stored for a mail
+          // that then fails is inert (nobody ever saw the raw value, and it
+          // expires), whereas a mail carrying a token we failed to store would
+          // be a dead link sitting in someone's inbox for a week.
+          //
+          // Best-effort, like the thumbnails: minting must not consume a claim
+          // and send nothing. Without it deepLink falls back to the plain app
+          // URL and noteBtn re-adds the sign-in caveat, which is the old
+          // behaviour rather than a broken one.
+          let resumeToken: string | undefined;
+          try {
+            const mint = await admin.rpc("lifecycle_mint_resume_token", {
+              p_user_id: userId, p_email_type: emailType, p_log_id: logId,
+            });
+            if (mint.error) console.warn(`mint resume token failed for ${userId}`, mint.error.message);
+            else if (typeof mint.data === "string") resumeToken = mint.data;
+          } catch (e) { console.warn(`mint resume token threw for ${userId}`, e); }
+
+          const payload = {
+            ...(await toData(row)), firstName: row.display_name,
+            unsubscribeToken: row.unsub_token, resumeToken, variant,
+          };
           let ok = false, resendId: string | undefined;
           try {
             // The version rides in the idempotency key: a second edition to the
