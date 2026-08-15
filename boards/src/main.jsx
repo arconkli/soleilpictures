@@ -196,8 +196,9 @@ const legalMatch = window.location.pathname.match(/^\/legal\/(privacy|terms|cook
 // /resume = the landing for every lifecycle email CTA (migration 0235). It
 // spends a single-use token and lands the reader signed in. Renders BEFORE
 // AuthGate on purpose — booting the gate here would show the exact sign-in wall
-// the page exists to skip, which is what was killing the win-back program:
-// healthy opens, almost no clicks, and single-digit arrivals over seven weeks.
+// the page exists to skip, and the win-back program's shape (healthy opens,
+// almost no clicks, single-digit arrivals over seven weeks) is what that wall
+// would look like if it were the cause.
 const resumeMatch = /^\/resume\/?$/i.test(window.location.pathname);
 
 // /oauth/authorize = the OAuth consent screen (worker-oauth.js owns every other

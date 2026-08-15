@@ -4,11 +4,12 @@
 // token minted with the send (migration 0235) and drops the reader into their
 // board with a live session.
 //
-// Why it exists: win-back recipients average 27 days since their last sign-in
-// — 100% are more than a week stale — so effectively all of them clicked while
-// signed out and hit the OTP wall. Over the program's first seven weeks that
-// produced a ~40% open rate, a ~2.9% click rate, and a single-digit number of
-// readers who ever reached the app.
+// Why it exists: over the program's first seven weeks lifecycle mail opened at
+// ~40%, clicked at ~2.9%, and put a single-digit number of readers into the app.
+// Win-back recipients average 27 days since their last sign-in and every one is
+// more than a week stale, which makes the OTP wall the leading suspect — see
+// migration 0235 for why that remains a hypothesis. This removes it as a
+// variable regardless, and costs a still-signed-in reader one button press.
 //
 // Two things here are load-bearing and easy to "tidy" into breakage:
 //

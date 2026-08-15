@@ -104,10 +104,12 @@ let lifecycleLandedSignedOut = false;
 // Fires REGARDLESS of session, carrying signed_in. It used to be gated on a
 // user id, on the reasoning that a signed-out click should stay unattributed
 // until it came back through OTP. That hid the single most important number in
-// the win-back program: win-back recipients average 27 days since last sign-in,
-// so virtually all of them land signed-out, and the ones who gave up at the
-// wall recorded nothing at all. Signed-out arrivals are the population we are
-// trying to measure, not noise.
+// the win-back program — how many readers arrive with no session and give up at
+// the wall — and left the question unanswerable in either direction. An earlier
+// pass concluded the wall was NOT eating the clicks, from auth.sessions rows
+// that predate the send; those rows have a null not_after and ~94% were cold,
+// so they cannot carry that conclusion. This is the measurement that can.
+// Signed-out arrivals are the population we are trying to see, not noise.
 //
 // The param is stripped only once signed in, so it survives the OTP roundtrip
 // and the recovery still attributes.

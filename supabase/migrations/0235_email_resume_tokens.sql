@@ -6,13 +6,31 @@
 -- digits — as was the number who did any work within 72h. Deliverability is
 -- fine and the subject lines work; everything dies after the open.
 --
--- The reason is in the send log. Win-back recipients average 27 days since
--- their last sign-in; 100% are more than 7 days stale and a third more than 30.
--- Their session is long gone, so the CTA lands them on the OTP wall. The email
--- has been admitting it in small grey text under the button: "signed out? we'll
--- email you a 6-digit code". Click, go back to the inbox, find a second email,
--- copy a code, paste it — asked of someone who was already indifferent enough
--- to go dormant. `nudge_dormant_early`, the highest-volume type, produced zero
+-- The leading suspect is the sign-in wall, and it is worth being precise about
+-- how well established that is, because a previous pass looked at it and
+-- recorded it as ruled out.
+--
+-- What is certain: win-back recipients average 27 days since their last
+-- sign-in, every one is more than 7 days stale, a third more than 30. The email
+-- has been admitting the consequence in small grey text under the button:
+-- "signed out? we'll email you a 6-digit code" — click, return to the inbox,
+-- find a second email, copy a code, paste it, all asked of someone already
+-- indifferent enough to go dormant.
+--
+-- What is NOT certain is how often that path is actually taken. An auth.sessions
+-- row predating the send exists for ~96% of recipients, which is what the
+-- earlier pass measured and read as "clicks land in the app". But `not_after` is
+-- null on all of them, so the row's existence carries no validity information,
+-- and ~94% had not been refreshed in the week before the send. Neither figure
+-- answers the real question, which is whether the BROWSER opening the email
+-- holds a usable session — mail is routinely read on a different device from
+-- the one that signed up, where there is no local session at all.
+--
+-- So this is a hypothesis the data is consistent with, not a proven cause. The
+-- honest position is that nobody could tell, because a signed-out arrival was
+-- recorded nowhere (see section 4). lifecycle_land{signed_in} now settles it
+-- either way, and the resume link is worth having under both answers: it costs
+-- a signed-in reader one button press and removes the wall as a variable. `nudge_dormant_early`, the highest-volume type, produced zero
 -- units of work across its entire life.
 --
 -- So: a single-use token in the CTA that mints a real session on arrival.
