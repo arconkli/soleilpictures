@@ -79,6 +79,21 @@ export async function deleteVoteCard(id) {
   }
 }
 
+// Reverse a soft-delete (the vote-delete Undo toast). Mirrors restoreComment:
+// RPC first (author-or-editor authz, migration 0239), RLS-gated UPDATE as the
+// fallback.
+export async function restoreVoteCard(id) {
+  const { error } = await supabase.rpc('restore_vote_card', { p_id: id });
+  if (error) {
+    console.warn('[restoreVoteCard] RPC failed, falling back to UPDATE', error);
+    const upd = await supabase
+      .from('vote_cards')
+      .update({ deleted_at: null, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (upd.error) throw upd.error;
+  }
+}
+
 // Cast (or toggle off) the caller's vote. value is +1 (up) or -1 (down).
 // Re-casting your current value removes it; the opposite value switches.
 export async function castVote(voteCardId, value) {

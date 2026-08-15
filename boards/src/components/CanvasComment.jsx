@@ -12,7 +12,8 @@
 //   anchor_kind = 'doc_range' → ignored on canvas (shown inside doc)
 
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { addComment, updateComment, deleteComment } from '../lib/commentsApi.js';
+import { addComment, updateComment, deleteComment, restoreComment } from '../lib/commentsApi.js';
+import { undoToast } from '../lib/undoToast.js';
 import { bubbleLayout, clamp, BUBBLE_W, BUBBLE_H_DEFAULT } from '../lib/bubbleLayout.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { relativeTimeShort } from '../lib/relativeTime.js';
@@ -478,19 +479,32 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
     catch (err) { feedback.toast({ type: 'error', message: 'Unhide failed: ' + (err.message || err) }); }
   };
   const onDelete = async () => {
-    const ok = await feedback.confirm({
-      title: 'Delete comment?',
-      message: 'This also removes all replies.',
-      confirmLabel: 'Delete',
-      danger: true,
-    });
-    if (!ok) return;
+    // House delete convention: no confirm, an Undo toast instead — the row is
+    // soft-deleted (30-day retention) and restoreComment reverses it. Threads
+    // WITH replies keep a confirm (they can carry other people's words), but
+    // are just as restorable.
+    if ((replies?.length || 0) > 0) {
+      const ok = await feedback.confirm({
+        title: 'Delete comment?',
+        message: 'This also removes all replies.\n\nYou can undo this right after.',
+        confirmLabel: 'Delete',
+        danger: true,
+      });
+      if (!ok) return;
+    }
     try {
       await deleteComment(comment.id);
       // Drop from local state immediately — the realtime DELETE event
       // also fires (replica identity full now includes board_id) but
       // doing both gives instant UX regardless of channel lag.
       onLocallyRemoved?.(comment.id);
+      undoToast(feedback, {
+        message: 'Comment deleted',
+        onUndo: async () => {
+          try { await restoreComment(comment.id); } // realtime refetch resurfaces it
+          catch (err) { feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) }); }
+        },
+      });
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Delete failed: ' + (err.message || err) });
     }
@@ -595,13 +609,16 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
                          authorColor={ra.color}
                          canManage={r.author === userId}
                          onDelete={async () => {
-                           const ok = await feedback.confirm({
-                             title: 'Delete reply?', confirmLabel: 'Delete', danger: true,
-                           });
-                           if (!ok) return;
                            try {
                              await deleteComment(r.id);
                              onLocallyRemoved?.(r.id);
+                             undoToast(feedback, {
+                               message: 'Reply deleted',
+                               onUndo: async () => {
+                                 try { await restoreComment(r.id); }
+                                 catch (err) { feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) }); }
+                               },
+                             });
                            } catch (err) { feedback.toast({ type: 'error', message: 'Delete failed' }); }
                          }} />
             );
@@ -778,14 +795,23 @@ export function CommentArchivePopover({
     catch (err) { feedback.toast({ type: 'error', message: 'Unhide failed: ' + (err.message || err) }); }
   };
   const onDeleteRow = async (c) => {
+    // ("Permanent" was never true — comments soft-delete with 30-day
+    // retention. Say so, and offer the Undo.)
     const ok = await feedback.confirm({
       title: 'Delete comment?', confirmLabel: 'Delete', danger: true,
-      message: 'Permanent — also removes any replies.',
+      message: 'Also removes any replies. You can undo this right after.',
     });
     if (!ok) return;
     try {
       await deleteComment(c.id);
       onLocallyRemoved?.(c.id);
+      undoToast(feedback, {
+        message: 'Comment deleted',
+        onUndo: async () => {
+          try { await restoreComment(c.id); }
+          catch (err) { feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) }); }
+        },
+      });
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Delete failed: ' + (err.message || err) });
     }

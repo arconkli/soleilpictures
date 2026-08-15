@@ -5,7 +5,7 @@ import { ChevronLeft, X, Search, Pin, MoreHorizontal, UserPlus, LogOut, Edit } f
 import { useMessageThread } from '../hooks/useMessageThread.js';
 import { useMessageableUsers } from '../hooks/useMessageableUsers.js';
 import {
-  sendMessage, deleteMessage, editMessage, toggleReaction,
+  sendMessage, deleteMessage, restoreMessage, editMessage, toggleReaction,
   searchMessagesInConversation,
   fetchReplies, replyCountsFor, togglePin,
   listPinnedForConversation,
@@ -20,6 +20,7 @@ import { INBOX_MIME } from '../lib/dragMimes.js';
 import { inboxPayloadFor } from '../lib/messageAttachments.js';
 import { SoleilMark } from './primitives.jsx';
 import { useFeedback } from './AppFeedback.jsx';
+import { undoToast } from '../lib/undoToast.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 
@@ -339,9 +340,12 @@ export function MessageThread({
   }, []);
 
   const handleDelete = useCallback(async (msg) => {
+    // ("This can't be undone" was a lie — messages soft-delete via
+    // deleted_at. Keep the confirm because deletion is peer-visible, but be
+    // honest, and offer the Undo the mechanism always allowed.)
     const ok = await feedback.confirm({
       title: 'Delete message',
-      message: "Delete this message? This can't be undone.",
+      message: 'Delete this message? You can undo for a few seconds after.',
       confirmLabel: 'Delete',
       danger: true,
     });
@@ -349,6 +353,13 @@ export function MessageThread({
     try {
       await deleteMessage({ id: msg.id });
       refetch();
+      undoToast(feedback, {
+        message: 'Message deleted',
+        onUndo: async () => {
+          try { await restoreMessage({ id: msg.id }); refetch(); }
+          catch (e) { feedback.toast({ type: 'error', message: 'Could not restore the message — try again.' }); }
+        },
+      });
     } catch (e) {
       console.warn('delete failed', e);
       feedback.toast({ type: 'error', message: 'Could not delete the message — try again.' });

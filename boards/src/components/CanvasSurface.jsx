@@ -2979,6 +2979,7 @@ export function CanvasSurface({
     // (that would fragment a mixed delete into several steps) — hence
     // boundary:false on the card leg below.
     mutators.breakUndo?.();
+    const strokeArrowCount = selectedStrokes.size + selectedArrows.size;
     if (selectedStrokes.size > 0) {
       mutators.deleteStrokes?.([...selectedStrokes]);
       setSelectedStrokes(new Set());
@@ -2987,8 +2988,39 @@ export function CanvasSurface({
       mutators.deleteArrows?.([...selectedArrows]);
       setSelectedArrows(new Set());
     }
-    if (selected.size > 0) await doDeleteIds([...selected], { boundary: false });
-  }, [doDeleteIds, selected, selectedStrokes, selectedArrows, mutators]);
+    if (selected.size > 0) {
+      await doDeleteIds([...selected], { boundary: false });
+    } else if (strokeArrowCount > 0) {
+      // Stroke/arrow-only deletes used to vanish with NO toast (doDeleteIds
+      // owns the card toast and never ran) — same affordance now.
+      const um = mutators.undoManager;
+      const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+      mutators.breakUndo?.();
+      undoToast(feedback, {
+        message: strokeArrowCount === 1 ? 'Deleted' : `${strokeArrowCount} deleted`,
+        undoManager: um,
+        stackItem: item,
+        onUndo: () => mutators.undo?.(),
+      });
+    }
+  }, [doDeleteIds, selected, selectedStrokes, selectedArrows, mutators, feedback]);
+
+  // Single-arrow delete (context menu / arrow popover) — same one-step +
+  // Undo-toast affordance as every other delete path (these used to vanish
+  // silently even though Cmd+Z worked).
+  const deleteSingleArrow = useCallback((idx) => {
+    mutators.breakUndo?.();
+    mutators.deleteArrows?.([idx]);
+    const um = mutators.undoManager;
+    const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+    mutators.breakUndo?.();
+    undoToast(feedback, {
+      message: 'Arrow deleted',
+      undoManager: um,
+      stackItem: item,
+      onUndo: () => mutators.undo?.(),
+    });
+  }, [mutators, feedback]);
 
   // ── Internal clipboard ───────────────────────────────────────────────────
   const doCopy = useCallback(() => {
@@ -6185,7 +6217,7 @@ export function CanvasSurface({
           run: () => mutators.updateArrow?.(idx, { dashed: !arrow.dashed }) },
         { divider: true },
         { id: 'arrow-delete', label: 'Delete arrow', danger: true,
-          run: () => mutators.deleteArrows?.([idx]) },
+          run: () => deleteSingleArrow(idx) },
       ];
     }
     // View-only states (viewer share, no access) — just expose the safe
@@ -9094,7 +9126,7 @@ export function CanvasSurface({
             canvasToViewport={canvasToViewport}
             onChange={(patch) => mutators.updateArrow?.(idx, patch)}
             onDelete={() => {
-              mutators.deleteArrows?.([idx]);
+              deleteSingleArrow(idx);
               setSelectedArrows(new Set());
             }}
             onClose={() => setSelectedArrows(new Set())}
