@@ -105,7 +105,7 @@ import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlac
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
 import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
-import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion } from '../lib/tagsApi.js';
+import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion } from '../lib/tagsApi.js';
 import { syncCardIndex, saveBoardVersion, loadBoardVersionDoc, bulletproofRestore } from '../lib/boardsApi.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
@@ -9682,7 +9682,7 @@ export function CanvasSurface({
             </button>
           )}
           <button className="sb-tag-menu-item" role="menuitem"
-                  title="Removes this tag and won't auto-apply it here again. Drag the tag back to undo."
+                  title="Removes this tag and won't auto-apply it here again."
                   onClick={async () => {
                     const { kind, targetId, tag } = tagChipMenu;
                     closeTagChipMenu();
@@ -9700,6 +9700,26 @@ export function CanvasSurface({
                         tagId: tag.id, userId,
                       });
                       refreshTags?.();
+                      // This was the app's most casual irreversible click:
+                      // no confirm, hard delete, PLUS a permanent "never
+                      // suggest again" row. The undo re-applies AND lifts
+                      // the suppression.
+                      undoToast(feedback, {
+                        message: `Removed “${tag.name || 'tag'}”`,
+                        onUndo: async () => {
+                          try {
+                            if (kind === 'card') {
+                              await tagCard({ workspaceId, boardId: board.id, cardId: targetId, tagId: tag.id });
+                            } else if (kind === 'board') {
+                              await tagBoard({ workspaceId, boardId: targetId, tagId: tag.id });
+                            }
+                            await undismissAutotagSuggestion({ workspaceId, targetKind: kind, targetId, tagId: tag.id });
+                            refreshTags?.();
+                          } catch (err) {
+                            feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) });
+                          }
+                        },
+                      });
                     } catch (err) {
                       feedback.toast({ type: 'error', message: 'Remove failed: ' + (err.message || err) });
                     }
