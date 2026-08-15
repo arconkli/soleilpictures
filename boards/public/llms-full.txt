@@ -94,7 +94,7 @@ A few things worth knowing on day one:
 
 To do this | Do this
 Add a note | Press N, or right-click where you want it
-Add an image | Drag it in, or paste from the clipboard
+Add images | Drag them in, paste from the clipboard, or use the image tool — the picker is multi-select, so a whole folder lands in one go
 Add a link | Paste a URL onto the canvas — it unfurls into a real card
 Pan | Hold Space and drag, or press H
 Fit everything on screen | ⇧1

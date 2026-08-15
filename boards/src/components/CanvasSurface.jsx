@@ -1374,7 +1374,9 @@ export function CanvasSurface({
     switch (selectedTool) {
       case 'board':   mutators.addNewBoard?.(pos); break;
       case 'grid':    mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); break;
-      case 'image':   mutators.addImageAt?.(pos);  break;
+      // Multi-select, like every other image entry point — see the 'image'
+      // add-action for why singular was costing day-one depth.
+      case 'image':   pickPhotosAtRef.current?.(pos, 'tool_place'); break;
       case 'doc':     mutators.addDocCard?.(pos);  break;
       case 'text':    mutators.addNote?.(pos);     break;
       case 'palette': mutators.addPalette?.(pos);  break;
@@ -5973,7 +5975,15 @@ export function CanvasSurface({
     { id: 'board',   group: 'card', label: 'Cluster', icon: Browsers,      run: () => { noteCreateIntent(method); mutators.addNewBoard?.(pos); } },
     { id: 'linkedcluster', group: 'card', label: 'Linked cluster', icon: ArrowSquareOut, run: () => onOpenPicker?.(pos) },
     { id: 'grid',    group: 'card', label: 'Grid',    icon: GridFour,      run: () => { noteCreateIntent(method); mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); } },
-    { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method); mutators.addImageAt?.(pos); } },
+    // Multi-select, via the same batch ingest drag-drop uses. This used to call
+    // mutators.addImageAt, which opens a picker with no `multiple` and reads
+    // files[0] — so the single most prominent affordance in the shipped
+    // image-first onboarding ("Add an image" on the empty board) could only ever
+    // produce ONE card. It shows in the data: day-1 users average a largest
+    // single gesture of ~2.8 cards and almost none has ever placed 5+ at once,
+    // while returning at all is sharply gated on reaching ~6 on day one
+    // (50-73% at 6+, ~13% at zero). Selecting one file behaves exactly as before.
+    { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method); pickPhotosAtRef.current?.(pos, method); } },
     { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method); openFilePicker(pos); } },
     { id: 'note',    group: 'card', label: 'Text note', icon: NotePencil,  run: () => { noteCreateIntent(method); mutators.addNote?.(pos); } },
     { id: 'doc',     group: 'card', label: 'Doc',     icon: FileText,      run: () => { noteCreateIntent(method); mutators.addDocCard?.(pos); } },
@@ -9184,7 +9194,7 @@ export function CanvasSurface({
         const runTile = (id) => { markViewSettled(); return buildAddActions(emptyCenterPos(), 'empty_cta').find((a) => a.id === id)?.run(); };
         return (
         <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}${firstCardPrompt ? ' is-prompt' : ''}`}
-             aria-label="Add your first image"
+             aria-label="Add your first images"
              role={frictionStuck ? 'status' : 'group'}>
           <div className="cnv-empty-tiles-head">Start your <RotatingWord /></div>
           <div className="cnv-empty-tiles-breadth">Moodboards, scripts, shot lists — every asset, one canvas.</div>
@@ -9193,8 +9203,12 @@ export function CanvasSurface({
                   onClick={() => runTile('image')}>
             <span className="cnv-empty-tile-ico"><Icon as={ImageIcon} size={30} weight="regular" /></span>
             <span className="cnv-empty-tile-hero-copy">
-              <span className="cnv-empty-tile-lbl">Add an image</span>
-              <span className="cnv-empty-tile-hero-hint">Drag in, paste, or upload your references</span>
+              {/* Plural, because the picker is multi-select and saying so is the
+                  point: a board is worth returning to at roughly six cards, and
+                  one gesture that selects ten gets there where ten gestures
+                  mostly don't happen. */}
+              <span className="cnv-empty-tile-lbl">Add images</span>
+              <span className="cnv-empty-tile-hero-hint">Pick several at once, drag them in, or paste</span>
             </span>
           </button>
           <div className="cnv-empty-tiles-grid">
