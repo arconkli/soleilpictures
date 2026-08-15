@@ -64,8 +64,9 @@ const RESUME_URL  = "https://clusters.soleilpictures.com/resume";
 //
 // With `rt` set the destination changes to /resume, which forwards ?w/?b on to
 // the app once the session exists. Win-back recipients average 27 days since
-// their last sign-in, so for those types the plain APP_URL was, in practice,
-// always a link to a login form.
+// their last sign-in, so for those types the plain APP_URL risked being a link
+// to a login form — how often it actually was is what lifecycle_land{signed_in}
+// now measures (migration 0235).
 function deepLink(
   params: { w?: string; b?: string; rt?: string } = {}, utm: Record<string, string> = {},
 ): string {

@@ -2,11 +2,13 @@
 // material for a real session, so a dormant user who clicks a win-back CTA
 // lands on their board instead of on the OTP wall.
 //
-// Why this exists: win-back recipients average 27 days since their last
-// sign-in — 100% are more than a week stale — so essentially all of them click
-// while signed out. Over the program's first seven weeks that produced a ~40%
-// open rate, a ~2.9% click rate, and a single-digit number of readers who ever
-// reached the app. See migration 0235.
+// Why this exists: over the program's first seven weeks lifecycle mail produced
+// a ~40% open rate, a ~2.9% click rate, and a single-digit number of readers who
+// ever reached the app. Win-back recipients average 27 days since their last
+// sign-in and every one is more than a week stale, so the sign-in wall is the
+// leading suspect for where the clicks go — though see migration 0235 for why
+// that is a hypothesis rather than a settled fact. Either way this removes the
+// wall as a variable, and lifecycle_land{signed_in} now measures it.
 //
 // POST { token } → { ok, tokenHash, emailType }
 //   tokenHash is a Supabase magic-link `hashed_token`; the CLIENT finishes the
