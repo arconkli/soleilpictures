@@ -52,18 +52,40 @@ export interface RenderedEmail {
 
 const SIGN_IN_URL = "https://clusters.soleilpictures.com/sign-in";
 const APP_URL     = "https://clusters.soleilpictures.com/";
+// The resume page (migration 0235). A CTA carrying a resume token points here
+// instead of at the app root: it spends the token on an explicit button press
+// and lands the reader signed in, rather than at the OTP wall.
+const RESUME_URL  = "https://clusters.soleilpictures.com/resume";
 
 // Build a deep link that AuthGate consumes into localStorage post-sign-in
 // so the app lands on the right workspace/board automatically. Extra `utm`
 // params survive consumeDeepLink (which strips only ?w/?b) into analytics.js
 // last-touch, so lifecycle CTA clicks attribute with no new tracking infra.
-function deepLink(params: { w?: string; b?: string } = {}, utm: Record<string, string> = {}): string {
+//
+// With `rt` set the destination changes to /resume, which forwards ?w/?b on to
+// the app once the session exists. Win-back recipients average 27 days since
+// their last sign-in, so for those types the plain APP_URL was, in practice,
+// always a link to a login form.
+function deepLink(
+  params: { w?: string; b?: string; rt?: string } = {}, utm: Record<string, string> = {},
+): string {
   const qs = new URLSearchParams();
+  if (params.rt) qs.set("rt", params.rt);
   if (params.w) qs.set("w", params.w);
   if (params.b) qs.set("b", params.b);
   for (const [k, v] of Object.entries(utm)) if (v) qs.set(k, v);
   const tail = qs.toString();
-  return tail ? `${APP_URL}?${tail}` : APP_URL;
+  const base = params.rt ? RESUME_URL : APP_URL;
+  return tail ? `${base}?${tail}` : base;
+}
+
+// The resume token reaches renderTemplate as untrusted `Record<string, unknown>`
+// like every other field, and it is about to be interpolated into a URL in an
+// email. The mint is always 64 hex chars (migration 0235); anything else is
+// dropped rather than escaped, which degrades the CTA to the plain app link.
+function resumeTokenOf(v: unknown): string | undefined {
+  const t = v != null ? String(v) : "";
+  return /^[0-9a-f]{64}$/.test(t) ? t : undefined;
 }
 
 function plain(lines: string[]): string {
@@ -102,18 +124,26 @@ function noteP(text: string): string {
 // well (welcome_board ~58%) but almost nobody clicked through, so the CTA is now
 // a bulletproof (table-based) button that reads as a real tap target in
 // Gmail/Outlook/Apple Mail. A dark pill on the light note background, left-
-// aligned to sit in the note's flow (not a centered marketing blast). The muted
-// caveat under it heads off the dead-end when a lapsed session lands the click
-// on the sign-in wall: the deep link is preserved through OTP either way.
+// aligned to sit in the note's flow (not a centered marketing blast).
+//
+// The "signed out? we'll email you a 6-digit code" caveat under the button used
+// to be unconditional. It was an honest warning about a genuinely bad ending —
+// and the ending was the problem, not the warning. A /resume link has no such
+// ending, so the caveat is shown only when the CTA is NOT one: minting can fail
+// (best-effort, like the thumbnails), and on that path the reader really is
+// walking into the OTP wall and deserves to be told.
 function noteBtn(label: string, url: string): string {
-  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:6px 0 6px;">
+  const walled = !url.startsWith(RESUME_URL);
+  const caveat = walled
+    ? `\n                <p style="margin:0 0 18px; font:400 12px/1.5 ${NOTE_FONT}; color:#8a8780;">signed out? we'll email you a 6-digit code — no password to dig up.</p>`
+    : "";
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:6px 0 ${walled ? "6px" : "18px"};">
                   <tr>
                     <td bgcolor="#1a1a1a" style="background:#1a1a1a; border-radius:8px;">
                       <a href="${escapeHtml(url)}" style="display:inline-block; padding:0 24px; height:46px; line-height:46px; font:600 15px/46px ${NOTE_FONT}; color:#faf9f7; text-decoration:none; border-radius:8px;">${escapeHtml(label)} &rarr;</a>
                     </td>
                   </tr>
-                </table>
-                <p style="margin:0 0 18px; font:400 12px/1.5 ${NOTE_FONT}; color:#8a8780;">signed out? we'll email you a 6-digit code — no password to dig up.</p>`;
+                </table>${caveat}`;
 }
 
 // A short bulleted run inside the note body (whats_new's shipped-features
@@ -527,6 +557,10 @@ interface ActivateNudgeData {
   boardId?: string;     // the user's most recent cluster (nullable — see 0183)
   boardName?: string;   // pre-sanitized in renderTemplate
   unsubscribeToken: string;
+  // Single-use /resume token (migration 0235), minted per send by
+  // lifecycle-email-cron. Optional: minting is best-effort, and without it the
+  // CTA degrades to the plain app URL plus the sign-in caveat.
+  resumeToken?: string;
   variant?: string;
 }
 
@@ -604,7 +638,7 @@ const activateNudge1Spec: FactorialSpec = {
 
 function activateNudge1(d: ActivateNudgeData): RenderedEmail {
   return renderFactorial(activateNudge1Spec, d.variant, {
-    url: deepLink({ w: d.workspaceId, b: d.boardId }, utm("activate_nudge_1")),
+    url: deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, utm("activate_nudge_1")),
     unsub: unsubUrl(d.unsubscribeToken),
     name: namedBoard(d),
     img: "",
@@ -676,7 +710,7 @@ const activateNudge2Spec: FactorialSpec = {
 
 function activateNudge2(d: ActivateNudgeData): RenderedEmail {
   return renderFactorial(activateNudge2Spec, d.variant, {
-    url: deepLink({ w: d.workspaceId, b: d.boardId }, utm("activate_nudge_2")),
+    url: deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, utm("activate_nudge_2")),
     unsub: unsubUrl(d.unsubscribeToken),
     name: namedBoard(d),
     img: "",
@@ -688,11 +722,15 @@ interface ReengageData {
   boardId?: string;
   boardName?: string;   // pre-sanitized in renderTemplate
   unsubscribeToken: string;
+  // Single-use /resume token (migration 0235), minted per send by
+  // lifecycle-email-cron. Optional: minting is best-effort, and without it the
+  // CTA degrades to the plain app URL plus the sign-in caveat.
+  resumeToken?: string;
   variant?: string;
 }
 
 function reengage1(d: ReengageData): RenderedEmail {
-  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("reengage_1"));
+  const url = deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, utm("reengage_1"));
   const unsub = unsubUrl(d.unsubscribeToken);
   const hasName = !!d.boardName;
   if (d.variant === "B") {
@@ -773,6 +811,10 @@ interface WelcomeBoardData {
   boardName?: string;   // pre-sanitized in renderTemplate
   thumbUrl?: string;    // signed /api/email-thumb URL (cron-computed)
   unsubscribeToken: string;
+  // Single-use /resume token (migration 0235), minted per send by
+  // lifecycle-email-cron. Optional: minting is best-effort, and without it the
+  // CTA degrades to the plain app URL plus the sign-in caveat.
+  resumeToken?: string;
   variant?: string;
 }
 
@@ -861,7 +903,7 @@ const welcomeBoardSpec: FactorialSpec = {
 };
 
 function welcomeBoard(d: WelcomeBoardData): RenderedEmail {
-  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("welcome_board"));
+  const url = deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, utm("welcome_board"));
   const name = namedWelcomeBoard(d);
   return renderFactorial(welcomeBoardSpec, d.variant, {
     url,
@@ -880,7 +922,7 @@ function welcomeBoard(d: WelcomeBoardData): RenderedEmail {
 // in the cron priority (reengage_1 is the text fallback for dormant users whose
 // board has no stored thumbnail). Reuses WelcomeBoardData — identical shape.
 function boardWaiting(d: WelcomeBoardData): RenderedEmail {
-  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("board_waiting"));
+  const url = deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, utm("board_waiting"));
   const unsub = unsubUrl(d.unsubscribeToken);
   const name = namedWelcomeBoard(d);
   const img = d.thumbUrl && d.thumbUrl.startsWith(EMAIL_THUMB_PREFIX)
@@ -1028,7 +1070,7 @@ const nudgeDormantEarlySpec: FactorialSpec = {
 
 function nudgeDormantEarly(d: ActivateNudgeData): RenderedEmail {
   return renderFactorial(nudgeDormantEarlySpec, d.variant, {
-    url: deepLink({ w: d.workspaceId, b: d.boardId }, utm("nudge_dormant_early")),
+    url: deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, utm("nudge_dormant_early")),
     unsub: unsubUrl(d.unsubscribeToken),
     name: namedBoard(d),
     img: "",
@@ -1062,13 +1104,17 @@ interface WhatsNewData {
   ctaLabel?: string;
   version?: string;
   unsubscribeToken: string;
+  // Single-use /resume token (migration 0235), minted per send by
+  // lifecycle-email-cron. Optional: minting is best-effort, and without it the
+  // CTA degrades to the plain app URL plus the sign-in caveat.
+  resumeToken?: string;
   variant?: string;
 }
 
 const COUNT_WORDS = ["", "one", "two", "three", "four", "five", "six"];
 
 function whatsNew(d: WhatsNewData): RenderedEmail {
-  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("whats_new", d.version));
+  const url = deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, utm("whats_new", d.version));
   const unsub = unsubUrl(d.unsubscribeToken);
   const items = d.items.filter((s) => !!s && !!s.trim()).slice(0, 6);
   const name = namedWelcomeBoard(d);
@@ -1220,6 +1266,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardId:          data.boardId != null ? String(data.boardId) : undefined,
         boardName:        nudgeBoardName || undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        resumeToken:      resumeTokenOf(data.resumeToken),
         variant:          data.variant != null ? String(data.variant) : undefined,
       };
       return name === "activate_nudge_1" ? activateNudge1(nudgeData) : activateNudge2(nudgeData);
@@ -1231,6 +1278,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardId:          data.boardId != null ? String(data.boardId) : undefined,
         boardName:        boardName || undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        resumeToken:      resumeTokenOf(data.resumeToken),
         variant:          data.variant != null ? String(data.variant) : undefined,
       });
     }
@@ -1242,6 +1290,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardName:        boardName || undefined,
         thumbUrl:         data.thumbUrl != null ? String(data.thumbUrl) : undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        resumeToken:      resumeTokenOf(data.resumeToken),
         variant:          data.variant != null ? String(data.variant) : undefined,
       });
     }
@@ -1253,6 +1302,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardName:        boardName || undefined,
         thumbUrl:         data.thumbUrl != null ? String(data.thumbUrl) : undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        resumeToken:      resumeTokenOf(data.resumeToken),
         variant:          data.variant != null ? String(data.variant) : undefined,
       });
     }
@@ -1275,6 +1325,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         ctaLabel:         data.ctaLabel != null ? String(data.ctaLabel).replace(/[\r\n]/g, "").slice(0, 40) : undefined,
         version:          data.version != null ? String(data.version).replace(/[^A-Za-z0-9._-]/g, "").slice(0, 32) : undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        resumeToken:      resumeTokenOf(data.resumeToken),
         variant:          data.variant != null ? String(data.variant) : undefined,
       });
     }
@@ -1285,6 +1336,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardId:          data.boardId != null ? String(data.boardId) : undefined,
         boardName:        boardName || undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        resumeToken:      resumeTokenOf(data.resumeToken),
         variant:          data.variant != null ? String(data.variant) : undefined,
       });
     }

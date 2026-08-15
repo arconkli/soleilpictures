@@ -40,6 +40,7 @@ const ScoutPage       = lazyWithReload(() => import('./pages/ScoutPage.jsx').the
 const SeoListiclePage = lazyWithReload(() => import('./pages/SeoListiclePage.jsx').then(m => ({ default: m.SeoListiclePage })));
 const DocsPage        = lazyWithReload(() => import('./pages/DocsPage.jsx').then(m => ({ default: m.DocsPage })));
 const OAuthConsentPage = lazyWithReload(() => import('./pages/OAuthConsentPage.jsx').then(m => ({ default: m.OAuthConsentPage })));
+const ResumePage      = lazyWithReload(() => import('./pages/ResumePage.jsx').then(m => ({ default: m.ResumePage })));
 
 // First-party error logging: capture uncaught errors + unhandled promise
 // rejections into our own client_errors table (see lib/errorReporting.js).
@@ -191,6 +192,13 @@ const docsMatch = /^\/docs(?:\/|$)/i.test(window.location.pathname);
 // render before the AuthGate so they're reachable signed-out (footer links,
 // ad-policy review, etc). SPA fallback in the Worker serves these deep links.
 const legalMatch = window.location.pathname.match(/^\/legal\/(privacy|terms|cookies)\/?$/i);
+
+// /resume = the landing for every lifecycle email CTA (migration 0235). It
+// spends a single-use token and lands the reader signed in. Renders BEFORE
+// AuthGate on purpose — booting the gate here would show the exact sign-in wall
+// the page exists to skip, which is what was killing the win-back program:
+// healthy opens, almost no clicks, and single-digit arrivals over seven weeks.
+const resumeMatch = /^\/resume\/?$/i.test(window.location.pathname);
 
 // /oauth/authorize = the OAuth consent screen (worker-oauth.js owns every other
 // verb and path under /oauth). Unlike the public pages above it renders INSIDE
@@ -394,6 +402,8 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
           <Suspense fallback={<SplashLoading />}>
             {legalMatch ? (
               <LegalPage doc={legalMatch[1].toLowerCase()} />
+            ) : resumeMatch ? (
+              <ResumePage />
             ) : scoutMatch ? (
               <ScoutPage />
             ) : seoLandingMatch ? (

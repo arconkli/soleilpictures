@@ -19340,6 +19340,95 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Getting back in from an email",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Getting back in from an email"
+    }
+   ],
+   "id": "getting-back-in-from-an-email"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The button in a product email goes to "
+    },
+    {
+     "t": "code",
+     "v": "/resume"
+    },
+    {
+     "t": "text",
+     "v": ", not to the sign-in form. Press "
+    },
+    {
+     "t": "strong",
+     "v": "Open my clusters",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open my clusters"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and you are signed in and taken to the board the email is about — no code to fetch from a second email, no password."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The link is good for "
+    },
+    {
+     "t": "strong",
+     "v": "one press",
+     "children": [
+      {
+       "t": "text",
+       "v": "one press"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and expires after "
+    },
+    {
+     "t": "strong",
+     "v": "seven days",
+     "children": [
+      {
+       "t": "text",
+       "v": "seven days"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Press it twice, forward the email, or leave it a fortnight and it politely falls back to ordinary sign-in, which still gets you to the same place."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It only signs you in when you press the button. Loading the page does nothing — mail providers and security scanners routinely open links in your mail before you do, and a link that signed you in on load would be spent by a robot."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Unsubscribing",
    "inline": [
     {

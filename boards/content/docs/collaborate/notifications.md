@@ -5,8 +5,8 @@ h1: Notifications
 navLabel: Notifications
 section: collaborate
 order: 5
-updated: 2026-08-08
-answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, and occasional product tips. Each of the five is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in.
+updated: 2026-08-14
+answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, and occasional product tips. Each of the five is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 faq:
   - q: Can I turn off product emails but keep mentions?
     a: Yes. The five categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
@@ -14,6 +14,8 @@ faq:
     a: Only if you grant permission. Nothing is requested until there is a reason.
   - q: How do I unsubscribe without logging in?
     a: Every email has a one-click unsubscribe link that works logged out.
+  - q: Do I need to sign in again when I click a link in an email?
+    a: No. The button in a product email opens a resume link that signs you in on one press and takes you to the board it mentions. It works once and expires after seven days; after that you sign in normally.
 related:
   - /docs/account/settings
   - /docs/collaborate/comments
@@ -44,6 +46,20 @@ until there is an actual reason to ask.
 
 **Email** — for things you would want to know about while not looking at the
 app.
+
+## Getting back in from an email
+
+The button in a product email goes to `/resume`, not to the sign-in form. Press
+**Open my clusters** and you are signed in and taken to the board the email is
+about — no code to fetch from a second email, no password.
+
+The link is good for **one press** and expires after **seven days**. Press it
+twice, forward the email, or leave it a fortnight and it politely falls back to
+ordinary sign-in, which still gets you to the same place.
+
+It only signs you in when you press the button. Loading the page does nothing —
+mail providers and security scanners routinely open links in your mail before
+you do, and a link that signed you in on load would be spent by a robot.
 
 ## Unsubscribing
 

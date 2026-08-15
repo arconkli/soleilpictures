@@ -2112,15 +2112,19 @@ export const DOCS_PAGES = [
     "title": "Notifications — Soleil Clusters",
     "metaDescription": "Control what Soleil Clusters notifies you about — mentions, comment replies, workspace invites, board shares and product tips — in Settings.",
     "h1": "Notifications",
-    "answer": "Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, and occasional product tips. Each of the five is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in.",
+    "answer": "Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, and occasional product tips. Each of the five is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.",
     "section": "collaborate",
     "order": 5,
-    "updated": "2026-08-08",
+    "updated": "2026-08-14",
     "navLabel": "Notifications",
     "headings": [
       {
         "id": "where-they-appear",
         "text": "Where they appear"
+      },
+      {
+        "id": "getting-back-in-from-an-email",
+        "text": "Getting back in from an email"
       },
       {
         "id": "unsubscribing",
@@ -2148,6 +2152,10 @@ export const DOCS_PAGES = [
       {
         "q": "How do I unsubscribe without logging in?",
         "a": "Every email has a one-click unsubscribe link that works logged out."
+      },
+      {
+        "q": "Do I need to sign in again when I click a link in an email?",
+        "a": "No. The button in a product email opens a resume link that signs you in on one press and takes you to the board it mentions. It works once and expires after seven days; after that you sign in normally."
       }
     ]
   },

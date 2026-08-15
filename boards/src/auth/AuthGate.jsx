@@ -86,6 +86,11 @@ function consumeDeepLink(userId) {
   window.history.replaceState({}, document.title, url.pathname + url.search);
 }
 
+// Set when a lifecycle CTA landed us here with NO session — i.e. the click hit
+// the sign-in wall. Read later, when a session finally arrives, to tell a
+// recovery apart from a click that was signed in all along.
+let lifecycleLandedSignedOut = false;
+
 // Consume ?lc=<email_type>.<version> — the first-party "they actually arrived"
 // signal for lifecycle email. Separate from consumeDeepLink because it must run
 // even when there is no ?w/?b to consume: a dormant user with no board still
@@ -96,8 +101,17 @@ function consumeDeepLink(userId) {
 // clicks, so a scanner prefetching the link is indistinguishable from a human
 // — and a click event says nothing about whether the app ever loaded.
 //
-// Fires once per page-load, then strips the param so a refresh doesn't re-count.
-function consumeLifecycleLanding() {
+// Fires REGARDLESS of session, carrying signed_in. It used to be gated on a
+// user id, on the reasoning that a signed-out click should stay unattributed
+// until it came back through OTP. That hid the single most important number in
+// the win-back program: win-back recipients average 27 days since last sign-in,
+// so virtually all of them land signed-out, and the ones who gave up at the
+// wall recorded nothing at all. Signed-out arrivals are the population we are
+// trying to measure, not noise.
+//
+// The param is stripped only once signed in, so it survives the OTP roundtrip
+// and the recovery still attributes.
+function consumeLifecycleLanding(signedIn) {
   if (typeof window === 'undefined') return;
   const url = new URL(window.location.href);
   const lc = url.searchParams.get('lc');
@@ -106,11 +120,21 @@ function consumeLifecycleLanding() {
   const clean = lc.replace(/[^A-Za-z0-9._-]/g, '').slice(0, 64);
   if (clean) {
     const dot = clean.indexOf('.');
+    const emailType      = dot === -1 ? clean : clean.slice(0, dot);
+    const contentVersion = dot === -1 ? null  : clean.slice(dot + 1);
     logEventOnce(`lifecycle_land:${clean}`, EV.LIFECYCLE_LAND, {
-      email_type:      dot === -1 ? clean : clean.slice(0, dot),
-      content_version: dot === -1 ? null  : clean.slice(dot + 1),
+      email_type: emailType, content_version: contentVersion, signed_in: !!signedIn,
     });
+    if (!signedIn) lifecycleLandedSignedOut = true;
+    // Landed at the wall, then got through it. This is the number that says
+    // whether the resume link is working.
+    if (signedIn && lifecycleLandedSignedOut) {
+      logEventOnce(`lifecycle_resume:${clean}`, EV.LIFECYCLE_RESUME, {
+        email_type: emailType, content_version: contentVersion,
+      });
+    }
   }
+  if (!signedIn) return;
   url.searchParams.delete('lc');
   window.history.replaceState({}, document.title, url.pathname + url.search);
 }
@@ -321,9 +345,10 @@ export function AuthGate({ children }) {
         // Write deep-link params into localStorage BEFORE setSession,
         // so when App mounts its useState initializer reads the right
         // workspace + board on the very first render.
+        // Unconditional: a signed-out arrival is the case we most need to see.
+        consumeLifecycleLanding(!!data.session?.user?.id);
         if (data.session?.user?.id) {
           consumeDeepLink(data.session.user.id);
-          consumeLifecycleLanding();
           await consumePendingInvite(data.session.user.id);
           await consumePendingJoin(data.session.user.id);
           await consumeScoutClaim(data.session.user.id);
@@ -331,6 +356,8 @@ export function AuthGate({ children }) {
         if (!cancelled) setSession(data.session);
       } catch (error) {
         console.warn('Auth session could not be restored', error);
+        // A failed restore is still an arrival — and a signed-out one.
+        try { consumeLifecycleLanding(false); } catch (_) {}
         // Only attribute to the magic-link funnel when a code/token was actually
         // present — a plain getSession() failure on a normal load isn't a CTA.
         try {
@@ -351,12 +378,12 @@ export function AuthGate({ children }) {
       // localStorage, so App's first render reads the right workspace +
       // board after a magic-link signup.
       (async () => {
+        // Unlike consumeDeepLink, NOT gated on a user id — this is where a
+        // signed-out lifecycle click that made it through OTP gets recorded as
+        // a recovery. ?lc= was deliberately left in the URL for exactly this.
+        consumeLifecycleLanding(!!sess?.user?.id);
         if (sess?.user?.id) {
           consumeDeepLink(sess.user.id);
-          // Deliberately gated on a user id, like consumeDeepLink: if the click
-          // lands signed-out, leave ?lc= in the URL so it survives the OTP
-          // roundtrip and lands here attributed, rather than firing user-less.
-          consumeLifecycleLanding();
           await consumePendingInvite(sess.user.id);
           await consumePendingJoin(sess.user.id);
           await consumeScoutClaim(sess.user.id);

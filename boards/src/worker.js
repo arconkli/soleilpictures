@@ -452,6 +452,20 @@ export default {
       });
     }
 
+    // /resume carries a single-use session credential in its query string and
+    // is reachable only from a lifecycle email. It must never be indexed, and
+    // the header matters as much as the meta tag: non-HTML-parsing fetchers
+    // (and any crawler that only reads headers) never see the tag. Same
+    // fail-closed posture as the tokened /share URLs above.
+    if (isPageReq && normalizePath(url.pathname) === '/resume' && contentType.includes('text/html')) {
+      const out = new HTMLRewriter()
+        .on('head', new AppendHead('<meta name="robots" content="noindex">'))
+        .transform(res);
+      out.headers.set('x-robots-tag', 'noindex');
+      out.headers.set('cache-control', 'no-store');
+      return out;
+    }
+
     // Inject per-route SEO metadata for HTML document navigations to a known
     // public route. The asset served is index.html (SPA fallback), but the
     // Worker still sees the real pathname, so we can give each URL its own meta.
