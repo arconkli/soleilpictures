@@ -131,12 +131,15 @@ export function useUniverseStats() {
 // useUniverseDeltas — subscribes to /deltas. Calls callbacks for
 // each new node/edge as it arrives. Handlers are not memoized
 // internally — pass stable refs (or wrap in useCallback) to avoid
-// re-subscribing on every render.
-export function useUniverseDeltas({ since, onNode, onEdge, onBatch, onAuthError }) {
+// re-subscribing on every render. `enabled: false` skips the
+// subscription entirely (the synthetic QA harness has no SSE server
+// to talk to).
+export function useUniverseDeltas({ since, onNode, onEdge, onBatch, onAuthError, enabled = true }) {
   const esRef   = useRef(null);
   const stopped = useRef(false);
 
   useEffect(() => {
+    if (!enabled) return undefined;
     stopped.current = false;
     let backoff = 1000;
     let lastSeen = since || new Date().toISOString();

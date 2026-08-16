@@ -16,6 +16,7 @@
 
 import type * as Party from "partykit/server";
 import { authAdmin } from "./auth";
+import { encodeCursor, decodeCursor } from "../src/lib/universePaging.js";
 
 const SUPABASE_URL = "https://ehlhlmbpwwalmeisvmdp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_djb-_42yVCKWTNTfhhVqTQ_9TVpSNAr";
@@ -80,6 +81,14 @@ async function supaRpc<T = unknown>(
 
 type Node = { node_id: string; kind: string; workspace_id: string; created_at: string };
 type Edge = { source_id: string; target_id: string; edge_kind: string; created_at: string };
+
+// The _v2 RPCs return ONE jsonb row, so PostgREST's max_rows (1000 by
+// default — the reason the universe was stuck at exactly 1k nodes)
+// cannot truncate them. Cursors are compound (created_at, id/key)
+// keysets so rows sharing a timestamp can never be skipped, and
+// `done` comes from SQL, where LIMIT is actually enforced.
+type SnapshotV2 = { nodes: Node[]; next_ts: string | null; next_id: string | null; done: boolean };
+type EdgesV2 = { edges: Edge[]; next_ts: string | null; next_key: string | null; done: boolean };
 
 function makeSseStream(
   req: Party.Request,
@@ -192,28 +201,29 @@ export default class UniverseParty implements Party.Server {
     });
   }
 
-  // GET /snapshot?nodes_cursor=<iso>&edges_cursor=<iso>&node_limit=<n>&edge_limit=<n>
+  // GET /snapshot?nodes_cursor=<c>&edges_cursor=<c>&node_limit=<n>&edge_limit=<n>
   // (Legacy ?cursor=<iso> still accepted: applies to both axes.)
   //
-  // Nodes and edges paginate INDEPENDENTLY by their own created_at
-  // cursors. Using a single shared cursor was buggy: if edges
-  // extended further into the future than nodes (typical — links
-  // get created after the boards they link), max(node_ts, edge_ts)
-  // would skip past unfetched nodes on the next page.
-  //
-  // Response includes both next cursors; client passes each back on
-  // the next call. `done` flips when both axes returned strictly
-  // fewer than their limits.
+  // Nodes and edges paginate INDEPENDENTLY. Cursors are OPAQUE to the
+  // client — encodeCursor packs the RPC's compound (created_at, id)
+  // keyset; a legacy plain-ISO cursor decodes as (ts, ''). `done` is
+  // the SQL-computed flag from both axes, so "fewer rows than the
+  // limit" (which PostgREST truncation used to fake) can no longer
+  // end a walk early.
   private async handleSnapshot(req: Party.Request, token: string, url: URL): Promise<Response> {
     const sharedCursor = url.searchParams.get("cursor");
-    const nodesCursor = url.searchParams.get("nodes_cursor") || sharedCursor;
-    const edgesCursor = url.searchParams.get("edges_cursor") || sharedCursor;
+    const rawNodesCursor = url.searchParams.get("nodes_cursor") || sharedCursor;
+    const rawEdgesCursor = url.searchParams.get("edges_cursor") || sharedCursor;
+    const nodesCur = decodeCursor(rawNodesCursor);
+    const edgesCur = decodeCursor(rawEdgesCursor);
     const nodeLimit = clampInt(url.searchParams.get("node_limit"), 1, MAX_PAGE_NODES, MAX_PAGE_NODES);
     const edgeLimit = clampInt(url.searchParams.get("edge_limit"), 1, MAX_PAGE_EDGES, MAX_PAGE_EDGES);
 
     const [nodesRes, edgesRes] = await Promise.all([
-      supaRpc<Node[]>("admin_universe_snapshot", { p_cursor: nodesCursor, p_limit: nodeLimit }, token),
-      supaRpc<Edge[]>("admin_universe_edges",    { p_cursor: edgesCursor, p_limit: edgeLimit }, token),
+      supaRpc<SnapshotV2>("admin_universe_snapshot_v2",
+        { p_cursor_ts: nodesCur.ts, p_cursor_id: nodesCur.key || null, p_limit: nodeLimit }, token),
+      supaRpc<EdgesV2>("admin_universe_edges_v2",
+        { p_cursor_ts: edgesCur.ts, p_cursor_key: edgesCur.key || null, p_limit: edgeLimit }, token),
     ]);
 
     if (!nodesRes.ok) {
@@ -229,23 +239,22 @@ export default class UniverseParty implements Party.Server {
       });
     }
 
-    const nodes = nodesRes.data || [];
-    const edges = edgesRes.data || [];
-    // Per-axis next cursors. Null/unchanged when the axis is exhausted.
-    const nextNodesCursor = nodes.length
-      ? nodes.reduce((a, n) => (n.created_at > a ? n.created_at : a), nodes[0].created_at)
-      : nodesCursor;
-    const nextEdgesCursor = edges.length
-      ? edges.reduce((a, e) => (e.created_at > a ? e.created_at : a), edges[0].created_at)
-      : edgesCursor;
-    const done = nodes.length < nodeLimit && edges.length < edgeLimit;
-    // Backwards-compat: legacy clients that read `next_cursor` get
-    // the older (smaller) cursor so they don't accidentally skip
-    // unfetched nodes if edges raced ahead.
-    const nextCursor =
-      nextNodesCursor && nextEdgesCursor
-        ? (nextNodesCursor < nextEdgesCursor ? nextNodesCursor : nextEdgesCursor)
-        : (nextNodesCursor || nextEdgesCursor);
+    const nodes = nodesRes.data?.nodes || [];
+    const edges = edgesRes.data?.edges || [];
+    // Per-axis next cursors. Unchanged when the axis is exhausted.
+    const nextNodesCursor = nodesRes.data?.next_ts
+      ? encodeCursor(nodesRes.data.next_ts, nodesRes.data.next_id || "")
+      : rawNodesCursor;
+    const nextEdgesCursor = edgesRes.data?.next_ts
+      ? encodeCursor(edgesRes.data.next_ts, edgesRes.data.next_key || "")
+      : rawEdgesCursor;
+    const done = !!(nodesRes.data?.done && edgesRes.data?.done);
+    // Backwards-compat: truly ancient single-cursor clients read
+    // `next_cursor` (a plain timestamp). Give them the older of the
+    // two axis timestamps so they can't skip unfetched rows.
+    const nTs = nodesRes.data?.next_ts || null;
+    const eTs = edgesRes.data?.next_ts || null;
+    const nextCursor = nTs && eTs ? (nTs < eTs ? nTs : eTs) : (nTs || eTs);
 
     return new Response(JSON.stringify({
       nodes, edges,
@@ -270,7 +279,13 @@ export default class UniverseParty implements Party.Server {
     const initialSince = url.searchParams.get("since") || new Date().toISOString();
 
     return makeSseStream(req, (write, close) => {
-      let cursor = initialSince;
+      // Per-axis compound cursors (the v1 shared-timestamp cursor
+      // could both skip same-timestamp rows and let one axis race
+      // past the other).
+      let nodesTs: string | null = initialSince;
+      let nodesId: string | null = null;
+      let edgesTs: string | null = initialSince;
+      let edgesKey: string | null = null;
       let stopped = false;
       const rateWindow: number[] = []; // ms timestamps of recent events
 
@@ -284,8 +299,10 @@ export default class UniverseParty implements Party.Server {
       const tick = async () => {
         if (stopped) return;
         const [nodesRes, edgesRes] = await Promise.all([
-          supaRpc<Node[]>("admin_universe_snapshot", { p_cursor: cursor, p_limit: MAX_PAGE_NODES }, token),
-          supaRpc<Edge[]>("admin_universe_edges",    { p_cursor: cursor, p_limit: MAX_PAGE_EDGES }, token),
+          supaRpc<SnapshotV2>("admin_universe_snapshot_v2",
+            { p_cursor_ts: nodesTs, p_cursor_id: nodesId, p_limit: MAX_PAGE_NODES }, token),
+          supaRpc<EdgesV2>("admin_universe_edges_v2",
+            { p_cursor_ts: edgesTs, p_cursor_key: edgesKey, p_limit: MAX_PAGE_EDGES }, token),
         ]);
         if (stopped) return;
         if (!nodesRes.ok || !edgesRes.ok) {
@@ -298,18 +315,20 @@ export default class UniverseParty implements Party.Server {
           write("warn", { reason: r.reason });
           return;
         }
-        const nodes = nodesRes.data || [];
-        const edges = edgesRes.data || [];
+        const nodes = nodesRes.data?.nodes || [];
+        const edges = edgesRes.data?.edges || [];
         const total = nodes.length + edges.length;
         if (total === 0) return;
 
         recordRate(total);
-        // Advance cursor to the max timestamp returned this tick.
-        const allTs = [
-          ...nodes.map((n) => n.created_at),
-          ...edges.map((e) => e.created_at),
-        ];
-        cursor = allTs.reduce((a, b) => (a > b ? a : b), cursor);
+        if (nodesRes.data?.next_ts) {
+          nodesTs = nodesRes.data.next_ts;
+          nodesId = nodesRes.data.next_id || null;
+        }
+        if (edgesRes.data?.next_ts) {
+          edgesTs = edgesRes.data.next_ts;
+          edgesKey = edgesRes.data.next_key || null;
+        }
 
         const heavy = rateWindow.length > BATCH_THRESHOLD_PER_MIN;
         if (heavy) {
