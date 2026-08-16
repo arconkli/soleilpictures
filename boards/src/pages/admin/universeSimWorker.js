@@ -33,37 +33,31 @@
 import { forceSimulation, forceLink, forceManyBody, forceCenter } from 'd3-force-3d';
 import { hash01, orbitJitter, targetId } from '../../lib/hashJitter.js';
 import {
-  isAnchorId, parentBoardId, isSimLinkKind, orbitOffset, rogueOffset,
+  isAnchorId, parentBoardId, isSimLinkKind, orbitOffset, rogueOffset, galaxySeed,
 } from '../../lib/universeLayout.js';
 
 const HOT_TICK_MS  = 16;
 const ALPHA_RESTART = 0.3;
 
-// Center attraction — MINIMAL. Just enough to keep the universe
-// bounded so the spiral force has something to wind around. Every
-// anchor carries a hashed personal multiplier (_g) so some sit deep
-// and some drift wide — a uniform pull makes a uniform ring.
-const GRAVITY_PULL = 0.008;
-
 // Base repulsion between anchors. Boards scale this up with the size
 // of their card swarm (see chargeStrength) so a 300-card galaxy claims
 // proportionally more space than an empty board — and every anchor
 // gets a hashed mass (_m) so spacing comes out ragged, not even.
-const CHARGE_STRENGTH = -200;
+// (−140, down from −200: with the home spring holding the wave
+// pattern, stronger repulsion just puffed the crowded arm lanes —
+// the very over-density the layout exists to show.)
+const CHARGE_STRENGTH = -140;
 
-// Very gentle Y-flattening so spiral arms can actually read as arms.
-// ~15% of anchors get a near-zero personal factor (_d): thick-disk
-// drifters that float off the plane like real halo objects.
-const DISK_PULL = 0.03;
-
-// Spiral arms — deliberately LOOSE: ~30% of anchors are "field stars"
-// that ignore the arms entirely (_a = 0), the rest lean in with
-// varied enthusiasm, so the arms read as ragged lanes instead of
-// drawn curves.
-const NUM_ARMS        = 2;
-const SPIRAL_PITCH    = 0.45;
-const SPIRAL_STRENGTH = 0.08;
-const SPIRAL_INNER_R  = 60;
+// The epicyclic restoring force. Real disk stars oscillate around a
+// guiding center set by their orbit; here every anchor's guiding
+// center is its galaxySeed position (the kinematic density-wave
+// layout — see lib/universeLayout.js), and this spring pulls it home.
+// Charge and links then resolve LOCAL crowding without ever being
+// strong enough to erase the wave pattern. This replaces the old
+// center-pull + disk-flatten + spiral-tug trio — those sculpted the
+// layout from outside, which is exactly how the arms ended up looking
+// like drawn tubes instead of emergent crowding.
+const HOME_PULL = 0.08;
 
 // ── Hierarchical state ───────────────────────────────────────────
 // order[i] mirrors the main thread's node index i:
@@ -80,67 +74,19 @@ let paused      = false;
 let stopped     = false;
 let tickTimer   = null;
 
-// ── Custom forces (anchors only) ─────────────────────────────────
-// Each force reads the anchor's hashed personality factors (_g pull,
-// _d disk, _a arm affinity) so no two anchors feel identical physics
-// — uniform forces are what made the old layout look machine-even.
+// ── Custom force (anchors only) ──────────────────────────────────
 
-// Pull every anchor toward the origin. d3's forceCenter only pins the
-// centroid; this is what actually drags everything in.
-function forcePull() {
+// Epicyclic home spring — pulls every anchor toward its guiding
+// center (_hx/_hy/_hz, the seeded density-wave position). The wave
+// pattern lives in the homes; the sim only jiggles around them.
+function forceHome() {
   let ns;
   function force(alpha) {
+    const k = HOME_PULL * alpha;
     for (const n of ns) {
-      const k = GRAVITY_PULL * (n._g || 1) * alpha;
-      n.vx = (n.vx || 0) - (n.x || 0) * k;
-      n.vy = (n.vy || 0) - (n.y || 0) * k;
-      n.vz = (n.vz || 0) - (n.z || 0) * k;
-    }
-  }
-  force.initialize = (n) => { ns = n; };
-  return force;
-}
-
-// Very gentle pull toward the Y=0 plane so spiral arms can read.
-function forceDiskLite() {
-  let ns;
-  function force(alpha) {
-    for (const n of ns) {
-      n.vy = (n.vy || 0) - (n.y || 0) * DISK_PULL * (n._d ?? 1) * alpha;
-    }
-  }
-  force.initialize = (n) => { ns = n; };
-  return force;
-}
-
-// Tangential nudge that biases each anchor toward its nearest of N
-// logarithmic spiral arms. Bulge anchors (r < SPIRAL_INNER_R) and
-// field stars (_a = 0) are exempt. Cards inherit the spiral by riding
-// their board.
-function forceSpiral() {
-  let ns;
-  const armOffsets = new Float32Array(NUM_ARMS);
-  for (let i = 0; i < NUM_ARMS; i++) armOffsets[i] = (2 * Math.PI * i) / NUM_ARMS;
-  function force(alpha) {
-    const strength = SPIRAL_STRENGTH * alpha;
-    for (const n of ns) {
-      const affinity = n._a ?? 1;
-      if (affinity === 0) continue;
-      const x = n.x || 0, z = n.z || 0;
-      const r2 = x * x + z * z;
-      if (r2 < SPIRAL_INNER_R * SPIRAL_INNER_R) continue;
-      const r = Math.sqrt(r2);
-      const theta = Math.atan2(z, x);
-      const curve = SPIRAL_PITCH * Math.log(r);
-      let bestDelta = Infinity;
-      for (let a = 0; a < NUM_ARMS; a++) {
-        let d = curve + armOffsets[a] - theta;
-        d = ((d + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
-        if (Math.abs(d) < Math.abs(bestDelta)) bestDelta = d;
-      }
-      const k = bestDelta * strength * affinity;
-      n.vx = (n.vx || 0) + (-z) * k;
-      n.vz = (n.vz || 0) + ( x) * k;
+      n.vx = (n.vx || 0) + ((n._hx || 0) - (n.x || 0)) * k;
+      n.vy = (n.vy || 0) + ((n._hy || 0) - (n.y || 0)) * k;
+      n.vz = (n.vz || 0) + ((n._hz || 0) - (n.z || 0)) * k;
     }
   }
   force.initialize = (n) => { ns = n; };
@@ -176,48 +122,56 @@ function chargeStrength(n) {
   return CHARGE_STRENGTH * (n._m || 1) * (1 + Math.sqrt(leaves) / 3);
 }
 
-// ── Galaxy-shaped seeding ────────────────────────────────────────
-// d3's default init spreads nodes on an even phyllotaxis ball, which
-// takes ~200 warmup ticks to relax and STILL converges to even
-// porridge. Seeding anchors straight into an exponential disk with
-// loose arm bias means the sim starts ~settled: warmup drops to a
-// blink, and the layout keeps the ragged structure instead of
-// relaxing it away. All hash-keyed on ids — stable across reloads.
+// ── Galaxy seeding — kinematic density waves ─────────────────────
+// Every anchor gets a guiding center from galaxySeed (precessing-
+// ellipse orbits on an exponential disk — the arms emerge as orbit
+// crowding, see lib/universeLayout.js), then structural children are
+// re-homed beside their parents. The sim starts ~settled: warmup
+// drops to a blink and, because the home spring anchors everything,
+// the live settle can't relax the wave pattern away.
+//
+// wsCount sets the disk radius AND the twist normalization, so it
+// must be identical for every star of one layout — init pre-counts
+// the whole snapshot before seeding (a per-arrival count desyncs
+// ω(a) across the population and smears the arms into mush). Live
+// deltas seed against the then-current count; the next reload
+// re-seeds everything coherently.
 let wsCount = 0;
 
 function seedDisk(a) {
   const R = 60 * Math.sqrt(Math.max(1, wsCount));
-  const r = R * Math.pow(hash01(a.id + ':sr'), 0.6);      // dense core, thin rim
-  let theta = 2 * Math.PI * hash01(a.id + ':sθ');
-  if (a._a > 0 && r > SPIRAL_INNER_R) {
-    // Lean arm-affine anchors toward a spiral lane, scattered wide.
-    const arm = Math.floor(hash01(a.id + ':sa') * NUM_ARMS);
-    const armTheta = SPIRAL_PITCH * Math.log(r) + (2 * Math.PI * arm) / NUM_ARMS;
-    const scatter = (hash01(a.id + ':ss') + hash01(a.id + ':ss2') - 1) * 0.9;
-    const w = 0.55 + 0.35 * hash01(a.id + ':sw');
-    theta = theta * (1 - w) + (armTheta + scatter) * w;
-  }
-  const thick = a._d < 1 ? 0.6 : 0.18;                    // drifters float higher
-  a.x = r * Math.cos(theta);
-  a.y = r * Math.pow(2 * hash01(a.id + ':sy') - 1, 3) * thick;
-  a.z = r * Math.sin(theta);
+  galaxySeed(a.id, R, _seedTmp);
+  a.x = _seedTmp[0];
+  // Thick-disk drifters (~15%) float at 3× the local scale height,
+  // like real halo objects.
+  a.y = _seedTmp[1] * (a._d < 1 ? 3 : 1);
+  a.z = _seedTmp[2];
+  setHome(a);
+}
+const _seedTmp = new Float32Array(3);
+
+function setHome(a) {
+  a._hx = a.x; a._hy = a.y; a._hz = a.z;
 }
 
-// Re-seed structural children next to their parents so link forces
-// start near equilibrium: boards beside their workspace, sub-boards
-// beside their parent board (two passes cover grandchildren), users
-// beside their first workspace.
+// Place (and re-home) structural children next to their parents so
+// link forces start near equilibrium AND the home spring agrees with
+// the hierarchy: boards beside their workspace, sub-boards beside
+// their parent board (two passes cover grandchildren), users beside
+// their first workspace.
+function placeNear(parentId, childId, base) {
+  const p = anchorById.get(parentId);
+  const c = anchorById.get(childId);
+  if (!p || !c) return;
+  const jr = base * orbitJitter(childId);
+  const th = 2 * Math.PI * hash01(childId + ':sp');
+  c.x = p.x + jr * Math.cos(th);
+  c.y = p.y + (2 * hash01(childId + ':spy') - 1) * jr * 0.3;
+  c.z = p.z + jr * Math.sin(th);
+  setHome(c);
+}
+
 function seedChildrenNearParents(linksArr) {
-  const placeNear = (parentId, childId, base) => {
-    const p = anchorById.get(parentId);
-    const c = anchorById.get(childId);
-    if (!p || !c) return;
-    const jr = base * orbitJitter(childId);
-    const th = 2 * Math.PI * hash01(childId + ':sp');
-    c.x = p.x + jr * Math.cos(th);
-    c.y = p.y + (2 * hash01(childId + ':spy') - 1) * jr * 0.3;
-    c.z = p.z + jr * Math.sin(th);
-  };
   for (const l of linksArr) {
     if (l.kind === 'wsroot') placeNear(l.source, l.target, 80);
   }
@@ -239,24 +193,21 @@ function buildSim() {
     .force('link',    forceLink(simLinks).id(d => d.id).distance(linkDistance).strength(linkStrength))
     .force('charge',  forceManyBody().strength(chargeStrength))
     .force('center',  forceCenter())
-    .force('pull',    forcePull())
-    .force('disk',    forceDiskLite())
-    .force('spiral',  forceSpiral())
+    .force('home',    forceHome())
     .alphaDecay(0.04)
     .velocityDecay(0.32)
     .stop();
 }
 
-function addNode(n) {
+function addNode(n, preCounted = false) {
   if (isAnchorId(n.id)) {
-    if (n.id.startsWith('ws:')) wsCount++;
+    if (!preCounted && n.id.startsWith('ws:')) wsCount++;
     const a = {
       id: n.id, val: n.val,
-      // Hashed physics personality — see the force comments above.
+      // Hashed physics personality: _m = charge mass (ragged spacing),
+      // _d < 1 marks a thick-disk drifter (seeded off-plane).
       _m: 0.5 + 1.3 * hash01(n.id + ':m'),
-      _g: 0.6 + 0.8 * hash01(n.id + ':g'),
       _d: hash01(n.id + ':d') > 0.85 ? 0.12 : 1,
-      _a: hash01(n.id + ':a') < 0.3 ? 0 : 0.7 + 0.6 * hash01(n.id + ':a2'),
     };
     seedDisk(a);
     anchors.push(a);
@@ -362,8 +313,13 @@ self.onmessage = (ev) => {
   switch (msg.type) {
     case 'init': {
       order = []; anchors = []; anchorById = new Map();
-      simLinks = []; leafCounts = new Map(); wsCount = 0;
-      for (const n of msg.nodes || []) addNode(n);
+      simLinks = []; leafCounts = new Map();
+      // Pre-count workspaces so every seed shares one disk scale.
+      wsCount = 0;
+      for (const n of msg.nodes || []) {
+        if (typeof n.id === 'string' && n.id.startsWith('ws:')) wsCount++;
+      }
+      for (const n of msg.nodes || []) addNode(n, true);
       for (const l of msg.links || []) {
         if (acceptSimLink(l)) simLinks.push({ ...l });
       }
@@ -409,7 +365,15 @@ self.onmessage = (ev) => {
       if (!sim || !Array.isArray(msg.links) || msg.links.length === 0) return;
       let simRelevant = 0;
       for (const l of msg.links) {
-        if (acceptSimLink(l)) { simLinks.push({ ...l }); simRelevant++; }
+        if (acceptSimLink(l)) {
+          simLinks.push({ ...l });
+          simRelevant++;
+          // A live delta anchor seeded onto the disk before its
+          // structural link arrived — snap it (and its home) beside
+          // its parent now, like the init-time pass would have.
+          if (l.kind === 'wsroot')    placeNear(l.source, l.target, 80);
+          if (l.kind === 'hierarchy') placeNear(l.source, l.target, 36);
+        }
       }
       if (simRelevant === 0) return;  // pure card links don't move anything
       rebindForces();
