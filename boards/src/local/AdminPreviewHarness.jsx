@@ -5,12 +5,18 @@
 // can be screenshotted and iterated on visually. Dynamically imported only when
 // the gate is on, so it never ships to production.
 //
-// Universe is intentionally a placeholder here (it needs realtime + WebGL and
-// is out of scope for the visual rework).
+// Universe renders the REAL <UniverseGraph> over a synthetic corpus
+// (see universeQaData.js) — no realtime, no auth, any node count via
+// ?n=. This is the scale test bench: ?adminpreview=1&tab=universe&
+// n=200000 drives the exact production pipeline (snapshot paging,
+// worker layout, disc/halo/sphere rendering) at sizes the live
+// corpus hasn't reached yet.
 
 import { useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { installAdminPreviewMocks } from './adminFixtures.js';
+import { UniverseGraph } from '../pages/admin/UniverseGraph.jsx';
+import { makeSyntheticDataSource } from './universeQaData.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { AdminOverviewTab } from '../pages/admin/AdminOverviewTab.jsx';
 import { AdminAnalyticsTab } from '../pages/admin/AdminAnalyticsTab.jsx';
@@ -25,6 +31,40 @@ import { AdminTaggingTab } from '../pages/admin/AdminTaggingTab.jsx';
 // Install the fixture shim before any tab mounts + fetches.
 const MOCKS_OK = installAdminPreviewMocks(supabase);
 
+function readQaNodeTarget() {
+  try {
+    const n = parseInt(new URLSearchParams(window.location.search).get('n'), 10);
+    if (Number.isFinite(n)) return Math.max(100, Math.min(n, 2_000_000));
+  } catch (_) { /* ignore */ }
+  return 20000;
+}
+
+function UniverseQaTab() {
+  const [ds] = useState(() => {
+    const source = makeSyntheticDataSource({ nodeTarget: readQaNodeTarget() });
+    window.__universeQaExpected = source.totals;
+    return source;
+  });
+  const [picked, setPicked] = useState(null);
+  const [resetSignal, setResetSignal] = useState(0);
+  return (
+    <div className="universe-tab">
+      <UniverseGraph onNodeClick={setPicked} resetSignal={resetSignal} dataSource={ds} />
+      <button
+        className="universe-reset-btn"
+        onClick={() => setResetSignal((n) => n + 1)}
+      >
+        Reset view
+      </button>
+      {picked && (
+        <div className="universe-ticker" data-testid="universe-qa-picked">
+          {picked.kind} · {picked.id}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const TABS = [
   { id: 'overview',  label: 'Overview',  Component: AdminOverviewTab },
   { id: 'analytics', label: 'Analytics', Component: AdminAnalyticsTab },
@@ -35,7 +75,7 @@ const TABS = [
   { id: 'errors',    label: 'Errors',    Component: AdminErrorsTab },
   { id: 'api',       label: 'API',       Component: AdminApiTab },
   { id: 'tagging',   label: 'Tagging',   Component: AdminTaggingTab },
-  { id: 'universe',  label: 'Universe',  Component: null },
+  { id: 'universe',  label: 'Universe',  Component: UniverseQaTab },
 ];
 
 function initialTab() {
@@ -93,12 +133,8 @@ export function AdminPreviewHarness() {
         </div>
       </header>
 
-      <main className="admin-body">
-        {Component ? (
-          <Component />
-        ) : (
-          <div className="admin-empty">Universe isn’t previewed here (realtime + WebGL). It’s unchanged by the rework.</div>
-        )}
+      <main className={`admin-body ${tab === 'universe' ? 'admin-body-flush' : ''}`}>
+        {Component ? <Component /> : null}
       </main>
     </div>
   );

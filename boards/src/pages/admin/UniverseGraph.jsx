@@ -1,22 +1,38 @@
-// UniverseGraph — GPU-instanced 3D constellation of every node and
-// every connection on the platform.
+// UniverseGraph — GPU 3D constellation of every node and every
+// connection on the platform. Every node means EVERY node: the
+// snapshot walk keeps paginating until the server says done, so the
+// universe always shows the whole corpus (the old pipeline stopped at
+// PostgREST's 1,000-row truncation and called it a day).
 //
-// Performance shape:
-//   • All node bodies render via a SINGLE THREE.InstancedMesh<Sphere>
-//     (one draw call for any node count).
-//   • All node halos render via a SINGLE THREE.Points cloud with a
-//     custom shader for per-vertex color + size (one draw call).
-//   • All edges render via a SINGLE THREE.LineSegments with one
-//     packed BufferGeometry (one draw call regardless of edge count).
-//   • The d3-force-3d simulation runs in a Web Worker; main thread
-//     never blocks on a tick. Worker posts transferable Float32Array
-//     positions that we splat directly into the GPU buffers.
+// Performance shape (built to keep scaling):
+//   • Card nodes ("leaves", the unbounded population) render as a
+//     SINGLE THREE.Points cloud of shader discs — one vertex per
+//     card. A flat disc is pixel-identical to the flat-shaded
+//     MeshBasicMaterial spheres we used to draw, at 1/450th the
+//     geometry cost.
+//   • ws/board anchors keep TRUE instanced spheres (small population,
+//     and they're the bodies you fly up close to — a point sprite
+//     would clamp at MAX_POINT_SIZE and stop growing).
+//   • Node halos are a second Points cloud that SHARES the same
+//     position BufferAttribute as the disc cloud — one position
+//     upload feeds both.
+//   • All edges render via a SINGLE THREE.LineSegments buffer.
+//   • The d3-force-3d sim runs in a Web Worker over ANCHORS ONLY
+//     (user/ws/board); cards ride deterministic orbits around their
+//     board at three float-adds each (see lib/universeLayout.js).
+//     The worker stops posting once settled instead of re-uploading
+//     identical frames forever.
+//   • Picking is a CPU walk over the positions array (exact per-node
+//     radii + angular slop so far-away dots stay clickable) — no
+//     raycast against 450-triangle spheres.
 //
-// Effective ceiling: ~200–250k nodes at 30+ fps on a typical laptop.
-// Beyond that, see "Stage 3" notes in the plan (server-precomputed
-// layout, viewport LOD, binary snapshot transport).
+// Ceiling: SOFT_NODE_LIMIT (2M) guards tab memory, not the frame
+// budget — position+color+size buffers at 2M nodes are ~80MB. Beyond
+// that the next step is LOD impostors (aggregate distant galaxies
+// into single sprites), which the anchor/leaf split here is already
+// shaped for.
 //
-// Visual contract: each node looks like a HomeGraph "planet" — sphere
+// Visual contract: each node looks like a HomeGraph "planet" — body
 // + halo, same per-kind palette (board=gold, doc=cream, note=
 // terracotta, image=jovian violet, palette=teal, link=neptune blue).
 // NO background star field (real nodes only, per user request).
@@ -33,6 +49,7 @@ import { RenderPass }        from 'three/examples/jsm/postprocessing/RenderPass.
 import { UnrealBloomPass }   from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import SimWorker from './universeSimWorker.js?worker';
 import { fetchSnapshotPage, useUniverseDeltas } from './useUniverseStream.js';
+import { collectSnapshot } from '../../lib/universePaging.js';
 
 // ── Per-kind palette — copied from boards/src/lib/graphData.js
 //    with two admin-only additions (user + ws). User reads as a
@@ -80,26 +97,17 @@ function classifyEdge(rawKind) {
 }
 
 // ── Universe tunables ─────────────────────────────────────────────
-// Reverted from the full "galactic" set back to home-graph parity
-// for the clusters. Only the two galaxy-flavored bits stayed:
-// universe-wide center attraction (in the worker) and spiral arms
-// (also worker). Camera, rotation, and rendering all match
-// HomeGraph defaults.
 const GALAXY = {
   // Galactic spin around the disk normal — slow enough that the
   // spiral reads as a turning galaxy, not a spinning logo.
   rotationRate: 0.035,
   // Keep camera.far modest. Bigger ratios (we had 1e6) tank depth-
-  // buffer precision, which makes the bokeh shader misjudge what's
-  // actually at the focal plane — everything ends up softened.
-  // 20k is plenty: a typical universe radius is <5k.
+  // buffer precision. 20k is plenty: a typical universe radius is <5k.
   cameraFar:    20000,
   zoomMin:      5,
   zoomMax:      18000,
-  // Bloom (replaces DoF). UnrealBloomPass makes bright pixels bleed
-  // energy into surrounding ones — gives nodes the pinprick-with-
-  // soft-glow look real stars have in long-exposure astrophotos.
-  // Works correctly at any zoom level because it's screen-space.
+  // Bloom — bright pixels bleed energy into neighbors for the
+  // pinprick-with-soft-glow look real stars have in long exposures.
   bloomStrength:  0.45,
   bloomRadius:    0.85,
   bloomThreshold: 0.15,
@@ -134,11 +142,18 @@ const EDGE_PAGE         = 100000;
 const DELTA_FLUSH_MS    = 250;
 const ORPHAN_MAX_TRIES  = 12;
 const INITIAL_NODE_CAP  = 1024;
+const INITIAL_ANCHOR_CAP = 256;
 const INITIAL_EDGE_CAP  = 2048;
-// Hard ceiling so a runaway dataset can't OOM the tab. 250k is
-// comfortably below where the GPU buffer rewrite per tick stops
-// fitting in the frame budget.
-const SOFT_NODE_LIMIT   = 250_000;
+// Memory guard, not a render budget: 2M nodes ≈ 80MB of GPU/JS
+// buffers. The hierarchical sim + disc pipeline holds frame rate far
+// past the old 250k full-sim ceiling; past THIS number the tab's
+// memory is the binding constraint and the next move is LOD
+// aggregation, not a bigger cap.
+const SOFT_NODE_LIMIT   = 2_000_000;
+
+// Angular pick slop in device pixels — a card that projects to a
+// 2px dot is still clickable within a ~7px circle around it.
+const PICK_SLOP_PX = 7;
 
 // FX (live activity).
 const FX_CAPACITY       = 512;     // max concurrent pulses + flashes
@@ -148,9 +163,11 @@ const PULSE_COLOR       = new THREE.Color('#ffd06b');  // bright Soleil gold
 
 function nextPow2(n, base) { let c = base; while (c < n) c *= 2; return c; }
 
-// Map a snapshot row → render node. `val` is the sphere radius
-// proxy; bigger numbers for the higher-level anchors (users biggest,
-// then workspaces, then boards, then docs, then cards).
+// Map a snapshot row → render node. `val` is the body radius proxy;
+// bigger numbers for the higher-level anchors. isAnchor mirrors the
+// worker's classification: ws + board get true spheres; user is
+// physics-only (invisible); everything else is a disc in the leaf
+// cloud.
 function toNode(raw) {
   const broad = raw.node_id.split(':')[0];
   let kind, cardKind = null, val;
@@ -174,9 +191,49 @@ function toNode(raw) {
     color: colorHex,
     threeColor: new THREE.Color(colorHex),
     val,
+    isAnchor: kind === 'ws' || kind === 'board',
     workspace_id: raw.workspace_id,
     created_at: raw.created_at,
   };
+}
+
+// ── Disc material — the leaf-node body ────────────────────────────
+// One vertex per card. `size` is the world-space DIAMETER;
+// uPxPerUnit converts world size at depth −mv.z into device pixels,
+// so a disc is pixel-identical to a flat-shaded sphere of the same
+// radius. Floor keeps far cards visible as single-pixel stars; the
+// 512 cap respects common MAX_POINT_SIZE limits (cards are the
+// smallest bodies — only anchors are ever viewed closer than that,
+// and those are true spheres).
+function makeBodyMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uPxPerUnit: { value: 600 },   // set for real on mount + resize
+    },
+    vertexShader: /* glsl */`
+      uniform float uPxPerUnit;
+      attribute float size;
+      varying vec3 vColor;
+      void main() {
+        vColor = color;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        float px = size * (uPxPerUnit / max(-mv.z, 1.0));
+        gl_PointSize = size > 0.0 ? clamp(px, 1.25, 512.0) : 0.0;
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */`
+      varying vec3 vColor;
+      void main() {
+        vec2 c = gl_PointCoord - 0.5;
+        if (dot(c, c) > 0.25) discard;
+        gl_FragColor = vec4(vColor, 1.0);
+      }
+    `,
+    vertexColors: true,
+    transparent: false,
+    depthWrite: true,
+  });
 }
 
 // ── Custom shader material for halos ──────────────────────────────
@@ -240,9 +297,6 @@ function makeFxMaterial() {
         vColor = color;
         vAlpha = alpha;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        // See halo material — clamp to stay under MAX_POINT_SIZE.
-        // Critical for the bulge glow, which can request very large
-        // sizes when the camera is close to a ws node.
         gl_PointSize = min(size * (uScale / max(-mv.z, 1.0)), 220.0);
         gl_Position = projectionMatrix * mv;
       }
@@ -279,7 +333,10 @@ function makeFxPoints(capacity) {
   return points;
 }
 
-export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
+// dataSource — optional override for the QA harness: { fetchPage,
+// disableDeltas }. Production leaves it null and uses the real party
+// endpoints.
+export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSource = null }) {
   const containerRef = useRef(null);
 
   // ── React state for shell UI only ────────────────────────────────
@@ -300,16 +357,19 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
   const refs = useRef({
     scene: null, camera: null, renderer: null, controls: null,
     composer: null, bloomPass: null,
-    nodeMesh: null, haloPoints: null, edgeLines: null, fxPoints: null,
+    anchorMesh: null, bodyPoints: null, haloPoints: null, edgeLines: null, fxPoints: null,
+    sharedPosAttr: null,            // ONE position buffer feeding body + halo clouds
     activeFx: [],                   // [{ kind:'pulse'|'flash', src, tgt, nodeIdx, start, dur, color }]
-    // Per-node base scale (val * 0.4). Cached so uploadPositions on
-    // every worker tick can write the matrix without re-deriving it.
-    baseScale: new Float32Array(INITIAL_NODE_CAP),
-    nodeCapacity: INITIAL_NODE_CAP, edgeCapacity: INITIAL_EDGE_CAP,
-    nodes: [],                      // [{id, threeColor, val, ...}]
+    baseScale: new Float32Array(INITIAL_NODE_CAP),   // per-node radius (0 = invisible user)
+    anchorSlot: new Int32Array(INITIAL_NODE_CAP),    // global idx → sphere slot (-1 = not an anchor)
+    anchorGlobals: [],              // sphere slot → global idx
+    nodeCapacity: INITIAL_NODE_CAP, anchorCapacity: INITIAL_ANCHOR_CAP, edgeCapacity: INITIAL_EDGE_CAP,
+    nodes: [],                      // [{id, threeColor, val, isAnchor, ...}]
     nodeIndex: new Map(),           // node_id → array index
     edges: [],                      // [{ sourceIdx, targetIdx, kind }]
     positions: new Float32Array(INITIAL_NODE_CAP * 3),
+    pxPerUnit: 600,                 // devicePx per world-unit at distance 1 (resize-updated)
+    snapshotReady: false,           // gates delta flushes until the worker has init state
     worker: null,
     rafId: null,
     onClick: null,
@@ -371,10 +431,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
     renderer.domElement.style.display = 'block';
     container.appendChild(renderer.domElement);
 
-    // Post-process chain: standard render → bloom. Bright pixels
-    // (node halos / sphere highlights) bleed into neighbors for the
-    // star-glow look. Scaffold edges and dim structural lines stay
-    // below the brightness threshold and don't bloom.
+    // Post-process chain: standard render → bloom.
     const composer = new EffectComposer(renderer);
     composer.setPixelRatio(renderer.getPixelRatio());
     composer.setSize(w, h);
@@ -401,14 +458,31 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
     // orbit center — lets you fly into any specific cluster.
     controls.zoomToCursor = true;
 
-    // GPU buffers — allocated empty; filled when snapshot arrives.
-    const nodeMesh = makeNodeMesh(INITIAL_NODE_CAP);
-    nodeMesh.count = 0;
-    scene.add(nodeMesh);
+    // World-units → device-pixels conversion for the disc shader and
+    // the picker's angular slop.
+    const updatePxPerUnit = (hCss) => {
+      const px = (hCss * renderer.getPixelRatio()) /
+        (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+      refs.pxPerUnit = px;
+      if (refs.bodyPoints) refs.bodyPoints.material.uniforms.uPxPerUnit.value = px;
+    };
 
-    const haloPoints = makeHaloPoints(INITIAL_NODE_CAP);
+    // GPU buffers — allocated empty; filled when snapshot arrives.
+    // ONE position attribute feeds both the disc bodies and the halos.
+    const sharedPosAttr = new THREE.BufferAttribute(new Float32Array(INITIAL_NODE_CAP * 3), 3);
+    sharedPosAttr.setUsage(THREE.DynamicDrawUsage);
+
+    const bodyPoints = makeBodyPoints(INITIAL_NODE_CAP, sharedPosAttr);
+    bodyPoints.geometry.setDrawRange(0, 0);
+    scene.add(bodyPoints);
+
+    const haloPoints = makeHaloPoints(INITIAL_NODE_CAP, sharedPosAttr);
     haloPoints.geometry.setDrawRange(0, 0);
     scene.add(haloPoints);
+
+    const anchorMesh = makeAnchorMesh(INITIAL_ANCHOR_CAP);
+    anchorMesh.count = 0;
+    scene.add(anchorMesh);
 
     const edgeLines = makeEdgeLines(INITIAL_EDGE_CAP);
     edgeLines.geometry.setDrawRange(0, 0);
@@ -423,13 +497,18 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
     refs.controls = controls;
     refs.composer = composer;
     refs.bloomPass = bloomPass;
-    refs.nodeMesh = nodeMesh;
+    refs.anchorMesh = anchorMesh;
+    refs.bodyPoints = bodyPoints;
     refs.haloPoints = haloPoints;
+    refs.sharedPosAttr = sharedPosAttr;
     refs.edgeLines = edgeLines;
     refs.fxPoints = fxPoints;
     refs.activeFx = [];
     refs.baseScale  = new Float32Array(INITIAL_NODE_CAP);
+    refs.anchorSlot = new Int32Array(INITIAL_NODE_CAP).fill(-1);
+    refs.anchorGlobals = [];
     refs.nodeCapacity = INITIAL_NODE_CAP;
+    refs.anchorCapacity = INITIAL_ANCHOR_CAP;
     refs.edgeCapacity = INITIAL_EDGE_CAP;
     refs.nodes = [];
     refs.nodeIndex = new Map();
@@ -437,6 +516,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
     refs.positions = new Float32Array(INITIAL_NODE_CAP * 3);
     refs.pendingNodes = [];
     refs.pendingEdges = [];
+    updatePxPerUnit(h);
 
     // Worker.
     const worker = new SimWorker();
@@ -462,7 +542,9 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
       }
     };
 
-    // Click picking.
+    // Click picking — CPU walk over the positions array. Exact
+    // per-node radii, plus angular slop so a 2px card is clickable,
+    // and no invisible-user false hits (they're skipped outright).
     const raycaster = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
     let downAt = null, downXY = null;
@@ -479,16 +561,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
       ndc.x = ((e.clientX - r.left) / r.width) * 2 - 1;
       ndc.y = -((e.clientY - r.top) / r.height) * 2 + 1;
       raycaster.setFromCamera(ndc, camera);
-      const hits = raycaster.intersectObject(nodeMesh, false);
-      // Walk hits in case the first one is a physics-only user node
-      // (invisible but raycaster can still hit its 0-scale centroid).
-      let picked = null;
-      for (const h of hits) {
-        if (typeof h.instanceId !== 'number') continue;
-        const node = refs.nodes[h.instanceId];
-        if (!node || node.kind === 'user') continue;
-        picked = node; break;
-      }
+      const picked = pickNode(refs, raycaster.ray);
       if (picked) {
         if (refs.onNodeClickFn) refs.onNodeClickFn(picked);
       } else {
@@ -581,10 +654,6 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
     window.addEventListener('blur',    onBlur);
 
     // rAF loop — controls + galactic drift + fit animation + render.
-    // Drift around the disk normal (Y axis) so the spiral appears to
-    // slowly rotate beneath the top-down camera, like the milky way
-    // viewed from a fixed point above. With the camera off-axis on Z,
-    // the orbit also keeps a hint of changing perspective.
     const rotationAxis = new THREE.Vector3(0, 1, 0);
     let last = performance.now();
     controls.addEventListener('start', () => { refs.interacting = true; });
@@ -645,7 +714,20 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
       // Sharp at typical viewing distance, dims to ~25% at the rim.
       const focusDist = camera.position.distanceTo(controls.target);
       const edgeFade = THREE.MathUtils.smoothstep(focusDist, 600, 4000);
-      edgeLines.material.opacity = 1 - 0.75 * edgeFade;
+      // Density normalization — long-exposure style: the more sources
+      // on screen, the less luminance each contributes. Without this,
+      // 200k additive halos stack dozens deep per pixel and bloom
+      // saturates the whole universe into one gold blob. Unity below
+      // ~30k, so today's corpus renders exactly as it always did.
+      const edgeDensity = Math.min(1, Math.max(0.12,
+        Math.sqrt(30000 / Math.max(1, refs.edges.length))));
+      // refs.edgeLines, NOT the mount-time const — ensureEdgeCapacity
+      // swaps the object once the corpus outgrows the initial buffer,
+      // and writing to the disposed one silently disables the fade.
+      refs.edgeLines.material.opacity = (1 - 0.75 * edgeFade) * edgeDensity;
+      const haloDensity = Math.min(1, Math.max(0.05,
+        Math.sqrt(30000 / Math.max(1, refs.nodes.length))));
+      refs.haloPoints.material.uniforms.uOpacity.value = 0.30 * haloDensity;
       composer.render();
       refs.rafId = requestAnimationFrame(loop);
     };
@@ -661,6 +743,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
       renderer.setSize(w2, h2);
       composer.setSize(w2, h2);
       bloomPass.setSize(w2, h2);
+      updatePxPerUnit(h2);
     });
     ro.observe(container);
     const onWinResize = () => { ro.takeRecords?.(); };
@@ -702,8 +785,10 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
       refs.worker = null;
       try { container.removeChild(renderer.domElement); } catch (_) {}
       // Dispose GPU resources.
-      nodeMesh.geometry.dispose();
-      nodeMesh.material.dispose();
+      anchorMesh.geometry.dispose();
+      anchorMesh.material.dispose();
+      bodyPoints.geometry.dispose();
+      bodyPoints.material.dispose();
       haloPoints.geometry.dispose();
       haloPoints.material.dispose();
       edgeLines.geometry.dispose();
@@ -714,7 +799,8 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
       renderer.dispose();
       refs.scene = null; refs.camera = null; refs.renderer = null; refs.controls = null;
       refs.composer = null; refs.bloomPass = null;
-      refs.nodeMesh = null; refs.haloPoints = null; refs.edgeLines = null; refs.fxPoints = null;
+      refs.anchorMesh = null; refs.bodyPoints = null; refs.haloPoints = null;
+      refs.sharedPosAttr = null; refs.edgeLines = null; refs.fxPoints = null;
       refs.activeFx = [];
     };
     // theme is read once at mount — the bg color update below patches it.
@@ -727,45 +813,51 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
   }, [theme, refs]);
 
   // ── Snapshot loader ──────────────────────────────────────────────
+  // Walks EVERY page until the server's SQL-computed `done` — the
+  // page-size heuristic that froze the universe at PostgREST's 1k
+  // truncation is gone (see lib/universePaging.js).
   useEffect(() => {
     let cancelled = false;
     setError(null);
     setCalibrating(true);
     setProgress({ nodes: 0, edges: 0 });
 
+    // Deltas that arrive mid-walk stay buffered until the worker has
+    // its init state — a flush before then would push nodes the
+    // worker silently drops (no sim yet), desyncing indices, and the
+    // loader's rebuild below would strand their anchor slots.
+    refs.snapshotReady = false;
+
     (async () => {
       try {
-        const allRawNodes = [];
-        const allRawEdges = [];
-        let nodesCursor = null;
-        let edgesCursor = null;
-        for (let i = 0; i < 50; i++) {
-          const page = await fetchSnapshotPage({
-            nodesCursor, edgesCursor,
-            nodeLimit: NODE_PAGE,
-            edgeLimit: EDGE_PAGE,
-          });
-          if (cancelled) return;
-          for (const n of (page.nodes || [])) {
-            allRawNodes.push(n);
-            if (allRawNodes.length >= SOFT_NODE_LIMIT) break;
-          }
-          for (const e of (page.edges || [])) allRawEdges.push(e);
-          setProgress({ nodes: allRawNodes.length, edges: allRawEdges.length });
-          if (allRawNodes.length >= SOFT_NODE_LIMIT) break;
-          nodesCursor = page.next_nodes_cursor || page.next_cursor || nodesCursor;
-          edgesCursor = page.next_edges_cursor || page.next_cursor || edgesCursor;
-          if (page.done) break;
-          if (!nodesCursor && !edgesCursor) break;
-        }
+        const fetchPage = dataSource?.fetchPage || fetchSnapshotPage;
+        const { nodes: allRawNodes, edges: allRawEdges, truncated } = await collectSnapshot({
+          fetchPage,
+          nodeLimit: NODE_PAGE,
+          edgeLimit: EDGE_PAGE,
+          maxNodes: SOFT_NODE_LIMIT,
+          onProgress: (p) => { if (!cancelled) setProgress(p); },
+          isCancelled: () => cancelled,
+        });
         if (cancelled) return;
+        if (truncated) {
+          // eslint-disable-next-line no-console
+          console.warn(`[universe] corpus exceeds SOFT_NODE_LIMIT (${SOFT_NODE_LIMIT.toLocaleString()}); showing the first ${SOFT_NODE_LIMIT.toLocaleString()} nodes`);
+        }
 
-        // Build render state.
+        // Build render state from scratch — including the anchor
+        // bookkeeping and FX, which would otherwise keep slots from
+        // any state written before this rebuild.
         ensureNodeCapacity(refs, allRawNodes.length);
         refs.nodes = [];
         refs.nodeIndex = new Map();
         refs.edges = [];
+        refs.anchorGlobals = [];
+        refs.anchorSlot.fill(-1);
+        if (refs.anchorMesh) refs.anchorMesh.count = 0;
+        refs.activeFx = [];
         for (const raw of allRawNodes) {
+          if (refs.nodeIndex.has(raw.node_id)) continue;
           const node = toNode(raw);
           const idx = refs.nodes.length;
           refs.nodes.push(node);
@@ -781,7 +873,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
           resolvedEdges.push({
             sourceIdx: s, targetIdx: t,
             kind:    classifyEdge(raw.edge_kind),   // visual tier (scaffold/structural/semantic)
-            rawKind: raw.edge_kind,                  // raw kind (passed to worker for per-kind link strength)
+            rawKind: raw.edge_kind,                  // raw kind (worker link classification)
           });
         }
         ensureEdgeCapacity(refs, resolvedEdges.length);
@@ -795,9 +887,14 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
           const initLinks = refs.edges.map(e => ({
             source: refs.nodes[e.sourceIdx].id,
             target: refs.nodes[e.targetIdx].id,
-            kind:   e.rawKind,   // per-kind strength/distance in the worker
+            kind:   e.rawKind,
           }));
           refs.worker.postMessage({ type: 'init', nodes: initNodes, links: initLinks });
+        }
+        refs.snapshotReady = true;
+        if (import.meta.env.DEV && typeof window !== 'undefined') {
+          // QA hook for the ?adminpreview universe bench + Playwright.
+          window.__universeQaStats = { nodes: refs.nodes.length, edges: refs.edges.length };
         }
       } catch (e) {
         if (!cancelled) { setError(e?.message || String(e)); setCalibrating(false); }
@@ -805,6 +902,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
     })();
 
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadKey, refs]);
 
   // ── Delta integration ────────────────────────────────────────────
@@ -813,9 +911,27 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
   // capacity.
   useEffect(() => {
     const id = setInterval(() => {
-      if (!refs.worker || !refs.nodeMesh) return;
-      const newNodes = refs.pendingNodes;
+      if (!refs.worker || !refs.bodyPoints || !refs.snapshotReady) return;
+      // Dedupe the pending batch — both against already-known nodes
+      // and within itself (two SSE frames can carry the same node in
+      // one flush window). The worker mirrors our indices blindly, so
+      // a duplicate here would desync every position after it.
+      const seen = new Set();
+      const newNodes = [];
+      for (const n of refs.pendingNodes) {
+        if (refs.nodeIndex.has(n.id) || seen.has(n.id)) continue;
+        seen.add(n.id);
+        newNodes.push(n);
+      }
       refs.pendingNodes = [];
+      // Memory guard — identical policy to the snapshot cap. Trim
+      // BEFORE edge resolution so `seen` only vouches for nodes that
+      // will actually exist.
+      if (refs.nodes.length + newNodes.length > SOFT_NODE_LIMIT) {
+        newNodes.length = Math.max(0, SOFT_NODE_LIMIT - refs.nodes.length);
+        seen.clear();
+        for (const n of newNodes) seen.add(n.id);
+      }
 
       // Resolve pending edges; defer ones whose endpoints haven't
       // arrived yet up to ORPHAN_MAX_TRIES times before dropping.
@@ -824,7 +940,16 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
       for (const item of refs.pendingEdges) {
         const s = refs.nodeIndex.get(item.raw.source_id);
         const t = refs.nodeIndex.get(item.raw.target_id);
-        if (s != null && t != null) {
+        const sNew = s == null && seen.has(item.raw.source_id);
+        const tNew = t == null && seen.has(item.raw.target_id);
+        if ((s != null || sNew) && (t != null || tNew)) {
+          // Defer edges touching this batch's brand-new nodes by one
+          // flush so indices exist before we resolve them. Attempts
+          // still count so nothing can defer forever.
+          if (sNew || tNew) {
+            stillPending.push({ raw: item.raw, attempts: item.attempts + 1 });
+            continue;
+          }
           newEdges.push({
             sourceIdx: s, targetIdx: t,
             kind:    classifyEdge(item.raw.edge_kind),
@@ -877,6 +1002,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
   }, [refs]);
 
   useUniverseDeltas({
+    enabled: !dataSource?.disableDeltas,
     onNode: (raw) => {
       if (refs.nodeIndex.has(raw.node_id)) return;
       refs.pendingNodes.push(toNode(raw));
@@ -927,25 +1053,37 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
 // Three.js construction helpers
 // ─────────────────────────────────────────────────────────────────
 
-function makeNodeMesh(capacity) {
-  // Unit sphere — per-instance scale lives in the instance matrix.
+// True spheres for the ws/board anchors only. Flat-shaded, so the
+// silhouette is what matters — and it keeps growing past point-sprite
+// size limits when you fly right up to a sun.
+function makeAnchorMesh(capacity) {
   const geom = new THREE.SphereGeometry(1, 16, 16);
   const mat  = new THREE.MeshBasicMaterial({ vertexColors: false });
   const mesh = new THREE.InstancedMesh(geom, mat, capacity);
   mesh.frustumCulled = false;
-  // Per-instance color attribute.
   mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
   mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   return mesh;
 }
 
-function makeHaloPoints(capacity) {
+function makeBodyPoints(capacity, sharedPosAttr) {
   const geom = new THREE.BufferGeometry();
-  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(capacity * 3), 3));
+  geom.setAttribute('position', sharedPosAttr);
   geom.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(capacity * 3), 3));
   geom.setAttribute('size',     new THREE.BufferAttribute(new Float32Array(capacity),     1));
-  geom.attributes.position.setUsage(THREE.DynamicDrawUsage);
+  geom.attributes.color.setUsage(THREE.DynamicDrawUsage);
+  geom.attributes.size.setUsage(THREE.DynamicDrawUsage);
+  const points = new THREE.Points(geom, makeBodyMaterial());
+  points.frustumCulled = false;
+  return points;
+}
+
+function makeHaloPoints(capacity, sharedPosAttr) {
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', sharedPosAttr);
+  geom.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(capacity * 3), 3));
+  geom.setAttribute('size',     new THREE.BufferAttribute(new Float32Array(capacity),     1));
   geom.attributes.color.setUsage(THREE.DynamicDrawUsage);
   geom.attributes.size.setUsage(THREE.DynamicDrawUsage);
   const points = new THREE.Points(geom, makeHaloMaterial());
@@ -977,36 +1115,51 @@ function makeEdgeLines(edgeCapacity) {
 const _tmpMatrix = new THREE.Matrix4();
 const _tmpPos    = new THREE.Vector3();
 const _tmpScale  = new THREE.Vector3();
+const _tmpQuat   = new THREE.Quaternion();
 
 function writeNodeAppearance(refs, idx, node) {
   // User nodes are PHYSICS-ONLY — they exist in the simulation so
   // workspaces with shared people lean toward each other, but they
-  // render nothing (no sphere, no halo). Scale 0 collapses the
-  // instance and a 0 halo size hides the sprite.
+  // render nothing (no body, no halo). Radius 0 zeroes both sprites.
   const r = node.kind === 'user' ? 0 : (node.val || 8) * 0.4;
   refs.baseScale[idx] = r;
 
-  // Initial matrix — uploadPositions overwrites with simulated
-  // positions next worker tick.
-  _tmpScale.set(r, r, r);
-  _tmpPos.set(0, 0, 0);
-  _tmpMatrix.compose(_tmpPos, new THREE.Quaternion(), _tmpScale);
-  refs.nodeMesh.setMatrixAt(idx, _tmpMatrix);
-  refs.nodeMesh.setColorAt(idx, node.threeColor);
-  refs.nodeMesh.count = Math.max(refs.nodeMesh.count, idx + 1);
+  // Halo attributes — color + size (per-vertex), all nodes.
+  const hc = refs.haloPoints.geometry.attributes.color;
+  const hs = refs.haloPoints.geometry.attributes.size;
+  hc.array[idx * 3]     = node.threeColor.r;
+  hc.array[idx * 3 + 1] = node.threeColor.g;
+  hc.array[idx * 3 + 2] = node.threeColor.b;
+  hs.array[idx]         = r * 3.7;
+  hc.needsUpdate = true;
+  hs.needsUpdate = true;
 
-  // Halo attributes — color + size (per-vertex).
-  const ca = refs.haloPoints.geometry.attributes.color;
-  const sa = refs.haloPoints.geometry.attributes.size;
-  ca.array[idx * 3]     = node.threeColor.r;
-  ca.array[idx * 3 + 1] = node.threeColor.g;
-  ca.array[idx * 3 + 2] = node.threeColor.b;
-  sa.array[idx]         = r * 3.7;
-
-  refs.nodeMesh.instanceMatrix.needsUpdate = true;
-  if (refs.nodeMesh.instanceColor) refs.nodeMesh.instanceColor.needsUpdate = true;
-  ca.needsUpdate = true;
-  sa.needsUpdate = true;
+  const bc = refs.bodyPoints.geometry.attributes.color;
+  const bs = refs.bodyPoints.geometry.attributes.size;
+  if (node.isAnchor) {
+    // Sphere slot; body disc disabled for this index.
+    ensureAnchorCapacity(refs, refs.anchorGlobals.length + 1);
+    const slot = refs.anchorGlobals.length;
+    refs.anchorGlobals.push(idx);
+    refs.anchorSlot[idx] = slot;
+    _tmpScale.set(r, r, r);
+    _tmpPos.set(0, 0, 0);
+    _tmpMatrix.compose(_tmpPos, _tmpQuat, _tmpScale);
+    refs.anchorMesh.setMatrixAt(slot, _tmpMatrix);
+    refs.anchorMesh.setColorAt(slot, node.threeColor);
+    refs.anchorMesh.count = refs.anchorGlobals.length;
+    refs.anchorMesh.instanceMatrix.needsUpdate = true;
+    if (refs.anchorMesh.instanceColor) refs.anchorMesh.instanceColor.needsUpdate = true;
+    bs.array[idx] = 0;
+  } else {
+    refs.anchorSlot[idx] = -1;
+    bc.array[idx * 3]     = node.threeColor.r;
+    bc.array[idx * 3 + 1] = node.threeColor.g;
+    bc.array[idx * 3 + 2] = node.threeColor.b;
+    bs.array[idx]         = r * 2;      // shader takes world DIAMETER
+  }
+  bc.needsUpdate = true;
+  bs.needsUpdate = true;
 }
 
 function writeEdgeColors(refs) {
@@ -1033,44 +1186,46 @@ function writeEdgeColors(refs) {
   ca.needsUpdate = true;
 }
 
-// Splat positions[] (Float32Array of (x,y,z) per node) into both the
-// node instance matrices and the halo position attribute. Then rebuild
-// the edge vertex buffer from the new positions.
+// Splat positions[] (Float32Array of (x,y,z) per node) into the
+// SHARED position attribute (bodies + halos in one upload), the
+// anchor sphere matrices (small loop — anchors only), and the edge
+// vertex buffer. This is the per-tick hot path; leaves cost one
+// memcpy, not a Matrix4 compose each.
 function uploadPositions(refs, count) {
   const pos = refs.positions;
-  const haloPos = refs.haloPoints.geometry.attributes.position;
-  const quat = new THREE.Quaternion();
+  const shared = refs.sharedPosAttr;
+  shared.array.set(pos.subarray(0, Math.min(count * 3, shared.array.length)));
+  shared.needsUpdate = true;
+  const n = Math.min(refs.nodeCapacity, refs.nodes.length);
+  refs.bodyPoints.geometry.setDrawRange(0, n);
+  refs.haloPoints.geometry.setDrawRange(0, n);
+
+  // Anchor spheres — matrix per anchor, nothing per leaf.
   const base = refs.baseScale;
-  for (let i = 0; i < count; i++) {
-    const node = refs.nodes[i];
-    if (!node) continue;
-    const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
+  for (let s = 0; s < refs.anchorGlobals.length; s++) {
+    const i = refs.anchorGlobals[s];
+    if (i >= count) continue;
     const r = base[i];
-    _tmpPos.set(x, y, z);
+    _tmpPos.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
     _tmpScale.set(r, r, r);
-    _tmpMatrix.compose(_tmpPos, quat, _tmpScale);
-    refs.nodeMesh.setMatrixAt(i, _tmpMatrix);
-    haloPos.array[i * 3]     = x;
-    haloPos.array[i * 3 + 1] = y;
-    haloPos.array[i * 3 + 2] = z;
+    _tmpMatrix.compose(_tmpPos, _tmpQuat, _tmpScale);
+    refs.anchorMesh.setMatrixAt(s, _tmpMatrix);
   }
-  refs.nodeMesh.instanceMatrix.needsUpdate = true;
-  haloPos.needsUpdate = true;
-  refs.nodeMesh.count = Math.min(refs.nodeCapacity, refs.nodes.length);
-  refs.haloPoints.geometry.setDrawRange(0, Math.min(refs.nodeCapacity, refs.nodes.length));
+  refs.anchorMesh.count = refs.anchorGlobals.length;
+  refs.anchorMesh.instanceMatrix.needsUpdate = true;
 
   // Edges — rebuild endpoints from the new positions.
   const ep = refs.edgeLines.geometry.attributes.position;
   for (let i = 0; i < refs.edges.length; i++) {
     const e = refs.edges[i];
     const a = e.sourceIdx, b = e.targetIdx;
-    const base = i * 6;
-    ep.array[base]     = pos[a * 3];
-    ep.array[base + 1] = pos[a * 3 + 1];
-    ep.array[base + 2] = pos[a * 3 + 2];
-    ep.array[base + 3] = pos[b * 3];
-    ep.array[base + 4] = pos[b * 3 + 1];
-    ep.array[base + 5] = pos[b * 3 + 2];
+    const o = i * 6;
+    ep.array[o]     = pos[a * 3];
+    ep.array[o + 1] = pos[a * 3 + 1];
+    ep.array[o + 2] = pos[a * 3 + 2];
+    ep.array[o + 3] = pos[b * 3];
+    ep.array[o + 4] = pos[b * 3 + 1];
+    ep.array[o + 5] = pos[b * 3 + 2];
   }
   ep.needsUpdate = true;
   refs.edgeLines.geometry.setDrawRange(0, refs.edges.length * 2);
@@ -1081,17 +1236,49 @@ function uploadPositions(refs, count) {
   maybeAutoFit(refs, count);
 }
 
+// CPU picking: closest node along the ray whose radius (or angular
+// slop — PICK_SLOP_PX device pixels at its depth) contains the ray.
+// O(N) over a flat Float32Array: ~1-2ms per click at a million nodes,
+// and exact — no invisible user-node hits, no sphere-mesh raycasting.
+function pickNode(refs, ray) {
+  const ro = ray.origin, rd = ray.direction;
+  const pos = refs.positions;
+  const base = refs.baseScale;
+  const nodes = refs.nodes;
+  const slopPerUnit = PICK_SLOP_PX * (refs.renderer?.getPixelRatio?.() || 1) / refs.pxPerUnit;
+  let best = null, bestT = Infinity;
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    if (!node || node.kind === 'user') continue;
+    const px = pos[i * 3]     - ro.x;
+    const py = pos[i * 3 + 1] - ro.y;
+    const pz = pos[i * 3 + 2] - ro.z;
+    const t = px * rd.x + py * rd.y + pz * rd.z;
+    if (t <= 0 || t >= bestT) continue;
+    const dx = px - t * rd.x;
+    const dy = py - t * rd.y;
+    const dz = pz - t * rd.z;
+    const rr = Math.max(base[i], t * slopPerUnit);
+    if (dx * dx + dy * dy + dz * dz <= rr * rr) { best = node; bestT = t; }
+  }
+  return best;
+}
+
 // Compute the bounding sphere of the current node positions.
 // Skips invisible user nodes (they're physics-only — including them
 // would let an off-the-rim user drag the framing to oblivion) and
 // uses the 95th percentile of distance instead of the max so any
-// single outlier card can't blow up the auto-fit either.
+// single outlier card can't blow up the auto-fit either. Above
+// FIT_SAMPLE_MAX nodes the percentile runs on an even stride sample —
+// framing needs the shape of the distribution, not every member.
+const FIT_SAMPLE_MAX = 20000;
 function computeBoundingSphere(refs, count) {
   if (count === 0) return null;
   const pos = refs.positions;
   const nodes = refs.nodes;
+  const stride = Math.max(1, Math.ceil(count / FIT_SAMPLE_MAX));
   let cx = 0, cy = 0, cz = 0, used = 0;
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < count; i += stride) {
     const n = nodes[i];
     if (n && n.kind === 'user') continue;
     cx += pos[i * 3]; cy += pos[i * 3 + 1]; cz += pos[i * 3 + 2];
@@ -1099,9 +1286,9 @@ function computeBoundingSphere(refs, count) {
   }
   if (used === 0) return null;
   cx /= used; cy /= used; cz /= used;
-  const d2s = new Float32Array(used);
+  const d2s = new Float64Array(used);
   let j = 0;
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < count; i += stride) {
     const n = nodes[i];
     if (n && n.kind === 'user') continue;
     const dx = pos[i * 3]     - cx;
@@ -1109,9 +1296,6 @@ function computeBoundingSphere(refs, count) {
     const dz = pos[i * 3 + 2] - cz;
     d2s[j++] = dx * dx + dy * dy + dz * dz;
   }
-  // 95th-percentile radius (default, to ignore single outliers) — or the full
-  // extent (max) when refs.fitAll is set, so every visible node is framed.
-  // Cheap O(N log N) sort up to ~250k.
   d2s.sort();
   const pct = refs.fitAll ? (used - 1) : Math.min(used - 1, Math.floor(used * 0.95));
   return { cx, cy, cz, radius: Math.sqrt(d2s[pct]) };
@@ -1119,8 +1303,7 @@ function computeBoundingSphere(refs, count) {
 
 // Distance the camera needs to be from `center` to fit a sphere of
 // `radius` in view, considering both the vertical and horizontal FoV.
-// 1.10 padding = tight framing; was 1.30, which overshot noticeably
-// once the universe grew with the weak-gravity / strong-repulsion tune.
+// 1.10 padding = tight framing.
 function fitDistance(radius, camera, padding = 1.10) {
   const vFov = (camera.fov * Math.PI) / 180;
   const distV = radius / Math.tan(vFov / 2);
@@ -1170,63 +1353,88 @@ function requestFit(refs) {
   refs.lastFitAt     = refs.fitStart;
 }
 
+// Grow the per-node buffers (shared positions, body + halo colors and
+// sizes, baseScale, anchorSlot). Anchor sphere capacity grows
+// independently in ensureAnchorCapacity.
 function ensureNodeCapacity(refs, needed) {
   if (needed <= refs.nodeCapacity) return;
   const newCap = nextPow2(needed, refs.nodeCapacity);
-  const oldMesh  = refs.nodeMesh;
-  const oldHalos = refs.haloPoints;
-  const newMesh  = makeNodeMesh(newCap);
-  const newHalos = makeHaloPoints(newCap);
+  const oldCount = refs.nodes.length;
 
-  // Copy existing data.
-  const oldCount = Math.min(oldMesh.count, refs.nodes.length);
-  for (let i = 0; i < oldCount; i++) {
-    oldMesh.getMatrixAt(i, _tmpMatrix);
-    newMesh.setMatrixAt(i, _tmpMatrix);
-    if (oldMesh.instanceColor) {
-      const r = oldMesh.instanceColor.array[i * 3];
-      const g = oldMesh.instanceColor.array[i * 3 + 1];
-      const b = oldMesh.instanceColor.array[i * 3 + 2];
-      newMesh.instanceColor.array[i * 3]     = r;
-      newMesh.instanceColor.array[i * 3 + 1] = g;
-      newMesh.instanceColor.array[i * 3 + 2] = b;
-    }
-  }
-  newMesh.count = oldCount;
-  newMesh.instanceMatrix.needsUpdate = true;
-  if (newMesh.instanceColor) newMesh.instanceColor.needsUpdate = true;
+  const newShared = new THREE.BufferAttribute(new Float32Array(newCap * 3), 3);
+  newShared.setUsage(THREE.DynamicDrawUsage);
+  newShared.array.set(refs.sharedPosAttr.array.subarray(0, oldCount * 3));
 
-  // Halo: copy positions/colors/sizes.
-  const op = oldHalos.geometry.attributes;
-  const np = newHalos.geometry.attributes;
-  np.position.array.set(op.position.array.subarray(0, oldCount * 3));
-  np.color.array   .set(op.color.array   .subarray(0, oldCount * 3));
-  np.size.array    .set(op.size.array    .subarray(0, oldCount));
-  np.position.needsUpdate = true;
-  np.color.needsUpdate    = true;
-  np.size.needsUpdate     = true;
-  newHalos.geometry.setDrawRange(0, oldCount);
+  const oldBody = refs.bodyPoints;
+  const oldHalo = refs.haloPoints;
+  const newBody = makeBodyPoints(newCap, newShared);
+  const newHalo = makeHaloPoints(newCap, newShared);
+  newBody.material.uniforms.uPxPerUnit.value = refs.pxPerUnit;
 
-  // Positions ring.
+  const ob = oldBody.geometry.attributes;
+  const nb = newBody.geometry.attributes;
+  nb.color.array.set(ob.color.array.subarray(0, oldCount * 3));
+  nb.size.array .set(ob.size.array .subarray(0, oldCount));
+  nb.color.needsUpdate = true;
+  nb.size.needsUpdate  = true;
+  newBody.geometry.setDrawRange(0, oldCount);
+
+  const oh = oldHalo.geometry.attributes;
+  const nh = newHalo.geometry.attributes;
+  nh.color.array.set(oh.color.array.subarray(0, oldCount * 3));
+  nh.size.array .set(oh.size.array .subarray(0, oldCount));
+  nh.color.needsUpdate = true;
+  nh.size.needsUpdate  = true;
+  newHalo.geometry.setDrawRange(0, oldCount);
+
+  // Positions ring + per-node scalar arrays.
   const newPositions = new Float32Array(newCap * 3);
   newPositions.set(refs.positions.subarray(0, oldCount * 3));
   refs.positions = newPositions;
 
-  // Parallel per-node base scale (synced with refs.nodes order).
   const newBase = new Float32Array(newCap);
   newBase.set(refs.baseScale.subarray(0, oldCount));
   refs.baseScale = newBase;
 
+  const newSlot = new Int32Array(newCap).fill(-1);
+  newSlot.set(refs.anchorSlot.subarray(0, oldCount));
+  refs.anchorSlot = newSlot;
+
   // Swap in, dispose old.
-  refs.scene.remove(oldMesh);
-  refs.scene.remove(oldHalos);
-  oldMesh.geometry.dispose();   oldMesh.material.dispose();
-  oldHalos.geometry.dispose();  oldHalos.material.dispose();
-  refs.scene.add(newMesh);
-  refs.scene.add(newHalos);
-  refs.nodeMesh   = newMesh;
-  refs.haloPoints = newHalos;
+  refs.scene.remove(oldBody);
+  refs.scene.remove(oldHalo);
+  oldBody.geometry.dispose(); oldBody.material.dispose();
+  oldHalo.geometry.dispose(); oldHalo.material.dispose();
+  refs.scene.add(newBody);
+  refs.scene.add(newHalo);
+  refs.bodyPoints = newBody;
+  refs.haloPoints = newHalo;
+  refs.sharedPosAttr = newShared;
   refs.nodeCapacity = newCap;
+}
+
+function ensureAnchorCapacity(refs, needed) {
+  if (needed <= refs.anchorCapacity) return;
+  const newCap = nextPow2(needed, refs.anchorCapacity);
+  const oldMesh = refs.anchorMesh;
+  const newMesh = makeAnchorMesh(newCap);
+  const oldCount = refs.anchorGlobals.length;
+  for (let s = 0; s < oldCount; s++) {
+    oldMesh.getMatrixAt(s, _tmpMatrix);
+    newMesh.setMatrixAt(s, _tmpMatrix);
+  }
+  if (oldMesh.instanceColor && newMesh.instanceColor) {
+    newMesh.instanceColor.array.set(oldMesh.instanceColor.array.subarray(0, oldCount * 3));
+  }
+  newMesh.count = oldCount;
+  newMesh.instanceMatrix.needsUpdate = true;
+  if (newMesh.instanceColor) newMesh.instanceColor.needsUpdate = true;
+  refs.scene.remove(oldMesh);
+  oldMesh.geometry.dispose();
+  oldMesh.material.dispose();
+  refs.scene.add(newMesh);
+  refs.anchorMesh = newMesh;
+  refs.anchorCapacity = newCap;
 }
 
 // ─────────────────────────────────────────────────────────────────
