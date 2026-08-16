@@ -25,7 +25,7 @@
 import {
   pad2, parseISO, formatISO, todayISO, daysInMonth, firstWeekdayOfMonth,
   startOfWeek, addDays, addMonths, monthTitle, hourLabel, timeLabel, shortDate,
-  WEEKDAYS,
+  weekdayOf, WEEKDAYS,
 } from './schedDates.js';
 
 export const SCHED_TUNING = Object.freeze({
@@ -33,7 +33,6 @@ export const SCHED_TUNING = Object.freeze({
   WEEKDAY_H: 22,      // Mon–Sun strip (month/week)
   DAY_LABEL_H: 22,    // date-number strip inside a day cell (month/week); CSS mirror: .schedc-slot-label line-height
   BAND_H: 28,         // the "All day" / whole-hour drop band (day/hour views)
-  HOUR_LABEL_W: 44,   // time gutter painted inside hour/minute rows (day/hour views); CSS mirror: the left:44px gutter rules
   // ZERO. The old lattice painted the body in --line-1 and let 1px of it show
   // between opaque tiles — but --line-1 is LIGHTER than the tile fill, so the
   // grid read as inset tiles on light mortar (spreadsheet grammar), and in
@@ -48,8 +47,18 @@ export const SCHED_TUNING = Object.freeze({
   DAY_HOUR_FROM: 8,   // default visible hour window [FROM, TO)
   DAY_HOUR_TO: 18,
   MINUTE_STEP: 15,
-  COMPACT_W: 90,      // below either → slot gets the pop-out menu trigger (local px,
-  COMPACT_H: 40,      // zoom-independent — same reasoning as GRID_TUNING.PILL_MIN_*)
+  // ── The day rail ───────────────────────────────────────────────────────────
+  // The card is two panes: a calendar that answers "what is the shape of this
+  // schedule" and a rail that answers "what is actually happening". A month
+  // grid is very good at the first question and structurally incapable of the
+  // second — a day cell is ~90px wide, which is a day number and a dot, not a
+  // call time and a location. Splitting them is what lets the grid go back to
+  // being a grid.
+  RAIL_W: 288,        // CSS mirror: .schedc-rail width
+  RAIL_MIN_W: 620,    // card narrower than this → no side rail
+  RAIL_MIN_H: 260,    // …or shorter than this (a week bar stays a week bar)
+  RAIL_ROW_H: 56,     // two lines at a 44pt-safe target; CSS mirror: .schedc-dayrow
+  RAIL_HEAD_H: 26,    // the sticky "September" / "Today" section label
   PEEK_W: 400,        // Day/Hour Peek panel (SchedulePeek.jsx) OUTER width.
   // What the slot engine is fed. The panel is border-box, so the usable row
   // width is PEEK_W − 2 (border) − 12 (body padding). Feeding it PEEK_W laid
@@ -67,7 +76,7 @@ export const SCHED_TUNING = Object.freeze({
   // 24, not 28: two chips must still fit one hour row (h >= 2*chip + 5), and
   // 28px chips would have shown one item per hour with everything else behind
   // a "+N more". Legibility of the row beats the size of a secondary target.
-  ROW_CHIP_H: 24,     // CSS mirror: the 24px row-chip rules; bands keep CHIP_H
+  ROW_CHIP_H: 24,     // CSS mirror: .schedc-peekcontent/.is-view-day chip flex-basis
   LOD_NUM_PX: 13,     // LOD counter-scale TARGETS in *screen* px (layout px = target / canvasScale,
   LOD_DOT_PX: 4,      // clamped to the cell): MID date number, item dot, count badge,
   LOD_COUNT_PX: 10,   // and the FAR poster title. Tuned via the screenshot pass.
@@ -77,7 +86,78 @@ export const SCHED_TUNING = Object.freeze({
   MONTH_GAP_PX: 20,
   MONTH_CAPTION_H: 24, // per-block "August 2026" caption (CSS mirror: .schedc-mcap)
   DAYTILE_H: 24,      // a dated child cluster's tile inside a day cell (CSS mirror: .schedc-daytile)
+  // Below DAYTILE_COMPACT_W a tile has no room for a word and renders as a bar
+  // (CSS mirror: .schedc-daytile.is-compact) — 64px is where "Day 14" stops
+  // fitting and starts being "Day…".
+  DAYTILE_COMPACT_W: 64,
+  DAYTILE_COMPACT_H: 12,
 });
+
+// ---------------------------------------------------------------------------
+// Two panes
+//
+// Split the card body into the calendar box and the day rail. Pure, so the
+// component, the thumbnail and the tests all agree on where the seam is.
+//
+// The rail only earns its space when there is space: below RAIL_MIN_W the
+// calendar would be squeezed past legibility to make room for it, and a week
+// card (420x170 by design) has no vertical room for rows at all. In those cases
+// the card is calendar-only and the rail's job falls back to the peek — which
+// is exactly the pre-rework behaviour, so nothing is lost by being small.
+//
+// `view` matters: day and hour views are already a list of rows, so a rail
+// beside them would be two lists of the same thing.
+//
+// `months` matters more than it looks. A 3-month strip divides the CALENDAR
+// PANE three ways, so taking 288px for a rail costs each month 96 — enough to
+// push a perfectly readable strip below the LOD mid threshold and turn the
+// whole card into a density map. So the pane has to clear that threshold per
+// block, not in total, or the rail wins its space by making the calendar
+// useless. Three months plus a rail genuinely needs a wide card.
+export function splitSchedPanes({ view, w, h, months = 1, rail = true }) {
+  const full = { x: 0, y: 0, w: Math.max(0, w), h: Math.max(0, h) };
+  const railable = rail && (view === 'month' || view === 'week');
+  if (!railable
+      || full.w < SCHED_TUNING.RAIL_MIN_W
+      || full.h < SCHED_TUNING.RAIL_MIN_H) {
+    return { calRect: full, railRect: null };
+  }
+  const calW = full.w - SCHED_TUNING.RAIL_W;
+  if (view === 'month' && months > 1) {
+    const { cols } = monthGrid(months, calW, full.h);
+    if (calW / cols < SCHED_LOD.month.midW) return { calRect: full, railRect: null };
+  }
+  return {
+    calRect:  { x: 0, y: 0, w: calW, h: full.h },
+    railRect: { x: calW, y: 0, w: SCHED_TUNING.RAIL_W, h: full.h },
+  };
+}
+
+// The card size a month span actually needs, so that asking for three months
+// gives you three readable months rather than a density map.
+//
+// This exists because the two constraints multiply: a 3-month strip divides the
+// calendar pane three ways AND the pane is already 288px narrower than the
+// card. At the default 920 that leaves each month 210px against a 330 mid
+// threshold, so clicking "3" on a default card silently demoted the whole thing
+// to dots — on the one view a production calendar exists for.
+export function schedSizeForMonths(months, cur = {}) {
+  const n = Math.max(1, Math.min(12, Math.round(months) || 1));
+  const w0 = Math.max(0, cur.w || 0), h0 = Math.max(0, cur.h || 0);
+  if (n === 1) return { w: Math.max(w0, 920), h: Math.max(h0, 580) };
+  // Lay the blocks out in the pane we would get at a generous width, then
+  // demand midW per column and midH per row — the same numbers schedLodTier
+  // will judge it by, so the result is full-tier by construction.
+  const { cols, rows } = monthGrid(n, 1200, 560);
+  const calW = SCHED_LOD.month.midW * cols + SCHED_TUNING.MONTH_GAP_PX * (cols - 1);
+  const bodyH = SCHED_LOD.month.midH * rows
+    + (SCHED_TUNING.MONTH_CAPTION_H + SCHED_TUNING.WEEKDAY_H) * rows
+    + SCHED_TUNING.MONTH_GAP_PX * (rows - 1);
+  return {
+    w: Math.max(w0, Math.round(calW + SCHED_TUNING.RAIL_W)),
+    h: Math.max(h0, Math.round(bodyH + SCHED_TUNING.HEADER_H)),
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Multi-month strip
@@ -296,6 +376,78 @@ function pushMonthBlock(slots, rules, { monthIso, rect, nRows, expand, cellKeys,
       }
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// The day rail's contents
+//
+// What period the card is showing, as an inclusive [from, to] of real dates.
+// Month view means whole calendar months (not the padded week grid) — the rail
+// lists September when the header says September, and a trailing Oct 1 in the
+// bottom-right cell of the grid is grid padding, not part of the month.
+export function schedVisibleRange({ view, anchor, months = 1, todayIso = todayISO() }) {
+  const t = parseISO(anchor) || parseISO(todayIso);
+  if (view === 'week') {
+    const from = startOfWeek(formatISO(t.y, t.m, t.d));
+    return { from, to: addDays(from, 6) };
+  }
+  if (view === 'day' || view === 'hour') {
+    const d = formatISO(t.y, t.m, t.d);
+    return { from: d, to: d };
+  }
+  const n = Math.max(1, Math.min(12, Math.round(months) || 1));
+  const from = formatISO(t.y, t.m, 1);
+  const lastIso = parseISO(addMonths(from, n - 1));
+  return { from, to: formatISO(lastIso.y, lastIso.m, daysInMonth(lastIso.y, lastIso.m)) };
+}
+
+// One row per date that has anything on it — a dated cluster, loose Yjs items,
+// or today. Dates with nothing are omitted on purpose: a rail padded out with
+// sixty empty rows is a scrollbar, not a schedule, and the calendar pane beside
+// it already shows the empty days.
+//
+// Today always gets a row even when empty, because "nothing is scheduled today"
+// is an answer someone opened the card to get.
+export function schedDayRows({
+  from, to, shootDays = {}, dayCounts = {}, todayIso = todayISO(),
+}) {
+  if (!parseISO(from) || !parseISO(to) || to < from) return [];
+  const rows = [];
+  let d = from;
+  // The bound matches daysBetween's: twelve months is ~366 rows, and a
+  // mis-entered range must not spin.
+  for (let i = 0; i < 400 && d <= to; i++) {
+    const days = shootDays[d] || [];
+    const loose = dayCounts[d] || 0;
+    if (days.length || loose > 0 || d === todayIso) {
+      rows.push({
+        date: d,
+        days,                       // dated child clusters, already date-sorted
+        loose,                      // count of ad-hoc Yjs items on this date
+        isToday: d === todayIso,
+        weekend: weekdayOf(d) >= 5,
+      });
+    }
+    if (d === to) break;
+    d = addDays(d, 1);
+  }
+  return rows;
+}
+
+// The next dated cluster at or after `fromIso`, across the WHOLE production
+// rather than the visible range — "what's next" must not go blank because you
+// happen to be looking at last month. Cancelled days are skipped: they are kept
+// on the calendar as a record, but they are not what happens next.
+export function schedNextDay(shootDays, fromIso) {
+  let best = null;
+  for (const date in shootDays || {}) {
+    if (date < fromIso) continue;
+    for (const b of shootDays[date]) {
+      if (b?.sched_status === 'cancelled') continue;
+      if (!best || date < best.date) best = { date, board: b };
+    }
+  }
+  return best;
 }
 
 // Slot rects for the body box (0,0 → w,h). Flat list; nested rows are emitted

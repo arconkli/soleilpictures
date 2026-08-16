@@ -187,9 +187,15 @@ test.describe('schedule — day peek panel', () => {
   // Click-into-day: a plain click anywhere on a month day cell opens its peek.
   // Center click (default) — cell content is pass-through ink, and at deep
   // zoom-out an edge offset can round into the neighboring cell.
+  // DOUBLE click, not single. With the day rail beside the calendar, a single
+  // click selects the day in the rail — its summary is already on screen, and
+  // throwing a panel over the grid to show you something two inches to the
+  // right would be worse than useless. The peek is now the zoom to HOUR
+  // resolution, and double-click is its gesture. (The rail's date mark is the
+  // visible affordance for the same thing; see the test below.)
   async function openTodayPeek(page) {
     const today = page.locator('.schedc .schedc-slot-day.is-today');
-    await today.click();
+    await today.dblclick();
     const panel = page.locator('.schedc-peekpanel');
     await expect(panel).toBeVisible();
     return panel;
@@ -361,18 +367,38 @@ test.describe('schedule — day peek panel', () => {
     await expect(sched.locator('.schedc-slot-hour')).toHaveCount(0);
   });
 
-  test('clicking a month day cell opens its peek; the grid carries no edit chrome', async ({ page }) => {
+  test('a single click selects the day in the rail; a double click opens its peek', async ({ page }) => {
     await addSchedule(page);
     const sched = page.locator('.schedc');
     const today = sched.locator('.schedc-slot-day.is-today');
     await today.hover();
-    // No hover chrome on grid cells anymore — the whole cell is the button.
+    // No hover chrome on grid cells — the whole cell is the button.
     await expect(sched.locator('.schedc-mini')).toHaveCount(0);
     await expect(sched.locator('.schedc-peek-btn')).toHaveCount(0);
+
+    // Single click: selection, and NO panel over the calendar.
     await today.click({ position: { x: 8, y: 5 } });
+    await expect(sched.locator('.schedc-slot-day.is-selected')).toHaveCount(1);
+    await expect(page.locator('.schedc-peekpanel')).toHaveCount(0);
+
+    // Double click: into the hours.
+    await today.dblclick({ position: { x: 8, y: 5 } });
     const panel = page.locator('.schedc-peekpanel');
     await expect(panel).toBeVisible();
     await expect(panel.locator('.schedc-peektitle')).toHaveText(dayTitleOf(new Date()));
+  });
+
+  test('the rail date mark is the visible way into a day, and the rail shows today', async ({ page }) => {
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    // The rail exists at the default month size, and pins today.
+    await expect(sched.locator('.schedc-rail')).toHaveCount(1);
+    await expect(sched.locator('.schedc-today-block')).toBeVisible();
+    // Today always earns a row even with nothing on it — "nothing is scheduled
+    // today" is an answer someone opened the card to get.
+    const mark = sched.locator('.schedc-rail-datemark').first();
+    await mark.click();
+    await expect(page.locator('.schedc-peekpanel')).toBeVisible();
   });
 
   test('a drag that starts on a day cell never opens the peek', async ({ page }) => {
@@ -393,12 +419,12 @@ test.describe('schedule — day peek panel', () => {
     const before = await panel.locator('.schedc-peektitle').textContent();
 
     const other = sched.locator('.schedc-slot-day:not(.is-outside):not(.is-today)').first();
-    await other.click({ position: { x: 8, y: 5 } });
+    await other.dblclick({ position: { x: 8, y: 5 } });
     await expect(page.locator('.schedc-peekpanel')).toHaveCount(1);
     await expect(panel.locator('.schedc-peektitle')).not.toHaveText(before);
   });
 
-  test('day/hour rows carry legible 22px chips with a clean overflow badge', async ({ page }) => {
+  test('day/hour rows carry legible 24px chips with a clean overflow badge', async ({ page }) => {
     await addSchedule(page);
     const panel = await openTodayPeek(page);
     const row = panel.locator('.schedc-slot-hour:not(.is-band)').nth(1);
@@ -418,7 +444,10 @@ test.describe('schedule — day peek panel', () => {
       fs: getComputedStyle(el).fontSize, h: el.getBoundingClientRect().height,
     }));
     expect(cs.fs).toBe('11.5px');
-    expect(Math.round(cs.h)).toBe(22);
+    // 24, matching SCHED_TUNING.ROW_CHIP_H. The constant said 24 and this rule
+    // rendered 22 under a comment claiming to mirror it, so chipCapacity was
+    // budgeting two pixels per chip that the DOM never used.
+    expect(Math.round(cs.h)).toBe(24);
     // Nothing clips mid-glyph — every chip box sits inside its row box.
     const rb = await row.boundingBox();
     const mb = await more.boundingBox();
@@ -436,7 +465,7 @@ test.describe('schedule — day peek panel', () => {
 
     const today = page.locator('.schedc .schedc-slot-day.is-today');
     await expect(today.locator('.schedc-item-full .gc-link')).toBeVisible();
-    await today.click({ position: { x: 30, y: 35 } }); // squarely over the item
+    await today.dblclick({ position: { x: 30, y: 35 } }); // squarely over the item
     await expect(page.locator('.schedc-peekpanel')).toBeVisible();
   });
 
@@ -461,9 +490,9 @@ test.describe('schedule — day peek panel', () => {
     // The month cell overflows into a passive "+N more" marker (not a button).
     const today = sched.locator('.schedc-slot-day.is-today');
     await expect(today.locator('.schedc-chip.is-more')).toBeVisible();
-    // Clicking the CELL (chips are pass-through ink) re-opens the peek; the
-    // card never flips its shared view.
-    await today.click({ position: { x: 8, y: 5 } });
+    // Double-clicking the CELL (chips are pass-through ink) re-opens the peek;
+    // the card never flips its shared view.
+    await today.dblclick({ position: { x: 8, y: 5 } });
     await expect(page.locator('.schedc-peekpanel')).toBeVisible();
     await expect(sched.locator('.schedc-pill-btn.is-active')).toHaveText('M');
   });
@@ -533,7 +562,7 @@ test.describe('schedule — visual pass', () => {
     await addSchedule(page);
     const sched = page.locator('.schedc');
     // Inline breakdown is driven from the peek now ("Hours on grid").
-    await sched.locator('.schedc-slot-day.is-today').click({ position: { x: 8, y: 5 } });
+    await sched.locator('.schedc-slot-day.is-today').dblclick({ position: { x: 8, y: 5 } });
     const panel = page.locator('.schedc-peekpanel');
     await expect(panel).toBeVisible();
     await panel.getByRole('button', { name: 'Hours on grid' }).click();
@@ -578,7 +607,7 @@ test.describe('schedule — zoomed-out LOD', () => {
     await addSchedule(page);
     // Seed 2 items into today via the peek band.
     const today = page.locator('.schedc .schedc-slot-day.is-today');
-    await today.click();
+    await today.dblclick();
     const panel = page.locator('.schedc-peekpanel');
     await expect(panel).toBeVisible();
     await panel.locator('.schedc-slot-day.is-band').click({ position: { x: 200, y: 11 } });
@@ -588,7 +617,10 @@ test.describe('schedule — zoomed-out LOD', () => {
     const sched = page.locator('.schedc');
     await expect(sched.locator('.schedc-slot-day.is-today .schedc-chip')).toHaveCount(2);
 
-    await pressZoom(page, 3, -1); // ×0.8³ = 0.512 → MID for a 420×380 month card
+    // 4, not 3. A month card now opens at 920x580 (it has to fit the day rail),
+    // so it takes another step down to cross the mid threshold: at ×0.8⁴ the
+    // card is 580×0.4096 = 238 tall on screen, just under midH 240.
+    await pressZoom(page, 4, -1);
     await expect(sched).toHaveClass(/is-lod-mid/);
     // Chips are gone; the density map takes over.
     await expect(sched.locator('.schedc-chip')).toHaveCount(0);
@@ -608,8 +640,9 @@ test.describe('schedule — zoomed-out LOD', () => {
   test('far tier: a poster with a dot lattice — lattice days still open the full-size peek', async ({ page }) => {
     await addSchedule(page);
     // Two more steps than before: the default month card grew from 420×380 to
-    // 640×560, so ×0.8⁶ ≈ 0.262 now leaves it at 168×147 on screen — above the
-    // 150×120 far threshold, i.e. still MID. ×0.8⁸ ≈ 0.168 → 107×94 → far.
+    // 920×580, so ×0.8⁶ ≈ 0.262 leaves it at 241×152 on screen — above the
+    // 150×120 far threshold, i.e. still MID. ×0.8⁸ ≈ 0.168 → 154×97 → far
+    // (on height; the width still clears 150).
     await pressZoom(page, 8, -1);
     const sched = page.locator('.schedc');
     await expect(sched).toHaveClass(/is-lod-far/);

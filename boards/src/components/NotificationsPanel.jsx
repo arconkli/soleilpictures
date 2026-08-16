@@ -80,7 +80,7 @@ export function NotificationsPanel({
           <div className="ntf-empty">Loading…</div>
         ) : items.length === 0 ? (
           <div className="ntf-empty">
-            Nothing yet. When a shoot day moves or a call sheet is published,
+            Nothing yet. When a day moves or a call sheet is published,
             it lands here.
           </div>
         ) : (

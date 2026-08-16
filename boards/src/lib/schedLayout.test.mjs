@@ -21,6 +21,7 @@ import assert from 'node:assert/strict';
 import {
   computeSchedSlots, monthGrid, schedLodTier, reslotItemKey, moveSlotSubtree,
   SCHED_TUNING, isItemKey, parseSlotKey, slotOfItem,
+  splitSchedPanes, schedVisibleRange, schedDayRows, schedNextDay, schedSizeForMonths,
 } from './schedLayout.js';
 
 const TODAY = '2026-08-15';
@@ -305,6 +306,142 @@ test('an hour can be moved on its own without disturbing the rest of the day', (
 
 test('the tuning constants the CSS mirrors are present', () => {
   for (const k of ['MONTH_GAP_PX', 'MONTH_CAPTION_H', 'DAYTILE_H']) {
+    assert.equal(typeof SCHED_TUNING[k], 'number', `${k} missing`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Two panes
+//
+// The rail is only worth its 288px when the calendar beside it is still
+// readable. Getting that wrong is not a cosmetic bug: a pane pushed under the
+// LOD mid threshold turns the whole card into a density map, so the rail would
+// win its space by destroying the thing it sits next to.
+
+test('a card with room gets a rail, and the calendar keeps the rest', () => {
+  const { calRect, railRect } = splitSchedPanes({ view: 'month', w: 920, h: 536 });
+  assert.equal(railRect.w, SCHED_TUNING.RAIL_W);
+  assert.equal(calRect.w + railRect.w, 920);
+  assert.equal(railRect.x, calRect.w);
+  assert.equal(calRect.x, 0);
+});
+
+test('a narrow or short card has no rail — the peek is still the way in', () => {
+  for (const box of [{ w: 619, h: 536 }, { w: 920, h: 259 }]) {
+    const r = splitSchedPanes({ view: 'month', ...box });
+    assert.equal(r.railRect, null);
+    assert.equal(r.calRect.w, box.w, 'the calendar takes the whole card');
+  }
+});
+
+test('day and hour views never get a rail — they are already a list of rows', () => {
+  for (const view of ['day', 'hour']) {
+    assert.equal(splitSchedPanes({ view, w: 1200, h: 700 }).railRect, null);
+  }
+});
+
+test('rail:false suppresses the rail without changing the calendar box', () => {
+  const on = splitSchedPanes({ view: 'month', w: 920, h: 536, rail: true });
+  const off = splitSchedPanes({ view: 'month', w: 920, h: 536, rail: false });
+  assert.ok(on.railRect);
+  assert.equal(off.railRect, null);
+  assert.equal(off.calRect.w, 920);
+});
+
+test('a 3-month strip refuses a rail that would shrink each month below legibility', () => {
+  // 920 - 288 = 632 for three months = 210 each, under the 330 mid threshold.
+  assert.equal(splitSchedPanes({ view: 'month', w: 920, h: 536, months: 3 }).railRect, null);
+  // Wide enough and it comes back.
+  assert.ok(splitSchedPanes({ view: 'month', w: 1400, h: 536, months: 3 }).railRect);
+});
+
+test('every month span sizes to a card that is full tier WITH its rail', () => {
+  for (const n of [1, 3, 6]) {
+    const size = schedSizeForMonths(n, { w: 920, h: 580 });
+    const body = { w: size.w, h: size.h - SCHED_TUNING.HEADER_H };
+    const { railRect, calRect } = splitSchedPanes({ view: 'month', ...body, months: n });
+    assert.ok(railRect, `${n} months should keep its rail`);
+    assert.equal(schedLodTier({ view: 'month', ...body, scale: 1, months: n }), 'full', `${n} months`);
+    const { cols } = monthGrid(n, calRect.w, body.h);
+    assert.ok(calRect.w / cols >= 330, `${n} months: each block must clear midW`);
+  }
+});
+
+test('sizing for a span never shrinks a card someone has already sized', () => {
+  const big = schedSizeForMonths(1, { w: 1600, h: 1000 });
+  assert.deepEqual(big, { w: 1600, h: 1000 });
+});
+
+// ---------------------------------------------------------------------------
+// What the rail lists
+
+test('the visible range is whole calendar months, not the padded week grid', () => {
+  assert.deepEqual(schedVisibleRange({ view: 'month', anchor: '2026-09-15' }),
+    { from: '2026-09-01', to: '2026-09-30' });
+  // A 3-month strip runs to the end of the third month, including a leap Feb.
+  assert.deepEqual(schedVisibleRange({ view: 'month', anchor: '2024-01-10', months: 3 }),
+    { from: '2024-01-01', to: '2024-03-31' });
+  assert.deepEqual(schedVisibleRange({ view: 'week', anchor: '2026-08-19' }),
+    { from: '2026-08-17', to: '2026-08-23' });   // Monday-first
+  assert.deepEqual(schedVisibleRange({ view: 'day', anchor: '2026-08-19' }),
+    { from: '2026-08-19', to: '2026-08-19' });
+});
+
+const DAY = (id, date, extra = {}) => ({ id, scheduled_date: date, ...extra });
+
+test('a row appears for any date with a day, loose content, or today — and no others', () => {
+  const rows = schedDayRows({
+    from: '2026-08-01', to: '2026-08-31',
+    shootDays: { '2026-08-04': [DAY('a', '2026-08-04')] },
+    dayCounts: { '2026-08-06': 2 },
+    todayIso: '2026-08-15',
+  });
+  assert.deepEqual(rows.map((r) => r.date), ['2026-08-04', '2026-08-06', '2026-08-15']);
+  assert.equal(rows[0].days.length, 1);
+  assert.equal(rows[1].loose, 2);
+  // Today earns a row even with nothing on it: "nothing is scheduled today" is
+  // an answer someone opened the card to get.
+  assert.equal(rows[2].isToday, true);
+  assert.equal(rows[2].days.length, 0);
+  assert.equal(rows[2].loose, 0);
+});
+
+test('rows come out in date order and flag weekends', () => {
+  const rows = schedDayRows({
+    from: '2026-08-01', to: '2026-08-10',
+    shootDays: {
+      '2026-08-09': [DAY('c', '2026-08-09')],   // Sunday
+      '2026-08-03': [DAY('a', '2026-08-03')],   // Monday
+      '2026-08-08': [DAY('b', '2026-08-08')],   // Saturday
+    },
+    todayIso: '2026-12-01',                      // out of range: no today row
+  });
+  assert.deepEqual(rows.map((r) => r.date), ['2026-08-03', '2026-08-08', '2026-08-09']);
+  assert.deepEqual(rows.map((r) => r.weekend), [false, true, true]);
+});
+
+test('a backwards or unparseable range yields nothing rather than spinning', () => {
+  assert.deepEqual(schedDayRows({ from: '2026-08-10', to: '2026-08-01' }), []);
+  assert.deepEqual(schedDayRows({ from: 'nope', to: '2026-08-01' }), []);
+});
+
+test('"next" looks across the WHOLE production, and skips cancelled days', () => {
+  const shootDays = {
+    '2026-08-10': [DAY('past', '2026-08-10')],
+    '2026-08-20': [DAY('x', '2026-08-20', { sched_status: 'cancelled' })],
+    '2026-08-22': [DAY('real', '2026-08-22')],
+    '2026-09-01': [DAY('later', '2026-09-01')],
+  };
+  const n = schedNextDay(shootDays, '2026-08-15');
+  assert.equal(n.date, '2026-08-22');
+  assert.equal(n.board.id, 'real');
+  // Nothing ahead → null, not a throw.
+  assert.equal(schedNextDay(shootDays, '2027-01-01'), null);
+  assert.equal(schedNextDay(null, '2026-08-15'), null);
+});
+
+test('the rail tuning constants the CSS mirrors are present', () => {
+  for (const k of ['RAIL_W', 'RAIL_MIN_W', 'RAIL_MIN_H', 'DAYTILE_COMPACT_W', 'DAYTILE_COMPACT_H']) {
     assert.equal(typeof SCHED_TUNING[k], 'number', `${k} missing`);
   }
 });

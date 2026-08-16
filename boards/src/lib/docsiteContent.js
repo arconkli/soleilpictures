@@ -8055,6 +8055,143 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Two panes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Two panes"
+    }
+   ],
+   "id": "two-panes"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The card is a "
+    },
+    {
+     "t": "strong",
+     "v": "calendar",
+     "children": [
+      {
+       "t": "text",
+       "v": "calendar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and a "
+    },
+    {
+     "t": "strong",
+     "v": "day rail",
+     "children": [
+      {
+       "t": "text",
+       "v": "day rail"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", side by side."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The calendar answers "
+    },
+    {
+     "t": "em",
+     "v": "what is the shape of this schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "what is the shape of this schedule"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — where the work falls, where the gaps are, which weeks are heavy. That is what a month grid is good at, and it is all it is good at: a cell is about ninety pixels wide."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The rail answers "
+    },
+    {
+     "t": "em",
+     "v": "what is actually happening",
+     "children": [
+      {
+       "t": "text",
+       "v": "what is actually happening"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Every date with something on it gets a full-width row carrying the day's name, its start time, where it is, and whether the call sheet has been published. Today is pinned at the top with the start time set large, because that is the line people open a schedule to read, and "
+    },
+    {
+     "t": "strong",
+     "v": "Next",
+     "children": [
+      {
+       "t": "text",
+       "v": "Next"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " sits under it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The rail appears when the card is wide enough to keep both panes readable. On a narrow card, a week bar, or a card zoomed far out, the calendar takes the whole box and the peek panel does the rail's job."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Full screen",
+     "children": [
+      {
+       "t": "text",
+       "v": "Full screen"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (the ⤢ in the header) gives both panes the whole window. A production calendar is a wall chart; on a canvas it is always negotiating for width with everything around it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Views",
    "inline": [
     {
@@ -8191,7 +8328,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " control sets how many months are on the card at once. Three months is a block of principal photography; you can see the whole shoot and drag a day from the first month to the last without paging."
+     "v": " control sets how many months are on the card at once. Three months is a block of principal photography; you can see the whole shoot and drag a day from the first month to the last without paging. Asking for more months grows the card to fit them — three readable months need the room, and silently shrinking each one into a grid of dots would defeat the point."
     }
    ]
   },
@@ -8289,17 +8426,17 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Shoot days",
+     "v": "Days",
      "children": [
       {
        "t": "text",
-       "v": "Shoot days"
+       "v": "Days"
       }
      ]
     },
     {
      "t": "text",
-     "v": " — whole clusters that carry a date. A day tile on the calendar is a real cluster you can open, containing whatever the day needs: the script pages, the call sheet, the shotlist, an hour-by-hour schedule. See "
+     "v": " — whole clusters that carry a date. A day tile on the calendar is a real cluster you can open, containing whatever the day needs: the script pages, the call sheet, the shotlist, an hour-by-hour schedule. Each one carries a start time, an end, a place and a day type. See "
     },
     {
      "t": "link",
@@ -8404,11 +8541,139 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "heading",
+   "depth": 3,
+   "text": "Colour means phase",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Colour means phase"
+    }
+   ],
+   "id": "colour-means-phase"
+  },
+  {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Shoot days are colour-coded by state: green once published, blue while still a draft, red and struck through if cancelled. Loose content stays neutral grey so the days are what you see first."
+     "v": "A day's colour is its "
+    },
+    {
+     "t": "strong",
+     "v": "type",
+     "children": [
+      {
+       "t": "text",
+       "v": "type"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — prep, production, travel, off, wrap, milestone — so three months of work reads as a shape rather than a wall of identical tiles. The types are yours to rename: a film production calls the middle one "
+    },
+    {
+     "t": "em",
+     "v": "Shoot",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shoot"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", a game studio calls it "
+    },
+    {
+     "t": "em",
+     "v": "Sprint",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sprint"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and renames "
+    },
+    {
+     "t": "em",
+     "v": "Wrap",
+     "children": [
+      {
+       "t": "text",
+       "v": "Wrap"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to "
+    },
+    {
+     "t": "em",
+     "v": "Ship",
+     "children": [
+      {
+       "t": "text",
+       "v": "Ship"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". A schedule that has never been customised uses those six defaults."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Publish state is a "
+    },
+    {
+     "t": "strong",
+     "v": "mark",
+     "children": [
+      {
+       "t": "text",
+       "v": "mark"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", not a hue: a hollow ring while a day is a draft, the version number once it is published, and a struck-through "
+    },
+    {
+     "t": "em",
+     "v": "Cancelled",
+     "children": [
+      {
+       "t": "text",
+       "v": "Cancelled"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " if it is called off. Colour is spent on the question a calendar is for; once a shoot is running every day is published, so colouring by that would say nothing."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Where a month is too narrow for a word — a three-month strip, say — a day renders as a coloured bar instead of a truncated name. The rail beside it carries the name at a size you can read."
     }
    ]
   },
@@ -8443,7 +8708,30 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Clicking a day or an hour opens the "
+     "v": ". A dense calendar grid with inline editing produced constant mis-clicks: reaching for a slot and accidentally editing the one next to it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Clicking a date "
+    },
+    {
+     "t": "strong",
+     "v": "selects",
+     "children": [
+      {
+       "t": "text",
+       "v": "selects"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " it in the rail. Double-clicking it — or clicking the date mark in the rail — opens the "
     },
     {
      "t": "strong",
@@ -8457,7 +8745,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — a panel where all editing happens."
+     "v": ", the day broken into hours, which is where loose content is edited."
     }
    ]
   },
@@ -8466,16 +8754,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "This is deliberate. A dense calendar grid with inline editing produced constant mis-clicks: reaching for a slot and accidentally editing the one next to it. All edits going through the peek means the grid can be scanned and clicked confidently."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Day tiles are the one exception. They are draggable in the grid, because moving a day to a new date is the single thing a production schedule exists to do, and routing that through a panel would miss the point. They are also a separate element, so the rule for content is unchanged."
+     "v": "Day tiles are the exception to read-only. They are draggable in the grid, because moving a day to a new date is the single thing a production schedule exists to do, and routing that through a panel would miss the point. Rows in the rail drag the same way."
     }
    ]
   },
@@ -13114,7 +13393,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Each shoot day is a "
+     "v": "Each day is a "
     },
     {
      "t": "strong",
@@ -13215,7 +13494,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Share the production cluster with the crew once. Everything inside it — every shoot day, every call sheet — comes with it."
+     "v": "Share the production cluster with the crew once. Everything inside it — every day, every call sheet — comes with it."
     }
    ]
   },
@@ -13236,11 +13515,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Add shoot days",
+     "v": "Add days",
      "children": [
       {
        "t": "text",
-       "v": "Add shoot days"
+       "v": "Add days"
       }
      ]
     },
@@ -13301,6 +13580,220 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "What a day carries",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What a day carries"
+    }
+   ],
+   "id": "what-a-day-carries"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Beyond its date, a day holds a "
+    },
+    {
+     "t": "strong",
+     "v": "start time",
+     "children": [
+      {
+       "t": "text",
+       "v": "start time"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", an "
+    },
+    {
+     "t": "strong",
+     "v": "end",
+     "children": [
+      {
+       "t": "text",
+       "v": "end"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", a "
+    },
+    {
+     "t": "strong",
+     "v": "place",
+     "children": [
+      {
+       "t": "text",
+       "v": "place"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and a "
+    },
+    {
+     "t": "strong",
+     "v": "type",
+     "children": [
+      {
+       "t": "text",
+       "v": "type"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". The start time is the one that matters most — it is the first thing anyone opens a schedule to find — so it is set large in the rail's Today block and shown on every row."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Changing a start time or a place on a "
+    },
+    {
+     "t": "strong",
+     "v": "published",
+     "children": [
+      {
+       "t": "text",
+       "v": "published"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " day notifies the crew straight away, with what changed: "
+    },
+    {
+     "t": "em",
+     "v": "\"Start 07:00 → 05:30\"",
+     "children": [
+      {
+       "t": "text",
+       "v": "\"Start 07:00 → 05:30\""
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Renaming a day or retyping it does not — that is housekeeping, and a call sheet that pings forty times is a call sheet nobody opens."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An overnight day is fine: call at 18:00, wrap at 04:00. Nothing treats that as an error."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Day types are yours",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Day types are yours"
+    }
+   ],
+   "id": "day-types-are-yours"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The six types — Prep, Production, Travel, Off, Wrap, Milestone — are a starting point, not a vocabulary. Rename them per production: a feature calls the middle one "
+    },
+    {
+     "t": "em",
+     "v": "Shoot",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shoot"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; a game studio calls it "
+    },
+    {
+     "t": "em",
+     "v": "Sprint",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sprint"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and renames "
+    },
+    {
+     "t": "em",
+     "v": "Wrap",
+     "children": [
+      {
+       "t": "text",
+       "v": "Wrap"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to "
+    },
+    {
+     "t": "em",
+     "v": "Ship",
+     "children": [
+      {
+       "t": "text",
+       "v": "Ship"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; a photo studio uses "
+    },
+    {
+     "t": "em",
+     "v": "Scout / Shoot / Edit / Deliver",
+     "children": [
+      {
+       "t": "text",
+       "v": "Scout / Shoot / Edit / Deliver"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". The colour is what makes a quarter of work legible at a glance, and which word sits on it is the production's business."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Moving a day",
    "inline": [
     {
@@ -13354,7 +13847,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A shoot day is a "
+     "v": "A day is a "
     },
     {
      "t": "strong",
@@ -13406,6 +13899,30 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "State is a quiet mark rather than a colour, because colour is spent on the day's type — see "
+    },
+    {
+     "t": "link",
+     "v": "reading the calendar",
+     "href": "/docs/canvas/schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "reading the calendar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
    "type": "table",
    "head": [
     [
@@ -13444,7 +13961,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Blue, dashed outline"
+       "v": "Dashed outline; a hollow ring on its row"
       }
      ],
      [
@@ -13470,13 +13987,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Green, solid, with its version"
+       "v": "Solid, with its version on the row"
       }
      ],
      [
       {
        "t": "text",
-       "v": "Everyone who can read it, on publish and on any move"
+       "v": "Everyone who can read it, on publish, on any move, and when its start time or place changes"
       }
      ]
     ],

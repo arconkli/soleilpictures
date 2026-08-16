@@ -27,11 +27,18 @@ import {
 } from './arrowGeometry.js';
 import { paletteLayout, readableInk, hasCustomName } from './paletteLayout.js';
 import { parseISO as schedParseISO, todayISO as schedTodayISO, daysInMonth as schedDaysInMonth, firstWeekdayOfMonth as schedFirstWeekday, monthTitle as schedMonthTitle } from './schedDates.js';
+import { dayTypesFor, dayTypeColor } from './dayTypes.js';
+
+// A dated cluster's phase colour, resolved against its PARENT's palette (the
+// production owns the palette; the day only references a slug).
+function schedTypeHex(boards, b) {
+  return dayTypeColor(b, dayTypesFor(boards?.[b.parent_board_id])) || null;
+}
 
 // Bump when the rendered output changes materially. Stored thumbnails carry
 // this in boards.thumb_version; tiles re-render stale versions in the
 // background (useThumbnailBackfill) so the new look rolls out lazily.
-export const RENDER_VERSION = 7;   // 7: schedule cards render the reworked calendar (no lattice, week rules only)
+export const RENDER_VERSION = 8;   // 8: schedule cards draw the day rail + phase-coloured day bars
                                    // 5: new-model schedule cards draw a mini month lattice
 
 // Output frame: 16:9 ≈ both the grid tile cover and OG's 1.91:1. Fixed
@@ -52,6 +59,7 @@ const T = {
   bg0: '#0a0a0c', bg1: '#111114', bg2: '#16161a', bg3: '#1c1c20',
   line1: '#212126', line2: '#2c2c32', line3: '#3a3a40',
   ink0: '#f5f5f7', ink1: '#d0d0d4', ink2: '#888890', ink3: '#5a5a60',
+  inkError: '#e08b8b',              // --ink-error: a cancelled shoot day
   gridDot: 'rgba(245,245,247,.05)',
 };
 const FONT_SANS = 'aileron, -apple-system, system-ui, sans-serif';
@@ -832,7 +840,7 @@ function drawDocInterior(ctx, c, x, y, w, h) {
 // day cells with an accent dot on days holding content (any depth). Reads the
 // nested cells straight off the card object (readCards keeps the Y ref) or the
 // local plain field.
-function drawScheduleCalendarInterior(ctx, c, x, y, w, h) {
+function drawScheduleCalendarInterior(ctx, c, x, y, w, h, boards) {
   const pad = 10;
   ctx.save();
   ctx.textBaseline = 'top';
@@ -847,9 +855,26 @@ function drawScheduleCalendarInterior(ctx, c, x, y, w, h) {
     const m = /^d:(\d{4})-(\d{2})-(\d{2})\//.exec(k);
     if (m && +m[1] === anchorT.y && +m[2] === anchorT.m) dotDays.add(+m[3]);
   }
-  ctx.font = `500 12px ${FONT_SANS}`;
+  // Dated child clusters, phase-coloured, exactly as the card draws them. The
+  // thumbnail is often the ONLY view of a production calendar someone sees
+  // (the cluster browser, a nested board tile), and without these it showed an
+  // empty month for a schedule with twelve weeks of work on it: the days are
+  // Postgres rows, not Y.Doc items, so the loop above cannot see them.
+  const barDays = new Map();                 // day-of-month -> hex | null
+  const parentId = c.__parentBoardId || null;
+  for (const id in (boards || {})) {
+    const b = boards[id];
+    if (!b || !b.scheduled_date) continue;
+    if (parentId && b.parent_board_id !== parentId) continue;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(b.scheduled_date);
+    if (!m || +m[1] !== anchorT.y || +m[2] !== anchorT.m) continue;
+    barDays.set(+m[3], b.sched_status === 'cancelled' ? null : schedTypeHex(boards, b));
+  }
+  ctx.font = `600 13px ${FONT_SANS}`;
   ctx.fillStyle = T.ink0;
-  const title = `${schedMonthTitle(`${anchorT.y}-${String(anchorT.m).padStart(2, '0')}-01`)}${itemCount ? ` · ${itemCount}` : ''}`;
+  const nBars = barDays.size;
+  const shown = nBars || itemCount;
+  const title = `${schedMonthTitle(`${anchorT.y}-${String(anchorT.m).padStart(2, '0')}-01`)}${shown ? ` · ${shown}` : ''}`;
   ctx.fillText(truncateToWidth(ctx, title, w - pad * 2), x + pad, y + pad);
   const top = y + pad + 22;
   const bottom = y + h - pad;
@@ -866,6 +891,18 @@ function drawScheduleCalendarInterior(ctx, c, x, y, w, h) {
   for (let r = 0; r < nRows; r++) {
     ctx.fillRect(x + pad, Math.round(top + r * ch), w - pad * 2, 1);
   }
+  // Phase bars first (a day is the louder object), then dots for loose content.
+  const barH = Math.max(2, Math.min(5, ch * 0.22));
+  for (const [d, hex] of barDays) {
+    const idx = first + d - 1;
+    if (idx < 0 || idx >= nRows * 7) continue;
+    const cx = x + pad + (idx % 7) * cw;
+    const cyy = top + Math.floor(idx / 7) * ch;
+    // A null hex means cancelled (dayTypeColor withholds the phase colour for
+    // one); an untyped day falls back to neutral ink.
+    ctx.fillStyle = hex || (barDays.get(d) === null ? T.inkError : T.ink2);
+    ctx.fillRect(cx + 1.5, cyy + ch - barH - 2, Math.max(2, cw - 3), barH);
+  }
   for (let d = 1; d <= nDays; d++) {
     if (!dotDays.has(d)) continue;
     const idx = first + d - 1;
@@ -874,14 +911,14 @@ function drawScheduleCalendarInterior(ctx, c, x, y, w, h) {
     ctx.fillStyle = T.ink1;
     const r = Math.max(1.2, Math.min(cw, ch) * 0.16);
     ctx.beginPath();
-    ctx.arc(cx + cw / 2, cyy + ch / 2, r, 0, Math.PI * 2);
+    ctx.arc(cx + cw / 2, cyy + ch / 2 - (barDays.size ? barH : 0), r, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
 }
 
-function drawScheduleInterior(ctx, c, x, y, w, h) {
-  if (c.schedView) { drawScheduleCalendarInterior(ctx, c, x, y, w, h); return; }
+function drawScheduleInterior(ctx, c, x, y, w, h, boards) {
+  if (c.schedView) { drawScheduleCalendarInterior(ctx, c, x, y, w, h, boards); return; }
   const pad = 12;
   ctx.save();
   ctx.textBaseline = 'top';
@@ -1273,7 +1310,7 @@ async function planToBlob(plan, { width, height, allowImages, bgColor }) {
       }
       if (c.kind === 'schedule') {
         beginCard(ctx, x, y, w, h, ppu, { fill: T.bg3 });
-        drawScheduleInterior(ctx, c, x, y, w, h);
+        drawScheduleInterior(ctx, c, x, y, w, h, boards);
         endCard(ctx);
         innerBorder(ctx, x, y, w, h, 8, T.line2);
         continue;

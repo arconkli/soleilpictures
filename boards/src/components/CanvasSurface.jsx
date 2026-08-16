@@ -7291,7 +7291,7 @@ export function CanvasSurface({
       const schedUploads = {};
       for (const k in cellUploads) { if (k.startsWith(`${c.id}:`)) schedUploads[k.slice(c.id.length + 1)] = cellUploads[k]; }
       inner = <ScheduleCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
-                            isSelected={isSelected} canEdit={canEdit} onUpdate={onUpdate}
+                            canEdit={canEdit} onUpdate={onUpdate}
                             focusedCellId={focusedCell?.gridId === c.id ? focusedCell.cellId : null}
                             dropCellId={cellDropTarget?.gridId === c.id ? cellDropTarget.cellId : null}
                             cellUploads={schedUploads}

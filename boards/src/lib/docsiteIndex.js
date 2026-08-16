@@ -786,14 +786,18 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/canvas/schedule",
     "title": "Schedule Cards — Soleil Clusters",
-    "metaDescription": "Real-date calendar cards on the Soleil Clusters canvas. One to six months at once, shoot days you drag between dates, and a peek panel for editing.",
+    "metaDescription": "Real-date calendar cards on the Soleil Clusters canvas — a month grid beside a day rail, one to six months at once, and days you drag between dates.",
     "h1": "Schedules",
-    "answer": "A schedule card is a real calendar living on your canvas. It shows one, three or six months at once, and each day can hold both loose content and whole clusters — a shoot day with its call sheet, shotlist and hour-by-hour inside. Dragging a day tile to another date moves that cluster and, if it has been published, tells everyone who can see it. Loose content in the month grid stays read-only and is edited in the peek panel.",
+    "answer": "A schedule card is a real calendar living on your canvas, split into two panes: a month grid showing the shape of the schedule, and a day rail listing what is actually on each date — start time, place, and whether the call sheet has been published. It shows one, three or six months at once, and each day can hold both loose content and whole clusters. Dragging a day to another date moves that cluster and, if it has been published, tells everyone who can see it.",
     "section": "canvas",
     "order": 8,
     "updated": "2026-08-16",
     "navLabel": "Schedules",
     "headings": [
+      {
+        "id": "two-panes",
+        "text": "Two panes"
+      },
       {
         "id": "views",
         "text": "Views"
@@ -834,8 +838,12 @@ export const DOCS_PAGES = [
         "a": "Drag its tile onto the new date. If the day has been published, everyone who can see the schedule is notified that it moved. Loose content moves from the peek panel or with \"Move to date\"."
       },
       {
+        "q": "What is the panel on the right?",
+        "a": "The day rail. A month cell is about ninety pixels wide, which is enough for a date and a dot — not for a start time and a location. The rail lists the same days as full-width rows so you can read them, and it is a permanent pane rather than a popover, so nothing ever covers the calendar you were looking at."
+      },
+      {
         "q": "Why can I not type directly into the calendar grid?",
-        "a": "Loose content in the month and week grids is deliberately read-only — clicking a slot opens a peek panel and every edit happens there, because inline editing in a dense calendar produced constant mis-clicks. Day tiles are the exception: they are draggable, because moving a day is the thing a schedule exists for."
+        "a": "Loose content in the month and week grids is deliberately read-only, because inline editing in a dense calendar produced constant mis-clicks. Clicking a date selects it in the rail; double-clicking opens the day by the hour."
       },
       {
         "q": "Does paging to next month move it for everyone?",
@@ -1394,9 +1402,9 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/clusters/production-schedule",
     "title": "Production Schedules — Soleil Clusters",
-    "metaDescription": "Run a production schedule in Soleil Clusters — a multi-month calendar shared with the crew, each shoot day its own cluster, notifications not email.",
+    "metaDescription": "Run a production schedule in Soleil Clusters — a multi-month calendar shared with the crew, each day its own cluster with a call time, notifications not email.",
     "h1": "Production schedules",
-    "answer": "A production schedule is one cluster holding a multi-month calendar, with each shoot day as a child cluster carrying a date. Open a day and you get its script pages, call sheet, shotlist and hour-by-hour schedule. Drag the day to a new date and everyone who can see the schedule is told it moved. Publishing a day bumps its call-sheet version and notifies the crew, which is the replacement for mailing a new attachment every night.",
+    "answer": "A production schedule is one cluster holding a multi-month calendar, with each day as a child cluster carrying a date, a start time and a place. Open a day and you get its script pages, call sheet, shotlist and hour-by-hour schedule. Drag the day to a new date and everyone who can see the schedule is told it moved. Publishing a day bumps its call-sheet version and notifies the crew, which is the replacement for mailing a new attachment every night.",
     "section": "clusters",
     "order": 3,
     "updated": "2026-08-16",
@@ -1409,6 +1417,10 @@ export const DOCS_PAGES = [
       {
         "id": "laying-it-out",
         "text": "Laying it out"
+      },
+      {
+        "id": "what-a-day-carries",
+        "text": "What a day carries"
       },
       {
         "id": "moving-a-day",
@@ -1451,7 +1463,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "What happens to the hour-by-hour schedule when a day moves?",
-        "a": "It follows. The schedule card inside a shoot day reads its date from the cluster, so it re-anchors itself and there is nothing to keep in sync."
+        "a": "It follows. The schedule card inside a day reads its date from the cluster, so it re-anchors itself and there is nothing to keep in sync."
       },
       {
         "q": "Can another system push the schedule in?",

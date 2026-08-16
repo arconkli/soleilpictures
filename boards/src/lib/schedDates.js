@@ -113,6 +113,43 @@ export function timeLabel(h, m = 0) {
   return m ? `${base}:${pad2(m)} ${hh < 12 ? 'AM' : 'PM'}` : hourLabel(hh);
 }
 
+// ── Clock times ──────────────────────────────────────────────────────────────
+// boards.day_start / day_end are bare Postgres `time`, which PostgREST hands
+// back as 'HH:MM:SS'. Same local-wall-clock model as scheduled_date (see the
+// header): a production runs on the clock on the wall where it is, so there is
+// no zone to convert and nothing to reconcile.
+
+// 'HH:MM:SS' | 'HH:MM' | 'H:MM' → {h, m}, or null. Rejects out-of-range parts
+// rather than clamping — a bad value should render as absent, not as midnight.
+export function parseClock(s) {
+  if (typeof s !== 'string') return null;
+  const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(s.trim());
+  if (!m) return null;
+  const h = +m[1], mi = +m[2];
+  if (h > 23 || mi > 59) return null;
+  return { h, m: mi };
+}
+
+// {h,m} → 'HH:MM:00' for the RPC. Postgres accepts 'HH:MM' too; the seconds are
+// here so a round trip through the database is byte-identical to what we sent.
+export function formatClock(h, m = 0) { return `${pad2(h)}:${pad2(m)}:00`; }
+
+// '07:00:00' → '7:00 AM'. Empty string for anything unparseable, so a caller
+// can `{clockLabel(x) && <span>…}` without a second null check.
+export function clockLabel(s) {
+  const t = parseClock(s);
+  return t ? `${t.h % 12 === 0 ? 12 : t.h % 12}:${pad2(t.m)} ${t.h < 12 ? 'AM' : 'PM'}` : '';
+}
+
+// '7:00 AM – 7:30 PM', or just the start when there is no end. The dash is an
+// en dash with hair spaces: a call time is read at a glance and '7:00AM-7:30PM'
+// is a wall of glyphs.
+export function clockRange(start, end) {
+  const a = clockLabel(start), b = clockLabel(end);
+  if (!a) return b ? `until ${b}` : '';
+  return b ? `${a} – ${b}` : a;
+}
+
 // 'Jul 15' — compact date for chips / synthesized schedule rows.
 export function shortDate(iso) {
   const t = parseISO(iso);

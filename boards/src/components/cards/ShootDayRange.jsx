@@ -1,7 +1,11 @@
-// "Add shoot days" — lay a block of dated clusters onto the calendar.
+// "Add days" — lay a block of dated clusters onto the calendar.
+//
+// Says "days", not "shoot days": this app is for creative production generally,
+// and a game studio's sprint or a photo studio's shoot week is the same object
+// as a film's Day 14. The internals keep the productionDay name.
 //
 // Small on purpose. A production is laid out once, and the decision is only
-// ever three things: where it ends, whether it shoots weekends, and what the
+// ever three things: where it ends, whether it runs weekends, and what the
 // first day is called. The start date is wherever you opened the menu.
 //
 // It shows the resulting COUNT before you commit, because the difference
@@ -65,9 +69,9 @@ export function ShootDayRange({ anchorRect, startDate, startNumber = 1, onAdd, o
     <div ref={ref} className="schedc-range" onPointerDown={stop}
       style={pos ? { position: 'fixed', left: pos.left, top: pos.top }
                  : { position: 'fixed', visibility: 'hidden' }}
-      role="dialog" aria-label="Add shoot days">
+      role="dialog" aria-label="Add days">
       <div className="schedc-range-head">
-        <span className="schedc-range-title">Add shoot days</span>
+        <span className="schedc-range-title">Add days</span>
         <button type="button" className="schedc-range-x" onClick={onClose}
           title="Close (Esc)" aria-label="Close"><Icon as={X} size={11} /></button>
       </div>

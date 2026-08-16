@@ -17,6 +17,8 @@ import {
   reslotItemKey, moveSlotSubtree as schedMoveSlotSubtree,
 } from '../lib/schedLayout.js';
 import { getViewAnchor as getSchedViewAnchor } from '../lib/schedViewRegistry.js';
+import { shootDayDates } from '../lib/productionDayPlan.js';
+import { DEFAULT_DAY_TYPE as LOCAL_DEFAULT_DAY_TYPE } from '../lib/dayTypes.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -616,7 +618,8 @@ export function LocalBoardsApp({ user, signOut }) {
   // stores the cell/meta twins as plain fields (cells / gridMeta) — no Yjs.
   // A month cell has to hold a date number AND two or three legible events;
   // at the old 420x380 it was 59x55 and held two pills of four characters.
-  const SCHED_SIZES = { month: [640, 560], week: [640, 260], day: [420, 560], hour: [380, 420] };
+  // Twin of App.jsx's SCHED_SIZES — see the note there.
+  const SCHED_SIZES = { month: [920, 580], week: [640, 260], day: [420, 560], hour: [380, 420] };
   const addSchedule = (clickPos = null, view = 'month') => {
     const id = createId('sched');
     const [w, h] = SCHED_SIZES[view] || SCHED_SIZES.month;
@@ -862,6 +865,66 @@ export function LocalBoardsApp({ user, signOut }) {
     });
     return true;
   };
+  // ── Dated clusters, locally ────────────────────────────────────────────────
+  // In the real app a shoot day is a Postgres row and moving it is
+  // set_board_schedule(). The local shell has no Postgres, so these write the
+  // same COLUMN NAMES onto the in-memory boards map. That is enough for the
+  // schedule card, which only ever reads them off `boards`.
+  //
+  // Worth having rather than skipping: without it every day row, day tile, the
+  // Today block and the whole phase-colour system were invisible in ?local=1,
+  // which is the only harness the schedule tests run in.
+  const setLocalSchedule = (boardId, date, endDate = null) => {
+    setLocalState(prev => (prev.boards[boardId] ? {
+      ...prev,
+      boards: {
+        ...prev.boards,
+        [boardId]: {
+          ...prev.boards[boardId],
+          scheduled_date: date || null,
+          scheduled_end: endDate || null,
+          updated_at: new Date().toISOString(),
+        },
+      },
+    } : prev));
+    return { ok: true, date, moved: true, notified: 0 };
+  };
+  const addLocalShootDays = ({ from, to, skipWeekends = false, startNumber = 1,
+                               parentBoardId = null } = {}) => {
+    const parent = parentBoardId || currentId;
+    const dates = shootDayDates(from, to || from, { skipWeekends });
+    if (!dates.length) return [];
+    const made = [];
+    setLocalState(prev => {
+      const nextBoards = { ...prev.boards };
+      const nextState = { ...prev.boardState };
+      dates.forEach((date, i) => {
+        const id = createId('board');
+        made.push(id);
+        nextBoards[id] = {
+          id,
+          name: `Day ${startNumber + i}`,
+          parent_board_id: parent,
+          view: 'canvas',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          scheduled_date: date,
+          scheduled_end: null,
+          day_label: `Day ${startNumber + i}`,
+          sched_status: 'draft',
+          sched_version: 0,
+          // A default start time so the row has the one thing it exists to
+          // show; the real scaffold leaves it unset until someone types it.
+          day_start: '07:00:00',
+          day_type: LOCAL_DEFAULT_DAY_TYPE,
+        };
+        nextState[id] = { cards: [], arrows: [], strokes: [] };
+      });
+      return { boards: nextBoards, boardState: nextState };
+    });
+    return made;
+  };
+
   // Twin of App.jsx graftScheduleIntoSlot — same pure graftKeyMap, same refusal
   // rules (granularity mismatch / stray content → false → normal move).
   const graftScheduleIntoSlot = (hostId, slotPath, srcId) => {
@@ -1297,6 +1360,8 @@ export function LocalBoardsApp({ user, signOut }) {
             gridTemplates={currentTemplates}
             gridSequences={currentSequences}
             onOpenBoard={openBoard}
+            onSetSchedule={setLocalSchedule}
+            onAddShootDay={addLocalShootDays}
             tweak={tweak}
             depth={stack.length - 1}
             onOpenPicker={(pos) => openBoardLinkPicker(pos)}

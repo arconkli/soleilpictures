@@ -1761,6 +1761,45 @@ export async function setBoardSchedule(boardId, date, endDate = null, dayLabel =
   return data || { ok: false, error: 'no_response' };
 }
 
+// When the day starts, where it is, and what kind of day it is (0247).
+//
+// Separate from setBoardSchedule because the two answer different questions and
+// because merging them would have meant a second PostgREST overload sharing an
+// argument prefix — which resolves by NAME and errors as ambiguous at call time.
+//
+// `clear` is how you say "there is no start time any more". A null field means
+// "leave it alone", so that a caller changing only the location doesn't have to
+// resend the call time and risk clobbering someone else's edit; without an
+// explicit clear list there would be no way to express removal at all.
+export async function setBoardDayDetails(boardId, {
+  dayType, dayStart, dayEnd, dayPlace, dayLabel, clear = null, notify = true,
+} = {}) {
+  const { data, error } = await supabase.rpc('set_board_day_details', {
+    p_board_id: boardId,
+    p_day_type: dayType ?? null,
+    p_day_start: dayStart || null,
+    p_day_end: dayEnd || null,
+    p_day_place: dayPlace ?? null,
+    p_day_label: dayLabel ?? null,
+    p_clear: clear && clear.length ? clear : null,
+    p_notify: notify !== false,
+  });
+  if (error) throw error;
+  return data || { ok: false, error: 'no_response' };
+}
+
+// The day-type palette, set on the PARENT cluster. This one IS a plain PATCH:
+// 0247 keeps day_types in the client-writable grant list because a list of
+// names and colours gates no notification and decides nothing, unlike the
+// sched_* columns above. Pass null to fall back to the app defaults.
+export async function setBoardDayTypes(boardId, dayTypes) {
+  const { error } = await supabase.from('boards')
+    .update({ day_types: dayTypes && dayTypes.length ? dayTypes : null })
+    .eq('id', boardId);
+  if (error) throw error;
+  return true;
+}
+
 // Bumps the version and notifies everyone who can read the board. This is the
 // replacement for mailing the crew a new call sheet every night.
 export async function publishScheduleDay(boardId, note = null) {

@@ -958,11 +958,23 @@ A: Yes. Grids created from the same template stay linked as a family, so a layou
 URL: https://clusters.soleilpictures.com/docs/canvas/schedule
 Updated: 2026-08-16
 
-A schedule card is a real calendar living on your canvas. It shows one, three or six months at once, and each day can hold both loose content and whole clusters — a shoot day with its call sheet, shotlist and hour-by-hour inside. Dragging a day tile to another date moves that cluster and, if it has been published, tells everyone who can see it. Loose content in the month grid stays read-only and is edited in the peek panel.
+A schedule card is a real calendar living on your canvas, split into two panes: a month grid showing the shape of the schedule, and a day rail listing what is actually on each date — start time, place, and whether the call sheet has been published. It shows one, three or six months at once, and each day can hold both loose content and whole clusters. Dragging a day to another date moves that cluster and, if it has been published, tells everyone who can see it.
 
 A schedule card is a calendar with real dates, sitting on the canvas next to everything it refers to. Shooting days beside the location photos; a release plan beside the assets.
 
 Add one from the rail's + menu → Create → Schedule.
+
+Two panes
+
+The card is a calendar and a day rail, side by side.
+
+The calendar answers what is the shape of this schedule — where the work falls, where the gaps are, which weeks are heavy. That is what a month grid is good at, and it is all it is good at: a cell is about ninety pixels wide.
+
+The rail answers what is actually happening. Every date with something on it gets a full-width row carrying the day's name, its start time, where it is, and whether the call sheet has been published. Today is pinned at the top with the start time set large, because that is the line people open a schedule to read, and Next sits under it.
+
+The rail appears when the card is wide enough to keep both panes readable. On a narrow card, a week bar, or a card zoomed far out, the calendar takes the whole box and the peek panel does the rail's job.
+
+Full screen (the ⤢ in the header) gives both panes the whole window. A production calendar is a wall chart; on a canvas it is always negotiating for width with everything around it.
 
 Views
 
@@ -974,7 +986,7 @@ Week | Seven days side by side
 Day | One day, broken into hours
 Hour | One hour, broken into minutes
 
-In month view, the 1 / 3 / 6 control sets how many months are on the card at once. Three months is a block of principal photography; you can see the whole shoot and drag a day from the first month to the last without paging.
+In month view, the 1 / 3 / 6 control sets how many months are on the card at once. Three months is a block of principal photography; you can see the whole shoot and drag a day from the first month to the last without paging. Asking for more months grows the card to fit them — three readable months need the room, and silently shrinking each one into a grid of dots would defeat the point.
 
 Break a day down into hours, and an hour down into minutes, when a day needs that resolution. A prep week can sit at month view while the shoot day sits at hour view in the same board.
 
@@ -986,7 +998,7 @@ Two things live on a date
 
 Loose content — a note, an image, a file, a link — dropped straight into a slot. This is the quick kind: a reminder on a Tuesday, a reference photo on the day it is needed.
 
-Shoot days — whole clusters that carry a date. A day tile on the calendar is a real cluster you can open, containing whatever the day needs: the script pages, the call sheet, the shotlist, an hour-by-hour schedule. See Production schedules.
+Days — whole clusters that carry a date. A day tile on the calendar is a real cluster you can open, containing whatever the day needs: the script pages, the call sheet, the shotlist, an hour-by-hour schedule. Each one carries a start time, an end, a place and a day type. See Production schedules.
 
 Moving things
 
@@ -998,15 +1010,21 @@ Reading it
 
 The month grid has no vertical rules — just a line between weeks, and space. Dates you can act on are bright; days from the neighbouring month and weekend dates step back. Today is a filled circle.
 
-Shoot days are colour-coded by state: green once published, blue while still a draft, red and struck through if cancelled. Loose content stays neutral grey so the days are what you see first.
+Colour means phase
+
+A day's colour is its type — prep, production, travel, off, wrap, milestone — so three months of work reads as a shape rather than a wall of identical tiles. The types are yours to rename: a film production calls the middle one Shoot, a game studio calls it Sprint and renames Wrap to Ship. A schedule that has never been customised uses those six defaults.
+
+Publish state is a mark, not a hue: a hollow ring while a day is a draft, the version number once it is published, and a struck-through Cancelled if it is called off. Colour is spent on the question a calendar is for; once a shoot is running every day is published, so colouring by that would say nothing.
+
+Where a month is too narrow for a word — a three-month strip, say — a day renders as a coloured bar instead of a truncated name. The rail beside it carries the name at a size you can read.
 
 The peek panel
 
-For loose content, the month and week grids are read-only. Clicking a day or an hour opens the peek — a panel where all editing happens.
+For loose content, the month and week grids are read-only. A dense calendar grid with inline editing produced constant mis-clicks: reaching for a slot and accidentally editing the one next to it.
 
-This is deliberate. A dense calendar grid with inline editing produced constant mis-clicks: reaching for a slot and accidentally editing the one next to it. All edits going through the peek means the grid can be scanned and clicked confidently.
+Clicking a date selects it in the rail. Double-clicking it — or clicking the date mark in the rail — opens the peek, the day broken into hours, which is where loose content is edited.
 
-Day tiles are the one exception. They are draggable in the grid, because moving a day to a new date is the single thing a production schedule exists to do, and routing that through a panel would miss the point. They are also a separate element, so the rule for content is unchanged.
+Day tiles are the exception to read-only. They are draggable in the grid, because moving a day to a new date is the single thing a production schedule exists to do, and routing that through a panel would miss the point. Rows in the rail drag the same way.
 
 What a schedule is for
 
@@ -1027,8 +1045,11 @@ A: Yes. Any card can go into a time slot, not just text. A call sheet with the l
 Q: How do I move a day to a different date?
 A: Drag its tile onto the new date. If the day has been published, everyone who can see the schedule is notified that it moved. Loose content moves from the peek panel or with "Move to date".
 
+Q: What is the panel on the right?
+A: The day rail. A month cell is about ninety pixels wide, which is enough for a date and a dot — not for a start time and a location. The rail lists the same days as full-width rows so you can read them, and it is a permanent pane rather than a popover, so nothing ever covers the calendar you were looking at.
+
 Q: Why can I not type directly into the calendar grid?
-A: Loose content in the month and week grids is deliberately read-only — clicking a slot opens a peek panel and every edit happens there, because inline editing in a dense calendar produced constant mis-clicks. Day tiles are the exception: they are draggable, because moving a day is the thing a schedule exists for.
+A: Loose content in the month and week grids is deliberately read-only, because inline editing in a dense calendar produced constant mis-clicks. Clicking a date selects it in the rail; double-clicking opens the day by the hour.
 
 Q: Does paging to next month move it for everyone?
 A: No. Navigation is yours alone. The card remembers where it opens, but stepping through months, jumping to a date and "Go to today" are all local to you.
@@ -1675,7 +1696,7 @@ A: A 2D fallback renders automatically. The graph and its interactions are the s
 URL: https://clusters.soleilpictures.com/docs/clusters/production-schedule
 Updated: 2026-08-16
 
-A production schedule is one cluster holding a multi-month calendar, with each shoot day as a child cluster carrying a date. Open a day and you get its script pages, call sheet, shotlist and hour-by-hour schedule. Drag the day to a new date and everyone who can see the schedule is told it moved. Publishing a day bumps its call-sheet version and notifies the crew, which is the replacement for mailing a new attachment every night.
+A production schedule is one cluster holding a multi-month calendar, with each day as a child cluster carrying a date, a start time and a place. Open a day and you get its script pages, call sheet, shotlist and hour-by-hour schedule. Drag the day to a new date and everyone who can see the schedule is told it moved. Publishing a day bumps its call-sheet version and notifies the crew, which is the replacement for mailing a new attachment every night.
 
 A production runs on two questions: what are we shooting, and when. This is how Clusters answers both in one place.
 
@@ -1683,22 +1704,34 @@ The shape
 
 One cluster is the production. On its canvas sits a schedule card set to 3 months — a block of principal photography you can see at once.
 
-Each shoot day is a child cluster with a date. It appears as a tile on its day in the calendar. Open it and you are inside a normal canvas holding whatever the day needs:
+Each day is a child cluster with a date. It appears as a tile on its day in the calendar. Open it and you are inside a normal canvas holding whatever the day needs:
 
 the day's script pages (a PDF or a document)
 the call sheet
 the shotlist
 an hour-by-hour schedule card
 
-Share the production cluster with the crew once. Everything inside it — every shoot day, every call sheet — comes with it.
+Share the production cluster with the crew once. Everything inside it — every day, every call sheet — comes with it.
 
 Laying it out
 
-Add shoot days takes a date range, optionally skips weekends, and creates a numbered day for each date. The days arrive empty; open one and set up this day fills it with the four cards above.
+Add days takes a date range, optionally skips weekends, and creates a numbered day for each date. The days arrive empty; open one and set up this day fills it with the four cards above.
 
 They are created empty on purpose. Clusters are unlimited on every plan, but cards are capped on the free plan, and scaffolding sixty days up front would spend the whole allowance before anyone had opened one.
 
 The date is never written into a day's name. Day 12 stays Day 12; the date is rendered from the calendar every time it is shown, so a day that moves twice still reads correctly everywhere.
+
+What a day carries
+
+Beyond its date, a day holds a start time, an end, a place and a type. The start time is the one that matters most — it is the first thing anyone opens a schedule to find — so it is set large in the rail's Today block and shown on every row.
+
+Changing a start time or a place on a published day notifies the crew straight away, with what changed: "Start 07:00 → 05:30". Renaming a day or retyping it does not — that is housekeeping, and a call sheet that pings forty times is a call sheet nobody opens.
+
+An overnight day is fine: call at 18:00, wrap at 04:00. Nothing treats that as an error.
+
+Day types are yours
+
+The six types — Prep, Production, Travel, Off, Wrap, Milestone — are a starting point, not a vocabulary. Rename them per production: a feature calls the middle one Shoot; a game studio calls it Sprint and renames Wrap to Ship; a photo studio uses Scout / Shoot / Edit / Deliver. The colour is what makes a quarter of work legible at a glance, and which word sits on it is the production's business.
 
 Moving a day
 
@@ -1710,13 +1743,15 @@ A multi-day block (travel, a company move) keeps its length when dragged.
 
 Publishing, instead of the nightly email
 
-A shoot day is a draft until someone publishes it. Drafts are silent: you can build twelve weeks of schedule, drag days around and rewrite call sheets without anyone hearing anything.
+A day is a draft until someone publishes it. Drafts are silent: you can build twelve weeks of schedule, drag days around and rewrite call sheets without anyone hearing anything.
 
 Publish bumps the day's version — v1, v2, v3 — and notifies everyone who can read it. That is the unit a crew already works in: "Day 12, call sheet v3".
 
+State is a quiet mark rather than a colour, because colour is spent on the day's type — see reading the calendar.
+
 State | On the calendar | Who is told
-Draft | Blue, dashed outline | Nobody
-Published | Green, solid, with its version | Everyone who can read it, on publish and on any move
+Draft | Dashed outline; a hollow ring on its row | Nobody
+Published | Solid, with its version on the row | Everyone who can read it, on publish, on any move, and when its start time or place changes
 Cancelled | Red, struck through, still visible | Everyone, if it had been published
 
 A cancelled day stays on the calendar rather than disappearing. Deleting it would leave the crew with no record of a day they had planned around.
@@ -1751,7 +1786,7 @@ Q: Does everyone need an account on my plan?
 A: Editors you share with are free. Capacity is charged to whoever owns the boards, not per seat. See Sharing and roles.
 
 Q: What happens to the hour-by-hour schedule when a day moves?
-A: It follows. The schedule card inside a shoot day reads its date from the cluster, so it re-anchors itself and there is nothing to keep in sync.
+A: It follows. The schedule card inside a day reads its date from the cluster, so it re-anchors itself and there is nothing to keep in sync.
 
 Q: Can another system push the schedule in?
 A: Yes. Boards carry scheduled_date over the API and MCP, so a stripboard or scheduling tool can create and move days programmatically.

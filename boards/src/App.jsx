@@ -369,6 +369,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           sched_status: s.sched_status ?? 'draft',
           sched_version: s.sched_version ?? 0,
           sched_published_at: s.sched_published_at ?? null,
+          // 0247: without these a shared crew member's day rows would render
+          // with no call time and no colour — the two things the row exists for.
+          day_type: s.day_type ?? null,
+          day_start: s.day_start ?? null,
+          day_end: s.day_end ?? null,
+          day_place: s.day_place ?? null,
+          day_types: s.day_types ?? null,
           _shared: true,
           _sharedRoot: s.is_shared_root !== false,
         };
@@ -1587,7 +1594,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // cards. Keep in lockstep with the LocalBoardsApp twin.
     // A month cell has to hold a date number AND two or three legible events;
     // at the old 420x380 it was 59x55 and held two pills of four characters.
-    const SCHED_SIZES = { month: [640, 560], week: [640, 260], day: [420, 560], hour: [380, 420] };
+    // Month is wide enough for the day rail (SCHED_TUNING.RAIL_MIN_W 620 +
+    // RAIL_W 288 leaves the calendar ~590), because a schedule card that opens
+    // without its rail opens without the half that answers "what is happening".
+    // Week deliberately does not: a week bar is a bar. TWIN in LocalBoardsApp.
+    const SCHED_SIZES = { month: [920, 580], week: [640, 260], day: [420, 560], hour: [380, 420] };
     const addSchedule = (clickPos = null, view = 'month') => {
       const [w, h] = SCHED_SIZES[view] || SCHED_SIZES.month;
       const x = clickPos ? Math.round(clickPos.x - w / 2) : 60;
