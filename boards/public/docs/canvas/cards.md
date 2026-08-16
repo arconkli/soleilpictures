@@ -53,6 +53,11 @@ menu.
 
 **Delete** — `⌫`. A toast offers undo; `⌘Z` also works.
 
+**Cut and paste** — `⌘X` / `⌘V`, including across clusters. Cut-paste keeps
+standard clipboard behavior: the cut is undoable on the board it happened on,
+the paste on the board it landed on. (Dragging cards onto a cluster card
+instead performs a true move, whose toast undoes both sides at once.)
+
 **Group** — select several and press `⌘G`. See [Groups](/docs/canvas/groups).
 
 **Tag** — right-click → tag. See [Tags](/docs/organize/tags).

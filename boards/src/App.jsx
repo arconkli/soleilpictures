@@ -2791,6 +2791,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
   };
 
+  // Versioned custom-thumb retention lifecycle. uploadBoardThumbnail locks
+  // every thumb's images row until 2999 (the sweep can't see thumb_key
+  // references, so an active thumb must never be reclaimable). Versioned
+  // custom keys (`-c<ts>`) would therefore accumulate FOREVER once replaced —
+  // so when one leaves service we DEMOTE its lock to a 60-day grace (well past
+  // every undo/restore affordance that points at it), and if an undo puts the
+  // key back into service we RE-LOCK it. Both best-effort: a failed write
+  // means an orphan lives longer, never a broken live thumbnail.
+  const CUSTOM_THUMB_RE = /-c\d+\.webp$/;
+  const demoteThumbRetention = (key) => {
+    if (!key || !CUSTOM_THUMB_RE.test(key)) return;
+    supabase.from('images')
+      .update({ retention_locked_until: new Date(Date.now() + 60 * 24 * 3600 * 1000).toISOString() })
+      .eq('storage_path', key)
+      .then(({ error }) => { if (error) console.warn('[thumb] retention demote failed', key, error); });
+  };
+  const relockThumbRetention = (key) => {
+    if (!key || !CUSTOM_THUMB_RE.test(key)) return;
+    supabase.from('images')
+      .update({ retention_locked_until: '2999-01-01T00:00:00Z' })
+      .eq('storage_path', key)
+      .then(({ error }) => { if (error) console.warn('[thumb] retention relock failed', key, error); });
+  };
+
   // Save a user-picked (cropped) image as a board's custom thumbnail. The crop
   // modal hands us a 1200×675 WebP blob; we overwrite the board's canonical
   // thumb key so it shows on every surface that reads thumb_key (grid tiles,
@@ -2809,16 +2833,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const { src } = await uploadBoardThumbnail({ workspaceId: wsId, boardId, blob, userId: user.id, versioned: true });
       await updateBoardThumb(boardId, { thumbKey: src, thumbVersion: THUMB_VERSION, custom: true });
       await refreshBoards();
+      // The replaced custom thumb (if versioned) is out of service — start
+      // its 60-day reclaim clock instead of leaving it locked until 2999.
+      demoteThumbRetention(prev.thumbKey);
       undoToast(feedback, {
         message: 'Custom thumbnail set',
         onUndo: async () => {
           try {
             if (prev.thumbKey) {
               await updateBoardThumb(boardId, { thumbKey: prev.thumbKey, thumbVersion: prev.thumbVersion, custom: prev.custom });
+              relockThumbRetention(prev.thumbKey); // back in service
             } else {
               await updateBoardThumb(boardId, { thumbVersion: 0, custom: false });
               forgetThumbnailAttempt(boardId);
             }
+            demoteThumbRetention(src); // the just-uploaded key is now unused
             await refreshBoards();
           } catch (e) {
             feedback.toast({ type: 'error', message: 'Could not restore thumbnail: ' + (e.message || e) });
@@ -2849,12 +2878,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // regenerates now, not only after a page reload.
       forgetThumbnailAttempt(boardId);
       await refreshBoards();
+      demoteThumbRetention(prev.thumbKey); // custom key out of service
       undoToast(feedback, {
         message: 'Reverted to auto thumbnail',
         onUndo: async () => {
           try {
             if (!prev.custom || !prev.thumbKey) return;
             await updateBoardThumb(boardId, { thumbKey: prev.thumbKey, thumbVersion: prev.thumbVersion, custom: true });
+            relockThumbRetention(prev.thumbKey); // back in service
             await refreshBoards();
           } catch (e) {
             feedback.toast({ type: 'error', message: 'Could not restore thumbnail: ' + (e.message || e) });

@@ -72,7 +72,7 @@ import { ImageEditModal } from './ImageEditModal.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
-import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
+import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
 import { genuineCards } from '../lib/firstValueTrigger.js';
@@ -3035,7 +3035,7 @@ export function CanvasSurface({
   const doCut = useCallback(async () => {
     const items = [...selected].map(id => cardById[id]).filter(Boolean);
     if (items.length === 0) return;
-    setClipboard(items, board.id);
+    setClipboard(items, board.id, { cut: true });
     mutators.breakUndo?.();
     await doDeleteIds([...selected]);
   }, [selected, cardById, board.id, doDeleteIds, mutators]);
@@ -3115,6 +3115,19 @@ export function CanvasSurface({
 
     mutators.addCards?.(newCards);
     setSelected(new Set(newCards.map(c => c.id)));
+
+    // Cross-cluster CUT-paste keeps standard clipboard semantics — the cut
+    // stays undoable on the source board, this paste on this one — so say
+    // where the originals went instead of leaving the two-stack behavior
+    // implicit (undoing the cut over there while keeping these copies
+    // duplicates, exactly like every other canvas tool).
+    if (clipboardWasCut() && clipboardOrigin() && clipboardOrigin() !== board.id) {
+      const srcName = boards?.[clipboardOrigin()]?.name;
+      feedback.toast({
+        type: 'info',
+        message: `Pasted ${newCards.length === 1 ? 'a card' : `${newCards.length} cards`} cut from ${srcName ? `“${srcName}”` : 'another cluster'} — the originals stay deleted there (⌘Z there restores them).`,
+      });
+    }
 
     // ── Duplicate comments anchored to the source cards / groups so
     //    annotations come along with the paste. Card-anchored

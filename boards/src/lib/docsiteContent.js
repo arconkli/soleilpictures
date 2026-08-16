@@ -4913,6 +4913,41 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
+     "v": "Cut and paste",
+     "children": [
+      {
+       "t": "text",
+       "v": "Cut and paste"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — "
+    },
+    {
+     "t": "code",
+     "v": "⌘X"
+    },
+    {
+     "t": "text",
+     "v": " / "
+    },
+    {
+     "t": "code",
+     "v": "⌘V"
+    },
+    {
+     "t": "text",
+     "v": ", including across clusters. Cut-paste keeps standard clipboard behavior: the cut is undoable on the board it happened on, the paste on the board it landed on. (Dragging cards onto a cluster card instead performs a true move, whose toast undoes both sides at once.)"
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
      "v": "Group",
      "children": [
       {

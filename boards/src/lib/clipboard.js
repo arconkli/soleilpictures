@@ -13,15 +13,17 @@ let _items = [];
 let _origin = null; // optional source-board id (informational)
 let _copiedAt = 0;  // Date.now() of the last setClipboard call
 let _sentinel = ''; // OS-clipboard marker that proves a paste is "our" copy
+let _cut = false;   // true when the copy came from ⌘X (originals deleted)
 
 function makeSentinel(ts) {
   const rand = Math.random().toString(36).slice(2, 10);
   return `soleil:clip:${ts}-${rand}`;
 }
 
-export function setClipboard(items, originBoardId = null) {
+export function setClipboard(items, originBoardId = null, { cut = false } = {}) {
   _items = items.map(c => ({ ...c })); // shallow clone
   _origin = originBoardId;
+  _cut = !!cut;
   _copiedAt = Date.now();
   _sentinel = makeSentinel(_copiedAt);
   // Mark the OS clipboard so the paste handler can tell "internal copy
@@ -43,6 +45,12 @@ export function getClipboard() {
 
 export function clipboardSize() { return _items.length; }
 export function clipboardOrigin() { return _origin; }
+// True when the clipboard holds ⌘X'd cards (their originals were deleted at
+// cut time). The paste handler uses this to explain cross-cluster semantics:
+// cut-paste keeps standard clipboard behavior — the cut is undoable on the
+// SOURCE board, the paste on the TARGET — rather than coupling two boards'
+// undo stacks.
+export function clipboardWasCut() { return _cut; }
 export function clipboardCopiedAt() { return _copiedAt; }
 export function getSentinel() { return _sentinel; }
 
@@ -70,6 +78,7 @@ export function hasRecentInternalCopy(staleMs = 5 * 60 * 1000) {
 export function clearClipboard() {
   _items = [];
   _origin = null;
+  _cut = false;
   _copiedAt = 0;
   _sentinel = '';
 }
