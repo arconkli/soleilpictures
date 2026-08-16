@@ -872,7 +872,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
             <span className="schedc-pill schedc-months" role="group" aria-label="Months shown">
               {MONTH_SPANS.map((n) => (
                 <button key={n} type="button"
-                  className={`schedc-pill-btn${months === n ? ' is-active' : ''}`}
+                  className={`schedc-mbtn${months === n ? ' is-active' : ''}`}
                   title={n === 1 ? 'One month' : `${n} months at once`}
                   aria-label={n === 1 ? 'Show one month' : `Show ${n} months`}
                   onPointerDown={stop}

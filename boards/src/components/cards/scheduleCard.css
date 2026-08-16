@@ -86,7 +86,8 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   background: var(--bg-3, #1c1c20);
   border: 1px solid var(--line-1, #212126);
 }
-.schedc-pill-btn {
+.schedc-pill-btn,
+.schedc-mbtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -102,8 +103,10 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   cursor: pointer;
   transition: background var(--dur-fast, 120ms) var(--ease, ease), color var(--dur-fast, 120ms) var(--ease, ease);
 }
-.schedc-pill-btn:hover { color: var(--ink-0, #f5f5f7); }
-.schedc-pill-btn.is-active { background: var(--bg-act, #212126); color: var(--soleil, #ffa500); }
+.schedc-pill-btn:hover,
+.schedc-mbtn:hover { color: var(--ink-0, #f5f5f7); }
+.schedc-pill-btn.is-active,
+.schedc-mbtn.is-active { background: var(--bg-act, #212126); color: var(--soleil, #ffa500); }
 
 /* ── Body / slots ───────────────────────────────────────────────────────── */
 /* The body IS the lattice: 1px slot gutters (SCHED_TUNING.GUTTER_PX) over a
@@ -808,3 +811,7 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 }
 .schedc-weekdays.is-block { right: auto; }
 .schedc-months { margin-right: 4px; }
+/* .schedc-mbtn shares the view pill's LOOK (see the widened selectors above)
+   but not its class. Anyone reading the DOM — a test, a future selector —
+   reasonably treats .schedc-pill-btn.is-active as "the current view", and two
+   controls answering to that would be a lie about what is selected. */
