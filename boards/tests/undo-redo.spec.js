@@ -274,6 +274,32 @@ test.describe('Undo coverage phases 1-3 (source guard)', () => {
     expect(sp).toMatch(/setDocUndoTarget\(padTarget\)/);
   });
 
+  test('dialogs shut out the board shortcuts (modalGuard)', () => {
+    expect(has('src/lib/modalGuard.js')).toBe(true);
+    const cs = read('src/components/CanvasSurface.jsx');
+    // Both the keydown AND paste window handlers stand down while any
+    // dialog (Modal, feedback confirm, sketch pad) is open.
+    expect((cs.match(/anyModalOpen\(\)/g) || []).length).toBeGreaterThanOrEqual(2);
+    expect(read('src/components/ListSurface.jsx')).toMatch(/anyModalOpen\(\)/);
+    expect(read('src/components/Modal.jsx')).toMatch(/registerModalOpen\(\)/);
+    expect(read('src/components/FeedbackOverlay.jsx')).toMatch(/registerModalOpen\(\)/);
+    expect(read('src/components/SketchPadOverlay.jsx')).toMatch(/registerModalOpen\(\)/);
+  });
+
+  test('schedule moves are discrete undo steps + revertible history', () => {
+    const app = read('src/App.jsx');
+    // Calendar drag-drops break the merge window like every other discrete op.
+    expect(app).toMatch(/breakUndo\(\); \/\/ each drag-drop is its own ⌘Z step/);
+    expect(app).toMatch(/breakUndo\(\); \/\/ one whole-day move = one ⌘Z step/);
+    // The day-tile date move carries its closure undo (the schedule session's
+    // own toast — keep it wired).
+    expect(app).toMatch(/setBoardSchedule\(bId, prevDate, prevEnd\)/);
+    // Version history can revert schedule fields through the sanctioned RPC.
+    const vh = read('src/components/VersionHistoryModal.jsx');
+    expect(vh).toMatch(/'scheduled_date', 'scheduled_end', 'day_label'/);
+    expect(vh).toMatch(/setBoardSchedule\(boardId, next\.date, next\.end, next\.label\)/);
+  });
+
   test('art-card stroke commits are their own undo steps', () => {
     const cs = read('src/components/CanvasSurface.jsx');
     // A pen line / erase gesture routed onto an art canvas must never merge

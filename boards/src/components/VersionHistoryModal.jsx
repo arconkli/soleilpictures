@@ -25,8 +25,10 @@ import { Modal } from './Modal.jsx';
 import {
   listBoardVersions, loadBoardVersionDoc, bulletproofRestore, saveBoardVersion,
   loadBoardSnapshot, listBoardMetaHistory, renameBoard, updateBoardMeta,
+  setBoardSchedule,
 } from '../lib/boardsApi.js';
 import { b64ToBytes, readCards } from '../lib/yhelpers.js';
+import { supabase } from '../lib/supabase.js';
 import { useFeedback } from './AppFeedback.jsx';
 
 function fmtDate(iso) {
@@ -215,15 +217,43 @@ export function VersionHistoryModal({
     }
   };
 
-  // Meta revert — only fields with a sanctioned write path.
-  const REVERTIBLE = new Set(['name', 'bg_color', 'cover', 'view']);
+  // Meta revert — only fields with a sanctioned write path. Schedule fields
+  // go through set_board_schedule (0243): it keeps the audit trail and pages
+  // the crew if the day is published — a silent date revert on a published
+  // shoot day would be worse than none. board_meta_history stores values as
+  // jsonb, so date strings arrive quoted; unwrap before re-writing.
+  const REVERTIBLE = new Set(['name', 'bg_color', 'cover', 'view', 'scheduled_date', 'scheduled_end', 'day_label']);
+  const jsonbToPlain = (v) => {
+    if (v == null) return null;
+    if (typeof v === 'string') return v;
+    try { return JSON.parse(JSON.stringify(v)); } catch (_) { return v; }
+  };
   const revertMeta = async (row) => {
     setBusy(true);
     try {
+      const before = jsonbToPlain(row.before_value);
       if (row.field === 'name') {
-        await renameBoard(boardId, row.before_value || 'Untitled cluster');
+        await renameBoard(boardId, before || 'Untitled cluster');
+      } else if (row.field === 'scheduled_date' || row.field === 'scheduled_end' || row.field === 'day_label') {
+        // set_board_schedule writes date AND end unconditionally (only the
+        // label coalesces), so a one-field revert must send the CURRENT
+        // values for the fields it isn't changing — read them fresh, never
+        // from the possibly-stale modal props.
+        const { data: cur, error: curErr } = await supabase
+          .from('boards')
+          .select('scheduled_date, scheduled_end, day_label')
+          .eq('id', boardId)
+          .maybeSingle();
+        if (curErr) throw curErr;
+        const next = {
+          date: row.field === 'scheduled_date' ? before : (cur?.scheduled_date ?? null),
+          end: row.field === 'scheduled_end' ? before : (cur?.scheduled_end ?? null),
+          label: row.field === 'day_label' ? (before ?? '') : null, // null → RPC keeps current
+        };
+        const res = await setBoardSchedule(boardId, next.date, next.end, next.label);
+        if (res?.ok === false) throw new Error(res?.error || 'revert refused');
       } else {
-        await updateBoardMeta(boardId, { [row.field]: row.before_value ?? null });
+        await updateBoardMeta(boardId, { [row.field]: before ?? null });
       }
       feedback.toast({ type: 'success', message: `Reverted ${row.field}.` });
       onRestored?.();
@@ -289,7 +319,7 @@ export function VersionHistoryModal({
         <span className="modal-hint">
           {tab === 'versions'
             ? 'Snapshots are saved automatically while you work and before risky operations. Restoring always snapshots the current state first.'
-            : 'Rename, color, cover and view changes — each can be reverted.'}
+            : 'Rename, color, cover, view and shoot-day date changes — each can be reverted. Reverting a published day notifies the crew like any other move.'}
         </span>
       </div>
 

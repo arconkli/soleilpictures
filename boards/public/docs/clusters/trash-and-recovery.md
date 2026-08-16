@@ -44,8 +44,9 @@ the same list as a human one. Rows are grouped by work session; selecting one
 previews what it contains before you commit.
 
 Restoring always snapshots the **current** state first, so a restore is itself
-restorable. A second tab lists name, colour, cover and view changes, each with
-a one-click revert.
+restorable. A second tab lists name, colour, cover, view and shoot-day date
+changes, each with a one-click revert — reverting a published day's date goes
+through the same path as moving it, so the crew is notified.
 
 This is the tool for "the board was right yesterday and is wrong now", including
 when the change was someone else's.
