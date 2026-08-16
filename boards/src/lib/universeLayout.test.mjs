@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   isAnchorId, parentBoardId, isSimLinkKind, orbitOffset, rogueOffset,
-  LEAF_BASE_RADIUS, LEAF_Y_FLATTEN,
+  LEAF_BASE_RADIUS, LEAF_RADIAL_MIN, LEAF_RADIAL_MAX,
 } from './universeLayout.js';
 
 test('anchor classification: users, workspaces, boards simulate; cards do not', () => {
@@ -49,31 +49,68 @@ test('orbitOffset varies across ids', () => {
   assert.notDeepEqual([...a], [...b]);
 });
 
-test('orbitOffset radius stays within the jittered shell bounds', () => {
-  for (let i = 0; i < 200; i++) {
+test('orbitOffset planar radius stays inside the heavy-tailed envelope', () => {
+  for (let i = 0; i < 500; i++) {
     const o = orbitOffset(`card:b:${i}`, 0);
-    const r = Math.hypot(o[0], o[1] / LEAF_Y_FLATTEN, o[2]);
-    assert.ok(r >= LEAF_BASE_RADIUS * 0.649 && r <= LEAF_BASE_RADIUS * 1.351,
-      `radius ${r} outside jitter bounds for i=${i}`);
+    const r = Math.hypot(o[0], o[2]);
+    assert.ok(r >= LEAF_BASE_RADIUS * LEAF_RADIAL_MIN - 1e-6 && r <= LEAF_BASE_RADIUS * LEAF_RADIAL_MAX + 1e-6,
+      `radius ${r} outside envelope for i=${i}`);
   }
+});
+
+test('orbitOffset radius is heavy-tailed: dense core, sparse rim, real stragglers', () => {
+  const rs = [];
+  for (let i = 0; i < 2000; i++) {
+    const o = orbitOffset(`card:b:${i}`, 0);
+    rs.push(Math.hypot(o[0], o[2]) / LEAF_BASE_RADIUS);
+  }
+  rs.sort((a, b) => a - b);
+  const median = rs[Math.floor(rs.length / 2)];
+  const p99 = rs[Math.floor(rs.length * 0.99)];
+  // A uniform shell would have median ≈ max; a galaxy packs the core
+  // and trails a long tail.
+  assert.ok(median < 1.0, `median ${median} should sit in the core`);
+  assert.ok(p99 > median * 2.5, `p99 ${p99} should dwarf the median ${median}`);
 });
 
 test('orbitOffset shells grow with orbital index (planetary systems, not rings)', () => {
   const inner = orbitOffset('card:b:x', 0);
   const outer = orbitOffset('card:b:x', 400);
-  const rI = Math.hypot(inner[0], inner[1] / LEAF_Y_FLATTEN, inner[2]);
-  const rO = Math.hypot(outer[0], outer[1] / LEAF_Y_FLATTEN, outer[2]);
+  const rI = Math.hypot(inner[0], inner[2]);
+  const rO = Math.hypot(outer[0], outer[2]);
   assert.ok(rO > rI * 2, `expected outer shell ${rO} to dwarf inner ${rI}`);
 });
 
-test('orbitOffset flattens Y so swarms read as disks', () => {
-  let maxAbsY = 0, maxXZ = 0;
-  for (let i = 0; i < 500; i++) {
+test('orbitOffset concentrates toward the disk plane but keeps thick-disk stragglers', () => {
+  let sumAbsY = 0, sumPlanar = 0, offPlane = 0;
+  const n = 2000;
+  for (let i = 0; i < n; i++) {
     const o = orbitOffset(`card:b:${i}`, 0);
-    maxAbsY = Math.max(maxAbsY, Math.abs(o[1]));
-    maxXZ = Math.max(maxXZ, Math.hypot(o[0], o[2]));
+    const planar = Math.hypot(o[0], o[2]);
+    sumAbsY += Math.abs(o[1]);
+    sumPlanar += planar;
+    if (Math.abs(o[1]) > planar * 0.5) offPlane++;
   }
-  assert.ok(maxAbsY < maxXZ * (LEAF_Y_FLATTEN + 0.05));
+  // Mostly a disk…
+  assert.ok(sumAbsY < sumPlanar * 0.25, `mean |y| ${sumAbsY / n} too thick vs planar ${sumPlanar / n}`);
+  // …but not a pancake: some cards genuinely float off-plane.
+  assert.ok(offPlane > n * 0.005, `expected off-plane stragglers, got ${offPlane}/${n}`);
+});
+
+test('orbitOffset angles clump instead of spreading evenly', () => {
+  // Bin 1000 same-board cards into 12 angular sectors; a uniform ring
+  // has near-equal bins, a clumped swarm concentrates several-fold.
+  const bins = new Array(12).fill(0);
+  const n = 1000;
+  for (let i = 0; i < n; i++) {
+    const o = orbitOffset(`card:b:${i}`, 0);
+    const a = Math.atan2(o[2], o[0]) + Math.PI;
+    bins[Math.min(11, Math.floor((a / (2 * Math.PI)) * 12))]++;
+  }
+  const max = Math.max(...bins);
+  const min = Math.min(...bins);
+  assert.ok(max > (n / 12) * 1.7, `densest sector ${max} should beat uniform ${n / 12} clearly`);
+  assert.ok(max > min * 2, `spread ${min}..${max} should be visibly uneven`);
 });
 
 test('rogueOffset lands far outside any board swarm', () => {

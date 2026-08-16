@@ -31,31 +31,38 @@
 //   { type: 'error', reason }
 
 import { forceSimulation, forceLink, forceManyBody, forceCenter } from 'd3-force-3d';
-import { orbitJitter, targetId } from '../../lib/hashJitter.js';
+import { hash01, orbitJitter, targetId } from '../../lib/hashJitter.js';
 import {
   isAnchorId, parentBoardId, isSimLinkKind, orbitOffset, rogueOffset,
 } from '../../lib/universeLayout.js';
 
-const WARMUP_TICKS = 200;
 const HOT_TICK_MS  = 16;
 const ALPHA_RESTART = 0.3;
 
 // Center attraction — MINIMAL. Just enough to keep the universe
-// bounded so the spiral force has something to wind around.
+// bounded so the spiral force has something to wind around. Every
+// anchor carries a hashed personal multiplier (_g) so some sit deep
+// and some drift wide — a uniform pull makes a uniform ring.
 const GRAVITY_PULL = 0.008;
 
 // Base repulsion between anchors. Boards scale this up with the size
 // of their card swarm (see chargeStrength) so a 300-card galaxy claims
-// proportionally more space than an empty board.
+// proportionally more space than an empty board — and every anchor
+// gets a hashed mass (_m) so spacing comes out ragged, not even.
 const CHARGE_STRENGTH = -200;
 
 // Very gentle Y-flattening so spiral arms can actually read as arms.
+// ~15% of anchors get a near-zero personal factor (_d): thick-disk
+// drifters that float off the plane like real halo objects.
 const DISK_PULL = 0.03;
 
-// Spiral arms.
+// Spiral arms — deliberately LOOSE: ~30% of anchors are "field stars"
+// that ignore the arms entirely (_a = 0), the rest lean in with
+// varied enthusiasm, so the arms read as ragged lanes instead of
+// drawn curves.
 const NUM_ARMS        = 2;
 const SPIRAL_PITCH    = 0.45;
-const SPIRAL_STRENGTH = 0.06;
+const SPIRAL_STRENGTH = 0.08;
 const SPIRAL_INNER_R  = 60;
 
 // ── Hierarchical state ───────────────────────────────────────────
@@ -74,14 +81,17 @@ let stopped     = false;
 let tickTimer   = null;
 
 // ── Custom forces (anchors only) ─────────────────────────────────
+// Each force reads the anchor's hashed personality factors (_g pull,
+// _d disk, _a arm affinity) so no two anchors feel identical physics
+// — uniform forces are what made the old layout look machine-even.
 
-// Pull every anchor toward the origin uniformly. d3's forceCenter only
-// pins the centroid; this is what actually drags everything in.
+// Pull every anchor toward the origin. d3's forceCenter only pins the
+// centroid; this is what actually drags everything in.
 function forcePull() {
   let ns;
   function force(alpha) {
     for (const n of ns) {
-      const k = GRAVITY_PULL * alpha;
+      const k = GRAVITY_PULL * (n._g || 1) * alpha;
       n.vx = (n.vx || 0) - (n.x || 0) * k;
       n.vy = (n.vy || 0) - (n.y || 0) * k;
       n.vz = (n.vz || 0) - (n.z || 0) * k;
@@ -96,7 +106,7 @@ function forceDiskLite() {
   let ns;
   function force(alpha) {
     for (const n of ns) {
-      n.vy = (n.vy || 0) - (n.y || 0) * DISK_PULL * alpha;
+      n.vy = (n.vy || 0) - (n.y || 0) * DISK_PULL * (n._d ?? 1) * alpha;
     }
   }
   force.initialize = (n) => { ns = n; };
@@ -104,8 +114,9 @@ function forceDiskLite() {
 }
 
 // Tangential nudge that biases each anchor toward its nearest of N
-// logarithmic spiral arms. Bulge anchors (r < SPIRAL_INNER_R) are
-// exempt. Cards inherit the spiral by riding their board.
+// logarithmic spiral arms. Bulge anchors (r < SPIRAL_INNER_R) and
+// field stars (_a = 0) are exempt. Cards inherit the spiral by riding
+// their board.
 function forceSpiral() {
   let ns;
   const armOffsets = new Float32Array(NUM_ARMS);
@@ -113,6 +124,8 @@ function forceSpiral() {
   function force(alpha) {
     const strength = SPIRAL_STRENGTH * alpha;
     for (const n of ns) {
+      const affinity = n._a ?? 1;
+      if (affinity === 0) continue;
       const x = n.x || 0, z = n.z || 0;
       const r2 = x * x + z * z;
       if (r2 < SPIRAL_INNER_R * SPIRAL_INNER_R) continue;
@@ -125,7 +138,7 @@ function forceSpiral() {
         d = ((d + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
         if (Math.abs(d) < Math.abs(bestDelta)) bestDelta = d;
       }
-      const k = bestDelta * strength;
+      const k = bestDelta * strength * affinity;
       n.vx = (n.vx || 0) + (-z) * k;
       n.vz = (n.vz || 0) + ( x) * k;
     }
@@ -156,10 +169,69 @@ function linkStrength(l) {
 }
 
 // Boards repel proportionally to the sqrt of their card swarm so big
-// galaxies keep the elbow room the per-card charge used to buy them.
+// galaxies keep the elbow room the per-card charge used to buy them,
+// times the anchor's hashed mass so spacing never comes out even.
 function chargeStrength(n) {
   const leaves = leafCounts.get(n.id) || 0;
-  return CHARGE_STRENGTH * (1 + Math.sqrt(leaves) / 3);
+  return CHARGE_STRENGTH * (n._m || 1) * (1 + Math.sqrt(leaves) / 3);
+}
+
+// ── Galaxy-shaped seeding ────────────────────────────────────────
+// d3's default init spreads nodes on an even phyllotaxis ball, which
+// takes ~200 warmup ticks to relax and STILL converges to even
+// porridge. Seeding anchors straight into an exponential disk with
+// loose arm bias means the sim starts ~settled: warmup drops to a
+// blink, and the layout keeps the ragged structure instead of
+// relaxing it away. All hash-keyed on ids — stable across reloads.
+let wsCount = 0;
+
+function seedDisk(a) {
+  const R = 60 * Math.sqrt(Math.max(1, wsCount));
+  const r = R * Math.pow(hash01(a.id + ':sr'), 0.6);      // dense core, thin rim
+  let theta = 2 * Math.PI * hash01(a.id + ':sθ');
+  if (a._a > 0 && r > SPIRAL_INNER_R) {
+    // Lean arm-affine anchors toward a spiral lane, scattered wide.
+    const arm = Math.floor(hash01(a.id + ':sa') * NUM_ARMS);
+    const armTheta = SPIRAL_PITCH * Math.log(r) + (2 * Math.PI * arm) / NUM_ARMS;
+    const scatter = (hash01(a.id + ':ss') + hash01(a.id + ':ss2') - 1) * 0.9;
+    const w = 0.55 + 0.35 * hash01(a.id + ':sw');
+    theta = theta * (1 - w) + (armTheta + scatter) * w;
+  }
+  const thick = a._d < 1 ? 0.6 : 0.18;                    // drifters float higher
+  a.x = r * Math.cos(theta);
+  a.y = r * Math.pow(2 * hash01(a.id + ':sy') - 1, 3) * thick;
+  a.z = r * Math.sin(theta);
+}
+
+// Re-seed structural children next to their parents so link forces
+// start near equilibrium: boards beside their workspace, sub-boards
+// beside their parent board (two passes cover grandchildren), users
+// beside their first workspace.
+function seedChildrenNearParents(linksArr) {
+  const placeNear = (parentId, childId, base) => {
+    const p = anchorById.get(parentId);
+    const c = anchorById.get(childId);
+    if (!p || !c) return;
+    const jr = base * orbitJitter(childId);
+    const th = 2 * Math.PI * hash01(childId + ':sp');
+    c.x = p.x + jr * Math.cos(th);
+    c.y = p.y + (2 * hash01(childId + ':spy') - 1) * jr * 0.3;
+    c.z = p.z + jr * Math.sin(th);
+  };
+  for (const l of linksArr) {
+    if (l.kind === 'wsroot') placeNear(l.source, l.target, 80);
+  }
+  for (let pass = 0; pass < 2; pass++) {
+    for (const l of linksArr) {
+      if (l.kind === 'hierarchy') placeNear(l.source, l.target, 36);
+    }
+  }
+  const placedUsers = new Set();
+  for (const l of linksArr) {
+    if (l.kind !== 'membership' || placedUsers.has(l.source)) continue;
+    placedUsers.add(l.source);
+    placeNear(l.target, l.source, 120);
+  }
 }
 
 function buildSim() {
@@ -177,7 +249,16 @@ function buildSim() {
 
 function addNode(n) {
   if (isAnchorId(n.id)) {
-    const a = { id: n.id, val: n.val };
+    if (n.id.startsWith('ws:')) wsCount++;
+    const a = {
+      id: n.id, val: n.val,
+      // Hashed physics personality — see the force comments above.
+      _m: 0.5 + 1.3 * hash01(n.id + ':m'),
+      _g: 0.6 + 0.8 * hash01(n.id + ':g'),
+      _d: hash01(n.id + ':d') > 0.85 ? 0.12 : 1,
+      _a: hash01(n.id + ':a') < 0.3 ? 0 : 0.7 + 0.6 * hash01(n.id + ':a2'),
+    };
+    seedDisk(a);
     anchors.push(a);
     anchorById.set(n.id, a);
     order.push({ anchor: a });
@@ -281,21 +362,24 @@ self.onmessage = (ev) => {
   switch (msg.type) {
     case 'init': {
       order = []; anchors = []; anchorById = new Map();
-      simLinks = []; leafCounts = new Map();
+      simLinks = []; leafCounts = new Map(); wsCount = 0;
       for (const n of msg.nodes || []) addNode(n);
       for (const l of msg.links || []) {
         if (acceptSimLink(l)) simLinks.push({ ...l });
       }
+      // Anchors are already disk-seeded (addNode); snap structural
+      // children next to their parents so link forces start near
+      // equilibrium instead of dragging boards across the galaxy.
+      seedChildrenNearParents(simLinks);
       buildSim();
-      // Run warmup synchronously so the first frame the user sees
-      // is already-settled, not bouncing into place. Anchors only,
-      // so this stays fast no matter how many cards exist — and at
-      // extreme anchor counts (tens of thousands of boards) fewer
-      // ticks buy a near-identical layout for a fraction of the
-      // startup stall.
-      const warmup = anchors.length > 20000 ? 60
-                   : anchors.length > 5000  ? 120
-                   : WARMUP_TICKS;
+      // Seeding replaces most of the old 200-tick synchronous warmup:
+      // a short blocking burst tidies the worst overlaps, then the
+      // first frame ships and the remaining settle plays out LIVE as
+      // gentle congealing — the user watches a galaxy form instead of
+      // staring at "Calibrating…".
+      const warmup = anchors.length > 20000 ? 25
+                   : anchors.length > 5000  ? 40
+                   : 60;
       for (let i = 0; i < warmup; i++) sim.tick();
       postTick();
       self.postMessage({ type: 'ready' });

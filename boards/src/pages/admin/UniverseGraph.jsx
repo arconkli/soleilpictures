@@ -163,6 +163,16 @@ const PULSE_COLOR       = new THREE.Color('#ffd06b');  // bright Soleil gold
 
 function nextPow2(n, base) { let c = base; while (c < n) c *= 2; return c; }
 
+// Nodes share per-hex THREE.Color instances (read-only everywhere —
+// setColorAt copies, the attribute writes read r/g/b). Saves hundreds
+// of thousands of allocations during a big snapshot build.
+const THREE_COLOR_CACHE = new Map();
+function cachedColor(hex) {
+  let c = THREE_COLOR_CACHE.get(hex);
+  if (!c) { c = new THREE.Color(hex); THREE_COLOR_CACHE.set(hex, c); }
+  return c;
+}
+
 // Map a snapshot row → render node. `val` is the body radius proxy;
 // bigger numbers for the higher-level anchors. isAnchor mirrors the
 // worker's classification: ws + board get true spheres; user is
@@ -189,7 +199,7 @@ function toNode(raw) {
     kind,
     cardKind,
     color: colorHex,
-    threeColor: new THREE.Color(colorHex),
+    threeColor: cachedColor(colorHex),
     val,
     isAnchor: kind === 'ws' || kind === 'board',
     workspace_id: raw.workspace_id,
