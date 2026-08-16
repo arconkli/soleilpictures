@@ -51,6 +51,7 @@ export {
   Palette,
   NoteBlank as StickyNote,
   Calendar,
+  Bell,
   Chat as MessageSquare,
   Trash as Trash2,
   Copy,

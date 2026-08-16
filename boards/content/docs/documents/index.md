@@ -74,6 +74,19 @@ Blocks can be reordered by dragging the handle in the left margin.
 Documents are collaborative in real time, with peer cursors and selections
 visible as people type. Edits merge rather than overwriting.
 
+## Undo
+
+Two histories, matching how documents are edited:
+
+- **Typing:** `⌘Z` while the caret is in the text undoes your writing, as in
+  any editor.
+- **Structure:** `⌘Z` with the document open but the caret elsewhere undoes
+  page operations — deletes, moves, renames. Deleting a page with its
+  sub-pages, comments and bookmarks is one step, and page deletes also offer
+  an undo toast.
+
+Both undo only *your* edits, never a collaborator's.
+
 ## Comments, tags and links
 
 The margins do a lot of work:

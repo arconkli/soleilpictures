@@ -897,12 +897,19 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
     const bodyEl = ref.current.querySelector('.note-body');
     const newHtml = bodyEl ? bodyEl.innerHTML : html;
     // Write the html cache + keep the fragment (source of truth) in step with
-    // the toggle, both under NOTE_ORIGIN (off the board undo stack). Lazy import
-    // keeps the heavy serializer off the canvas chunk until a box is toggled.
+    // the toggle. The helpers transact under NOTE_ORIGIN, but we wrap BOTH in
+    // one outer 'local' transaction (Yjs reentrancy — the outer origin wins)
+    // so the board UndoManager captures cache + fragment as a single canvas
+    // Cmd+Z step. This is the only undo a read-only toggle can have: no note
+    // editor is mounted, and undoing just the fragment would leave the canvas
+    // rendering the stale html cache. Lazy import keeps the heavy serializer
+    // off the canvas chunk until a box is toggled.
     if (ydoc && cardYMap) {
       import('../lib/noteDocState.js').then((m) => {
-        m.setNoteCacheFields(ydoc, cardYMap, { html: newHtml, body: null });
-        m.applyHtmlToNoteFragment(ydoc, cardYMap, newHtml);
+        ydoc.transact(() => {
+          m.setNoteCacheFields(ydoc, cardYMap, { html: newHtml, body: null });
+          m.applyHtmlToNoteFragment(ydoc, cardYMap, newHtml);
+        }, 'local');
       }).catch(() => {});
     } else {
       onUpdate({ html: newHtml, body: null });

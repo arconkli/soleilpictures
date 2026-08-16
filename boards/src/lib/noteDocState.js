@@ -14,7 +14,10 @@
 
 import * as Y from 'yjs';
 import { generateJSON, generateHTML, getSchema } from '@tiptap/core';
-import { prosemirrorJSONToYXmlFragment, yXmlFragmentToProsemirrorJSON } from 'y-prosemirror';
+import {
+  prosemirrorJSONToYXmlFragment, yXmlFragmentToProsemirrorJSON,
+  ySyncPluginKey, defaultDeleteFilter, defaultProtectedNodes,
+} from 'y-prosemirror';
 import { noteExtensions } from '../components/noteExtensions/noteExtensions.js';
 import { pageFragmentToText } from './docState.js';
 
@@ -52,6 +55,44 @@ export function ensureNoteFragment(ydoc, cardYMap) {
     if (!getNoteFragment(cardYMap)) cardYMap.set(NOTE_FRAGMENT_KEY, new Y.XmlFragment());
   }, NOTE_ORIGIN);
   return getNoteFragment(cardYMap);
+}
+
+// ── Per-note undo that SURVIVES closing the editor ──────────────────────────
+// NoteTiptapSurface mounts only while a note is being edited, and y-prosemirror's
+// yUndoPlugin creates + destroys its UndoManager with the editor view — so
+// every exit-edit used to wipe the note's undo history for good. Instead we
+// mint ONE UndoManager per fragment, cached here, and hand it to the editor
+// via Collaboration.configure({ yUndoOptions: { undoManager } }). The
+// extension-collaboration wrapper detaches it on unmount but leaves a
+// `restore` hook; reviving it on the next edit session brings the whole
+// history back. Config mirrors yUndoPlugin's defaults exactly (trackedOrigins
+// = the sync plugin's origin, protected paragraphs, addToHistory opt-out) —
+// checklist toggles from the read-only display are deliberately NOT tracked
+// here (they transact under 'local' and belong to the board UndoManager,
+// since no editor is mounted to receive a Cmd+Z).
+//
+// WeakMap keyed on the fragment: entries die with the board's Y.Doc, so
+// switching boards can't leak managers.
+const noteUndoManagers = new WeakMap();
+export function getNoteUndoManager(ydoc, cardYMap) {
+  const frag = ensureNoteFragment(ydoc, cardYMap);
+  if (!frag) return null;
+  let um = noteUndoManagers.get(frag);
+  if (!um) {
+    um = new Y.UndoManager(frag, {
+      trackedOrigins: new Set([ySyncPluginKey]),
+      deleteFilter: (item) => defaultDeleteFilter(item, defaultProtectedNodes),
+      captureTransaction: (tr) => tr.meta.get('addToHistory') !== false,
+      captureTimeout: 500,
+    });
+    noteUndoManagers.set(frag, um);
+  } else if (typeof um.restore === 'function') {
+    // Dormant manager from a previous edit session — reattach it (idempotent:
+    // lib0 observer sets dedupe the handler references).
+    try { um.restore(); } catch (_) {}
+    um.restore = () => {};
+  }
+  return um;
 }
 
 // ── Note comments ───────────────────────────────────────────────────────────

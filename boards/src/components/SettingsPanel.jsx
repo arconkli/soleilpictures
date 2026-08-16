@@ -36,10 +36,7 @@ import { isShellEmail } from './ScoutClaimBanner.jsx';
 
 const TABS = [
   { id: 'profile',       label: 'Profile' },
-  // HELD ON PRODUCTION. The tab hands you a code to text, and Scout has no
-  // phone line connected — so connecting a phone here ends in silence. The
-  // ScoutTab component below is intact: restore this line and the render
-  // branch in the pane when the bot is answering.
+  { id: 'scout',         label: 'Scout' },
   { id: 'api',           label: 'API' },
   { id: 'invite',        label: 'Invite & earn' },
   { id: 'billing',       label: 'Billing' },
@@ -277,6 +274,9 @@ export function SettingsPanel({
           <div className="settings-pane">
             {tab === 'profile' && (
               <ProfileTab user={user} workspaceId={workspaceId} onSaved={onSaved} />
+            )}
+            {tab === 'scout' && (
+              <ScoutTab user={user} />
             )}
             {tab === 'api' && (
               <ApiTab user={user} />
@@ -1030,6 +1030,16 @@ function ApiTab({ user }) {
   };
 
   const revoke = async (id, label) => {
+    // Revocation is deliberately NOT undoable — a revoked credential must be
+    // dead the moment you decide it is. Which is exactly why this needs the
+    // confirm it never had: one misclick permanently killed an integration.
+    const ok = await feedback.confirm({
+      title: `Revoke ${label}?`,
+      message: 'Anything using this token stops working immediately. This cannot be undone — you would need to create a new token.',
+      confirmLabel: 'Revoke',
+      danger: true,
+    });
+    if (!ok) return;
     const { error } = await supabase.rpc('api_token_revoke', { p_id: id });
     if (error) {
       feedback.toast({ type: 'error', message: 'Could not revoke that token.' });
@@ -1834,6 +1844,12 @@ function NotificationsTab({ user }) {
         desc="When a cluster is shared with you."
         value={isOn('email_board_shared')}
         onChange={(v) => togglePref('email_board_shared', v)} />
+
+      <Toggle
+        label="Schedule changes"
+        desc="When a day you can see moves, or its call sheet is published. Only sent if you're not already in the app."
+        value={isOn('email_schedule')}
+        onChange={(v) => togglePref('email_schedule', v)} />
 
       <Toggle
         label="Product tips & check-ins"

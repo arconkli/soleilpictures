@@ -21,6 +21,9 @@ export async function listWorkspaceTags(workspaceId) {
     .from('tags')
     .select('id, workspace_id, name, slug, color, kind, entity_type, description, created_by, created_at')
     .eq('workspace_id', workspaceId)
+    // Soft-deleted tags (0240) stay recoverable for 30 days but are invisible
+    // everywhere. or() instead of neq(): neq would also drop NULL statuses.
+    .or('status.is.null,status.neq.deleted')
     .order('name', { ascending: true });
   if (error) throw error;
   return data || [];
@@ -61,7 +64,18 @@ export async function ensureTag({ workspaceId, name, color = null, kind = 'user'
   const found = await supabase.from('tags').select('*')
     .eq('workspace_id', workspaceId).eq('slug', slug).maybeSingle();
   if (found.error) throw found.error;
-  if (found.data) return found.data;
+  if (found.data) {
+    // A soft-deleted tag still owns the (workspace, slug) uniqueness —
+    // recreating the same name revives it (definition + tombstoned
+    // applications). Least-surprise: "I deleted it, I want it back."
+    if (found.data.status === 'deleted') {
+      await restoreTag(found.data.id);
+      const revived = await supabase.from('tags').select('*').eq('id', found.data.id).maybeSingle();
+      if (revived.error) throw revived.error;
+      return revived.data || found.data;
+    }
+    return found.data;
+  }
   const { data, error } = await supabase.from('tags').insert({
     workspace_id: workspaceId, name: cleaned, color, kind, created_by: createdBy,
   }).select('*').single();
@@ -89,15 +103,20 @@ export async function getRelatedEntities(tagId, limit = 8) {
   return data || [];
 }
 
+// Soft delete (0240): the definition flips to status='deleted' and every
+// application moves to the deleted_entity_links tombstone — restore_tag puts
+// the exact rows back for 30 days. Returns the number of applications moved.
 export async function deleteTag(tagId) {
-  // Cascading delete: drop the tag definition AND every application
-  // (entity_links rows). The tag's `id` cascades through entity_links
-  // because we don't have a FK from entity_links.target_id back to
-  // tags — so we explicitly clean up the applications first.
-  await supabase.from('entity_links').delete()
-    .eq('target_kind', 'tag').eq('target_id', tagId);
-  const { error } = await supabase.from('tags').delete().eq('id', tagId);
+  const { data, error } = await supabase.rpc('soft_delete_tag', { p_tag_id: tagId });
   if (error) throw error;
+  return data || 0;
+}
+
+// Reverse a soft delete — definition AND applications come back.
+export async function restoreTag(tagId) {
+  const { data, error } = await supabase.rpc('restore_tag', { p_tag_id: tagId });
+  if (error) throw error;
+  return data || 0;
 }
 
 export async function recolorTag(tagId, color) {
@@ -125,17 +144,27 @@ export async function setTagEntityType(tagId, entityType) {
   if (error) throw error;
 }
 
-// Atomic merge: rewrite every entity_links row targeting `fromTagId`
-// to target `intoTagId` instead, then drop the from-tag. RPC handles
-// collision (a source that already has the survivor tag) by dropping
-// the collider before the update. Returns the number of rewritten rows.
+// Atomic, REVERSIBLE merge (merge_tags_v2, 0240): rewrites every application
+// of `fromTagId` onto `intoTagId`, tombstones collision rows instead of
+// destroying them, soft-deletes the from-tag, and logs the whole operation.
+// Returns { mergeId, rewritten } — hand mergeId to undoTagMerge to walk the
+// entire merge back.
 export async function mergeTags({ fromTagId, intoTagId }) {
   if (!fromTagId || !intoTagId) throw new Error('mergeTags: both ids required');
-  if (fromTagId === intoTagId) return 0;
-  const { data, error } = await supabase.rpc('merge_tags', {
+  if (fromTagId === intoTagId) return { mergeId: null, rewritten: 0 };
+  const { data, error } = await supabase.rpc('merge_tags_v2', {
     p_from_tag_id: fromTagId,
     p_into_tag_id: intoTagId,
   });
+  if (error) throw error;
+  return { mergeId: data?.merge_id || null, rewritten: data?.rewritten || 0 };
+}
+
+// Reverse a merge: repoints the rewritten applications (the ones still on
+// the survivor), revives the from-tag, and resurrects collision rows.
+export async function undoTagMerge(mergeId) {
+  if (!mergeId) return 0;
+  const { data, error } = await supabase.rpc('undo_tag_merge', { p_merge_id: mergeId });
   if (error) throw error;
   return data || 0;
 }
@@ -438,5 +467,18 @@ export async function dismissAutotagSuggestion({ workspaceId, targetKind, target
     tag_id:       tagId,
     ignored_by:   userId || null,
   }, { onConflict: 'workspace_id,target_kind,target_id,tag_id' });
+  if (error) throw error;
+}
+
+// Inverse of dismissAutotagSuggestion — the untag Undo toast calls this so
+// undoing an untag ALSO lifts the "never suggest again" suppression the
+// untag wrote (otherwise the restore is only half an undo).
+export async function undismissAutotagSuggestion({ workspaceId, targetKind, targetId, tagId }) {
+  if (!workspaceId || !targetKind || !targetId || !tagId) return;
+  const { error } = await supabase.from('autotag_ignored').delete()
+    .eq('workspace_id', workspaceId)
+    .eq('target_kind', targetKind)
+    .eq('target_id', String(targetId))
+    .eq('tag_id', tagId);
   if (error) throw error;
 }

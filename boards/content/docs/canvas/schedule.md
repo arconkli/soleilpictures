@@ -1,23 +1,27 @@
 ---
 title: Schedule Cards — Soleil Clusters
-metaDescription: Schedule cards in Soleil Clusters are real-date calendars on the canvas. Month, week, day and hour views, drop anything into a slot, edit in the peek panel.
+metaDescription: Real-date calendar cards on the Soleil Clusters canvas. One to six months at once, shoot days you drag between dates, and a peek panel for editing.
 h1: Schedules
 navLabel: Schedules
 section: canvas
 order: 8
-updated: 2026-08-08
-answer: A schedule card is a real calendar living on your canvas. It has month, week, day and hour views, you can break a day down into hours and an hour into minutes, and you can drop any card into a time slot. The grid itself is read-only — all editing happens in the peek panel that opens when you click a slot.
+updated: 2026-08-16
+answer: A schedule card is a real calendar living on your canvas. It shows one, three or six months at once, and each day can hold both loose content and whole clusters — a shoot day with its call sheet, shotlist and hour-by-hour inside. Dragging a day tile to another date moves that cluster and, if it has been published, tells everyone who can see it. Loose content in the month grid stays read-only and is edited in the peek panel.
 faq:
   - q: Can I drop images and notes into a schedule?
     a: Yes. Any card can go into a time slot, not just text. A call sheet with the location photo attached to the right hour works exactly as you would expect.
+  - q: How do I move a day to a different date?
+    a: Drag its tile onto the new date. If the day has been published, everyone who can see the schedule is notified that it moved. Loose content moves from the peek panel or with "Move to date".
   - q: Why can I not type directly into the calendar grid?
-    a: The grid is deliberately read-only. Clicking a slot opens a peek panel and every edit happens there. Inline editing in a dense calendar produced constant mis-clicks.
+    a: Loose content in the month and week grids is deliberately read-only — clicking a slot opens a peek panel and every edit happens there, because inline editing in a dense calendar produced constant mis-clicks. Day tiles are the exception: they are draggable, because moving a day is the thing a schedule exists for.
+  - q: Does paging to next month move it for everyone?
+    a: No. Navigation is yours alone. The card remembers where it opens, but stepping through months, jumping to a date and "Go to today" are all local to you.
   - q: How do I get back to today?
     a: The "Go to today" control, or the mini-calendar in the header to jump to any date.
 related:
   - /docs/canvas/grids
-  - /docs/canvas/cards
   - /docs/clusters
+  - /docs/collaborate/notifications
 ---
 
 A schedule card is a calendar with real dates, sitting on the canvas next to
@@ -32,33 +36,59 @@ Four zoom levels of the same schedule:
 
 | View | Shows |
 |---|---|
-| **Month** | The whole month in a grid |
+| **Month** | A whole month in a grid — or three, or six |
 | **Week** | Seven days side by side |
 | **Day** | One day, broken into hours |
 | **Hour** | One hour, broken into minutes |
+
+In month view, the **1 / 3 / 6** control sets how many months are on the card at
+once. Three months is a block of principal photography; you can see the whole
+shoot and drag a day from the first month to the last without paging.
 
 Break a day down into hours, and an hour down into minutes, when a day needs
 that resolution. A prep week can sit at month view while the shoot day sits at
 hour view in the same board.
 
-**Go to today** returns you to now. The mini-calendar in the header jumps to any
-date without scrolling.
+### Navigation is yours
 
-## Putting things in it
+Stepping through months, jumping to a date, and **Go to today** only move *your*
+view. The card remembers the date it opens on, but a schedule shared with fifty
+people does not jerk under everyone else when you page forward.
 
-Drop any card into a slot — a note, an image, a file, a link, a nested cluster.
-A schedule holds content, not just text labels, which is what separates it from
-a calendar app.
+## Two things live on a date
+
+**Loose content** — a note, an image, a file, a link — dropped straight into a
+slot. This is the quick kind: a reminder on a Tuesday, a reference photo on the
+day it is needed.
+
+**Shoot days** — whole clusters that carry a date. A day tile on the calendar is
+a real cluster you can open, containing whatever the day needs: the script
+pages, the call sheet, the shotlist, an hour-by-hour schedule. See
+[Production schedules](/docs/clusters/production-schedule).
+
+## Moving things
+
+**Drag a day tile** onto another date. The cluster moves, and if it has been
+published, everyone who can see it is notified that it moved — including what it
+moved from and to. A multi-day block keeps its length.
+
+**Loose content** moves from the peek panel, or with **Move to date** on the
+slot. It stays read-only in the month grid for the reason below.
 
 ## The peek panel
 
-The calendar grid itself is **read-only**. Clicking a day or an hour opens the
-**peek** — a panel where all editing happens.
+For loose content, the month and week grids are **read-only**. Clicking a day or
+an hour opens the **peek** — a panel where all editing happens.
 
 This is deliberate. A dense calendar grid with inline editing produced constant
 mis-clicks: reaching for a slot and accidentally editing the one next to it. All
 edits going through the peek means the grid can be scanned and clicked
 confidently.
+
+Day tiles are the one exception. They are draggable in the grid, because moving
+a day to a new date is the single thing a production schedule exists to do, and
+routing that through a panel would miss the point. They are also a separate
+element, so the rule for content is unchanged.
 
 ## What a schedule is for
 

@@ -18,6 +18,7 @@ import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { uploadImage } from '../lib/uploads.js';
 import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
 import { untagDocRange, tagDocRange } from '../lib/tagsApi.js';
+import { undoToast } from '../lib/undoToast.js';
 import { updateBacklinks, syncDocPageIndex } from '../lib/boardsApi.js';
 import { extractTagMentions } from '../lib/extractTagMentions.js';
 import { safeRun } from '../lib/safeEditorCmd.js';
@@ -1271,6 +1272,19 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
                                   tagId: info.tagId,
                                   sourceAnchor: info.sourceAnchor,
                                 });
+                                undoToast(feedback, {
+                                  message: 'Tag removed',
+                                  onUndo: async () => {
+                                    try {
+                                      await tagDocRange({
+                                        workspaceId, docCardId: scope.docCardId, pageId,
+                                        tagId: info.tagId, sourceAnchor: info.sourceAnchor, source: 'user',
+                                      });
+                                    } catch (err) {
+                                      feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) });
+                                    }
+                                  },
+                                });
                               } catch (err) {
                                 feedback.toast({ type: 'error', message: 'Remove tag failed: ' + (err.message || err) });
                               }
@@ -1376,13 +1390,27 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           sourceAnchor={tagHover.sourceAnchor}
           onRemove={editable && tagHover.sourceAnchor && scope?.docCardId ? async (anchor) => {
             setTagHover(null);
+            const removedTagId = tagHover.tagId;
             try {
               await untagDocRange({
                 workspaceId,
                 docCardId: scope.docCardId,
                 pageId,
-                tagId: tagHover.tagId,
+                tagId: removedTagId,
                 sourceAnchor: anchor,
+              });
+              undoToast(feedback, {
+                message: 'Tag removed',
+                onUndo: async () => {
+                  try {
+                    await tagDocRange({
+                      workspaceId, docCardId: scope.docCardId, pageId,
+                      tagId: removedTagId, sourceAnchor: anchor, source: 'user',
+                    });
+                  } catch (err) {
+                    feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) });
+                  }
+                },
               });
             } catch (err) {
               feedback.toast({ type: 'error', message: 'Remove tag failed: ' + (err.message || err) });

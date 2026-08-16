@@ -313,8 +313,10 @@ test('[card] full page + sheet + comment flow works under card scope', async ({ 
   expect(res.comments).toBe(1);
 });
 
-// Delete-sheet → Undo (detach keeps content; reattach restores it exactly).
-test('detachPageSheet keeps content; reattachPageSheet restores the same sheet', async ({ page }) => {
+// Delete-sheet → Undo: the DOC_ORIGIN UndoManager reverses deletePageSheet
+// atomically (sheet entry + content fragment) — the mechanism behind the
+// sheet-delete Undo toast, with no purge timer and no content limbo.
+test('doc UndoManager restores a deleted sheet with its content', async ({ page }) => {
   const r = await page.evaluate(() => {
     const T = window.__soleilDocTest;
     const ydoc = new T.Y.Doc();
@@ -322,6 +324,7 @@ test('detachPageSheet keeps content; reattachPageSheet restores the same sheet',
     ydoc.transact(() => { ydoc.getMap('cards').set('c1', cardYMap); }, 'local');
     T.initCardDocStore(ydoc, cardYMap);
     const scope = { ...T.cardScope(cardYMap), cardId: 'c1', docCardId: 'c1' };
+    const um = T.getDocUndoManager(ydoc, scope);
     const pid = T.addPage(ydoc, { name: 'P', scope });
     const sid = T.addPageSheet(ydoc, pid, scope);
     const frag = T.getOrCreateSheetContent(ydoc, pid, sid, scope);
@@ -329,16 +332,53 @@ test('detachPageSheet keeps content; reattachPageSheet restores the same sheet',
       const p = new T.Y.XmlElement('paragraph'); const t = new T.Y.XmlText();
       t.insert(0, 'KEEPME'); p.insert(0, [t]); frag.insert(0, [p]);
     }, 'local');
-    const idx = T.detachPageSheet(ydoc, pid, sid, scope);
-    const afterDetach = T.getPageSheetIds(ydoc, pid, scope).length;
-    const contentKept = !!T.sheetContentMap(ydoc, scope).get(sid);
-    T.reattachPageSheet(ydoc, pid, sid, idx, scope);
-    const afterReattach = T.getPageSheetIds(ydoc, pid, scope).length;
+    um.stopCapturing();
+    T.deletePageSheet(ydoc, pid, sid, scope);
+    const afterDelete = T.getPageSheetIds(ydoc, pid, scope).length;
+    const contentGone = !T.sheetContentMap(ydoc, scope).get(sid);
+    um.undo();
+    const afterUndo = T.getPageSheetIds(ydoc, pid, scope).length;
     const text = T.pageFragmentToText(T.sheetContentMap(ydoc, scope).get(sid));
-    return { afterDetach, contentKept, afterReattach, text };
+    return { afterDelete, contentGone, afterUndo, text };
   });
-  expect(r.afterDetach).toBe(1);     // back to just the primary
-  expect(r.contentKept).toBe(true);  // content survived the detach
-  expect(r.afterReattach).toBe(2);   // sheet restored
-  expect(r.text).toContain('KEEPME');
+  expect(r.afterDelete).toBe(1);    // back to just the primary
+  expect(r.contentGone).toBe(true); // hard-deleted, no limbo copy
+  expect(r.afterUndo).toBe(2);      // sheet restored by the UndoManager…
+  expect(r.text).toContain('KEEPME'); // …with its content intact
+});
+
+// Whole-subtree page delete → one undo step brings back pages, content,
+// sheets, bookmarks and comment threads (the worst formerly-irreversible op).
+test('doc UndoManager reverses a deletePage cascade atomically', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const T = window.__soleilDocTest;
+    const ydoc = new T.Y.Doc();
+    const cardYMap = new T.Y.Map();
+    ydoc.transact(() => { ydoc.getMap('cards').set('c1', cardYMap); }, 'local');
+    T.initCardDocStore(ydoc, cardYMap);
+    const scope = { ...T.cardScope(cardYMap), cardId: 'c1', docCardId: 'c1' };
+    const um = T.getDocUndoManager(ydoc, scope);
+    const pid = T.addPage(ydoc, { name: 'Parent', scope });
+    const kid = T.addPage(ydoc, { name: 'Child', parent_id: pid, scope });
+    T.addPageSheet(ydoc, pid, scope);
+    T.addCommentThread(ydoc, { pageId: kid, body: 'thread', scope });
+    um.stopCapturing();
+    T.deletePage(ydoc, pid, scope);
+    const afterDelete = {
+      pages: T.readPages(ydoc, scope).length,
+      comments: T.readComments(ydoc, scope).length,
+    };
+    um.undo();
+    const afterUndo = {
+      pages: T.readPages(ydoc, scope).map(x => x.name).sort(),
+      sheets: T.getPageSheetIds(ydoc, pid, scope).length,
+      comments: T.readComments(ydoc, scope).length,
+    };
+    return { afterDelete, afterUndo };
+  });
+  expect(r.afterDelete.pages).toBe(0);
+  expect(r.afterDelete.comments).toBe(0);
+  expect(r.afterUndo.pages).toEqual(['Child', 'Parent']);
+  expect(r.afterUndo.sheets).toBe(2);
+  expect(r.afterUndo.comments).toBe(1);
 });

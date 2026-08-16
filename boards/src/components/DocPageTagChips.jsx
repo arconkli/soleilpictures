@@ -8,11 +8,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
-import { untagDocPage } from '../lib/tagsApi.js';
+import { untagDocPage, tagDocPage } from '../lib/tagsApi.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
+import { useFeedback } from './AppFeedback.jsx';
+import { undoToast } from '../lib/undoToast.js';
 
 export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
   const navigate = useEntityNavigate();
+  const feedback = useFeedback();
   const [tagIds, setTagIds] = useState([]);
   const [tagsById, setTagsById] = useState(new Map());
   const [menuFor, setMenuFor] = useState(null); // { tagId, name, x, y } when right-click is active
@@ -105,6 +108,15 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
     setTagIds(prev => prev.filter(id => id !== tagId));
     try {
       await untagDocPage({ workspaceId, docCardId, pageId, tagId });
+      undoToast(feedback, {
+        message: 'Tag removed',
+        onUndo: async () => {
+          try {
+            await tagDocPage({ workspaceId, docCardId, pageId, tagId });
+            setTagIds(prev => (prev.includes(tagId) ? prev : [...prev, tagId]));
+          } catch (_) {}
+        },
+      });
     } catch (_) {
       // On failure, the realtime sub will restore the row on next load.
     }

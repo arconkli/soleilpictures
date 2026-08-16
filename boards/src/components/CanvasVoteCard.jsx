@@ -13,7 +13,8 @@
 //   anchor_kind = 'board' → free placement near top-left
 
 import { useEffect, useRef, useState } from 'react';
-import { updateVoteCard, deleteVoteCard, castVote } from '../lib/voteCardsApi.js';
+import { updateVoteCard, deleteVoteCard, restoreVoteCard, castVote } from '../lib/voteCardsApi.js';
+import { undoToast } from '../lib/undoToast.js';
 import { bubbleLayout } from '../lib/bubbleLayout.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { pickPresenceColor } from '../lib/presenceColor.js';
@@ -232,16 +233,19 @@ function VoteCardBubble({ vote, userId, currentUser, zoom = 1, resolveCardBBox, 
   };
 
   const onDelete = async () => {
-    const ok = await feedback.confirm({
-      title: 'Delete vote?',
-      message: 'This removes the vote and its tally.',
-      confirmLabel: 'Delete',
-      danger: true,
-    });
-    if (!ok) return;
+    // House delete convention: no confirm, an Undo toast. The row is
+    // soft-deleted with the ballots intact — restore_vote_card (0239) brings
+    // the whole tally back, and the realtime refetch resurfaces it.
     try {
       await deleteVoteCard(vote.id);
       onLocallyRemoved?.(vote.id);
+      undoToast(feedback, {
+        message: 'Vote deleted',
+        onUndo: async () => {
+          try { await restoreVoteCard(vote.id); }
+          catch (err) { feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) }); }
+        },
+      });
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Delete failed: ' + (err.message || err) });
     }

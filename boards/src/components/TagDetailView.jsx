@@ -26,11 +26,12 @@ import { LayoutGrid, FileText, StickyNote, Image, Palette, Calendar, Link as Lin
 import { ENTITY_TYPES, entityTypeLabel } from '../lib/entityTypes.js';
 import {
   untagCard, untagBoard, untagGroup,
-  confirmAppliedTag, dismissAutotagSuggestion,
+  confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion,
   tagCard, tagGroup, tagBoard, tagDocPage,
   getRelatedEntities,
 } from '../lib/tagsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { undoToast } from '../lib/undoToast.js';
 import { getKind } from '../lib/entityKinds.js';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { R2Image } from './R2Image.jsx';
@@ -457,6 +458,26 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       await dismissAutotagSuggestion({
         workspaceId: workspaceId || tag.workspace_id,
         targetKind, targetId: target.id, tagId: tag.id, userId,
+      });
+      // One click used to be a hard delete + a permanent suppression row.
+      // The undo re-applies the tag AND lifts the "never suggest again".
+      undoToast(feedback, {
+        message: 'Tag removed',
+        onUndo: async () => {
+          try {
+            const ws = workspaceId || tag.workspace_id;
+            if (targetKind === 'card') {
+              await tagCard({ workspaceId: ws, boardId: target.boardId, cardId: target.id, tagId: tag.id });
+            } else if (targetKind === 'board') {
+              await tagBoard({ workspaceId: ws, boardId: target.id, tagId: tag.id });
+            } else if (targetKind === 'group') {
+              await tagGroup({ workspaceId: ws, boardId: target.boardId, groupId: target.id, tagId: tag.id });
+            }
+            await undismissAutotagSuggestion({ workspaceId: ws, targetKind, targetId: target.id, tagId: tag.id });
+          } catch (err) {
+            feedback?.toast?.({ type: 'error', message: 'Restore failed: ' + (err.message || err) });
+          }
+        },
       });
     } catch (err) {
       feedback?.toast?.({ type: 'error', message: 'Remove failed: ' + (err.message || err) });

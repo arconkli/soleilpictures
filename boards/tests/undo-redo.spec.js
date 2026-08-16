@@ -70,11 +70,25 @@ test.describe('History tool removed, Trash kept', () => {
   });
 });
 
+// The Y types the board UndoManager tracks — MUST match yboard.js. The
+// 'scope mirror' test below extracts the real list from the source, so the
+// engine-behavior simulation can never silently drift again (it once ran for
+// months missing gridTemplates/gridSequences).
+const UM_SCOPE = ['cards', 'arrows', 'strokes', 'groups', 'docPages', 'docPageContent', 'docBookmarks', 'docComments', 'gridTemplates', 'gridSequences'];
+
 test.describe('UndoManager hardening wired', () => {
   test('explicit captureTimeout + tracked structures in yboard.js', () => {
     const yb = read('src/lib/yboard.js');
     expect(yb).toMatch(/captureTimeout:\s*500/);
     expect(yb).toMatch(/trackedOrigins:\s*new Set\(\['local'\]\)/);
+  });
+
+  test('spec mirror matches the real UndoManager scope (anti-drift)', () => {
+    const yb = read('src/lib/yboard.js');
+    const m = yb.match(/new Y\.UndoManager\(\s*\[([^\]]+)\]/);
+    expect(m).toBeTruthy();
+    const real = m[1].split(',').map(s => s.trim()).filter(Boolean);
+    expect(real).toEqual(UM_SCOPE);
   });
 
   test('App.jsx exposes undoManager + breakUndo and calls breakUndo on discrete adds', () => {
@@ -108,7 +122,143 @@ test.describe('UndoManager hardening wired', () => {
     expect(app).toMatch(/restoreBoardsForUndo/);
     expect(app).toMatch(/reSoftDeleteBoardsForRedo/);
     // The list/grid delete path (no UndoManager) gets its own Undo toast.
-    expect(app).toMatch(/['"`]Board deleted['"`]/);
+    // (The interface says "cluster" — the rebrand left the old 'Board
+    // deleted' assertion here matching nothing for months.)
+    expect(app).toMatch(/['"`]Cluster deleted['"`]/);
+  });
+});
+
+test.describe('Phase-0 undo hardening (source guard)', () => {
+  test('split view gates the global shortcut listeners per pane', () => {
+    const cs = read('src/components/CanvasSurface.jsx');
+    const ls = read('src/components/ListSurface.jsx');
+    // One Cmd+Z must never undo on BOTH panes — see lib/activePane.js.
+    expect(cs).toMatch(/hasSplit && getActivePane\(\) !== paneId/);
+    expect(ls).toMatch(/hasSplit && getActivePane\(\) !== paneId/);
+    expect(has('src/lib/activePane.js')).toBe(true);
+    // Both surfaces receive the pane props from App's renderSurface.
+    const app = read('src/App.jsx');
+    expect((app.match(/paneId=\{isMain \? 'main' : 'split'\}/g) || []).length).toBeGreaterThanOrEqual(2);
+  });
+
+  test('selection restore reads the Y.Doc synchronously (no RAF race)', () => {
+    const cs = read('src/components/CanvasSurface.jsx');
+    // The RAF-deferred cardsRef read lost the race with useYBoard's refresh,
+    // clearing the selection on undo-of-delete. The rewrite reads the doc.
+    expect(cs).toMatch(/stack-item-updated/);
+    const effect = cs.slice(cs.indexOf("const SEL_KEY = 'soleil-selection'"));
+    expect(effect.slice(0, 2200)).not.toMatch(/requestAnimationFrame/);
+    // Items minted by undo/redo themselves are not re-stamped.
+    expect(cs).toMatch(/e\.origin === um/);
+  });
+
+  test('deleteCards owns its step boundaries + returns the stack item', () => {
+    const app = read('src/App.jsx');
+    expect(app).toMatch(/deleteCards = async \(ids, \{ boundary = true \} = \{\}\)/);
+    // Awaited board soft-deletes can no longer let unrelated edits merge into
+    // (and get mis-tagged by) the delete transact.
+    expect(app).toMatch(/return \{ stackItem \}/);
+    // Upload rollbacks are off-stack: a failed upload is not a user action.
+    expect(app).toMatch(/const deleteCardsSilent = \(ids\)/);
+  });
+
+  test('upload rollbacks and async src patches stay off the undo stack', () => {
+    const cs = read('src/components/CanvasSurface.jsx');
+    expect(cs).toMatch(/mutators\.deleteCardsSilent\?\.\(\[id\]\)/);
+    // Canvas post-upload patches use updateCardSilent (the list path always
+    // did; the canvas path used to "peel" the src on Cmd+Z).
+    expect(cs).toMatch(/mutators\.updateCardSilent\?\.\(id, \{ src: up\.src, pending: false \}\)/);
+    expect(cs).not.toMatch(/mutators\.updateCard\?\.\(id, \{ src: up\.src, pending: false \}\)/);
+  });
+
+  test('delete toasts guard on their own stack item (lib/undoToast.js)', () => {
+    expect(has('src/lib/undoToast.js')).toBe(true);
+    const cs = read('src/components/CanvasSurface.jsx');
+    expect(cs).toMatch(/undoToast\(feedback, \{/);
+    expect(cs).toMatch(/stackItem: deleted\?\.stackItem/);
+  });
+
+  test('cluster-delete strip is NOT on the Yjs undo stack (single engine)', () => {
+    const app = read('src/App.jsx');
+    // Origin 'board-delete': the closure toast is the only undo affordance
+    // for deleteBoardsById — with 'local' it diverged from Cmd+Z.
+    expect(app).toMatch(/\}, 'board-delete'\);/);
+  });
+
+  test('doc sheet-delete has no purge timer left to race (UndoManager owns it)', () => {
+    const ds = read('src/components/DocSurface.jsx');
+    // Two generations of bug here: `duration:` (toast died before the purge
+    // fired), then the purge timer itself (content unrecoverable at 6.5s).
+    // Now the DOC_ORIGIN UndoManager reverses deletePageSheet outright.
+    expect(ds).not.toMatch(/duration:\s*6000/);
+    expect(ds).not.toMatch(/purgeSheetContent/);
+    expect(ds).toMatch(/undoToast\(feedback, \{/);
+    const dstate = read('src/lib/docState.js');
+    expect(dstate).toMatch(/export function getDocUndoManager/);
+    expect(dstate).not.toMatch(/export function detachPageSheet/);
+  });
+
+  test('doc overlay Escape never fires while typing', () => {
+    const dc = read('src/components/DocCard.jsx');
+    expect(dc).toMatch(/if \(isEditableTarget\(e\)\) return;\s*\n\s*onClose\(\);/);
+  });
+
+  test('dead history plumbing stays dead', () => {
+    const yb = read('src/lib/yboard.js');
+    expect(yb).not.toMatch(/export function restoreVersionInto/);
+    const app = read('src/App.jsx');
+    expect(app).not.toMatch(/listBoardVersions|fetchPrevVersion|fetchNextVersion/);
+    const cs = read('src/components/CanvasSurface.jsx');
+    expect(cs).not.toContain('History → Restore');
+  });
+});
+
+test.describe('Undo coverage phases 1-3 (source guard)', () => {
+  test('cross-board moves are atomic — no half-undo duplication', () => {
+    const app = read('src/App.jsx');
+    expect(app).toMatch(/const deleteCardsForMove = \(ids\)/);
+    const cs = read('src/components/CanvasSurface.jsx');
+    // Both the drag-into-board and cross-pane source deletes use the
+    // untracked MOVE variant; the one undo affordance reverses both sides.
+    expect((cs.match(/deleteCardsForMove\?\.\(/g) || []).length).toBeGreaterThanOrEqual(2);
+    expect(app).toMatch(/move's ONE undo affordance/);
+  });
+
+  test('doc-card cleanup is deferred and reversible', () => {
+    const app = read('src/App.jsx');
+    expect(app).toMatch(/DOC_CLEANUP_META/);
+    expect(app).toMatch(/scheduleDocCleanup/);
+    const api = read('src/lib/boardsApi.js');
+    expect(api).toMatch(/soft_delete_doc_links/);
+    expect(api).toMatch(/export async function restoreDocLinks/);
+  });
+
+  test('persistent note undo + doc structural undo are wired', () => {
+    const nts = read('src/components/NoteTiptapSurface.jsx');
+    expect(nts).toMatch(/yUndoOptions: \{ undoManager: noteUndoManager \}/);
+    const nds = read('src/lib/noteDocState.js');
+    expect(nds).toMatch(/export function getNoteUndoManager/);
+    const ds = read('src/components/DocSurface.jsx');
+    expect(ds).toMatch(/setDocUndoTarget\(docUndoManager\)/);
+  });
+
+  test('Version history restores through the bulletproof path only', () => {
+    expect(has('src/components/VersionHistoryModal.jsx')).toBe(true);
+    const vh = read('src/components/VersionHistoryModal.jsx');
+    expect(vh).toMatch(/bulletproofRestore\(boardId, b64\)/);
+    expect(vh).toMatch(/label: 'pre-restore'/);
+    const app = read('src/App.jsx');
+    expect(app).toMatch(/<VersionHistoryModal/);
+    // Agent/API destructive ops checkpoint server-side too.
+    const scout = read('src/lib/scoutBoard.js');
+    expect(scout).toMatch(/async function saveVersionRow/);
+    expect((scout.match(/saveVersionRow\(env,/g) || []).length).toBeGreaterThanOrEqual(3);
+  });
+
+  test('the local shell has REAL undo (no more no-op stubs)', () => {
+    const local = read('src/local/LocalBoardsApp.jsx');
+    expect(local).not.toMatch(/undo: \(\) => \{\},/);
+    expect(local).toMatch(/historyRef/);
   });
 });
 
@@ -127,7 +277,8 @@ test.describe('Undo engine semantics (mirrors yboard.js config)', () => {
     const r = await page.evaluate(() => {
       const { Y } = window.__soleilTest;
 
-      // Mirror loadYBoard() in src/lib/yboard.js exactly.
+      // Mirror loadYBoard() in src/lib/yboard.js exactly (the 'anti-drift'
+      // source guard above pins this list to the real one).
       const mk = () => {
         const doc = new Y.Doc();
         const cards = doc.getMap('cards');
@@ -138,8 +289,10 @@ test.describe('Undo engine semantics (mirrors yboard.js config)', () => {
         const docPageContent = doc.getMap('docPageContent');
         const docBookmarks = doc.getMap('docBookmarks');
         const docComments = doc.getMap('docComments');
+        const gridTemplates = doc.getMap('gridTemplates');
+        const gridSequences = doc.getMap('gridSequences');
         const um = new Y.UndoManager(
-          [cards, arrows, strokes, groups, docPages, docPageContent, docBookmarks, docComments],
+          [cards, arrows, strokes, groups, docPages, docPageContent, docBookmarks, docComments, gridTemplates, gridSequences],
           { trackedOrigins: new Set(['local']), captureTimeout: 500 }
         );
         const addCard = (id, origin = 'local') => doc.transact(() => {

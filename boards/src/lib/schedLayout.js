@@ -24,7 +24,8 @@
 
 import {
   pad2, parseISO, formatISO, todayISO, daysInMonth, firstWeekdayOfMonth,
-  startOfWeek, addDays, hourLabel, timeLabel, shortDate, WEEKDAYS,
+  startOfWeek, addDays, addMonths, monthTitle, hourLabel, timeLabel, shortDate,
+  WEEKDAYS,
 } from './schedDates.js';
 
 export const SCHED_TUNING = Object.freeze({
@@ -51,7 +52,43 @@ export const SCHED_TUNING = Object.freeze({
   LOD_DOT_PX: 4,      // clamped to the cell): MID date number, item dot, count badge,
   LOD_COUNT_PX: 10,   // and the FAR poster title. Tuned via the screenshot pass.
   LOD_TITLE_PX: 13,
+  MONTH_GAP_PX: 10,   // between month blocks in a multi-month strip
+  MONTH_CAPTION_H: 15, // per-block "August 2026" caption (CSS mirror: .schedc-mcap)
+  DAYTILE_H: 20,      // a dated child cluster's tile inside a day cell (CSS mirror: .schedc-daytile)
 });
+
+// ---------------------------------------------------------------------------
+// Multi-month strip
+//
+// Principal photography is months long, so a production calendar wants the
+// whole block visible at once rather than a month you have to page through.
+// `months` tiles N month grids inside one card; every slot key stays a plain
+// `d:YYYY-MM-DD`, so items, drops, expand state and the peek all work unchanged.
+
+// How to arrange N month blocks in a w×h box. Tries every column count and
+// keeps the one that yields the largest day cell, tie-breaking toward fewer
+// rows so a wide card reads as a strip rather than a squat block. Pure and
+// exported so the layout, the LOD tier and the tests all agree on one answer.
+export function monthGrid(months, w, h) {
+  const n = Math.max(1, Math.min(12, Math.round(months) || 1));
+  if (n === 1) return { cols: 1, rows: 1 };
+  const G = SCHED_TUNING.MONTH_GAP_PX;
+  const chromeH = SCHED_TUNING.MONTH_CAPTION_H + SCHED_TUNING.WEEKDAY_H;
+  let best = { cols: n, rows: 1, score: -Infinity };
+  for (let cols = 1; cols <= n; cols++) {
+    const rows = Math.ceil(n / cols);
+    const blockW = (w - G * (cols - 1)) / cols;
+    const blockH = (h - G * (rows - 1)) / rows;
+    // Six week-rows is the worst case for any month.
+    const cellW = (blockW - SCHED_TUNING.GUTTER_PX * 6) / 7;
+    const cellH = (blockH - chromeH - SCHED_TUNING.GUTTER_PX * 5) / 6;
+    const score = Math.min(cellW, cellH);
+    if (score > best.score + 0.01 || (Math.abs(score - best.score) <= 0.01 && rows < best.rows)) {
+      best = { cols, rows, score };
+    }
+  }
+  return { cols: best.cols, rows: best.rows };
+}
 
 // ---------------------------------------------------------------------------
 // LOD — how much detail the card can honestly render at its ON-SCREEN size
@@ -67,9 +104,17 @@ export const SCHED_LOD = Object.freeze({
   hour:  Object.freeze({ midW: 200, midH: 180, farW: 120, farH: 100 }),
 });
 
-export function schedLodTier({ view, w, h, scale = 1 }) {
+export function schedLodTier({ view, w, h, scale = 1, months = 1 }) {
   const t = SCHED_LOD[view] || SCHED_LOD.month;
-  const sw = w * scale, sh = h * scale;
+  let sw = w * scale, sh = h * scale;
+  // A 3-month strip at a month card's size gives each block a third of the
+  // width, so the thresholds have to be read against ONE BLOCK. Measuring the
+  // whole card would report 'full' while every cell was ~20px and unreadable.
+  if (view === 'month' && months > 1) {
+    const { cols, rows } = monthGrid(months, w, h);
+    sw /= cols;
+    sh /= rows;
+  }
   if (sw < t.farW || sh < t.farH) return 'far';
   if (sw < t.midW || sh < t.midH) return 'mid';
   return 'full';
@@ -188,15 +233,89 @@ function pushHourRows(slots, area, dateIso, win, expand, gutter) {
   }
 }
 
+// One month's day cells inside `rect`, for the multi-month strip. Unlike the
+// single-month grid this emits ONLY days belonging to this month: across a
+// strip, a leading/trailing day would collide with the same date's real cell in
+// the neighbouring block, and two slots sharing a `d:` key would break
+// data-cell-id hit-testing and drop routing.
+function pushMonthBlock(slots, { monthIso, rect, nRows, expand, cellKeys, todayIso }) {
+  const G = SCHED_TUNING.GUTTER_PX;
+  const t = parseISO(monthIso);
+  const first = startOfWeek(formatISO(t.y, t.m, 1));
+  const cw = (rect.w - G * 6) / 7;
+  const ch = (rect.h - G * (nRows - 1)) / nRows;
+  for (let r = 0; r < nRows; r++) {
+    for (let c = 0; c < 7; c++) {
+      const date = addDays(first, r * 7 + c);
+      const dt = parseISO(date);
+      if (dt.m !== t.m || dt.y !== t.y) continue;      // no duplicate dates across blocks
+      const key = dayKey(date);
+      const cell = { x: rect.x + c * (cw + G), y: rect.y + r * (ch + G), w: cw, h: ch };
+      const expanded = expand[key] === 'hours' ? 'hours' : null;
+      slots.push({
+        key, kind: 'day', rect: cell, date,
+        outside: false, isToday: date === todayIso, weekend: c >= 5,
+        label: String(dt.d), expanded,
+      });
+      if (expanded) {
+        const inner = {
+          x: cell.x, y: cell.y + SCHED_TUNING.DAY_LABEL_H,
+          w: cell.w, h: Math.max(0, cell.h - SCHED_TUNING.DAY_LABEL_H),
+        };
+        pushHourRows(slots, inner, date, hourWindowForDay(date, cellKeys, expand), expand,
+          SCHED_TUNING.INNER_GUTTER_PX);
+      }
+    }
+  }
+}
+
 // Slot rects for the body box (0,0 → w,h). Flat list; nested rows are emitted
 // AFTER their containing day/hour slot so they paint (and hit-test) on top.
 export function computeSchedSlots({
   view, anchor, anchorHour = 9, w, h, expand = {}, cellKeys = [], todayIso = todayISO(),
+  months = 1,
 }) {
   const slots = [];
   const G = SCHED_TUNING.GUTTER_PX;
   const t = parseISO(anchor) || parseISO(todayIso);
   const safeAnchor = formatISO(t.y, t.m, t.d);
+
+  // Multi-month strip. Deliberately a separate branch: the single-month path
+  // below is load-bearing for every existing schedule card and stays untouched.
+  const nMonths = Math.max(1, Math.min(12, Math.round(months) || 1));
+  if (view === 'month' && nMonths > 1) {
+    const { cols, rows } = monthGrid(nMonths, w, h);
+    const MG = SCHED_TUNING.MONTH_GAP_PX;
+    const chromeH = SCHED_TUNING.MONTH_CAPTION_H + SCHED_TUNING.WEEKDAY_H;
+    const blockW = (w - MG * (cols - 1)) / cols;
+    const blockH = (h - MG * (rows - 1)) / rows;
+
+    const monthIsos = [];
+    for (let i = 0; i < nMonths; i++) monthIsos.push(addMonths(formatISO(t.y, t.m, 1), i));
+    // One shared week-row count so the blocks line up across the strip; a
+    // per-month count would stagger the lattice and read as broken.
+    const nRows = monthIsos.reduce((mx, iso) => {
+      const m = parseISO(iso);
+      return Math.max(mx, Math.ceil((firstWeekdayOfMonth(m.y, m.m) + daysInMonth(m.y, m.m)) / 7));
+    }, 4);
+
+    const monthBlocks = monthIsos.map((iso, i) => {
+      const c = i % cols, r = Math.floor(i / cols);
+      const bx = c * (blockW + MG), by = r * (blockH + MG);
+      const gridRect = {
+        x: bx, y: by + chromeH, w: blockW, h: Math.max(0, blockH - chromeH),
+      };
+      pushMonthBlock(slots, { monthIso: iso, rect: gridRect, nRows, expand, cellKeys, todayIso });
+      return {
+        iso, label: monthTitle(iso),
+        captionRect: { x: bx, y: by, w: blockW, h: SCHED_TUNING.MONTH_CAPTION_H },
+        weekdayRect: { x: bx, y: by + SCHED_TUNING.MONTH_CAPTION_H, w: blockW, h: SCHED_TUNING.WEEKDAY_H },
+        gridRect,
+      };
+    });
+
+    return { slots, weekdayLabels: null, monthBlocks };
+  }
 
   if (view === 'month' || view === 'week') {
     const body = { x: 0, y: SCHED_TUNING.WEEKDAY_H, w, h: Math.max(0, h - SCHED_TUNING.WEEKDAY_H) };
@@ -231,7 +350,7 @@ export function computeSchedSlots({
         }
       }
     }
-    return { slots, weekdayLabels: WEEKDAYS.slice() };
+    return { slots, weekdayLabels: WEEKDAYS.slice(), monthBlocks: null };
   }
 
   if (view === 'day') {
@@ -245,7 +364,7 @@ export function computeSchedSlots({
     });
     const area = { x: 0, y: SCHED_TUNING.BAND_H + G, w, h: Math.max(0, h - SCHED_TUNING.BAND_H - G) };
     pushHourRows(slots, area, safeAnchor, hourWindowForDay(safeAnchor, cellKeys, expand), expand, G);
-    return { slots, weekdayLabels: null };
+    return { slots, weekdayLabels: null, monthBlocks: null };
   }
 
   // view === 'hour' — whole-hour band + minute rows.
@@ -257,7 +376,7 @@ export function computeSchedSlots({
   });
   const area = { x: 0, y: SCHED_TUNING.BAND_H + G, w, h: Math.max(0, h - SCHED_TUNING.BAND_H - G) };
   pushMinuteRows(slots, area, safeAnchor, hh, G);
-  return { slots, weekdayLabels: null };
+  return { slots, weekdayLabels: null, monthBlocks: null };
 }
 
 // How many item chips fit in a slot rect (stacked vertically); the component
@@ -311,6 +430,55 @@ export function schedLegacyRows(items) {
     what: it.title || it.type,
     loc: it.hour == null ? '' : timeLabel(it.hour, it.minute || 0),
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Move (pure)
+//
+// The calendar's central missing verb. Until now an item's date could only be
+// changed by deleting it and making a new one, because the date lives IN the
+// key — so a move is a re-key, not a field write.
+
+// One item to another slot. The uid is preserved so the item keeps its identity
+// across the move (undo, awareness, in-flight uploads all key off it); only the
+// slot prefix changes. Returns null when the move is a no-op or the input isn't
+// an item key, so callers can skip the transaction entirely.
+export function reslotItemKey(itemKey, dstSlotPath) {
+  if (!isItemKey(itemKey) || !dstSlotPath) return null;
+  if (!parseSlotKey(dstSlotPath)) return null;
+  const uid = itemKey.slice(itemKey.lastIndexOf('/i:') + 3);
+  const next = mintItemKey(dstSlotPath, uid);
+  return next === itemKey ? null : next;
+}
+
+// A whole slot's contents to another slot — "move this shoot day's items to
+// Thursday", including anything broken out into hour/minute rows beneath it.
+// graftKeyMap already does exactly this prefix rewrite for the cross-card
+// graft, so this is that same rewrite pointed at one card, plus the list of
+// source keys the caller must delete to make it a move rather than a copy.
+export function moveSlotSubtree(cells = {}, expand = {}, srcSlotPath, dstSlotPath) {
+  if (!srcSlotPath || !dstSlotPath || srcSlotPath === dstSlotPath) {
+    return { cells: {}, expand: {}, removeKeys: [], removeExpand: [] };
+  }
+  const under = `${srcSlotPath}/`;
+  const moved = {};
+  const removeKeys = [];
+  for (const k in cells) {
+    if (!k.startsWith(under)) continue;
+    moved[dstSlotPath + k.slice(srcSlotPath.length)] = cells[k];
+    removeKeys.push(k);
+  }
+  const movedExpand = {};
+  const removeExpand = [];
+  for (const k in expand) {
+    if (!expand[k]) continue;
+    if (k === srcSlotPath) { movedExpand[dstSlotPath] = expand[k]; removeExpand.push(k); }
+    else if (k.startsWith(under)) {
+      movedExpand[dstSlotPath + k.slice(srcSlotPath.length)] = expand[k];
+      removeExpand.push(k);
+    }
+  }
+  return { cells: moved, expand: movedExpand, removeKeys, removeExpand };
 }
 
 // ---------------------------------------------------------------------------

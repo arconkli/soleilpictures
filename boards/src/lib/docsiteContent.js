@@ -1940,6 +1940,28 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "⌘Z"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "⌘⇧Z"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Undo · redo text — history survives closing the note"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "⌘B"
       },
       {
@@ -2035,6 +2057,28 @@ export const DOCS_CONTENT = {
     ]
    ],
    "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘Z"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "⌘⇧Z"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Undo · redo — text while typing; pages & structure otherwise"
+      }
+     ]
+    ],
     [
      [
       {
@@ -4869,6 +4913,41 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
+     "v": "Cut and paste",
+     "children": [
+      {
+       "t": "text",
+       "v": "Cut and paste"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — "
+    },
+    {
+     "t": "code",
+     "v": "⌘X"
+    },
+    {
+     "t": "text",
+     "v": " / "
+    },
+    {
+     "t": "code",
+     "v": "⌘V"
+    },
+    {
+     "t": "text",
+     "v": ", including across clusters. Cut-paste keeps standard clipboard behavior: the cut is undoable on the board it happened on, the paste on the board it landed on. (Dragging cards onto a cluster card instead performs a true move, whose toast undoes both sides at once.)"
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
      "v": "Group",
      "children": [
       {
@@ -5747,7 +5826,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Double-click a note to start editing. Click away to commit; press "
+     "v": "Double-click a note to start editing. Click away — or press "
     },
     {
      "t": "code",
@@ -5755,7 +5834,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to cancel."
+     "v": " — to finish; your edits are shared live with collaborators as you type, so there is no separate \"cancel\". "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": " undoes inside the note, and the note's undo history survives closing and reopening it."
     }
    ]
   },
@@ -7977,7 +8064,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "The whole month in a grid"
+       "v": "A whole month in a grid — or three, or six"
       }
      ]
     ],
@@ -8048,13 +8135,52 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Break a day down into hours, and an hour down into minutes, when a day needs that resolution. A prep week can sit at month view while the shoot day sits at hour view in the same board."
+     "v": "In month view, the "
+    },
+    {
+     "t": "strong",
+     "v": "1 / 3 / 6",
+     "children": [
+      {
+       "t": "text",
+       "v": "1 / 3 / 6"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " control sets how many months are on the card at once. Three months is a block of principal photography; you can see the whole shoot and drag a day from the first month to the last without paging."
     }
    ]
   },
   {
    "type": "para",
    "inline": [
+    {
+     "t": "text",
+     "v": "Break a day down into hours, and an hour down into minutes, when a day needs that resolution. A prep week can sit at month view while the shoot day sits at hour view in the same board."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Navigation is yours",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Navigation is yours"
+    }
+   ],
+   "id": "navigation-is-yours"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Stepping through months, jumping to a date, and "
+    },
     {
      "t": "strong",
      "v": "Go to today",
@@ -8067,28 +8193,150 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " returns you to now. The mini-calendar in the header jumps to any date without scrolling."
+     "v": " only move "
+    },
+    {
+     "t": "em",
+     "v": "your",
+     "children": [
+      {
+       "t": "text",
+       "v": "your"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " view. The card remembers the date it opens on, but a schedule shared with fifty people does not jerk under everyone else when you page forward."
     }
    ]
   },
   {
    "type": "heading",
    "depth": 2,
-   "text": "Putting things in it",
+   "text": "Two things live on a date",
    "inline": [
     {
      "t": "text",
-     "v": "Putting things in it"
+     "v": "Two things live on a date"
     }
    ],
-   "id": "putting-things-in-it"
+   "id": "two-things-live-on-a-date"
   },
   {
    "type": "para",
    "inline": [
     {
+     "t": "strong",
+     "v": "Loose content",
+     "children": [
+      {
+       "t": "text",
+       "v": "Loose content"
+      }
+     ]
+    },
+    {
      "t": "text",
-     "v": "Drop any card into a slot — a note, an image, a file, a link, a nested cluster. A schedule holds content, not just text labels, which is what separates it from a calendar app."
+     "v": " — a note, an image, a file, a link — dropped straight into a slot. This is the quick kind: a reminder on a Tuesday, a reference photo on the day it is needed."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Shoot days",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shoot days"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — whole clusters that carry a date. A day tile on the calendar is a real cluster you can open, containing whatever the day needs: the script pages, the call sheet, the shotlist, an hour-by-hour schedule. See "
+    },
+    {
+     "t": "link",
+     "v": "Production schedules",
+     "href": "/docs/clusters/production-schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "Production schedules"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Moving things",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Moving things"
+    }
+   ],
+   "id": "moving-things"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Drag a day tile",
+     "children": [
+      {
+       "t": "text",
+       "v": "Drag a day tile"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " onto another date. The cluster moves, and if it has been published, everyone who can see it is notified that it moved — including what it moved from and to. A multi-day block keeps its length."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Loose content",
+     "children": [
+      {
+       "t": "text",
+       "v": "Loose content"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " moves from the peek panel, or with "
+    },
+    {
+     "t": "strong",
+     "v": "Move to date",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move to date"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on the slot. It stays read-only in the month grid for the reason below."
     }
    ]
   },
@@ -8109,7 +8357,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The calendar grid itself is "
+     "v": "For loose content, the month and week grids are "
     },
     {
      "t": "strong",
@@ -8147,6 +8395,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "This is deliberate. A dense calendar grid with inline editing produced constant mis-clicks: reaching for a slot and accidentally editing the one next to it. All edits going through the peek means the grid can be scanned and clicked confidently."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Day tiles are the one exception. They are draggable in the grid, because moving a day to a new date is the single thing a production schedule exists to do, and routing that through a panel would miss the point. They are also a separate element, so the rule for content is unchanged."
     }
    ]
   },
@@ -12706,6 +12963,711 @@ export const DOCS_CONTENT = {
    ]
   }
  ],
+ "/docs/clusters/production-schedule": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A production runs on two questions: "
+    },
+    {
+     "t": "em",
+     "v": "what are we shooting, and when",
+     "children": [
+      {
+       "t": "text",
+       "v": "what are we shooting, and when"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". This is how Clusters answers both in one place."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "The shape",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The shape"
+    }
+   ],
+   "id": "the-shape"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "One cluster is the production. On its canvas sits a "
+    },
+    {
+     "t": "link",
+     "v": "schedule card",
+     "href": "/docs/canvas/schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "schedule card"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " set to "
+    },
+    {
+     "t": "strong",
+     "v": "3 months",
+     "children": [
+      {
+       "t": "text",
+       "v": "3 months"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — a block of principal photography you can see at once."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each shoot day is a "
+    },
+    {
+     "t": "strong",
+     "v": "child cluster with a date",
+     "children": [
+      {
+       "t": "text",
+       "v": "child cluster with a date"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". It appears as a tile on its day in the calendar. Open it and you are inside a normal canvas holding whatever the day needs:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "the day's "
+     },
+     {
+      "t": "strong",
+      "v": "script pages",
+      "children": [
+       {
+        "t": "text",
+        "v": "script pages"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " (a PDF or a document)"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the "
+     },
+     {
+      "t": "strong",
+      "v": "call sheet",
+      "children": [
+       {
+        "t": "text",
+        "v": "call sheet"
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the "
+     },
+     {
+      "t": "strong",
+      "v": "shotlist",
+      "children": [
+       {
+        "t": "text",
+        "v": "shotlist"
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "an "
+     },
+     {
+      "t": "strong",
+      "v": "hour-by-hour",
+      "children": [
+       {
+        "t": "text",
+        "v": "hour-by-hour"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " schedule card"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Share the production cluster with the crew once. Everything inside it — every shoot day, every call sheet — comes with it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Laying it out",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Laying it out"
+    }
+   ],
+   "id": "laying-it-out"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Add shoot days",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add shoot days"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " takes a date range, optionally skips weekends, and creates a numbered day for each date. The days arrive empty; open one and "
+    },
+    {
+     "t": "strong",
+     "v": "set up this day",
+     "children": [
+      {
+       "t": "text",
+       "v": "set up this day"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " fills it with the four cards above."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "They are created empty on purpose. Clusters are unlimited on every plan, but cards are capped on the free plan, and scaffolding sixty days up front would spend the whole allowance before anyone had opened one."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The date is never written into a day's name. "
+    },
+    {
+     "t": "code",
+     "v": "Day 12"
+    },
+    {
+     "t": "text",
+     "v": " stays "
+    },
+    {
+     "t": "code",
+     "v": "Day 12"
+    },
+    {
+     "t": "text",
+     "v": "; the date is rendered from the calendar every time it is shown, so a day that moves twice still reads correctly everywhere."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Moving a day",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Moving a day"
+    }
+   ],
+   "id": "moving-a-day"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Drag its tile to another date."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "That is one write. The day moves on everyone's calendar, the hour-by-hour card inside it re-anchors itself, and — if the day was published — everyone who can read the schedule is notified, told what it moved from and to. There is an undo on the toast."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A multi-day block (travel, a company move) keeps its length when dragged."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Publishing, instead of the nightly email",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Publishing, instead of the nightly email"
+    }
+   ],
+   "id": "publishing-instead-of-the-nightly-email"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A shoot day is a "
+    },
+    {
+     "t": "strong",
+     "v": "draft",
+     "children": [
+      {
+       "t": "text",
+       "v": "draft"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " until someone publishes it. Drafts are silent: you can build twelve weeks of schedule, drag days around and rewrite call sheets without anyone hearing anything."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Publish",
+     "children": [
+      {
+       "t": "text",
+       "v": "Publish"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " bumps the day's version — v1, v2, v3 — and notifies everyone who can read it. That is the unit a crew already works in: "
+    },
+    {
+     "t": "em",
+     "v": "\"Day 12, call sheet v3\"",
+     "children": [
+      {
+       "t": "text",
+       "v": "\"Day 12, call sheet v3\""
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "State"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On the calendar"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Who is told"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Draft",
+       "children": [
+        {
+         "t": "text",
+         "v": "Draft"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Dashed outline"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Nobody"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Published",
+       "children": [
+        {
+         "t": "text",
+         "v": "Published"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Solid, with its version"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Everyone who can read it, on publish and on any move"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Cancelled",
+       "children": [
+        {
+         "t": "text",
+         "v": "Cancelled"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Struck through, still visible"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Everyone, if it had been published"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A cancelled day stays on the calendar rather than disappearing. Deleting it would leave the crew with no record of a day they had planned around."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "What the crew sees",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What the crew sees"
+    }
+   ],
+   "id": "what-the-crew-sees"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The "
+    },
+    {
+     "t": "strong",
+     "v": "Schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "Schedule"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " item in the sidebar carries an unread count and opens two things:"
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Updates",
+     "children": [
+      {
+       "t": "text",
+       "v": "Updates"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — what changed and when. These persist until you read them, so a call sheet published at 21:40 is still there at 06:00."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Your schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "Your schedule"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — every dated cluster you can reach, from today forward, across every production, with the ones that changed since you last looked marked. This is the thing to open when you want to know what you are called for."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you are not in the app when a day is published or moved, you get an email instead — one per change, not a nightly attachment. It is a separate switch in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Notifications",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Notifications"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and carries a one-click unsubscribe. If you "
+    },
+    {
+     "t": "em",
+     "v": "are",
+     "children": [
+      {
+       "t": "text",
+       "v": "are"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the app you only get the in-app notification, because a duplicate email is how people learn to filter you."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Driving it from another system",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Driving it from another system"
+    }
+   ],
+   "id": "driving-it-from-another-system"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Boards carry "
+    },
+    {
+     "t": "code",
+     "v": "scheduled_date"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "scheduled_end"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "day_label"
+    },
+    {
+     "t": "text",
+     "v": " over the "
+    },
+    {
+     "t": "link",
+     "v": "API",
+     "href": "/docs/api/boards",
+     "children": [
+      {
+       "t": "text",
+       "v": "API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "link",
+     "v": "MCP",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "MCP"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so a scheduling package or a call-sheet generator can create days and move them without anyone opening the app. Moving a published day through the API notifies the crew exactly as dragging it would; pass "
+    },
+    {
+     "t": "code",
+     "v": "notify: false"
+    },
+    {
+     "t": "text",
+     "v": " to move one quietly."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "A note on timezones",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A note on timezones"
+    }
+   ],
+   "id": "a-note-on-timezones"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Dates are plain calendar dates, with no timezone attached — a production shoots in one place, and "
+    },
+    {
+     "t": "code",
+     "v": "2026-08-18"
+    },
+    {
+     "t": "text",
+     "v": " means the same day to everyone on it. If your unit is split across a date line, that assumption is the one to watch."
+    }
+   ]
+  }
+ ],
  "/docs/clusters/trash-and-recovery": [
   {
    "type": "para",
@@ -12760,7 +13722,32 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " revert a collaborator's changes. In a shared board, an undo that silently reversed someone else's work would be worse than no undo. Deletions also show a toast with an undo button."
+     "v": " revert a collaborator's changes. In a shared board, an undo that silently reversed someone else's work would be worse than no undo. Deletions also show a toast with an undo button — and the toast only ever undoes its own deletion: if you have done something else since, it says so instead of reverting the wrong thing."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Documents have their own two histories: "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": " while typing undoes text, and "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": " with the document open (but not typing) undoes structure — page deletes, moves, renames. Deleting a page, its sub-pages and their comments is a single undo step. Note text keeps its undo history even after you close and reopen the note."
     }
    ]
   },
@@ -12875,7 +13862,47 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Boards keep snapshots over time. You can list them, look through them, and roll back to one."
+     "v": "Boards keep snapshots over time. You can list them, look through them, and roll back to one. Open it from the clock icon in the toolbar, or "
+    },
+    {
+     "t": "code",
+     "v": "⌘K"
+    },
+    {
+     "t": "text",
+     "v": " → \"Version history\"."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Snapshots are written automatically while you work, before risky operations (bulk deletes, pastes, cross-cluster drags), and before anything the API or an AI agent deletes or moves — so an integration's mistake is recoverable from the same list as a human one. Rows are grouped by work session; selecting one previews what it contains before you commit."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Restoring always snapshots the "
+    },
+    {
+     "t": "strong",
+     "v": "current",
+     "children": [
+      {
+       "t": "text",
+       "v": "current"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " state first, so a restore is itself restorable. A second tab lists name, colour, cover and view changes, each with a one-click revert."
     }
    ]
   },
@@ -13440,6 +14467,104 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Documents are collaborative in real time, with peer cursors and selections visible as people type. Edits merge rather than overwriting."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Undo",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Undo"
+    }
+   ],
+   "id": "undo"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Two histories, matching how documents are edited:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Typing:",
+      "children": [
+       {
+        "t": "text",
+        "v": "Typing:"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " "
+     },
+     {
+      "t": "code",
+      "v": "⌘Z"
+     },
+     {
+      "t": "text",
+      "v": " while the caret is in the text undoes your writing, as in any editor."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Structure:",
+      "children": [
+       {
+        "t": "text",
+        "v": "Structure:"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " "
+     },
+     {
+      "t": "code",
+      "v": "⌘Z"
+     },
+     {
+      "t": "text",
+      "v": " with the document open but the caret elsewhere undoes page operations — deletes, moves, renames. Deleting a page with its sub-pages, comments and bookmarks is one step, and page deletes also offer an undo toast."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Both undo only "
+    },
+    {
+     "t": "em",
+     "v": "your",
+     "children": [
+      {
+       "t": "text",
+       "v": "your"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " edits, never a collaborator's."
     }
    ]
   },
@@ -15505,6 +16630,59 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " propagates to what is in it, and in documents a tag on a paragraph can cascade to related passages."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Removing, deleting and merging — all reversible",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Removing, deleting and merging — all reversible"
+    }
+   ],
+   "id": "removing-deleting-and-merging-all-reversible"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Removing a tag from one item shows an undo toast; undoing also lifts the \"don't suggest this again\" that a removal writes, so the matcher behaves as if the removal never happened."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Deleting a tag removes it everywhere, but softly: the tag and every one of its applications stay recoverable for "
+    },
+    {
+     "t": "strong",
+     "v": "30 days",
+     "children": [
+      {
+       "t": "text",
+       "v": "30 days"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — from the undo toast, or by recreating a tag with the same name, which revives the old one intact."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Merging one tag into another can also be undone from its toast: applications move back, and the merged-away tag returns."
     }
    ]
   },
@@ -19107,7 +20285,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Five categories, five independent switches, in "
+     "v": "Six categories, six independent switches, in "
     },
     {
      "t": "strong",
@@ -19226,6 +20404,26 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
+       "v": "Schedule changes",
+       "children": [
+        {
+         "t": "text",
+         "v": "Schedule changes"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A shoot day you can see moves, or its call sheet is published"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
        "v": "Product tips and check-ins",
        "children": [
         {
@@ -19249,7 +20447,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The last one is the one to switch off if you only want to hear about your own work. The other four are all consequences of something a person did that involves you."
+     "v": "The last one is the one to switch off if you only want to hear about your own work. The other five are all consequences of something a person did that involves you."
     }
    ]
   },
@@ -19295,7 +20493,40 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ". Schedule notifications collect under "
+    },
+    {
+     "t": "strong",
+     "v": "Schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "Schedule"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the sidebar and stay there until read, rather than vanishing with the toast that announced them."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Email only when you are away",
+     "children": [
+      {
+       "t": "text",
+       "v": "Email only when you are away"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — a schedule email is sent only if you are not currently in the app. If you are, the in-app notification is the whole story and a second copy in your inbox is just noise."
     }
    ]
   },
@@ -19502,6 +20733,51 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Schedule changes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Schedule changes"
+    }
+   ],
+   "id": "schedule-changes"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you are on a "
+    },
+    {
+     "t": "link",
+     "v": "production schedule",
+     "href": "/docs/clusters/production-schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "production schedule"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", this is the one that matters. Publishing a shoot day, or moving one that has already been published, notifies everyone who can read it — with the day, what changed, and the call-sheet version."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Nothing is sent while a schedule is being built. A day is a draft until someone publishes it, and drafts are silent, so laying out a twelve-week shoot does not page anybody."
     }
    ]
   }
@@ -21031,7 +22307,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Listing a pending claim in your settings is built but not switched on yet, for the same reason as everything else here. Nothing acts on a claim until the phone confirms, so an unrecognised number cannot reach your boards in the meantime."
+     "v": "A pending claim on your account is listed in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Scout",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Scout"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so a number you do not recognise is something you can see."
     }
    ]
   },
@@ -21052,7 +22342,29 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Binding a phone to an account you already have is built but not switched on, for the same reason as everything else here: there is no line to text. When it is, you will get a connect code from your settings and text it once."
+     "v": "If you already have a Clusters account and never joined the waitlist, "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Scout",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Scout"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " gives you a connect code. Text "
+    },
+    {
+     "t": "code",
+     "v": "/code <code>"
+    },
+    {
+     "t": "text",
+     "v": " and the phone is bound to your account, so texted photos land in the workspace you already use."
     }
    ]
   },
@@ -21519,7 +22831,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Five independent switches — mentions, comment replies, workspace invites, board shares, and product tips. See "
+     "v": "Six independent switches — mentions, comment replies, workspace invites, board shares, schedule changes, and product tips. See "
     },
     {
      "t": "link",
@@ -27446,7 +28758,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "json",
-   "code": "{\n  \"id\": \"9f1c…\",\n  \"name\": \"Scene 4 — Diner\",\n  \"workspace_id\": \"3b7e…\",\n  \"parent_board_id\": null,\n  \"view\": \"canvas\",\n  \"created_at\": \"2026-08-01T09:12:44.000Z\",\n  \"updated_at\": \"2026-08-03T14:02:10.000Z\"\n}"
+   "code": "{\n  \"id\": \"9f1c…\",\n  \"name\": \"Scene 4 — Diner\",\n  \"workspace_id\": \"3b7e…\",\n  \"parent_board_id\": null,\n  \"view\": \"canvas\",\n  \"created_at\": \"2026-08-01T09:12:44.000Z\",\n  \"updated_at\": \"2026-08-03T14:02:10.000Z\",\n  \"scheduled_date\": null,\n  \"scheduled_end\": null,\n  \"day_label\": null,\n  \"sched_status\": \"draft\",\n  \"sched_version\": 0,\n  \"sched_published_at\": null\n}"
   },
   {
    "type": "table",
@@ -27550,8 +28862,287 @@ export const DOCS_CONTENT = {
        "v": "\"list\""
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "scheduled_date"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "YYYY-MM-DD"
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "code",
+       "v": "null"
+      },
+      {
+       "t": "text",
+       "v": ". Puts the board on a calendar"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "scheduled_end"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "YYYY-MM-DD"
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "code",
+       "v": "null"
+      },
+      {
+       "t": "text",
+       "v": ". Inclusive end of a multi-day block"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "day_label"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The durable half of a scheduled day's name, e.g. "
+      },
+      {
+       "t": "code",
+       "v": "\"Day 12\""
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "sched_status"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "\"draft\""
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "\"published\""
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "\"cancelled\""
+      },
+      {
+       "t": "text",
+       "v": " — read-only"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "sched_version"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Call-sheet version, bumped on publish — read-only"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "sched_published_at"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "ISO timestamp, or "
+      },
+      {
+       "t": "code",
+       "v": "null"
+      },
+      {
+       "t": "text",
+       "v": " — read-only"
+      }
+     ]
     ]
    ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Scheduling a board",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Scheduling a board"
+    }
+   ],
+   "id": "scheduling-a-board"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "scheduled_date"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "scheduled_end"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "day_label"
+    },
+    {
+     "t": "text",
+     "v": " are writable on "
+    },
+    {
+     "t": "code",
+     "v": "POST /boards"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "PATCH /boards/:id"
+    },
+    {
+     "t": "text",
+     "v": ". They do not go straight to the column: like "
+    },
+    {
+     "t": "code",
+     "v": "parent_board_id"
+    },
+    {
+     "t": "text",
+     "v": ", they are routed through a server function, because moving a day is a thing other people need to hear about."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A board is "
+    },
+    {
+     "t": "code",
+     "v": "draft"
+    },
+    {
+     "t": "text",
+     "v": " until it is published in the app. Drafts are silent, so an import that creates sixty dated days notifies nobody. Once a day is published, changing its date notifies everyone who can read it. Pass "
+    },
+    {
+     "t": "code",
+     "v": "\"notify\": false"
+    },
+    {
+     "t": "text",
+     "v": " to move a published day quietly."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "sched_status"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "sched_version"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "sched_published_at"
+    },
+    {
+     "t": "text",
+     "v": " are read-only over the API — publishing is a deliberate act with an audience, not a field write. See "
+    },
+    {
+     "t": "link",
+     "v": "Production schedules",
+     "href": "/docs/clusters/production-schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "Production schedules"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "PATCH /boards/9f1c…\n{ \"scheduled_date\": \"2026-09-14\", \"day_label\": \"Day 12\" }"
   },
   {
    "type": "heading",
@@ -37881,6 +39472,30 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
+       "v": "scheduled_date?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "scheduled_end?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "day_label?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
        "v": "identifiers?"
       },
       {
@@ -37915,7 +39530,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — build a structure in one call"
+       "v": " — build a structure in one call; each entry takes the same schedule fields"
       }
      ]
     ],
@@ -38180,6 +39795,38 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "parent_board_id?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "scheduled_date?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "scheduled_end?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "day_label?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "notify?"
       }
      ]
     ],

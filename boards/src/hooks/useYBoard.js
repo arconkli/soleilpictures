@@ -122,6 +122,12 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
       _corruptionResyncs.set(boardId, n + 1);
       try { handleRef.current?.poison?.(); } catch (_) {}
       try { purgeLocalBoardState(boardId, userId); } catch (_) {}
+      // Tell the user (App listens and toasts). This used to be a completely
+      // silent purge — if the draft held unflushed edits, they vanished with
+      // no trace. The draft is now stashed under a `corrupt.` key too.
+      try {
+        window.dispatchEvent(new CustomEvent('soleil-board-selfhealed', { detail: { boardId } }));
+      } catch (_) {}
       triggerReset('yjs-corruption');
     };
     window.addEventListener('soleil:yjs-corruption', onCorruption);

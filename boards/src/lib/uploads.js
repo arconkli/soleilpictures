@@ -537,10 +537,17 @@ export async function uploadImage({ file, workspaceId, boardId, cardId = null, u
 // never referenced by a card, so its ref_count stays 0 and it would
 // otherwise become deletion-eligible after the 30-day grace period.
 const THUMB_RETENTION_LOCK = '2999-01-01T00:00:00Z';
-export async function uploadBoardThumbnail({ workspaceId, boardId, blob, userId = null }) {
+export async function uploadBoardThumbnail({ workspaceId, boardId, blob, userId = null, versioned = false }) {
   if (!workspaceId || !boardId) throw new Error('workspaceId + boardId required');
   if (!blob) throw new Error('blob required');
-  const key = `${workspaceId}/thumbs/${boardId}.webp`;
+  // versioned: CUSTOM thumbnails get their own `-c<ts>` key instead of
+  // overwriting the canonical one — so "set custom thumbnail" and "reset to
+  // auto" are revertible (the previous bytes survive at their own key). The
+  // presign gate (party/upload.ts) accepts both shapes. Auto thumbnails keep
+  // the canonical overwrite-in-place key so regen stays cheap.
+  const key = versioned
+    ? `${workspaceId}/thumbs/${boardId}-c${Date.now()}.webp`
+    : `${workspaceId}/thumbs/${boardId}.webp`;
   const { uploadUrl } = await presignThumb({ workspaceId, boardId, thumbKey: key, contentType: 'image/webp' });
   // putWithProgress reads .type for the Content-Type header; the WebP blob's
   // type is image/webp, matching the presigned signature.

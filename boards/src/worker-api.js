@@ -257,7 +257,57 @@ function publicBoard(b) {
     deleted: !!b.deleted_at,
     created_at: b.created_at,
     updated_at: b.updated_at ?? null,
+    // Schedule. A board carries a date so an external scheduling system — a
+    // stripboard export, a call-sheet generator — can drive the calendar. Read
+    // freely; writes go through POST/PATCH, which route to set_board_schedule
+    // because these columns are not directly writable (0238).
+    scheduled_date: b.scheduled_date ?? null,
+    scheduled_end: b.scheduled_end ?? null,
+    day_label: b.day_label ?? null,
+    sched_status: b.sched_status ?? 'draft',
+    sched_version: b.sched_version ?? 0,
+    sched_published_at: b.sched_published_at ?? null,
   };
+}
+
+// Pull the schedule fields out of a request body, or null when it says nothing
+// about scheduling. Shared by POST and PATCH so both route through the same
+// RPC — direct column writes are refused by the grant, and would skip the
+// notification fanout even if they weren't.
+function scheduleFromBody(body) {
+  if (!body || typeof body !== 'object') return null;
+  const has = ['scheduled_date', 'scheduled_end', 'day_label'].some((k) => k in body);
+  if (!has) return null;
+  const iso = (v) => {
+    if (v == null || v === '') return null;
+    const t = String(v).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) throw fail(400, 'bad_request', `not a YYYY-MM-DD date: ${v}`);
+    return t;
+  };
+  return {
+    date: iso(body.scheduled_date),
+    end: iso(body.scheduled_end),
+    label: body.day_label == null ? null : String(body.day_label).slice(0, 120),
+    notify: body.notify !== false,
+  };
+}
+
+// One place both create and patch call. Returns silently when there is nothing
+// to do so callers can invoke it unconditionally.
+async function applySchedule(env, token, boardId, sched) {
+  if (!sched) return;
+  const out = await userRpc(env, token, 'set_board_schedule', {
+    p_board_id: boardId,
+    p_date: sched.date,
+    p_end_date: sched.end,
+    p_day_label: sched.label,
+    p_notify: sched.notify,
+  });
+  if (out && out.ok === false) {
+    if (out.error === 'forbidden') throw fail(403, 'forbidden', 'cannot change this board\'s schedule');
+    if (out.error === 'end_before_start') throw fail(400, 'bad_request', 'scheduled_end is before scheduled_date');
+    throw fail(400, 'bad_request', `could not set schedule: ${out.error}`);
+  }
 }
 
 // Map the wire shape onto a card. Deliberately narrow: an API caller should not
@@ -621,7 +671,7 @@ async function partyMpu(env, token, workspaceId, action, body) {
 // see comes back as "not found" rather than leaking its existence.
 async function boardForUser(env, token, boardId, { includeDeleted = false } = {}) {
   const q = `id=eq.${boardId}${includeDeleted ? '' : '&deleted_at=is.null'}`
-    + '&select=id,name,workspace_id,parent_board_id,view,created_at,updated_at,deleted_at';
+    + '&select=id,name,workspace_id,parent_board_id,view,created_at,updated_at,deleted_at,scheduled_date,scheduled_end,day_label,sched_status,sched_version,sched_published_at';
   const rows = await userSelect(env, token, 'boards', q);
   return rows?.[0] || null;
 }
@@ -1371,7 +1421,7 @@ async function dispatch(url, request, env, ctx) {
       wantBoards
         ? userSelect(env, token, 'boards',
           `name=ilike.${encodeURIComponent(value)}&deleted_at=is.null${wsFilter}`
-          + `&select=id,name,workspace_id,parent_board_id,view,created_at,updated_at,deleted_at`
+          + `&select=id,name,workspace_id,parent_board_id,view,created_at,updated_at,deleted_at,scheduled_date,scheduled_end,day_label,sched_status,sched_version,sched_published_at`
           + `&order=created_at.desc&limit=${limit + 1}&offset=${offset}`)
         : Promise.resolve([]),
       wantCards
@@ -1754,7 +1804,7 @@ async function dispatch(url, request, env, ctx) {
       // order they moved, and offset paging over a set that is being written to
       // skips and repeats rows.
       const delta = !!(since || cursor);
-      const selectCols = 'id,name,workspace_id,parent_board_id,view,created_at,updated_at,deleted_at';
+      const selectCols = 'id,name,workspace_id,parent_board_id,view,created_at,updated_at,deleted_at,scheduled_date,scheduled_end,day_label,sched_status,sched_version,sched_published_at';
       let q = (deleted ? 'deleted_at=not.is.null' : 'deleted_at=is.null')
             + `&select=${selectCols}&limit=${limit + 1}`;
 
@@ -1842,6 +1892,13 @@ async function dispatch(url, request, env, ctx) {
           e.message = `boards[${i}]: ${e.message}`;
           throw e;
         }
+        let sched;
+        try {
+          sched = scheduleFromBody(b);
+        } catch (e) {
+          e.message = `boards[${i}]: ${e.message}`;
+          throw e;
+        }
         return {
           id: crypto.randomUUID(),
           workspace_id: ws,
@@ -1851,6 +1908,9 @@ async function dispatch(url, request, env, ctx) {
           created_by: auth.userId,
           _props: meta.props,
           _identifiers: meta.identifiers,
+          // Not a column write: sched_* are outside the client UPDATE grant, so
+          // this is applied through set_board_schedule after the insert.
+          _sched: sched,
         };
       });
 
@@ -1899,7 +1959,7 @@ async function dispatch(url, request, env, ctx) {
         // RLS still decides: one INSERT as the user, so a workspace they cannot
         // write is refused for the whole batch rather than partly applied.
         await userInsert(env, token, 'boards',
-          creates.map(({ _props, _identifiers, ...row }) => row), { returning: 'minimal' });
+          creates.map(({ _props, _identifiers, _sched, ...row }) => row), { returning: 'minimal' });
 
         // Every board needs its empty snapshot or it cold-loads as broken
         // rather than as empty. Identical bytes for all, so encode once.
@@ -1932,6 +1992,14 @@ async function dispatch(url, request, env, ctx) {
         await saveMetaBulk(env, token, {
           workspaceId: wsId, objectType: 'board', entries, userId: auth.userId,
         });
+      }
+
+      // Dates last, one RPC per scheduled board. A stripboard import is the
+      // motivating caller: it POSTs sixty days with scheduled_date and expects
+      // them to land on the calendar. notify defaults on, but a fresh board is
+      // sched_status='draft', so nothing pages a crew during an import.
+      for (const b of prepared) {
+        if (b._sched) await applySchedule(env, token, b.id, b._sched);
       }
 
       const createdIds = new Set(creates.map((b) => b.id));
@@ -2008,6 +2076,10 @@ async function dispatch(url, request, env, ctx) {
         workspaceId, boardId, objectType: 'board', objectId: boardId,
         props: meta.props, identifiers: meta.identifiers, userId: auth.userId,
       });
+
+      // Same delegation as PATCH: sched_* are outside the client UPDATE grant,
+      // and a direct write would skip the notification fanout.
+      await applySchedule(env, token, boardId, scheduleFromBody(body));
 
       const created = await boardForUser(env, token, boardId);
       return json({
@@ -2183,6 +2255,12 @@ async function dispatch(url, request, env, ctx) {
       if (Object.keys(patch).length) {
         await userPatch(env, token, 'boards', `id=eq.${id}`, patch);
       }
+
+      // Schedule fields delegate to the RPC, the same way parent_board_id
+      // delegates to move_boards_under above. Two reasons, either sufficient:
+      // the columns are not in the client UPDATE grant (0238), and a direct
+      // write would move a published shoot day without telling the crew.
+      await applySchedule(env, token, id, scheduleFromBody(body));
 
       const meta = metaFromBody(body);
       await saveMeta(env, token, {

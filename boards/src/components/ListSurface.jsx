@@ -4,6 +4,8 @@ import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { wouldCreateCycle, collectDescendantIds } from '../lib/boardTree.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { setActivePane, getActivePane } from '../lib/activePane.js';
+import { undoToast } from '../lib/undoToast.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { toListItem, sortItems, filterItems, matchItems } from '../lib/listItem.js';
@@ -63,6 +65,10 @@ export function ListSurface({
   // owners; opens the storage upgrade modal. Off in the ?local harness.
   showStorageUpsell = false,
   onStorageUpsell = null,
+  // Split-pane shortcut arbitration — see lib/activePane.js. Without the
+  // gate, the window keydown below deleted from BOTH panes on one Backspace.
+  paneId = 'main',
+  hasSplit = false,
 }) {
   const feedback = useFeedback();
   const subBoards = childBoards || [];
@@ -265,14 +271,23 @@ export function ListSurface({
       message: list.length === 1 ? 'Delete this card?' : `Delete ${list.length} cards?`,
     });
     if (!ok) return;
-    mutators.deleteCards?.(list);
+    const deleted = await mutators.deleteCards?.(list);
     setSelectedCards(new Set());
     setSelectedGroupId(null);
+    // Same delete→Undo-toast affordance as the canvas (this path used to
+    // rely on the user knowing Cmd+Z would work from list view).
+    undoToast(feedback, {
+      message: list.length === 1 ? 'Card deleted' : `${list.length} cards deleted`,
+      undoManager: mutators.undoManager,
+      stackItem: deleted?.stackItem || null,
+      onUndo: () => mutators.undo?.(),
+    });
   }, [feedback, mutators]);
 
   // Delete selected via Backspace/Delete.
   useEffect(() => {
     const onKey = async (e) => {
+      if (hasSplit && getActivePane() !== paneId) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       const total = selectedBoards.size + selectedCards.size;
@@ -298,14 +313,22 @@ export function ListSurface({
         });
         if (!ok) return;
       }
-      if (bIds.length) mutators.deleteBoardsById?.(bIds);
-      if (cIds.length) mutators.deleteCards?.(cIds);
+      if (bIds.length) mutators.deleteBoardsById?.(bIds); // has its own Undo toast
+      if (cIds.length) {
+        const deleted = await mutators.deleteCards?.(cIds);
+        undoToast(feedback, {
+          message: cIds.length === 1 ? 'Card deleted' : `${cIds.length} cards deleted`,
+          undoManager: mutators.undoManager,
+          stackItem: deleted?.stackItem || null,
+          onUndo: () => mutators.undo?.(),
+        });
+      }
       setSelectedBoards(new Set());
       setSelectedCards(new Set());
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [feedback, selectedBoards, selectedCards, boards, mutators]);
+  }, [feedback, selectedBoards, selectedCards, boards, mutators, hasSplit, paneId]);
 
   const [dragOver, setDragOver] = useState(false);
   // Board tile currently highlighted as a reparent drop target.
@@ -389,6 +412,8 @@ export function ListSurface({
   return (
     <div className={`list-wrap ${dragOver ? 'is-drop-target' : ''}`}
          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+         onPointerDownCapture={() => setActivePane(paneId)}
+         onPointerEnter={() => setActivePane(paneId)}
          onClick={() => { setSelectedBoards(new Set()); setSelectedCards(new Set()); }}>
       <div className="list-inner" onClick={(e) => e.stopPropagation()}>
         {totalSel > 0 && (

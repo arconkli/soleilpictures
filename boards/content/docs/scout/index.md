@@ -161,16 +161,15 @@ So the first time that number texts Scout, Scout offers:
 Reply `YES` and the phone is bound, along with anything you had already sent.
 Ignore it and everything stays where it is; the offer keeps until you take it.
 
-Listing a pending claim in your settings is built but not switched on yet,
-for the same reason as everything else here. Nothing acts on a claim until the
-phone confirms, so an unrecognised number cannot reach your boards in the
-meantime.
+A pending claim on your account is listed in **Settings → Scout**, so a number
+you do not recognise is something you can see.
 
 ## Connecting to an existing account
 
-Binding a phone to an account you already have is built but not switched on,
-for the same reason as everything else here: there is no line to text. When it
-is, you will get a connect code from your settings and text it once.
+If you already have a Clusters account and never joined the waitlist,
+**Settings → Scout** gives you a connect code. Text `/code <code>` and the phone
+is bound to your account, so texted photos land in the workspace you already
+use.
 
 If you started from Scout with no account, a **claim** flow attaches an email
 address to the shell account created behind your number.

@@ -73,7 +73,7 @@ import { CommandPalette } from './components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen } from './lib/icons.js';
+import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -93,13 +93,17 @@ import { useRecents } from './hooks/useRecents.js';
 import { useWorkspacePresence } from './hooks/useWorkspacePresence.js';
 import { WorkspacePresenceStack } from './components/WorkspacePresenceStack.jsx';
 import { MessagesPanel } from './components/MessagesPanel.jsx';
+import { NotificationsPanel } from './components/NotificationsPanel.jsx';
+import { addShootDays, scaffoldShootDay, nextDayNumber } from './lib/productionDay.js';
+import { useNotifications } from './hooks/useNotifications.js';
 // Lazy: the ?local=1 / no-Supabase QA harness (and its deps — demo data,
 // TweaksPanel, HomeGraph) should never ship in the eager production bundle.
 const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx').then(m => ({ default: m.LocalBoardsApp })));
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion, cleanupDocCards, ensurePublicLink, listBoardShares, updateBoardThumb } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule } from './lib/boardsApi.js';
+import { undoToast } from './lib/undoToast.js';
 import { forceBoardThumbnail } from './lib/yboard.js';
 import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
@@ -113,12 +117,17 @@ import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readG
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from './lib/gridLayout.js';
 import { hasLabelTag } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
-import { graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey } from './lib/schedLayout.js';
+import {
+  graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey,
+  reslotItemKey, moveSlotSubtree as schedMoveSlotSubtree,
+} from './lib/schedLayout.js';
+import { getViewAnchor as getSchedViewAnchor } from './lib/schedViewRegistry.js';
 import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio, uploadFile, readVideoMeta } from './lib/uploads.js';
 import { arrangeInFreeSpace } from './lib/canvasGeom.js';
 import { classifyDropFile, fitImageDims, sizeBucket } from './lib/fileIngest.js';
 import { makeLimiter } from './lib/asyncPool.js';
 import { TrashModal } from './components/TrashModal.jsx';
+import { VersionHistoryModal } from './components/VersionHistoryModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
 import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
 import { WorkspaceAlertBanner } from './components/WorkspaceAlertBanner.jsx';
@@ -349,12 +358,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           view: s.board_view,
           cover: s.board_cover,
           created_at: s.created_at,
+          updated_at: s.updated_at,
+          // The schedule columns must survive the normalizer or a crew member
+          // shared into a production sees a calendar with nothing on it: the
+          // day clusters arrive as descendants (0244) and the grid reads these
+          // fields off the boards map.
+          scheduled_date: s.scheduled_date ?? null,
+          scheduled_end: s.scheduled_end ?? null,
+          day_label: s.day_label ?? null,
+          sched_status: s.sched_status ?? 'draft',
+          sched_version: s.sched_version ?? 0,
+          sched_published_at: s.sched_published_at ?? null,
           _shared: true,
+          _sharedRoot: s.is_shared_root !== false,
         };
       }
     }
     return merged;
   }, [ownedBoards, sharedBoards]);
+  // list_shared_boards now returns descendants too (0244) so a shared
+  // production carries its shoot days into the boards map. The sidebar still
+  // lists only what was actually shared WITH you — otherwise a 60-day shoot
+  // dumps 60 rows into "Shared with me".
+  const sharedRoots = useMemo(
+    () => (sharedBoards || []).filter((s) => s.is_shared_root !== false),
+    [sharedBoards]);
   // True only once the workspace board list has actually arrived over the
   // network. The canvas snapshot (yb.cards) paints instantly from the
   // IndexedDB instant-reopen cache, so board-reference cards can render a
@@ -693,6 +721,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const conversationList = useConversationList({ workspaceId: workspace.id, userId: user.id, refreshTick: msgRefreshTick });
   const { total: messagesUnread, mentions: messagesMentions } = useUnreadTotal({ unreadByConv: conversationList.unreadByConv });
   useTitleBadge({ total: messagesUnread, mentions: messagesMentions });
+  // The bell. Schedule pings ride the same `user:{uid}` socket useInboxLive
+  // owns and arrive here through notificationBus — a second channel on that
+  // topic would be handed the same object and throw on .on().
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifications = useNotifications({
+    userId: user.id,
+    feedback,
+    onOpenBoard: (id) => { if (id) { setStack([id]); setCurrentSurface('board'); } },
+  });
 
   // Live inbox: subscribes to user:{uid} broadcast, dispatches toasts +
   // OS notifications, publishes to inboxBus for optimistic list updates.
@@ -777,6 +814,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   }, [splitId, boards, boardsLoading]);
   const currentUndoManager = yb.ready && yb.boardId === currentBoard.id ? yb.undoManager : null;
   const [trashOpen, setTrashOpen] = useState(false);
+  const [versionsOpen, setVersionsOpen] = useState(false);
   const [workspaceRecoveryOpen, setWorkspaceRecoveryOpen] = useState(false);
 
   const recents = useRecents(workspace.id);
@@ -882,6 +920,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Undo-stack meta key carrying the board ids a delete soft-deleted, so
     // undo()/redo() can restore / re-delete the board row (not just the card).
     const BOARD_DELETE_META = 'soleil-soft-deleted-boards';
+    // Sibling meta for deleted DOC cards: lists their ids so undo() can
+    // restore the doc's tombstoned entity_links (0241) if the deferred
+    // cleanup below already ran.
+    const DOC_CLEANUP_META = 'soleil-doc-cleanup-ids';
+    // Deferred, presence-checked doc-card cleanup: only runs if the cards
+    // are STILL gone when the timer fires — an undo inside the window
+    // cancels the cleanup outright instead of racing it.
+    const scheduleDocCleanup = (ids) => {
+      if (!ids?.length) return;
+      setTimeout(() => {
+        const mm = cardsMap();
+        const gone = ids.filter(id => !mm || !mm.has(id));
+        if (gone.length) cleanupDocCards(gone).catch(() => {});
+      }, 8000);
+    };
 
     // End the current undo merge window so the next write starts a fresh
     // stack item. Called at the top of discrete "one click = one action"
@@ -1110,9 +1163,40 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }, 'upload');
     };
 
-    const deleteCards = async (ids) => {
-      if (!ids?.length) return;
+    // Shared card + arrow-cascade removal, used by deleteCards (origin
+    // 'local', undoable) and deleteCardsSilent (origin 'upload', off-stack).
+    // Must run inside a ydoc.transact.
+    const removeCardsFromDoc = (idSet) => {
       const m = cardsMap(); if (!m) return;
+      const a = arrowsArr();
+      idSet.forEach(id => m.delete(id));
+      if (a) {
+        // An arrow endpoint can be a bare card id (legacy), a tagged
+        // ref {type, id}, or a free {x,y} point. Only card refs cascade.
+        const cardIdOf = (r) => {
+          if (typeof r === 'string') return r;
+          if (r && typeof r === 'object' && r.type === 'card') return r.id;
+          return null;
+        };
+        for (let i = a.length - 1; i >= 0; i--) {
+          const ar = a.get(i);
+          const fromCard = cardIdOf(ar?.from ?? ar?.get?.('from'));
+          const toCard   = cardIdOf(ar?.to   ?? ar?.get?.('to'));
+          if ((fromCard && idSet.has(fromCard)) || (toCard && idSet.has(toCard))) a.delete(i, 1);
+        }
+      }
+    };
+
+    // `boundary` (default true) makes this delete its own undo step. Pass
+    // false ONLY when the caller already opened a step boundary and wants
+    // the cards to merge into it (doDeleteSelected: strokes + arrows + cards
+    // must collapse into a single Cmd+Z).
+    // Resolves to { stackItem } — the undo step containing the delete — so
+    // toast affordances can guard "still top-of-stack?" (lib/undoToast.js),
+    // or null when nothing was actually deleted.
+    const deleteCards = async (ids, { boundary = true } = {}) => {
+      if (!ids?.length) return null;
+      const m = cardsMap(); if (!m) return null;
       const idSet = new Set(ids);
       const boardIdsToCascade = [];
       const docCardIds = [];
@@ -1126,6 +1210,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         boardIdsToCascade,
         boardThisIsOn: boardId,
       });
+      if (boundary) breakUndo();
       // Pre-delete-board snapshot for THIS board (the one the card lives
       // on) so the boardcard itself comes back via time-travel undo. The
       // underlying sub-board is now soft-deleted (boardsApi.deleteBoard)
@@ -1154,45 +1239,73 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (boardIdsToCascade.length) {
         console.log('[delete] refreshBoards after cascade');
         await refreshBoards();
+        // The awaits above held the door open: any local edit made while the
+        // network calls ran would otherwise MERGE with the delete transact
+        // below (500ms captureTimeout) — and the BOARD_DELETE_META stamp on
+        // top-of-stack would then attach board-restore side effects to that
+        // unrelated edit. Close the window before deleting.
+        breakUndo();
       }
-      const a = arrowsArr();
       const cardsBefore = m.size;
-      ydoc.transact(() => {
-        idSet.forEach(id => m.delete(id));
-        if (a) {
-          // An arrow endpoint can be a bare card id (legacy), a tagged
-          // ref {type, id}, or a free {x,y} point. Only card refs cascade.
-          const cardIdOf = (r) => {
-            if (typeof r === 'string') return r;
-            if (r && typeof r === 'object' && r.type === 'card') return r.id;
-            return null;
-          };
-          for (let i = a.length - 1; i >= 0; i--) {
-            const ar = a.get(i);
-            const fromCard = cardIdOf(ar?.from ?? ar?.get?.('from'));
-            const toCard   = cardIdOf(ar?.to   ?? ar?.get?.('to'));
-            if ((fromCard && idSet.has(fromCard)) || (toCard && idSet.has(toCard))) a.delete(i, 1);
-          }
-        }
-      }, 'local');
+      ydoc.transact(() => removeCardsFromDoc(idSet), 'local');
       const cardsAfter = m.size;
       const stillPresent = ids.filter(id => m.has(id));
       console.log('[delete] deleteCards done', {
         ids, cardsBefore, cardsAfter, stillPresent,
       });
-      // Clean up derived-index rows for deleted doc cards so the universal
-      // "Appears in" / backlinks stop surfacing a doc that no longer exists.
-      if (docCardIds.length) cleanupDocCards(docCardIds).catch(() => {});
+      // Nothing actually deleted (ids already gone) → no stack item was
+      // created; bail before stamping meta onto an unrelated step.
+      if (cardsAfter === cardsBefore) return null;
+      const stackItem = undoManager?.undoStack?.length
+        ? undoManager.undoStack[undoManager.undoStack.length - 1]
+        : null;
       // Boards were soft-deleted in Postgres above (deleteBoard). The Yjs
       // UndoManager can't reverse that, so tag this undo step with the board
       // ids; undo()/redo() below restore / re-delete them so the board (not
       // just its canvas card) actually comes back.
-      if (boardIdsToCascade.length && undoManager?.undoStack?.length) {
-        const top = undoManager.undoStack[undoManager.undoStack.length - 1];
-        try { top?.meta.set(BOARD_DELETE_META, boardIdsToCascade.slice()); } catch (_) {}
+      if (boardIdsToCascade.length && stackItem) {
+        try { stackItem.meta.set(BOARD_DELETE_META, boardIdsToCascade.slice()); } catch (_) {}
       }
+      // End the merge window so a quick follow-up edit can never merge INTO
+      // the delete step (it would ride along on undo).
+      breakUndo();
+      // Derived-index cleanup for deleted doc cards — deferred + cancelled
+      // by undo; the meta hook lets a LATER undo restore the tombstoned
+      // links (see DOC_CLEANUP_META above).
+      if (docCardIds.length) {
+        if (stackItem) { try { stackItem.meta.set(DOC_CLEANUP_META, docCardIds.slice()); } catch (_) {} }
+        scheduleDocCleanup(docCardIds);
+      }
+      return { stackItem };
     };
     const deleteCard = (cardId) => deleteCards([cardId]);
+
+    // Off-stack delete for rolling back an optimistic card after a FAILED
+    // upload. Not a user action, so it must not become a Cmd+Z step —
+    // undoing would resurrect a card whose bytes never landed. Origin
+    // 'upload' is untracked but still replicates + persists (matching
+    // updateCardSilent).
+    const deleteCardsSilent = (ids) => {
+      if (!ids?.length) return;
+      const m = cardsMap(); if (!m) return;
+      const idSet = new Set(ids);
+      ydoc.transact(() => removeCardsFromDoc(idSet), 'upload');
+    };
+
+    // Source-side delete for a cross-board MOVE (drag into a board card /
+    // cross-pane drag). Origin 'cross-board-move' is untracked by the
+    // UndoManager ON PURPOSE: the target half of the move lives on a
+    // DIFFERENT board's doc, so a canvas Cmd+Z could only ever restore the
+    // source half — resurrecting cards that also exist on the target
+    // (silent duplication; the old cross-board-drag bug). The move's single
+    // undo affordance is the "Moved — Undo" toast, which reverses BOTH
+    // sides. Same arrow cascade as deleteCards. Board cards never route
+    // through this path (they reparent instead).
+    const deleteCardsForMove = (ids) => {
+      if (!ids?.length) return;
+      const m = cardsMap(); if (!m) return;
+      ydoc.transact(() => removeCardsFromDoc(new Set(ids)), 'cross-board-move');
+    };
 
     const duplicateCards = (ids) => {
       const m = cardsMap(); if (!m || !ids?.length) { if (!m && ids?.length) noteBlocked('mutator_null'); return []; }
@@ -1648,14 +1761,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         });
         try {
           const up = await uploadPdf({ file: f, workspaceId: workspace.id, boardId, cardId, userId: user.id });
-          updateCard(cardId, {
+          // Silent (origin 'upload'): the async src patch must not become its
+          // own undo step, or Cmd+Z "peels" the PDF back to pending before
+          // removing the card.
+          updateCardSilent(cardId, {
             src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount,
             name: up.name, w: up.w, h: up.h, pending: false,
           });
         } catch (e) {
           console.error(e);
           feedback.toast({ type: 'error', message: 'PDF upload failed: ' + (e.message || e) });
-          deleteCard(cardId);
+          deleteCardsSilent([cardId]);
         }
       };
       input.click();
@@ -1807,7 +1923,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             });
           }
           else if (String(err?.message) !== 'aborted') feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
-          deleteCard(id);
+          // Silent rollback: a failed upload is not a user action — it must
+          // not leave a Cmd+Z step that resurrects the dead card.
+          deleteCardsSilent([id]);
         }
       })));
     };
@@ -1857,24 +1975,36 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (!undoManager) return;
       const top = undoManager.undoStack[undoManager.undoStack.length - 1];
       const boardIds = top?.meta?.get(BOARD_DELETE_META);
+      const docIds = top?.meta?.get(DOC_CLEANUP_META);
       undoManager.undo(); // re-adds the board card to the Y.Doc
+      const r = undoManager.redoStack[undoManager.redoStack.length - 1];
       if (boardIds?.length) {
         // Carry the tag onto the freshly-created redo item so a later redo
         // re-soft-deletes the board (the redo item already exists by now).
-        const r = undoManager.redoStack[undoManager.redoStack.length - 1];
         try { r?.meta.set(BOARD_DELETE_META, boardIds); } catch (_) {}
         restoreBoardsForUndo(boardIds); // clears deleted_at + refreshBoards
+      }
+      if (docIds?.length) {
+        try { r?.meta.set(DOC_CLEANUP_META, docIds); } catch (_) {}
+        // If the deferred cleanup already ran, the doc's entity_links are in
+        // the tombstone — bring them back with the card. No-op otherwise.
+        try { restoreDocLinks(docIds); } catch (_) {}
       }
     };
     const redo = () => {
       if (!undoManager) return;
       const top = undoManager.redoStack[undoManager.redoStack.length - 1];
       const boardIds = top?.meta?.get(BOARD_DELETE_META);
+      const docIds = top?.meta?.get(DOC_CLEANUP_META);
       undoManager.redo();
+      const u = undoManager.undoStack[undoManager.undoStack.length - 1];
       if (boardIds?.length) {
-        const u = undoManager.undoStack[undoManager.undoStack.length - 1];
         try { u?.meta.set(BOARD_DELETE_META, boardIds); } catch (_) {}
         reSoftDeleteBoardsForRedo(boardIds);
+      }
+      if (docIds?.length) {
+        try { u?.meta.set(DOC_CLEANUP_META, docIds); } catch (_) {}
+        scheduleDocCleanup(docIds); // deleted again — same deferred sweep
       }
     };
     const canUndo = () => !!(undoManager && undoManager.undoStack.length > 0);
@@ -1994,6 +2124,44 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         mm.set('expand', next);
       }, 'local');
     };
+    // Re-date ONE item. The date lives in the key, so this is a re-key, not a
+    // field write — delete + set inside one transaction so it undoes as a
+    // single move rather than as a disappearance followed by an appearance.
+    const moveSchedItem = (cardId, fromKey, toSlotPath) => {
+      const m = cardsMap(); const cy = m && m.get(cardId); if (!cy) return false;
+      const cm = cy.get('gridCells'); if (!cm || !cm.get) return false;
+      const nextKey = reslotItemKey(fromKey, toSlotPath);
+      if (!nextKey) return false;                       // no-op, or not an item key
+      const rec = cm.get(fromKey);
+      if (!rec) return false;
+      const plain = (rec && rec.toJSON) ? rec.toJSON() : rec;
+      ydoc.transact(() => { cm.delete(fromKey); cm.set(nextKey, plain); }, 'local');
+      return true;
+    };
+    // Re-date a whole slot — "move everything on this day to Thursday",
+    // including any hour/minute breakdown beneath it. Same pure prefix rewrite
+    // the cross-card graft uses (schedLayout.moveSlotSubtree).
+    const moveSchedSlot = (cardId, fromSlotPath, toSlotPath) => {
+      const m = cardsMap(); const cy = m && m.get(cardId); if (!cy) return false;
+      const cm = cy.get('gridCells'); if (!cm) return false;
+      const mm = cy.get('gridMeta');
+      const cells = {};
+      if (cm.forEach) cm.forEach((v, k) => { cells[k] = (v && v.toJSON) ? v.toJSON() : v; });
+      const expand = (mm && mm.get && mm.get('expand')) || {};
+      const r = schedMoveSlotSubtree(cells, expand, fromSlotPath, toSlotPath);
+      if (!r.removeKeys.length && !r.removeExpand.length) return false;
+      ydoc.transact(() => {
+        r.removeKeys.forEach((k) => cm.delete(k));
+        Object.entries(r.cells).forEach(([k, rec]) => cm.set(k, rec));
+        if (mm && mm.set) {
+          const next = { ...expand };
+          r.removeExpand.forEach((k) => { delete next[k]; });
+          Object.assign(next, r.expand);
+          mm.set('expand', next);
+        }
+      }, 'local');
+      return true;
+    };
     // Drag a Day-view schedule onto a Month/Week day slot (or an Hour-view onto
     // an hour slot) → the slot subdivides INLINE and absorbs the source's items
     // with their date prefix rewritten (pure schedLayout.graftKeyMap); the
@@ -2011,8 +2179,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const srcView = srcCy.get('schedView');
       const match = (srcView === 'day' && slot?.kind === 'day') || (srcView === 'hour' && slot?.kind === 'hour');
       if (!match) return false;
-      const srcAnchor = srcCy.get('anchor') || todayISO();
-      const srcPrefix = srcView === 'day' ? schedDayKey(srcAnchor) : schedHourKey(srcAnchor, srcCy.get('anchorHour') ?? 9);
+      // Navigation is LOCAL now (see lib/schedViewRegistry.js), so the card
+      // field is the saved default, not the live position. Reading it here
+      // would lift the wrong day's items — or none, and refuse the drag with
+      // no visible reason — whenever the user had paged the source card.
+      const liveView = getSchedViewAnchor(srcId);
+      const srcAnchor = liveView?.anchor || srcCy.get('anchor') || todayISO();
+      const srcHour = liveView?.anchorHour ?? srcCy.get('anchorHour') ?? 9;
+      const srcPrefix = srcView === 'day' ? schedDayKey(srcAnchor) : schedHourKey(srcAnchor, srcHour);
       const srcCells = {};
       const scm = srcCy.get('gridCells');
       if (scm && scm.forEach) scm.forEach((v, k) => { srcCells[k] = (v && v.toJSON) ? v.toJSON() : v; });
@@ -2309,7 +2483,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
 
     return {
-      updateCard, updateCards, deleteCard, deleteCards,
+      updateCard, updateCards, deleteCard, deleteCards, deleteCardsSilent, deleteCardsForMove,
       duplicateCard, duplicateCards, addCard, addCards,
       bringToFront, sendToBack, bringForward, sendBackward,
       createGroup, ungroup, renameGroup, setGroupOutline,
@@ -2318,7 +2492,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addNote, addTextLink, addImageAt, addPdfAt, ingestFilesArranged, updateCardSilent, addNewBoard, addPalette,
       addDocCard, addScriptCard, addGrid,
       resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, setGridCellContent, clearGridCellContent, removeGridCellRecord,
-      setSchedSlotExpand, graftScheduleIntoSlot,
+      setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
       setGridTextStyle, pinCellStyle, unpinCellStyle, guardWeightedAdd,
       promoteGridToTemplate, linkGridToTemplate, unlinkGrid, resizeLinkedGrids, graftGridIntoCell,
       stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern, setGridSequenceStartAt,
@@ -2352,10 +2526,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // ── Postgres board rename ─────────────────────────────────────────────────
   const renameBoardById = async (boardId, name) => {
     if (!name || !name.trim()) return;
+    const prevName = boards[boardId]?.name || null;
     try {
       await renameBoard(boardId, name.trim());
       await refreshBoards();
       tourFireRef.current?.({ type: 'cluster_renamed', boardId });
+      // Server-side meta is outside the Yjs UndoManager — the toast closure
+      // is the undo engine (skip when the name didn't actually change).
+      if (prevName && prevName !== name.trim()) {
+        undoToast(feedback, {
+          message: `Renamed to “${name.trim()}”`,
+          onUndo: async () => {
+            try { await renameBoard(boardId, prevName); await refreshBoards(); }
+            catch (e) { feedback.toast({ type: 'error', message: 'Could not restore the name: ' + (e.message || e) }); }
+          },
+        });
+      }
     } catch (e) {
       console.error('renameBoard failed', e);
       feedback.toast({ type: 'error', message: 'Could not rename: ' + (e.message || e) });
@@ -2371,24 +2557,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
     await refreshBoards();
     // Also strip any stale 'board' canvas cards in the current Y.Doc.
+    // Origin 'board-delete' (NOT 'local'): the toast below is the single
+    // undo engine for this path. With 'local' the card strip also landed on
+    // the Yjs undo stack, so toast-Undo + a later Cmd+Z could each restore
+    // half of the same delete and diverge (card back without the board row,
+    // or double-restore).
     if (currentYDoc) {
       const m = currentYDoc.getMap('cards');
       const idSet = new Set(ids);
       currentYDoc.transact(() => {
         idSet.forEach(id => { if (m.has(id)) m.delete(id); });
-      }, 'local');
+      }, 'board-delete');
     }
-    // This path doesn't go through the Yjs UndoManager, so give it its own
-    // Undo toast that reverses the soft-delete. refreshBoards() brings the
+    // Closure-based Undo reverses the soft-delete. refreshBoards() brings the
     // board back to the grid; the drift-reconcile effect re-adds any canvas card.
-    feedback.toast({
-      type: 'info',
+    undoToast(feedback, {
       message: ids.length === 1 ? 'Cluster deleted' : `${ids.length} clusters deleted`,
-      action: { label: 'Undo', onClick: async () => {
+      onUndo: async () => {
         for (const id of ids) { try { await restoreBoard(id); } catch (e) { console.error('[undo] restoreBoard failed', id, e); } }
         await refreshBoards();
-      } },
-      ttl: 6000,
+      },
     });
   };
 
@@ -2603,6 +2791,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
   };
 
+  // Versioned custom-thumb retention lifecycle. uploadBoardThumbnail locks
+  // every thumb's images row until 2999 (the sweep can't see thumb_key
+  // references, so an active thumb must never be reclaimable). Versioned
+  // custom keys (`-c<ts>`) would therefore accumulate FOREVER once replaced —
+  // so when one leaves service we DEMOTE its lock to a 60-day grace (well past
+  // every undo/restore affordance that points at it), and if an undo puts the
+  // key back into service we RE-LOCK it. Both best-effort: a failed write
+  // means an orphan lives longer, never a broken live thumbnail.
+  const CUSTOM_THUMB_RE = /-c\d+\.webp$/;
+  const demoteThumbRetention = (key) => {
+    if (!key || !CUSTOM_THUMB_RE.test(key)) return;
+    supabase.from('images')
+      .update({ retention_locked_until: new Date(Date.now() + 60 * 24 * 3600 * 1000).toISOString() })
+      .eq('storage_path', key)
+      .then(({ error }) => { if (error) console.warn('[thumb] retention demote failed', key, error); });
+  };
+  const relockThumbRetention = (key) => {
+    if (!key || !CUSTOM_THUMB_RE.test(key)) return;
+    supabase.from('images')
+      .update({ retention_locked_until: '2999-01-01T00:00:00Z' })
+      .eq('storage_path', key)
+      .then(({ error }) => { if (error) console.warn('[thumb] retention relock failed', key, error); });
+  };
+
   // Save a user-picked (cropped) image as a board's custom thumbnail. The crop
   // modal hands us a 1200×675 WebP blob; we overwrite the board's canonical
   // thumb key so it shows on every surface that reads thumb_key (grid tiles,
@@ -2610,11 +2822,38 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the three auto-regen paths never clobber it.
   const setBoardCustomThumbById = async (boardId, blob) => {
     const wsId = boards[boardId]?.workspace_id || workspace.id;
+    // Previous pointer, captured for the Undo. The versioned upload key means
+    // the previous image's bytes still exist wherever thumb_key pointed.
+    const prev = {
+      thumbKey: boards[boardId]?.thumb_key || null,
+      thumbVersion: boards[boardId]?.thumb_version ?? 0,
+      custom: !!boards[boardId]?.thumb_custom,
+    };
     try {
-      const { src } = await uploadBoardThumbnail({ workspaceId: wsId, boardId, blob, userId: user.id });
+      const { src } = await uploadBoardThumbnail({ workspaceId: wsId, boardId, blob, userId: user.id, versioned: true });
       await updateBoardThumb(boardId, { thumbKey: src, thumbVersion: THUMB_VERSION, custom: true });
       await refreshBoards();
-      feedback.toast({ type: 'success', message: 'Custom thumbnail set.' });
+      // The replaced custom thumb (if versioned) is out of service — start
+      // its 60-day reclaim clock instead of leaving it locked until 2999.
+      demoteThumbRetention(prev.thumbKey);
+      undoToast(feedback, {
+        message: 'Custom thumbnail set',
+        onUndo: async () => {
+          try {
+            if (prev.thumbKey) {
+              await updateBoardThumb(boardId, { thumbKey: prev.thumbKey, thumbVersion: prev.thumbVersion, custom: prev.custom });
+              relockThumbRetention(prev.thumbKey); // back in service
+            } else {
+              await updateBoardThumb(boardId, { thumbVersion: 0, custom: false });
+              forgetThumbnailAttempt(boardId);
+            }
+            demoteThumbRetention(src); // the just-uploaded key is now unused
+            await refreshBoards();
+          } catch (e) {
+            feedback.toast({ type: 'error', message: 'Could not restore thumbnail: ' + (e.message || e) });
+          }
+        },
+      });
     } catch (e) {
       console.error('setBoardCustomThumbById failed', e);
       feedback.toast({ type: 'error', message: 'Could not set thumbnail: ' + (e.message || e) });
@@ -2625,13 +2864,34 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // stored version so the self-healing backfill (useThumbnailBackfill) renders a
   // fresh canvas-derived preview into the same key on the next tile view.
   const resetBoardThumbById = async (boardId) => {
+    // The custom image lives at its own versioned key (never overwritten by
+    // the auto regen, which renders into the canonical key) — so this reset
+    // is undoable by pointing thumb_key back.
+    const prev = {
+      thumbKey: boards[boardId]?.thumb_key || null,
+      thumbVersion: boards[boardId]?.thumb_version ?? 0,
+      custom: !!boards[boardId]?.thumb_custom,
+    };
     try {
       await updateBoardThumb(boardId, { thumbVersion: 0, custom: false });
       // Re-arm the per-session backfill one-shot so the auto thumbnail
       // regenerates now, not only after a page reload.
       forgetThumbnailAttempt(boardId);
       await refreshBoards();
-      feedback.toast({ type: 'success', message: 'Reverted to auto thumbnail.' });
+      demoteThumbRetention(prev.thumbKey); // custom key out of service
+      undoToast(feedback, {
+        message: 'Reverted to auto thumbnail',
+        onUndo: async () => {
+          try {
+            if (!prev.custom || !prev.thumbKey) return;
+            await updateBoardThumb(boardId, { thumbKey: prev.thumbKey, thumbVersion: prev.thumbVersion, custom: true });
+            relockThumbRetention(prev.thumbKey); // back in service
+            await refreshBoards();
+          } catch (e) {
+            feedback.toast({ type: 'error', message: 'Could not restore thumbnail: ' + (e.message || e) });
+          }
+        },
+      });
     } catch (e) {
       console.error('resetBoardThumbById failed', e);
       feedback.toast({ type: 'error', message: 'Could not reset thumbnail: ' + (e.message || e) });
@@ -4609,6 +4869,108 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           console.warn('comment move failed', cmtErr);
         }
 
+        // ── The move's ONE undo affordance. ──
+        // The source delete runs under the untracked 'cross-board-move'
+        // origin (Cmd+Z could only ever restore half the move and duplicate
+        // cards); this toast reverses BOTH sides: strip the copies from the
+        // target, put the originals back on the source, repoint comments
+        // home. Every write is has()-guarded so a stale click can't clobber
+        // later edits, and both boards get the room-reset treatment any
+        // out-of-band board_state write requires. The pre-drop snapshots
+        // remain the catastrophic fallback.
+        undoToast(feedback, {
+          type: 'success',
+          message: movedCards.length === 1
+            ? `Moved card to “${boards[targetBoardId]?.name || 'cluster'}”`
+            : `Moved ${movedCards.length} cards to “${boards[targetBoardId]?.name || 'cluster'}”`,
+          onUndo: async () => {
+            try {
+              // 1) Strip the copies from the TARGET (same snapshot
+              //    round-trip as the forward path, reversed).
+              const tsnap = await loadBoardSnapshot(targetBoardId);
+              if (tsnap) {
+                const t = new Y.Doc();
+                Y.applyUpdate(t, b64ToBytes(tsnap));
+                const newIds = new Set(Object.values(idMap));
+                const newGids = new Set(Object.values(groupMap));
+                t.transact(() => {
+                  const tcm = t.getMap('cards');
+                  const tgm = t.getMap('groups');
+                  const tar = t.getArray('arrows');
+                  newIds.forEach(id => { if (tcm.has(id)) tcm.delete(id); });
+                  newGids.forEach(gid => { if (tgm.has(gid)) tgm.delete(gid); });
+                  for (let i = tar.length - 1; i >= 0; i--) {
+                    const a = tar.get(i);
+                    const fromId = typeof a?.from === 'string' ? a.from : a?.from?.cardId;
+                    const toId   = typeof a?.to   === 'string' ? a.to   : a?.to?.cardId;
+                    if (newIds.has(fromId) || newIds.has(toId)) tar.delete(i, 1);
+                  }
+                }, 'cross-board-move');
+                await saveBoardSnapshot(targetBoardId, t);
+                t.destroy();
+                await forceResetBoardRoom(targetBoardId);
+                try { window.__soleilEmitBoardReset?.(targetBoardId); } catch (_) {}
+              }
+              // 2) Restore the originals on the SOURCE (original ids, so
+              //    comments re-anchor and Yjs identities line up).
+              const ssnap = await loadBoardSnapshot(sourceBoardId);
+              if (!ssnap) throw new Error('source cluster state unavailable');
+              const s = new Y.Doc();
+              Y.applyUpdate(s, b64ToBytes(ssnap));
+              s.transact(() => {
+                const gm = s.getMap('groups');
+                for (const g of sourceGroups) {
+                  if (gm.has(g.id)) continue;
+                  const ym = new Y.Map();
+                  ym.set('id', g.id); ym.set('name', g.name); ym.set('outline', !!g.outline);
+                  ym.set('color', g.color); ym.set('width', g.width || 1);
+                  if (g.options) ym.set('options', g.options);
+                  gm.set(g.id, ym);
+                }
+                const cm = s.getMap('cards');
+                for (const c of movedCards) { if (!cm.has(c.id)) cm.set(c.id, cardToYMap({ ...c })); }
+                const ar = s.getArray('arrows');
+                for (const a of sourceArrows) ar.push([{ ...a }]);
+              }, 'cross-board-move');
+              await saveBoardSnapshot(sourceBoardId, s);
+              s.destroy();
+              await forceResetBoardRoom(sourceBoardId);
+              try { window.__soleilEmitBoardReset?.(sourceBoardId); } catch (_) {}
+              // 3) Repoint the moved comments home (best-effort).
+              try {
+                const backMap = {};
+                for (const [oldId, newId] of Object.entries(idMap)) backMap[newId] = oldId;
+                for (const [oldGid, newGid] of Object.entries(groupMap)) backMap[newGid] = oldGid;
+                const anchors = Object.keys(backMap);
+                if (anchors.length) {
+                  const { data: cmts } = await supabase
+                    .from('comments')
+                    .select('id, anchor_id')
+                    .eq('board_id', targetBoardId)
+                    .is('deleted_at', null)
+                    .in('anchor_kind', ['card', 'group'])
+                    .in('anchor_id', anchors);
+                  for (const row of (cmts || [])) {
+                    const oldAnchor = backMap[row.anchor_id];
+                    if (!oldAnchor) continue;
+                    await supabase.from('comments').update({
+                      board_id: sourceBoardId,
+                      anchor_id: oldAnchor,
+                    }).eq('id', row.id);
+                  }
+                }
+              } catch (_) {}
+            } catch (undoErr) {
+              console.error('[xbm] undo failed', undoErr);
+              feedback.toast({
+                type: 'error',
+                message: 'Undo failed — the pre-move snapshots are still available for recovery. ' + (undoErr.message || undoErr),
+                ttl: 8000,
+              });
+            }
+          },
+        });
+
       } catch (err) {
         console.error('cross-board move failed', err);
         feedback.toast({ type: 'error', message: 'Move failed: ' + (err.message || err) });
@@ -4837,7 +5199,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }
       }
 
-      // 7) Tell the user.
+      // 7) Tell the user — with an Undo. Reparent was a one-way door: the
+      //    move is a Postgres write (outside any UndoManager) and
+      //    board_meta_history recorded it without anything able to read it
+      //    back. The closure returns every moved board to its previous
+      //    parent through the same sanctioned move_boards_under path.
       if (moved.length) {
         const msg = moved.length === 1
           ? `Moved “${boards[moved[0]]?.name || 'board'}” into ${targetName === 'top level' ? 'top level' : `“${targetName}”`}`
@@ -4845,7 +5211,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const extra = (result?.skipped?.length)
           ? ` · skipped ${result.skipped.length}`
           : '';
-        feedback.toast({ type: 'success', message: msg + extra });
+        const homes = new Map(); // previous parent (null = top level) → ids
+        for (const id of moved) {
+          const p = prevParents.get(id) ?? null;
+          if (!homes.has(p)) homes.set(p, []);
+          homes.get(p).push(id);
+        }
+        undoToast(feedback, {
+          type: 'success',
+          message: msg + extra,
+          onUndo: async () => {
+            try {
+              for (const [home, ids] of homes) {
+                await moveBoardsUnder(ids, home, { userId: user?.id || null, sessionId: yb?.sessionId || null });
+              }
+              await refreshBoards();
+              // Stale mirror cards on the target are hidden by the orphan
+              // render filter and healed by reconcile-drift on next open.
+            } catch (err) {
+              feedback.toast({ type: 'error', message: 'Undo failed: ' + (err.message || err) });
+            }
+          },
+        });
       } else if (result?.skipped?.length) {
         const reasons = [...new Set(result.skipped.map(s => REASON_TEXT[s.reason] || s.reason))];
         feedback.toast({ type: 'info', message: `Nothing moved — ${reasons.join(', ')}.` });
@@ -4859,6 +5246,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     document.addEventListener('soleil-board-reparent-drop', onReparent);
     return () => document.removeEventListener('soleil-board-reparent-drop', onReparent);
   }, [boards, feedback, currentYDoc, currentId, user?.id, refreshBoards]);
+
+  // Corruption self-heal notice: useYBoard poisoned the handle, stashed +
+  // purged the local caches, and re-synced from the server. This used to be
+  // COMPLETELY silent — any unflushed edits vanished without a trace. The
+  // draft now survives under a `corrupt.` localStorage key for recovery.
+  useEffect(() => {
+    const onHealed = (e) => {
+      const name = boards[e?.detail?.boardId]?.name;
+      feedback.toast({
+        type: 'warning',
+        message: `${name ? `“${name}”` : 'A cluster'} hit a sync error and was reloaded from the server. If a very recent edit looks missing, it may need to be redone.`,
+        ttl: 10000,
+      });
+    };
+    window.addEventListener('soleil-board-selfhealed', onHealed);
+    return () => window.removeEventListener('soleil-board-selfhealed', onHealed);
+  }, [boards, feedback]);
 
   // ⌘B / Ctrl-B — toggle compact sidebar.
   useEffect(() => {
@@ -4918,6 +5322,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => setTweak('compactSidebar', !tweak.compactSidebar) },
     { id: 'trash', label: 'Open trash', icon: Trash2, keywords: ['trash', 'deleted', 'restore', 'bin'],
       run: () => setTrashOpen(true) },
+    { id: 'version-history', label: 'Version history', icon: History, keywords: ['history', 'versions', 'snapshots', 'restore', 'rollback', 'time travel'],
+      available: currentSurface === 'board',
+      run: () => setVersionsOpen(true) },
     { id: 'settings', label: 'Open settings', icon: Settings, keywords: ['settings', 'preferences', 'workspace', 'display'],
       run: () => setSettingsOpen(true) },
     // New tab: the docs are a separate reading surface, and losing an unsaved
@@ -4934,6 +5341,107 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   ], [canEditCurrent, view, currentSurface, themeMode, tweak.showMessages, tweak.compactSidebar,
       setTheme, setTweak, mainMutators, openInviteFriends, signOut]);
 
+
+  // ── Production schedule ───────────────────────────────────────────────────
+  // Moving a shoot day is a Postgres write, not a Y.Doc edit: the date is a
+  // column, and set_board_schedule is what decides whether the crew gets told.
+  // The boards map refreshes from the same realtime subscription every other
+  // viewer uses, so the actor sees exactly what the crew sees.
+  const handleSetSchedule = useCallback(async (bId, date, endDate = null) => {
+    const before = boards[bId];
+    const prevDate = before?.scheduled_date || null;
+    const prevEnd = before?.scheduled_end || null;
+    try {
+      const res = await setBoardSchedule(bId, date, endDate);
+      if (!res?.ok) {
+        feedback.toast({
+          type: 'error',
+          message: res?.error === 'forbidden'
+            ? 'You don’t have permission to move this day.'
+            : 'Could not move that day.',
+        });
+        return;
+      }
+      await refreshBoards();
+      // Moving a published day pages the whole crew, so say how many were told
+      // — and offer the way back, matching the delete/undo-toast convention.
+      const moved = res.notified
+        ? `Moved — ${res.notified} notified`
+        : 'Moved';
+      feedback.toast({
+        type: 'success', message: moved, ttl: 6000,
+        action: prevDate ? {
+          label: 'Undo',
+          onClick: async () => {
+            try {
+              await setBoardSchedule(bId, prevDate, prevEnd);
+              await refreshBoards();
+            } catch (e) { console.warn('undo move failed', e); }
+          },
+        } : undefined,
+      });
+    } catch (e) {
+      console.error('setBoardSchedule failed', e);
+      feedback.toast({ type: 'error', message: 'Could not move that day.' });
+    }
+  }, [boards, refreshBoards, feedback]);
+
+  // Lay a block of shoot days onto the calendar. They arrive EMPTY: the card
+  // cap counts every card in every workspace the owner created, so scaffolding
+  // sixty days up front is 240 cards against a 50-card free plan — the client
+  // gate would truncate mid-run having already made sixty clusters. A single
+  // day added from the slot menu is scaffolded immediately, because one day is
+  // four cards and the user is plainly about to fill it in.
+  const handleAddShootDay = useCallback(async ({ from, to, skipWeekends = false, scaffold = false, parentBoardId }) => {
+    // The parent comes from the CARD that asked, not from a `board` in this
+    // scope — there isn't one. `board` is a parameter of renderSurface, and
+    // taking it here silently meant a ReferenceError evaluated in the
+    // useCallback dependency array on every render. It is also the right
+    // answer for a split view: shoot days belong to the cluster holding the
+    // calendar you clicked, which may not be the main pane.
+    const parent = parentBoardId && boards[parentBoardId];
+    if (!parent) return;
+    // A shared production lives in someone else's workspace; the days have to
+    // be created there, not in the viewer's.
+    const wsId = parent.workspace_id || workspace?.id;
+    if (!wsId) return;
+    try {
+      const startNumber = nextDayNumber(boards, parent.id);
+      const res = await addShootDays({
+        workspaceId: wsId, parentBoardId: parent.id,
+        from, to, skipWeekends, startNumber, userId: user.id,
+      });
+      if (scaffold) {
+        for (const d of res.made) {
+          try { await scaffoldShootDay({ boardId: d.id, dayLabel: d.label, userId: user.id }); }
+          catch (e) { console.warn('scaffoldShootDay failed', d.id, e); }
+        }
+      }
+      await refreshBoards();
+      const n = res.made.length;
+      feedback.toast({
+        type: res.failed.length ? 'info' : 'success',
+        message: res.failed.length
+          ? `Added ${n} of ${res.requested} days — ${res.failed.length} failed`
+          : `Added ${n} shoot day${n === 1 ? '' : 's'}`,
+        ttl: 6000,
+        // Matches the delete/undo-toast convention: a bulk add is exactly the
+        // kind of thing you want to take back in one press.
+        action: n ? {
+          label: 'Undo',
+          onClick: async () => {
+            try {
+              await Promise.all(res.made.map((d) => deleteBoard(d.id)));
+              await refreshBoards();
+            } catch (e) { console.warn('undo add shoot days failed', e); }
+          },
+        } : undefined,
+      });
+    } catch (e) {
+      console.error('addShootDays failed', e);
+      feedback.toast({ type: 'error', message: 'Could not add those days.' });
+    }
+  }, [boards, workspace?.id, user.id, refreshBoards, feedback]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -5022,6 +5530,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      onRevealOnCanvas={(ids) => { setView('canvas', 'reveal'); setFocusRequest({ boardId: board.id, ids, token: Date.now() }); }}
                      showStorageUpsell={myTier.tier === 'demo' && workspace?.created_by === user?.id && upsellElig.eligible}
                      onStorageUpsell={() => setUpgradeReason('storage')}
+                     paneId={isMain ? 'main' : 'split'}
+                     hasSplit={!!splitId}
                      mutators={muts} />
       );
       return (
@@ -5043,6 +5553,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          ownsWorkspace={workspace?.created_by === user?.id}
                          currentUser={currentUser}
                          onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
+                         onSetSchedule={handleSetSchedule} onAddShootDay={handleAddShootDay}
                          onOpenPicker={(pos) => openBoardLinkPicker(pos)}
                          onDropInboxItem={dropInboxItemFor(muts)}
                          onDropFileImage={dropFileImageFor(muts)}
@@ -5053,6 +5564,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          autotagSuggest={autotagSuggest}
                          autotagReady={autotagReady}
                          sessionId={yh?.sessionId || null}
+                         paneId={isMain ? 'main' : 'split'}
+                         hasSplit={!!splitId}
                          frictionStuck={isMain ? frictionStuck : false}
                          /* The bold "Start your cluster" tiles are the DEFAULT
                             empty-canvas affordance. firstCardPrompt ALSO surfaces
@@ -5239,6 +5752,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
             )}
           </div>
+          <div className={`sb-row ${notifOpen ? 'active' : ''}`}
+               onClick={() => setNotifOpen(v => !v)}
+               title={notifOpen ? 'Hide schedule' : 'Show schedule and updates'}>
+            <Icon as={Bell} size={14} />
+            <span className="sb-row-label">Schedule</span>
+            {notifications.unread > 0 && (
+              <span className="sb-row-count t-meta has-unread">{notifications.unread}</span>
+            )}
+          </div>
           </div>{/* /.sb-top */}
 
           {/* Scrollable middle — the ONLY scroll region: shared boards, the
@@ -5247,7 +5769,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               .sb-scroll rule would otherwise hijack this element's layout. */}
           <div className="sb-list" ref={sidebarScrollRef}>
           <SidebarSharedBoards
-            shared={sharedBoards}
+            shared={sharedRoots}
             activeBoardId={currentSurface === 'board' ? currentId : null}
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
           />
@@ -5422,6 +5944,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <button className="tb-icon" title="Redo (⌘⇧Z)" disabled={!yb.canRedo} onClick={() => mainMutators.redo?.()}>
               <Icon as={Redo} size={16} />
             </button>
+            <button className="tb-icon" title="Version history" onClick={() => setVersionsOpen(true)}>
+              <Icon as={History} size={16} />
+            </button>
             <button className="tb-icon tb-icon-trash" title="Deleted clusters (Trash)" onClick={() => setTrashOpen(true)}>
               <Icon as={Trash2} size={16} />
             </button>
@@ -5590,6 +6115,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         onClose={() => setTrashOpen(false)}
       />
 
+      <VersionHistoryModal
+        open={versionsOpen}
+        boardId={currentId}
+        boardName={currentBoard?.name || ''}
+        ydoc={currentYDoc}
+        sessionId={yb?.sessionId || null}
+        userId={user?.id || null}
+        onRestored={() => refreshBoards()}
+        onClose={() => setVersionsOpen(false)}
+      />
+
       <ShortcutsHost />
 
       <WorkspaceRecoveryModal
@@ -5605,6 +6141,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           buried it — and side mode docks to the right, exactly where the panel
           lives. The portal also makes it immune to any future ancestor
           stacking context. */}
+      {notifOpen && createPortal((
+        <NotificationsPanel
+          items={notifications.items}
+          schedule={notifications.schedule}
+          unread={notifications.unread}
+          loading={notifications.loading}
+          onMarkRead={notifications.markRead}
+          onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); setNotifOpen(false); }}
+          onClose={() => setNotifOpen(false)}
+        />
+      ), document.body)}
       {tweak.showMessages && createPortal((
         <MessagesPanel
           workspaceId={workspace.id}

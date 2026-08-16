@@ -15,7 +15,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Plus, Tag as TagIcon } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
-import { ensureTag, renameTag, recolorTag, deleteTag, listTagCounts, mergeTags, setTagEntityType } from '../lib/tagsApi.js';
+import { ensureTag, renameTag, recolorTag, deleteTag, restoreTag, listTagCounts, mergeTags, undoTagMerge, setTagEntityType } from '../lib/tagsApi.js';
+import { undoToast } from '../lib/undoToast.js';
 import { supabase } from '../lib/supabase.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { ENTITY_REF_MIME } from '../lib/dragMimes.js';
@@ -257,9 +258,22 @@ export function SidebarTags({
     });
     if (!ok) { setMergePicker(null); return; }
     try {
-      await mergeTags({ fromTagId: mergePicker.fromTag.id, intoTagId: intoTag.id });
+      const { mergeId } = await mergeTags({ fromTagId: mergePicker.fromTag.id, intoTagId: intoTag.id });
       onWorkspaceTagsChanged?.();
-      feedback.toast({ type: 'success', message: 'Merged into "' + intoTag.name + '".' });
+      // merge_tags_v2 logs the whole operation — the Undo repoints every
+      // rewritten application, revives the merged-away tag, and resurrects
+      // any collision rows the merge absorbed.
+      undoToast(feedback, {
+        message: 'Merged into "' + intoTag.name + '"',
+        onUndo: async () => {
+          try {
+            await undoTagMerge(mergeId);
+            onWorkspaceTagsChanged?.();
+          } catch (err) {
+            feedback.toast({ type: 'error', message: 'Undo failed: ' + (err.message || err) });
+          }
+        },
+      });
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Merge failed: ' + (err.message || err) });
     } finally {
@@ -273,15 +287,26 @@ export function SidebarTags({
     const ok = await feedback.confirm({
       title: 'Delete tag?',
       message: count > 0
-        ? `${count} item${count === 1 ? '' : 's'} are tagged with "${tag.name}". Delete the tag and all of its applications?`
-        : `Delete "${tag.name}"?`,
+        ? `${count} item${count === 1 ? '' : 's'} are tagged with "${tag.name}". Delete the tag and all of its applications?\n\nYou can undo this — it's recoverable for 30 days.`
+        : `Delete "${tag.name}"? You can undo this — it's recoverable for 30 days.`,
       confirmLabel: 'Delete',
       danger: true,
     });
     if (!ok) return;
     try {
-      await deleteTag(tag.id);
+      await deleteTag(tag.id); // soft: definition + applications tombstoned (0240)
       onWorkspaceTagsChanged?.();
+      undoToast(feedback, {
+        message: `Tag "${tag.name}" deleted`,
+        onUndo: async () => {
+          try {
+            await restoreTag(tag.id);
+            onWorkspaceTagsChanged?.();
+          } catch (err) {
+            feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) });
+          }
+        },
+      });
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Delete failed: ' + (err.message || err) });
     }

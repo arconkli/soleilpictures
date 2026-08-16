@@ -1364,7 +1364,7 @@ export async function fetchNextVersion(boardId, currentSnapshotAt) {
 }
 
 // ── Bulletproof restore ────────────────────────────────────────────────────
-// The naive restoreVersionInto() approach (clear local Y.Doc, applyUpdate
+// The naive restoreVersionInto() approach (since removed — clear local Y.Doc, applyUpdate
 // snapshot bytes) is BROKEN for Yjs: the clear-ops record new lamport
 // clocks, then the snapshot's set-ops merge in but lose to the newer
 // deletes. Net result: doc gets emptied, not restored. Confirmed in
@@ -1703,15 +1703,117 @@ export async function updateBacklinks({ workspaceId, docCardId, pageId, links })
 // Delete the derived-index rows a doc card authored (its page text + outgoing
 // backlinks/entity-links) when the doc card itself is deleted — otherwise the
 // universal "Appears in" hover, backlinks, and home graph keep surfacing a doc
-// that no longer exists. Source rows only (undo-safe: reopening a restored doc
-// re-syncs them via syncDocPageIndex/updateBacklinks). Fire-and-forget.
+// that no longer exists. doc_page_index/doc_backlinks are hard-deleted
+// (undo-safe: reopening a restored doc re-syncs them via syncDocPageIndex/
+// updateBacklinks); entity_links (applied tags, @-mention records — NOT
+// regenerable) move to the 0240 tombstone via soft_delete_doc_links so an
+// undo of the card delete can restore them (restoreDocLinks). Fire-and-forget.
 export async function cleanupDocCards(docCardIds) {
   if (!supabase || !docCardIds?.length) return;
   for (const id of docCardIds) {
     try {
       await supabase.from('doc_page_index').delete().eq('doc_card_id', id);
       await supabase.from('doc_backlinks').delete().eq('source_doc_card_id', id);
-      await supabase.from('entity_links').delete().eq('source_kind', 'doc').eq('source_id', id);
+      const { error } = await supabase.rpc('soft_delete_doc_links', { p_doc_card_id: String(id) });
+      if (error) throw error;
     } catch (e) { console.warn('cleanupDocCards failed for', id, e); }
   }
+}
+
+// Inverse of cleanupDocCards' entity_links half — called by the undo path
+// (DOC_CLEANUP_META) when a doc-card delete is reversed after the cleanup
+// already ran. Index rows regenerate on next doc open; links can't, so they
+// come back from the tombstone.
+export async function restoreDocLinks(docCardIds) {
+  if (!supabase || !docCardIds?.length) return;
+  for (const id of docCardIds) {
+    try {
+      const { error } = await supabase.rpc('restore_doc_links', { p_doc_card_id: String(id) });
+      if (error) throw error;
+    } catch (e) { console.warn('restoreDocLinks failed for', id, e); }
+  }
+}
+
+// ── Production schedule ──────────────────────────────────────────────────────
+//
+// boards.scheduled_date and friends are NOT client-writable (0238 replaces the
+// table-level UPDATE grant with a column list that omits them), so every write
+// here goes through a SECURITY DEFINER RPC. That is not ceremony: the RPC is
+// what decides whether the crew gets told, and a direct PATCH would move a
+// shoot day silently. A share-based editor also cannot UPDATE boards at all —
+// the row policy wants can_write_workspace — so the RPC is the only path that
+// works for the very people a production calendar is shared with.
+//
+// Each returns the RPC's own {ok:false, error} envelope rather than throwing on
+// a refusal, so callers can render "you don't have permission" without a
+// try/catch around every date drag. Note the house rule: never .catch() a
+// supabase.rpc() builder — it is a thenable, and the catch swallows the query.
+
+export async function setBoardSchedule(boardId, date, endDate = null, dayLabel = null, notify = true) {
+  const { data, error } = await supabase.rpc('set_board_schedule', {
+    p_board_id: boardId,
+    p_date: date || null,
+    p_end_date: endDate || null,
+    p_day_label: dayLabel,
+    p_notify: notify !== false,
+  });
+  if (error) throw error;
+  return data || { ok: false, error: 'no_response' };
+}
+
+// Bumps the version and notifies everyone who can read the board. This is the
+// replacement for mailing the crew a new call sheet every night.
+export async function publishScheduleDay(boardId, note = null) {
+  const { data, error } = await supabase.rpc('publish_schedule_day', {
+    p_board_id: boardId, p_note: note || null,
+  });
+  if (error) throw error;
+  return data || { ok: false, error: 'no_response' };
+}
+
+// A cancelled day stays on the calendar struck through — deleting it would
+// leave the crew with no record of a day they had planned around.
+export async function cancelScheduleDay(boardId, reason = null) {
+  const { data, error } = await supabase.rpc('cancel_schedule_day', {
+    p_board_id: boardId, p_reason: reason || null,
+  });
+  if (error) throw error;
+  return data || { ok: false, error: 'no_response' };
+}
+
+// Every dated cluster the caller can reach, across every production — the read
+// behind "in your schedule".
+export async function listMySchedule(fromDate = null, days = 60) {
+  const { data, error } = await supabase.rpc('list_my_schedule', {
+    p_from: fromDate || null, p_days: days,
+  });
+  if (error) throw error;
+  return data || [];
+}
+
+// ── Notifications ────────────────────────────────────────────────────────────
+
+export async function listNotifications({ limit = 50, before = null } = {}) {
+  let q = supabase.from('notifications')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (before) q = q.lt('created_at', before);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function markNotificationsRead(ids = null) {
+  const { data, error } = await supabase.rpc('mark_notifications_read', {
+    p_ids: ids && ids.length ? ids : null,
+  });
+  if (error) throw error;
+  return data || 0;
+}
+
+export async function unreadNotificationCount() {
+  const { data, error } = await supabase.rpc('unread_notification_count');
+  if (error) throw error;
+  return data || 0;
 }

@@ -409,6 +409,32 @@ async function commitDoc(env, boardId, { doc, ws }, mutate) {
 
 const inList = (ids) => `(${ids.map((id) => `"${String(id).replace(/"/g, '')}"`).join(',')})`;
 
+// Server-side board_versions checkpoint: the PRE-mutation doc, written before
+// any destructive API/MCP op. The client writes these 15 different ways;
+// agent-driven deletes and moves wrote none — so an agent mistake was
+// invisible to the Version-history browser humans recover from. Best-effort:
+// a failed checkpoint must never block the operation itself. Service-role
+// insert (no RLS concerns); the shared prune keeps 0049's retention.
+async function saveVersionRow(env, boardId, doc, { triggerKind = 'api', label = 'api', opSummary = null, userId = null } = {}) {
+  try {
+    let cardCount = null;
+    try { cardCount = doc.getMap('cards').size; } catch (_) {}
+    await scoutInsert(env, 'board_versions', [{
+      board_id: boardId,
+      doc: bytesToB64(Y.encodeStateAsUpdate(doc)),
+      card_count: cardCount,
+      label,
+      trigger_kind: triggerKind,
+      op_summary: opSummary,
+      made_by: userId || null,
+      snapshot_at: new Date().toISOString(),
+    }]);
+    scoutRpc(env, 'prune_board_versions', { p_board_id: boardId }).catch(() => {});
+  } catch (e) {
+    console.warn('[scout] saveVersionRow failed', boardId, e?.message || e);
+  }
+}
+
 // Move `cardIds` from one board to another, re-laid-out by `layout`.
 //
 //   layout(existingDestCards, movingCards) → positioned cards (same ids)
@@ -461,6 +487,17 @@ export async function moveCardsBetweenBoards(env, {
     const existing = readCards(dst.doc);
     const maxZ = existing.reduce((m, c) => Math.max(m, Number(c.z) || 0), 0);
     const nowIso = new Date().toISOString();
+
+    // Pre-move checkpoints for BOTH boards (the client's cross-board drag
+    // writes pre-drop rows for both sides; the API path wrote neither).
+    await saveVersionRow(env, fromBoardId, src.doc, {
+      label: 'api',
+      opSummary: { action: 'api-move-cards-out', to_board: toBoardId, card_count: moving.length },
+    });
+    await saveVersionRow(env, toBoardId, dst.doc, {
+      label: 'api',
+      opSummary: { action: 'api-move-cards-in', from_board: fromBoardId, card_count: moving.length },
+    });
 
     // Re-id anything that would collide on the destination. map.set() on an
     // existing id REPLACES that card, and this is someone else's board.
@@ -697,6 +734,14 @@ export async function deleteCardsFromBoard(env, {
     const wanted = new Set(cardIds.map(String));
     const removed = readCards(board.doc).filter((c) => wanted.has(String(c.id)));
     if (!removed.length) return [];
+
+    // Checkpoint the pre-delete state so this shows up (and restores) in the
+    // Version-history browser — "the response body IS the undo" now has a
+    // server-side safety net behind it too.
+    await saveVersionRow(env, boardId, board.doc, {
+      label: 'api',
+      opSummary: { action: 'api-delete-cards', card_count: removed.length, card_ids: removed.map((c) => String(c.id)).slice(0, 50) },
+    });
 
     await commitDoc(env, boardId, board, () => {
       for (const c of removed) cards.delete(String(c.id));

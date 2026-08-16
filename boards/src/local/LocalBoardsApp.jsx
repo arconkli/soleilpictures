@@ -12,7 +12,11 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { hasLabelTag } from '../lib/gridSequence.js';
 import { readGridModel } from '../lib/gridState.js';
 import { todayISO } from '../lib/schedDates.js';
-import { graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey } from '../lib/schedLayout.js';
+import {
+  graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey,
+  reslotItemKey, moveSlotSubtree as schedMoveSlotSubtree,
+} from '../lib/schedLayout.js';
+import { getViewAnchor as getSchedViewAnchor } from '../lib/schedViewRegistry.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -307,7 +311,32 @@ export function LocalBoardsApp({ user, signOut }) {
   );
   const crumbs = stack.map(id => ({ id, name: boards[id]?.name || id }));
 
+  // Real (if simple) undo for the local shell: a bounded snapshot stack per
+  // board. Production runs the Yjs UndoManager; ?local=1 used to stub
+  // undo/redo as NO-OPS, which meant nothing keyboard-level was ever
+  // e2e-testable — Cmd+Z routing, toast plumbing, pane gating all shipped
+  // untested. Yjs semantics stay covered by the engine simulation in
+  // undo-redo.spec.js; this is deliberately plain state history.
+  const historyRef = useRef(new Map()); // boardId → { undo: [], redo: [] }
+  const histFor = (id) => {
+    let h = historyRef.current.get(id);
+    if (!h) { h = { undo: [], redo: [] }; historyRef.current.set(id, h); }
+    return h;
+  };
+
   const updateBoardState = (updater) => {
+    // Snapshot BEFORE the update — captured from the render-scope value
+    // (never inside the setState updater: StrictMode double-invokes those)
+    // and deduped by reference, so a same-tick burst of mutator calls
+    // (doDeleteSelected: strokes + arrows + cards) collapses into ONE step,
+    // mirroring the real engine's one-action-one-step contract.
+    const cur = boardState[currentId] || { cards: [], arrows: [], strokes: [] };
+    const h = histFor(currentId);
+    if (h.undo[h.undo.length - 1] !== cur) {
+      h.undo.push(cur);
+      if (h.undo.length > 100) h.undo.shift();
+      h.redo.length = 0;
+    }
     setLocalState(prev => {
       const current = prev.boardState[currentId] || { cards: [], arrows: [], strokes: [] };
       const nextCurrent = updater({
@@ -362,6 +391,20 @@ export function LocalBoardsApp({ user, signOut }) {
   const deleteCards = (ids) => {
     const idSet = new Set(ids || []);
     if (!idSet.size) return;
+    // History push (same shape as updateBoardState's): deleteCards bypasses
+    // updateBoardState because a board-card delete cascades across boardState
+    // entries — but the CURRENT board's delete must still be a real undo
+    // step. (Cascaded sub-board state isn't restored by the local shell; the
+    // real app bridges that server-side via BOARD_DELETE_META.)
+    {
+      const cur = boardState[currentId] || { cards: [], arrows: [], strokes: [] };
+      const h = histFor(currentId);
+      if (h.undo[h.undo.length - 1] !== cur) {
+        h.undo.push(cur);
+        if (h.undo.length > 100) h.undo.shift();
+        h.redo.length = 0;
+      }
+    }
     setLocalState(prev => {
       const boardIds = [...idSet].filter(id => prev.boards[id] && id !== ROOT_ID);
       const cascadeIds = collectBoardTreeIds(prev.boards, boardIds);
@@ -785,6 +828,38 @@ export function LocalBoardsApp({ user, signOut }) {
       if (mode) expand[slotPath] = mode; else delete expand[slotPath];
       return { ...c, gridMeta: { ...(c.gridMeta || {}), expand } };
     });
+  // Twin of App.jsx moveSchedItem — re-key one item onto another slot.
+  const moveSchedItem = (cardId, fromKey, toSlotPath) => {
+    const card = findLocalGrid(cardId);
+    const nextKey = reslotItemKey(fromKey, toSlotPath);
+    if (!card || !nextKey || !card.cells?.[fromKey]) return false;
+    mapGridCard(cardId, c => {
+      const cells = { ...(c.cells || {}) };
+      const rec = cells[fromKey];
+      delete cells[fromKey];
+      cells[nextKey] = rec;
+      return { ...c, cells };
+    });
+    return true;
+  };
+  // Twin of App.jsx moveSchedSlot — re-date a whole slot and its breakdown.
+  const moveSchedSlot = (cardId, fromSlotPath, toSlotPath) => {
+    const card = findLocalGrid(cardId);
+    if (!card) return false;
+    const expand = card.gridMeta?.expand || {};
+    const r = schedMoveSlotSubtree(card.cells || {}, expand, fromSlotPath, toSlotPath);
+    if (!r.removeKeys.length && !r.removeExpand.length) return false;
+    mapGridCard(cardId, c => {
+      const cells = { ...(c.cells || {}) };
+      r.removeKeys.forEach((k) => { delete cells[k]; });
+      Object.assign(cells, r.cells);
+      const nextExpand = { ...(c.gridMeta?.expand || {}) };
+      r.removeExpand.forEach((k) => { delete nextExpand[k]; });
+      Object.assign(nextExpand, r.expand);
+      return { ...c, cells, gridMeta: { ...(c.gridMeta || {}), expand: nextExpand } };
+    });
+    return true;
+  };
   // Twin of App.jsx graftScheduleIntoSlot — same pure graftKeyMap, same refusal
   // rules (granularity mismatch / stray content → false → normal move).
   const graftScheduleIntoSlot = (hostId, slotPath, srcId) => {
@@ -793,9 +868,13 @@ export function LocalBoardsApp({ user, signOut }) {
     const slot = parseSlotKey(slotPath);
     const match = (src.schedView === 'day' && slot?.kind === 'day') || (src.schedView === 'hour' && slot?.kind === 'hour');
     if (!match) return false;
+    // Same reasoning as the Yjs twin: navigation is local, so prefer the live
+    // view position over the persisted default.
+    const liveView = getSchedViewAnchor(srcId);
+    const srcAnchor = liveView?.anchor || src.anchor || todayISO();
     const srcPrefix = src.schedView === 'day'
-      ? schedDayKey(src.anchor || todayISO())
-      : schedHourKey(src.anchor || todayISO(), src.anchorHour ?? 9);
+      ? schedDayKey(srcAnchor)
+      : schedHourKey(srcAnchor, liveView?.anchorHour ?? src.anchorHour ?? 9);
     const { cells, expand, strays } = graftKeyMap(src.cells || {}, src.gridMeta?.expand || {}, srcPrefix, slotPath);
     if (strays.length) return false;
     mapGridCard(hostId, c => ({
@@ -986,7 +1065,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addDocCard,
     addGrid,
     resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent, removeGridCellRecord,
-    setSchedSlotExpand, graftScheduleIntoSlot,
+    setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
     setGridTextStyle, pinCellStyle, unpinCellStyle,
     promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
     removeGridDivider, resizeLinkedGrids, graftGridIntoCell,
@@ -1000,8 +1079,22 @@ export function LocalBoardsApp({ user, signOut }) {
     renameBoardById,
     deleteBoardsById,
     setBoardBgColor,
-    undo: () => {},
-    redo: () => {},
+    undo: () => {
+      const h = histFor(currentId);
+      if (!h.undo.length) return;
+      const snap = h.undo.pop();
+      const cur = boardState[currentId] || { cards: [], arrows: [], strokes: [] };
+      h.redo.push(cur);
+      setLocalState(prev => ({ ...prev, boardState: { ...prev.boardState, [currentId]: snap } }));
+    },
+    redo: () => {
+      const h = histFor(currentId);
+      if (!h.redo.length) return;
+      const snap = h.redo.pop();
+      const cur = boardState[currentId] || { cards: [], arrows: [], strokes: [] };
+      h.undo.push(cur);
+      setLocalState(prev => ({ ...prev, boardState: { ...prev.boardState, [currentId]: snap } }));
+    },
   };
 
   // ⌘K / Ctrl-K (and "/" when not typing) — open the global search palette.

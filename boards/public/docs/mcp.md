@@ -184,15 +184,15 @@ quietly failing.
 
 | Tool | Input |
 |---|---|
-| `create_board` | `name`, `workspace_id?`, `parent_board_id?`, `identifiers?`, `props?` |
-| `create_boards` | `boards[]`, `on_conflict?` — build a structure in one call |
+| `create_board` | `name`, `workspace_id?`, `parent_board_id?`, `scheduled_date?`, `scheduled_end?`, `day_label?`, `identifiers?`, `props?` |
+| `create_boards` | `boards[]`, `on_conflict?` — build a structure in one call; each entry takes the same schedule fields |
 | `add_cards` | `board_id`, `cards[]` — up to 1000, `on_conflict?` |
 | `upload_image` | `board_id`, `data` (base64), `content_type` |
 | `upload_file` | `board_id`, `path` — **local server only**; handles large files |
 | `import_urls` | `board_id`, `urls[]`, `titles?`, `dry_run?` — bring reference in from the web; safe to re-run |
 | `arrange_board` | `board_id`, `layout?`, `card_ids?`, `dry_run?` — lay a board out |
 | `create_group` | `board_id`, `name`, `color?`, `shape?` — say a set of cards is one thing |
-| `rename_board` | `board_id`, `name?`, `view?`, `parent_board_id?` |
+| `rename_board` | `board_id`, `name?`, `view?`, `parent_board_id?`, `scheduled_date?`, `scheduled_end?`, `day_label?`, `notify?` |
 | `move_boards` | `board_ids[]`, `parent_board_id` |
 | `update_card` | `board_id`, `card_id`, plus any writable field |
 | `update_cards` | `board_id`, `cards[]` — many at once |

@@ -66,11 +66,11 @@
     },
     {
       "name": "create_board",
-      "schema": "732f33f976a7"
+      "schema": "9c0a2049a6a2"
     },
     {
       "name": "create_boards",
-      "schema": "88c69d2a239f"
+      "schema": "5247fe40b723"
     },
     {
       "name": "create_group",
@@ -142,7 +142,7 @@
     },
     {
       "name": "rename_board",
-      "schema": "0a21becb78ba"
+      "schema": "c3c8999756e8"
     },
     {
       "name": "resolve_identifier",
@@ -342,6 +342,10 @@
       "label": "Profile"
     },
     {
+      "id": "scout",
+      "label": "Scout"
+    },
+    {
       "id": "theme",
       "label": "Theme"
     }
@@ -372,11 +376,11 @@
     },
     {
       "title": "Notes",
-      "rows": 3
+      "rows": 4
     },
     {
       "title": "Document",
-      "rows": 7
+      "rows": 8
     }
   ],
   "publicRoutes": {

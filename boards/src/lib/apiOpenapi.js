@@ -44,6 +44,12 @@ const board = {
     deleted: { type: 'boolean' },
     created_at: { type: 'string', format: 'date-time' },
     updated_at: { type: ['string', 'null'], format: 'date-time' },
+    scheduled_date: { type: ['string', 'null'], format: 'date', description: 'The calendar date this board sits on, if any.' },
+    scheduled_end: { type: ['string', 'null'], format: 'date', description: 'Inclusive end of a multi-day block. Null for a single day.' },
+    day_label: { type: ['string', 'null'], description: 'The durable half of a scheduled day\'s name, e.g. "Day 12". The date is never stored in the name.' },
+    sched_status: { type: 'string', enum: ['draft', 'published', 'cancelled'] },
+    sched_version: { type: 'integer', description: 'Bumped on publish. Only a published board notifies its readers when it moves.' },
+    sched_published_at: { type: ['string', 'null'], format: 'date-time' },
   },
 };
 

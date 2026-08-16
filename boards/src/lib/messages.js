@@ -124,6 +124,13 @@ export async function deleteMessage({ id }) {
   if (error) { console.warn('deleteMessage', error); throw error; }
 }
 
+// Reverse a soft-delete (the message-delete Undo toast). Same author-only
+// RLS UPDATE as the delete — a message delete was never actually permanent.
+export async function restoreMessage({ id }) {
+  const { error } = await supabase.from('messages').update({ deleted_at: null }).eq('id', id);
+  if (error) { console.warn('restoreMessage', error); throw error; }
+}
+
 // ── Search ──────────────────────────────────────────────────────────
 
 function escapeIlike(q) {

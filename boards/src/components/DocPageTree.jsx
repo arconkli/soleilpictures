@@ -13,9 +13,11 @@
 import { useState } from 'react';
 import {
   buildPageTree, addPage, deletePage, renamePage, movePage, setPageExpanded,
+  getDocUndoManager,
 } from '../lib/docState.js';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { useFeedback } from './AppFeedback.jsx';
+import { undoToast } from '../lib/undoToast.js';
 
 export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelectPage, peers = [], onJumpToPeer }) {
   const tree = buildPageTree(pages);
@@ -52,19 +54,40 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
       { id: 'addchild', label: 'New sub-page', run: () => onAddChild(pageId) },
       { divider: true },
       { id: 'delete', label: 'Delete', danger: true, run: async () => {
-        const ok = await feedback.confirm({
-          title: `Delete "${p.name || 'Untitled'}"?`,
-          message: 'Any sub-pages will be deleted too.',
-          danger: true,
-          confirmLabel: 'Delete',
-        });
-        if (ok) {
-          deletePage(ydoc, pageId, scope);
-          if (activePageId === pageId) {
-            const next = pages.find(x => x.id !== pageId);
-            onSelectPage(next ? next.id : null);
-          }
+        // Leaf pages match the canvas convention: no confirm, an Undo toast
+        // instead. A page WITH sub-pages keeps the dialog (whole-subtree
+        // cascade) — but is now just as undoable: deletePage runs in one
+        // DOC_ORIGIN transaction, so the doc UndoManager reverses the pages,
+        // their content fragments, sheets, bookmarks and comment threads in
+        // a single step.
+        const hasChildren = pages.some(x => x.parent_id === pageId);
+        if (hasChildren) {
+          const ok = await feedback.confirm({
+            title: `Delete "${p.name || 'Untitled'}"?`,
+            message: 'Any sub-pages will be deleted too.\n\nYou can undo this right after.',
+            danger: true,
+            confirmLabel: 'Delete',
+          });
+          if (!ok) return;
         }
+        const um = getDocUndoManager(ydoc, scope);
+        um?.stopCapturing();
+        deletePage(ydoc, pageId, scope);
+        const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+        um?.stopCapturing();
+        if (activePageId === pageId) {
+          const next = pages.find(x => x.id !== pageId);
+          onSelectPage(next ? next.id : null);
+        }
+        undoToast(feedback, {
+          message: hasChildren ? 'Page and its sub-pages deleted' : 'Page deleted',
+          undoManager: um,
+          stackItem: item,
+          onUndo: () => {
+            try { um?.undo(); } catch (_) {}
+            onSelectPage(pageId);
+          },
+        });
       }},
     ];
   };
@@ -105,6 +128,9 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
     if (!dragId || !dropTarget) { resetDrag(); return; }
     const target = pages.find(x => x.id === p.id);
     if (!target) { resetDrag(); return; }
+    // Each drop is its own undo step — two quick rearrangements must not
+    // coalesce into one Cmd+Z (500ms captureTimeout).
+    getDocUndoManager(ydoc, scope)?.stopCapturing();
     if (dropTarget.side === 'inside') {
       movePage(ydoc, dragId, target.id, 9999, scope);
       setPageExpanded(ydoc, target.id, true, scope);

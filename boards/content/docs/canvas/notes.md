@@ -29,8 +29,10 @@ instead — it has pages, a proper toolbar and export.
 
 ## Writing
 
-Double-click a note to start editing. Click away to commit; press `Esc` to
-cancel.
+Double-click a note to start editing. Click away — or press `Esc` — to finish;
+your edits are shared live with collaborators as you type, so there is no
+separate "cancel". `⌘Z` undoes inside the note, and the note's undo history
+survives closing and reopening it.
 
 Formatting works as you would expect: `⌘B`, `⌘I`, `⌘U` for bold, italic and
 underline. A toolbar appears at the bottom of the canvas while a note is
