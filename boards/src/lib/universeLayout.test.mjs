@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  isAnchorId, parentBoardId, isSimLinkKind, orbitOffset, rogueOffset,
+  isAnchorId, parentBoardId, isSimLinkKind, orbitOffset, rogueOffset, galaxySeed,
   LEAF_BASE_RADIUS, LEAF_RADIAL_MIN, LEAF_RADIAL_MAX,
 } from './universeLayout.js';
 
@@ -111,6 +111,61 @@ test('orbitOffset angles clump instead of spreading evenly', () => {
   const min = Math.min(...bins);
   assert.ok(max > (n / 12) * 1.7, `densest sector ${max} should beat uniform ${n / 12} clearly`);
   assert.ok(max > min * 2, `spread ${min}..${max} should be visibly uneven`);
+});
+
+test('galaxySeed is deterministic per id', () => {
+  assert.deepEqual([...galaxySeed('ws:a', 1000)], [...galaxySeed('ws:a', 1000)]);
+  assert.notDeepEqual([...galaxySeed('ws:a', 1000)], [...galaxySeed('ws:b', 1000)]);
+});
+
+test('galaxySeed builds an exponential disk: packed core, no hard edge', () => {
+  const R = 1000, rs = [];
+  for (let i = 0; i < 5000; i++) {
+    const o = galaxySeed(`board:x${i}`, R);
+    rs.push(Math.hypot(o[0], o[2]));
+  }
+  rs.sort((a, b) => a - b);
+  const median = rs[rs.length >> 1];
+  const beyond = rs.filter((r) => r > R).length / rs.length;
+  assert.ok(median < 0.45 * R, `median ${median} should sit deep in the disk`);
+  assert.ok(beyond > 0.02, `expected a real halo tail past R, got ${(beyond * 100).toFixed(1)}%`);
+});
+
+test('galaxySeed: puffy bulge, thin disk', () => {
+  const R = 1000;
+  let coreY = 0, coreN = 0, rimY = 0, rimN = 0;
+  for (let i = 0; i < 8000; i++) {
+    const o = galaxySeed(`board:x${i}`, R);
+    const r = Math.hypot(o[0], o[2]);
+    if (r < 0.2 * R) { coreY += Math.abs(o[1]); coreN++; }
+    if (r > 0.8 * R) { rimY += Math.abs(o[1]); rimN++; }
+  }
+  assert.ok(coreN > 100 && rimN > 100, 'need both populations');
+  assert.ok(coreY / coreN > (rimY / rimN) * 1.8,
+    `bulge ${coreY / coreN} should be visibly puffier than the rim ${rimY / rimN}`);
+});
+
+test('galaxySeed produces density-wave arms: crowded bearings AND populated inter-arm space', () => {
+  // Precessing-ellipse crowding must show up as angular over-density in
+  // a narrow annulus — with stars still present between arms (that's
+  // what separates a density wave from a tube of points on a curve).
+  const R = 1000, bins = new Array(10).fill(0);
+  let n = 0;
+  for (let i = 0; i < 40000; i++) {
+    const o = galaxySeed(`board:x${i}`, R);
+    const r = Math.hypot(o[0], o[2]);
+    if (r < 0.55 * R || r > 0.65 * R) continue;
+    n++;
+    let ang = Math.atan2(o[2], o[0]);
+    if (ang < 0) ang += Math.PI * 2;
+    bins[Math.min(9, Math.floor(((ang % Math.PI) / Math.PI) * 10))]++;
+  }
+  const mean = n / bins.length;
+  const max = Math.max(...bins);
+  const min = Math.min(...bins);
+  assert.ok(n > 500, `annulus too sparse: ${n}`);
+  assert.ok(max > mean * 1.4, `no wave crowding: max bin ${max} vs mean ${mean}`);
+  assert.ok(min < mean * 0.55, `no inter-arm depletion: min bin ${min} vs mean ${mean}`);
 });
 
 test('rogueOffset lands far outside any board swarm', () => {

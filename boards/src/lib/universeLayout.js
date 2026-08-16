@@ -102,6 +102,49 @@ export function orbitOffset(id, orbitalIndex = 0, baseRadius = LEAF_BASE_RADIUS,
   return o;
 }
 
+// ── Galaxy kinematics — how real spirals actually get their arms ──
+//
+// Spiral arms are NOT strands of stars along a curve (drawing them
+// that way produces exactly the tubes we're replacing). They're
+// DENSITY WAVES: every star orbits on its own slightly-elliptical
+// path filling the whole disk, and the ellipses' orientations twist
+// steadily with radius (Lindblad's precessing-ellipse picture of
+// Lin–Shu density-wave theory). Where neighboring twisted ellipses
+// crowd, a two-armed spiral of OVER-DENSITY emerges on its own —
+// with radius-proportional width, ragged edges, and stars still
+// present between the arms, because every star's full orbit passes
+// through arm and inter-arm space alike.
+//
+// Recipe per star, all hash-keyed on its id (stable across reloads):
+//   a — semi-major axis from an exponential disk (dense core, no
+//       hard edge; the deep-core pileup reads as the bulge)
+//   e — eccentricity ramping up out of the core; b = a(1−e)
+//   ω — ellipse orientation ∝ a (the twist that makes the wave),
+//       plus per-star noise so the wave fronts stay ragged
+//   φ — uniform position along the orbit
+//   y — scale height: puffy in the bulge, thin in the disk,
+//       triangular scatter for soft tails
+export const GALAXY_ECC     = 0.45;  // peak orbit ellipticity (b = a(1−e))
+export const GALAXY_TWIST   = 1.9;   // ellipse-orientation turns across one disk radius
+export const GALAXY_DISK    = 0.45;  // exponential scale length as a fraction of R
+
+export function galaxySeed(id, R, out = null) {
+  const Rd = GALAXY_DISK * R;
+  const a = -Rd * Math.log(1 - 0.98 * hash01(id + ':ga'));   // soft max ≈ 1.76R
+  const e = GALAXY_ECC * Math.min(1, a / (0.15 * R + 1e-9)); // circular in the core
+  const omega = GALAXY_TWIST * 2 * Math.PI * (a / R)
+              + (hash01(id + ':gw') - 0.5) * 0.3;
+  const phi = 2 * Math.PI * hash01(id + ':gp');
+  const p = a * Math.cos(phi);
+  const q = a * (1 - e) * Math.sin(phi);
+  const hz = 0.045 * R * (0.5 + 2.5 * Math.exp(-a / (0.25 * R)));
+  const o = out || new Float32Array(3);
+  o[0] = p * Math.cos(omega) - q * Math.sin(omega);
+  o[1] = hz * (hash01(id + ':gy') + hash01(id + ':gy2') - 1) * 2;
+  o[2] = p * Math.sin(omega) + q * Math.cos(omega);
+  return o;
+}
+
 // Leaves whose parent board isn't in the universe (deleted board with
 // surviving card_index rows, unparseable ids) drift the galactic rim
 // instead of piling up at the origin — floored radius so the heavy-
