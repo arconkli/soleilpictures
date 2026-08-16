@@ -73,7 +73,7 @@ import { CommandPalette } from './components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -124,6 +124,7 @@ import { arrangeInFreeSpace } from './lib/canvasGeom.js';
 import { classifyDropFile, fitImageDims, sizeBucket } from './lib/fileIngest.js';
 import { makeLimiter } from './lib/asyncPool.js';
 import { TrashModal } from './components/TrashModal.jsx';
+import { VersionHistoryModal } from './components/VersionHistoryModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
 import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
 import { WorkspaceAlertBanner } from './components/WorkspaceAlertBanner.jsx';
@@ -782,6 +783,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   }, [splitId, boards, boardsLoading]);
   const currentUndoManager = yb.ready && yb.boardId === currentBoard.id ? yb.undoManager : null;
   const [trashOpen, setTrashOpen] = useState(false);
+  const [versionsOpen, setVersionsOpen] = useState(false);
   const [workspaceRecoveryOpen, setWorkspaceRecoveryOpen] = useState(false);
 
   const recents = useRecents(workspace.id);
@@ -5258,6 +5260,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => setTweak('compactSidebar', !tweak.compactSidebar) },
     { id: 'trash', label: 'Open trash', icon: Trash2, keywords: ['trash', 'deleted', 'restore', 'bin'],
       run: () => setTrashOpen(true) },
+    { id: 'version-history', label: 'Version history', icon: History, keywords: ['history', 'versions', 'snapshots', 'restore', 'rollback', 'time travel'],
+      available: currentSurface === 'board',
+      run: () => setVersionsOpen(true) },
     { id: 'settings', label: 'Open settings', icon: Settings, keywords: ['settings', 'preferences', 'workspace', 'display'],
       run: () => setSettingsOpen(true) },
     // New tab: the docs are a separate reading surface, and losing an unsaved
@@ -5811,6 +5816,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <button className="tb-icon" title="Redo (⌘⇧Z)" disabled={!yb.canRedo} onClick={() => mainMutators.redo?.()}>
               <Icon as={Redo} size={16} />
             </button>
+            <button className="tb-icon" title="Version history" onClick={() => setVersionsOpen(true)}>
+              <Icon as={History} size={16} />
+            </button>
             <button className="tb-icon tb-icon-trash" title="Deleted clusters (Trash)" onClick={() => setTrashOpen(true)}>
               <Icon as={Trash2} size={16} />
             </button>
@@ -5977,6 +5985,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         workspaceId={workspace.id}
         onBoardRestored={() => refreshBoards()}
         onClose={() => setTrashOpen(false)}
+      />
+
+      <VersionHistoryModal
+        open={versionsOpen}
+        boardId={currentId}
+        boardName={currentBoard?.name || ''}
+        ydoc={currentYDoc}
+        sessionId={yb?.sessionId || null}
+        userId={user?.id || null}
+        onRestored={() => refreshBoards()}
+        onClose={() => setVersionsOpen(false)}
       />
 
       <ShortcutsHost />
