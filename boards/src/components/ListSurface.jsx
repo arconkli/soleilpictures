@@ -5,6 +5,7 @@ import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds, inbox
 import { wouldCreateCycle, collectDescendantIds } from '../lib/boardTree.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { setActivePane, getActivePane } from '../lib/activePane.js';
+import { anyModalOpen } from '../lib/modalGuard.js';
 import { undoToast } from '../lib/undoToast.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
@@ -287,6 +288,7 @@ export function ListSurface({
   // Delete selected via Backspace/Delete.
   useEffect(() => {
     const onKey = async (e) => {
+      if (anyModalOpen()) return; // dialogs own the keyboard (lib/modalGuard)
       if (hasSplit && getActivePane() !== paneId) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;

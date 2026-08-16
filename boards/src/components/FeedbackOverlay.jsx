@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle, WarningCircle, Info, X } from '@phosphor-icons/react';
 import { Icon } from './Icon.jsx';
+import { registerModalOpen } from '../lib/modalGuard.js';
 
 const TOAST_ICON = { success: CheckCircle, error: WarningCircle, info: Info };
 
@@ -59,6 +60,17 @@ function FeedbackDialog({ dialog, onClose }) {
   // so it doesn't fight with the prompt-kind `value` above.
   const [typeToConfirm, setTypeToConfirm] = useState('');
   const formRef = useRef(null);
+
+  // While a dialog is up, the canvas/list window shortcut handlers stand
+  // down (lib/modalGuard) — Backspace in a confirm prompt used to delete
+  // the selected cards on the board behind it. GATED ON `dialog`: this
+  // component also mounts (with dialog=null) whenever a mere TOAST is
+  // visible, and registering then would kill canvas ⌘Z for the whole toast
+  // window — the exact bug the delete-then-undo e2e caught.
+  useEffect(() => {
+    if (!dialog) return undefined;
+    return registerModalOpen();
+  }, [dialog]);
 
   useEffect(() => {
     if (!dialog) return undefined;

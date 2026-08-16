@@ -14,6 +14,7 @@ import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from '@phosphor-icons/react';
 import { Icon } from './Icon.jsx';
+import { registerModalOpen } from '../lib/modalGuard.js';
 
 const FOCUSABLE = [
   'a[href]',
@@ -69,6 +70,11 @@ export function Modal({
   // we don't re-run the lifecycle when a parent re-renders.
   useEffect(() => {
     if (!open) return undefined;
+    // While any modal is open, the canvas/list window shortcut handlers
+    // stand down (lib/modalGuard) — a focused button inside a dialog isn't
+    // an "editable target", so Backspace in the Trash modal used to delete
+    // the selected cards on the board behind it.
+    const unregister = registerModalOpen();
     triggerRef.current = returnFocusRef?.current || document.activeElement;
     lockScroll();
 
@@ -80,6 +86,7 @@ export function Modal({
     });
 
     return () => {
+      unregister();
       cancelAnimationFrame(raf);
       unlockScroll();
       const t = triggerRef.current;

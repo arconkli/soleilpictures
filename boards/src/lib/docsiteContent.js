@@ -13944,7 +13944,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " state first, so a restore is itself restorable. A second tab lists name, colour, cover and view changes, each with a one-click revert."
+     "v": " state first, so a restore is itself restorable. A second tab lists name, colour, cover, view and shoot-day date changes, each with a one-click revert — reverting a published day's date goes through the same path as moving it, so the crew is notified."
     }
    ]
   },

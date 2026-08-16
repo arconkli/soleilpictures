@@ -15,6 +15,7 @@ function schedExpandOf(card, ydoc) {
 }
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { setActivePane, getActivePane } from '../lib/activePane.js';
+import { anyModalOpen } from '../lib/modalGuard.js';
 import { getDocUndoTarget } from '../lib/overlayRouting.js';
 import { undoToast } from '../lib/undoToast.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
@@ -3279,6 +3280,9 @@ export function CanvasSurface({
     };
 
     const onPaste = async (e) => {
+      // Dialog open → the board must not receive a paste (an image pasted
+      // "into" the sketch pad used to land on the canvas behind it).
+      if (anyModalOpen()) return;
       // Same pane arbitration as the keydown listener — a split view must not
       // paste the clipboard onto both boards.
       if (hasSplit && getActivePane() !== paneId) return;
@@ -3399,6 +3403,11 @@ export function CanvasSurface({
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e) => {
+      // A dialog is open (Trash, Version history, Settings, a confirm, the
+      // sketch pad): every canvas shortcut stands down. A focused button in
+      // a dialog is not an "editable target", so without this Backspace in
+      // a confirm deleted the selected cards behind it (lib/modalGuard).
+      if (anyModalOpen()) return;
       // Split view: both panes register this window listener — only the
       // pane the pointer last touched may act, or one Cmd+Z would undo on
       // BOTH boards (see lib/activePane.js).

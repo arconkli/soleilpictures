@@ -25,6 +25,7 @@ import { useRecentColors } from '../hooks/useRecentColors.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { setDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
+import { registerModalOpen } from '../lib/modalGuard.js';
 
 // Default pen stroke + bucket fill colors. The pad SURFACE defaults to
 // pure white — when the user commits, the surrounding ArtCanvasCard
@@ -181,6 +182,9 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     resetHistory();
     const padTarget = { undo: undoPad, redo: redoPad };
     setDocUndoTarget(padTarget);
+    // Counts as an open dialog too, which is what shields the board's PASTE
+    // handler (the capture keydown below can't intercept paste events).
+    const unregisterModal = registerModalOpen();
     const onKey = (e) => {
       if (isEditableTarget(e)) return;
       // Dialogs (the discard confirm) and popovers (ColorPicker) stack ABOVE
@@ -213,6 +217,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     window.addEventListener('keydown', onKey, { capture: true });
     return () => {
       window.removeEventListener('keydown', onKey, { capture: true });
+      unregisterModal();
       if (getDocUndoTarget() === padTarget) setDocUndoTarget(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

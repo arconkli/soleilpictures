@@ -2135,6 +2135,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const rec = cm.get(fromKey);
       if (!rec) return false;
       const plain = (rec && rec.toJSON) ? rec.toJSON() : rec;
+      breakUndo(); // each drag-drop is its own ⌘Z step (500ms merge window)
       ydoc.transact(() => { cm.delete(fromKey); cm.set(nextKey, plain); }, 'local');
       return true;
     };
@@ -2150,6 +2151,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const expand = (mm && mm.get && mm.get('expand')) || {};
       const r = schedMoveSlotSubtree(cells, expand, fromSlotPath, toSlotPath);
       if (!r.removeKeys.length && !r.removeExpand.length) return false;
+      breakUndo(); // one whole-day move = one ⌘Z step, never merged
       ydoc.transact(() => {
         r.removeKeys.forEach((k) => cm.delete(k));
         Object.entries(r.cells).forEach(([k, rec]) => cm.set(k, rec));
