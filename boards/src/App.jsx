@@ -5361,12 +5361,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // gate would truncate mid-run having already made sixty clusters. A single
   // day added from the slot menu is scaffolded immediately, because one day is
   // four cards and the user is plainly about to fill it in.
-  const handleAddShootDay = useCallback(async ({ from, to, skipWeekends = false, scaffold = false }) => {
-    if (!board?.id || !workspace?.id) return;
+  const handleAddShootDay = useCallback(async ({ from, to, skipWeekends = false, scaffold = false, parentBoardId }) => {
+    // The parent comes from the CARD that asked, not from a `board` in this
+    // scope — there isn't one. `board` is a parameter of renderSurface, and
+    // taking it here silently meant a ReferenceError evaluated in the
+    // useCallback dependency array on every render. It is also the right
+    // answer for a split view: shoot days belong to the cluster holding the
+    // calendar you clicked, which may not be the main pane.
+    const parent = parentBoardId && boards[parentBoardId];
+    if (!parent) return;
+    // A shared production lives in someone else's workspace; the days have to
+    // be created there, not in the viewer's.
+    const wsId = parent.workspace_id || workspace?.id;
+    if (!wsId) return;
     try {
-      const startNumber = nextDayNumber(boards, board.id);
+      const startNumber = nextDayNumber(boards, parent.id);
       const res = await addShootDays({
-        workspaceId: workspace.id, parentBoardId: board.id,
+        workspaceId: wsId, parentBoardId: parent.id,
         from, to, skipWeekends, startNumber, userId: user.id,
       });
       if (scaffold) {
@@ -5399,7 +5410,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       console.error('addShootDays failed', e);
       feedback.toast({ type: 'error', message: 'Could not add those days.' });
     }
-  }, [board?.id, workspace?.id, boards, user.id, refreshBoards, feedback]);
+  }, [boards, workspace?.id, user.id, refreshBoards, feedback]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 

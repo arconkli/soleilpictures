@@ -947,7 +947,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
               // this card and every crew member sees the same one.
               if (onAddShootDay) {
                 items.push({ id: 'shoot-day', label: 'Add shoot day', icon: Clapperboard,
-                  onClick: () => onAddShootDay({ from: slot.date, to: slot.date, scaffold: true }) });
+                  onClick: () => onAddShootDay({ from: slot.date, to: slot.date, scaffold: true, parentBoardId: boardId }) });
                 items.push({ id: 'shoot-days', label: 'Add shoot days…', icon: Clapperboard,
                   onClick: () => setRangePop({ anchorRect: menu.anchorRect, date: slot.date }) });
               }
@@ -965,7 +965,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
       {editable && rangePop && (
         <ShootDayRange anchorRect={rangePop.anchorRect} startDate={rangePop.date}
           startNumber={nextShootDayNumber(boards, boardId)}
-          onAdd={(opts) => onAddShootDay?.(opts)}
+          onAdd={(opts) => onAddShootDay?.({ ...opts, parentBoardId: boardId })}
           onClose={() => setRangePop(null)} />
       )}
       {editable && datePop && (
