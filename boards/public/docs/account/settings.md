@@ -43,8 +43,8 @@ and the **storage meter** showing what you have used against your quota. See
 
 ### Notifications
 
-Five independent switches — mentions, comment replies, workspace invites, board
-shares, and product tips. See
+Six independent switches — mentions, comment replies, workspace invites, board
+shares, schedule changes, and product tips. See
 [Notifications](/docs/collaborate/notifications).
 
 ## Workspace

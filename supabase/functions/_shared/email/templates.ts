@@ -24,7 +24,8 @@ export type TemplateName =
   | "welcome_board"
   | "board_waiting"
   | "nudge_dormant_early"
-  | "whats_new";
+  | "whats_new"
+  | "schedule_update";
 
 export const TEMPLATE_NAMES: TemplateName[] = [
   "waitlist_submitted",
@@ -42,6 +43,7 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "board_waiting",
   "nudge_dormant_early",
   "whats_new",
+  "schedule_update",
 ];
 
 export interface RenderedEmail {
@@ -542,6 +544,61 @@ function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
       d.replyPreview ? `\n  "${d.replyPreview}"` : "",
       "",
       "Open comment: " + url,
+      "",
+      "© Soleil Pictures · clusters.soleilpictures.com",
+    ]),
+  };
+}
+
+// ── Schedule ────────────────────────────────────────────────────────────────
+// The replacement for mailing the whole crew a new call sheet every night.
+// Sent only when the recipient is NOT online (0243's trigger checks
+// _is_user_online first) — if they are in the app they already got the toast
+// and the bell, and a duplicate email is how people learn to filter you.
+//
+// The DATE is rendered from the day's current scheduled_date every time rather
+// than stored in any name, so a day that moved twice still reads correctly.
+interface ScheduleUpdateData {
+  kind: string;            // 'schedule.published' | '.moved' | '.cancelled'
+  title: string;           // "Day 12 — Tue Aug 18", built server-side
+  body?: string;           // "Call sheet updated — v3" / "Moved from … to …"
+  productionName: string;
+  version?: string;
+  unsubscribeToken?: string;
+  workspaceId?: string;
+  boardId?: string;
+}
+
+function scheduleUpdateTpl(d: ScheduleUpdateData): RenderedEmail {
+  const url = deepLink({ w: d.workspaceId, b: d.boardId });
+  const verb = d.kind === "schedule.moved"
+    ? "moved"
+    : d.kind === "schedule.cancelled" ? "cancelled" : "updated";
+  // The subject has to survive a crowded inbox at 22:00 on a shoot night, so
+  // it leads with the day and what happened to it — not the product name.
+  const subject = verb === "moved"
+    ? `${d.title} — moved`
+    : verb === "cancelled"
+      ? `${d.title} — cancelled`
+      : `${d.title}${d.version ? ` — call sheet v${d.version}` : ""}`;
+  const eyebrow = verb === "cancelled" ? "Cancelled" : verb === "moved" ? "Schedule change" : "Call sheet";
+  return {
+    subject,
+    html: renderEmail({
+      preheader: `${d.body || subject} · ${d.productionName}`,
+      eyebrow,
+      headline: d.title,
+      subtitle: `${d.body || ""}${d.body ? " · " : ""}${d.productionName}`.trim(),
+      cta: { label: verb === "cancelled" ? "Open the schedule" : "Open the day", url },
+    }),
+    text: plain([
+      "CLUSTERS",
+      "",
+      d.title,
+      d.body || "",
+      d.productionName,
+      "",
+      "Open: " + url,
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -1250,6 +1307,17 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardId:        data.boardId != null ? String(data.boardId) : undefined,
       });
     }
+    case "schedule_update":
+      return scheduleUpdateTpl({
+        kind:           String(data.kind ?? "schedule.published"),
+        title:          String(data.title ?? "Your schedule changed"),
+        body:           data.body != null ? String(data.body) : undefined,
+        productionName: String(data.productionName ?? "Your schedule"),
+        version:        data.version != null ? String(data.version) : undefined,
+        unsubscribeToken: data.unsubscribeToken != null ? String(data.unsubscribeToken) : undefined,
+        workspaceId:    data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:        data.boardId != null ? String(data.boardId) : undefined,
+      });
     case "comment_reply_email":
       return commentReplyEmailTpl({
         replierName:   String(data.replierName   ?? "Someone"),

@@ -712,6 +712,10 @@ function unsubConfirmPage(action) {
   );
 }
 
+// Preference keys a one-click unsubscribe link may turn off. Mirrors the
+// allowlist inside the email_unsubscribe() RPC.
+const UNSUB_KEYS = new Set(['email_lifecycle', 'email_schedule']);
+
 function unsubResultPage(message) {
   return unsubShell(`<p style="font-size:16px;line-height:1.6;color:#b3b3b7;">${message}</p>`);
 }
@@ -719,7 +723,19 @@ function unsubResultPage(message) {
 async function handleUnsubscribe(request, url, env) {
   const token = url.searchParams.get('u') || '';
   const keyRaw = url.searchParams.get('k') || 'email_lifecycle';
-  const key = keyRaw === 'email_lifecycle' ? keyRaw : 'email_lifecycle';   // allowlist
+  // A real allowlist, not a coercion. This used to fold every unknown key into
+  // 'email_lifecycle', so the day a second unsubscribable email existed, its
+  // one-click link would have quietly muted the wrong preference — the reader
+  // would keep getting what they opted out of and lose something they wanted.
+  // Must stay in step with email_unsubscribe()'s own allowlist (0243); widening
+  // only one of the two renders a 200 page reading "we couldn't process that".
+  const key = UNSUB_KEYS.has(keyRaw) ? keyRaw : null;
+  if (!key) {
+    return new Response(
+      unsubResultPage('That unsubscribe link is not one we recognise.'),
+      { status: 400, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } },
+    );
+  }
   const validToken = /^[0-9a-f]{64}$/.test(token);
   const headers = {
     'content-type': 'text/html; charset=utf-8',

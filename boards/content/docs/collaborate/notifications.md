@@ -1,15 +1,17 @@
 ---
 title: Notifications — Soleil Clusters
-metaDescription: Control what Soleil Clusters notifies you about — mentions, comment replies, workspace invites, board shares and product tips — in Settings.
+metaDescription: Control what Soleil Clusters notifies you about — mentions, comment replies, workspace invites, board shares, schedule changes and product tips — in Settings.
 h1: Notifications
 navLabel: Notifications
 section: collaborate
 order: 5
-updated: 2026-08-14
-answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, and occasional product tips. Each of the five is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
+updated: 2026-08-16
+answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, changes to a shoot day in your schedule, and occasional product tips. Each of the six is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 faq:
   - q: Can I turn off product emails but keep mentions?
-    a: Yes. The five categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
+    a: Yes. The six categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
+  - q: Where do schedule notifications appear?
+    a: Under Schedule in the sidebar, which carries an unread count. Unlike a toast, they persist until you read them, so a call sheet published late at night is still there in the morning.
   - q: Do I get browser notifications?
     a: Only if you grant permission. Nothing is requested until there is a reason.
   - q: How do I unsubscribe without logging in?
@@ -22,7 +24,7 @@ related:
   - /docs/collaborate/messages
 ---
 
-Five categories, five independent switches, in **Settings → Notifications**.
+Six categories, six independent switches, in **Settings → Notifications**.
 
 | Category | Fires when |
 |---|---|
@@ -30,16 +32,23 @@ Five categories, five independent switches, in **Settings → Notifications**.
 | **Comment replies** | Someone replies in a thread you are part of |
 | **Workspace invites** | You are added to a workspace |
 | **Board shares** | A cluster is shared with you |
+| **Schedule changes** | A shoot day you can see moves, or its call sheet is published |
 | **Product tips and check-ins** | Occasional messages about the product |
 
 The last one is the one to switch off if you only want to hear about your own
-work. The other four are all consequences of something a person did that
+work. The other five are all consequences of something a person did that
 involves you.
 
 ## Where they appear
 
 **In the app** — unread indicators on the sidebar, and in the browser tab title
-for [messages](/docs/collaborate/messages).
+for [messages](/docs/collaborate/messages). Schedule notifications collect under
+**Schedule** in the sidebar and stay there until read, rather than vanishing
+with the toast that announced them.
+
+**Email only when you are away** — a schedule email is sent only if you are not
+currently in the app. If you are, the in-app notification is the whole story and
+a second copy in your inbox is just noise.
 
 **Browser notifications** — only if you grant permission. Nothing is requested
 until there is an actual reason to ask.
@@ -72,3 +81,14 @@ separate.
 The mention notification is the important one. When someone `@`s you, the
 notification links to the exact card, comment or passage, not just to the board
 — see [Links and mentions](/docs/organize/links-and-mentions).
+
+## Schedule changes
+
+If you are on a [production schedule](/docs/clusters/production-schedule), this
+is the one that matters. Publishing a shoot day, or moving one that has already
+been published, notifies everyone who can read it — with the day, what changed,
+and the call-sheet version.
+
+Nothing is sent while a schedule is being built. A day is a draft until someone
+publishes it, and drafts are silent, so laying out a twelve-week shoot does not
+page anybody.

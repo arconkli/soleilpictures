@@ -786,12 +786,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/canvas/schedule",
     "title": "Schedule Cards — Soleil Clusters",
-    "metaDescription": "Schedule cards in Soleil Clusters are real-date calendars on the canvas. Month, week, day and hour views, drop anything into a slot, edit in the peek panel.",
+    "metaDescription": "Real-date calendar cards on the Soleil Clusters canvas. One to six months at once, shoot days you drag between dates, and a peek panel for editing.",
     "h1": "Schedules",
-    "answer": "A schedule card is a real calendar living on your canvas. It has month, week, day and hour views, you can break a day down into hours and an hour into minutes, and you can drop any card into a time slot. The grid itself is read-only — all editing happens in the peek panel that opens when you click a slot.",
+    "answer": "A schedule card is a real calendar living on your canvas. It shows one, three or six months at once, and each day can hold both loose content and whole clusters — a shoot day with its call sheet, shotlist and hour-by-hour inside. Dragging a day tile to another date moves that cluster and, if it has been published, tells everyone who can see it. Loose content in the month grid stays read-only and is edited in the peek panel.",
     "section": "canvas",
     "order": 8,
-    "updated": "2026-08-08",
+    "updated": "2026-08-16",
     "navLabel": "Schedules",
     "headings": [
       {
@@ -799,8 +799,12 @@ export const DOCS_PAGES = [
         "text": "Views"
       },
       {
-        "id": "putting-things-in-it",
-        "text": "Putting things in it"
+        "id": "two-things-live-on-a-date",
+        "text": "Two things live on a date"
+      },
+      {
+        "id": "moving-things",
+        "text": "Moving things"
       },
       {
         "id": "the-peek-panel",
@@ -813,8 +817,8 @@ export const DOCS_PAGES = [
     ],
     "related": [
       "/docs/canvas/grids",
-      "/docs/canvas/cards",
-      "/docs/clusters"
+      "/docs/clusters",
+      "/docs/collaborate/notifications"
     ],
     "faq": [
       {
@@ -822,8 +826,16 @@ export const DOCS_PAGES = [
         "a": "Yes. Any card can go into a time slot, not just text. A call sheet with the location photo attached to the right hour works exactly as you would expect."
       },
       {
+        "q": "How do I move a day to a different date?",
+        "a": "Drag its tile onto the new date. If the day has been published, everyone who can see the schedule is notified that it moved. Loose content moves from the peek panel or with \"Move to date\"."
+      },
+      {
         "q": "Why can I not type directly into the calendar grid?",
-        "a": "The grid is deliberately read-only. Clicking a slot opens a peek panel and every edit happens there. Inline editing in a dense calendar produced constant mis-clicks."
+        "a": "Loose content in the month and week grids is deliberately read-only — clicking a slot opens a peek panel and every edit happens there, because inline editing in a dense calendar produced constant mis-clicks. Day tiles are the exception: they are draggable, because moving a day is the thing a schedule exists for."
+      },
+      {
+        "q": "Does paging to next month move it for everyone?",
+        "a": "No. Navigation is yours alone. The card remembers where it opens, but stepping through months, jumping to a date and \"Go to today\" are all local to you."
       },
       {
         "q": "How do I get back to today?",
@@ -1372,6 +1384,74 @@ export const DOCS_PAGES = [
       {
         "q": "What if 3D is slow on my machine?",
         "a": "A 2D fallback renders automatically. The graph and its interactions are the same."
+      }
+    ]
+  },
+  {
+    "path": "/docs/clusters/production-schedule",
+    "title": "Production Schedules — Soleil Clusters",
+    "metaDescription": "Run a production schedule in Soleil Clusters — a multi-month calendar shared with the crew, each shoot day its own cluster, notifications not email.",
+    "h1": "Production schedules",
+    "answer": "A production schedule is one cluster holding a multi-month calendar, with each shoot day as a child cluster carrying a date. Open a day and you get its script pages, call sheet, shotlist and hour-by-hour schedule. Drag the day to a new date and everyone who can see the schedule is told it moved. Publishing a day bumps its call-sheet version and notifies the crew, which is the replacement for mailing a new attachment every night.",
+    "section": "clusters",
+    "order": 3,
+    "updated": "2026-08-16",
+    "navLabel": "Production schedules",
+    "headings": [
+      {
+        "id": "the-shape",
+        "text": "The shape"
+      },
+      {
+        "id": "laying-it-out",
+        "text": "Laying it out"
+      },
+      {
+        "id": "moving-a-day",
+        "text": "Moving a day"
+      },
+      {
+        "id": "publishing-instead-of-the-nightly-email",
+        "text": "Publishing, instead of the nightly email"
+      },
+      {
+        "id": "what-the-crew-sees",
+        "text": "What the crew sees"
+      },
+      {
+        "id": "driving-it-from-another-system",
+        "text": "Driving it from another system"
+      },
+      {
+        "id": "a-note-on-timezones",
+        "text": "A note on timezones"
+      }
+    ],
+    "related": [
+      "/docs/canvas/schedule",
+      "/docs/collaborate/notifications",
+      "/docs/collaborate/sharing"
+    ],
+    "faq": [
+      {
+        "q": "How does the crew find out a day changed?",
+        "a": "Publishing a day, or moving one that has already been published, notifies everyone who can read the schedule — in the app immediately, and by email if they are not currently in it. Nothing is sent while you are still building the schedule."
+      },
+      {
+        "q": "Will building a schedule spam everyone?",
+        "a": "No. A day is a draft until you publish it, and drafts are silent. You can lay out twelve weeks and drag days around without anyone being told anything."
+      },
+      {
+        "q": "Does everyone need an account on my plan?",
+        "a": "Editors you share with are free. Capacity is charged to whoever owns the boards, not per seat. See Sharing and roles."
+      },
+      {
+        "q": "What happens to the hour-by-hour schedule when a day moves?",
+        "a": "It follows. The schedule card inside a shoot day reads its date from the cluster, so it re-anchors itself and there is nothing to keep in sync."
+      },
+      {
+        "q": "Can another system push the schedule in?",
+        "a": "Yes. Boards carry scheduled_date over the API and MCP, so a stripboard or scheduling tool can create and move days programmatically."
       }
     ]
   },
@@ -2110,12 +2190,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/collaborate/notifications",
     "title": "Notifications — Soleil Clusters",
-    "metaDescription": "Control what Soleil Clusters notifies you about — mentions, comment replies, workspace invites, board shares and product tips — in Settings.",
+    "metaDescription": "Control what Soleil Clusters notifies you about — mentions, comment replies, workspace invites, board shares, schedule changes and product tips — in Settings.",
     "h1": "Notifications",
-    "answer": "Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, and occasional product tips. Each of the five is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.",
+    "answer": "Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, changes to a shoot day in your schedule, and occasional product tips. Each of the six is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.",
     "section": "collaborate",
     "order": 5,
-    "updated": "2026-08-14",
+    "updated": "2026-08-16",
     "navLabel": "Notifications",
     "headings": [
       {
@@ -2133,6 +2213,10 @@ export const DOCS_PAGES = [
       {
         "id": "mentions",
         "text": "Mentions"
+      },
+      {
+        "id": "schedule-changes",
+        "text": "Schedule changes"
       }
     ],
     "related": [
@@ -2143,7 +2227,11 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Can I turn off product emails but keep mentions?",
-        "a": "Yes. The five categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work."
+        "a": "Yes. The six categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work."
+      },
+      {
+        "q": "Where do schedule notifications appear?",
+        "a": "Under Schedule in the sidebar, which carries an unread count. Unlike a toast, they persist until you read them, so a call sheet published late at night is still there in the morning."
       },
       {
         "q": "Do I get browser notifications?",

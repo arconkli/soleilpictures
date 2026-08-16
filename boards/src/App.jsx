@@ -73,7 +73,7 @@ import { CommandPalette } from './components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen } from './lib/icons.js';
+import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -93,6 +93,8 @@ import { useRecents } from './hooks/useRecents.js';
 import { useWorkspacePresence } from './hooks/useWorkspacePresence.js';
 import { WorkspacePresenceStack } from './components/WorkspacePresenceStack.jsx';
 import { MessagesPanel } from './components/MessagesPanel.jsx';
+import { NotificationsPanel } from './components/NotificationsPanel.jsx';
+import { useNotifications } from './hooks/useNotifications.js';
 // Lazy: the ?local=1 / no-Supabase QA harness (and its deps — demo data,
 // TweaksPanel, HomeGraph) should never ship in the eager production bundle.
 const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx').then(m => ({ default: m.LocalBoardsApp })));
@@ -355,12 +357,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           view: s.board_view,
           cover: s.board_cover,
           created_at: s.created_at,
+          updated_at: s.updated_at,
+          // The schedule columns must survive the normalizer or a crew member
+          // shared into a production sees a calendar with nothing on it: the
+          // day clusters arrive as descendants (0244) and the grid reads these
+          // fields off the boards map.
+          scheduled_date: s.scheduled_date ?? null,
+          scheduled_end: s.scheduled_end ?? null,
+          day_label: s.day_label ?? null,
+          sched_status: s.sched_status ?? 'draft',
+          sched_version: s.sched_version ?? 0,
+          sched_published_at: s.sched_published_at ?? null,
           _shared: true,
+          _sharedRoot: s.is_shared_root !== false,
         };
       }
     }
     return merged;
   }, [ownedBoards, sharedBoards]);
+  // list_shared_boards now returns descendants too (0244) so a shared
+  // production carries its shoot days into the boards map. The sidebar still
+  // lists only what was actually shared WITH you — otherwise a 60-day shoot
+  // dumps 60 rows into "Shared with me".
+  const sharedRoots = useMemo(
+    () => (sharedBoards || []).filter((s) => s.is_shared_root !== false),
+    [sharedBoards]);
   // True only once the workspace board list has actually arrived over the
   // network. The canvas snapshot (yb.cards) paints instantly from the
   // IndexedDB instant-reopen cache, so board-reference cards can render a
@@ -699,6 +720,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const conversationList = useConversationList({ workspaceId: workspace.id, userId: user.id, refreshTick: msgRefreshTick });
   const { total: messagesUnread, mentions: messagesMentions } = useUnreadTotal({ unreadByConv: conversationList.unreadByConv });
   useTitleBadge({ total: messagesUnread, mentions: messagesMentions });
+  // The bell. Schedule pings ride the same `user:{uid}` socket useInboxLive
+  // owns and arrive here through notificationBus — a second channel on that
+  // topic would be handed the same object and throw on .on().
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifications = useNotifications({
+    userId: user.id,
+    feedback,
+    onOpenBoard: (id) => { if (id) { setStack([id]); setCurrentSurface('board'); } },
+  });
 
   // Live inbox: subscribes to user:{uid} broadcast, dispatches toasts +
   // OS notifications, publishes to inboxBus for optimistic list updates.
@@ -5633,6 +5663,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
             )}
           </div>
+          <div className={`sb-row ${notifOpen ? 'active' : ''}`}
+               onClick={() => setNotifOpen(v => !v)}
+               title={notifOpen ? 'Hide schedule' : 'Show schedule and updates'}>
+            <Icon as={Bell} size={14} />
+            <span className="sb-row-label">Schedule</span>
+            {notifications.unread > 0 && (
+              <span className="sb-row-count t-meta has-unread">{notifications.unread}</span>
+            )}
+          </div>
           </div>{/* /.sb-top */}
 
           {/* Scrollable middle — the ONLY scroll region: shared boards, the
@@ -5641,7 +5680,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               .sb-scroll rule would otherwise hijack this element's layout. */}
           <div className="sb-list" ref={sidebarScrollRef}>
           <SidebarSharedBoards
-            shared={sharedBoards}
+            shared={sharedRoots}
             activeBoardId={currentSurface === 'board' ? currentId : null}
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
           />
@@ -6013,6 +6052,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           buried it — and side mode docks to the right, exactly where the panel
           lives. The portal also makes it immune to any future ancestor
           stacking context. */}
+      {notifOpen && createPortal((
+        <NotificationsPanel
+          items={notifications.items}
+          schedule={notifications.schedule}
+          unread={notifications.unread}
+          loading={notifications.loading}
+          onMarkRead={notifications.markRead}
+          onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); setNotifOpen(false); }}
+          onClose={() => setNotifOpen(false)}
+        />
+      ), document.body)}
       {tweak.showMessages && createPortal((
         <MessagesPanel
           workspaceId={workspace.id}

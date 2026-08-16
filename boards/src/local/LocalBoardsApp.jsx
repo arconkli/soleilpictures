@@ -311,7 +311,32 @@ export function LocalBoardsApp({ user, signOut }) {
   );
   const crumbs = stack.map(id => ({ id, name: boards[id]?.name || id }));
 
+  // Real (if simple) undo for the local shell: a bounded snapshot stack per
+  // board. Production runs the Yjs UndoManager; ?local=1 used to stub
+  // undo/redo as NO-OPS, which meant nothing keyboard-level was ever
+  // e2e-testable — Cmd+Z routing, toast plumbing, pane gating all shipped
+  // untested. Yjs semantics stay covered by the engine simulation in
+  // undo-redo.spec.js; this is deliberately plain state history.
+  const historyRef = useRef(new Map()); // boardId → { undo: [], redo: [] }
+  const histFor = (id) => {
+    let h = historyRef.current.get(id);
+    if (!h) { h = { undo: [], redo: [] }; historyRef.current.set(id, h); }
+    return h;
+  };
+
   const updateBoardState = (updater) => {
+    // Snapshot BEFORE the update — captured from the render-scope value
+    // (never inside the setState updater: StrictMode double-invokes those)
+    // and deduped by reference, so a same-tick burst of mutator calls
+    // (doDeleteSelected: strokes + arrows + cards) collapses into ONE step,
+    // mirroring the real engine's one-action-one-step contract.
+    const cur = localState.boardState[currentId] || { cards: [], arrows: [], strokes: [] };
+    const h = histFor(currentId);
+    if (h.undo[h.undo.length - 1] !== cur) {
+      h.undo.push(cur);
+      if (h.undo.length > 100) h.undo.shift();
+      h.redo.length = 0;
+    }
     setLocalState(prev => {
       const current = prev.boardState[currentId] || { cards: [], arrows: [], strokes: [] };
       const nextCurrent = updater({
@@ -1040,8 +1065,22 @@ export function LocalBoardsApp({ user, signOut }) {
     renameBoardById,
     deleteBoardsById,
     setBoardBgColor,
-    undo: () => {},
-    redo: () => {},
+    undo: () => {
+      const h = histFor(currentId);
+      if (!h.undo.length) return;
+      const snap = h.undo.pop();
+      const cur = localState.boardState[currentId] || { cards: [], arrows: [], strokes: [] };
+      h.redo.push(cur);
+      setLocalState(prev => ({ ...prev, boardState: { ...prev.boardState, [currentId]: snap } }));
+    },
+    redo: () => {
+      const h = histFor(currentId);
+      if (!h.redo.length) return;
+      const snap = h.redo.pop();
+      const cur = localState.boardState[currentId] || { cards: [], arrows: [], strokes: [] };
+      h.undo.push(cur);
+      setLocalState(prev => ({ ...prev, boardState: { ...prev.boardState, [currentId]: snap } }));
+    },
   };
 
   // ⌘K / Ctrl-K (and "/" when not typing) — open the global search palette.

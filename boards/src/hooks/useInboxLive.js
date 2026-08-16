@@ -13,6 +13,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { publishInbox } from '../lib/inboxBus.js';
+import { publishNotification } from '../lib/notificationBus.js';
 import { maybeShowNotification } from '../lib/browserNotifications.js';
 import * as userProfiles from '../lib/userProfiles.js';
 
@@ -79,6 +80,16 @@ export function useInboxLive({ userId, openConversationId, onOpenConversation, f
     const topic = `user:${userId}`;
     const ch = supabase.channel(topic, { config: { private: true, broadcast: { self: false } } });
     ch.on('broadcast', { event: 'inbox-ping' }, ({ payload }) => handle(payload));
+    // Schedule notifications ride the SAME topic (0242's broadcast trigger).
+    // They have to: channels are deduped by topic, so a second
+    // supabase.channel('user:'+uid) elsewhere would hand back this object and
+    // throw on .on() after subscribe. This hook owns the socket; the bell
+    // listens on notificationBus. Toasting is left to the bell so it can say
+    // "Day 12 moved" with the day's own wording rather than a generic ping.
+    ch.on('broadcast', { event: 'schedule-ping' }, ({ payload }) => {
+      if (!payload) return;
+      try { publishNotification(userId, payload); } catch (e) { console.warn('[inbox-live] notification fanout threw', e); }
+    });
     ch.subscribe((status, err) => {
       if (status === 'CHANNEL_ERROR' || err) {
         console.warn('[inbox-live] subscribe error', { topic, status, err });
