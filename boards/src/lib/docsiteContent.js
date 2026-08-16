@@ -8343,6 +8343,36 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Reading it",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Reading it"
+    }
+   ],
+   "id": "reading-it"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The month grid has no vertical rules — just a line between weeks, and space. Dates you can act on are bright; days from the neighbouring month and weekend dates step back. Today is a filled circle."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Shoot days are colour-coded by state: green once published, blue while still a draft, red and struck through if cancelled. Loose content stays neutral grey so the days are what you see first."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "The peek panel",
    "inline": [
     {
@@ -13372,7 +13402,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Dashed outline"
+       "v": "Blue, dashed outline"
       }
      ],
      [
@@ -13398,7 +13428,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Solid, with its version"
+       "v": "Green, solid, with its version"
       }
      ],
      [
@@ -13424,7 +13454,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Struck through, still visible"
+       "v": "Red, struck through, still visible"
       }
      ],
      [

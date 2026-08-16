@@ -31,7 +31,7 @@ import { parseISO as schedParseISO, todayISO as schedTodayISO, daysInMonth as sc
 // Bump when the rendered output changes materially. Stored thumbnails carry
 // this in boards.thumb_version; tiles re-render stale versions in the
 // background (useThumbnailBackfill) so the new look rolls out lazily.
-export const RENDER_VERSION = 6;   // 6: arrow text labels are drawn (upright-clamped)
+export const RENDER_VERSION = 7;   // 7: schedule cards render the reworked calendar (no lattice, week rules only)
                                    // 5: new-model schedule cards draw a mini month lattice
 
 // Output frame: 16:9 ≈ both the grid tile cover and OG's 1.91:1. Fixed
@@ -857,22 +857,25 @@ function drawScheduleCalendarInterior(ctx, c, x, y, w, h) {
   const first = schedFirstWeekday(anchorT.y, anchorT.m);
   const nDays = schedDaysInMonth(anchorT.y, anchorT.m);
   const nRows = Math.ceil((first + nDays) / 7);
-  const gap = 2;
-  const cw = (w - pad * 2 - gap * 6) / 7;
-  const ch = (bottom - top - gap * (nRows - 1)) / nRows;
+  // Matches the card: no lattice of filled tiles, just full-width week rules
+  // and a dot where a day holds something. The old version painted every cell
+  // as a rectangle, which is the look the card itself no longer has.
+  const cw = (w - pad * 2) / 7;
+  const ch = (bottom - top) / nRows;
+  ctx.fillStyle = T.line1;
+  for (let r = 0; r < nRows; r++) {
+    ctx.fillRect(x + pad, Math.round(top + r * ch), w - pad * 2, 1);
+  }
   for (let d = 1; d <= nDays; d++) {
+    if (!dotDays.has(d)) continue;
     const idx = first + d - 1;
-    const cx = x + pad + (idx % 7) * (cw + gap);
-    const cyy = top + Math.floor(idx / 7) * (ch + gap);
-    ctx.fillStyle = dotDays.has(d) ? T.bg3 : T.bg1;
-    ctx.fillRect(cx, cyy, cw, ch);
-    if (dotDays.has(d)) {
-      ctx.fillStyle = T.ink1;
-      const r = Math.max(1.2, Math.min(cw, ch) * 0.14);
-      ctx.beginPath();
-      ctx.arc(cx + cw / 2, cyy + ch / 2, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    const cx = x + pad + (idx % 7) * cw;
+    const cyy = top + Math.floor(idx / 7) * ch;
+    ctx.fillStyle = T.ink1;
+    const r = Math.max(1.2, Math.min(cw, ch) * 0.16);
+    ctx.beginPath();
+    ctx.arc(cx + cw / 2, cyy + ch / 2, r, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.restore();
 }

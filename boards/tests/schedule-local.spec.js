@@ -607,7 +607,10 @@ test.describe('schedule — zoomed-out LOD', () => {
 
   test('far tier: a poster with a dot lattice — lattice days still open the full-size peek', async ({ page }) => {
     await addSchedule(page);
-    await pressZoom(page, 6, -1); // ×0.8⁶ ≈ 0.262 → FAR for a 420×380 month card
+    // Two more steps than before: the default month card grew from 420×380 to
+    // 640×560, so ×0.8⁶ ≈ 0.262 now leaves it at 168×147 on screen — above the
+    // 150×120 far threshold, i.e. still MID. ×0.8⁸ ≈ 0.168 → 107×94 → far.
+    await pressZoom(page, 8, -1);
     const sched = page.locator('.schedc');
     await expect(sched).toHaveClass(/is-lod-far/);
     await expect(sched.locator('.schedc-poster-title')).toBeVisible();

@@ -29,32 +29,54 @@ import {
 } from './schedDates.js';
 
 export const SCHED_TUNING = Object.freeze({
-  HEADER_H: 32,       // in-card header (nav/title/view pill) — component subtracts it before calling computeSchedSlots; CSS mirror: .schedc-head flex-basis
-  WEEKDAY_H: 16,      // Mon–Sun strip (month/week)
-  DAY_LABEL_H: 14,    // date-number strip inside a day cell (month/week); CSS mirror: .schedc-slot-label line-height
-  BAND_H: 22,         // the "All day" / whole-hour drop band (day/hour views)
+  HEADER_H: 44,       // in-card header (nav/title/view pill) — component subtracts it before calling computeSchedSlots; CSS mirror: .schedc-head flex-basis
+  WEEKDAY_H: 22,      // Mon–Sun strip (month/week)
+  DAY_LABEL_H: 22,    // date-number strip inside a day cell (month/week); CSS mirror: .schedc-slot-label line-height
+  BAND_H: 28,         // the "All day" / whole-hour drop band (day/hour views)
   HOUR_LABEL_W: 44,   // time gutter painted inside hour/minute rows (day/hour views); CSS mirror: the left:44px gutter rules
-  GUTTER_PX: 1,       // spacing between top-level slots — 1px so the body bg reads as a hairline lattice
-  INNER_GUTTER_PX: 1, // spacing between rows nested inside a day cell
-  CHIP_H: 18,         // CSS mirror: .schedc-chip flex-basis/line-height
-  CHIP_GAP: 2,
+  // ZERO. The old lattice painted the body in --line-1 and let 1px of it show
+  // between opaque tiles — but --line-1 is LIGHTER than the tile fill, so the
+  // grid read as inset tiles on light mortar (spreadsheet grammar), and in
+  // light theme --bg-2 #ededf0 against --line-1 #ececef is 1.009:1, i.e. the
+  // grid did not render at all. Cells now tile flush and transparent, and the
+  // only rule is a border-top per slot — a continuous horizontal week
+  // separator with no vertical rules, which is the month-view convention.
+  GUTTER_PX: 0,
+  INNER_GUTTER_PX: 0, // nested hour rows separate the same way
+  CHIP_H: 22,         // CSS mirror: .schedc-chip flex-basis/line-height
+  CHIP_GAP: 3,
   DAY_HOUR_FROM: 8,   // default visible hour window [FROM, TO)
   DAY_HOUR_TO: 18,
   MINUTE_STEP: 15,
   COMPACT_W: 90,      // below either → slot gets the pop-out menu trigger (local px,
   COMPACT_H: 40,      // zoom-independent — same reasoning as GRID_TUNING.PILL_MIN_*)
-  PEEK_W: 380,        // Day/Hour Peek panel (SchedulePeek.jsx): width, per-row
-  PEEK_ROW_H: 48,     // heights (hour rows / minute rows) and max panel height —
-  PEEK_MINUTE_ROW_H: 60, // the panel feeds computeSchedSlots a GENEROUS height so
-  PEEK_MAX_H: 560,    // rows come out big; overflow scrolls natively.
-  ROW_CHIP_H: 22,     // taller, legible chips in day/hour rows + the peek (CSS mirror: the 22px chip rules); bands keep CHIP_H
+  PEEK_W: 400,        // Day/Hour Peek panel (SchedulePeek.jsx) OUTER width.
+  // What the slot engine is fed. The panel is border-box, so the usable row
+  // width is PEEK_W − 2 (border) − 12 (body padding). Feeding it PEEK_W laid
+  // every row out 14px wider than its container and `overflow:hidden` amputated
+  // the right edge and radius of all of them.
+  PEEK_CONTENT_W: 386,
+  // Row heights are bounded by a real constraint: the DEFAULT hour window is
+  // 8→18, so ten rows plus the head, the band and the body padding have to fit
+  // inside a panel capped at 80% of the viewport. 48 + 12 + 28 + 10*54 = 628,
+  // which clears PEEK_MAX_H below — so the panel no longer scrolls by a hair
+  // and permanently masks the bottom of the last row to hide the overflow.
+  PEEK_ROW_H: 54,
+  PEEK_MINUTE_ROW_H: 64,
+  PEEK_MAX_H: 640,
+  // 24, not 28: two chips must still fit one hour row (h >= 2*chip + 5), and
+  // 28px chips would have shown one item per hour with everything else behind
+  // a "+N more". Legibility of the row beats the size of a secondary target.
+  ROW_CHIP_H: 24,     // CSS mirror: the 24px row-chip rules; bands keep CHIP_H
   LOD_NUM_PX: 13,     // LOD counter-scale TARGETS in *screen* px (layout px = target / canvasScale,
   LOD_DOT_PX: 4,      // clamped to the cell): MID date number, item dot, count badge,
   LOD_COUNT_PX: 10,   // and the FAR poster title. Tuned via the screenshot pass.
   LOD_TITLE_PX: 13,
-  MONTH_GAP_PX: 10,   // between month blocks in a multi-month strip
-  MONTH_CAPTION_H: 15, // per-block "August 2026" caption (CSS mirror: .schedc-mcap)
-  DAYTILE_H: 20,      // a dated child cluster's tile inside a day cell (CSS mirror: .schedc-daytile)
+  // Real negative space now that the body isn't painted in a line colour — it
+  // used to render as a 10px slab of --line-1 that read as damage.
+  MONTH_GAP_PX: 20,
+  MONTH_CAPTION_H: 24, // per-block "August 2026" caption (CSS mirror: .schedc-mcap)
+  DAYTILE_H: 24,      // a dated child cluster's tile inside a day cell (CSS mirror: .schedc-daytile)
 });
 
 // ---------------------------------------------------------------------------
@@ -76,7 +98,11 @@ export function monthGrid(months, w, h) {
   const chromeH = SCHED_TUNING.MONTH_CAPTION_H + SCHED_TUNING.WEEKDAY_H;
   let best = { cols: n, rows: 1, score: -Infinity };
   for (let cols = 1; cols <= n; cols++) {
-    const rows = Math.ceil(n / cols);
+    // Only EXACT arrangements. A ragged last row — three months in a 2x2 with
+    // an empty quadrant — reads as a broken layout however big it makes the
+    // cells, so 3 is a strip or a stack and never an L.
+    if (n % cols !== 0) continue;
+    const rows = n / cols;
     const blockW = (w - G * (cols - 1)) / cols;
     const blockH = (h - G * (rows - 1)) / rows;
     // Six week-rows is the worst case for any month.
@@ -238,12 +264,15 @@ function pushHourRows(slots, area, dateIso, win, expand, gutter) {
 // strip, a leading/trailing day would collide with the same date's real cell in
 // the neighbouring block, and two slots sharing a `d:` key would break
 // data-cell-id hit-testing and drop routing.
-function pushMonthBlock(slots, { monthIso, rect, nRows, expand, cellKeys, todayIso }) {
+function pushMonthBlock(slots, rules, { monthIso, rect, nRows, expand, cellKeys, todayIso }) {
   const G = SCHED_TUNING.GUTTER_PX;
   const t = parseISO(monthIso);
   const first = startOfWeek(formatISO(t.y, t.m, 1));
   const cw = (rect.w - G * 6) / 7;
   const ch = (rect.h - G * (nRows - 1)) / nRows;
+  for (let r = 0; r < nRows; r++) {
+    rules.push({ x: rect.x, y: rect.y + r * (ch + G), w: rect.w });
+  }
   for (let r = 0; r < nRows; r++) {
     for (let c = 0; c < 7; c++) {
       const date = addDays(first, r * 7 + c);
@@ -276,6 +305,10 @@ export function computeSchedSlots({
   months = 1,
 }) {
   const slots = [];
+  // Full-width horizontal week separators. Emitted as geometry rather than a
+  // border on each slot so they don't go ragged where a month starts or ends
+  // mid-week (the strip omits out-of-month days).
+  const weekRules = [];
   const G = SCHED_TUNING.GUTTER_PX;
   const t = parseISO(anchor) || parseISO(todayIso);
   const safeAnchor = formatISO(t.y, t.m, t.d);
@@ -305,7 +338,7 @@ export function computeSchedSlots({
       const gridRect = {
         x: bx, y: by + chromeH, w: blockW, h: Math.max(0, blockH - chromeH),
       };
-      pushMonthBlock(slots, { monthIso: iso, rect: gridRect, nRows, expand, cellKeys, todayIso });
+      pushMonthBlock(slots, weekRules, { monthIso: iso, rect: gridRect, nRows, expand, cellKeys, todayIso });
       return {
         iso, label: monthTitle(iso),
         captionRect: { x: bx, y: by, w: blockW, h: SCHED_TUNING.MONTH_CAPTION_H },
@@ -314,7 +347,7 @@ export function computeSchedSlots({
       };
     });
 
-    return { slots, weekdayLabels: null, monthBlocks };
+    return { slots, weekRules, weekdayLabels: null, monthBlocks };
   }
 
   if (view === 'month' || view === 'week') {
@@ -329,6 +362,9 @@ export function computeSchedSlots({
     }
     const cw = (body.w - G * 6) / 7;
     const ch = (body.h - G * (nRows - 1)) / nRows;
+    for (let r = 0; r < nRows; r++) {
+      weekRules.push({ x: 0, y: body.y + r * (ch + G), w: body.w });
+    }
     for (let r = 0; r < nRows; r++) {
       for (let c = 0; c < 7; c++) {
         const date = addDays(first, r * 7 + c);
@@ -350,7 +386,7 @@ export function computeSchedSlots({
         }
       }
     }
-    return { slots, weekdayLabels: WEEKDAYS.slice(), monthBlocks: null };
+    return { slots, weekRules, weekdayLabels: WEEKDAYS.slice(), monthBlocks: null };
   }
 
   if (view === 'day') {
@@ -364,7 +400,7 @@ export function computeSchedSlots({
     });
     const area = { x: 0, y: SCHED_TUNING.BAND_H + G, w, h: Math.max(0, h - SCHED_TUNING.BAND_H - G) };
     pushHourRows(slots, area, safeAnchor, hourWindowForDay(safeAnchor, cellKeys, expand), expand, G);
-    return { slots, weekdayLabels: null, monthBlocks: null };
+    return { slots, weekRules, weekdayLabels: null, monthBlocks: null };
   }
 
   // view === 'hour' — whole-hour band + minute rows.
@@ -376,7 +412,7 @@ export function computeSchedSlots({
   });
   const area = { x: 0, y: SCHED_TUNING.BAND_H + G, w, h: Math.max(0, h - SCHED_TUNING.BAND_H - G) };
   pushMinuteRows(slots, area, safeAnchor, hh, G);
-  return { slots, weekdayLabels: null, monthBlocks: null };
+  return { slots, weekRules, weekdayLabels: null, monthBlocks: null };
 }
 
 // How many item chips fit in a slot rect (stacked vertically); the component

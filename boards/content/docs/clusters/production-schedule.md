@@ -81,9 +81,9 @@ read it. That is the unit a crew already works in: *"Day 12, call sheet v3"*.
 
 | State | On the calendar | Who is told |
 |---|---|---|
-| **Draft** | Dashed outline | Nobody |
-| **Published** | Solid, with its version | Everyone who can read it, on publish and on any move |
-| **Cancelled** | Struck through, still visible | Everyone, if it had been published |
+| **Draft** | Blue, dashed outline | Nobody |
+| **Published** | Green, solid, with its version | Everyone who can read it, on publish and on any move |
+| **Cancelled** | Red, struck through, still visible | Everyone, if it had been published |
 
 A cancelled day stays on the calendar rather than disappearing. Deleting it
 would leave the crew with no record of a day they had planned around.

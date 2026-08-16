@@ -990,6 +990,12 @@ Drag a day tile onto another date. The cluster moves, and if it has been publish
 
 Loose content moves from the peek panel, or with Move to date on the slot. It stays read-only in the month grid for the reason below.
 
+Reading it
+
+The month grid has no vertical rules — just a line between weeks, and space. Dates you can act on are bright; days from the neighbouring month and weekend dates step back. Today is a filled circle.
+
+Shoot days are colour-coded by state: green once published, blue while still a draft, red and struck through if cancelled. Loose content stays neutral grey so the days are what you see first.
+
 The peek panel
 
 For loose content, the month and week grids are read-only. Clicking a day or an hour opens the peek — a panel where all editing happens.
@@ -1705,9 +1711,9 @@ A shoot day is a draft until someone publishes it. Drafts are silent: you can bu
 Publish bumps the day's version — v1, v2, v3 — and notifies everyone who can read it. That is the unit a crew already works in: "Day 12, call sheet v3".
 
 State | On the calendar | Who is told
-Draft | Dashed outline | Nobody
-Published | Solid, with its version | Everyone who can read it, on publish and on any move
-Cancelled | Struck through, still visible | Everyone, if it had been published
+Draft | Blue, dashed outline | Nobody
+Published | Green, solid, with its version | Everyone who can read it, on publish and on any move
+Cancelled | Red, struck through, still visible | Everyone, if it had been published
 
 A cancelled day stays on the calendar rather than disappearing. Deleting it would leave the crew with no record of a day they had planned around.
 

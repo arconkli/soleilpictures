@@ -614,7 +614,9 @@ export function LocalBoardsApp({ user, signOut }) {
 
   // Keep in lockstep with App.jsx addSchedule (same shape/sizes). Local shell
   // stores the cell/meta twins as plain fields (cells / gridMeta) — no Yjs.
-  const SCHED_SIZES = { month: [420, 380], week: [420, 170], day: [300, 420], hour: [280, 300] };
+  // A month cell has to hold a date number AND two or three legible events;
+  // at the old 420x380 it was 59x55 and held two pills of four characters.
+  const SCHED_SIZES = { month: [640, 560], week: [640, 260], day: [420, 560], hour: [380, 420] };
   const addSchedule = (clickPos = null, view = 'month') => {
     const id = createId('sched');
     const [w, h] = SCHED_SIZES[view] || SCHED_SIZES.month;

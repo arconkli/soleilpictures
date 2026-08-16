@@ -807,6 +807,10 @@ export const DOCS_PAGES = [
         "text": "Moving things"
       },
       {
+        "id": "reading-it",
+        "text": "Reading it"
+      },
+      {
         "id": "the-peek-panel",
         "text": "The peek panel"
       },

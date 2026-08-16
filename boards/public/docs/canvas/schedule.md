@@ -55,6 +55,16 @@ moved from and to. A multi-day block keeps its length.
 **Loose content** moves from the peek panel, or with **Move to date** on the
 slot. It stays read-only in the month grid for the reason below.
 
+## Reading it
+
+The month grid has no vertical rules — just a line between weeks, and space.
+Dates you can act on are bright; days from the neighbouring month and weekend
+dates step back. Today is a filled circle.
+
+Shoot days are colour-coded by state: green once published, blue while still a
+draft, red and struck through if cancelled. Loose content stays neutral grey so
+the days are what you see first.
+
 ## The peek panel
 
 For loose content, the month and week grids are **read-only**. Clicking a day or

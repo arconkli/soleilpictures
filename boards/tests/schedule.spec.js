@@ -313,12 +313,15 @@ test.describe('schedule — layout', () => {
         sliver: T.chipCapacity({ x: 0, y: 0, w: 60, h: 10 }, 'day'),
         small: T.chipCapacity({ x: 0, y: 0, w: 60, h: 50 }, 'day'),
         big: T.chipCapacity({ x: 0, y: 0, w: 60, h: 120 }, 'day'),
-        hourRow: T.chipCapacity({ x: 0, y: 0, w: 200, h: 20 }, 'hour'),
+        hourRow: T.chipCapacity({ x: 0, y: 0, w: 200, h: 28 }, 'hour'),
       };
     });
     expect(r.sliver).toBe(0);
     expect(r.small).toBeGreaterThanOrEqual(1);
     expect(r.big).toBeGreaterThan(r.small);
+    // 28, not 20: CHIP_H is 22 now, so a 20px row cannot hold a chip at all —
+    // which is correct. An hour row that short shows a count pip and sends you
+    // to the peek.
     expect(r.hourRow).toBeGreaterThanOrEqual(1);
   });
 });
@@ -516,14 +519,21 @@ test.describe('schedule — weekend flag + month matrix (peek/date-jump foundati
   test('SCHED_TUNING carries the peek panel + LOD constants', async ({ page }) => {
     const r = await page.evaluate(() => {
       const T = window.__soleilSchedTest;
-      const { PEEK_W, PEEK_ROW_H, PEEK_MINUTE_ROW_H, PEEK_MAX_H,
+      const { PEEK_W, PEEK_CONTENT_W, PEEK_ROW_H, PEEK_MINUTE_ROW_H, PEEK_MAX_H,
               ROW_CHIP_H, LOD_NUM_PX, LOD_DOT_PX, LOD_COUNT_PX, LOD_TITLE_PX } = T.SCHED_TUNING;
-      return { PEEK_W, PEEK_ROW_H, PEEK_MINUTE_ROW_H, PEEK_MAX_H,
+      return { PEEK_W, PEEK_CONTENT_W, PEEK_ROW_H, PEEK_MINUTE_ROW_H, PEEK_MAX_H,
                ROW_CHIP_H, LOD_NUM_PX, LOD_DOT_PX, LOD_COUNT_PX, LOD_TITLE_PX };
     });
+    // Re-snapshotted in the UX rework. PEEK_W grew and PEEK_CONTENT_W appeared
+    // because the panel was being laid out at its OUTER width, so every row was
+    // 14px wider than its container and overflow:hidden amputated the right
+    // edge of all of them. PEEK_ROW_H / PEEK_MAX_H are now sized so ten hour
+    // rows plus the head and band actually FIT (48+12+28+10*54 = 628 < 640) —
+    // the old pair left 4px of overflow, so the scroll-fade mask fired
+    // permanently and hid the bottom of the last row to conceal it.
     expect(r).toEqual({
-      PEEK_W: 380, PEEK_ROW_H: 48, PEEK_MINUTE_ROW_H: 60, PEEK_MAX_H: 560,
-      ROW_CHIP_H: 22, LOD_NUM_PX: 13, LOD_DOT_PX: 4, LOD_COUNT_PX: 10, LOD_TITLE_PX: 13,
+      PEEK_W: 400, PEEK_CONTENT_W: 386, PEEK_ROW_H: 54, PEEK_MINUTE_ROW_H: 64, PEEK_MAX_H: 640,
+      ROW_CHIP_H: 24, LOD_NUM_PX: 13, LOD_DOT_PX: 4, LOD_COUNT_PX: 10, LOD_TITLE_PX: 13,
     });
   });
 });
@@ -594,7 +604,7 @@ test.describe('schedule — LOD tiers + day counts (zoomed-out foundations)', ()
         tall: T.chipCapacity(rect, 'hour', { chipH: T.SCHED_TUNING.ROW_CHIP_H }),
       };
     });
-    expect(r.def).toBe(3);   // 18px chips
-    expect(r.tall).toBe(2);  // 22px chips fit fewer
+    expect(r.def).toBe(2);   // 22px chips (CHIP_H)
+    expect(r.tall).toBe(2);  // 24px row chips (ROW_CHIP_H)
   });
 });

@@ -177,8 +177,21 @@ test('a month card at its default size is unaffected by the months parameter', (
 
 test('a 3-month strip squeezed into one month\'s footprint demotes', () => {
   // Read against the whole card this would report 'full' while every cell was
-  // ~20px — the exact unreadable render the block-relative measure prevents.
-  assert.equal(schedLodTier({ view: 'month', w: 420, h: 380, scale: 1, months: 3 }), 'mid');
+  // ~18px — the exact unreadable render the block-relative measure prevents.
+  // It lands on 'far' rather than 'mid' because ragged arrangements are no
+  // longer allowed: 3 months can only be a strip or a stack, and the strip that
+  // wins here is 3-across at 140px per block, below the 150px far threshold.
+  assert.equal(schedLodTier({ view: 'month', w: 420, h: 380, scale: 1, months: 3 }), 'far');
+});
+
+test('a month count never produces a ragged grid', () => {
+  // Three months in a 2x2 with an empty quadrant reads as broken however big
+  // it makes the cells.
+  for (const [months, w, h] of [[3, 640, 516], [3, 900, 900], [6, 900, 700], [2, 500, 500]]) {
+    const g = monthGrid(months, w, h);
+    assert.equal(g.cols * g.rows, months,
+      `${months} months in ${w}x${h} gave ${g.cols}x${g.rows} — a hole`);
+  }
 });
 
 test('a strip given room for three real months stays full', () => {

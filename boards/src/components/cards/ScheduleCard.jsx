@@ -388,7 +388,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
   const headerH = SCHED_TUNING.HEADER_H;
   const bodyW = Math.max(0, w);
   const bodyH = Math.max(0, h - headerH);
-  const { slots, weekdayLabels, monthBlocks } = computeSchedSlots({
+  const { slots, weekRules, weekdayLabels, monthBlocks } = computeSchedSlots({
     view: model.view, anchor, anchorHour, months,
     w: bodyW, h: bodyH, expand: model.expand, cellKeys,
   });
@@ -733,8 +733,12 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
     const rowH = isHourPeek ? SCHED_TUNING.PEEK_MINUTE_ROW_H : SCHED_TUNING.PEEK_ROW_H;
     peekContentH = SCHED_TUNING.BAND_H + G + rows * rowH + G * (rows - 1);
     peekSlots = computeSchedSlots({
+      // PEEK_CONTENT_W, not PEEK_W. The panel is border-box and its body is
+      // padded, so laying rows out at the OUTER width made every one of them
+      // 14px wider than its container and `overflow:hidden` amputated the
+      // right edge and the 6px radius of all of them.
       view: isHourPeek ? 'hour' : 'day', anchor: peek.date, anchorHour: peek.hour ?? 9,
-      w: SCHED_TUNING.PEEK_W, h: peekContentH, expand: model.expand, cellKeys,
+      w: SCHED_TUNING.PEEK_CONTENT_W, h: peekContentH, expand: model.expand, cellKeys,
     }).slots;
     peekTitle = isHourPeek ? hourTitle(peek.date, peek.hour) : dayTitle(peek.date);
   }
@@ -921,6 +925,10 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
                 </div>
               )}
             </div>
+          ))}
+          {lod === 'full' && weekRules?.map((r, i) => (
+            <div key={`wr-${i}`} className="schedc-wrule" aria-hidden="true"
+              style={{ left: r.x, top: r.y, width: r.w }} />
           ))}
           {renderSlotLayer(bodySlots, 'card')}
           {model.view === 'day' && anchor === todayIso && renderNowLine(slots)}
