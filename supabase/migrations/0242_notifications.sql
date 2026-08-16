@@ -1,4 +1,4 @@
--- 0239_notifications.sql — a notification that survives the tab being closed.
+-- 0242_notifications.sql — a notification that survives the tab being closed.
 --
 -- Background. The app has two tables with "notification" in the name and
 -- neither is one:

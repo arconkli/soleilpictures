@@ -99,7 +99,7 @@ const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx')
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, ensurePublicLink, listBoardShares, updateBoardThumb } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule } from './lib/boardsApi.js';
 import { undoToast } from './lib/undoToast.js';
 import { forceBoardThumbnail } from './lib/yboard.js';
 import { planReparent } from './lib/boardTree.js';
@@ -114,7 +114,11 @@ import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readG
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from './lib/gridLayout.js';
 import { hasLabelTag } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
-import { graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey } from './lib/schedLayout.js';
+import {
+  graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey,
+  reslotItemKey, moveSlotSubtree as schedMoveSlotSubtree,
+} from './lib/schedLayout.js';
+import { getViewAnchor as getSchedViewAnchor } from './lib/schedViewRegistry.js';
 import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio, uploadFile, readVideoMeta } from './lib/uploads.js';
 import { arrangeInFreeSpace } from './lib/canvasGeom.js';
 import { classifyDropFile, fitImageDims, sizeBucket } from './lib/fileIngest.js';
@@ -883,6 +887,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Undo-stack meta key carrying the board ids a delete soft-deleted, so
     // undo()/redo() can restore / re-delete the board row (not just the card).
     const BOARD_DELETE_META = 'soleil-soft-deleted-boards';
+    // Sibling meta for deleted DOC cards: lists their ids so undo() can
+    // restore the doc's tombstoned entity_links (0241) if the deferred
+    // cleanup below already ran.
+    const DOC_CLEANUP_META = 'soleil-doc-cleanup-ids';
+    // Deferred, presence-checked doc-card cleanup: only runs if the cards
+    // are STILL gone when the timer fires — an undo inside the window
+    // cancels the cleanup outright instead of racing it.
+    const scheduleDocCleanup = (ids) => {
+      if (!ids?.length) return;
+      setTimeout(() => {
+        const mm = cardsMap();
+        const gone = ids.filter(id => !mm || !mm.has(id));
+        if (gone.length) cleanupDocCards(gone).catch(() => {});
+      }, 8000);
+    };
 
     // End the current undo merge window so the next write starts a fresh
     // stack item. Called at the top of discrete "one click = one action"
@@ -1217,9 +1236,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // End the merge window so a quick follow-up edit can never merge INTO
       // the delete step (it would ride along on undo).
       breakUndo();
-      // Clean up derived-index rows for deleted doc cards so the universal
-      // "Appears in" / backlinks stop surfacing a doc that no longer exists.
-      if (docCardIds.length) cleanupDocCards(docCardIds).catch(() => {});
+      // Derived-index cleanup for deleted doc cards — deferred + cancelled
+      // by undo; the meta hook lets a LATER undo restore the tombstoned
+      // links (see DOC_CLEANUP_META above).
+      if (docCardIds.length) {
+        if (stackItem) { try { stackItem.meta.set(DOC_CLEANUP_META, docCardIds.slice()); } catch (_) {} }
+        scheduleDocCleanup(docCardIds);
+      }
       return { stackItem };
     };
     const deleteCard = (cardId) => deleteCards([cardId]);
@@ -1234,6 +1257,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const m = cardsMap(); if (!m) return;
       const idSet = new Set(ids);
       ydoc.transact(() => removeCardsFromDoc(idSet), 'upload');
+    };
+
+    // Source-side delete for a cross-board MOVE (drag into a board card /
+    // cross-pane drag). Origin 'cross-board-move' is untracked by the
+    // UndoManager ON PURPOSE: the target half of the move lives on a
+    // DIFFERENT board's doc, so a canvas Cmd+Z could only ever restore the
+    // source half — resurrecting cards that also exist on the target
+    // (silent duplication; the old cross-board-drag bug). The move's single
+    // undo affordance is the "Moved — Undo" toast, which reverses BOTH
+    // sides. Same arrow cascade as deleteCards. Board cards never route
+    // through this path (they reparent instead).
+    const deleteCardsForMove = (ids) => {
+      if (!ids?.length) return;
+      const m = cardsMap(); if (!m) return;
+      ydoc.transact(() => removeCardsFromDoc(new Set(ids)), 'cross-board-move');
     };
 
     const duplicateCards = (ids) => {
@@ -1904,24 +1942,36 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (!undoManager) return;
       const top = undoManager.undoStack[undoManager.undoStack.length - 1];
       const boardIds = top?.meta?.get(BOARD_DELETE_META);
+      const docIds = top?.meta?.get(DOC_CLEANUP_META);
       undoManager.undo(); // re-adds the board card to the Y.Doc
+      const r = undoManager.redoStack[undoManager.redoStack.length - 1];
       if (boardIds?.length) {
         // Carry the tag onto the freshly-created redo item so a later redo
         // re-soft-deletes the board (the redo item already exists by now).
-        const r = undoManager.redoStack[undoManager.redoStack.length - 1];
         try { r?.meta.set(BOARD_DELETE_META, boardIds); } catch (_) {}
         restoreBoardsForUndo(boardIds); // clears deleted_at + refreshBoards
+      }
+      if (docIds?.length) {
+        try { r?.meta.set(DOC_CLEANUP_META, docIds); } catch (_) {}
+        // If the deferred cleanup already ran, the doc's entity_links are in
+        // the tombstone — bring them back with the card. No-op otherwise.
+        try { restoreDocLinks(docIds); } catch (_) {}
       }
     };
     const redo = () => {
       if (!undoManager) return;
       const top = undoManager.redoStack[undoManager.redoStack.length - 1];
       const boardIds = top?.meta?.get(BOARD_DELETE_META);
+      const docIds = top?.meta?.get(DOC_CLEANUP_META);
       undoManager.redo();
+      const u = undoManager.undoStack[undoManager.undoStack.length - 1];
       if (boardIds?.length) {
-        const u = undoManager.undoStack[undoManager.undoStack.length - 1];
         try { u?.meta.set(BOARD_DELETE_META, boardIds); } catch (_) {}
         reSoftDeleteBoardsForRedo(boardIds);
+      }
+      if (docIds?.length) {
+        try { u?.meta.set(DOC_CLEANUP_META, docIds); } catch (_) {}
+        scheduleDocCleanup(docIds); // deleted again — same deferred sweep
       }
     };
     const canUndo = () => !!(undoManager && undoManager.undoStack.length > 0);
@@ -2041,6 +2091,44 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         mm.set('expand', next);
       }, 'local');
     };
+    // Re-date ONE item. The date lives in the key, so this is a re-key, not a
+    // field write — delete + set inside one transaction so it undoes as a
+    // single move rather than as a disappearance followed by an appearance.
+    const moveSchedItem = (cardId, fromKey, toSlotPath) => {
+      const m = cardsMap(); const cy = m && m.get(cardId); if (!cy) return false;
+      const cm = cy.get('gridCells'); if (!cm || !cm.get) return false;
+      const nextKey = reslotItemKey(fromKey, toSlotPath);
+      if (!nextKey) return false;                       // no-op, or not an item key
+      const rec = cm.get(fromKey);
+      if (!rec) return false;
+      const plain = (rec && rec.toJSON) ? rec.toJSON() : rec;
+      ydoc.transact(() => { cm.delete(fromKey); cm.set(nextKey, plain); }, 'local');
+      return true;
+    };
+    // Re-date a whole slot — "move everything on this day to Thursday",
+    // including any hour/minute breakdown beneath it. Same pure prefix rewrite
+    // the cross-card graft uses (schedLayout.moveSlotSubtree).
+    const moveSchedSlot = (cardId, fromSlotPath, toSlotPath) => {
+      const m = cardsMap(); const cy = m && m.get(cardId); if (!cy) return false;
+      const cm = cy.get('gridCells'); if (!cm) return false;
+      const mm = cy.get('gridMeta');
+      const cells = {};
+      if (cm.forEach) cm.forEach((v, k) => { cells[k] = (v && v.toJSON) ? v.toJSON() : v; });
+      const expand = (mm && mm.get && mm.get('expand')) || {};
+      const r = schedMoveSlotSubtree(cells, expand, fromSlotPath, toSlotPath);
+      if (!r.removeKeys.length && !r.removeExpand.length) return false;
+      ydoc.transact(() => {
+        r.removeKeys.forEach((k) => cm.delete(k));
+        Object.entries(r.cells).forEach(([k, rec]) => cm.set(k, rec));
+        if (mm && mm.set) {
+          const next = { ...expand };
+          r.removeExpand.forEach((k) => { delete next[k]; });
+          Object.assign(next, r.expand);
+          mm.set('expand', next);
+        }
+      }, 'local');
+      return true;
+    };
     // Drag a Day-view schedule onto a Month/Week day slot (or an Hour-view onto
     // an hour slot) → the slot subdivides INLINE and absorbs the source's items
     // with their date prefix rewritten (pure schedLayout.graftKeyMap); the
@@ -2058,8 +2146,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const srcView = srcCy.get('schedView');
       const match = (srcView === 'day' && slot?.kind === 'day') || (srcView === 'hour' && slot?.kind === 'hour');
       if (!match) return false;
-      const srcAnchor = srcCy.get('anchor') || todayISO();
-      const srcPrefix = srcView === 'day' ? schedDayKey(srcAnchor) : schedHourKey(srcAnchor, srcCy.get('anchorHour') ?? 9);
+      // Navigation is LOCAL now (see lib/schedViewRegistry.js), so the card
+      // field is the saved default, not the live position. Reading it here
+      // would lift the wrong day's items — or none, and refuse the drag with
+      // no visible reason — whenever the user had paged the source card.
+      const liveView = getSchedViewAnchor(srcId);
+      const srcAnchor = liveView?.anchor || srcCy.get('anchor') || todayISO();
+      const srcHour = liveView?.anchorHour ?? srcCy.get('anchorHour') ?? 9;
+      const srcPrefix = srcView === 'day' ? schedDayKey(srcAnchor) : schedHourKey(srcAnchor, srcHour);
       const srcCells = {};
       const scm = srcCy.get('gridCells');
       if (scm && scm.forEach) scm.forEach((v, k) => { srcCells[k] = (v && v.toJSON) ? v.toJSON() : v; });
@@ -2356,7 +2450,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
 
     return {
-      updateCard, updateCards, deleteCard, deleteCards, deleteCardsSilent,
+      updateCard, updateCards, deleteCard, deleteCards, deleteCardsSilent, deleteCardsForMove,
       duplicateCard, duplicateCards, addCard, addCards,
       bringToFront, sendToBack, bringForward, sendBackward,
       createGroup, ungroup, renameGroup, setGroupOutline,
@@ -2365,7 +2459,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addNote, addTextLink, addImageAt, addPdfAt, ingestFilesArranged, updateCardSilent, addNewBoard, addPalette,
       addDocCard, addScriptCard, addGrid,
       resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, setGridCellContent, clearGridCellContent, removeGridCellRecord,
-      setSchedSlotExpand, graftScheduleIntoSlot,
+      setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
       setGridTextStyle, pinCellStyle, unpinCellStyle, guardWeightedAdd,
       promoteGridToTemplate, linkGridToTemplate, unlinkGrid, resizeLinkedGrids, graftGridIntoCell,
       stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern, setGridSequenceStartAt,
@@ -4711,6 +4805,108 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           console.warn('comment move failed', cmtErr);
         }
 
+        // ── The move's ONE undo affordance. ──
+        // The source delete runs under the untracked 'cross-board-move'
+        // origin (Cmd+Z could only ever restore half the move and duplicate
+        // cards); this toast reverses BOTH sides: strip the copies from the
+        // target, put the originals back on the source, repoint comments
+        // home. Every write is has()-guarded so a stale click can't clobber
+        // later edits, and both boards get the room-reset treatment any
+        // out-of-band board_state write requires. The pre-drop snapshots
+        // remain the catastrophic fallback.
+        undoToast(feedback, {
+          type: 'success',
+          message: movedCards.length === 1
+            ? `Moved card to “${boards[targetBoardId]?.name || 'cluster'}”`
+            : `Moved ${movedCards.length} cards to “${boards[targetBoardId]?.name || 'cluster'}”`,
+          onUndo: async () => {
+            try {
+              // 1) Strip the copies from the TARGET (same snapshot
+              //    round-trip as the forward path, reversed).
+              const tsnap = await loadBoardSnapshot(targetBoardId);
+              if (tsnap) {
+                const t = new Y.Doc();
+                Y.applyUpdate(t, b64ToBytes(tsnap));
+                const newIds = new Set(Object.values(idMap));
+                const newGids = new Set(Object.values(groupMap));
+                t.transact(() => {
+                  const tcm = t.getMap('cards');
+                  const tgm = t.getMap('groups');
+                  const tar = t.getArray('arrows');
+                  newIds.forEach(id => { if (tcm.has(id)) tcm.delete(id); });
+                  newGids.forEach(gid => { if (tgm.has(gid)) tgm.delete(gid); });
+                  for (let i = tar.length - 1; i >= 0; i--) {
+                    const a = tar.get(i);
+                    const fromId = typeof a?.from === 'string' ? a.from : a?.from?.cardId;
+                    const toId   = typeof a?.to   === 'string' ? a.to   : a?.to?.cardId;
+                    if (newIds.has(fromId) || newIds.has(toId)) tar.delete(i, 1);
+                  }
+                }, 'cross-board-move');
+                await saveBoardSnapshot(targetBoardId, t);
+                t.destroy();
+                await forceResetBoardRoom(targetBoardId);
+                try { window.__soleilEmitBoardReset?.(targetBoardId); } catch (_) {}
+              }
+              // 2) Restore the originals on the SOURCE (original ids, so
+              //    comments re-anchor and Yjs identities line up).
+              const ssnap = await loadBoardSnapshot(sourceBoardId);
+              if (!ssnap) throw new Error('source cluster state unavailable');
+              const s = new Y.Doc();
+              Y.applyUpdate(s, b64ToBytes(ssnap));
+              s.transact(() => {
+                const gm = s.getMap('groups');
+                for (const g of sourceGroups) {
+                  if (gm.has(g.id)) continue;
+                  const ym = new Y.Map();
+                  ym.set('id', g.id); ym.set('name', g.name); ym.set('outline', !!g.outline);
+                  ym.set('color', g.color); ym.set('width', g.width || 1);
+                  if (g.options) ym.set('options', g.options);
+                  gm.set(g.id, ym);
+                }
+                const cm = s.getMap('cards');
+                for (const c of movedCards) { if (!cm.has(c.id)) cm.set(c.id, cardToYMap({ ...c })); }
+                const ar = s.getArray('arrows');
+                for (const a of sourceArrows) ar.push([{ ...a }]);
+              }, 'cross-board-move');
+              await saveBoardSnapshot(sourceBoardId, s);
+              s.destroy();
+              await forceResetBoardRoom(sourceBoardId);
+              try { window.__soleilEmitBoardReset?.(sourceBoardId); } catch (_) {}
+              // 3) Repoint the moved comments home (best-effort).
+              try {
+                const backMap = {};
+                for (const [oldId, newId] of Object.entries(idMap)) backMap[newId] = oldId;
+                for (const [oldGid, newGid] of Object.entries(groupMap)) backMap[newGid] = oldGid;
+                const anchors = Object.keys(backMap);
+                if (anchors.length) {
+                  const { data: cmts } = await supabase
+                    .from('comments')
+                    .select('id, anchor_id')
+                    .eq('board_id', targetBoardId)
+                    .is('deleted_at', null)
+                    .in('anchor_kind', ['card', 'group'])
+                    .in('anchor_id', anchors);
+                  for (const row of (cmts || [])) {
+                    const oldAnchor = backMap[row.anchor_id];
+                    if (!oldAnchor) continue;
+                    await supabase.from('comments').update({
+                      board_id: sourceBoardId,
+                      anchor_id: oldAnchor,
+                    }).eq('id', row.id);
+                  }
+                }
+              } catch (_) {}
+            } catch (undoErr) {
+              console.error('[xbm] undo failed', undoErr);
+              feedback.toast({
+                type: 'error',
+                message: 'Undo failed — the pre-move snapshots are still available for recovery. ' + (undoErr.message || undoErr),
+                ttl: 8000,
+              });
+            }
+          },
+        });
+
       } catch (err) {
         console.error('cross-board move failed', err);
         feedback.toast({ type: 'error', message: 'Move failed: ' + (err.message || err) });
@@ -5079,6 +5275,50 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setTheme, setTweak, mainMutators, openInviteFriends, signOut]);
 
 
+  // ── Production schedule ───────────────────────────────────────────────────
+  // Moving a shoot day is a Postgres write, not a Y.Doc edit: the date is a
+  // column, and set_board_schedule is what decides whether the crew gets told.
+  // The boards map refreshes from the same realtime subscription every other
+  // viewer uses, so the actor sees exactly what the crew sees.
+  const handleSetSchedule = useCallback(async (bId, date, endDate = null) => {
+    const before = boards[bId];
+    const prevDate = before?.scheduled_date || null;
+    const prevEnd = before?.scheduled_end || null;
+    try {
+      const res = await setBoardSchedule(bId, date, endDate);
+      if (!res?.ok) {
+        feedback.toast({
+          type: 'error',
+          message: res?.error === 'forbidden'
+            ? 'You don’t have permission to move this day.'
+            : 'Could not move that day.',
+        });
+        return;
+      }
+      await refreshBoards();
+      // Moving a published day pages the whole crew, so say how many were told
+      // — and offer the way back, matching the delete/undo-toast convention.
+      const moved = res.notified
+        ? `Moved — ${res.notified} notified`
+        : 'Moved';
+      feedback.toast({
+        type: 'success', message: moved, ttl: 6000,
+        action: prevDate ? {
+          label: 'Undo',
+          onClick: async () => {
+            try {
+              await setBoardSchedule(bId, prevDate, prevEnd);
+              await refreshBoards();
+            } catch (e) { console.warn('undo move failed', e); }
+          },
+        } : undefined,
+      });
+    } catch (e) {
+      console.error('setBoardSchedule failed', e);
+      feedback.toast({ type: 'error', message: 'Could not move that day.' });
+    }
+  }, [boards, refreshBoards, feedback]);
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   const crumbs = stack.map(id => ({ id, name: boards[id]?.name || (id === rootBoard.id ? rootBoard.name : id) }));
@@ -5189,6 +5429,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          ownsWorkspace={workspace?.created_by === user?.id}
                          currentUser={currentUser}
                          onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
+                         onSetSchedule={handleSetSchedule}
                          onOpenPicker={(pos) => openBoardLinkPicker(pos)}
                          onDropInboxItem={dropInboxItemFor(muts)}
                          onDropFileImage={dropFileImageFor(muts)}

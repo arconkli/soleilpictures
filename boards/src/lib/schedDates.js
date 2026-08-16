@@ -65,6 +65,17 @@ export function addMonths(iso, n) {
 
 export function startOfWeek(iso) { return addDays(iso, -weekdayOf(iso)); }
 
+// Whole days from a to b (0 when equal or b is earlier). Counts by stepping
+// addDays rather than subtracting epoch millis, so it inherits the same
+// noon-anchored DST safety as everything else here. Bounded: a multi-day shoot
+// block is days or weeks, and a mis-entered range must not spin.
+export function daysBetween(a, b) {
+  if (!parseISO(a) || !parseISO(b) || b <= a) return 0;
+  let n = 0, d = a;
+  while (d < b && n < 4000) { d = addDays(d, 1); n++; }
+  return n;
+}
+
 export function isToday(iso, now = new Date()) { return iso === todayISO(now); }
 
 export function monthTitle(iso) {

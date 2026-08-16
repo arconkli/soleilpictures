@@ -12,7 +12,11 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { hasLabelTag } from '../lib/gridSequence.js';
 import { readGridModel } from '../lib/gridState.js';
 import { todayISO } from '../lib/schedDates.js';
-import { graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey } from '../lib/schedLayout.js';
+import {
+  graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey,
+  reslotItemKey, moveSlotSubtree as schedMoveSlotSubtree,
+} from '../lib/schedLayout.js';
+import { getViewAnchor as getSchedViewAnchor } from '../lib/schedViewRegistry.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -785,6 +789,38 @@ export function LocalBoardsApp({ user, signOut }) {
       if (mode) expand[slotPath] = mode; else delete expand[slotPath];
       return { ...c, gridMeta: { ...(c.gridMeta || {}), expand } };
     });
+  // Twin of App.jsx moveSchedItem — re-key one item onto another slot.
+  const moveSchedItem = (cardId, fromKey, toSlotPath) => {
+    const card = findLocalGrid(cardId);
+    const nextKey = reslotItemKey(fromKey, toSlotPath);
+    if (!card || !nextKey || !card.cells?.[fromKey]) return false;
+    mapGridCard(cardId, c => {
+      const cells = { ...(c.cells || {}) };
+      const rec = cells[fromKey];
+      delete cells[fromKey];
+      cells[nextKey] = rec;
+      return { ...c, cells };
+    });
+    return true;
+  };
+  // Twin of App.jsx moveSchedSlot — re-date a whole slot and its breakdown.
+  const moveSchedSlot = (cardId, fromSlotPath, toSlotPath) => {
+    const card = findLocalGrid(cardId);
+    if (!card) return false;
+    const expand = card.gridMeta?.expand || {};
+    const r = schedMoveSlotSubtree(card.cells || {}, expand, fromSlotPath, toSlotPath);
+    if (!r.removeKeys.length && !r.removeExpand.length) return false;
+    mapGridCard(cardId, c => {
+      const cells = { ...(c.cells || {}) };
+      r.removeKeys.forEach((k) => { delete cells[k]; });
+      Object.assign(cells, r.cells);
+      const nextExpand = { ...(c.gridMeta?.expand || {}) };
+      r.removeExpand.forEach((k) => { delete nextExpand[k]; });
+      Object.assign(nextExpand, r.expand);
+      return { ...c, cells, gridMeta: { ...(c.gridMeta || {}), expand: nextExpand } };
+    });
+    return true;
+  };
   // Twin of App.jsx graftScheduleIntoSlot — same pure graftKeyMap, same refusal
   // rules (granularity mismatch / stray content → false → normal move).
   const graftScheduleIntoSlot = (hostId, slotPath, srcId) => {
@@ -793,9 +829,13 @@ export function LocalBoardsApp({ user, signOut }) {
     const slot = parseSlotKey(slotPath);
     const match = (src.schedView === 'day' && slot?.kind === 'day') || (src.schedView === 'hour' && slot?.kind === 'hour');
     if (!match) return false;
+    // Same reasoning as the Yjs twin: navigation is local, so prefer the live
+    // view position over the persisted default.
+    const liveView = getSchedViewAnchor(srcId);
+    const srcAnchor = liveView?.anchor || src.anchor || todayISO();
     const srcPrefix = src.schedView === 'day'
-      ? schedDayKey(src.anchor || todayISO())
-      : schedHourKey(src.anchor || todayISO(), src.anchorHour ?? 9);
+      ? schedDayKey(srcAnchor)
+      : schedHourKey(srcAnchor, liveView?.anchorHour ?? src.anchorHour ?? 9);
     const { cells, expand, strays } = graftKeyMap(src.cells || {}, src.gridMeta?.expand || {}, srcPrefix, slotPath);
     if (strays.length) return false;
     mapGridCard(hostId, c => ({
@@ -986,7 +1026,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addDocCard,
     addGrid,
     resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent, removeGridCellRecord,
-    setSchedSlotExpand, graftScheduleIntoSlot,
+    setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
     setGridTextStyle, pinCellStyle, unpinCellStyle,
     promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
     removeGridDivider, resizeLinkedGrids, graftGridIntoCell,

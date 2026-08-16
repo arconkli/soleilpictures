@@ -407,6 +407,9 @@ export function CanvasSurface({
   getAwareness,            // () => Awareness | null  — for live presence
   currentUser,             // { id, name, color }     — for awareness localState
   onOpenBoard, tweak, depth, onOpenPicker,
+  // Shoot days are dated CLUSTERS, so these write Postgres (set_board_schedule)
+  // rather than the Y.Doc — they can't ride gridActions with the cell mutators.
+  onSetSchedule = null, onAddShootDay = null,
   onDropInboxItem, onDropFileImage,
   workspaceId, userId, personalWorkspaceId,
   selectedTool = 'select', setSelectedTool = () => {},
@@ -4402,8 +4405,11 @@ export function CanvasSurface({
             // Now safe to clear local comments + delete source.
             removeCommentsByAnchorIds([...dragIds, ...movedGroupIds]);
 
-            // Source-side delete. Wrap with the invariant check.
-            mutators.deleteCards?.(dragIds);
+            // Source-side delete — the MOVE variant (untracked origin), so a
+            // later Cmd+Z can't restore the source half while the copies
+            // stay on the target (silent duplication). The move's undo is
+            // the toast App shows, which reverses both sides.
+            mutators.deleteCardsForMove?.(dragIds);
 
             const afterKeys = cardsMap ? [...cardsMap.keys()] : [];
             const afterCount = afterKeys.length;
@@ -6991,6 +6997,10 @@ export function CanvasSurface({
     // Schedule breakdown: 'hours' on a day slot / 'minutes' on an hour slot /
     // null to collapse (meta-only, non-destructive).
     setSlotExpand: (cardId, slotPath, mode) => mutators.setSchedSlotExpand?.(cardId, slotPath, mode),
+    // Re-date schedule content. The date lives IN the key, so both of these are
+    // re-keys rather than field writes (lib/schedLayout.js).
+    moveItem: (cardId, fromKey, toSlotPath) => mutators.moveSchedItem?.(cardId, fromKey, toSlotPath),
+    moveSlot: (cardId, fromSlot, toSlot) => mutators.moveSchedSlot?.(cardId, fromSlot, toSlot),
     unlinkGrid: (gridId) => mutators.unlinkGrid?.(gridId),
     promoteToTemplate: (gridId) => mutators.promoteGridToTemplate?.(gridId),
     stampNeighbor: (gridId, dir) => mutators.stampGridNeighbor?.(gridId, dir),
@@ -7251,6 +7261,7 @@ export function CanvasSurface({
                             dropCellId={cellDropTarget?.gridId === c.id ? cellDropTarget.cellId : null}
                             cellUploads={schedUploads}
                             boards={boards} onOpenBoard={onOpenBoard}
+                            onSetSchedule={onSetSchedule} onAddShootDay={onAddShootDay}
                             gridActions={gridActions} getAwareness={getAwareness} boardId={board.id} />;
     }
     else if (c.kind === 'shape')     inner = <ShapeCard key={`shape-${c.shape}`} shape={c.shape} stroke={c.stroke} fill={c.fill} strokeWidth={c.strokeWidth} dash={c.dash}
@@ -7756,7 +7767,9 @@ export function CanvasSurface({
           },
         });
       }
-      mutators.deleteCards?.(idList);
+      // MOVE variant (untracked origin): Cmd+Z on this pane must not
+      // resurrect cards that now live on the other pane's board.
+      mutators.deleteCardsForMove?.(idList);
     };
     document.addEventListener('soleil-card-transferred', onTransferred);
     return () => document.removeEventListener('soleil-card-transferred', onTransferred);

@@ -20,11 +20,12 @@ import { useEffect, useRef, useState } from 'react';
 import { readSchedModel } from '../../lib/schedState.js';
 import {
   SCHED_TUNING, computeSchedSlots, itemsForSlot, chipCapacity, mintItemKey, newUid, parseSlotKey,
-  hourWindowForDay, dayKey, hourKey, schedLodTier, schedDayCounts,
+  hourWindowForDay, dayKey, hourKey, schedLodTier, schedDayCounts, slotOfItem, reslotItemKey,
 } from '../../lib/schedLayout.js';
+import { setViewAnchor, clearViewAnchor } from '../../lib/schedViewRegistry.js';
 import {
   todayISO, addDays, addMonths, monthTitle, weekTitle, dayTitle, hourTitle,
-  monthMatrix, startOfWeek,
+  monthMatrix, startOfWeek, daysBetween,
 } from '../../lib/schedDates.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
 import { useCanvasSettleTick } from '../../hooks/useCanvasSettleTick.js';
@@ -51,6 +52,11 @@ const stop = (e) => e.stopPropagation();
 // body — see lib/touchScroll.js for why the browser can't do it here.
 const stopWithTouchScroll = (e) => { startTouchScrollGesture(e); e.stopPropagation(); };
 
+// How many months a month-view card can tile at once. 3 is a block of
+// principal photography, which is the case this exists for.
+const MONTH_SPANS = [1, 3, 6];
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 const VIEWS = [
   { id: 'month', label: 'M', tip: 'Month' },
   { id: 'week', label: 'W', tip: 'Week' },
@@ -58,11 +64,44 @@ const VIEWS = [
   { id: 'hour', label: 'H', tip: 'Hour' },
 ];
 
-function viewTitle(view, anchor, anchorHour) {
-  if (view === 'month') return monthTitle(anchor);
+function viewTitle(view, anchor, anchorHour, months = 1) {
+  if (view === 'month') {
+    if (months <= 1) return monthTitle(anchor);
+    // A production strip spans a block, so name the block: "August – October
+    // 2026", dropping the repeated year when both ends share one.
+    const last = addMonths(anchor, months - 1);
+    const a = monthTitle(anchor), b = monthTitle(last);
+    const ay = a.slice(a.lastIndexOf(' ') + 1), by = b.slice(b.lastIndexOf(' ') + 1);
+    return ay === by ? `${a.slice(0, a.lastIndexOf(' '))} – ${b}` : `${a} – ${b}`;
+  }
   if (view === 'week') return weekTitle(anchor);
   if (view === 'day') return dayTitle(anchor);
   return hourTitle(anchor, anchorHour);
+}
+
+// Dated child clusters indexed by every date they occupy — a multi-day block
+// (travel, a company move) appears on each day it covers. Only DIRECT children
+// of the cluster holding this calendar: a production's days are its children,
+// and walking deeper would pull unrelated dated clusters onto the grid.
+function shootDaysByDate(boards, parentId) {
+  const out = {};
+  if (!boards || !parentId) return out;
+  for (const id in boards) {
+    const b = boards[id];
+    if (!b || b.parent_board_id !== parentId || !b.scheduled_date) continue;
+    let d = b.scheduled_date;
+    const end = b.scheduled_end && b.scheduled_end >= d ? b.scheduled_end : d;
+    // Bounded: a mis-entered range must not spin here.
+    for (let i = 0; i < 400 && d <= end; i++) {
+      (out[d] || (out[d] = [])).push(b);
+      if (d === end) break;
+      d = addDays(d, 1);
+    }
+  }
+  for (const k in out) {
+    out[k].sort((x, y) => String(x.day_label || x.name).localeCompare(String(y.day_label || y.name)));
+  }
+  return out;
 }
 
 // One compact chip row for an item in a multi-item slot. Board/link chips are
@@ -75,6 +114,42 @@ function ChipX({ onRemove }) {
       onPointerDown={stop} onClick={(e) => { e.stopPropagation(); e.preventDefault(); onRemove(); }}>
       <Icon as={X} size={9} />
     </button>
+  );
+}
+
+// A shoot day sitting on a date. THE deliberate exception to the read-only
+// month grid: content chips there stay pure ink (pointer-events:none) because
+// inline editing in a dense calendar produced constant mis-clicks, but moving a
+// whole day is the one thing a production schedule exists to do, and making
+// people open a panel to change a date would miss the entire point. The tile is
+// a distinct element, so the rule for CONTENT is untouched.
+function DayTile({ board, draggable, dragging, onPointerDown, onOpen }) {
+  const label = board.day_label || board.name || 'Shoot day';
+  const status = board.sched_status || 'draft';
+  const published = status === 'published' && board.sched_version > 0;
+  const title = status === 'cancelled'
+    ? `${label} — cancelled`
+    : `${label}${published ? ` — call sheet v${board.sched_version}` : ' — not published yet'}`
+      + (draggable ? ' · drag to another date to move it' : '');
+  return (
+    <span
+      className={[
+        'schedc-daytile', `is-${status}`,
+        dragging ? 'is-dragging' : '', draggable ? 'is-draggable' : '',
+      ].filter(Boolean).join(' ')}
+      title={title} role="button" tabIndex={0} aria-label={title}
+      // When draggable, the OPEN happens on pointerup-without-movement inside
+      // startTileDrag — preventDefault there can swallow the click event.
+      onPointerDown={draggable ? onPointerDown : stop}
+      onClick={(e) => { e.stopPropagation(); if (!draggable) onOpen?.(); }}
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault(); e.stopPropagation(); onOpen?.();
+      }}>
+      <span className="schedc-daytile-dot" aria-hidden="true" />
+      <span className="schedc-daytile-txt">{label}</span>
+      {published && <span className="schedc-daytile-v">v{board.sched_version}</span>}
+    </span>
   );
 }
 
@@ -171,7 +246,11 @@ function SlotChip({ itemKey, cell, boards, onOpenBoard, onRemove = null, passive
 export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, canEdit = false,
                                gridActions = null, getAwareness = null, boardId = null,
                                focusedCellId = null, dropCellId = null, cellUploads = null,
-                               boards = null, onOpenBoard = null, onUpdate = null }) {
+                               boards = null, onOpenBoard = null, onUpdate = null,
+                               // Dated child clusters — the shoot days. Moving one is a
+                               // Postgres write (set_board_schedule), not a Y.Doc edit, so it
+                               // arrives as a callback rather than through gridActions.
+                               onSetSchedule = null, onAddShootDay = null }) {
   useCardCellsVersion(cardYMap, ['gridCells', 'gridMeta']);
   const [menu, setMenu] = useState(null);            // { slotKey, anchorRect, surface } — pop-out add/options menu
   // Full-bleed text item in edit mode. Surface-scoped ('card' | 'peek') — the
@@ -190,9 +269,94 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
 
   const editable = canEdit && !!gridActions;
   const model = readSchedModel(card, ydoc);
-  const anchor = model.anchor || todayISO();
   const cellKeys = Object.keys(model.cells);
   const todayIso = todayISO();
+
+  // WHERE THIS VIEWER IS LOOKING — local, never written to the card.
+  //
+  // Navigation used to be updateCard({anchor}), so paging to next month moved
+  // the view for every collaborator and pushed an undo entry. On a production
+  // calendar shared with a crew that is unusable. The card field is now the
+  // SAVED DEFAULT (where the card opens); these two decide what you see.
+  // Both move together or the hour view splits its brain across midnight, so
+  // every nav affordance — ‹ ›, Today, the date popover, the peek's "Day view"
+  // — goes through goTo() and nothing else writes them.
+  const [viewAnchor, setViewAnchor_] = useState(null);
+  const [viewHour, setViewHour] = useState(null);
+  // A dated day cluster mid-drag: { boardId, overDate } — see startTileDrag.
+  const [tileDrag, setTileDrag] = useState(null);
+
+  // A schedule card inside a shoot day derives its date from the cluster it
+  // lives on, so moving the day re-anchors its hour-by-hour with no cascade and
+  // nothing to keep in sync.
+  const boardDate = card?.anchorMode === 'board'
+    ? (boards?.[boardId]?.scheduled_date || null) : null;
+  const anchor = boardDate || viewAnchor || model.anchor || todayISO();
+  const anchorHour = viewHour ?? model.anchorHour;
+  const months = model.view === 'month'
+    ? Math.max(1, Math.min(12, Math.round(card?.months) || 1)) : 1;
+
+  const goTo = (nextAnchor, nextHour) => {
+    if (boardDate) return;                       // the cluster's date owns this card
+    setViewAnchor_(nextAnchor);
+    if (nextHour != null) setViewHour(nextHour);
+  };
+
+  // Publish the live position so graftScheduleIntoSlot lifts the day the user
+  // can actually SEE. Without this, local nav makes the graft read a stale
+  // persisted anchor and silently refuse or lift the wrong day.
+  useEffect(() => {
+    setViewAnchor(card.id, { anchor, anchorHour });
+    return () => clearViewAnchor(card.id);
+  }, [card.id, anchor, anchorHour]);
+
+  // The shoot days. These are real clusters with a date column, not Y.Doc
+  // items — so they survive outside this card, every crew member sees the same
+  // set, and moving one is a single authoritative write.
+  const shootDays = shootDaysByDate(boards, boardId);
+  const canMoveDays = editable && !!onSetSchedule;
+
+  // Dragging a day tile to another date.
+  //
+  // The house pattern for an in-card gesture (GridCard.onDividerDown): stop the
+  // event before the canvas wrapper's onCardPointerDown sees it, then listen on
+  // WINDOW — the canvas deliberately doesn't use setPointerCapture, so a
+  // capture here would fight it. The 4px arm distance matches the canvas's own
+  // drag threshold, so a tile press that never moves stays a plain click.
+  const tileDateAt = (ev) => {
+    const el = document.elementsFromPoint(ev.clientX, ev.clientY)
+      .find((n) => n?.matches?.('.schedc-slot-day[data-cell-id]'));
+    const slot = el ? parseSlotKey(el.getAttribute('data-cell-id')) : null;
+    return slot?.kind === 'day' ? slot.date : null;
+  };
+  const startTileDrag = (e, b) => {
+    if (e.button != null && e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const startX = e.clientX, startY = e.clientY;
+    // The passive cell recorded this pointerdown for its click-into-day guard.
+    // Clearing it is what stops a completed tile drag from also opening the peek.
+    downRef.current = null;
+    let armed = false;
+    const move = (ev) => {
+      if (!armed && Math.hypot(ev.clientX - startX, ev.clientY - startY) <= 4) return;
+      armed = true;
+      setTileDrag({ boardId: b.id, overDate: tileDateAt(ev) });
+    };
+    const up = (ev) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setTileDrag(null);
+      if (!armed) { onOpenBoard?.(b.id); return; }     // a click, not a drag
+      const date = tileDateAt(ev);
+      if (!date || date === b.scheduled_date) return;  // dropped nowhere, or home
+      // A multi-day block keeps its length: dragging it moves the whole span.
+      const span = daysBetween(b.scheduled_date, b.scheduled_end || b.scheduled_date);
+      onSetSchedule?.(b.id, date, span > 0 ? addDays(date, span) : null);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
 
   // Live now-line (Day view + day peek, today only). A 60s tick re-renders so
   // the line tracks the clock; the interval only runs while a line is visible.
@@ -221,8 +385,8 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
   const headerH = SCHED_TUNING.HEADER_H;
   const bodyW = Math.max(0, w);
   const bodyH = Math.max(0, h - headerH);
-  const { slots, weekdayLabels } = computeSchedSlots({
-    view: model.view, anchor, anchorHour: model.anchorHour,
+  const { slots, weekdayLabels, monthBlocks } = computeSchedSlots({
+    view: model.view, anchor, anchorHour, months,
     w: bodyW, h: bodyH, expand: model.expand, cellKeys,
   });
 
@@ -233,7 +397,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
   // an explicit settle subscription — never from parent re-renders.
   useCanvasSettleTick();
   const scale = getCanvasScale() || 1;
-  const lod = schedLodTier({ view: model.view, w, h, scale });
+  const lod = schedLodTier({ view: model.view, w, h, scale, months });
   const dayCounts = lod !== 'full' ? schedDayCounts(model.cells) : null;
   // Counter-scaled sizes: layout px = target screen px / zoom, clamped so a
   // number can never overflow its cell.
@@ -242,18 +406,18 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
   const enterTextEdit = (itemKey, surface = 'card') => { setEditing({ itemKey, surface }); gridActions?.setCellEditing?.(card.id, itemKey); };
   const exitTextEdit = (itemKey) => { setEditing((p) => (p?.itemKey === itemKey ? null : p)); gridActions?.setCellEditing?.(null, null); };
 
-  // Header actions — schedView/anchor/anchorHour are plain card fields, so nav
-  // is just updateCard (undo-tracked, snapshot-busting).
+  // Header nav — LOCAL only. A month strip steps by its whole span so paging a
+  // 3-month production calendar advances a quarter, not a month into the middle
+  // of what you were already looking at.
   const shift = (dir) => {
-    if (!onUpdate) return;
-    if (model.view === 'month') onUpdate({ anchor: addMonths(anchor, dir) });
-    else if (model.view === 'week') onUpdate({ anchor: addDays(anchor, dir * 7) });
-    else if (model.view === 'day') onUpdate({ anchor: addDays(anchor, dir) });
+    if (model.view === 'month') goTo(addMonths(anchor, dir * months));
+    else if (model.view === 'week') goTo(addDays(anchor, dir * 7));
+    else if (model.view === 'day') goTo(addDays(anchor, dir));
     else {
-      const hh = model.anchorHour + dir;
-      if (hh < 0) onUpdate({ anchor: addDays(anchor, -1), anchorHour: 23 });
-      else if (hh > 23) onUpdate({ anchor: addDays(anchor, 1), anchorHour: 0 });
-      else onUpdate({ anchorHour: hh });
+      const hh = anchorHour + dir;
+      if (hh < 0) goTo(addDays(anchor, -1), 23);
+      else if (hh > 23) goTo(addDays(anchor, 1), 0);
+      else goTo(anchor, hh);
     }
   };
 
@@ -317,17 +481,23 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
     const isDrop = dropCellId === s.key || (dropCellId && dropCellId.startsWith(`${s.key}/i:`));
     const isFocused = focusedCellId === s.key || (focusedCellId && focusedCellId.startsWith(`${s.key}/i:`));
     const labelH = s.kind === 'day' && !s.band ? SCHED_TUNING.DAY_LABEL_H : 0;
+    // Shoot days sit above the ad-hoc content and take their space out of the
+    // chip budget, so a busy day degrades to "+N more" instead of overflowing.
+    const tiles = s.kind === 'day' && !s.band && lod === 'full' ? (shootDays[s.date] || []) : [];
+    const tilesH = tiles.length * SCHED_TUNING.DAYTILE_H;
+    const isTileTarget = tileDrag && tileDrag.overDate === s.date;
     // One item in a comfortable slot renders full-bleed like a grid
     // cell (image cover, board thumb + open); otherwise compact chips.
     const editingHere = editing && editing.surface === surface && itemKeys.includes(editing.itemKey);
-    const fullBleed = !editingHere && items.length === 1
+    const fullBleed = !editingHere && !tiles.length && items.length === 1
       && (s.rect.h - labelH) >= 34 && !s.band && !s.expanded;
     // Hour/minute rows in the peek and the Day/Hour views run the taller,
     // legible ROW_CHIP_H chips (CSS mirror: the 22px row-chip rules); month
     // cells and bands keep the compact CHIP_H.
     const rowChips = (s.kind === 'hour' || s.kind === 'minute') && !s.band
       && (surface === 'peek' || model.view === 'day' || model.view === 'hour');
-    const cap = chipCapacity(s.rect, s.kind === 'day' && !s.band ? 'day' : 'hour',
+    const cap = chipCapacity({ ...s.rect, h: Math.max(0, s.rect.h - tilesH) },
+      s.kind === 'day' && !s.band ? 'day' : 'hour',
       rowChips ? { chipH: SCHED_TUNING.ROW_CHIP_H } : undefined);
     // MID tier: this slot renders as a density-map cell (counter-scaled date
     // number + item dots) instead of chips/labels/tools. Drops and the
@@ -357,6 +527,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
           (s.kind === 'hour' || s.kind === 'minute') && !s.band && s.rect.h < 8 ? 'is-sliver' : '',
           s.expanded ? 'is-expanded' : '',
           lodCell ? 'is-lod' : '',
+          isTileTarget ? 'is-tile-target' : '',
           isDrop ? 'is-drop' : '', isFocused ? 'is-focused' : '',
         ].filter(Boolean).join(' ')}
         data-cell-id={s.key}
@@ -437,6 +608,17 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
         {s.kind === 'day' && !s.band && (
           <span className="schedc-slot-label">{s.label}</span>
         )}
+        {tiles.length > 0 && (
+          <div className="schedc-daytiles" style={{ top: labelH }}>
+            {tiles.map((b) => (
+              <DayTile key={b.id} board={b}
+                draggable={canMoveDays}
+                dragging={tileDrag?.boardId === b.id}
+                onPointerDown={(e) => startTileDrag(e, b)}
+                onOpen={() => onOpenBoard?.(b.id)} />
+            ))}
+          </div>
+        )}
         {(s.band || timeLabel) && (
           <span className="schedc-time-label">{s.label}</span>
         )}
@@ -469,7 +651,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
             )}
           </div>
         ) : (shown.length || overflow > 0) && cap > 0 ? (
-          <div className="schedc-chips" style={{ top: labelH || undefined }}>
+          <div className="schedc-chips" style={{ top: (labelH + tilesH) || undefined }}>
             {shown.map((it) => (
               <SlotChip key={it.k} itemKey={it.k} cell={it.cell} boards={boards} onOpenBoard={onOpenBoard}
                 passive={passive}
@@ -533,7 +715,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
     );
   });
 
-  const title = viewTitle(model.view, anchor, model.anchorHour);
+  const title = viewTitle(model.view, anchor, anchorHour, months);
 
   // Peek geometry — the SAME pure layout engine as the card body, just fed a
   // GENEROUS height (PEEK_ROW_H per hour / PEEK_MINUTE_ROW_H per quarter) so
@@ -585,7 +767,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
       : model.view === 'week'
         ? Array.from({ length: 7 }, (_, i) => ({ date: addDays(startOfWeek(anchor), i), outside: false }))
         : null;
-    const oneKey = model.view === 'hour' ? hourKey(anchor, model.anchorHour) : dayKey(anchor);
+    const oneKey = model.view === 'hour' ? hourKey(anchor, anchorHour) : dayKey(anchor);
     const oneN = dayCounts?.[anchor] || 0;
     return (
       <div className="schedc-poster">
@@ -682,9 +864,23 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
           <span className="schedc-spring" />
           {editable && (
             <button type="button" className="schedc-today" title="Go to today" aria-label="Go to today"
-              onPointerDown={stop} onClick={(e) => { e.stopPropagation(); onUpdate?.({ anchor: todayISO() }); }}>
+              onPointerDown={stop} onClick={(e) => { e.stopPropagation(); goTo(todayISO()); }}>
               <span className="schedc-today-dot" aria-hidden="true" />
             </button>
+          )}
+          {editable && model.view === 'month' && (
+            <span className="schedc-pill schedc-months" role="group" aria-label="Months shown">
+              {MONTH_SPANS.map((n) => (
+                <button key={n} type="button"
+                  className={`schedc-pill-btn${months === n ? ' is-active' : ''}`}
+                  title={n === 1 ? 'One month' : `${n} months at once`}
+                  aria-label={n === 1 ? 'Show one month' : `Show ${n} months`}
+                  onPointerDown={stop}
+                  onClick={(e) => { e.stopPropagation(); if (months !== n) onUpdate?.({ months: n }); }}>
+                  {n}
+                </button>
+              ))}
+            </span>
           )}
           {editable && (
             <span className="schedc-pill" role="group" aria-label="Schedule view">
@@ -707,6 +903,22 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
               {weekdayLabels.map((d) => <span key={d} className="schedc-wd">{d}</span>)}
             </div>
           )}
+          {monthBlocks && monthBlocks.map((b) => (
+            <div key={b.iso} className="schedc-mblock" aria-hidden="true">
+              <div className="schedc-mcap" style={{
+                left: b.captionRect.x, top: b.captionRect.y,
+                width: b.captionRect.w, height: b.captionRect.h,
+              }}>{b.label}</div>
+              {lod === 'full' && (
+                <div className="schedc-weekdays is-block" style={{
+                  left: b.weekdayRect.x, top: b.weekdayRect.y,
+                  width: b.weekdayRect.w, height: b.weekdayRect.h,
+                }}>
+                  {WEEKDAY_LABELS.map((d) => <span key={d} className="schedc-wd">{d}</span>)}
+                </div>
+              )}
+            </div>
+          ))}
           {renderSlotLayer(bodySlots, 'card')}
           {model.view === 'day' && anchor === todayIso && renderNowLine(slots)}
         </div>
@@ -741,7 +953,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
       )}
       {editable && datePop && (
         <SchedDatePopover anchorRect={datePop.anchorRect} anchor={anchor}
-          onPick={(date) => { onUpdate?.({ anchor: date }); setDatePop(null); }}
+          onPick={(date) => { goTo(date); setDatePop(null); }}
           onClose={() => setDatePop(null)} />
       )}
       {peek && peekSlots && (
@@ -749,7 +961,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
           contentH={peekContentH} hourMode={peek.hour != null}
           onPrev={() => stepPeek(-1)} onNext={() => stepPeek(1)}
           onBack={peek.hour != null ? () => setPeek((p) => (p ? { ...p, hour: null } : p)) : null}
-          onOpenAsDayView={editable && onUpdate ? () => { onUpdate({ schedView: 'day', anchor: peek.date }); setPeek(null); } : null}
+          onOpenAsDayView={editable && onUpdate ? () => { goTo(peek.date); onUpdate({ schedView: 'day' }); setPeek(null); } : null}
           gridHours={peek.hour == null && model.expand[dayKey(peek.date)] === 'hours'}
           onToggleGridHours={peek.hour == null && editable && gridActions?.setSlotExpand ? () => {
             const k = dayKey(peek.date);

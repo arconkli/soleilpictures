@@ -76,7 +76,7 @@ create index if not exists boards_parent_scheduled_date_idx
 -- replaced with an explicit column list. The list below is the 17 columns that
 -- existed before this migration, verified against information_schema.columns on
 -- the live database; the six new columns are deliberately absent. Writes to
--- them go through the SECURITY DEFINER RPCs in 0240 and nowhere else.
+-- them go through the SECURITY DEFINER RPCs in 0243 and nowhere else.
 --
 -- Only UPDATE is narrowed. INSERT keeps its table-level grant: the status
 -- columns default to draft/0/null, and pre-setting them on a board you are

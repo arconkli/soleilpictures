@@ -1,4 +1,4 @@
--- 0241_shared_board_descendants.sql — being shared a production must also share
+-- 0244_shared_board_descendants.sql — being shared a production must also share
 -- the days inside it.
 --
 -- THE BUG. list_shared_boards() (0013) returns only rows that are literally in

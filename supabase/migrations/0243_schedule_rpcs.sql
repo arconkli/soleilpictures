@@ -1,7 +1,7 @@
--- 0240_schedule_rpcs.sql — moving a shoot day, publishing a call sheet, and
+-- 0243_schedule_rpcs.sql — moving a shoot day, publishing a call sheet, and
 -- telling the crew.
 --
--- Background. 0238 gave a cluster a date; 0239 gave the app a durable
+-- Background. 0238 gave a cluster a date; 0242 gave the app a durable
 -- notification. This is the layer between them: the only three writes that may
 -- touch boards.sched_* (they are not client-writable by design), plus the one
 -- read a crew member actually wants — "what's in MY schedule".
