@@ -47,6 +47,10 @@ The rail's **+** → *Tools* → **Draw** also offers a full-screen sketch pad: 
 overlay covering the whole viewport, with the same stroke behaviour as inline
 drawing but without having to fight for canvas space.
 
+The pad has its own undo — `⌘Z` / `⌘⇧Z`, plus toolbar buttons — covering pen
+strokes, eraser passes, bucket fills and Clear. While the pad is open, keys
+apply to the sketch only; nothing you press can affect the board behind it.
+
 Useful for a quick diagram you want to think through at size before placing.
 
 ## Art canvas
@@ -54,6 +58,9 @@ Useful for a quick diagram you want to think through at size before placing.
 An art canvas is a **card** with a drawing surface inside it. Unlike free-draw,
 it has edges, and it behaves like every other card — move it, resize it, group
 it, tag it, put it in a [grid](/docs/canvas/grids) cell.
+
+Drawing or erasing on an art canvas is one `⌘Z` step per line or erase pass;
+editing one in the sketch pad saves the whole session as a single step.
 
 Reach for it when the drawing is a thing on the board rather than an annotation
 over the board.

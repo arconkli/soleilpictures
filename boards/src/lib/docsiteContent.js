@@ -6450,6 +6450,31 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "The pad has its own undo — "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": " / "
+    },
+    {
+     "t": "code",
+     "v": "⌘⇧Z"
+    },
+    {
+     "t": "text",
+     "v": ", plus toolbar buttons — covering pen strokes, eraser passes, bucket fills and Clear. While the pad is open, keys apply to the sketch only; nothing you press can affect the board behind it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "Useful for a quick diagram you want to think through at size before placing."
     }
    ]
@@ -6501,6 +6526,23 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " cell."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Drawing or erasing on an art canvas is one "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": " step per line or erase pass; editing one in the sketch pad saves the whole session as a single step."
     }
    ]
   },

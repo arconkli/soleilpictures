@@ -5747,6 +5747,11 @@ export function CanvasSurface({
           onEnd: () => {
             if (points.length > 1) {
               const targetCard = pickStrokeTarget(points);
+              // One erase gesture = its own undo step. updateCard/
+              // replaceStrokes deliberately don't break (gesture coalescing),
+              // so without this the erase merges into whatever happened in
+              // the previous 500ms — including the card-create step.
+              mutators.breakUndo?.();
               if (targetCard) {
                 const localEraser = points.map(([x, y]) => [x - targetCard.x, y - targetCard.y]);
                 const next = [];
@@ -5797,6 +5802,14 @@ export function CanvasSurface({
             if (targetCard) {
               // Translate to card-local coords so the stroke stays bounded
               // to the card and moves/scales with it.
+              // breakUndo: each pen line routed onto an art canvas must be
+              // its OWN ⌘Z step. updateCard never breaks (gesture
+              // coalescing), so without this a line drawn within 500ms of
+              // the previous action MERGED into it — worst case the
+              // card-create step, where ⌘Z removed the whole drawing
+              // instead of the line. (Board-level addStroke below already
+              // breaks internally.)
+              mutators.breakUndo?.();
               const localPoints = points.map(([x, y]) => [x - targetCard.x, y - targetCard.y]);
               const existing = Array.isArray(targetCard.strokes) ? targetCard.strokes : [];
               mutators.updateCard?.(targetCard.id, {
@@ -9826,6 +9839,9 @@ export function CanvasSurface({
           // and the bg back, then leave the card selected so the user
           // can keep drawing on it inline.
           if (editingId) {
+            // The whole sketch-edit session saves as ONE undo step — and
+            // never merges into whatever preceded opening the pad.
+            mutators.breakUndo?.();
             mutators.updateCard?.(editingId, { strokes, bg });
             setSelected(new Set([editingId]));
             setSelectedStrokes(new Set());

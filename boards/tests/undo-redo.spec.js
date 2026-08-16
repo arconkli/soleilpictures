@@ -260,6 +260,29 @@ test.describe('Undo coverage phases 1-3 (source guard)', () => {
     expect(local).not.toMatch(/undo: \(\) => \{\},/);
     expect(local).toMatch(/historyRef/);
   });
+
+  test('sketch pad owns its keys and has real history', () => {
+    const sp = read('src/components/SketchPadOverlay.jsx');
+    // Pad-local snapshot history + visible affordances…
+    expect(sp).toMatch(/undoStackRef/);
+    expect(sp).toMatch(/Undo sketch change/);
+    expect(sp).toMatch(/Redo sketch change/);
+    // …and CAPTURE-phase keyboard isolation, so ⌘Z/Backspace inside the
+    // pad can never act on the board hidden behind it. The pad also
+    // registers as the overlay undo owner (CanvasSurface stands down).
+    expect(sp).toMatch(/\{ capture: true \}/);
+    expect(sp).toMatch(/setDocUndoTarget\(padTarget\)/);
+  });
+
+  test('art-card stroke commits are their own undo steps', () => {
+    const cs = read('src/components/CanvasSurface.jsx');
+    // A pen line / erase gesture routed onto an art canvas must never merge
+    // into the previous step (worst case: the card-create step, where ⌘Z
+    // removed the whole drawing instead of the line).
+    expect(cs).toMatch(/its OWN ⌘Z step/);
+    expect(cs).toMatch(/One erase gesture = its own undo step/);
+    expect(cs).toMatch(/ONE undo step — and\s*\n\s*\/\/ never merges/);
+  });
 });
 
 // ───────────────────────── 2. Engine behavior ──────────────────────────────

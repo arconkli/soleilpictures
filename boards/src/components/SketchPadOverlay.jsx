@@ -17,12 +17,14 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from '../lib/icons.js';
+import { X, Undo, Redo } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { addRecentColor } from '../lib/recentColors.js';
 import { useRecentColors } from '../hooks/useRecentColors.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { isEditableTarget } from '../lib/isEditableTarget.js';
+import { setDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
 
 // Default pen stroke + bucket fill colors. The pad SURFACE defaults to
 // pure white — when the user commits, the surrounding ArtCanvasCard
@@ -78,6 +80,53 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   const [activeStroke, setActive]   = useState(null);
   const wrapRef = useRef(null);
   const feedback = useFeedback();
+
+  // ── Pad-local undo/redo ────────────────────────────────────────────────
+  // The pad's drawing state is plain component state, so its history is a
+  // snapshot stack of { strokes, bg } (both are updated immutably, making
+  // reference snapshots safe). This is the pad's ONE undo engine — the
+  // board's UndoManager never sees pad edits until Save commits them.
+  // pushHistory is called once per DISCRETE change: a committed pen stroke,
+  // an eraser GESTURE (pointerdown, not per hover-erase tick), a bucket
+  // fill, a Clear. A tick counter forces a re-render so the toolbar
+  // buttons' disabled state tracks the ref stacks.
+  const undoStackRef = useRef([]);
+  const redoStackRef = useRef([]);
+  const [, setHistTick] = useState(0);
+  const strokesLive = useRef(strokes);
+  strokesLive.current = strokes;
+  const padBgLive = useRef(padBg);
+  padBgLive.current = padBg;
+  const pushHistory = useCallback(() => {
+    const snap = { strokes: strokesLive.current, bg: padBgLive.current };
+    const top = undoStackRef.current[undoStackRef.current.length - 1];
+    if (top && top.strokes === snap.strokes && top.bg === snap.bg) return;
+    undoStackRef.current.push(snap);
+    if (undoStackRef.current.length > 100) undoStackRef.current.shift();
+    redoStackRef.current.length = 0;
+    setHistTick(t => t + 1);
+  }, []);
+  const undoPad = useCallback(() => {
+    const snap = undoStackRef.current.pop();
+    if (!snap) return;
+    redoStackRef.current.push({ strokes: strokesLive.current, bg: padBgLive.current });
+    setStrokes(snap.strokes);
+    setPadBg(snap.bg);
+    setHistTick(t => t + 1);
+  }, []);
+  const redoPad = useCallback(() => {
+    const snap = redoStackRef.current.pop();
+    if (!snap) return;
+    undoStackRef.current.push({ strokes: strokesLive.current, bg: padBgLive.current });
+    setStrokes(snap.strokes);
+    setPadBg(snap.bg);
+    setHistTick(t => t + 1);
+  }, []);
+  const resetHistory = () => {
+    undoStackRef.current.length = 0;
+    redoStackRef.current.length = 0;
+    setHistTick(t => t + 1);
+  };
   // Live mirror of strokes so the discard prompt reads the CURRENT count (the
   // Escape handler is bound on [open], so a plain closure saw a stale count
   // and would close without prompting after the user drew something).
@@ -101,11 +150,23 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     return ok;
   };
 
-  // Reset on open. Escape to close (unsaved strokes prompt). When the
-  // pad opens to edit an existing art canvas, seed it with that card's
-  // strokes (already in card-local coords, which we treat as pad coords)
-  // and bg color so the user sees their drawing exactly as it sits on
-  // the board, ready to keep working on.
+  // Reset on open. When the pad opens to edit an existing art canvas, seed
+  // it with that card's strokes (already in card-local coords, which we
+  // treat as pad coords) and bg color so the user sees their drawing
+  // exactly as it sits on the board, ready to keep working on.
+  //
+  // KEYBOARD ISOLATION, learned the hard way: the pad is a fullscreen
+  // portal, but window-level shortcut listeners (CanvasSurface's keydown +
+  // paste) kept running underneath it — so ⌘Z in the pad UNDID CANVAS STATE
+  // hidden behind the overlay, and Backspace could delete whichever cards
+  // happened to be selected. This listener runs in the CAPTURE phase (so it
+  // fires before every bubble-phase listener), handles the pad's own keys
+  // (⌘Z/⌘⇧Z/⌘Y undo-redo, Escape → discard flow), and stops propagation of
+  // EVERYTHING else so no board shortcut can act behind a modal drawing
+  // surface. Editable targets (the ColorPicker hex input) pass through
+  // untouched. Belt + braces: the pad also registers its undo/redo with
+  // overlayRouting, so CanvasSurface's ⌘Z branch stands down even if
+  // listener ordering ever changes.
   useEffect(() => {
     if (!open) return;
     if (editingCard) {
@@ -117,13 +178,43 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     }
     setActive(null);
     setTool('pen');
-    const onKey = async (e) => {
-      if (e.key === 'Escape') {
-        if (await confirmDiscard()) onClose?.();
+    resetHistory();
+    const padTarget = { undo: undoPad, redo: redoPad };
+    setDocUndoTarget(padTarget);
+    const onKey = (e) => {
+      if (isEditableTarget(e)) return;
+      // Dialogs (the discard confirm) and popovers (ColorPicker) stack ABOVE
+      // the pad and own their own keys — never intercept inside them.
+      const el = e.target instanceof Element ? e.target : null;
+      if (el && el.closest('[role="dialog"], .cp-pop, .toast-stack')) return;
+      const cmd = e.metaKey || e.ctrlKey;
+      if (cmd && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        undoPad();
+        return;
       }
+      if ((cmd && e.key === 'z' && e.shiftKey) || (cmd && e.key === 'y')) {
+        e.preventDefault();
+        e.stopPropagation();
+        redoPad();
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        (async () => { if (await confirmDiscard()) onClose?.(); })();
+        return;
+      }
+      // Everything else: never let a board shortcut fire behind the pad.
+      // (No preventDefault — browser-native behavior like ⌘C on selected
+      // text stays; only the app's window listeners are shut out.)
+      e.stopPropagation();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, { capture: true });
+    return () => {
+      window.removeEventListener('keydown', onKey, { capture: true });
+      if (getDocUndoTarget() === padTarget) setDocUndoTarget(null);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -136,6 +227,17 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
       y: ((clientY - rect.top) / rect.height) * logicalH,
     };
   };
+  // One history entry per ERASER GESTURE, pushed lazily on the first stroke
+  // it actually removes (an empty swipe must not create a no-op undo step).
+  const eraserPushedRef = useRef(false);
+  const eraseAt = (x, y) => {
+    const HIT = Math.max(width + 6, 12);
+    const hits = strokesLive.current.some(s => pointNearStroke(s, x, y, HIT));
+    if (!hits) return;
+    if (!eraserPushedRef.current) { pushHistory(); eraserPushedRef.current = true; }
+    setStrokes(prev => prev.filter(s => !pointNearStroke(s, x, y, HIT)));
+  };
+
   const onPointerDown = (e) => {
     if (e.button !== 0) return;
     if (!wrapRef.current) return;
@@ -150,6 +252,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
       // True region-fill (Canvas2D flood fill against rasterized strokes)
       // is a follow-up. The single-bg approach matches what the user gets
       // in most graphic tools when they bucket-click empty space.
+      if (color !== padBg) pushHistory();
       setPadBg(color);
       addRecentColor(color);
       return;
@@ -159,8 +262,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
       // the pointer leaves the pad bounds (without this, erasing stopped at
       // the edge).
       try { e.target.setPointerCapture?.(e.pointerId); } catch (_) {}
-      const HIT = Math.max(width + 6, 12);
-      setStrokes(prev => prev.filter(s => !pointNearStroke(s, x, y, HIT)));
+      eraserPushedRef.current = false;
+      eraseAt(x, y);
       return;
     }
     setActive({ color, width, points: [[x, y]] });
@@ -173,8 +276,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     if (tool === 'eraser') {
       if (e.buttons !== 1) return;
       const { x, y } = toLogical(e.clientX, e.clientY);
-      const HIT = Math.max(width + 6, 12);
-      setStrokes(prev => prev.filter(s => !pointNearStroke(s, x, y, HIT)));
+      eraseAt(x, y);
       return;
     }
     if (!activeStroke) return;
@@ -188,6 +290,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     // onPointerCancel) so an interrupted gesture can't lock the pointer.
     try { e?.target?.releasePointerCapture?.(e.pointerId); } catch (_) {}
     if (activeStroke && activeStroke.points?.length > 1) {
+      pushHistory(); // snapshot the pre-stroke state → ⌘Z removes this line
       setStrokes(prev => [...prev, activeStroke]);
       addRecentColor(activeStroke.color);
     }
@@ -260,8 +363,24 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
           ))}
           <span className="sp-sep" />
           <button type="button"
+                  className="sp-tool"
+                  onClick={undoPad}
+                  disabled={!undoStackRef.current.length}
+                  title="Undo (⌘Z)"
+                  aria-label="Undo sketch change">
+            <Icon as={Undo} size={14} />
+          </button>
+          <button type="button"
+                  className="sp-tool"
+                  onClick={redoPad}
+                  disabled={!redoStackRef.current.length}
+                  title="Redo (⌘⇧Z)"
+                  aria-label="Redo sketch change">
+            <Icon as={Redo} size={14} />
+          </button>
+          <button type="button"
                   className="sp-action"
-                  onClick={() => setStrokes([])}
+                  onClick={() => { if (strokesLive.current.length) { pushHistory(); setStrokes([]); } }}
                   disabled={!strokes.length}>Clear</button>
           <span style={{ flex: 1 }} />
           <button type="button"
