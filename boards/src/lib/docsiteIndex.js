@@ -1543,6 +1543,10 @@ export const DOCS_PAGES = [
         "text": "Working together"
       },
       {
+        "id": "undo",
+        "text": "Undo"
+      },
+      {
         "id": "comments-tags-and-links",
         "text": "Comments, tags and links"
       },
@@ -1781,6 +1785,10 @@ export const DOCS_PAGES = [
       {
         "id": "propagation-and-backfill",
         "text": "Propagation and backfill"
+      },
+      {
+        "id": "removing-deleting-and-merging-all-reversible",
+        "text": "Removing, deleting and merging — all reversible"
       },
       {
         "id": "finding-by-tag",

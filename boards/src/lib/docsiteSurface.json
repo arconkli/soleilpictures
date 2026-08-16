@@ -376,11 +376,11 @@
     },
     {
       "title": "Notes",
-      "rows": 3
+      "rows": 4
     },
     {
       "title": "Document",
-      "rows": 7
+      "rows": 8
     }
   ],
   "publicRoutes": {

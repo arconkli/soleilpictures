@@ -1940,6 +1940,28 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "⌘Z"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "⌘⇧Z"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Undo · redo text — history survives closing the note"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "⌘B"
       },
       {
@@ -2035,6 +2057,28 @@ export const DOCS_CONTENT = {
     ]
    ],
    "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘Z"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "⌘⇧Z"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Undo · redo — text while typing; pages & structure otherwise"
+      }
+     ]
+    ],
     [
      [
       {
@@ -5747,7 +5791,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Double-click a note to start editing. Click away to commit; press "
+     "v": "Double-click a note to start editing. Click away — or press "
     },
     {
      "t": "code",
@@ -5755,7 +5799,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to cancel."
+     "v": " — to finish; your edits are shared live with collaborators as you type, so there is no separate \"cancel\". "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": " undoes inside the note, and the note's undo history survives closing and reopening it."
     }
    ]
   },
@@ -13635,7 +13687,32 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " revert a collaborator's changes. In a shared board, an undo that silently reversed someone else's work would be worse than no undo. Deletions also show a toast with an undo button."
+     "v": " revert a collaborator's changes. In a shared board, an undo that silently reversed someone else's work would be worse than no undo. Deletions also show a toast with an undo button — and the toast only ever undoes its own deletion: if you have done something else since, it says so instead of reverting the wrong thing."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Documents have their own two histories: "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": " while typing undoes text, and "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": " with the document open (but not typing) undoes structure — page deletes, moves, renames. Deleting a page, its sub-pages and their comments is a single undo step. Note text keeps its undo history even after you close and reopen the note."
     }
    ]
   },
@@ -13750,7 +13827,47 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Boards keep snapshots over time. You can list them, look through them, and roll back to one."
+     "v": "Boards keep snapshots over time. You can list them, look through them, and roll back to one. Open it from the clock icon in the toolbar, or "
+    },
+    {
+     "t": "code",
+     "v": "⌘K"
+    },
+    {
+     "t": "text",
+     "v": " → \"Version history\"."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Snapshots are written automatically while you work, before risky operations (bulk deletes, pastes, cross-cluster drags), and before anything the API or an AI agent deletes or moves — so an integration's mistake is recoverable from the same list as a human one. Rows are grouped by work session; selecting one previews what it contains before you commit."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Restoring always snapshots the "
+    },
+    {
+     "t": "strong",
+     "v": "current",
+     "children": [
+      {
+       "t": "text",
+       "v": "current"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " state first, so a restore is itself restorable. A second tab lists name, colour, cover and view changes, each with a one-click revert."
     }
    ]
   },
@@ -14315,6 +14432,104 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Documents are collaborative in real time, with peer cursors and selections visible as people type. Edits merge rather than overwriting."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Undo",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Undo"
+    }
+   ],
+   "id": "undo"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Two histories, matching how documents are edited:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Typing:",
+      "children": [
+       {
+        "t": "text",
+        "v": "Typing:"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " "
+     },
+     {
+      "t": "code",
+      "v": "⌘Z"
+     },
+     {
+      "t": "text",
+      "v": " while the caret is in the text undoes your writing, as in any editor."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Structure:",
+      "children": [
+       {
+        "t": "text",
+        "v": "Structure:"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " "
+     },
+     {
+      "t": "code",
+      "v": "⌘Z"
+     },
+     {
+      "t": "text",
+      "v": " with the document open but the caret elsewhere undoes page operations — deletes, moves, renames. Deleting a page with its sub-pages, comments and bookmarks is one step, and page deletes also offer an undo toast."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Both undo only "
+    },
+    {
+     "t": "em",
+     "v": "your",
+     "children": [
+      {
+       "t": "text",
+       "v": "your"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " edits, never a collaborator's."
     }
    ]
   },
@@ -16380,6 +16595,59 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " propagates to what is in it, and in documents a tag on a paragraph can cascade to related passages."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Removing, deleting and merging — all reversible",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Removing, deleting and merging — all reversible"
+    }
+   ],
+   "id": "removing-deleting-and-merging-all-reversible"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Removing a tag from one item shows an undo toast; undoing also lifts the \"don't suggest this again\" that a removal writes, so the matcher behaves as if the removal never happened."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Deleting a tag removes it everywhere, but softly: the tag and every one of its applications stay recoverable for "
+    },
+    {
+     "t": "strong",
+     "v": "30 days",
+     "children": [
+      {
+       "t": "text",
+       "v": "30 days"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — from the undo toast, or by recreating a tag with the same name, which revives the old one intact."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Merging one tag into another can also be undone from its toast: applications move back, and the merged-away tag returns."
     }
    ]
   },

@@ -59,6 +59,7 @@ const SECTIONS = [
     title: 'Notes',
     rows: [
       [['Double-click'], 'Edit a note or title'],
+      [[`${CMD}Z`, `${CMD}⇧Z`], 'Undo · redo text (history survives closing the note)'],
       [[`${CMD}B`, `${CMD}I`, `${CMD}U`], 'Bold · italic · underline'],
       [['@'], 'Mention a board, doc, or card'],
     ],
@@ -66,6 +67,7 @@ const SECTIONS = [
   {
     title: 'Document',
     rows: [
+      [[`${CMD}Z`, `${CMD}⇧Z`], 'Undo · redo (text while typing; pages & structure otherwise)'],
       [[`${CMD}⌥1`, `${CMD}⌥0`], 'Heading 1 · body'],
       [[`${CMD}⇧7`, `${CMD}⇧8`, `${CMD}⇧9`], 'Numbered · bullet · task list'],
       [[`${CMD}⇧H`, `${CMD}E`], 'Highlight · inline code'],

@@ -65,6 +65,7 @@ you were rather than at the origin.
 | Key | Action |
 |---|---|
 | Double-click | Edit a note or a title |
+| `⌘Z` / `⌘⇧Z` | Undo · redo text — history survives closing the note |
 | `⌘B` / `⌘I` / `⌘U` | Bold · italic · underline |
 | `@` | Mention a board, doc, or card |
 
@@ -74,6 +75,7 @@ These apply inside a [document](/docs/documents), not on the canvas.
 
 | Key | Action |
 |---|---|
+| `⌘Z` / `⌘⇧Z` | Undo · redo — text while typing; pages & structure otherwise |
 | `⌘⌥1` / `⌘⌥0` | Heading 1 · body |
 | `⌘⇧7` / `⌘⇧8` / `⌘⇧9` | Numbered · bullet · task list |
 | `⌘⇧H` / `⌘E` | Highlight · inline code |

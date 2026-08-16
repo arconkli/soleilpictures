@@ -12,7 +12,15 @@ Four layers, from smallest mistake to worst day.
 
 It deliberately does **not** revert a collaborator's changes. In a shared board,
 an undo that silently reversed someone else's work would be worse than no undo.
-Deletions also show a toast with an undo button.
+Deletions also show a toast with an undo button — and the toast only ever
+undoes its own deletion: if you have done something else since, it says so
+instead of reverting the wrong thing.
+
+Documents have their own two histories: `⌘Z` while typing undoes text, and
+`⌘Z` with the document open (but not typing) undoes structure — page deletes,
+moves, renames. Deleting a page, its sub-pages and their comments is a single
+undo step. Note text keeps its undo history even after you close and reopen
+the note.
 
 ## Trash
 
@@ -26,7 +34,18 @@ if you are sure.
 ## Version history
 
 Boards keep snapshots over time. You can list them, look through them, and roll
-back to one.
+back to one. Open it from the clock icon in the toolbar, or `⌘K` → "Version
+history".
+
+Snapshots are written automatically while you work, before risky operations
+(bulk deletes, pastes, cross-cluster drags), and before anything the API or an
+AI agent deletes or moves — so an integration's mistake is recoverable from
+the same list as a human one. Rows are grouped by work session; selecting one
+previews what it contains before you commit.
+
+Restoring always snapshots the **current** state first, so a restore is itself
+restorable. A second tab lists name, colour, cover and view changes, each with
+a one-click revert.
 
 This is the tool for "the board was right yesterday and is wrong now", including
 when the change was someone else's.

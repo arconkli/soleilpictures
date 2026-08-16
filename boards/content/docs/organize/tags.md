@@ -92,6 +92,19 @@ created late is not empty.
 A tag applied to a [group](/docs/canvas/groups) propagates to what is in it,
 and in documents a tag on a paragraph can cascade to related passages.
 
+## Removing, deleting and merging — all reversible
+
+Removing a tag from one item shows an undo toast; undoing also lifts the
+"don't suggest this again" that a removal writes, so the matcher behaves as
+if the removal never happened.
+
+Deleting a tag removes it everywhere, but softly: the tag and every one of
+its applications stay recoverable for **30 days** — from the undo toast, or
+by recreating a tag with the same name, which revives the old one intact.
+
+Merging one tag into another can also be undone from its toast: applications
+move back, and the merged-away tag returns.
+
 ## Finding by tag
 
 - The **sidebar** lists workspace tags

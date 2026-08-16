@@ -213,6 +213,55 @@ test.describe('Phase-0 undo hardening (source guard)', () => {
   });
 });
 
+test.describe('Undo coverage phases 1-3 (source guard)', () => {
+  test('cross-board moves are atomic — no half-undo duplication', () => {
+    const app = read('src/App.jsx');
+    expect(app).toMatch(/const deleteCardsForMove = \(ids\)/);
+    const cs = read('src/components/CanvasSurface.jsx');
+    // Both the drag-into-board and cross-pane source deletes use the
+    // untracked MOVE variant; the one undo affordance reverses both sides.
+    expect((cs.match(/deleteCardsForMove\?\.\(/g) || []).length).toBeGreaterThanOrEqual(2);
+    expect(app).toMatch(/move's ONE undo affordance/);
+  });
+
+  test('doc-card cleanup is deferred and reversible', () => {
+    const app = read('src/App.jsx');
+    expect(app).toMatch(/DOC_CLEANUP_META/);
+    expect(app).toMatch(/scheduleDocCleanup/);
+    const api = read('src/lib/boardsApi.js');
+    expect(api).toMatch(/soft_delete_doc_links/);
+    expect(api).toMatch(/export async function restoreDocLinks/);
+  });
+
+  test('persistent note undo + doc structural undo are wired', () => {
+    const nts = read('src/components/NoteTiptapSurface.jsx');
+    expect(nts).toMatch(/yUndoOptions: \{ undoManager: noteUndoManager \}/);
+    const nds = read('src/lib/noteDocState.js');
+    expect(nds).toMatch(/export function getNoteUndoManager/);
+    const ds = read('src/components/DocSurface.jsx');
+    expect(ds).toMatch(/setDocUndoTarget\(docUndoManager\)/);
+  });
+
+  test('Version history restores through the bulletproof path only', () => {
+    expect(has('src/components/VersionHistoryModal.jsx')).toBe(true);
+    const vh = read('src/components/VersionHistoryModal.jsx');
+    expect(vh).toMatch(/bulletproofRestore\(boardId, b64\)/);
+    expect(vh).toMatch(/label: 'pre-restore'/);
+    const app = read('src/App.jsx');
+    expect(app).toMatch(/<VersionHistoryModal/);
+    // Agent/API destructive ops checkpoint server-side too.
+    const scout = read('src/lib/scoutBoard.js');
+    expect(scout).toMatch(/async function saveVersionRow/);
+    expect((scout.match(/saveVersionRow\(env,/g) || []).length).toBeGreaterThanOrEqual(3);
+  });
+
+  test('the local shell has REAL undo (no more no-op stubs)', () => {
+    const local = read('src/local/LocalBoardsApp.jsx');
+    expect(local).not.toMatch(/undo: \(\) => \{\},/);
+    expect(local).toMatch(/historyRef/);
+  });
+});
+
 // ───────────────────────── 2. Engine behavior ──────────────────────────────
 
 async function goLocal(page) {

@@ -258,6 +258,7 @@ Notes
 
 Key | Action
 Double-click | Edit a note or a title
+⌘Z / ⌘⇧Z | Undo · redo text — history survives closing the note
 ⌘B / ⌘I / ⌘U | Bold · italic · underline
 @ | Mention a board, doc, or card
 
@@ -266,6 +267,7 @@ Document
 These apply inside a document, not on the canvas.
 
 Key | Action
+⌘Z / ⌘⇧Z | Undo · redo — text while typing; pages & structure otherwise
 ⌘⌥1 / ⌘⌥0 | Heading 1 · body
 ⌘⇧7 / ⌘⇧8 / ⌘⇧9 | Numbered · bullet · task list
 ⌘⇧H / ⌘E | Highlight · inline code
@@ -631,7 +633,7 @@ For anything longer than a few paragraphs, use a document instead — it has pag
 
 Writing
 
-Double-click a note to start editing. Click away to commit; press Esc to cancel.
+Double-click a note to start editing. Click away — or press Esc — to finish; your edits are shared live with collaborators as you type, so there is no separate "cancel". ⌘Z undoes inside the note, and the note's undo history survives closing and reopening it.
 
 Formatting works as you would expect: ⌘B, ⌘I, ⌘U for bold, italic and underline. A toolbar appears at the bottom of the canvas while a note is focused, carrying colour, size, font and alignment.
 
@@ -1756,7 +1758,9 @@ Undo
 
 ⌘Z. Per-session and per-board, covering your own edits.
 
-It deliberately does not revert a collaborator's changes. In a shared board, an undo that silently reversed someone else's work would be worse than no undo. Deletions also show a toast with an undo button.
+It deliberately does not revert a collaborator's changes. In a shared board, an undo that silently reversed someone else's work would be worse than no undo. Deletions also show a toast with an undo button — and the toast only ever undoes its own deletion: if you have done something else since, it says so instead of reverting the wrong thing.
+
+Documents have their own two histories: ⌘Z while typing undoes text, and ⌘Z with the document open (but not typing) undoes structure — page deletes, moves, renames. Deleting a page, its sub-pages and their comments is a single undo step. Note text keeps its undo history even after you close and reopen the note.
 
 Trash
 
@@ -1766,7 +1770,11 @@ The trash is workspace-wide — open it from the sidebar or ⌘K → "trash". Fr
 
 Version history
 
-Boards keep snapshots over time. You can list them, look through them, and roll back to one.
+Boards keep snapshots over time. You can list them, look through them, and roll back to one. Open it from the clock icon in the toolbar, or ⌘K → "Version history".
+
+Snapshots are written automatically while you work, before risky operations (bulk deletes, pastes, cross-cluster drags), and before anything the API or an AI agent deletes or moves — so an integration's mistake is recoverable from the same list as a human one. Rows are grouped by work session; selecting one previews what it contains before you commit.
+
+Restoring always snapshots the current state first, so a restore is itself restorable. A second tab lists name, colour, cover and view changes, each with a one-click revert.
 
 This is the tool for "the board was right yesterday and is wrong now", including when the change was someone else's.
 
@@ -1857,6 +1865,15 @@ Blocks can be reordered by dragging the handle in the left margin.
 Working together
 
 Documents are collaborative in real time, with peer cursors and selections visible as people type. Edits merge rather than overwriting.
+
+Undo
+
+Two histories, matching how documents are edited:
+
+Typing: ⌘Z while the caret is in the text undoes your writing, as in any editor.
+Structure: ⌘Z with the document open but the caret elsewhere undoes page operations — deletes, moves, renames. Deleting a page with its sub-pages, comments and bookmarks is one step, and page deletes also offer an undo toast.
+
+Both undo only your edits, never a collaborator's.
 
 Comments, tags and links
 
@@ -2144,6 +2161,14 @@ Propagation and backfill
 Creating a tag offers to apply it to existing content that matches, so a tag created late is not empty.
 
 A tag applied to a group propagates to what is in it, and in documents a tag on a paragraph can cascade to related passages.
+
+Removing, deleting and merging — all reversible
+
+Removing a tag from one item shows an undo toast; undoing also lifts the "don't suggest this again" that a removal writes, so the matcher behaves as if the removal never happened.
+
+Deleting a tag removes it everywhere, but softly: the tag and every one of its applications stay recoverable for 30 days — from the undo toast, or by recreating a tag with the same name, which revives the old one intact.
+
+Merging one tag into another can also be undone from its toast: applications move back, and the merged-away tag returns.
 
 Finding by tag
 

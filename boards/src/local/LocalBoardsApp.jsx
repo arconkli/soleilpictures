@@ -323,20 +323,23 @@ export function LocalBoardsApp({ user, signOut }) {
     if (!h) { h = { undo: [], redo: [] }; historyRef.current.set(id, h); }
     return h;
   };
-
-  const updateBoardState = (updater) => {
-    // Snapshot BEFORE the update — captured from the render-scope value
-    // (never inside the setState updater: StrictMode double-invokes those)
-    // and deduped by reference, so a same-tick burst of mutator calls
-    // (doDeleteSelected: strokes + arrows + cards) collapses into ONE step,
-    // mirroring the real engine's one-action-one-step contract.
-    const cur = localState.boardState[currentId] || { cards: [], arrows: [], strokes: [] };
+  // Snapshot BEFORE an update — captured from the render-scope value (never
+  // inside a setState updater: StrictMode double-invokes those) and deduped
+  // by reference, so a same-tick burst of mutator calls (doDeleteSelected:
+  // strokes + arrows + cards) collapses into ONE step, mirroring the real
+  // engine's one-action-one-step contract.
+  const pushHistory = () => {
+    const cur = boardState[currentId] || { cards: [], arrows: [], strokes: [] };
     const h = histFor(currentId);
     if (h.undo[h.undo.length - 1] !== cur) {
       h.undo.push(cur);
       if (h.undo.length > 100) h.undo.shift();
       h.redo.length = 0;
     }
+  };
+
+  const updateBoardState = (updater) => {
+    pushHistory();
     setLocalState(prev => {
       const current = prev.boardState[currentId] || { cards: [], arrows: [], strokes: [] };
       const nextCurrent = updater({
@@ -391,6 +394,12 @@ export function LocalBoardsApp({ user, signOut }) {
   const deleteCards = (ids) => {
     const idSet = new Set(ids || []);
     if (!idSet.size) return;
+    // deleteCards bypasses updateBoardState (a board-card delete cascades
+    // across boardState entries), but the CURRENT board's delete must still
+    // be a real undo step — this was the gap that made delete-undo a no-op.
+    // (Cascaded sub-board state isn't restored by the local shell; the real
+    // app bridges that server-side via BOARD_DELETE_META.)
+    pushHistory();
     setLocalState(prev => {
       const boardIds = [...idSet].filter(id => prev.boards[id] && id !== ROOT_ID);
       const cascadeIds = collectBoardTreeIds(prev.boards, boardIds);
@@ -1069,7 +1078,7 @@ export function LocalBoardsApp({ user, signOut }) {
       const h = histFor(currentId);
       if (!h.undo.length) return;
       const snap = h.undo.pop();
-      const cur = localState.boardState[currentId] || { cards: [], arrows: [], strokes: [] };
+      const cur = boardState[currentId] || { cards: [], arrows: [], strokes: [] };
       h.redo.push(cur);
       setLocalState(prev => ({ ...prev, boardState: { ...prev.boardState, [currentId]: snap } }));
     },
@@ -1077,7 +1086,7 @@ export function LocalBoardsApp({ user, signOut }) {
       const h = histFor(currentId);
       if (!h.redo.length) return;
       const snap = h.redo.pop();
-      const cur = localState.boardState[currentId] || { cards: [], arrows: [], strokes: [] };
+      const cur = boardState[currentId] || { cards: [], arrows: [], strokes: [] };
       h.undo.push(cur);
       setLocalState(prev => ({ ...prev, boardState: { ...prev.boardState, [currentId]: snap } }));
     },
