@@ -34,6 +34,7 @@ import { forceSimulation, forceLink, forceManyBody, forceCenter } from 'd3-force
 import { hash01, orbitJitter, targetId } from '../../lib/hashJitter.js';
 import {
   isAnchorId, parentBoardId, isSimLinkKind, orbitOffset, rogueOffset, galaxySeed,
+  moonOffset, systemArchetype, SYSTEM_RING_COUNT,
 } from '../../lib/universeLayout.js';
 
 const HOT_TICK_MS  = 16;
@@ -67,7 +68,8 @@ let order       = [];
 let anchors     = [];            // d3 sim nodes (mutated in place)
 let anchorById  = new Map();     // id → sim node
 let simLinks    = [];            // anchor-anchor links only
-let leafCounts  = new Map();     // board anchor id → leaf count (orbital shells + charge)
+let leafCounts  = new Map();     // board anchor id → leaf count (orbital index + charge)
+let leafHosts   = new Map();     // board anchor id → first-arrival cards (moon hosts)
 let sim         = null;
 let positions   = null;
 let paused      = false;
@@ -188,10 +190,17 @@ function seedChildrenNearParents(linksArr) {
   }
 }
 
+// Repulsion is CAPPED at 160 units: it may untangle neighboring
+// systems, but it must never see — let alone flatten — structure at
+// arm wavelength (1000+). Unbounded n-body charge equalizes bulk
+// density, and the density wave IS bulk density; with the cap, the
+// arms the seeding builds actually survive the settle.
+const CHARGE_REACH = 160;
+
 function buildSim() {
   sim = forceSimulation(anchors, 3)
     .force('link',    forceLink(simLinks).id(d => d.id).distance(linkDistance).strength(linkStrength))
-    .force('charge',  forceManyBody().strength(chargeStrength))
+    .force('charge',  forceManyBody().strength(chargeStrength).distanceMax(CHARGE_REACH))
     .force('center',  forceCenter())
     .force('home',    forceHome())
     .alphaDecay(0.04)
@@ -219,7 +228,28 @@ function addNode(n, preCounted = false) {
     if (parentId) {
       const idx = leafCounts.get(parentId) || 0;
       leafCounts.set(parentId, idx + 1);
-      off = orbitOffset(n.id, idx);
+      if (idx < SYSTEM_RING_COUNT) {
+        // An inner planet — remember it as a potential moon host.
+        const hosts = leafHosts.get(parentId);
+        if (hosts) hosts.push({ id: n.id, idx });
+        else leafHosts.set(parentId, [{ id: n.id, idx }]);
+        off = orbitOffset(n.id, idx);
+      } else {
+        // Belt-era arrivals: ~18% become MOONS of an inner planet
+        // (planetary systems only — debris clouds have no planets to
+        // host them). The host's offset is recomputed deterministically
+        // from its id + ring index, so moons need no stored state
+        // beyond the host list.
+        const hosts = leafHosts.get(parentId);
+        if (hosts && hosts.length &&
+            hash01(n.id + ':moon') < 0.18 &&
+            systemArchetype(parentId) === 'planetary') {
+          const host = hosts[Math.floor(hash01(n.id + ':mh') * hosts.length)];
+          off = moonOffset(n.id, orbitOffset(host.id, host.idx));
+        } else {
+          off = orbitOffset(n.id, idx);
+        }
+      }
     } else {
       off = rogueOffset(n.id);
     }
@@ -295,7 +325,7 @@ function loop() {
 function rebindForces() {
   sim.nodes(anchors);
   sim.force('link', forceLink(simLinks).id(d => d.id).distance(linkDistance).strength(linkStrength));
-  sim.force('charge', forceManyBody().strength(chargeStrength));
+  sim.force('charge', forceManyBody().strength(chargeStrength).distanceMax(CHARGE_REACH));
 }
 
 // A sim link with a non-anchor endpoint would make d3's id resolver
@@ -313,7 +343,7 @@ self.onmessage = (ev) => {
   switch (msg.type) {
     case 'init': {
       order = []; anchors = []; anchorById = new Map();
-      simLinks = []; leafCounts = new Map();
+      simLinks = []; leafCounts = new Map(); leafHosts = new Map();
       // Pre-count workspaces so every seed shares one disk scale.
       wsCount = 0;
       for (const n of msg.nodes || []) {
