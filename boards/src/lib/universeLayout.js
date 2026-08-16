@@ -18,7 +18,7 @@
 // A million cards costs the sim nothing; the per-tick fill is three
 // float adds per card. Worker-safe: no DOM, no deps beyond hashJitter.
 
-import { hash01, orbitJitter } from './hashJitter.js';
+import { hash01 } from './hashJitter.js';
 
 // Node ids: 'user:<uuid>' | 'ws:<uuid>' | 'board:<uuid>' |
 // 'card:<board_uuid>:<card_id>'.
@@ -50,37 +50,69 @@ export function isSimLinkKind(kind) {
 
 // Deterministic orbital offset for a leaf around its parent board.
 //
-//   direction — uniform on the sphere from two id-keyed hashes, with
-//               Y compressed to 0.4 so card swarms read as slightly
-//               inclined disks (matches the old gentle DISK_PULL look)
-//   radius    — 36 (the old structural link distance) × the same
-//               orbitJitter the force layout used, × a sqrt shell
-//               term so the Nth card of a big board settles onto an
-//               outer shell instead of stacking — planets, not a ring.
+// Not a shell: real star clusters are clumpy and heavy-tailed, so
+//   angle  — slightly over half of a board's cards lean loosely
+//            toward one of 1–3 hash-picked clump bearings (with wide
+//            triangular scatter); the rest scatter uniformly.
+//   radius — dense core with a sparse rim (power-law envelope) plus
+//            the occasional flung straggler, so swarms trail off
+//            instead of ending at a tidy boundary. A sqrt shell term
+//            still spreads very large boards outward — planets, not
+//            a ring, and not a solid ball either.
+//   height — cubic concentration toward the disk plane; ~12% of
+//            cards are thick-disk stragglers that float well off it.
 //
 // orbitalIndex is the card's arrival index within its board. Snapshot
 // order is (created_at, node_id), so it's stable across reloads.
 export const LEAF_BASE_RADIUS = 36;
-export const LEAF_Y_FLATTEN   = 0.4;
 export const LEAF_SHELL_GROWTH = 0.15;
+// Radial envelope (× baseRadius, before shell growth): tests pin these.
+export const LEAF_RADIAL_MIN = 0.22;
+export const LEAF_RADIAL_MAX = 6.5;   // core-to-straggler span
 
 export function orbitOffset(id, orbitalIndex = 0, baseRadius = LEAF_BASE_RADIUS, out = null) {
-  const theta = 2 * Math.PI * hash01(id + ':θ');
-  // acos(2v−1) gives uniform-on-sphere latitude; Y then flattened.
-  const phi = Math.acos(2 * hash01(id + ':φ') - 1);
-  const r = baseRadius * orbitJitter(id) * (1 + LEAF_SHELL_GROWTH * Math.sqrt(orbitalIndex));
-  const sinPhi = Math.sin(phi);
+  const parent = parentBoardId(id) || 'rogue';
+  const uK = hash01(id + ':k');
+
+  let theta;
+  if (uK < 0.55) {
+    const nClumps = 1 + Math.floor(hash01(parent + ':nc') * 3);
+    const j = Math.floor(hash01(id + ':cj') * nClumps);
+    const clumpAngle = 2 * Math.PI * hash01(parent + ':ca' + j);
+    // Sum of two hashes − 1 → triangular scatter, densest on the bearing.
+    const scatter = (hash01(id + ':cs') + hash01(id + ':cs2') - 1) * 1.1;
+    theta = clumpAngle + scatter;
+  } else {
+    theta = 2 * Math.PI * hash01(id + ':θ');
+  }
+
+  // Heavy-tailed radius: u^2.2 packs the core; the >0.94 band flings
+  // stragglers to 2–3× their would-be orbit.
+  let rf = 0.22 + 1.9 * Math.pow(hash01(id + ':r'), 2.2);
+  if (uK > 0.94) rf *= 1.6 + 1.4 * hash01(id + ':o');
+  const r = baseRadius * rf * (1 + LEAF_SHELL_GROWTH * Math.sqrt(orbitalIndex));
+
+  const thick = hash01(id + ':t') > 0.88 ? 0.95 : 0.35;
+  const y = r * Math.pow(2 * hash01(id + ':y') - 1, 3) * thick;
+
   const o = out || new Float32Array(3);
-  o[0] = r * sinPhi * Math.cos(theta);
-  o[1] = r * Math.cos(phi) * LEAF_Y_FLATTEN;
-  o[2] = r * sinPhi * Math.sin(theta);
+  o[0] = r * Math.cos(theta);
+  o[1] = y;
+  o[2] = r * Math.sin(theta);
   return o;
 }
 
 // Leaves whose parent board isn't in the universe (deleted board with
-// surviving card_index rows, unparseable ids) orbit the galactic rim
-// instead of piling up at the origin. Same math, bigger shell.
+// surviving card_index rows, unparseable ids) drift the galactic rim
+// instead of piling up at the origin — floored radius so the heavy-
+// tailed core packing can never drop one into the bulge.
 export const ROGUE_BASE_RADIUS = 900;
 export function rogueOffset(id, out = null) {
-  return orbitOffset(id, 0, ROGUE_BASE_RADIUS, out);
+  const theta = 2 * Math.PI * hash01(id + ':θ');
+  const r = ROGUE_BASE_RADIUS * (0.6 + 0.9 * hash01(id + ':rr'));
+  const o = out || new Float32Array(3);
+  o[0] = r * Math.cos(theta);
+  o[1] = r * Math.pow(2 * hash01(id + ':y') - 1, 3) * 0.35;
+  o[2] = r * Math.sin(theta);
+  return o;
 }
