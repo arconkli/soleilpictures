@@ -23,6 +23,7 @@ import {
   hourWindowForDay, dayKey, hourKey, schedLodTier, schedDayCounts, slotOfItem, reslotItemKey,
 } from '../../lib/schedLayout.js';
 import { setViewAnchor, clearViewAnchor } from '../../lib/schedViewRegistry.js';
+import { nextDayNumber as nextShootDayNumber } from '../../lib/productionDayPlan.js';
 import {
   todayISO, addDays, addMonths, monthTitle, weekTitle, dayTitle, hourTitle,
   monthMatrix, startOfWeek, daysBetween,
@@ -42,6 +43,7 @@ import {
 import { GridCellMenu } from './GridCellMenu.jsx';
 import { SchedulePeek } from './SchedulePeek.jsx';
 import { SchedDatePopover } from './SchedDatePopover.jsx';
+import { ShootDayRange } from './ShootDayRange.jsx';
 import { useCardCellsVersion, cellTextStyle, CellContent } from './gridCellShared.jsx';
 import { startTouchScrollGesture } from '../../lib/touchScroll.js';
 import './gridCard.css';
@@ -262,6 +264,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
   // hour set → the same panel re-targeted to full-size minute rows.
   const [peek, setPeek] = useState(null);            // { date, hour, sourceRect }
   const [datePop, setDatePop] = useState(null);      // { anchorRect } — the title's date-jump popover
+  const [rangePop, setRangePop] = useState(null);    // { anchorRect, date } — "Add shoot days"
   // Where the last pointerdown landed on a passive grid cell — the click-vs-
   // drag guard (there is NO global click suppression after card drags; a >4px
   // drag that started on a cell still emits a native click on it).
@@ -940,6 +943,14 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
             // Bands ARE the surface they'd "open"/"break" — plain add only.
             if (slot?.kind === 'day' && !menu.band) {
               items.push({ id: 'open-day', label: 'Open day', icon: Maximize2, onClick: () => openPeek({ kind: 'day', date: slot.date }, null, menu.anchorRect) });
+              // A shoot day is a dated CLUSTER, not a slot item — it outlives
+              // this card and every crew member sees the same one.
+              if (onAddShootDay) {
+                items.push({ id: 'shoot-day', label: 'Add shoot day', icon: Clapperboard,
+                  onClick: () => onAddShootDay({ from: slot.date, to: slot.date, scaffold: true }) });
+                items.push({ id: 'shoot-days', label: 'Add shoot days…', icon: Clapperboard,
+                  onClick: () => setRangePop({ anchorRect: menu.anchorRect, date: slot.date }) });
+              }
               if (gridActions.setSlotExpand) items.push({ id: 'break-hours', label: 'Break into hours', onClick: () => gridActions.setSlotExpand(card.id, menu.slotKey, 'hours') });
             }
             if (slot?.kind === 'hour' && !menu.band) {
@@ -950,6 +961,12 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
           })()}
           onClose={() => setMenu(null)}
         />
+      )}
+      {editable && rangePop && (
+        <ShootDayRange anchorRect={rangePop.anchorRect} startDate={rangePop.date}
+          startNumber={nextShootDayNumber(boards, boardId)}
+          onAdd={(opts) => onAddShootDay?.(opts)}
+          onClose={() => setRangePop(null)} />
       )}
       {editable && datePop && (
         <SchedDatePopover anchorRect={datePop.anchorRect} anchor={anchor}

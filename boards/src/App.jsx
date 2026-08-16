@@ -94,6 +94,7 @@ import { useWorkspacePresence } from './hooks/useWorkspacePresence.js';
 import { WorkspacePresenceStack } from './components/WorkspacePresenceStack.jsx';
 import { MessagesPanel } from './components/MessagesPanel.jsx';
 import { NotificationsPanel } from './components/NotificationsPanel.jsx';
+import { addShootDays, scaffoldShootDay, nextDayNumber } from './lib/productionDay.js';
 import { useNotifications } from './hooks/useNotifications.js';
 // Lazy: the ?local=1 / no-Supabase QA harness (and its deps — demo data,
 // TweaksPanel, HomeGraph) should never ship in the eager production bundle.
@@ -5354,6 +5355,52 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
   }, [boards, refreshBoards, feedback]);
 
+  // Lay a block of shoot days onto the calendar. They arrive EMPTY: the card
+  // cap counts every card in every workspace the owner created, so scaffolding
+  // sixty days up front is 240 cards against a 50-card free plan — the client
+  // gate would truncate mid-run having already made sixty clusters. A single
+  // day added from the slot menu is scaffolded immediately, because one day is
+  // four cards and the user is plainly about to fill it in.
+  const handleAddShootDay = useCallback(async ({ from, to, skipWeekends = false, scaffold = false }) => {
+    if (!board?.id || !workspace?.id) return;
+    try {
+      const startNumber = nextDayNumber(boards, board.id);
+      const res = await addShootDays({
+        workspaceId: workspace.id, parentBoardId: board.id,
+        from, to, skipWeekends, startNumber, userId: user.id,
+      });
+      if (scaffold) {
+        for (const d of res.made) {
+          try { await scaffoldShootDay({ boardId: d.id, dayLabel: d.label, userId: user.id }); }
+          catch (e) { console.warn('scaffoldShootDay failed', d.id, e); }
+        }
+      }
+      await refreshBoards();
+      const n = res.made.length;
+      feedback.toast({
+        type: res.failed.length ? 'info' : 'success',
+        message: res.failed.length
+          ? `Added ${n} of ${res.requested} days — ${res.failed.length} failed`
+          : `Added ${n} shoot day${n === 1 ? '' : 's'}`,
+        ttl: 6000,
+        // Matches the delete/undo-toast convention: a bulk add is exactly the
+        // kind of thing you want to take back in one press.
+        action: n ? {
+          label: 'Undo',
+          onClick: async () => {
+            try {
+              await Promise.all(res.made.map((d) => deleteBoard(d.id)));
+              await refreshBoards();
+            } catch (e) { console.warn('undo add shoot days failed', e); }
+          },
+        } : undefined,
+      });
+    } catch (e) {
+      console.error('addShootDays failed', e);
+      feedback.toast({ type: 'error', message: 'Could not add those days.' });
+    }
+  }, [board?.id, workspace?.id, boards, user.id, refreshBoards, feedback]);
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   const crumbs = stack.map(id => ({ id, name: boards[id]?.name || (id === rootBoard.id ? rootBoard.name : id) }));
@@ -5464,7 +5511,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          ownsWorkspace={workspace?.created_by === user?.id}
                          currentUser={currentUser}
                          onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
-                         onSetSchedule={handleSetSchedule}
+                         onSetSchedule={handleSetSchedule} onAddShootDay={handleAddShootDay}
                          onOpenPicker={(pos) => openBoardLinkPicker(pos)}
                          onDropInboxItem={dropInboxItemFor(muts)}
                          onDropFileImage={dropFileImageFor(muts)}
