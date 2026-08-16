@@ -342,10 +342,6 @@
       "label": "Profile"
     },
     {
-      "id": "scout",
-      "label": "Scout"
-    },
-    {
       "id": "theme",
       "label": "Theme"
     }
