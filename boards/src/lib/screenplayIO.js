@@ -85,16 +85,26 @@ export function parseFountainTitlePage(text) {
 }
 
 // ── ProseMirror doc ⇄ blocks ────────────────────────────────────────────────
+// Textblock types that can sneak into a screenplay doc (paste, a mode switch
+// that predates the migration, list/table innards). Exporting must NEVER drop
+// their text — they come out as Action lines rather than vanish from the PDF.
+const STRAY_TEXTBLOCKS = new Set(['paragraph', 'heading', 'codeBlock']);
+
 export function docJSONToBlocks(doc) {
   const out = [];
+  const flatText = (n) => (n.content || []).map(c => (c.type === 'text' ? (c.text || '') : '')).join('');
   const walk = (n) => {
     if (!n || typeof n !== 'object') return;
     if (n.type === 'screenplayBlock') {
-      const text = (n.content || []).map(c => (c.type === 'text' ? (c.text || '') : '')).join('');
-      const b = { element: n.attrs?.element || 'action', text };
+      const b = { element: n.attrs?.element || 'action', text: flatText(n) };
       if (n.attrs?.sceneNumber) b.sceneNumber = n.attrs.sceneNumber;
       if (n.attrs?.dual) b.dual = n.attrs.dual;
       out.push(b);
+      return;
+    }
+    if (STRAY_TEXTBLOCKS.has(n.type)) {
+      const text = flatText(n);
+      if (text.trim()) out.push({ element: 'action', text });
       return;
     }
     (n.content || []).forEach(walk);
