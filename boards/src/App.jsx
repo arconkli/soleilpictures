@@ -1334,6 +1334,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         boardIdsToCascade,
         boardThisIsOn: boardId,
       });
+      // Creation was thoroughly measured and removal was not — there was no
+      // card_deleted event in the catalog at all — so net content growth could
+      // never be computed, and a board being emptied looked identical to a
+      // board standing still. Counted per kind, at the one path both the
+      // keyboard and the context menu funnel through.
+      try {
+        const kinds = {};
+        for (const id of ids) {
+          const k = m.get(id)?.get('kind') || 'unknown';
+          kinds[k] = (kinds[k] || 0) + 1;
+        }
+        logEvent(EV.CARD_DELETED, { n: ids.length, kinds, board_id: boardId });
+      } catch (_) {}
       if (boundary) breakUndo();
       // Pre-delete-board snapshot for THIS board (the one the card lives
       // on) so the boardcard itself comes back via time-travel undo. The
