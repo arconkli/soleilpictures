@@ -24,7 +24,7 @@ import { addRecentColor } from '../lib/recentColors.js';
 import { useRecentColors } from '../hooks/useRecentColors.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
-import { setDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
+import { pushDocUndoTarget, removeDocUndoTarget } from '../lib/overlayRouting.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
 
 // Default pen stroke + bucket fill colors. The pad SURFACE defaults to
@@ -181,7 +181,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     setTool('pen');
     resetHistory();
     const padTarget = { undo: undoPad, redo: redoPad };
-    setDocUndoTarget(padTarget);
+    pushDocUndoTarget(padTarget);
     // Counts as an open dialog too, which is what shields the board's PASTE
     // handler (the capture keydown below can't intercept paste events).
     const unregisterModal = registerModalOpen();
@@ -218,7 +218,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     return () => {
       window.removeEventListener('keydown', onKey, { capture: true });
       unregisterModal();
-      if (getDocUndoTarget() === padTarget) setDocUndoTarget(null);
+      removeDocUndoTarget(padTarget);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);

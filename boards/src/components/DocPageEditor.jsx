@@ -153,6 +153,11 @@ const ExtraShortcuts = Extension.create({
       // 2-space tab so Tab still does something instead of yanking focus.
       Tab: () => {
         const ed = this.editor;
+        // In a table, Tab is CELL NAVIGATION — defer to the table extension's
+        // own keymap (this extension is declared later, so it wins the keymap
+        // race; without this check Tab typed two literal spaces into the cell
+        // and tables had no keyboard traversal at all).
+        if (ed.isActive('table')) return false;
         if (ed.can().sinkListItem('listItem')) {
           return ed.chain().focus().sinkListItem('listItem').run();
         }
@@ -163,6 +168,7 @@ const ExtraShortcuts = Extension.create({
       },
       'Shift-Tab': () => {
         const ed = this.editor;
+        if (ed.isActive('table')) return false;   // goToPreviousCell
         if (ed.can().liftListItem('listItem')) {
           return ed.chain().focus().liftListItem('listItem').run();
         }
@@ -740,38 +746,10 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           getRanges: () => appliedTagRangesRef.current || [],
         })],
       }),
-      // Enter key handler: if caret is inside an auto-detect candidate span,
-      // open the EntityPicker pre-filled with the candidate's records.
-      Extension.create({
-        name: 'soleilAutoDetectShortcut',
-        addKeyboardShortcuts: () => ({
-          'Enter': () => {
-            const editor = editorRef.current;
-            if (!editor) return false;
-            const sel = editor.state.selection;
-            // Only short-circuit Enter when caret is collapsed.
-            if (!sel.empty) return false;
-            // Find the DOM node at the caret. If it's inside a candidate span,
-            // open the picker.
-            const dom = editor.view.domAtPos(sel.from);
-            const el = (dom?.node?.nodeType === 3 ? dom.node.parentElement : dom?.node)?.closest?.('.tt-link-auto[data-records]');
-            if (!el) return false;
-            let records = [];
-            try { records = JSON.parse(el.dataset.records || '[]'); } catch {}
-            if (records.length === 0) return false;
-            // Map the candidate's DOM range to PM positions.
-            let from, to;
-            try {
-              from = editor.view.posAtDOM(el.firstChild, 0);
-              to   = editor.view.posAtDOM(el.firstChild, el.firstChild.nodeValue.length);
-            } catch { return false; }
-            editor.commands.setTextSelection({ from, to });
-            // Hand off to openLinkPicker with initialSelected pre-filled from the records.
-            openLinkPicker(editor, { initialSelected: records.map(recordToTarget) });
-            return true;
-          },
-        }),
-      }),
+      // (An Enter shortcut used to open the EntityPicker when the caret sat
+      // inside an auto-detect candidate span — REMOVED: it swallowed Enter, so
+      // splitting a paragraph mid-way through a detected name was impossible.
+      // The picker stays reachable by clicking the candidate span.)
       Typography,
       Placeholder.configure({
         placeholder: ({ node }) =>
@@ -1662,10 +1640,3 @@ const TaskIcon  = () => svg({}, <><rect x="2" y="2.5" width="4" height="4" rx="1
 const QuoteIcon = () => svg({}, <><path d="M2 5 Q2 3 4 3 V6 H2 V5 Q2 7 4 8" /><path d="M8 5 Q8 3 10 3 V6 H8 V5 Q8 7 10 8" /></>);
 const CommentIcon = () => svg({}, <><path d="M2 4 A1 1 0 0 1 3 3 H11 A1 1 0 0 1 12 4 V9 A1 1 0 0 1 11 10 H6 L4 12 V10 H3 A1 1 0 0 1 2 9 Z" /></>);
 const RemoveTagIcon = () => svg({}, <><path d="M2 7 L7 2 H11 V6 L6 11 Z" /><circle cx="9" cy="4" r=".7" fill="currentColor" stroke="none" /><path d="M4 9 L8 13 M8 9 L4 13" strokeWidth="1.6" /></>);
-
-// Maps a Trie record (from the auto-detect index) to an EntityPicker target shape.
-function recordToTarget(r) {
-  if (r.kind === 'board') return { kind: 'board', id: r.id };
-  if (r.kind === 'doc')   return { kind: 'doc', docCardId: r.id };
-  return { kind: 'card', boardId: r.boardId, cardId: r.id };
-}

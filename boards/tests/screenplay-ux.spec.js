@@ -213,6 +213,8 @@ test('scene navigator numbering matches the gutters when numbers are locked', as
       { element: 'scene', text: 'EXT. B - NIGHT' },
     ]));
   });
+  // Decorations render a tick after setContent — wait for both scenes' numbers.
+  await expect(page.locator('.doc-paper.is-screenplay [data-scene-number]')).toHaveCount(2);
   const gutter = await page.$$eval('.doc-paper.is-screenplay [data-scene-number]',
     els => els.map(e => e.getAttribute('data-scene-number')));
   const rail = await page.$$eval('.sp-scenenav .sp-scenenav-num', els => els.map(e => e.textContent));
@@ -1016,6 +1018,30 @@ test('the "+" insert menu actually inserts a table (and is not clipped)', async 
   // The item must be a real hit target — the toolbar must not clip the menu.
   await menu.locator('.doc-insert-item', { hasText: 'Table' }).click({ timeout: 4000 });
   await expect(page.locator('.doc-card-modal .tt-editor table').first()).toBeVisible();
+});
+
+test('Tab moves between table cells instead of typing two spaces', async ({ page }) => {
+  await openDoc(page);
+  const editor = page.locator('.doc-card-modal .tt-editor').first();
+  await editor.click();
+  await page.locator('.doc-card-modal button[aria-label="Insert a block"]').click();
+  await page.locator('.doc-insert-menu .doc-insert-item', { hasText: 'Table' }).click();
+  await expect(page.locator('.doc-card-modal .tt-editor table').first()).toBeVisible();
+  await page.keyboard.type('one');
+  await page.keyboard.press('Tab');          // → next cell (used to insert "  ")
+  await page.keyboard.type('two');
+  const cells = () => page.$$eval('.doc-card-modal .tt-editor table th, .doc-card-modal .tt-editor table td',
+    els => els.map(e => e.textContent));
+  let c = await cells();
+  expect(c[0]).toBe('one');
+  expect(c[1]).toBe('two');
+  await page.keyboard.press('Shift+Tab');    // ← back (used to be swallowed entirely)
+  // Cell navigation selects the cell's content, so typing replaces it —
+  // the point is that the caret is back in cell 1, not still in cell 2.
+  await page.keyboard.type('!');
+  c = await cells();
+  expect(c[0]).toBe('!');
+  expect(c[1]).toBe('two');
 });
 
 test('screenplay export menu offers Fountain + Final Draft import/export', async ({ page }) => {

@@ -20,6 +20,25 @@ async function openDoc(page) {
 
 const wraps = (page) => page.locator('.doc-card-modal .doc-editor-wrap');
 
+test('⌘Z right after creating a doc cannot delete its only (auto-seeded) page', async ({ page }) => {
+  await openDoc(page);
+  // Fire the shortcut at the WINDOW (non-editable target) so the doc's
+  // structural-undo handler — not the text editor's y-undo — receives it.
+  // The auto-seeded page used to be the first item on that undo stack.
+  await page.evaluate(() => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true }));
+  });
+  const pages = await page.evaluate(() => {
+    const T = window.__soleilDocTest;
+    return T.readPages(T.ydoc, T.getScope()).length;
+  });
+  expect(pages).toBe(1);
+  // And the editor is still alive and editable.
+  await page.locator('.doc-card-modal .tt-editor').first().click();
+  await page.keyboard.type('still here');
+  await expect(page.locator('.doc-card-modal .tt-editor').first()).toContainText('still here');
+});
+
 test('closed-card preview refreshes from a content edit (observer, no whole-doc rehash)', async ({ page }) => {
   await page.goto('/?docqa=1');
   await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });

@@ -72,6 +72,68 @@ test('the Pages pill switches to a paged layout and persists in docMeta', async 
   expect(await readPageless(page)).toBe(true);
 });
 
+test('page mode: a multi-page single paragraph keeps its breaks stable (no phantom gap re-measure)', async ({ page }) => {
+  await openDoc(page);
+  await page.locator(pillSel).click();
+  await expect(page.locator('.doc-card-modal .doc-pages-bg')).toBeVisible({ timeout: 6000 });
+
+  // ONE giant paragraph spanning several pages: its mid-block breaks render
+  // the page-gap widget INSIDE the paragraph, and the next measurement pass
+  // used to re-measure that gap as a page-tall phantom "line" — corrupting
+  // the break set (text through the gutters, drifting sheet counts).
+  await page.evaluate(() => {
+    const text = Array.from({ length: 260 }, (_, i) =>
+      `sentence ${i + 1} carries on with enough words that the paragraph wraps for many lines`).join(' ');
+    window.__soleilDocTest.editor.chain().setContent(`<p>${text}</p>`).run();
+  });
+  // Generous timeout: measuring a ~22k-char paragraph line-by-line takes a
+  // few passes, longer under parallel-worker load.
+  await page.waitForFunction((sel) => document.querySelectorAll(sel).length >= 2,
+    sheetSel, { timeout: 20000 });
+  // Let the measure loop run several passes — the corruption appeared on the
+  // pass AFTER the first gaps were injected.
+  await page.waitForTimeout(600);
+
+  const report = await page.evaluate(() => {
+    const root = document.querySelector('.doc-card-modal .tt-editor');
+    const sheets = Array.from(document.querySelectorAll('.doc-card-modal .doc-page-sheet'))
+      .map((el) => el.getBoundingClientRect())
+      .sort((a, b) => a.top - b.top);
+    const bands = [];
+    for (let i = 0; i < sheets.length - 1; i++) {
+      bands.push({ top: sheets[i].bottom + 2, bottom: sheets[i + 1].top - 2 });
+    }
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const offenders = [];
+    let lineBoxes = 0;
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      if (!n.nodeValue || !n.nodeValue.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      for (const r of range.getClientRects()) {
+        if (r.height === 0) continue;
+        lineBoxes++;
+        const center = r.top + r.height / 2;
+        for (const b of bands) {
+          if (center > b.top && center < b.bottom) {
+            offenders.push({ center: Math.round(center), band: [Math.round(b.top), Math.round(b.bottom)] });
+            break;
+          }
+        }
+      }
+    }
+    return { sheetCount: sheets.length, lineBoxes, offenders };
+  });
+  expect(report.sheetCount).toBeGreaterThanOrEqual(2);
+  expect(report.lineBoxes).toBeGreaterThan(40);
+  expect(report.offenders).toEqual([]);
+
+  // Stability: the sheet count must not drift between later passes.
+  const count1 = await page.locator(sheetSel).count();
+  await page.waitForTimeout(400);
+  expect(await page.locator(sheetSel).count()).toBe(count1);
+});
+
 test('page mode: a long bullet list never renders text in the page gutters', async ({ page }) => {
   await openDoc(page);
 
