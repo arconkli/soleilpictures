@@ -14120,6 +14120,31 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
    breadcrumb, the back button and the sidebar highlight are describing. Inset
    rather than a border so the pane's geometry does not shift when focus moves,
    which would nudge the canvas by a pixel on every click. */
+/* The pane's way out. Floats over the canvas at the top-right rather than
+   sitting in a strip, so it costs no vertical band and reads as one control
+   instead of a toolbar. Top-right is free on a canvas — .cnv-zoom is anchored
+   bottom-right — and it sits above the canvas chrome so a card scrolled under
+   it can never take the click. */
+.split-pane-close {
+  position: absolute;
+  top: 10px; right: 10px;
+  z-index: 6;
+  appearance: none;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  color: var(--ink-2);
+  cursor: pointer;
+  opacity: .75;
+  transition: opacity var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease);
+}
+.split-pane-close:hover { opacity: 1; color: var(--ink-0); background: var(--bg-hov); }
+.split-pane-close:focus-visible { outline: none; opacity: 1; box-shadow: var(--shadow-glow); }
+@media (prefers-reduced-motion: reduce) { .split-pane-close { transition: none; } }
+
 .split-pane.is-active { position: relative; }
 .split-pane.is-active::after {
   content: "";
@@ -17302,7 +17327,7 @@ body:is([data-clean-mode='1'], [data-focus-mode='1']) .ws-presence,
 body:is([data-clean-mode='1'], [data-focus-mode='1']) .ws-presence-audit,
 body:is([data-clean-mode='1'], [data-focus-mode='1']) .canvas-comment-layer,
 body:is([data-clean-mode='1'], [data-focus-mode='1']) .msg-panel,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .split-bar,
+body:is([data-clean-mode='1'], [data-focus-mode='1']) .split-pane-close,
 /* Mobile / overlay chrome the original clean-mode list missed: */
 body:is([data-clean-mode='1'], [data-focus-mode='1']) .mb-nav,
 body:is([data-clean-mode='1'], [data-focus-mode='1']) .board-tags-strip,
