@@ -11764,6 +11764,147 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Side by side",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Side by side"
+    }
+   ],
+   "id": "side-by-side"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Two clusters can be open at once, in a split view with a draggable divider."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "The "
+     },
+     {
+      "t": "strong",
+      "v": "⧉ Pin alongside",
+      "children": [
+       {
+        "t": "text",
+        "v": "⧉ Pin alongside"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " button in the topbar"
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "⌘K"
+     },
+     {
+      "t": "text",
+      "v": " → \"Open split view\""
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Then pick the cluster for the right-hand side. Close it with the "
+    },
+    {
+     "t": "strong",
+     "v": "×",
+     "children": [
+      {
+       "t": "text",
+       "v": "×"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the right pane's bar, or the same topbar button."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Each side navigates itself.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Each side navigates itself."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Opening a nested cluster on the right moves the right side only — the left stays where it was — and each side keeps its own breadcrumb trail to climb back out. The same holds for what you drop, link and edit: it lands on the side you did it on."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Access is per side too. If the right pane is showing a cluster someone shared with you as view-only, it is read-only there, exactly as it would be full screen."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The split — both clusters, both breadcrumbs, and the divider position — is remembered, so a reload puts you back in it. It is a desktop feature; there is no split on phones."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A "
+    },
+    {
+     "t": "link",
+     "v": "document docked beside the canvas",
+     "href": "/docs/documents#opening",
+     "children": [
+      {
+       "t": "text",
+       "v": "document docked beside the canvas"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " uses the same right-hand pane, so opening one closes a cluster split, and vice versa."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Thumbnails",
    "inline": [
     {
@@ -14210,6 +14351,53 @@ export const DOCS_CONTENT = {
       "v": " — docked beside the canvas, resizable, so you can write while looking at the board"
      }
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Double-clicking a document card opens it in "
+    },
+    {
+     "t": "strong",
+     "v": "whichever mode you used last",
+     "children": [
+      {
+       "t": "text",
+       "v": "whichever mode you used last"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so if you work docked you stay docked. The dock and full screen swap either way from the buttons in the document's header."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A docked document is held by the workspace, not by the canvas underneath it. You can open other clusters, drill into nested ones, and move around the sidebar with the document still open beside you — it stays put until you close it. One document is docked at a time; opening another hands it the pane. Docking a document also takes over the "
+    },
+    {
+     "t": "link",
+     "v": "split view",
+     "href": "/docs/clusters#side-by-side",
+     "children": [
+      {
+       "t": "text",
+       "v": "split view"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " pane, since there is only one."
+    }
    ]
   },
   {
@@ -17615,8 +17803,15 @@ export const DOCS_CONTENT = {
      ],
      [
       {
-       "t": "text",
-       "v": "Two boards side by side"
+       "t": "link",
+       "v": "Two boards side by side",
+       "href": "/docs/clusters#side-by-side",
+       "children": [
+        {
+         "t": "text",
+         "v": "Two boards side by side"
+        }
+       ]
       }
      ]
     ],

@@ -1235,6 +1235,10 @@ export const DOCS_PAGES = [
         "text": "Nesting"
       },
       {
+        "id": "side-by-side",
+        "text": "Side by side"
+      },
+      {
         "id": "thumbnails",
         "text": "Thumbnails"
       },
