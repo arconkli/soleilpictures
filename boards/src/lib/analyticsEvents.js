@@ -135,6 +135,7 @@ export const EV = Object.freeze({
   CARD_CREATE_BLOCKED:     'card_create_blocked',           // an intent that produced no card {reason,method?,board_id} — reason:'demo_cap'|'demo_cap_cell'|'server_cap'|'demo_blocked'|'read_only'|'place_miss'|'stale_paste'|'noop_svg'|'mutator_null' ('server_cap' = the card_index trigger refused a write the client gate had allowed — a stale cached count; it was previously swallowed silently)
   CARD_CREATE_STUCK:       'card_create_stuck',             // new user appears stuck placing a first card {reason,intents,seconds,method_last} — reason:'timeout'|'rage' (logEventOnce per page-load)
   MOBILE_LIFT_HINT_SHOWN:  'mobile_lift_hint_shown',        // first time a touch user's drag-from-a-card panned instead of moving — one-time press-and-hold hint shown {board_id}
+  MOBILE_LIFT_CANCELLED:   'mobile_lift_cancelled',         // a touch drag that STARTED on a card resolved to a pan, so the card didn't move {board_id,held_ms,travel_px,hint_seen}. Fires EVERY time, unlike the once-per-device hint above, because the question it answers is a distribution: held_ms and travel_px separate someone deliberately panning from someone trying to hold and losing it to finger drift. Those two look identical in the hint event, and which one dominates decides whether TOUCH_LIFT_TOLERANCE is set right
 
   // ── Camera-roll photo picker (the mobile activation path — measures adoption
   //    AND multi-select depth, the thing that turns one photo into a populated

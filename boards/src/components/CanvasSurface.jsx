@@ -798,6 +798,13 @@ export function CanvasSurface({
   // Touch only: the card currently "lifted" by a press-and-hold (picked up,
   // ready to drag). Drives the .is-lifted visual cue. Cleared on drop/cancel.
   const [liftedCardId, setLiftedCardId] = useState(null);
+  // The card a finger is currently resting on, waiting out the press-and-hold.
+  // Until this existed the hold was completely invisible: nothing happened for
+  // TOUCH_LIFT_MS, so a touch user had no way to discover that waiting was the
+  // thing to do, and the only teaching moment was a toast AFTER their drag had
+  // already panned the board — once per device, ever. A quarter of mobile users
+  // hit that failure. Showing the hold as it fills makes waiting legible.
+  const [pressingCardId, setPressingCardId] = useState(null);
   // While dragging, computeSnap fills this with the matched alignment lines
   // so the canvas can render thin gold guides at those coords.
   // { xs: [{ x, y0, y1 }], ys: [{ y, x0, x1 }] } — both in canvas-space.
@@ -4028,7 +4035,11 @@ export function CanvasSurface({
     // by the finger's pre-lift drift. Null on mouse → deltas use startClient.
     let dragOriginClient = null;
     let liftTimer = null;
-    const cancelLift = () => { if (liftTimer) { clearTimeout(liftTimer); liftTimer = null; } };
+    let liftStartedAt = 0;
+    const cancelLift = () => {
+      if (liftTimer) { clearTimeout(liftTimer); liftTimer = null; }
+      setPressingCardId((prev) => (prev === c.id ? null : prev));
+    };
     const onSecondTouch = (ev) => {
       // A second finger → use-gesture owns the pinch; abort our pan/lift so we
       // never fight its panRef writes or commit a stray move (cf. startPan).
@@ -4047,11 +4058,16 @@ export function CanvasSurface({
       lifted = true;
       applyCardSelection();
       markRecentDrag(dragIds);
+      setPressingCardId(null);            // the filling cue hands off to .is-lifted
       setLiftedCardId(c.id);
       try { navigator.vibrate?.(8); } catch (_) {}
     };
     if (touchHold) {
+      liftStartedAt = performance.now();
       liftTimer = setTimeout(onLift, TOUCH_LIFT_MS);
+      // Only while the board is editable — on a read-only board the hold leads
+      // nowhere, so promising it would be a lie.
+      if (canEdit) setPressingCardId(c.id);
       window.addEventListener('pointerdown', onSecondTouch, true);
     }
 
@@ -4132,10 +4148,26 @@ export function CanvasSurface({
           // The user dragged from a card and it panned instead of moving — the
           // moment they learn the hold. Show the hint once (set the flag first,
           // synchronously, so a fast repeat can't double-toast).
-          if (canEdit && !liftHintSeen()) {
-            markLiftHintSeen();
-            feedback.toast({ type: 'info', message: 'Press and hold a card to pick it up and move it.', ttl: 5000 });
-            try { logEvent(EV.MOBILE_LIFT_HINT_SHOWN, { board_id: board?.id }); } catch (_) {}
+          if (canEdit) {
+            // Logged on EVERY cancel, not just the first, and carrying how long
+            // the finger had been down and how far it travelled. That's the
+            // distribution that says whether these are people deliberately
+            // panning or people trying to hold and losing it to finger drift —
+            // the hint event alone can't tell those apart, and the answer
+            // decides whether TOUCH_LIFT_TOLERANCE is set right.
+            try {
+              logEvent(EV.MOBILE_LIFT_CANCELLED, {
+                board_id: board?.id,
+                held_ms: liftStartedAt ? Math.round(performance.now() - liftStartedAt) : null,
+                travel_px: Math.round(moved),
+                hint_seen: liftHintSeen(),
+              });
+            } catch (_) {}
+            if (!liftHintSeen()) {
+              markLiftHintSeen();
+              feedback.toast({ type: 'info', message: 'Press and hold a card to pick it up and move it.', ttl: 5000 });
+              try { logEvent(EV.MOBILE_LIFT_HINT_SHOWN, { board_id: board?.id }); } catch (_) {}
+            }
           }
         }
         if (panned) {
@@ -7163,7 +7195,7 @@ export function CanvasSurface({
       style: isTagDropHover
         ? { ...wrapperStyle, '--tag-drop-color': tagDropTarget.color }
         : wrapperStyle,
-      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isArrowTarget ? ' is-arrow-target' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}${liftedCardId === c.id ? ' is-lifted' : ''}`,
+      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isArrowTarget ? ' is-arrow-target' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}${liftedCardId === c.id ? ' is-lifted' : ''}${pressingCardId === c.id ? ' is-lifting' : ''}`,
       'data-card-id': c.id,
       onPointerDown: (e) => onCardPointerDown(e, c),
       onPointerUp: (e) => onCardPointerUp(e, c),
@@ -8321,6 +8353,10 @@ export function CanvasSurface({
 
   const wrapStyle = {
     '--canvas-bg': board.bg_color || undefined,
+    // The .is-lifting ring closes over exactly the hold it is describing, so the
+    // duration comes from the constant that actually governs the lift rather
+    // than a hand-copied number in the stylesheet that could quietly drift.
+    '--lift-ms': `${TOUCH_LIFT_MS}ms`,
     ...(eraserCursor ? { cursor: eraserCursor } : null),
     backgroundColor: board.bg_color || undefined,
     backgroundImage: `linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px), radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.5px)`,
