@@ -8210,6 +8210,39 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 }
 .card-menu-btn:active { filter: brightness(.92); }
 
+/* A finger is resting on this card, waiting out the press-and-hold. The hold
+   used to be entirely invisible — nothing happened for 480ms — so a touch user
+   had no way to discover that waiting was the thing to do, and the only
+   teaching moment was a toast AFTER their drag had already panned the board,
+   shown once per device for all time. A quarter of mobile users hit that.
+   This makes the wait legible: a ring closes over exactly the hold duration,
+   so "keep holding" is self-evident and completion is predictable.
+
+   Same no-transform rule as .is-lifted below — the wrapper's inline rotate()
+   would override it. The ring is an ::after overlay, and pointer-events stay
+   off so it can never intercept the gesture it is describing. */
+.card.is-lifting::after {
+  content: '';
+  position: absolute;
+  /* inset:0, NOT a negative inset — .card carries both `overflow: hidden` and
+     `contain: paint`, either of which would clip a ring drawn outside it. */
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  border: 2px solid var(--select);
+  opacity: 0;
+  animation: card-lift-arm var(--lift-ms, 480ms) linear forwards;
+}
+@keyframes card-lift-arm {
+  0%   { opacity: 0;   clip-path: inset(0 100% 0 0); }
+  15%  { opacity: .55; }
+  100% { opacity: .95; clip-path: inset(0 0 0 0); }
+}
+/* Respect a reduced-motion preference: keep the affordance, drop the sweep. */
+@media (prefers-reduced-motion: reduce) {
+  .card.is-lifting::after { animation: none; opacity: .7; clip-path: none; }
+}
+
 /* Card "picked up" by a press-and-hold (touch). Deliberate lift cue that does
    NOT use transform — the wrapper's inline rotate() would override it and
    rotated cards wouldn't scale. Shadow + accent ring read as "in hand". */
