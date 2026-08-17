@@ -128,8 +128,13 @@ const ExtraShortcuts = Extension.create({
       'Mod-Shift-9': () => safeRun(this.editor.chain().focus().toggleTaskList(), 'doc-kbd-list:task'),
       // Strikethrough: ⌘⇧X
       'Mod-Shift-x': () => this.editor.chain().focus().toggleStrike().run(),
-      // Blockquote: ⌘⇧.
-      'Mod-Shift-.': () => this.editor.chain().focus().toggleBlockquote().run(),
+      // Blockquote: ⌘⇧. — also a clearNodes route, so it needs the same guard
+      // its neighbours have. It was the one shortcut in this block left bare,
+      // and it is the uncaught "Invalid content for node type hardBreak" in the
+      // error log: press it with a Shift-Enter soft break inside the selection
+      // and the whole doc surface goes down. The toolbar's blockquote button
+      // has always been wrapped — only the keyboard path wasn't.
+      'Mod-Shift-.': () => safeRun(this.editor.chain().focus().toggleBlockquote(), 'doc-kbd-blockquote'),
       // Code: ⌘E (inline) — matches Notion
       'Mod-e': () => this.editor.chain().focus().toggleCode().run(),
       // Highlight: ⌘⇧H. No inline color — let the themed `.tt-editor mark`

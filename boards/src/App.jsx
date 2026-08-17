@@ -107,7 +107,7 @@ import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js'
 import { trackRegistration } from './lib/metaPixel.js';
 import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule } from './lib/boardsApi.js';
 import { undoToast } from './lib/undoToast.js';
-import { forceBoardThumbnail } from './lib/yboard.js';
+import { forceBoardThumbnail, boardDoc } from './lib/yboard.js';
 import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
@@ -2867,7 +2867,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Clone the Y.Doc snapshot
       const snap = await loadBoardSnapshot(sourceBoardId);
       if (snap) {
-        const tmp = new Y.Doc();
+        const tmp = boardDoc(sourceBoardId);
         Y.applyUpdate(tmp, b64ToBytes(snap));
         await saveBoardSnapshot(newBoard.id, tmp);
         tmp.destroy();
@@ -3059,7 +3059,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       });
       const snap = await loadBoardSnapshot(clip.boardId);
       if (snap) {
-        const tmp = new Y.Doc();
+        const tmp = boardDoc(clip.boardId);
         Y.applyUpdate(tmp, b64ToBytes(snap));
         // Shallow copy: drop child-board mirror cards (and boardlinks) so the
         // duplicate's canvas doesn't reference the original's nested boards.
@@ -4872,7 +4872,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           reject(new Error('target board_state empty'));
           return;
         }
-        const tmp = new Y.Doc();
+        const tmp = boardDoc(targetBoardId);
         Y.applyUpdate(tmp, b64ToBytes(snap));
         const targetCardCountBefore = tmp.getMap('cards').size;
         console.log('[xbm:tmp-init] target cards before mutation', { targetCardCountBefore });
@@ -5049,7 +5049,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               //    round-trip as the forward path, reversed).
               const tsnap = await loadBoardSnapshot(targetBoardId);
               if (tsnap) {
-                const t = new Y.Doc();
+                const t = boardDoc(targetBoardId);
                 Y.applyUpdate(t, b64ToBytes(tsnap));
                 const newIds = new Set(Object.values(idMap));
                 const newGids = new Set(Object.values(groupMap));
@@ -5075,7 +5075,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               //    comments re-anchor and Yjs identities line up).
               const ssnap = await loadBoardSnapshot(sourceBoardId);
               if (!ssnap) throw new Error('source cluster state unavailable');
-              const s = new Y.Doc();
+              const s = boardDoc(sourceBoardId);
               Y.applyUpdate(s, b64ToBytes(ssnap));
               s.transact(() => {
                 const gm = s.getMap('groups');
@@ -5331,7 +5331,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           } else {
             const snap = await loadBoardSnapshot(oldParent);
             if (!snap) continue; // abort-if-null: never overwrite with empty
-            const tmp = new Y.Doc();
+            const tmp = boardDoc(oldParent);
             Y.applyUpdate(tmp, b64ToBytes(snap));
             const before = tmp.getMap('cards').size;
             const removed = removeBoardCard(tmp, ids);
