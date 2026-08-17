@@ -8283,27 +8283,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "One day, broken into hours"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Hour",
-       "children": [
-        {
-         "t": "text",
-         "v": "Hour"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "One hour, broken into minutes"
+       "v": "The day's running order — see below"
       }
      ]
     ]
@@ -8337,7 +8317,299 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Break a day down into hours, and an hour down into minutes, when a day needs that resolution. A prep week can sit at month view while the shoot day sits at hour view in the same board."
+     "v": "A prep week can sit at month view while the shoot day sits at day view in the same board."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "The day is a running order",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The day is a running order"
+    }
+   ],
+   "id": "the-day-is-a-running-order"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Day view is not a column of hours. It is a "
+    },
+    {
+     "t": "strong",
+     "v": "list of items, each with a length",
+     "children": [
+      {
+       "t": "text",
+       "v": "list of items, each with a length"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and the start times work themselves out from the top down."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": null,
+   "code": "07:00  ◆ Crew call                  0:30\n07:30    Breakfast                  0:30\n08:00    Rehearse — sc 14A          0:45\n08:45    Shoot 14A                  2:15\n11:00    Company move → Ext. Dock   0:45"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Change one length and "
+    },
+    {
+     "t": "strong",
+     "v": "everything below it moves.",
+     "children": [
+      {
+       "t": "text",
+       "v": "everything below it moves."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " That is the whole point: when rehearsal runs twenty-five minutes long you edit one number, not twelve."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Three things to do here, and nothing else:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Type a length.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Type a length."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " "
+     },
+     {
+      "t": "code",
+      "v": "2:15"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "2h15"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "135"
+     },
+     {
+      "t": "text",
+      "v": " all mean the same thing."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Drag a row",
+      "children": [
+       {
+        "t": "text",
+        "v": "Drag a row"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to move it. The times stay put and re-cascade around it."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Pin a row",
+      "children": [
+       {
+        "t": "text",
+        "v": "Pin a row"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to lock it to a time of day. A pinned row shows its time as an editable field; everything else is calculated and cannot be typed into."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Pins, and what they cost",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pins, and what they cost"
+    }
+   ],
+   "id": "pins-and-what-they-cost"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A crew call and a meal break happen at a time, not \"whenever we get to them\". Pin them, and the pin holds — what moves is the report:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "runs 12m past the pin",
+      "children": [
+       {
+        "t": "text",
+        "v": "runs 12m past the pin"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the item above overruns it. The pin does not slide; the day after it stays on schedule and you are told what has to give."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "20m spare before the pin",
+      "children": [
+       {
+        "t": "text",
+        "v": "20m spare before the pin"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — dead air you can fill."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The header carries the day's "
+    },
+    {
+     "t": "strong",
+     "v": "call time",
+     "children": [
+      {
+       "t": "text",
+       "v": "call time"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and its "
+    },
+    {
+     "t": "strong",
+     "v": "estimated wrap",
+     "children": [
+      {
+       "t": "text",
+       "v": "estimated wrap"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and, if the day has a planned end, how far over or under it is running."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A row can also be a "
+    },
+    {
+     "t": "strong",
+     "v": "cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — the setup's own board, with its shotlist, references and pages inside — opened straight from the row."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Adding a day with "
+    },
+    {
+     "t": "strong",
+     "v": "Set up this day",
+     "children": [
+      {
+       "t": "text",
+       "v": "Set up this day"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " seeds three rows: the call, a first setup, and a meal break six hours after the call. An empty list is a blank page."
     }
    ]
   },
@@ -8745,7 +9017,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", the day broken into hours, which is where loose content is edited."
+     "v": ", where loose content pinned to an hour is edited. The day's running order lives in Day view, not here."
     }
    ]
   },
@@ -12073,6 +12345,147 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Side by side",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Side by side"
+    }
+   ],
+   "id": "side-by-side"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Two clusters can be open at once, in a split view with a draggable divider."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "The "
+     },
+     {
+      "t": "strong",
+      "v": "⧉ Pin alongside",
+      "children": [
+       {
+        "t": "text",
+        "v": "⧉ Pin alongside"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " button in the topbar"
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "⌘K"
+     },
+     {
+      "t": "text",
+      "v": " → \"Open split view\""
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Then pick the cluster for the right-hand side. Close it with the "
+    },
+    {
+     "t": "strong",
+     "v": "×",
+     "children": [
+      {
+       "t": "text",
+       "v": "×"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the right pane's bar, or the same topbar button."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Each side navigates itself.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Each side navigates itself."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Opening a nested cluster on the right moves the right side only — the left stays where it was — and each side keeps its own breadcrumb trail to climb back out. The same holds for what you drop, link and edit: it lands on the side you did it on."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Access is per side too. If the right pane is showing a cluster someone shared with you as view-only, it is read-only there, exactly as it would be full screen."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The split — both clusters, both breadcrumbs, and the divider position — is remembered, so a reload puts you back in it. It is a desktop feature; there is no split on phones."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A "
+    },
+    {
+     "t": "link",
+     "v": "document docked beside the canvas",
+     "href": "/docs/documents#opening",
+     "children": [
+      {
+       "t": "text",
+       "v": "document docked beside the canvas"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " uses the same right-hand pane, so opening one closes a cluster split, and vice versa."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Thumbnails",
    "inline": [
     {
@@ -13470,21 +13883,21 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "an "
+      "v": "the day's "
      },
      {
       "t": "strong",
-      "v": "hour-by-hour",
+      "v": "running order",
       "children": [
        {
         "t": "text",
-        "v": "hour-by-hour"
+        "v": "running order"
        }
       ]
      },
      {
       "t": "text",
-      "v": " schedule card"
+      "v": " — every item with a length, so the day re-times itself when one runs long"
      }
     ]
    ]
@@ -14757,6 +15170,53 @@ export const DOCS_CONTENT = {
       "v": " — docked beside the canvas, resizable, so you can write while looking at the board"
      }
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Double-clicking a document card opens it in "
+    },
+    {
+     "t": "strong",
+     "v": "whichever mode you used last",
+     "children": [
+      {
+       "t": "text",
+       "v": "whichever mode you used last"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so if you work docked you stay docked. The dock and full screen swap either way from the buttons in the document's header."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A docked document is held by the workspace, not by the canvas underneath it. You can open other clusters, drill into nested ones, and move around the sidebar with the document still open beside you — it stays put until you close it. One document is docked at a time; opening another hands it the pane. Docking a document also takes over the "
+    },
+    {
+     "t": "link",
+     "v": "split view",
+     "href": "/docs/clusters#side-by-side",
+     "children": [
+      {
+       "t": "text",
+       "v": "split view"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " pane, since there is only one."
+    }
    ]
   },
   {
@@ -18162,8 +18622,15 @@ export const DOCS_CONTENT = {
      ],
      [
       {
-       "t": "text",
-       "v": "Two boards side by side"
+       "t": "link",
+       "v": "Two boards side by side",
+       "href": "/docs/clusters#side-by-side",
+       "children": [
+        {
+         "t": "text",
+         "v": "Two boards side by side"
+        }
+       ]
       }
      ]
     ],

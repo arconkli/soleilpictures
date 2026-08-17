@@ -34,18 +34,18 @@ import { initCardDocStore } from './docState.js';
 // here so callers have one import for "shoot days".
 import { shootDayDates, shootDayCards } from './productionDayPlan.js';
 export {
-  shootDayDates, nextDayNumber, shootDayCards, defaultShootRange,
+  shootDayDates, nextDayNumber, shootDayCards, shootDayRundown, defaultShootRange,
   MAX_SHOOT_DAYS_PER_ADD,
 } from './productionDayPlan.js';
 
 // Fill one dated cluster with the scaffold. Idempotence is the caller's job:
 // this always writes, so only offer it for a cluster that is still empty.
-export async function scaffoldShootDay({ boardId, dayLabel, userId = null }) {
+export async function scaffoldShootDay({ boardId, dayLabel, dateIso = null, userId = null }) {
   const tmp = new Y.Doc();
   try {
     const cardsMap = tmp.getMap('cards');
     tmp.transact(() => {
-      for (const card of shootDayCards(dayLabel)) {
+      for (const card of shootDayCards(dayLabel, dateIso)) {
         const stamped = {
           createdBy: userId || null, createdAt: new Date().toISOString(),
           updatedBy: userId || null, updatedAt: new Date().toISOString(),

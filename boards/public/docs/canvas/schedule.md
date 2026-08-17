@@ -40,8 +40,7 @@ Four zoom levels of the same schedule:
 |---|---|
 | **Month** | A whole month in a grid — or three, or six |
 | **Week** | Seven days side by side |
-| **Day** | One day, broken into hours |
-| **Hour** | One hour, broken into minutes |
+| **Day** | The day's running order — see below |
 
 In month view, the **1 / 3 / 6** control sets how many months are on the card at
 once. Three months is a block of principal photography; you can see the whole
@@ -49,9 +48,50 @@ shoot and drag a day from the first month to the last without paging. Asking for
 more months grows the card to fit them — three readable months need the room,
 and silently shrinking each one into a grid of dots would defeat the point.
 
-Break a day down into hours, and an hour down into minutes, when a day needs
-that resolution. A prep week can sit at month view while the shoot day sits at
-hour view in the same board.
+A prep week can sit at month view while the shoot day sits at day view in the
+same board.
+
+## The day is a running order
+
+Day view is not a column of hours. It is a **list of items, each with a
+length**, and the start times work themselves out from the top down.
+
+```
+07:00  ◆ Crew call                  0:30
+07:30    Breakfast                  0:30
+08:00    Rehearse — sc 14A          0:45
+08:45    Shoot 14A                  2:15
+11:00    Company move → Ext. Dock   0:45
+```
+
+Change one length and **everything below it moves.** That is the whole point:
+when rehearsal runs twenty-five minutes long you edit one number, not twelve.
+
+Three things to do here, and nothing else:
+
+- **Type a length.** `2:15`, `2h15` and `135` all mean the same thing.
+- **Drag a row** to move it. The times stay put and re-cascade around it.
+- **Pin a row** to lock it to a time of day. A pinned row shows its time as an
+  editable field; everything else is calculated and cannot be typed into.
+
+### Pins, and what they cost
+
+A crew call and a meal break happen at a time, not "whenever we get to them".
+Pin them, and the pin holds — what moves is the report:
+
+- **runs 12m past the pin** — the item above overruns it. The pin does not
+  slide; the day after it stays on schedule and you are told what has to give.
+- **20m spare before the pin** — dead air you can fill.
+
+The header carries the day's **call time** and its **estimated wrap**, and, if
+the day has a planned end, how far over or under it is running.
+
+A row can also be a **cluster** — the setup's own board, with its shotlist,
+references and pages inside — opened straight from the row.
+
+Adding a day with **Set up this day** seeds three rows: the call, a first
+setup, and a meal break six hours after the call. An empty list is a blank
+page.
 
 ### Navigation is yours
 
@@ -110,8 +150,8 @@ grid with inline editing produced constant mis-clicks: reaching for a slot and
 accidentally editing the one next to it.
 
 Clicking a date **selects** it in the rail. Double-clicking it — or clicking the
-date mark in the rail — opens the **peek**, the day broken into hours, which is
-where loose content is edited.
+date mark in the rail — opens the **peek**, where loose content pinned to an
+hour is edited. The day's running order lives in Day view, not here.
 
 Day tiles are the exception to read-only. They are draggable in the grid,
 because moving a day to a new date is the single thing a production schedule

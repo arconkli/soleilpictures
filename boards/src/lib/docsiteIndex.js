@@ -786,7 +786,7 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/canvas/schedule",
     "title": "Schedule Cards — Soleil Clusters",
-    "metaDescription": "Real-date calendar cards on the Soleil Clusters canvas — a month grid beside a day rail, one to six months at once, and days you drag between dates.",
+    "metaDescription": "Real-date calendar cards on the Soleil Clusters canvas — a month grid, a day rail, and days that run as a timed running order.",
     "h1": "Schedules",
     "answer": "A schedule card is a real calendar living on your canvas, split into two panes: a month grid showing the shape of the schedule, and a day rail listing what is actually on each date — start time, place, and whether the call sheet has been published. It shows one, three or six months at once, and each day can hold both loose content and whole clusters. Dragging a day to another date moves that cluster and, if it has been published, tells everyone who can see it.",
     "section": "canvas",
@@ -801,6 +801,10 @@ export const DOCS_PAGES = [
       {
         "id": "views",
         "text": "Views"
+      },
+      {
+        "id": "the-day-is-a-running-order",
+        "text": "The day is a running order"
       },
       {
         "id": "two-things-live-on-a-date",
@@ -836,6 +840,14 @@ export const DOCS_PAGES = [
       {
         "q": "How do I move a day to a different date?",
         "a": "Drag its tile onto the new date. If the day has been published, everyone who can see the schedule is notified that it moved. Loose content moves from the peek panel or with \"Move to date\"."
+      },
+      {
+        "q": "What happened to the Hour view?",
+        "a": "It is gone. Its only job was splitting one hour into four fifteen-minute buckets, which stopped meaning anything once an item can be two hours and fifteen minutes long. A card saved in that view opens as the day's running order instead."
+      },
+      {
+        "q": "If I change one item's length, what moves?",
+        "a": "Everything below it, and the estimated wrap. Nothing above it moves, and nothing after a pinned row moves — a pin is a fixed time of day and it holds."
       },
       {
         "q": "What is the panel on the right?",
@@ -1245,6 +1257,10 @@ export const DOCS_PAGES = [
       {
         "id": "nesting",
         "text": "Nesting"
+      },
+      {
+        "id": "side-by-side",
+        "text": "Side by side"
       },
       {
         "id": "thumbnails",

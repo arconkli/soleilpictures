@@ -26,6 +26,11 @@ import {
 } from '../../lib/schedLayout.js';
 import { dayTypesFor, dayTypeColor } from '../../lib/dayTypes.js';
 import { ScheduleRail } from './ScheduleRail.jsx';
+import { ScheduleRundown } from './ScheduleRundown.jsx';
+import {
+  rundownFromCells, rundownKey, materializeLegacy, computeRundown,
+  ordForIndex, ordForMove, RUNDOWN_TUNING,
+} from '../../lib/rundown.js';
 import { setViewAnchor, clearViewAnchor } from '../../lib/schedViewRegistry.js';
 import { nextDayNumber as nextShootDayNumber } from '../../lib/productionDayPlan.js';
 import {
@@ -64,11 +69,14 @@ const stopWithTouchScroll = (e) => { startTouchScrollGesture(e); e.stopPropagati
 const MONTH_SPANS = [1, 3, 6];
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+// Hour view is gone. Its whole job was subdividing one hour into four
+// 15-minute buckets, which is meaningless once an item can be 2h15 — it only
+// ever existed as a workaround for not having durations. A stored
+// schedView:'hour' coerces to 'day' in readSchedModel so old cards still open.
 const VIEWS = [
   { id: 'month', label: 'M', tip: 'Month' },
   { id: 'week', label: 'W', tip: 'Week' },
   { id: 'day', label: 'D', tip: 'Day' },
-  { id: 'hour', label: 'H', tip: 'Hour' },
 ];
 
 function viewTitle(view, anchor, anchorHour, months = 1) {
@@ -529,6 +537,69 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
   // against the card itself.
   const railAnchorRect = () => rootRef.current?.getBoundingClientRect()
     || { left: 0, top: 0, width: 0, height: 0 };
+
+  // ── The rundown ────────────────────────────────────────────────────────────
+  // Which dated cluster this day belongs to, if any — it carries the day's
+  // start time, planned wrap and place (0247), which is what turns a bare list
+  // of durations into a schedule with a call time on it.
+  const dayBoard = (shootDays[anchor] || []).find((b) => b.sched_status !== 'cancelled')
+    || (card?.anchorMode === 'board' ? boards?.[boardId] : null)
+    || null;
+  const rundown = rundownFromCells(model.cells, anchor);
+
+  // Every edit goes through here so the legacy rewrite can happen exactly once,
+  // on the first touch, ahead of whatever the edit was.
+  const rd = (() => {
+    const flush = () => {
+      if (!rundown.hasLegacy || !gridActions?.applyRundownPlan) return false;
+      gridActions.applyRundownPlan(card.id, materializeLegacy(model.cells, anchor, newUid));
+      return true;
+    };
+    // After a rewrite the old key is gone, so an edit aimed at it has nothing to
+    // land on. Re-read and match the row by position instead.
+    const keyAfterFlush = (key) => {
+      if (!rundown.hasLegacy) return key;
+      const before = computeRundown(rundown.items).rows.findIndex((r) => r.key === key);
+      if (before < 0) return key;
+      const after = computeRundown(rundownFromCells(readSchedModel(card, ydoc).cells, anchor).items).rows;
+      return after[before]?.key || key;
+    };
+    const patch = (key, fields) => {
+      const migrated = flush();
+      const k = migrated ? keyAfterFlush(key) : key;
+      gridActions?.setCellContent?.(card.id, k, fields);
+    };
+    return {
+      patch,
+      remove: (key) => {
+        const migrated = flush();
+        gridActions?.removeCellRecord?.(card.id, migrated ? keyAfterFlush(key) : key);
+      },
+      add: (index) => {
+        flush();
+        const rows = computeRundown(
+          rundownFromCells(readSchedModel(card, ydoc).cells, anchor).items).rows;
+        const key = rundownKey(anchor, newUid());
+        gridActions?.setCellContent?.(card.id, key, {
+          type: 'text', html: '', kind: 'item',
+          dur: RUNDOWN_TUNING.DEFAULT_DUR, ord: ordForIndex(rows, index),
+        });
+        setEditing({ itemKey: key, surface: 'rundown' });
+      },
+      move: (from, to) => {
+        flush();
+        const rows = computeRundown(
+          rundownFromCells(readSchedModel(card, ydoc).cells, anchor).items).rows;
+        const ord = ordForMove(rows, from, to);
+        if (!ord) return;                       // dropped where it already was
+        gridActions?.setCellContent?.(card.id, rows[from].key, { ord });
+      },
+      editTitle: (key) => {
+        const migrated = flush();
+        setEditing({ itemKey: migrated ? keyAfterFlush(key) : key, surface: 'rundown' });
+      },
+    };
+  })();
   // Counter-scaled sizes: layout px = target screen px / zoom, clamped so a
   // number can never overflow its cell.
   const lodPx = (targetPx, max) => Math.min(targetPx / scale, max);
@@ -1103,6 +1174,33 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
         </div>
         )}
         <div className="schedc-body" style={{ height: bodyH }}>
+        {model.view === 'day' ? (
+          <ScheduleRundown
+            cardId={card.id} date={anchor} cells={rundown.items}
+            dayStart={dayBoard?.day_start || null}
+            plannedWrap={dayBoard?.day_end || null}
+            place={dayBoard?.day_place || null}
+            boards={boards} onOpenBoard={onOpenBoard}
+            editable={editable}
+            hueFor={() => dayTypeColor(dayBoard, dayTypes)}
+            editingKey={editing?.surface === 'rundown' ? editing.itemKey : null}
+            onCommitTitle={(key, text) => {
+              gridActions?.setCellContent?.(card.id, key, { title: text });
+              setEditing(null);
+            }}
+            onCancelTitle={() => setEditing(null)}
+            onSetDur={(key, dur) => rd.patch(key, { dur })}
+            onTogglePin={(key, clock) => rd.patch(key, { pin: clock })}
+            onRemove={(key) => rd.remove(key)}
+            onAdd={(index) => rd.add(index)}
+            onMove={(from, to) => rd.move(from, to)}
+            onEditTitle={(key) => rd.editTitle(key)}
+            onOpenMenu={(key, e) => setMenu({
+              slotKey: key, anchorRect: e.currentTarget.getBoundingClientRect(),
+              surface: 'rundown',
+            })}
+          />
+        ) : (
         <div className="schedc-cal" style={{
           left: calRect.x, top: calRect.y, width: calRect.w, height: calRect.h,
         }}>
@@ -1132,8 +1230,8 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
               style={{ left: r.x, top: r.y, width: r.w }} />
           ))}
           {renderSlotLayer(bodySlots, 'card')}
-          {model.view === 'day' && anchor === todayIso && renderNowLine(slots)}
         </div>
+        )}
         {railRect && (
           <ScheduleRail
             rect={railRect} rows={railRows} todayIso={todayIso}

@@ -5262,26 +5262,15 @@ export function CanvasSurface({
         items.push({ id: 'sched-view', label: 'View', submenu: [
           { id: 'sv-month', label: `Month${c.schedView === 'month' ? ' ✓' : ''}`, run: () => setView('month') },
           { id: 'sv-week', label: `Week${c.schedView === 'week' ? ' ✓' : ''}`, run: () => setView('week') },
-          { id: 'sv-day', label: `Day${c.schedView === 'day' ? ' ✓' : ''}`, run: () => setView('day') },
-          { id: 'sv-hour', label: `Hour${c.schedView === 'hour' ? ' ✓' : ''}`, run: () => setView('hour') },
+          // 'hour' rows exist in stored data and readSchedModel folds them into
+          // 'day', so the Day entry ticks for both — a card that came from the
+          // removed view must not show every option unchecked.
+          { id: 'sv-day', label: `Day${c.schedView === 'day' || c.schedView === 'hour' ? ' ✓' : ''}`, run: () => setView('day') },
         ]});
         items.push({ id: 'sched-today', label: 'Go to today', run: () => mutators.updateCard?.(c.id, { anchor: schedTodayISO() }) });
-        // Breakdown / collapse for the focused slot (click a slot first).
-        const fc = focusedCell;
-        if (fc?.gridId === c.id && fc.cellId) {
-          const slotPath = schedSlotOfItem(fc.cellId);
-          const slot = schedParseSlotKey(slotPath);
-          const expanded = schedExpandOf(c, ydoc)[slotPath];
-          if (slot?.kind === 'day') {
-            items.push(expanded === 'hours'
-              ? { id: 'sched-collapse', label: 'Collapse day', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, null) }
-              : { id: 'sched-break', label: 'Break day into hours', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, 'hours') });
-          } else if (slot?.kind === 'hour') {
-            items.push(expanded === 'minutes'
-              ? { id: 'sched-collapse', label: 'Collapse hour', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, null) }
-              : { id: 'sched-break', label: 'Break hour into minutes', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, 'minutes') });
-          }
-        }
+        // "Break into hours/minutes" is gone with the hour buckets it made. A
+        // day's resolution is its running order now, and that lives in Day
+        // view rather than as a mode a month cell can be put into.
       } else if (c.kind === 'board') {
         openItems.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
         const target = boards[c.id];
@@ -7036,6 +7025,8 @@ export function CanvasSurface({
     // re-keys rather than field writes (lib/schedLayout.js).
     moveItem: (cardId, fromKey, toSlotPath) => mutators.moveSchedItem?.(cardId, fromKey, toSlotPath),
     moveSlot: (cardId, fromSlot, toSlot) => mutators.moveSchedSlot?.(cardId, fromSlot, toSlot),
+    // One transaction for the rundown's convert-legacy-on-first-edit rewrite.
+    applyRundownPlan: (cardId, plan) => mutators.applyRundownPlan?.(cardId, plan),
     unlinkGrid: (gridId) => mutators.unlinkGrid?.(gridId),
     promoteToTemplate: (gridId) => mutators.promoteGridToTemplate?.(gridId),
     stampNeighbor: (gridId, dir) => mutators.stampGridNeighbor?.(gridId, dir),

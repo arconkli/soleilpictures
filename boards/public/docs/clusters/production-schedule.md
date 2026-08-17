@@ -20,7 +20,7 @@ the day needs:
 - the day's **script pages** (a PDF or a document)
 - the **call sheet**
 - the **shotlist**
-- an **hour-by-hour** schedule card
+- the day's **running order** — every item with a length, so the day re-times itself when one runs long
 
 Share the production cluster with the crew once. Everything inside it — every
 day, every call sheet — comes with it.

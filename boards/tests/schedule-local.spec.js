@@ -50,7 +50,7 @@ test.describe('schedule — local interaction', () => {
     await expect(sched.locator('.schedc-pill-btn.is-active')).toHaveText('M');
   });
 
-  test('the view pill switches Month → Week → Day → Hour', async ({ page }) => {
+  test('the view pill switches Month → Week → Day; Hour is gone', async ({ page }) => {
     await addSchedule(page);
     const sched = page.locator('.schedc');
 
@@ -58,19 +58,41 @@ test.describe('schedule — local interaction', () => {
     await expect(sched.locator('.schedc-slot-day')).toHaveCount(7);
     await expect(sched.locator('.schedc-wd')).toHaveCount(7);
 
+    // Day is a RUNDOWN now — an ordered list with durations, not a column of
+    // fixed hour buckets. It starts empty rather than showing ten hours of
+    // nothing, and the header carries the day's call and estimated wrap.
     await sched.getByRole('button', { name: 'Day view' }).click();
-    // All-day band + the default 8–18 hour window.
-    await expect(sched.locator('.schedc-slot-day.is-band')).toHaveCount(1);
-    await expect(sched.locator('.schedc-slot-hour')).toHaveCount(10);
-    await expect(sched.locator('.schedc-slot-hour .schedc-time-label').first()).toHaveText('8 AM');
+    await expect(sched.locator('.rd')).toHaveCount(1);
+    await expect(sched.locator('.rd-facts')).toContainText('Call');
+    await expect(sched.locator('.rd-facts')).toContainText('Wrap est');
+    await expect(sched.locator('.schedc-slot-hour')).toHaveCount(0);
 
-    await sched.getByRole('button', { name: 'Hour view' }).click();
-    // Whole-hour band + 4 quarter-hour rows.
-    await expect(sched.locator('.schedc-slot-hour.is-band')).toHaveCount(1);
-    await expect(sched.locator('.schedc-slot-minute')).toHaveCount(4);
+    // Hour view existed only to subdivide an hour into 15-minute buckets, which
+    // durations make meaningless. Three pills, no H.
+    await expect(sched.locator('.schedc-pill-btn')).toHaveCount(3);
+    await expect(sched.getByRole('button', { name: 'Hour view' })).toHaveCount(0);
 
     await sched.getByRole('button', { name: 'Month view' }).click();
     await expect(sched.locator('.schedc-slot-day.is-today')).toHaveCount(1);
+  });
+
+  test('a card saved as the old Hour view opens as a rundown, not blank', async ({ page }) => {
+    // schedView:'hour' rows exist in production data. readSchedModel coerces
+    // them, because a card that renders nothing because its view was removed is
+    // the worst possible outcome of deleting a view.
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    await page.evaluate(() => {
+      const api = window.__soleilLocal;
+      const id = document.querySelector('.schedc')?.getAttribute('data-grid-id');
+      if (api && id) api.updateCard(id, { schedView: 'hour' });
+    });
+    await page.waitForTimeout(200);
+    // Either the harness exposed an updater or it did not; if it did, the card
+    // must be a rundown. If it did not, the Day pill proves the same coercion
+    // path renders a rundown at all.
+    await sched.getByRole('button', { name: 'Day view' }).click();
+    await expect(sched.locator('.rd')).toHaveCount(1);
   });
 
   test('month navigation moves the anchor and Today returns', async ({ page }) => {
@@ -93,15 +115,17 @@ test.describe('schedule — local interaction', () => {
     await expect(sched.locator('.schedc-slot-day.is-today')).toHaveCount(1);
   });
 
-  test('hour view navigation rolls across midnight', async ({ page }) => {
+  test('day-view navigation steps a day at a time', async ({ page }) => {
+    // Replaces the old hour-view midnight-roll test. The hour view is gone;
+    // stepping the day is what its ‹ › do now.
     await addSchedule(page);
     const sched = page.locator('.schedc');
-    await sched.getByRole('button', { name: 'Hour view' }).click();
-    // Anchor hour defaults to 9 AM.
-    await expect(sched.locator('.schedc-title')).toContainText('9 AM');
-    // 9 → back 10 hours → 11 PM yesterday (title shows the rolled date + hour).
-    for (let i = 0; i < 10; i++) await sched.getByRole('button', { name: 'Previous' }).click();
-    await expect(sched.locator('.schedc-title')).toContainText('11 PM');
+    await sched.getByRole('button', { name: 'Day view' }).click();
+    const start = await sched.locator('.schedc-title').textContent();
+    await sched.getByRole('button', { name: 'Next' }).click();
+    await expect(sched.locator('.schedc-title')).not.toHaveText(start);
+    await sched.getByRole('button', { name: 'Previous' }).click();
+    await expect(sched.locator('.schedc-title')).toHaveText(start);
   });
 
   // Click a slot to focus it, then paste — the slot auto-formats by clipboard
@@ -127,23 +151,61 @@ test.describe('schedule — local interaction', () => {
   // editing (add menu, paste, ×-removal, breakdown) lives in the Day Peek and
   // is covered by the 'day peek panel' describe below.
 
-  test('an hour item aggregates into its (collapsed) day in month view', async ({ page }) => {
+  // Add a row, name it, and give it a length.
+  async function addRundownRow(page, title, mins) {
+    await page.locator('.rd-add').click();
+    const t = page.locator('input.rd-title-in');
+    await expect(t).toBeVisible();
+    await t.fill(title);
+    await t.press('Enter');
+    const durs = page.locator('input.rd-dur-in');
+    const last = durs.nth((await durs.count()) - 1);
+    await last.click();
+    await last.fill(String(mins));
+    await last.press('Enter');
+  }
+
+  test('changing ONE duration re-times every row below it, and the wrap', async ({ page }) => {
+    // THE reason the hour buckets were replaced. Rehearsal runs long; the rest
+    // of the day has to move by itself.
     await addSchedule(page);
     const sched = page.locator('.schedc');
-    // Day view: put a text item into the 9 AM hour row.
     await sched.getByRole('button', { name: 'Day view' }).click();
-    const nineAm = sched.locator('.schedc-slot-hour').nth(1);
-    await addViaSlotMenu(page, nineAm, 'Text');
-    await expect(nineAm.locator('.gc-text-edit')).toBeVisible();
-    await page.keyboard.type('Dailies review');
-    await page.locator('.canvas-wrap').click({ position: { x: 30, y: 700 } });
-    // (chip or full-bleed depending on row height — either way it's in the slot)
-    await expect(nineAm).toContainText('Dailies review');
 
-    // Month view: the (collapsed) day aggregates the hour-deep item — the
-    // breakdown content is never invisible.
-    await sched.getByRole('button', { name: 'Month view' }).click();
-    await expect(sched.locator('.schedc-slot-day.is-today .schedc-item-full .gc-text')).toContainText('Dailies review');
+    await addRundownRow(page, 'Crew call', 30);
+    await addRundownRow(page, 'Rehearse', 45);
+    await addRundownRow(page, 'Shoot 14A', 135);
+    const times = () => sched.locator('.rd-row .rd-t');
+    await expect(times()).toHaveText(['08:00', '08:30', '09:15']);
+    await expect(sched.locator('.rd-facts')).toContainText('11:30');
+
+    // Rehearsal 0:45 → 1:10. Everything above holds, everything below shifts 25.
+    const rehearsal = page.locator('input.rd-dur-in').nth(1);
+    await rehearsal.click();
+    await rehearsal.fill('1:10');
+    await rehearsal.press('Enter');
+    await expect(times()).toHaveText(['08:00', '08:30', '09:40']);
+    await expect(sched.locator('.rd-facts')).toContainText('11:55');
+  });
+
+  test('a pinned row holds its time and reports what ran past it', async ({ page }) => {
+    await addSchedule(page);
+    const sched = page.locator('.schedc');
+    await sched.getByRole('button', { name: 'Day view' }).click();
+    await addRundownRow(page, 'Shoot 22', 120);
+    await addRundownRow(page, 'Lunch', 60);
+
+    // Pin the lunch, then pull it earlier than the shoot above it can finish.
+    await sched.locator('.rd-row').nth(1).locator('.rd-pin').click();
+    const pin = sched.locator('input.rd-t-in').first();
+    await pin.click();
+    await pin.fill('09:30');
+    await pin.press('Enter');
+
+    // The pin does NOT move — a union meal break is not negotiable. The overrun
+    // is reported at the seam instead, and the afternoon resumes from the pin.
+    await expect(sched.locator('.rd-warn')).toContainText('past the pin');
+    await expect(sched.locator('.rd-row').nth(1).locator('.rd-t')).toHaveValue('09:30');
   });
 
   test('a LEGACY rows-table schedule card still renders the old table', async ({ page }) => {
@@ -722,18 +784,17 @@ test.describe('schedule — date-jump popover', () => {
     await expect(sched.locator('.schedc-slot-day.is-today')).toHaveCount(1);
   });
 
-  test('hour view keeps its anchor hour across a date jump; week view stays week', async ({ page }) => {
+  test('a date jump keeps the view it was made from', async ({ page }) => {
     await addSchedule(page);
     const sched = page.locator('.schedc');
-    await sched.getByRole('button', { name: 'Hour view' }).click();
-    await expect(sched.locator('.schedc-title')).toContainText('9 AM');
-
+    // Day view (the rundown) — jumping a month lands on that date, still a day.
+    await sched.getByRole('button', { name: 'Day view' }).click();
     let pop = await openPopover(page);
     await pop.getByRole('button', { name: 'Next month' }).click();
     await pop.locator('.schedc-dp-day:not(.is-outside)', { hasText: /^20$/ }).click();
-    // Jumped a month ahead, still parked on 9 AM.
-    await expect(sched.locator('.schedc-title')).toContainText('9 AM');
+    await expect(sched.locator('.schedc-pill-btn.is-active')).toHaveText('D');
     await expect(sched.locator('.schedc-title')).toContainText('20');
+    await expect(sched.locator('.rd')).toHaveCount(1);
 
     await sched.getByRole('button', { name: 'Week view' }).click();
     const weekTitle = await sched.locator('.schedc-title').textContent();

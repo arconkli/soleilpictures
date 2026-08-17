@@ -1598,7 +1598,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // RAIL_W 288 leaves the calendar ~590), because a schedule card that opens
     // without its rail opens without the half that answers "what is happening".
     // Week deliberately does not: a week bar is a bar. TWIN in LocalBoardsApp.
-    const SCHED_SIZES = { month: [920, 580], week: [640, 260], day: [420, 560], hour: [380, 420] };
+    const SCHED_SIZES = { month: [920, 580], week: [640, 260], day: [460, 560] };
     const addSchedule = (clickPos = null, view = 'month') => {
       const [w, h] = SCHED_SIZES[view] || SCHED_SIZES.month;
       const x = clickPos ? Math.round(clickPos.x - w / 2) : 60;
@@ -2177,6 +2177,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }, 'local');
       return true;
     };
+    // Rewrite a day's leftover hour-bucket items as real rundown rows, in ONE
+    // transaction. The rundown reads the old keys perfectly well (conversion
+    // happens on read, so nothing needed a migration), but a converted row's
+    // order key is synthesised from its clock time, so reordering one would not
+    // stick until it is real. This runs on the first edit to a converted day
+    // and then never again.
+    //
+    // One transaction, not a loop of writes: twelve rows appearing one ⌘Z at a
+    // time would be a nightmare to undo out of.
+    const applyRundownPlan = (cardId, plan) => {
+      const m = cardsMap(); const cy = m && m.get(cardId); if (!cy) return false;
+      const cm = cy.get('gridCells'); if (!cm || !cm.set) return false;
+      const writes = Object.entries(plan?.writes || {});
+      const deletes = plan?.deletes || [];
+      if (!writes.length && !deletes.length) return false;
+      breakUndo();
+      ydoc.transact(() => {
+        deletes.forEach((k) => cm.delete(k));
+        writes.forEach(([k, rec]) => cm.set(k, rec));
+      }, 'local');
+      return true;
+    };
     // Drag a Day-view schedule onto a Month/Week day slot (or an Hour-view onto
     // an hour slot) → the slot subdivides INLINE and absorbs the source's items
     // with their date prefix rewritten (pure schedLayout.graftKeyMap); the
@@ -2508,6 +2530,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addDocCard, addScriptCard, addGrid,
       resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, setGridCellContent, clearGridCellContent, removeGridCellRecord,
       setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
+      applyRundownPlan,
       setGridTextStyle, pinCellStyle, unpinCellStyle, guardWeightedAdd,
       promoteGridToTemplate, linkGridToTemplate, unlinkGrid, resizeLinkedGrids, graftGridIntoCell,
       stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern, setGridSequenceStartAt,
@@ -5428,7 +5451,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       });
       if (scaffold) {
         for (const d of res.made) {
-          try { await scaffoldShootDay({ boardId: d.id, dayLabel: d.label, userId: user.id }); }
+          try { await scaffoldShootDay({ boardId: d.id, dayLabel: d.label, dateIso: d.date, userId: user.id }); }
           catch (e) { console.warn('scaffoldShootDay failed', d.id, e); }
         }
       }

@@ -1457,3 +1457,258 @@ button.schedc-title:active,
   .schedc-rail-datemark { min-height: 44px; justify-content: center; }
   .schedc-rail-add { width: 32px; height: 32px; opacity: 1; }
 }
+
+/* ══ The rundown ══════════════════════════════════════════════════════════
+   The day view, rebuilt. Row height is proportional to duration, so the day
+   reads as a shape while it edits as a list — and because a rundown is
+   sequential by definition there is no overlap packing, which is the hardest
+   part of a calendar day view, deleted rather than solved. */
+.rd { position:absolute; inset:0; display:flex; flex-direction:column; min-height:0; }
+
+/* The headline. Every source on call sheets agrees the start time is the one
+   line people look for, so it is the largest type on the surface. */
+.rd-facts {
+  flex:0 0 auto;
+  display:flex; align-items:center; flex-wrap:wrap; gap:4px 16px;
+  padding:9px 12px;
+  border-bottom:1px solid var(--line-1, #212126);
+  background:var(--bg-1, #111114);
+  font-variant-numeric:tabular-nums;
+}
+.rd-fact { display:flex; align-items:baseline; gap:6px; }
+.rd-fact-k {
+  font-size:9.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3, #5a5a60);
+}
+.rd-fact-v { font-size:15px; font-weight:700; color:var(--ink-0, #f5f5f7); }
+.rd-fact.is-over  .rd-fact-v { color:var(--ink-error, #e08b8b); }
+.rd-fact.is-under .rd-fact-v { color:var(--msg-ok, #2faf78); }
+.rd-fact-note, .rd-fact-place { font-size:11px; color:var(--ink-3, #5a5a60); }
+.rd-nextday {
+  margin-left:3px; font-style:normal; font-size:9px; font-weight:700;
+  vertical-align:super; color:var(--ink-3, #5a5a60);
+}
+
+.rd-body {
+  flex:1 1 auto; min-height:0;
+  overflow-y:auto; overscroll-behavior:contain;
+  background:var(--bg-1, #111114);
+}
+.rd-empty {
+  margin:18px 14px; font-size:12.5px; line-height:1.55; color:var(--ink-3, #5a5a60);
+}
+
+/* Content attached to the DAY rather than to a moment. The all-day band's job
+   without a slot — it never consumes the clock. */
+.rd-untimed {
+  display:flex; align-items:baseline; gap:9px;
+  padding:6px 12px;
+  border-bottom:1px solid var(--line-1, #212126);
+  background:color-mix(in srgb, var(--ink-0, #f5f5f7) 4%, transparent);
+}
+.rd-untimed-k {
+  flex:0 0 auto;
+  font-size:9.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3, #5a5a60);
+}
+.rd-untimed-list { display:flex; flex-wrap:wrap; gap:5px; min-width:0; }
+.rd-untimed-item {
+  padding:1px 7px; border-radius:var(--radius, 4px);
+  background:var(--bg-3, #1c1c20); font-size:11.5px; color:var(--ink-1, #d0d0d4);
+}
+
+/* ── a row ─────────────────────────────────────────────────────────────── */
+.rd-row {
+  position:relative;
+  display:flex; align-items:stretch; gap:8px;
+  padding:5px 8px 5px 6px;
+  border-bottom:1px solid var(--line-1, #212126);
+  transition:background var(--dur-fast, 120ms) var(--ease, ease);
+}
+.rd-row:hover { background:color-mix(in srgb, var(--ink-0, #f5f5f7) 4%, transparent); }
+.rd-row.is-draggable { cursor:grab; }
+.rd-row.is-draggable:active { cursor:grabbing; }
+.rd-row.is-dragging { opacity:.4; cursor:grabbing; }
+
+/* A pin is deliberately NOT gold. Gold is reserved for live state — the
+   now-line, selection — and a pinned lunch is a property of the plan, not a
+   thing happening now. */
+.rd-pin {
+  flex:0 0 auto; align-self:flex-start;
+  display:inline-flex; align-items:center; justify-content:center;
+  width:16px; height:18px; padding:0;
+  border:0; background:transparent; border-radius:var(--radius, 4px);
+  color:var(--ink-4, #3a3a40);
+  opacity:0; cursor:pointer;
+  transition:opacity var(--dur-fast, 120ms) var(--ease, ease),
+             color var(--dur-fast, 120ms) var(--ease, ease);
+}
+.rd-row:hover .rd-pin { opacity:1; }
+.rd-pin.is-on { opacity:1; color:var(--ink-1, #d0d0d4); }
+.rd-pin:hover:not(:disabled) { color:var(--ink-0, #f5f5f7); background:var(--bg-3, #1c1c20); }
+.rd-pin:disabled { cursor:default; }
+
+.rd-t {
+  flex:0 0 46px; align-self:flex-start;
+  box-sizing:border-box; padding:0 2px;
+  font-size:13px; font-weight:600; line-height:18px;
+  font-variant-numeric:tabular-nums; color:var(--ink-1, #d0d0d4);
+}
+.rd-row.is-pinned .rd-t { color:var(--ink-0, #f5f5f7); }
+
+/* The phase colour, as an edge. A full fill fights the text at this density;
+   an edge reads as a spine when the rows stack. */
+.rd-spine {
+  flex:0 0 3px; align-self:stretch;
+  border-radius:2px;
+  background:var(--rd-hue, var(--ink-4, #3a3a40));
+}
+
+.rd-col { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.rd-title {
+  display:block; width:100%; min-width:0;
+  padding:0; border:0; background:transparent;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  text-align:left;
+  font-size:13px; font-weight:600; line-height:18px; color:var(--ink-0, #f5f5f7);
+  cursor:text;
+}
+.rd-title:disabled { cursor:default; }
+.rd-title.is-quiet { font-weight:500; color:var(--ink-2, #888890); }
+.rd-sub {
+  font-size:11.5px; color:var(--ink-2, #888890);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.rd-boardcell { position:relative; min-height:0; flex:1 1 auto; display:flex; }
+.rd-boardcell > .gc-board { flex:1 1 auto; min-width:0; }
+
+/* A meal break and a company move are not work — they read as the interruption
+   they are, in the industry's own vocabulary. */
+.rd-row.is-break, .rd-row.is-move {
+  background:color-mix(in srgb, var(--ink-0, #f5f5f7) 3%, transparent);
+}
+.rd-row.is-break .rd-title, .rd-row.is-move .rd-title {
+  font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--ink-2, #888890);
+}
+
+/* A text input, not a spinner: 2h15 is two keystrokes to type. */
+.rd-dur {
+  flex:0 0 46px; align-self:flex-start;
+  text-align:right;
+  font-size:13px; line-height:18px;
+  font-variant-numeric:tabular-nums; color:var(--ink-2, #888890);
+}
+input.rd-dur-in {
+  box-sizing:border-box; width:46px; min-width:0;   /* same flex-basis trap */
+  padding:0 2px; border:1px solid transparent; border-radius:var(--radius, 4px);
+  background:transparent; font-family:inherit;
+}
+input.rd-dur-in:hover { border-color:var(--line-2, #2c2c32); }
+input.rd-dur-in:focus {
+  outline:none;
+  border-color:var(--soleil, #ffa500);
+  background:var(--bg-0, #0a0a0c);
+  color:var(--ink-0, #f5f5f7);
+}
+
+.rd-tools { flex:0 0 auto; align-self:flex-start; display:flex; gap:1px; opacity:0;
+  transition:opacity var(--dur-fast, 120ms) var(--ease, ease); }
+.rd-row:hover .rd-tools { opacity:1; }
+.rd-tool {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:20px; height:20px; padding:0;
+  border:0; border-radius:var(--radius, 4px); background:transparent;
+  color:var(--ink-3, #5a5a60); cursor:pointer;
+}
+.rd-tool:hover { background:var(--bg-3, #1c1c20); color:var(--ink-0, #f5f5f7); }
+
+/* ── the seam between two rows ─────────────────────────────────────────── */
+/* A gap or an overrun is a fact about the JOIN, not about either row, so it
+   renders between them — where the problem actually is. */
+.rd-warn {
+  display:flex; align-items:center; gap:7px;
+  padding:3px 12px;
+  font-size:10.5px; font-weight:600; letter-spacing:.02em;
+  color:var(--ink-error, #e08b8b);
+  background:color-mix(in srgb, var(--ink-error, #e08b8b) 11%, transparent);
+  border-top:1px solid color-mix(in srgb, var(--ink-error, #e08b8b) 40%, transparent);
+  border-bottom:1px solid color-mix(in srgb, var(--ink-error, #e08b8b) 40%, transparent);
+}
+.rd-warn::before { content:"▲"; font-size:8px; }
+.rd-warn.is-gap {
+  color:var(--ink-3, #5a5a60);
+  background:transparent;
+  border-top:1px dashed var(--line-3, #3a3a40);
+  border-bottom:1px dashed var(--line-3, #3a3a40);
+}
+.rd-warn.is-gap::before { content:"○"; font-size:8px; }
+
+.rd-dropline { height:2px; background:var(--soleil, #ffa500); margin:-1px 0; }
+
+.rd-wrap-row {
+  display:flex; align-items:center; gap:8px;
+  padding:6px 8px 6px 6px;
+  padding-left:30px;                       /* clears the pin column */
+  background:var(--bg-2, #16161a);
+}
+
+.rd-add {
+  flex:0 0 auto;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  min-height:36px;
+  border:0; border-top:1px solid var(--line-1, #212126);
+  background:transparent;
+  color:var(--ink-2, #888890);
+  font-size:12px; font-weight:500; cursor:pointer;
+}
+.rd-add:hover { background:var(--bg-2, #16161a); color:var(--ink-0, #f5f5f7); }
+
+.rd-row:focus-visible,
+.rd-pin:focus-visible,
+.rd-title:focus-visible,
+.rd-tool:focus-visible,
+.rd-add:focus-visible {
+  outline:2px solid var(--soleil, #ffa500);
+  outline-offset:-1px;
+}
+
+/* Touch: the 44pt floor lands here too — the rundown is what a crew member
+   actually reads on an iPad on set. */
+@media (pointer: coarse) {
+  .rd-pin  { width:32px; height:32px; opacity:1; }
+  .rd-tool { width:32px; height:32px; }
+  .rd-tools { opacity:1; }
+  .rd-t    { flex-basis:52px; font-size:14px; }
+  input.rd-dur-in { flex-basis:56px; font-size:14px; }
+  .rd-add  { min-height:48px; }
+}
+input.rd-title-in {
+  width:100%; min-width:0;
+  padding:0 3px; margin:0 -3px;
+  border:1px solid var(--soleil, #ffa500); border-radius:var(--radius, 4px);
+  background:var(--bg-0, #0a0a0c);
+  font-family:inherit; font-size:13px; font-weight:600; line-height:18px;
+  color:var(--ink-0, #f5f5f7);
+}
+input.rd-title-in:focus { outline:none; }
+.rd-title.is-untitled { color:var(--ink-3, #5a5a60); font-weight:500; }
+input.rd-t-in {
+  /* An input's intrinsic min-width is ~170px, and in a flex row `min-width:
+     auto` lets that win over flex-basis — which pushed the whole title column
+     right on every pinned row while unpinned rows stayed put. */
+  /* An input's intrinsic min-width is ~170px and `min-width: auto` lets that
+     beat flex-basis, which pushed the title column right on every pinned row
+     while unpinned rows stayed put. The 2px padding matches .rd-t's, so the
+     digits land on the same x whether the row is pinned or not. */
+  box-sizing:border-box; min-width:0;
+  padding:0 2px;
+  border:1px solid transparent; border-radius:var(--radius, 4px);
+  background:transparent; font-family:inherit;
+  font-size:13px; font-weight:600; line-height:18px;
+  font-variant-numeric:tabular-nums; color:var(--ink-0, #f5f5f7);
+}
+input.rd-t-in:hover { border-color:var(--line-2, #2c2c32); }
+input.rd-t-in:focus {
+  outline:none; border-color:var(--soleil, #ffa500); background:var(--bg-0, #0a0a0c);
+}

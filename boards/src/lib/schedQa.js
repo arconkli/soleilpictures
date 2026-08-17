@@ -2,8 +2,9 @@
 // date math + slot-key grammar + layout + graft helpers, published on
 // window.__soleilSchedTest by main.jsx under ?schedqa=1 so the Playwright spec
 // (tests/schedule.spec.js) can assert the load-bearing behaviour — real-date
-// month/week/day/hour tiling, hour-window widening, inline expand subdivision,
-// and the graft key-rewrite — with no backend. Mirrors lib/gridQa.js.
+// month/week tiling, the rundown cascade (durations, hard starts, gap/overlap,
+// estimated wrap) and the graft key-rewrite — with no backend. Mirrors
+// lib/gridQa.js.
 import {
   MONTHS, MONTHS_SHORT, WEEKDAYS, pad2, daysInMonth, parseISO, formatISO,
   todayISO, weekdayOf, firstWeekdayOfMonth, addDays, addMonths, startOfWeek,
@@ -15,6 +16,12 @@ import {
   chipCapacity, graftKeyMap, schedItems, schedLegacyRows, schedLodTier, schedDayCounts,
 } from './schedLayout.js';
 import { isCellFilled, cellsWeight, cardWeight } from './gridCount.js';
+import {
+  computeRundown, rundownFromCells, materializeLegacy, RUNDOWN_TUNING, RUNDOWN_KINDS,
+  parseDuration, formatDuration, toMinutes, fromMinutes,
+  rundownKey, isRundownKey, parseRundownKey, ordForIndex, ordForMove,
+} from './rundown.js';
+import { between as fracBetween, sequence as fracSequence } from './fracIndex.js';
 
 export function makeSchedTestBridge() {
   return {
@@ -25,5 +32,9 @@ export function makeSchedTestBridge() {
     newUid, parseSlotKey, itemsForSlot, hourWindowForDay, computeSchedSlots,
     chipCapacity, graftKeyMap, schedItems, schedLegacyRows, schedLodTier, schedDayCounts,
     isCellFilled, cellsWeight, cardWeight,
+    computeRundown, rundownFromCells, materializeLegacy, RUNDOWN_TUNING, RUNDOWN_KINDS,
+    parseDuration, formatDuration, toMinutes, fromMinutes,
+    rundownKey, isRundownKey, parseRundownKey, ordForIndex, ordForMove,
+    fracBetween, fracSequence,
   };
 }

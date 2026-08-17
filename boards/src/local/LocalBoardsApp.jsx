@@ -619,7 +619,7 @@ export function LocalBoardsApp({ user, signOut }) {
   // A month cell has to hold a date number AND two or three legible events;
   // at the old 420x380 it was 59x55 and held two pills of four characters.
   // Twin of App.jsx's SCHED_SIZES — see the note there.
-  const SCHED_SIZES = { month: [920, 580], week: [640, 260], day: [420, 560], hour: [380, 420] };
+  const SCHED_SIZES = { month: [920, 580], week: [640, 260], day: [460, 560] };
   const addSchedule = (clickPos = null, view = 'month') => {
     const id = createId('sched');
     const [w, h] = SCHED_SIZES[view] || SCHED_SIZES.month;
@@ -865,6 +865,22 @@ export function LocalBoardsApp({ user, signOut }) {
     });
     return true;
   };
+  // Twin of App.jsx applyRundownPlan — the convert-legacy-on-first-edit
+  // rewrite, as one state update rather than a write per row.
+  const applyRundownPlan = (cardId, plan) => {
+    const card = findLocalGrid(cardId);
+    const writes = Object.entries(plan?.writes || {});
+    const deletes = plan?.deletes || [];
+    if (!card || (!writes.length && !deletes.length)) return false;
+    mapGridCard(cardId, c => {
+      const cells = { ...(c.cells || {}) };
+      deletes.forEach((k) => { delete cells[k]; });
+      writes.forEach(([k, rec]) => { cells[k] = rec; });
+      return { ...c, cells };
+    });
+    return true;
+  };
+
   // ── Dated clusters, locally ────────────────────────────────────────────────
   // In the real app a shoot day is a Postgres row and moving it is
   // set_board_schedule(). The local shell has no Postgres, so these write the
@@ -1131,6 +1147,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addGrid,
     resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent, removeGridCellRecord,
     setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
+    applyRundownPlan,
     setGridTextStyle, pinCellStyle, unpinCellStyle,
     promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
     removeGridDivider, resizeLinkedGrids, graftGridIntoCell,
