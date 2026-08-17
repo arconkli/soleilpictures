@@ -7,7 +7,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback, Profiler, Sus
 import { createPortal } from 'react-dom';
 import { pickPresenceColor } from './lib/presenceColor.js';
 import * as perf from './lib/perf.js';
-import { isEditableTarget } from './lib/isEditableTarget.js';
+import { isEditableTarget, isEditablePointerTarget } from './lib/isEditableTarget.js';
 import { pushPane, climbPane, prunePane, restorePaneStack } from './lib/paneNav.js';
 import { setActivePane } from './lib/activePane.js';
 import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
@@ -5137,12 +5137,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         : Array.prototype.indexOf.call(t, x) >= 0);
       return has('Files') || has('text/uri-list') || has('text/plain') || has('text/html');
     };
+    // Pointer form: a drag has a real target, so the question is where it
+    // LANDED — not where the caret happens to be. The focus-aware guard turned
+    // every drop into a no-op while a docked document held the caret.
     const onDragOver = (e) => {
-      if (e.defaultPrevented || isEditableTarget(e)) return;
+      if (e.defaultPrevented || isEditablePointerTarget(e)) return;
       if (isDataDrag(e)) e.preventDefault();
     };
     const onDrop = (e) => {
-      if (e.defaultPrevented || isEditableTarget(e)) return;
+      if (e.defaultPrevented || isEditablePointerTarget(e)) return;
       if (!isDataDrag(e)) return;
       e.preventDefault(); // stop the browser navigating to / opening the drop
       try { feedback?.toast?.({ type: 'info', message: 'Drop onto a cluster’s canvas to add it.' }); } catch (_) {}
