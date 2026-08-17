@@ -8,6 +8,8 @@ import { createPortal } from 'react-dom';
 import { pickPresenceColor } from './lib/presenceColor.js';
 import * as perf from './lib/perf.js';
 import { isEditableTarget } from './lib/isEditableTarget.js';
+import { pushPane, climbPane, prunePane, restorePaneStack } from './lib/paneNav.js';
+import { setActivePane } from './lib/activePane.js';
 import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { useSharedBoards } from './hooks/useSharedBoards.js';
 import { useScrollEdges } from './hooks/useScrollEdges.js';
@@ -138,6 +140,11 @@ import { lazyWithReload } from './lib/lazyWithReload.js';
 // renders on the Home view. Keeping it out of the eager App bundle means a board
 // canvas no longer downloads the 3D-graph libs.
 const HomeGraph = lazyWithReload(() => import('./components/HomeGraph.jsx').then(m => ({ default: m.HomeGraph })));
+// Lazy for the same reason, one step removed: DocCard is the CanvasSurface
+// chunk's, and it reaches the TipTap stack. Importing it statically here would
+// haul both toward AppShell for every signed-in user, when only the people who
+// actually dock a doc need it.
+const DockedDocPane = lazyWithReload(() => import('./components/DocCard.jsx').then(m => ({ default: m.DockedDocPane })));
 import { useBreakpoint } from './hooks/useBreakpoint.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
 
@@ -419,7 +426,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // reload; a ?w=&b= deep link (consumeDeepLink in AuthGate) writes just [boardId],
   // so we prepend the root to keep "back to root" working. Stale/deleted boards are
   // pruned by the existence-filter effect below. Falls back to root when nothing is
-  // saved. (splitId / viewOverride / splitRatio are restored separately below.)
+  // saved. (splitStack / viewOverride / splitRatio are restored separately below.)
   const [stack, setStack] = useState(() => {
     const saved = initialSession?.stack;
     if (!Array.isArray(saved) || saved.length === 0) return [rootBoard.id];
@@ -481,7 +488,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // like the sidebar/palette) — never cleared in onClose, because CommandPalette
   // pick mode closes itself before onPickBoard fires.
   const linkPickerPosRef = useRef(null);
-  const openBoardLinkPicker = (pos = null) => { linkPickerPosRef.current = pos; setPickerOpen(true); };
+  // Which pane asked for the picker — same reasoning as linkPickerPosRef, and
+  // read by addLink so a "Linked cluster" placed from the split pane lands on
+  // the SPLIT board. Defaults to 'main' for the pane-less callers (sidebar, ⌘K).
+  const linkPickerPaneRef = useRef('main');
+  const openBoardLinkPicker = (pos = null, pane = 'main') => {
+    linkPickerPosRef.current = pos;
+    linkPickerPaneRef.current = pane;
+    setPickerOpen(true);
+  };
   // Global search + ⌘K command palette (distinct from the boards-only
   // BoardPicker above, which stays the "link a board onto canvas" surface).
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -796,15 +811,75 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // Side-by-side: when set, the workspace splits 50/50 with a draggable
   // divider. The split pane runs its own Y.Doc / surface independently.
-  const [splitId, setSplitIdState] = useState(() => initialSession?.splitId || null);
-  const setSplitId = (id) => setSplitIdState(id);
+  //
+  // The split pane carries a STACK, not a board id — it navigates itself.
+  // It used to be a scalar, which meant an open from inside the right pane
+  // had nowhere to go but the main pane's stack: you double-clicked a nested
+  // cluster on the right and the LEFT side jumped. `splitId` stays as the
+  // derived head so every downstream reader (Y.Doc, mutators, capacity,
+  // hasSplit) is unchanged, and setSplitId keeps meaning "replace the whole
+  // pane" for the picker and the close button.
+  const [splitStack, setSplitStack] = useState(() => restorePaneStack(initialSession));
+  const splitId = splitStack.length ? splitStack[splitStack.length - 1] : null;
+  // "Replace whatever the right pane is showing" — the picker and the close
+  // button. Any docked doc goes with it: one right pane, holding one thing.
+  const setSplitId = (id) => {
+    setSplitStack(id ? [id] : []);
+    setSplitDoc(null);
+    setSplitDocFull(false);
+  };
   const splitBoard = splitId ? (boards[splitId] || null) : null;
   const splitView = splitBoard ? (viewOverride[splitId] || splitBoard.view || 'canvas') : null;
-  const splitYb = useYBoard(splitId, user.id, userInfo, workspace.id,
+  // Both panes on the SAME board share one Y.Doc. loadYBoard mints a fresh doc
+  // per call — it has no per-board cache — so mounting a second handle for the
+  // same room in one tab would open a second PartyKit connection, publish the
+  // user as two peers, run two snapshot writers, and force a local edit to
+  // round-trip the server before the other pane saw it. Reachable before (drill
+  // the main pane onto the split's board) and now the DEFAULT for a docked doc,
+  // whose pane is by definition the board you're standing on.
+  const splitNeedsOwnDoc = !!splitId && splitId !== currentId;
+  const splitYbOwn = useYBoard(splitNeedsOwnDoc ? splitId : null, user.id, userInfo, workspace.id,
     !!(splitBoard && splitBoard.thumb_key && splitBoard.thumb_version === THUMB_VERSION));
+  const splitYb = splitNeedsOwnDoc ? splitYbOwn : yb;
   const splitYDoc = splitYb.ready && splitYb.boardId === splitId ? splitYb.ydoc : null;
   const [splitPickerOpen, setSplitPickerOpen] = useState(false);
   const [splitRatio, setSplitRatio] = useState(() => initialSession?.splitRatio || 0.5);
+  // A doc card docked into the right pane — { cardId } on the board at the top
+  // of splitStack. The dock used to be an overlay portaled from inside the doc
+  // card, which meant it lived and died with the canvas that rendered it:
+  // clicking into another cluster on the live left side unmounted the card and
+  // the doc disappeared, the exact thing "keep reading while you move around"
+  // was for. Hosting it here puts it on splitYb's Y.Doc, which the main pane's
+  // navigation cannot touch. splitDocFull lifts the same doc to a fullscreen
+  // overlay without giving up the pane that keeps its board loaded.
+  const [splitDoc, setSplitDoc] = useState(null);
+  const [splitDocFull, setSplitDocFull] = useState(false);
+  const dockDocCard = ({ cardId, boardId }) => {
+    if (!cardId || !boardId) return;
+    setSplitStack([boardId]);
+    setSplitDoc({ cardId });
+    setSplitDocFull(false);
+  };
+  const closeSplitDoc = () => { setSplitDoc(null); setSplitDocFull(false); setSplitStack([]); };
+  // Safety net for the prune above: if the doc's host board is deleted the
+  // split stack empties, and the dock must go with it.
+  useEffect(() => {
+    if (!splitId && splitDoc) { setSplitDoc(null); setSplitDocFull(false); }
+  }, [splitId, splitDoc]);
+  // Opening (or maximizing) the doc hands it the keyboard — the pane claim the
+  // board surfaces make on pointerdown, made here because the fullscreen
+  // variant portals out of the pane's DOM subtree entirely.
+  useEffect(() => { if (splitDoc) setActivePane('split'); }, [splitDoc, splitDocFull]);
+  // The doc card itself deleted from the canvas while docked. Without this the
+  // pane sits on its loading skeleton forever, waiting for a card that is never
+  // coming back. Only acts once the board's Y.Doc has actually loaded — an
+  // absent card during hydration means "not yet", not "gone".
+  useEffect(() => {
+    if (!splitDoc || !splitId) return;
+    if (!(splitYb.ready && splitYb.boardId === splitId)) return;
+    if ((splitYb.cards || []).some(c => c.id === splitDoc.cardId)) return;
+    setSplitDoc(null); setSplitDocFull(false); setSplitStack([]);
+  }, [splitDoc, splitId, splitYb.ready, splitYb.boardId, splitYb.cards]);
   // Board cards whose reparent is in flight — childBoardId → oldParentId. The
   // render filter (see renderSurface) hides each from its OLD parent's canvas
   // the instant the drop is dispatched, so the dragged card doesn't snap back
@@ -813,12 +888,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [pendingReparent, setPendingReparent] = useState(() => new Map());
   // Persist split state.
   useEffect(() => {
-    writeSession(sessionKey, { stack, viewOverride, splitId, splitRatio });
-  }, [sessionKey, stack, viewOverride, splitId, splitRatio]);
-  // If the split target gets deleted out from under us, drop the split.
+    writeSession(sessionKey, { stack, viewOverride, splitStack, splitRatio });
+  }, [sessionKey, stack, viewOverride, splitStack, splitRatio]);
+  // Prune split frames whose board was deleted out from under us — the same
+  // existence filter the main stack runs. Popping just the dead frames means
+  // deleting a cluster you'd drilled into on the right returns you to its
+  // parent instead of closing the split entirely; the split only closes when
+  // every board it was showing is gone.
   useEffect(() => {
-    if (splitId && !boardsLoading && !boards[splitId]) setSplitIdState(null);
-  }, [splitId, boards, boardsLoading]);
+    if (boardsLoading) return;
+    setSplitStack(prev => prunePane(prev, id => !!boards[id]));
+  }, [boards, boardsLoading]);
   const currentUndoManager = yb.ready && yb.boardId === currentBoard.id ? yb.undoManager : null;
   const [trashOpen, setTrashOpen] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
@@ -833,6 +913,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     tourFireRef.current?.({ type: 'cluster_opened', boardId: id });
   };
   const goTo = (i) => setStack(s => s.slice(0, i + 1));
+
+  // The same two verbs for the split pane. renderSurface hands each pane its
+  // own opener, so which stack moves is decided by which side you clicked —
+  // not by which stack happens to be the "real" one.
+  const openSplitBoard = (id) => {
+    setSplitStack(s => pushPane(s, id));
+    recents.push(id);
+    logEvent(EV.BOARD_OPEN, { board_id: id, depth: splitStack.length, is_subboard: true, pane: 'split' });
+  };
+  const goToSplit = (i) => setSplitStack(s => climbPane(s, i));
 
   // Session navigation history — browser-style back/forward over board
   // navigation. Breadcrumbs only allow climbing the current path; this
@@ -889,17 +979,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // change survives reloads AND propagates to anywhere this board appears
   // as a card on a parent canvas (where we render list-mode boards as an
   // inline clickable item list instead of a thumbnail).
-  const setView = (v, via = 'topbar') => {
-    setViewOverride(o => ({ ...o, [currentId]: v }));
+  //
+  // `boardId` defaults to the main pane's board (the topbar view pill), but
+  // list view's "reveal on canvas" can fire from either pane — without the
+  // argument, revealing a card in the split pane flipped the LEFT board to
+  // canvas and left the right one still in list, staring at nothing.
+  const setView = (v, via = 'topbar', boardId = currentId) => {
+    if (!boardId) return;
+    setViewOverride(o => ({ ...o, [boardId]: v }));
     // Any view switch proves the user knows the toggle exists — retires the
     // list_drive power reveal on this device for good.
     markViewSwitched();
     // Guided tour: the final step completes on a real switch to List view
     // (null ref no-ops for everyone else; 'canvas' switches are ignored by
     // the engine).
-    tourFireRef.current?.({ type: 'view_switched', view: v, boardId: currentId });
-    logEvent(EV.VIEW_MODE_SWITCH, { view: v, board_id: currentId, via });
-    updateBoardMeta(currentId, { view: v })
+    tourFireRef.current?.({ type: 'view_switched', view: v, boardId });
+    logEvent(EV.VIEW_MODE_SWITCH, { view: v, board_id: boardId, via });
+    updateBoardMeta(boardId, { view: v })
       .then(() => refreshBoards())
       .catch((e) => console.warn('persist board view failed', e));
   };
@@ -3011,7 +3107,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   const addLink = (targetBoard, clickPos = null) => {
     const w = 220, h = 160;
-    mainMutators._addCardRaw?.({
+    // Land the link on whichever pane opened the picker — see linkPickerPaneRef.
+    const muts = linkPickerPaneRef.current === 'split' ? splitMutators : mainMutators;
+    muts._addCardRaw?.({
       id: `xlink-${Date.now()}`,
       kind: 'boardlink',
       target: targetBoard.id,
@@ -3026,10 +3124,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Pane-aware drop handlers — so dragging into the split pane creates the
   // card on the SPLIT board, not the main one. Used by chat-attachment drops
   // (which piggy-back on the INBOX_MIME drag protocol) and file-image drops.
+  // Both panes bind these through renderSurface's `muts`, so there is no
+  // main-pane-only binding to keep — the last one (the list surface's inbox
+  // drop) was the reason a chat attachment dragged into the split pane landed
+  // on the left board.
   const dropInboxItemFor = (muts) => (_inboxId, card) => { muts._addCardRaw?.(card); };
   const dropFileImageFor = (muts) => (info) => muts._dropImageBlob?.(info);
-  const dropInboxItem = dropInboxItemFor(mainMutators);
-  const dropFileImage = dropFileImageFor(mainMutators);
 
   // ── Auto-focus on new card creation ───────────────────────────────────────
   const [autoFocusId, setAutoFocusId] = useState(null);
@@ -4279,6 +4379,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     tier: myTier.tier,
   });
   const canEditCurrent = currentBoardPerm.canEdit;
+  // Same decision for the split pane. This used to be hardcoded `canEdit={true}`
+  // — survivable while the pane could only ever show the one board you picked
+  // from your own workspace, but not now that you can navigate inside it: a
+  // view-only shared cluster reached from the right pane would render with a
+  // full edit surface and every write would bounce off RLS.
+  const splitBoardPerm = useBoardPermission({
+    board: splitBoard,
+    boards,
+    workspace,
+    workspaceMembers,
+    sharedBoards,
+    userId: user.id,
+    tier: myTier.tier,
+  });
 
   // ── Just-in-time power reveals ────────────────────────────────────────────
   // Upfront feature tours underperformed just-in-time discovery here, so power
@@ -4505,6 +4619,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // pageId/scrollTop come from the open doc-card overlay if any —
       // canvas boards themselves don't have pages.
       docCardId: openDocCard?.cardId ?? null,
+      // Which board that doc card actually lives on. Usually the one we're
+      // standing on, but a doc docked into the split pane outlives the main
+      // pane's navigation — without this, a peer clicking our avatar would be
+      // sent to wherever we'd wandered off to and find no such card there.
+      docBoardId: !openDocCard ? null
+        : (splitDoc?.cardId === openDocCard.cardId ? splitId : currentBoard?.id) ?? null,
       pageId:    openDocCard?.pageId ?? null,
       scrollTop: openDocCard?.scrollTop ?? 0,
       // True only when this tab is foregrounded AND user is on a board.
@@ -4523,9 +4643,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   const jumpToPeer = (loc) => {
     if (loc?.surface === 'home') { setCurrentSurface('home'); return; }
-    if (!loc?.boardId || !boards[loc.boardId]) return;
+    // A peer reading a docked doc can be standing on a different board than the
+    // doc lives on — land on the doc's board, or the open-doc-card event below
+    // fires at a canvas that has no such card.
+    const target = (loc?.docCardId && loc?.docBoardId && boards[loc.docBoardId])
+      ? loc.docBoardId : loc?.boardId;
+    if (!target || !boards[target]) return;
     // Navigate to the host board first.
-    setStack([loc.boardId]);
+    setStack([target]);
     setCurrentSurface('board');
     // If peer is editing a doc card on that board, fire an event the
     // matching RichDocCard listens for so it self-opens and consumes
@@ -5484,6 +5609,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // ── Render ────────────────────────────────────────────────────────────────
 
   const crumbs = stack.map(id => ({ id, name: boards[id]?.name || (id === rootBoard.id ? rootBoard.name : id) }));
+  // Same trail for the split pane, rendered in its own bar rather than the topbar.
+  const splitCrumbs = splitStack.map(id => ({ id, name: boards[id]?.name || id }));
   const ybReadyForCurrent = Boolean(currentYDoc);
   // Hide orphan board / boardlink cards at the render layer. See the
   // long comment in the orphan-sweep section above for why we filter
@@ -5515,16 +5642,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   });
 
   // Surface renderer used for both the main pane and the split pane. Reads
-  // cards/arrows/strokes off whichever board's `yb` was passed in. Mutators
-  // (canvas-only) are still wired against the *main* board's Y.Doc — the
-  // split pane is read-mostly for now (canvas drag still works because cards
-  // mutators look at the live ydoc); next pass will give the split its own
-  // mutator set so canvas edits there persist correctly.
-  const renderSurface = ({ board, view, yb: yh, isMain, onClose }) => {
+  // cards/arrows/strokes off whichever board's `yb` was passed in, and — the
+  // point of `isMain` — routes every OUTWARD action back to the pane it came
+  // from: which stack an open pushes, which board a linked cluster lands on,
+  // which board a view switch flips, whose permission decides `canEdit`.
+  // Anything still reading `currentId` in here is a pane leak.
+  const renderSurface = ({ board, view, yb: yh, isMain, onClose, crumbs, onCrumb }) => {
     // Board id resolved to nothing — usually means it was just deleted and
-    // the cleanup useEffects haven't popped the stack / cleared splitId yet.
-    // Render an empty pane silently; the next tick will route to a real
-    // board so the user never sees a scary "not found" message.
+    // the cleanup useEffects haven't popped the stack yet. Render an empty
+    // pane silently; the next tick will route to a real board so the user
+    // never sees a scary "not found" message.
     if (!board) return <div className="surface-wrap" />;
     const ready = yh.ready && yh.boardId === board.id;
     const yd = ready ? yh.ydoc : null;
@@ -5547,14 +5674,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const gridTemplates = ready ? (yh.gridTemplates || {}) : {};
     const gridSequences = ready ? (yh.gridSequences || {}) : {};
     const muts = isMain ? mainMutatorsFull : splitMutatorsFull;
+    const paneId = isMain ? 'main' : 'split';
+    const openInPane = isMain ? openBoard : openSplitBoard;
+    const paneCanEdit = isMain ? canEditCurrent : splitBoardPerm.canEdit;
     const surfaceJsx = (() => {
       if (view === 'list') return (
         <ListSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards}
                      childBoards={Object.values(boards).filter(b => b.parent_board_id === board.id)}
-                     onOpenBoard={openBoard}
-                     onOpenPicker={() => openBoardLinkPicker()}
-                     onDropInboxItem={dropInboxItem}
-                     canEdit={isMain ? canEditCurrent : true}
+                     onOpenBoard={openInPane}
+                     onOpenPicker={() => openBoardLinkPicker(null, paneId)}
+                     onDropInboxItem={dropInboxItemFor(muts)}
+                     canEdit={paneCanEdit}
                      peersHereByBoard={peersHereByBoard}
                      peersBelowByBoard={peersBelowByBoard}
                      onJumpToPeer={jumpToPeer}
@@ -5565,10 +5695,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      selfId={user.id}
                      gridTemplates={gridTemplates}
                      getGridModel={(card) => readGridModel(card, yd, gridTemplates)}
-                     onRevealOnCanvas={(ids) => { setView('canvas', 'reveal'); setFocusRequest({ boardId: board.id, ids, token: Date.now() }); }}
+                     onRevealOnCanvas={(ids) => { setView('canvas', 'reveal', board.id); setFocusRequest({ boardId: board.id, ids, token: Date.now() }); }}
                      showStorageUpsell={myTier.tier === 'demo' && workspace?.created_by === user?.id && upsellElig.eligible}
                      onStorageUpsell={() => setUpgradeReason('storage')}
-                     paneId={isMain ? 'main' : 'split'}
+                     paneId={paneId}
                      hasSplit={!!splitId}
                      mutators={muts} />
       );
@@ -5584,15 +5714,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          peersBelowByBoard={peersBelowByBoard}
                          wsPeers={wsPeers}
                          onJumpToPeer={jumpToPeer}
-                         canEdit={isMain ? canEditCurrent : true}
-                         boardPermission={isMain ? currentBoardPerm : null}
+                         canEdit={paneCanEdit}
+                         boardPermission={isMain ? currentBoardPerm : splitBoardPerm}
                          onRequestStorageUpgrade={() => setUpgradeReason('storage')}
                          isPaidPlan={myTier.tier === 'paid' || myTier.tier === 'admin'}
                          ownsWorkspace={workspace?.created_by === user?.id}
                          currentUser={currentUser}
-                         onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
+                         onOpenBoard={openInPane} tweak={tweak}
+                         depth={(isMain ? stack.length : splitStack.length) - 1}
+                         onDockDoc={({ cardId }) => dockDocCard({ cardId, boardId: board.id })}
+                         dockedDocCardId={splitDoc?.cardId || null}
                          onSetSchedule={handleSetSchedule} onAddShootDay={handleAddShootDay}
-                         onOpenPicker={(pos) => openBoardLinkPicker(pos)}
+                         onOpenPicker={(pos) => openBoardLinkPicker(pos, paneId)}
                          onDropInboxItem={dropInboxItemFor(muts)}
                          onDropFileImage={dropFileImageFor(muts)}
                          workspaceId={workspace.id} userId={user.id}
@@ -5602,7 +5735,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          autotagSuggest={autotagSuggest}
                          autotagReady={autotagReady}
                          sessionId={yh?.sessionId || null}
-                         paneId={isMain ? 'main' : 'split'}
+                         paneId={paneId}
                          hasSplit={!!splitId}
                          frictionStuck={isMain ? frictionStuck : false}
                          /* The bold "Start your cluster" tiles are the DEFAULT
@@ -5626,7 +5759,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       <div className={`surface-wrap ${isMain ? '' : 'is-split'}`}>
         {!isMain && (
           <div className="split-bar">
-            <span className="split-bar-name">{board.name}</span>
+            {/* The split pane's own breadcrumb. It reuses the topbar's .crumbs
+                markup deliberately: now that this side navigates itself, it
+                needs the same way back out that the main pane has always had —
+                drilling three clusters deep with no trail is a trap. */}
+            <div className="crumbs split-bar-crumbs">
+              {(crumbs || [{ id: board.id, name: board.name }]).map((c, i, all) => (
+                <React.Fragment key={`${c.id}-${i}`}>
+                  {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
+                  <span className={`crumb ${i === all.length - 1 ? 'here' : 'clk'}`}
+                        title={c.name}
+                        onClick={() => { if (i !== all.length - 1) onCrumb?.(i); }}>{c.name}</span>
+                </React.Fragment>
+              ))}
+            </div>
             <button className="split-bar-x" title="Close split" onClick={onClose}>×</button>
           </div>
         )}
@@ -5647,6 +5793,58 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <SoleilMark size={36} color="var(--soleil)" glow />
           </div>
         )}
+      </div>
+    );
+  };
+
+  // The right pane, when it's holding a docked doc rather than a cluster. It
+  // rides splitYb — the same second Y.Doc the cluster split uses — which is
+  // the whole point: the main pane can navigate anywhere and the doc's board
+  // stays loaded underneath it.
+  const renderSplitDoc = () => {
+    const cardId = splitDoc?.cardId;
+    const docCard = (splitYb.ready && splitYb.boardId === splitId)
+      ? (splitYb.cards || []).find(c => c.id === cardId) : null;
+    const cardYMap = splitYDoc?.getMap?.('cards')?.get?.(cardId) || null;
+    return (
+      /* Claim the pane the same way the two board surfaces do. The main
+         canvas registers WINDOW-level shortcut handlers and stands down only
+         for the pane that isn't active — without this claim, ⌘Z pressed while
+         writing in the docked doc would undo on the board behind it. */
+      <div className="surface-wrap is-split is-doc-pane"
+           onPointerDownCapture={() => setActivePane('split')}
+           onPointerEnter={() => setActivePane('split')}>
+        <div className="split-bar">
+          <span className="split-bar-name">
+            {docCard?.title || 'Untitled doc'}
+            {splitBoard ? <span className="split-bar-sub"> · {splitBoard.name}</span> : null}
+          </span>
+          <button className="split-bar-x" title="Close document" onClick={closeSplitDoc}>×</button>
+        </div>
+        <SurfaceErrorBoundary>
+          {docCard && cardYMap ? (
+            <Suspense fallback={<div className="doc-surface-skeleton" aria-hidden="true" />}>
+              <DockedDocPane
+                card={docCard}
+                ydoc={splitYDoc}
+                cardYMap={cardYMap}
+                workspaceId={workspace.id}
+                userId={user.id}
+                currentUser={currentUser}
+                getAwareness={splitYb.getAwareness}
+                boards={boards}
+                wsPeers={wsPeers}
+                onJumpToPeer={jumpToPeer}
+                canEdit={splitBoardPerm.canEdit}
+                onUpdate={(patch) => splitMutators.updateCard?.(cardId, patch)}
+                onClose={closeSplitDoc}
+                full={splitDocFull}
+                onSetFull={setSplitDocFull} />
+            </Suspense>
+          ) : (
+            <div className="doc-surface-skeleton" aria-hidden="true" />
+          )}
+        </SurfaceErrorBoundary>
       </div>
     );
   };
@@ -6081,10 +6279,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onRatio={setSplitRatio}
             showSplit={!!splitId}
             left={renderSurface({ board: currentBoard, view, yb, isMain: true })}
-            right={splitId ? renderSurface({
+            right={!splitId ? null : splitDoc ? renderSplitDoc() : renderSurface({
               board: splitBoard, view: splitView, yb: splitYb,
               onClose: () => setSplitId(null), isMain: false,
-            }) : null}
+              crumbs: splitCrumbs, onCrumb: goToSplit,
+            })}
           />
         )}
       </main>
