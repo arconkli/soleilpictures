@@ -6,6 +6,12 @@
 // Self-contained (plain-DOM popup + one ProseMirror plugin); priority 1001 so
 // its handleKeyDown runs before ScreenplayKeymap's Tab/Enter while the popup is
 // open (the keymap also defers via the `.sp-autocomplete.is-open` check).
+//
+// Completion only ever runs with the caret at the END of its line — accepting a
+// suggestion replaces token→line-end, which mid-line would eat the rest of the
+// line. Enter/Tab on an empty "browse" line stay with the element flow (the
+// popup there is a hint), and Escape keeps the popup dismissed until the line's
+// text changes.
 
 import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
@@ -77,10 +83,15 @@ export const ScreenplaySuggest = Extension.create({
   priority: 1001,
 
   addProseMirrorPlugins() {
-    // `browse` = the line is empty so the popup is just a hint (Enter should
+    // `browse` = the line is empty so the popup is just a hint (Enter/Tab should
     // run the element flow, not accept). `navigated` = the user arrowed to a
-    // choice (so Enter then DOES accept even in browse mode).
-    const ctrl = { open: false, items: [], active: 0, from: 0, to: 0, el: null, browse: false, navigated: false };
+    // choice (so Enter/Tab then DO accept even in browse mode). `dismissed` =
+    // the line signature Escape was pressed on — the popup stays closed until
+    // the line's text changes.
+    const ctrl = {
+      open: false, items: [], active: 0, from: 0, to: 0, el: null,
+      browse: false, navigated: false, sig: null, itemsSig: null, dismissed: null,
+    };
 
     const ensureEl = () => {
       if (ctrl.el) return ctrl.el;
@@ -145,6 +156,8 @@ export const ScreenplaySuggest = Extension.create({
       const { state } = view;
       const sel = state.selection;
       if (!sel.empty) return close();
+      // Never open (or keep) a popup over an unfocused editor.
+      if (!view.hasFocus()) return close();
       const $from = sel.$from;
       let depth = null;
       for (let d = $from.depth; d > 0; d--) {
@@ -153,11 +166,25 @@ export const ScreenplaySuggest = Extension.create({
       if (depth == null) return close();
       const node = $from.node(depth);
       const element = node.attrs.element || 'action';
+      // Only these three elements ever produce suggestions — bail before the
+      // doc serialization below so ordinary action/dialogue typing pays nothing.
+      if (element !== 'character' && element !== 'scene' && element !== 'transition') return close();
       const text = node.textContent;
       const lineStart = $from.start(depth);
       const lineEnd = $from.end(depth);
-      const res = suggestForLine(element, text, state.doc.toJSON());
+      // Completion is a typing-forward affair: anywhere but line end, accepting
+      // would clobber the text after the caret.
+      if (sel.from !== lineEnd) return close();
+      const sig = `${lineStart}:${element}:${text}`;
+      if (ctrl.dismissed === sig) return close();   // Escape holds until the text changes
+      ctrl.dismissed = null;
+      ctrl.sig = sig;
+      const docJSON = element === 'transition' ? null : state.doc.toJSON();
+      const res = suggestForLine(element, text, docJSON);
       if (!res || !res.items.length) return close();
+      const itemsSig = res.items.join('\n');
+      if (itemsSig !== ctrl.itemsSig) ctrl.active = 0;   // fresh list → top item
+      ctrl.itemsSig = itemsSig;
       ctrl.items = res.items;
       ctrl.active = Math.min(ctrl.active, res.items.length - 1);
       ctrl.from = lineStart + res.from;
@@ -169,10 +196,31 @@ export const ScreenplaySuggest = Extension.create({
 
     return [
       new Plugin({
-        view() {
+        view(view) {
+          // The popup is position:fixed — keep it glued to the caret on scroll,
+          // and close it when the interaction moves elsewhere (outside click /
+          // focus loss), so it can never float over unrelated UI while
+          // suggestionOpen() steals the keymap's Enter/Tab.
+          const onScroll = () => { if (ctrl.open) render(view); };
+          const onPointerDown = (e) => {
+            if (!ctrl.open) return;
+            if (ctrl.el && ctrl.el.contains(e.target)) return;   // accepting a row
+            if (view.dom.contains(e.target)) return;             // caret move → recompute decides
+            close();
+          };
+          const onBlur = () => close();
+          window.addEventListener('scroll', onScroll, true);
+          document.addEventListener('pointerdown', onPointerDown, true);
+          view.dom.addEventListener('blur', onBlur);
           return {
-            update: (view) => recompute(view),
-            destroy: () => { close(); if (ctrl.el) { ctrl.el.remove(); ctrl.el = null; } },
+            update: (v) => recompute(v),
+            destroy: () => {
+              window.removeEventListener('scroll', onScroll, true);
+              document.removeEventListener('pointerdown', onPointerDown, true);
+              view.dom.removeEventListener('blur', onBlur);
+              close();
+              if (ctrl.el) { ctrl.el.remove(); ctrl.el = null; }
+            },
           };
         },
         props: {
@@ -180,17 +228,26 @@ export const ScreenplaySuggest = Extension.create({
             if (!ctrl.open) return false;
             if (event.key === 'ArrowDown') { ctrl.navigated = true; ctrl.active = (ctrl.active + 1) % ctrl.items.length; render(view); return true; }
             if (event.key === 'ArrowUp') { ctrl.navigated = true; ctrl.active = (ctrl.active - 1 + ctrl.items.length) % ctrl.items.length; render(view); return true; }
-            // Tab always picks the highlighted item. Enter picks it too, EXCEPT
-            // on an empty "browse" line the user hasn't navigated — there Enter
-            // runs the element flow (dialogue→character→action→scene): close the
-            // popup and return false so ScreenplayKeymap's Enter handler fires
-            // (its `.sp-autocomplete.is-open` guard now sees the popup closed).
-            if (event.key === 'Tab') { accept(view, ctrl.active); return true; }
+            // Tab/Enter pick the highlighted item — EXCEPT on an empty "browse"
+            // line the user hasn't navigated: there the popup is only a hint, so
+            // both defer to ScreenplayKeymap (Tab cycles the element, Enter runs
+            // the element flow — its `.sp-autocomplete.is-open` guard sees the
+            // popup closed). Shift-Tab NEVER accepts — it's the backward cycle.
+            if (event.key === 'Tab') {
+              if (event.shiftKey || (ctrl.browse && !ctrl.navigated)) { close(); return false; }
+              accept(view, ctrl.active); return true;
+            }
             if (event.key === 'Enter') {
               if (ctrl.browse && !ctrl.navigated) { close(); return false; }
               accept(view, ctrl.active); return true;
             }
-            if (event.key === 'Escape') { close(); return true; }
+            if (event.key === 'Escape') {
+              // Dismiss AND stay dismissed for this line content — without the
+              // marker the next transaction would immediately reopen it.
+              ctrl.dismissed = ctrl.sig;
+              close();
+              return true;
+            }
             return false;
           },
         },

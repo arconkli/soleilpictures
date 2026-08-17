@@ -414,6 +414,93 @@ test('transition autocomplete offers common transitions', async ({ page }) => {
   await expect(page.locator('.doc-card-modal [data-screenplay-element="transition"]').first()).toContainText('DISSOLVE TO:');
 });
 
+test('Tab on an empty line cycles the element even while the hint popup is open', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  const editor = page.locator('.doc-card-modal .tt-editor').first();
+  await editor.click();
+  // The seeded empty Scene Heading proactively opens the INT./EXT. hint popup.
+  await expect(page.locator('.sp-autocomplete.is-open')).toBeVisible({ timeout: 5000 });
+  // Tab must CYCLE the element (scene → action), not type "INT. " into the line.
+  await page.keyboard.press('Tab');
+  expect(await caretElement(page)).toBe('action');
+  await expect(page.locator('.doc-card-modal [data-screenplay-element="action"]').first()).toHaveText('');
+  // Shift-Tab cycles backward (action → scene) instead of accepting anything.
+  await page.keyboard.press('Shift+Tab');
+  expect(await caretElement(page)).toBe('scene');
+  await expect(page.locator('.doc-card-modal [data-screenplay-element="scene"]').first()).toHaveText('');
+});
+
+test('Tab accepts a suggestion once the user has arrowed to it', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'Hi.' },
+      { element: 'character', text: '' },
+    ]));
+  });
+  await page.locator('.doc-card-modal [data-screenplay-element="character"]').last().click();
+  await expect(page.locator('.sp-autocomplete.is-open')).toBeVisible({ timeout: 5000 });
+  await page.keyboard.press('ArrowDown');   // navigate → the popup is no longer a hint
+  await page.keyboard.press('Tab');
+  const cues = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    return S.docJSONToBlocks(window.__soleilDocTest.editor.getJSON())
+      .filter(b => b.element === 'character').map(b => b.text);
+  });
+  expect(cues[cues.length - 1]).toBe('JOHN');
+});
+
+test('Escape dismisses the popup and it stays dismissed for that line', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'Hi.' },
+      { element: 'character', text: '' },
+    ]));
+  });
+  const emptyCue = page.locator('.doc-card-modal [data-screenplay-element="character"]').last();
+  await emptyCue.click();
+  await expect(page.locator('.sp-autocomplete.is-open')).toBeVisible({ timeout: 5000 });
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.sp-autocomplete.is-open')).toHaveCount(0);
+  // Clicking away and back to the same unchanged line must NOT reopen it.
+  await page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first().click();
+  await emptyCue.click();
+  await expect(page.locator('.sp-autocomplete.is-open')).toHaveCount(0);
+});
+
+test('no completion popup when the caret is not at the end of the line', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'character', text: 'JOHN ' },   // trailing space = extension stage
+    ]));
+  });
+  const cue = page.locator('.doc-card-modal [data-screenplay-element="character"]').first();
+  await cue.click();
+  // Caret at the START of the cue: accepting would clobber the line, so the
+  // popup must not open at all.
+  await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().setTextSelection(1).run());
+  await expect(page.locator('.sp-autocomplete.is-open')).toHaveCount(0);
+  // At the END of the line the extension suggestions appear as before.
+  // (Programmatic move — the End key doesn't move a programmatic caret on mac.)
+  await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    ed.chain().focus().setTextSelection(ed.state.doc.firstChild.nodeSize - 1).run();
+  });
+  await expect(page.locator('.sp-autocomplete.is-open')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('.sp-autocomplete-item', { hasText: 'V.O.' })).toBeVisible();
+});
+
 test('smart quotes apply in screenplay dialogue', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);
