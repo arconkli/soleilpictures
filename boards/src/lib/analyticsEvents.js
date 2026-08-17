@@ -29,7 +29,8 @@ export const EV = Object.freeze({
   WELCOME_DWELL:           'welcome_dwell',               // {ms}
   SUBMIT_SOCIALS_OPEN:     'submit_socials_open',         // waitlist modal opened
   WAITLIST_FIELD_ENGAGE:   'waitlist_field_engage',       // first input into a link row
-  WAITLIST_ROWS_CHANGED:   'waitlist_rows_changed',       // final link-row count {rows}
+  // waitlist_rows_changed was REMOVED — declared, never emitted. The row count
+  // it was meant to carry already rides on SUBMIT_SOCIALS_DONE {link_count}.
   SUBMIT_SOCIALS_DONE:     'submit_socials_done',         // submitted {link_count} (must-land)
   SUBMIT_SOCIALS_ERROR:    'submit_socials_error',        // submit failed {message}
   WAITLIST_ABANDON:        'waitlist_abandon',            // closed without submit {rows,had_input}
@@ -212,9 +213,12 @@ export const EV = Object.freeze({
   REFERRAL_TAB_VIEW:       'referral_tab_view',           // Invite & earn account tab mounted {has_code}
   REFERRAL_LINK_COPIED:    'referral_link_copied',        // copied the ?ref= link {surface}
   REFERRAL_LINK_SHARED:    'referral_link_shared',        // shared the link {surface,channel:'native'|'whatsapp'|'x'|'email'|'sms'}
-  REFERRAL_NUDGE_VIEW:     'referral_nudge_view',         // LEGACY (≤2026-07-11): old 5-card referral banner — superseded by invite_nudge_view
-  REFERRAL_NUDGE_CTA:      'referral_nudge_cta',          // LEGACY: kept for historical queries only
-  REFERRAL_NUDGE_DISMISS:  'referral_nudge_dismiss',      // LEGACY: kept for historical queries only
+  // referral_nudge_view / _cta / _dismiss (the ≤2026-07-11 5-card banner,
+  // superseded by invite_nudge_*) were REMOVED from the catalog: nothing has
+  // emitted them since, and a constant that no code fires reads as a measured
+  // thing when it is really an absence. The historical rows keep their names,
+  // and the SQL that reads them (0163, 0190, 0231) uses string literals — it
+  // never referenced these constants.
   REFERRAL_SIGNUP:         'referral_signup',             // SERVER: friend signed up via a referral {source,code}
   REFERRAL_ACTIVATED:      'referral_activated',          // SERVER: referee created first genuine card
   REFERRAL_REWARD_GRANTED: 'referral_reward_granted',     // SERVER: referrer credited {referee,amount}
@@ -280,12 +284,13 @@ export const EV = Object.freeze({
   //    tagging pays off. ──
   TAG_COLLECTION_OPEN:     'tag_collection_open',         // opened a tag's cross-board collection {tag_id,via:'card_chip'|'board_chip'|'hover'|'sidebar'|'doc'}
   TAG_HOVER_OPEN:          'tag_hover_open',              // a rich tag hover popover opened {tag_id,surface:'doc'|'entity_popover'}
-  TAG_SEARCH:              'tag_search',                  // searched/jumped by tag {tag_id?,has_results}
+  // tag_search, tag_dismiss and tag_auto_promote were REMOVED: the first two
+  // were never wired and the third was a "(Phase 4)" placeholder for work that
+  // was never built. Search is measured by SEARCH_RUN; add these back if and
+  // when something actually emits them.
   TAG_MANUAL_APPLY:        'tag_manual_apply',            // user hand-applied a tag {target_kind,via}
   TAG_CONFIRM:             'tag_confirm',                 // confirmed a borderline/auto suggestion {tag_id,target_kind}
-  TAG_DISMISS:             'tag_dismiss',                 // dismissed an auto/borderline suggestion {tag_id,target_kind}
   TAG_MERGE:               'tag_merge',                   // merged one tag into another {from_tag_id,into_tag_id}
-  TAG_AUTO_PROMOTE:        'tag_auto_promote',            // a recurring term was auto-promoted to a real tag {tag_id,items,boards} (Phase 4)
   TAG_CANDIDATE_PROMOTE:   'tag_candidate_promote',       // promoted a discovered prose name to a real tag {entity_type,count,anchored}
   TAG_CANDIDATE_DISMISS:   'tag_candidate_dismiss',       // dismissed a discovered prose name (workspace ignore) {count}
   TAG_SET_TYPE:            'tag_set_type',                // one-tap set/changed an entity's type {tag_id,entity_type}

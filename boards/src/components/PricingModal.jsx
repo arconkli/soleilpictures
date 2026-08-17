@@ -75,7 +75,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     // surface stays 'modal' in pricing_view for continuity with historical rows
     // (the first-value mount is distinguished by header, and by envelope.surface
     // on the up_* rows); the envelope adds via/exposure_n/tier/cap_pct/acct_days.
-    logEventOnce(`pricing_view:modal:${header || 'generic'}`, 'pricing_view', { ...up.envelope(), surface: 'modal', header, copy_rev: COPY_REV });
+    logEventOnce(`pricing_view:modal:${header || 'generic'}`, EV.PRICING_VIEW, { ...up.envelope(), surface: 'modal', header, copy_rev: COPY_REV });
     // Meta ViewContent — mid-funnel ad-optimization signal. Matches the
     // monthly-first default plan.
     trackViewContent({ content_name: 'Creator', value: PRICING.monthly.billed, currency: 'USD' });

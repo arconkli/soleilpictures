@@ -575,7 +575,7 @@ function SignIn() {
         },
       });
       if (error) throw error;
-      logEvent('email_submit', { resend: !!resending });
+      logEvent(EV.EMAIL_SUBMIT, { resend: !!resending });
       // The OTP form IS the '/' page's signup CTA — count it in lp_cta_click so
       // the landing scorecard's CTR column means the same thing on every page.
       if (!resending) lpCtaClick('/', 'home', 'form');
@@ -603,7 +603,7 @@ function SignIn() {
         type: 'email',
       });
       if (error) throw error;
-      logEvent('otp_verify');
+      logEvent(EV.OTP_VERIFY);
       // Stamp the verify time so the post-signup journey (lib/journey.js) can
       // measure ms_since_otp on its PS_SIGNUP anchor. Fires for new AND returning
       // users (newness isn't known until tier resolves); harmless either way.

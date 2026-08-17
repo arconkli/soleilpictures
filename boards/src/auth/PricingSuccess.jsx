@@ -72,7 +72,7 @@ export function PricingSuccess() {
   // signed-in return with a session_id counts as a completed checkout.
   useEffect(() => {
     if (!user || !sessionId) return;
-    logEventOnce('checkout_success', 'checkout_success', { has_session_id: true });
+    logEventOnce('checkout_success', EV.CHECKOUT_SUCCESS, { has_session_id: true });
   }, [user, sessionId]);
   useEffect(() => { if (!sessionId) logEventOnce('checkout_missing_session', EV.CHECKOUT_MISSING_SESSION); }, [sessionId]);
   useDwellTime(EV.CHECKOUT_SUCCESS_DWELL, () => ({
@@ -140,7 +140,7 @@ export function PricingSuccess() {
     if (celebrated.current) return;
     celebrated.current = true;
     setCelebrating(true);
-    logEventNow('checkout_activated_seen', { tier, plan });
+    logEventNow(EV.CHECKOUT_ACTIVATED_SEEN, { tier, plan });
     const t = setTimeout(() => { window.location.assign('/'); }, CELEBRATE_MS);
     return () => clearTimeout(t);
     // Depend on `tier` ONLY. If `plan` were a dep, a late plan resolution (when
