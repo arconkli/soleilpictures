@@ -8055,50 +8055,149 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Two panes",
+   "text": "Three densities, one control",
    "inline": [
     {
      "t": "text",
-     "v": "Two panes"
+     "v": "Three densities, one control"
     }
    ],
-   "id": "two-panes"
+   "id": "three-densities-one-control"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "The card is a "
-    },
-    {
-     "t": "strong",
-     "v": "calendar",
-     "children": [
-      {
-       "t": "text",
-       "v": "calendar"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " and a "
-    },
-    {
-     "t": "strong",
-     "v": "day rail",
-     "children": [
-      {
-       "t": "text",
-       "v": "day rail"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", side by side."
+     "v": "The same calendar, shown three ways. Pick with the control in the header."
     }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What you get"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Good for"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Tiles",
+       "children": [
+        {
+         "t": "text",
+         "v": "Tiles"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Weeks as rows, each day a tile showing that day's "
+      },
+      {
+       "t": "strong",
+       "v": "cluster",
+       "children": [
+        {
+         "t": "text",
+         "v": "cluster"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " — its own thumbnail, name and start time"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A production, where nearly every day is a board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "List",
+       "children": [
+        {
+         "t": "text",
+         "v": "List"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Day rows with a small preview, the name, where and when"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Running the week; a fortnight at a glance"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Grid",
+       "children": [
+        {
+         "t": "text",
+         "v": "Grid"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The classic month grid"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A release plan or a prep calendar — anything "
+      },
+      {
+       "t": "strong",
+       "v": "sparse",
+       "children": [
+        {
+         "t": "text",
+         "v": "sparse"
+        }
+       ]
+      }
+     ]
+    ]
    ]
   },
   {
@@ -8106,21 +8205,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The calendar answers "
+     "v": "Tiles is the default because in a production nearly every day "
     },
     {
      "t": "em",
-     "v": "what is the shape of this schedule",
+     "v": "is",
      "children": [
       {
        "t": "text",
-       "v": "what is the shape of this schedule"
+       "v": "is"
       }
      ]
     },
     {
      "t": "text",
-     "v": " — where the work falls, where the gaps are, which weeks are heavy. That is what a month grid is good at, and it is all it is good at: a cell is about ninety pixels wide."
+     "v": " a board: a cluster holding that day's call sheet, shotlist, script pages and running order. A calendar's job there is not to show events, it is to be the way into those boards — and a coloured bar with a date on it cannot carry a board's identity, but a picture of the day can."
     }
    ]
   },
@@ -8129,35 +8228,56 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The rail answers "
+     "v": "Grid is kept rather than traded away. A month grid is built for a "
     },
     {
      "t": "em",
-     "v": "what is actually happening",
+     "v": "sparse",
      "children": [
       {
        "t": "text",
-       "v": "what is actually happening"
+       "v": "sparse"
       }
      ]
     },
     {
      "t": "text",
-     "v": ". Every date with something on it gets a full-width row carrying the day's name, its start time, where it is, and whether the call sheet has been published. Today is pinned at the top with the start time set large, because that is the line people open a schedule to read, and "
+     "v": " calendar, most cells empty, and that is exactly what a release plan is."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "The wall chart",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The wall chart"
+    }
+   ],
+   "id": "the-wall-chart"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Above Tiles and List sits a strip: one row per month, one thin column per day, coloured by phase. It spans the "
     },
     {
      "t": "strong",
-     "v": "Next",
+     "v": "whole production",
      "children": [
       {
        "t": "text",
-       "v": "Next"
+       "v": "whole production"
       }
      ]
     },
     {
      "t": "text",
-     "v": " sits under it."
+     "v": ", not the month you happen to be looking at, because its only job is the shape of the shoot — ten weeks of prep, eight of production with a hiatus, two of wrap, in about a hundred pixels. Click any day to jump the surface below to it."
     }
    ]
   },
@@ -8166,7 +8286,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The rail appears when the card is wide enough to keep both panes readable. On a narrow card, a week bar, or a card zoomed far out, the calendar takes the whole box and the peek panel does the rail's job."
+     "v": "It does not try to be readable up close. It navigates; the surface below details."
     }
    ]
   },
@@ -8185,7 +8305,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " (the ⤢ in the header) gives both panes the whole window. A production calendar is a wall chart; on a canvas it is always negotiating for width with everything around it."
+     "v": " (the ⤢ in the header) gives the whole window over. A production calendar is a wall chart, and on a canvas it is always negotiating for width with everything around it."
     }
    ]
   },
@@ -9003,7 +9123,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " it in the rail. Double-clicking it — or clicking the date mark in the rail — opens the "
+     "v": " it. Double-clicking a tile opens that day's cluster; double-clicking a cell in Grid density opens the "
     },
     {
      "t": "strong",
@@ -9018,6 +9138,43 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": ", where loose content pinned to an hour is edited. The day's running order lives in Day view, not here."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An empty tile carries a "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". It creates that one day, scaffolded, with an undo toast — "
+    },
+    {
+     "t": "strong",
+     "v": "Add days…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add days…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on the right-click menu is still there for a range."
     }
    ]
   },

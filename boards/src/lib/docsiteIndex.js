@@ -795,8 +795,8 @@ export const DOCS_PAGES = [
     "navLabel": "Schedules",
     "headings": [
       {
-        "id": "two-panes",
-        "text": "Two panes"
+        "id": "three-densities-one-control",
+        "text": "Three densities, one control"
       },
       {
         "id": "views",
@@ -850,8 +850,12 @@ export const DOCS_PAGES = [
         "a": "Everything below it, and the estimated wrap. Nothing above it moves, and nothing after a pinned row moves — a pin is a fixed time of day and it holds."
       },
       {
-        "q": "What is the panel on the right?",
-        "a": "The day rail. A month cell is about ninety pixels wide, which is enough for a date and a dot — not for a start time and a location. The rail lists the same days as full-width rows so you can read them, and it is a permanent pane rather than a popover, so nothing ever covers the calendar you were looking at."
+        "q": "Why do the days show pictures?",
+        "a": "Because each one is a cluster, and every cluster already renders a thumbnail of its own canvas. In a production nearly every day is a board full of that day's material, so the calendar shows you the actual day rather than an icon standing in for one."
+      },
+      {
+        "q": "Can I still have a plain month grid?",
+        "a": "Yes — it is the third density in the header control. A month grid is built for a sparse calendar, which is exactly what a release plan or a prep calendar is, so it is kept rather than traded away."
       },
       {
         "q": "Why can I not type directly into the calendar grid?",

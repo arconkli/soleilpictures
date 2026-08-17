@@ -16,8 +16,10 @@ faq:
     a: It is gone. Its only job was splitting one hour into four fifteen-minute buckets, which stopped meaning anything once an item can be two hours and fifteen minutes long. A card saved in that view opens as the day's running order instead.
   - q: If I change one item's length, what moves?
     a: Everything below it, and the estimated wrap. Nothing above it moves, and nothing after a pinned row moves — a pin is a fixed time of day and it holds.
-  - q: What is the panel on the right?
-    a: The day rail. A month cell is about ninety pixels wide, which is enough for a date and a dot — not for a start time and a location. The rail lists the same days as full-width rows so you can read them, and it is a permanent pane rather than a popover, so nothing ever covers the calendar you were looking at.
+  - q: Why do the days show pictures?
+    a: Because each one is a cluster, and every cluster already renders a thumbnail of its own canvas. In a production nearly every day is a board full of that day's material, so the calendar shows you the actual day rather than an icon standing in for one.
+  - q: Can I still have a plain month grid?
+    a: Yes — it is the third density in the header control. A month grid is built for a sparse calendar, which is exactly what a release plan or a prep calendar is, so it is kept rather than traded away.
   - q: Why can I not type directly into the calendar grid?
     a: Loose content in the month and week grids is deliberately read-only, because inline editing in a dense calendar produced constant mis-clicks. Clicking a date selects it in the rail; double-clicking opens the day by the hour.
   - q: Does paging to next month move it for everyone?
@@ -36,27 +38,39 @@ plan beside the assets.
 
 Add one from the rail's **+** menu → *Create* → **Schedule**.
 
-## Two panes
+## Three densities, one control
 
-The card is a **calendar** and a **day rail**, side by side.
+The same calendar, shown three ways. Pick with the control in the header.
 
-The calendar answers *what is the shape of this schedule* — where the work
-falls, where the gaps are, which weeks are heavy. That is what a month grid is
-good at, and it is all it is good at: a cell is about ninety pixels wide.
+| | What you get | Good for |
+|---|---|---|
+| **Tiles** | Weeks as rows, each day a tile showing that day's **cluster** — its own thumbnail, name and start time | A production, where nearly every day is a board |
+| **List** | Day rows with a small preview, the name, where and when | Running the week; a fortnight at a glance |
+| **Grid** | The classic month grid | A release plan or a prep calendar — anything **sparse** |
 
-The rail answers *what is actually happening*. Every date with something on it
-gets a full-width row carrying the day's name, its start time, where it is, and
-whether the call sheet has been published. Today is pinned at the top with the
-start time set large, because that is the line people open a schedule to read,
-and **Next** sits under it.
+Tiles is the default because in a production nearly every day *is* a board: a
+cluster holding that day's call sheet, shotlist, script pages and running
+order. A calendar's job there is not to show events, it is to be the way into
+those boards — and a coloured bar with a date on it cannot carry a board's
+identity, but a picture of the day can.
 
-The rail appears when the card is wide enough to keep both panes readable. On a
-narrow card, a week bar, or a card zoomed far out, the calendar takes the whole
-box and the peek panel does the rail's job.
+Grid is kept rather than traded away. A month grid is built for a *sparse*
+calendar, most cells empty, and that is exactly what a release plan is.
 
-**Full screen** (the ⤢ in the header) gives both panes the whole window. A
-production calendar is a wall chart; on a canvas it is always negotiating for
-width with everything around it.
+### The wall chart
+
+Above Tiles and List sits a strip: one row per month, one thin column per day,
+coloured by phase. It spans the **whole production**, not the month you happen
+to be looking at, because its only job is the shape of the shoot — ten weeks of
+prep, eight of production with a hiatus, two of wrap, in about a hundred
+pixels. Click any day to jump the surface below to it.
+
+It does not try to be readable up close. It navigates; the surface below
+details.
+
+**Full screen** (the ⤢ in the header) gives the whole window over. A production
+calendar is a wall chart, and on a canvas it is always negotiating for width
+with everything around it.
 
 ## Views
 
@@ -175,9 +189,13 @@ For loose content, the month and week grids are **read-only**. A dense calendar
 grid with inline editing produced constant mis-clicks: reaching for a slot and
 accidentally editing the one next to it.
 
-Clicking a date **selects** it in the rail. Double-clicking it — or clicking the
-date mark in the rail — opens the **peek**, where loose content pinned to an
-hour is edited. The day's running order lives in Day view, not here.
+Clicking a date **selects** it. Double-clicking a tile opens that day's
+cluster; double-clicking a cell in Grid density opens the **peek**, where loose
+content pinned to an hour is edited. The day's running order lives in Day view,
+not here.
+
+An empty tile carries a **+**. It creates that one day, scaffolded, with an
+undo toast — **Add days…** on the right-click menu is still there for a range.
 
 Day tiles are the exception to read-only. They are draggable in the grid,
 because moving a day to a new date is the single thing a production schedule

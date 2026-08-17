@@ -1712,3 +1712,222 @@ input.rd-t-in:hover { border-color:var(--line-2, #2c2c32); }
 input.rd-t-in:focus {
   outline:none; border-color:var(--soleil, #ffa500); background:var(--bg-0, #0a0a0c);
 }
+
+/* ══ The wall chart ═══════════════════════════════════════════════════════
+   One row per month, one thin column per day. The only surface here that
+   answers "what is the shape of this shoot", and it does it in about a hundred
+   pixels — a month grid needs five hundred to say less. It navigates; it does
+   not detail. Columns deliberately do not line up between months (Aug 1 is a
+   Saturday, Sep 1 a Tuesday); the faded weekend cells carry the rhythm. */
+.schedw {
+  flex:0 0 auto;
+  padding:8px 10px;
+  border-bottom:1px solid var(--line-1, #212126);
+  background:var(--bg-1, #111114);
+}
+.schedw-row { display:flex; align-items:center; gap:7px; margin-bottom:2px; }
+.schedw-row:last-child { margin-bottom:0; }
+.schedw-m {
+  flex:0 0 26px;
+  font-size:9.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-3, #5a5a60);
+}
+.schedw-days { flex:1 1 auto; display:flex; gap:2px; min-width:0; }
+.schedw-d {
+  flex:1 1 0; min-width:0;
+  height:16px; padding:0;
+  border:1px solid var(--line-1, #212126);
+  border-radius:2px;
+  background:var(--bg-3, #1c1c20);
+  cursor:pointer;
+  transition:transform var(--dur-quick, 80ms) var(--ease, ease);
+}
+/* A day with nothing on it recedes rather than disappearing — the gaps in a
+   schedule are information too. */
+.schedw-d.is-weekend { background:transparent; border-color:transparent; }
+.schedw-d.is-loose { background:var(--ink-4, #3a3a40); border-color:transparent; }
+.schedw-d.is-day {
+  background:var(--w-hue, var(--ink-2, #888890));
+  border-color:transparent;
+}
+.schedw-d.is-day.is-weekend { opacity:.62; }
+.schedw-d.is-cancelled { background:var(--ink-error, #e08b8b); }
+.schedw-d:hover { transform:scaleY(1.45); }
+.schedw-d.is-today { box-shadow:0 0 0 2px var(--soleil, #ffa500); z-index:1; }
+.schedw-d.is-selected { box-shadow:inset 0 0 0 2px var(--ink-0, #f5f5f7); }
+.schedw-d:focus-visible { outline:2px solid var(--soleil, #ffa500); outline-offset:1px; }
+
+/* ══ The contact sheet ════════════════════════════════════════════════════
+   Weeks as rows, each day a tile showing its board's own thumbnail. You
+   recognise a day by what is in it, which is something a text calendar cannot
+   do. Seven columns, not five: productions shoot Saturdays, so weekends get a
+   narrower track rather than being dropped. */
+.schedt {
+  flex:1 1 auto; min-height:0;
+  overflow-y:auto; overscroll-behavior:contain;
+  padding:6px 10px 12px;
+  background:var(--bg-1, #111114);
+}
+.schedt-empty { margin:18px 4px; font-size:12.5px; color:var(--ink-3, #5a5a60); }
+.schedt-week { margin-bottom:10px; }
+.schedt-week:last-child { margin-bottom:0; }
+.schedt-wk {
+  display:flex; align-items:baseline; gap:9px;
+  padding:6px 2px 5px;
+}
+.schedt-wk b {
+  font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3, #5a5a60);
+}
+.schedt-wk span {
+  margin-left:auto; font-size:10.5px; color:var(--ink-4, #3a3a40);
+  font-variant-numeric:tabular-nums;
+}
+.schedt-grid { display:grid; gap:6px; align-items:stretch; }
+.schedt-pad { display:block; }
+
+.schedt-tile {
+  position:relative;
+  display:flex; flex-direction:column; min-width:0;
+  border:1px solid var(--line-1, #212126);
+  border-radius:var(--radius, 4px);
+  background:var(--bg-2, #16161a);
+  overflow:hidden;
+  cursor:pointer;
+  transition:border-color var(--dur-fast, 120ms) var(--ease, ease);
+}
+.schedt-tile:hover { border-color:var(--line-3, #3a3a40); }
+.schedt-tile.is-draggable { cursor:grab; }
+.schedt-tile.is-draggable:active { cursor:grabbing; }
+.schedt-tile.is-dragging { opacity:.4; }
+.schedt-tile.is-today { box-shadow:0 0 0 2px var(--soleil, #ffa500); }
+.schedt-tile.is-selected { border-color:var(--soleil, #ffa500); background:var(--soleil-soft, rgba(255,165,0,.14)); }
+.schedt-tile:focus-visible { outline:2px solid var(--soleil, #ffa500); outline-offset:1px; }
+
+/* Phase colour as an edge, the same language the rundown row uses. */
+.schedt-spine {
+  position:absolute; left:0; top:0; bottom:0; width:3px; z-index:1;
+  background:var(--t-hue, transparent);
+}
+.schedt-tile.is-cancelled .schedt-spine { background:var(--ink-error, #e08b8b); }
+
+.schedt-thumb {
+  display:block; position:relative;
+  aspect-ratio:16 / 10; min-height:0;
+  border-bottom:1px solid var(--line-1, #212126);
+  background:var(--bg-0, #0a0a0c);
+  overflow:hidden;
+}
+/* The board cell fills the thumbnail box. Its own chrome (the CLUSTER badge and
+   name strip) is suppressed — the tile's caption already says which day this
+   is, and repeating it inside the picture wastes the picture. */
+.schedt-thumb .gc-board { position:absolute; inset:0; width:100%; height:100%; border:0; background:none; }
+.schedt-thumb .gc-board-meta { display:none; }
+.schedt-thumb .gc-board-thumb { width:100%; height:100%; object-fit:cover; }
+.schedt-thumb .gc-board-ph { position:absolute; inset:0; }
+
+/* A day nobody has set up yet. Dashed, because it is an invitation rather than
+   damage — most of a fresh production looks like this. */
+.schedt-tile.is-empty { background:var(--bg-1, #111114); border-style:dashed; border-color:var(--line-2, #2c2c32); }
+.schedt-ph {
+  display:flex; align-items:center; justify-content:center;
+  aspect-ratio:16 / 10; min-height:0;
+}
+.schedt-add {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:26px; height:26px; padding:0;
+  border:0; border-radius:var(--radius, 4px);
+  background:transparent; color:var(--ink-4, #3a3a40);
+  opacity:0; cursor:pointer;
+  transition:opacity var(--dur-fast, 120ms) var(--ease, ease);
+}
+.schedt-tile:hover .schedt-add,
+.schedt-add:focus-visible { opacity:1; }
+.schedt-add:hover { background:var(--bg-3, #1c1c20); color:var(--ink-0, #f5f5f7); }
+
+/* Standing in for a thumbnail that does not exist yet. Tinted with the day's
+   own phase colour so a wall of them still reads as the shape of the shoot. */
+.schedt-noimg {
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  padding:4px;
+  background:color-mix(in srgb, var(--t-hue, var(--ink-3, #5a5a60)) 12%, transparent);
+}
+.schedt-noimg-t {
+  font-size:12px; font-weight:700; letter-spacing:-.01em;
+  color:color-mix(in srgb, var(--t-hue, var(--ink-2, #888890)) 70%, var(--ink-2, #888890));
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.schedt-cap {
+  display:flex; align-items:baseline; gap:4px;
+  padding:4px 6px 5px; min-width:0;
+}
+.schedt-dow {
+  flex:0 0 auto;
+  font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3, #5a5a60);
+}
+.schedt-dnum {
+  flex:0 0 auto;
+  font-size:11.5px; font-weight:600; font-variant-numeric:tabular-nums;
+  color:var(--ink-1, #d0d0d4);
+}
+.schedt-tile.is-weekend .schedt-dow,
+.schedt-tile.is-weekend .schedt-dnum { color:var(--ink-3, #5a5a60); }
+.schedt-tile.is-today .schedt-dnum { color:var(--soleil, #ffa500); font-weight:700; }
+.schedt-name {
+  flex:1 1 auto; min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:11px; font-weight:700; color:var(--ink-0, #f5f5f7);
+}
+.schedt-name.is-quiet { font-weight:500; color:var(--ink-3, #5a5a60); }
+.schedt-tile.is-cancelled .schedt-name { text-decoration:line-through; color:var(--ink-3, #5a5a60); }
+.schedt-time {
+  flex:0 0 auto; margin-left:auto;
+  font-size:10.5px; font-variant-numeric:tabular-nums; color:var(--ink-2, #888890);
+}
+.schedt-badge {
+  position:absolute; right:4px; top:4px; z-index:1;
+  padding:1px 5px; border-radius:9px;
+  background:color-mix(in srgb, var(--bg-0, #0a0a0c) 78%, transparent);
+  font-size:9px; font-weight:700; color:var(--msg-ok, #2faf78);
+}
+
+@media (pointer: coarse) {
+  .schedt-add { opacity:1; width:34px; height:34px; }
+  .schedw-d { height:22px; }
+}
+
+/* Tiles / List stack under the wall chart and fill the body. No pane split —
+   the chart does the navigator job the month grid was doing badly, in a fifth
+   of the space, which is exactly what frees the width the rail used to take. */
+.schedc-stack {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; min-height:0;
+}
+/* The rail as the List density rather than a second pane. */
+.schedc-rail.is-flow {
+  position:static;
+  flex:1 1 auto; min-height:0;
+  border-left:0;
+  background:var(--bg-1, #111114);
+}
+.schedc-dbtn {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:calc(26px * var(--chrome-k, 1));
+  height:calc(28px * var(--chrome-k, 1));
+  padding:0 calc(4px * var(--chrome-k, 1));
+  border:0; border-radius:var(--radius, 4px);
+  background:transparent; color:var(--ink-3, #5a5a60);
+  font-size:calc(12px * var(--chrome-k, 1)); line-height:1;
+  cursor:pointer;
+  transition:background var(--dur-fast, 120ms) var(--ease, ease),
+             color var(--dur-fast, 120ms) var(--ease, ease);
+}
+.schedc-dbtn:hover { color:var(--ink-0, #f5f5f7); }
+.schedc-dbtn.is-active { background:var(--bg-act, #212126); color:var(--ink-0, #f5f5f7); }
+.schedc-dbtn:focus-visible { outline:2px solid var(--soleil, #ffa500); outline-offset:-1px; }
+.schedc-dens { margin-right:6px; }
+@media (pointer: coarse) {
+  .schedc-dbtn { min-width:calc(38px * var(--chrome-k, 1)); height:calc(40px * var(--chrome-k, 1)); }
+}

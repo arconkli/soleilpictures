@@ -138,7 +138,7 @@ function LooseRow({ date, count, selected, onSelect, onOpen }) {
 }
 
 export function ScheduleRail({
-  rect, rows, todayIso, next, types: typesProp, parentBoard,
+  rect = null, rows, todayIso, next, types: typesProp, parentBoard,
   selectedDate, onSelectDate, onOpenBoard, onGoToDate, onPeekDate,
   editable = false, rowDrag = null, onRowPointerDown, onAddDay,
 }) {
@@ -176,9 +176,12 @@ export function ScheduleRail({
   }, [rows]);
 
   return (
-    <div className="schedc-rail" style={{
-      left: rect.x, top: rect.y, width: rect.w, height: rect.h,
-    }} onPointerDown={stop}>
+    // `rect` is the legacy absolute placement from when the rail was a second
+    // pane. It is now the List density and fills the body, so without a rect it
+    // lays out in flow.
+    <div className={`schedc-rail${rect ? '' : ' is-flow'}`}
+      style={rect ? { left: rect.x, top: rect.y, width: rect.w, height: rect.h } : undefined}
+      onPointerDown={stop}>
 
       {/* ── Today / Up next ──────────────────────────────────────────────────
           Pinned, never scrolled away. The single most important line on a call

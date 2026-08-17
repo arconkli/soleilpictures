@@ -881,6 +881,19 @@ export function LocalBoardsApp({ user, signOut }) {
     return true;
   };
 
+  // Highest "Day N" already under this parent, plus one. Mirrors
+  // productionDayPlan.nextDayNumber, against the local boards map.
+  const nextLocalDayNumber = (parentId) => {
+    let max = 0;
+    for (const id in boards) {
+      const b = boards[id];
+      if (!b || b.parent_board_id !== parentId) continue;
+      const m = /^Day\s+(\d+)$/.exec((b.day_label || b.name || '').trim());
+      if (m) max = Math.max(max, +m[1]);
+    }
+    return max + 1;
+  };
+
   // ── Dated clusters, locally ────────────────────────────────────────────────
   // In the real app a shoot day is a Postgres row and moving it is
   // set_board_schedule(). The local shell has no Postgres, so these write the
@@ -905,9 +918,14 @@ export function LocalBoardsApp({ user, signOut }) {
     } : prev));
     return { ok: true, date, moved: true, notified: 0 };
   };
-  const addLocalShootDays = ({ from, to, skipWeekends = false, startNumber = 1,
+  const addLocalShootDays = ({ from, to, skipWeekends = false, startNumber = null,
                                parentBoardId = null } = {}) => {
     const parent = parentBoardId || currentId;
+    // Continue the numbering rather than restarting at 1. Adding days one tile
+    // at a time — which is what the contact sheet's "+" does — otherwise made
+    // a production entirely of "Day 1".
+    const start = Number.isFinite(startNumber) && startNumber > 0
+      ? startNumber : nextLocalDayNumber(parent);
     const dates = shootDayDates(from, to || from, { skipWeekends });
     if (!dates.length) return [];
     const made = [];
@@ -919,14 +937,14 @@ export function LocalBoardsApp({ user, signOut }) {
         made.push(id);
         nextBoards[id] = {
           id,
-          name: `Day ${startNumber + i}`,
+          name: `Day ${start + i}`,
           parent_board_id: parent,
           view: 'canvas',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           scheduled_date: date,
           scheduled_end: null,
-          day_label: `Day ${startNumber + i}`,
+          day_label: `Day ${start + i}`,
           sched_status: 'draft',
           sched_version: 0,
           // A default start time so the row has the one thing it exists to

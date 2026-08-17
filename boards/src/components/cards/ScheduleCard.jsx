@@ -22,11 +22,16 @@ import { readSchedModel } from '../../lib/schedState.js';
 import {
   SCHED_TUNING, computeSchedSlots, itemsForSlot, chipCapacity, mintItemKey, newUid, parseSlotKey,
   hourWindowForDay, dayKey, hourKey, schedLodTier, schedDayCounts,
-  splitSchedPanes, schedVisibleRange, schedDayRows, schedNextDay, schedSizeForMonths,
+  schedVisibleRange, schedDayRows, schedNextDay, schedSizeForMonths,
 } from '../../lib/schedLayout.js';
 import { dayTypesFor, dayTypeColor } from '../../lib/dayTypes.js';
 import { ScheduleRail } from './ScheduleRail.jsx';
 import { ScheduleRundown } from './ScheduleRundown.jsx';
+import { ScheduleWall } from './ScheduleWall.jsx';
+import { ScheduleTiles } from './ScheduleTiles.jsx';
+import {
+  normalizeDensity, CAL_DENSITIES, productionSpan, calWeeks,
+} from '../../lib/schedCalendar.js';
 import {
   rundownFromCells, rundownKey, materializeLegacy, computeRundown,
   ordForIndex, ordForMove, RUNDOWN_TUNING,
@@ -67,6 +72,16 @@ const stopWithTouchScroll = (e) => { startTouchScrollGesture(e); e.stopPropagati
 // How many months a month-view card can tile at once. 3 is a block of
 // principal photography, which is the case this exists for.
 const MONTH_SPANS = [1, 3, 6];
+
+// Three densities of the same calendar, one control. Grid is kept rather than
+// traded away: a release plan or a prep calendar IS sparse, and sparse is the
+// one thing a month grid is genuinely good at. Tiles is the production default
+// because in a production nearly every day is a board, and a tile can show it.
+const DENSITIES = [
+  { id: 'tiles', label: '▦', tip: 'Day tiles' },
+  { id: 'list',  label: '☰', tip: 'List' },
+  { id: 'grid',  label: '▤', tip: 'Month grid' },
+];
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // Hour view is gone. Its whole job was subdividing one hour into four
@@ -340,6 +355,10 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
   const anchorHour = viewHour ?? model.anchorHour;
   const months = model.view === 'month'
     ? Math.max(1, Math.min(12, Math.round(card?.months) || 1)) : 1;
+  // Which of the three calendar surfaces the month/week body renders as. Only
+  // meaningful at full detail — mid is a density map and far is a poster, and
+  // neither has room for a thumbnail.
+  const density = normalizeDensity(card?.calDensity);
 
   const goTo = (nextAnchor, nextHour) => {
     if (boardDate) return;                       // the cluster's date owns this card
@@ -500,11 +519,12 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
   const headerH = Math.round((isTouch ? 56 : SCHED_TUNING.HEADER_H) * chromeK);
   const bodyW = Math.max(0, effW);
   const bodyH = Math.max(0, effH - headerH);
-  // Two panes. The rail only exists at full detail: at mid the card is a density
-  // map and at far it is a poster, and neither has room for text rows.
-  const { calRect, railRect } = splitSchedPanes({
-    view: model.view, w: bodyW, h: bodyH, months, rail: lod === 'full',
-  });
+  // Tiles and List are their own scrolling surfaces and want the whole body;
+  // Grid goes through the slot engine. Mid and far always take the slot path —
+  // a density map and a poster are what a card renders when it is too small for
+  // any of this, and neither has room for a thumbnail.
+  const showCal = lod === 'full' && model.view !== 'day' && density !== 'grid';
+  const calRect = { x: 0, y: 0, w: bodyW, h: bodyH };
   const { slots, weekRules, weekdayLabels, monthBlocks } = computeSchedSlots({
     view: model.view, anchor, anchorHour, months,
     w: calRect.w, h: calRect.h, expand: model.expand, cellKeys,
@@ -526,10 +546,15 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
 
   // What the rail lists. Only computed when there IS a rail — schedDayRows
   // walks the whole visible range, which is 366 iterations for a 12-month card.
-  const range = railRect ? schedVisibleRange({ view: model.view, anchor, months, todayIso }) : null;
-  const railRows = railRect
+  const range = schedVisibleRange({ view: model.view, anchor, months, todayIso });
+  const railRows = showCal
     ? schedDayRows({ ...range, shootDays, dayCounts: allDayCounts, todayIso }) : [];
-  const railNext = railRect ? schedNextDay(shootDays, todayIso) : null;
+  const railNext = showCal ? schedNextDay(shootDays, todayIso) : null;
+  // The chart spans the whole PRODUCTION, not the month in view — its only job
+  // is the shape of this shoot, and clipping it to what you happen to be
+  // looking at would answer a question nobody asked.
+  const wallSpan = showCal && model.view === 'month'
+    ? productionSpan(shootDays, range) : null;
   // The palette belongs to the production — the cluster the dated days hang
   // off, which is the one holding this card.
   const dayTypes = dayTypesFor(boards?.[boardId]);
@@ -765,27 +790,22 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
           if (!d || d.key !== s.key) return;
           if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
           e.stopPropagation();
-          // With a rail, clicking a cell SELECTS its day — the detail is
-          // already on screen beside the grid, and throwing a popover over the
-          // calendar you were reading to show you something two inches to the
-          // right would be worse than useless. Without a rail (small card, week
-          // bar, mid/far tier) the peek is still the only detail surface there
-          // is, so it keeps its job.
+          // Clicking a cell SELECTS its day. In Grid density the peek is still
+          // the detail surface, so a double-click opens it; in Tiles and List
+          // the detail is already on screen and a popover over it would be
+          // worse than useless.
           //
           // Nested inline hour/minute rows resolve to their DAY either way:
           // grid granularity is glanceable only.
-          if (railRect) setSelDate(s.date);
-          else openPeek({ kind: 'day', date: s.date }, e.currentTarget);
+          setSelDate(s.date);
         } : undefined}
         onDoubleClick={passive && s.date ? (e) => {
-          // Single click selects the day in the rail; double click goes INTO
-          // it. The peek is a zoom to hour resolution, and with the rail
-          // carrying the day's summary it stops being the first thing a click
-          // should reach for — but it is still the only way to work an hour, so
-          // it needs a door. Without a rail there is nothing to select and the
-          // single click opens it directly (see onClick above).
+          // Single click selects the day; double click goes INTO it. The peek
+          // is a zoom to hour resolution — still the only way to work an hour
+          // of loose content, so it needs a door, just not the first one a
+          // click reaches for.
           e.stopPropagation();
-          if (railRect) openPeek({ kind: 'day', date: s.date }, e.currentTarget);
+          openPeek({ kind: 'day', date: s.date }, e.currentTarget);
         } : editable && !passive ? (e) => {
           e.stopPropagation();
           // Double-tap an empty region of a slot → a fresh text item in
@@ -1080,7 +1100,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
     <>
       {shell(
       <div ref={rootRef}
-        className={`schedc is-view-${model.view}${lod !== 'full' ? ` is-lod-${lod}` : ''}${railRect ? ' has-rail' : ''}${full ? ' is-fullscreen' : ''}`}
+        className={`schedc is-view-${model.view}${lod !== 'full' ? ` is-lod-${lod}` : ''}${showCal ? ' has-cal' : ''}${full ? ' is-fullscreen' : ''}`}
         data-grid-id={card.id}
         onPointerDown={full ? stop : undefined}>
         {lod === 'far' ? renderPoster() : (<>
@@ -1158,6 +1178,19 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
             onClick={(e) => { e.stopPropagation(); setFull((v) => !v); }}>
             <Icon as={full ? Minimize2 : Maximize2} size={14} />
           </button>
+          {editable && model.view !== 'day' && lod === 'full' && (
+            <span className="schedc-pill schedc-dens" role="group" aria-label="Calendar density">
+              {DENSITIES.map((d) => (
+                <button key={d.id} type="button"
+                  className={`schedc-dbtn${density === d.id ? ' is-active' : ''}`}
+                  title={d.tip} aria-label={d.tip} aria-pressed={density === d.id}
+                  onPointerDown={stop}
+                  onClick={(e) => { e.stopPropagation(); if (density !== d.id) onUpdate?.({ calDensity: d.id }); }}>
+                  {d.label}
+                </button>
+              ))}
+            </span>
+          )}
           {editable && (
             <span className="schedc-pill" role="group" aria-label="Schedule view">
               {VIEWS.map((v) => (
@@ -1200,6 +1233,54 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
               surface: 'rundown',
             })}
           />
+        ) : showCal ? (
+          // Tiles / List: a scrolling surface, with the wall chart pinned above
+          // it. No pane split — the chart does the navigator job the month grid
+          // was doing badly, in a fifth of the space, which is what frees the
+          // width the rail used to take.
+          <div className="schedc-stack">
+            {wallSpan && (
+              <ScheduleWall
+                {...wallSpan} todayIso={todayIso}
+                shootDays={shootDays} dayCounts={allDayCounts} types={dayTypes}
+                selectedDate={selDate}
+                onPickDate={(date) => { setSelDate(date); goTo(date); }}
+              />
+            )}
+            {density === 'tiles' ? (
+              <ScheduleTiles
+                from={range.from} to={range.to} todayIso={todayIso}
+                shootDays={shootDays} dayCounts={allDayCounts} types={dayTypes}
+                boards={boards} onOpenBoard={onOpenBoard}
+                editable={editable}
+                selectedDate={selDate} onSelectDate={setSelDate}
+                onAddDay={editable && onAddShootDay
+                  ? (date) => onAddShootDay({ from: date, to: date, scaffold: true, parentBoardId: boardId })
+                  : null}
+                tileDrag={tileDrag}
+                onTilePointerDown={canMoveDays ? startTileDrag : null}
+              />
+            ) : (
+              <ScheduleRail
+                rows={railRows} todayIso={todayIso}
+                next={railNext} types={dayTypes} parentBoard={boards?.[boardId]}
+                selectedDate={selDate} onSelectDate={setSelDate}
+                onPeekDate={(date) => openPeek({ kind: 'day', date }, null, railAnchorRect())}
+                onOpenBoard={onOpenBoard}
+                onGoToDate={(date, opts) => {
+                  setSelDate(date);
+                  goTo(date);
+                  if (opts?.view && onUpdate) onUpdate({ schedView: opts.view });
+                }}
+                editable={editable}
+                rowDrag={tileDrag}
+                onRowPointerDown={canMoveDays ? startRowDrag : null}
+                onAddDay={editable && onAddShootDay
+                  ? (date) => setRangePop({ anchorRect: railAnchorRect(), date })
+                  : null}
+              />
+            )}
+          </div>
         ) : (
         <div className="schedc-cal" style={{
           left: calRect.x, top: calRect.y, width: calRect.w, height: calRect.h,
@@ -1231,26 +1312,6 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
           ))}
           {renderSlotLayer(bodySlots, 'card')}
         </div>
-        )}
-        {railRect && (
-          <ScheduleRail
-            rect={railRect} rows={railRows} todayIso={todayIso}
-            next={railNext} types={dayTypes} parentBoard={boards?.[boardId]}
-            selectedDate={selDate} onSelectDate={setSelDate}
-            onPeekDate={(date) => openPeek({ kind: 'day', date }, null, railAnchorRect())}
-            onOpenBoard={onOpenBoard}
-            onGoToDate={(date, opts) => {
-              setSelDate(date);
-              goTo(date);
-              if (opts?.view && onUpdate) onUpdate({ schedView: opts.view });
-            }}
-            editable={editable}
-            rowDrag={tileDrag}
-            onRowPointerDown={canMoveDays ? startRowDrag : null}
-            onAddDay={editable && onAddShootDay
-              ? (date) => setRangePop({ anchorRect: railAnchorRect(), date })
-              : null}
-          />
         )}
         </div>
         </>)}

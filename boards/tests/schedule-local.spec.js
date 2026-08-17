@@ -6,7 +6,12 @@ import { expect, test } from '@playwright/test';
 // confirm LEGACY rows-table schedule cards still render. The pure date/layout
 // math is covered separately by schedule.spec.js (?schedqa=1).
 
-async function addSchedule(page) {
+// The calendar has three densities and a new card opens in TILES — a contact
+// sheet of day boards, which is what a production wants. Most of the tests
+// below are about the month GRID, which still exists as the third density, so
+// they ask for it explicitly rather than being rewritten to assert a surface
+// they were never about. Tiles, List and the wall chart get their own describe.
+async function addSchedule(page, { density = 'grid' } = {}) {
   const canvas = page.locator('.canvas-wrap');
   await canvas.evaluate((node) => {
     const rect = node.getBoundingClientRect();
@@ -20,6 +25,12 @@ async function addSchedule(page) {
   await menu.locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
   await page.locator('.ctx-submenu').getByRole('button', { name: 'Schedule', exact: true }).click();
   await expect(page.locator('.schedc')).toBeVisible();
+  if (density !== 'tiles') await setDensity(page, density);
+}
+
+const DENSITY_LABEL = { tiles: 'Day tiles', list: 'List', grid: 'Month grid' };
+async function setDensity(page, density) {
+  await page.locator('.schedc').getByRole('button', { name: DENSITY_LABEL[density] }).click();
 }
 
 test.describe('schedule — local interaction', () => {
@@ -451,9 +462,8 @@ test.describe('schedule — day peek panel', () => {
   });
 
   test('the rail date mark is the visible way into a day, and the rail shows today', async ({ page }) => {
-    await addSchedule(page);
+    await addSchedule(page, { density: 'list' });
     const sched = page.locator('.schedc');
-    // The rail exists at the default month size, and pins today.
     await expect(sched.locator('.schedc-rail')).toHaveCount(1);
     await expect(sched.locator('.schedc-today-block')).toBeVisible();
     // Today always earns a row even with nothing on it — "nothing is scheduled
@@ -804,5 +814,90 @@ test.describe('schedule — date-jump popover', () => {
     await pop.locator('.schedc-dp-day:not(.is-outside)', { hasText: /^8$/ }).click();
     await expect(sched.locator('.schedc-pill-btn.is-active')).toHaveText('W');
     await expect(sched.locator('.schedc-title')).not.toHaveText(weekTitle);
+  });
+
+  // ── The calendar half ───────────────────────────────────────────────────
+  // Three densities of the same data. Tiles is the default because nearly
+  // every day in a production IS a board, and a tile can show it — a coloured
+  // bar with a date on it cannot.
+
+  test('a new card opens in Tiles, with a wall chart above it', async ({ page }) => {
+    await addSchedule(page, { density: 'tiles' });
+    const sched = page.locator('.schedc');
+    await expect(sched.locator('.schedt')).toHaveCount(1);
+    // A whole month of tiles: 28–31 real days plus the padding that keeps the
+    // columns aligned, so at least four weeks of seven.
+    const tiles = sched.locator('.schedt-tile');
+    expect(await tiles.count()).toBeGreaterThanOrEqual(28);
+    // Nothing is set up yet, so every one of them is the empty state.
+    await expect(sched.locator('.schedt-tile.is-day')).toHaveCount(0);
+    // The wall chart spans the production; with nothing dated it falls back to
+    // the visible range, which is one month.
+    await expect(sched.locator('.schedw-row')).toHaveCount(1);
+    await expect(sched.locator('.schedw-d').first()).toBeVisible();
+    // And the month grid is NOT what is on screen.
+    await expect(sched.locator('.schedc-slot-day')).toHaveCount(0);
+  });
+
+  test('the density control swaps the surface without touching the data', async ({ page }) => {
+    await addSchedule(page, { density: 'tiles' });
+    const sched = page.locator('.schedc');
+    const title = await sched.locator('.schedc-title').textContent();
+
+    await setDensity(page, 'list');
+    await expect(sched.locator('.schedc-rail')).toHaveCount(1);
+    await expect(sched.locator('.schedt')).toHaveCount(0);
+
+    await setDensity(page, 'grid');
+    await expect(sched.locator('.schedc-wd')).toHaveCount(7);
+    await expect(sched.locator('.schedt')).toHaveCount(0);
+    // Grid is the sparse-calendar density, so the wall chart stands down with
+    // the surface it belongs to.
+    await expect(sched.locator('.schedw')).toHaveCount(0);
+
+    await setDensity(page, 'tiles');
+    await expect(sched.locator('.schedt')).toHaveCount(1);
+    // Navigation never moved.
+    await expect(sched.locator('.schedc-title')).toHaveText(title);
+  });
+
+  test('an empty tile carries a + that sets that one day up', async ({ page }) => {
+    await addSchedule(page, { density: 'tiles' });
+    const sched = page.locator('.schedc');
+    const first = sched.locator('.schedt-tile.is-empty').first();
+    await first.hover();
+    await first.locator('.schedt-add').click();
+
+    // One day exists now — as a tile, and as a band in the wall chart.
+    await expect(sched.locator('.schedt-tile.is-day')).toHaveCount(1);
+    await expect(sched.locator('.schedw-d.is-day')).toHaveCount(1);
+    // And it shows what it is rather than an empty frame: no thumbnail has
+    // rendered yet, so the stand-in names the day.
+    await expect(sched.locator('.schedt-tile.is-day .schedt-noimg-t')).toContainText('Day 1');
+  });
+
+  test('days added one tile at a time keep counting up', async ({ page }) => {
+    // Adding from the contact sheet used to restart the numbering every time,
+    // so a production came out as a row of "Day 1".
+    await addSchedule(page, { density: 'tiles' });
+    const sched = page.locator('.schedc');
+    for (let i = 0; i < 3; i++) {
+      const t = sched.locator('.schedt-tile.is-empty').first();
+      await t.hover();
+      await t.locator('.schedt-add').click();
+      await expect(sched.locator('.schedt-tile.is-day')).toHaveCount(i + 1);
+    }
+    await setDensity(page, 'list');
+    await expect(sched.locator('.schedc-dayrow-name'))
+      .toHaveText(['Day 1', 'Day 2', 'Day 3']);
+  });
+
+  test('clicking a day in the wall chart selects it below', async ({ page }) => {
+    await addSchedule(page, { density: 'tiles' });
+    const sched = page.locator('.schedc');
+    // The 10th cell of the chart is the 10th of the month.
+    await sched.locator('.schedw-d').nth(9).click();
+    await expect(sched.locator('.schedw-d.is-selected')).toHaveCount(1);
+    await expect(sched.locator('.schedt-tile.is-selected')).toHaveCount(1);
   });
 });
