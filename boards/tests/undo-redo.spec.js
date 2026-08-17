@@ -168,8 +168,14 @@ test.describe('Phase-0 undo hardening (source guard)', () => {
     // …but the pane still has a way out. Removing the bar removed the only
     // close that was ON the thing being closed, leaving a topbar icon whose
     // meaning flips — technically a close button, not a findable one.
-    expect(app).toMatch(/className="split-pane-close"/);
-    expect(read('src/styles.css')).toMatch(/\.split-pane-close\s*\{/);
+    expect(app).toMatch(/className="split-close"/);
+    // On the DIVIDER, not floated into a canvas corner — every corner is
+    // already claimed by canvas chrome, and the top-right one it first took
+    // was promptly covered by the presence roster the moment a peer appeared.
+    const css = read('src/styles.css');
+    expect(css).toMatch(/\.split-close\s*\{/);
+    expect(css).not.toMatch(/\.split-pane-close/);
+    expect(app).toMatch(/<div className="split-divider"[\s\S]{0,400}split-close/);
     // The topbar's breadcrumb, back/forward and the sidebar highlight all
     // resolve through the active pane rather than hardcoding the main stack.
     expect(app).toMatch(/const toolbarPane = /);
