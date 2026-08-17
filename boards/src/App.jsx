@@ -38,7 +38,8 @@ import { readRemix, clearRemix } from './lib/remix.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
-import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolledArm } from './lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolledArm, setAnalyticsContext } from './lib/analytics.js';
+import { resolveSurface, surfaceBoardId } from './lib/surface.js';
 import { EV, JOURNEY_PHASE } from './lib/analyticsEvents.js';
 import { setJourneySink, beginJourney, endJourney, setJourneyState, journey } from './lib/journey.js';
 import { getActiveExperiments, assignArm, drawArm } from './lib/experiments.js';
@@ -3583,6 +3584,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       ? Math.max(0, Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86400000))
       : 0,
   }), [myTier.tier, myTier.demoCardCount, myTier.effectiveCardLimit, user?.created_at]);
+
+  // Ambient analytics context — where the user is, on what, at which tier.
+  //
+  // Every event picks this up centrally (analytics.js buildRow), which is the
+  // only reason questions like "which surface do people abandon" or "do paid
+  // users behave differently" are answerable without editing ~200 call sites.
+  // The heartbeat reads the same context to bank per-surface time, so time and
+  // events describe the same place.
+  const analyticsSurface = resolveSurface({
+    pathname: typeof window !== 'undefined' ? window.location.pathname : '/',
+    currentSurface,
+    view,
+    docOpen: !!openDocCard,
+    settingsOpen,
+  });
+  useEffect(() => {
+    setAnalyticsContext({
+      surface: analyticsSurface,
+      board_id: surfaceBoardId(analyticsSurface, currentId),
+      tier: myTier.tier || null,
+    });
+  }, [analyticsSurface, currentId, myTier.tier]);
 
   // Celebrate referral rewards: when bonus_card_credits grows (a friend you
   // invited just activated — granted server-side, picked up on the next

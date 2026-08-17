@@ -17,6 +17,8 @@
 
 import { supabase } from './supabase.js';
 import { getAppSessionId } from './appSession.js';
+import { getAnalyticsContext } from './analytics.js';
+import { takeWorkOps } from './workSignal.js';
 
 const SAMPLE_MS = 5_000;            // accumulate active time in ~5s slices
 const FLUSH_MS = 60_000;            // send accumulated seconds ~once a minute
@@ -59,6 +61,12 @@ function markActivity() {
 
 // Fold the elapsed slice into the accumulator — but only the portion during
 // which the tab was visible AND the user was active (interaction within IDLE_MS).
+//
+// The same slice is also banked against the surface that was on screen FOR it.
+// Attributing a whole minute to whichever surface happened to be open at flush
+// time would silently mis-credit every navigation, and someone who moves
+// between the canvas and the universe view every few seconds is exactly the
+// engaged user the per-surface numbers exist to describe.
 function sample() {
   const now = Date.now();
   if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
@@ -69,7 +77,40 @@ function sample() {
   lastSampleAt = now;
   if (delta > 0 && (now - lastActivityAt) <= IDLE_MS) {
     activeMs += delta;
+    bankSurface(delta);
   }
+}
+
+// active ms per "<surface>|<boardId>" since the last flush.
+const bySurface = new Map();
+
+function bankSurface(deltaMs) {
+  let surface = null;
+  let boardId = null;
+  try {
+    const ctx = getAnalyticsContext();
+    surface = ctx.surface || null;
+    boardId = ctx.board_id || null;
+  } catch (_) { return; }
+  // No surface yet (pre-mount) or a public page: not app usage. Public time is
+  // the landing funnel's to measure, and lp_dwell already does.
+  if (!surface || surface === 'public') return;
+  const key = `${surface}|${boardId || ''}`;
+  bySurface.set(key, (bySurface.get(key) || 0) + deltaMs);
+}
+
+// Drain whole seconds per surface, keeping sub-second remainders so a long
+// session doesn't shed a fraction on every flush.
+function drainSurfaceSlices() {
+  const out = [];
+  for (const [key, ms] of bySurface) {
+    const secs = Math.floor(ms / 1000);
+    if (secs <= 0) continue;
+    bySurface.set(key, ms - secs * 1000);
+    const sep = key.indexOf('|');
+    out.push({ surface: key.slice(0, sep), boardId: key.slice(sep + 1) || null, secs });
+  }
+  return out;
 }
 
 async function refreshAuth() {
@@ -89,21 +130,43 @@ async function flush() {
   if (secs <= 0) return;
   activeMs -= secs * 1000;         // keep the sub-second remainder
   const sid = ensureSessionId();
+
+  // Taken only now that we know we're sending: a flush that returns early must
+  // not consume the evidence that this day contained work at all.
+  const ops = takeWorkOps();
+
   try {
-    await supabase.rpc('bump_seconds_in_app', { p_seconds: secs, p_session_id: sid, p_user_id: cachedUid });
+    await supabase.rpc('bump_seconds_in_app', {
+      p_seconds: secs, p_session_id: sid, p_user_id: cachedUid,
+      p_did_work: ops > 0,
+    });
   } catch (_) { /* fire-and-forget */ }
+
+  // Dimensional slices are signed-in only — record_usage_slice no-ops for anon,
+  // so sending them would be pure noise.
+  if (!cachedUid) { bySurface.clear(); return; }
+  const slices = drainSurfaceSlices();
+  // Work ops are attributed to the surface with the most time this window. It's
+  // an approximation, and labelled as one: the exact per-op surface would mean
+  // instrumenting every mutation site, and the ranking is what gets read.
+  let busiest = 0;
+  for (let i = 1; i < slices.length; i++) if (slices[i].secs > slices[busiest].secs) busiest = i;
+  for (let i = 0; i < slices.length; i++) {
+    const s = slices[i];
+    try {
+      await supabase.rpc('record_usage_slice', {
+        p_app_session_id: sid, p_surface: s.surface, p_seconds: s.secs,
+        p_board_id: s.boardId, p_ops: i === busiest ? ops : 0,
+      });
+    } catch (_) { /* fire-and-forget */ }
+  }
 }
 
 // Tab close: can't await — use a keepalive fetch with the cached creds so the
 // final active seconds aren't lost. sendBeacon can't set the apikey header.
-function flushBeacon() {
-  sample();
-  const secs = Math.floor(activeMs / 1000);
-  if (secs <= 0 || !SUPABASE_URL || !PUBLIC_KEY) return;
-  activeMs = 0;
-  const sid = ensureSessionId();
+function rpcBeacon(fn, body) {
   try {
-    fetch(`${SUPABASE_URL}/rest/v1/rpc/bump_seconds_in_app`, {
+    fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
       method: 'POST',
       keepalive: true,
       headers: {
@@ -111,9 +174,29 @@ function flushBeacon() {
         apikey: PUBLIC_KEY,
         Authorization: `Bearer ${cachedToken || PUBLIC_KEY}`,
       },
-      body: JSON.stringify({ p_seconds: secs, p_session_id: sid, p_user_id: cachedUid }),
+      body: JSON.stringify(body),
     }).catch(() => {});
   } catch (_) { /* best effort */ }
+}
+
+function flushBeacon() {
+  sample();
+  const secs = Math.floor(activeMs / 1000);
+  if (secs <= 0 || !SUPABASE_URL || !PUBLIC_KEY) return;
+  activeMs = 0;
+  const sid = ensureSessionId();
+  const ops = takeWorkOps();
+  rpcBeacon('bump_seconds_in_app', {
+    p_seconds: secs, p_session_id: sid, p_user_id: cachedUid, p_did_work: ops > 0,
+  });
+  if (!cachedUid) { bySurface.clear(); return; }
+  const slices = drainSurfaceSlices();
+  let busiest = 0;
+  for (let i = 1; i < slices.length; i++) if (slices[i].secs > slices[busiest].secs) busiest = i;
+  slices.forEach((s, i) => rpcBeacon('record_usage_slice', {
+    p_app_session_id: sid, p_surface: s.surface, p_seconds: s.secs,
+    p_board_id: s.boardId, p_ops: i === busiest ? ops : 0,
+  }));
 }
 
 export function startHeartbeat() {
