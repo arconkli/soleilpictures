@@ -31,6 +31,38 @@ test('Enter flow advances elements the way screenwriters expect', async ({ page 
   expect(r.transition).toBe('scene');
 });
 
+test('enterDecision: split by default; escalate only inside the Enter chain', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    return {
+      // A clicked-into blank line (not in the chain) SPLITS — the old behavior
+      // escalated in place forever and could never insert a line.
+      clickedEmptyAction: S.enterDecision({ element: 'action', isEmpty: true, atEnd: true, inChain: false }),
+      clickedEmptyCharacter: S.enterDecision({ element: 'character', isEmpty: true, atEnd: true, inChain: false }),
+      // In the chain (the empty line came from the previous Enter) → escalate.
+      chainEmptyCharacter: S.enterDecision({ element: 'character', isEmpty: true, atEnd: true, inChain: true }),
+      chainEmptyAction: S.enterDecision({ element: 'action', isEmpty: true, atEnd: true, inChain: true }),
+      // The ladder tops out at scene: in-chain Enter on an empty scene splits.
+      chainEmptyScene: S.enterDecision({ element: 'scene', isEmpty: true, atEnd: true, inChain: true }),
+      // Filled line, caret at end → the Final Draft progression.
+      endOfDialogue: S.enterDecision({ element: 'dialogue', isEmpty: false, atEnd: true }),
+      endOfCharacter: S.enterDecision({ element: 'character', isEmpty: false, atEnd: true }),
+      // Filled line, caret at start/middle → plain break, element preserved.
+      midDialogue: S.enterDecision({ element: 'dialogue', isEmpty: false, atEnd: false }),
+      startOfScene: S.enterDecision({ element: 'scene', isEmpty: false, atEnd: false }),
+    };
+  });
+  expect(r.clickedEmptyAction).toEqual({ kind: 'split', element: 'action' });
+  expect(r.clickedEmptyCharacter).toEqual({ kind: 'split', element: 'character' });
+  expect(r.chainEmptyCharacter).toEqual({ kind: 'escalate', element: 'action' });
+  expect(r.chainEmptyAction).toEqual({ kind: 'escalate', element: 'scene' });
+  expect(r.chainEmptyScene).toEqual({ kind: 'split', element: 'scene' });
+  expect(r.endOfDialogue).toEqual({ kind: 'split', element: 'character' });
+  expect(r.endOfCharacter).toEqual({ kind: 'split', element: 'dialogue' });
+  expect(r.midDialogue).toEqual({ kind: 'split', element: 'dialogue' });
+  expect(r.startOfScene).toEqual({ kind: 'split', element: 'scene' });
+});
+
 test('Tab cycles the element ring forward and back', async ({ page }) => {
   const r = await page.evaluate(() => {
     const S = window.__soleilDocTest.screenplay;

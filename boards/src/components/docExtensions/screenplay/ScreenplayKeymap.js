@@ -10,8 +10,9 @@
 import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 import { TextSelection } from '@tiptap/pm/state';
+import { canSplit } from '@tiptap/pm/transform';
 import {
-  nextOnEnter, nextOnTab, prevOnTab, shouldUppercase, detectElementFromText,
+  enterDecision, nextOnTab, prevOnTab, shouldUppercase, detectElementFromText,
 } from './screenplayFlow.js';
 
 // An @-mention (.entity-picker) or screenplay autocomplete (.sp-autocomplete)
@@ -21,19 +22,23 @@ function suggestionOpen() {
     && !!document.querySelector('.entity-picker, .sp-autocomplete.is-open');
 }
 
-function currentScreenplayElement(state) {
+// The screenplayBlock at the caret, with the caret's position within it.
+// Returns null when the caret isn't inside a screenplayBlock.
+function caretBlockInfo(state) {
   const { $from } = state.selection;
   for (let d = $from.depth; d > 0; d--) {
-    if ($from.node(d).type.name === 'screenplayBlock') return $from.node(d).attrs.element || 'action';
+    const node = $from.node(d);
+    if (node.type.name === 'screenplayBlock') {
+      const offset = $from.pos - $from.start(d);
+      return {
+        element: node.attrs.element || 'action',
+        isEmpty: node.textContent.trim().length === 0,
+        atStart: offset === 0,
+        atEnd: offset === node.content.size,
+      };
+    }
   }
   return null;
-}
-function blockIsEmpty(state) {
-  const { $from } = state.selection;
-  for (let d = $from.depth; d > 0; d--) {
-    if ($from.node(d).type.name === 'screenplayBlock') return $from.node(d).textContent.trim().length === 0;
-  }
-  return false;
 }
 function inListOrTable(state) {
   const { $from } = state.selection;
@@ -48,18 +53,25 @@ export const ScreenplayKeymap = Extension.create({
   name: 'screenplayKeymap',
   priority: 1000,
 
+  addStorage() {
+    // True while the writer is Enter-Enter-ing forward: the caret's empty block
+    // was created by the previous Enter press. Gates the escalation ladder in
+    // enterDecision — a clicked-into blank line must split, never escalate.
+    // Cleared by any other keydown / mousedown / blur (plugin below).
+    return { enterChain: false };
+  },
+
   addKeyboardShortcuts() {
     const cycle = (dir) => () => {
       const ed = this.editor;
       if (suggestionOpen()) return false;
-      const cur = currentScreenplayElement(ed.state);
-      if (!cur || inListOrTable(ed.state)) return false;
-      const next = dir > 0 ? nextOnTab(cur) : prevOnTab(cur);
-      const empty = blockIsEmpty(ed.state);
+      const info = caretBlockInfo(ed.state);
+      if (!info || inListOrTable(ed.state)) return false;
+      const next = dir > 0 ? nextOnTab(info.element) : prevOnTab(info.element);
       const chain = ed.chain().focus().updateAttributes('screenplayBlock', { element: next });
       // Smart parenthetical: entering an empty parenthetical drops in "()" with
       // the caret between the parens.
-      if (next === 'parenthetical' && empty) {
+      if (next === 'parenthetical' && info.isEmpty) {
         return chain.command(({ tr, dispatch }) => {
           if (dispatch) {
             const pos = tr.selection.from;
@@ -76,23 +88,31 @@ export const ScreenplayKeymap = Extension.create({
         const ed = this.editor;
         if (suggestionOpen()) return false;
         const { state } = ed;
-        const cur = currentScreenplayElement(state);
-        if (cur == null || inListOrTable(state)) return false;
+        const info = caretBlockInfo(state);
+        if (!info || inListOrTable(state)) return false;
         if (!state.selection.empty) return false;
-        const empty = blockIsEmpty(state);
-        const nextEl = nextOnEnter(cur, empty);
-        // On an EMPTY line, escalate the line IN PLACE (no extra blank block):
-        // empty character → action, empty action → scene, etc.
-        if (empty && nextEl !== cur) {
-          return ed.chain().focus().updateAttributes('screenplayBlock', { element: nextEl }).run();
+        const decision = enterDecision({ ...info, inChain: this.storage.enterChain });
+        this.storage.enterChain = true; // this press starts/continues the flow
+        // Escalate: retype the empty line in place (empty cue → action → scene).
+        if (decision.kind === 'escalate') {
+          return ed.chain().focus().updateAttributes('screenplayBlock', { element: decision.element }).run();
         }
-        // Otherwise split and make the NEW block a screenplayBlock carrying the
-        // next element (dialogue → character, character → dialogue, …). splitBlock
-        // on a `defining` node yields a default paragraph, so setNode (convert).
-        return ed.chain().focus()
-          .splitBlock()
-          .setNode('screenplayBlock', { element: nextEl })
-          .run();
+        // Split. screenplayBlock is `defining`, so stock splitBlock would leave
+        // a default paragraph behind (at line start it even retypes the EMPTY
+        // half) — split with an explicit typesAfter instead, so the block the
+        // caret lands in carries exactly the element enterDecision chose and
+        // the block before the split keeps its own element + text untouched.
+        return ed.chain().focus().command(({ tr, dispatch }) => {
+          const spType = tr.doc.type.schema.nodes.screenplayBlock;
+          const pos = tr.selection.from;
+          const typesAfter = [{ type: spType, attrs: { element: decision.element } }];
+          if (!canSplit(tr.doc, pos, 1, typesAfter)) return false;
+          if (dispatch) {
+            tr.split(pos, 1, typesAfter);
+            tr.scrollIntoView();
+          }
+          return true;
+        }).run();
       },
       Tab: cycle(1),
       'Shift-Tab': cycle(-1),
@@ -100,6 +120,7 @@ export const ScreenplayKeymap = Extension.create({
   },
 
   addProseMirrorPlugins() {
+    const storage = this.storage;
     return [
       new Plugin({
         // Keep at least one screenplayBlock in the doc. Deleting all content
@@ -122,6 +143,18 @@ export const ScreenplayKeymap = Extension.create({
           return null;
         },
         props: {
+          // Any non-Enter interaction ends the Enter-Enter flow chain — after a
+          // click, an arrow key, or typing, an empty line splits instead of
+          // escalating. (Enter itself is handled in the keymap shortcut, which
+          // re-arms the chain.)
+          handleKeyDown(view, event) {
+            if (event.key !== 'Enter') storage.enterChain = false;
+            return false;
+          },
+          handleDOMEvents: {
+            mousedown() { storage.enterChain = false; return false; },
+            blur() { storage.enterChain = false; return false; },
+          },
           // Auto-uppercase scene/character/transition lines AND auto-format an
           // action line into a Scene Heading / Transition the moment its text
           // says so. handleTextInput fires only for LOCAL keystroke input (never

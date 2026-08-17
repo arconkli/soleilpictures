@@ -467,7 +467,21 @@ async function caretElement(page) {
   });
 }
 
-test('Enter progression from dialogue: new character → action → scene', async ({ page }) => {
+// Doc shape helpers for the Enter-flow tests.
+async function blockCount(page) {
+  return page.evaluate(() => window.__soleilDocTest.editor.state.doc.childCount);
+}
+async function blockShapes(page) {
+  return page.evaluate(() => {
+    const out = [];
+    window.__soleilDocTest.editor.state.doc.forEach((node) => {
+      out.push({ element: node.attrs?.element ?? node.type.name, text: node.textContent });
+    });
+    return out;
+  });
+}
+
+test('Enter progression from dialogue: new character → action → scene (typing forward)', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);
   await page.evaluate(() => {
@@ -481,15 +495,125 @@ test('Enter progression from dialogue: new character → action → scene', asyn
   // Click the dialogue line to focus the editor, caret to end of the line.
   await page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first().click();
   await page.keyboard.press('End');
-  await page.keyboard.press('Enter');   // dialogue → new character cue
+  await page.keyboard.press('Enter');   // dialogue → a NEW empty character cue
   expect(await caretElement(page)).toBe('character');
+  expect(await blockCount(page)).toBe(4);
   // The cast popup opens on the empty cue (JOHN). The NEXT Enter must ESCALATE
   // to Action (browse mode), NOT accept "JOHN" — this is the key interaction.
   await expect(page.locator('.sp-autocomplete.is-open')).toBeVisible({ timeout: 5000 });
-  await page.keyboard.press('Enter');   // empty character → action
+  await page.keyboard.press('Enter');   // empty character → action, IN PLACE
   expect(await caretElement(page)).toBe('action');
-  await page.keyboard.press('Enter');   // empty action → new scene heading
+  expect(await blockCount(page)).toBe(4);
+  await page.keyboard.press('Enter');   // empty action → scene heading, IN PLACE
   expect(await caretElement(page)).toBe('scene');
+  expect(await blockCount(page)).toBe(4);
+});
+
+test('Enter on a clicked-into empty line inserts a new line (the mid-script glitch)', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'scene', text: 'INT. ROOM - DAY' },
+      { element: 'action', text: '' },              // an existing blank spacer line
+      { element: 'action', text: 'She waits.' },
+    ]));
+  });
+  // Click into the blank line the way a user editing earlier script would.
+  await page.locator('.doc-card-modal [data-screenplay-element="action"]').first().click();
+  await page.keyboard.press('Enter');
+  // A new line exists — the old behavior only toggled the element in place
+  // (Action ↔ Scene Heading forever) and never inserted one.
+  expect(await blockShapes(page)).toEqual([
+    { element: 'scene', text: 'INT. ROOM - DAY' },
+    { element: 'action', text: '' },
+    { element: 'action', text: '' },
+    { element: 'action', text: 'She waits.' },
+  ]);
+  expect(await caretElement(page)).toBe('action');
+});
+
+test('Enter at the start of a slugline pushes it down intact (no element retype)', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'scene', text: 'INT. ROOM - DAY' },
+      { element: 'action', text: 'She waits.' },
+    ]));
+  });
+  // Real click for real DOM focus (evaluate-side .focus() races the harness),
+  // then park the caret at the very start of the slugline text.
+  await page.locator('.doc-card-modal [data-screenplay-element="scene"]').first().click();
+  await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().setTextSelection(1).run());
+  await page.keyboard.press('Enter');
+  // The slugline is untouched below a new blank line — the old behavior
+  // demoted the slugline itself to Action.
+  expect(await blockShapes(page)).toEqual([
+    { element: 'scene', text: '' },
+    { element: 'scene', text: 'INT. ROOM - DAY' },
+    { element: 'action', text: 'She waits.' },
+  ]);
+});
+
+test('Enter mid-dialogue splits into two dialogue lines (no character cue minted)', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'Hello there.' },
+    ]));
+  });
+  // Real click for real DOM focus, then caret after "Hello" inside the line.
+  await page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first().click();
+  await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    let pos = null;
+    ed.state.doc.descendants((node, p) => {
+      if (node.attrs?.element === 'dialogue') pos = p + 1 + 'Hello'.length;
+    });
+    ed.chain().focus().setTextSelection(pos).run();
+  });
+  await page.keyboard.press('Enter');
+  expect(await blockShapes(page)).toEqual([
+    { element: 'character', text: 'JOHN' },
+    { element: 'dialogue', text: 'Hello' },
+    { element: 'dialogue', text: ' there.' },
+  ]);
+});
+
+test('the Enter escalation flow works mid-script, not just at the end', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'scene', text: 'INT. ROOM - DAY' },
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'Goodbye.' },
+      { element: 'scene', text: 'EXT. STREET - NIGHT' },   // script continues below
+      { element: 'action', text: 'Rain falls.' },
+    ]));
+  });
+  await page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first().click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');   // split → new empty character cue
+  expect(await caretElement(page)).toBe('character');
+  await page.keyboard.press('Enter');   // escalate → action
+  expect(await caretElement(page)).toBe('action');
+  await page.keyboard.press('Enter');   // escalate → scene
+  expect(await caretElement(page)).toBe('scene');
+  // The rest of the script is untouched below the new blank scene heading.
+  const shapes = await blockShapes(page);
+  expect(shapes.slice(-2)).toEqual([
+    { element: 'scene', text: 'EXT. STREET - NIGHT' },
+    { element: 'action', text: 'Rain falls.' },
+  ]);
+  expect(shapes.length).toBe(6);
 });
 
 test('screenplay mode has no "+" insert menu (the element dropdown handles elements)', async ({ page }) => {
@@ -507,7 +631,8 @@ test('the "+" insert menu holds only insert-content items, not toolbar duplicate
   const menu = page.locator('.doc-insert-menu');
   await expect(menu).toBeVisible();
   // The five things with no other toolbar home.
-  for (const label of ['Image', 'Table', 'Divider', 'Code block', 'Embed board']) {
+  // "Embed cluster" — the board→cluster copy rename (f1f957a).
+  for (const label of ['Image', 'Table', 'Divider', 'Code block', 'Embed cluster']) {
     await expect(menu.locator('.doc-insert-item-title', { hasText: label })).toBeVisible();
   }
   // None of the things the toolbar already provides (style select / list / quote

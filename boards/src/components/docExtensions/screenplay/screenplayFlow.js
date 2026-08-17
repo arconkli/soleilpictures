@@ -54,6 +54,29 @@ export function nextOnEnter(element, isEmpty = false) {
   }
 }
 
+// What pressing Enter does, given the caret context. Pure — the keymap supplies
+// isEmpty/atEnd/inChain. Returns { kind, element }:
+//   kind 'escalate' → retype the current (empty) line in place
+//   kind 'split'    → insert a break; `element` is the element of the block the
+//                     caret lands in (the block after the split point)
+export function enterDecision({ element, isEmpty, atEnd = false, inChain = false }) {
+  if (isEmpty) {
+    // The escalation ladder (character→action→scene) only runs while the writer
+    // is Enter-Enter-ing forward — `inChain` = this empty line was created by
+    // the previous Enter press. A clicked-into blank line splits like any
+    // editor. The ladder also tops out at scene: Enter on an in-chain empty
+    // scene adds a line rather than toggling back to action.
+    if (inChain && element !== 'scene') return { kind: 'escalate', element: nextOnEnter(element, true) };
+    return { kind: 'split', element };
+  }
+  // End of a filled line → the Final Draft progression (dialogue→character, …).
+  if (atEnd) return { kind: 'split', element: nextOnEnter(element, false) };
+  // Start or middle of a filled line → a plain break: both halves keep the
+  // current element (splitting dialogue must never mint a character cue, and
+  // Enter at the start of a slugline must not demote it).
+  return { kind: 'split', element };
+}
+
 // Tab forward / Shift-Tab backward through TAB_RING. Non-ring elements (centered)
 // enter the ring at the start.
 export function nextOnTab(element) {
