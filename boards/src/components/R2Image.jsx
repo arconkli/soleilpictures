@@ -376,6 +376,9 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   const imgRef = useRef(null);
   const upgradedRef = useRef(false);
   const hitMarkedRef = useRef(false);
+  // Direction of this card's last committed tier swap ('up' | 'down'), so a
+  // reversal can be counted as a flap. See noteSwap in the evaluate() handle.
+  const lastTierDirRef = useRef(null);
   // Set after the resolve effect exhausted its retries on the preview tier
   // and fell back to the original — stops the prefer-preview effect from
   // flipping back (ping-pong). Reset on src change.
@@ -596,6 +599,21 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
         const atPreview = st.activeSrc === `r2:${m.previewKey}`;
         const atOriginal = st.activeSrc === st.src;
 
+        // A FLAP is this card reversing its last tier decision — promote after a
+        // demote, or the other way round. Oscillation around a threshold is the
+        // one tier pathology the promote/demote counters cannot show: they only
+        // say how many swaps happened, never whether the same card kept undoing
+        // itself, and a stall investigation could not tell a genuine zoom
+        // sequence from a card thrashing at a boundary. The hysteresis band
+        // (promote ≥85%, demote <70%) says this should be rare — this is how we
+        // find out whether it actually is.
+        const noteSwap = (dir) => {
+          if (lastTierDirRef.current && lastTierDirRef.current !== dir) {
+            perf.bump('image.tierFlap'); bumpPerf('image.tierFlap');
+          }
+          lastTierDirRef.current = dir;
+        };
+
         // PROMOTE toward the best justified tier (jump sm→original directly).
         if (st.upgradeToFull) {
           const wantOriginal = !upgradedRef.current && originalWorthUpgrade(m)
@@ -604,6 +622,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
             return { kind: 'promote', area, inViewport, run: () => {
               upgradedRef.current = true;
               setActiveSrc(st.src);                 // original (Tier 2)
+              noteSwap('up');
               perf.bump('image.tier2Upgrade'); bumpPerf('image.tier2Upgrade');
               return true;
             } };
@@ -611,6 +630,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
           if (atSm && m.previewSmW && displayedPx >= m.previewSmW * 0.85) {
             return { kind: 'promote', area, inViewport, run: () => {
               setActiveSrc(`r2:${m.previewKey}`); // sm → lg preview
+              noteSwap('up');
               perf.bump('image.tierPromote'); bumpPerf('image.tierPromote');
               return true;
             } };
@@ -639,6 +659,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
               try { if (performance.now() < getGestureActiveUntil()) return false; } catch (_) {}
               upgradedRef.current = false;          // zooming back in may re-promote
               setActiveSrc(`r2:${targetKey}`);
+              noteSwap('down');
               perf.bump('image.tierDemote'); bumpPerf('image.tierDemote');
               return true;
             } };
