@@ -29,15 +29,24 @@
 // PS_TRACE rows so it stays far under the analytics queue cap.
 
 import { EV, JOURNEY_PHASE } from './analyticsEvents.js';
+import {
+  isInteractiveTarget, createRageDetector, createDeadClickWatcher,
+} from './interactionClassify.js';
 
 // ── Injected emitter (wired once from the vite-only consumer modules) ──────────
 let _log    = () => {};   // logEvent(name, props)
 let _logNow = () => {};   // logEventNow(name, props) — immediate keepalive-beacon
 let _now    = () => Date.now();
-export function setJourneySink({ logEvent, logEventNow, now } = {}) {
+export function setJourneySink({ logEvent, logEventNow, now, probe, schedule } = {}) {
   if (typeof logEvent === 'function')    _log    = logEvent;
   if (typeof logEventNow === 'function') _logNow = logEventNow;
   if (typeof now === 'function')         _now    = now;
+  // Dead-click watcher seams. Left undefined in the app (the shared module's
+  // DOM fingerprint + setTimeout are the right defaults); the unit test injects
+  // both so the verdict is deterministic and needs no DOM.
+  if (typeof probe === 'function')    _classifyDeps.probe = probe;
+  if (typeof schedule === 'function') _classifyDeps.schedule = schedule;
+  deadWatch = createDeadClickWatcher(_classifyDeps);
 }
 
 // ── localStorage keys (per-uid; survive reloads) ──────────────────────────────
@@ -74,6 +83,13 @@ let snapshot = freshSnapshot();
 
 let lastInteractionAt = 0;
 let lastActivityWrite = 0;
+
+// Click classifiers. Both are stateful across a journey (rage needs the recent
+// burst, the watcher owns its scheduler), so they are built once here and reset
+// with the rest of the module state in beginJourney.
+const _classifyDeps = {};
+let rage = createRageDetector(() => _now());
+let deadWatch = createDeadClickWatcher(_classifyDeps);
 
 let hbTimer = null;
 let hbBeats = 0;
@@ -146,6 +162,10 @@ export function beginJourney(uid, { isNew = false, tier = null } = {}) {
   SEQ = Number(readLS(SEQ_KEY + uid)) || 0;
   OPEN = true;
   lastInteractionAt = _now();
+  // Fresh classifiers per journey — a rage burst must never span two of them,
+  // and the watcher rebinds to whatever sink/clock is currently injected.
+  rage = createRageDetector(() => _now());
+  deadWatch = createDeadClickWatcher(_classifyDeps);
   if (!snapshot.phase) snapshot.phase = JOURNEY_PHASE.SIGNUP;
   if (tier != null) snapshot.tier = tier;
 
@@ -313,7 +333,29 @@ function markActivity() {
   lastActivityWrite = now;
   lastInteractionAt = now;
 }
-function onClick(e)  { recordInteraction('click', describeTarget(e.target)); }
+// Every click is classified, not just counted. A native control is a click by
+// definition; anything else goes to the outcome watcher, which re-reads the DOM
+// fingerprint after the app has had a beat and calls the click 'dead' only if
+// nothing moved. That verdict lands late, so the record carries the ORIGINAL
+// click time — buffer order can be off by a frame, `t` never is.
+//
+// This is the half of the trace that was missing: ps_trace recorded every click
+// as 'click', which is why every dead- and rage-click finding we have came from
+// the public pages while the canvas — the actual product — reported nothing.
+export function recordClick(el) {
+  if (!OPEN) return;
+  lastInteractionAt = _now();
+  const tgt = describeTarget(el);
+  if (isInteractiveTarget(el)) {
+    pushRec('click', tgt);
+  } else {
+    const at = tNow();   // the verdict is late; the record is stamped with the click
+    deadWatch((kind) => pushRec(kind, tgt, { t: at }));
+  }
+  const n = rage(tgt);
+  if (n) pushRec('rage', tgt, { n });
+}
+function onClick(e) { recordClick(e.target); }
 function onFocus(e)  { pushRec('focus', describeTarget(e.target)); }
 function onScroll(e) {
   if (!OPEN) return;
@@ -339,7 +381,17 @@ function onInput(e) {
 function onKey(e) {
   if (!OPEN) return;
   lastInteractionAt = _now();
-  if (SPECIAL_KEYS.has(e.key)) pushRec('key', null, { key: e.key });
+  if (SPECIAL_KEYS.has(e.key)) { pushRec('key', null, { key: e.key }); return; }
+  // A modifier combo is a COMMAND, not prose — ⌘Z, ⌘K, ⌘C are the shortcuts we
+  // most want to count, and recording them can't leak typed text because no one
+  // writes with Cmd held down. Without this the whole shortcut layer was dark:
+  // only the navigation keys above were ever recorded, so "does anyone use undo,
+  // or the command palette" had no answer at all.
+  if ((e.metaKey || e.ctrlKey) && e.key && e.key.length === 1) {
+    const mods = (e.metaKey ? 'M' : '') + (e.ctrlKey ? 'C' : '') + (e.shiftKey ? 'S' : '') + (e.altKey ? 'A' : '');
+    pushRec('key', null, { key: mods + '-' + e.key.toLowerCase(), cmd: true });
+    return;
+  }
   // printable keys are NEVER recorded (no characters, no cadence)
 }
 function onVisibility() {
@@ -416,6 +468,9 @@ function unbindInteractions() {
 
 // ── Test-only hooks (mirrors frictionSignal.js's injectable seams) ────────────
 export function __heartbeatTick() { heartbeatTick(); }
+// Node has no timers bound (bindInteractions/startTraceFlush are window-gated),
+// so tests that record fewer than TRACE_MAX_RECORDS need a way to drain.
+export function __flushTraceForTest(beacon = false) { flushTrace(beacon); }
 export function __resetForTest() {
   JID = null; T0 = 0; SEQ = 0; UID = null; OPEN = false;
   snapshot = freshSnapshot();

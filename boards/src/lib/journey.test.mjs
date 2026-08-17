@@ -13,7 +13,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   setJourneySink, beginJourney, endJourney, setJourneyState, journey,
-  recordInteraction, isJourneyOpen, describeTarget, __heartbeatTick, __resetForTest,
+  recordInteraction, recordClick, isJourneyOpen, describeTarget,
+  __heartbeatTick, __resetForTest, __flushTraceForTest as flushTraceForTest,
 } from './journey.js';
 
 function makeStorage() {
@@ -116,6 +117,101 @@ test('the firehose coalesces records into a single ps_trace at the cap', () => {
   assert.equal(traces[0].props.ev.length, 30);
   assert.equal(traces[0].props.ev[0].k, 'click');
   assert.equal(traces[0].props.ev[0].tgt, 'button:Add');
+});
+
+// ── Click classification ──────────────────────────────────────────────────────
+// ps_trace used to record every in-app click as a plain 'click', which is why
+// every dead- and rage-click finding came from the public pages while the
+// canvas reported nothing. These pin the behaviour that closed that gap.
+
+// setup() plus injected classifier seams: a fingerprint the test controls and a
+// scheduler it drains by hand, so the verdict is deterministic and needs no DOM.
+function setupClicks({ t = 1000 } = {}) {
+  const s = setup({ t });
+  const fp = { value: 'idle' };
+  const pending = [];
+  setJourneySink({
+    logEvent:    (name, props) => s.events.push({ name, props, beacon: false }),
+    logEventNow: (name, props) => s.events.push({ name, props, beacon: true }),
+    now: () => s.clock.t,
+    probe: () => fp.value,
+    schedule: (fn) => pending.push(fn),
+  });
+  return { ...s, fp, settle: () => { while (pending.length) pending.shift()(); } };
+}
+
+const inertDiv = { nodeType: 1, tagName: 'DIV', id: 'canvas', getAttribute: () => null, parentElement: null };
+const realButton = { nodeType: 1, tagName: 'BUTTON', id: '', getAttribute: () => null, textContent: 'Add note', parentElement: null };
+
+test('a click that changes nothing is recorded dead, stamped at the click', () => {
+  const { events, clock, fp, settle } = setupClicks();
+  beginJourney('u10', { isNew: true });
+  events.length = 0;
+
+  recordClick(inertDiv);
+  clock.t += 500;                          // the verdict lands later than the click
+  settle();                                // fingerprint never moved
+  flushTraceForTest();
+
+  const ev = events.filter((e) => e.name === 'ps_trace')[0].props.ev;
+  assert.equal(ev.length, 1);
+  assert.equal(ev[0].k, 'dead', 'inert target + no app change → dead');
+  assert.equal(ev[0].tgt, '#canvas');
+  // t is ms since T0, and T0 is the clock at beginJourney — so the click is 0
+  // even though the verdict was handed down 500ms later.
+  assert.equal(ev[0].t, 0, 'stamped with the click, not the late verdict');
+});
+
+test('a click the app responded to is a plain click, however inert the element', () => {
+  const { events, fp, settle } = setupClicks();
+  beginJourney('u11', { isNew: true });
+  events.length = 0;
+
+  recordClick(inertDiv);                   // a <div> with a React handler — the canvas norm
+  fp.value = 'selection changed';
+  settle();
+  flushTraceForTest();
+
+  const ev = events.filter((e) => e.name === 'ps_trace')[0].props.ev;
+  assert.equal(ev[0].k, 'click', 'outcome beats DOM shape — no false dead click');
+});
+
+test('a native control is a click immediately, without waiting to settle', () => {
+  const { events, settle } = setupClicks();
+  beginJourney('u12', { isNew: true });
+  events.length = 0;
+
+  recordClick(realButton);
+  flushTraceForTest();                     // deliberately BEFORE settle()
+  const ev = events.filter((e) => e.name === 'ps_trace')[0].props.ev;
+  assert.equal(ev[0].k, 'click');
+  assert.equal(ev[0].tgt, 'button:Add note');
+  settle();
+});
+
+test('three fast clicks on one target add a rage record', () => {
+  const { events, settle } = setupClicks();
+  beginJourney('u13', { isNew: true });
+  events.length = 0;
+
+  recordClick(inertDiv);
+  recordClick(inertDiv);
+  recordClick(inertDiv);
+  settle();
+  flushTraceForTest();
+
+  const ev = events.filter((e) => e.name === 'ps_trace')[0].props.ev;
+  const rage = ev.filter((r) => r.k === 'rage');
+  assert.equal(rage.length, 1, 'one rage record per burst, not one per click');
+  assert.equal(rage[0].n, 3);
+  assert.equal(ev.filter((r) => r.k === 'dead').length, 3, 'each click still recorded');
+});
+
+test('clicks are ignored entirely when no journey is open', () => {
+  const { events, settle } = setupClicks();
+  recordClick(inertDiv);
+  settle();
+  assert.equal(events.length, 0, 'no journey → no trace');
 });
 
 test('describeTarget never leaks input values or typed characters', () => {

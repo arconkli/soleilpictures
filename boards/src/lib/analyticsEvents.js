@@ -158,6 +158,7 @@ export const EV = Object.freeze({
   APP_OPEN:                'app_open',                    // app mounted with tier loaded {tier} — session/retention marker
   CARD_PLACED:             'card_placed',                 // GENUINE card(s) placed on a board {n,kind,board_id,workspace_id,actor} — seeds excluded (see firstValueTrigger.areSeedCards); powers the admin Command Center live ticker. A placement beacon, NOT a depth metric: read depth as sum(n), and note the remix clone batch logs remix_clone instead of this (addCards suppressPlaced)
   ACTIVATED:               'activated',                   // first POPULATED board — a board crossed the genuine-card threshold {board_id,n} (the activation bar)
+  ARROW_CREATED:           'arrow_created',               // an arrow was drawn {kind:'anchored'|'free',board_id} — anchored = between two cards/groups, free = dragged on empty canvas. The Arrow tool holds one of eight PRIMARY rail slots and emitted nothing whatsoever: arrows aren't cards, so card_placed never sees them, and no other event fired. It was the one tool in the app whose usage could not be counted at all
 
   // ── In-product engagement (breadth / depth / intent / loop / return — batched, high-signal) ──
   BOARD_OPEN:              'board_open',                  // opened/navigated to a board {board_id,depth,is_subboard}
