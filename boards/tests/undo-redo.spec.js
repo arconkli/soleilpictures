@@ -165,6 +165,11 @@ test.describe('Phase-0 undo hardening (source guard)', () => {
     // The pane's own bar is gone — two boards must not mean two toolbars.
     expect(app).not.toMatch(/className="split-bar"/);
     expect(app).not.toMatch(/split-bar-x/);
+    // …but the pane still has a way out. Removing the bar removed the only
+    // close that was ON the thing being closed, leaving a topbar icon whose
+    // meaning flips — technically a close button, not a findable one.
+    expect(app).toMatch(/className="split-pane-close"/);
+    expect(read('src/styles.css')).toMatch(/\.split-pane-close\s*\{/);
     // The topbar's breadcrumb, back/forward and the sidebar highlight all
     // resolve through the active pane rather than hardcoding the main stack.
     expect(app).toMatch(/const toolbarPane = /);

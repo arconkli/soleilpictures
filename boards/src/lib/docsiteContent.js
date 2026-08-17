@@ -11837,7 +11837,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the right pane's bar, or the same topbar button."
+     "v": " at the top-right of that pane, or the same topbar button."
     }
    ]
   },

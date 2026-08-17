@@ -5764,12 +5764,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     })();
     return (
       <div className={`surface-wrap ${isMain ? '' : 'is-split'}`}>
-        {/* No bar of its own. The pane used to carry a breadcrumb and a close
-            button, which read as a second toolbar stacked under the real one —
-            two boards, two bars, and no clue which one the topbar meant. The
-            topbar now follows the active pane (see toolbarPane) and its ⧉
-            button closes the split, so this side needs no chrome; the gold
-            edge on .split-pane.is-active says which one you're in. */}
+        {/* No BAR of its own — that read as a second toolbar under the real
+            one. But the pane still needs a way out, and the topbar's ⧉ is a
+            small icon on the far side of the window whose meaning flips
+            depending on whether a split is open: technically a close button,
+            not a findable one. So the close stays on the pane it closes, as a
+            single floating control rather than a strip of chrome. */}
+        {!isMain && (
+          <button className="split-pane-close" title="Close split view"
+                  aria-label="Close split view"
+                  onClick={() => setSplitId(null)}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
+                 stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <path d="M3.5 3.5 L10.5 10.5 M10.5 3.5 L3.5 10.5" />
+            </svg>
+          </button>
+        )}
         <SurfaceErrorBoundary>{surfaceJsx}</SurfaceErrorBoundary>
         {/* Loading overlay while the Y.Doc is hydrating. Keeps the page feeling
             alive during the boot window where CanvasSurface mounts but holds

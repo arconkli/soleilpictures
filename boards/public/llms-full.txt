@@ -1493,7 +1493,7 @@ Two clusters can be open at once, in a split view with a draggable divider.
 The ⧉ Pin alongside button in the topbar
 ⌘K → "Open split view"
 
-Then pick the cluster for the right-hand side. Close it with the × in the right pane's bar, or the same topbar button.
+Then pick the cluster for the right-hand side. Close it with the × at the top-right of that pane, or the same topbar button.
 
 Each side navigates itself. Opening a nested cluster on the right moves the right side only — the left stays where it was. The same holds for what you drop, link and edit: it lands on the side you did it on.
 
