@@ -14106,42 +14106,33 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   0%, 100% { opacity: 0.55; transform: scale(0.94); }
   50%      { opacity: 1;    transform: scale(1.06); }
 }
-.split-bar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 6px 12px;
-  border-bottom: 1px solid var(--line-1);
-  background: var(--bg-1);
-  font-family: var(--font-sans);
-  font-size: 11.5px;
-  color: var(--ink-2);
-  flex-shrink: 0;
+/* .split-bar is GONE. A split pane carried its own bar with a breadcrumb and
+   a close button, which read as a second toolbar under the real one — two
+   boards, two bars, and nothing saying which board the topbar meant. The
+   topbar now follows the active pane and its ⧉ closes the split; the docked
+   document's own header carries its title and ×. The rules stayed behind in
+   the public viewer (.public-canvas-host) and the clean-mode hide list, which
+   are harmless no-ops, so they are left rather than chased.
+
+   What replaces it: a gold inside edge on whichever pane is active. Gold is
+   reserved for active/selection/focus (house rule) and this is exactly that —
+   with the bars gone it is the only thing telling you which side the
+   breadcrumb, the back button and the sidebar highlight are describing. Inset
+   rather than a border so the pane's geometry does not shift when focus moves,
+   which would nudge the canvas by a pixel on every click. */
+.split-pane.is-active { position: relative; }
+.split-pane.is-active::after {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  box-shadow: inset 0 0 0 1px var(--soleil);
+  opacity: .55;
+  transition: opacity var(--dur-fast) var(--ease);
 }
-.split-bar-name {
-  font-weight: 600; color: var(--ink-1);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+@media (prefers-reduced-motion: reduce) {
+  .split-pane.is-active::after { transition: none; }
 }
-/* The pane's own breadcrumb trail. Reuses .crumbs/.crumb from the topbar so
-   the two trails read identically; only the sizing differs — the bar is
-   11.5px and a deep trail has to give way to the × rather than push it out. */
-.split-bar-crumbs {
-  min-width: 0; flex: 1 1 auto;
-  font-size: 11.5px;
-}
-.split-bar-crumbs .crumb {
-  padding: 2px 5px;
-  max-width: 160px;
-}
-.split-bar-crumbs .crumb.here { font-weight: 600; }
-.split-bar-x {
-  appearance: none; border: 0; background: transparent;
-  color: var(--ink-3); font-size: 16px;
-  width: 22px; height: 22px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: grid; place-items: center;
-  line-height: 1;
-}
-.split-bar-x:hover { background: var(--bg-hov); color: var(--ink-0); }
 .surface-missing {
   flex: 1 1 auto;
   display: grid; place-items: center;
@@ -14479,7 +14470,6 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   animation: none;
 }
 .surface-wrap.is-doc-pane { background: var(--bg-1); }
-.split-bar-sub { color: var(--ink-3); font-weight: 400; }
 @keyframes doc-card-modal-in {
   from { opacity: 0; transform: scale(.985); }
   to   { opacity: 1; transform: scale(1); }

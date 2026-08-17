@@ -9,7 +9,7 @@ import { pickPresenceColor } from './lib/presenceColor.js';
 import * as perf from './lib/perf.js';
 import { isEditableTarget, isEditablePointerTarget } from './lib/isEditableTarget.js';
 import { pushPane, climbPane, prunePane, restorePaneStack } from './lib/paneNav.js';
-import { setActivePane } from './lib/activePane.js';
+import { setActivePane, getActivePane, subscribeActivePane } from './lib/activePane.js';
 import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { useSharedBoards } from './hooks/useSharedBoards.js';
 import { useScrollEdges } from './hooks/useScrollEdges.js';
@@ -814,6 +814,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // pane" for the picker and the close button.
   const [splitStack, setSplitStack] = useState(() => restorePaneStack(initialSession));
   const splitId = splitStack.length ? splitStack[splitStack.length - 1] : null;
+  // Which pane the toolbar is describing. Two boards, one topbar: the
+  // breadcrumb, back/forward and the sidebar highlight all follow the pane you
+  // last touched, rather than the split growing a second toolbar of its own.
+  const [activePaneId, setActivePaneId] = useState(() => getActivePane());
+  useEffect(() => subscribeActivePane(setActivePaneId), []);
   // "Replace whatever the right pane is showing" — the picker and the close
   // button. Any docked doc goes with it: one right pane, holding one thing.
   const setSplitId = (id) => {
@@ -922,30 +927,50 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // recovers "I mis-clicked, take me back to where I was" across jumps
   // (sidebar, deep links, drill-downs). Entries are stack snapshots;
   // back/forward replay them without re-recording (silent flag).
-  const navHistRef = useRef({ entries: [], index: -1, silent: false });
-  const [navCaps, setNavCaps] = useState({ back: false, fwd: false });
-  useEffect(() => {
-    const h = navHistRef.current;
-    const key = stack.join('/');
+  //
+  // ONE history per pane. The buttons sit in the single shared topbar, so they
+  // have to act on the pane the toolbar is currently describing — a Back that
+  // always moved the left side would be the same defect as the breadcrumb that
+  // always climbed the left side.
+  const navHistRef = useRef({
+    main:  { entries: [], index: -1, silent: false },
+    split: { entries: [], index: -1, silent: false },
+  });
+  const [navCaps, setNavCaps] = useState({ main: { back: false, fwd: false }, split: { back: false, fwd: false } });
+  const recordNav = (pane, paneStack) => {
+    const h = navHistRef.current[pane];
+    const key = paneStack.join('/');
     if (h.silent) {
       h.silent = false;
     } else if (h.entries[h.index]?.key !== key) {
       h.entries = h.entries.slice(0, h.index + 1);
-      h.entries.push({ key, stack: [...stack] });
+      h.entries.push({ key, stack: [...paneStack] });
       h.index = h.entries.length - 1;
       // Unbounded history would grow forever in long sessions.
       if (h.entries.length > 100) { h.entries.shift(); h.index -= 1; }
     }
-    setNavCaps({ back: h.index > 0, fwd: h.index < h.entries.length - 1 });
-  }, [stack]);
-  const navHistGo = (dir) => {
-    const h = navHistRef.current;
+    setNavCaps(c => ({ ...c, [pane]: { back: h.index > 0, fwd: h.index < h.entries.length - 1 } }));
+  };
+  useEffect(() => { recordNav('main', stack); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [stack]);
+  // The split's history resets with the pane: closing it and pinning something
+  // else should not let Back walk into the board you were comparing an hour ago.
+  useEffect(() => {
+    if (!splitStack.length) {
+      navHistRef.current.split = { entries: [], index: -1, silent: false };
+      setNavCaps(c => ({ ...c, split: { back: false, fwd: false } }));
+      return;
+    }
+    recordNav('split', splitStack);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [splitStack]);
+  const navHistGo = (dir, pane = 'main') => {
+    const h = navHistRef.current[pane];
     const next = h.index + dir;
     if (next < 0 || next >= h.entries.length) return;
     h.index = next;
     h.silent = true;
-    setStack(h.entries[next].stack);
-    setCurrentSurface('board');
+    if (pane === 'split') setSplitStack(h.entries[next].stack);
+    else { setStack(h.entries[next].stack); setCurrentSurface('board'); }
   };
 
   // Prune recents when boards are deleted so the sidebar list stays clean.
@@ -5576,8 +5601,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // ── Render ────────────────────────────────────────────────────────────────
 
   const crumbs = stack.map(id => ({ id, name: boards[id]?.name || (id === rootBoard.id ? rootBoard.name : id) }));
-  // Same trail for the split pane, rendered in its own bar rather than the topbar.
   const splitCrumbs = splitStack.map(id => ({ id, name: boards[id]?.name || id }));
+  // The topbar describes ONE pane — the one you last touched. A split used to
+  // grow a second toolbar inside the right pane to say where that side was;
+  // one bar that follows you says it better, and says it in the place people
+  // already look. Falls back to main whenever there is no split to describe,
+  // and while a docked document owns the pane (a document has no board trail —
+  // its own header carries its name).
+  // Which pane you are actually in — drives the gold edge.
+  const focusedPane = (activePaneId === 'split' && splitId) ? 'split' : 'main';
+  // Which pane the BREADCRUMB describes. Same thing, except a docked document
+  // has no board trail of its own, so the trail keeps showing the canvas while
+  // its header carries the document's name.
+  const toolbarPane = (focusedPane === 'split' && !splitDoc) ? 'split' : 'main';
+  const activeCrumbs = toolbarPane === 'split' ? splitCrumbs : crumbs;
+  const onActiveCrumb = toolbarPane === 'split' ? goToSplit : goTo;
+  const activeNavCaps = navCaps[toolbarPane] || { back: false, fwd: false };
+  const activeBoardId = toolbarPane === 'split' ? splitId : currentId;
   const ybReadyForCurrent = Boolean(currentYDoc);
   // Hide orphan board / boardlink cards at the render layer. See the
   // long comment in the orphan-sweep section above for why we filter
@@ -5614,7 +5654,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // from: which stack an open pushes, which board a linked cluster lands on,
   // which board a view switch flips, whose permission decides `canEdit`.
   // Anything still reading `currentId` in here is a pane leak.
-  const renderSurface = ({ board, view, yb: yh, isMain, onClose, crumbs, onCrumb }) => {
+  const renderSurface = ({ board, view, yb: yh, isMain }) => {
     // Board id resolved to nothing — usually means it was just deleted and
     // the cleanup useEffects haven't popped the stack yet. Render an empty
     // pane silently; the next tick will route to a real board so the user
@@ -5724,25 +5764,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     })();
     return (
       <div className={`surface-wrap ${isMain ? '' : 'is-split'}`}>
-        {!isMain && (
-          <div className="split-bar">
-            {/* The split pane's own breadcrumb. It reuses the topbar's .crumbs
-                markup deliberately: now that this side navigates itself, it
-                needs the same way back out that the main pane has always had —
-                drilling three clusters deep with no trail is a trap. */}
-            <div className="crumbs split-bar-crumbs">
-              {(crumbs || [{ id: board.id, name: board.name }]).map((c, i, all) => (
-                <React.Fragment key={`${c.id}-${i}`}>
-                  {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
-                  <span className={`crumb ${i === all.length - 1 ? 'here' : 'clk'}`}
-                        title={c.name}
-                        onClick={() => { if (i !== all.length - 1) onCrumb?.(i); }}>{c.name}</span>
-                </React.Fragment>
-              ))}
-            </div>
-            <button className="split-bar-x" title="Close split" onClick={onClose}>×</button>
-          </div>
-        )}
+        {/* No bar of its own. The pane used to carry a breadcrumb and a close
+            button, which read as a second toolbar stacked under the real one —
+            two boards, two bars, and no clue which one the topbar meant. The
+            topbar now follows the active pane (see toolbarPane) and its ⧉
+            button closes the split, so this side needs no chrome; the gold
+            edge on .split-pane.is-active says which one you're in. */}
         <SurfaceErrorBoundary>{surfaceJsx}</SurfaceErrorBoundary>
         {/* Loading overlay while the Y.Doc is hydrating. Keeps the page feeling
             alive during the boot window where CanvasSurface mounts but holds
@@ -5781,13 +5808,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       <div className="surface-wrap is-split is-doc-pane"
            onPointerDownCapture={() => setActivePane('split')}
            onPointerEnter={() => setActivePane('split')}>
-        <div className="split-bar">
-          <span className="split-bar-name">
-            {docCard?.title || 'Untitled doc'}
-            {splitBoard ? <span className="split-bar-sub"> · {splitBoard.name}</span> : null}
-          </span>
-          <button className="split-bar-x" title="Close document" onClick={closeSplitDoc}>×</button>
-        </div>
+        {/* No bar here either: DocCardOverlay's own header already carries the
+            document's title and its close button, so this was the same title
+            and the same × twice over. */}
         <SurfaceErrorBoundary>
           {docCard && cardYMap ? (
             <Suspense fallback={<div className="doc-surface-skeleton" aria-hidden="true" />}>
@@ -5973,14 +5996,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           <div className="sb-list" ref={sidebarScrollRef}>
           <SidebarSharedBoards
             shared={sharedRoots}
-            activeBoardId={currentSurface === 'board' ? currentId : null}
+            activeBoardId={currentSurface === 'board' ? activeBoardId : null}
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
           />
 
           <SidebarBoardsSection
             boards={boards}
             workspaceId={workspace.id}
-            activeBoardId={currentSurface === 'board' ? currentId : null}
+            activeBoardId={currentSurface === 'board' ? activeBoardId : null}
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
             onShareBoard={openShareForBoard}
             onRenameBoard={renameBoardById}
@@ -6101,18 +6124,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             </button>
             <span className="tb-brand-sep" aria-hidden="true" />
             <button className="tb-icon" title="Back" aria-label="Back"
-                    disabled={!navCaps.back} onClick={() => navHistGo(-1)}>
+                    disabled={!activeNavCaps.back} onClick={() => navHistGo(-1, toolbarPane)}>
               <Icon as={ChevronLeft} size={15} />
             </button>
             <button className="tb-icon" title="Forward" aria-label="Forward"
-                    disabled={!navCaps.fwd} onClick={() => navHistGo(1)}>
+                    disabled={!activeNavCaps.fwd} onClick={() => navHistGo(1, toolbarPane)}>
               <Icon as={ChevronRight} size={15} />
             </button>
-            <div className="crumbs" data-tour="nav">
-              {crumbs.map((c, i) => (
+            {/* The trail for whichever pane you last touched — see toolbarPane. */}
+            <div className={`crumbs${toolbarPane === 'split' ? ' is-split-pane' : ''}`} data-tour="nav"
+                 data-pane={toolbarPane}>
+              {activeCrumbs.map((c, i) => (
                 <React.Fragment key={`${c.id}-${i}`}>
                   {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
-                  <span className={`crumb ${i === crumbs.length - 1 ? 'here' : 'clk'}`} title={c.name} onClick={() => goTo(i)}>{c.name}</span>
+                  <span className={`crumb ${i === activeCrumbs.length - 1 ? 'here' : 'clk'}`}
+                        title={c.name} onClick={() => onActiveCrumb(i)}>{c.name}</span>
                 </React.Fragment>
               ))}
             </div>
@@ -6245,11 +6271,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             ratio={splitId ? splitRatio : 1}
             onRatio={setSplitRatio}
             showSplit={!!splitId}
+            activePane={focusedPane}
             left={renderSurface({ board: currentBoard, view, yb, isMain: true })}
             right={!splitId ? null : splitDoc ? renderSplitDoc() : renderSurface({
-              board: splitBoard, view: splitView, yb: splitYb,
-              onClose: () => setSplitId(null), isMain: false,
-              crumbs: splitCrumbs, onCrumb: goToSplit,
+              board: splitBoard, view: splitView, yb: splitYb, isMain: false,
             })}
           />
         )}
@@ -6540,7 +6565,7 @@ function AppTrieProvider({ workspaceId, children }) {
 // container structure stays identical, so the left pane's React subtree
 // doesn't unmount when split is toggled (critical for keeping doc-card
 // modals open across split toggles).
-function SplitContainer({ left, right, ratio = 0.5, onRatio, showSplit = true }) {
+function SplitContainer({ left, right, ratio = 0.5, onRatio, showSplit = true, activePane = 'main' }) {
   const wrapRef = React.useRef(null);
   const onPointerDown = (e) => {
     e.preventDefault();
@@ -6560,10 +6585,17 @@ function SplitContainer({ left, right, ratio = 0.5, onRatio, showSplit = true })
   };
   return (
     <div className="split-wrap" ref={wrapRef}>
-      <div className="split-pane" style={{ flex: showSplit ? ratio : 1 }}>{left}</div>
+      {/* is-active marks the pane the single topbar is describing. Gold is the
+          app's active/focus colour (house rule), and with the per-pane bars
+          gone it is the only thing telling you which side the breadcrumb, the
+          back button and the sidebar highlight are talking about. Never marked
+          when there is no split — one pane needs no disambiguating. */}
+      <div className={`split-pane${showSplit && activePane === 'main' ? ' is-active' : ''}`}
+           style={{ flex: showSplit ? ratio : 1 }}>{left}</div>
       {showSplit && <div className="split-divider" onPointerDown={onPointerDown} />}
       {showSplit && (
-        <div className="split-pane" style={{ flex: 1 - ratio }}>{right}</div>
+        <div className={`split-pane${activePane === 'split' ? ' is-active' : ''}`}
+             style={{ flex: 1 - ratio }}>{right}</div>
       )}
     </div>
   );

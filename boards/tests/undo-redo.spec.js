@@ -160,6 +160,24 @@ test.describe('Phase-0 undo hardening (source guard)', () => {
     expect(app).not.toMatch(/canEdit=\{isMain \? canEditCurrent : true\}/);
   });
 
+  test('a split has ONE toolbar, and it follows the active pane', () => {
+    const app = read('src/App.jsx');
+    // The pane's own bar is gone — two boards must not mean two toolbars.
+    expect(app).not.toMatch(/className="split-bar"/);
+    expect(app).not.toMatch(/split-bar-x/);
+    // The topbar's breadcrumb, back/forward and the sidebar highlight all
+    // resolve through the active pane rather than hardcoding the main stack.
+    expect(app).toMatch(/const toolbarPane = /);
+    expect(app).toMatch(/const activeCrumbs = toolbarPane === 'split' \? splitCrumbs : crumbs/);
+    expect(app).toMatch(/activeCrumbs\.map\(/);
+    expect(app).toMatch(/navHistGo\(-1, toolbarPane\)/);
+    expect(app).toMatch(/navHistGo\(1, toolbarPane\)/);
+    expect(app).toMatch(/activeBoardId=\{currentSurface === 'board' \? activeBoardId : null\}/);
+    // …and the toolbar can only follow the pane if a pane change re-renders.
+    expect(app).toMatch(/subscribeActivePane/);
+    expect(read('src/lib/activePane.js')).toMatch(/export function subscribeActivePane/);
+  });
+
   test('the in-pane doc keeps its position override (cascade guard)', () => {
     // A docked doc renders IN FLOW inside the split pane. The layering audit
     // near the bottom of styles.css re-asserts `.doc-card-modal { position:

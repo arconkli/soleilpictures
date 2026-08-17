@@ -11856,7 +11856,26 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " Opening a nested cluster on the right moves the right side only — the left stays where it was — and each side keeps its own breadcrumb trail to climb back out. The same holds for what you drop, link and edit: it lands on the side you did it on."
+     "v": " Opening a nested cluster on the right moves the right side only — the left stays where it was. The same holds for what you drop, link and edit: it lands on the side you did it on."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "One toolbar, and it follows you.",
+     "children": [
+      {
+       "t": "text",
+       "v": "One toolbar, and it follows you."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " There is no second bar inside the split. The breadcrumb at the top always describes the side you last clicked into, so it is where you go to see where you are and to climb back a level; Back and Forward move that side too, and the sidebar highlights that side's cluster. The active side is outlined in gold."
     }
    ]
   },
