@@ -16,20 +16,19 @@
 // the per-user seconds_in_app column only accrues when a user_id is present.
 
 import { supabase } from './supabase.js';
+import { getAppSessionId } from './appSession.js';
 
 const SAMPLE_MS = 5_000;            // accumulate active time in ~5s slices
 const FLUSH_MS = 60_000;            // send accumulated seconds ~once a minute
 const IDLE_MS = 60_000;            // no interaction for this long → idle (no credit)
 const MAX_SLICE_MS = SAMPLE_MS * 3; // cap a slice so a throttled timer can't over-credit
 const ACTIVITY_THROTTLE_MS = 1_000; // updating lastActivityAt at most ~1/s is plenty
-const SESSION_STORAGE_KEY = 'sb_heartbeat_session_id';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const PUBLIC_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
                 || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 let started = false;
-let sessionId = null;
 let lastActivityAt = 0;   // ms — last real interaction
 let lastSampleAt = 0;     // ms — last sampler tick
 let activeMs = 0;         // accumulated, not-yet-flushed active milliseconds
@@ -37,22 +36,18 @@ let lastActivityWrite = 0;// throttle guard for the activity listeners
 let cachedToken = null;   // most recent access token (for the unload keepalive flush)
 let cachedUid = null;     // most recent user id
 
+// The heartbeat used to mint its OWN never-rotating id
+// ('sb_heartbeat_session_id'), unrelated to the one analytics_events carried.
+// That meant time-in-app and events could not be joined: neither id identified
+// a session, and they weren't even the same id. Both now come from
+// appSession.js, so "this session lasted 12 minutes and produced these events"
+// is a single query.
+//
+// A rotation also resets the server's 60s-per-60s rate window, which is right:
+// a new session should get its own budget, and the cap was never a security
+// boundary — a client could always mint a fresh uuid.
 function ensureSessionId() {
-  if (sessionId) return sessionId;
-  if (typeof localStorage === 'undefined') return null;
-  try {
-    let id = localStorage.getItem(SESSION_STORAGE_KEY);
-    if (!id) {
-      id = (typeof crypto !== 'undefined' && crypto.randomUUID)
-        ? crypto.randomUUID()
-        : ('00000000-0000-4000-8000-' + Math.random().toString(16).slice(2, 14).padStart(12, '0'));
-      try { localStorage.setItem(SESSION_STORAGE_KEY, id); } catch (_) {}
-    }
-    sessionId = id;
-    return id;
-  } catch (_) {
-    return null;
-  }
+  try { return getAppSessionId(); } catch (_) { return null; }
 }
 
 function markActivity() {

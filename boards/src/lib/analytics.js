@@ -18,6 +18,12 @@ import { supabase } from './supabase.js';
 import { setErrorUser } from './errorReporting.js';
 import { getDeviceInfo } from './device.js';
 import { isAnyQaMode } from './localMode.js';
+import { touchAppSession, noteAuthChange, persistAppSession } from './appSession.js';
+import { BUILD_SHA } from './buildInfo.js';
+import {
+  FLUSH_INTERVAL_MS, MAX_QUEUE, MAX_BATCH, MAX_BEACON_BYTES, MAX_ROW_AGE_MS,
+  beaconChunks, backoffFor, pruneStale, capQueue, partitionRetries, wireRow,
+} from './analyticsQueue.js';
 
 const SESSION_KEY     = 'soleil_session_id';
 const SOURCE_KEY      = 'soleil_first_source';   // sessionStorage — first-touch acquisition
@@ -269,6 +275,11 @@ async function primeEnrolledExperiments() {
   } catch (_) {}
 }
 
+// The DEVICE id. Named "session" for historical reasons and deliberately left
+// that way: it is minted once and never rotates, which is exactly what makes it
+// a durable stitch between a visitor's pre-auth funnel and the account they
+// later create, and 90 days of RPCs read it with that meaning. It is not a
+// session — see appSession.js for the one that is. Rows now carry both.
 function getSessionId() {
   if (typeof localStorage === 'undefined') return null;
   try {
@@ -300,14 +311,30 @@ async function getCurrentUserId() {
 // Keep cachedUserId in sync with sign-in / sign-out so we don't keep
 // attributing post-signin events to null. Also stamps the first-touch
 // acquisition source onto profiles the first time a user signs in.
+// Identity changing ends a session — but this callback also fires for token
+// refreshes and for the initial restore of an already-signed-in user, and
+// rotating on either would mean a new "session" on every page load and every
+// hour. So rotate only on a genuine change of user id, and never on the first
+// callback, which is the app learning who was already here.
+let authSettled = false;
 if (supabase) {
   try {
     supabase.auth.onAuthStateChange((_event, session) => {
-      cachedUserId = session?.user?.id ?? null;
+      const nextUserId = session?.user?.id ?? null;
+      const identityChanged = authSettled && nextUserId !== cachedUserId;
+      authSettled = true;
+      cachedUserId = nextUserId;
       cachedAccessToken = session?.access_token ?? null;
       userIdResolved = true;
       // Attribute first-party error logs to the signed-in user by id (no PII).
       setErrorUser(cachedUserId);
+      if (identityChanged) {
+        // Beacon what the outgoing identity produced before the id rotates,
+        // otherwise those rows inherit the new session and the sign-in boundary
+        // is lost.
+        try { flushBeacon(); } catch (_) {}
+        try { noteAuthChange(); } catch (_) {}
+      }
       if (session?.user?.id) { stampFirstSourceIfNeeded(); primeEnrolledExperiments(); }
     });
   } catch (_) {}
@@ -316,6 +343,40 @@ if (supabase) {
 // Refresh last-touch acquisition on every page-load (persists to localStorage),
 // independent of auth so anon landings still record their latest click.
 if (typeof window !== 'undefined') { try { getLastSource(); } catch (_) {} }
+
+// ── Ambient context ────────────────────────────────────────────────────
+// Where the user is and who they are, merged into every event the same way
+// device class and experiment arms already are.
+//
+// Without this, dimensions have to be threaded through each call site by hand,
+// and they mostly aren't: search_run carries only {has_results}, card_edit only
+// {kind, board_id}. That makes "which surface do people abandon" or "do paid
+// users behave differently" unanswerable without editing hundreds of files.
+// One setter, updated by App.jsx on board open and route change, fixes it for
+// every event at once — including ones that already exist.
+//
+// Caller-supplied props always win, so a call site that knows better still does.
+
+const ctx = { board_id: null, surface: null, tier: null };
+
+/**
+ * Merge fields into the ambient context. Pass null to clear one.
+ * Unknown keys are ignored so a typo can't quietly widen the envelope.
+ */
+export function setAnalyticsContext(next) {
+  if (!next || typeof next !== 'object') return;
+  for (const k of ['board_id', 'surface', 'tier']) {
+    if (k in next) ctx[k] = next[k] == null ? null : String(next[k]).slice(0, 64);
+  }
+}
+
+export function getAnalyticsContext() { return { ...ctx }; }
+
+// The build this event came from, so a regression can be pinned to a release —
+// the same stamp the Worker serves at /api/build-info and the SEO drift check
+// compares against. 'dev' means an unstamped local build; it is dropped rather
+// than stored so the column stays meaningful.
+const BUILD = BUILD_SHA && BUILD_SHA !== 'dev' && BUILD_SHA !== 'unknown' ? BUILD_SHA : null;
 
 // ── Batched, redirect-safe delivery ────────────────────────────────────
 // Maximal instrumentation means many small events (scroll/field/dwell), and
@@ -329,12 +390,90 @@ if (typeof window !== 'undefined') { try { getLastSource(); } catch (_) {} }
 const REST_URL   = (import.meta.env.VITE_SUPABASE_URL || '') + '/rest/v1/analytics_events';
 const PUBLIC_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
                 || import.meta.env.VITE_SUPABASE_ANON_KEY;
-const FLUSH_INTERVAL_MS = 5000;
-const MAX_QUEUE = 100;   // hard cap — drop oldest beyond this (never grow unbounded)
-const MAX_BATCH = 50;    // rows per array insert
+// Delivery rules (batching, backoff, chunking, ageing) live in analyticsQueue.js
+// so they can be unit-tested without a bundler — this file can't be imported in
+// plain node because the supabase client reads import.meta.env.
+
+// Persisted per TAB, not per origin. A single shared key would have concurrent
+// tabs overwriting each other's queues on every save; sessionStorage gives each
+// tab a stable id that survives its own reloads, and orphaned keys left by a
+// tab that never came back are adopted by the next one (see adoptOrphans).
+const QUEUE_PREFIX = 'soleil_analytics_q:';
+const TAB_KEY = 'soleil_analytics_tab';
 
 let queue = [];
 let flushTimer = null;
+let failures = 0;        // consecutive flush failures, drives the backoff
+let dropped = 0;         // rows lost since the last successful report
+let reportingDrop = false;
+
+function tabId() {
+  try {
+    if (typeof sessionStorage === 'undefined') return null;
+    let id = sessionStorage.getItem(TAB_KEY);
+    if (!id) {
+      id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      sessionStorage.setItem(TAB_KEY, id);
+    }
+    return id;
+  } catch (_) { return null; }
+}
+
+function saveQueue() {
+  const id = tabId();
+  if (!id || typeof localStorage === 'undefined') return;
+  try {
+    if (queue.length === 0) { localStorage.removeItem(QUEUE_PREFIX + id); return; }
+    localStorage.setItem(QUEUE_PREFIX + id, JSON.stringify({ savedAt: Date.now(), rows: queue }));
+  } catch (_) {
+    // Quota or private mode. In-memory delivery still works; we just lose the
+    // crash-survival guarantee, which is strictly better than throwing.
+  }
+}
+
+function freshRows(rows) {
+  const { kept, dropped: n } = pruneStale(rows, Date.now(), MAX_ROW_AGE_MS);
+  dropped += n;
+  return kept;
+}
+
+// Reclaim this tab's own queue (a reload or a crash-restore), then adopt any
+// left behind by tabs that are gone. Without the sweep, a browser crash with
+// three tabs open would strand two queues forever.
+function restoreQueue() {
+  if (typeof localStorage === 'undefined') return;
+  const id = tabId();
+  const orphanCutoff = Date.now() - 10 * 60 * 1000;
+  const takeable = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(QUEUE_PREFIX)) continue;
+      const mine = id && key === QUEUE_PREFIX + id;
+      let parsed = null;
+      try { parsed = JSON.parse(localStorage.getItem(key) || 'null'); } catch (_) { /* corrupt */ }
+      // Unparseable and not ours: nothing to adopt, but it would otherwise sit
+      // in storage forever. Claim it so it gets removed below.
+      const stranded = !parsed;
+      const staleOrphan = parsed && parsed.savedAt < orphanCutoff;
+      if (!mine && !staleOrphan && !stranded) continue;   // a live sibling tab — leave it alone
+      takeable.push(key);
+      if (parsed) queue.push(...freshRows(parsed.rows));
+    }
+    for (const key of takeable) localStorage.removeItem(key);
+  } catch (_) { /* enumeration is best-effort */ }
+  applyCap();
+  if (queue.length && !flushTimer) flushTimer = setTimeout(flush, FLUSH_INTERVAL_MS);
+}
+
+// Enforce the ceiling, counting whatever it discards so the loss can surface as
+// telemetry_drop rather than vanishing.
+function applyCap() {
+  const capped = capQueue(queue, MAX_QUEUE);
+  dropped += capped.dropped;
+  queue = capped.kept;
+}
 
 function buildRow(name, props) {
   const source = getFirstSource();
@@ -362,8 +501,22 @@ function buildRow(name, props) {
   // test run can never again be mistaken for demand. Always false in a
   // production build.
   if (isAnyQaMode()) merged.synthetic = true;
+  // Ambient context: where they are, what they're paying, which build. Merged
+  // last and never over caller props, so an explicit board_id at the call site
+  // still wins over the one the app happens to have open.
+  if (merged.board_id === undefined && ctx.board_id) merged.board_id = ctx.board_id;
+  if (merged.surface  === undefined && ctx.surface)  merged.surface  = ctx.surface;
+  if (merged.tier     === undefined && ctx.tier)     merged.tier     = ctx.tier;
+  if (merged.build    === undefined && BUILD)        merged.build    = BUILD;
+  // Advancing the session clock here means every event keeps it alive, so the
+  // 30-minute idle window measures real inactivity rather than time since load.
+  const sess = touchAppSession();
+  if (merged.session_seq === undefined) merged.session_seq = sess.seq;
   return {
     session_id:  getSessionId(),
+    // The real session, beside the device id above. Rotates on idle, on
+    // sign-in/out, and at the UTC day boundary — see appSession.js.
+    app_session_id: sess.id,
     user_id:     cachedUserId,   // best-effort; backfilled at flush if it resolves late
     event:       name,
     props:       merged,
@@ -376,8 +529,21 @@ function buildRow(name, props) {
 
 function enqueue(row) {
   queue.push(row);
-  if (queue.length > MAX_QUEUE) queue.splice(0, queue.length - MAX_QUEUE);  // drop oldest
+  applyCap();
+  saveQueue();
   if (!flushTimer) flushTimer = setTimeout(flush, FLUSH_INTERVAL_MS);
+}
+
+// Loss used to be invisible: the queue silently dropped its oldest rows and a
+// rejected batch vanished, so an instrumentation outage looked exactly like a
+// quiet week. Report it as an event of its own, once the pipe is healthy again.
+function reportDropped() {
+  if (dropped <= 0 || reportingDrop) return;
+  const n = dropped;
+  dropped = 0;
+  reportingDrop = true;
+  try { enqueue(buildRow('telemetry_drop', { n })); } catch (_) {}
+  reportingDrop = false;
 }
 
 async function flush() {
@@ -385,24 +551,40 @@ async function flush() {
   if (!supabase || queue.length === 0) return;
   const batch = queue.splice(0, MAX_BATCH);
   if (cachedUserId) for (const r of batch) if (r.user_id == null) r.user_id = cachedUserId;
+
+  let failed = false;
   try {
-    await supabase.from('analytics_events').insert(batch);   // one round-trip per batch
+    // supabase-js RESOLVES with { error } on an HTTP failure rather than
+    // throwing, so the old bare catch never fired and every rejected batch was
+    // lost without a trace. Check the returned error, not just exceptions.
+    const { error } = await supabase.from('analytics_events').insert(batch.map(wireRow));
+    failed = !!error;
   } catch (_) {
-    // Re-queue (front) on failure, capped — a blip shouldn't lose data, but
-    // volume safety wins over completeness. Never throws into the UI.
-    queue = [...batch, ...queue].slice(0, MAX_QUEUE);
+    failed = true;
   }
-  if (queue.length > 0 && !flushTimer) flushTimer = setTimeout(flush, FLUSH_INTERVAL_MS);
+
+  if (failed) {
+    const { retry, exhausted } = partitionRetries(batch);
+    dropped += exhausted;
+    queue = [...retry, ...queue];   // failed rows go back to the front, in order
+    applyCap();
+    failures++;
+  } else {
+    failures = 0;
+    reportDropped();
+  }
+
+  saveQueue();
+  if (queue.length > 0 && !flushTimer) {
+    flushTimer = setTimeout(flush, backoffFor(failures));
+  }
 }
 
 // Unload/redirect-safe flush. keepalive fetch survives navigation AND can set
 // the apikey/authorization headers PostgREST needs; sendBeacon (header-less,
 // ?apikey= in the URL, anon-only) is the last-ditch fallback.
-function flushBeacon() {
-  if (!supabase || queue.length === 0) return;
-  const batch = queue.splice(0, MAX_QUEUE);
-  if (cachedUserId) for (const r of batch) if (r.user_id == null) r.user_id = cachedUserId;
-  const body = JSON.stringify(batch);   // PostgREST bulk-inserts a JSON array
+function postBeacon(rows) {
+  const body = JSON.stringify(rows.map(wireRow));   // PostgREST bulk-inserts a JSON array
   try {
     fetch(REST_URL, {
       method: 'POST',
@@ -423,6 +605,22 @@ function flushBeacon() {
       );
     } catch (_) {}
   }
+}
+
+function flushBeacon() {
+  // The session record is in memory between throttled writes; unload is the
+  // last chance to make it durable, or a reload starts a phantom new session.
+  try { persistAppSession(); } catch (_) {}
+  if (!supabase || queue.length === 0) return;
+  const batch = queue.splice(0, MAX_QUEUE);
+  if (cachedUserId) for (const r of batch) if (r.user_id == null) r.user_id = cachedUserId;
+
+  // Chunk under the keepalive body cap. One oversized POST is dropped whole and
+  // without warning, which is how a trace-heavy session loses everything it
+  // recorded at exactly the moment it has the most to say.
+  for (const chunk of beaconChunks(batch, MAX_BEACON_BYTES)) postBeacon(chunk);
+
+  saveQueue();   // the queue is empty now — clears this tab's persisted copy
 }
 
 // Unchanged signature — now enqueues. Never throws into the UI.
@@ -463,3 +661,7 @@ if (typeof document !== 'undefined') {
 // Prime the user-id / access-token cache so early (pre-interaction) events
 // attribute to the signed-in user instead of waiting for the first flush.
 if (supabase) { try { getCurrentUserId(); } catch (_) {} }
+
+// Reclaim anything a previous load (or a crashed sibling tab) left behind.
+// Runs last so the flush timer it may start finds the module fully built.
+if (typeof window !== 'undefined') { try { restoreQueue(); } catch (_) {} }
