@@ -34,7 +34,6 @@ import { ScreenplaySceneNav } from './ScreenplaySceneNav.jsx';
 import { DocFindReplace } from './DocFindReplace.jsx';
 import { DocStatusFooter } from './DocStatusFooter.jsx';
 import { DocBoardEmbedPicker } from './DocBoardEmbedPicker.jsx';
-import { DocLinkPicker } from './DocLinkPicker.jsx';
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 const RAILS_KEY = 'soleil.boards.docRails';
@@ -345,17 +344,12 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     setEmbedPickerOpen(true);
   };
 
-  // Link picker — same modal handles ⌘K + the bubble-menu link button. Two
-  // tabs: URL or Bookmark (cross-doc anchor link).
-  const [linkPicker, setLinkPicker] = useState(null); // { initialUrl, onPick, onRemove }
-  const requestLink = (editor) => {
-    const initialUrl = editor.getAttributes('link').href || '';
-    setLinkPicker({
-      initialUrl,
-      onPick: (href) => editor.chain().focus().extendMarkRange('link').setLink({ href }).run(),
-      onRemove: () => editor.chain().focus().extendMarkRange('link').unsetLink().run(),
-    });
-  };
+  // (A DocLinkPicker URL/bookmark modal used to be declared here but was
+  // never reachable — DocPageEditor ignored onRequestLink, and its onPick
+  // called setLink/unsetLink, commands this schema doesn't have (links are
+  // LinkMark: setLinkMark/unsetLinkMark). ⌘K and the toolbar link button go
+  // through DocPageEditor's EntityPicker, which is the real link surface.
+  // Deleted rather than wired: dead code that LOOKED like a feature.)
 
   // ⌘F opens find. ⌘⇧F also opens find (legacy macOS Pages-style).
   // ⌘+ / ⌘- / ⌘0 zoom in / out / reset (when the cursor is in this doc).
@@ -871,7 +865,6 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 onEditorReady={onEditorReady}
                 onEditorDestroy={onEditorDestroy}
                 onEditorFocus={onEditorFocus}
-                onRequestLink={requestLink}
                 awareness={awareness}
                 onNavigateTarget={handleNavigateTarget}
                 registerOpenLinkPicker={registerOpenLinkPicker}
@@ -900,16 +893,6 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
           boards={boards}
           onPick={(picked) => { embedPickedRef.current?.(picked); embedPickedRef.current = null; }}
           onClose={() => { setEmbedPickerOpen(false); embedPickedRef.current = null; }}
-        />
-      )}
-      {linkPicker && (
-        <DocLinkPicker
-          initialUrl={linkPicker.initialUrl}
-          boards={boards}
-          currentBoardId={board.id}
-          onPick={linkPicker.onPick}
-          onRemove={linkPicker.onRemove}
-          onClose={() => setLinkPicker(null)}
         />
       )}
 

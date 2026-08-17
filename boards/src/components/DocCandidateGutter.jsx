@@ -32,6 +32,9 @@ export function DocCandidateGutter({ editor, editable, onConfirm, onDismiss }) {
       const wrap = editor.view.dom.closest('.doc-editor-wrap');
       const wrapRect = wrap?.getBoundingClientRect();
       if (!wrapRect) { setItems([]); return; }
+      // Client px → layout px (this gutter is inside the zoomed wrap; see
+      // CommentGutter for the full note).
+      const z = (wrap.offsetWidth ? wrapRect.width / wrap.offsetWidth : 1) || 1;
       const nodes = editor.view.dom.querySelectorAll('.tt-candidate');
       const seen = new Set();
       const els = new Map();
@@ -52,7 +55,7 @@ export function DocCandidateGutter({ editor, editable, onConfirm, onDismiss }) {
           count: Number(el.getAttribute('data-count')) || 0,
           sample: el.getAttribute('data-sample') || '',
           entityType: el.getAttribute('data-type') || null,
-          top: rect.top - wrapRect.top,
+          top: (rect.top - wrapRect.top) / z,
         });
       }
       elsRef.current = els;

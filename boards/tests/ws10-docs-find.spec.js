@@ -29,6 +29,44 @@ test('docs Find: Escape closes and returns focus to the editor', async ({ page }
   expect(await page.evaluate(() => window.__soleilDocTest.editor.getText())).toContain('Z');
 });
 
+test('docs Find matches a word that straddles a mark boundary', async ({ page }) => {
+  await openDocEditor(page);
+  // "hello" with the first half bold: two adjacent text nodes. The old
+  // per-text-node scan could never match across the boundary.
+  await page.evaluate(() => {
+    window.__soleilDocTest.editor.chain().focus()
+      .insertContent('<p><strong>hel</strong>lo world</p>').run();
+  });
+  await page.keyboard.press('ControlOrMeta+f');
+  await page.locator('.doc-find-input').first().click();
+  await page.keyboard.type('hello');
+  await expect(page.locator('.doc-find-count')).toContainText('/1');
+  await expect(page.locator('.doc-card-modal .doc-find-hit')).toHaveCount(2); // one per mark segment
+});
+
+test('docs Replace One advances when the replacement contains the query', async ({ page }) => {
+  await openDocEditor(page);
+  await page.evaluate(() => {
+    window.__soleilDocTest.editor.chain().focus()
+      .insertContent('<p>cat one cat two cat three</p>').run();
+  });
+  await page.keyboard.press('ControlOrMeta+f');
+  await page.locator('.doc-find-input').first().click();
+  await page.keyboard.type('cat');
+  await expect(page.locator('.doc-find-count')).toContainText('/3');
+  await page.locator('.doc-find-btn[aria-label="Toggle replace"]').click();
+  await page.locator('.doc-find-input').nth(1).click();
+  await page.keyboard.type('cats');
+  // Three "One" clicks must walk the document — the old clamp re-replaced the
+  // same spot forever ("catsss").
+  const one = page.locator('.doc-find-btn', { hasText: 'One' });
+  await one.click();
+  await one.click();
+  await one.click();
+  await expect.poll(async () => page.evaluate(() => window.__soleilDocTest.editor.getText()))
+    .toContain('cats one cats two cats three');
+});
+
 test('docs Find finds every match across a paginated page', async ({ page }) => {
   await openDocEditor(page);
   // Reflow model: one fragment that paginates. Put two matches far apart (they
