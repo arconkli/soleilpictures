@@ -13,7 +13,7 @@ function schedExpandOf(card, ydoc) {
   if (mm && typeof mm.get === 'function') return mm.get('expand') || {};
   return card?.gridMeta?.expand || {};
 }
-import { isEditableTarget } from '../lib/isEditableTarget.js';
+import { isEditableTarget, isEditablePointerTarget } from '../lib/isEditableTarget.js';
 import { setActivePane, getActivePane } from '../lib/activePane.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
 import { getDocUndoTarget } from '../lib/overlayRouting.js';
@@ -340,8 +340,13 @@ const cmdKey = isMac ? '⌘' : 'Ctrl';
 
 // Shared canonical "is the user typing in an editor?" guard (see
 // lib/isEditableTarget.js). Aliased to the historical name used throughout
-// this file's keyboard / paste / pointer guards.
+// this file's keyboard / paste guards.
 const isEditorTarget = isEditableTarget;
+// The POINTER form. Clicks and double-clicks carry a real target, so they ask
+// "did this land in an editor" — never "is the caret somewhere in an editor".
+// Using the focus-aware guard here froze the canvas whenever a docked document
+// held the caret: every click returned early and nothing opened.
+const isEditorPointerTarget = isEditablePointerTarget;
 
 // A snap-guide measurement readout (gap / equal-size) rendered as a small rounded
 // "pill" inside the guide SVG layer — gold mono numerals on a dark chip with a
@@ -3863,7 +3868,7 @@ export function CanvasSurface({
       placeToolAt(clientToCanvas(e.clientX, e.clientY));
       return;
     }
-    if (isEditorTarget(e)) return;
+    if (isEditorPointerTarget(e)) return;
     if (e.target.closest?.('.editable.is-editing, .note-toolbar, .rb-swatch-pop, .ic-link, .ic-add-caption, .editable')) return;
 
     if (selectedTool === 'arrow') {
@@ -6726,7 +6731,7 @@ export function CanvasSurface({
   // For boards: only the cover area triggers open — title/meta dbl-click
   // does nothing (so accidental clicks near the title don't navigate).
   const onCardDoubleClick = (e, c) => {
-    if (isEditorTarget(e)) return;
+    if (isEditorPointerTarget(e)) return;
     if (e.target.closest && e.target.closest('.editable')) return;
     if (c.kind === 'board') {
       // Read-only viewers already navigate on single click (the !canEdit
