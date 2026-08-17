@@ -200,6 +200,49 @@ test('scene navigator lists scene headings and jumps to them', async ({ page }) 
   expect(inScene2).toContain('PARK');
 });
 
+test('scene navigator numbering matches the gutters when numbers are locked', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    // First scene carries a LOCKED number (as after an FDX import) — the
+    // engine then numbers the inserted second scene 1A, not 2.
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'scene', text: 'INT. A - DAY', sceneNumber: '1' },
+      { element: 'action', text: 'x' },
+      { element: 'scene', text: 'EXT. B - NIGHT' },
+    ]));
+  });
+  const gutter = await page.$$eval('.doc-paper.is-screenplay [data-scene-number]',
+    els => els.map(e => e.getAttribute('data-scene-number')));
+  const rail = await page.$$eval('.sp-scenenav .sp-scenenav-num', els => els.map(e => e.textContent));
+  expect(gutter).toEqual(['1', '1A']);
+  expect(rail).toEqual(gutter);   // the rail used a naive ordinal → showed 1, 2
+});
+
+test('the Dual button is a no-op when the caret is not inside a speech', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'Hello.' },
+      { element: 'character', text: 'MARY' },
+      { element: 'dialogue', text: 'Hi.' },
+      { element: 'action', text: 'They stare at each other.' },
+    ]));
+    // Caret on the ACTION line after the exchange.
+    const ed = window.__soleilDocTest.editor;
+    let pos = null;
+    ed.state.doc.descendants((node, p) => { if (node.attrs?.element === 'action') pos = p + 1; });
+    ed.chain().focus().setTextSelection(pos).run();
+  });
+  await page.locator('button[title^="Dual dialogue"]').click();
+  // The two speeches above must NOT have been silently paired.
+  await expect(page.locator('.doc-paper.is-screenplay [data-dual]')).toHaveCount(0);
+});
+
 test('the Scene # pill toggles scene numbers off and on', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);

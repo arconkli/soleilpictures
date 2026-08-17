@@ -4,6 +4,7 @@
 // refreshes on every edit.
 
 import { useEffect, useState } from 'react';
+import { computeSceneNumbers } from './docExtensions/screenplay/screenplayFlow.js';
 
 export function ScreenplaySceneNav({ editor, titlePageEnabled = false, onJumpTitlePage }) {
   const [, force] = useState(0);
@@ -14,20 +15,41 @@ export function ScreenplaySceneNav({ editor, titlePageEnabled = false, onJumpTit
     return () => { editor.off('update', tick); };
   }, [editor]);
 
+  // Numbering via the SAME engine as the gutters and the PDF
+  // (computeSceneNumbers: auto by order, or locked A/B once any scene carries
+  // a stamped number) — a naive ordinal here diverged the moment an imported
+  // FDX locked some numbers (gutters read 1, 1A, 2 while the rail read 1, 2, 3).
   const scenes = [];
   if (editor) {
-    let n = 0;
-    editor.state.doc.descendants((node, pos) => {
-      if (node.type.name === 'screenplayBlock' && node.attrs.element === 'scene') {
-        n += 1;
-        scenes.push({ num: node.attrs.sceneNumber || String(n), text: (node.textContent || '').trim() || 'Untitled scene', pos });
-      }
-      return true;
+    const blocks = [];
+    editor.state.doc.forEach((node) => {
+      const isSp = node.type.name === 'screenplayBlock';
+      blocks.push({
+        element: isSp ? (node.attrs.element || 'action') : 'action',
+        sceneNumber: isSp ? (node.attrs.sceneNumber || null) : null,
+        text: node.textContent,
+      });
+    });
+    computeSceneNumbers(blocks).forEach((num, idx) => {
+      scenes.push({ num, text: (blocks[idx].text || '').trim() || 'Untitled scene' });
     });
   }
 
-  const jump = (pos) => {
+  // Resolve the scene's CURRENT position at click time — a collaborator's edit
+  // above it since the last render would otherwise send the caret into the
+  // wrong block (render-time positions go stale silently).
+  const jump = (sceneIdx) => {
     if (!editor) return;
+    let pos = null;
+    let seen = -1;
+    editor.state.doc.descendants((node, p) => {
+      if (pos == null && node.type.name === 'screenplayBlock' && node.attrs.element === 'scene') {
+        seen += 1;
+        if (seen === sceneIdx) pos = p;
+      }
+      return pos == null;
+    });
+    if (pos == null) return;
     editor.chain().focus().setTextSelection(pos + 1).run();
     try {
       const found = editor.view.domAtPos(pos + 1);
@@ -46,7 +68,7 @@ export function ScreenplaySceneNav({ editor, titlePageEnabled = false, onJumpTit
       )}
       {scenes.length === 0 && <div className="sp-scenenav-empty">No scenes yet</div>}
       {scenes.map((s, i) => (
-        <button type="button" key={`${s.pos}:${i}`} className="sp-scenenav-item" onClick={() => jump(s.pos)} title={s.text}>
+        <button type="button" key={`${s.num}:${i}`} className="sp-scenenav-item" onClick={() => jump(i)} title={s.text}>
           <span className="sp-scenenav-num">{s.num}</span>
           <span className="sp-scenenav-text">{s.text}</span>
         </button>
