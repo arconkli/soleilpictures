@@ -43,7 +43,7 @@ export function PricingPage() {
   });
 
   useEffect(() => {
-    logEventOnce('pricing_view:page', 'pricing_view', { ...up.envelope(), surface: 'page', copy_rev: COPY_REV });
+    logEventOnce('pricing_view:page', EV.PRICING_VIEW, { ...up.envelope(), surface: 'page', copy_rev: COPY_REV });
     // Meta ViewContent — mid-funnel ad-optimization signal. Both cards default to
     // the annual plan, so report that value.
     trackViewContent({ content_name: 'Creator', value: PRICING.annual.billed, currency: 'USD' });

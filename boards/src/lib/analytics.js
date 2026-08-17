@@ -20,6 +20,10 @@ import { getDeviceInfo } from './device.js';
 import { isAnyQaMode } from './localMode.js';
 import { touchAppSession, noteAuthChange, persistAppSession } from './appSession.js';
 import { BUILD_SHA } from './buildInfo.js';
+// Safe to import: analyticsEvents.js is a leaf module with no imports of its
+// own, so there is no cycle back into this file. (An older comment here claimed
+// otherwise and used a raw literal to avoid one that doesn't exist.)
+import { EV } from './analyticsEvents.js';
 import {
   FLUSH_INTERVAL_MS, MAX_QUEUE, MAX_BATCH, MAX_BEACON_BYTES, MAX_ROW_AGE_MS,
   beaconChunks, backoffFor, pruneStale, capQueue, partitionRetries, wireRow,
@@ -223,7 +227,7 @@ async function stampFirstSourceIfNeeded() {
     } catch (e) {
       if (attempt === 0) { await new Promise((r) => setTimeout(r, 1500)); continue; }
       // Final failure: record it; leave the done-flag UNSET so a later page-load retries.
-      try { logEvent('onboarding_first_source_failed', { reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {}
+      try { logEvent(EV.ONBOARDING_FIRST_SOURCE_FAILED, { reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {}
     }
   }
   firstSourceStamping = false;

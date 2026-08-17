@@ -80,7 +80,7 @@ export function WaitlistConfirm() {
     if (!tier || tier === 'waitlist' || redirected.current) return;
     redirected.current = true;
     setAccepted(true);
-    logEventNow('waitlist_accepted_seen', { tier });
+    logEventNow(EV.WAITLIST_ACCEPTED_SEEN, { tier });
     const t = setTimeout(() => { window.location.assign('/'); }, 2200);
     return () => clearTimeout(t);
   }, [tier]);

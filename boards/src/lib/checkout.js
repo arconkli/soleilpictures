@@ -33,7 +33,7 @@ async function authedToken() {
 export async function startCheckout({ plan, surface }) {
   try {
     const token = await authedToken();
-    logEventNow('checkout_open', { plan, surface });   // must-land: redirect follows
+    logEventNow(EV.CHECKOUT_OPEN, { plan, surface });   // must-land: redirect follows
     // Thread Meta match cookies through to create-checkout-session, which stashes
     // them in the Stripe session metadata for the server-side Purchase (CAPI).
     const { fbp, fbc } = getFbCookies();
@@ -53,12 +53,12 @@ export async function startCheckout({ plan, surface }) {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);
-    if (body.mode === 'portal') logEventNow('billing_portal_open', { surface, via: 'checkout_guard' });
+    if (body.mode === 'portal') logEventNow(EV.BILLING_PORTAL_OPEN, { surface, via: 'checkout_guard' });
     window.location.assign(body.url);
   } catch (e) {
     // Surfaces paid drop-off between checkout_open and checkout_success — the
     // failed/abandoned attempts that were previously invisible in the funnel.
-    logEvent('checkout_error', { plan, surface, message: (e?.message || String(e)).slice(0, 200) });
+    logEvent(EV.CHECKOUT_ERROR, { plan, surface, message: (e?.message || String(e)).slice(0, 200) });
     throw e;
   }
 }
@@ -83,7 +83,7 @@ export async function adminAccountAction({ userId, action, reason } = {}) {
 export async function startPortal({ surface } = {}) {
   try {
     const token = await authedToken();
-    logEventNow('billing_portal_open', { surface });   // must-land: redirect follows
+    logEventNow(EV.BILLING_PORTAL_OPEN, { surface });   // must-land: redirect follows
     const res = await fetch(PORTAL_URL, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
