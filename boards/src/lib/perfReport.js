@@ -94,12 +94,41 @@ export function getGestureActiveUntil() {
   return gestureActiveUntil;
 }
 
+// Counters as of the previous incident, so each row can report what happened
+// AROUND the stall instead of only since page load.
+let lastCounters = {};
+
+// The cumulative counters answer "what has this session done", which is the
+// wrong question at the moment of a stall — a board open an hour ago dominates
+// the totals. This is the delta since the previous incident (or since load, for
+// the first), which is the only form that can attribute a stall to the work
+// that immediately preceded it.
+//
+// This gap is not hypothetical: a field investigation into canvas frame-gaps
+// could not distinguish "15 tier demotes stormed this frame" from "15 tier
+// demotes happened at some point this session", and the cumulative numbers were
+// initially read as the former. Boards that janked turned out to be
+// indistinguishable from boards that didn't on every image dimension — same
+// widths, same byte sizes, same share of missing variants — so the image
+// pipeline was not the cause, and the next incident needs to be able to say
+// what was.
+function counterDelta() {
+  const out = {};
+  for (const k in counters) {
+    const d = counters[k] - (lastCounters[k] || 0);
+    if (d) out[k] = d;
+  }
+  return out;
+}
+
 function buildContext(extra) {
   let heapMB = null;
   try {
     const m = performance.memory;
     if (m?.usedJSHeapSize) heapMB = Math.round(m.usedJSHeapSize / 1048576);
   } catch (_) {}
+  const delta = counterDelta();
+  lastCounters = { ...counters };
   return {
     board_id: context.boardId || null,
     workspace_id: context.workspaceId || null,
@@ -110,6 +139,7 @@ function buildContext(extra) {
     strokes_count: context.strokesCount ?? null,
     arrows_count: context.arrowsCount ?? null,
     counters: { ...counters },
+    counters_delta: delta,
     heap_used_mb: heapMB,
     dpr: (typeof window !== 'undefined' && window.devicePixelRatio) || 1,
     device: (() => { try { return getDeviceInfo(); } catch (_) { return null; } })(),
@@ -130,8 +160,11 @@ function report(bucket, extra, opts) {
   if (!opts?.bypassMinGap && lastSentAt && now - lastSentAt < MIN_GAP_MS) return;
   if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
   sentCount += 1;
+  // Read BEFORE lastSentAt moves — the window the delta covers is the gap since
+  // the PREVIOUS incident, which is what makes counters_delta interpretable.
+  const sincePrev = lastSentAt ? Math.round((now - lastSentAt) / 1000) : null;
   lastSentAt = now;
-  const ctx = buildContext(extra);
+  const ctx = buildContext({ since_prev_incident_s: sincePrev, ...extra });
   try { window.__perfReport?.incidents.push({ bucket, ctx }); } catch (_) {}
   postPerfIncident(bucket, ctx);
 }
