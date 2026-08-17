@@ -12,12 +12,16 @@ import { ArrowsClockwise, User as UsersIcon } from '../../lib/icons.js';
 import { relativeTime, formatBytes, formatCount } from '../../lib/adminFormat.js';
 import { countryName, countryFlag } from '../../lib/countries.js';
 import { AdminAsync, AdminSkeleton } from './AdminStates.jsx';
-import { Avatar, SourceBadge, PresenceDot, channelLabel } from './AdminUserDetailParts.jsx';
+import { Avatar, SourceBadge, PresenceDot, LastWorked, channelLabel } from './AdminUserDetailParts.jsx';
 
 const TIERS = ['admin', 'paid', 'demo', 'waitlist'];
 const SORTS = [
   { value: 'recent', label: 'Newest' },
-  { value: 'active', label: 'Last active' },
+  // 'active' sorts by presence (the app was open); 'worked' sorts by the last
+  // time they actually made something. The labels say which is which, because
+  // one list was previously called "Last active" while meaning the other.
+  { value: 'worked', label: 'Last made something' },
+  { value: 'active', label: 'Last seen (app open)' },
   { value: 'cards',  label: 'Most cards' },
   { value: 'spend',  label: 'Top spend' },
   { value: 'name',   label: 'Name A–Z' },
@@ -94,6 +98,13 @@ function UserListRow({ row, selected, isSelf, onSelect }) {
         <span className={`admin-user-tierdot tier-${TIERS.includes(row.tier) ? row.tier : 'demo'}`} title={`Tier: ${row.tier}`}>
           {row.tier}
         </span>
+        {/* Two different questions, kept separate on purpose.
+            LastWorked is "when did they last MAKE something" — the one that
+            says whether an account is real. PresenceDot is "are they online",
+            which is what this column used to be while being labelled "last
+            active": nearly a third of rows carry a confident last_seen_at for
+            someone who has never created anything at all. */}
+        <LastWorked at={row.last_worked_at} className="admin-user-lastworked" />
         <PresenceDot lastSeenAt={row.last_seen_at} className="admin-user-lastseen" />
       </div>
     </li>

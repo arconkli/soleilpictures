@@ -124,6 +124,30 @@ export function PresenceDot({ lastSeenAt, showLabel = true, className = '' }) {
   );
 }
 
+// When did this person last MAKE something — a card, a doc edit, a comment?
+//
+// Distinct from PresenceDot above, which answers "are they online". That one
+// reads user_presence.last_seen_at, written by the presence heartbeat, and it
+// spent a long time sitting under a label that said "Last active" — so an
+// account that had only ever opened a tab was indistinguishable from one doing
+// real work, on the exact roster used to decide who to contact.
+//
+// "never" here is a genuine finding, not missing data: it means no card the
+// user owns and no work event, ever. Rendered plainly rather than as an error.
+export function LastWorked({ at, className = '' }) {
+  const label = at ? relativeTime(at) : 'never';
+  return (
+    <span
+      className={`admin-lastworked ${at ? '' : 'is-never'} ${className}`}
+      title={at
+        ? `Last made something: ${fmtDateTime(at)} (card, doc edit or comment — not just opening the app)`
+        : 'Has never created a card, edited a doc or written a comment'}
+    >
+      {label}
+    </span>
+  );
+}
+
 // ── Detail section block ─────────────────────────────────────────────
 export function DetailSection({ title, icon, action, children }) {
   return (

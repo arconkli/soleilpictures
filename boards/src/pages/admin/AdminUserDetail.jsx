@@ -24,7 +24,7 @@ import { countryName, countryFlag } from '../../lib/countries.js';
 import { StatusPill } from './AdminPills.jsx';
 import { AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminUserRowMenu } from './AdminUserRowMenu.jsx';
-import { Avatar, SourceBadge, PresenceDot, DetailSection, Timeline } from './AdminUserDetailParts.jsx';
+import { Avatar, SourceBadge, PresenceDot, LastWorked, DetailSection, Timeline } from './AdminUserDetailParts.jsx';
 import { OutreachSection } from './AdminOutreachSection.jsx';
 
 const TIERS = ['admin', 'paid', 'demo', 'waitlist'];
@@ -118,7 +118,11 @@ function AcquisitionSection({ acq }) {
   );
 }
 
-function EngagementSection({ eng, tier, lastSignInAt, device, geo }) {
+// lastWorkedAt comes from the LIST row rather than admin_user_detail: the row
+// is already in hand here (lastSignInAt takes the same route) and the value is
+// identical, so this avoids changing a second RPC's return shape to carry a
+// field the caller already has.
+function EngagementSection({ eng, tier, lastSignInAt, lastWorkedAt, device, geo }) {
   if (!eng) return null;
   const last = device?.last;
   const others = Array.isArray(device?.breakdown) ? device.breakdown : [];
@@ -128,7 +132,11 @@ function EngagementSection({ eng, tier, lastSignInAt, device, geo }) {
         <Row label="Cards"><span className="is-strong">{formatCount(eng.card_count)}</span></Row>
         <Row label="Boards">{formatCount(eng.board_count)}</Row>
         <Row label="Time in app">{formatDuration(Number(eng.seconds_in_app || 0))}</Row>
-        <Row label="Last active"><PresenceDot lastSeenAt={eng.last_seen_at} /></Row>
+        {/* Was one row labelled "Last active" showing user_presence.last_seen_at,
+            which only means the app was open. Split, because the two answer
+            different questions and the presence one was doing the talking. */}
+        <Row label="Last made something"><LastWorked at={lastWorkedAt} /></Row>
+        <Row label="Last seen (app open)"><PresenceDot lastSeenAt={eng.last_seen_at} /></Row>
         {lastSignInAt && <Row label="Last sign-in">{relativeTime(lastSignInAt)}</Row>}
         {tier === 'demo' && (
           <Row label="Demo cards">
@@ -464,7 +472,7 @@ export function AdminUserDetail({
           <DetailSection title="Activation" icon={Sparkle}>
             <Timeline activation={detail?.activation} />
           </DetailSection>
-          <EngagementSection eng={detail?.engagement} tier={detail?.identity?.tier || row.tier} lastSignInAt={row.last_sign_in_at} device={detail?.device} geo={detail?.geo} />
+          <EngagementSection eng={detail?.engagement} tier={detail?.identity?.tier || row.tier} lastSignInAt={row.last_sign_in_at} lastWorkedAt={row.last_worked_at} device={detail?.device} geo={detail?.geo} />
           <IntegrationsSection api={api} />
           <BillingSection billing={detail?.billing} />
           <GrantsSection grants={detail?.grants} />

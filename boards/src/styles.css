@@ -7226,6 +7226,16 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 /* List last-seen: smaller than the section presence; color stays from .admin-presence variant. */
 .admin-user-lastseen { font-weight: 500; font-size: 10.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
+/* "Last made something" — sits above the presence dot in the user row and is
+   the primary recency signal, so it reads at normal ink weight while presence
+   stays subordinate. `never` is a real answer (no card, no doc edit, no
+   comment, ever), not missing data, so it is dimmed rather than hidden. */
+.admin-lastworked {
+  font-weight: 500; font-size: 10.5px; white-space: nowrap;
+  font-variant-numeric: tabular-nums; color: var(--ink-2);
+}
+.admin-lastworked.is-never { color: var(--ink-3); font-style: italic; }
+
 /* ── Empty state (no user selected) ── */
 .admin-detail-empty {
   height: 100%; min-height: 320px;
