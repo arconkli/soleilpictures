@@ -190,14 +190,22 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
     return editor ? editor.getJSON() : { type: 'doc', content: [] };
   };
   const exportFountain = async () => {
-    const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
-    await saveFile(new Blob([jsonToFountain(scriptBlocks(), titlePage)], { type: 'text/plain' }), 'fountain');
-    setOpen(false);
+    if (busy) return;
+    setBusy(true);
+    try {
+      const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
+      await saveFile(new Blob([jsonToFountain(scriptBlocks(), titlePage)], { type: 'text/plain' }), 'fountain');
+      setOpen(false);
+    } finally { setBusy(false); }
   };
   const exportFdx = async () => {
-    const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
-    await saveFile(new Blob([jsonToFdx(scriptBlocks(), titlePage)], { type: 'application/xml' }), 'fdx');
-    setOpen(false);
+    if (busy) return;
+    setBusy(true);
+    try {
+      const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
+      await saveFile(new Blob([jsonToFdx(scriptBlocks(), titlePage)], { type: 'application/xml' }), 'fdx');
+      setOpen(false);
+    } finally { setBusy(false); }
   };
   const importScript = () => {
     const input = document.createElement('input');
@@ -205,10 +213,10 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
     input.accept = '.fountain,.txt,.fdx,application/xml,text/plain';
     input.onchange = async () => {
       const f = input.files?.[0]; if (!f) return;
+      let blocks, titlePage = null;
       try {
         const text = await f.text();
         const isFdx = /\.fdx$/i.test(f.name) || /<FinalDraft/i.test(text);
-        let blocks, titlePage = null;
         if (isFdx) {
           blocks = fdxToBlocks(text);
           titlePage = fdxToTitlePage(text);
@@ -217,16 +225,25 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
           titlePage = parsed.titlePage;
           blocks = fountainToBlocks(parsed.body);
         }
-        if (!blocks.length && !titlePage) return;
-        if (editor) {
-          // Replace the focused sheet's content. Undoable via ⌘Z; confirm only
-          // when there's existing content to clobber.
-          if (!editor.isEmpty && !window.confirm('Replace this document with the imported screenplay?')) return;
-          editor.chain().focus().setContent(blocksToDocJSON(blocks)).run();
-        }
-        // Import the title page (enable it) — it lives in docMeta, not the editor.
-        if (titlePage && ydoc) setTitlePage(ydoc, scope, { enabled: true, ...titlePage });
-      } catch (_) { /* malformed file — no-op */ }
+      } catch (err) {
+        // A silent no-op here is indistinguishable from "the file was empty" —
+        // the user picked a file and NOTHING happened. Say so.
+        console.error('[import] screenplay parse failed', err);
+        feedback.toast({ type: 'error', message: 'Couldn’t read that file — it doesn’t look like Fountain or Final Draft.' });
+        return;
+      }
+      if (!blocks.length && !titlePage) {
+        feedback.toast({ type: 'error', message: 'Nothing importable found in that file.' });
+        return;
+      }
+      if (editor) {
+        // Replace the focused sheet's content. Undoable via ⌘Z; confirm only
+        // when there's existing content to clobber.
+        if (!editor.isEmpty && !window.confirm('Replace this document with the imported screenplay?')) return;
+        editor.chain().focus().setContent(blocksToDocJSON(blocks)).run();
+      }
+      // Import the title page (enable it) — it lives in docMeta, not the editor.
+      if (titlePage && ydoc) setTitlePage(ydoc, scope, { enabled: true, ...titlePage });
     };
     input.click();
     setOpen(false);

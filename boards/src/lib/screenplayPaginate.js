@@ -96,6 +96,14 @@ export function paginate(blocks, opts = {}) {
   while ((i < blocks.length || carry) && guard++ < 100000) {
     const isCarry = !!carry;
 
+    // Forced page break (the separator between doc pages in a whole-doc
+    // export, and Fountain's `===`). Ends the current page; places nothing.
+    if (!isCarry && blocks[i] && blocks[i].element === 'pagebreak') {
+      if (page.length) pushPage();
+      i += 1;
+      continue;
+    }
+
     // Dual dialogue: ONE left/right pair of speeches is placed as a unit whose
     // height is the TALLER of the two columns (they print/render beside each
     // other, not stacked). Never split across a page. A pair is a run of

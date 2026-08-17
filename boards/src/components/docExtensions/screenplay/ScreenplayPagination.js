@@ -52,8 +52,12 @@ function computeDecorations(doc) {
   const blocks = [];
   doc.forEach((node, offset) => {
     const isSp = node.type.name === 'screenplayBlock';
+    // A horizontal rule is the forced page break (whole-doc export separator /
+    // Fountain `===`) — mirror docJSONToBlocks so the on-screen breaks match.
+    const element = isSp ? (node.attrs.element || 'action')
+      : node.type.name === 'horizontalRule' ? 'pagebreak' : 'action';
     blocks.push({
-      element: isSp ? (node.attrs.element || 'action') : 'action',
+      element,
       text: node.textContent,
       sceneNumber: isSp ? (node.attrs.sceneNumber || null) : null,
       dual: isSp ? (node.attrs.dual || null) : null,

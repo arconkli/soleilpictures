@@ -16,7 +16,7 @@ const TYPE_FDX = {
 };
 
 const SCENE_RE = /^(INT\.?\/EXT\.?|INT\.?|EXT\.?|EST\.?|I\/E\.?)[\. ]/i;
-const SHOT_RE = /^(ANGLE|CLOSE|WIDE|POV|INSERT|EXTREME CLOSE|REVERSE|AERIAL|TRACKING|DOLLY|CRANE|HANDHELD|UNDERWATER|SERIES OF SHOTS|MONTAGE|BACK TO)\b/;
+const SHOT_RE = /^(ANGLE|CLOSE|CLOSEUP|CLOSE-UP|WIDE|TIGHT|POV|INSERT|EXTREME CLOSE|REVERSE|AERIAL|TRACKING|DOLLY|CRANE|HANDHELD|UNDERWATER|SERIES OF SHOTS|MONTAGE|BACK TO|NEW ANGLE|HIGH ANGLE|LOW ANGLE|OVERHEAD|ESTABLISHING|ECU|XCU|CU|PAN|TILT|ZOOM|FREEZE|SPLIT SCREEN|PUSH IN|PULL BACK)\b/;
 const isAllCaps = (s) => /[A-Z]/.test(s) && !/[a-z]/.test(s);
 const blockText = (b) => (b.text || '');
 
@@ -102,6 +102,13 @@ export function docJSONToBlocks(doc) {
       out.push(b);
       return;
     }
+    // A horizontal rule is the page separator collectFullDocJSON inserts
+    // between doc pages — export it as a FORCED page break, or a multi-page
+    // doc's pages fuse together in the PDF/Fountain/FDX.
+    if (n.type === 'horizontalRule') {
+      out.push({ element: 'pagebreak', text: '' });
+      return;
+    }
     if (STRAY_TEXTBLOCKS.has(n.type)) {
       const text = flatText(n);
       if (text.trim()) out.push({ element: 'action', text });
@@ -116,15 +123,21 @@ export function docJSONToBlocks(doc) {
 export function blocksToDocJSON(blocks) {
   return {
     type: 'doc',
-    content: (blocks || []).map(b => ({
-      type: 'screenplayBlock',
-      attrs: {
-        element: b.element || 'action',
-        ...(b.sceneNumber ? { sceneNumber: String(b.sceneNumber) } : {}),
-        ...(b.dual === 'left' || b.dual === 'right' ? { dual: b.dual } : {}),
-      },
-      content: b.text ? [{ type: 'text', text: b.text }] : [],
-    })),
+    content: (blocks || []).map(b => (
+      b.element === 'pagebreak'
+        // Forced page break ⇄ horizontalRule (round-trips through
+        // docJSONToBlocks above).
+        ? { type: 'horizontalRule' }
+        : {
+          type: 'screenplayBlock',
+          attrs: {
+            element: b.element || 'action',
+            ...(b.sceneNumber ? { sceneNumber: String(b.sceneNumber) } : {}),
+            ...(b.dual === 'left' || b.dual === 'right' ? { dual: b.dual } : {}),
+          },
+          content: b.text ? [{ type: 'text', text: b.text }] : [],
+        }
+    )),
   };
 }
 
@@ -133,7 +146,10 @@ export function jsonToFountain(docOrBlocks, titlePage = null) {
   const blocks = Array.isArray(docOrBlocks) ? docOrBlocks : docJSONToBlocks(docOrBlocks);
   const tpStr = jsonToFountainTitlePage(titlePage);
   const lines = [];
-  const blankBefore = new Set(['scene', 'action', 'character', 'transition', 'shot']);
+  // 'centered' needs the blank too — without it, a centered block right after
+  // a speech is consumed INTO the dialogue on re-import (speeches run to the
+  // next blank line).
+  const blankBefore = new Set(['scene', 'action', 'character', 'transition', 'shot', 'centered', 'pagebreak']);
   for (const b of blocks) {
     const el = b.element || 'action';
     const text = blockText(b);
@@ -162,7 +178,9 @@ export function jsonToFountain(docOrBlocks, titlePage = null) {
         break;
       }
       case 'dialogue':
-        lines.push(text || ' ');
+        // Fountain's marker for a deliberately blank dialogue line is exactly
+        // TWO spaces (a single space re-imports as the end of the speech).
+        lines.push(text || '  ');
         break;
       case 'transition':
         lines.push(/TO:$/.test(text.toUpperCase()) ? text.toUpperCase() : '> ' + text.toUpperCase());
@@ -172,6 +190,9 @@ export function jsonToFountain(docOrBlocks, titlePage = null) {
         break;
       case 'centered':
         lines.push('> ' + text.trim() + ' <');
+        break;
+      case 'pagebreak':
+        lines.push('===');   // Fountain forced page break
         break;
       default:
         lines.push(text);
@@ -191,6 +212,7 @@ export function fountainToBlocks(text) {
     if (line === '') { prevBlank = true; i++; continue; }
 
     // Forced markers.
+    if (/^===+$/.test(line)) { blocks.push({ element: 'pagebreak', text: '' }); prevBlank = false; i++; continue; }
     if (line[0] === '.' && line[1] !== '.') { blocks.push({ element: 'scene', text: line.slice(1).trim().toUpperCase() }); prevBlank = false; i++; continue; }
     if (line[0] === '!') { blocks.push({ element: 'action', text: line.slice(1) }); prevBlank = false; i++; continue; }
     if (line[0] === '>' && line.endsWith('<')) { blocks.push({ element: 'centered', text: line.slice(1, -1).trim() }); prevBlank = false; i++; continue; }
@@ -215,9 +237,17 @@ export function fountainToBlocks(text) {
       const speechStart = blocks.length;
       blocks.push({ element: 'character', text: cueText.toUpperCase() });
       i++;
-      // Consume the speech block: parentheticals + dialogue until a blank line.
-      while (i < lines.length && lines[i].trim() !== '') {
+      // Consume the speech block: parentheticals + dialogue until a blank
+      // line. A line of exactly two spaces is Fountain's DELIBERATE blank
+      // dialogue line and continues the speech; other whitespace ends it.
+      while (i < lines.length && lines[i] !== '') {
         const dl = lines[i].trim();
+        if (!dl) {
+          if (lines[i] !== '  ') break;
+          blocks.push({ element: 'dialogue', text: '' });
+          i++;
+          continue;
+        }
         if (/^\(.*\)$/.test(dl)) blocks.push({ element: 'parenthetical', text: dl });
         else blocks.push({ element: 'dialogue', text: dl });
         i++;
@@ -277,11 +307,17 @@ export function jsonToFdx(docOrBlocks, titlePage = null) {
   const parts = [];
   let i = 0;
   while (i < blocks.length) {
+    if (blocks[i].element === 'pagebreak') { i += 1; continue; } // FDX: pages reflow; no forced break emitted
     if (blocks[i].dual) {
-      // Final Draft wraps a dual-dialogue pair in <Paragraph><DualDialogue>…,
+      // Final Draft wraps ONE dual-dialogue pair in <Paragraph><DualDialogue>…,
       // holding both speakers' paragraphs in document order (left then right).
+      // A pair = a run of 'left' blocks then a run of 'right' blocks —
+      // back-to-back pairs each get their own wrapper (one wrapper holding
+      // four speeches renders as a mangled pair in Final Draft).
       let j = i;
-      while (j < blocks.length && blocks[j].dual) j += 1;
+      while (j < blocks.length && blocks[j].dual === 'left') j += 1;
+      while (j < blocks.length && blocks[j].dual === 'right') j += 1;
+      if (j === i) j = i + 1;
       const inner = blocks.slice(i, j).map(b => fdxParagraph(b, '    ')).join('\n');
       parts.push(`  <Paragraph>\n   <DualDialogue>\n${inner}\n   </DualDialogue>\n  </Paragraph>`);
       i = j;

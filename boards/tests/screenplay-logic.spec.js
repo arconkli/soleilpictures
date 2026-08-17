@@ -170,6 +170,90 @@ test('paginator: auto (CONT\'D) on a long cue is counted in the cue\'s wrap', as
   expect(r.cues).toEqual([1, 2]);
 });
 
+test('Fountain round-trip: centered after a speech, blank dialogue lines, shots', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const blocks = [
+      { element: 'scene', text: 'INT. ROOM - DAY' },
+      { element: 'shot', text: 'TIGHT ON HER HANDS' },
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'One.' },
+      { element: 'dialogue', text: '' },          // deliberate blank beat
+      { element: 'dialogue', text: 'Two.' },
+      { element: 'centered', text: 'THE END' },   // right after the speech
+    ];
+    return S.fountainToBlocks(S.jsonToFountain(blocks));
+  });
+  expect(r).toEqual([
+    { element: 'scene', text: 'INT. ROOM - DAY' },
+    { element: 'shot', text: 'TIGHT ON HER HANDS' },
+    { element: 'character', text: 'JOHN' },
+    { element: 'dialogue', text: 'One.' },
+    { element: 'dialogue', text: '' },
+    { element: 'dialogue', text: 'Two.' },
+    { element: 'centered', text: 'THE END' },     // was swallowed into the dialogue
+  ]);
+});
+
+test('page breaks between doc pages survive export (Fountain === / paginator / doc JSON)', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const blocks = [
+      { element: 'scene', text: 'INT. A - DAY' },
+      { element: 'action', text: 'First page.' },
+      { element: 'pagebreak', text: '' },
+      { element: 'scene', text: 'INT. B - DAY' },
+    ];
+    const fountain = S.jsonToFountain(blocks);
+    const { pages, pageCount } = S.paginate(blocks);
+    return {
+      fountainHasBreak: /\n===\n/.test(fountain),
+      roundTrip: S.fountainToBlocks(fountain),
+      pageCount,
+      page2First: pages[1]?.[0]?.text,
+      docRoundTrip: S.docJSONToBlocks(S.blocksToDocJSON(blocks)),
+    };
+  });
+  expect(r.fountainHasBreak).toBe(true);
+  expect(r.roundTrip).toEqual([
+    { element: 'scene', text: 'INT. A - DAY' },
+    { element: 'action', text: 'First page.' },
+    { element: 'pagebreak', text: '' },
+    { element: 'scene', text: 'INT. B - DAY' },
+  ]);
+  expect(r.pageCount).toBe(2);
+  expect(r.page2First).toBe('INT. B - DAY');
+  expect(r.docRoundTrip).toEqual([
+    { element: 'scene', text: 'INT. A - DAY' },
+    { element: 'action', text: 'First page.' },
+    { element: 'pagebreak', text: '' },
+    { element: 'scene', text: 'INT. B - DAY' },
+  ]);
+});
+
+test('FDX: back-to-back dual pairs export as two DualDialogue wrappers', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const pair = (L, R, lt, rt) => ([
+      { element: 'character', text: L, dual: 'left' },
+      { element: 'dialogue', text: lt, dual: 'left' },
+      { element: 'character', text: R, dual: 'right' },
+      { element: 'dialogue', text: rt, dual: 'right' },
+    ]);
+    const blocks = [...pair('JOHN', 'MARY', 'Hey.', 'Hi.'), ...pair('ANA', 'BEN', 'Yes.', 'No.')];
+    const xml = S.jsonToFdx(blocks);
+    return {
+      wrappers: (xml.match(/<DualDialogue>/g) || []).length,
+      back: S.fdxToBlocks(xml).map(b => `${b.element}:${b.dual}`),
+    };
+  });
+  expect(r.wrappers).toBe(2);
+  expect(r.back).toEqual([
+    'character:left', 'dialogue:left', 'character:right', 'dialogue:right',
+    'character:left', 'dialogue:left', 'character:right', 'dialogue:right',
+  ]);
+});
+
 test('Tab cycles the element ring forward and back', async ({ page }) => {
   const r = await page.evaluate(() => {
     const S = window.__soleilDocTest.screenplay;
