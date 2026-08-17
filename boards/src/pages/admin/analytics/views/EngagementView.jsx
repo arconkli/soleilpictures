@@ -14,6 +14,9 @@ import { ReturnRate } from '../widgets/ReturnRate.jsx';
 import { RetentionBySource } from '../widgets/RetentionBySource.jsx';
 import { UserDormancy } from '../widgets/UserDormancy.jsx';
 import { EventCoverage } from '../widgets/EventCoverage.jsx';
+import { HabitCurve } from '../widgets/HabitCurve.jsx';
+import { FeatureAdoption } from '../widgets/FeatureAdoption.jsx';
+import { SurfaceTime } from '../widgets/SurfaceTime.jsx';
 import { TimeToFirstCard } from '../widgets/TimeToFirstCard.jsx';
 import { FirstCardFriction } from '../widgets/FirstCardFriction.jsx';
 import { PostSignupDropoff } from '../widgets/PostSignupDropoff.jsx';
@@ -69,6 +72,21 @@ export function EngagementView() {
     // Activation funnel split by device (admin_activation_funnel(...,p_device),
     // migration 0156) — the headline mobile-vs-desktop activation readout. One
     // call per device; graceful via val(), so a missing overload just hides it.
+    // Retention-depth RPCs (migration 0250). Graceful via val(): habit/adoption
+    // read user_active_day and so have history, while surface time and session
+    // depth read usage_session and necessarily start empty and fill from the
+    // deploy — their widgets say so rather than showing a bare zero.
+    const depthResults = await Promise.allSettled([
+      supabase.rpc('admin_habit_curve',      { p_exclude_internal: f.excludeInternal, p_require_work: false, p_window_days: 28 }),
+      supabase.rpc('admin_habit_curve',      { p_exclude_internal: f.excludeInternal, p_require_work: true,  p_window_days: 28 }),
+      supabase.rpc('admin_feature_adoption', { p_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_surface_time',     { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+    ]);
+    const habitPresence  = val(depthResults[0]) || [];
+    const habitWork      = val(depthResults[1]) || [];
+    const featureAdoption = val(depthResults[2]) || [];
+    const surfaceTime    = val(depthResults[3]) || [];
+
     const DEVICES = ['mobile', 'desktop', 'tablet', 'unknown'];
     const devResults = await Promise.allSettled(
       DEVICES.map((d) => supabase.rpc('admin_activation_funnel',
@@ -79,7 +97,7 @@ export function EngagementView() {
     if (!core.some((r) => r.status === 'fulfilled' && !r.value.error)) {
       throw errOf(core.find(errOf)) || new Error('Failed to load engagement');
     }
-    return { activation: val(af), retention: val(rc) || [], lifespan: val(ls), cohorts: val(ch) || [], cardStats: val(cs), perDay: val(pd) || [], tierCompare: val(tc) || [], returnRate: val(rr) || [], bySource: val(rs) || [], dormancy: val(dm) || [], coverage: val(ec) || [], timeToCard: val(tt), friction: val(fc), onboardingErrors: val(oe) || [], journeyDropoff: val(jd), experimentRetention, experimentActivation, activationByDevice };
+    return { activation: val(af), retention: val(rc) || [], lifespan: val(ls), cohorts: val(ch) || [], cardStats: val(cs), perDay: val(pd) || [], tierCompare: val(tc) || [], returnRate: val(rr) || [], bySource: val(rs) || [], dormancy: val(dm) || [], coverage: val(ec) || [], timeToCard: val(tt), friction: val(fc), onboardingErrors: val(oe) || [], journeyDropoff: val(jd), experimentRetention, experimentActivation, activationByDevice, habitPresence, habitWork, featureAdoption, surfaceTime };
   }, [f.days, f.excludeInternal, f.verifiedOnly]);
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
@@ -99,6 +117,15 @@ export function EngagementView() {
         <RetentionBySource rows={q.data?.bySource || []} />
         <UserDormancy rows={q.data?.dormancy || []} />
         <EventCoverage rows={q.data?.coverage || []} />
+
+        <h2 className="admin-section-title">Habit &amp; depth</h2>
+        <div className="admin-section-sub">
+          Not whether people came back, but how often, for how long, and doing what. Everything above
+          counts a day the app was merely open; these separate that from days containing real work.
+        </div>
+        <HabitCurve presence={q.data?.habitPresence || []} work={q.data?.habitWork || []} />
+        <FeatureAdoption rows={q.data?.featureAdoption || []} days={Math.max(f.days, 30)} />
+        <SurfaceTime rows={q.data?.surfaceTime || []} days={f.days} />
 
         <h2 className="admin-section-title">First-card friction</h2>
         <div className="admin-section-sub">Where new users get stuck before placing their first card — attempts, failures, and how long it takes.</div>
