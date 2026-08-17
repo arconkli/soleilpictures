@@ -23,7 +23,8 @@ import { BUILD_SHA } from './buildInfo.js';
 // Safe to import: analyticsEvents.js is a leaf module with no imports of its
 // own, so there is no cycle back into this file. (An older comment here claimed
 // otherwise and used a raw literal to avoid one that doesn't exist.)
-import { EV } from './analyticsEvents.js';
+import { EV, WORK_EVENTS } from './analyticsEvents.js';
+import { noteWorkOp } from './workSignal.js';
 import {
   FLUSH_INTERVAL_MS, MAX_QUEUE, MAX_BATCH, MAX_BEACON_BYTES, MAX_ROW_AGE_MS,
   beaconChunks, backoffFor, pruneStale, capQueue, partitionRetries, wireRow,
@@ -630,6 +631,11 @@ function flushBeacon() {
 // Unchanged signature — now enqueues. Never throws into the UI.
 export function logEvent(name, props = {}) {
   if (!supabase || !name) return;
+  // Noting work here rather than at each mutation site means the day's
+  // work/presence distinction stays correct as events are added, instead of
+  // depending on someone remembering a second call. WORK_EVENTS is the
+  // definition; see analyticsEvents.js for where the bar is drawn.
+  try { if (WORK_EVENTS.has(name)) noteWorkOp(); } catch (_) {}
   try { enqueue(buildRow(name, props)); } catch (_) {}
 }
 
@@ -646,6 +652,7 @@ export function logEventOnce(key, name, props = {}) {
 // survives the navigation even though we don't await it.
 export function logEventNow(name, props = {}) {
   if (!supabase || !name) return;
+  try { if (WORK_EVENTS.has(name)) noteWorkOp(); } catch (_) {}
   try { enqueue(buildRow(name, props)); flushBeacon(); } catch (_) {}
 }
 

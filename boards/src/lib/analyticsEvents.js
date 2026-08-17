@@ -296,6 +296,34 @@ export const EV = Object.freeze({
   TAG_SET_TYPE:            'tag_set_type',                // one-tap set/changed an entity's type {tag_id,entity_type}
 });
 
+// ── What counts as WORK, as opposed to presence ───────────────────────────
+// user_active_day is the atom under every retention curve, cohort and D1/D7/D30
+// tile, and it was written purely from the presence heartbeat: a day spent
+// opening a tab and doing nothing counted exactly like a day of real work.
+// Measured over 90 days, 54% of its rows contained no work at all.
+//
+// Migration 0248 adds did_work, written by two independent paths. A trigger on
+// card_index is the server-truth half and covers anything that touches a card.
+// This set is the client half, and its job is the work that never does:
+// document edits, comments, tags, arrows.
+//
+// The bar is deliberately "the user changed the contents of a cluster". Opening
+// a board, running a search, or sharing a link are all meaningful — but they
+// are things you do to look at work, not to make it, and a definition that
+// admits them drifts straight back into measuring presence.
+export const WORK_EVENTS = Object.freeze(new Set([
+  EV.CARD_PLACED,
+  EV.CARD_EDIT,
+  EV.DOC_EDIT,
+  EV.ARROW_CREATED,
+  EV.REMIX_CLONE,
+  EV.TAG_MANUAL_APPLY,
+  EV.TAG_CONFIRM,
+  EV.TAG_MERGE,
+  EV.TAG_CANDIDATE_PROMOTE,
+  EV.TAG_SET_TYPE,
+]));
+
 // Canonical, ORDERED phases of the post-signup journey (lib/journey.js stamps the
 // current one onto every ps_* event as props.phase). The order is the happy path;
 // 'blocked'/'stuck' are off-path side-states (a user can be blocked then still
