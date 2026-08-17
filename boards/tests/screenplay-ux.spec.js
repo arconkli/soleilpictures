@@ -703,6 +703,179 @@ test('the Enter escalation flow works mid-script, not just at the end', async ({
   expect(shapes.length).toBe(6);
 });
 
+test('pasting multi-line text creates real screenplay blocks (nothing lost on export)', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.locator('.doc-card-modal .tt-editor').first().click();
+  await page.evaluate(() => {
+    const view = window.__soleilDocTest.editor.view;
+    const dt = new DataTransfer();
+    dt.setData('text/plain', 'int. house - day\nJohn walks in.\nCUT TO:');
+    view.dom.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  const state = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const json = window.__soleilDocTest.editor.getJSON();
+    return {
+      types: (json.content || []).map(n => n.type),
+      blocks: S.docJSONToBlocks(json).map(b => b.element),
+    };
+  });
+  // Every pasted line became a screenplayBlock (NOT a paragraph that renders
+  // but silently vanishes from every export), with elements detected.
+  expect(state.types).toEqual(['screenplayBlock', 'screenplayBlock', 'screenplayBlock']);
+  expect(state.blocks).toEqual(['scene', 'action', 'transition']);
+});
+
+test('stray prose paragraphs still export as action lines (never dropped)', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  const blocks = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    return S.docJSONToBlocks({
+      type: 'doc',
+      content: [
+        { type: 'screenplayBlock', attrs: { element: 'scene' }, content: [{ type: 'text', text: 'INT. ROOM - DAY' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'A pasted line.' }] },
+        { type: 'screenplayBlock', attrs: { element: 'action' }, content: [{ type: 'text', text: 'She waits.' }] },
+      ],
+    });
+  });
+  expect(blocks).toEqual([
+    { element: 'scene', text: 'INT. ROOM - DAY' },
+    { element: 'action', text: 'A pasted line.' },
+    { element: 'action', text: 'She waits.' },
+  ]);
+});
+
+test('toggling Screenplay converts existing prose to script blocks (and back)', async ({ page }) => {
+  await openDoc(page);
+  // Write ordinary prose first.
+  const editor = page.locator('.doc-card-modal .tt-editor').first();
+  await editor.click();
+  await page.keyboard.type('int. warehouse - night');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('A guard sleeps.');
+  // Toggle Screenplay → the prose is MIGRATED, not left as inert paragraphs.
+  await enableScreenplay(page);
+  await expect.poll(async () => page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    return S.docJSONToBlocks(window.__soleilDocTest.editor.getJSON());
+  })).toEqual([
+    { element: 'scene', text: 'INT. WAREHOUSE - NIGHT' },   // detected + uppercased
+    { element: 'action', text: 'A guard sleeps.' },
+  ]);
+  // The element selector is live (it was disabled on paragraph content).
+  await expect(page.locator('.doc-card-modal .doc-tb-select')).toBeEnabled();
+  // Toggle back → paragraphs again, text intact.
+  await page.locator('.doc-tb-screenplay-toggle').click();
+  await expect(page.locator('.doc-paper.is-screenplay')).toHaveCount(0);
+  await expect.poll(async () => page.evaluate(() =>
+    (window.__soleilDocTest.editor.getJSON().content || []).map(n => n.type),
+  )).toEqual(['paragraph', 'paragraph']);
+});
+
+test('Backspace at line start consumes a blank line above instead of retyping the line', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'scene', text: 'INT. ROOM - DAY' },
+      { element: 'action', text: 'She waits.' },
+      { element: 'action', text: '' },
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'Hi.' },
+    ]));
+  });
+  await page.locator('.doc-card-modal [data-screenplay-element="character"]').first().click();
+  await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    let pos = null;
+    ed.state.doc.descendants((node, p) => { if (node.attrs?.element === 'character') pos = p + 1; });
+    ed.chain().focus().setTextSelection(pos).run();
+  });
+  await page.keyboard.press('Backspace');
+  // The blank line is gone and JOHN is STILL a character cue — the stock join
+  // absorbed the cue into the empty block's element instead.
+  expect(await blockShapes(page)).toEqual([
+    { element: 'scene', text: 'INT. ROOM - DAY' },
+    { element: 'action', text: 'She waits.' },
+    { element: 'character', text: 'JOHN' },
+    { element: 'dialogue', text: 'Hi.' },
+  ]);
+});
+
+test('Delete at line end consumes a blank line below (keeps both elements)', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'character', text: 'JOHN' },
+      { element: 'action', text: '' },
+      { element: 'dialogue', text: 'Hi.' },
+    ]));
+  });
+  await page.locator('.doc-card-modal [data-screenplay-element="character"]').first().click();
+  await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    ed.chain().focus().setTextSelection(1 + 'JOHN'.length).run();
+  });
+  await page.keyboard.press('Delete');
+  expect(await blockShapes(page)).toEqual([
+    { element: 'character', text: 'JOHN' },
+    { element: 'dialogue', text: 'Hi.' },
+  ]);
+});
+
+test('Tab away from an untouched parenthetical removes the auto "()"', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.locator('.doc-card-modal .tt-editor').first().click();
+  // Seeded scene → Tab: action → character → parenthetical (auto-inserts "()").
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  expect(await caretElement(page)).toBe('parenthetical');
+  expect((await blockShapes(page))[0]).toEqual({ element: 'parenthetical', text: '()' });
+  // One more Tab: the untouched "()" must not ride along into Dialogue.
+  await page.keyboard.press('Tab');
+  expect(await caretElement(page)).toBe('dialogue');
+  expect((await blockShapes(page))[0]).toEqual({ element: 'dialogue', text: '' });
+});
+
+test('slugline auto-detect keeps inline marks (promotes element without flattening)', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    window.__soleilDocTest.editor.commands.setContent({
+      type: 'doc',
+      content: [{
+        type: 'screenplayBlock',
+        attrs: { element: 'action' },
+        content: [
+          { type: 'text', text: 'house - ' },
+          { type: 'text', text: 'night', marks: [{ type: 'bold' }] },
+        ],
+      }],
+    });
+  });
+  await page.locator('.doc-card-modal [data-screenplay-element="action"]').first().click();
+  await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().setTextSelection(1).run());
+  await page.keyboard.type('INT. ');
+  const state = await page.evaluate(() => {
+    const json = window.__soleilDocTest.editor.getJSON();
+    const first = (json.content || [])[0];
+    return {
+      element: first?.attrs?.element,
+      boldRuns: (first?.content || []).filter(c => (c.marks || []).some(m => m.type === 'bold')).map(c => c.text),
+    };
+  });
+  expect(state.element).toBe('scene');
+  expect(state.boldRuns).toEqual(['night']);   // the old full-line rewrite destroyed it
+});
+
 test('screenplay mode has no "+" insert menu (the element dropdown handles elements)', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);

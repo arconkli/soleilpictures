@@ -894,11 +894,19 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       },
     },
     // Seed a brand-new screenplay sheet's first block as a Scene Heading so
-    // the writer starts in the right element. Gated on isEmpty so it never
-    // clobbers loaded content.
+    // the writer starts in the right element — and migrate EXISTING content
+    // across a mode switch: prose written before toggling Screenplay becomes
+    // real screenplayBlocks (else the element selector/Tab/Enter/export are
+    // all inert on it), and screenplayBlocks left after toggling back become
+    // paragraphs. The editor rebuilds on every mode change (deps below), so
+    // onCreate is exactly the mode-transition point. Both conversions no-op
+    // when there's nothing of the other flavor → idempotent under collab.
     onCreate: ({ editor }) => {
-      if (docMode === 'screenplay' && editor.isEmpty) {
-        editor.chain().setScreenplayElement('scene').run();
+      if (docMode === 'screenplay') {
+        if (editor.isEmpty) editor.chain().setScreenplayElement('scene').run();
+        else editor.commands.convertProseToScreenplay();
+      } else {
+        editor.commands.convertScreenplayToProse();
       }
     },
     // Force a fresh editor when the bound page, doc mode, or page layout

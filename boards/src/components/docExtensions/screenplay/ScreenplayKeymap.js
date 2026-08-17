@@ -11,6 +11,7 @@ import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 import { TextSelection } from '@tiptap/pm/state';
 import { canSplit } from '@tiptap/pm/transform';
+import { Slice, Fragment } from '@tiptap/pm/model';
 import {
   enterDecision, nextOnTab, prevOnTab, shouldUppercase, detectElementFromText,
 } from './screenplayFlow.js';
@@ -32,9 +33,13 @@ function caretBlockInfo(state) {
       const offset = $from.pos - $from.start(d);
       return {
         element: node.attrs.element || 'action',
+        text: node.textContent,
         isEmpty: node.textContent.trim().length === 0,
         atStart: offset === 0,
         atEnd: offset === node.content.size,
+        start: $from.start(d),
+        end: $from.end(d),
+        depth: d,
       };
     }
   }
@@ -68,7 +73,16 @@ export const ScreenplayKeymap = Extension.create({
       const info = caretBlockInfo(ed.state);
       if (!info || inListOrTable(ed.state)) return false;
       const next = dir > 0 ? nextOnTab(info.element) : prevOnTab(info.element);
-      const chain = ed.chain().focus().updateAttributes('screenplayBlock', { element: next });
+      const chain = ed.chain().focus();
+      // Cycling OUT of an auto-inserted empty parenthetical removes the "()"
+      // it dropped in — otherwise the pair rides along as literal dialogue text.
+      if (info.element === 'parenthetical' && info.text === '()') {
+        chain.command(({ tr, dispatch }) => {
+          if (dispatch) tr.delete(info.start, info.end);
+          return true;
+        });
+      }
+      chain.updateAttributes('screenplayBlock', { element: next });
       // Smart parenthetical: entering an empty parenthetical drops in "()" with
       // the caret between the parens.
       if (next === 'parenthetical' && info.isEmpty) {
@@ -114,6 +128,45 @@ export const ScreenplayKeymap = Extension.create({
           return true;
         }).run();
       },
+      // Backspace at the start of a FILLED line whose previous line is an EMPTY
+      // block: consume the empty line. The stock join would instead merge this
+      // line into the empty block's ELEMENT (dialogue backspaced under a blank
+      // scene line became a scene heading). A join of two filled lines keeps
+      // the default behavior — that's a deliberate merge.
+      Backspace: () => {
+        const ed = this.editor;
+        if (suggestionOpen()) return false;
+        const { state } = ed;
+        if (!state.selection.empty) return false;
+        const info = caretBlockInfo(state);
+        if (!info || inListOrTable(state) || !info.atStart || info.isEmpty) return false;
+        const before = state.selection.$from.before(info.depth);
+        const prev = state.doc.resolve(before).nodeBefore;
+        if (!prev || prev.type.name !== 'screenplayBlock') return false;
+        if (prev.textContent.trim().length > 0) return false;
+        return ed.chain().focus().command(({ tr, dispatch }) => {
+          if (dispatch) tr.delete(before - prev.nodeSize, before);
+          return true;
+        }).run();
+      },
+      // Mirror: Delete at the end of a filled line consumes an EMPTY next line
+      // instead of swallowing whatever follows into this line's element.
+      Delete: () => {
+        const ed = this.editor;
+        if (suggestionOpen()) return false;
+        const { state } = ed;
+        if (!state.selection.empty) return false;
+        const info = caretBlockInfo(state);
+        if (!info || inListOrTable(state) || !info.atEnd || info.isEmpty) return false;
+        const after = state.selection.$from.after(info.depth);
+        const next = state.doc.resolve(after).nodeAfter;
+        if (!next || next.type.name !== 'screenplayBlock') return false;
+        if (next.textContent.trim().length > 0) return false;
+        return ed.chain().focus().command(({ tr, dispatch }) => {
+          if (dispatch) tr.delete(after, after + next.nodeSize);
+          return true;
+        }).run();
+      },
       Tab: cycle(1),
       'Shift-Tab': cycle(-1),
     };
@@ -129,7 +182,12 @@ export const ScreenplayKeymap = Extension.create({
         // gates require a screenplayBlock). Restore a Scene Heading in the SAME
         // dispatch so the writer is never stranded after clearing the page.
         appendTransaction(transactions, _oldState, newState) {
-          if (!transactions.some((tr) => tr.docChanged)) return null;
+          // LOCAL deletes only. Remote Yjs transactions carry the y-sync meta;
+          // reacting to them here would (a) have BOTH peers issue the same
+          // node-type change (which y-prosemirror can't express in place —
+          // concurrent type changes on one Y.XmlElement duplicate it) and
+          // (b) yank this user's caret to pos 1 for an edit they never made.
+          if (!transactions.some((tr) => tr.docChanged && !tr.getMeta('y-sync$'))) return null;
           const { doc, schema } = newState;
           const spType = schema.nodes.screenplayBlock;
           if (!spType) return null;
@@ -154,6 +212,31 @@ export const ScreenplayKeymap = Extension.create({
           handleDOMEvents: {
             mousedown() { storage.enterChain = false; return false; },
             blur() { storage.enterChain = false; return false; },
+          },
+          // Pasted content arrives as `paragraph` nodes (plain text and most
+          // HTML alike). The schema allows them, so they RENDER — but every
+          // export path only reads screenplayBlocks, so pasted pages silently
+          // vanished from PDF/Fountain/FDX, and Tab/Enter/auto-caps were inert
+          // on them. Convert top-level textblocks in the pasted slice to
+          // screenplayBlocks (slugline/transition detection included). Nested
+          // content (lists, tables) is left alone — converting a list item's
+          // paragraph would violate its content spec.
+          transformPasted(slice, view) {
+            const spType = view.state.schema.nodes.screenplayBlock;
+            if (!spType) return slice;
+            let changed = false;
+            const nodes = [];
+            slice.content.forEach((node) => {
+              if (node.isTextblock && node.type.name !== 'screenplayBlock') {
+                const element = detectElementFromText('action', node.textContent) || 'action';
+                nodes.push(spType.create({ element }, node.content, node.marks));
+                changed = true;
+              } else {
+                nodes.push(node);
+              }
+            });
+            if (!changed) return slice;
+            return new Slice(Fragment.fromArray(nodes), slice.openStart, slice.openEnd);
           },
           // Auto-uppercase scene/character/transition lines AND auto-format an
           // action line into a Scene Heading / Transition the moment its text
@@ -182,6 +265,23 @@ export const ScreenplayKeymap = Extension.create({
             const resultText = head + content.slice(to - blockStart);
             const detected = detectElementFromText(element, resultText);
             if (detected) {
+              // The full-line uppercase rewrite below flattens the line to
+              // plain text — safe only when the line IS plain text. With marks
+              // or inline nodes (mentions, comment anchors) present, the
+              // rewrite would destroy them AND the textContent-offset math
+              // would be wrong — so promote the element, insert the keystroke,
+              // and leave the text as-is (the element's CSS shows uppercase).
+              let plain = true;
+              node.content.forEach((child) => {
+                if (!child.isText || child.marks.length) plain = false;
+              });
+              if (!plain) {
+                const tr = state.tr
+                  .insertText(insert, from, to)
+                  .setNodeMarkup($from.before(depth), undefined, { ...node.attrs, element: detected });
+                view.dispatch(tr);
+                return true;
+              }
               // Promote the block + uppercase the whole line (scene/transition
               // are uppercase) in ONE transaction → one undo step.
               const finalText = shouldUppercase(detected) ? resultText.toUpperCase() : resultText;
