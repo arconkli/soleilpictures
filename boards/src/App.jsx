@@ -40,6 +40,7 @@ import { start as startFriction, stop as stopFriction } from './lib/frictionSign
 import { FeedbackButton } from './components/FeedbackButton.jsx';
 import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolledArm, setAnalyticsContext } from './lib/analytics.js';
 import { resolveSurface, surfaceBoardId } from './lib/surface.js';
+import { createCollabTracker } from './lib/collabSession.js';
 import { EV, JOURNEY_PHASE } from './lib/analyticsEvents.js';
 import { setJourneySink, beginJourney, endJourney, setJourneyState, journey } from './lib/journey.js';
 import { getActiveExperiments, assignArm, drawArm } from './lib/experiments.js';
@@ -4660,6 +4661,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     userProfiles.populateFromPeers(wsPeers);
   }, [wsPeers]);
+
+  // Collaboration, as opposed to invitations. Everything about ASKING someone
+  // to join was measured; whether two people were ever on a board together was
+  // not, so the growth loop could never be checked against reality. One event
+  // per real overlap, emitted when it ends so it can carry a duration.
+  const collabTrackerRef = useRef(null);
+  if (!collabTrackerRef.current) collabTrackerRef.current = createCollabTracker();
+  useEffect(() => {
+    const onBoard = (wsPeers || []).filter(
+      (p) => p?.location?.boardId && p.location.boardId === currentId && p.location.isActive
+    ).length;
+    const done = collabTrackerRef.current.update(currentId || null, onBoard);
+    if (done) { try { logEvent(EV.COLLAB_SESSION, done); } catch (_) {} }
+  }, [wsPeers, currentId]);
+  useEffect(() => {
+    // A closing tab would otherwise discard an overlap that is still open, which
+    // would systematically drop the longest sessions — the ones that matter most.
+    const bank = () => {
+      const done = collabTrackerRef.current?.end();
+      if (done) { try { logEventNow(EV.COLLAB_SESSION, done); } catch (_) {} }
+    };
+    window.addEventListener('pagehide', bank);
+    return () => { window.removeEventListener('pagehide', bank); bank(); };
+  }, []);
 
   const jumpToPeer = (loc) => {
     if (loc?.surface === 'home') { setCurrentSurface('home'); return; }
