@@ -319,6 +319,33 @@ test('a long screenplay shows on-screen page-break markers', async ({ page }) =>
   await expect(page.locator('.doc-card-modal .sp-page-break-rule[data-page="2"]').first()).toBeAttached();
 });
 
+test('(MORE) appears at page breaks only for split dialogue, never split action', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  // A giant ACTION block spanning the page boundary: break marker, no (MORE).
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const text = Array(120).fill('The clock ticks forward once more here.').join(' ');
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'scene', text: 'INT. OFFICE - DAY' },
+      { element: 'action', text },
+    ]));
+  });
+  await expect(page.locator('.doc-card-modal .sp-page-break').first()).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('.doc-card-modal .sp-page-break-more')).toHaveCount(0);
+  // A giant DIALOGUE block: (MORE) below, "JOHN (CONT'D)" above the fold.
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const text = Array(120).fill('I am still talking and talking.').join(' ');
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text },
+    ]));
+  });
+  await expect(page.locator('.doc-card-modal .sp-page-break-more').first()).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('.doc-card-modal .sp-page-break-contd').first()).toContainText("JOHN (CONT'D)");
+});
+
 test('character-name autocomplete suggests + completes a known name', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);
@@ -579,9 +606,16 @@ test('Enter progression from dialogue: new character → action → scene (typin
       { element: 'dialogue', text: 'Goodbye.' },
     ]));
   });
-  // Click the dialogue line to focus the editor, caret to end of the line.
+  // Click to focus, then park the caret at the END of the dialogue line
+  // programmatically (click coordinates + the End key are both unreliable
+  // under parallel-worker load / on mac).
   await page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first().click();
-  await page.keyboard.press('End');
+  await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    let pos = null;
+    ed.state.doc.descendants((node, p) => { if (node.attrs?.element === 'dialogue') pos = p + 1 + node.content.size; });
+    ed.chain().focus().setTextSelection(pos).run();
+  });
   await page.keyboard.press('Enter');   // dialogue → a NEW empty character cue
   expect(await caretElement(page)).toBe('character');
   expect(await blockCount(page)).toBe(4);
@@ -607,8 +641,18 @@ test('Enter on a clicked-into empty line inserts a new line (the mid-script glit
       { element: 'action', text: 'She waits.' },
     ]));
   });
-  // Click into the blank line the way a user editing earlier script would.
+  // Click into the blank line the way a user editing earlier script would
+  // (then pin the caret programmatically — click coordinates drift under
+  // parallel-worker load).
   await page.locator('.doc-card-modal [data-screenplay-element="action"]').first().click();
+  await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    let pos = null;
+    ed.state.doc.descendants((node, p) => {
+      if (pos == null && node.attrs?.element === 'action' && !node.textContent) pos = p + 1;
+    });
+    ed.chain().focus().setTextSelection(pos).run();
+  });
   await page.keyboard.press('Enter');
   // A new line exists — the old behavior only toggled the element in place
   // (Action ↔ Scene Heading forever) and never inserted one.
@@ -687,7 +731,12 @@ test('the Enter escalation flow works mid-script, not just at the end', async ({
     ]));
   });
   await page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first().click();
-  await page.keyboard.press('End');
+  await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    let pos = null;
+    ed.state.doc.descendants((node, p) => { if (node.attrs?.element === 'dialogue') pos = p + 1 + node.content.size; });
+    ed.chain().focus().setTextSelection(pos).run();
+  });
   await page.keyboard.press('Enter');   // split → new empty character cue
   expect(await caretElement(page)).toBe('character');
   await page.keyboard.press('Enter');   // escalate → action

@@ -21,7 +21,7 @@
 // paginator counts in. It is lazy-imported so it never touches the main bundle.
 
 import { paginate, wrapLines } from './screenplayPaginate.js';
-import { elementIndent, elementWidth, elementSpacing, PAGE_LINES, TEXT_HEIGHT_IN } from './screenplayMetrics.js';
+import { elementIndent, elementWidth, elementSpacing, dualElementWidth, PAGE_LINES, TEXT_HEIGHT_IN } from './screenplayMetrics.js';
 import { computeAutoContd, characterCueDisplay, computeSceneNumbers } from '../components/docExtensions/screenplay/screenplayFlow.js';
 
 // Page geometry, in inches (jsPDF unit: 'in').
@@ -69,9 +69,9 @@ function drawCueColumn(doc, str, lineIdx) {
   doc.text(sanitize(str), LEFT + CONTD_CH * CH, y0(lineIdx), { baseline: 'top' });
 }
 
-// Dual dialogue: two ~29ch columns side by side (matches the on-screen CSS).
+// Dual dialogue: two ~29ch columns side by side (matches the on-screen CSS;
+// widths come from screenplayMetrics so the paginator counts the same wrap).
 // Returns the height in lines (the taller column) so the caller can advance.
-const dualWrapWidth = (el) => (el === 'parenthetical' ? 21 : 29);
 function drawDualGroup(doc, group, startLine) {
   const colTop = { left: 0, right: 0 };  // lines used within each column
   const firstInCol = { left: true, right: true };
@@ -80,7 +80,7 @@ function drawDualGroup(doc, group, startLine) {
     const colBase = side === 'left' ? LEFT : LEFT + 31 * CH; // right col offset 31ch
     if (!firstInCol[side]) colTop[side] += elementSpacing(b.element);
     firstInCol[side] = false;
-    const lines = wrapLines(b.text, dualWrapWidth(b.element)).map((l) => l.text);
+    const lines = wrapLines(b.text, dualElementWidth(b.element)).map((l) => l.text);
     lines.forEach((ln, k) => {
       const y = y0(startLine + colTop[side] + k);
       let str = sanitize(ln);
@@ -110,8 +110,12 @@ function drawBodyPage(doc, frags, { contdSet, sceneNums, sceneNumbers }) {
     const f = frags[k];
 
     if (f.dual) {
+      // One pair = a run of 'left' blocks then a run of 'right' blocks —
+      // matches the paginator's grouping so back-to-back pairs stay separate.
       let j = k;
-      while (j < frags.length && frags[j].dual) j += 1;
+      while (j < frags.length && frags[j].dual === 'left') j += 1;
+      while (j < frags.length && frags[j].dual === 'right') j += 1;
+      if (j === k) j = k + 1;
       if (!first) line += 1;             // one blank line before a dual group
       line += drawDualGroup(doc, frags.slice(k, j), line);
       first = false;
