@@ -18,6 +18,7 @@ import { useBoardPermission, computeBoardPermission } from './hooks/useBoardPerm
 import { setBoardClipboard, getBoardClipboard } from './lib/boardClipboard.js';
 import { useMyTier } from './hooks/useMyTier.js';
 import { useBoardCapacity } from './hooks/useBoardCapacity.js';
+import { useAppTrace } from './hooks/useAppTrace.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
@@ -3647,6 +3648,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   }, [myTier.tier, myTier.demoCardCount, myTier.effectiveCardLimit,
       upsellElig.eligible, upsellElig.reason, upsellElig.capPct,
       workspace?.created_by, user?.id]);
+
+  // Micro-interaction trace for ESTABLISHED users. Self-gates on the journey
+  // being closed and the route not being public, so it fills the gap ps_trace
+  // and lp_trace leave rather than overlapping either — see useAppTrace.
+  useAppTrace(!!user?.id && !!myTier.tier);
 
   // Funnel: app_open fires once per mount with the caller's tier so we
   // can correlate retention (app opens / unique user / week).
