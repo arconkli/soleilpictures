@@ -16,7 +16,7 @@ import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { PAGE_W } from './docExtensions/DocPagination.js';
 import { addBookmark, addPage, addPageSheet, deletePageSheet, renamePage, getDocMode, setDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager } from '../lib/docState.js';
-import { setDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
+import { pushDocUndoTarget, removeDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { undoToast } from '../lib/undoToast.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
@@ -107,10 +107,14 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const docUndoManager = useMemo(() => (ydoc ? getDocUndoManager(ydoc, scope) : null), [ydoc, scope]);
   useEffect(() => {
     if (!canEdit || !docUndoManager) return undefined;
-    setDocUndoTarget(docUndoManager);
+    pushDocUndoTarget(docUndoManager);
     const onKey = (e) => {
       const cmd = e.metaKey || e.ctrlKey;
       if (!cmd || (e.key !== 'z' && e.key !== 'y')) return;
+      // Only the TOP surface acts — a docked pane + a modal doc are both
+      // mounted with their own listeners, and without this gate one keypress
+      // popped a structural step in BOTH docs.
+      if (getDocUndoTarget() !== docUndoManager) return;
       // Typing in the text editor / title input: Tiptap's y-undo (or the
       // input's native undo) owns the shortcut.
       if (isEditableTarget(e)) return;
@@ -121,7 +125,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
-      if (getDocUndoTarget() === docUndoManager) setDocUndoTarget(null);
+      removeDocUndoTarget(docUndoManager);
     };
   }, [canEdit, docUndoManager]);
   // Subscribe to the awareness instance lazily — it's only created after the
@@ -419,6 +423,14 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       seededRef.current = true;
       const id = addPage(ydoc, { name: titleOverride || board.name || 'Untitled', scope });
       setActivePageId(id);
+      // The auto-seed must not be the first undoable step: a stray ⌘Z right
+      // after opening a brand-new doc deleted its only page, and everything
+      // typed afterwards went into an orphaned fragment (invisible after
+      // reload). Clear only when the seed IS the whole history, so seeding
+      // after a user deleted their last page never eats their undo.
+      try {
+        if (docUndoManager && docUndoManager.undoStack.length <= 1) docUndoManager.clear();
+      } catch (_) {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, pages.length]);

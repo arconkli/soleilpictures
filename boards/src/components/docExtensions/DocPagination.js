@@ -78,9 +78,21 @@ function lineRects(el) {
   try {
     const range = document.createRange();
     range.selectNodeContents(el);
+    // Range.getClientRects() includes the border box of EVERY element inside
+    // the range — including this plugin's own mid-block `.doc-page-gap`
+    // widget from the previous pass. Unfiltered, a gap re-enters measurement
+    // as a page-tall phantom "line", which emits a bogus break inside the
+    // gutter and then starves every real break below it ("text through the
+    // gutter" on multi-page paragraphs). Decoration badges (multi-target
+    // link <sup>s) similarly land out of line order. Filter both by geometry.
+    const skip = Array.from(el.querySelectorAll('.doc-page-gap, .tt-link-badge'))
+      .map((w) => w.getBoundingClientRect());
+    const isWidgetRect = (r) => skip.some((s) => Math.abs(s.top - r.top) < 1
+      && Math.abs(s.height - r.height) < 1 && Math.abs(s.left - r.left) < 1);
     const out = [];
     for (const r of range.getClientRects()) {
       if (r.height === 0 && r.width === 0) continue;
+      if (skip.length && isWidgetRect(r)) continue;
       const last = out[out.length - 1];
       if (last && Math.abs(r.top - last.top) < 2) {
         last.height = Math.max(last.height, r.height);
@@ -223,7 +235,7 @@ export const DocPagination = Extension.create({
           let destroyed = false;
           const measure = () => {
             raf = 0;
-            if (destroyed || !view.editable && false) { /* still measure read-only */ }
+            if (destroyed) return; // a queued rAF surviving teardown must not dispatch on a dead view
             let res;
             try { res = computeBreaks(view, opts.getZoom() || 1); }
             catch (_) { return; }
