@@ -525,11 +525,28 @@ export function SignInBackdrop({ children, exploreHref }) {
     };
   }, []);
 
+  // The living board is ornament — every layer below is aria-hidden — but
+  // visitors read it as a running app and click it, and .sb-cards was the most
+  // clicked dead target on the whole landing page. That click is interest, not
+  // a mistake, so spend it on the one thing this page wants: the email field.
+  // Real controls (the box, its form, the explore link) keep their own clicks.
+  const onDecorClick = (e) => {
+    if (e.target.closest('.sb-box-wrap, a, button, input, textarea, select, [role="button"]')) return;
+    const field = boxRef.current?.querySelector('input:not([type="hidden"]):not([disabled])');
+    if (!field) return;
+    field.focus();
+    try {
+      const cls = (e.target.getAttribute?.('class') || e.target.tagName || '').toString();
+      logEvent(EV.LANDING_BACKDROP_CLICK, { tgt: cls.slice(0, 60) });
+    } catch (_) {}
+  };
+
   return (
     <div className="sb-scene" ref={sceneRef}>
       <div className="sb-scroll" ref={scrollRef}>
         <div className="sb-runway" ref={runwayRef}>
-          <div className="sb-stage" ref={stageRef}>
+          {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events */}
+          <div className="sb-stage" ref={stageRef} onClick={onDecorClick}>
             <div className="sb-grid" ref={gridRef} aria-hidden="true" />
             <div className="sb-grain" aria-hidden="true" />
             <svg className="sb-links" ref={linksRef} aria-hidden="true" />

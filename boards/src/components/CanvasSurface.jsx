@@ -3805,16 +3805,24 @@ export function CanvasSurface({
       // same single-click affordance editors get via openOnClick below
       // (released within 4px = click; a drag attempt is not a click).
       // Without this, public /share visitors had to discover double-click.
-      const openTarget =
-        (c.kind === 'board' && e.target.closest?.('.bc-cover')) ? c.id
-        : (c.kind === 'boardlink' && boards[c.target]) ? c.target
+      //
+      // Images open fullscreen on that same clean tap. They used to fall
+      // straight through to the pan branch below, which made a photo the one
+      // thing on a shared board you could not actually look at: .ic-actions is
+      // hover-only on a mouse, and read-only cards have no other click target.
+      // The field traces were unambiguous — dead- and rage-clicks on
+      // div.r2p.ic-img were the top in-board interaction on /share.
+      const openTap =
+        (c.kind === 'board' && e.target.closest?.('.bc-cover')) ? () => onOpenBoard(c.id)
+        : (c.kind === 'boardlink' && boards[c.target]) ? () => onOpenBoard(c.target)
+        : (c.kind === 'image' && c.src) ? () => openImageLightbox(c)
         : null;
-      if (openTarget) {
+      if (openTap) {
         const pid = e.pointerId, sx = e.clientX, sy = e.clientY;
         const onUp = (ev) => {
           if (ev.pointerId !== pid) return; // another finger/pen — not this gesture
           cleanup();
-          if (Math.hypot(ev.clientX - sx, ev.clientY - sy) <= 4) onOpenBoard(openTarget);
+          if (Math.hypot(ev.clientX - sx, ev.clientY - sy) <= 4) openTap();
         };
         const onCancel = (ev) => { if (ev.pointerId === pid) cleanup(); };
         const cleanup = () => {
@@ -8326,7 +8334,7 @@ export function CanvasSurface({
   };
 
   return (
-    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''} ${annotPlacing ? 'is-annot-place' : ''} ${multiSelectionBounds ? 'is-multi-sel' : ''}`}
+    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''} ${annotPlacing ? 'is-annot-place' : ''} ${multiSelectionBounds ? 'is-multi-sel' : ''} ${canEdit ? '' : 'is-readonly'}`}
          data-eyedrop={eyedropFor ? '1' : undefined}
          ref={wrapRef}
          style={wrapStyle}

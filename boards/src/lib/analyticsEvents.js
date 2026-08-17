@@ -20,6 +20,7 @@ export const EV = Object.freeze({
   LANDING_EXPLORE_CLICK:   'landing_explore_click',       // "Explore a live board" clicked
   LANDING_FOOTER_CLICK:    'landing_footer_click',        // footer legal/email link {target}
   LANDING_DWELL:           'landing_dwell',               // time on landing {ms,max_depth}
+  LANDING_BACKDROP_CLICK:  'landing_backdrop_click',      // clicked the decorative "living board" behind the sign-in box {tgt} — every layer of it is aria-hidden ornament, but visitors read it as a real app and click it (div.sb-cards was the top dead-click target on /). The click now focuses the email field instead of dying, and this measures how often that intent shows up
 
   // ── Welcome / Waitlist ──
   WELCOME_VIEW:            'welcome_view',                // welcome screen mounted
