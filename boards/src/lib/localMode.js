@@ -135,6 +135,17 @@ export function isPresenceQaMode() {
   return new URLSearchParams(window.location.search).get('presenceqa') === '1';
 }
 
+// Dev-only READ-ONLY board harness. Active ONLY in a DEV build with ?roqa=1
+// (same trust boundary as isPresenceQaMode). Renders the local Home board with
+// canEdit=false + isPublic=true, i.e. exactly what a /share visitor sees, so
+// the view-only interaction rules — clean-tap opens a board cover, a board
+// link, or an image fullscreen; drag pans instead of moving a card — are
+// testable without a real share token or a signed-in session.
+export function isReadOnlyQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('roqa') === '1';
+}
+
 // Is ANY dev-only QA harness driving this pageload?
 //
 // Why this exists: the e2e suite drives the real app with a real analytics
@@ -152,10 +163,15 @@ export function isPresenceQaMode() {
 // Analytics uses it to mark rows `synthetic: true` rather than to drop them:
 // several specs assert on the intercepted request body, so the event still has
 // to be SENT — it just has to be labelled.
+// KEEP IN SYNC with the predicates above — a param that is spelled differently
+// here than in its is*QaMode() reader silently stops labelling that harness's
+// rows, which is the one failure this list exists to prevent. ('imageeditqa'
+// was exactly that: isImageEditQaMode reads ?imgeditqa, so its rows went to
+// production unlabelled.)
 const QA_MODE_PARAMS = [
   'local', 'adminpreview', 'docqa', 'noteqa', 'thumbqa', 'dndqa', 'arrowqa',
-  'alignqa', 'gridqa', 'schedqa', 'tourqa', 'revealqa', 'imageeditqa',
-  'presenceqa', 'shareqa',
+  'alignqa', 'gridqa', 'schedqa', 'tourqa', 'revealqa', 'imgeditqa',
+  'presenceqa', 'shareqa', 'roqa',
 ];
 export function isAnyQaMode() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return false;

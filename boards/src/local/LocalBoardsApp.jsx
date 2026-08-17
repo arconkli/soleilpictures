@@ -31,6 +31,7 @@ import { PROJECT_INTENTS } from '../lib/onboardingTour.js';
 import { supabase } from '../lib/supabase.js';
 import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
+import { isReadOnlyQaMode } from '../lib/localMode.js';
 
 const TWEAK_DEFAULTS = {
   theme: 'dark',
@@ -140,6 +141,12 @@ const TOUR_VARIANT = TOUR_PARAM === 'mobile' ? 'mobile_lite'
 // ON THIS ORIGIN (the dev server you're viewing) for the images to presign.
 const SHOWCASE_PREVIEW = typeof window !== 'undefined'
   && new URLSearchParams(window.location.search).get('showcase') === '1';
+
+// Dev-only: ?roqa=1 boots the local board as a view-only PUBLIC board, which is
+// what a /share visitor gets. Read through the shared predicate so the
+// import.meta.env.DEV guard (and the synthetic-row labelling that rides with
+// it) applies here too.
+const readOnlyQa = isReadOnlyQaMode();
 
 function createShowcasePreviewState() {
   // A clean Studio root; the snapshot loads into it asynchronously (effect below).
@@ -1387,6 +1394,12 @@ export function LocalBoardsApp({ user, signOut }) {
           />
         ) : view === 'canvas' ? (
           <CanvasSurface
+            // ?roqa=1 renders this board exactly as a /share visitor sees it —
+            // view-only, public — so the read-only interaction rules can be
+            // driven by Playwright without a share token. DEV-only (the
+            // predicate is import.meta.env.DEV-guarded), default false.
+            canEdit={!readOnlyQa}
+            isPublic={readOnlyQa}
             board={currentBoard}
             boards={boards}
             cards={currentState.cards}

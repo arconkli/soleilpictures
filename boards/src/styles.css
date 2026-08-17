@@ -9179,6 +9179,11 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 /* Image card layout — title BELOW the image is now primary */
 .ic { display: flex; flex-direction: column; }
 .ic-imgwrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+/* On a read-only board a clean tap on an image opens it fullscreen (see the
+   openTap branch in CanvasSurface's onCardPointerDown). Say so with the
+   cursor — without an affordance the click is invisible, which is exactly how
+   it read in the field traces. */
+.canvas-wrap.is-readonly .ic-imgwrap { cursor: zoom-in; }
 /* `cover` works here because image cards are aspect-locked on resize
    (see onResizePointerDown — lockAspect for kind='image'). Default
    resize keeps the card aspect matched to the image, so cover fills
