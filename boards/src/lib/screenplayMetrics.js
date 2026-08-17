@@ -39,6 +39,14 @@ export const ELEMENT_METRICS = {
   centered:      { indent: 0,  width: 60, spacing: 1 },
 };
 
+// Dual-dialogue columns are ~half the text block: 29ch columns (21ch for a
+// parenthetical inside one). Consumed by the paginator, the PDF and mirrored
+// by the on-screen CSS + print shell — dual blocks must be COUNTED at these
+// widths, not the full-width ones, or dual-heavy pages overflow the bottom
+// margin in the export.
+export const DUAL_WIDTH = { character: 29, parenthetical: 21, dialogue: 29 };
+export const dualElementWidth = (el) => DUAL_WIDTH[el] || 29;
+
 const def = ELEMENT_METRICS.action;
 export const elementWidth = (el) => (ELEMENT_METRICS[el] || def).width;
 export const elementIndent = (el) => (ELEMENT_METRICS[el] || def).indent;

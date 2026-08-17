@@ -57,6 +57,10 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
   const sceneNums = computeSceneNumbers(blocks);
   const titleSection = titlePageHTML(titlePage);
   const pageHtml = pages.map((frags, pi) => {
+    // A page that STARTS with a dual group needs the zero top margin on the
+    // whole leading pair (left AND right columns), or the columns misalign.
+    let leadingDualEnd = 0;
+    while (frags[0]?.dual && leadingDualEnd < frags.length && frags[leadingDualEnd].dual) leadingDualEnd += 1;
     const rows = frags.map((f, fi) => {
       const contd = f.contd ? `<div class="sp-contd">${esc(f.contd)} (CONT'D)</div>` : '';
       const more = f.more ? `<div class="sp-more">(MORE)</div>` : '';
@@ -66,7 +70,7 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
       const dualAttr = f.dual ? ` data-dual="${f.dual}"` : '';
       // The first element on each page sits at the 1in top margin (no space-before)
       // — matches the paginator zeroing space-before for the first block on a page.
-      const firstCls = fi === 0 ? ' sp-page-first' : '';
+      const firstCls = (fi === 0 || fi < leadingDualEnd) ? ' sp-page-first' : '';
       return `${contd}<div class="sp-${f.element}${firstCls}"${numAttr}${dualAttr}>${esc(text) || '&nbsp;'}</div>${more}`;
     }).join('');
     // Page numbers top-right, omitted on page 1 (industry convention).
@@ -120,6 +124,9 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
   .sp-page .sp-character[data-dual] { text-align: center; }
   .sp-page .sp-parenthetical[data-dual="left"] { margin-left: 4ch; max-width: 21ch; }
   .sp-page .sp-parenthetical[data-dual="right"] { margin-left: 35ch; max-width: 21ch; }
+  /* Page-first must beat the dual margin rule above (higher specificity), or a
+     page that starts with a dual group prints one line lower than the editor. */
+  .sp-page [data-dual].sp-page-first { margin-top: 0; }
   /* Title page — full-page flex layout matching the on-screen editor. The title
      page uses symmetric 1in margins so it centers on the sheet. */
   .sp-title-page { display: flex; flex-direction: column; text-align: center; padding-left: 1in; }

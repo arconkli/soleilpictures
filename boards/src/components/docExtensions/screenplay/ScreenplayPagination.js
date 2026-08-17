@@ -97,11 +97,16 @@ function computeDecorations(doc) {
           // this fragment begins (0 = whole block; >0 = a mid-block continuation).
           const off = f.srcStart || 0;
           const midBlock = off > 0 || !!f.contd;
+          // (MORE) belongs to the bottom of the PREVIOUS page and only for a
+          // split DIALOGUE — the paginator's `more` flag. (A split action
+          // block must not show it; the PDF correctly omits it there.)
+          const prevFrags = pages[p - 1];
+          const more = !!(prevFrags && prevFrags.length && prevFrags[prevFrags.length - 1].more);
           // Mid-block: break inside the text (blk.pos + 1 enters block content,
           // + char offset). Otherwise: break before the block.
           const breakPos = midBlock ? (blk.pos + 1 + off) : blk.pos;
           const safePos = Math.max(0, Math.min(breakPos, doc.content.size));
-          decos.push(Decoration.widget(safePos, () => makeBreakEl(p + 1, midBlock, f.contd || null), {
+          decos.push(Decoration.widget(safePos, () => makeBreakEl(p + 1, more, f.contd || null), {
             side: -1, key: `sp-pb-${p}`,
           }));
         }

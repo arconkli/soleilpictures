@@ -15,8 +15,9 @@
 //   - keep a parenthetical with the dialogue that follows it
 
 import {
-  PAGE_LINES, MIN_SPLIT, ELEMENT_WIDTH, elementWidth, elementSpacing,
+  PAGE_LINES, MIN_SPLIT, ELEMENT_WIDTH, elementWidth, elementSpacing, dualElementWidth,
 } from './screenplayMetrics.js';
+import { computeAutoContd, characterCueDisplay } from '../components/docExtensions/screenplay/screenplayFlow.js';
 
 export { PAGE_LINES, ELEMENT_WIDTH };
 
@@ -86,23 +87,34 @@ export function paginate(blocks, opts = {}) {
   let i = 0;
   let carry = null;            // { element, text, index, contd?, srcStart }
   let lastCharacter = '';
+  // Auto (CONT'D) is appended to resuming character cues AT RENDER TIME by the
+  // screen/print/PDF renderers — count the display text here or a long cue that
+  // wraps only with the suffix throws every later line off by one.
+  const autoContd = computeAutoContd(blocks);
 
   let guard = 0;
   while ((i < blocks.length || carry) && guard++ < 100000) {
     const isCarry = !!carry;
 
-    // Dual dialogue: a run of side-by-side speech blocks is placed as one
-    // unit whose height is the TALLER of the two columns (they print/render
-    // beside each other, not stacked). Never split across a page.
+    // Dual dialogue: ONE left/right pair of speeches is placed as a unit whose
+    // height is the TALLER of the two columns (they print/render beside each
+    // other, not stacked). Never split across a page. A pair is a run of
+    // 'left' blocks followed by a run of 'right' blocks — a second pair that
+    // follows immediately is its OWN group (merging them measured four
+    // speakers as two columns and refused to break between the pairs).
     if (!isCarry && blocks[i] && blocks[i].dual) {
       let j = i;
-      while (j < blocks.length && blocks[j].dual) j += 1;
+      while (j < blocks.length && blocks[j].dual === 'left') j += 1;
+      while (j < blocks.length && blocks[j].dual === 'right') j += 1;
+      if (j === i) j = i + 1; // malformed attr — never stall
       const group = blocks.slice(i, j);
+      // Dual columns are ~half the text block — wrap at the DUAL widths the
+      // renderers actually use (29ch / 21ch), not the full-width ones.
       const colLines = (side) => {
         let n = 0, first = true;
         for (const b of group) {
           if (b.dual !== side) continue;
-          const ls = wrapLines(b.text, elementWidth(b.element)).length;
+          const ls = wrapLines(b.text, dualElementWidth(b.element)).length;
           n += (first ? 0 : elementSpacing(b.element)) + ls;
           first = false;
         }
@@ -114,7 +126,7 @@ export function paginate(blocks, opts = {}) {
       group.forEach((b, k) => {
         page.push({
           index: i + k, element: b.element, dual: b.dual, srcStart: 0,
-          lines: wrapLines(b.text, elementWidth(b.element)).length, text: b.text,
+          lines: wrapLines(b.text, dualElementWidth(b.element)).length, text: b.text,
         });
       });
       used += sb + groupLines;
@@ -128,11 +140,18 @@ export function paginate(blocks, opts = {}) {
     const srcText = isCarry ? carry.text : (blocks[i].text || '');
     const baseOffset = isCarry ? carry.srcStart : 0;
     const width = elementWidth(element);
-    const lineObjs = wrapLines(srcText, width);
+    // Character cues never split, so counting their DISPLAY text (with the
+    // auto (CONT'D) suffix) is safe — srcText still drives split slicing.
+    const countText = (!isCarry && element === 'character' && autoContd.has(i))
+      ? characterCueDisplay(srcText, true) : srcText;
+    const lineObjs = wrapLines(countText, width);
     const cl = lineObjs.length;
     const idx = isCarry ? carry.index : i;
     const firstOnPage = used === 0;
     const sb = isCarry ? 0 : (firstOnPage ? 0 : elementSpacing(element));
+    // A continued dialogue fragment is preceded by its "NAME (CONT'D)" cue
+    // line — the renderers draw it, so the paginator must budget it.
+    const contdExtra = isCarry && carry.contd ? 1 : 0;
 
     // Look-ahead "keep together" break rules (only when the page has content):
     // a lead-in element (scene heading, character cue, parenthetical) must not
@@ -150,19 +169,21 @@ export function paginate(blocks, opts = {}) {
     }
 
     // Whole block/remainder fits.
-    if (used + sb + cl <= pageLines) {
+    if (used + sb + contdExtra + cl <= pageLines) {
       page.push({ index: idx, element, lines: cl, text: srcText, srcStart: baseOffset,
         ...(isCarry && carry.contd ? { contd: carry.contd } : {}) });
-      used += sb + cl;
+      used += sb + contdExtra + cl;
       if (isCarry) carry = null; else i++;
       continue;
     }
 
-    // Doesn't fit — try to split dialogue/action.
+    // Doesn't fit — try to split dialogue/action. (Also when the block starts
+    // a FRESH page and is taller than one: splitting there beats letting it
+    // bleed 16 lines past the bottom margin of the PDF.)
     const splittable = element === 'dialogue' || element === 'action';
-    if (splittable && used > 0) {
+    if (splittable) {
       const reserve = element === 'dialogue' ? 1 : 0; // a line for (MORE)
-      const fit = pageLines - used - sb - reserve;
+      const fit = pageLines - used - sb - reserve - contdExtra;
       const remaining = cl - fit;
       if (fit >= MIN_SPLIT && remaining >= MIN_SPLIT) {
         const firstText = srcText.slice(0, lineObjs[fit - 1].end);
@@ -188,7 +209,7 @@ export function paginate(blocks, opts = {}) {
     // Page is empty but the block is taller than a page — place it whole (bleed).
     page.push({ index: idx, element, lines: cl, text: srcText, srcStart: baseOffset,
       ...(isCarry && carry.contd ? { contd: carry.contd } : {}) });
-    used += cl;
+    used += contdExtra + cl;
     if (isCarry) carry = null; else i++;
   }
   if (page.length) pushPage();

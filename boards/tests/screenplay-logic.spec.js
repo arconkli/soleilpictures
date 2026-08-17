@@ -63,6 +63,113 @@ test('enterDecision: split by default; escalate only inside the Enter chain', as
   expect(r.startOfScene).toEqual({ kind: 'split', element: 'scene' });
 });
 
+test('paginator: dual dialogue is measured at the dual column widths (29ch)', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const long = Array(10).fill('abcdefghij').join(' ');  // 10-char words: 3/line at 35ch, 2/line at 29ch
+    const { pages } = S.paginate([
+      { element: 'character', text: 'JOHN', dual: 'left' },
+      { element: 'dialogue', text: long, dual: 'left' },
+      { element: 'character', text: 'MARY', dual: 'right' },
+      { element: 'dialogue', text: 'Hi.', dual: 'right' },
+    ]);
+    const dlg = pages[0].find(f => f.element === 'dialogue' && f.dual === 'left');
+    return {
+      counted: dlg.lines,
+      at29: S.wrapLines(long, 29).length,
+      at35: S.wrapLines(long, 35).length,
+    };
+  });
+  // Rendered at 29ch (screen CSS, print, PDF) — must be COUNTED at 29ch too.
+  expect(r.at29).toBeGreaterThan(r.at35);
+  expect(r.counted).toBe(r.at29);
+});
+
+test('paginator: back-to-back dual pairs are separate groups (a page can break between them)', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const twoLines = `${'a'.repeat(28)} bbbb`;   // 2 lines at 29ch
+    const pair = (L, R) => ([
+      { element: 'character', text: L, dual: 'left' },
+      { element: 'dialogue', text: twoLines, dual: 'left' },
+      { element: 'character', text: R, dual: 'right' },
+      { element: 'dialogue', text: 'Hi.', dual: 'right' },
+    ]);
+    const blocks = [
+      ...Array.from({ length: 25 }, () => ({ element: 'action', text: 'x' })),  // fills 49 lines
+      ...pair('JOHN', 'MARY'),
+      ...pair('ANA', 'BEN'),
+    ];
+    const { pages } = S.paginate(blocks);
+    return { p0: pages[0].length, p1: pages[1]?.length, p1first: pages[1]?.[0]?.dual };
+  });
+  // Pair 1 (3 lines tall) still fits page 1; pair 2 starts page 2. The old
+  // merged grouping measured all four speakers as two tall columns and pushed
+  // BOTH pairs to page 2.
+  expect(r.p0).toBe(29);
+  expect(r.p1).toBe(4);
+  expect(r.p1first).toBe('left');
+});
+
+test('paginator: the (CONT\'D) carry cue occupies a line on the continuation page', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const word = 'a'.repeat(35);                       // one word = one 35ch line
+    const text = Array(106).fill(word).join(' ');      // 106 dialogue lines
+    const { pages, pageCount } = S.paginate([
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text },
+    ]);
+    return {
+      pageCount,
+      p1: pages[1].map(f => ({ lines: f.lines, contd: f.contd || null, more: !!f.more })),
+      p2: pages[2]?.map(f => ({ lines: f.lines, contd: f.contd || null })),
+    };
+  });
+  // Page 2 holds the "JOHN (CONT'D)" cue line + 52 dialogue lines + (MORE) = 54,
+  // not 54 dialogue lines under an uncounted cue (55 drawn = bottom-margin
+  // overflow in the PDF).
+  expect(r.pageCount).toBe(3);
+  expect(r.p1).toEqual([{ lines: 52, contd: 'JOHN', more: true }]);
+  expect(r.p2).toEqual([{ lines: 2, contd: 'JOHN' }]);
+});
+
+test('paginator: a block taller than a page starting a fresh page is split, not bled', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const word = 'a'.repeat(35);
+    const text = Array(60).fill(word).join(' ');       // 60 action lines
+    const { pages, pageCount } = S.paginate([{ element: 'action', text }]);
+    return {
+      pageCount,
+      first: { lines: pages[0][0].lines, srcStart: pages[0][0].srcStart },
+      second: { lines: pages[1]?.[0]?.lines, srcStart: pages[1]?.[0]?.srcStart },
+    };
+  });
+  expect(r.pageCount).toBe(2);
+  expect(r.first).toEqual({ lines: 54, srcStart: 0 });
+  expect(r.second.lines).toBe(6);
+  expect(r.second.srcStart).toBeGreaterThan(0);
+});
+
+test('paginator: auto (CONT\'D) on a long cue is counted in the cue\'s wrap', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const cue = 'DETECTIVE MARGARET HOLLOWAY-REID';   // 32 chars; +9 for " (CONT'D)" wraps at 38
+    const { pages } = S.paginate([
+      { element: 'character', text: cue },
+      { element: 'dialogue', text: 'First.' },
+      { element: 'action', text: 'A beat.' },
+      { element: 'character', text: cue },
+      { element: 'dialogue', text: 'Again.' },
+    ]);
+    const cues = pages[0].filter(f => f.element === 'character').map(f => f.lines);
+    return { cues };
+  });
+  // First cue: 1 line. Resuming cue renders "… (CONT'D)" → 2 lines at 38ch.
+  expect(r.cues).toEqual([1, 2]);
+});
+
 test('Tab cycles the element ring forward and back', async ({ page }) => {
   const r = await page.evaluate(() => {
     const S = window.__soleilDocTest.screenplay;
