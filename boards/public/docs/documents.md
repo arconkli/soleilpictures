@@ -17,6 +17,17 @@ Two modes:
 - **Full screen** — the document fills the window
 - **Side** — docked beside the canvas, resizable, so you can write while looking at the board
 
+Double-clicking a document card opens it in **whichever mode you used last**, so
+if you work docked you stay docked. The dock and full screen swap either way from
+the buttons in the document's header.
+
+A docked document is held by the workspace, not by the canvas underneath it. You
+can open other clusters, drill into nested ones, and move around the sidebar with
+the document still open beside you — it stays put until you close it. One
+document is docked at a time; opening another hands it the pane. Docking a
+document also takes over the [split view](/docs/clusters#side-by-side) pane, since
+there is only one.
+
 ## The three panes
 
 **Pages** on the left — a hierarchical tree. Documents are genuinely

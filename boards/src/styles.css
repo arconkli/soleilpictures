@@ -12624,13 +12624,14 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .doc-tb > *:not(.doc-tb-spacer) { flex: 0 0 auto; }
 .doc-tb > * { flex-shrink: 0; }
 
-/* Pane-mode (narrow doc-card-modal-side) — tighten everything so the
-   bar still feels usable when only ~320–600px wide. */
-.doc-card-modal-side .doc-tb { height: 36px; padding: 0 10px; gap: 1px; }
-.doc-card-modal-side .doc-tb-btn { width: 26px; height: 26px; }
-.doc-card-modal-side .doc-tb-select { padding: 0 16px 0 6px; height: 26px; max-width: 90px; font-size: 11.5px; }
-.doc-card-modal-side .doc-tb-sep { margin: 0 4px; height: 14px; }
-.doc-card-modal-side .doc-tb-spacer { display: none; }
+/* Pane-mode — tighten everything so the bar still feels usable when only
+   ~320–600px wide. Both docked variants are narrow: the card-hosted
+   overlay (-side) and the split-pane one (-pane). */
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb { height: 36px; padding: 0 10px; gap: 1px; }
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-btn { width: 26px; height: 26px; }
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-select { padding: 0 16px 0 6px; height: 26px; max-width: 90px; font-size: 11.5px; }
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-sep { margin: 0 4px; height: 14px; }
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-spacer { display: none; }
 .doc-tb-btn {
   appearance: none; border: 0; background: transparent;
   width: 28px; height: 28px;
@@ -14119,6 +14120,18 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   font-weight: 600; color: var(--ink-1);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* The pane's own breadcrumb trail. Reuses .crumbs/.crumb from the topbar so
+   the two trails read identically; only the sizing differs — the bar is
+   11.5px and a deep trail has to give way to the × rather than push it out. */
+.split-bar-crumbs {
+  min-width: 0; flex: 1 1 auto;
+  font-size: 11.5px;
+}
+.split-bar-crumbs .crumb {
+  padding: 2px 5px;
+  max-width: 160px;
+}
+.split-bar-crumbs .crumb.here { font-weight: 600; }
 .split-bar-x {
   appearance: none; border: 0; background: transparent;
   color: var(--ink-3); font-size: 16px;
@@ -14409,11 +14422,19 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .doc-card-open:hover { color: var(--ink-0); border-color: var(--soleil); background: var(--soleil-soft); }
+/* Gold = active. This doc is the one currently holding the side pane. */
+.doc-card-open.is-active {
+  color: var(--soleil); border-color: var(--soleil); background: var(--soleil-soft);
+}
 
-/* Doc card overlay — two modes:
+/* Doc card overlay — three modes:
    .doc-card-modal-full → fullscreen-ish (24px inset on all sides)
-   .doc-card-modal-side → docked to the right; canvas remains usable on
-                          the left, draggable divider sets the width. */
+   .doc-card-modal-side → docked to the right by the card itself; canvas
+                          remains usable on the left, draggable divider sets
+                          the width. (The ?docqa harness + public viewer.)
+   .doc-card-modal-pane → the workspace's split pane owns the geometry; this
+                          just fills it. Not fixed-position, so navigating the
+                          left side can't take the doc with it. */
 .doc-card-modal {
   position: fixed;
   z-index: 2147483600;
@@ -14435,6 +14456,30 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   box-shadow: -16px 0 40px rgba(0,0,0,.4);
   animation: doc-card-modal-side-in 220ms cubic-bezier(.2,.8,.2,1);
 }
+/* In-pane: no fixed positioning, no border/shadow of its own — the split
+   pane already draws the divider and the edge. Everything else (the header,
+   the toolbar tightening under .doc-card-modal-side below) is shared.
+   ⚠ TWO classes, not one, and it is load-bearing. The layering audit near the
+   bottom of this file re-asserts `.doc-card-modal { position: fixed }` — a
+   later rule of equal specificity, so a single-class override here silently
+   LOSES. That left the docked doc fixed-position at z-index 2147483600: out
+   of flow, above the whole app, and eating every click on the canvas beside
+   it. z-index goes back to auto for the same reason — in flow it has no
+   business sitting above the topbar. */
+.doc-card-modal.doc-card-modal-pane {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--bg-0);
+  animation: none;
+}
+.surface-wrap.is-doc-pane { background: var(--bg-1); }
+.split-bar-sub { color: var(--ink-3); font-weight: 400; }
 @keyframes doc-card-modal-in {
   from { opacity: 0; transform: scale(.985); }
   to   { opacity: 1; transform: scale(1); }
@@ -20253,9 +20298,9 @@ button, [role="button"], a {
 .doc-tb-scenenum-item:hover { background: var(--bg-hov); color: var(--ink-0); }
 .doc-tb-scenenum-item.is-active { color: var(--soleil, #ffa500); }
 /* Pane (side-dock) mode tightens; touch mode grows to match the 40px buttons. */
-.doc-card-modal-side .doc-tb-pill.doc-tb-screenplay-toggle,
-.doc-card-modal-side .doc-tb-pill.doc-tb-titlepage-toggle,
-.doc-card-modal-side .doc-tb-pill.doc-tb-scenenum-toggle { height: 26px; padding: 0 8px; font-size: 11.5px; }
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-screenplay-toggle,
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-titlepage-toggle,
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-scenenum-toggle { height: 26px; padding: 0 8px; font-size: 11.5px; }
 .doc-export-menu .doc-export-sep { height: 1px; margin: 4px 0; background: var(--line2, rgba(255,255,255,.1)); }
 
 /* ── Editable on-page screenplay title page (ScreenplayTitlePage) ─────────── */

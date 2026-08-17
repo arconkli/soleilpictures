@@ -408,6 +408,10 @@ export function CanvasSurface({
   getAwareness,            // () => Awareness | null  — for live presence
   currentUser,             // { id, name, color }     — for awareness localState
   onOpenBoard, tweak, depth, onOpenPicker,
+  // Doc-card dock handoff — passed straight through to RichDocCard. See its
+  // `onDock` prop: the workspace hosts the docked doc so it survives
+  // navigating to another cluster.
+  onDockDoc = null, dockedDocCardId = null,
   // Shoot days are dated CLUSTERS, so these write Postgres (set_board_schedule)
   // rather than the Y.Doc — they can't ride gridActions with the cell mutators.
   onSetSchedule = null, onAddShootDay = null,
@@ -7274,6 +7278,8 @@ export function CanvasSurface({
                      onJumpToPeer={onJumpToPeer}
                      canEdit={canEdit}
                      isPublic={isPublic}
+                     onDock={onDockDoc}
+                     isDocked={dockedDocCardId === c.id}
                      autoFocus={af}
                      onUpdate={onUpdate} />
       ) : <DocCard title={c.title} lines={c.lines} author={c.author} date={c.date} onUpdate={onUpdate} autoFocus={af} />;

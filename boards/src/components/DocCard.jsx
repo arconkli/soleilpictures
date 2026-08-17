@@ -14,6 +14,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cardScope, readDocSummary, initCardDocStore } from '../lib/docState.js';
+import { readDocOpenMode, writeDocOpenMode } from '../lib/docOpenMode.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { Avatar } from './primitives.jsx';
@@ -36,6 +37,13 @@ const RATIO_KEY = 'soleil.boards.docCardSideRatio';
 // body[data-doc-overlay] flag (see DocCardOverlay's presence effect).
 let openOverlayCount = 0;
 
+// Fired by whichever card is opening so every OTHER open card closes itself.
+// Two overlays can be alive at once (side mode leaves the canvas live, so a
+// second card can open before the first unmounts) and in side mode they dock
+// to the same coordinates — the newer one would simply bury the older. One
+// doc is open at a time; opening the next hands it the layout.
+const OPEN_EVENT = 'soleil-doccard-open';
+
 export function RichDocCard({
   card, ydoc, cardYMap,
   workspaceId, userId, currentUser, getAwareness, boards = {},
@@ -50,6 +58,16 @@ export function RichDocCard({
   // opening the heavy DocSurface editor is suppressed (it needs auth +
   // realtime, and pulls App-only contexts the share tree doesn't provide).
   isPublic = false,
+  // Hand the dock off to the workspace. When present, "open beside" hoists the
+  // doc into App's split pane instead of portaling an overlay from here — the
+  // overlay lives inside the canvas, so navigating to another cluster unmounted
+  // the card and the dock vanished, which is the exact opposite of what side
+  // mode is for. The split pane keeps this board's Y.Doc alive on its own.
+  // Absent (the ?docqa harness, the public /share viewer) → the original
+  // self-hosted overlay, unchanged.
+  onDock = null,
+  // True when THIS card is the one currently docked in the split pane.
+  isDocked = false,
   autoFocus = false, onUpdate,
 }) {
   // Backfill any newly-introduced Y types on cards created before this
@@ -123,7 +141,23 @@ export function RichDocCard({
   // Public viewers can open docs too — read-only, and always FULLSCREEN
   // (side mode's dock layout assumes the workspace topbar, and the dock
   // affordance is pointless on the chromeless /share surface).
-  const open = (m) => setMode(isPublic ? 'full' : m);
+  //
+  // Opening also REMEMBERS the layout (lib/docOpenMode.js) and evicts any
+  // other open doc. Fullscreen-vs-docked is how this person is working right
+  // now, not a property of one card: without the memory, someone reading
+  // docked lost the dock the moment they opened the next doc, because the
+  // mode was per-card local state that always started at 'full'.
+  const open = (m) => {
+    const next = isPublic ? 'full' : m;
+    if (!isPublic) writeDocOpenMode(next);
+    try { document.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { cardId: card.id } })); } catch (_) {}
+    // Docking is the workspace's business when it offered to take it.
+    if (next === 'side' && onDock) { setMode('closed'); onDock({ cardId: card.id }); return; }
+    setMode(next);
+  };
+  // What a plain double-click (or a peer jump) should do — the layout the user
+  // last chose, falling back to fullscreen for anyone who has never docked.
+  const openRemembered = () => open(isPublic ? 'full' : readDocOpenMode());
 
   // Public single-click-to-open. Mirrors the board-cover pattern in
   // CanvasSurface's read-only branch: a release within 4px is a click and
@@ -161,10 +195,10 @@ export function RichDocCard({
 
   // Listen for jump-to-this-doc-card events. App.jumpToPeer fires these
   // after navigating to the host board; whichever RichDocCard matches the
-  // cardId pops itself open (in 'full' mode) and primes pendingScroll so
-  // the inner DocSurface switches to the peer's page + scrolls to their
-  // exact spot. pendingScroll carries pageId so an already-open card can
-  // also switch pages on click — not just scroll.
+  // cardId pops itself open (in the remembered layout) and primes
+  // pendingScroll so the inner DocSurface switches to the peer's page +
+  // scrolls to their exact spot. pendingScroll carries pageId so an
+  // already-open card can also switch pages on click — not just scroll.
   useEffect(() => {
     const onOpen = (e) => {
       const { cardId, pageId, scrollTop } = e.detail || {};
@@ -173,10 +207,30 @@ export function RichDocCard({
         try { sessionStorage.setItem(`soleil.boards.docActivePage.${card.id}`, pageId); } catch (_) {}
       }
       setPendingScroll({ boardId: card.id, pageId: pageId || null, scrollTop: scrollTop || 0 });
-      setMode('full');
+      openRemembered();
     };
     document.addEventListener('soleil-open-doc-card', onOpen);
     return () => document.removeEventListener('soleil-open-doc-card', onOpen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card.id, isPublic]);
+
+  // One doc open at a time — see OPEN_EVENT. Closing (rather than merely
+  // hiding) is deliberate: close() flushes the tail of any in-flight edit
+  // before the overlay goes away.
+  // The flush dispatch reads the CURRENT mode through a ref rather than riding
+  // inside a setMode updater: updaters must be pure, and React invokes them
+  // twice under StrictMode — which would have fired two flushes per eviction.
+  const modeRef = useRef(mode);
+  useEffect(() => { modeRef.current = mode; }, [mode]);
+  useEffect(() => {
+    const onOtherOpen = (e) => {
+      if (e.detail?.cardId === card.id) return;
+      if (modeRef.current === 'closed') return;
+      close();
+    };
+    document.addEventListener(OPEN_EVENT, onOtherOpen);
+    return () => document.removeEventListener(OPEN_EVENT, onOtherOpen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card.id]);
 
   // Filter workspace peers to those currently inside THIS doc card (and
@@ -209,7 +263,7 @@ export function RichDocCard({
   return (
     <>
       <div className="doc-card"
-           onDoubleClick={(e) => { e.stopPropagation(); open('full'); }}
+           onDoubleClick={(e) => { e.stopPropagation(); openRemembered(); }}
            onPointerDown={isPublic ? onPublicPointerDown : undefined}>
         {/* Peer-presence dots — shown on the card preview when peers are
             inside this doc card. Same visual + interaction model as the
@@ -259,8 +313,12 @@ export function RichDocCard({
           <span className="doc-card-meta">
             {pageCount > 0 ? `${pageCount} ${pageCount === 1 ? 'page' : 'pages'}` : 'no pages'}
           </span>
-          <button className="doc-card-open" title="Open beside (dock to right)"
+          {/* Gold marks the active state (house rule) — while this doc holds
+              the side pane, its own button says so. */}
+          <button className={`doc-card-open${isDocked ? ' is-active' : ''}`}
+                  title={isDocked ? 'Docked beside the canvas' : 'Open beside (dock to right)'}
                   aria-label="Open beside"
+                  aria-pressed={isDocked || undefined}
                   onClick={(e) => { e.stopPropagation(); open('side'); }}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
               <rect x="1.5" y="2" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.2"/>
@@ -291,7 +349,14 @@ export function RichDocCard({
           getAwareness={getAwareness}
           boards={boards}
           onUpdate={onUpdate}
-          onSetMode={setMode}
+          /* The header's dock/maximize toggles are the clearest possible
+             statement of preference, so they record it too — and "dock to
+             side" hands off to the workspace on the same terms as `open`. */
+          onSetMode={(m) => {
+            if (!isPublic) writeDocOpenMode(m);
+            if (m === 'side' && onDock) { setMode('closed'); onDock({ cardId: card.id }); return; }
+            setMode(m);
+          }}
           onClose={close}
           onDividerDown={onDividerDown}
           pendingScroll={pendingScroll}
@@ -307,18 +372,80 @@ export function RichDocCard({
   );
 }
 
-function DocCardOverlay({
+// The docked doc, hosted by the workspace instead of by the canvas card.
+//
+// App renders this in the split pane against splitYb — the second Y.Doc the
+// pane already keeps alive — so moving the LEFT side to another cluster no
+// longer tears the doc down. Everything doc-shaped (the Y scope, the peer
+// filter, the mount/presence lifecycle) stays in this file; App only supplies
+// the board's ydoc and the card.
+//
+// `full` lifts the same doc to the fullscreen overlay without releasing the
+// pane, which is what keeps its board loaded.
+export function DockedDocPane({
+  card, ydoc, cardYMap, workspaceId, userId, currentUser, getAwareness,
+  boards = {}, wsPeers = [], onJumpToPeer, canEdit = true,
+  onUpdate, onClose, full = false, onSetFull,
+}) {
+  if (cardYMap) initCardDocStore(ydoc, cardYMap);
+  const scope = useMemo(
+    () => (cardYMap ? { ...cardScope(cardYMap), cardId: card.id, docCardId: card.id } : null),
+    [cardYMap, card.id],
+  );
+  const peersOnCard = useMemo(() => (wsPeers || []).filter(p =>
+    p?.location?.docCardId === card.id && p?.user?.id !== currentUser?.id
+  ), [wsPeers, card.id, currentUser?.id]);
+  const body = (
+    <DocCardOverlay
+      mode={full ? 'full' : 'side'}
+      variant={full ? 'overlay' : 'pane'}
+      sideRatio={DEFAULT_SIDE_RATIO}
+      card={card}
+      ydoc={ydoc}
+      scope={scope}
+      workspaceId={workspaceId}
+      userId={userId}
+      currentUser={currentUser}
+      getAwareness={getAwareness}
+      boards={boards}
+      onUpdate={onUpdate}
+      onSetMode={(m) => { writeDocOpenMode(m); onSetFull?.(m === 'full'); }}
+      onClose={onClose}
+      peersOnCard={peersOnCard}
+      onJumpToPeer={onJumpToPeer}
+      canEdit={canEdit} />
+  );
+  // Fullscreen still portals to <body> so it clears the pane and the topbar;
+  // the pane variant renders in flow, sized by the split divider.
+  return full ? createPortal(body, document.body) : body;
+}
+
+// Exported because App renders it too. See the `variant` prop: when the dock
+// lives in the workspace's split pane it is laid out BY that pane, not by a
+// fixed-position overlay.
+export function DocCardOverlay({
   mode, sideRatio, card, ydoc, scope, workspaceId, userId, currentUser,
   getAwareness, boards, onUpdate, onSetMode, onClose, onDividerDown,
   pendingScroll, onPendingScrollConsumed,
   peersOnCard = [], onJumpToPeer,
   canEdit = true,
   isPublic = false,
+  // 'overlay' — fixed-position, portaled to <body> (fullscreen, and the
+  //   legacy self-hosted dock the QA harness / public viewer still use).
+  // 'pane'   — rendered in flow inside the split pane, which owns the width
+  //   and supplies the resize divider. No inset, no scrim, no divider here.
+  variant = 'overlay',
 }) {
+  const inPane = variant === 'pane';
   // Esc closes from either mode — but never while typing: Escape inside the
   // title input / editor / a mention popover belongs to that control, and
   // closing the whole overlay mid-edit was how doc text got "lost".
+  //
+  // Not in a pane: there the doc is a persistent half of the workspace, like
+  // a split cluster, and nothing else in the workspace closes on a stray Esc
+  // pressed over the canvas. The × in the pane's bar is the way out.
   useEffect(() => {
+    if (inPane) return;
     const onKey = (e) => {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       if (isEditableTarget(e)) return;
@@ -326,7 +453,7 @@ function DocCardOverlay({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, inPane]);
 
   // Focus management: when a brand-new (untitled) doc card opens, drop the
   // caret in the title input so the user can name it immediately. Restore
@@ -372,7 +499,7 @@ function DocCardOverlay({
     document.dispatchEvent(new CustomEvent('soleil-doccard-scroll', { detail: { cardId: card.id, scrollTop }}));
   };
 
-  const isSide = mode === 'side';
+  const isSide = mode === 'side' && !inPane;
   const widthPct = isSide ? `${Math.round(sideRatio * 100)}%` : undefined;
 
   return (
@@ -381,7 +508,7 @@ function DocCardOverlay({
           drag to resize. Pointer-events stay outside the canvas drag-handlers
           because the divider itself is fixed-position above them. Top
           mirrors the panel's top (below the workspace topbar) so it doesn't
-          stick up over the bar. */}
+          stick up over the bar. In a pane the split divider already does this. */}
       {isSide && (
         <div className="doc-card-side-divider"
              style={{ right: widthPct, top: 42 }}
@@ -390,12 +517,12 @@ function DocCardOverlay({
       {/* Full mode: a scrim behind the inset modal so the 24px frame isn't a
           live canvas hit-zone (a pointerdown there used to start a pan/marquee
           behind the "fullscreen" doc). Click to close. */}
-      {mode === 'full' && (
+      {mode === 'full' && !inPane && (
         <div className="doc-card-modal-backdrop"
              onPointerDown={(e) => e.stopPropagation()}
              onClick={onClose} />
       )}
-      <div className={`doc-card-modal doc-card-modal-${mode}`}
+      <div className={`doc-card-modal doc-card-modal-${inPane ? 'pane' : mode}`}
            // Position via inline style. IMPORTANT: declare `inset` FIRST,
            // then override individual sides — otherwise React applies them
            // in object order and `inset: auto` clobbers our explicit edges.

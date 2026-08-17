@@ -138,7 +138,42 @@ test.describe('Phase-0 undo hardening (source guard)', () => {
     expect(has('src/lib/activePane.js')).toBe(true);
     // Both surfaces receive the pane props from App's renderSurface.
     const app = read('src/App.jsx');
-    expect((app.match(/paneId=\{isMain \? 'main' : 'split'\}/g) || []).length).toBeGreaterThanOrEqual(2);
+    expect(app).toMatch(/const paneId = isMain \? 'main' : 'split'/);
+    expect((app.match(/paneId=\{paneId\}/g) || []).length).toBeGreaterThanOrEqual(2);
+  });
+
+  test('each pane navigates itself (source guard)', () => {
+    // The split pane owns a STACK, not a board id — otherwise an open from
+    // inside the right pane has nowhere to go but the main stack, and the
+    // LEFT side jumps while the right one sits there showing the old board.
+    const app = read('src/App.jsx');
+    expect(app).toMatch(/const \[splitStack, setSplitStack\]/);
+    expect(app).toMatch(/const openSplitBoard = /);
+    // renderSurface must hand each surface its OWN opener, never the bare
+    // main-pane openBoard.
+    expect(app).toMatch(/const openInPane = isMain \? openBoard : openSplitBoard/);
+    expect((app.match(/onOpenBoard=\{openInPane\}/g) || []).length).toBeGreaterThanOrEqual(2);
+    expect(app).not.toMatch(/onOpenBoard=\{openBoard\}/);
+    // …and the split pane's edit surface must reflect real permission, not a
+    // hardcoded true: you can now navigate onto a view-only shared cluster there.
+    expect(app).toMatch(/const splitBoardPerm = useBoardPermission/);
+    expect(app).not.toMatch(/canEdit=\{isMain \? canEditCurrent : true\}/);
+  });
+
+  test('the in-pane doc keeps its position override (cascade guard)', () => {
+    // A docked doc renders IN FLOW inside the split pane. The layering audit
+    // near the bottom of styles.css re-asserts `.doc-card-modal { position:
+    // fixed }`, so a single-class override loses on source order and the doc
+    // goes back to fixed at z-index 2147483600 — out of flow, over the whole
+    // app, swallowing every click on the canvas beside it. The two-class
+    // selector is what makes it win; keep it two classes.
+    const css = read('src/styles.css');
+    expect(css).toMatch(/\.doc-card-modal\.doc-card-modal-pane\s*\{/);
+    expect(css).not.toMatch(/^\.doc-card-modal-pane\s*\{/m);
+    const pane = css.slice(css.indexOf('.doc-card-modal.doc-card-modal-pane {'));
+    const block = pane.slice(0, pane.indexOf('}'));
+    expect(block).toMatch(/position:\s*relative/);
+    expect(block).toMatch(/z-index:\s*auto/);
   });
 
   test('selection restore reads the Y.Doc synchronously (no RAF race)', () => {

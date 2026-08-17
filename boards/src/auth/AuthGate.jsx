@@ -74,7 +74,7 @@ function consumeDeepLink(userId) {
     }
     if (wsId && boardId) {
       // The board-stack session is workspace-scoped. Preserve any other
-      // keys (viewOverride / splitId / splitRatio) the user already had.
+      // keys (viewOverride / splitStack / splitRatio) the user already had.
       const boardKey = `soleil.boards.session.${userId}.${wsId}`;
       let existing = {};
       try { existing = JSON.parse(localStorage.getItem(boardKey) || '{}'); } catch (_) {}

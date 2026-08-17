@@ -29,7 +29,7 @@ The palette also runs commands. Type the verb rather than the noun:
 | New note | A note on the current board |
 | Go to Home | The [relationship graph](/docs/clusters/home-graph) |
 | Link a cluster onto canvas | Place a reference to another board |
-| Open split view | Two boards side by side |
+| Open split view | [Two boards side by side](/docs/clusters#side-by-side) |
 | Share this cluster | The [share dialog](/docs/collaborate/sharing) |
 | Messages | The [messages drawer](/docs/collaborate/messages) |
 | Toggle theme | Light / dark |

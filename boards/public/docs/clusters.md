@@ -34,6 +34,31 @@ of its own descendants is refused rather than creating a loop.
 placed on this canvas. The board itself does not move. Use it when something
 belongs in two places.
 
+## Side by side
+
+Two clusters can be open at once, in a split view with a draggable divider.
+
+- The **⧉ Pin alongside** button in the topbar
+- `⌘K` → "Open split view"
+
+Then pick the cluster for the right-hand side. Close it with the **×** in the
+right pane's bar, or the same topbar button.
+
+**Each side navigates itself.** Opening a nested cluster on the right moves the
+right side only — the left stays where it was — and each side keeps its own
+breadcrumb trail to climb back out. The same holds for what you drop, link and
+edit: it lands on the side you did it on.
+
+Access is per side too. If the right pane is showing a cluster someone shared
+with you as view-only, it is read-only there, exactly as it would be full screen.
+
+The split — both clusters, both breadcrumbs, and the divider position — is
+remembered, so a reload puts you back in it. It is a desktop feature; there is no
+split on phones.
+
+A [document docked beside the canvas](/docs/documents#opening) uses the same
+right-hand pane, so opening one closes a cluster split, and vice versa.
+
 ## Thumbnails
 
 Every cluster gets a thumbnail rendered from what is actually on it — a
