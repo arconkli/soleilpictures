@@ -245,12 +245,26 @@ function clearLocalDraft(boardId, version) {
   } catch (_) {}
 }
 
+// A Y.Doc that knows which board it holds. perf.js's transact guard reads
+// `_soleilBoardId` to attribute a CRDT corruption, and useYBoard's self-heal
+// requires an EXACT board match before it will remount — so an untagged doc
+// produces a corruption report with boardId:null, which heals nothing and
+// can't even tell you which board's snapshot is bad. That has happened in the
+// field, on a cross-board move, where the throwing doc was a short-lived temp
+// doc built from another board's snapshot and never tagged.
+//
+// Use this anywhere a Y.Doc is built to hold a KNOWN board's state, including
+// temporary ones — they corrupt exactly like the live doc, and being temporary
+// is precisely why nobody remembers to tag them.
+export function boardDoc(boardId) {
+  const doc = new Y.Doc();
+  try { doc._soleilBoardId = boardId ?? null; } catch (_) {}
+  return doc;
+}
+
 export function loadYBoard(boardId, { userId = null, user = null, workspaceId = null, hasThumb = false, onEarlyContent = null } = {}) {
   const _loadT0 = perf.isEnabled() ? performance.now() : 0;
-  const ydoc = new Y.Doc();
-  // Stamp the board id on the doc so the perf.js transact guard can attribute
-  // a Yjs corruption error and target the self-heal to the right board.
-  try { ydoc._soleilBoardId = boardId; } catch (_) {}
+  const ydoc = boardDoc(boardId);
   const cards = ydoc.getMap('cards');
   const arrows = ydoc.getArray('arrows');
   const strokes = ydoc.getArray('strokes');
