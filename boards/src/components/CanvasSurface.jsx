@@ -1374,8 +1374,14 @@ export function CanvasSurface({
   // started a session for this onboarding/demo user). noteCreateBlocked records
   // a create attempt that produced nothing — the silent canvas dead-ends, now
   // visible. See analyticsEvents.js for the pinned method/reason enums.
-  const noteCreateIntent = (method) => {
-    try { logEvent(EV.CARD_CREATE_INTENT, { method, board_id: board?.id }); } catch (_) {}
+  // `tool` names WHICH creator the gesture reached for — the armed rail tool for
+  // 'tool_place', the tile id for every menu path. It went unrecorded for as
+  // long as this event has existed, so tool_place — the most-used deliberate
+  // creation path there is — was a single unlabelled bucket, and "which tools do
+  // people actually use" could only be answered backwards from the cards that
+  // survived. null when the gesture genuinely doesn't know yet (paste, dblclick).
+  const noteCreateIntent = (method, tool = null) => {
+    try { logEvent(EV.CARD_CREATE_INTENT, { method, tool, board_id: board?.id }); } catch (_) {}
     try { setJourneyState({ phase: JOURNEY_PHASE.FIRST_INTENT }); } catch (_) {}
     try { recordIntent(method); } catch (_) {}
   };
@@ -1417,7 +1423,7 @@ export function CanvasSurface({
   const placeToolAt = (pos) => {
     if (!PLACE_TOOLS.includes(selectedTool)) return false;
     markViewSettled(); // keep the placed card where clicked (no first-card auto-fit)
-    noteCreateIntent('tool_place');
+    noteCreateIntent('tool_place', selectedTool);
     switch (selectedTool) {
       case 'board':   mutators.addNewBoard?.(pos); break;
       case 'grid':    mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); break;
@@ -6138,9 +6144,9 @@ export function CanvasSurface({
   // partition card-creating actions from annotations; `icon` is consumed by
   // the mobile sheet and ignored by the context-menu renderer.
   const buildAddActions = (pos, method) => [
-    { id: 'board',   group: 'card', label: 'Cluster', icon: Browsers,      run: () => { noteCreateIntent(method); mutators.addNewBoard?.(pos); } },
+    { id: 'board',   group: 'card', label: 'Cluster', icon: Browsers,      run: () => { noteCreateIntent(method, 'board'); mutators.addNewBoard?.(pos); } },
     { id: 'linkedcluster', group: 'card', label: 'Linked cluster', icon: ArrowSquareOut, run: () => onOpenPicker?.(pos) },
-    { id: 'grid',    group: 'card', label: 'Grid',    icon: GridFour,      run: () => { noteCreateIntent(method); mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); } },
+    { id: 'grid',    group: 'card', label: 'Grid',    icon: GridFour,      run: () => { noteCreateIntent(method, 'grid'); mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); } },
     // Multi-select, via the same batch ingest drag-drop uses. This used to call
     // mutators.addImageAt, which opens a picker with no `multiple` and reads
     // files[0] — so the single most prominent affordance in the shipped
@@ -6149,14 +6155,14 @@ export function CanvasSurface({
     // single gesture of ~2.8 cards and almost none has ever placed 5+ at once,
     // while returning at all is sharply gated on reaching ~6 on day one
     // (50-73% at 6+, ~13% at zero). Selecting one file behaves exactly as before.
-    { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method); pickPhotosAtRef.current?.(pos, method); } },
-    { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method); openFilePicker(pos); } },
-    { id: 'note',    group: 'card', label: 'Text note', icon: NotePencil,  run: () => { noteCreateIntent(method); mutators.addNote?.(pos); } },
-    { id: 'doc',     group: 'card', label: 'Doc',     icon: FileText,      run: () => { noteCreateIntent(method); mutators.addDocCard?.(pos); } },
-    { id: 'script',  group: 'card', label: 'Script',  icon: Clapperboard,  run: () => { noteCreateIntent(method); mutators.addScriptCard?.(pos); } },
-    { id: 'shape',   group: 'card', label: 'Shape',   icon: Square,        run: () => { noteCreateIntent(method); mutators.addShape?.(pos, shapeOptions); } },
-    { id: 'palette', group: 'card', label: 'Color palette', icon: Palette, run: () => { noteCreateIntent(method); mutators.addPalette?.(pos); } },
-    { id: 'schedule', group: 'card', label: 'Schedule', icon: CalendarPh, run: () => { noteCreateIntent(method); mutators.addSchedule?.(pos); } },
+    { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method, 'image'); pickPhotosAtRef.current?.(pos, method); } },
+    { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method, 'file'); openFilePicker(pos); } },
+    { id: 'note',    group: 'card', label: 'Text note', icon: NotePencil,  run: () => { noteCreateIntent(method, 'note'); mutators.addNote?.(pos); } },
+    { id: 'doc',     group: 'card', label: 'Doc',     icon: FileText,      run: () => { noteCreateIntent(method, 'doc'); mutators.addDocCard?.(pos); } },
+    { id: 'script',  group: 'card', label: 'Script',  icon: Clapperboard,  run: () => { noteCreateIntent(method, 'script'); mutators.addScriptCard?.(pos); } },
+    { id: 'shape',   group: 'card', label: 'Shape',   icon: Square,        run: () => { noteCreateIntent(method, 'shape'); mutators.addShape?.(pos, shapeOptions); } },
+    { id: 'palette', group: 'card', label: 'Color palette', icon: Palette, run: () => { noteCreateIntent(method, 'palette'); mutators.addPalette?.(pos); } },
+    { id: 'schedule', group: 'card', label: 'Schedule', icon: CalendarPh, run: () => { noteCreateIntent(method, 'schedule'); mutators.addSchedule?.(pos); } },
     { id: 'addurl',  group: 'card', label: 'Link', icon: Link, run: async () => {
       const v = await feedback.prompt({
         title: 'Add a link card',
@@ -9721,8 +9727,17 @@ export function CanvasSurface({
           onClose={closeTagPicker}
           tags={wsTags}
           appliedIds={new Set((tagsByCard.get(tagPicker.cardId) || []).map(t => t.id))}
-          onToggle={(t) => toggleTagOnCard(tagPicker.cardId, t)}
-          onCreate={(name) => createAndApplyTag(tagPicker.cardId, name)}
+          onToggle={(t) => {
+            // TAG_MANUAL_APPLY has been in the event catalog since the tags
+            // rework with no emission site anywhere, so hand-tagging — the whole
+            // point of this picker — recorded nothing. This is its home.
+            try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: 'card', via: 'picker', tag_id: t?.id }); } catch (_) {}
+            toggleTagOnCard(tagPicker.cardId, t);
+          }}
+          onCreate={(name) => {
+            try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: 'card', via: 'picker_create' }); } catch (_) {}
+            createAndApplyTag(tagPicker.cardId, name);
+          }}
         />
       )}
       {tagChipMenu && (

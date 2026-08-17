@@ -23,6 +23,12 @@
 // identifiers only — never input values or typed characters).
 
 import { EV } from './analyticsEvents.js';
+import { isInteractiveTarget, createRageDetector } from './interactionClassify.js';
+
+// Re-exported so the existing importers (hooks/useLandingEngagement.js, the
+// unit test) keep their import path while the classifier itself now lives in
+// the shared module journey.js also reads.
+export { isInteractiveTarget };
 
 // ── Injected emitter (wired once from the vite-only hook module) ──────────────
 let _log    = () => {};   // logEvent(name, props)
@@ -41,31 +47,10 @@ const TRACE_MAX_RECORDS  = 30;       // ...or whenever the buffer hits this many
 const TRACE_MAX_ROWS     = 20;       // hard cap on lp_trace rows per pageload (anon traffic > journey traffic)
 const SCROLL_THROTTLE_MS = 333;      // ~3 scroll records/sec max
 const INPUT_THROTTLE_MS  = 600;      // coalesce keystrokes — field identity only, never value
-const RAGE_WINDOW_MS     = 1000;     // ≥3 clicks on the same target inside this window = rage
-const RAGE_MIN_CLICKS    = 3;
 export const HOVER_HESITATION_MS = 300;  // pointer lingered on a CTA this long without clicking = hesitation
-
-const INTERACTIVE_TAGS = new Set(['A', 'BUTTON', 'INPUT', 'TEXTAREA', 'SELECT', 'SUMMARY', 'LABEL']);
 
 function trunc(s, n) { s = String(s == null ? '' : s); return s.length > n ? s.slice(0, n) : s; }
 function round2(n) { return Math.round(n * 100) / 100; }
-
-// Dead-click classifier: a click is "dead" when nothing within 4 ancestor hops
-// is interactive — the visitor tried to act on something inert (screenshot-like
-// image, plain heading), a strong "this looked clickable" signal.
-export function isInteractiveTarget(el) {
-  try {
-    let node = el && el.nodeType === 1 ? el : (el ? el.parentElement : null);
-    for (let i = 0; node && i < 4; i++) {
-      const tag = node.tagName ? node.tagName.toUpperCase() : '';
-      if (INTERACTIVE_TAGS.has(tag)) return true;
-      const get = node.getAttribute ? (k) => node.getAttribute(k) : () => null;
-      if (get('role') === 'button' || get('data-lp-cta') != null) return true;
-      node = node.parentElement;
-    }
-  } catch (_) {}
-  return false;
-}
 
 // One tracker per pageload of a public page. `legacy` maps let `/` keep
 // emitting its historical names (landing_scroll {depth} / landing_dwell
@@ -90,7 +75,7 @@ export function createLandingTracker({ page, pageKind, legacy = {}, thresholds =
   let lastScrollAt = 0;
   let lastTraceP = null;
   let lastInputAt = 0;
-  let rage = { tgt: null, times: [], fired: false };
+  const rage = createRageDetector(() => _now());
 
   function tMs() { return Math.max(0, _now() - t0); }
 
@@ -195,16 +180,9 @@ export function createLandingTracker({ page, pageKind, legacy = {}, thresholds =
     // a one-per-burst 'rage' record at ≥3 clicks/1s on the same target.
     traceClick(tgt, interactive) {
       if (!traceArmed || ended) return;
-      const now = _now();
-      if (rage.tgt !== tgt) rage = { tgt, times: [], fired: false };
-      rage.times = rage.times.filter((t) => now - t < RAGE_WINDOW_MS);
-      if (rage.times.length === 0) rage.fired = false;   // burst over → a new one may fire again
-      rage.times.push(now);
+      const rageN = rage(tgt);
       pushRec(interactive ? 'click' : 'dead', tgt);
-      if (rage.times.length >= RAGE_MIN_CLICKS && !rage.fired) {
-        rage.fired = true;
-        pushRec('rage', tgt, { n: rage.times.length });
-      }
+      if (rageN) pushRec('rage', tgt, { n: rageN });
     },
 
     traceInput(tgt) {

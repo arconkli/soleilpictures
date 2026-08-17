@@ -259,6 +259,7 @@ export function SidebarTags({
     if (!ok) { setMergePicker(null); return; }
     try {
       const { mergeId } = await mergeTags({ fromTagId: mergePicker.fromTag.id, intoTagId: intoTag.id });
+      try { logEvent(EV.TAG_MERGE, { from_tag_id: mergePicker.fromTag.id, into_tag_id: intoTag.id }); } catch (_) {}
       onWorkspaceTagsChanged?.();
       // merge_tags_v2 logs the whole operation — the Undo repoints every
       // rewritten application, revives the merged-away tag, and resurrects

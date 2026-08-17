@@ -546,6 +546,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       const sourceBoardId = sourceKind === 'card' ? target.boardId :
                             sourceKind === 'group' ? target.boardId : null;
       await confirmAppliedTag({ sourceKind, sourceId: target.id, sourceBoardId, tagId: tag.id });
+      try { logEvent(EV.TAG_CONFIRM, { tag_id: tag.id, target_kind: sourceKind }); } catch (_) {}
     } catch (err) {
       feedback?.toast?.({ type: 'error', message: 'Confirm failed: ' + (err.message || err) });
     }

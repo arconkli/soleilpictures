@@ -1615,6 +1615,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const a = arrowsArr(); if (!a) return;
       breakUndo();
       ydoc.transact(() => { a.push([{ from: fromId, to: toId, ...opts }]); }, 'local');
+      try { logEvent(EV.ARROW_CREATED, { kind: 'anchored', board_id: boardId }); } catch (_) {}
     };
 
     const addStroke = (stroke) => {
@@ -1647,6 +1648,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const a = arrowsArr(); if (!a) return;
       breakUndo();
       ydoc.transact(() => { a.push([{ from, to, ...opts }]); }, 'local');
+      try { logEvent(EV.ARROW_CREATED, { kind: 'free', board_id: boardId }); } catch (_) {}
     };
     const deleteArrows = (indices) => {
       const a = arrowsArr(); if (!a || !indices?.length) return;
