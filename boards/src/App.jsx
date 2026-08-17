@@ -5764,22 +5764,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     })();
     return (
       <div className={`surface-wrap ${isMain ? '' : 'is-split'}`}>
-        {/* No BAR of its own — that read as a second toolbar under the real
-            one. But the pane still needs a way out, and the topbar's ⧉ is a
-            small icon on the far side of the window whose meaning flips
-            depending on whether a split is open: technically a close button,
-            not a findable one. So the close stays on the pane it closes, as a
-            single floating control rather than a strip of chrome. */}
-        {!isMain && (
-          <button className="split-pane-close" title="Close split view"
-                  aria-label="Close split view"
-                  onClick={() => setSplitId(null)}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
-                 stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-              <path d="M3.5 3.5 L10.5 10.5 M10.5 3.5 L3.5 10.5" />
-            </svg>
-          </button>
-        )}
+        {/* No chrome of its own — no bar (that read as a second toolbar) and no
+            floating close either. Every corner of a canvas is already spoken
+            for: comments eye and tags strip top-left, hint and selection count
+            top-centre, presence and the upgrade chip top-right, zoom
+            bottom-right, the tool rail down the left. A close floated into any
+            of them collides the moment that state appears — which is exactly
+            what happened to the top-right one the first time a peer showed up.
+            It lives on the divider now, which the split owns outright. */}
         <SurfaceErrorBoundary>{surfaceJsx}</SurfaceErrorBoundary>
         {/* Loading overlay while the Y.Doc is hydrating. Keeps the page feeling
             alive during the boot window where CanvasSurface mounts but holds
@@ -6282,6 +6274,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onRatio={setSplitRatio}
             showSplit={!!splitId}
             activePane={focusedPane}
+            onClose={() => setSplitId(null)}
             left={renderSurface({ board: currentBoard, view, yb, isMain: true })}
             right={!splitId ? null : splitDoc ? renderSplitDoc() : renderSurface({
               board: splitBoard, view: splitView, yb: splitYb, isMain: false,
@@ -6575,7 +6568,7 @@ function AppTrieProvider({ workspaceId, children }) {
 // container structure stays identical, so the left pane's React subtree
 // doesn't unmount when split is toggled (critical for keeping doc-card
 // modals open across split toggles).
-function SplitContainer({ left, right, ratio = 0.5, onRatio, showSplit = true, activePane = 'main' }) {
+function SplitContainer({ left, right, ratio = 0.5, onRatio, showSplit = true, activePane = 'main', onClose }) {
   const wrapRef = React.useRef(null);
   const onPointerDown = (e) => {
     e.preventDefault();
@@ -6602,7 +6595,23 @@ function SplitContainer({ left, right, ratio = 0.5, onRatio, showSplit = true, a
           when there is no split — one pane needs no disambiguating. */}
       <div className={`split-pane${showSplit && activePane === 'main' ? ' is-active' : ''}`}
            style={{ flex: showSplit ? ratio : 1 }}>{left}</div>
-      {showSplit && <div className="split-divider" onPointerDown={onPointerDown} />}
+      {showSplit && (
+        <div className="split-divider" onPointerDown={onPointerDown}>
+          {/* The close rides the divider: the one piece of chrome that belongs
+              to the split rather than to either board, so it collides with no
+              canvas overlay and sits between the two panes it governs.
+              stopPropagation, or pressing it would start a resize drag. */}
+          <button className="split-close" title="Close split view"
+                  aria-label="Close split view"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); onClose?.(); }}>
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none"
+                 stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M3.5 3.5 L10.5 10.5 M10.5 3.5 L3.5 10.5" />
+            </svg>
+          </button>
+        </div>
+      )}
       {showSplit && (
         <div className={`split-pane${activePane === 'split' ? ' is-active' : ''}`}
              style={{ flex: 1 - ratio }}>{right}</div>
