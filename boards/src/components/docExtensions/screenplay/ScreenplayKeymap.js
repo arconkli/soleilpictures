@@ -295,6 +295,11 @@ export const ScreenplayKeymap = Extension.create({
             }
 
             if (insert === text) return false; // nothing to change
+            // Trade-off (deliberate): dispatching the uppercased char and
+            // returning true means input rules (smart quotes, em-dash) don't
+            // run on scene/character/transition lines. Those lines rarely
+            // carry quotes, and letting the rules run would re-insert the
+            // lowercase char. Action/dialogue lines keep full Typography.
             view.dispatch(state.tr.insertText(insert, from, to));
             return true;
           },

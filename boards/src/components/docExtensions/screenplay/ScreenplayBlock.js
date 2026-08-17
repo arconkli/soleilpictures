@@ -120,6 +120,9 @@ export const ScreenplayBlock = Node.create({
       },
       // Lock scene numbers: stamp each scene heading, in order, with its current
       // auto number so later inserts get A/B suffixes instead of renumbering.
+      // NOTE: no UI calls lock/unlock today (the "Scene #" pill only toggles
+      // visibility) — they exist so FDX imports carrying Number= attributes
+      // display correctly and so a lock workflow can be surfaced later.
       lockSceneNumbers: () => ({ state, tr, dispatch }) => {
         let n = 0;
         state.doc.descendants((node, pos) => {
@@ -163,6 +166,11 @@ export const ScreenplayBlock = Node.create({
         if (startC2 < 0) return false;
         let endC2 = startC2;
         while (endC2 + 1 < blocks.length && isSpeech(blocks[endC2 + 1].element)) endC2 += 1;
+        // Only act when the caret is actually INSIDE the speech being paired.
+        // Walking back from an unrelated block (the action line after an
+        // exchange) silently retyped the two speeches above the caret — while
+        // the toolbar button, which reads the caret block, still showed "off".
+        if (ci < startC2 || ci > endC2) return false;
         // C1 = the speech immediately before C2.
         let startC1 = startC2 - 1;
         while (startC1 >= 0 && blocks[startC1].element !== 'character') startC1 -= 1;
