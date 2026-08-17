@@ -287,7 +287,8 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
 
       <span className="doc-tb-sep" aria-hidden="true" />
 
-      <Btn title="Add link (⌘K)" disabled={disabled}
+      <Btn title={(!disabled && editor && !editor.state.selection.empty) ? 'Add link (⌘K)' : 'Select text to link'}
+           disabled={disabled || !editor || editor.state.selection.empty}
            onClick={() => onOpenLink?.(editor)}><Glyph as={LinkPh} size={14} /></Btn>
       <Btn title="Bookmark this spot" disabled={disabled}
            onClick={() => onInsertBookmark?.(editor)}><Glyph as={Bookmark} size={14} /></Btn>

@@ -47,6 +47,11 @@ export function CommentGutter({ ydoc, scope, pageId, editor, onOpenThread }) {
       const wrap = editor.view.dom.closest('.doc-editor-wrap');
       const wrapRect = wrap?.getBoundingClientRect();
       if (!wrapRect) return;
+      // The gutter renders INSIDE the zoomed wrap (zoom: var(--doc-zoom)), so
+      // its CSS `top` is in LAYOUT px — but coordsAtPos deltas are client px,
+      // already scaled by the zoom. Divide it back out or every dot lands at
+      // top×zoom² (visibly wrong at any zoom other than 100%).
+      const z = wrap.offsetWidth ? wrapRect.width / wrap.offsetWidth : 1;
       const next = {};
       editor.state.doc.descendants((node, pos) => {
         if (!node.isText) return;
@@ -56,7 +61,7 @@ export function CommentGutter({ ydoc, scope, pageId, editor, onOpenThread }) {
           if (!t || next[t.id]) continue; // first occurrence per thread
           try {
             const coords = editor.view.coordsAtPos(pos);
-            next[t.id] = { top: coords.top - wrapRect.top + 6 };
+            next[t.id] = { top: (coords.top - wrapRect.top) / (z || 1) + 6 };
           } catch {}
         }
         return true;

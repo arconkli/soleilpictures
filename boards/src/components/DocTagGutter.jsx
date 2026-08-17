@@ -14,7 +14,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { contentHash } from '../lib/clusterMath.js';
 
-export function DocTagGutter({ editor, ranges, onOpen }) {
+export function DocTagGutter({ editor, ranges, onOpen, onLeave }) {
   // ranges: [{ pHash, startOffset, length, tagId, tagColor, tagName, source }]
   const [positioned, setPositioned] = useState([]); // [{ key, top, color, ...range }]
   const rangesRef = useRef(ranges);
@@ -26,6 +26,9 @@ export function DocTagGutter({ editor, ranges, onOpen }) {
       const wrap = editor.view.dom.closest('.doc-editor-wrap');
       const wrapRect = wrap?.getBoundingClientRect();
       if (!wrapRect) { setPositioned([]); return; }
+      // Client px → layout px: this gutter lives inside the zoomed wrap, so
+      // CSS tops must be un-scaled (see CommentGutter for the full note).
+      const z = (wrap.offsetWidth ? wrapRect.width / wrap.offsetWidth : 1) || 1;
       const rs = rangesRef.current;
       if (!rs?.length) { setPositioned([]); return; }
       // Hash each paragraph in the live doc.
@@ -49,7 +52,7 @@ export function DocTagGutter({ editor, ranges, onOpen }) {
         let coords;
         try { coords = editor.view.coordsAtPos(absStart); } catch (_) { coords = null; }
         if (!coords) continue;
-        const top = coords.top - wrapRect.top + 4;
+        const top = (coords.top - wrapRect.top) / z + 4;
         const k = `${r.pHash}::${Math.round(top)}`;
         if (!byPara.has(k)) byPara.set(k, []);
         byPara.get(k).push({ top, range: r });
@@ -71,12 +74,6 @@ export function DocTagGutter({ editor, ranges, onOpen }) {
         });
       }
       setPositioned(out);
-      // Dev log: makes it easy to tell from devtools whether the
-      // gutter is "no ranges given," "ranges given but paragraph
-      // hashes don't match," or "rendering N dots."
-      const rsLen = rs.length;
-      const matchedHashes = new Set([...byPara.values()].flatMap(items => items.map(it => it.range.pHash))).size;
-      console.info(`[doc-tag-gutter] paragraphs:${paraByHash.size} ranges:${rsLen} matched:${matchedHashes} dots:${out.length}`);
     };
     recompute();
     editor.on('transaction', recompute);
@@ -101,14 +98,9 @@ export function DocTagGutter({ editor, ranges, onOpen }) {
             background: p.range.tagColor,
           }}
           title={`${p.range.tagName || 'Tag'} · ${labelForSource(p.range.source)}`}
-          onClick={(e) => {
-            console.info('[doc-tag-gutter] dot click', p.range.tagName);
-            onOpen?.(e, p.range);
-          }}
-          onMouseEnter={(e) => {
-            console.info('[doc-tag-gutter] dot hover-enter', p.range.tagName);
-            onOpen?.(e, p.range, { hover: true });
-          }}
+          onClick={(e) => onOpen?.(e, p.range)}
+          onMouseEnter={(e) => onOpen?.(e, p.range, { hover: true })}
+          onMouseLeave={() => onLeave?.()}
         />
       ))}
     </div>

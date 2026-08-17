@@ -181,7 +181,7 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', pageless = true, zoom = 1, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
+export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', pageless = true, zoom = 1, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
   // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
   // we fall back to the page's primary content (back-compat with one-sheet
   // pages). sheetId === pageId also lands on the primary fragment.
@@ -986,27 +986,15 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   const scopeDocCardId = scope?.docCardId || null;
   const scopeBoardId   = scope?.boardId   || null;
   useEffect(() => {
-    console.info('[paragraph-cascade] mount check — editor:', !!editor,
-      'workspaceId:', !!workspaceId, 'docCardId:', !!scopeDocCardId,
-      'activePageId:', !!activePageId);
     if (!editor || !workspaceId) return;
-    if (!scopeDocCardId || !activePageId) {
-      console.info('[paragraph-cascade] gated — needs both a docCardId and an activePageId to run');
-      return;
-    }
+    if (!scopeDocCardId || !activePageId) return;
     let timer = null;
     const fire = async () => {
       try {
         const paragraphs = extractParagraphTags(editor.state.doc);
-        if (paragraphs.length === 0) {
-          console.info('[paragraph-cascade] no >=20-char paragraphs on this page yet');
-          return;
-        }
+        if (paragraphs.length === 0) return;
         const centroids = await loadWorkspaceTagCentroids(workspaceId);
-        if (centroids.size === 0) {
-          console.info('[paragraph-cascade] no tag centroids in workspace — create / use a tag first');
-          return;
-        }
+        if (centroids.size === 0) return;
         await runParagraphCascade({
           workspaceId,
           docCardId: scopeDocCardId,
@@ -1247,9 +1235,11 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       )}
       {/* No floating menus — they crowded the cursor. Format from the top
           toolbar (always visible) or right-click for a context menu.
-          Public viewers get the native context menu instead — every item
-          here is an editor action. */}
-      {!isPublic && (
+          Public viewers AND read-only members get the native context menu
+          instead — every item here is an editor action, so mounting it on a
+          non-editable doc suppressed the browser menu (no Copy) in exchange
+          for buttons that all no-op. */}
+      {!isPublic && editable && (
       <DocEditorContextMenu editor={editor}
                             onOpenLinkPicker={openLinkPicker}
                             onAddComment={addComment.open}
@@ -1309,11 +1299,14 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       <DocTagGutter
         editor={editor}
         ranges={appliedTagRanges}
+        // Leaving the dot schedules the popover away (cancelled if the pointer
+        // reaches the popover, whose own onMouseEnter clears the timers) — a
+        // brush-past used to pin the popover over the doc indefinitely.
+        onLeave={() => { hoverTimers.current.close = setTimeout(() => setTagHover(null), 250); }}
         onOpen={(e, range, opts) => {
           const anchor = e?.currentTarget?.getBoundingClientRect?.()
             || e?.target?.getBoundingClientRect?.()
             || null;
-          console.info('[doc-tag-gutter] onOpen fired — anchor:', !!anchor, 'tag:', range.tagName);
           if (!anchor) return;
           cancelHoverTimers();
           setLinkHover(null);

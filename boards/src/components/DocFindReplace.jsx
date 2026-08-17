@@ -74,15 +74,24 @@ function findMatches(doc, query) {
   const q = query.toLowerCase();
   const ranges = [];
   doc.descendants((node, pos) => {
-    if (!node.isText) return;
-    const text = node.text || '';
+    if (!node.isTextblock) return true;
+    // Concatenate the block's inline text so a match that straddles a mark
+    // boundary ("hello" with "hel" bold) is still found — the old per-text-
+    // node scan missed it. Non-text inline leaves (mentions, hard breaks)
+    // become NUL placeholders so offsets stay aligned and a match can never
+    // span across one.
+    let text = '';
+    node.content.forEach((child) => {
+      text += child.isText ? child.text : '\u0000'.repeat(child.nodeSize);
+    });
     const lower = text.toLowerCase();
     let i = 0;
     while ((i = lower.indexOf(q, i)) !== -1) {
-      const from = pos + i;
+      const from = pos + 1 + i;
       ranges.push([from, from + query.length]);
       i += query.length;
     }
+    return false;
   });
   return ranges;
 }
@@ -99,7 +108,16 @@ export function DocFindReplace({ editor, editors = [], open, onClose }) {
   // Search/replace span EVERY mounted sheet of the active page (a prose doc
   // auto-paginates past one page, and find used to see only the focused sheet).
   const eds = editors.length ? editors : (editor ? [editor] : []);
-  const edsKey = eds.length; // cheap dep: re-run when the sheet count changes
+  // Key on editor IDENTITIES, not the count: switching doc pages swaps the
+  // editors while keeping the same sheet count, and a count-only key left the
+  // old page's match count/highlights on screen.
+  const edIds = useRef({ map: new WeakMap(), next: 1 });
+  const edId = (ed) => {
+    const m = edIds.current;
+    if (!m.map.has(ed)) m.map.set(ed, m.next++);
+    return m.map.get(ed);
+  };
+  const edsKey = eds.map(edId).join(',');
 
   // All matches across all sheet editors, in sheet then document order.
   const computeAll = () => {
@@ -186,9 +204,14 @@ export function DocFindReplace({ editor, editors = [], open, onClose }) {
     // and the replacement gets rolled back.
     setTimeout(() => {
       const a2 = computeAll();
-      const cur = a2.length ? Math.min(idx, a2.length - 1) : -1;
+      // Advance PAST the just-inserted text — when the replacement contains
+      // the query ("cat" → "cats"), re-clamping to the same index pinned
+      // "Replace One" to the same spot forever ("catsss").
+      let cur = a2.findIndex(x => x.ei > m.ei || (x.ei === m.ei && x.from >= m.from + (r ? r.length : 0)));
+      if (cur === -1) cur = a2.length ? 0 : -1;   // wrap to the top, or none left
       setTotal(a2.length); setCurrent(Math.max(0, cur));
       pushHighlights(a2, cur);
+      if (cur >= 0 && a2[cur]) scrollTo(a2[cur]);
     }, 0);
   };
   const replaceAll = () => {
