@@ -13,6 +13,8 @@
 
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { addComment, updateComment, deleteComment, restoreComment } from '../lib/commentsApi.js';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 import { undoToast } from '../lib/undoToast.js';
 import { bubbleLayout, clamp, BUBBLE_W, BUBBLE_H_DEFAULT } from '../lib/bubbleLayout.js';
 import { useFeedback } from './AppFeedback.jsx';
@@ -465,7 +467,11 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
 
   const onResolve = async () => {
     try {
-      await updateComment(comment.id, { resolved: !comment.resolved });
+      const next = !comment.resolved;
+      await updateComment(comment.id, { resolved: next });
+      // Resolving is the signal that a comment thread did its job. Reopening is
+      // logged with the same event so the ratio is visible rather than implied.
+      try { logEvent(EV.COMMENT_RESOLVE, { board_id: comment.board_id, resolved: next }); } catch (_) {}
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Update failed: ' + (err.message || err) });
     }

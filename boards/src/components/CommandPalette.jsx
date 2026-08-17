@@ -126,9 +126,24 @@ export function CommandPalette({
       setAsyncRows(rows || []);
       setLoading(false);
       // Intent signal: one "ran a search" event per open once results settle.
+      //
+      // has_results alone couldn't distinguish a one-character typo from a real
+      // query that found nothing, so the zero-result rate was unreadable. Shape
+      // fixes that without storing a word of what anyone typed: length, term
+      // count and result count. The query TEXT would be more useful still and is
+      // deliberately not collected.
       if (!searchedRef.current) {
         searchedRef.current = true;
-        try { logEvent(EV.SEARCH_RUN, { has_results: (rows || []).length > 0 }); } catch (_) {}
+        const n = (rows || []).length;
+        try {
+          logEvent(EV.SEARCH_RUN, {
+            has_results: n > 0,
+            n_results: n,
+            q_len: q.length,
+            terms: q.split(/\s+/).filter(Boolean).length,
+            surface: isPick ? 'pick' : 'palette',
+          });
+        } catch (_) {}
       }
     }, 250);
     return () => { cancelled = true; clearTimeout(id); };
@@ -301,8 +316,24 @@ export function CommandPalette({
     return m;
   }, [flat]);
 
+  // One dispatch point for keyboard AND mouse, so the "did a search go
+  // anywhere" signal can't be missed by a new item type. search_run says a
+  // search happened; this says it was worth something. A palette that returns
+  // thirty rows nobody opens has failed exactly as completely as one that
+  // returns none, and only this pair can tell the two apart.
+  const activateAt = (i) => {
+    const item = flat[i];
+    if (!item) return;
+    if (q) {
+      try {
+        logEvent(EV.SEARCH_RESULT_OPEN, { rank: i, kind: item.kind || 'unknown', n_results: flat.length });
+      } catch (_) {}
+    }
+    item.activate();
+  };
+
   const { active, setActive, onKeyDown, registerItem } = useListboxNav(flat.length, {
-    onSelect: (i) => flat[i]?.activate(),
+    onSelect: activateAt,
     resetKey: query,
   });
 
@@ -381,7 +412,7 @@ export function CommandPalette({
                     className={`cmdk-row ${active === i ? 'is-active' : ''}`}
                     onMouseEnter={() => setActive(i)}
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => item.activate()}
+                    onClick={() => activateAt(i)}
                   >
                     {item.kind === 'tag' ? (
                       <span className="cmdk-tag-dot" aria-hidden="true" style={{ '--tag-c': item.accent }} />

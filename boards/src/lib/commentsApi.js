@@ -4,6 +4,8 @@
 // REST surface.
 
 import { supabase } from './supabase.js';
+import { logEvent } from './analytics.js';
+import { EV } from './analyticsEvents.js';
 
 // List comments visible on a board. Includes resolved + hidden — let the
 // UI decide what to render. Excludes soft-deleted rows.
@@ -61,7 +63,31 @@ export async function addComment({ workspaceId, boardId, author, body, anchor, r
   const { data, error } = await supabase
     .from('comments').insert(row).select('*').single();
   if (error) throw error;
+  // Logged here, at the one choke point every comment goes through, rather than
+  // at each UI entry (canvas pin, inline popover, doc range) — a new entry point
+  // then can't quietly go unmeasured.
+  //
+  // Shape only: length is bucketed and mentions are a boolean. The body is a
+  // colleague's message about someone's work and has no business in an
+  // analytics table.
+  try {
+    logEvent(EV.COMMENT_CREATE, {
+      board_id: boardId,
+      is_reply: !!replyTo,
+      anchor_kind: anchor.kind,
+      has_mention: /(^|\s)@\w/.test(String(body)),
+      len_bucket: lenBucket(String(body).length),
+    });
+  } catch (_) { /* never let telemetry break posting a comment */ }
   return data;
+}
+
+// Coarse enough that a length can't be used to identify a specific message.
+function lenBucket(n) {
+  if (n <= 20) return 'xs';
+  if (n <= 80) return 's';
+  if (n <= 240) return 'm';
+  return 'l';
 }
 
 export async function updateComment(id, patch) {

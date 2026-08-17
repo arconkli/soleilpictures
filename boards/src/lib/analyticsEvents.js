@@ -162,11 +162,30 @@ export const EV = Object.freeze({
   ACTIVATED:               'activated',                   // first POPULATED board — a board crossed the genuine-card threshold {board_id,n} (the activation bar)
   ARROW_CREATED:           'arrow_created',               // an arrow was drawn {kind:'anchored'|'free',board_id} — anchored = between two cards/groups, free = dragged on empty canvas. The Arrow tool holds one of eight PRIMARY rail slots and emitted nothing whatsoever: arrows aren't cards, so card_placed never sees them, and no other event fired. It was the one tool in the app whose usage could not be counted at all
 
+  // ── Collaboration actually happening ──
+  // Invites were measured; collaboration was not. invite_sent, invite_link_*
+  // and share_link_copied all describe the moment someone ASKS a colleague to
+  // join, and then the record stops — presence, co-editing and comments emitted
+  // nothing at all. That made the growth loop unfalsifiable: we could see
+  // invitations go out and never tell whether anyone actually worked together,
+  // which is the only part of it that predicts a return.
+  COLLAB_SESSION:          'collab_session',              // this user shared a board with ≥1 live peer {board_id,peak_peers,ms} — emitted ONCE per board per app session, when the overlap ends, so a flaky socket can't inflate it
+  COMMENT_CREATE:          'comment_create',              // a comment was posted {board_id,is_reply,anchor_kind,has_mention,len_bucket} — never the text
+  COMMENT_RESOLVE:         'comment_resolve',             // a comment thread was resolved or reopened {board_id,resolved}
+
   // ── In-product engagement (breadth / depth / intent / loop / return — batched, high-signal) ──
   BOARD_OPEN:              'board_open',                  // opened/navigated to a board {board_id,depth,is_subboard}
   CARD_EDIT:               'card_edit',                   // edited a card's content (once per card per session) {kind,board_id}
   DOC_EDIT:                'doc_edit',                    // edited a doc surface (once per doc per session) {board_id}
-  SEARCH_RUN:              'search_run',                  // ran a search / command {has_results}
+  // Search, measured by SHAPE and never by content. q_len/terms/n_results say
+  // whether search is working — a high zero-result rate, or results that are
+  // never opened — without storing a single word anyone typed. The query text
+  // would answer "what are people looking for that doesn't exist", which is the
+  // better question, and is deliberately not collected: this repo has never put
+  // typed content in the analytics table and one useful metric is not a reason
+  // to start.
+  SEARCH_RUN:              'search_run',                  // ran a search / command {has_results,q_len,terms,n_results,surface}
+  SEARCH_RESULT_OPEN:      'search_result_open',          // a result was actually opened {rank,kind,n_results} — the missing half of search_run: a search that returns rows nobody opens has failed just as completely as one that returns none
   SHARE_OPEN:              'share_open',                  // opened the share surface {board_id}
   // A link was actually put on the clipboard. Previously DARK for every copy
   // made from inside the ShareModal (only the one-tap toolbar path emitted
@@ -322,6 +341,11 @@ export const WORK_EVENTS = Object.freeze(new Set([
   EV.TAG_MERGE,
   EV.TAG_CANDIDATE_PROMOTE,
   EV.TAG_SET_TYPE,
+  // Writing a comment is contributing to the cluster, and on a shared board it
+  // is often the ONLY thing a reviewer does — a day spent commenting is a day
+  // of work, and counting it as presence would systematically under-report the
+  // collaborators.
+  EV.COMMENT_CREATE,
 ]));
 
 // Canonical, ORDERED phases of the post-signup journey (lib/journey.js stamps the
