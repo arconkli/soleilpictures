@@ -107,7 +107,7 @@ const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx')
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced } from './lib/boardsApi.js';
 import { undoToast } from './lib/undoToast.js';
 import { forceBoardThumbnail, boardDoc } from './lib/yboard.js';
 import { planReparent } from './lib/boardTree.js';
@@ -115,7 +115,7 @@ import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
-import { evaluateUpsell, ELIGIBILITY_REV, nearCapAt } from './lib/upsellEligibility.js';
+import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap } from './lib/upsellEligibility.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel } from './lib/gridState.js';
@@ -1129,7 +1129,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // collaborators get a toast — upgrading THEIR account wouldn't lift the
     // owner's cap.
     const surfaceCapHit = (cs) => {
-      if (cs.own) { setUpgradeReason('cap-hit'); return; }
+      if (cs.own) { pitchCapWall(cs); return; }
       feedback.toast({
         type: 'warning',
         message: `This cluster is at the owner's ${cs.limit}-card limit — they'll need to upgrade or clear space before more cards fit.`,
@@ -1142,7 +1142,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // pressure. Inviting is still named in the copy — the toast API carries a
     // single action, and extending it for this one caller would touch every
     // other toast site.
-    const nearCapToast = (cs) => {
+    // Fire the approaching-limit warning when this add would put them at or
+    // past the 90% line, at most once per limit.
+    //
+    // This used to be `cs.count === nearCapAt(cs.limit)` in addCard — an exact
+    // equality against a counter that arrives from a cached RPC and moves in
+    // jumps (a ten-image drop advances it by ten). Landing exactly on the line
+    // is a coincidence, and the telemetry bears that out: near-cap warnings are
+    // vanishingly rare next to cap hits, so in practice nobody is warned and the
+    // wall is the first they hear of the limit. The batch path already used a
+    // crossing test; both now share this one, plus a latch so a jump that skips
+    // the line still warns, and warns only once.
+    const nearCapToast = (cs, adding = 1) => {
+      if (!cs.own) return;
+      if (!shouldWarnNearCap({
+        count: cs.count, limit: cs.limit, adding,
+        warnedAtLimit: nearCapWarnedAtRef.current,
+      })) return;
+      nearCapWarnedAtRef.current = cs.limit;
       logEventOnce('up_cap_toast:near', EV.UP_CAP_TOAST_VIEW, { count: cs.count, limit: cs.limit, at: 'near' });
       feedback.toast({
         type: 'warning',
@@ -1171,7 +1188,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             surfaceCapHit(cs);
             return;
           }
-          if (cs.own && cs.count === nearCapAt(cs.limit)) nearCapToast(cs);
+          nearCapToast(cs, 1);
         }
       }
       breakUndo();
@@ -1188,6 +1205,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Seeds (onb-*) are not real placements — exclude so card_placed only ever
       // means a genuine card (it was inflating the activation funnel).
       if (!isSeedCard(card)) {
+        // Keep the cached cap count moving between fetches, so the NEXT add is
+        // gated on a number that reflects this one. Seeds are never indexed, so
+        // they never count — same boundary card_placed uses.
+        myTier.notePlaced?.(1);
         logEventNow(EV.CARD_PLACED, {
           n: 1, kind: card?.kind || 'card',
           board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,
@@ -1231,8 +1252,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (capHit) {
           cardsToAdd = cardsToAdd.slice(0, accepted);
           surfaceCapHit(csBatch);
-        } else if (csBatch.own && csBatch.count + cardsToAdd.length >= nearCapAt(csBatch.limit) && csBatch.count < nearCapAt(csBatch.limit)) {
-          nearCapToast(csBatch);
+        } else {
+          nearCapToast(csBatch, cardsToAdd.length);
         }
       }
       breakUndo();
@@ -1247,11 +1268,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Count only genuine cards so the onboarding seed batch (all onb-*) never
       // emits a card_placed — the seed was being counted as activation.
       const genuine = genuineCards(cardsToAdd);
+      // Cap accounting tracks what was INDEXED, not what was reported — a remix
+      // clone passes suppressPlaced to log its own event, but its cards still
+      // occupy cap room, so this sits outside that branch.
+      if (genuine.length) myTier.notePlaced?.(genuine.length);
+      const kinds = new Set(genuine.map((c) => c?.kind).filter(Boolean));
       if (genuine.length && !opts.suppressPlaced) {
-        const kinds = new Set(genuine.map((c) => c?.kind).filter(Boolean));
         logEventNow(EV.CARD_PLACED, {
           n: genuine.length, kind: kinds.size === 1 ? [...kinds][0] : 'mixed',
           board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,
+        });
+      }
+      // Tell the guided tour that content landed. addCard has always done this;
+      // addCards never did — and addCards is the BATCH path, which is where the
+      // multi-select camera roll lands. So mobile_lite's "Add your photos" step
+      // could not be advanced by the picker its own button opens, and the
+      // funnel shows exactly that: views of that step, no advances past it,
+      // including for users who demonstrably placed images. Cluster cards are
+      // excluded here as in addCard — they drive create via cluster_created.
+      const contentKinds = [...kinds].filter((k) => k !== 'board');
+      if (contentKinds.length && genuine.some((c) => c?.kind !== 'board')) {
+        tourFireRef.current?.({
+          type: 'content_added',
+          boardId,
+          kind: contentKinds.length === 1 ? contentKinds[0] : 'mixed',
         });
       }
       return { added: cardsToAdd.length, requested, capHit };
@@ -1354,6 +1394,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }
         logEvent(EV.CARD_DELETED, { n: ids.length, kinds, board_id: boardId });
       } catch (_) {}
+      // Give the cap room back locally too, or "delete some cards to make
+      // space" doesn't work until the next tier fetch. Seeds were never
+      // indexed, so they were never counted and must not be refunded.
+      // Read `seed` off the Y.Map rather than inferring from the id: the seeded
+      // Ideas board carries the flag but must keep its real DB uuid as its card
+      // id, so an id-only test would refund it.
+      {
+        const freed = ids.filter(id => !isSeedCard({ id, seed: m.get(id)?.get('seed') })).length;
+        if (freed) myTier.notePlaced?.(-freed);
+      }
       if (boundary) breakUndo();
       // Pre-delete-board snapshot for THIS board (the one the card lives
       // on) so the boardcard itself comes back via time-travel undo. The
@@ -1433,7 +1483,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (!ids?.length) return;
       const m = cardsMap(); if (!m) return;
       const idSet = new Set(ids);
+      // Same refund as deleteCards. This path carries the failed-upload cleanup
+      // AND the withdrawal of cards the server's cap trigger refused — in both
+      // cases addCard already counted them locally, so not refunding here would
+      // leave the user permanently short of the room they actually have.
+      const freed = ids.filter(id => m.has(id) && !isSeedCard({ id, seed: m.get(id)?.get('seed') })).length;
       ydoc.transact(() => removeCardsFromDoc(idSet), 'upload');
+      if (freed) myTier.notePlaced?.(-freed);
     };
 
     // Source-side delete for a cross-board MOVE (drag into a board card /
@@ -1465,8 +1521,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (capHit) {
           sources = sources.slice(0, accepted);
           surfaceCapHit(csDup);
-        } else if (csDup.own && csDup.count + sources.length >= nearCapAt(csDup.limit) && csDup.count < nearCapAt(csDup.limit)) {
-          nearCapToast(csDup);
+        } else {
+          nearCapToast(csDup, sources.length);
         }
       }
       const newIds = [];
@@ -1484,6 +1540,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           newIds.push(obj.id);
         }
       }, 'local');
+      if (newIds.length) myTier.notePlaced?.(newIds.length);
       return newIds;
     };
     const duplicateCard = (cardId) => duplicateCards([cardId]);
@@ -3621,6 +3678,44 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   });
   const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'storage' | 'manual' | null ('shared-edit' died with 0188)
 
+  // The cap limit we last opened the upgrade modal for, or 0 for never.
+  //
+  // Hitting the wall used to re-open the modal on EVERY refused card, and a
+  // capped user keeps trying — the measured result was the pitch re-appearing
+  // dozens of times across twenty minutes, dismissed in a median two seconds
+  // with the feature list never read. A pitch shown that often isn't a pitch,
+  // it's an obstacle, and it trains the reflex that closes it.
+  //
+  // So: explain once per cap episode, then get out of the way. Keying on the
+  // limit rather than a boolean means a cap that MOVES (upgrade, referral
+  // credits) is a new episode and earns a fresh explanation, with no reset
+  // bookkeeping. The block itself is unchanged — every card over the line is
+  // still refused, and still logged.
+  const capPitchedAtRef = useRef(0);
+  // Same idea, one beat earlier: the limit we last showed the approaching-cap
+  // warning for. Keyed on the limit so raising the cap re-arms the warning.
+  const nearCapWarnedAtRef = useRef(0);
+  const pitchCapWall = useCallback((cs) => {
+    const limit = Number(cs?.limit) || 0;
+    if (capPitchedAtRef.current === limit) {
+      // Already explained at this limit. Say what happened, don't re-interrupt.
+      feedback.toast({
+        type: 'warning',
+        message: `You're at your ${limit}-card limit. Creator lifts it — or invite friends to earn more free ones.`,
+        action: {
+          label: 'See Creator',
+          onClick: () => {
+            logEventNow(EV.UP_CAP_TOAST_CTA, { count: cs?.count ?? null, limit, at: 'hit' });
+            setUpgradeReason('cap-hit');
+          },
+        },
+      });
+      return;
+    }
+    capPitchedAtRef.current = limit;
+    setUpgradeReason('cap-hit');
+  }, [feedback]);
+
   // Should this demo user be pitched at all? Shared by every always-on upsell
   // surface so the chip, the first-value banner and the list-toolbar chip agree
   // rather than each inventing its own threshold. The cap-hit modal is
@@ -3657,6 +3752,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     });
   }, [analyticsSurface, currentId, myTier.tier]);
 
+  // When the cap actually moves (upgrade, referral credits), let the sync layer
+  // forget which cards it already reported as refused. Those cards are about to
+  // be retried and will now succeed; if they don't, the user has hit a NEW wall
+  // and deserves to be told. `pitchCapWall` keys off the limit and resets
+  // itself, so only the boardsApi set needs clearing here.
+  const prevLimitRef = useRef(null);
+  useEffect(() => {
+    if (myTier.loading) return;
+    const cur = Number(myTier.effectiveCardLimit || 0);
+    const prev = prevLimitRef.current;
+    prevLimitRef.current = cur;
+    if (prev != null && cur > prev) clearCapAnnounced();
+  }, [myTier.effectiveCardLimit, myTier.loading]);
+
   // Celebrate referral rewards: when bonus_card_credits grows (a friend you
   // invited just activated — granted server-side, picked up on the next
   // focus refetch), confirm it. The first known value sets a silent baseline
@@ -3691,19 +3800,40 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // nothing at the one moment the cap is meant to be converting them.
   useEffect(() => {
     const onCapped = (e) => {
+      const rejectedBoardId = e?.detail?.boardId || null;
+      const rejectedIds = e?.detail?.cardIds || [];
       try {
         logEvent(EV.CARD_CREATE_BLOCKED, {
           reason: 'server_cap',
-          board_id: e?.detail?.boardId || null,
+          board_id: rejectedBoardId,
           n: e?.detail?.rejected || 0,
         });
       } catch (_) {}
       myTier.refetch?.();
-      setUpgradeReason('cap-hit');
+
+      // Withdraw the cards the server refused. They render from the Y.Doc but
+      // never reach card_index, so leaving them means a card the user can see
+      // and drag that is absent from search, tags and the graph — and that
+      // silently reappears as "rejected" on every subsequent sync. Origin
+      // 'upload' (deleteCardsSilent) keeps this off the undo stack on purpose:
+      // undoing would resurrect a card the server will refuse again.
+      //
+      // Only the visible board can be withdrawn — a background board's mutators
+      // aren't bound here. Those cards stay pending and are re-offered by the
+      // next sync of that board, which is the pre-existing behaviour.
+      if (rejectedIds.length && rejectedBoardId === currentId) {
+        try { mainMutators.deleteCardsSilent?.(rejectedIds); } catch (_) {}
+      }
+
+      // Same once-per-episode latch the client-side gate uses, so a refusal
+      // that arrives from the server doesn't re-open a pitch the user has
+      // already seen and closed. The block above is still logged every time —
+      // the refusal is real even when we choose not to interrupt again.
+      pitchCapWall({ limit: myTier.effectiveCardLimit, count: myTier.demoCardCount });
     };
     window.addEventListener('soleil:card-index-capped', onCapped);
     return () => window.removeEventListener('soleil:card-index-capped', onCapped);
-  }, [myTier]);
+  }, [myTier, currentId, mainMutators, pitchCapWall]);
 
   // The list-toolbar upsell chip's own suppression row, so the scorecard's
   // by_surface breakdown isn't permanently zero for this surface.
@@ -3854,7 +3984,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const tourCompletedRef = useRef(false);
   const emitTourStep = useCallback((e) => {
     if (e.action === 'advance' && e.done) tourCompletedRef.current = true;
-    try { logEvent(EV.ONBOARDING_STEP, { step: e.step, action: e.action, via: e.via || null, done: !!e.done, variant: tourVariantRef.current }); } catch (_) {}
+    const props = { step: e.step, action: e.action, via: e.via || null, done: !!e.done, variant: tourVariantRef.current };
+    // A 'view' is "this step was surfaced", once. useOnboardingTour dedupes it,
+    // but only per hook instance — anything that remounts the tour hands it a
+    // fresh Set and the step re-views. Measured, mobile_lite's add_photos step
+    // reported 2.12 views per SESSION where every other step sits at ~1.0, which
+    // made a step nobody clears look like a step people kept returning to.
+    // logEventOnce is page-load scoped, so it survives the remount.
+    // advance/skip stay unguarded: they are transitions, and a repeat is a fact.
+    try {
+      if (e.action === 'view') {
+        logEventOnce(`onboarding_step:view:${tourVariantRef.current}:${e.step}`, EV.ONBOARDING_STEP, props);
+      } else {
+        logEvent(EV.ONBOARDING_STEP, props);
+      }
+    } catch (_) {}
   }, []);
   const tourActive = onboardingArmB && (onboardingUiActive || desktopHandoff);
   const tour = useOnboardingTour({
@@ -4270,6 +4414,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // localStorage stamps keep them ~once-per-account (admin RPCs dedupe by distinct
   // user_id regardless), and let us skip the O(n) scan for established users.
   const POP_BOARD_THRESHOLD = 3; // genuine cards on one board = a "populated" board
+  // A SECOND, higher bar, added beside the first rather than replacing it.
+  //
+  // Return-for-a-second-day, bucketed by cards placed on day one, is flat
+  // across the low bands and then climbs steeply: the 3-5 band — exactly what
+  // POP_BOARD_THRESHOLD certifies — returns no better than placing nothing at
+  // all, and the real break sits well into double digits. `activated` is not
+  // wrong, it just marks an earlier and weaker moment than its name implies,
+  // and lifecycle dormancy gates key off it.
+  //
+  // Moving the constant would silently redefine ninety days of history, which is
+  // the mistake the usage-data pass just spent its time undoing. So `activated`
+  // keeps its meaning and this new event marks where the correlation actually
+  // lives. Which one lifecycle email should key off is a decision for after it
+  // has data, not now.
+  const MOMENTUM_THRESHOLD = 10;
   // Which moment fires the Meta CompleteRegistration conversion.
   // 'first_card' = first genuine card (more volume, exits Meta's learning phase
   // faster); 'populated' = board hits POP_BOARD_THRESHOLD cards (stronger signal,
@@ -4280,9 +4439,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const fcKey = `soleil_first_card_logged_${user.id}`;
     const popKey = `soleil_activated_logged_${user.id}`;
     const fvKey = `soleil_firstvalue_${user.id}`;
-    let fcDone = true, popDone = true, fvDone = true;
-    try { fcDone = !!localStorage.getItem(fcKey); popDone = !!localStorage.getItem(popKey); fvDone = !!localStorage.getItem(fvKey); } catch { /* ignore */ }
-    if (fcDone && popDone && fvDone && !onboardingUiActive) return; // nothing left to detect/dismiss
+    const momKey = `soleil_momentum_logged_${user.id}`;
+    let fcDone = true, popDone = true, fvDone = true, momDone = true;
+    try {
+      fcDone = !!localStorage.getItem(fcKey); popDone = !!localStorage.getItem(popKey);
+      fvDone = !!localStorage.getItem(fvKey); momDone = !!localStorage.getItem(momKey);
+    } catch { /* ignore */ }
+    if (fcDone && popDone && fvDone && momDone && !onboardingUiActive) return; // nothing left to detect/dismiss
     const genuine = genuineCards(yb.cards);
     if (genuine.length === 0) return;
     // Fire Meta CompleteRegistration at the chosen activation bar — fire-and-forget,
@@ -4320,6 +4483,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // never reopens for this uid). Beacons a final PS_END.
         try { setJourneyState({ phase: JOURNEY_PHASE.POPULATED }); endJourney('activated'); } catch (_) {}
         if (META_REG_BAR === 'populated') fireMetaReg();
+      }
+      if (genuine.length >= MOMENTUM_THRESHOLD && !momDone) {
+        localStorage.setItem(momKey, '1');
+        logEventOnce('card_momentum', EV.CARD_MOMENTUM, {
+          board_id: currentId, n: genuine.length, threshold: MOMENTUM_THRESHOLD,
+        });
       }
     } catch { /* localStorage unavailable — logEventOnce still de-dupes per page load */ }
 

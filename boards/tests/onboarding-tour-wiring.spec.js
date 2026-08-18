@@ -121,9 +121,23 @@ test.describe('mobile onboarding wiring', () => {
   });
 
   test('the step funnel carries the variant so mobile vs full is separable', () => {
-    expect(app()).toMatch(/variant: tourVariantRef\.current/);
-    // emitTourStep payload includes variant
-    expect(app()).toMatch(/EV\.ONBOARDING_STEP, \{[\s\S]*?variant/);
+    const s = app();
+    expect(s).toMatch(/variant: tourVariantRef\.current/);
+    // emitTourStep builds one payload carrying variant and hands it to every
+    // ONBOARDING_STEP emit, whichever delivery path it takes.
+    expect(s).toMatch(/const props = \{[\s\S]*?variant: tourVariantRef\.current[\s\S]*?\};/);
+    expect(s).toMatch(/EV\.ONBOARDING_STEP, props/);
+  });
+
+  test("a step 'view' is deduped per page-load, not per hook instance", () => {
+    // useOnboardingTour dedupes views in a ref, which a remount resets. Measured,
+    // mobile_lite's add_photos reported 2.12 views per SESSION against ~1.0 for
+    // every other step — so a step nobody could clear read as one people kept
+    // coming back to. logEventOnce survives the remount. advance/skip stay
+    // unguarded: those are transitions, and a repeat of one is a real event.
+    const s = app();
+    expect(s).toMatch(/logEventOnce\(`onboarding_step:view:\$\{tourVariantRef\.current\}:\$\{e\.step\}`, EV\.ONBOARDING_STEP, props\)/);
+    expect(s).toMatch(/if \(e\.action === 'view'\)/);
   });
 
   test('MobileBottomNav tags the create puck as the mb-create anchor', () => {

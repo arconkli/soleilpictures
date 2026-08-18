@@ -74,7 +74,7 @@ import { ImageLightbox } from './ImageLightbox.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
-import { logEvent } from '../lib/analytics.js';
+import { logEvent, logEventOnce } from '../lib/analytics.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
 import { genuineCards } from '../lib/firstValueTrigger.js';
 import { momentumHintSeen, markMomentumHintSeen } from '../lib/momentumHint.js';
@@ -128,6 +128,17 @@ import { ArrowPopover } from './ArrowPopover.jsx';
 // without a wall of options. Honors prefers-reduced-motion (→ static first word).
 // Each swap is keyed so the CSS fade (cnvRotatingWordIn) re-triggers.
 const BREADTH_WORDS = ['moodboard', 'script', 'shot list', 'lookbook', 'asset board'];
+
+// The empty-board tile row, beneath the Image hero. Hoisted out of the JSX so
+// empty_board_shown reports a count that cannot drift from what's rendered.
+const EMPTY_TILES = [
+  { id: 'grid',   label: 'Grid',     icon: GridFour },
+  { id: 'script', label: 'Script',   icon: Clapperboard },
+  { id: 'board',  label: 'Cluster',  icon: Browsers },
+  { id: 'note',   label: 'Note',     icon: NotePencil },
+  { id: 'doc',    label: 'Doc',      icon: FileText },
+  { id: 'file',   label: 'Any file', icon: Upload },
+];
 function RotatingWord({ words = BREADTH_WORDS, intervalMs = 2000 }) {
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -1396,6 +1407,28 @@ export function CanvasSurface({
     try { logEvent(EV.CARD_CREATE_BLOCKED, { reason, method, board_id: board?.id }); } catch (_) {}
     try { setJourneyState({ phase: JOURNEY_PHASE.BLOCKED }); } catch (_) {}
   };
+
+  // The empty-board tile panel became visible. This is the denominator every
+  // first-card number was missing: of the people who reach the app and never
+  // place a card, almost none fire even one card_create_intent — they don't
+  // fail at creating, they never attempt it. Whether that's because the panel
+  // never appeared or because it appeared and didn't read as clickable is the
+  // whole question, and until now both looked identical (an absence of rows).
+  //
+  // Deliberately NOT gated on selectedTool: the panel hides while a tool is
+  // armed, and that's a transient render detail, not "they stopped seeing it".
+  // The question is whether this board ever showed them the way in.
+  const emptyPanelVisible = canEdit && !isPublic
+    && (firstCardPrompt || (cards.length === 0 && !(strokes?.length) && !(arrows?.length)));
+  useEffect(() => {
+    if (!emptyPanelVisible || !board?.id) return;
+    logEventOnce(`empty_board_shown:${board.id}`, EV.EMPTY_BOARD_SHOWN, {
+      board_id: board.id,
+      tiles_n: EMPTY_TILES.length + 1,      // the six-tile row plus the image hero
+      is_prompt: !!firstCardPrompt,          // shown over a seeded board, not a bare one
+      escalated: !!frictionStuck,            // they'd already tripped the stuck signal
+    });
+  }, [emptyPanelVisible, board?.id, firstCardPrompt, frictionStuck]);
   // Resolve a sane paste position. lastMouseCanvasRef tracks the cursor over the
   // canvas, but after a pan/zoom with no mousemove since it can point far
   // off-screen — a paste would then land where the user can't see it (the silent
@@ -9422,14 +9455,7 @@ export function CanvasSurface({
             </span>
           </button>
           <div className="cnv-empty-tiles-grid">
-            {[
-              { id: 'grid',   label: 'Grid',     icon: GridFour },
-              { id: 'script', label: 'Script',   icon: Clapperboard },
-              { id: 'board',  label: 'Cluster',  icon: Browsers },
-              { id: 'note',   label: 'Note',     icon: NotePencil },
-              { id: 'doc',    label: 'Doc',      icon: FileText },
-              { id: 'file',   label: 'Any file', icon: Upload },
-            ].map((t) => (
+            {EMPTY_TILES.map((t) => (
               <button key={t.id} type="button" className="cnv-empty-tile"
                       data-tour={t.id === 'board' ? 'empty-cluster-tile' : undefined}
                       onPointerDown={(e) => e.stopPropagation()}

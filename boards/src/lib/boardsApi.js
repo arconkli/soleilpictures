@@ -996,6 +996,22 @@ const _syncState = new Map();   // boardId → { last: timestamp, pending: timer
 // cards that actually changed (instead of re-writing — and re-broadcasting —
 // every card on the board every ~10s while editing).
 const _cardIndexCache = new Map();   // boardId → { sigs: Map<card_id, sig>, ids: Set<card_id> }
+// Card ids we have already told the app about for a cap rejection.
+//
+// Rejected cards deliberately keep a stale signature (below) so a later sync
+// retries them — the user may have upgraded or freed space. That retry is
+// correct; announcing it again is not. Without this set the ~10s sync re-refuses
+// the same card forever and every tick re-opened the upgrade modal, which is
+// exactly what the analytics showed: card_create_blocked → pricing_abandon at a
+// flat 10-second cadence for twenty minutes, ~80 cycles, no user input involved.
+const _capAnnounced = new Map();   // boardId → Set<card_id>
+
+// Forget what we announced, so a genuine second cap episode still surfaces.
+// Called when the cap moves (upgrade, referral credits) — see App's tier watch.
+export function clearCapAnnounced(boardId = null) {
+  if (boardId) _capAnnounced.delete(boardId);
+  else _capAnnounced.clear();
+}
 // board_id → workspace_id is immutable for a board's lifetime, but the sync
 // fires every ~10s while editing — cache it so each flush is one round-trip,
 // not two.
@@ -1136,11 +1152,26 @@ async function _doSyncCardIndex(boardId, ydoc) {
         if (!retry.error) for (const r of retryable) cache.sigs.set(r.card_id, sigFor(r));
         else console.warn('syncCardIndex cap-retry', retry.error);
       }
-      try {
-        window.dispatchEvent(new CustomEvent('soleil:card-index-capped', {
-          detail: { boardId, rejected: rejected.length },
-        }));
-      } catch (_) {}
+      // Announce only cards we haven't already reported for this board. The
+      // retry above is unconditional on purpose; the notification is not.
+      let announced = _capAnnounced.get(boardId);
+      if (!announced) { announced = new Set(); _capAnnounced.set(boardId, announced); }
+      const fresh = rejected.filter(r => !announced.has(r.card_id));
+      for (const r of fresh) announced.add(r.card_id);
+      if (fresh.length > 0) {
+        try {
+          window.dispatchEvent(new CustomEvent('soleil:card-index-capped', {
+            detail: {
+              boardId,
+              rejected: fresh.length,
+              // Ids let the app withdraw the cards it optimistically rendered.
+              // Without them a refused card stays on canvas but is absent from
+              // search, tags and the graph — present and inert.
+              cardIds: fresh.map(r => r.card_id),
+            },
+          }));
+        } catch (_) {}
+      }
       return;
     }
     if (ups.error) { console.warn('syncCardIndex upsert', ups.error); return; }

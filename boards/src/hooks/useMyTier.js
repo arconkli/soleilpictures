@@ -15,8 +15,18 @@
 // The Upgrade chip + cap-block logic in App.jsx subscribes to this for live
 // counts; it also re-fetches on window focus to catch async tier flips from
 // the Stripe webhook or waitlist cron.
+//
+// `demoCardCount` is the server's count PLUS an optimistic local delta fed by
+// notePlaced(). Without that delta the number only moved on mount and on window
+// focus, so during an uninterrupted session it was stale within seconds — the
+// cap gate read it, decided there was room, let the card into the Y.Doc, and the
+// server trigger then refused the card_index write. In the telemetry the server
+// does the blocking far more often than the client does, which is precisely
+// backwards: the client gate exists to refuse a card BEFORE it is drawn. The
+// delta is a hint, not a source of truth — every fetch reconciles it and the
+// server trigger remains the real ceiling.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { qaTierOverride } from '../lib/localMode.js';
 import { DEMO_CARD_LIMIT } from '../lib/demoCardCap.js';
@@ -47,9 +57,27 @@ export function useMyTier({ userId } = {}) {
   const [loading, setLoading] = useState(!override);
   const [error, setError] = useState(null);
 
+  // Cards created (or removed) locally since the last successful fetch. State,
+  // not a ref, so the Upgrade chip's meter moves as the user works instead of
+  // sitting on a number from page load. The ref mirror lets the async fetch
+  // read the value it is about to reconcile without re-creating itself.
+  const [placedDelta, setPlacedDelta] = useState(0);
+  const placedDeltaRef = useRef(0);
+  placedDeltaRef.current = placedDelta;
+
+  const notePlaced = useCallback((n = 1) => {
+    const k = Number(n) || 0;
+    if (!k) return;
+    setPlacedDelta(d => d + k);
+  }, []);
+
   const fetchTier = useCallback(async () => {
     if (override) { setLoading(false); return; }
     if (!supabase) { setLoading(false); return; }
+    // Anything placed while this request is in flight must survive the
+    // reconciliation — the RPC counts card_index, which the throttled sync
+    // populates seconds later, so a mid-flight card is in neither number yet.
+    const settled = placedDeltaRef.current;
     try {
       const { data: rows, error } = await supabase.rpc('get_my_tier');
       if (error) throw error;
@@ -70,6 +98,7 @@ export function useMyTier({ userId } = {}) {
         bonusCardCredits:   Number(row?.bonus_card_credits ?? 0),
         effectiveCardLimit: Number(row?.effective_card_limit ?? DEMO_CARD_LIMIT),
       });
+      setPlacedDelta(d => d - settled);
       setError(null);
     } catch (e) {
       setError(e?.message || String(e));
@@ -94,5 +123,10 @@ export function useMyTier({ userId } = {}) {
     return () => window.removeEventListener('focus', onFocus);
   }, [userId, fetchTier]);
 
-  return { ...data, loading, error, refetch: fetchTier };
+  // Clamp at zero: a delete can only ever take the count back to the server's
+  // floor, never below it. Deletes that the server has already reflected would
+  // otherwise subtract twice and hand back cap room that doesn't exist.
+  const demoCardCount = Math.max(0, Number(data.demoCardCount || 0) + placedDelta);
+
+  return { ...data, demoCardCount, loading, error, refetch: fetchTier, notePlaced };
 }
