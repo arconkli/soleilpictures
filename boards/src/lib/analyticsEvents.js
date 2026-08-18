@@ -12,7 +12,23 @@ export const EV = Object.freeze({
   LANDING_JOIN_PREFILL:    'landing_join_prefill_seen',   // ?join= landing named the cluster {had_name}
   EMAIL_SUBMIT:            'email_submit',                // OTP send ok {resend}
   EMAIL_SUBMIT_ERROR:      'email_submit_error',          // OTP send failed {reason,resend}
-  OTP_VERIFY:              'otp_verify',                  // code verified ok
+  OTP_VERIFY:              'otp_verify',                  // code verified ok {is_webview,webview_app}
+  // ── Did verification actually reach the product? ──
+  // About one in eight signups completes email verification and is then never
+  // seen again: last_sign_in_at is set server-side, but there is no workspace,
+  // no board, no event and no error. Nothing ran. Supabase's /auth/v1/verify
+  // stamps last_sign_in_at BEFORE redirecting here, so the gap between "signed
+  // in" and "our JS executed" was completely unmeasured — and that gap is where
+  // they are being lost.
+  //
+  // AUTH_LANDED is the first line of JS to run on a callback URL; it may be
+  // anonymous, because the code hasn't been exchanged yet. AUTH_SESSION_READY
+  // fires once a session exists and therefore carries user_id, which is what
+  // makes it joinable to auth.users. A user with last_sign_in_at and NO
+  // auth_session_ready never completed the landing — that subtraction is the
+  // whole measurement.
+  AUTH_LANDED:             'auth_landed',                 // browser executed our JS on a callback URL {method:'code'|'hash',is_webview,webview_app,standalone} — beaconed immediately, so it survives a tab closed one second later
+  AUTH_SESSION_READY:      'auth_session_ready',          // a session actually exists on this device {method,is_webview,webview_app,ms_since_landed}
   OTP_VERIFY_ERROR:        'otp_verify_error',            // code verify failed {reason}
   LANDING_EDIT_EMAIL:      'landing_edit_email',          // "edit" clicked on the code step
   LANDING_CALLBACK_ERROR:  'landing_callback_error',      // magic-link ?code= exchange failed {reason}

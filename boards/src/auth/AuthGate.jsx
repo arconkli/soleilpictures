@@ -18,8 +18,9 @@
 import { useEffect, useRef, useState, createContext, useContext } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { isLocalQaMode } from '../lib/localMode.js';
-import { logEvent, logEventOnce, getFirstSource } from '../lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce, getFirstSource } from '../lib/analytics.js';
 import { EV, classifyAuthError } from '../lib/analyticsEvents.js';
+import { getWebviewInfo } from '../lib/webview.js';
 import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat.js';
 import { peekPendingInviteEmail, peekJoinBoardName, claimPendingInvite, claimCollabLink } from '../lib/inviteApi.js';
 import { parseRemixParam, stashRemix } from '../lib/remix.js';
@@ -278,6 +279,58 @@ async function consumePendingInvite(userId) {
   }
 }
 
+// ── Did verification actually reach the product? ────────────────────────
+// Roughly one in eight signups completes email verification and is then never
+// seen: last_sign_in_at is set, and there is no workspace, no board, no event
+// and no error. Nothing ran.
+//
+// Supabase's /auth/v1/verify stamps last_sign_in_at BEFORE redirecting here, so
+// everything between "signed in" and "our JS executed" was invisible — and that
+// is exactly where they are being lost. This fires at MODULE SCOPE, before
+// React renders, so it lands even if boot then fails; and it beacons rather
+// than queues, so it survives a tab closed a second later.
+//
+// It is necessarily anonymous: the code has not been exchanged yet, so there is
+// no user to attribute it to. AUTH_SESSION_READY below is the one that carries
+// a user id, and the subtraction between them is the measurement.
+let authLandedAt = 0;
+let authMethod = null;
+if (typeof window !== 'undefined') {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    const h = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    authMethod = q.get('code') ? 'code' : (h.get('access_token') ? 'hash' : null);
+    if (authMethod) {
+      authLandedAt = Date.now();
+      const wv = getWebviewInfo();
+      logEventNow(EV.AUTH_LANDED, {
+        method: authMethod,
+        is_webview: wv.is_webview,
+        webview_app: wv.webview_app,
+        standalone: !!(navigator.standalone
+          || (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches)),
+      });
+    }
+  } catch (_) { /* never block boot on telemetry */ }
+}
+
+// A session now exists on this device. Carries uid explicitly as well as
+// relying on the row's user_id backfill, so the join to auth.users holds even
+// if the auth state change hasn't propagated to the emitter yet.
+function noteSessionReady(session) {
+  try {
+    if (!authMethod) return;
+    const wv = getWebviewInfo();
+    logEventNow(EV.AUTH_SESSION_READY, {
+      method: authMethod,
+      uid: session?.user?.id || null,
+      is_webview: wv.is_webview,
+      webview_app: wv.webview_app,
+      ms_since_landed: authLandedAt ? Date.now() - authLandedAt : null,
+    });
+  } catch (_) {}
+}
+
 async function consumeAuthCallback() {
   if (typeof window === 'undefined') return null;
   const query = new URLSearchParams(window.location.search);
@@ -291,6 +344,7 @@ async function consumeAuthCallback() {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     clearAuthUrl();
     if (error) throw error;
+    noteSessionReady(data.session);
     return data.session;
   }
   if (!accessToken || !refreshToken) return null;
@@ -320,6 +374,7 @@ async function consumeAuthCallback() {
   });
   clearAuthUrl();
   if (error) throw error;
+  noteSessionReady(data.session);
   return data.session;
 }
 
@@ -603,7 +658,14 @@ function SignIn() {
         type: 'email',
       });
       if (error) throw error;
-      logEvent(EV.OTP_VERIFY);
+      // Typing the code is the path that CANNOT strand a session in a webview —
+      // whoever typed it is already looking at the app. Carrying the same flag
+      // here gives the magic-link numbers a control to be compared against,
+      // rather than a webview share with nothing to mean anything relative to.
+      logEvent(EV.OTP_VERIFY, (() => {
+        const wv = getWebviewInfo();
+        return { is_webview: wv.is_webview, webview_app: wv.webview_app };
+      })());
       // Stamp the verify time so the post-signup journey (lib/journey.js) can
       // measure ms_since_otp on its PS_SIGNUP anchor. Fires for new AND returning
       // users (newness isn't known until tier resolves); harmless either way.
