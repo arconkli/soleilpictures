@@ -209,13 +209,21 @@ test.describe('onboarding tour engine — mobile_lite variant', () => {
     expect(currentStep(s).id).toBe('add_photos');
   });
 
-  test('add_photos advances ONLY on an image add — a note does not move it', () => {
+  test('add_photos advances on ANY content — the images-only gate cleared nobody', () => {
+    // This step used to accept images only, on the reasoning that images are the
+    // activation signal. Production says otherwise: the step has views and no
+    // advances whatsoever, while the equivalent desktop step — same beat, any
+    // content — clears for the large majority who reach it. Most of the people
+    // shown this step who created anything created something other than an
+    // image, so the gate was refusing most of the work its own users were doing.
+    // The copy and the CTA still ask for photos; the gate no longer punishes
+    // anything else.
     const s0 = initialTourState('mobile_lite');
-    expect(advanceTour(s0, { type: 'content_added', boardId: 'b1', kind: 'note' }).step).toBe('add_photos');
-    expect(advanceTour(s0, { type: 'content_added', boardId: 'b1', kind: 'doc' }).step).toBe('add_photos');
-    const s1 = advanceTour(s0, { type: 'content_added', boardId: 'b1', kind: 'image' });
-    expect(s1.step).toBe('group');
-    expect(s1.done).toBe(false);
+    for (const kind of ['image', 'note', 'doc', 'pdf', 'grid']) {
+      const s1 = advanceTour(s0, { type: 'content_added', boardId: 'b1', kind });
+      expect(s1.step, `${kind} should advance the photos step`).toBe('group');
+      expect(s1.done).toBe(false);
+    }
   });
 
   test('group completes on cluster_created or the Done ack', () => {

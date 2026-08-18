@@ -136,9 +136,15 @@ export const MOBILE_TOUR_STEPS = [
       body: 'Pick a few from your camera roll — they land right on your canvas.',
       touch: 'Pick a few from your camera roll — they land right on your canvas.',
     },
-    // Images only: a note/doc must not advance the photos beat (images are the
-    // activation signal — zero note-only users ever activated).
-    accepts: (e) => e?.type === 'content_added' && e.kind === 'image',
+    // Any content advances this. It used to be images only, on the reasoning
+    // that images are the activation signal and no note-only user had ever
+    // activated. The measurement that settled it is blunter: this step has
+    // views and NO advances at all, while project_first's add_content — the
+    // same beat, any content — clears for the large majority who see it. A gate
+    // nobody clears teaches nothing and blocks the rest of the tour behind it;
+    // the copy and the photo-first CTA still ask for images, which is where the
+    // asking belongs. Matches PROJECT_TOUR_STEPS.add_content exactly.
+    accepts: (e) => e?.type === 'content_added',
   },
   {
     id: 'group',

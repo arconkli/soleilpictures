@@ -204,9 +204,23 @@ test.describe('onboarding tour overlay — mobile_lite variant', () => {
     await expect(page.locator('body')).not.toHaveAttribute('data-tour-variant', 'mobile');
   });
 
-  test('a note add does NOT advance the photos step', async ({ page }) => {
+  test('a note add advances the photos step too — the ask is copy, not a gate', async ({ page }) => {
+    // The step used to accept images only, and in production nobody ever
+    // cleared it — views, and no advances at all. The pill still asks for photos
+    // and its button still opens the camera roll — that is where the steering
+    // belongs — but placing something else no longer strands the user on step
+    // one of a two-step tour.
     const pill = page.locator('.onboarding-tour');
     await page.evaluate(() => window.__soleilTourTest.fire({ type: 'content_added', boardId: 'b1', kind: 'note' }));
+    await expect(pill).toContainText('Group them into a cluster');
+  });
+
+  test('creating an empty cluster still cannot skip the photos beat', async ({ page }) => {
+    // Broadening the content gate must not weaken the ONE hard rule of this
+    // variant: cluster_created from the photos step would finish the tour with
+    // an empty cluster, the exact failure mobile_lite exists to prevent.
+    const pill = page.locator('.onboarding-tour');
+    await page.evaluate(() => window.__soleilTourTest.fire({ type: 'cluster_created', boardId: 'c1' }));
     await expect(pill).toContainText('Add your photos');
   });
 

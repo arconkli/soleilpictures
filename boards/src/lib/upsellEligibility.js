@@ -53,6 +53,40 @@ export function nearCapAt(cardLimit) {
   return Math.max(1, Math.round(n * THRESHOLDS.urgentFrac));
 }
 
+// Should this add fire the approaching-limit warning?
+//
+// The caller used to inline `count === nearCapAt(limit)`. That is an equality
+// test against a number that arrives from a cached RPC and advances in jumps —
+// dropping ten images moves it by ten — so landing exactly on the line is a
+// coincidence, and near-cap warnings are correspondingly almost absent from the
+// telemetry next to the cap hits they are supposed to precede.
+//
+// The rule is a CROSSING, not an equality, and it needs the caller's latch
+// (`warnedAtLimit`) because a jump can clear the line in one step and there is
+// no later moment to catch it. Keying the latch on the limit rather than a
+// boolean means raising the cap re-arms the warning for the new ceiling.
+//
+//   count        cards already counted against the cap
+//   limit        the effective cap
+//   adding       how many this operation would add (default 1)
+//   warnedAtLimit the limit we last warned at, or 0/null for never
+export function shouldWarnNearCap(opts) {
+  // A destructuring default only covers `undefined`; every add path can hand us
+  // a null cap source, and this must never throw into a card create.
+  const { count, limit, adding = 1, warnedAtLimit = 0 } = opts || {};
+  const cap  = Number(limit);
+  const have = Number(count);
+  const add  = Number(adding);
+  if (!Number.isFinite(cap) || cap <= 0) return false;
+  if (!Number.isFinite(have) || have < 0) return false;
+  if (!Number.isFinite(add) || add <= 0) return false;
+  const near = nearCapAt(cap);
+  if (!Number.isFinite(near)) return false;
+  if (have >= cap) return false;             // at the wall already — that's a block, not a warning
+  if (have + add < near) return false;       // not there yet
+  return Number(warnedAtLimit) !== cap;      // already said it for this ceiling
+}
+
 // evaluateUpsell({ tier, demoCardCount, cardLimit, accountAgeDays, activeDays })
 //   -> { eligible, pressure, reason, capFrac, capPct }
 //

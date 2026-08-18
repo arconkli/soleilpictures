@@ -6,7 +6,7 @@
 // Plain Node ESM, no test framework — exit code 0 on pass, non-zero on failure
 // (matches demoCardCap.test.mjs). The predicate is pure, so no backend.
 
-import { evaluateUpsell, workFloor, THRESHOLDS, ELIGIBILITY_REV } from './upsellEligibility.js';
+import { evaluateUpsell, workFloor, THRESHOLDS, ELIGIBILITY_REV, nearCapAt, shouldWarnNearCap } from './upsellEligibility.js';
 
 let failed = 0;
 let passed = 0;
@@ -94,6 +94,42 @@ assert(typeof ELIGIBILITY_REV === 'string' && ELIGIBILITY_REV.length > 0, 'ELIGI
 assert(THRESHOLDS.countFrac < THRESHOLDS.urgentFrac, 'count threshold sits below urgent');
 assert(THRESHOLDS.investedFrac <= THRESHOLDS.countFrac,
   'a user can be eligible before the chip starts showing a count');
+
+// --- the approaching-limit warning is a CROSSING, not an equality ----------
+// This is the whole reason shouldWarnNearCap exists. The old inline rule was
+// `count === nearCapAt(limit)`, which needs the counter to land exactly on the
+// line. It doesn't: it comes from a cached RPC and moves in jumps, so the
+// warning almost never fired even for users who went on to hit the cap.
+assertEq(nearCapAt(50), 45, 'the line sits at 90% of a 50 cap');
+assertEq(nearCapAt(100), 90, 'and at 90 for the grandfathered 100 cap');
+
+const warn = (over) => shouldWarnNearCap({ limit: 50, warnedAtLimit: 0, ...over });
+
+assert(warn({ count: 44, adding: 1 }), 'stepping 44 → 45 lands on the line and warns');
+assert(warn({ count: 43, adding: 6 }),
+  'JUMPING 43 → 49 skips the line entirely and must STILL warn (the old equality did not)');
+assert(warn({ count: 0, adding: 46 }), 'one big drop from empty past the line warns');
+assert(!warn({ count: 40, adding: 1 }), '41/50 is short of the line');
+assert(!warn({ count: 44, adding: 0 }), 'an add of nothing warns about nothing');
+
+// At the wall it is a block, and a block gets the modal — warning there would
+// stack two interruptions on the same action.
+assert(!warn({ count: 50, adding: 1 }), 'already at the cap is a block, not a warning');
+assert(!warn({ count: 61, adding: 1 }), 'over the cap (it can move down) is not a warning either');
+
+// The latch. A jump can only be caught once, so without this the warning would
+// repeat on every subsequent add.
+assert(!warn({ count: 46, adding: 1, warnedAtLimit: 50 }), 'already warned at this ceiling');
+assert(warn({ count: 46, adding: 1, warnedAtLimit: 100 }),
+  'a DIFFERENT ceiling re-arms it — raising the cap earns a fresh warning');
+assert(warn({ count: 91, adding: 1, limit: 100, warnedAtLimit: 50 }),
+  'and the grandfathered cap warns on its own line, not the new-account one');
+
+// --- junk never throws into an add path ------------------------------------
+for (const bad of [null, undefined, {}, { count: 1 }, { limit: 0 }, { limit: -5, count: 1 },
+                   { limit: 50, count: NaN }, { limit: 50, count: 44, adding: NaN }]) {
+  assert(shouldWarnNearCap(bad) === false, `junk input is silent: ${JSON.stringify(bad)}`);
+}
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
