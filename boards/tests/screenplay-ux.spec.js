@@ -18,6 +18,13 @@ async function enableScreenplay(page) {
   // Editor rebuilds on mode change — wait for the re-handed live editor + the
   // seeded scene block.
   await expect(page.locator('.doc-card-modal [data-screenplay-element="scene"]').first()).toBeVisible({ timeout: 10000 });
+  // CRITICAL under parallel load: the bridge's `editor` handle is re-handed a
+  // tick AFTER the rebuilt editor mounts. A setContent fired before that goes
+  // into the DYING prose editor and silently vanishes — wait until the bridge
+  // editor is the screenplay one.
+  await page.waitForFunction(() =>
+    window.__soleilDocTest.editor?.state?.doc?.firstChild?.type?.name === 'screenplayBlock',
+  null, { timeout: 10000 });
 }
 
 test('toggling screenplay mode seeds a Scene Heading + Courier layout', async ({ page }) => {
@@ -213,13 +220,13 @@ test('scene navigator numbering matches the gutters when numbers are locked', as
       { element: 'scene', text: 'EXT. B - NIGHT' },
     ]));
   });
-  // Decorations render a tick after setContent — wait for both scenes' numbers.
-  await expect(page.locator('.doc-paper.is-screenplay [data-scene-number]')).toHaveCount(2);
-  const gutter = await page.$$eval('.doc-paper.is-screenplay [data-scene-number]',
-    els => els.map(e => e.getAttribute('data-scene-number')));
-  const rail = await page.$$eval('.sp-scenenav .sp-scenenav-num', els => els.map(e => e.textContent));
-  expect(gutter).toEqual(['1', '1A']);
-  expect(rail).toEqual(gutter);   // the rail used a naive ordinal → showed 1, 2
+  // Decorations render a tick after setContent, and the rail re-renders a
+  // React tick after THAT — poll both instead of single-shot reads.
+  await expect.poll(async () => page.$$eval('.doc-paper.is-screenplay [data-scene-number]',
+    els => els.map(e => e.getAttribute('data-scene-number')))).toEqual(['1', '1A']);
+  // The rail used a naive ordinal → showed 1, 2.
+  await expect.poll(async () => page.$$eval('.sp-scenenav .sp-scenenav-num',
+    els => els.map(e => e.textContent))).toEqual(['1', '1A']);
 });
 
 test('the Dual button is a no-op when the caret is not inside a speech', async ({ page }) => {
