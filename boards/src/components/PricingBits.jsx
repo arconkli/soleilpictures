@@ -8,7 +8,10 @@
 // prospect read, the price row and primary CTAs report hesitation. Stamped
 // only on the Creator list — DEMO_FEATURES rows carry no Creator keys.
 
-import { PRICING, planPerMonth, planBilling, CREATOR_FEATURES, CREATOR_FEATURE_KEYS } from '../lib/billingCopy.js';
+import {
+  PRICING, planPerMonth, planBilling, CREATOR_FEATURES, CREATOR_FEATURE_KEYS,
+  SAVINGS_PCT_LABEL,
+} from '../lib/billingCopy.js';
 
 // Render a feature string, turning `**text**` spans into <b>.
 function renderEmphasis(text) {
@@ -55,7 +58,7 @@ export function PlanToggle({ plan, setPlan, disabled }) {
         disabled={disabled}
       >
         Annual
-        <span className="pricing-card-save">Save 20%</span>
+        <span className="pricing-card-save">{SAVINGS_PCT_LABEL}</span>
       </button>
     </div>
   );

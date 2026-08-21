@@ -20,6 +20,7 @@ import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
 import { handleApiRoute } from './worker-api.js';
 import { runWebhooks } from './lib/webhooks.js';
+import { PRICING_META_DESCRIPTION } from './lib/billingCopy.js';
 import {
   handleScoutSession, handleScoutSessionMint, handleScoutSignup, handleScoutClaim,
 } from './worker-scout.js';
@@ -67,8 +68,9 @@ const ROUTE_META = {
   },
   '/pricing': {
     title: 'Pricing — Soleil Clusters',
-    description:
-      'Soleil Clusters pricing — start free with the Demo, or go Creator ($25/mo) for unlimited boards, 100GB storage, any file type, and Edit Mode. Simple monthly or annual plans.',
+    // Sourced from billingCopy so the SERP snippet can't drift from the tested
+    // pricing copy (billingCopy.test.mjs lints it against the banned claims).
+    description: PRICING_META_DESCRIPTION,
   },
   '/legal/privacy': {
     title: 'Privacy Policy — Soleil Clusters',

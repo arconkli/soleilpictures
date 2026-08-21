@@ -1,12 +1,12 @@
 ---
 title: Plans and Pricing — Soleil Clusters
-metaDescription: Soleil Clusters is free with {{fact:demoCardLimit}} cards, unlimited clusters and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.
+metaDescription: Soleil Clusters is free with {{fact:demoCardLimit}} cards, unlimited clusters and free collaborators. Creator removes the card cap and adds any file type on a {{fact:creatorStorage}} drive.
 h1: Plans and pricing
 navLabel: Plans and pricing
 section: account
 order: 1
 updated: 2026-08-08
-answer: The free Demo plan gives you {{fact:demoCardLimit}} cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a 100GB drive.
+answer: The free Demo plan gives you {{fact:demoCardLimit}} cards, unlimited clusters and unlimited free collaborators. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a {{fact:creatorStorage}} drive.
 faq:
   - q: What is actually limited on the free plan?
     a: Three things and only three — total cards, which file types you can upload, and per-file size caps on video, audio and PDF. Clusters, collaborators and editing are not limited.

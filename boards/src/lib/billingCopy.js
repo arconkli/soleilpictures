@@ -7,6 +7,10 @@
 // Display prices are mirrors of the Stripe prices configured via the
 // STRIPE_PRICE_MONTHLY / STRIPE_PRICE_ANNUAL env vars in
 // create-checkout-session. If those change, update PRICING below.
+//
+// Known remaining mirror OUTSIDE this module (cannot import JS): the MRR
+// fallback cents in migration 0099's admin_stats (2500/2000). Update it too
+// on any price change.
 
 export const PLAN_NAME = 'Creator';
 
@@ -24,8 +28,14 @@ import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 //   annual:  $20/mo billed annually ($240) → saves $60/yr vs monthly
 export const PRICING = {
   monthly: { perMonth: 25, billed: 25,  perMonthLabel: '$25', billedLabel: '$25/mo' },
-  annual:  { perMonth: 20, billed: 240, perMonthLabel: '$20', billedLabel: '$240/yr', savings: '$60/yr' },
+  annual:  { perMonth: 20, billed: 240, perMonthLabel: '$20', billedLabel: '$240/yr' },
 };
+
+// Savings figures exist only as arithmetic over PRICING — never typed — so a
+// price change cannot leave a stale discount claim behind on any surface.
+PRICING.annual.savings = `$${PRICING.monthly.perMonth * 12 - PRICING.annual.billed}/yr`;
+export const SAVINGS_PCT_LABEL =
+  `Save ${Math.round((1 - PRICING.annual.perMonth / PRICING.monthly.perMonth) * 100)}%`;
 
 const MONTHLY_PRICE = PRICING.monthly.billedLabel;  // '$25/mo'
 const ANNUAL_PRICE  = PRICING.annual.billedLabel;   // '$240/yr'
@@ -60,10 +70,16 @@ export function planBilling(plan) {
 //   3. size/length— free caps video 30MB/60s, audio 50MB, PDF 50MB (uploads.js)
 //
 // NOTE: clusters/boards are NOT a paid difference — they were never capped.
+//
+// The storage figure mirrors the enforced default quota: app_config
+// 'storage_quota_bytes' = 107374182400 (100 GiB), seeded in migration 0154 and
+// read by _storage_quota_bytes(). gen-docs.mjs cross-checks this label against
+// that migration literal at build time.
+export const CREATOR_STORAGE_LABEL = '100GB';
 export const CREATOR_FEATURES = [
   'Unlimited cards — build without a ceiling',
   'Any file type — .psd, .fig, .zip, video, audio, docs',
-  'No size limits, on your own **100GB** drive',
+  `No size limits, on your own **${CREATOR_STORAGE_LABEL}** drive`,
 ];
 
 // Stable analytics keys, parallel to CREATOR_FEATURES by index. The up_* hover
@@ -137,7 +153,7 @@ export function capHitSummary({ cards, clusters, storageBytes } = {}) {
 
 // `cardLimit` is the caller's EFFECTIVE cap (get_my_tier().effective_card_limit
 // = card_cap_base + bonus_card_credits). It must be threaded: the cap is
-// per-user since migration 0227, so falling back to DEMO_CARD_LIMIT would tell
+// per-user since migration 0229, so falling back to DEMO_CARD_LIMIT would tell
 // every grandfathered account — which is every account that existed before the
 // change — that its limit is the new-account one. It also silently under-reported
 // referral bonuses before that.
@@ -169,6 +185,18 @@ export function grantCopy({ grantActive, grantExpiresAt } = {}) {
   const when = d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
   return `Complimentary Creator access — granted by Soleil, through ${when}.`;
 }
+
+// The /pricing SERP description the Worker injects at the edge (ROUTE_META).
+// Lives HERE, not in worker.js, so every claim is built from the same tested
+// copy as the pricing surfaces and billingCopy.test.mjs can lint it against
+// the banned-claims list — the previous hand-typed version sold a retired
+// feature ("Edit Mode") and a never-capped one ("unlimited boards") for
+// months with no test able to notice.
+export const PRICING_META_DESCRIPTION =
+  `Soleil Clusters pricing — start free with the Demo (${DEMO_CARD_LIMIT} cards, ` +
+  `unlimited clusters, free collaborators), or go ${PLAN_NAME} ` +
+  `(${PRICING.monthly.billedLabel}, or ${PRICING.annual.perMonthLabel}/mo billed annually) ` +
+  `for unlimited cards, any file type, and no size limits on a ${CREATOR_STORAGE_LABEL} drive.`;
 
 export function formatPeriodEnd(dateLike, { cancel } = {}) {
   if (!dateLike) return null;
