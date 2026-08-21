@@ -226,19 +226,6 @@ const listUploadLimiter = makeLimiter(4);
 
 export function App() {
   perf.usePerfRenderTime('App');
-  // Deep-link into Account → Billing when returning from the Stripe Customer
-  // Portal (return_url = /?settings=billing) or hitting the legacy
-  // /settings/billing path, then clean the URL back to /.
-  useEffect(() => {
-    try {
-      const p = new URLSearchParams(window.location.search);
-      if (p.get('settings') === 'billing' || window.location.pathname === '/settings/billing') {
-        setAccountInitialTab('billing');
-        setAccountOpen(true);
-        window.history.replaceState({}, '', '/');
-      }
-    } catch (_) {}
-  }, []);
   // Perf toggle: ?perf=1 enables (one-shot at mount); Ctrl+Shift+P toggles
   // at runtime. Sticky via localStorage.perfHud (read inside perf.js). All
   // diagnostic output goes to the browser console; no UI is rendered.
@@ -544,6 +531,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // When the account panel is deep-linked to a specific tab (e.g. Billing after
   // returning from the Stripe portal), this holds it; cleared on close (one-shot).
   const [accountInitialTab, setAccountInitialTab] = useState(null);
+
+  // Deep-link into Account → Billing when returning from the Stripe Customer
+  // Portal (return_url = /?settings=billing) or hitting the legacy
+  // /settings/billing path, then clean the URL back to /. This MUST live in
+  // Workspace — a previous version sat in App(), where the two setters above
+  // don't exist; the ReferenceError vanished into its catch and the
+  // portal-return screen was dead from the day it shipped.
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('settings') === 'billing' || window.location.pathname === '/settings/billing') {
+        setAccountInitialTab('billing');
+        setAccountOpen(true);
+        window.history.replaceState({}, '', '/');
+      }
+    } catch (_) {}
+  }, []);
 
   // Open the account panel straight on the "Invite & earn" referral tab. Used by
   // the cap toasts, the cap-hit modal, and the post-activation nudge — every
@@ -1407,7 +1411,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         try {
           await saveBoardVersion(boardId, ydoc, {
             triggerKind: 'pre-bulk-delete',
-            userId,
+            userId: user?.id,
             label: 'pre-board-delete',
             opSummary: {
               action: 'delete-board-cards',
@@ -2097,7 +2101,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             const up = await uploadPdf({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id });
             updateCardSilent(id, { src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount, name: up.name, w: up.w, h: up.h, pending: false });
           } else if (it.route === 'video') {
-            const up = await uploadVideo({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id, ...(isPaidPlan ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
+            // canAttemptFiles mirrors CanvasSurface's allowLong semantics
+            // (owner-pays: own board → own plan, shared board → owner's).
+            const up = await uploadVideo({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id, ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
             updateCardSilent(id, { src: up.src, ...(up.poster ? { poster: up.poster } : {}), pending: false });
           } else if (it.route === 'audio') {
             const up = await uploadAudio({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id });
@@ -2111,7 +2117,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         } catch (err) {
           console.error('list drop upload failed', err);
           if (err?.code === 402 || err?.code === 403) {
-            setUpgradeReason('storage');
+            // Owner-pays: the server gate keyed on the OWNER's plan. Pitch the
+            // upgrade only at the owner — a collaborator's own plan is
+            // irrelevant and upgrading it cannot unblock the board.
+            if (csFiles.own) setUpgradeReason('storage');
+            else feedback.toast({
+              type: 'warning',
+              message: err.code === 402
+                ? "This cluster's owner is out of storage — they'll need to upgrade for more space."
+                : "Uploading that file needs the cluster's owner to be on a paid plan.",
+              ttl: 6000,
+            });
             logEvent(EV.UPLOAD_BLOCKED, {
               reason: err.code === 402 ? 'server_quota' : 'server_403', surface: 'list', n: 1,
               ext: (it.file?.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
