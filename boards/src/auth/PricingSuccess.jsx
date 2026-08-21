@@ -41,10 +41,24 @@ import { PLAN_NAME } from '../lib/billingCopy.js';
 import { trackPurchase } from '../lib/metaPixel.js';
 
 const VERIFY_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/verify-checkout-session';
-const POLL_MS    = 2000;     // get_my_tier
+const POLL_MS    = 2000;     // get_my_tier, pre-stall
+const SLOW_POLL_MS = 30000;  // get_my_tier once stalled — a tab left open must
+                             // not fire an authed RPC every 2s forever
 const VERIFY_MS  = 6000;     // server-side verify retry cadence
+const MAX_AUTO_VERIFIES = 10; // then the manual "Verify now" button is the path
 const STALL_MS   = 30000;    // show manual-retry UI after this much waiting
+const HARD_STOP_MS = 15 * 60 * 1000; // stop ALL automatic polling; an abandoned
+                             // tab was hitting Stripe + Supabase ~20k times/day
 const CELEBRATE_MS = 2400;   // dwell on the success beat before entering
+
+// Verify reasons that can never resolve by retrying — stop the automatic
+// verify loop on these (the manual button stays as the escape hatch).
+const TERMINAL_REASONS = new Set([
+  'session_expired',
+  'session does not belong to caller',
+  'subscription_not_live:canceled',
+  'subscription_not_live:incomplete_expired',
+]);
 
 function planLabel(plan) {
   if (plan === 'annual')  return 'Annual';
@@ -55,18 +69,25 @@ function planLabel(plan) {
 export function PricingSuccess() {
   const { user, signOut } = useAuth();
   const { tier, refetch } = useMyTier({ userId: user?.id });
-  const sessionId = typeof window !== 'undefined'
+  // State (not a per-render URL read) so a 403 "not your session" — e.g. an
+  // account switch in this tab that inherited someone else's session_id URL —
+  // can clear it and fall through to the honest missing-session card instead
+  // of telling the new account "Payment received" about a stranger's checkout.
+  const [sessionId, setSessionId] = useState(() => (typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('session_id')
-    : null;
+    : null));
 
   const [plan, setPlan]           = useState(null);    // 'monthly' | 'annual' once known
   const [stalled, setStalled]     = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verifyErr, setVerifyErr] = useState(null);
   const [celebrating, setCelebrating] = useState(false);
+  const [pollingStopped, setPollingStopped] = useState(false);
   const celebrated = useRef(false);
   const purchaseTracked = useRef(false);   // deduped browser Purchase fires once
   const verifyFired = useRef(new Set());   // checkout_verify_result once per distinct result
+  const verifyTerminal = useRef(false);    // a terminal reason stops auto-verify
+  const autoVerifies = useRef(0);
 
   // Bots and email-security link scanners replay the Stripe return URL; only a
   // signed-in return with a session_id counts as a completed checkout.
@@ -93,6 +114,18 @@ export function PricingSuccess() {
       });
       const body = await res.json().catch(() => ({}));
       if (body?.plan) setPlan(body.plan);
+      if (body?.reason && TERMINAL_REASONS.has(body.reason)) verifyTerminal.current = true;
+      // Not our session (403): another account's session_id survived in the
+      // URL. Strip it and show the missing-session recovery card — do NOT
+      // keep polling a checkout that can never belong to this caller.
+      if (res.status === 403) {
+        try {
+          const u = new URL(window.location.href);
+          u.searchParams.delete('session_id');
+          window.history.replaceState({}, '', u.pathname + (u.search || ''));
+        } catch (_) {}
+        setSessionId(null);
+      }
       const vr = body?.activated ? 'activated'
                : (body?.reason && body.reason !== 'not_paid_yet') ? 'failed'
                : 'pending';
@@ -141,33 +174,50 @@ export function PricingSuccess() {
     celebrated.current = true;
     setCelebrating(true);
     logEventNow(EV.CHECKOUT_ACTIVATED_SEEN, { tier, plan });
-    const t = setTimeout(() => { window.location.assign('/'); }, CELEBRATE_MS);
-    return () => clearTimeout(t);
-    // Depend on `tier` ONLY. If `plan` were a dep, a late plan resolution (when
-    // the tier poll/webhook flips to paid BEFORE verify returns the plan) would
-    // re-run this effect — its cleanup clearTimeout()s the pending redirect and
-    // the celebrated-guard then skips re-arming it, stranding the user on the
-    // success screen forever.
+    // The redirect is armed by the [celebrating] effect below, NOT here.
+    // History of this split: with the timeout in THIS effect, any dep re-run
+    // cleared it and the celebrated-guard skipped re-arming — a late `plan`
+    // resolution did it once, and an out-of-order stale get_my_tier response
+    // (tier briefly regressing paid→demo) did it again. `celebrating` never
+    // regresses, so the redirect keyed on it cannot be lost.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tier]);
+  useEffect(() => {
+    if (!celebrating) return;
+    const t = setTimeout(() => { window.location.assign('/'); }, CELEBRATE_MS);
+    return () => clearTimeout(t);
+  }, [celebrating]);
 
-  // Polling: tier RPC (fast, always-on so a late webhook still lands the user)
-  // + verify retry + stall timer (only meaningful when we actually have a
-  // session to verify).
+  // Polling: tier RPC (fast pre-stall, slow after, so a late webhook still
+  // lands the user) + bounded verify retry + stall timer. Everything stops at
+  // HARD_STOP_MS — an abandoned tab used to hit Stripe and Supabase at full
+  // cadence forever; the manual "Verify now" button covers the tail.
   useEffect(() => {
     if (tier === 'paid' || tier === 'admin') return;   // celebration owns this
-    const tierTimer = setInterval(() => { refetch(); }, POLL_MS);
+    if (pollingStopped) return;
+    const tierTimer = setInterval(() => { refetch(); }, stalled ? SLOW_POLL_MS : POLL_MS);
     let verifyTimer, stallTimer;
     if (sessionId) {
-      verifyTimer = setInterval(() => { callVerify(); }, VERIFY_MS);
-      stallTimer  = setTimeout(() => { setStalled(true); logEvent(EV.CHECKOUT_STALLED, { has_session_id: !!sessionId }); }, STALL_MS);
+      verifyTimer = setInterval(() => {
+        if (verifyTerminal.current || autoVerifies.current >= MAX_AUTO_VERIFIES) {
+          clearInterval(verifyTimer);
+          return;
+        }
+        autoVerifies.current += 1;
+        callVerify();
+      }, VERIFY_MS);
+      if (!stalled) {
+        stallTimer = setTimeout(() => { setStalled(true); logEvent(EV.CHECKOUT_STALLED, { has_session_id: !!sessionId }); }, STALL_MS);
+      }
     }
+    const stopTimer = setTimeout(() => { setPollingStopped(true); }, HARD_STOP_MS);
     return () => {
       clearInterval(tierTimer);
+      clearTimeout(stopTimer);
       if (verifyTimer) clearInterval(verifyTimer);
       if (stallTimer)  clearTimeout(stallTimer);
     };
-  }, [tier, refetch, callVerify, sessionId]);
+  }, [tier, refetch, callVerify, sessionId, stalled, pollingStopped]);
 
   const onRetryClick = async () => {
     logEvent(EV.CHECKOUT_VERIFY_RETRY);
@@ -183,7 +233,10 @@ export function PricingSuccess() {
       const REASON_COPY = {
         session_expired: 'Your checkout session expired before activation. If your card was charged, the email receipt is your proof — write to support and we\'ll activate you right away.',
         payment_failed: 'Your payment didn\'t go through — check your card details and try the checkout again.',
-        no_subscription: 'Stripe hasn\'t attached a subscription to this checkout yet. Give it a minute, then verify again.',
+        no_subscription: 'Stripe hasn\'t attached a subscription to this checkout — if your card was charged, email support below and we\'ll activate you right away.',
+        'subscription_not_live:canceled': 'This checkout belongs to a subscription that has since been canceled, so it can\'t activate your account. Start a fresh checkout from the pricing page.',
+        'subscription_not_live:incomplete': 'Your payment is still processing — bank payments can take a little while. We\'ll flip your account on the moment it clears.',
+        'subscription_not_live:incomplete_expired': 'The initial payment never completed, so this checkout can\'t activate. Start a fresh checkout from the pricing page.',
       };
       setVerifyErr(REASON_COPY[body.reason] || `Activation check came back with "${body.reason}" — if this persists, email support below.`);
     }
