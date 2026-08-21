@@ -44,9 +44,11 @@ export function PricingPage() {
 
   useEffect(() => {
     logEventOnce('pricing_view:page', EV.PRICING_VIEW, { ...up.envelope(), surface: 'page', copy_rev: COPY_REV });
-    // Meta ViewContent — mid-funnel ad-optimization signal. Both cards default to
-    // the annual plan, so report that value.
-    trackViewContent({ content_name: 'Creator', value: PRICING.annual.billed, currency: 'USD' });
+    // Meta ViewContent — mid-funnel ad-optimization signal. Matches the
+    // monthly-first default plan (the annual value survived the monthly-first
+    // flip here and made this surface report 10× the modal's value for the
+    // identical view).
+    trackViewContent({ content_name: 'Creator', value: PRICING.monthly.billed, currency: 'USD' });
   }, [up]);
   useDwellTime(EV.PRICING_DWELL, () => ({ surface: 'page' }));
 

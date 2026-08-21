@@ -99,11 +99,10 @@ export const EV = Object.freeze({
   UP_TRACE:                'up_trace',                    // coalesced micro-interaction batch {from_t,to_t,n,ev:[{t,k,tgt,...}]} — k:'click'|'dead'|'rage'|'input'|'cta'|'invite_alt'|'demo_cta'|'dismiss'|'hide'|'show'; armed ONLY when surface!=='public_page' && !isJourneyOpen() so it never overlaps ps_trace/lp_trace; never captures input values
 
   // ── Ad offer (fbclid instant-demo) ──
-  AD_OFFER_VIEW:           'ad_offer_view',               // price-first screen shown to ad-sourced demo user
-  AD_OFFER_ENTER:          'ad_offer_enter',              // chose "continue into workspace" (skipped buying) {plan}
-  AD_OFFER_DWELL:          'ad_offer_dwell',              // {ms}
-  AD_OFFER_ABANDON:        'ad_offer_abandon',            // hid the AdWelcome offer without buying OR continuing {ms} (the silent bounce; beacon)
-  INSTANT_ENTRY_SKIP:      'instant_entry_skip',          // instant_entry arm B: the pre-app offer gate was SKIPPED — user dropped straight into the seeded board {arm} (symmetric marker to ad_offer_view; offer deferred to first_value_upgrade_*)
+  // ad_offer_view/enter/dwell/abandon retired with AdWelcome's deletion
+  // (instant_entry shipped 100% arm B; no rows since 2026-06-26). Historical
+  // rows remain queryable in analytics_events by their raw names.
+  INSTANT_ENTRY_SKIP:      'instant_entry_skip',          // instant_entry arm B: the pre-app offer gate was SKIPPED — user dropped straight into the seeded board {arm} (offer deferred to first_value_upgrade_*)
 
   // ── Post-signup journey (the high-resolution, AI-analyzable first-session trace —
   //    see lib/journey.js + migration 0161 admin_journey_* RPCs). Every ps_* event

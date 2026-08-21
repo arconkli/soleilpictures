@@ -236,9 +236,9 @@ export function qaTierOverride() {
     subscriptionStatus: q.get('substatus') || (tier === 'paid' ? 'active' : null),
     currentPeriodEnd:   q.get('periodend') || null,
     cancelAtPeriodEnd:  q.get('cancel') === '1',
-    // ?adoffer=1 renders the ad-sourced price-first AdWelcome screen
-    // (what a Facebook/Instagram ad click sees) — e.g.
-    //   /?local=1&tier=demo&adoffer=1
+    // ?adoffer=1 marks the one-time ad-offer flag (AdWelcome itself is gone —
+    // instant_entry arm B skips the gate — so this now only exercises the
+    // arm-B dismiss/skip effect in TierRouter).
     adOfferPending:     q.get('adoffer') === '1',
     // First-run onboarding. Default ({seeded:false,done:false}) triggers the
     // starter-card seed + coachmark, so /?local=1&tier=demo exercises first-run.

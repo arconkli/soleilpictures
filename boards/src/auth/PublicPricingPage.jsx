@@ -54,9 +54,9 @@ export function PublicPricingPage() {
     document.title = 'Pricing — Soleil Clusters';
     // envelope() adds copy_rev (previously missing here) + exposure_n.
     logEventOnce('pricing_view:public_page', EV.PRICING_VIEW, { ...up.envelope(), surface: SURFACE });
-    // Meta ViewContent — mid-funnel ad-optimization signal. Both cards default
-    // to the annual plan, so report that value (mirrors the in-app PricingPage).
-    trackViewContent({ content_name: 'Creator', value: PRICING.annual.billed, currency: 'USD' });
+    // Meta ViewContent — mid-funnel ad-optimization signal. Matches the
+    // monthly-first default plan (mirrors the in-app PricingPage + modal).
+    trackViewContent({ content_name: 'Creator', value: PRICING.monthly.billed, currency: 'USD' });
     return () => { document.title = prev; };
   }, [up]);
   useDwellTime(EV.PRICING_DWELL, () => ({ surface: SURFACE }));
