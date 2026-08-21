@@ -7,7 +7,7 @@
 // (matches op_classifier.test.mjs). The helper is pure, so no backend/yjs.
 //
 // Arithmetic here is expressed RELATIVE to DEMO_CARD_LIMIT rather than against a
-// typed-in number. The cap moved once (100 → 50, migration 0227) and every
+// typed-in number. The cap moved once (100 → 50, migration 0229) and every
 // literal in this file had to be rewritten; deriving them means the next move
 // costs nothing and the assertions keep testing the behaviour rather than the
 // constant. The one place a literal is still correct is the pair of cohort
@@ -31,7 +31,7 @@ function assertEq(actual, expected, msg) {
 const CAP = DEMO_CARD_LIMIT;
 
 // The two cap cohorts that actually exist in the database. New accounts default
-// to DEMO_CARD_LIMIT; accounts predating migration 0227 are grandfathered at
+// to DEMO_CARD_LIMIT; accounts predating migration 0229 are grandfathered at
 // LEGACY_DEMO_CARD_LIMIT and must never be lowered.
 assertEq(DEMO_CARD_LIMIT, 50, 'DEMO_CARD_LIMIT is 50 (new accounts)');
 assertEq(LEGACY_DEMO_CARD_LIMIT, 100, 'LEGACY_DEMO_CARD_LIMIT is 100 (grandfathered)');
@@ -81,7 +81,7 @@ assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: 10, requested: -4 }),
   { accepted: 0, capHit: false, remaining: CAP - 10 }, 'demo negative requested: clamped to 0');
 
 // ── The grandfathered cohort ────────────────────────────────────────────────
-// A pre-0227 account carries limit=100 through from get_my_tier's
+// A pre-0229 account carries limit=100 through from get_my_tier's
 // effective_card_limit. It must keep building well past the new-account cap.
 assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: CAP + 10, requested: 1, limit: LEGACY_DEMO_CARD_LIMIT }),
   { accepted: 1, capHit: false, remaining: LEGACY_DEMO_CARD_LIMIT - CAP - 10 },

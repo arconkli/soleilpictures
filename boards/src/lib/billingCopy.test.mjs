@@ -17,6 +17,10 @@ import {
   LEGACY_FEATURE_KEYS,
   DEMO_FEATURES,
   COPY_REV,
+  PRICING,
+  SAVINGS_PCT_LABEL,
+  CREATOR_STORAGE_LABEL,
+  PRICING_META_DESCRIPTION,
   planLabel,
   planBilling,
   capHitSummary,
@@ -65,16 +69,57 @@ assert(
 // --- claims that must never return ----------------------------------------
 // Each of these was shipped and was false: 'edit access' became free for every
 // tier in migration 0188, and the other two never had an implementation at all.
-const BANNED = [/edit access/i, /virtual \+ social/i, /creative tool, unlocked/i];
+// 'Edit Mode' and 'unlimited boards' lived on for months in the Worker's
+// /pricing SERP description precisely because it bypassed this module — it is
+// now PRICING_META_DESCRIPTION here, and both phrasings are banned.
+const BANNED = [
+  /edit access/i, /edit mode/i, /unlimited boards/i,
+  /virtual \+ social/i, /creative tool, unlocked/i,
+];
 for (const pattern of BANNED) {
   assert(
     !CREATOR_FEATURES.some((f) => pattern.test(f)),
     `no Creator bullet matches ${pattern} (unimplemented or free-tier claim)`,
   );
+  assert(
+    !pattern.test(PRICING_META_DESCRIPTION),
+    `/pricing meta description does not match ${pattern}`,
+  );
 }
 assert(
   !DEMO_FEATURES.some((f) => /view mode only/i.test(f)),
   'demo tier is not described as view-only (0188 made editing free)',
+);
+
+// --- the SERP description states only live, tested figures ------------------
+assert(
+  PRICING_META_DESCRIPTION.includes(PRICING.monthly.billedLabel),
+  '/pricing meta description quotes the live monthly price',
+);
+assert(
+  PRICING_META_DESCRIPTION.includes(CREATOR_STORAGE_LABEL),
+  '/pricing meta description quotes the live storage figure',
+);
+assert(
+  PRICING_META_DESCRIPTION.includes(String(DEMO_CARD_LIMIT)),
+  '/pricing meta description quotes the live demo card limit',
+);
+
+// --- savings figures are arithmetic, never typed ----------------------------
+assertEq(
+  PRICING.annual.savings,
+  `$${PRICING.monthly.perMonth * 12 - PRICING.annual.billed}/yr`,
+  'annual savings derives from PRICING',
+);
+assertEq(
+  SAVINGS_PCT_LABEL,
+  `Save ${Math.round((1 - PRICING.annual.perMonth / PRICING.monthly.perMonth) * 100)}%`,
+  'savings badge derives from PRICING',
+);
+assertEq(
+  PRICING.annual.perMonth * 12,
+  PRICING.annual.billed,
+  'annual per-month and billed figures agree',
 );
 
 // --- shape sanity ----------------------------------------------------------
@@ -94,9 +139,9 @@ assertEq(
   `Free Demo · 42/${DEMO_CARD_LIMIT} cards`,
   'demo label carries the live count',
 );
-// The cap is per-user since migration 0227. A grandfathered account passes its
+// The cap is per-user since migration 0229. A grandfathered account passes its
 // own higher effective_card_limit through, and Settings must show THAT, not the
-// new-account default — otherwise every pre-0227 user is told their limit is
+// new-account default — otherwise every pre-0229 user is told their limit is
 // lower than the one actually enforced.
 assertEq(
   planLabel({ tier: 'demo', demoCardCount: 42, cardLimit: LEGACY_DEMO_CARD_LIMIT }),

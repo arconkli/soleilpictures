@@ -41,7 +41,7 @@ import {
 } from './lib/publicSurface.mjs';
 
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
-import { PLAN_NAME, PRICING, CREATOR_FEATURES } from '../src/lib/billingCopy.js';
+import { PLAN_NAME, PRICING, CREATOR_FEATURES, CREATOR_STORAGE_LABEL } from '../src/lib/billingCopy.js';
 import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP } from '../src/lib/fileIngest.js';
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
 
@@ -66,11 +66,28 @@ const storageMatch = CREATOR_FEATURES.join(' ').match(/\*\*(\d+\s*GB)\*\*/i);
 if (!storageMatch) {
   throw new Error('gen-docs: storage figure not found in CREATOR_FEATURES — update the extractor in gen-docs.mjs');
 }
+// The storage label must equal the ENFORCED default quota — app_config
+// 'storage_quota_bytes' seeded in migration 0154 and read by
+// _storage_quota_bytes(). The quota is runtime-tunable via app_config, so the
+// migration literal is the default (same mirror caveat billingCopy documents
+// for the Stripe env prices), but marketing may never diverge from it silently.
+const quotaSql = readFileSync(resolve(BOARDS, '../supabase/migrations/0154_storage_quota.sql'), 'utf8');
+const quotaMatch = quotaSql.match(/'storage_quota_bytes',\s*jsonb_build_object\('bytes',\s*(\d+)/);
+if (!quotaMatch) {
+  throw new Error('gen-docs: storage_quota_bytes default not found in migration 0154 — update the extractor');
+}
+const quotaGb = Number(quotaMatch[1]) / (1024 ** 3);
+if (`${quotaGb}GB` !== CREATOR_STORAGE_LABEL || storageMatch[1].replace(/\s+/g, '') !== CREATOR_STORAGE_LABEL) {
+  throw new Error(
+    `gen-docs: storage figures disagree — CREATOR_STORAGE_LABEL '${CREATOR_STORAGE_LABEL}', ` +
+    `CREATOR_FEATURES '${storageMatch[1]}', migration default ${quotaGb}GB`,
+  );
+}
 const api = apiFacts();
 
 export const FACTS = {
   demoCardLimit: String(DEMO_CARD_LIMIT),
-  // The cap accounts created before migration 0227 keep, permanently. The plans
+  // The cap accounts created before migration 0229 keep, permanently. The plans
   // page states the grandfather rule; both cohorts are real, so both numbers
   // have to come from code rather than being typed into the markdown.
   legacyDemoCardLimit: String(LEGACY_DEMO_CARD_LIMIT),
@@ -79,7 +96,7 @@ export const FACTS = {
   priceAnnual: PRICING.annual.billedLabel,
   priceAnnualPerMonth: PRICING.annual.perMonthLabel,
   annualSavings: PRICING.annual.savings,
-  creatorStorage: storageMatch[1].replace(/\s+/g, ''),
+  creatorStorage: CREATOR_STORAGE_LABEL,
   freeVideoCap: `${FREE_VIDEO_CAP / MB} MB`,
   freeAudioCap: `${FREE_AUDIO_CAP / MB} MB`,
   freePdfCap: `${FREE_PDF_CAP / MB} MB`,

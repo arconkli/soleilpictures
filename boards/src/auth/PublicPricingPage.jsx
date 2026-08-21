@@ -49,7 +49,9 @@ export function PublicPricingPage() {
     const prev = document.title;
     // The Worker already injects this title at the edge on cold load; set it
     // again so it's correct after any client navigation too.
-    document.title = 'Pricing · Soleil Clusters';
+    // Em dash to match the Worker-injected <title> (ROUTE_META) — Google
+    // indexes that one; the hydrated tab should read identically.
+    document.title = 'Pricing — Soleil Clusters';
     // envelope() adds copy_rev (previously missing here) + exposure_n.
     logEventOnce('pricing_view:public_page', EV.PRICING_VIEW, { ...up.envelope(), surface: SURFACE });
     // Meta ViewContent — mid-funnel ad-optimization signal. Both cards default

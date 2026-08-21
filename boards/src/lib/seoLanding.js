@@ -8,7 +8,7 @@
 //
 // The ONE permitted import is the enforced card cap. Every free-tier claim on
 // this page must be the number the server actually enforces: these strings sat
-// at a hand-typed "100 cards" through migration 0227 and would have become a
+// at a hand-typed "100 cards" through migration 0229 and would have become a
 // public falsehood the moment the cap moved. demoCardCap.js is pure ESM with no
 // dependencies, so both the Worker and React bundles still resolve it.
 //
