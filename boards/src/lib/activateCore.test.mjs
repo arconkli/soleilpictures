@@ -19,6 +19,7 @@ import {
   periodEndFromSubscription,
   pickReusableCustomer,
   planFromPriceId,
+  subscriptionEventAction,
 } from '../../../supabase/functions/_shared/activateCore.mjs';
 
 const usdPrice = (unit, interval = 'month', intervalCount = 1) => ({
@@ -169,4 +170,23 @@ test('decideCheckoutRoute: a demo user with an old canceled sub may re-subscribe
 });
 test('decideCheckoutRoute: mirror active routes to portal', () => {
   assert.equal(decideCheckoutRoute({ liveSubCount: 0, mirrorStatus: 'active', tier: 'demo', hasVerifiedCustomer: true }), 'portal');
+});
+
+// ── subscriptionEventAction: one mirror row, many possible subs ────────────
+test('first write and same-sub events apply', () => {
+  assert.equal(subscriptionEventAction({ kind: 'updated', eventSubId: 'sub_a', storedSubId: null }), 'apply');
+  assert.equal(subscriptionEventAction({ kind: 'updated', eventSubId: 'sub_a', storedSubId: 'sub_a', storedStatus: 'active' }), 'apply');
+  assert.equal(subscriptionEventAction({ kind: 'deleted', eventSubId: 'sub_a', storedSubId: 'sub_a', storedStatus: 'active' }), 'apply');
+});
+test('a duplicate sub cannot clobber the live mirror', () => {
+  // The A1 scenario: operator Dashboard-cancels duplicate sub_b while the
+  // user's real sub_a is live — the deleted(sub_b) must not demote them.
+  assert.equal(subscriptionEventAction({ kind: 'deleted', eventSubId: 'sub_b', storedSubId: 'sub_a', storedStatus: 'active' }), 'skip');
+  assert.equal(subscriptionEventAction({ kind: 'updated', eventSubId: 'sub_b', storedSubId: 'sub_a', storedStatus: 'active' }), 'skip');
+});
+test('a fresher sub takes over a terminal mirror (resubscribe)', () => {
+  assert.equal(subscriptionEventAction({ kind: 'updated', eventSubId: 'sub_new', storedSubId: 'sub_old', storedStatus: 'canceled' }), 'apply');
+  assert.equal(subscriptionEventAction({ kind: 'updated', eventSubId: 'sub_new', storedSubId: 'sub_old', storedStatus: 'incomplete_expired' }), 'apply');
+  // ...but a redelivered deleted(old) after the terminal write is a no-op.
+  assert.equal(subscriptionEventAction({ kind: 'deleted', eventSubId: 'sub_old2', storedSubId: 'sub_old', storedStatus: 'canceled' }), 'skip');
 });

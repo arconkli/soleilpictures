@@ -20,6 +20,7 @@ import {
   planFromPriceId,
   resolveUserId,
 } from "../_shared/activate.ts";
+import { subscriptionEventAction } from "../_shared/activateCore.mjs";
 import { emitCapi } from "../_shared/meta-capi.ts";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
@@ -205,10 +206,30 @@ async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub
   const userId = await resolveUserId(admin, customerId, sub.metadata?.supabase_user_id, null);
   if (!userId) return;
 
-  // Re-retrieve with discounts expanded so the captured net amount reflects any
-  // promo (the event payload may carry discounts as bare ids). Best-effort.
-  let full = sub;
-  try { full = await stripe.subscriptions.retrieve(sub.id, { expand: ["discounts"] }); } catch (_) { /* use event copy */ }
+  // The mirror is one row per user — only the subscription it tracks (or a
+  // successor to a terminal one) may write through, or two subs on one
+  // customer flip-flop the row and the wrong one's status drives the tier.
+  const stored = await admin.from("subscriptions")
+    .select("stripe_subscription_id, status").eq("user_id", userId).maybeSingle();
+  if (stored.error) throw new Error(`stored sub read failed: ${stored.error.message}`);
+  const action = subscriptionEventAction({
+    kind: "updated",
+    eventSubId: sub.id,
+    storedSubId: (stored.data?.stripe_subscription_id as string | undefined) ?? null,
+    storedStatus: (stored.data?.status as string | undefined) ?? null,
+  });
+  if (action === "skip") {
+    console.warn("[stripe] updated for non-mirrored subscription — skipped", { userId, eventSub: sub.id });
+    return;
+  }
+
+  // Re-retrieve with discounts expanded so the captured net amount reflects
+  // any promo (the event payload carries discounts as bare id strings).
+  // MANDATORY, not best-effort: writing the event copy on retrieve failure
+  // meant a stale retried `updated(active)` could re-grant paid tier to a
+  // canceled user forever, and discounted subs recorded list-price MRR.
+  // A throw here 500s and Stripe retries — same contract as onCheckoutCompleted.
+  const full = await stripe.subscriptions.retrieve(sub.id, { expand: ["discounts"] });
 
   const plan = planFromPriceId(full.items.data[0]?.price?.id);
   const billing = netMonthlyFromSubscription(full);
@@ -263,6 +284,24 @@ async function onSubscriptionDeleted(admin: ReturnType<typeof createClient>, sub
   const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
   const userId = await resolveUserId(admin, customerId, sub.metadata?.supabase_user_id, null);
   if (!userId) return;
+
+  // Only the subscription the mirror tracks may cancel-and-demote. A deleted
+  // event for a DIFFERENT sub (a cleaned-up duplicate, a redelivered event
+  // from before a resubscribe) used to mark the row canceled and demote a
+  // user whose real subscription was alive and billing.
+  const stored = await admin.from("subscriptions")
+    .select("stripe_subscription_id, status").eq("user_id", userId).maybeSingle();
+  if (stored.error) throw new Error(`stored sub read failed: ${stored.error.message}`);
+  const action = subscriptionEventAction({
+    kind: "deleted",
+    eventSubId: sub.id,
+    storedSubId: (stored.data?.stripe_subscription_id as string | undefined) ?? null,
+    storedStatus: (stored.data?.status as string | undefined) ?? null,
+  });
+  if (action === "skip") {
+    console.warn("[stripe] deleted for non-mirrored subscription — skipped", { userId, eventSub: sub.id });
+    return;
+  }
 
   const cancelUpd = await admin.from("subscriptions").update({
     status: "canceled",

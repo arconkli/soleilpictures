@@ -136,6 +136,21 @@ export function netMonthlyFromSubscription(sub) {
   }
 }
 
+// Should a customer.subscription.updated/deleted event write through to the
+// single per-user mirror row? The mirror is keyed on user_id, so with two
+// subscriptions on one customer (double-checkout race, resubscribe overlap,
+// operator cleanup) the events of the WRONG one used to clobber the row —
+// a Dashboard-cancel of a duplicate demoted a user whose real sub was live.
+// Rules: first write and same-sub writes apply; a DIFFERENT sub applies only
+// when the stored one is terminal (a fresher sub legitimately takes over the
+// row — the resubscribe path); a deleted event for a sub we don't mirror
+// touches nothing.
+export function subscriptionEventAction({ kind, eventSubId, storedSubId = null, storedStatus = null }) {
+  if (!storedSubId || storedSubId === eventSubId) return "apply";
+  if (kind === "updated" && (storedStatus === "canceled" || storedStatus === "incomplete_expired")) return "apply";
+  return "skip";
+}
+
 // Which of an email-matched customer list may be reused for this user.
 // A customer stamped with a DIFFERENT user's id means the email changed hands —
 // reusing it would hand this caller the other account's invoices, saved payment
