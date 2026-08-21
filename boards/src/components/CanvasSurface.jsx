@@ -2243,16 +2243,31 @@ export function CanvasSurface({
         });
       } catch (_) {}
     }
+    // Owner-pays: the server gate (authorize_upload / quota) keyed on the
+    // OWNER's plan. Pitch the upgrade only when the actor IS the owner —
+    // a collaborator's own plan is irrelevant and upgrading it cannot
+    // unblock the board (the client-side pre-block one branch up already
+    // makes this distinction; the server-rejection path must match).
     if (err?.code === 402) {
-      upsell?.();
-      feedback.toast({ type: 'warning', message: "You're out of storage. Upgrade for more space." });
+      if (ownsWorkspace) upsell?.();
+      feedback.toast({
+        type: 'warning',
+        message: ownsWorkspace
+          ? "You're out of storage. Upgrade for more space."
+          : "This cluster's owner is out of storage — they'll need to upgrade for more space.",
+      });
     } else if (err?.code === 403) {
-      upsell?.();
-      feedback.toast({ type: 'warning', message: 'Uploading files needs a paid plan — upgrade to add any file type.' });
+      if (ownsWorkspace) upsell?.();
+      feedback.toast({
+        type: 'warning',
+        message: ownsWorkspace
+          ? 'Uploading files needs a paid plan — upgrade to add any file type.'
+          : "Uploading that file needs the cluster's owner to be on a paid plan.",
+      });
     } else if (String(err?.message) !== 'aborted') {
       feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
     }
-  }, [mutators, onRequestUpgrade, onRequestStorageUpgrade, feedback]);
+  }, [mutators, onRequestUpgrade, onRequestStorageUpgrade, feedback, ownsWorkspace]);
 
   // Place the drop rect (w×h) centered on (cx, cy), clamped to the viewport.
   //
