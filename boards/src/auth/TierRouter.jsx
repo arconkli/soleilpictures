@@ -29,7 +29,6 @@ import { setJourneySink, beginJourney, setJourneyState, journey } from '../lib/j
 // before any journey() call. Idempotent with the matching wire in App.jsx.
 setJourneySink({ logEvent, logEventNow });
 import { WelcomePage } from './WelcomePage.jsx';
-import { AdWelcome } from './AdWelcome.jsx';
 import { WaitlistConfirm } from './WaitlistConfirm.jsx';
 import { PricingPage } from './PricingPage.jsx';
 import { PricingSuccess } from './PricingSuccess.jsx';
@@ -174,26 +173,12 @@ export function TierRouter({ children }) {
     return hasEntry ? <WaitlistConfirm /> : <WelcomePage />;
   }
 
-  // AdWelcome is now OFF-PATH: instant_entry shipped at 100% arm B, so entryArm is
-  // always 'B' at the gate and this branch never renders (the effect above clears the
-  // flag + defers the offer, then we fall through to the seeded app below). Kept only
-  // as a dead safety net until AdWelcome.jsx is removed in the fast-follow cleanup.
-  if (tier === 'demo' && adOfferPending && entryArm !== 'B') {
-    return <AdWelcome onEnter={async () => {
-      await refetch();
-      // Dev preview (?local=1&tier=demo&adoffer=1): tier is a static QA override,
-      // so refetch can't clear adOfferPending — drop ?adoffer and reload to fall
-      // through into the seeded app. Inert in prod (that param is never present;
-      // there adOfferPending comes from the server and refetch clears it).
-      const url = new URL(window.location.href);
-      if (url.searchParams.has('adoffer')) {
-        url.searchParams.delete('adoffer');
-        window.location.replace(url.pathname + url.search);
-        return;
-      }
-      if (window.location.pathname !== '/') window.history.replaceState({}, '', '/');
-    }} />;
-  }
+  // AdWelcome itself is gone — instant_entry shipped at 100% arm B, the render
+  // branch was statically unreachable (entryArm is always 'B' at the gate), and
+  // its own comment promised removal "in the fast-follow cleanup". This is that
+  // cleanup: the arm-B effect above still clears the one-time offer flag; the
+  // ad_offer_* analytics constants and the SignupFunnelPanel readout stay for
+  // the historical rows.
 
   // tier in (admin, paid, demo) — signed-in-only side pages
   if (path === '/admin')             return <Suspense fallback={<Splash />}><AdminPage /></Suspense>;

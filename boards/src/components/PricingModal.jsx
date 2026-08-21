@@ -30,7 +30,7 @@ import { trackViewContent } from '../lib/metaPixel.js';
 
 export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null }) {
   const { user } = useAuth();
-  const { tier, demoCardCount, effectiveCardLimit } = useMyTier({ userId: user?.id });
+  const { tier, demoCardCount, effectiveCardLimit, grantActive } = useMyTier({ userId: user?.id });
   // Only the wall gets personalized, so only the wall pays for the extra RPC.
   const storage = useStorageUsage({ enabled: header === 'cap-hit' });
   const capStats = header === 'cap-hit'
@@ -83,6 +83,10 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   useDwellTime(EV.PRICING_DWELL, () => ({ surface: 'modal', header }));
 
   const alreadyPaid = tier === 'paid' || tier === 'admin';
+  // Comped (admin-granted) access has no Stripe subscription behind it —
+  // "Manage billing" would round-trip to create-portal-session's 404. Show
+  // the truth on the button instead of a dead end.
+  const grantBacked = alreadyPaid && Boolean(grantActive);
   const onPlanToggle = (p) => {
     const t = up.planToggle(p);
     logEvent(EV.PRICING_PLAN_TOGGLE, { plan: p, surface: 'modal', header, ...t });
@@ -192,11 +196,13 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
 
           {error && <div className="auth-error t-meta">{error}</div>}
 
-          <button className="pricing-cta pricing-cta-primary" data-up-cta="creator" onClick={onCta} disabled={busy}>
+          <button className="pricing-cta pricing-cta-primary" data-up-cta="creator" onClick={onCta} disabled={busy || grantBacked}>
             {busy && <span className="cta-spinner" aria-hidden="true" />}
-            {busy
-              ? (alreadyPaid ? CTA.manageBillingBusy : CTA.getCreatorBusy)
-              : (alreadyPaid ? CTA.manageBilling : CTA.getCreator)}
+            {grantBacked
+              ? 'Complimentary access — nothing to manage'
+              : busy
+                ? (alreadyPaid ? CTA.manageBillingBusy : CTA.getCreatorBusy)
+                : (alreadyPaid ? CTA.manageBilling : CTA.getCreator)}
           </button>
 
           {header === 'cap-hit' && <FeatureList features={CREATOR_FEATURES} className="pricing-features upgrade-features-after" />}
