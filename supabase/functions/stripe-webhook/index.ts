@@ -20,7 +20,7 @@ import {
   planFromPriceId,
   resolveUserId,
 } from "../_shared/activate.ts";
-import { subscriptionEventAction } from "../_shared/activateCore.mjs";
+import { filterLiveSubscriptions, subscriptionEventAction } from "../_shared/activateCore.mjs";
 import { emitCapi } from "../_shared/meta-capi.ts";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
@@ -83,6 +83,12 @@ Deno.serve(async (req) => {
         break;
       case "invoice.payment_failed":
         console.warn("[stripe] invoice.payment_failed", (event.data.object as Stripe.Invoice).id);
+        break;
+      case "charge.refunded":
+        await onChargeTrouble(admin, event.data.object as Stripe.Charge, "refund");
+        break;
+      case "charge.dispute.created":
+        await onChargeTrouble(admin, event.data.object as Stripe.Dispute, "dispute");
         break;
       default:
         // Ignore other events but return 200 so Stripe doesn't retry.
@@ -253,6 +259,75 @@ async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub
     if (flip.error) throw new Error(`tier flip failed: ${flip.error.message}`);
   }
   // Past-due / unpaid → leave tier as-is, the cancel event will drop them.
+}
+
+// charge.refunded / charge.dispute.created — money went backwards. Policy
+// (decided 2026-08-21): if the customer still has a live subscription this is
+// a partial/goodwill refund — flag only. If nothing is live, drop the tier
+// (grant check first, same contract as the deleted path) and flag. Clawback of
+// referral rewards stays a manual operator call — the billing_flag row is the
+// pointer. NOTE: these events reach us only if the Stripe webhook endpoint is
+// subscribed to them (operator checklist).
+async function onChargeTrouble(
+  admin: ReturnType<typeof createClient>,
+  obj: Stripe.Charge | Stripe.Dispute,
+  kind: "refund" | "dispute",
+) {
+  let charge: Stripe.Charge | null;
+  if (kind === "dispute") {
+    const d = obj as Stripe.Dispute;
+    const chargeId = typeof d.charge === "string" ? d.charge : d.charge?.id ?? null;
+    charge = chargeId ? await stripe.charges.retrieve(chargeId) : null;
+  } else {
+    charge = obj as Stripe.Charge;
+  }
+  const customerId = typeof charge?.customer === "string" ? charge.customer : charge?.customer?.id;
+  if (!customerId) {
+    console.warn("[stripe] charge trouble with no customer", { kind, charge: charge?.id });
+    return;
+  }
+  const userId = await resolveUserId(admin, customerId, null, null);
+
+  const subs = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 10 });
+  const live = filterLiveSubscriptions(subs.data as unknown as Array<{ status: string }>);
+  // A partial refund never demotes — the charge object says whether the FULL
+  // amount went back (charge.refunded flips true only then).
+  const fullReversal = kind === "dispute" || charge?.refunded === true;
+
+  let action = "flag_only";
+  if (userId && fullReversal && live.length === 0) {
+    const grantQ = await admin.rpc("user_has_active_paid_grant", { p_user_id: userId });
+    if (grantQ.error) throw new Error(`grant check failed: ${grantQ.error.message}`);
+    if (grantQ.data === true) {
+      action = "grant_kept";
+    } else {
+      const demote = await admin.from("profiles").update({ tier: "demo" }).eq("user_id", userId).eq("tier", "paid");
+      if (demote.error) throw new Error(`tier demote failed: ${demote.error.message}`);
+      action = "demoted";
+    }
+  }
+
+  console.warn("[stripe] charge trouble", { kind, action, userId, customerId, charge: charge?.id, liveSubs: live.length });
+  // Operator-review pointer — best-effort, never fails the webhook.
+  try {
+    const ins = await admin.from("analytics_events").insert({
+      user_id: userId,
+      event: "billing_flag",
+      props: {
+        kind,
+        action,
+        charge_id: charge?.id ?? null,
+        customer_id: customerId,
+        amount_cents: (kind === "dispute" ? (obj as Stripe.Dispute).amount : charge?.amount_refunded) ?? null,
+        currency: charge?.currency ?? null,
+        live_subs: live.length,
+      },
+      path: "/stripe-webhook",
+    });
+    if (ins.error) console.warn("[stripe-webhook] billing_flag insert failed", ins.error.message);
+  } catch (e) {
+    console.warn("[stripe-webhook] billing_flag insert threw", (e as Error)?.message || String(e));
+  }
 }
 
 // Best-effort: pull a user_id out of any Stripe event so the audit

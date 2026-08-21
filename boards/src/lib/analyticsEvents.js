@@ -80,6 +80,7 @@ export const EV = Object.freeze({
   CHECKOUT_ACTIVATED_SEEN: 'checkout_activated_seen',     // tier→paid celebration {tier,plan} (must-land)
   CHECKOUT_SUCCESS_DWELL:  'checkout_success_dwell',      // {ms,outcome}
   SUBSCRIPTION_STARTED:    'subscription_started',        // SERVER (stripe-webhook, checkout.session.completed) {plan,amount_total_cents,currency,session_id} — ground-truth paid conversion, fires even if the buyer never returns to /pricing/success
+  BILLING_FLAG:            'billing_flag',                // SERVER (stripe-webhook refund/dispute + billing-reconcile-cron) {kind,action,charge_id?,customer_id} — money went backwards or the mirror drifted; the operator-review pointer
 
   // ── Upsell behavioral telemetry (up_* family — lib/upsellMetrics.js +
   //    hooks/useUpsellExposure.js). WHY users who see the Creator pitch don't
