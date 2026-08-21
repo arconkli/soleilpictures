@@ -30,6 +30,7 @@ const SRC = join(dirname(fileURLToPath(import.meta.url)), '..');
 // fires it, so this list can be checked rather than trusted.
 const SERVER_EMITTED = new Map([
   ['SUBSCRIPTION_STARTED',   'stripe webhook handler'],
+  ['BILLING_FLAG',           'stripe-webhook onChargeTrouble + billing-reconcile-cron'],
   ['REFERRAL_SIGNUP',        '0163_referrals.sql'],
   ['REFERRAL_ACTIVATED',     '0163_referrals.sql'],
   ['REFERRAL_REWARD_GRANTED','0163_referrals.sql'],
