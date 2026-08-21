@@ -1017,6 +1017,28 @@ export function clearCapAnnounced(boardId = null) {
 // not two.
 const _boardWsCache = new Map();
 
+// One-tab account switches must not leak one account's sync machinery into
+// the next: a pending flush scheduled under user A would otherwise fire up to
+// 10s later under B's token (misattributed telemetry; a cap refusal would land
+// a wrong-user upgrade wall), _capAnnounced would keep suppressing walls B has
+// never seen, and latestYdoc refs would pin A's boards in memory. Mirrors the
+// SIGNED_OUT cleanup r2.js / workspacePartyKit.js already do. The group maps
+// are declared later in the file — the callback only runs post-module-eval,
+// so that's fine.
+try {
+  supabase?.auth?.onAuthStateChange((event) => {
+    if (event !== 'SIGNED_OUT') return;
+    for (const st of _syncState.values()) { try { if (st.pending) clearTimeout(st.pending); } catch (_) {} }
+    for (const st of _groupSyncState.values()) { try { if (st.pending) clearTimeout(st.pending); } catch (_) {} }
+    _syncState.clear();
+    _cardIndexCache.clear();
+    _capAnnounced.clear();
+    _boardWsCache.clear();
+    _groupSyncState.clear();
+    _groupSigCache.clear();
+  });
+} catch (_) { /* supabase absent in ?local=1 harness — nothing to clear */ }
+
 export async function syncCardIndex({ boardId, ydoc }) {
   if (!supabase || !boardId || !ydoc) return;
   const state = _syncState.get(boardId) || { last: 0, pending: null };

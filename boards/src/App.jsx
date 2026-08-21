@@ -1229,6 +1229,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (!cs.capped) return true;
       const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: 1, limit: cs.limit });
       if (capHit) { noteBlocked('demo_cap_cell'); surfaceCapHit(cs); return false; }
+      // Grid fills were the one add path with no approaching-limit warning —
+      // grid-heavy users met the wall cold. Mirror addCard: warn near the cap,
+      // and move the cached count so a fill session gates on its own weight.
+      nearCapToast(cs, 1);
+      if (cs.own) myTier.notePlaced?.(1);
       return true;
     };
 
@@ -3789,7 +3794,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           n: e?.detail?.rejected || 0,
         });
       } catch (_) {}
-      myTier.refetch?.();
+      // Owner-pays: the trigger counted the board OWNER's cards. Refresh the
+      // number that was actually stale — the actor's own tier for their own
+      // board, the owner's capacity for a shared one (the capacity cache is
+      // what let the card through, and without this refetch it stays wrong
+      // and re-admits the very next add).
+      const rb = rejectedBoardId ? boards?.[rejectedBoardId] : null;
+      const ownRejected = !rb || (rb.workspace_id === workspace?.id && workspace?.created_by === user?.id);
+      if (ownRejected) myTier.refetch?.();
+      else boardCapacity.refetch?.(rejectedBoardId);
 
       // Withdraw the cards the server refused. They render from the Y.Doc but
       // never reach card_index, so leaving them means a card the user can see
@@ -3809,11 +3822,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // that arrives from the server doesn't re-open a pitch the user has
       // already seen and closed. The block above is still logged every time —
       // the refusal is real even when we choose not to interrupt again.
-      pitchCapWall({ limit: myTier.effectiveCardLimit, count: myTier.demoCardCount });
+      //
+      // Ownership routes the surface, exactly like the client-side gate's
+      // surfaceCapHit: owners get the upgrade modal with THEIR numbers; a
+      // collaborator gets the owner-directed toast — this path used to pitch
+      // the collaborator an upgrade keyed to their own irrelevant limit, an
+      // upgrade that could never unblock the board.
+      if (ownRejected) {
+        pitchCapWall({ limit: myTier.effectiveCardLimit, count: myTier.demoCardCount });
+      } else {
+        const capInfo = boardCapacity.get?.(rejectedBoardId);
+        const limitTxt = capInfo?.cap ? `${capInfo.cap}-card limit` : 'card limit';
+        feedback.toast({
+          type: 'warning',
+          message: `This cluster is at the owner's ${limitTxt} — they'll need to upgrade or clear space before more cards fit.`,
+        });
+      }
     };
     window.addEventListener('soleil:card-index-capped', onCapped);
     return () => window.removeEventListener('soleil:card-index-capped', onCapped);
-  }, [myTier, currentId, mainMutators, pitchCapWall]);
+  }, [myTier, currentId, mainMutators, pitchCapWall, boards, workspace, user, boardCapacity, feedback]);
 
   // The list-toolbar upsell chip's own suppression row, so the scorecard's
   // by_surface breakdown isn't permanently zero for this surface.
