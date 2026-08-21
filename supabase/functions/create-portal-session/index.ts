@@ -48,10 +48,22 @@ Deno.serve(async (req) => {
     if (sub.error) return json({ error: sub.error.message }, 500);
     if (!sub.data?.stripe_customer_id) return json({ error: "no subscription found" }, 404);
 
-    const session = await stripe.billingPortal.sessions.create({
-      customer: sub.data.stripe_customer_id,
-      return_url: `${APP_URL}/?settings=billing`,
-    });
+    let session: Stripe.BillingPortal.Session;
+    try {
+      session = await stripe.billingPortal.sessions.create({
+        customer: sub.data.stripe_customer_id,
+        return_url: `${APP_URL}/?settings=billing`,
+      });
+    } catch (e) {
+      // A Dashboard-deleted customer leaves a dead id in the mirror (we don't
+      // handle customer.deleted). Surface it as the same "no subscription
+      // found" the client already maps to sensible copy, not a raw 500.
+      const msg = String((e as Error)?.message ?? e);
+      if (/no such customer|deleted/i.test(msg)) {
+        return json({ error: "no subscription found" }, 404);
+      }
+      throw e;
+    }
 
     return json({ ok: true, url: session.url }, 200);
   } catch (e) {

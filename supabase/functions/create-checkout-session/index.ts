@@ -12,6 +12,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@17";
 import { clientIpFromHeaders, emitCapi } from "../_shared/meta-capi.ts";
+import { decideCheckoutRoute, filterLiveSubscriptions, pickReusableCustomer } from "../_shared/activateCore.mjs";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -85,32 +86,70 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const prof = await admin.from("profiles").select("tier").eq("user_id", userId).maybeSingle();
 
+    // Resolve the Stripe customer, PROVING ownership at every step. A bare
+    // email match is not ownership: an email that changed hands would hand
+    // this caller the previous owner's invoices, saved payment method, and
+    // portal cancel button.
     let customerId = existingSub.data?.stripe_customer_id ?? null;
+    if (customerId) {
+      // The mirror can hold a Dashboard-deleted customer forever (we don't
+      // handle customer.deleted) — validate, or every checkout 500s on it.
+      const c = await stripe.customers.retrieve(customerId).catch(() => null);
+      if (!c || (c as Stripe.DeletedCustomer).deleted) customerId = null;
+    }
     if (!customerId) {
-      // Also check Stripe directly by email so we don't end up with dupe customers.
-      const found = await stripe.customers.list({ email, limit: 1 });
-      if (found.data.length > 0) customerId = found.data[0].id;
+      // Check Stripe by email so we don't mint dupe customers — but only
+      // reuse one that is provably this user's (metadata match) or unclaimed
+      // (stamped on reuse so future matches are by user id, not email).
+      const found = await stripe.customers.list({ email, limit: 10 });
+      const pick = pickReusableCustomer(found.data, userId);
+      if (pick) {
+        customerId = pick.customer.id;
+        if (pick.needsStamp) {
+          await stripe.customers
+            .update(customerId, { metadata: { supabase_user_id: userId } })
+            .catch(() => {}); // best-effort: a failed stamp only delays the claim
+        }
+      }
     }
 
-    // Already-subscribed backstop: never create a second subscription for a user
-    // who already has an active/trialing one (or is already on a paid/admin tier).
-    // Send them to the Customer Portal instead so they manage the plan they have.
-    const hasActiveSub = ["active", "trialing"].includes(existingSub.data?.status ?? "");
-    const alreadyPaid  = hasActiveSub || ["paid", "admin"].includes(prof.data?.tier ?? "");
-    if (alreadyPaid) {
-      if (!customerId) return json({ error: "already_subscribed" }, 409);
+    // Already-subscribed backstop: never create a second subscription for a
+    // user who already has a live one (or is on a paid/admin tier). The mirror
+    // alone is NOT enough — it's written only after a payment lands, so two
+    // tabs racing through checkout both used to pass. Ask Stripe directly:
+    // any live-ish subscription on the (ownership-verified) customer routes to
+    // the Customer Portal instead of a second checkout.
+    let liveSubCount = 0;
+    if (customerId) {
+      const subs = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 10 });
+      liveSubCount = filterLiveSubscriptions(subs.data).length;
+    }
+    const route = decideCheckoutRoute({
+      liveSubCount,
+      mirrorStatus: existingSub.data?.status ?? null,
+      tier: prof.data?.tier ?? null,
+      hasVerifiedCustomer: Boolean(customerId),
+    });
+    if (route === "already_subscribed") return json({ error: "already_subscribed" }, 409);
+    if (route === "portal") {
       const portal = await stripe.billingPortal.sessions.create({
-        customer: customerId,
+        customer: customerId!,
         return_url: `${APP_URL}/?settings=billing`,
       });
       return json({ ok: true, mode: "portal", url: portal.url }, 200);
     }
 
     if (!customerId) {
-      const created = await stripe.customers.create({
-        email,
-        metadata: { supabase_user_id: userId },
-      });
+      // Idempotency key collapses concurrent double-invocations (two tabs)
+      // onto one customer; the 10-minute bucket lets a genuine retry after an
+      // operator deleted the fresh customer escape the cached response.
+      const created = await stripe.customers.create(
+        {
+          email,
+          metadata: { supabase_user_id: userId },
+        },
+        { idempotencyKey: `cust-create:${userId}:${Math.floor(Date.now() / 600_000)}` },
+      );
       customerId = created.id;
     }
 
@@ -124,6 +163,11 @@ Deno.serve(async (req) => {
       success_url: successUrl,
       cancel_url:  cancelUrl,
       allow_promotion_codes: true,
+      // Default session lifetime is 24h — a payable sibling from a two-tab race
+      // or an abandoned attempt would linger all day and could still mint a
+      // second subscription after the first one paid. One hour is plenty to
+      // finish paying (Stripe's minimum is 30 minutes).
+      expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
       // Don't force a card on free checkouts: when a 100%-off promo makes the
       // subscription $0 (now and on renewal), Stripe collects no payment method.
       // Paid checkouts still collect a card because an amount is due.
@@ -148,8 +192,10 @@ Deno.serve(async (req) => {
     // Meta CAPI InitiateCheckout — higher-trust server mirror of the browser
     // pixel's InitiateCheckout (shared event_id → Meta dedups). Reached only past
     // the already-subscribed → portal short-circuit above, so a portal redirect
-    // never counts as a checkout. value mirrors PRICING in billingCopy.js (the
-    // documented mirror of STRIPE_PRICE_*): monthly $25, annual $240.
+    // never counts as a checkout. value comes from the session Stripe just
+    // priced (list price at creation — promo codes apply later inside
+    // Checkout), so it self-tracks any future Stripe price change; the literal
+    // fallback mirrors PRICING in billingCopy.js.
     if (icEventId) {
       emitCapi({
         eventName: "InitiateCheckout",
@@ -165,7 +211,9 @@ Deno.serve(async (req) => {
         },
         customData: {
           currency: "USD",
-          value: plan === "monthly" ? 25 : 240,
+          value: typeof session.amount_total === "number"
+            ? session.amount_total / 100
+            : (plan === "monthly" ? 25 : 240),
           content_name: "Creator",
           content_category: plan,
         },

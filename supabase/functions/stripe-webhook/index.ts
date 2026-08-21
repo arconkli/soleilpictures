@@ -129,12 +129,22 @@ async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, sessi
     subscriptionId: subId ?? null,
   });
 
+  // A soft refusal (dead/incomplete/absent subscription — activateCore's
+  // liveness gate) is a final, correct answer: no paid tier yet, so no
+  // Purchase conversion either, and a 200 so Stripe stops retrying. For an
+  // async payment (ACH) the customer.subscription.updated → active event will
+  // activate and the invoice-side conversion follows the money.
+  if (!result.activated && result.soft) {
+    console.warn("[stripe] activation refused", { userId, subId, reason: result.reason });
+    return;
+  }
+
   // Meta CAPI Purchase. The payment is real regardless of whether our DB tier
-  // flip succeeded, so emit even if activation reported a soft failure. Keyed on
-  // session.id so it dedups against verify-checkout-session's Purchase, the
-  // browser pixel Purchase on the success page, and Stripe webhook retries.
-  // fbp/fbc/IP/UA were captured at checkout-start and stashed in session.metadata
-  // by create-checkout-session.
+  // flip succeeded, so emit even on a HARD activation failure (DB write error).
+  // Keyed on session.id so it dedups against verify-checkout-session's
+  // Purchase, the browser pixel Purchase on the success page, and Stripe
+  // webhook retries. fbp/fbc/IP/UA were captured at checkout-start and stashed
+  // in session.metadata by create-checkout-session.
   const m = session.metadata ?? {};
   emitCapi({
     eventName: "Purchase",
@@ -231,6 +241,13 @@ async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub
 async function extractUserIdFromEvent(admin: ReturnType<typeof createClient>, event: Stripe.Event): Promise<string | null> {
   const obj = event.data?.object as Record<string, unknown> | undefined;
   if (!obj) return null;
+  // Our own sessions/subscriptions carry the uid in metadata (and sessions in
+  // client_reference_id too) — prefer it. The customer-map fallback below only
+  // works once a subscriptions row exists, which by construction excludes the
+  // most important row of all: the first checkout.session.completed.
+  const metaUid = (obj.metadata as Record<string, string> | undefined)?.supabase_user_id
+    || (typeof obj.client_reference_id === "string" ? obj.client_reference_id : undefined);
+  if (metaUid) return metaUid;
   const customerId = (typeof obj.customer === "string") ? obj.customer
                   : (obj.customer as { id?: string } | undefined)?.id;
   if (!customerId) return null;

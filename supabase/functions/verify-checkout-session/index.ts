@@ -66,10 +66,15 @@ Deno.serve(async (req) => {
 
     // Owner check — session.metadata.supabase_user_id is set by create-checkout-session.
     // client_reference_id is also set as a backup. Either must match the caller.
+    // A session with NEITHER is not ours (Dashboard payment link, foreign
+    // integration) and must never activate the caller off someone else's
+    // payment — requiring a non-null owner also keeps the caller's row from
+    // being cross-wired to a foreign stripe_customer_id, which would route all
+    // of that customer's future webhook events onto this user.
     const ownerId = (session.metadata?.supabase_user_id as string | undefined)
       || (session.client_reference_id as string | null)
       || null;
-    if (ownerId && ownerId !== callerId) {
+    if (!ownerId || ownerId !== callerId) {
       return json({ activated: false, reason: "session does not belong to caller" }, 403);
     }
 
@@ -133,7 +138,10 @@ Deno.serve(async (req) => {
       // For the deduped browser Purchase on the success page (same event_id).
       amount_total: session.amount_total ?? null,
       currency: session.currency ?? null,
-    }, result.activated ? 200 : 500);
+      // soft refusals (dead/incomplete/absent subscription) are final, correct
+      // answers — 200 so the client shows the reason instead of retrying; 500
+      // stays reserved for real failures (DB write errors) worth a retry.
+    }, result.activated || result.soft ? 200 : 500);
   } catch (e) {
     console.error("[verify-checkout-session] error", e);
     return json({ error: String((e as Error)?.message ?? e) }, 500);
