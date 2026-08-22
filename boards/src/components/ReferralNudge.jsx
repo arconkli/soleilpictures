@@ -28,6 +28,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getOwnProfile, updateOwnSettings } from '../lib/boardsApi.js';
 import { logEvent, logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { REFERRAL_BONUS_CARDS, REFERRED_START_CARDS } from '../lib/billingCopy.js';
 
 const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;  // between shows
 const LIFETIME_CAP = 3;                       // total shows per account
@@ -142,7 +143,7 @@ export function ReferralNudge({ tier, onCollaborate }) {
         <div className="fv-banner-body">
           {isPaid
             ? 'Grab an invite link and pull someone into this cluster — and when a friend you invite upgrades, you get a free month.'
-            : 'Grab an invite link and pull someone into this cluster — editing together is free. They start with 25 free cards, and you earn 25 when they place their first.'}
+            : `Grab an invite link and pull someone into this cluster — editing together is free. They start with ${REFERRED_START_CARDS} free cards, and you earn ${REFERRAL_BONUS_CARDS} when they place their first.`}
         </div>
       </div>
       <div className="fv-banner-actions">
