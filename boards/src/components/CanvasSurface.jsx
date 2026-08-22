@@ -47,7 +47,7 @@ import {
   Eye, EyeOff, MessageCircle,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, Scribble, ArrowRight, Plus, Question,
   Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut,
-  Calendar as CalendarPh,
+  Calendar as CalendarPh, X,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
@@ -76,7 +76,8 @@ import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent, logEventOnce } from '../lib/analytics.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
-import { genuineCards } from '../lib/firstValueTrigger.js';
+import { genuineCards, hasGenuineCard } from '../lib/firstValueTrigger.js';
+import { shouldShowDepthDock } from '../lib/depthDock.js';
 import { momentumHintSeen, markMomentumHintSeen } from '../lib/momentumHint.js';
 import { setJourneyState } from '../lib/journey.js';
 import { ShowcaseBanner } from './ShowcaseBanner.jsx';
@@ -1429,6 +1430,46 @@ export function CanvasSurface({
       escalated: !!frictionStuck,            // they'd already tripped the stuck signal
     });
   }, [emptyPanelVisible, board?.id, firstCardPrompt, frictionStuck]);
+
+  // ── Depth dock ──
+  // The panel above is the only place the product says "pick several at once",
+  // and it unmounts as soon as any card exists — including a card that is an
+  // empty container. So the one gesture that reliably fills a board is pitched
+  // once, before the user has done anything, and never again. This keeps a much
+  // quieter version of the offer alive until the board is deep enough to be
+  // worth coming back to. Dismissal is per board and sticky.
+  const depthDockKey = board?.id ? `soleil.depthdock.dismissed.${board.id}` : null;
+  const [depthDockDismissed, setDepthDockDismissed] = useState(false);
+  useEffect(() => {
+    if (!depthDockKey) { setDepthDockDismissed(false); return; }
+    let stored = false;
+    try { stored = localStorage.getItem(depthDockKey) === '1'; } catch (_) {}
+    setDepthDockDismissed(stored);
+  }, [depthDockKey]);
+
+  const depthGenuineCount = genuineCards(cards).length;
+  const depthDockVisible = shouldShowDepthDock({
+    genuine: depthGenuineCount,
+    dismissed: depthDockDismissed,
+    canEdit,
+    isPublic,
+  });
+  useEffect(() => {
+    if (!depthDockVisible || !board?.id) return;
+    logEventOnce(`depth_dock_shown:${board.id}`, EV.DEPTH_DOCK_SHOWN, {
+      board_id: board.id,
+      cards: depthGenuineCount,
+    });
+  }, [depthDockVisible, board?.id, depthGenuineCount]);
+
+  const dismissDepthDock = () => {
+    setDepthDockDismissed(true);
+    try { if (depthDockKey) localStorage.setItem(depthDockKey, '1'); } catch (_) {}
+    try {
+      logEvent(EV.DEPTH_DOCK_DISMISSED, { board_id: board?.id || null, cards: depthGenuineCount });
+    } catch (_) {}
+  };
+
   // Resolve a sane paste position. lastMouseCanvasRef tracks the cursor over the
   // canvas, but after a pan/zoom with no mousemove since it can point far
   // off-screen — a paste would then land where the user can't see it (the silent
@@ -1455,6 +1496,42 @@ export function CanvasSurface({
   // Place tools (click empty canvas to drop a card); 'draw'/'arrow' are not.
   const PLACE_TOOLS = ['text', 'image', 'doc', 'board', 'grid', 'shape', 'palette'];
 
+  // Placing a cluster is the most common opening move in the product, and the
+  // one that most often ends a couple of cards later. It leaves the user on a
+  // canvas holding a single closed box — and because the board is no longer
+  // empty, the empty-board panel unmounts, taking the only offer of a
+  // multi-select image import with it. So when the cluster IS the board's first
+  // genuine card, step inside it, where that panel is showing on a fresh canvas.
+  //
+  // Fires at most once per board: the cluster it just made is itself a genuine
+  // card, so a second one finds hasGenuineCard already true. That is also what
+  // stops a user who likes clusters being walked down a chain of them.
+  const addClusterCard = async (pos, method) => {
+    const wasFirst = !hasGenuineCard(cards);
+    // The HOST navigates, not us. Whether a freshly-created board is safe to
+    // open depends on when that host's board list settles — App.jsx awaits a
+    // refresh, the local harness sets React state — and a caller that opened it
+    // itself would silently no-op against a stale map. Asking for it by option
+    // lets each host do the part it actually knows about.
+    const newId = await mutators.addNewBoard?.(pos, { openAfter: wasFirst });
+    if (!wasFirst || !newId || !onOpenBoard) return;
+    const parentId = board?.id || null;
+    try { logEvent(EV.CLUSTER_AUTO_OPEN, { board_id: parentId, new_board_id: newId, method }); } catch (_) {}
+    // Moving someone without asking is a liberty; name it and offer the way
+    // back in the same breath, and measure how often they take it.
+    feedback.toast({
+      message: 'Opened your new cluster — add images inside it.',
+      ttl: 7000,
+      action: parentId ? {
+        label: 'Back',
+        onClick: () => {
+          try { logEvent(EV.CLUSTER_AUTO_OPEN_BACK, { board_id: parentId }); } catch (_) {}
+          onOpenBoard(parentId);
+        },
+      } : undefined,
+    });
+  };
+
   // Drop the armed place-tool's card at `pos` — wherever the click landed,
   // empty canvas OR on top of an existing card. Shared by the background placer
   // and the card placer so a mis-click on a card no longer dead-ends (the data
@@ -1465,7 +1542,7 @@ export function CanvasSurface({
     markViewSettled(); // keep the placed card where clicked (no first-card auto-fit)
     noteCreateIntent('tool_place', selectedTool);
     switch (selectedTool) {
-      case 'board':   mutators.addNewBoard?.(pos); break;
+      case 'board':   addClusterCard(pos, 'tool_place'); break;
       case 'grid':    mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); break;
       // Multi-select, like every other image entry point — see the 'image'
       // add-action for why singular was costing day-one depth.
@@ -2544,7 +2621,7 @@ export function CanvasSurface({
   // pre-check only hard-blocks the unambiguous case (you own this workspace and
   // you're not paid); shared workspaces attempt optimistically and let the
   // server's 402/403 decide.
-  const ingestFiles = useCallback(async (fileList, cx, cy) => {
+  const ingestFiles = useCallback(async (fileList, cx, cy, source = 'drop') => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
     const canAttemptFiles = !(ownsWorkspace && !isPaidPlan);
@@ -2564,6 +2641,24 @@ export function CanvasSurface({
       if (c.route === 'blocked') { blockedForUpgrade.push(f); continue; }
       accepted.push({ file: f, ...c });
     }
+
+    // One row for the whole gesture, before any of it can fail. Every other
+    // signal here is per-card, and per-card rows cannot answer "was this one
+    // drop of ten or ten drops of one" — the image route adds each file
+    // separately, so a ten-file selection is ten identical card_placed{n:1}
+    // rows. That distinction is the point of the measurement.
+    try {
+      const kinds = {};
+      for (const it of accepted) kinds[it.kind] = (kinds[it.kind] || 0) + 1;
+      logEvent(EV.IMPORT_BATCH, {
+        n_files: files.length,
+        n_accepted: accepted.length,
+        n_blocked: blockedForUpgrade.length,
+        source,
+        kinds,
+        board_id: board?.id || null,
+      });
+    } catch (_) {}
 
     if (accepted.length) {
       // Real dimensions before layout, not after: laying out at the fallback
@@ -2641,7 +2736,7 @@ export function CanvasSurface({
     }
   }, [ownsWorkspace, isPaidPlan, optimisticDropImage, dropVideoFile, dropAudioFile,
       optimisticDropPdf, dropLargeMedia, optimisticDropFile, onRequestStorageUpgrade,
-      onRequestUpgrade, feedback]);
+      onRequestUpgrade, feedback, board?.id]);
 
   // Unified "Add → File" picker: opens a native file chooser with NO accept
   // filter (any type) and routes the chosen file(s) through ingestFiles — the
@@ -2654,7 +2749,7 @@ export function CanvasSurface({
     input.multiple = true;
     input.onchange = () => {
       if (input.files && input.files.length) {
-        ingestFiles(input.files, pos?.x ?? 200, pos?.y ?? 200);
+        ingestFiles(input.files, pos?.x ?? 200, pos?.y ?? 200, 'picker');
       }
     };
     input.click();
@@ -2679,7 +2774,7 @@ export function CanvasSurface({
       // Genuine cards on the board BEFORE this batch (cardsRef hasn't re-synced
       // the optimistic adds yet, so add `n` to project the post-batch count).
       const before = genuineCards(cardsRef.current || []).length;
-      await ingestFiles(input.files, pos?.x ?? 200, pos?.y ?? 200);
+      await ingestFiles(input.files, pos?.x ?? 200, pos?.y ?? 200, 'photo_picker');
       // Momentum beat: on a phone, right after the first photo(s) land while
       // still short of a populated board (<3), nudge to add a few more —
       // tapping re-opens the multi-select. Once per device; never during a tour
@@ -6213,7 +6308,7 @@ export function CanvasSurface({
   // partition card-creating actions from annotations; `icon` is consumed by
   // the mobile sheet and ignored by the context-menu renderer.
   const buildAddActions = (pos, method) => [
-    { id: 'board',   group: 'card', label: 'Cluster', icon: Browsers,      run: () => { noteCreateIntent(method, 'board'); mutators.addNewBoard?.(pos); } },
+    { id: 'board',   group: 'card', label: 'Cluster', icon: Browsers,      run: () => { noteCreateIntent(method, 'board'); addClusterCard(pos, method); } },
     { id: 'linkedcluster', group: 'card', label: 'Linked cluster', icon: ArrowSquareOut, run: () => onOpenPicker?.(pos) },
     { id: 'grid',    group: 'card', label: 'Grid',    icon: GridFour,      run: () => { noteCreateIntent(method, 'grid'); mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); } },
     // Multi-select, via the same batch ingest drag-drop uses. This used to call
@@ -9485,6 +9580,31 @@ export function CanvasSurface({
         </div>
         );
       })()}
+
+      {/* Depth dock — the empty panel's offer, carried past the first card.
+          Deliberately a dock and not a second panel: the centred box would sit
+          on top of the cards the user has just made. Tagged `depth_dock` rather
+          than `empty_cta` so the two surfaces stay separable in the funnel. */}
+      {depthDockVisible && selectedTool === 'select' && (
+        <div className="cnv-depth-dock" role="group" aria-label="Add more images">
+          <button type="button" className="cnv-depth-dock-add"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => {
+                    markViewSettled();
+                    buildAddActions(emptyCenterPos(), 'depth_dock').find((a) => a.id === 'image')?.run();
+                  }}>
+            <Icon as={ImageIcon} size={18} weight="regular" />
+            <span className="cnv-depth-dock-lbl">Add images</span>
+            <span className="cnv-depth-dock-hint">pick several at once</span>
+          </button>
+          <button type="button" className="cnv-depth-dock-x"
+                  aria-label="Dismiss"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={dismissDepthDock}>
+            <Icon as={X} size={14} weight="regular" />
+          </button>
+        </div>
+      )}
 
       {/* Cursor add-card menu — opened by double-clicking bare canvas. A small,
           icon-led chooser (Image / Note / Upload / Doc) so double-click means

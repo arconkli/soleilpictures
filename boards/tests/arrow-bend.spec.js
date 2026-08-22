@@ -69,10 +69,15 @@ test('bend dot reveals on hover, drag bends, context menu toggles straight and r
   await expect(page.locator('.card')).toHaveCount(0);
 
   // Two cards on the same row, far apart → auto route is an open-space cubic.
-  await page.getByRole('button', { name: 'Add cluster tool', exact: true }).click();
-  await canvas.click({ position: { x: 300, y: 420 } });
+  // The NOTE goes down first, at its own position: a cluster placed as a
+  // board's first genuine card now opens itself, which would put the note on
+  // the new cluster's canvas and leave this board holding one card. Placing the
+  // note first means the cluster is no longer the first card, so both land
+  // here. Positions are unchanged, so the arrow geometry below is identical.
   await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await canvas.click({ position: { x: 950, y: 420 } });
+  await page.getByRole('button', { name: 'Add cluster tool', exact: true }).click();
+  await canvas.click({ position: { x: 300, y: 420 } });
   await expect(page.locator('.card')).toHaveCount(2);
 
   // Draw the arrow between them (two card clicks; tool auto-returns to select).
