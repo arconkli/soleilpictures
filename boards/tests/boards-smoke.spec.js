@@ -62,22 +62,27 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   await expect(page.locator('.card')).toHaveCount(0);
   const initialCardCount = 0;
 
+  // The note goes down BEFORE the cluster: a cluster placed as a board's first
+  // genuine card now opens itself, which would carry the rest of this test onto
+  // the new cluster's canvas. Placing the note first means the cluster is no
+  // longer the first card, so everything below stays on this board. Positions
+  // are unchanged.
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
+  await expect(page.getByText('Click on the canvas to place a note')).toBeVisible();
+  // Blank canvas is at zoom 1, so these placements must be spaced apart by more
+  // than a card's width or they'd land on the cluster card placed below.
+  await canvas.click({ position: { x: 820, y: 200 } });
+  await expect(page.locator('.note').last()).toBeVisible();
+
   await page.getByRole('button', { name: 'Add cluster tool', exact: true }).click();
   await expect(page.getByText('Click on the canvas to place a cluster')).toBeVisible();
   await canvas.click({ position: { x: 220, y: 220 } });
-  await expect(page.locator('.card')).toHaveCount(initialCardCount + 1);
+  await expect(page.locator('.card')).toHaveCount(initialCardCount + 2);
 
   await page.getByRole('button', { name: 'Add menu', exact: true }).click();
   await expect(page.getByRole('menuitem', { name: 'Link card' })).toHaveCount(0);
   await expect(page.getByRole('menuitem', { name: 'Shape', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
-
-  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
-  await expect(page.getByText('Click on the canvas to place a note')).toBeVisible();
-  // Blank canvas is at zoom 1, so these placements must be spaced apart by more
-  // than a card's width or they'd land on the cluster card placed above.
-  await canvas.click({ position: { x: 820, y: 200 } });
-  await expect(page.locator('.note').last()).toBeVisible();
 
   await page.getByRole('button', { name: 'Add menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Shape', exact: true }).click();
