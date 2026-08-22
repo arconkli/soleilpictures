@@ -1,5 +1,9 @@
 // Pre-filled share intents for the referral link.
 //
+// The card figure is REFERRED_START_CARDS (base cap + the 0163 referral bonus),
+// never typed: the pitch used to promise "25 free cards" — the bonus alone,
+// two thirds short of what an invitee actually starts with.
+//
 // Desktop browsers don't get navigator.share, so the Invite & earn tab used to
 // fall back to a single "Copy link" that copied a BARE url with no pitch — the
 // good message was locked inside the mobile-only native share sheet. This module
@@ -11,8 +15,10 @@
 // app_id + redirect and the sharer strips custom text, so they'd be broken or
 // pitch-less buttons. navigator.share covers mobile (where those apps live).
 
+import { REFERRED_START_CARDS } from './billingCopy.js';
+
 export const REFERRAL_PITCH =
-  'Come build with me on Clusters — an infinite canvas for photos, ideas, and projects. You start with 25 free cards.';
+  `Come build with me on Clusters — an infinite canvas for photos, ideas, and projects. You start with ${REFERRED_START_CARDS} free cards.`;
 
 // One message that carries pitch + link, for clipboard / SMS / WhatsApp where a
 // single text field holds everything.

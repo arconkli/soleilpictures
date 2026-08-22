@@ -31,6 +31,15 @@ export const PRICING = {
   annual:  { perMonth: 20, billed: 240, perMonthLabel: '$20', billedLabel: '$240/yr' },
 };
 
+// A referred (or collab-invited) signup is granted this many bonus cards ON TOP
+// of their base cap by ensure_profile_for_new_user (migration 0163), and the
+// referrer earns the same when the referee places their first genuine card. So
+// a new invitee starts at DEMO_CARD_LIMIT + REFERRAL_BONUS_CARDS, not at the
+// bonus alone — three surfaces used to advertise "25 free cards", which
+// understated the real number by two thirds.
+export const REFERRAL_BONUS_CARDS = 25;
+export const REFERRED_START_CARDS = DEMO_CARD_LIMIT + REFERRAL_BONUS_CARDS;
+
 // Savings figures exist only as arithmetic over PRICING — never typed — so a
 // price change cannot leave a stale discount claim behind on any surface.
 PRICING.annual.savings = `$${PRICING.monthly.perMonth * 12 - PRICING.annual.billed}/yr`;

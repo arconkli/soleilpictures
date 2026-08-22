@@ -426,7 +426,10 @@ function pendingInvite(d: PendingInviteData): RenderedEmail {
     return "a viewer";
   })();
   const headline = `${d.inviterName} invited you.`;
-  const subtitle = `You've been invited to join ${target} as ${roleLabel}. You'll start with 50 free cards — sign in and we'll set up your account.`;
+  // 75 = DEMO_CARD_LIMIT (50) + the 0163 referral bonus (25), which a collab
+  // invite grants on signup. Mirror of billingCopy.REFERRED_START_CARDS — this
+  // is a Deno bundle and cannot import the client lib. It said 25 for months.
+  const subtitle = `You've been invited to join ${target} as ${roleLabel}. You'll start with 75 free cards — sign in and we'll set up your account.`;
   const url = `${APP_URL}?invite=${encodeURIComponent(d.token)}`;
   return {
     subject: isWorkspace
