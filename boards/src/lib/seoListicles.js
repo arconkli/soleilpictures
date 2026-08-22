@@ -140,7 +140,7 @@ const PAGES = [
           "Clusters exists because we kept hitting the day the wall breaks. Our references lived in .pur files on individual machines, and every production meant re-exporting and re-explaining which version was current. So we built the wall as a place instead of a file: a freeform canvas in the browser with the same drop-images-and-arrange feel, where the board is the single copy everyone sees. We use it daily on our own productions — that is both the pitch and the bias.",
           "The team mechanics are the point. Live cursors and presence show who is on the board; comments pin to the exact image they are about; a client or director opens a read-only view from one link, no account, nothing to install. Free editors can collaborate, so bringing on the production designer costs nothing. Auto-tagging files dropped references to the right board, and a relationship graph connects boards across a project — mood board, look book, and shot list stay one linked body of work.",
           "A production reference wall is rarely just images, so boards hold video, audio, PDFs, links, notes, docs with a screenplay mode, color palettes, image grids, schedules, and vote cards — that last one settles 'which of these five frames' arguments without a meeting. Photo adjustments are non-destructive. Boards nest inside boards with live thumbnails, so a project reads like a map rather than a pile.",
-          "It runs in the browser on desktop and mobile, including touch and iPad. The free Demo tier has no credit card and no trial clock, with a card cap sized for real projects; Creator is a flat $25 a month — not per person — for unlimited boards, 100GB of storage, and any file type. The honest trade: there is no offline desktop app and no always-on-top overlay. If you never share your wall, keep PureRef."
+          "It runs in the browser on desktop and mobile, including touch and iPad. The free Demo tier has no credit card and no trial clock, with a card cap sized for real projects; Creator is a flat $25 a month — not per person — for unlimited cards, 100GB of storage, and any file type. The honest trade: there is no offline desktop app and no always-on-top overlay. If you never share your wall, keep PureRef."
         ],
         "features": [
           "Real-time multiplayer canvas: live cursors, presence, pinned comments",
@@ -151,7 +151,7 @@ const PAGES = [
           "Runs in the browser on desktop and mobile (touch and iPad); published template boards can be opened live"
         ],
         "pricing": {
-          "summary": "Free (Demo) — no credit card, no trial clock; Creator $25/mo flat (not per person): unlimited boards, 100GB storage, any file type",
+          "summary": "Free (Demo) — no credit card, no trial clock; Creator $25/mo flat (not per person): unlimited cards, 100GB storage, any file type",
           "asOf": "August 2026"
         },
         "pros": [
@@ -756,7 +756,7 @@ const PAGES = [
         "verdict": "The one tool on this list built so the board never has to be exported to become the next thing.",
         "paras": [
           "Clusters is what we built when our own pre-production kept splintering across four apps: a real-time multiplayer canvas in the browser whose boards hold images, video, audio, PDFs, links, notes, docs, color palettes, image grids, schedules, and vote cards, with non-destructive photo adjustments built in. The point is not the format list — it is that the mood board, storyboard, shot list, and schedule live as connected boards in one project, tied together by a relationship graph. The board becomes the next thing instead of being rebuilt as it.",
-          "Against Milanote, two structural differences. First, the wall: Milanote's free plan spends a 10-file upload budget that never resets, so one scene's reference pull can end it in an afternoon — Clusters does not meter uploads at all, and the free Demo tier has no trial clock or credit card. Second, the team math: Creator is a flat $25/mo — not per person — for unlimited cards, 100GB of storage, any file type, and Edit Mode. On Milanote, adding your DP and production designer multiplies the bill. On Clusters it does not, and free editors can collaborate.",
+          "Against Milanote, two structural differences. First, the wall: Milanote's free plan spends a 10-file upload budget that never resets, so one scene's reference pull can end it in an afternoon — Clusters does not meter uploads at all, and the free Demo tier has no trial clock or credit card. Second, the team math: Creator is a flat $25/mo — not per person — for unlimited cards, 100GB of storage, and any file type. On Milanote, adding your DP and production designer multiplies the bill. On Clusters it does not, and free editors can collaborate.",
           "Sharing is one link. Viewers need no account — a producer opens the live board in a browser, sees cursors and presence, and comments land on the exact image they are about. Drop a folder of references and auto-tagging files them to the right board — at hour three of a pull, nobody hand-sorts. Screenplay mode lives in docs, so the script draft sits beside the imagery it describes. We use all of this daily; the features exist because a shoot demanded them.",
           "The honest limits: Clusters is browser-only — no offline mode, no always-on-top overlay over your paint tool; PureRef keeps that crown. The template library is smaller than Milanote's or Canva's, there is no integrations marketplace, and it is a young product from a small studio. If your work is solo, offline, and image-only, tools further down this list fit better. If your board has to reach a call sheet with other people involved, this is the one built for that."
         ],
@@ -1449,7 +1449,7 @@ const PAGES = [
           "Clusters is the tool we built because nothing else survived our own pre-production. It is an infinite canvas in the browser where a board holds what production reference actually is: images with non-destructive adjustments, video, audio, PDFs, links, notes, color palettes, image grids, and docs with a screenplay mode — not just stills. Drop a folder of references and auto-tagging files each one as it lands, so the board organizes itself while you argue about the layout.",
           "The arguing is the point. Boards are real-time multiplayer — live cursors, presence, comments pinned to the image they are about — so the director and the production designer move frames while they talk instead of trading screenshots. When the look settles, you send one link; the client opens the current board in any browser, on a laptop or a phone — no account, no install — not last Tuesday's export.",
           "Then the board keeps working. Boards nest with live thumbnails and connect through a relationship graph, so the approved mood board sits beside the look book, the shot list, and the schedule as one project instead of four files in three apps. That is the after-the-board-looks-good test the rest of this list keeps failing, and the one job we rank ourselves first for.",
-          "The honest limits: Clusters runs in the browser only — no offline desktop app, no always-on-top overlay, so PureRef keeps that lane. Our template library is smaller than Milanote's or Canva's, and we are a young product from a small studio; in exchange you get a tool shaped by people who use it on their own productions every week. The free Demo tier needs no credit card and has no trial clock. Creator is a flat $25 a month — not per person — for unlimited boards, 100GB, and any file type."
+          "The honest limits: Clusters runs in the browser only — no offline desktop app, no always-on-top overlay, so PureRef keeps that lane. Our template library is smaller than Milanote's or Canva's, and we are a young product from a small studio; in exchange you get a tool shaped by people who use it on their own productions every week. The free Demo tier needs no credit card and has no trial clock. Creator is a flat $25 a month — not per person — for unlimited cards, 100GB, and any file type."
         ],
         "features": [
           "Real-time multiplayer canvas: live cursors, presence, pinned comments",
@@ -1459,7 +1459,7 @@ const PAGES = [
           "Nested boards with live thumbnails; non-destructive photo adjustments; runs in any browser, including iPad"
         ],
         "pricing": {
-          "summary": "Free (Demo tier, no credit card, no trial clock); Creator $25/mo flat — unlimited boards, 100GB storage, any file type",
+          "summary": "Free (Demo tier, no credit card, no trial clock); Creator $25/mo flat — unlimited cards, 100GB storage, any file type",
           "asOf": "August 2026"
         },
         "pros": [
