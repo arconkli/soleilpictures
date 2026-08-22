@@ -33,7 +33,7 @@ export function buildShareTargets(link, pitch = REFERRAL_PITCH) {
   const msg = encodeURIComponent(referralMessage(link, pitch));
   const eLink = encodeURIComponent(link);
   const ePitch = encodeURIComponent(pitch);
-  const eSubject = encodeURIComponent('Here are 25 free cards on Clusters');
+  const eSubject = encodeURIComponent(`Here are ${REFERRED_START_CARDS} free cards on Clusters`);
   return [
     { key: 'whatsapp', label: 'WhatsApp', href: `https://wa.me/?text=${msg}` },
     { key: 'x',        label: 'X',        href: `https://twitter.com/intent/tweet?text=${ePitch}&url=${eLink}` },
