@@ -6,14 +6,14 @@ navLabel: OAuth
 section: developers
 order: 3
 updated: 2026-08-10
-answer: Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, client registration is dynamic and open, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then API.
+answer: Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, client registration is dynamic and open, PKCE with S256 is required, and access tokens last {{fact:oauthAccessTtl}} with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then API.
 faq:
   - q: Do I need to register an application first?
     a: No. Registration is dynamic and open — POST your client metadata to /oauth/register and you get a client_id back immediately. There is no review queue and no key to request.
   - q: Is PKCE required?
     a: Yes, with S256. The plain method is not supported at all, because OAuth 2.1 removes it.
   - q: How long do tokens last?
-    a: An access token lasts 60 minutes. The refresh token rotates on every use and is good for 90 days from its last use.
+    a: An access token lasts {{fact:oauthAccessTtl}}. The refresh token rotates on every use and is good for {{fact:oauthRefreshDays}} days from its last use.
   - q: What happens if someone disconnects the app?
     a: The access token is revoked in the same statement, so it stops working immediately rather than at its next expiry.
   - q: Can I still use a personal access token instead?

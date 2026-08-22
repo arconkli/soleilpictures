@@ -44,7 +44,7 @@ export function loadConfig() {
     BURST_MS: Number(process.env.SCOUT_BURST_MS || 20_000),
 
     // Per-identity daily ceiling. Independent of the card cap — this is abuse
-    // protection, not monetization. The card cap stops a FREE account at 100;
+    // protection, not monetization. The card cap stops a FREE account at 50;
     // it does not bound a paid one at all, and a texting endpoint with no
     // ceiling is an unbounded R2 bill. Enforced in the capacity pre-flight.
     DAILY_INGEST_MAX: Number(process.env.SCOUT_DAILY_INGEST_MAX || 500),

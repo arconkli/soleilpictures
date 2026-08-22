@@ -57,6 +57,17 @@ function aboutOurPlan(s) {
   return /\bCreator\b/.test(s) || /\bDemo tier\b/i.test(s) || /\bfree Demo\b/i.test(s);
 }
 
+// An FAQ *question* restates the phrase a searcher typed; it asserts nothing,
+// and the answer beneath it is what has to be true. "Is there a free Milanote
+// alternative without item caps?" is a legitimate question to answer honestly
+// ("Both free tiers cap items…") — flagging the question would push us toward
+// not answering it at all.
+// Both key styles appear: bare `q:` in the landing registry, quoted `"q":` in
+// the listicle JSON blocks.
+function isFaqQuestion(s) {
+  return /["']?\bq["']?:\s*['"`]/.test(s) && /\?/.test(s);
+}
+
 const RULES = [
   {
     name: 'Edit Mode is a retired feature name (0188 made editing free for every tier)',
@@ -89,6 +100,17 @@ const RULES = [
     scoped: true,
     pattern: /(unlocks?|turns on|adds?|enables?) (shared )?editing|paid seat to edit/i,
   },
+  {
+    // The most expensive claim found in this sweep: a whole landing page was
+    // titled "No Item Caps" and its answer paragraph — the block AI engines
+    // quote — promised "no hard item cap on the free tier", while
+    // enforce_demo_card_cap_trg stops that tier at 50 cards (100
+    // grandfathered). Uploads are not metered SEPARATELY, which is the true
+    // and still-good claim; every file simply lands as a card under the cap.
+    name: 'the free tier IS card-capped — never advertise it as uncapped',
+    scoped: false,
+    pattern: /no (hard )?(item|card) (cap|wall)|without (the )?item (caps?|wall)|no upload ceiling|no ceiling on (image )?uploads|does not meter uploads/i,
+  },
 ];
 
 for (const rule of RULES) {
@@ -97,6 +119,7 @@ for (const rule of RULES) {
     for (const f of FILES) {
       sentences(f.text).forEach((s) => {
         if (!rule.pattern.test(s)) return;
+        if (isFaqQuestion(s)) return;
         if (rule.scoped && !aboutOurPlan(s)) return;
         if (rule.unless && rule.unless(s)) return;
         hits.push(`${f.rel}: ${s.trim().slice(0, 160)}`);

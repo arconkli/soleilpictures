@@ -15,7 +15,7 @@ faq:
   - q: Can two boards claim the same identifier?
     a: No. An identifier is unique per workspace, per object type. That is what makes create-or-update deterministic rather than hopeful.
   - q: Are properties typed or validated?
-    a: No. They are free-form JSON, because the fields a production needs are not fields this product can guess. Up to 100 keys and 16KB per object.
+    a: No. They are free-form JSON, because the fields a production needs are not fields this product can guess. Up to {{fact:maxPropKeys}} keys and {{fact:maxPropsBytes}} bytes per object.
   - q: Do properties show up in the app?
     a: Not yet. They are stored, queryable and exportable today; surfacing them on the canvas is separate work.
 related:

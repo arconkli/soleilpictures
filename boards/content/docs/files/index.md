@@ -11,7 +11,7 @@ faq:
   - q: What file types can I upload on the free plan?
     a: Standard media — images, video, audio and PDFs — within the size caps listed below. Images have no size cap on any plan. Non-standard types like .psd, .fig and .zip require Creator.
   - q: How large a file can I upload?
-    a: On Creator there is no per-file limit; very large files upload in parts automatically. On the free plan video is capped at 30 MB, audio and PDF at 50 MB.
+    a: On Creator there is no per-file limit; very large files upload in parts automatically. On the free plan video is capped at {{fact:freeVideoCap}}, audio at {{fact:freeAudioCap}} and PDF at {{fact:freePdfCap}}.
   - q: Where do my files actually live?
     a: In private object storage. Files are served through signed URLs that expire, so a file cannot be reached by guessing a URL.
 related:

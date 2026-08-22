@@ -13,7 +13,7 @@ faq:
   - q: Why is delete a separate scope from write?
     a: Because "can add cards to my moodboard" and "can destroy my moodboard" are different levels of trust, especially when the caller is a language model.
   - q: How many tokens can I have?
-    a: Up to 20 active at once. Revoked ones do not count.
+    a: Up to {{fact:maxTokensPerAccount}} active at once. Revoked ones do not count.
 related:
   - /docs/api
   - /docs/api/oauth
@@ -113,7 +113,7 @@ token gets `401`.
 Unknown, revoked and expired tokens all return the same `401 invalid token` —
 the API does not distinguish, so a probe cannot learn which tokens once existed.
 
-Up to **20 active tokens** per account. Revoked ones do not count against it.
+Up to **{{fact:maxTokensPerAccount}} active tokens** per account. Revoked ones do not count against it.
 
 ## Expiry
 

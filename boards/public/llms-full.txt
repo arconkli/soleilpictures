@@ -1417,7 +1417,7 @@ Q: What file types can I upload on the free plan?
 A: Standard media — images, video, audio and PDFs — within the size caps listed below. Images have no size cap on any plan. Non-standard types like .psd, .fig and .zip require Creator.
 
 Q: How large a file can I upload?
-A: On Creator there is no per-file limit; very large files upload in parts automatically. On the free plan video is capped at 30 MB, audio and PDF at 50 MB.
+A: On Creator there is no per-file limit; very large files upload in parts automatically. On the free plan video is capped at 30 MB, audio at 50 MB and PDF at 50 MB.
 
 Q: Where do my files actually live?
 A: In private object storage. Files are served through signed URLs that expire, so a file cannot be reached by guessing a URL.
@@ -4956,7 +4956,7 @@ Q: Can two boards claim the same identifier?
 A: No. An identifier is unique per workspace, per object type. That is what makes create-or-update deterministic rather than hopeful.
 
 Q: Are properties typed or validated?
-A: No. They are free-form JSON, because the fields a production needs are not fields this product can guess. Up to 100 keys and 16KB per object.
+A: No. They are free-form JSON, because the fields a production needs are not fields this product can guess. Up to 100 keys and 16384 bytes per object.
 
 Q: Do properties show up in the app?
 A: Not yet. They are stored, queryable and exportable today; surfacing them on the canvas is separate work.
@@ -5349,7 +5349,7 @@ Every error is JSON carrying a machine-readable code and a human sentence. Branc
 
 Every error looks like this:
 
-{ "error": "at most 100 cards per call", "code": "bad_request" }
+{ "error": "at most 1000 cards per call", "code": "bad_request" }
 
 Branch on code. The sentence is written for a person reading a log and may be reworded; the code is the contract.
 

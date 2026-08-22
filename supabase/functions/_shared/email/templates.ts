@@ -426,7 +426,7 @@ function pendingInvite(d: PendingInviteData): RenderedEmail {
     return "a viewer";
   })();
   const headline = `${d.inviterName} invited you.`;
-  const subtitle = `You've been invited to join ${target} as ${roleLabel}. You'll start with 25 free cards — sign in and we'll set up your account.`;
+  const subtitle = `You've been invited to join ${target} as ${roleLabel}. You'll start with 50 free cards — sign in and we'll set up your account.`;
   const url = `${APP_URL}?invite=${encodeURIComponent(d.token)}`;
   return {
     subject: isWorkspace

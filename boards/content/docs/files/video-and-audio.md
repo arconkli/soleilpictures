@@ -6,7 +6,7 @@ navLabel: Video and audio
 section: files
 order: 2
 updated: 2026-08-08
-answer: Video and audio files become playable cards on the canvas. Audio cards draw a real waveform and show cover art, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.
+answer: Video and audio files become playable cards on the canvas. Audio cards draw a real waveform and show cover art, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at {{fact:freeVideoCap}} and audio at {{fact:freeAudioCap}}; {{fact:planName}} removes both caps.
 faq:
   - q: Why does starting one audio card stop another?
     a: Deliberate. Boards commonly hold a dozen takes, and having several play over each other is never what someone wanted. Playback is exclusive across the board.
