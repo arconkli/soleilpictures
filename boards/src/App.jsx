@@ -1041,6 +1041,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const buildMutators = ({ ydoc, boardId, undoManager }) => {
     if (!ydoc) return {};
     const cardsMap = () => ydoc.getMap('cards');
+    // Genuine (non-seed) card count currently in the doc, read straight off the
+    // Y.Map so it reflects the transaction that just committed rather than a
+    // React render that hasn't happened yet. Rides card_placed as cards_after:
+    // every placement signal is otherwise per-event, which makes "how many
+    // boards actually got deep" a workspace join instead of a column. Returns
+    // null rather than throwing — this sits inside an analytics path.
+    const genuineCountInDoc = () => {
+      try {
+        let n = 0;
+        cardsMap().forEach((v, id) => {
+          if (!isSeedCard({ id, seed: v?.get?.('seed') })) n += 1;
+        });
+        return n;
+      } catch (_) { return null; }
+    };
     const arrowsArr = () => ydoc.getArray('arrows');
     const strokesArr = () => ydoc.getArray('strokes');
     const groupsMap = () => ydoc.getMap('groups');
@@ -1207,7 +1222,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // they never count — same boundary card_placed uses.
         myTier.notePlaced?.(1);
         logEventNow(EV.CARD_PLACED, {
-          n: 1, kind: card?.kind || 'card',
+          n: 1, kind: card?.kind || 'card', cards_after: genuineCountInDoc(),
           board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,
         });
         // Guided tour: a real content card (note/image/doc/file) placed inside the
@@ -1278,6 +1293,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (genuine.length && !opts.suppressPlaced) {
         logEventNow(EV.CARD_PLACED, {
           n: genuine.length, kind: kinds.size === 1 ? [...kinds][0] : 'mixed',
+          cards_after: genuineCountInDoc(),
           board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,
         });
       }
@@ -2029,6 +2045,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           ttl: 6000,
         });
       }
+      // Log the gesture before the cap can trim it, so n_files stays what the
+      // user actually chose rather than what survived. The canvas path emits
+      // the same row; between them every file-ingest surface is covered once.
+      try {
+        const kinds = {};
+        for (const it of accepted) kinds[it.kind] = (kinds[it.kind] || 0) + 1;
+        logEvent(EV.IMPORT_BATCH, {
+          n_files: files.length,
+          n_accepted: accepted.length,
+          n_blocked: blocked.length,
+          source: 'list_drop',
+          kinds,
+          board_id: currentId || null,
+        });
+      } catch (_) {}
+
       if (!accepted.length) return;
 
       // 2) Owner-pays cap FIRST — slice to what will actually be accepted so we
@@ -2167,10 +2199,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         await refreshBoards();
         if (!opts.name) setAutoFocusId(b.id);
         tourFireRef.current?.({ type: 'cluster_created', boardId: b.id });
+        // Step inside it when the caller asked (the first-card auto-open).
+        // Safe here specifically because refreshBoards has already landed.
+        if (opts.openAfter) openBoard(b.id);
+        // The new cluster's id, so a caller that needs to act on the thing it
+        // just made (the first-card auto-open) doesn't have to re-derive it by
+        // diffing the board list. Undefined on failure, never throws past here.
+        return b.id;
       } catch (e) {
         console.error('createBoard failed', e);
         feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
       }
+      return null;
     };
     // ── Board-delete-aware undo/redo ──────────────────────────────────────
     // Deleting a board card soft-deletes the board row in Postgres

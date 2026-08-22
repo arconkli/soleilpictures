@@ -532,6 +532,19 @@ export function LocalBoardsApp({ user, signOut }) {
     });
     if (!opts.name) setAutoFocusId(id);
     tourFireRef.current?.({ type: 'cluster_created', boardId: id });
+    // Step inside it when the caller asked (the first-card auto-open). Pushes
+    // the stack directly rather than going through openBoard, whose `boards[id]`
+    // guard reads the render's map — which cannot contain a board created by
+    // the setLocalState above until React flushes.
+    if (opts.openAfter) {
+      setStack(prev => [...prev, id]);
+      recents.push(id);
+      tourFireRef.current?.({ type: 'cluster_opened', boardId: id });
+    }
+    // Return the id like App.jsx does — the first-card auto-open reads it, and a
+    // harness that silently returned undefined would make the feature look dead
+    // in every local test while working in production.
+    return id;
   };
 
   const renameBoardById = (boardId, name) => {

@@ -8511,6 +8511,67 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   .cnv-empty-tiles { animation: none; opacity: 1; }
 }
 
+/* Depth dock — the empty panel's "pick several at once" offer, carried past the
+   first card until the board is deep enough to be worth returning to. Sits
+   bottom-LEFT because .cnv-zoom already owns bottom-right, and it is a low bar
+   rather than a card so it reads as chrome the user can ignore, not a dialog
+   demanding an answer. Resting icon stays neutral ink; gold is for hover/focus. */
+.cnv-depth-dock {
+  position: absolute;
+  /* Bottom-left, but ABOVE the tool-options bar's row. .tob is centred with
+     `max-width: calc(100% - 360px)`, so it reserves only ~180px of gutter —
+     narrower than this dock — and it sits at a higher z-index, so sharing the
+     14px row means the dock's own dismiss button is unclickable. Clearing the
+     row vertically is the fix; raising z-index above .tob would only trade an
+     unclickable dock for one overlapping the active tool's controls. */
+  left: 14px; bottom: 68px;
+  display: flex; align-items: stretch;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  box-shadow: var(--shadow-1);
+  z-index: 20;
+  overflow: hidden;
+  animation: depth-dock-in 220ms ease-out both;
+}
+.cnv-depth-dock-add {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: none; border: 0;
+  color: var(--ink-1);
+  font: 600 12.5px/1 var(--font-sans);
+  cursor: pointer;
+}
+.cnv-depth-dock-add:hover { background: var(--bg-hov); }
+.cnv-depth-dock-add:hover,
+.cnv-depth-dock-add:focus-visible { color: var(--soleil); }
+.cnv-depth-dock-hint {
+  font: 500 11.5px/1 var(--font-sans);
+  color: var(--ink-3);
+}
+.cnv-depth-dock-x {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px;
+  background: none; border: 0;
+  border-left: 1px solid var(--line-2);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.cnv-depth-dock-x:hover { background: var(--bg-hov); color: var(--ink-1); }
+@keyframes depth-dock-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+/* On a phone the hint doubles the dock's width and the tour pill already
+   competes for the bottom of the screen — keep the label, drop the aside. */
+@media (max-width: 540px), (pointer: coarse) {
+  .cnv-depth-dock-hint { display: none; }
+  .cnv-depth-dock-add { padding: 10px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cnv-depth-dock { animation: none; }
+}
+
 /* Cursor add-card menu (double-click bare canvas). Frosted surface mirroring
    .ctx-menu, but with bold gold icons + labels to match the empty-state tiles. */
 .cnv-quick-add {
