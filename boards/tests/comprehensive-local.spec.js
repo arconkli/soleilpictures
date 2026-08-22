@@ -138,6 +138,11 @@ test.describe('Canvas tools', () => {
 
   test('Add Board via toolbar → click → board card spawns', async ({ page }) => {
     await go(page, { blank: true });
+    // A note first: a cluster placed as a board's first genuine card now opens
+    // itself, which would leave this count looking at the new cluster's canvas
+    // instead of the board the card landed on.
+    await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
+    await page.locator('.canvas-wrap').click({ position: { x: 180, y: 180 } });
     const before = await page.locator('.card').count();
     await page.getByRole('button', { name: 'Add cluster tool', exact: true }).click();
     await expect(page.getByText('Click on the canvas to place a board')).toBeVisible();
