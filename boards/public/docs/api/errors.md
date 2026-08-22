@@ -7,7 +7,7 @@ _Source: https://clusters.soleilpictures.com/docs/api/errors · Updated 2026-08-
 Every error looks like this:
 
 ```json
-{ "error": "at most 100 cards per call", "code": "bad_request" }
+{ "error": "at most 1000 cards per call", "code": "bad_request" }
 ```
 
 **Branch on `code`.** The sentence is written for a person reading a log and may

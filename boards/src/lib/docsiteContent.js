@@ -40979,7 +40979,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "json",
-   "code": "{ \"error\": \"at most 100 cards per call\", \"code\": \"bad_request\" }"
+   "code": "{ \"error\": \"at most 1000 cards per call\", \"code\": \"bad_request\" }"
   },
   {
    "type": "para",

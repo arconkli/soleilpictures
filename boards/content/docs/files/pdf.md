@@ -1,12 +1,12 @@
 ---
 title: PDFs — Soleil Clusters
-metaDescription: PDF cards in Soleil Clusters show page one and a page count, and open into a full-screen scrolling viewer with download. Free accounts cap PDFs at 50 MB.
+metaDescription: PDF cards in Soleil Clusters show page one and a page count, and open into a full-screen scrolling viewer with download. Free accounts cap PDFs at {{fact:freePdfCap}}.
 h1: PDFs
 navLabel: PDFs
 section: files
 order: 1
 updated: 2026-08-08
-answer: Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. Free accounts can upload PDFs up to 50 MB; Creator removes the cap.
+answer: Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. Free accounts can upload PDFs up to {{fact:freePdfCap}}; {{fact:planName}} removes the cap.
 faq:
   - q: Can I annotate a PDF?
     a: Not inside the document. You can draw on the canvas over the PDF card, and attach comments to the card, but the PDF file itself is not edited.

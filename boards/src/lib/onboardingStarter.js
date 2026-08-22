@@ -54,8 +54,8 @@ const PHONE = {
 
 function welcomeHtml(touch) {
   return touch
-    ? '<p><strong>Welcome to your board.</strong></p><p>This is your canvas. Tap the <strong>+</strong> on the left, or long-press anywhere, to add a note, board and more. Drag images and files straight in.</p>'
-    : '<p><strong>Welcome to your board.</strong></p><p>This is your canvas. Right-click anywhere, or use the + on the left, to add a note, board and more. Drag images and files straight in. ⌘Z undoes anything.</p>';
+    ? '<p><strong>Welcome to your board.</strong></p><p>This is your canvas. Tap a tool on the <strong>toolbar</strong> at the left, or long-press anywhere, to add a note, board and more. Drag images and files straight in.</p>'
+    : '<p><strong>Welcome to your board.</strong></p><p>This is your canvas. Right-click anywhere, or use the toolbar on the left, to add a note, board and more. Drag images and files straight in. ⌘Z undoes anything.</p>';
 }
 
 function dragHtml(narrow) {

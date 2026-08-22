@@ -1259,7 +1259,7 @@ function InviteTab({ user }) {
         Clusters is better with people in it — invite someone to build with you.
         {' '}You <b>both</b> get free cards: your friend starts with <b>25 bonus cards</b>,
         {' '}and the moment they place their first card, <b>you earn 25 too</b>.
-        {' '}When a friend <b>upgrades to a paid plan, you get a free month</b>. No limit.
+        {' '}When a friend <b>upgrades to a paid plan, you get a free month</b> — up to 10 a month.
       </p>
 
       {err || !code ? (

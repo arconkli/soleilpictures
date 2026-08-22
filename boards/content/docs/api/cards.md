@@ -6,7 +6,7 @@ navLabel: Cards
 section: developers
 order: 4
 updated: 2026-08-10
-answer: Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
+answer: Read a board's cards with GET /boards/:id/cards, add up to {{fact:maxCardsPerCall}} at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
 faq:
   - q: What happens if I send an unrecognised kind?
     a: A 400 naming the kinds that are valid. It used to fall back to note silently, which produced boards full of notes that should have been links.

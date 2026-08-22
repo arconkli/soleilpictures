@@ -177,7 +177,7 @@ const PAGES = [
         heading: 'Everything in one place, not fifteen tabs',
         body: 'A mood board is only useful when everything lives together. Clusters lets you drop images, screenshots, links, PDFs, video, and color palettes onto the same canvas, arrange them freely, and pull relationships between them with arrows. Drop a file and Clusters reads it, tags it, and files it to the right board automatically — so the board organizes itself as it grows.',
         bullets: [
-          'Drag in images, links, video, PDFs, and any file type',
+          'Drag in images, links, video, PDFs — and any file type on Creator',
           'Auto-tagging files each reference to the right board',
           'Color palettes and notes sit right beside the imagery',
         ],
@@ -194,7 +194,7 @@ const PAGES = [
     faq: [
       { q: 'Is the mood board maker free?', a: 'Yes. You can start building and sharing mood boards for free with the Demo tier. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaboration is free for everyone.' },
       { q: 'Can I make a mood board with my team?', a: 'Yes — Clusters is a real-time collaborative canvas. Multiple people can edit the same board at once with live cursors, comments, and presence, so your whole team can build the board together.' },
-      { q: 'What can I put on a mood board?', a: 'Images, screenshots, links, video, audio, PDFs, rich-text notes, color palettes, and any other file type. Everything lives on one infinite canvas you can pan and zoom.' },
+      { q: 'What can I put on a mood board?', a: 'Images, screenshots, links, video, audio, PDFs, rich-text notes, color palettes, and any other file type on Creator. Everything lives on one infinite canvas you can pan and zoom.' },
       { q: 'Can I share a mood board without making people sign up?', a: 'Yes. Every board can be shared with a single public link that opens a clean, interactive read-only preview — no account required for viewers.' },
       { q: 'Do I need to install anything?', a: 'No. Clusters runs in your browser, with native iOS and Android apps if you want them. There is nothing to download to get started.' },
           { q: 'Can an AI assistant make the board for me?', a: 'Yes. Connect Claude or any MCP client with one URL and ask. It creates the cluster, brings in references from links you give it, and arranges them as justified rows or masonry. It works with your own images rather than generating them — see the AI mood board maker page.' },
@@ -462,7 +462,7 @@ const PAGES = [
     subhead:
       'Runs in your browser. Drop images, notes, and palettes on an infinite canvas and share with a link — no download.',
     answer:
-      'Yes — you can make a mood board online free with Soleil Clusters. The Demo tier needs no credit card: open the browser app, drop in images, links, notes, and color palettes on an infinite canvas, and share the board with a public link. Upgrading only matters when you want unlimited boards and 100GB storage.',
+      'Yes — you can make a mood board online free with Soleil Clusters. The Demo tier needs no credit card: open the browser app, drop in images, links, notes, and color palettes on an infinite canvas, and share the board with a public link. Upgrading only matters when you want unlimited cards and 100GB storage.',
     updated: '2026-07-07',
     cta: { label: 'Make one free', sub: 'No credit card. No install.' },
     stepsHeading: 'How to make a mood board online, free',
@@ -568,7 +568,7 @@ const PAGES = [
       { q: 'Is there a free online reference board maker?', a: 'Yes — Soleil Clusters’ Demo tier is free with no credit card and no trial clock, and comes with a card cap sized for a real project. It runs in the browser with nothing to install.' },
       { q: 'Do I need to install anything to make a reference board?', a: 'No. Clusters runs entirely in the browser on any machine, which matters on studio workstations where you can’t install software. Native iOS and Android apps are also available if you prefer one on mobile.' },
       { q: 'Can I use a reference board on an iPad?', a: 'Yes. Boards open in the tablet’s browser, and there’s a native iOS app as well — the same board you arranged on your workstation is waiting when you pick up the iPad.' },
-      { q: 'Can my team or art director see my reference board?', a: 'Yes — one public link opens a clean, read-only view in any browser, with no account required. On the Creator plan, collaborators can also edit the board live, with real-time cursors and comments pinned to specific images.' },
+      { q: 'Can my team or art director see my reference board?', a: 'Yes — one public link opens a clean, read-only view in any browser, with no account required. Invited collaborators can also edit the board live on any plan, with real-time cursors and comments pinned to specific images.' },
       { q: 'Can a reference board include video or other files?', a: 'Yes. Cards can be images, screenshots, links, video, audio, PDFs, notes, and color palettes — and on Creator, any file type. Motion reference sits on the board right next to your stills.' },
       { q: 'How does an online reference board compare to PureRef?', a: 'PureRef is a beloved offline desktop app — free to use personally, and excellent when the board never leaves your machine. Clusters trades offline for a board that follows you across devices and shares with a link. Our full PureRef comparison breaks it down feature by feature.' },
     ],
@@ -582,14 +582,14 @@ const PAGES = [
   {
     path: '/vs/milanote',
     kind: 'compare',
-    title: 'Free Milanote Alternative — No Item Caps, Real-Time Teams',
+    title: 'Free Milanote Alternative — Flat Price, Real-Time Teams',
     metaDescription:
-      'The free Milanote alternative without item caps — a real-time multiplayer canvas with auto-tagging, 100GB storage, and sharing, built for production teams.',
+      'The free Milanote alternative without per-person pricing — a real-time multiplayer canvas with auto-tagging, 100GB storage and sharing.',
     h1: 'A Milanote Alternative Built for Production Teams',
     subhead:
       'Milanote is a lovely place to think. Clusters is where a team pulls a whole production together — live, on one canvas.',
     answer:
-      'Soleil Clusters is a free Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, auto-tagging that files dropped references, a relationship graph across projects, and no hard item cap on the free tier — Creator is a flat $25/mo with 100GB storage. Milanote is strong for solo planning; Clusters is for visual, media-heavy, collaborative work.',
+      'Soleil Clusters is a free Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, auto-tagging that files dropped references, a relationship graph across projects, and a free tier that never meters uploads — Creator is a flat $25/mo with 100GB storage. Milanote is strong for solo planning; Clusters is for visual, media-heavy, collaborative work.',
     updated: '2026-08-10',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     sections: [
@@ -603,7 +603,7 @@ const PAGES = [
         ],
       },
       {
-        heading: 'A free Milanote alternative without the item wall',
+        heading: 'A free Milanote alternative without the per-person bill',
         body: 'Milanote’s free plan caps the total number of items you can add — around a hundred notes, images, and links across everything — which tends to run out right in the middle of a real project. And its paid plans are priced per person. Clusters’ free Demo tier is a generous sandbox with no time limit, and Creator is a flat $25/mo for unlimited cards, 100GB of storage, and any file type — not a price that multiplies with every teammate you bring in.',
         bullets: [
           'No trial clock on the free Demo tier',
@@ -622,7 +622,7 @@ const PAGES = [
       },
       {
         heading: 'Honest about what Milanote does well',
-        body: 'Milanote has a polished template library and a long track record, and its writing-and-planning flow is genuinely nice for solo ideation. If you mostly work alone on lightweight planning boards, it is a strong tool. Clusters earns its place when the work is visual, media-heavy, and collaborative — and when you do not want per-board or per-item caps getting in the way.',
+        body: 'Milanote has a polished template library and a long track record, and its writing-and-planning flow is genuinely nice for solo ideation. If you mostly work alone on lightweight planning boards, it is a strong tool. Clusters earns its place when the work is visual, media-heavy, and collaborative — and when you do not want per-person pricing getting in the way.',
       },
       {
         heading: 'Switching is painless',
@@ -652,9 +652,9 @@ const PAGES = [
       { q: 'Can I move my Milanote boards over?', a: 'You can drag your images, links, and files straight into a new Clusters board and share it — there is no complex migration to do first.' },
       { q: 'Does Milanote limit how many items I can add?', a: 'Yes — Milanote’s free plan caps the total number of items across your boards, and separately allows 10 file uploads, ever. Clusters’ free Demo tier also caps cards, but never meters uploads and has no time limit; Creator ($25/mo) removes the card cap and adds 100GB of storage.' },
       { q: 'Is Clusters cheaper than Milanote for a team?', a: 'Usually, because Clusters is flat-priced: Creator is $25/mo rather than a per-person subscription, and anyone you share a board with can view it free with one link.' },
-      { q: 'Is there a free Milanote alternative without item caps?', a: 'Both free tiers cap items, so the honest answer is what the cap is made of. Milanote’s free plan also spends a budget of 10 file uploads that never resets; Soleil Clusters does not meter uploads at all, has no trial clock, and Creator ($25/mo, flat) removes the card cap entirely. If you need genuinely uncapped, Obsidian Canvas keeps boards as local files.' },
+      { q: 'Is there a free Milanote alternative without item caps?', a: 'Both free tiers cap items, so the honest answer is what the cap is made of. Milanote’s free plan also spends a budget of 10 file uploads that never resets; Soleil Clusters has no separate upload budget, has no trial clock, and Creator ($25/mo, flat) removes the card cap entirely. If you need genuinely uncapped, Obsidian Canvas keeps boards as local files.' },
       { q: 'What do filmmakers use instead of Milanote?', a: 'Many use Clusters, because pre-production is connected there: the mood board links to the storyboard, the shot list, and the schedule as one project, with screenplay mode built in — and the whole crew edits the same boards in real time.' },
-      { q: 'Milanote vs Canva — and where does Clusters fit?', a: 'Canva is a template-driven graphics editor, strongest when the goal is a finished design. Milanote is a board app for planning and collecting ideas. Clusters covers that planning ground for production teams — a real-time multiplayer canvas with no hard item cap, where the finished board shares with one link a client can open without an account.' },
+      { q: 'Milanote vs Canva — and where does Clusters fit?', a: 'Canva is a template-driven graphics editor, strongest when the goal is a finished design. Milanote is a board app for planning and collecting ideas. Clusters covers that planning ground for production teams — a real-time multiplayer canvas that never meters uploads, where the finished board shares with one link a client can open without an account.' },
           { q: 'Can I drive it from an AI assistant?', a: 'Clusters connects to Claude and any other MCP client with a single URL, so you can ask an assistant to build a board, import references and arrange them. No Milanote server is listed in the official Model Context Protocol registry at the time of writing. Clusters works with the images you already have — it does not generate them.' },
 ],
     siblingListicle: { path: '/best/milanote-alternatives', label: 'See all 12 Milanote alternatives, ranked by a film studio.' },

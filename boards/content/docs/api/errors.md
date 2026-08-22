@@ -23,7 +23,7 @@ related:
 Every error looks like this:
 
 ```json
-{ "error": "at most 100 cards per call", "code": "bad_request" }
+{ "error": "at most {{fact:maxCardsPerCall}} cards per call", "code": "bad_request" }
 ```
 
 **Branch on `code`.** The sentence is written for a person reading a log and may

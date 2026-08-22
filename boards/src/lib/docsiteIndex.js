@@ -1103,7 +1103,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "How large a file can I upload?",
-        "a": "On Creator there is no per-file limit; very large files upload in parts automatically. On the free plan video is capped at 30 MB, audio and PDF at 50 MB."
+        "a": "On Creator there is no per-file limit; very large files upload in parts automatically. On the free plan video is capped at 30 MB, audio at 50 MB and PDF at 50 MB."
       },
       {
         "q": "Where do my files actually live?",
@@ -3396,7 +3396,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Are properties typed or validated?",
-        "a": "No. They are free-form JSON, because the fields a production needs are not fields this product can guess. Up to 100 keys and 16KB per object."
+        "a": "No. They are free-form JSON, because the fields a production needs are not fields this product can guess. Up to 100 keys and 16384 bytes per object."
       },
       {
         "q": "Do properties show up in the app?",
