@@ -45,6 +45,11 @@ type Expectation = {
   id: number; url: string; check_name: string;
   kind: "title" | "canonical" | "body" | "status" | "build_min";
   expected: string; enabled: boolean;
+  // NULL = the default prober UA. Set to assert that a specific crawler still
+  // receives real content (0255) — Cloudflare can enable AI-crawler blocking
+  // at the zone level, and that would silently cost the highest-activation
+  // acquisition channel.
+  user_agent: string | null;
 };
 type Result = {
   url: string; check_name: string; ok: boolean;
@@ -97,30 +102,34 @@ Deno.serve(async (req) => {
 
   const { data: expectations, error } = await admin
     .from("seo_health_expectations")
-    .select("id, url, check_name, kind, expected, enabled")
+    .select("id, url, check_name, kind, expected, enabled, user_agent")
     .eq("enabled", true)
     .order("id");
   if (error) return json({ error: `expectations: ${error.message}` }, 500);
   const list = (expectations || []) as Expectation[];
   if (!list.length) return json({ ok: true, note: "no enabled expectations" }, 200);
 
-  // Fetch each distinct URL once (several expectations can share a URL).
-  const byUrl = new Map<string, Expectation[]>();
+  // Fetch each distinct (URL, user-agent) pair once. Several expectations can
+  // share a URL, but two checks on the same URL under DIFFERENT agents are two
+  // different fetches -- that is the whole point of the user_agent column.
+  const byTarget = new Map<string, { url: string; ua: string; checks: Expectation[] }>();
   for (const e of list) {
-    const arr = byUrl.get(e.url) || [];
-    arr.push(e);
-    byUrl.set(e.url, arr);
+    const ua = e.user_agent || UA;
+    const key = `${e.url}\n${ua}`;
+    const entry = byTarget.get(key) || { url: e.url, ua, checks: [] };
+    entry.checks.push(e);
+    byTarget.set(key, entry);
   }
 
   const results: Result[] = [];
-  for (const [url, checks] of byUrl) {
+  for (const [, { url, ua, checks }] of byTarget) {
     const t0 = Date.now();
     let status = 0;
     let body = "";
     let fetchErr = "";
     try {
       const res = await fetch(url, {
-        headers: { "user-agent": UA, "accept": "text/html,application/json;q=0.9,*/*;q=0.8" },
+        headers: { "user-agent": ua, "accept": "text/html,application/json;q=0.9,*/*;q=0.8" },
         redirect: "follow",
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
