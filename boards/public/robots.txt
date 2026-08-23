@@ -6,5 +6,33 @@ Allow: /
 # index, and an indexed one is a stale request that can only fail.
 Disallow: /oauth/
 
+# AI assistants are welcome, explicitly.
+#
+# Over 90 days to 2026-08-22, assistant referrals converted at the highest
+# activation rate of any channel (8 of 11 signups placed a card), landing
+# mostly on the /best/* buying guides. Every page here is also available as raw
+# Markdown by appending `.md`, and the whole corpus is at /llms-full.txt.
+#
+# If these ever need to be disallowed, that is a deliberate business decision —
+# not something to inherit from a hosting default.
+#
+# GOTCHA: a named User-agent group REPLACES the `*` group for that agent — it
+# does not add to it. So every block below has to repeat the /oauth/ disallow,
+# or naming these crawlers would quietly opt them INTO the one path the site
+# has always excluded.
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: ClaudeBot
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: CCBot
+Allow: /
+Disallow: /oauth/
+
 Sitemap: https://clusters.soleilpictures.com/sitemap.xml
 Sitemap: https://clusters.soleilpictures.com/sitemap-images.xml

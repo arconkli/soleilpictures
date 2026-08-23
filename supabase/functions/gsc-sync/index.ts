@@ -1,14 +1,30 @@
 // gsc-sync — pull Search Console performance into the database daily.
 //
-// Two destinations per run (both rolling-28-day SNAPSHOT rows at today's date,
-// matching the CSV importer's semantics so readers take the latest snapshot and
-// re-runs never double-count):
+// THREE destinations per run. Two are rolling-28-day SNAPSHOT rows at today's
+// date (matching the CSV importer's semantics so readers take the latest
+// snapshot and re-runs never double-count):
 //   * seo_board_stats (0137/0138) — per-/c/<slug> page totals (unchanged legacy
 //     shape; admin_public_board_stats reads it).
 //   * seo_page_stats (0196) — ALL site paths (landing pages, /, /pricing,
 //     /explore, /c/*): page totals as query='', plus per-(page,query) rows.
 //     admin_page_search_stats reads it. /share/<token> aggregates to '/share'
 //     (tokens are capability URLs — never stored; same convention as lp_*).
+// The third is TRUE PER-DAY data:
+//   * seo_page_daily (0254) — same shape, but `day` is the real Search Console
+//     date rather than the sync stamp. Safe to SUM across days.
+//
+// ── Why both shapes (2026-08-22) ────────────────────────────────────────────
+// The snapshot tables answer "where do we stand today" in one row per path, and
+// every existing reader depends on that. They CANNOT answer "did the retitle we
+// shipped on the 4th work", because a 28-day window dilutes any change to 1/28
+// per day and its before/after windows overlap. Both 2026-08 retitles were
+// graded on an instrument that could not resolve them. seo_page_daily fixes
+// that without redefining `day` under the existing 4k rows.
+//
+// GOTCHA: Google restates the trailing ~3 days and finalizes late. The daily
+// pass therefore re-fetches a 10-day tail every run and upserts, rather than
+// only fetching yesterday. A one-off history load is available via a request
+// body of {backfillDays: 90} or explicit {startDate, endDate}.
 //
 // ── Manual setup (one-time) ─────────────────────────────────────────────────
 //   1. GCP: create a project, enable the "Google Search Console API".
@@ -39,6 +55,19 @@ const SITE_URL = Deno.env.get('GSC_SITE_URL') || 'https://clusters.soleilpicture
 const APP_HOST = (Deno.env.get('GSC_APP_HOST') || 'clusters.soleilpictures.com').toLowerCase();
 
 const RETENTION_DAYS = 180;
+
+// Google's per-request row ceiling. The old calls passed rowLimit 1000/5000 with
+// no startRow loop, which silently truncated the moment the site outgrew them —
+// adding a `date` dimension multiplies row count by the window length, so paging
+// is no longer optional.
+const PAGE_SIZE = 25000;
+// PostgREST bodies stay bounded; a 90-day backfill is tens of thousands of rows.
+const UPSERT_CHUNK = 1000;
+// How far back the daily pass re-reads on every run. Covers Google's ~3-day
+// finalization lag with room to spare.
+const DAILY_TAIL_DAYS = 10;
+// Backstop against a pathological paging loop.
+const MAX_ROWS_PER_QUERY = 200000;
 
 function b64url(buf: ArrayBuffer): string {
   return btoa(String.fromCharCode(...new Uint8Array(buf)))
@@ -107,19 +136,58 @@ async function gscQuery(token: string, body: Record<string, unknown>): Promise<a
   return data.rows || [];
 }
 
+// Page through a Search Console query until it stops returning full pages.
+async function gscQueryAll(token: string, body: Record<string, unknown>): Promise<any[]> {
+  const out: any[] = [];
+  for (let startRow = 0; startRow < MAX_ROWS_PER_QUERY; startRow += PAGE_SIZE) {
+    const rows = await gscQuery(token, { ...body, rowLimit: PAGE_SIZE, startRow });
+    out.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+  }
+  return out;
+}
+
+// Fold a GSC row into an accumulator. Rows only ever merge when two distinct
+// URLs normalize to one stored path (/share/<token> → /share), and in that case
+// `position` must be IMPRESSION-WEIGHTED: the previous code kept whichever
+// position arrived first, so a 1-impression row could outvote a 500-impression
+// one.
+type Acc = { clicks: number; impressions: number; position: number | null };
+function foldRow(prev: Acc | undefined, r: any): Acc {
+  const clicks = Math.round(r.clicks || 0);
+  const impressions = Math.round(r.impressions || 0);
+  const position = r.position != null ? Number(r.position) : null;
+  if (!prev) return { clicks, impressions, position };
+  const totalImp = prev.impressions + impressions;
+  let merged = prev.position;
+  if (prev.position != null && position != null) {
+    merged = totalImp > 0
+      ? (prev.position * prev.impressions + position * impressions) / totalImp
+      : (prev.position + position) / 2;
+  } else if (prev.position == null) {
+    merged = position;
+  }
+  return { clicks: prev.clicks + clicks, impressions: totalImp, position: merged };
+}
+function round1(n: number | null): number | null {
+  return n == null ? null : Number(n.toFixed(1));
+}
+
 async function upsert(table: string, conflict: string, rows: unknown[]): Promise<void> {
-  if (!rows.length) return;
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=${conflict}`, {
-    method: 'POST',
-    headers: {
-      apikey: SERVICE_KEY,
-      authorization: `Bearer ${SERVICE_KEY}`,
-      'content-type': 'application/json',
-      prefer: 'resolution=merge-duplicates,return=minimal',
-    },
-    body: JSON.stringify(rows),
-  });
-  if (!res.ok) throw new Error(`upsert ${table} failed: ` + (await res.text()).slice(0, 200));
+  for (let i = 0; i < rows.length; i += UPSERT_CHUNK) {
+    const chunk = rows.slice(i, i + UPSERT_CHUNK);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=${conflict}`, {
+      method: 'POST',
+      headers: {
+        apikey: SERVICE_KEY,
+        authorization: `Bearer ${SERVICE_KEY}`,
+        'content-type': 'application/json',
+        prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify(chunk),
+    });
+    if (!res.ok) throw new Error(`upsert ${table} failed: ` + (await res.text()).slice(0, 200));
+  }
 }
 
 Deno.serve(async (req) => {
@@ -137,6 +205,12 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Optional one-off history load. Daily cron sends no body and gets the
+  // DAILY_TAIL_DAYS tail; a manual call may ask for {backfillDays: 90} or an
+  // explicit {startDate, endDate} to page through Search Console's 16 months.
+  let opts: { backfillDays?: number; startDate?: string; endDate?: string } = {};
+  try { opts = (await req.json()) || {}; } catch { /* no body — the cron path */ }
+
   try {
     const sa = JSON.parse(SA_JSON);
     const token = await getAccessToken(sa);
@@ -147,6 +221,14 @@ Deno.serve(async (req) => {
     const day = ymd(end);
     const nowIso = new Date().toISOString();
 
+    // Window for the true-per-day pass (seo_page_daily), independent of the
+    // 28-day snapshot window above.
+    const tailDays = Math.max(1, Math.min(480, Number(opts.backfillDays) || DAILY_TAIL_DAYS));
+    const dailyRange = {
+      startDate: opts.startDate || ymd(new Date(end.getTime() - tailDays * 86400000)),
+      endDate: opts.endDate || ymd(end),
+    };
+
     // One pass per search type: page totals + per-(page,query) detail into
     // seo_page_stats (search_type column, 0197). seo_board_stats stays
     // WEB-ONLY (legacy shape; admin_public_board_stats reads it).
@@ -156,9 +238,9 @@ Deno.serve(async (req) => {
     const counts: Record<string, { pages: number; page_queries: number }> = {};
 
     for (const st of SEARCH_TYPES) {
-      const pageRows = await gscQuery(token, { ...range, type: st, dimensions: ['page'], rowLimit: 1000 });
+      const pageRows = await gscQueryAll(token, { ...range, type: st, dimensions: ['page'] });
 
-      const totals = new Map<string, any>();
+      const totals = new Map<string, Acc>();
       for (const r of pageRows) {
         const pageUrl = r.keys?.[0] || '';
         const path = normPath(pageUrl);
@@ -175,50 +257,111 @@ Deno.serve(async (req) => {
             updated_at: nowIso,
           });
         }
-        const prev = totals.get(path);   // '/share' aggregation can merge rows
-        totals.set(path, {
-          path, day, query: '', search_type: st,
-          clicks: Math.round(r.clicks || 0) + (prev?.clicks || 0),
-          impressions: Math.round(r.impressions || 0) + (prev?.impressions || 0),
-          position: prev ? prev.position : (r.position != null ? Number(r.position.toFixed(1)) : null),
-          updated_at: nowIso,
-        });
+        totals.set(path, foldRow(totals.get(path), r));   // '/share' can merge rows
       }
 
       // Per-(page, query) — the ranking-query detail for every path.
-      const pqRows = await gscQuery(token, { ...range, type: st, dimensions: ['page', 'query'], rowLimit: 5000 });
-      const detail = new Map<string, any>();
+      const pqRows = await gscQueryAll(token, { ...range, type: st, dimensions: ['page', 'query'] });
+      const detail = new Map<string, Acc>();
+      const detailKeys = new Map<string, { path: string; query: string }>();
       for (const r of pqRows) {
         const path = normPath(r.keys?.[0] || '');
         const query = String(r.keys?.[1] || '').slice(0, 200);
         if (!path || !query) continue;
-        const k = `${path} ${query}`;
-        const prev = detail.get(k);
-        detail.set(k, {
-          path, day, query, search_type: st,
-          clicks: Math.round(r.clicks || 0) + (prev?.clicks || 0),
-          impressions: Math.round(r.impressions || 0) + (prev?.impressions || 0),
-          position: prev ? prev.position : (r.position != null ? Number(r.position.toFixed(1)) : null),
+        const k = `${path}\0${query}`;
+        detailKeys.set(k, { path, query });
+        detail.set(k, foldRow(detail.get(k), r));
+      }
+
+      for (const [path, a] of totals) {
+        pageStatRows.push({
+          path, day, query: '', search_type: st,
+          clicks: a.clicks, impressions: a.impressions, position: round1(a.position),
           updated_at: nowIso,
         });
       }
-
-      pageStatRows.push(...totals.values(), ...detail.values());
+      for (const [k, a] of detail) {
+        const { path, query } = detailKeys.get(k)!;
+        pageStatRows.push({
+          path, day, query, search_type: st,
+          clicks: a.clicks, impressions: a.impressions, position: round1(a.position),
+          updated_at: nowIso,
+        });
+      }
       counts[st] = { pages: totals.size, page_queries: detail.size };
+    }
+
+    // -- True per-day pass into seo_page_daily (0254) -------------------------
+    // Page totals come from their OWN ['date','page'] query rather than summing
+    // the per-query rows: Search Console omits low-volume queries entirely, so
+    // summing them undercounts a page by 65-90% on this site.
+    const dailyRows: unknown[] = [];
+    const dailyCounts: Record<string, { pages: number; page_queries: number }> = {};
+    const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
+
+    for (const st of SEARCH_TYPES) {
+      const totals = new Map<string, Acc>();
+      const totalKeys = new Map<string, { path: string; d: string }>();
+      for (const r of await gscQueryAll(token, { ...dailyRange, type: st, dimensions: ['date', 'page'] })) {
+        const d = String(r.keys?.[0] || '');
+        const path = normPath(r.keys?.[1] || '');
+        if (!path || !isDate(d)) continue;
+        const k = `${path}\0${d}`;
+        totalKeys.set(k, { path, d });
+        totals.set(k, foldRow(totals.get(k), r));
+      }
+
+      const detail = new Map<string, Acc>();
+      const detailKeys = new Map<string, { path: string; d: string; query: string }>();
+      for (const r of await gscQueryAll(token, { ...dailyRange, type: st, dimensions: ['date', 'page', 'query'] })) {
+        const d = String(r.keys?.[0] || '');
+        const path = normPath(r.keys?.[1] || '');
+        const query = String(r.keys?.[2] || '').slice(0, 200);
+        if (!path || !query || !isDate(d)) continue;
+        const k = `${path}\0${d}\0${query}`;
+        detailKeys.set(k, { path, d, query });
+        detail.set(k, foldRow(detail.get(k), r));
+      }
+
+      for (const [k, a] of totals) {
+        const { path, d } = totalKeys.get(k)!;
+        dailyRows.push({
+          path, day: d, query: '', search_type: st,
+          clicks: a.clicks, impressions: a.impressions, position: round1(a.position),
+          updated_at: nowIso,
+        });
+      }
+      for (const [k, a] of detail) {
+        const { path, d, query } = detailKeys.get(k)!;
+        dailyRows.push({
+          path, day: d, query, search_type: st,
+          clicks: a.clicks, impressions: a.impressions, position: round1(a.position),
+          updated_at: nowIso,
+        });
+      }
+      dailyCounts[st] = { pages: totals.size, page_queries: detail.size };
     }
 
     await upsert('seo_board_stats', 'slug,day', boardRows);
     await upsert('seo_page_stats', 'path,day,query,search_type', pageStatRows);
+    await upsert('seo_page_daily', 'path,day,query,search_type', dailyRows);
 
     // Retention: snapshots accumulate daily; keep a rolling window.
     const cutoff = ymd(new Date(end.getTime() - RETENTION_DAYS * 86400000));
-    await fetch(`${SUPABASE_URL}/rest/v1/seo_page_stats?day=lt.${cutoff}`, {
-      method: 'DELETE',
-      headers: { apikey: SERVICE_KEY, authorization: `Bearer ${SERVICE_KEY}` },
-    });
+    for (const t of ['seo_page_stats', 'seo_page_daily']) {
+      await fetch(`${SUPABASE_URL}/rest/v1/${t}?day=lt.${cutoff}`, {
+        method: 'DELETE',
+        headers: { apikey: SERVICE_KEY, authorization: `Bearer ${SERVICE_KEY}` },
+      });
+    }
 
     return new Response(
-      JSON.stringify({ ok: true, day, boards: boardRows.length, web: counts.web, image: counts.image }),
+      JSON.stringify({
+        ok: true, day,
+        boards: boardRows.length,
+        web: counts.web, image: counts.image,
+        daily: { range: dailyRange, rows: dailyRows.length, ...dailyCounts },
+      }),
       { headers: { 'content-type': 'application/json' } },
     );
   } catch (e) {

@@ -378,8 +378,16 @@ test('LINKS: every internal link resolves', () => {
     for (const href of hrefs) {
       if (/^(https?:|mailto:|#)/.test(href)) continue;          // external / same-page anchors
       const [base, hash] = href.split('#');
-      if (base.endsWith('.md')) {                                // raw markdown mirror
-        if (!DOCS_PATHS.includes(base.replace(/\.md$/, ''))) broken.push(`${p.path} -> ${href}`);
+      if (base.endsWith('.md')) {
+        // Raw markdown mirrors. Since 2026-08-22 gen-docs also emits them for
+        // the landing and listicle registries (/vs/pureref.md,
+        // /best/pureref-alternatives.md), so a .md link is valid against any of
+        // the three — the same three whose HTML routes are in `known`.
+        const stem = base.replace(/\.md$/, '');
+        const mirrored = DOCS_PATHS.includes(stem)
+          || surface.publicRoutes.landing.includes(stem)
+          || surface.publicRoutes.listicle.includes(stem);
+        if (!mirrored) broken.push(`${p.path} -> ${href}`);
         continue;
       }
       if (!known.has(base)) { broken.push(`${p.path} -> ${href}`); continue; }
@@ -414,4 +422,64 @@ test('WEIGHT: worker-imported docs artifacts stay within budget', () => {
   assert.ok(total < BUDGET,
     `worker docs artifacts are ${(total / 1000).toFixed(0)}KB, budget ${BUDGET / 1000}KB. ` +
     `Move the crawlable HTML to an env.ASSETS fetch rather than raising this.`);
+});
+
+// ── Marketing markdown mirrors ──────────────────────────────────────────────
+//
+// gen-docs also serializes the landing and listicle registries to
+// public/vs/*.md, public/best/*.md, public/tools/*.md, /use-cases.md and
+// /scout.md, because assistants cite those pages and had no machine-readable
+// form (2026-08-22).
+//
+// These serializers read hand-authored registries by walking object shapes, and
+// the failure mode is SILENT: rename a field and the file publishes the string
+// "undefined", or drops a whole section without a word. Both happened while
+// this was being written — the compare tables rendered as empty rows and the
+// thesis/methodology sections vanished from every listicle. gen-docs now throws
+// on a missing field; this asserts the output actually landed.
+
+test('MARKETING MD: every landing and listicle page has a mirror with real content', () => {
+  const paths = [...surface.publicRoutes.landing, ...surface.publicRoutes.listicle];
+  assert.ok(paths.length >= 18, `expected the full marketing registry, got ${paths.length}`);
+
+  const problems = [];
+  for (const p of paths) {
+    const file = resolve(BOARDS, 'public', `${p.replace(/^\//, '')}.md`);
+    if (!existsSync(file)) { problems.push(`${p}: no .md mirror`); continue; }
+    const md = readFileSync(file, 'utf8');
+    if (!/^# \S/m.test(md)) problems.push(`${p}: no h1`);
+    if (md.length < 1000) problems.push(`${p}: only ${md.length} bytes — serializer dropped content?`);
+    for (const leak of ['undefined', '[object Object]', 'NaN']) {
+      if (md.includes(leak)) problems.push(`${p}: leaked "${leak}" into a published file`);
+    }
+  }
+  assert.deepEqual(problems, [], `marketing markdown problems:\n  ${problems.join('\n  ')}`);
+});
+
+test('MARKETING MD: compare tables render their rows, not blanks', () => {
+  // A {heading, body} object spliced into `compare.rows` renders a blank row on
+  // a page that already ranks — the exact bug seoLanding.test.mjs was written
+  // for. Here the equivalent is a table whose cells serialized empty.
+  const problems = [];
+  for (const p of surface.publicRoutes.landing) {
+    const file = resolve(BOARDS, 'public', `${p.replace(/^\//, '')}.md`);
+    if (!existsSync(file)) continue;
+    for (const line of readFileSync(file, 'utf8').split('\n')) {
+      if (!line.startsWith('|') || /^\|\s*-+/.test(line)) continue;
+      const cells = line.split('|').slice(1, -1);
+      if (cells.length && cells.every((c) => c.trim() === '')) {
+        problems.push(`${p}: empty table row`);
+        break;
+      }
+    }
+  }
+  assert.deepEqual(problems, [], `blank compare rows:\n  ${problems.join('\n  ')}`);
+});
+
+test('MARKETING MD: llms.txt indexes the comparison pages, not just the docs', () => {
+  const ORIGIN = 'https://clusters.soleilpictures.com';
+  const llms = readFileSync(resolve(BOARDS, 'public/llms.txt'), 'utf8');
+  const missing = [...surface.publicRoutes.landing, ...surface.publicRoutes.listicle]
+    .filter((p) => !llms.includes(`${ORIGIN}${p})`));
+  assert.deepEqual(missing, [], `llms.txt is missing: ${missing.join(', ')}`);
 });
