@@ -6446,23 +6446,15 @@ Clusters connects to Claude and any other MCP client with a single URL, so you c
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/vs/pureref
-Updated: 2026-08-10
+Updated: 2026-08-23
 
-# A PureRef Alternative for Teams and the Cloud
+# PureRef Online: The Closest Thing, in Your Browser
 
-> Soleil Clusters is a PureRef alternative that runs free in your browser: reference boards sync across devices, share with one link, and support real-time team editing. Boards hold notes, docs, video, and color palettes alongside images. PureRef still wins for a tiny offline desktop overlay; Clusters wins when reference needs to be shared.
+> PureRef has no web version — it is a desktop app and always has been. Soleil Clusters is the closest thing online: the same drop-images-and-arrange reference wall, free in any browser, synced across devices and shareable with one link. PureRef still wins for a small always-on-top offline overlay.
 
-_Source: https://clusters.soleilpictures.com/vs/pureref · Updated 2026-08-10_
+_Source: https://clusters.soleilpictures.com/vs/pureref · Updated 2026-08-23_
 
 PureRef is a fast, offline reference window. Clusters is a collaborative reference workspace you can share and grow.
-
-## From a local window to a shared workspace
-
-PureRef is a brilliant lightweight desktop app for pinning reference images while you work. Clusters takes reference boards to the cloud: they live in your browser, sync across devices, and can be shared with a link or edited by your whole team in real time. Your references are backed up and reachable from anywhere, not trapped in a file on one machine.
-
-- Opens in any browser — nothing to install or update
-- Boards sync across devices and back up automatically
-- Share a read-only link no one has to download
 
 ## Looking for PureRef online? This is that
 
@@ -6471,6 +6463,14 @@ There is no web version of PureRef — it is a desktop app, and artists have bee
 - A reference board that opens with a URL, not a file
 - Same board on desktop, laptop, and iPad
 - Share it like a Google Doc — one link, live for everyone
+
+## From a local window to a shared workspace
+
+PureRef is a brilliant lightweight desktop app for pinning reference images while you work. Clusters takes reference boards to the cloud: they live in your browser, sync across devices, and can be shared with a link or edited by your whole team in real time. Your references are backed up and reachable from anywhere, not trapped in a file on one machine.
+
+- Opens in any browser — nothing to install or update
+- Boards sync across devices and back up automatically
+- Share a read-only link no one has to download
 
 ## More than images
 

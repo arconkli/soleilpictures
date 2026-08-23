@@ -663,18 +663,33 @@ const PAGES = [
   {
     path: '/vs/pureref',
     kind: 'compare',
-    // 2026-08 CTR experiment: pos ~9 for "pureref alternative" with 0 clicks/28d
-    // → lead with the film-studio credential nobody else on that SERP has.
-    // Title/meta ONLY (h1 + copy + updated untouched — isolates the CTR variable).
-    title: 'PureRef Alternative — Free, Online, Built by a Film Studio',
+    // 2026-08-23 INTENT SPLIT. The 2026-08-04 experiment (lead with the
+    // film-studio credential) worked: 0 clicks → 10 and position 11.3 → 8.9
+    // across the pivot, on real per-day data (seo_page_daily, 0254). This is
+    // the next move, and it is about which of two pages answers which query.
+    //
+    // /best/pureref-alternatives now OUTRANKS this page on 5 of the 6 shared
+    // "alternative" queries (7.1 v 8.2, 5.0 v 9.0, 7.6 v 8.6, 7.0 v 7.3,
+    // 9.4 v 9.8). Fighting it costs both. But this page UNIQUELY owns the
+    // web-version intent — "pureref online" 6.3, "pure ref online" 5.9,
+    // "pureref web" 5.5 — and earned ZERO clicks there, because the title led
+    // with "Alternative" while the searcher typed "online". Top-six placement
+    // converting at nothing is a snippet problem, not a ranking one.
+    //
+    // So: hand "alternative(s)" to the listicle, point this page at "online".
+    // "PureRef Alternative" stays in the title as a hedge (and because
+    // seo_health_expectations guards that substring), but it no longer leads.
+    // The Milanote pair is INVERTED — /vs/milanote beats its listicle by ~30
+    // positions — so do NOT mirror this there.
+    title: 'PureRef Online — A Free PureRef Alternative in Your Browser',
     metaDescription:
-      'No PureRef web version exists. Clusters is the closest thing: the same drop-and-arrange feel, in the browser, shared with one link. Free, by a film studio.',
-    h1: 'A PureRef Alternative for Teams and the Cloud',
+      'There is no PureRef web version. Clusters is the closest thing online: the same drop-and-arrange reference wall, in your browser, shared with one link.',
+    h1: 'PureRef Online: The Closest Thing, in Your Browser',
     subhead:
       'PureRef is a fast, offline reference window. Clusters is a collaborative reference workspace you can share and grow.',
     answer:
-      'Soleil Clusters is a PureRef alternative that runs free in your browser: reference boards sync across devices, share with one link, and support real-time team editing. Boards hold notes, docs, video, and color palettes alongside images. PureRef still wins for a tiny offline desktop overlay; Clusters wins when reference needs to be shared.',
-    updated: '2026-08-10',
+      'PureRef has no web version — it is a desktop app and always has been. Soleil Clusters is the closest thing online: the same drop-images-and-arrange reference wall, free in any browser, synced across devices and shareable with one link. PureRef still wins for a small always-on-top offline overlay.',
+    updated: '2026-08-23',
     cta: { label: 'Try Clusters free', sub: 'Runs in your browser. Free to start.' },
     stepsHeading: 'How to move a PureRef board to Clusters',
     steps: [
@@ -684,15 +699,11 @@ const PAGES = [
       { t: 'Share one link', d: 'Send the board to your team or client — it opens in the browser, nothing to install.' },
     ],
     sections: [
-      {
-        heading: 'From a local window to a shared workspace',
-        body: 'PureRef is a brilliant lightweight desktop app for pinning reference images while you work. Clusters takes reference boards to the cloud: they live in your browser, sync across devices, and can be shared with a link or edited by your whole team in real time. Your references are backed up and reachable from anywhere, not trapped in a file on one machine.',
-        bullets: [
-          'Opens in any browser — nothing to install or update',
-          'Boards sync across devices and back up automatically',
-          'Share a read-only link no one has to download',
-        ],
-      },
+      // LEAD SECTION, deliberately (2026-08-23). This page is now aimed at
+      // "pureref online" / "pureref web", so the first thing on it has to
+      // answer that question — including the part where the honest answer is
+      // "no, and it never existed". A visitor who wanted literal PureRef in a
+      // tab should be able to tell within one paragraph that this is not it.
       {
         heading: 'Looking for PureRef online? This is that',
         body: 'There is no web version of PureRef — it is a desktop app, and artists have been asking its forum for an online, shareable version for years. Clusters is that tool: the same fast drop-images-and-arrange feel, running in the browser. Open your reference board on any machine and it is the same board — on your workstation, on a laptop at a review, or on an iPad on set. Nothing to install, nothing to sync by hand.',
@@ -700,6 +711,15 @@ const PAGES = [
           'A reference board that opens with a URL, not a file',
           'Same board on desktop, laptop, and iPad',
           'Share it like a Google Doc — one link, live for everyone',
+        ],
+      },
+      {
+        heading: 'From a local window to a shared workspace',
+        body: 'PureRef is a brilliant lightweight desktop app for pinning reference images while you work. Clusters takes reference boards to the cloud: they live in your browser, sync across devices, and can be shared with a link or edited by your whole team in real time. Your references are backed up and reachable from anywhere, not trapped in a file on one machine.',
+        bullets: [
+          'Opens in any browser — nothing to install or update',
+          'Boards sync across devices and back up automatically',
+          'Share a read-only link no one has to download',
         ],
       },
       {
