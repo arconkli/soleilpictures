@@ -38,7 +38,6 @@
     "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
-    "@cosmograph/react": "^2.3.2",
     "@phosphor-icons/react": "^2.1.10",
     "@supabase/supabase-js": "^2.105.1",
     "@tiptap/extension-bullet-list": "^2.27.2",

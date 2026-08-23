@@ -18660,21 +18660,49 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 
 /* ───────── Admin Universe tab ───────── */
 
-/* Universe tab takes over the body — no padding so the cosmograph
+/* Universe tab takes over the body — no padding so the universe
    canvas can fill the viewport edge-to-edge. */
 .admin-body-flush {
   padding: 0 !important;
   overflow: hidden;
 }
+/* The Universe tab is a planetarium, and it is one in BOTH themes.
+   The 3D scene can't be themed: node halos use additive blending and the bloom
+   pass only has something to work with above the background, so on the old
+   light canvas (#f5f5f7) additive blending was a no-op and the universe came
+   out a near-blank grey field. Every frosted panel over it was already
+   hardcoded to rgba(10,10,12,.55) too — but it painted its text with
+   var(--ink-0), which is #0a0a0c in light theme. The whole tab was near-black
+   text on near-black glass.
+   Redefining the ink/line/surface tokens HERE fixes it at the root: every
+   descendant — the ticker, the Command Center panels, the recharts axes and
+   tooltips, the shared ChartPlaceholder and PanelNote — resolves against the
+   dark surface it is actually sitting on, in either theme, without a single
+   per-component override. */
 .universe-tab {
   position: relative;
   width: 100%;
   height: 100%;
   background: #0a0a0c;
+
+  --bg-1:   #111114;
+  --bg-2:   #16161a;
+  --line-1: #212126;
+  --line-2: #2c2c32;
+  --ink-0:  #f5f5f7;
+  --ink-1:  #d0d0d4;
+  --ink-2:  #888890;
+  --ink-3:  #5a5a60;
+}
+/* .surface-frosted carries its own light-theme background, which would drop a
+   pale card onto the star field. Hold it dark inside the tab. */
+[data-theme='light'] .universe-tab .surface-frosted {
+  background: rgba(20, 18, 15, 0.72);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 /* Floating ticker — compact pill anchored to top-center of the canvas.
-   No layout flow: cosmograph fills the entire .universe-tab and the
+   No layout flow: the universe canvas fills the entire .universe-tab and the
    ticker hovers above it. */
 .universe-ticker {
   position: absolute;
@@ -18730,6 +18758,43 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   text-transform: none;
   color: var(--soleil);
 }
+/* Paired "nodes · connections" value in the Drawn cell. */
+.universe-ticker-sep { color: var(--ink-3); margin: 0 3px; font-weight: 400; }
+
+/* Node-kind key, bottom-left. The universe had no legend at all, so the only
+   way to learn what a colour meant was to click a node — and the neutral slate
+   ("Other") looked like an unfinished palette rather than a deliberate bucket.
+   Counts come from the renderer, so a row here is a thing you can see. */
+.universe-legend {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  z-index: 3;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 148px;
+  pointer-events: auto;
+}
+.universe-legend-row { display: grid; grid-template-columns: 8px 1fr auto; align-items: center; gap: 8px; }
+.universe-legend-dot { width: 8px; height: 8px; border-radius: 999px; box-shadow: 0 0 6px currentColor; }
+.universe-legend-label { font: 500 11px/1.2 var(--font-sans); color: var(--ink-2); }
+.universe-legend-n {
+  font: 600 11px/1.2 var(--font-sans); color: var(--ink-1); font-variant-numeric: tabular-nums;
+}
+@media (max-width: 720px) {
+  .universe-legend { display: none; }
+}
+
+/* Dev harness only: the picked-node readout (?adminpreview=1&tab=universe). */
+.universe-qa-picked {
+  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 4;
+  padding: 6px 12px; border-radius: 999px;
+  background: rgba(10,10,12,0.7); border: 1px solid rgba(255,255,255,0.08);
+  font: 500 11px/1 var(--font-sans); color: var(--ink-1);
+}
+
 .universe-ticker-warn {
   position: absolute;
   top: -3px;
@@ -18871,11 +18936,11 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 }
 
 /* Full-bleed live universe — fills the whole stage behind the frame; the
-   cosmograph canvas absolute-fills this. Frame floats above (z-index 1). */
+   universe canvas absolute-fills this. Frame floats above (z-index 1). */
 .cc-universe-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
 
 /* Shared frosted-glass surface for every panel. */
-.cc-kpi, .cc-panel, .cc-uni, .cc-leaders, .cc-updated, .cc-ctrl-btn {
+.cc-kpi, .cc-panel, .cc-uni, .cc-ticker, .cc-updated, .cc-ctrl-btn {
   background: rgba(10,10,12,0.55);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -18934,12 +18999,16 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .cc-panel-sub { font: 500 10px/1 var(--font-sans); color: var(--ink-3); }
 .cc-panel-body { width: 100%; }
 .cc-rail .cc-panel-body { flex: 1 1 auto; min-height: 0; }
-/* Pie panels need a hard vertical floor: a donut clips if its body shrinks
-   below the ring + bottom legend. flex:1 1 0 stays, so all four panels still
-   split evenly on tall screens (min-height only wins when the even split would
-   be shorter); the rail's overflow-y:auto then scrolls instead of clipping on
-   very short windows. */
-.cc-pie .cc-panel-body { min-height: 132px; }
+/* Panels whose body is DOM rows rather than a ResponsiveContainer: let the
+   rows keep their natural height and scroll inside the panel on a short
+   window, instead of being squeezed by the even flex split. */
+.cc-rail .cc-panel:has(.cc-rank) .cc-panel-body,
+.cc-rail .cc-panel:has(.cc-stagelist) .cc-panel-body {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
 /* Big scalar stat (e.g. Time in app) centered in a rail panel — replaces a chart. */
 .cc-bignum .cc-panel-body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; }
@@ -18950,23 +19019,17 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .cc-dur-unit { font: 600 13px/1 var(--font-sans); color: var(--ink-3); }
 .cc-bignum-note { font: 500 11px/1.2 var(--font-sans); color: var(--ink-3); }
 
-/* Bottom strip — live universe totals + leaderboard */
-.cc-bottom { grid-area: bottom; pointer-events: auto; display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; }
+/* Bottom strip — what the renderer drew + the live tape. Six cells now, so the
+   universe block takes the wider column and its numbers step down a size. */
+.cc-bottom { grid-area: bottom; pointer-events: auto; display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; }
 .cc-uni { border-radius: 14px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-around; gap: 8px; }
-.cc-uni-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.cc-uni-num { font: 700 22px/1 var(--font-display, var(--font-sans)); color: var(--ink-0); font-variant-numeric: tabular-nums; }
-.cc-uni-label { font: 600 10px/1 var(--font-sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+.cc-uni-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.cc-uni-num { font: 700 20px/1 var(--font-display, var(--font-sans)); color: var(--ink-0); font-variant-numeric: tabular-nums; }
+.cc-uni-label { font: 600 10px/1 var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
 .cc-uni-delta { font: 600 10px/1 var(--font-sans); color: var(--soleil); }
-.cc-leaders { border-radius: 14px; padding: 12px 16px; min-width: 0; }
-.cc-leaders-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.cc-leader { display: flex; align-items: center; gap: 8px; font: 500 12px/1.3 var(--font-sans); color: var(--ink-1); }
-.cc-leader-rank { width: 16px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.cc-leader-email { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cc-leader-count { color: var(--ink-0); font-weight: 600; font-variant-numeric: tabular-nums; }
-.cc-leader-empty { color: var(--ink-3); }
 
 /* Live card-placement ticker — horizontal auto-scrolling tape (stock-ticker style). */
-.cc-ticker { display: flex; flex-direction: row; align-items: center; gap: 12px; }
+.cc-ticker { border-radius: 14px; padding: 12px 16px; min-width: 0; display: flex; flex-direction: row; align-items: center; gap: 12px; }
 .cc-tape-label {
   flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px;
   font: 600 11px/1 var(--font-sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2);
@@ -18979,11 +19042,15 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
           mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent);
 }
 /* Two identical copies; translateX(-50%) lands copy-2's start exactly where
-   copy-1 began → seamless loop. Duration set inline (∝ item count). */
+   copy-1 began → seamless loop. Duration set inline (∝ item count).
+   Only .is-scrolling animates: below the item threshold the component renders
+   ONE copy of the real feed and it sits still, because the alternative was
+   padding a quiet day out with repeats of the same few placements. */
 .cc-tape-track {
   display: inline-flex; align-items: center; gap: 28px; white-space: nowrap;
-  animation: cc-tape-roll 40s linear infinite; will-change: transform;
+  will-change: transform;
 }
+.cc-tape-track.is-scrolling { animation: cc-tape-roll 40s linear infinite; }
 .cc-tape:hover .cc-tape-track { animation-play-state: paused; }
 .cc-tape-item { display: inline-flex; align-items: center; gap: 6px; font: 500 11px/1.3 var(--font-sans); color: var(--ink-1); }
 .cc-ticker-dot { width: 5px; height: 5px; border-radius: 999px; flex: 0 0 auto; background: currentColor; box-shadow: 0 0 6px currentColor; }
@@ -18992,7 +19059,58 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .cc-tape-time { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .cc-tape-empty { font: 500 12px/1.3 var(--font-sans); color: var(--ink-3); }
 @keyframes cc-tape-roll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-@media (prefers-reduced-motion: reduce) { .cc-tape-track { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .cc-tape-track.is-scrolling { animation: none; } }
+
+/* The shared honesty components are sized for a full-width analytics panel:
+   a 200px floor and an opaque hatched fill. In a ~120px rail panel over
+   frosted glass that would blow out the layout and punch a solid rectangle
+   through the universe, so they get a rail-scale, translucent variant here.
+   Same components, same semantics — only the fit changes. */
+.cc-panel .admin-chart-placeholder {
+  min-height: 0; height: 100%; padding: 10px; gap: 3px;
+  border-radius: 10px;
+  background: repeating-linear-gradient(135deg,
+    rgba(255,255,255,0.035) 0 8px, rgba(255,255,255,0.012) 8px 16px);
+  border-color: rgba(255,255,255,0.10);
+}
+.cc-panel .admin-chart-placeholder-title { font-size: 12px; }
+.cc-panel .admin-chart-placeholder-sub   { font-size: 10px; line-height: 1.35; max-width: none; }
+.cc-panel .admin-panel-note {
+  margin-top: 6px; padding-top: 6px;
+  font-size: 10px; line-height: 1.35;
+  border-top-color: rgba(255,255,255,0.10);
+}
+
+/* ── Ranked bars (Content mix) ────────────────────────────────────────────
+   One hue. Length is the magnitude, the label is the identity — so this
+   never needs a legend and never runs out of distinguishable colours. */
+.cc-rank { display: flex; flex-direction: column; gap: 5px; }
+.cc-rank-row { display: grid; grid-template-columns: 58px 1fr auto; align-items: center; gap: 8px; }
+.cc-rank-label {
+  font: 500 11px/1 var(--font-sans); color: var(--ink-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: capitalize;
+}
+.cc-rank-track { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; }
+.cc-rank-fill  { display: block; height: 100%; border-radius: 999px; background: var(--soleil); }
+.cc-rank-n { font: 600 11px/1 var(--font-sans); color: var(--ink-1); font-variant-numeric: tabular-nums; }
+.cc-rank-empty { padding: 8px 0; }
+
+/* ── Activation stage list ────────────────────────────────────────────────
+   A shared linear axis rounds the tail stages (~1% of the top) to sub-pixel
+   bars, so every row prints its count and step conversion as text too. */
+.cc-stagelist { display: flex; flex-direction: column; gap: 5px; }
+.cc-stage-row { display: grid; grid-template-columns: 74px 1fr auto 34px; align-items: center; gap: 8px; }
+.cc-stage-name {
+  font: 500 11px/1 var(--font-sans); color: var(--ink-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cc-stage-track { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; }
+.cc-stage-fill  { display: block; height: 100%; border-radius: 999px; background: #50c878; }
+.cc-stage-n { font: 600 11px/1 var(--font-sans); color: var(--ink-1); font-variant-numeric: tabular-nums; }
+.cc-stage-step {
+  font: 500 10px/1 var(--font-sans); color: var(--ink-3);
+  font-variant-numeric: tabular-nums; text-align: right;
+}
 
 /* Corner controls (float above the frame) */
 .cc-controls { position: absolute; top: 14px; right: 14px; z-index: 6; display: flex; align-items: center; gap: 8px; pointer-events: auto; }

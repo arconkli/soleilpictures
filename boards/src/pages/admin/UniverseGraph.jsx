@@ -55,6 +55,17 @@ import { collectSnapshot } from '../../lib/universePaging.js';
 //    with two admin-only additions (user + ws). User reads as a
 //    warm-white sun the workspaces orbit around; ws is a muted
 //    lavender anchor that doesn't compete with the gold board suns.
+//
+// On adding hues: don't. The six shipped anchors (note/image/palette/
+// link/doc/board) already saturate the perceptual field — measured
+// all-pairs, link-blue↔palette-teal sit at ΔE 10.6 under NORMAL vision,
+// below the 15 floor, before anything new is added. Every candidate 7th+
+// hue tested collided worse: rose↔teal ΔE 1.4 (deutan), indigo↔violet 5.1
+// (normal), cyan↔teal 8.7 (normal). `grid` earns the one exception below
+// because it is the one card kind with real volume behind it; the rest
+// deliberately share
+// the neutral `card` slate rather than get muddy near-duplicates, and the
+// legend (KIND_LEGEND) carries identity so hue never has to alone.
 const COLOR = {
   user:      '#fff4d8',
   ws:        '#8b8aa8',
@@ -64,12 +75,29 @@ const COLOR = {
   image:     '#7c5cc9',
   palette:   '#3fa39a',
   link:      '#5b8fc7',
+  grid:      '#6aab4a',   // admin-only: the one card kind big enough to earn a hue
   board_:    '#c4a96b',
   boardlink: '#c4a96b',
   doc_card:  '#e6c98a',
-  card:      '#7c8a98',
+  card:      '#7c8a98',   // shape / video / schedule / art / pdf / audio / file
   url:       '#8c7a55',
 };
+
+// Legend rows for the Universe HUD, in the order they should read. `card`
+// is the explicit catch-all so the neutral slate is never unexplained.
+export const KIND_LEGEND = [
+  { key: 'board',   label: 'Boards'    },
+  { key: 'image',   label: 'Images'    },
+  { key: 'note',    label: 'Notes'     },
+  { key: 'grid',    label: 'Grids'     },
+  { key: 'link',    label: 'Links'     },
+  { key: 'palette', label: 'Palettes'  },
+  { key: 'doc',       label: 'Docs'       },
+  { key: 'boardlink', label: 'Board links' },
+  { key: 'card',      label: 'Other'      },
+  { key: 'ws',        label: 'Workspaces' },
+];
+export const KIND_COLORS = COLOR;
 
 // Edge tints — match the per-workspace HomeGraph look exactly.
 // HomeGraph uses rgba(91,87,78,.45) structural + rgba(255,165,0,.55)
@@ -113,11 +141,13 @@ const GALAXY = {
   bloomThreshold: 0.15,
 };
 
-function readTheme() {
-  if (typeof document === 'undefined') return 'dark';
-  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
-}
-const BG_FOR = { dark: '#0a0908', light: '#f5f5f7' };
+// The universe is a planetarium, not a themed panel: node halos use ADDITIVE
+// blending and the bloom pass only has anything to do with luminance above the
+// background. On the old light-theme canvas (#f5f5f7) additive blending is a
+// no-op and bloom has no headroom, so the "light" universe was a near-blank
+// grey field. It stays dark in both themes; .universe-tab scopes dark ink
+// tokens over it so the surrounding HUD stays legible either way.
+const SPACE_BG = '#0a0908';
 
 // Halo texture — radial gradient white sprite, same as HomeGraph.
 const HALO_TEXTURE = (() => {
@@ -205,6 +235,31 @@ function toNode(raw) {
     workspace_id: raw.workspace_id,
     created_at: raw.created_at,
   };
+}
+
+// Identity of an edge as far as the renderer is concerned. The server's own
+// keyset uses the same triple (see admin_universe_edges_v2's edge_key), so a
+// row that reappears under a moved timestamp lands on the same key here.
+const UNIT_SEP = '\u001f';   // chr(31), same separator the SQL edge_key uses
+function edgeKeyOf(raw) {
+  return `${raw.source_id}${UNIT_SEP}${raw.target_id}${UNIT_SEP}${raw.edge_kind}`;
+}
+
+// Legend tallies. Cards count under their card kind when it has its own hue,
+// otherwise under 'card' — which is exactly the bucket the legend labels
+// "Other", so the neutral slate is always accounted for.
+function countKind(refs, node) {
+  const key = node.cardKind && COLOR[node.cardKind] ? node.cardKind : node.kind;
+  refs.kindCounts.set(key, (refs.kindCounts.get(key) || 0) + 1);
+}
+
+function reportStats(refs) {
+  if (!refs.onStatsFn) return;
+  refs.onStatsFn({
+    nodes: refs.nodes.length,
+    edges: refs.edges.length,
+    byKind: Object.fromEntries(refs.kindCounts),
+  });
 }
 
 // ── Disc material — the leaf-node body ────────────────────────────
@@ -346,7 +401,13 @@ function makeFxPoints(capacity) {
 // dataSource — optional override for the QA harness: { fetchPage,
 // disableDeltas }. Production leaves it null and uses the real party
 // endpoints.
-export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSource = null }) {
+// onStats — fires with { nodes, edges, byKind } once the snapshot is built and
+// again whenever deltas change the totals. This is the ONLY honest source for
+// "how big is the thing on screen": platform_counters counts rows, several of
+// which never become nodes or edges (tag attachments, cards on soft-deleted
+// boards), so a HUD reading the counters can claim connections the universe
+// does not draw.
+export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSource = null, onStats = null }) {
   const containerRef = useRef(null);
 
   // ── React state for shell UI only ────────────────────────────────
@@ -354,14 +415,6 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
   const [reloadKey, setReloadKey] = useState(0);
   const [progress, setProgress]   = useState({ nodes: 0, edges: 0 });
   const [calibrating, setCalibrating] = useState(true);
-  const [theme, setTheme]         = useState(readTheme);
-
-  // ── Theme watcher ────────────────────────────────────────────────
-  useEffect(() => {
-    const obs = new MutationObserver(() => setTheme(readTheme()));
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    return () => obs.disconnect();
-  }, []);
 
   // ── Refs to all the Three.js + sim state (kept out of React) ─────
   const refs = useRef({
@@ -377,6 +430,8 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
     nodes: [],                      // [{id, threeColor, val, isAnchor, ...}]
     nodeIndex: new Map(),           // node_id → array index
     edges: [],                      // [{ sourceIdx, targetIdx, kind }]
+    edgeKeys: new Set(),            // 'srctgtkind' — guards the delta path
+    kindCounts: new Map(),          // legend/HUD: render kind → count
     positions: new Float32Array(INITIAL_NODE_CAP * 3),
     pxPerUnit: 600,                 // devicePx per world-unit at distance 1 (resize-updated)
     snapshotReady: false,           // gates delta flushes until the worker has init state
@@ -386,6 +441,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
     pendingNodes: [],               // delta buffer
     pendingEdges: [],               // [{ raw, attempts }]
     onNodeClickFn: onNodeClick,
+    onStatsFn: onStats,
     // Auto-fit state. didInitialFit gates the first snap-to-fit.
     // fitAnimating drives a smooth pull-back when the universe grows.
     interacting: false,
@@ -398,6 +454,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
 
   // Keep onNodeClick fresh without re-mounting the whole scene.
   useEffect(() => { refs.onNodeClickFn = onNodeClick; }, [onNodeClick, refs]);
+  useEffect(() => { refs.onStatsFn = onStats; }, [onStats, refs]);
 
   // Opt-in: frame every visible node on auto-fit/reset (Command Center wants the
   // whole universe inside its box, not the 95th-percentile bulk).
@@ -422,7 +479,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
 
     // Scene + camera + renderer.
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(BG_FOR[theme]);
+    scene.background = new THREE.Color(SPACE_BG);
 
     const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, GALAXY.cameraFar);
     // Start ABOVE the disk plane, looking down at its face. Small Z
@@ -813,14 +870,8 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
       refs.sharedPosAttr = null; refs.edgeLines = null; refs.fxPoints = null;
       refs.activeFx = [];
     };
-    // theme is read once at mount — the bg color update below patches it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadKey]);
-
-  // Patch background color when theme flips without re-mounting.
-  useEffect(() => {
-    if (refs.scene) refs.scene.background = new THREE.Color(BG_FOR[theme]);
-  }, [theme, refs]);
 
   // ── Snapshot loader ──────────────────────────────────────────────
   // Walks EVERY page until the server's SQL-computed `done` — the
@@ -862,6 +913,8 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
         refs.nodes = [];
         refs.nodeIndex = new Map();
         refs.edges = [];
+        refs.edgeKeys = new Set();
+        refs.kindCounts = new Map();
         refs.anchorGlobals = [];
         refs.anchorSlot.fill(-1);
         if (refs.anchorMesh) refs.anchorMesh.count = 0;
@@ -872,14 +925,18 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
           const idx = refs.nodes.length;
           refs.nodes.push(node);
           refs.nodeIndex.set(node.id, idx);
+          countKind(refs, node);
           writeNodeAppearance(refs, idx, node);
         }
-        // Resolve edges; drop orphans.
+        // Resolve edges; drop orphans and any duplicate (src,tgt,kind).
         const resolvedEdges = [];
         for (const raw of allRawEdges) {
           const s = refs.nodeIndex.get(raw.source_id);
           const t = refs.nodeIndex.get(raw.target_id);
           if (s == null || t == null) continue;
+          const key = edgeKeyOf(raw);
+          if (refs.edgeKeys.has(key)) continue;
+          refs.edgeKeys.add(key);
           resolvedEdges.push({
             sourceIdx: s, targetIdx: t,
             kind:    classifyEdge(raw.edge_kind),   // visual tier (scaffold/structural/semantic)
@@ -902,6 +959,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
           refs.worker.postMessage({ type: 'init', nodes: initNodes, links: initLinks });
         }
         refs.snapshotReady = true;
+        reportStats(refs);
         if (import.meta.env.DEV && typeof window !== 'undefined') {
           // QA hook for the ?adminpreview universe bench + Playwright.
           window.__universeQaStats = { nodes: refs.nodes.length, edges: refs.edges.length };
@@ -945,9 +1003,18 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
 
       // Resolve pending edges; defer ones whose endpoints haven't
       // arrived yet up to ORPHAN_MAX_TRIES times before dropping.
+      //
+      // An edge we ALREADY have is dropped outright. The snapshot path always
+      // deduped implicitly (one pass over one page); the delta path did not,
+      // and the server re-sends an edge whenever its row's timestamp moves.
+      // Every re-send used to append a duplicate to refs.edges — permanently,
+      // since nothing ever removes edges — and fire a gold "new connection"
+      // pulse for it. On a kiosk left up for hours that grew the edge buffer
+      // without bound and celebrated edits as new links.
       const stillPending = [];
       const newEdges = [];
       for (const item of refs.pendingEdges) {
+        if (refs.edgeKeys.has(edgeKeyOf(item.raw))) continue;
         const s = refs.nodeIndex.get(item.raw.source_id);
         const t = refs.nodeIndex.get(item.raw.target_id);
         const sNew = s == null && seen.has(item.raw.source_id);
@@ -960,6 +1027,9 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
             stillPending.push({ raw: item.raw, attempts: item.attempts + 1 });
             continue;
           }
+          // Claim the key now so two identical edges inside ONE flush
+          // window can't both get through.
+          refs.edgeKeys.add(edgeKeyOf(item.raw));
           newEdges.push({
             sourceIdx: s, targetIdx: t,
             kind:    classifyEdge(item.raw.edge_kind),
@@ -977,6 +1047,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
           const idx = refs.nodes.length;
           refs.nodes.push(n);
           refs.nodeIndex.set(n.id, idx);
+          countKind(refs, n);
           writeNodeAppearance(refs, idx, n);
           // Spawn a brief halo flash on every new node so the user
           // can see it appear in the universe.
@@ -1007,6 +1078,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
           spawnPulse(refs, e.sourceIdx, e.targetIdx);
         }
       }
+      if (newNodes.length || newEdges.length) reportStats(refs);
     }, DELTA_FLUSH_MS);
     return () => clearInterval(id);
   }, [refs]);
@@ -1043,7 +1115,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
   }
 
   return (
-    <div className="universe-canvas" ref={containerRef} style={{ background: BG_FOR[theme] }}>
+    <div className="universe-canvas" ref={containerRef} style={{ background: SPACE_BG }}>
       <div className="grain-surface" aria-hidden="true" style={{ zIndex: 1, pointerEvents: 'none' }} />
       {calibrating && (
         <div className="universe-overlay">
