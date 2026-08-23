@@ -208,9 +208,23 @@ const RPCS = {
     total_seconds_in_app: 40_000_000,    // ~1.3 yr — exercises the y/mo/d/h/m/s breakdown
     tier_counts: { admin: 3, paid: 142, demo: 806, waitlist: 333 },
     sub_counts: { active: 138, trialing: 4, canceled: 18 },
-    mrr_cents: 312400, comped_paid: 6, discounted_subs: 21,
+    mrr_cents: 312400, comped_paid: 6, subscribed_paid: 136, discounted_subs: 21,
     waitlist_pending: 211, waitlist_total: 333,
   },
+  admin_active_now: 14,
+  // Backfill for the Command Center's live tape. Nine rows, so the harness
+  // exercises the scrolling branch (>= 6) rather than the static one.
+  admin_recent_card_placements: [
+    { occurred_at: tsISO(0.02), user_id: 'u1', actor: 'mara@studio.co',  kind: 'image',    n: 3 },
+    { occurred_at: tsISO(0.05), user_id: 'u2', actor: 'devon@ridge.io',  kind: 'note',     n: 1 },
+    { occurred_at: tsISO(0.09), user_id: 'u3', actor: 'ash@northlight',  kind: 'grid',     n: 1 },
+    { occurred_at: tsISO(0.14), user_id: 'u4', actor: 'kit@paperlane',   kind: 'palette',  n: 1 },
+    { occurred_at: tsISO(0.22), user_id: 'u1', actor: 'mara@studio.co',  kind: 'link',     n: 2 },
+    { occurred_at: tsISO(0.31), user_id: 'u5', actor: 'rowan@fieldwork', kind: 'doc',      n: 1 },
+    { occurred_at: tsISO(0.44), user_id: 'u6', actor: 'sim@atlas.tv',    kind: 'video',    n: 1 },
+    { occurred_at: tsISO(0.58), user_id: 'u2', actor: 'devon@ridge.io',  kind: 'shape',    n: 4 },
+    { occurred_at: tsISO(0.77), user_id: 'u7', actor: 'juno@thirdfloor', kind: 'schedule', n: 1 },
+  ],
   admin_avg_time_to_paid: { paid_users: 142, avg_seconds: 205200, median_seconds: 151200 },
   admin_signups_by_day: signupsByDay,
   admin_waitlist_funnel: waitlistFunnel,
@@ -238,7 +252,11 @@ const RPCS = {
     { source: 'direct',  signups: 121, converted: 14, conversion: 0.1157 },
     { source: 'product-hunt', signups: 64, converted: 11, conversion: 0.1719 },
   ],
-  admin_activation_funnel: { signed_up: 96, first_board: 78, first_card: 58, first_share: 31, first_backlink: 19, first_paid: 17 },
+  admin_activation_funnel: {
+    signed_up: 96, first_board: 78, first_card: 58,
+    // populated_board is the stage the Command Center funnel used to drop.
+    populated_board: 41, first_share: 31, first_backlink: 19, first_paid: 17,
+  },
   admin_retention_cohorts: cohorts,
   admin_retention_curve: retentionCurve,
   admin_user_lifespan: lifespan,
@@ -250,7 +268,13 @@ const RPCS = {
   ],
   admin_card_stats: {
     total: 18420,
-    by_kind: { image: 8210, note: 4120, link: 2890, palette: 1640, doc: 980, url: 580 },
+    // Includes the long tail on purpose: production has 15 card kinds spanning
+    // 1580:1, which is what retired the donut. This exercises the top-7 +
+    // "Other" fold in the Command Center's ranked bar.
+    by_kind: {
+      image: 8210, note: 4120, link: 2890, palette: 1640, doc: 980, url: 580,
+      grid: 740, shape: 260, video: 155, boardlink: 88, schedule: 40, art: 26, pdf: 18, audio: 9, file: 3,
+    },
     by_tier: { admin: 240, paid: 7600, demo: 9800, waitlist: 780 },
     kind_by_tier: {
       image: { admin: 90, paid: 3600, demo: 4200, waitlist: 320 },
@@ -532,5 +556,13 @@ export function installAdminPreviewMocks(supabase) {
   supabase.rpc = (name, params) =>
     Promise.resolve({ data: rpcResult(name, params), error: null });
   supabase.from = (table) => makeBuilder(table);
+  // The Command Center's live placement tape subscribes to a realtime channel.
+  // Stub it so the harness renders the backfilled tape instead of throwing;
+  // no live rows arrive, which is the honest quiet-wall state anyway.
+  supabase.channel = () => {
+    const ch = { on: () => ch, subscribe: () => ch, unsubscribe: () => Promise.resolve('ok') };
+    return ch;
+  };
+  supabase.removeChannel = () => Promise.resolve('ok');
   return true;
 }

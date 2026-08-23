@@ -12,10 +12,13 @@
 // worker layout, disc/halo/sphere rendering) at sizes the live
 // corpus hasn't reached yet.
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { installAdminPreviewMocks } from './adminFixtures.js';
 import { UniverseGraph } from '../pages/admin/UniverseGraph.jsx';
+import { AdminUniverseTicker } from '../pages/admin/AdminUniverseTicker.jsx';
+import { UniverseLegend } from '../pages/admin/UniverseLegend.jsx';
+import { AdminCommandCenter } from '../pages/admin/AdminCommandCenter.jsx';
 import { makeSyntheticDataSource } from './universeQaData.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { AdminOverviewTab } from '../pages/admin/AdminOverviewTab.jsx';
@@ -39,6 +42,15 @@ function readQaNodeTarget() {
   return 20000;
 }
 
+// Synthetic counters shaped like admin_universe_stats. The real numbers arrive
+// over SSE from PartyKit, which the harness has no server for — without this
+// the HUD would render zeros and the ticker couldn't be reviewed at all.
+const FIXTURE_UNIVERSE_STATS = {
+  total_users: 1284, total_workspaces: 640, total_boards: 1810, total_cards: 18420,
+  total_links: 2140, nodes_created_24h: 96, total_seconds_in_app: 40_000_000,
+  today: { users: 7, workspaces: 4, boards: 12, cards: 138, tags: 22, links: 0 },
+};
+
 function UniverseQaTab() {
   const [ds] = useState(() => {
     const source = makeSyntheticDataSource({ nodeTarget: readQaNodeTarget() });
@@ -46,10 +58,14 @@ function UniverseQaTab() {
     return source;
   });
   const [picked, setPicked] = useState(null);
+  const [graph, setGraph] = useState(null);
   const [resetSignal, setResetSignal] = useState(0);
+  const onStats = useCallback((s) => setGraph(s), []);
   return (
     <div className="universe-tab">
-      <UniverseGraph onNodeClick={setPicked} resetSignal={resetSignal} dataSource={ds} />
+      <AdminUniverseTicker stats={FIXTURE_UNIVERSE_STATS} graph={graph} />
+      <UniverseGraph onNodeClick={setPicked} resetSignal={resetSignal} dataSource={ds} onStats={onStats} />
+      <UniverseLegend graph={graph} />
       <button
         className="universe-reset-btn"
         onClick={() => setResetSignal((n) => n + 1)}
@@ -57,10 +73,23 @@ function UniverseQaTab() {
         Reset view
       </button>
       {picked && (
-        <div className="universe-ticker" data-testid="universe-qa-picked">
+        <div className="universe-qa-picked" data-testid="universe-qa-picked">
           {picked.kind} · {picked.id}
         </div>
       )}
+    </div>
+  );
+}
+
+// The real Command Center over fixture RPCs. Its universe backdrop is the
+// synthetic corpus; the SSE-fed bottom cells stay 0 (no party server), which
+// is a useful check of the null path — the renderer-fed Nodes/Connections
+// cells beside them still fill in.
+function CommandCenterQaTab() {
+  const [ds] = useState(() => makeSyntheticDataSource({ nodeTarget: readQaNodeTarget() }));
+  return (
+    <div className="universe-tab">
+      <AdminCommandCenter dataSource={ds} />
     </div>
   );
 }
@@ -76,6 +105,7 @@ const TABS = [
   { id: 'api',       label: 'API',       Component: AdminApiTab },
   { id: 'tagging',   label: 'Tagging',   Component: AdminTaggingTab },
   { id: 'universe',  label: 'Universe',  Component: UniverseQaTab },
+  { id: 'command',   label: 'Command',   Component: CommandCenterQaTab },
 ];
 
 function initialTab() {
@@ -133,7 +163,7 @@ export function AdminPreviewHarness() {
         </div>
       </header>
 
-      <main className={`admin-body ${tab === 'universe' ? 'admin-body-flush' : ''}`}>
+      <main className={`admin-body ${tab === 'universe' || tab === 'command' ? 'admin-body-flush' : ''}`}>
         {Component ? <Component /> : null}
       </main>
     </div>

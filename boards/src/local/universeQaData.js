@@ -13,13 +13,26 @@
 // timestamp, mimicking bulk imports (the case that used to break
 // cursor pagination).
 
+// Weights roughly track the production mix so the bench exercises the real
+// palette — including `grid` (the one card kind that earned its own hue) and
+// the rare tail, which deliberately shares the neutral slate and shows up in
+// the legend as "Other". Without those the QA corpus never rendered a node
+// that took the fallback branch.
 const CARD_KINDS = [
-  ['note',    0.30],
-  ['image',   0.30],
-  ['doc',     0.12],
-  ['link',    0.10],
-  ['card',    0.13],
-  ['palette', 0.05],
+  ['image',    0.28],
+  ['note',     0.22],
+  ['grid',     0.10],
+  ['doc',      0.10],
+  ['link',     0.08],
+  ['palette',  0.06],
+  ['card',     0.05],
+  ['shape',    0.04],
+  ['video',    0.03],
+  ['boardlink', 0.02],
+  ['schedule', 0.01],
+  ['pdf',      0.005],
+  ['audio',    0.003],
+  ['file',     0.002],
 ];
 
 export function makeSyntheticUniverse({ nodeTarget = 20000, seed = 7 } = {}) {

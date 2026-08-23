@@ -1,18 +1,38 @@
-// AdminUniverseTicker — compact, frosted pill floating over the
-// cosmograph canvas. Each cell shows a value, a small label, and
-// (when fresh signups arrived today) a tiny "+N" growth indicator
-// pinned below the label.
+// AdminUniverseTicker — compact, frosted pill floating over the universe
+// canvas. Each cell shows a value, a small label, and (when something was
+// created today) a tiny "+N" growth indicator pinned below the label.
+//
+// Every cell carries a `hint` that states its EXACT definition, because these
+// numbers used to be quietly ambiguous: "Cards +N today" counted cards that
+// were EDITED today, and "24h" counted boards-created plus cards-edited while
+// silently omitting users and workspaces. Migration 0254 fixed the SQL; the
+// hints exist so the next person doesn't have to go read it.
+//
+// `Drawn` is deliberately NOT a platform_counters value. The counters count
+// rows, and several kinds of row never become anything you can see: entity_links
+// are overwhelmingly tag attachments, which the graph renders as nothing at all,
+// and cards on soft-deleted boards keep their row but lose their board. Drawn
+// comes from the renderer itself, so the HUD can only ever claim what is
+// actually on screen.
 
 import { useEffect, useRef, useState } from 'react';
 import { formatDuration } from '../../lib/formatDuration.js';
 
 const CELLS = [
-  { key: 'total_users',          label: 'Users',  todayKey: 'users' },
-  { key: 'total_workspaces',     label: 'WS',     todayKey: 'workspaces' },
-  { key: 'total_boards',         label: 'Boards', todayKey: 'boards' },
-  { key: 'total_cards',          label: 'Cards',  todayKey: 'cards' },
-  { key: 'nodes_created_24h',    label: '24h',    accent: true },
-  { key: 'total_seconds_in_app', label: 'Time',   format: 'duration' },
+  { key: 'total_users', label: 'Users', todayKey: 'users',
+    hint: 'Accounts that confirmed their email and have signed in at least once.' },
+  { key: 'total_workspaces', label: 'WS', todayKey: 'workspaces',
+    hint: 'Workspaces. "+N" counts workspaces created since midnight UTC.' },
+  { key: 'total_boards', label: 'Boards', todayKey: 'boards',
+    hint: 'Boards that are not soft-deleted. "+N" counts boards created since midnight UTC.' },
+  { key: 'total_cards', label: 'Cards', todayKey: 'cards',
+    hint: 'Rows in card_index. "+N" counts cards created since midnight UTC.' },
+  { key: 'drawn', label: 'Drawn', source: 'graph',
+    hint: 'Nodes · connections the renderer actually drew. Lower than the totals above: cards on soft-deleted boards keep their row but lose their board, and tag attachments are not drawn at all.' },
+  { key: 'nodes_created_24h', label: '24h', accent: true,
+    hint: 'Users + workspaces + boards + cards created in the last 24 hours.' },
+  { key: 'total_seconds_in_app', label: 'Time', format: 'duration',
+    hint: 'Summed time-in-app across every signed-in user (profiles.seconds_in_app). Signed-out visits are not counted.' },
 ];
 
 function fmtCompact(n) {
@@ -59,18 +79,32 @@ function AnimatedValue({ value, format }) {
   return <>{text}</>;
 }
 
-export function AdminUniverseTicker({ stats, error }) {
+export function AdminUniverseTicker({ stats, graph, error }) {
   const today = stats?.today || {};
   return (
     <div className="universe-ticker" role="status" aria-live="polite">
       {CELLS.map((c) => {
+        // The Drawn cell reads the renderer, not the counters, and renders as
+        // a paired "nodes · edges" figure rather than a single number.
+        if (c.source === 'graph') {
+          const n = graph?.nodes ?? 0;
+          const e = graph?.edges ?? 0;
+          return (
+            <div key={c.key} className="universe-ticker-cell" title={`${c.hint}\n\n${n.toLocaleString()} nodes · ${e.toLocaleString()} connections`}>
+              <div className="universe-ticker-value">
+                {fmtCompact(n)}<span className="universe-ticker-sep">·</span>{fmtCompact(e)}
+              </div>
+              <div className="universe-ticker-label">{c.label}</div>
+            </div>
+          );
+        }
         const value = stats?.[c.key] ?? 0;
         const todayValue = c.todayKey ? Number(today[c.todayKey] || 0) : 0;
         return (
           <div
             key={c.key}
             className={`universe-ticker-cell ${c.accent ? 'is-accent' : ''}`}
-            title={fmtFull(value, c.format)}
+            title={`${c.hint}\n\n${fmtFull(value, c.format)}`}
           >
             <div className="universe-ticker-value">
               <AnimatedValue value={value} format={c.format} />
@@ -78,7 +112,7 @@ export function AdminUniverseTicker({ stats, error }) {
             <div className="universe-ticker-label">
               {c.label}
               {todayValue > 0 && (
-                <span className="universe-ticker-today" title={`${todayValue.toLocaleString()} today`}>
+                <span className="universe-ticker-today" title={`${todayValue.toLocaleString()} created today`}>
                   +{fmtCompact(todayValue)}
                 </span>
               )}

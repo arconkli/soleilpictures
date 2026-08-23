@@ -7,11 +7,13 @@
 // The graph renderer + privacy contract (IDs/counts only, no titles/content) are
 // untouched; the Command Center only *reuses* <UniverseGraph>.
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { AdminUniverseTicker } from './AdminUniverseTicker.jsx';
 import { UniverseGraph } from './UniverseGraph.jsx';
+import { UniverseLegend } from './UniverseLegend.jsx';
 import { useUniverseStats } from './useUniverseStream.js';
 import { AdminCommandCenter } from './AdminCommandCenter.jsx';
+import { fmtDateTime } from '../../lib/adminFormat.js';
 
 const KIND_LABELS = {
   user:  'User',
@@ -26,10 +28,18 @@ const KIND_LABELS = {
   url:   'External link',
 };
 
-function shortTs(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleString();
+// Cards get their created_at from card_index.created_at, added in migration
+// 0254. Rows that predate it were backfilled from updated_at, so anything
+// older than the backfill is really "last edited" — say so rather than
+// labelling a guess as a creation time.
+const CREATED_AT_BACKFILL = Date.parse('2026-08-22T21:44:00Z');
+
+function createdLabel(node) {
+  if (node.kind !== 'user' && node.kind !== 'ws' && node.kind !== 'board') {
+    const t = Date.parse(node.created_at);
+    if (Number.isFinite(t) && t < CREATED_AT_BACKFILL) return 'Created (approx.)';
+  }
+  return 'Created';
 }
 
 function UniverseDrawer({ node, onClose }) {
@@ -54,8 +64,8 @@ function UniverseDrawer({ node, onClose }) {
           </div>
         )}
         <div className="universe-drawer-row">
-          <div className="t-eyebrow">Created</div>
-          <div className="t-body">{shortTs(node.created_at)}</div>
+          <div className="t-eyebrow">{createdLabel(node)}</div>
+          <div className="t-body">{fmtDateTime(node.created_at) || '—'}</div>
         </div>
         <div className="universe-drawer-note t-meta">
           Content and titles are intentionally hidden in this view.
@@ -70,14 +80,22 @@ function UniverseDrawer({ node, onClose }) {
 function UniverseView() {
   const { stats, error } = useUniverseStats();
   const [active, setActive] = useState(null);
+  // What the renderer actually drew — the only honest source for "how big is
+  // the thing on screen". See the note in AdminUniverseTicker.
+  const [graph, setGraph] = useState(null);
   // Incrementing this triggers an animated "fit everything" pull-back
   // inside UniverseGraph.
   const [resetSignal, setResetSignal] = useState(0);
 
+  // Stable identity: UniverseGraph keeps the handler in a ref, but an unstable
+  // prop would still churn the effect that syncs it on every render.
+  const onStats = useCallback((s) => setGraph(s), []);
+
   return (
     <>
-      <AdminUniverseTicker stats={stats} error={error} />
-      <UniverseGraph onNodeClick={setActive} resetSignal={resetSignal} />
+      <AdminUniverseTicker stats={stats} graph={graph} error={error} />
+      <UniverseGraph onNodeClick={setActive} resetSignal={resetSignal} onStats={onStats} />
+      <UniverseLegend graph={graph} />
       <button
         className="universe-reset-btn"
         onClick={() => setResetSignal((n) => n + 1)}
