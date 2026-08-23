@@ -24,8 +24,12 @@ values
   -- 1. The mirrors exist and carry real content, not an SPA shell.
   ('https://clusters.soleilpictures.com/best/pureref-alternatives.md',
    'listicle md mirror', 'body', 'Best PureRef Alternatives', true, null),
+  -- Assert the CLAIM, not the title: the .md mirror carries the h1 and prose,
+  -- never the <title>. After the 2026-08-23 intent split the h1 leads with
+  -- "PureRef Online", so a 'PureRef Alternative' assertion here fails against a
+  -- perfectly healthy page. (It did, on the first run.)
   ('https://clusters.soleilpictures.com/vs/pureref.md',
-   'landing md mirror', 'body', 'PureRef Alternative', true, null),
+   'landing md mirror', 'body', 'There is no web version of PureRef', true, null),
   ('https://clusters.soleilpictures.com/vs/pureref.md',
    'landing md is not the SPA shell', 'status', '200', true, null),
 
