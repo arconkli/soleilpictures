@@ -254,7 +254,7 @@ Key | Action
 ⌘A | Select all
 ⌘G | Group selection
 [ / ] | Send backward · forward
-⌫ | Delete selection
+⌫ or Del | Delete selection
 
 Undo is per-session and per-board. It undoes your own edits, not a collaborator's — in a shared board, undo that could revert someone else's work would be worse than no undo at all.
 
@@ -266,8 +266,18 @@ Key | Action
 ⇧1 | Fit everything
 ⇧2 | Fit selection
 Space-drag | Pan with any tool active
+Scroll | Pan the canvas — or zoom, if you swap it
+⌘-scroll | Zoom at the pointer
 
 Zoom and pan are remembered per cluster. Reopening a board puts you back where you were rather than at the origin.
+
+Swapping what the wheel does
+
+Settings → Display → Scroll wheel. Scrolling pans by default and ⌘-scroll zooms; set it to Zoom and they trade places, so a plain scroll zooms at the pointer and ⌘, Alt or Shift pans. ⌘K → "scroll wheel" flips it without opening settings.
+
+Which one is right depends on what you came from — PureRef and Miro zoom on scroll, Figma and Milanote pan — which is why it is a setting and not a default we picked for you.
+
+Pinching a trackpad zooms in either mode, and always will: a pinch reaches the browser as a Ctrl-scroll, so Ctrl means zoom whatever else is configured.
 
 Notes
 
@@ -304,6 +314,9 @@ Drag files from your desktop straight onto the canvas.
 
 Q: How do I see shortcuts without leaving what I am doing?
 A: Press ? on any canvas, or click the help button in the corner of the canvas. The overlay lists every shortcut grouped by what it affects.
+
+Q: Can the scroll wheel zoom instead of scrolling the board around?
+A: Yes. Settings → Display → Scroll wheel, or Cmd-K and type "scroll wheel". Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way.
 
 Q: Do these work on Windows?
 A: Yes. Every Cmd shortcut listed here is Ctrl on Windows and Linux. The in-app overlay detects your platform and shows the right modifier.
@@ -401,13 +414,15 @@ If you want the same contents as a sortable file list instead, every cluster als
 Moving around
 
 Action | How
-Pan | Hold Space and drag, or press H for the pan tool
-Zoom | ⌘+ / ⌘−, or pinch, or scroll with a modifier
+Pan | Scroll, hold Space and drag, or press H for the pan tool
+Zoom | ⌘+ / ⌘−, pinch, or ⌘-scroll
 Reset zoom | ⌘0
 Fit everything | ⇧1
 Fit selection | ⇧2
 
 Your position is saved per cluster. Close a board deep in a corner of the canvas and it reopens there, not at the origin.
+
+If scrolling to zoom is the habit you arrived with — it is how PureRef and Miro work — Settings → Display → Scroll wheel swaps the two, so a plain scroll zooms at the pointer and ⌘, Alt or Shift pans. Pinching a trackpad zooms in either setting. See keyboard shortcuts.
 
 The tool rail
 
@@ -3022,6 +3037,7 @@ Display
 
 Clean mode — hide interface chrome for presenting (⌘.)
 Sidebar open by default
+Scroll wheel — whether scrolling pans the canvas or zooms it
 
 Not in Settings
 
@@ -3164,6 +3180,9 @@ Settings → Display.
 
 Clean mode (⌘.) — hides interface chrome for presenting or screenshots
 Sidebar open by default
+Scroll wheel — Pan (the default: ⌘-scroll zooms) or Zoom (a plain scroll zooms at the pointer; ⌘, Alt or Shift pans)
+
+The wheel setting exists because the convention genuinely splits across the tools people arrive from — PureRef and Miro zoom on scroll, Figma and Milanote pan — so there is no default that is right for everyone. It follows your account like the rest of this tab, and pinching a trackpad zooms either way.
 
 Custom fonts
 

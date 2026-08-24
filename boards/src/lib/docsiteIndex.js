@@ -275,6 +275,10 @@ export const DOCS_PAGES = [
         "a": "Press ? on any canvas, or click the help button in the corner of the canvas. The overlay lists every shortcut grouped by what it affects."
       },
       {
+        "q": "Can the scroll wheel zoom instead of scrolling the board around?",
+        "a": "Yes. Settings → Display → Scroll wheel, or Cmd-K and type \"scroll wheel\". Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way."
+      },
+      {
         "q": "Do these work on Windows?",
         "a": "Yes. Every Cmd shortcut listed here is Ctrl on Windows and Linux. The in-app overlay detects your platform and shows the right modifier."
       }

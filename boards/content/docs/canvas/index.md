@@ -31,14 +31,19 @@ also has a [list view](/docs/clusters/list-view).
 
 | Action | How |
 |---|---|
-| Pan | Hold `Space` and drag, or press `H` for the pan tool |
-| Zoom | `⌘+` / `⌘−`, or pinch, or scroll with a modifier |
+| Pan | Scroll, hold `Space` and drag, or press `H` for the pan tool |
+| Zoom | `⌘+` / `⌘−`, pinch, or `⌘`-scroll |
 | Reset zoom | `⌘0` |
 | Fit everything | `⇧1` |
 | Fit selection | `⇧2` |
 
 Your position is saved per cluster. Close a board deep in a corner of the canvas
 and it reopens there, not at the origin.
+
+If scrolling to zoom is the habit you arrived with — it is how PureRef and Miro
+work — **Settings → Display → Scroll wheel** swaps the two, so a plain scroll
+zooms at the pointer and `⌘`, `Alt` or `Shift` pans. Pinching a trackpad zooms
+in either setting. See [keyboard shortcuts](/docs/keyboard-shortcuts).
 
 ## The tool rail
 

@@ -49,6 +49,7 @@ import { getActiveExperiments, assignArm, drawArm } from './lib/experiments.js';
 // stays node-importable so it can't import analytics.js itself). Idempotent.
 setJourneySink({ logEvent, logEventNow });
 import { applyThemeNow, resolveTheme, currentTheme } from './lib/theme.js';
+import { applyWheelModeNow, getWheelMode } from './lib/wheelMode.js';
 import { R2Image } from './components/R2Image.jsx';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
 import { useResolvedDefaults } from './hooks/useResolvedDefaults.js';
@@ -644,6 +645,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       .catch(() => { /* offline: cache + attribute already updated */ });
   }, [mySettings, refreshSettings]);
 
+  // The ONE write path for the wheel preference, shared by the ⌘K command and
+  // Settings → Display. Same shape as setTheme above and for the same reason:
+  // apply + cache synchronously so the gesture changes under the user's hand,
+  // then persist. An offline save leaves the session correct and the account
+  // stale, which is the right way round for an input preference.
+  // wheelModeState mirrors the module the way themeMode mirrors data-theme:
+  // the canvas reads the module, this only exists so labels that name the
+  // current mode re-render when it changes.
+  const [wheelModeState, setWheelModeState] = useState(() => getWheelMode());
+  const setWheelMode = React.useCallback((next) => {
+    const m = applyWheelModeNow(next);
+    setWheelModeState(m);
+    updateOwnSettings({ ui: { ...(mySettings?.ui || {}), wheelMode: m } })
+      .then(() => refreshSettings?.())
+      .catch(() => {});
+    return m;
+  }, [mySettings, refreshSettings]);
+
   // Follow the OS theme live for users who have never made an explicit
   // choice. Once they pick one (mySettings.ui.theme set), this is a no-op.
   useEffect(() => {
@@ -682,6 +701,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const resolvedTheme = resolveTheme(ui.theme);
     document.documentElement.setAttribute('data-theme', resolvedTheme);
     setThemeMode(resolvedTheme);
+    // Same shape as the theme above: the account value is authoritative, and
+    // applying it here is what carries the preference onto a device that has
+    // never seen it. The synchronous localStorage read in wheelMode.js covers
+    // every load after the first, so there is no frame of the wrong gesture.
+    setWheelModeState(applyWheelModeNow(ui.wheelMode));
     // We inject overrides into a single <style> element so changing
     // settings doesn't accumulate stale rules.
     let el = document.getElementById('user-theme-overrides');
@@ -5809,6 +5833,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => setTheme(themeMode === 'dark' ? 'light' : 'dark') },
     { id: 'sidebar', label: 'Toggle sidebar', icon: PanelLeftClose, keywords: ['sidebar', 'collapse', 'hide', 'panel'],
       run: () => setTweak('compactSidebar', !tweak.compactSidebar) },
+    // Keyworded for what people will actually type when the canvas isn't doing
+    // what they expect ("scroll", "wheel", "zoom") rather than for the name of
+    // the setting, which they have no reason to know.
+    { id: 'wheel-mode',
+      label: wheelModeState === 'zoom' ? 'Scroll wheel: zoom → pan' : 'Scroll wheel: pan → zoom',
+      icon: Search, keywords: ['scroll', 'wheel', 'zoom', 'pan', 'mouse', 'trackpad'],
+      run: () => {
+        const m = setWheelMode(wheelModeState === 'zoom' ? 'pan' : 'zoom');
+        try { logEvent(EV.WHEEL_MODE_SET, { mode: m, source: 'palette' }); } catch (_) {}
+      } },
     { id: 'trash', label: 'Open trash', icon: Trash2, keywords: ['trash', 'deleted', 'restore', 'bin'],
       run: () => setTrashOpen(true) },
     { id: 'version-history', label: 'Version history', icon: History, keywords: ['history', 'versions', 'snapshots', 'restore', 'rollback', 'time travel'],
@@ -5827,8 +5861,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => openInviteFriends('palette') },
     { id: 'signout', label: 'Sign out', icon: LogOut, keywords: ['sign out', 'log out', 'logout', 'exit'],
       run: () => signOut?.() },
-  ], [canEditCurrent, view, currentSurface, themeMode, tweak.showMessages, tweak.compactSidebar,
-      setTheme, setTweak, mainMutators, openInviteFriends, signOut]);
+  ], [canEditCurrent, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, tweak.compactSidebar,
+      setTheme, setWheelMode, setTweak, mainMutators, openInviteFriends, signOut]);
 
 
   // ── Production schedule ───────────────────────────────────────────────────

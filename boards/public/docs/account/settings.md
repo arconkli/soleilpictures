@@ -67,6 +67,7 @@ twenty-five families plus anything from Google Fonts. See
 
 - **Clean mode** — hide interface chrome for presenting (`⌘.`)
 - **Sidebar open by default**
+- **Scroll wheel** — whether scrolling pans the [canvas](/docs/canvas) or zooms it
 
 ## Not in Settings
 

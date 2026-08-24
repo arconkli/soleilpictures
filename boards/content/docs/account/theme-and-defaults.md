@@ -67,6 +67,13 @@ anyone enforcing it by hand.
 
 - **Clean mode** (`⌘.`) — hides interface chrome for presenting or screenshots
 - **Sidebar open by default**
+- **Scroll wheel** — **Pan** (the default: `⌘`-scroll zooms) or **Zoom** (a plain
+  scroll zooms at the pointer; `⌘`, `Alt` or `Shift` pans)
+
+The wheel setting exists because the convention genuinely splits across the
+tools people arrive from — PureRef and Miro zoom on scroll, Figma and Milanote
+pan — so there is no default that is right for everyone. It follows your
+account like the rest of this tab, and pinching a trackpad zooms either way.
 
 ## Custom fonts
 

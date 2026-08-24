@@ -1928,6 +1928,14 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "⌫"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "Del"
       }
      ],
      [
@@ -2059,6 +2067,38 @@ export const DOCS_CONTENT = {
        "v": "Pan with any tool active"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Scroll"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Pan the canvas — or zoom, if you swap it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘"
+      },
+      {
+       "t": "text",
+       "v": "-scroll"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Zoom at the pointer"
+      }
+     ]
     ]
    ]
   },
@@ -2068,6 +2108,125 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Zoom and pan are remembered per cluster. Reopening a board puts you back where you were rather than at the origin."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Swapping what the wheel does",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Swapping what the wheel does"
+    }
+   ],
+   "id": "swapping-what-the-wheel-does"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Settings → Display → Scroll wheel.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Display → Scroll wheel."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Scrolling pans by default and "
+    },
+    {
+     "t": "code",
+     "v": "⌘"
+    },
+    {
+     "t": "text",
+     "v": "-scroll zooms; set it to "
+    },
+    {
+     "t": "strong",
+     "v": "Zoom",
+     "children": [
+      {
+       "t": "text",
+       "v": "Zoom"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and they trade places, so a plain scroll zooms at the pointer and "
+    },
+    {
+     "t": "code",
+     "v": "⌘"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "Alt"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "Shift"
+    },
+    {
+     "t": "text",
+     "v": " pans. "
+    },
+    {
+     "t": "code",
+     "v": "⌘K"
+    },
+    {
+     "t": "text",
+     "v": " → \"scroll wheel\" flips it without opening settings."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Which one is right depends on what you came from — PureRef and Miro zoom on scroll, Figma and Milanote pan — which is why it is a setting and not a default we picked for you."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pinching a trackpad zooms in either mode, and always will: a pinch reaches the browser as a "
+    },
+    {
+     "t": "code",
+     "v": "Ctrl"
+    },
+    {
+     "t": "text",
+     "v": "-scroll, so "
+    },
+    {
+     "t": "code",
+     "v": "Ctrl"
+    },
+    {
+     "t": "text",
+     "v": " means zoom whatever else is configured."
     }
    ]
   },
@@ -3496,7 +3655,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Hold "
+       "v": "Scroll, hold "
       },
       {
        "t": "code",
@@ -3538,7 +3697,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", or pinch, or scroll with a modifier"
+       "v": ", pinch, or "
+      },
+      {
+       "t": "code",
+       "v": "⌘"
+      },
+      {
+       "t": "text",
+       "v": "-scroll"
       }
      ]
     ],
@@ -3592,6 +3759,68 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Your position is saved per cluster. Close a board deep in a corner of the canvas and it reopens there, not at the origin."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If scrolling to zoom is the habit you arrived with — it is how PureRef and Miro work — "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Display → Scroll wheel",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Display → Scroll wheel"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " swaps the two, so a plain scroll zooms at the pointer and "
+    },
+    {
+     "t": "code",
+     "v": "⌘"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "Alt"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "Shift"
+    },
+    {
+     "t": "text",
+     "v": " pans. Pinching a trackpad zooms in either setting. See "
+    },
+    {
+     "t": "link",
+     "v": "keyboard shortcuts",
+     "href": "/docs/keyboard-shortcuts",
+     "children": [
+      {
+       "t": "text",
+       "v": "keyboard shortcuts"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -23594,6 +23823,37 @@ export const DOCS_CONTENT = {
        }
       ]
      }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Scroll wheel",
+      "children": [
+       {
+        "t": "text",
+        "v": "Scroll wheel"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — whether scrolling pans the "
+     },
+     {
+      "t": "link",
+      "v": "canvas",
+      "href": "/docs/canvas",
+      "children": [
+       {
+        "t": "text",
+        "v": "canvas"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or zooms it"
+     }
     ]
    ]
   },
@@ -24768,7 +25028,92 @@ export const DOCS_CONTENT = {
        }
       ]
      }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Scroll wheel",
+      "children": [
+       {
+        "t": "text",
+        "v": "Scroll wheel"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — "
+     },
+     {
+      "t": "strong",
+      "v": "Pan",
+      "children": [
+       {
+        "t": "text",
+        "v": "Pan"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " (the default: "
+     },
+     {
+      "t": "code",
+      "v": "⌘"
+     },
+     {
+      "t": "text",
+      "v": "-scroll zooms) or "
+     },
+     {
+      "t": "strong",
+      "v": "Zoom",
+      "children": [
+       {
+        "t": "text",
+        "v": "Zoom"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " (a plain scroll zooms at the pointer; "
+     },
+     {
+      "t": "code",
+      "v": "⌘"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "Alt"
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "code",
+      "v": "Shift"
+     },
+     {
+      "t": "text",
+      "v": " pans)"
+     }
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The wheel setting exists because the convention genuinely splits across the tools people arrive from — PureRef and Miro zoom on scroll, Figma and Milanote pan — so there is no default that is right for everyone. It follows your account like the rest of this tab, and pinching a trackpad zooms either way."
+    }
    ]
   },
   {

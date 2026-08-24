@@ -69,6 +69,10 @@ export const HARDCODED_FALLBACKS = Object.freeze({
     fontMono: null,
     hideChrome: false,
     sidebarOpen: true,
+    // What a plain scroll wheel does on the canvas: 'pan' (cmd-wheel zooms —
+    // what always shipped) or 'zoom'. An input preference, so per-user like the
+    // rest of `ui`, and it follows the account between devices.
+    wheelMode: 'pan',
   },
 });
 
