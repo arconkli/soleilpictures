@@ -10,6 +10,8 @@ answer: Press ? anywhere in Soleil Clusters to see the shortcut list without lea
 faq:
   - q: How do I see shortcuts without leaving what I am doing?
     a: Press ? on any canvas, or click the help button in the corner of the canvas. The overlay lists every shortcut grouped by what it affects.
+  - q: Can the scroll wheel zoom instead of scrolling the board around?
+    a: Yes. Settings → Display → Scroll wheel, or Cmd-K and type "scroll wheel". Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way.
   - q: Do these work on Windows?
     a: Yes. Every Cmd shortcut listed here is Ctrl on Windows and Linux. The in-app overlay detects your platform and shows the right modifier.
 related:
@@ -31,6 +33,8 @@ modifier key for your platform. On Windows and Linux, every `⌘` below is `Ctrl
 | `A` | Arrow |
 | `G` | Add a grid |
 | `Esc` | Back to select · dismiss whatever is open |
+
+
 
 ## Navigate
 
@@ -54,7 +58,7 @@ contents, notes, docs and tags, and it also runs commands — "share", "trash",
 | `⌘A` | Select all |
 | `⌘G` | Group selection |
 | `[` / `]` | Send backward · forward |
-| `⌫` | Delete selection |
+| `⌫` or `Del` | Delete selection |
 
 > **Note:** Undo is per-session and per-board. It undoes your own edits, not a
 > collaborator's — in a shared board, undo that could revert someone else's work
@@ -69,9 +73,25 @@ contents, notes, docs and tags, and it also runs commands — "share", "trash",
 | `⇧1` | Fit everything |
 | `⇧2` | Fit selection |
 | `Space`-drag | Pan with any tool active |
+| Scroll | Pan the canvas — or zoom, if you swap it |
+| `⌘`-scroll | Zoom at the pointer |
 
 Zoom and pan are remembered per cluster. Reopening a board puts you back where
 you were rather than at the origin.
+
+### Swapping what the wheel does
+
+**Settings → Display → Scroll wheel.** Scrolling pans by default and `⌘`-scroll
+zooms; set it to **Zoom** and they trade places, so a plain scroll zooms at the
+pointer and `⌘`, `Alt` or `Shift` pans. `⌘K` → "scroll wheel" flips it without
+opening settings.
+
+Which one is right depends on what you came from — PureRef and Miro zoom on
+scroll, Figma and Milanote pan — which is why it is a setting and not a default
+we picked for you.
+
+Pinching a trackpad zooms in either mode, and always will: a pinch reaches the
+browser as a `Ctrl`-scroll, so `Ctrl` means zoom whatever else is configured.
 
 ## Notes
 

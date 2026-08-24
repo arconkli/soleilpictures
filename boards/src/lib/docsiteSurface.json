@@ -360,7 +360,7 @@
   "shortcutSections": [
     {
       "title": "Tools",
-      "rows": 6
+      "rows": 7
     },
     {
       "title": "Navigate",
@@ -372,7 +372,7 @@
     },
     {
       "title": "View",
-      "rows": 5
+      "rows": 7
     },
     {
       "title": "Notes",

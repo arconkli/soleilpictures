@@ -28,6 +28,7 @@ import { ColorPicker } from './ColorPicker.jsx';
 import { R2Image } from './R2Image.jsx';
 import { HARDCODED_FALLBACKS } from '../hooks/useResolvedDefaults.js';
 import { applyThemeNow } from '../lib/theme.js';
+import { WHEEL_MODES, getWheelMode, applyWheelModeNow } from '../lib/wheelMode.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { planLabel, formatPeriodEnd, grantCopy } from '../lib/billingCopy.js';
 import { startPortal } from '../lib/checkout.js';
@@ -1722,10 +1723,17 @@ function AccentPicker({ value, onChange }) {
   );
 }
 
-// ── Display tab — clean mode + sidebar default ──────────────────────────
+// Cmd on a Mac, Ctrl everywhere else — the copy has to name the key the reader
+// actually has. Same derivation as ShortcutsOverlay.
+const WHEEL_CMD = (typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '')) ? '⌘' : 'Ctrl';
+
+// ── Display tab — clean mode + sidebar default + scroll wheel ───────────
 function DisplayTab({ mySettings, refresh }) {
   const feedback = useFeedback();
   const ui = mySettings.ui || {};
+  // getWheelMode() rather than ui.wheelMode: the module is what the canvas
+  // actually reads, so the pills can never show a mode the wheel isn't using.
+  const wheelMode = getWheelMode();
   const setUi = async (patch) => {
     try {
       await updateOwnSettings({ ui: { ...ui, ...patch } });
@@ -1757,6 +1765,34 @@ function DisplayTab({ mySettings, refresh }) {
         desc="When you launch the app, start with the sidebar expanded."
         value={ui.sidebarOpen !== false}
         onChange={(v) => setUi({ sidebarOpen: v })} />
+
+      {/* Scroll wheel. The convention splits across the tools people arrive
+          from — PureRef and Miro zoom, Figma and Milanote pan — so this is a
+          preference rather than a default we could get right for everyone.
+          Applied synchronously as well as saved: the canvas reads the module,
+          not this component, so the gesture changes under the user's hand
+          rather than after the profile round-trip. */}
+      <Field label="Scroll wheel">
+        <div className="settings-pill-row">
+          {WHEEL_MODES.map((m) => (
+            <button key={m} type="button"
+                    className={`settings-pill ${wheelMode === m ? 'is-active' : ''}`}
+                    onClick={() => {
+                      applyWheelModeNow(m);
+                      setUi({ wheelMode: m });
+                      try { logEvent(EV.WHEEL_MODE_SET, { mode: m, source: 'settings' }); } catch (_) {}
+                    }}>
+              {m === 'pan' ? 'Pan' : 'Zoom'}
+            </button>
+          ))}
+        </div>
+      </Field>
+      <p className="settings-section-hint">
+        {wheelMode === 'zoom'
+          ? `Scrolling zooms at the pointer. ${WHEEL_CMD}-scroll, Alt-scroll or Shift-scroll pans.`
+          : `Scrolling pans the canvas. ${WHEEL_CMD}-scroll zooms.`}
+        {' '}Pinching a trackpad always zooms.
+      </p>
     </div>
   );
 }

@@ -22,6 +22,7 @@ const SECTIONS = [
       [['N'], 'Add a note'],
       [['D'], 'Free-draw'],
       [['A'], 'Arrow'],
+      [['G'], 'Add a grid'],
       [['Esc'], 'Back to select · dismiss'],
     ],
   },
@@ -42,7 +43,7 @@ const SECTIONS = [
       [[`${CMD}A`], 'Select all'],
       [[`${CMD}G`], 'Group selection'],
       [['[', ']'], 'Send backward · forward'],
-      [['⌫'], 'Delete selection'],
+      [['⌫', 'Del'], 'Delete selection'],
     ],
   },
   {
@@ -53,6 +54,8 @@ const SECTIONS = [
       [['⇧1'], 'Fit everything'],
       [['⇧2'], 'Fit selection'],
       [['Space-drag'], 'Pan (any tool)'],
+      [['Scroll'], 'Pan · zoom — swap in Settings → Display'],
+      [[`${CMD}-scroll`], 'Zoom at the pointer'],
     ],
   },
   {

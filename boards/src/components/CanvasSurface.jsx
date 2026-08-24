@@ -76,6 +76,8 @@ import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent, logEventOnce } from '../lib/analytics.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
+import { getWheelMode, resolveWheelIntent } from '../lib/wheelMode.js';
+import { wheelHintSeen, markWheelHintSeen, trackWheelFrustration, freshWheelState } from '../lib/wheelHint.js';
 import { genuineCards, hasGenuineCard } from '../lib/firstValueTrigger.js';
 import { shouldShowDepthDock } from '../lib/depthDock.js';
 import { momentumHintSeen, markMomentumHintSeen } from '../lib/momentumHint.js';
@@ -1381,6 +1383,13 @@ export function CanvasSurface({
   const [spaceDown, setSpaceDown] = useState(false);
   const lastMouseCanvasRef = useRef({ x: 200, y: 200 });
   const feedback = useFeedback();
+  // The wheel effect binds once with [] deps on purpose (re-binding it fired
+  // the cleanup mid-pan and nulled the peer cursor — see that effect), so it
+  // cannot capture `feedback` or hold gesture state in a closure. Both go
+  // through refs, synced on render like boardIdRef below.
+  const feedbackRef = useRef(feedback);
+  feedbackRef.current = feedback;
+  const wheelFrustrationRef = useRef(freshWheelState());
 
   // Edit attempts on read-only boards silently no-op (viewer shares always
   // did). The demo-tier "Subscribe to edit shared clusters" toast died with
@@ -2847,7 +2856,15 @@ export function CanvasSurface({
     return () => { window.removeEventListener('keydown', onDown); window.removeEventListener('keyup', onUp); };
   }, []);
 
-  // Wheel: cmd-wheel zoom around cursor; plain wheel = pan.
+  // Wheel: what a plain wheel does depends on Settings → Display → Scroll
+  // wheel. Default 'pan' (cmd-wheel zooms) is what always shipped; 'zoom'
+  // swaps them. The whole modifier matrix lives in resolveWheelIntent — see
+  // lib/wheelMode.js, and note that ctrl+wheel means zoom in BOTH modes
+  // because that is how a trackpad pinch reaches the page.
+  //
+  // getWheelMode() is a synchronous module read on purpose: this effect has an
+  // empty dependency array (see below) and must keep it, so the preference can
+  // never be a captured closure value.
   //
   // Pan/zoom updates write directly to panRef/zoomRef + canvasRef.style.transform
   // — NOT through setState — so a 120Hz wheel burst doesn't trigger 120
@@ -2881,6 +2898,38 @@ export function CanvasSurface({
     };
     const onWheel = (e) => {
       if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob')) return;
+      // Public pages are pinned to pan semantics whatever the reader's own
+      // preference says. They are scrollable documents — a canvas hero with an
+      // article under it — so a plain wheel has to scroll the PAGE, and a
+      // visitor carrying wheelMode:'zoom' in localStorage from the app would
+      // otherwise find the article unreachable.
+      const wheelMode = isPublic ? 'pan' : getWheelMode();
+      const intent = resolveWheelIntent({
+        mode: wheelMode,
+        ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey, shiftKey: e.shiftKey,
+        deltaX: e.deltaX, deltaY: e.deltaY,
+      });
+      // Someone fighting the canvas — scrolling down expecting zoom, watching it
+      // pan, scrolling back, repeating — gets told once that the gesture is
+      // configurable. Only in pan mode, only for plain wheels, only ever once.
+      // See lib/wheelHint.js for why reversals rather than volume.
+      if (wheelMode === 'pan' && !isPublic && !wheelHintSeen()) {
+        const out = trackWheelFrustration(wheelFrustrationRef.current, {
+          t: performance.now(),
+          deltaX: e.deltaX, deltaY: e.deltaY,
+          ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey, shiftKey: e.shiftKey,
+        });
+        wheelFrustrationRef.current = out.state;
+        if (out.fire) {
+          markWheelHintSeen();
+          feedbackRef.current?.toast({
+            type: 'info',
+            message: `Scrolling pans the canvas. ${isMac ? '⌘' : 'Ctrl'}-scroll zooms — or switch the wheel to zoom in Settings → Display.`,
+            ttl: 7000,
+          });
+          try { logEvent(EV.WHEEL_HINT_SHOWN, { board_id: boardIdRef.current }); } catch (_) {}
+        }
+      }
       // Wheel over a SELECTED or EDITING note whose text overflows scrolls
       // the note's text instead of panning the canvas (you could otherwise
       // never wheel-scroll a clipped note — the canvas panned and flung the
@@ -2894,13 +2943,27 @@ export function CanvasSurface({
       // the browser's own ctrl+wheel page-zoom must stay preventDefault'ed.
       // The |deltaY| >= |deltaX| clause keeps horizontal trackpad pans
       // working over notes (note text can't overflow horizontally).
-      if (!(e.ctrlKey || e.metaKey) && e.target.closest) {
+      //
+      // The note only takes an UNMODIFIED wheel — a modified one is addressed
+      // to the canvas. Which modifiers count is mode-dependent: cmd/ctrl are
+      // the canvas's in pan mode, and zoom mode adds alt and shift because
+      // those are its pan gestures.
+      //
+      // In ZOOM mode the note-scroll narrows to a note actually being EDITED.
+      // The caret is in that text and zooming the board out from under it is
+      // never right. But a clipped note you merely SELECTED should zoom like
+      // the rest of the board — otherwise the gesture you just switched on
+      // stops working over every note you happen to have clicked.
+      const wheelModified = wheelMode === 'zoom'
+        ? (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey)
+        : (e.ctrlKey || e.metaKey);
+      if (!wheelModified && e.target.closest) {
         const body = e.target.closest('.note-body');
         if (body && body.scrollHeight > body.clientHeight + 1 &&
             Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
           const isEditing = !!body.closest('.note')?.classList.contains('is-editing');
           const isSelected = !!body.closest('.card')?.classList.contains('is-selected');
-          if (isEditing || isSelected) return;
+          if (isEditing || (isSelected && wheelMode === 'pan')) return;
         }
       }
       // Public pages are scrollable documents (canvas hero + article below):
@@ -2914,12 +2977,12 @@ export function CanvasSurface({
       // Round 17: time the JS-side cost of zoom handling. A 'first-zoom
       // hitch' may be JS (this number high) or browser compositor (this
       // number low, but DevTools trace still shows a long task).
-      const _isZoom = e.ctrlKey || e.metaKey;
+      const _isZoom = intent === 'zoom';
       const _tZ = (_isZoom && perf.isEnabled()) ? performance.now() : 0;
       const rect = el.getBoundingClientRect();
       const curPan = panRef.current;
       const curZoom = zoomRef.current;
-      if (e.ctrlKey || e.metaKey) {
+      if (intent === 'zoom') {
         // Trackpads send pixel-mode deltas; mouse wheels send line-mode.
         // Use a 2.8× faster pixel sensitivity but compensate when delta
         // looks chunky (line scroll) to avoid runaway zoom on mice.
