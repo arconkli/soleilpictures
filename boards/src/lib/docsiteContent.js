@@ -3883,6 +3883,49 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Inside text you are editing:",
+     "children": [
+      {
+       "t": "text",
+       "v": "Inside text you are editing:"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " your browser's own menu, not ours. Right-clicking mid-sentence in a "
+    },
+    {
+     "t": "link",
+     "v": "note",
+     "href": "/docs/canvas/notes",
+     "children": [
+      {
+       "t": "text",
+       "v": "note"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is a text gesture, so you get Paste, Copy, Look Up and Emoji & Symbols rather than card operations. Click away first to get the card menu."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Panels that float above the canvas — the colour picker, image adjustments, grid cell menus — swallow the right-click rather than passing it to the card behind them. The exception is a text field inside one, which again defers to the browser, so you can paste a hex code straight into the picker."
+    }
+   ]
+  },
+  {
    "type": "callout",
    "variant": "tip",
    "inline": [
@@ -5947,6 +5990,29 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " rather than doing nothing. This is deliberate — it is almost always what you meant."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Right-clicking while you are editing gives you the "
+    },
+    {
+     "t": "strong",
+     "v": "browser's",
+     "children": [
+      {
+       "t": "text",
+       "v": "browser's"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " text menu — Paste, Copy, Look Up, Emoji & Symbols — not the card menu. A right-click on a note you are not editing gives the card menu as usual."
     }
    ]
   },

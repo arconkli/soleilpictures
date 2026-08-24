@@ -8,6 +8,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { ImageAdjustPanel } from './ImageAdjustPanel.jsx';
+import { swallowContextMenu } from '../lib/contextMenuGuard.js';
 
 const PANEL_W = 256;
 const PAD = 10;
@@ -111,7 +112,7 @@ export function ImageEditPopover({ anchorRect, adjust, onChange, onReset, onExpa
          onMouseDown={(e) => e.stopPropagation()}
          onClick={(e) => e.stopPropagation()}
          onDoubleClick={(e) => e.stopPropagation()}
-         onContextMenu={(e) => e.stopPropagation()}
+         onContextMenu={swallowContextMenu}
          onWheel={(e) => e.stopPropagation()}>
       <ImageAdjustPanel adjust={adjust} mode="compact"
                         onChange={onChange} onReset={onReset} onExpand={onExpand}

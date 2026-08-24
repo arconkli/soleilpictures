@@ -9,6 +9,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { addRecentColor, addSavedColor, removeSavedColor, isColorSaved } from '../lib/recentColors.js';
 import { useRecentColors, useSavedColors } from '../hooks/useRecentColors.js';
+import { swallowContextMenu } from '../lib/contextMenuGuard.js';
 
 const PRESETS = [
   '#ffffff', '#0a0a0c', '#f5f5f6', '#5b5c61',
@@ -340,7 +341,7 @@ export function ColorPicker({
          onMouseDown={(e) => e.stopPropagation()}
          onClick={(e) => e.stopPropagation()}
          onDoubleClick={(e) => e.stopPropagation()}
-         onContextMenu={(e) => e.stopPropagation()}>
+         onContextMenu={swallowContextMenu}>
       <div className="cp-head">
         <div>
           <div className="cp-kicker">Color</div>

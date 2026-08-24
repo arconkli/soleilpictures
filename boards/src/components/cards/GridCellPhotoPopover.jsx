@@ -14,6 +14,7 @@ import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { Icon } from '../Icon.jsx';
 import { Hand, RotateCcw, Search } from '../../lib/icons.js';
 import { ImageAdjustPanel } from '../ImageAdjustPanel.jsx';
+import { swallowContextMenu } from '../../lib/contextMenuGuard.js';
 
 const PAD = 10;
 const GAP = 10;
@@ -74,7 +75,7 @@ export function GridCellPhotoPopover({ anchorRect, fit, zoom = 1, adjust, reposi
   const node = (
     <div className="gridc-photo-pop" ref={ref} style={style}
          onPointerDown={stop} onMouseDown={stop} onClick={stop}
-         onDoubleClick={stop} onContextMenu={stop} onWheel={stop}>
+         onDoubleClick={stop} onContextMenu={swallowContextMenu} onWheel={stop}>
       <div className="gcp-frame">
         <div className="gcp-eyebrow">Fit to cell</div>
         <div className="gcp-frame-row">

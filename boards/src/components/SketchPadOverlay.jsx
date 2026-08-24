@@ -26,6 +26,7 @@ import { useFeedback } from './AppFeedback.jsx';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { pushDocUndoTarget, removeDocUndoTarget } from '../lib/overlayRouting.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
+import { swallowContextMenu } from '../lib/contextMenuGuard.js';
 
 // Default pen stroke + bucket fill colors. The pad SURFACE defaults to
 // pure white — when the user commits, the surrounding ArtCanvasCard
@@ -322,7 +323,12 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   if (!open) return null;
 
   return createPortal(
-    <div className="sketchpad-bg">
+    // The pad is a full-viewport portal on document.body, so it sits outside
+    // every canvas contextmenu handler and used to leave the OS menu as the
+    // only thing a right-click could produce — over a drawing surface, where
+    // "Reload / Save image as…" is never the intent. swallowContextMenu still
+    // defers on the colour picker's hex field.
+    <div className="sketchpad-bg" onContextMenu={swallowContextMenu}>
       <div className="sketchpad-frame">
         <div className="sketchpad-toolbar">
           <button type="button"
