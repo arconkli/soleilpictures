@@ -1141,6 +1141,13 @@ function injectLanding(res, spec) {
     '<script type="application/ld+json">' + jsonLdSafe(
       listicle ? buildListicleJsonLd(spec, canonical, og) : buildLandingJsonLd(spec, canonical)
     ) + '</script>'
+    // Same affordance /docs has had since the mirrors existed. These pages got
+    // their .md twins on 2026-08-23 but not this link, so the only way to find
+    // one was llms.txt — and the pages assistants actually cite are these, not
+    // the reference docs. Head-only on purpose: a VISIBLE footer would have to
+    // be added to the React renderer too or the crawler would see prose the
+    // reader does not, which is the one thing this whole design prevents.
+    + `<link rel="alternate" type="text/markdown" href="${escapeHtml(spec.path)}.md">`
   ));
   return rw.transform(res);
 }
