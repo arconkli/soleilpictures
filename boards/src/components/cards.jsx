@@ -737,7 +737,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 // playback uses a <video> element with a presigned read URL fetched
 // the same way images are. For brevity, this component plays whatever
 // `src` was stamped on the card (works for r2: and external https).
-function VideoCard({ src, poster, title, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
   // Same fix as ImageCard: don't auto-open the title row on paste; it
   // silently eats vertical layout and makes object-fit:cover crop the
   // video. Double-click to edit instead.
@@ -769,14 +769,46 @@ function VideoCard({ src, poster, title, onUpdate, autoFocus = false, editTitleA
     resolveSrc(poster).then(u => { if (!cancelled) setPosterUrl(u || null); });
     return () => { cancelled = true; };
   }, [poster]);
+  // Autoplay is gated on the card actually being on screen, rather than handed
+  // to the `autoplay` attribute. A reference board holds a dozen clips and the
+  // attribute would have every one of them decoding the moment the board
+  // opened — the same cost profile as the GPU overlap-cascade work. Play what
+  // is visible, pause what scrolls away.
+  //
+  // Muted is not a preference: an unmuted autoplay is blocked outright by every
+  // browser, so an autoplaying clip is a moving still. It also keeps out of
+  // audioBus's one-sound-at-a-time rule, which a wall of self-starting audio
+  // would otherwise trample. The user can unmute from the controls.
+  const videoRef = useRef(null);
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !autoplay || !resolvedUrl) return;
+    // React does not reliably reflect a `muted` prop onto the element, and
+    // without it play() rejects. Set it on the node.
+    el.muted = true;
+    if (typeof IntersectionObserver === 'undefined') { el.play?.().catch(() => {}); return; }
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) el.play?.().catch(() => {});   // still rejects if the tab is hidden
+        else el.pause?.();
+      }
+    }, { threshold: 0.15 });
+    io.observe(el);
+    // Turning autoplay off should stop the clip that is autoplaying, not just
+    // decline to start it next time.
+    return () => { io.disconnect(); try { el.pause(); } catch (_) {} };
+  }, [autoplay, resolvedUrl]);
+
   const showTitle = !!title || editingTitle;
   const onDbl = (e) => { e.stopPropagation(); setEditingTitle(true); };
   return (
     <div className="vc">
       <div className="vc-vidwrap" onDoubleClick={onDbl}>
         {resolvedUrl
-          ? <video className="vc-video" src={resolvedUrl}
+          ? <video ref={videoRef} className="vc-video" src={resolvedUrl}
                    {...(posterUrl ? { poster: posterUrl } : {})}
+                   {...(loop ? { loop: true } : {})}
+                   {...(autoplay ? { muted: true } : {})}
                    controls preload="metadata" playsInline />
           : (posterUrl
               ? <img className="vc-video" src={posterUrl} alt="" draggable="false" />

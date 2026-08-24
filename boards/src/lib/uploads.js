@@ -614,6 +614,31 @@ export function readVideoMeta(file) {
 // `source` may be a File/Blob (eager, on-upload — no CORS taint) OR a same-origin
 // object URL built from a fetched blob (backfill). Resolves null on any failure
 // so the caller degrades to the video glyph rather than erroring.
+// Capture a first-frame poster from a local File and store it as a normal image
+// object, so it renders through R2Image everywhere (list/gallery rows, the video
+// card, board thumbnails). Same pattern as the PDF page-1 thumb. Best-effort and
+// non-fatal: returns null and the caller degrades to the video glyph.
+//
+// Shared by both upload routes on purpose. The multipart route (dropLargeMedia,
+// >30MB, paid) skipped this, so its cards were only rescued later by
+// useVideoPosterBackfill — which does the same job by re-downloading the whole
+// file to grab one frame. On the files that route exists to handle, that is a
+// multi-gigabyte round trip for a thumbnail. The File is already in hand at
+// upload time; use it.
+export async function captureAndUploadPoster({ file, workspaceId, boardId, userId }) {
+  try {
+    const blob = await captureVideoPoster(file);
+    if (!blob) return null;
+    const base = (file.name || 'video').replace(/\.[a-z0-9]+$/i, '').replace(/[^a-z0-9-_ ]/gi, '_').slice(0, 60) || 'video';
+    const posterFile = new File([blob], `${base}.webp`, { type: 'image/webp' });
+    const up = await uploadImage({ file: posterFile, workspaceId, boardId, userId });
+    return up?.src || null;
+  } catch (err) {
+    console.warn('[uploads] video poster capture failed (video still plays)', err);
+    return null;
+  }
+}
+
 export function captureVideoPoster(source, { seekTo = 0.12, maxWidth = 1024, timeoutMs = 7000 } = {}) {
   return new Promise((resolve) => {
     let url = null;
@@ -850,21 +875,7 @@ export async function uploadVideo({ file, workspaceId, boardId, userId, onProgre
     throw new Error('Could not finish saving the video — please try again.');
   }
 
-  // Capture a first-frame poster (best-effort, non-fatal) and store it as a
-  // normal image object so it renders through R2Image everywhere (list/gallery
-  // rows, video card, board thumbnails). Same pattern as the PDF page-1 thumb.
-  let poster = null;
-  try {
-    const blob = await captureVideoPoster(file);
-    if (blob) {
-      const base = (file.name || 'video').replace(/\.[a-z0-9]+$/i, '').replace(/[^a-z0-9-_ ]/gi, '_').slice(0, 60) || 'video';
-      const posterFile = new File([blob], `${base}.webp`, { type: 'image/webp' });
-      const up = await uploadImage({ file: posterFile, workspaceId, boardId, userId });
-      poster = up.src;
-    }
-  } catch (err) {
-    console.warn('[uploads] video poster capture failed (video still plays)', err);
-  }
+  const poster = await captureAndUploadPoster({ file, workspaceId, boardId, userId });
 
   return {
     src: `r2:${key}`,
