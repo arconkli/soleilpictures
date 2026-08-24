@@ -57,7 +57,7 @@ import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
-import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideoMeta, readAudioMeta, makeBoundedPreview } from '../lib/uploads.js';
+import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideoMeta, readAudioMeta, makeBoundedPreview, captureAndUploadPoster } from '../lib/uploads.js';
 import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
 import { trackStroke } from '../lib/pointerStroke.js';
@@ -2562,6 +2562,14 @@ export function CanvasSurface({
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
       const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
       if (boardIdRef.current === dropBoardId) mutators.updateCardSilent?.(id, { src: up.src, pending: false });
+      // Poster from the local File, not from a re-download. Without this the
+      // card is posterless until useVideoPosterBackfill rescues it by fetching
+      // the whole clip back — and this route exists precisely for the clips too
+      // big to want that. After the src patch so playback is never gated on it.
+      if (kind === 'video') {
+        const poster = await captureAndUploadPoster({ file, workspaceId, boardId: dropBoardId, userId });
+        if (poster && boardIdRef.current === dropBoardId) mutators.updateCardSilent?.(id, { poster });
+      }
     } catch (err) {
       console.error('large media upload failed', err);
       handleUploadReject(err, id, dropBoardId);
@@ -5578,6 +5586,14 @@ export function CanvasSurface({
       } else if (c.kind === 'video') {
         items.push({ id: 'video-title', label: c.title ? 'Edit title' : 'Add title',
                      run: () => triggerInlineEdit(c.id, 'title') });
+        // Labels state the action, matching the group outline/label pair — there
+        // is no checkmark affordance in these menus. "(muted)" is on the label
+        // because an unmuted autoplay is blocked by every browser, and a silent
+        // clip nobody was warned about reads as broken audio.
+        items.push({ id: 'video-autoplay', label: c.autoplay ? 'Turn off autoplay' : 'Autoplay (muted)',
+                     run: () => mutators.updateCard?.(c.id, { autoplay: c.autoplay ? null : true }) });
+        items.push({ id: 'video-loop', label: c.loop ? 'Turn off looping' : 'Loop',
+                     run: () => mutators.updateCard?.(c.id, { loop: c.loop ? null : true }) });
       } else if (c.kind === 'schedule') {
         items.push({ id: 'schedule-title', label: c.title ? 'Edit title' : 'Add title',
                      run: () => triggerInlineEdit(c.id, 'title') });
@@ -7447,7 +7463,8 @@ export function CanvasSurface({
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} chipsOnly={c.chipsOnly} w={Math.round(w)} h={Math.round(h)} onUpdate={onUpdate} autoFocus={af}
                                                           editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
-    else if (c.kind === 'video')     inner = <VideoCard src={c.src} poster={c.poster} title={c.title} onUpdate={onUpdate} autoFocus={af}
+    else if (c.kind === 'video')     inner = <VideoCard src={c.src} poster={c.poster} title={c.title}
+                                                        autoplay={!!c.autoplay} loop={!!c.loop} onUpdate={onUpdate} autoFocus={af}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'audio')     inner = <AudioCard src={c.src} title={c.title} duration={c.duration} cover={c.cover}
                                                         onUpdate={onUpdate} autoFocus={af}

@@ -1238,6 +1238,10 @@ export const DOCS_PAGES = [
         "a": "No. Clusters plays media, it does not edit it. Trim in your editor and upload the version you want to show."
       },
       {
+        "q": "Can a video loop like a GIF?",
+        "a": "Yes. Right-click the card for Autoplay and Loop. Autoplay is always muted because browsers block clips that start themselves with sound, and a clip only plays while it is on screen."
+      },
+      {
         "q": "What formats work?",
         "a": "Whatever the browser can play — H.264 MP4 and MP3 or WAV are the safe choices. An unplayable file still uploads and becomes a downloadable file card."
       }

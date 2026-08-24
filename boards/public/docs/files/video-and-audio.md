@@ -12,6 +12,22 @@ clip is a card among the reference stills it belongs with.
 A video card plays inline. Move it, resize it, group it and comment on it like
 anything else.
 
+### Autoplay and looping
+
+Right-click a video card for **Autoplay (muted)** and **Loop**. Together they
+turn a short clip into the thing a GIF used to be on a reference board — a
+moving still you never have to press play on — while the file stays a real
+video you can scrub, download and hand to an editor.
+
+Autoplay is **muted**, and not as a preference: every browser blocks an
+autoplaying clip that makes noise, and a board of self-starting soundtracks
+would fight the one-at-a-time rule audio cards follow. Unmute from the card's
+own controls when you want to hear it.
+
+A clip only plays while it is **on screen**. Scroll it out of view and it pauses.
+On a board holding twenty takes, autoplaying all of them at once is what makes a
+canvas stutter, so this is the behaviour rather than a setting.
+
 Free accounts cap video at **30 MB**. That is enough for a
 reference clip or a cut-down, not for a full-resolution master.
 Creator removes the cap and handles very large files by uploading them

@@ -12138,6 +12138,101 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "heading",
+   "depth": 3,
+   "text": "Autoplay and looping",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Autoplay and looping"
+    }
+   ],
+   "id": "autoplay-and-looping"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Right-click a video card for "
+    },
+    {
+     "t": "strong",
+     "v": "Autoplay (muted)",
+     "children": [
+      {
+       "t": "text",
+       "v": "Autoplay (muted)"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Loop",
+     "children": [
+      {
+       "t": "text",
+       "v": "Loop"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Together they turn a short clip into the thing a GIF used to be on a reference board — a moving still you never have to press play on — while the file stays a real video you can scrub, download and hand to an editor."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Autoplay is "
+    },
+    {
+     "t": "strong",
+     "v": "muted",
+     "children": [
+      {
+       "t": "text",
+       "v": "muted"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and not as a preference: every browser blocks an autoplaying clip that makes noise, and a board of self-starting soundtracks would fight the one-at-a-time rule audio cards follow. Unmute from the card's own controls when you want to hear it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A clip only plays while it is "
+    },
+    {
+     "t": "strong",
+     "v": "on screen",
+     "children": [
+      {
+       "t": "text",
+       "v": "on screen"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Scroll it out of view and it pauses. On a board holding twenty takes, autoplaying all of them at once is what makes a canvas stutter, so this is the behaviour rather than a setting."
+    }
+   ]
+  },
+  {
    "type": "para",
    "inline": [
     {
