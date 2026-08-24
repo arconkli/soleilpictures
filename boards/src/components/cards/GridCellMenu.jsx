@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { Icon } from '../Icon.jsx';
 import { Columns2 as Columns, Trash2 as Trash, TextT, Image as ImageIcon, Link, ArrowsClockwise, Edit as Pencil, Maximize2, Download } from '../../lib/icons.js';
+import { swallowContextMenu } from '../../lib/contextMenuGuard.js';
 
 const PAD = 10;
 const GAP = 10;   // gap between the cell edge and the menu
@@ -81,7 +82,7 @@ export function GridCellMenu({ anchorRect, mode = 'empty', isImage = false,
   const node = (
     <div className="gridc-cell-menu" ref={ref} style={style}
          onPointerDown={stop} onMouseDown={stop} onClick={stop}
-         onDoubleClick={stop} onContextMenu={stop} onWheel={stop}>
+         onDoubleClick={stop} onContextMenu={swallowContextMenu} onWheel={stop}>
       {showChooser ? (
         <div className="gcm-group">
           <button type="button" className="gcm-item" title="Text" aria-label="Text" onClick={run(onText)}>

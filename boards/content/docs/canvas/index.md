@@ -73,6 +73,16 @@ operations — duplicate, delete, layer order, tag, comment, copy link.
 **On a group:** rename, outline shape and colour, add to group, ungroup, group
 comment, group tag.
 
+**Inside text you are editing:** your browser's own menu, not ours. Right-clicking
+mid-sentence in a [note](/docs/canvas/notes) is a text gesture, so you get Paste,
+Copy, Look Up and Emoji & Symbols rather than card operations. Click away first
+to get the card menu.
+
+Panels that float above the canvas — the colour picker, image adjustments, grid
+cell menus — swallow the right-click rather than passing it to the card behind
+them. The exception is a text field inside one, which again defers to the
+browser, so you can paste a hex code straight into the picker.
+
 > **Tip:** Double-clicking empty canvas opens the add menu right at your cursor.
 > On a long canvas this beats travelling to the rail and back.
 

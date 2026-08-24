@@ -20,6 +20,7 @@ import { SCHED_TUNING } from '../../lib/schedLayout.js';
 import { placeBeside } from './GridCellMenu.jsx';
 import { Icon } from '../Icon.jsx';
 import { ChevronLeft, ChevronRight, ArrowLeft, X } from '../../lib/icons.js';
+import { swallowContextMenu } from '../../lib/contextMenuGuard.js';
 
 const stop = (e) => e.stopPropagation();
 
@@ -80,7 +81,7 @@ export function SchedulePeek({ cardId, title, sourceRect, contentH, hourMode = f
     <div className="schedc-peekpanel" ref={ref} role="dialog" aria-label={title}
          data-grid-id={cardId}
          style={{ ...style, width: SCHED_TUNING.PEEK_W, maxHeight: panelH }}
-         onWheel={stop} onContextMenu={stop}>
+         onWheel={stop} onContextMenu={swallowContextMenu}>
       <div className="schedc-peekhead" onPointerDown={stop}>
         {onBack && (
           <button type="button" className="schedc-peeknav" title="Back to day" aria-label="Back to day"

@@ -15,6 +15,7 @@ import {
 } from '../../lib/schedDates.js';
 import { Icon } from '../Icon.jsx';
 import { ChevronLeft, ChevronRight } from '../../lib/icons.js';
+import { swallowContextMenu } from '../../lib/contextMenuGuard.js';
 
 const PAD = 10;
 const GAP = 6;
@@ -68,7 +69,7 @@ export function SchedDatePopover({ anchorRect, anchor, onPick, onClose }) {
 
   const node = (
     <div className="schedc-datepop" ref={ref} role="dialog" aria-label="Jump to date" style={style}
-         onPointerDown={stop} onWheel={stop} onContextMenu={stop}>
+         onPointerDown={stop} onWheel={stop} onContextMenu={swallowContextMenu}>
       <div className="schedc-dp-head">
         <button type="button" className="schedc-dp-nav" title="Previous month" aria-label="Previous month"
           onClick={(e) => { e.stopPropagation(); setViewMonth((m) => addMonths(m, -1)); }}>

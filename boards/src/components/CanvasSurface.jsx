@@ -5237,6 +5237,23 @@ export function CanvasSurface({
     // "Linked from" / navigation). Suppress the native menu too for a
     // clean, app-like preview.
     if (isPublic) { e.preventDefault(); return; }
+    // Right-clicking INSIDE a note you're editing is a text gesture, not a card
+    // one. This used to preventDefault unconditionally, so mid-sentence you got
+    // "Duplicate / Delete / Bring to front" — and no Paste, Copy, Look Up or
+    // Emoji & Symbols, which is the whole reason anyone right-clicks in text.
+    // Defer to the browser. stopPropagation still fires so the background menu
+    // doesn't take a turn instead.
+    //
+    // (Not a spellcheck fix: notes run spellcheck OFF on purpose — Chromium
+    // paints its squiggles at untransformed coordinates, which the canvas
+    // transform misaligns. See RichNoteEditor's editor props.)
+    //
+    // A note is only contenteditable WHILE editing (RichNoteEditor's
+    // contentEditable={editing}; the Tiptap surface mounts only in the editing
+    // branch), so a right-click on a resting note still gets the card menu.
+    // isEditorPointerTarget, not isEditorTarget: decided from the event's own
+    // path, never from where the caret happens to be parked.
+    if (isEditorPointerTarget(e)) { e.stopPropagation(); return; }
     e.preventDefault();
     e.stopPropagation();
     setBgCtx(b => ({ ...b, open: false }));

@@ -42,6 +42,10 @@ focused, carrying colour, size, font and alignment.
 > formatting applies to the **whole note** rather than doing nothing. This is
 > deliberate — it is almost always what you meant.
 
+Right-clicking while you are editing gives you the **browser's** text menu —
+Paste, Copy, Look Up, Emoji & Symbols — not the card menu. A right-click on a
+note you are not editing gives the card menu as usual.
+
 ## Checklists
 
 Start a line with a checkbox from the toolbar to make a task list. Boxes are
