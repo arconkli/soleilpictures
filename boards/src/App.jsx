@@ -93,6 +93,7 @@ import { useVideoPosterBackfill } from './hooks/useVideoPosterBackfill.js';
 import { useConversationList } from './hooks/useConversationList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
+import { useDocumentTitle } from './hooks/useDocumentTitle.js';
 import { useInboxLive } from './hooks/useInboxLive.js';
 import { useRecents } from './hooks/useRecents.js';
 import { useWorkspacePresence } from './hooks/useWorkspacePresence.js';
@@ -3316,6 +3317,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph;
   //   'tag'   = TagDetailView keyed by activeTag
   const [activeTag, setActiveTag] = useState(null); // tag row {id,name,color,...} or null
+  // Name the tab after what you're looking at. The board shown is the one the
+  // BREADCRUMB describes — same rule, so the tab and the topbar never disagree
+  // about which side of a split you are on. A docked document has no board
+  // trail of its own, so the trail (and the tab) keep naming the canvas.
+  const tabTitle = useMemo(() => {
+    if (currentSurface === 'tag') return activeTag?.name || null;
+    if (currentSurface !== 'board') return null;   // home graph → served title
+    const paneId = (activePaneId === 'split' && splitId && !splitDoc) ? splitId : currentId;
+    return boards[paneId]?.name || (paneId === rootBoard.id ? rootBoard.name : null);
+  }, [currentSurface, activeTag, activePaneId, splitId, splitDoc, currentId, boards, rootBoard]);
+  useDocumentTitle(tabTitle);
   // Mobile shell: any navigation closes the drawer — tapping a board in the
   // drawer used to leave it open, hiding the very board it just opened.
   useEffect(() => {
