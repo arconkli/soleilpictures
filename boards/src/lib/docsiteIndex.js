@@ -2244,10 +2244,10 @@ export const DOCS_PAGES = [
     "title": "Notifications — Soleil Clusters",
     "metaDescription": "Control what Soleil Clusters notifies you about — mentions, comment replies, workspace invites, board shares, schedule changes and product tips — in Settings.",
     "h1": "Notifications",
-    "answer": "Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, changes to a shoot day in your schedule, and occasional product tips. Each of the six is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.",
+    "answer": "Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.",
     "section": "collaborate",
     "order": 5,
-    "updated": "2026-08-16",
+    "updated": "2026-08-26",
     "navLabel": "Notifications",
     "headings": [
       {
@@ -2279,7 +2279,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Can I turn off product emails but keep mentions?",
-        "a": "Yes. The six categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work."
+        "a": "Yes. The seven categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work."
       },
       {
         "q": "Where do schedule notifications appear?",

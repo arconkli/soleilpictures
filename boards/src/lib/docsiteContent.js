@@ -21954,7 +21954,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Six categories, six independent switches, in "
+     "v": "Seven categories, seven independent switches, in "
     },
     {
      "t": "strong",
@@ -22073,6 +22073,26 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
+       "v": "Invite accepted",
+       "children": [
+        {
+         "t": "text",
+         "v": "Invite accepted"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Someone you invited opens your link and joins"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
        "v": "Schedule changes",
        "children": [
         {
@@ -22116,7 +22136,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The last one is the one to switch off if you only want to hear about your own work. The other five are all consequences of something a person did that involves you."
+     "v": "The last one is the one to switch off if you only want to hear about your own work. The other six are all consequences of something a person did that involves you."
     }
    ]
   },
@@ -24551,7 +24571,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Independent switches for the emails Clusters sends you — mentions, comment replies, workspace invites, cluster shares, schedule changes, and product tips. Anything you turn off still reaches you in-app. See "
+     "v": "Independent switches for the emails Clusters sends you — mentions, comment replies, workspace invites, cluster shares, accepted invites, schedule changes, and product tips. Anything you turn off still reaches you in-app. See "
     },
     {
      "t": "link",
