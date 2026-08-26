@@ -13,8 +13,8 @@ export const CHANGELOG_ENTRIES = [
   {
     "date": "2026-08-26",
     "anchor": "2026-08-26",
-    "title": "Settings you can find, and a tab that says which cluster",
-    "summary": "Settings collapse from two modals into one grouped panel, every open cluster gets its own browser tab title, and the documentation is finally reachable from inside the app.",
+    "title": "A tab that says which cluster, and clips that behave like clips",
+    "summary": "Every open cluster now puts its own name in the browser tab, video on a reference board loops the way the GIF it replaced did, and the cluster panel stops changing its right-click menu by region.",
     "headings": []
   },
   {
