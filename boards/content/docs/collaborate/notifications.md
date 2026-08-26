@@ -1,15 +1,17 @@
 ---
 title: Notifications — Soleil Clusters
-metaDescription: Control what Soleil Clusters notifies you about — mentions, comment replies, workspace invites, board shares, schedule changes and product tips — in Settings.
+metaDescription: Control what Soleil Clusters notifies you about — mentions, replies, invites, shares, share link activity, schedule changes and product tips — in Settings.
 h1: Notifications
 navLabel: Notifications
 section: collaborate
 order: 5
-updated: 2026-08-16
-answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, changes to a shoot day in your schedule, and occasional product tips. Each of the six is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
+updated: 2026-08-26
+answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone opening a cluster you shared, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 faq:
   - q: Can I turn off product emails but keep mentions?
-    a: Yes. The six categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
+    a: Yes. The seven categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
+  - q: Do I find out who opened my share link?
+    a: No. You are told how many people opened it, never who they were. Anyone reading a share link is signed out, so there is nobody to name.
   - q: Where do schedule notifications appear?
     a: Under Schedule in the sidebar, which carries an unread count. Unlike a toast, they persist until you read them, so a call sheet published late at night is still there in the morning.
   - q: Do I get browser notifications?
@@ -24,7 +26,7 @@ related:
   - /docs/collaborate/messages
 ---
 
-Six categories, six independent switches, in **Settings → Notifications**.
+Seven categories, seven independent switches, in **Settings → Notifications**.
 
 | Category | Fires when |
 |---|---|
@@ -32,11 +34,12 @@ Six categories, six independent switches, in **Settings → Notifications**.
 | **Comment replies** | Someone replies in a thread you are part of |
 | **Workspace invites** | You are added to a workspace |
 | **Board shares** | A cluster is shared with you |
+| **Share link activity** | Someone opens a cluster you shared a link to |
 | **Schedule changes** | A shoot day you can see moves, or its call sheet is published |
 | **Product tips and check-ins** | Occasional messages about the product |
 
 The last one is the one to switch off if you only want to hear about your own
-work. The other five are all consequences of something a person did that
+work. The other six are all consequences of something a person did that
 involves you.
 
 ## Where they appear
@@ -81,6 +84,20 @@ separate.
 The mention notification is the important one. When someone `@`s you, the
 notification links to the exact card, comment or passage, not just to the board
 — see [Links and mentions](/docs/organize/links-and-mentions).
+
+## Share link activity
+
+When someone opens a cluster you shared a [link](/docs/collaborate/sharing) to,
+it lands under **Schedule** in the sidebar: how many people opened it, and which
+cluster.
+
+**You are never told who they were.** A share link needs no account, so the
+people reading one are signed out and there is nobody to name. What you get is a
+count.
+
+It is gathered up once a day rather than sent per view, counts each person once
+however many times they look, and emails you at most once a day — and only if
+you are not already in the app.
 
 ## Schedule changes
 

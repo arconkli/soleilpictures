@@ -67,7 +67,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [Presence](https://clusters.soleilpictures.com/docs/collaborate/presence): See collaborators' cursors, selections and location in real time across Soleil Clusters. Workspace facepile, click to jump to someone, presence colours.
 - [Comments](https://clusters.soleilpictures.com/docs/collaborate/comments): Comment anywhere in Soleil Clusters — on a card, a group, an empty point on the canvas, a whole board, or a range of text in a document.
 - [Messages](https://clusters.soleilpictures.com/docs/collaborate/messages): Direct and group messages in Soleil Clusters. Message anyone you share a board with, drag attachments onto the canvas, deep-link to any message.
-- [Notifications](https://clusters.soleilpictures.com/docs/collaborate/notifications): Control what Soleil Clusters notifies you about — mentions, comment replies, workspace invites, board shares, schedule changes and product tips — in Settings.
+- [Notifications](https://clusters.soleilpictures.com/docs/collaborate/notifications): Control what Soleil Clusters notifies you about — mentions, replies, invites, shares, share link activity, schedule changes and product tips — in Settings.
 
 ## Publish
 

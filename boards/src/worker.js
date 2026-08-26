@@ -716,7 +716,7 @@ function unsubConfirmPage(action) {
 
 // Preference keys a one-click unsubscribe link may turn off. Mirrors the
 // allowlist inside the email_unsubscribe() RPC.
-const UNSUB_KEYS = new Set(['email_lifecycle', 'email_schedule']);
+const UNSUB_KEYS = new Set(['email_lifecycle', 'email_schedule', 'email_share_activity']);
 
 function unsubResultPage(message) {
   return unsubShell(`<p style="font-size:16px;line-height:1.6;color:#b3b3b7;">${message}</p>`);

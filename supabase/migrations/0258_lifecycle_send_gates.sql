@@ -65,7 +65,18 @@
 --
 -- Compared as jsonb rather than cast to boolean on purpose — `'nonsense'::boolean`
 -- raises, and a raise here would abort the claim and take the send with it. This
--- mirrors _email_pref_enabled's `<> 'false'` shape.
+-- mirrors _email_pref_enabled's `<> 'false'` shape. (lifecycle_email_optimize()
+-- does cast this key, so a garbage value there would raise instead. Pre-existing,
+-- and it only reaches types that are present in the config at all.)
+--
+-- TWO READERS, TWO DEFAULTS, BOTH CORRECT — do not "fix" one to match the other.
+-- lifecycle_email_optimize() reads the same key as
+-- `coalesce((econf->>'enabled')::boolean, false)`, i.e. absent means SKIP: it has
+-- no business tuning arms for a type nobody configured. Here absent means SEND,
+-- because a missing flag must not silently mute mail that is working. The
+-- optimizer also `continue`s past a disabled type without writing it back, so
+-- the nightly run at 04:45 preserves an off switch rather than resetting it —
+-- verified before relying on it.
 create or replace function public.lifecycle_type_enabled(p_type text)
 returns boolean
 language sql stable security definer set search_path = public as $$

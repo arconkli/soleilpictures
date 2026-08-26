@@ -84,9 +84,11 @@ function fromAddress(template: string): string {
     case "nudge_dormant_early":
     case "whats_new":
       return FROM_LIFECYCLE;
-    // Activity-class, not marketing: it is triggered by something a colleague
-    // did, so it belongs on the same from-address as shares and mentions.
+    // Activity-class, not marketing: both are triggered by something that
+    // happened rather than by a schedule, so they belong on the same
+    // from-address as shares and mentions.
     case "schedule_update":
+    case "share_activity":
       return FROM_NOREPLY;
     default:
       return FROM_NOREPLY;
@@ -101,14 +103,17 @@ function fromAddress(template: string): string {
 // reaches an entire crew at once, which is exactly the volume shape Gmail's
 // bulk-sender rules are about, and a crew member who wants out needs one click
 // rather than a Settings tab they have never opened.
-const LIST_UNSUB_TEMPLATES = new Set(["activate_nudge_1", "activate_nudge_2", "reengage_1", "welcome_board", "board_waiting", "nudge_dormant_early", "whats_new", "schedule_update"]);
+const LIST_UNSUB_TEMPLATES = new Set(["activate_nudge_1", "activate_nudge_2", "reengage_1", "welcome_board", "board_waiting", "nudge_dormant_early", "whats_new", "schedule_update", "share_activity"]);
 
 // WHICH preference the one-click link turns off. This used to be hardcoded to
 // email_lifecycle, so the moment a second unsubscribable template existed the
 // header would have silently muted the wrong thing — someone opting out of
 // call sheets would have stopped getting product tips instead, and kept the
 // call sheets.
-const UNSUB_KEY_BY_TEMPLATE: Record<string, string> = { schedule_update: "email_schedule" };
+const UNSUB_KEY_BY_TEMPLATE: Record<string, string> = {
+  schedule_update: "email_schedule",
+  share_activity:  "email_share_activity",
+};
 
 function listUnsubHeaders(template: string, data: Record<string, unknown> = {}): Record<string, string> {
   const tok = String(data.unsubscribeToken ?? "");
