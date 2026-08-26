@@ -70,7 +70,7 @@ behind it.
 ## Storage
 
 Uploads count against your account's storage quota. {{fact:planName}} accounts
-get {{fact:creatorStorage}}. The meter is in **Settings → Billing**.
+get {{fact:creatorStorage}}. The meter is in **Settings → Plan & billing**.
 
 Storage is counted against the **owner of the cluster**, not the person who
 uploaded. If you are an editor on someone else's board, your uploads use their

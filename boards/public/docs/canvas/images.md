@@ -76,7 +76,7 @@ Images are not size-capped on any plan. The caps that exist are on
 [video, audio and PDF](/docs/files) for free accounts.
 
 Storage is counted against your account quota — Creator accounts get
-100GB. The meter is in Settings → Billing.
+100GB. The meter is in Settings → Plan & billing.
 
 ---
 

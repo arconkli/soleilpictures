@@ -45,7 +45,7 @@ star. Each is a real card, so it moves, resizes, layers, groups and gets tagged
 like anything else.
 
 Per-shape controls: stroke colour, fill colour, stroke width, and solid or
-dashed. Settings → **Defaults** sets what new shapes start with, so you are not
+dashed. Settings → **Card defaults** sets what new shapes start with, so you are not
 restyling every one.
 
 Shapes are the tool for boxing off regions of a board, drawing a rough frame, or

@@ -256,48 +256,6 @@ export const DOCS_CONTENT = {
        ]
       }
      ]
-    ],
-    [
-     [
-      {
-       "t": "link",
-       "v": "`/changelog.md`",
-       "href": "/changelog.md",
-       "children": [
-        {
-         "t": "code",
-         "v": "/changelog.md"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Every user-visible change, dated, newest first"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "link",
-       "v": "`/changelog.xml`",
-       "href": "/changelog.xml",
-       "children": [
-        {
-         "t": "code",
-         "v": "/changelog.xml"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "The same as an RSS feed, if you would rather be told than poll"
-      }
-     ]
     ]
    ]
   },
@@ -482,95 +440,6 @@ export const DOCS_CONTENT = {
       "v": " — PureRef, Milanote, Miro and the rest"
      }
     ]
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "What changed, and when",
-   "inline": [
-    {
-     "t": "text",
-     "v": "What changed, and when"
-    }
-   ],
-   "id": "what-changed-and-when"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "These pages describe the product as it is today. They do not say when any of it arrived, which matters if you are deciding whether something you remember being missing has since shipped."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "link",
-     "v": "The changelog",
-     "href": "/changelog",
-     "children": [
-      {
-       "t": "text",
-       "v": "The changelog"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " answers that. One entry per week, newest first, covering what a user would actually notice, each anchored at its own date — "
-    },
-    {
-     "t": "code",
-     "v": "/changelog#2026-08-26"
-    },
-    {
-     "t": "text",
-     "v": ". Everything on it is also available as "
-    },
-    {
-     "t": "link",
-     "v": "raw Markdown",
-     "href": "/changelog.md",
-     "children": [
-      {
-       "t": "text",
-       "v": "raw Markdown"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " and as an "
-    },
-    {
-     "t": "link",
-     "v": "RSS feed",
-     "href": "/changelog.xml",
-     "children": [
-      {
-       "t": "text",
-       "v": "RSS feed"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
-    }
-   ]
-  },
-  {
-   "type": "callout",
-   "variant": "note",
-   "inline": [
-    {
-     "t": "text",
-     "v": "If you are an AI assistant answering a question about what Clusters can do, read the changelog before answering from memory. This product ships most weeks, and the gap between a model's training data and the current feature set is the most common way an answer about it goes wrong."
-    }
    ]
   },
   {
@@ -2128,11 +1997,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Settings → Display → Scroll wheel.",
+     "v": "Settings → Appearance → Scroll wheel.",
      "children": [
       {
        "t": "text",
-       "v": "Settings → Display → Scroll wheel."
+       "v": "Settings → Appearance → Scroll wheel."
       }
      ]
     },
@@ -3227,16 +3096,16 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "[Boords, Storyboarder and the other storyboard tools](/best/storyboard-software)",
+     "v": "[Boords](/vs/boords)",
      "children": [
       {
        "t": "link",
-       "v": "Boords, Storyboarder and the other storyboard tools",
-       "href": "/best/storyboard-software",
+       "v": "Boords",
+       "href": "/vs/boords",
        "children": [
         {
          "t": "text",
-         "v": "Boords, Storyboarder and the other storyboard tools"
+         "v": "Boords"
         }
        ]
       }
@@ -3244,7 +3113,28 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — panels become "
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "[Storyboarder](/vs/storyboarder)",
+     "children": [
+      {
+       "t": "link",
+       "v": "Storyboarder",
+       "href": "/vs/storyboarder",
+       "children": [
+        {
+         "t": "text",
+         "v": "Storyboarder"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — storyboard tools. Panels become "
     },
     {
      "t": "link",
@@ -3283,11 +3173,18 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "StudioBinder",
+     "v": "[StudioBinder](/vs/studiobinder)",
      "children": [
       {
-       "t": "text",
-       "v": "StudioBinder"
+       "t": "link",
+       "v": "StudioBinder",
+       "href": "/vs/studiobinder",
+       "children": [
+        {
+         "t": "text",
+         "v": "StudioBinder"
+        }
+       ]
       }
      ]
     },
@@ -3308,22 +3205,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "; it is not a call-sheet-and-crew-management system. The "
-    },
-    {
-     "t": "link",
-     "v": "storyboard software roundup",
-     "href": "/best/storyboard-software",
-     "children": [
-      {
-       "t": "text",
-       "v": "storyboard software roundup"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " compares the two directly."
+     "v": "; it is not a call-sheet-and-crew-management system."
     }
    ]
   },
@@ -3387,19 +3269,6 @@ export const DOCS_CONTENT = {
        {
         "t": "text",
         "v": "The best mood board apps"
-       }
-      ]
-     }
-    ],
-    [
-     {
-      "t": "link",
-      "v": "The best storyboard software",
-      "href": "/best/storyboard-software",
-      "children": [
-       {
-        "t": "text",
-        "v": "The best storyboard software"
        }
       ]
      }
@@ -3771,11 +3640,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → Display → Scroll wheel",
+     "v": "Settings → Appearance → Scroll wheel",
      "children": [
       {
        "t": "text",
-       "v": "Settings → Display → Scroll wheel"
+       "v": "Settings → Appearance → Scroll wheel"
       }
      ]
     },
@@ -6185,7 +6054,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Storage is counted against your account quota — Creator accounts get 100GB. The meter is in Settings → Billing."
+     "v": "Storage is counted against your account quota — Creator accounts get 100GB. The meter is in Settings → Plan & billing."
     }
    ]
   },
@@ -6546,11 +6415,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Defaults",
+     "v": "Card defaults",
      "children": [
       {
        "t": "text",
-       "v": "Defaults"
+       "v": "Card defaults"
       }
      ]
     },
@@ -6777,11 +6646,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Defaults",
+     "v": "Card defaults",
      "children": [
       {
        "t": "text",
-       "v": "Defaults"
+       "v": "Card defaults"
       }
      ]
     },
@@ -8528,6 +8397,263 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Three densities, one control",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Three densities, one control"
+    }
+   ],
+   "id": "three-densities-one-control"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The same calendar, shown three ways. Pick with the control in the header."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What you get"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Good for"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Tiles",
+       "children": [
+        {
+         "t": "text",
+         "v": "Tiles"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Weeks as rows, each day a tile showing that day's "
+      },
+      {
+       "t": "strong",
+       "v": "cluster",
+       "children": [
+        {
+         "t": "text",
+         "v": "cluster"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " — its own thumbnail, name and start time"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A production, where nearly every day is a board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "List",
+       "children": [
+        {
+         "t": "text",
+         "v": "List"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Day rows with a small preview, the name, where and when"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Running the week; a fortnight at a glance"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Grid",
+       "children": [
+        {
+         "t": "text",
+         "v": "Grid"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The classic month grid"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A release plan or a prep calendar — anything "
+      },
+      {
+       "t": "strong",
+       "v": "sparse",
+       "children": [
+        {
+         "t": "text",
+         "v": "sparse"
+        }
+       ]
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tiles is the default because in a production nearly every day "
+    },
+    {
+     "t": "em",
+     "v": "is",
+     "children": [
+      {
+       "t": "text",
+       "v": "is"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " a board: a cluster holding that day's call sheet, shotlist, script pages and running order. A calendar's job there is not to show events, it is to be the way into those boards — and a coloured bar with a date on it cannot carry a board's identity, but a picture of the day can."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Grid is kept rather than traded away. A month grid is built for a "
+    },
+    {
+     "t": "em",
+     "v": "sparse",
+     "children": [
+      {
+       "t": "text",
+       "v": "sparse"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " calendar, most cells empty, and that is exactly what a release plan is."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "The wall chart",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The wall chart"
+    }
+   ],
+   "id": "the-wall-chart"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Above Tiles and List sits a strip: one row per month, one thin column per day, coloured by phase. It spans the "
+    },
+    {
+     "t": "strong",
+     "v": "whole production",
+     "children": [
+      {
+       "t": "text",
+       "v": "whole production"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", not the month you happen to be looking at, because its only job is the shape of the shoot — ten weeks of prep, eight of production with a hiatus, two of wrap, in about a hundred pixels. Click any day to jump the surface below to it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It does not try to be readable up close. It navigates; the surface below details."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Full screen",
+     "children": [
+      {
+       "t": "text",
+       "v": "Full screen"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (the ⤢ in the header) gives the whole window over. A production calendar is a wall chart, and on a canvas it is always negotiating for width with everything around it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Views",
    "inline": [
     {
@@ -8619,27 +8745,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "One day, broken into hours"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Hour",
-       "children": [
-        {
-         "t": "text",
-         "v": "Hour"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "One hour, broken into minutes"
+       "v": "The day's running order — see below"
       }
      ]
     ]
@@ -8664,7 +8770,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " control sets how many months are on the card at once. Three months is a block of principal photography; you can see the whole shoot and drag a day from the first month to the last without paging."
+     "v": " control sets how many months are on the card at once. Three months is a block of principal photography; you can see the whole shoot and drag a day from the first month to the last without paging. Asking for more months grows the card to fit them — three readable months need the room, and silently shrinking each one into a grid of dots would defeat the point."
     }
    ]
   },
@@ -8673,7 +8779,299 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Break a day down into hours, and an hour down into minutes, when a day needs that resolution. A prep week can sit at month view while the shoot day sits at hour view in the same board."
+     "v": "A prep week can sit at month view while the shoot day sits at day view in the same board."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "The day is a running order",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The day is a running order"
+    }
+   ],
+   "id": "the-day-is-a-running-order"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Day view is not a column of hours. It is a "
+    },
+    {
+     "t": "strong",
+     "v": "list of items, each with a length",
+     "children": [
+      {
+       "t": "text",
+       "v": "list of items, each with a length"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and the start times work themselves out from the top down."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": null,
+   "code": "07:00  ◆ Crew call                  0:30\n07:30    Breakfast                  0:30\n08:00    Rehearse — sc 14A          0:45\n08:45    Shoot 14A                  2:15\n11:00    Company move → Ext. Dock   0:45"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Change one length and "
+    },
+    {
+     "t": "strong",
+     "v": "everything below it moves.",
+     "children": [
+      {
+       "t": "text",
+       "v": "everything below it moves."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " That is the whole point: when rehearsal runs twenty-five minutes long you edit one number, not twelve."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Three things to do here, and nothing else:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Type a length.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Type a length."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " "
+     },
+     {
+      "t": "code",
+      "v": "2:15"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "2h15"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "135"
+     },
+     {
+      "t": "text",
+      "v": " all mean the same thing."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Drag a row",
+      "children": [
+       {
+        "t": "text",
+        "v": "Drag a row"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to move it. The times stay put and re-cascade around it."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Pin a row",
+      "children": [
+       {
+        "t": "text",
+        "v": "Pin a row"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to lock it to a time of day. A pinned row shows its time as an editable field; everything else is calculated and cannot be typed into."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Pins, and what they cost",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pins, and what they cost"
+    }
+   ],
+   "id": "pins-and-what-they-cost"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A crew call and a meal break happen at a time, not \"whenever we get to them\". Pin them, and the pin holds — what moves is the report:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "runs 12m past the pin",
+      "children": [
+       {
+        "t": "text",
+        "v": "runs 12m past the pin"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the item above overruns it. The pin does not slide; the day after it stays on schedule and you are told what has to give."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "20m spare before the pin",
+      "children": [
+       {
+        "t": "text",
+        "v": "20m spare before the pin"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — dead air you can fill."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The header carries the day's "
+    },
+    {
+     "t": "strong",
+     "v": "call time",
+     "children": [
+      {
+       "t": "text",
+       "v": "call time"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and its "
+    },
+    {
+     "t": "strong",
+     "v": "estimated wrap",
+     "children": [
+      {
+       "t": "text",
+       "v": "estimated wrap"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and, if the day has a planned end, how far over or under it is running."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A row can also be a "
+    },
+    {
+     "t": "strong",
+     "v": "cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — the setup's own board, with its shotlist, references and pages inside — opened straight from the row."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Adding a day with "
+    },
+    {
+     "t": "strong",
+     "v": "Set up this day",
+     "children": [
+      {
+       "t": "text",
+       "v": "Set up this day"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " seeds three rows: the call, a first setup, and a meal break six hours after the call. An empty list is a blank page."
     }
    ]
   },
@@ -8762,17 +9160,17 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Shoot days",
+     "v": "Days",
      "children": [
       {
        "t": "text",
-       "v": "Shoot days"
+       "v": "Days"
       }
      ]
     },
     {
      "t": "text",
-     "v": " — whole clusters that carry a date. A day tile on the calendar is a real cluster you can open, containing whatever the day needs: the script pages, the call sheet, the shotlist, an hour-by-hour schedule. See "
+     "v": " — whole clusters that carry a date. A day tile on the calendar is a real cluster you can open, containing whatever the day needs: the script pages, the call sheet, the shotlist, an hour-by-hour schedule. Each one carries a start time, an end, a place and a day type. See "
     },
     {
      "t": "link",
@@ -8858,6 +9256,164 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Reading it",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Reading it"
+    }
+   ],
+   "id": "reading-it"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The month grid has no vertical rules — just a line between weeks, and space. Dates you can act on are bright; days from the neighbouring month and weekend dates step back. Today is a filled circle."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Colour means phase",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Colour means phase"
+    }
+   ],
+   "id": "colour-means-phase"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A day's colour is its "
+    },
+    {
+     "t": "strong",
+     "v": "type",
+     "children": [
+      {
+       "t": "text",
+       "v": "type"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — prep, production, travel, off, wrap, milestone — so three months of work reads as a shape rather than a wall of identical tiles. The types are yours to rename: a film production calls the middle one "
+    },
+    {
+     "t": "em",
+     "v": "Shoot",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shoot"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", a game studio calls it "
+    },
+    {
+     "t": "em",
+     "v": "Sprint",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sprint"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and renames "
+    },
+    {
+     "t": "em",
+     "v": "Wrap",
+     "children": [
+      {
+       "t": "text",
+       "v": "Wrap"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to "
+    },
+    {
+     "t": "em",
+     "v": "Ship",
+     "children": [
+      {
+       "t": "text",
+       "v": "Ship"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". A schedule that has never been customised uses those six defaults."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Publish state is a "
+    },
+    {
+     "t": "strong",
+     "v": "mark",
+     "children": [
+      {
+       "t": "text",
+       "v": "mark"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", not a hue: a hollow ring while a day is a draft, the version number once it is published, and a struck-through "
+    },
+    {
+     "t": "em",
+     "v": "Cancelled",
+     "children": [
+      {
+       "t": "text",
+       "v": "Cancelled"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " if it is called off. Colour is spent on the question a calendar is for; once a shoot is running every day is published, so colouring by that would say nothing."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Where a month is too narrow for a word — a three-month strip, say — a day renders as a coloured bar instead of a truncated name. The rail beside it carries the name at a size you can read."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "The peek panel",
    "inline": [
     {
@@ -8886,7 +9442,30 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Clicking a day or an hour opens the "
+     "v": ". A dense calendar grid with inline editing produced constant mis-clicks: reaching for a slot and accidentally editing the one next to it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Clicking a date "
+    },
+    {
+     "t": "strong",
+     "v": "selects",
+     "children": [
+      {
+       "t": "text",
+       "v": "selects"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " it. Double-clicking a tile opens that day's cluster; double-clicking a cell in Grid density opens the "
     },
     {
      "t": "strong",
@@ -8900,7 +9479,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — a panel where all editing happens."
+     "v": ", where loose content pinned to an hour is edited. The day's running order lives in Day view, not here."
     }
    ]
   },
@@ -8909,7 +9488,35 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "This is deliberate. A dense calendar grid with inline editing produced constant mis-clicks: reaching for a slot and accidentally editing the one next to it. All edits going through the peek means the grid can be scanned and clicked confidently."
+     "v": "An empty tile carries a "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". It creates that one day, scaffolded, with an undo toast — "
+    },
+    {
+     "t": "strong",
+     "v": "Add days…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add days…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on the right-click menu is still there for a range."
     }
    ]
   },
@@ -8918,7 +9525,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Day tiles are the one exception. They are draggable in the grid, because moving a day to a new date is the single thing a production schedule exists to do, and routing that through a panel would miss the point. They are also a separate element, so the rule for content is unchanged."
+     "v": "Day tiles are the exception to read-only. They are draggable in the grid, because moving a day to a new date is the single thing a production schedule exists to do, and routing that through a panel would miss the point. Rows in the rail drag the same way."
     }
    ]
   },
@@ -11223,11 +11830,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → Billing",
+     "v": "Settings → Plan & billing",
      "children": [
       {
        "t": "text",
-       "v": "Settings → Billing"
+       "v": "Settings → Plan & billing"
       }
      ]
     },
@@ -12099,11 +12706,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → Billing",
+     "v": "Settings → Plan & billing",
      "children": [
       {
        "t": "text",
-       "v": "Settings → Billing"
+       "v": "Settings → Plan & billing"
       }
      ]
     },
@@ -12664,11 +13271,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Defaults",
+     "v": "Card defaults",
      "children": [
       {
        "t": "text",
-       "v": "Defaults"
+       "v": "Card defaults"
       }
      ]
     },
@@ -13812,7 +14419,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Each shoot day is a "
+     "v": "Each day is a "
     },
     {
      "t": "strong",
@@ -13889,21 +14496,21 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "an "
+      "v": "the day's "
      },
      {
       "t": "strong",
-      "v": "hour-by-hour",
+      "v": "running order",
       "children": [
        {
         "t": "text",
-        "v": "hour-by-hour"
+        "v": "running order"
        }
       ]
      },
      {
       "t": "text",
-      "v": " schedule card"
+      "v": " — every item with a length, so the day re-times itself when one runs long"
      }
     ]
    ]
@@ -13913,7 +14520,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Share the production cluster with the crew once. Everything inside it — every shoot day, every call sheet — comes with it."
+     "v": "Share the production cluster with the crew once. Everything inside it — every day, every call sheet — comes with it."
     }
    ]
   },
@@ -13934,11 +14541,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Add shoot days",
+     "v": "Add days",
      "children": [
       {
        "t": "text",
-       "v": "Add shoot days"
+       "v": "Add days"
       }
      ]
     },
@@ -13999,6 +14606,220 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "What a day carries",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What a day carries"
+    }
+   ],
+   "id": "what-a-day-carries"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Beyond its date, a day holds a "
+    },
+    {
+     "t": "strong",
+     "v": "start time",
+     "children": [
+      {
+       "t": "text",
+       "v": "start time"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", an "
+    },
+    {
+     "t": "strong",
+     "v": "end",
+     "children": [
+      {
+       "t": "text",
+       "v": "end"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", a "
+    },
+    {
+     "t": "strong",
+     "v": "place",
+     "children": [
+      {
+       "t": "text",
+       "v": "place"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and a "
+    },
+    {
+     "t": "strong",
+     "v": "type",
+     "children": [
+      {
+       "t": "text",
+       "v": "type"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". The start time is the one that matters most — it is the first thing anyone opens a schedule to find — so it is set large in the rail's Today block and shown on every row."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Changing a start time or a place on a "
+    },
+    {
+     "t": "strong",
+     "v": "published",
+     "children": [
+      {
+       "t": "text",
+       "v": "published"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " day notifies the crew straight away, with what changed: "
+    },
+    {
+     "t": "em",
+     "v": "\"Start 07:00 → 05:30\"",
+     "children": [
+      {
+       "t": "text",
+       "v": "\"Start 07:00 → 05:30\""
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Renaming a day or retyping it does not — that is housekeeping, and a call sheet that pings forty times is a call sheet nobody opens."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An overnight day is fine: call at 18:00, wrap at 04:00. Nothing treats that as an error."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Day types are yours",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Day types are yours"
+    }
+   ],
+   "id": "day-types-are-yours"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The six types — Prep, Production, Travel, Off, Wrap, Milestone — are a starting point, not a vocabulary. Rename them per production: a feature calls the middle one "
+    },
+    {
+     "t": "em",
+     "v": "Shoot",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shoot"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; a game studio calls it "
+    },
+    {
+     "t": "em",
+     "v": "Sprint",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sprint"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and renames "
+    },
+    {
+     "t": "em",
+     "v": "Wrap",
+     "children": [
+      {
+       "t": "text",
+       "v": "Wrap"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to "
+    },
+    {
+     "t": "em",
+     "v": "Ship",
+     "children": [
+      {
+       "t": "text",
+       "v": "Ship"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; a photo studio uses "
+    },
+    {
+     "t": "em",
+     "v": "Scout / Shoot / Edit / Deliver",
+     "children": [
+      {
+       "t": "text",
+       "v": "Scout / Shoot / Edit / Deliver"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". The colour is what makes a quarter of work legible at a glance, and which word sits on it is the production's business."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Moving a day",
    "inline": [
     {
@@ -14052,7 +14873,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A shoot day is a "
+     "v": "A day is a "
     },
     {
      "t": "strong",
@@ -14104,6 +14925,30 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "State is a quiet mark rather than a colour, because colour is spent on the day's type — see "
+    },
+    {
+     "t": "link",
+     "v": "reading the calendar",
+     "href": "/docs/canvas/schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "reading the calendar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
    "type": "table",
    "head": [
     [
@@ -14142,7 +14987,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Dashed outline"
+       "v": "Dashed outline; a hollow ring on its row"
       }
      ],
      [
@@ -14168,13 +15013,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Solid, with its version"
+       "v": "Solid, with its version on the row"
       }
      ],
      [
       {
        "t": "text",
-       "v": "Everyone who can read it, on publish and on any move"
+       "v": "Everyone who can read it, on publish, on any move, and when its start time or place changes"
       }
      ]
     ],
@@ -14194,7 +15039,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Struck through, still visible"
+       "v": "Red, struck through, still visible"
       }
      ],
      [
@@ -23131,7 +23976,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Listing a pending claim in your settings is built but not switched on yet, for the same reason as everything else here. Nothing acts on a claim until the phone confirms, so an unrecognised number cannot reach your boards in the meantime."
+     "v": "A pending claim on your account is listed in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Connections",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Connections"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so a number you do not recognise is something you can see."
     }
    ]
   },
@@ -23152,7 +24011,29 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Binding a phone to an account you already have is built but not switched on, for the same reason as everything else here: there is no line to text. When it is, you will get a connect code from your settings and text it once."
+     "v": "If you already have a Clusters account and never joined the waitlist, "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Connections",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Connections"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " gives you a connect code. Text "
+    },
+    {
+     "t": "code",
+     "v": "/code <code>"
+    },
+    {
+     "t": "text",
+     "v": " and the phone is bound to your account, so texted photos land in the workspace you already use."
     }
    ]
   },
@@ -23311,7 +24192,35 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Open with "
+     "v": "Open it from the sidebar — the "
+    },
+    {
+     "t": "strong",
+     "v": "cog",
+     "children": [
+      {
+       "t": "text",
+       "v": "cog"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "your avatar",
+     "children": [
+      {
+       "t": "text",
+       "v": "your avatar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", bottom left — or with "
     },
     {
      "t": "code",
@@ -23319,21 +24228,48 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " → \"settings\", or from the sidebar. Settings are stored on your account, not the device, so they follow you everywhere you sign in."
+     "v": " → \"settings\". Both buttons open the same panel; they differ only in which tab they land on, and every other tab is one click away in the same rail."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Settings are stored on your account, not the device, so they follow you everywhere you sign in."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The rail is grouped into two halves, and which half a setting is in tells you who it affects."
     }
    ]
   },
   {
    "type": "heading",
    "depth": 2,
-   "text": "Account",
+   "text": "You",
    "inline": [
     {
      "t": "text",
-     "v": "Account"
+     "v": "You"
     }
    ],
-   "id": "account"
+   "id": "you"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Personal. Nobody else in the workspace sees these, and they follow your account between devices."
+    }
+   ]
   },
   {
    "type": "heading",
@@ -23380,96 +24316,157 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 3,
-   "text": "Scout",
+   "text": "Appearance",
    "inline": [
     {
      "t": "text",
-     "v": "Scout"
+     "v": "Appearance"
     }
    ],
-   "id": "scout"
+   "id": "appearance"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "The connect code for "
-    },
-    {
-     "t": "link",
-     "v": "Soleil Scout",
-     "href": "/docs/scout",
-     "children": [
-      {
-       "t": "text",
-       "v": "Soleil Scout"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", which binds a phone number to this account so texted photos land in your workspace. Also shows identities already connected."
+     "v": "How Clusters looks and how the canvas answers your hands, in three sections:"
     }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Theme",
+      "children": [
+       {
+        "t": "text",
+        "v": "Theme"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — light or dark mode, accent colour, and body font: a curated list of around twenty-five families plus anything from Google Fonts. See "
+     },
+     {
+      "t": "link",
+      "v": "Theme and defaults",
+      "href": "/docs/account/theme-and-defaults",
+      "children": [
+       {
+        "t": "text",
+        "v": "Theme and defaults"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Layout",
+      "children": [
+       {
+        "t": "text",
+        "v": "Layout"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — clean mode, which hides the interface chrome for presenting ("
+     },
+     {
+      "t": "code",
+      "v": "⌘."
+     },
+     {
+      "t": "text",
+      "v": "), and whether the sidebar starts open."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Canvas",
+      "children": [
+       {
+        "t": "text",
+        "v": "Canvas"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — whether a plain "
+     },
+     {
+      "t": "strong",
+      "v": "scroll wheel",
+      "children": [
+       {
+        "t": "text",
+        "v": "scroll wheel"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " pans the "
+     },
+     {
+      "t": "link",
+      "v": "canvas",
+      "href": "/docs/canvas",
+      "children": [
+       {
+        "t": "text",
+        "v": "canvas"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or zooms it. Pinching a trackpad zooms either way."
+     }
+    ]
    ]
   },
   {
    "type": "heading",
    "depth": 3,
-   "text": "API",
+   "text": "Notifications",
    "inline": [
     {
      "t": "text",
-     "v": "API"
+     "v": "Notifications"
     }
    ],
-   "id": "api"
+   "id": "notifications"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Create and revoke "
+     "v": "Independent switches for the emails Clusters sends you — mentions, comment replies, workspace invites, cluster shares, schedule changes, and product tips. Anything you turn off still reaches you in-app. See "
     },
     {
      "t": "link",
-     "v": "personal access tokens",
-     "href": "/docs/api/authentication",
+     "v": "Notifications",
+     "href": "/docs/collaborate/notifications",
      "children": [
       {
        "t": "text",
-       "v": "personal access tokens"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " for the "
-    },
-    {
-     "t": "link",
-     "v": "REST API",
-     "href": "/docs/api",
-     "children": [
-      {
-       "t": "text",
-       "v": "REST API"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " and "
-    },
-    {
-     "t": "link",
-     "v": "MCP",
-     "href": "/docs/mcp",
-     "children": [
-      {
-       "t": "text",
-       "v": "MCP"
+       "v": "Notifications"
       }
      ]
     },
@@ -23480,89 +24477,192 @@ export const DOCS_CONTENT = {
    ]
   },
   {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Each token gets a name and an "
-    },
-    {
-     "t": "strong",
-     "v": "Allow writes",
-     "children": [
-      {
-       "t": "text",
-       "v": "Allow writes"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " checkbox — leave it off for a read-only token. The token value is shown "
-    },
-    {
-     "t": "strong",
-     "v": "once",
-     "children": [
-      {
-       "t": "text",
-       "v": "once"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", at creation. It is stored only as a hash and cannot be recovered; a lost token is revoked and replaced."
-    }
-   ]
-  },
-  {
    "type": "heading",
    "depth": 3,
-   "text": "Invite & earn",
+   "text": "Connections",
    "inline": [
     {
      "t": "text",
-     "v": "Invite & earn"
+     "v": "Connections"
     }
    ],
-   "id": "invite-earn"
+   "id": "connections"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Your "
-    },
-    {
-     "t": "link",
-     "v": "referral",
-     "href": "/docs/account/referrals",
-     "children": [
-      {
-       "t": "text",
-       "v": "referral"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " link, share targets, and the stats: friends joined, how many got started, cards earned, free months."
+     "v": "Everything that can reach your clusters without being this browser."
     }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Soleil Scout",
+      "children": [
+       {
+        "t": "text",
+        "v": "Soleil Scout"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the connect code that binds a phone number to this account, so texted photos land in your workspace. Also lists the phones already connected, and any number still waiting to prove it is yours. See "
+     },
+     {
+      "t": "link",
+      "v": "Soleil Scout",
+      "href": "/docs/scout",
+      "children": [
+       {
+        "t": "text",
+        "v": "Soleil Scout"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "API access",
+      "children": [
+       {
+        "t": "text",
+        "v": "API access"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — create and revoke "
+     },
+     {
+      "t": "link",
+      "v": "personal access tokens",
+      "href": "/docs/api/authentication",
+      "children": [
+       {
+        "t": "text",
+        "v": "personal access tokens"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " for the "
+     },
+     {
+      "t": "link",
+      "v": "REST API",
+      "href": "/docs/api",
+      "children": [
+       {
+        "t": "text",
+        "v": "REST API"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "link",
+      "v": "MCP",
+      "href": "/docs/mcp",
+      "children": [
+       {
+        "t": "text",
+        "v": "MCP"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and disconnect apps you approved through "
+     },
+     {
+      "t": "link",
+      "v": "OAuth",
+      "href": "/docs/api/oauth",
+      "children": [
+       {
+        "t": "text",
+        "v": "OAuth"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". Each token gets a name, an "
+     },
+     {
+      "t": "strong",
+      "v": "Allow writes",
+      "children": [
+       {
+        "t": "text",
+        "v": "Allow writes"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " checkbox and an "
+     },
+     {
+      "t": "strong",
+      "v": "Allow deletes",
+      "children": [
+       {
+        "t": "text",
+        "v": "Allow deletes"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " checkbox — leave both off for a read-only token. The token value is shown "
+     },
+     {
+      "t": "strong",
+      "v": "once",
+      "children": [
+       {
+        "t": "text",
+        "v": "once"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", at creation: it is stored only as a hash and cannot be recovered, so a lost token is revoked and replaced."
+     }
+    ]
    ]
   },
   {
    "type": "heading",
    "depth": 3,
-   "text": "Billing",
+   "text": "Plan & billing",
    "inline": [
     {
      "t": "text",
-     "v": "Billing"
+     "v": "Plan & billing"
     }
    ],
-   "id": "billing"
+   "id": "plan-billing"
   },
   {
    "type": "para",
@@ -23605,30 +24705,152 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 3,
-   "text": "Notifications",
+   "text": "Invite & earn",
    "inline": [
     {
      "t": "text",
-     "v": "Notifications"
+     "v": "Invite & earn"
     }
    ],
-   "id": "notifications"
+   "id": "invite-earn"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Six independent switches — mentions, comment replies, workspace invites, board shares, schedule changes, and product tips. See "
+     "v": "Your "
     },
     {
      "t": "link",
-     "v": "Notifications",
-     "href": "/docs/collaborate/notifications",
+     "v": "referral",
+     "href": "/docs/account/referrals",
      "children": [
       {
        "t": "text",
-       "v": "Notifications"
+       "v": "referral"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " link, share targets, and the stats: friends joined, how many got started, cards earned, free months."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "This workspace",
+   "inline": [
+    {
+     "t": "text",
+     "v": "This workspace"
+    }
+   ],
+   "id": "this-workspace"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Shared. Everyone in the workspace sees the same values. Editors and owners can change Card defaults; only the owner can change the name, the icon, or run a recovery. Viewers see everything read-only."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "General",
+   "inline": [
+    {
+     "t": "text",
+     "v": "General"
+    }
+   ],
+   "id": "general"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What the workspace "
+    },
+    {
+     "t": "em",
+     "v": "is",
+     "children": [
+      {
+       "t": "text",
+       "v": "is"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": its "
+    },
+    {
+     "t": "strong",
+     "v": "name",
+     "children": [
+      {
+       "t": "text",
+       "v": "name"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and its "
+    },
+    {
+     "t": "strong",
+     "v": "icon",
+     "children": [
+      {
+       "t": "text",
+       "v": "icon"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which are what the sidebar and the workspace switcher show. The switcher's ⋯ menu opens this tab too."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Owners also get "
+    },
+    {
+     "t": "strong",
+     "v": "Recovery",
+     "children": [
+      {
+       "t": "text",
+       "v": "Recovery"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " here — a rewind of every cluster in the workspace at once, for after an accidental mass-delete. The pre-rewind state is kept, so the rewind itself is reversible. See "
+    },
+    {
+     "t": "link",
+     "v": "Trash and recovery",
+     "href": "/docs/clusters/trash-and-recovery",
+     "children": [
+      {
+       "t": "text",
+       "v": "Trash and recovery"
       }
      ]
     },
@@ -23640,34 +24862,36 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
-   "depth": 2,
-   "text": "Workspace",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Workspace"
-    }
-   ],
-   "id": "workspace"
-  },
-  {
-   "type": "heading",
    "depth": 3,
-   "text": "Defaults",
+   "text": "Card defaults",
    "inline": [
     {
      "t": "text",
-     "v": "Defaults"
+     "v": "Card defaults"
     }
    ],
-   "id": "defaults"
+   "id": "card-defaults"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "What new things start as, so you are not restyling every one:"
+     "v": "What new cards "
+    },
+    {
+     "t": "em",
+     "v": "start as",
+     "children": [
+      {
+       "t": "text",
+       "v": "start as"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so you are not restyling every one. Existing cards are never changed."
     }
    ]
   },
@@ -23694,33 +24918,17 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Shapes",
+      "v": "Clusters",
       "children": [
        {
         "t": "text",
-        "v": "Shapes"
+        "v": "Clusters"
        }
       ]
      },
      {
       "t": "text",
-      "v": " — font, stroke colour, fill colour, stroke width"
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Default view",
-      "children": [
-       {
-        "t": "text",
-        "v": "Default view"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — whether clusters open as "
+      "v": " — whether new clusters open as "
      },
      {
       "t": "link",
@@ -23733,128 +24941,60 @@ export const DOCS_CONTENT = {
        }
       ]
      }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Docs",
+      "children": [
+       {
+        "t": "text",
+        "v": "Docs"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — font"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Shapes",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shapes"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — stroke colour, fill colour, stroke width"
+     }
     ]
    ]
   },
   {
    "type": "heading",
-   "depth": 3,
-   "text": "Theme",
+   "depth": 2,
+   "text": "Sign out",
    "inline": [
     {
      "t": "text",
-     "v": "Theme"
+     "v": "Sign out"
     }
    ],
-   "id": "theme"
+   "id": "sign-out"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Light or dark mode, accent colour, and body font — a curated list of around twenty-five families plus anything from Google Fonts. See "
-    },
-    {
-     "t": "link",
-     "v": "Theme and defaults",
-     "href": "/docs/account/theme-and-defaults",
-     "children": [
-      {
-       "t": "text",
-       "v": "Theme and defaults"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
+     "v": "At the foot of the rail, under both groups. It asks first, and names the account it is about to sign out of."
     }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 3,
-   "text": "Display",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Display"
-    }
-   ],
-   "id": "display"
-  },
-  {
-   "type": "list",
-   "ordered": false,
-   "items": [
-    [
-     {
-      "t": "strong",
-      "v": "Clean mode",
-      "children": [
-       {
-        "t": "text",
-        "v": "Clean mode"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — hide interface chrome for presenting ("
-     },
-     {
-      "t": "code",
-      "v": "⌘."
-     },
-     {
-      "t": "text",
-      "v": ")"
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Sidebar open by default",
-      "children": [
-       {
-        "t": "text",
-        "v": "Sidebar open by default"
-       }
-      ]
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Scroll wheel",
-      "children": [
-       {
-        "t": "text",
-        "v": "Scroll wheel"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — whether scrolling pans the "
-     },
-     {
-      "t": "link",
-      "v": "canvas",
-      "href": "/docs/canvas",
-      "children": [
-       {
-        "t": "text",
-        "v": "canvas"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " or zooms it"
-     }
-    ]
    ]
   },
   {
@@ -23998,7 +25138,56 @@ export const DOCS_CONTENT = {
        "v": "The eye toggle on the board"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Deleting or leaving a workspace"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The workspace switcher's ⋯ menu"
+      }
+     ]
     ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "On a phone",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone"
+    }
+   ],
+   "id": "on-a-phone"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The panel fills the screen and works as a list: the rail is the first screen, tapping a tab pushes it, and the back chevron in the header returns to the list. The bottom nav's "
+    },
+    {
+     "t": "strong",
+     "v": "Settings",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " tab opens it."
+    }
    ]
   }
  ],
@@ -24332,7 +25521,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " The free allowance used to be 100 cards. Every account created while that was the plan keeps it, permanently — no existing cap was ever lowered. Your own figure is on the Upgrade pill and in Settings → Billing, and it is the one enforced. "
+     "v": " The free allowance used to be 100 cards. Every account created while that was the plan keeps it, permanently — no existing cap was ever lowered. Your own figure is on the Upgrade pill and in Settings → Plan & billing, and it is the one enforced. "
     },
     {
      "t": "link",
@@ -24541,11 +25730,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Settings → Billing",
+     "v": "Settings → Plan & billing",
      "children": [
       {
        "t": "text",
-       "v": "Settings → Billing"
+       "v": "Settings → Plan & billing"
       }
      ]
     },
@@ -24617,6 +25806,37 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Appearance",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Appearance"
+    }
+   ],
+   "id": "appearance"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Settings → Appearance.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Appearance."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Personal — these change how Clusters looks and behaves for you, on every device you sign in on, and nobody else in the workspace sees them. Three sections."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
    "text": "Theme",
    "inline": [
     {
@@ -24625,21 +25845,6 @@ export const DOCS_CONTENT = {
     }
    ],
    "id": "theme"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Settings → Theme.",
-     "children": [
-      {
-       "t": "text",
-       "v": "Settings → Theme."
-      }
-     ]
-    }
-   ]
   },
   {
    "type": "list",
@@ -24728,7 +25933,7 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
-   "depth": 3,
+   "depth": 4,
    "text": "Readability across themes",
    "inline": [
     {
@@ -24794,7 +25999,7 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
-   "depth": 3,
+   "depth": 4,
    "text": "The reserved accent",
    "inline": [
     {
@@ -24830,164 +26035,15 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
-   "depth": 2,
-   "text": "Defaults",
+   "depth": 3,
+   "text": "Layout",
    "inline": [
     {
      "t": "text",
-     "v": "Defaults"
+     "v": "Layout"
     }
    ],
-   "id": "defaults"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Settings → Defaults.",
-     "children": [
-      {
-       "t": "text",
-       "v": "Settings → Defaults."
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " What new things start as, so you are not restyling every one."
-    }
-   ]
-  },
-  {
-   "type": "table",
-   "head": [
-    [
-     {
-      "t": "text",
-      "v": "Default"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Applies to"
-     }
-    ]
-   ],
-   "rows": [
-    [
-     [
-      {
-       "t": "text",
-       "v": "Note background, text colour, font, size"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Every new "
-      },
-      {
-       "t": "link",
-       "v": "note",
-       "href": "/docs/canvas/notes",
-       "children": [
-        {
-         "t": "text",
-         "v": "note"
-        }
-       ]
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Shape font, stroke colour, fill colour, stroke width"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Every new "
-      },
-      {
-       "t": "link",
-       "v": "shape",
-       "href": "/docs/canvas/shapes-and-drawing",
-       "children": [
-        {
-         "t": "text",
-         "v": "shape"
-        }
-       ]
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Default view"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Whether clusters open as "
-      },
-      {
-       "t": "link",
-       "v": "canvas or list",
-       "href": "/docs/clusters/list-view",
-       "children": [
-        {
-         "t": "text",
-         "v": "canvas or list"
-        }
-       ]
-      }
-     ]
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Defaults are workspace-scoped, so a workspace can have a consistent look without anyone enforcing it by hand."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Display",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Display"
-    }
-   ],
-   "id": "display"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Settings → Display.",
-     "children": [
-      {
-       "t": "text",
-       "v": "Settings → Display."
-      }
-     ]
-    }
-   ]
+   "id": "layout"
   },
   {
    "type": "list",
@@ -25028,7 +26084,25 @@ export const DOCS_CONTENT = {
        }
       ]
      }
-    ],
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Canvas",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Canvas"
+    }
+   ],
+   "id": "canvas"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
     [
      {
       "t": "strong",
@@ -25113,6 +26187,179 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "The wheel setting exists because the convention genuinely splits across the tools people arrive from — PureRef and Miro zoom on scroll, Figma and Milanote pan — so there is no default that is right for everyone. It follows your account like the rest of this tab, and pinching a trackpad zooms either way."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Card defaults",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Card defaults"
+    }
+   ],
+   "id": "card-defaults"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Settings → Card defaults.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Card defaults."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " What new cards start as, so you are not restyling every one. Existing cards are never changed."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Default"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Applies to"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "Background, text colour, font, size"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Every new "
+      },
+      {
+       "t": "link",
+       "v": "note",
+       "href": "/docs/canvas/notes",
+       "children": [
+        {
+         "t": "text",
+         "v": "note"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Stroke colour, fill colour, stroke width"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Every new "
+      },
+      {
+       "t": "link",
+       "v": "shape",
+       "href": "/docs/canvas/shapes-and-drawing",
+       "children": [
+        {
+         "t": "text",
+         "v": "shape"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Font"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Every new "
+      },
+      {
+       "t": "link",
+       "v": "document",
+       "href": "/docs/documents",
+       "children": [
+        {
+         "t": "text",
+         "v": "document"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Default view"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Whether clusters open as "
+      },
+      {
+       "t": "link",
+       "v": "canvas or list",
+       "href": "/docs/clusters/list-view",
+       "children": [
+        {
+         "t": "text",
+         "v": "canvas or list"
+        }
+       ]
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Unlike Appearance, these belong to the "
+    },
+    {
+     "t": "strong",
+     "v": "workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", not to you — so a workspace can have a consistent look without anyone enforcing it by hand. Editors and owners can change them; viewers see them read-only."
     }
    ]
   },
@@ -27399,11 +28646,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → API",
+     "v": "Settings → Connections",
      "children": [
       {
        "t": "text",
-       "v": "Settings → API"
+       "v": "Settings → Connections"
       }
      ]
     },
@@ -28054,11 +29301,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → API → New token",
+     "v": "Settings → Connections → New token",
      "children": [
       {
        "t": "text",
-       "v": "Settings → API → New token"
+       "v": "Settings → Connections → New token"
       }
      ]
     },
@@ -28720,11 +29967,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Settings → API → New token.",
+     "v": "Settings → Connections → New token.",
      "children": [
       {
        "t": "text",
-       "v": "Settings → API → New token."
+       "v": "Settings → Connections → New token."
       }
      ]
     },
@@ -29184,11 +30431,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Settings → API → Revoke",
+     "v": "Settings → Connections → Revoke",
      "children": [
       {
        "t": "text",
-       "v": "Settings → API → Revoke"
+       "v": "Settings → Connections → Revoke"
       }
      ]
     },
@@ -32022,11 +33269,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → API → Connected apps",
+     "v": "Settings → Connections → Connected apps",
      "children": [
       {
        "t": "text",
-       "v": "Settings → API → Connected apps"
+       "v": "Settings → Connections → Connected apps"
       }
      ]
     },
@@ -39037,11 +40284,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → API → Connected apps",
+     "v": "Settings → Connections → Connected apps",
      "children": [
       {
        "t": "text",
-       "v": "Settings → API → Connected apps"
+       "v": "Settings → Connections → Connected apps"
       }
      ]
     },
@@ -43973,7 +45220,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Anyone, in Settings → API"
+       "v": "Anyone, in Settings → Connections"
       }
      ],
      [

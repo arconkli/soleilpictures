@@ -109,7 +109,7 @@ const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx')
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced } from './lib/boardsApi.js';
 import { undoToast } from './lib/undoToast.js';
 import { forceBoardThumbnail, boardDoc } from './lib/yboard.js';
 import { planReparent } from './lib/boardTree.js';
@@ -523,41 +523,41 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Workspace switcher popover (in the sidebar header). Click-outside +
   // Escape close it; selecting a workspace also closes.
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
-  // Two separate panels:
-  //   accountOpen  — avatar (bottom-left, your initial) → identity, billing,
-  //                  notifications + sign out
-  //   settingsOpen — cog (bottom-left, gear) → workspace defaults, theme,
-  //                  display
-  const [accountOpen, setAccountOpen] = useState(false);
+  // One Settings panel, opened from several places at the tab that place is
+  // about. `settingsTab` is which one; null means "no particular tab", which
+  // on a phone shows the rail as a list instead of pushing straight into a
+  // detail screen.
   const [settingsOpen, setSettingsOpen] = useState(false);
-  // When the account panel is deep-linked to a specific tab (e.g. Billing after
-  // returning from the Stripe portal), this holds it; cleared on close (one-shot).
-  const [accountInitialTab, setAccountInitialTab] = useState(null);
+  const [settingsTab, setSettingsTab] = useState(null);
+  const openSettings = React.useCallback((tab = null) => {
+    setSettingsTab(tab);
+    setSettingsOpen(true);
+  }, []);
 
-  // Deep-link into Account → Billing when returning from the Stripe Customer
+  // Deep-link into Plan & billing when returning from the Stripe Customer
   // Portal (return_url = /?settings=billing) or hitting the legacy
   // /settings/billing path, then clean the URL back to /. This MUST live in
-  // Workspace — a previous version sat in App(), where the two setters above
+  // Workspace — a previous version sat in App(), where the setters above
   // don't exist; the ReferenceError vanished into its catch and the
   // portal-return screen was dead from the day it shipped.
   useEffect(() => {
     try {
       const p = new URLSearchParams(window.location.search);
       if (p.get('settings') === 'billing' || window.location.pathname === '/settings/billing') {
-        setAccountInitialTab('billing');
-        setAccountOpen(true);
+        setSettingsTab('billing');
+        setSettingsOpen(true);
         window.history.replaceState({}, '', '/');
       }
     } catch (_) {}
   }, []);
 
-  // Open the account panel straight on the "Invite & earn" referral tab. Used by
-  // the cap toasts, the cap-hit modal, and the post-activation nudge — every
-  // surface that pushes sharing routes here so we can attribute the open.
+  // Open Settings straight on the "Invite & earn" referral tab. Used by the cap
+  // toasts, the cap-hit modal, and the post-activation nudge — every surface
+  // that pushes sharing routes here so we can attribute the open.
   const openInviteFriends = React.useCallback((surface) => {
     try { logEvent(EV.REFERRAL_OPEN, { surface }); } catch (_) {}
-    setAccountInitialTab('invite');
-    setAccountOpen(true);
+    setSettingsTab('invite');
+    setSettingsOpen(true);
   }, []);
   // Deep, decoupled surfaces (e.g. the "earn free cards" link inside PricingModal)
   // ask to open the invite tab via a window event so they don't have to thread a
@@ -596,7 +596,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       .then(p => { if (!cancelled) setOwnProfile(p || null); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [user?.id, accountOpen]);
+    // Re-reads when Settings closes so the sidebar avatar picks up a profile
+    // edit without a reload.
+  }, [user?.id, settingsOpen]);
 
   const userInfo = useMemo(() => ({
     id: user.id,
@@ -2973,25 +2975,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
   };
 
-  const promptRenameWorkspace = async (ws) => {
-    const next = await feedback.prompt({
-      title: 'Rename workspace',
-      label: 'Name',
-      defaultValue: ws.name || '',
-      placeholder: 'e.g. Soleil Studio',
-      confirmLabel: 'Rename',
-    });
-    if (next == null) return;
-    const trimmed = next.trim();
-    if (!trimmed || trimmed === ws.name) return;
-    try {
-      await renameWorkspace(ws.id, trimmed);
-      await onWorkspacesChanged?.();
-      feedback.toast({ type: 'success', message: `Renamed to "${trimmed}".` });
-    } catch (e) {
-      console.error('renameWorkspace failed', e);
-      feedback.toast({ type: 'error', message: 'Rename failed: ' + (e.message || e) });
-    }
+  // The switcher's "Rename workspace" now opens Settings → General, where the
+  // name sits next to the icon, instead of a bare prompt that could only ever
+  // change one of the two. Settings edits the ACTIVE workspace, so renaming one
+  // you are not in switches you into it first — deliberate: you are about to
+  // look at its settings anyway.
+  const openWorkspaceSettings = (ws) => {
+    if (ws?.id && ws.id !== workspace?.id) onSwitchWorkspace?.(ws.id);
+    openSettings('general');
   };
 
   // ── Clone a board (and its Y.Doc state) into my personal workspace ───────
@@ -5848,21 +5839,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     { id: 'version-history', label: 'Version history', icon: History, keywords: ['history', 'versions', 'snapshots', 'restore', 'rollback', 'time travel'],
       available: currentSurface === 'board',
       run: () => setVersionsOpen(true) },
-    { id: 'settings', label: 'Open settings', icon: Settings, keywords: ['settings', 'preferences', 'workspace', 'display'],
-      run: () => setSettingsOpen(true) },
+    { id: 'settings', label: 'Open settings', icon: Settings,
+      keywords: ['settings', 'preferences', 'workspace', 'appearance', 'theme', 'display', 'defaults'],
+      run: () => openSettings('appearance') },
     // New tab: the docs are a separate reading surface, and losing an unsaved
     // canvas to a same-tab navigation would be a poor trade for a help link.
     { id: 'docs', label: 'Documentation', icon: BookOpen,
       keywords: ['docs', 'documentation', 'help', 'guide', 'manual', 'api', 'mcp', 'how to'],
       run: () => window.open('/docs', '_blank', 'noopener') },
     { id: 'account', label: 'Account & billing', icon: User, keywords: ['account', 'profile', 'billing', 'plan'],
-      run: () => setAccountOpen(true) },
+      run: () => openSettings('profile') },
     { id: 'invite', label: 'Invite friends', icon: UserPlus, keywords: ['invite', 'referral', 'friends', 'earn'],
       run: () => openInviteFriends('palette') },
     { id: 'signout', label: 'Sign out', icon: LogOut, keywords: ['sign out', 'log out', 'logout', 'exit'],
       run: () => signOut?.() },
   ], [canEditCurrent, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, tweak.compactSidebar,
-      setTheme, setWheelMode, setTweak, mainMutators, openInviteFriends, signOut]);
+      setTheme, setWheelMode, setTweak, mainMutators, openSettings, openInviteFriends, signOut]);
 
 
   // ── Production schedule ───────────────────────────────────────────────────
@@ -6285,7 +6277,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 onSelect={(id) => { onSwitchWorkspace(id); setCurrentSurface('board'); }}
                 onAddNew={addNewWorkspace}
                 onRemove={(ws, action) => removeWorkspace(ws, action)}
-                onRename={(ws) => promptRenameWorkspace(ws)}
+                onOpenSettings={(ws) => openWorkspaceSettings(ws)}
                 onClose={() => setWsMenuOpen(false)}
               />
             )}
@@ -6412,12 +6404,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           />
           </div>{/* /.sb-list */}
 
-          {/* Footer — settings cog + avatar. Cog opens workspace
-              settings (defaults, theme, display). Avatar opens identity
-              (name, presence color, billing, notifications, sign out). */}
+          {/* Footer — settings cog + avatar. Both open the SAME panel; they
+              differ only in which tab it lands on. The cog is about the
+              workspace, the avatar is about you. */}
           <div className="sb-foot">
-            <button className="sb-foot-icon" title="Workspace settings" aria-label="Workspace settings"
-                    onClick={() => setSettingsOpen(true)}>
+            <button className="sb-foot-icon" title="Settings" aria-label="Settings"
+                    onClick={() => openSettings('general')}>
               <Icon as={Settings} size={14} />
             </button>
             {(() => {
@@ -6425,7 +6417,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               if (avatarSrc) {
                 return (
                   <button className="sb-foot-avatar sb-foot-avatar-img" title="Account"
-                          onClick={() => setAccountOpen(true)}>
+                          onClick={() => openSettings('profile')}>
                     <R2Image src={avatarSrc} alt="" />
                   </button>
                 );
@@ -6433,7 +6425,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               return (
                 <button className="sb-foot-avatar" title="Account"
                         style={{ background: userInfo.color || pickPresenceColor(user.id) }}
-                        onClick={() => setAccountOpen(true)}>
+                        onClick={() => openSettings('profile')}>
                   {(user.email?.[0] || 'Y').toUpperCase()}
                 </button>
               );
@@ -6441,35 +6433,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </div>
         </div>
       </aside>
-      {/* Avatar → identity-only modal (Profile tab). */}
-      <SettingsPanel
-        open={accountOpen}
-        onClose={() => { setAccountOpen(false); setAccountInitialTab(null); }}
-        mode="account"
-        initialTab={accountInitialTab}
-        user={user}
-        onSignOut={signOut}
-        workspaceId={workspace?.id}
-        workspaceName={workspace?.name}
-        onWorkspacesChanged={onWorkspacesChanged}
-        onSaved={() => onWorkspacesChanged?.()}
-        defaults={defaults}
-        role={workspaceRole}
-        refresh={refreshSettings}
-        workspaceSettings={workspaceSettings}
-        mySettings={mySettings} />
-      {/* Cog → workspace + UI settings (everything else). */}
+      {/* One panel. The cog lands on the workspace group, the avatar on
+          Profile, and everything else is one click away in the same rail. */}
       <SettingsPanel
         open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        mode="workspace"
+        onClose={() => { setSettingsOpen(false); setSettingsTab(null); }}
+        initialTab={settingsTab}
         user={user}
         onSignOut={signOut}
         workspaceId={workspace?.id}
         workspaceName={workspace?.name}
         onWorkspacesChanged={onWorkspacesChanged}
         onSaved={() => onWorkspacesChanged?.()}
-        defaults={defaults}
         role={workspaceRole}
         refresh={refreshSettings}
         workspaceSettings={workspaceSettings}
@@ -6912,7 +6887,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             if (k === 'home')     { setCurrentSurface('home'); setPaletteOpen(false); setSettingsOpen(false); setTweak('showMessages', false); }
             if (k === 'search')   { setPaletteOpen(true); setSettingsOpen(false); setTweak('showMessages', false); }
             if (k === 'messages') { setTweak('showMessages', true); setPaletteOpen(false); setSettingsOpen(false); }
-            if (k === 'settings') { setSettingsOpen(true); setPaletteOpen(false); setTweak('showMessages', false); }
+            // No tab: on a phone the panel opens as a list, which is the whole
+            // point — this used to reach the workspace half only, so a phone
+            // could not get to its own profile, plan, or sign out.
+            if (k === 'settings') { openSettings(null); setPaletteOpen(false); setTweak('showMessages', false); }
           }}
         />
         );

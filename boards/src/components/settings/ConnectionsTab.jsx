@@ -1,9 +1,32 @@
-// Connections — the two ways something other than this browser reaches your
-// account: a phone bound to Soleil Scout, and API tokens / OAuth apps.
+// Connections — the ways something other than this browser reaches your
+// account: a phone bound to Soleil Scout, personal access tokens, and the
+// apps you approved through OAuth.
+//
+// One tab rather than two. Both halves answer the same question — "what else
+// can act as me?" — and a person auditing that should not have to know which
+// of our product names it filed under.
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { isShellEmail } from '../ScoutClaimBanner.jsx';
+import { SettingsCategory } from './fields.jsx';
+
+export function ConnectionsTab({ user }) {
+  return (
+    <div className="settings-section">
+      <h3 className="settings-section-title">Connections</h3>
+      <p className="settings-section-hint">
+        Everything that can reach your clusters without being this browser.
+      </p>
+      <SettingsCategory title="Soleil Scout">
+        <ScoutSection user={user} />
+      </SettingsCategory>
+      <SettingsCategory title="API access">
+        <ApiSection user={user} />
+      </SettingsCategory>
+    </div>
+  );
+}
 
 // Soleil Scout — connect a phone to THIS account.
 //
@@ -15,7 +38,7 @@ import { isShellEmail } from '../ScoutClaimBanner.jsx';
 // RPC reuses an unclaimed one rather than littering the table, so reopening
 // this tab shows the same code instead of invalidating what the user already
 // half-typed into their phone.
-export function ScoutTab({ user }) {
+function ScoutSection({ user }) {
   const feedback = useFeedback();
   const [code, setCode] = useState(null);
   const [identities, setIdentities] = useState([]);
@@ -80,8 +103,7 @@ export function ScoutTab({ user }) {
   };
 
   return (
-    <div className="settings-section">
-      <h3 className="settings-section-title">Soleil Scout</h3>
+    <>
       <p className="settings-section-hint">
         Text photos, links and notes from set and they land on your canvas —
         {' '}no app, nothing to open. Connect your phone once and everything you
@@ -170,7 +192,7 @@ export function ScoutTab({ user }) {
           </p>
         </>
       )}
-    </div>
+    </>
   );
 }
 
@@ -261,7 +283,7 @@ function ConnectedApps({ user, feedback }) {
   );
 }
 
-export function ApiTab({ user }) {
+function ApiSection({ user }) {
   const feedback = useFeedback();
   const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -339,8 +361,7 @@ export function ApiTab({ user }) {
   const active = tokens.filter((t) => !t.revoked_at);
 
   return (
-    <div className="settings-section">
-      <h3 className="settings-section-title">API access</h3>
+    <>
       <p className="settings-section-hint">
         Drive your boards from your own software, or connect an AI assistant.
         {' '}A token acts as you — it can reach exactly what you can reach, and
@@ -449,6 +470,6 @@ export function ApiTab({ user }) {
         {' '}for AI assistants, or the{' '}
         <a href="/api/v1/openapi.json" target="_blank" rel="noreferrer noopener">OpenAPI spec</a>.
       </p>
-    </div>
+    </>
   );
 }

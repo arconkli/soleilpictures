@@ -41,7 +41,7 @@ Your position is saved per cluster. Close a board deep in a corner of the canvas
 and it reopens there, not at the origin.
 
 If scrolling to zoom is the habit you arrived with — it is how PureRef and Miro
-work — **Settings → Display → Scroll wheel** swaps the two, so a plain scroll
+work — **Settings → Appearance → Scroll wheel** swaps the two, so a plain scroll
 zooms at the pointer and `⌘`, `Alt` or `Shift` pans. Pinching a trackpad zooms
 in either setting. See [keyboard shortcuts](/docs/keyboard-shortcuts).
 

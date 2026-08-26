@@ -52,7 +52,7 @@ export function BillingTab({ user }) {
 
   return (
     <div className="settings-section">
-      <h3 className="settings-section-title">Billing</h3>
+      <h3 className="settings-section-title">Plan &amp; billing</h3>
       <p className="settings-section-hint">
         Your current plan and payment management.
       </p>

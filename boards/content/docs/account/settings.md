@@ -1,29 +1,41 @@
 ---
 title: Settings — Soleil Clusters
-metaDescription: Every setting in Soleil Clusters — Profile, Scout, API tokens, Invite and earn, Billing, Notifications, Defaults, Theme and Display.
+metaDescription: Every setting in Soleil Clusters — Profile, Appearance, Notifications, Connections, Plan and billing, Invite and earn, General and Card defaults.
 h1: Settings
 navLabel: Settings
 section: account
 order: 0
-updated: 2026-08-08
-answer: Settings is split into things about you and things about the workspace. Account tabs cover Profile, Scout, API, Invite and earn, Billing and Notifications. Workspace tabs cover Defaults, Theme and Display. Open it from the sidebar or with Cmd-K and typing settings.
+updated: 2026-08-25
+answer: Settings is one panel with a rail grouped into You and This workspace. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General and Card defaults. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 faq:
   - q: Are settings per device?
-    a: No. They are stored on your account and follow you to any browser or device you sign in on, including the theme.
+    a: No. They are stored on your account and follow you to any browser or device you sign in on, including the theme and the scroll-wheel mode.
+  - q: What is the difference between the cog and my avatar?
+    a: Nothing except where they land you. Both open the same panel — the cog on the workspace's General tab, the avatar on your Profile. Everything else is one click away in the same rail.
   - q: Where do I find my storage usage?
-    a: Under Billing, as a meter showing used against your quota.
+    a: Under Plan and billing, as a meter showing used against your quota.
   - q: Where are API tokens?
-    a: Under the API tab. Tokens are shown once at creation and cannot be recovered afterwards.
+    a: Under Connections, alongside Soleil Scout and any apps you have approved. Tokens are shown once at creation and cannot be recovered afterwards.
 related:
   - /docs/account/plans
   - /docs/account/theme-and-defaults
   - /docs/api/authentication
 ---
 
-Open with `⌘K` → "settings", or from the sidebar. Settings are stored on your
-account, not the device, so they follow you everywhere you sign in.
+Open it from the sidebar — the **cog** or **your avatar**, bottom left — or with
+`⌘K` → "settings". Both buttons open the same panel; they differ only in which
+tab they land on, and every other tab is one click away in the same rail.
 
-## Account
+Settings are stored on your account, not the device, so they follow you
+everywhere you sign in.
+
+The rail is grouped into two halves, and which half a setting is in tells you
+who it affects.
+
+## You
+
+Personal. Nobody else in the workspace sees these, and they follow your account
+between devices.
 
 ### Profile
 
@@ -31,59 +43,84 @@ Profile picture, display name, email, and your
 **[presence colour](/docs/collaborate/presence)** — the colour your cursor and
 selection halos appear in to everyone else.
 
-### Scout
+### Appearance
 
-The connect code for [Soleil Scout](/docs/scout), which binds a phone number to
-this account so texted photos land in your workspace. Also shows identities
-already connected.
+How Clusters looks and how the canvas answers your hands, in three sections:
 
-### API
+- **Theme** — light or dark mode, accent colour, and body font: a curated list
+  of around twenty-five families plus anything from Google Fonts. See
+  [Theme and defaults](/docs/account/theme-and-defaults).
+- **Layout** — clean mode, which hides the interface chrome for presenting
+  (`⌘.`), and whether the sidebar starts open.
+- **Canvas** — whether a plain **scroll wheel** pans the
+  [canvas](/docs/canvas) or zooms it. Pinching a trackpad zooms either way.
 
-Create and revoke [personal access tokens](/docs/api/authentication) for the
-[REST API](/docs/api) and [MCP](/docs/mcp).
+### Notifications
 
-Each token gets a name and an **Allow writes** checkbox — leave it off for a
-read-only token. The token value is shown **once**, at creation. It is stored
-only as a hash and cannot be recovered; a lost token is revoked and replaced.
+Independent switches for the emails Clusters sends you — mentions, comment
+replies, workspace invites, cluster shares, schedule changes, and product tips.
+Anything you turn off still reaches you in-app. See
+[Notifications](/docs/collaborate/notifications).
+
+### Connections
+
+Everything that can reach your clusters without being this browser.
+
+- **Soleil Scout** — the connect code that binds a phone number to this
+  account, so texted photos land in your workspace. Also lists the phones
+  already connected, and any number still waiting to prove it is yours. See
+  [Soleil Scout](/docs/scout).
+- **API access** — create and revoke
+  [personal access tokens](/docs/api/authentication) for the
+  [REST API](/docs/api) and [MCP](/docs/mcp), and disconnect apps you approved
+  through [OAuth](/docs/api/oauth). Each token gets a name, an **Allow writes**
+  checkbox and an **Allow deletes** checkbox — leave both off for a read-only
+  token. The token value is shown **once**, at creation: it is stored only as a
+  hash and cannot be recovered, so a lost token is revoked and replaced.
+
+### Plan & billing
+
+Current plan, the Stripe customer portal for payment details and cancellation,
+and the **storage meter** showing what you have used against your quota. See
+[Plans](/docs/account/plans).
 
 ### Invite & earn
 
 Your [referral](/docs/account/referrals) link, share targets, and the stats:
 friends joined, how many got started, cards earned, free months.
 
-### Billing
+## This workspace
 
-Current plan, the Stripe customer portal for payment details and cancellation,
-and the **storage meter** showing what you have used against your quota. See
-[Plans](/docs/account/plans).
+Shared. Everyone in the workspace sees the same values. Editors and owners can
+change Card defaults; only the owner can change the name, the icon, or run a
+recovery. Viewers see everything read-only.
 
-### Notifications
+### General
 
-Six independent switches — mentions, comment replies, workspace invites, board
-shares, schedule changes, and product tips. See
-[Notifications](/docs/collaborate/notifications).
+What the workspace *is*: its **name** and its **icon**, which are what the
+sidebar and the workspace switcher show. The switcher's ⋯ menu opens this tab
+too.
 
-## Workspace
+Owners also get **Recovery** here — a rewind of every cluster in the workspace
+at once, for after an accidental mass-delete. The pre-rewind state is kept, so
+the rewind itself is reversible. See
+[Trash and recovery](/docs/clusters/trash-and-recovery).
 
-### Defaults
+### Card defaults
 
-What new things start as, so you are not restyling every one:
+What new cards *start as*, so you are not restyling every one. Existing cards
+are never changed.
 
 - **Notes** — background, text colour, font, size
-- **Shapes** — font, stroke colour, fill colour, stroke width
-- **Default view** — whether clusters open as [canvas or list](/docs/clusters/list-view)
+- **Clusters** — whether new clusters open as
+  [canvas or list](/docs/clusters/list-view)
+- **Docs** — font
+- **Shapes** — stroke colour, fill colour, stroke width
 
-### Theme
+## Sign out
 
-Light or dark mode, accent colour, and body font — a curated list of around
-twenty-five families plus anything from Google Fonts. See
-[Theme and defaults](/docs/account/theme-and-defaults).
-
-### Display
-
-- **Clean mode** — hide interface chrome for presenting (`⌘.`)
-- **Sidebar open by default**
-- **Scroll wheel** — whether scrolling pans the [canvas](/docs/canvas) or zooms it
+At the foot of the rail, under both groups. It asks first, and names the
+account it is about to sign out of.
 
 ## Not in Settings
 
@@ -95,3 +132,10 @@ A few things live where they apply rather than in a settings screen:
 | Canvas background colour | Right-click the [canvas](/docs/canvas) |
 | Public link expiry and indexing | The [Share](/docs/collaborate/sharing) dialog |
 | Hiding [comments](/docs/collaborate/comments) | The eye toggle on the board |
+| Deleting or leaving a workspace | The workspace switcher's ⋯ menu |
+
+## On a phone
+
+The panel fills the screen and works as a list: the rail is the first screen,
+tapping a tab pushes it, and the back chevron in the header returns to the
+list. The bottom nav's **Settings** tab opens it.

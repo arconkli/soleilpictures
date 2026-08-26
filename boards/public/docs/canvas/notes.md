@@ -65,7 +65,7 @@ A note's background and text colour are set from the toolbar or the right-click
 menu. Text colour is always resolved for readability, so a note stays legible if
 someone switches between light and dark [themes](/docs/account/theme-and-defaults).
 
-To stop setting the same thing every time, Settings → **Defaults** sets the
+To stop setting the same thing every time, Settings → **Card defaults** sets the
 background, text colour, font and size every new note starts with.
 
 ## Spellcheck

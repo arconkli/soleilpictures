@@ -68,4 +68,4 @@ video equivalent.
 
 Media counts against your storage quota like everything else —
 100GB on Creator, with the meter in
-**Settings → Billing**. Video is usually what fills it.
+**Settings → Plan & billing**. Video is usually what fills it.

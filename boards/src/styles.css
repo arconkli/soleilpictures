@@ -17061,11 +17061,6 @@ button.msg-panel-name:hover { color: var(--ink-0); }
   backdrop-filter: blur(2px);
   animation: pickerFade var(--dur-slow) var(--ease);
 }
-.settings-modal-narrow {
-  /* Account mode (avatar → profile / billing / notifications). Wide
-     enough that the two-column billing rows breathe instead of wrapping. */
-  width: min(520px, calc(100vw - 32px)) !important;
-}
 .settings-modal {
   width: min(720px, calc(100vw - 32px));
   max-height: calc(100vh - 80px);
@@ -17101,15 +17096,45 @@ button.msg-panel-name:hover { color: var(--ink-0); }
   border-radius: 4px;
 }
 .settings-x:hover { background: var(--bg-hov); color: var(--ink-0); }
+/* Back chevron — phone only, where the rail is a list screen and a tab is a
+   detail screen pushed on top of it. Hidden on desktop, where both are
+   visible at once and there is nothing to go back to. */
+.settings-back {
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  margin: 0 2px 0 -4px;
+  background: transparent; border: 0;
+  color: var(--ink-2); cursor: pointer;
+  border-radius: 4px;
+}
+.settings-back:hover { background: var(--bg-hov); color: var(--ink-0); }
 .settings-body { display: flex; flex: 1 1 auto; min-height: 0; }
 .settings-tabs {
-  display: flex; flex-direction: column; gap: 1px;
+  display: flex; flex-direction: column;
   padding: 16px 12px;
   border-right: 1px solid var(--line-1);
-  width: 160px; flex-shrink: 0;
+  width: 172px; flex-shrink: 0;
   overflow-y: auto;
 }
+.settings-tabs-group { display: flex; flex-direction: column; gap: 1px; }
+.settings-tabs-group + .settings-tabs-group { margin-top: 16px; }
+.settings-tabs-grouplabel {
+  font: 600 10px/1 var(--font-sans);
+  letter-spacing: .09em; text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 0 12px 7px;
+}
+/* Sign out is the one terminal action in the panel, so it sits apart from the
+   tabs rather than pretending to be one. margin-top:auto pins it to the foot
+   of the rail when the list is shorter than the modal. */
+.settings-tabs-foot {
+  display: flex; flex-direction: column;
+  margin-top: auto; padding-top: 14px;
+  border-top: 1px solid var(--line-2);
+}
 .settings-tab {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%;
   background: transparent; border: 0;
   text-align: left;
   font: 500 12.5px/1.4 var(--font-sans);
@@ -17120,6 +17145,12 @@ button.msg-panel-name:hover { color: var(--ink-0); }
 }
 .settings-tab:hover { background: var(--bg-hov); color: var(--ink-1); }
 .settings-tab.is-active { background: var(--bg-3); color: var(--ink-0); }
+.settings-tab:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.settings-tab-signout { color: var(--ink-3); }
+.settings-tab-signout:hover { color: var(--ink-0); }
+/* The disclosure chevron only renders on the stacked (phone/touch-tablet)
+   layout — the panel omits the element entirely rather than hiding it here,
+   because Icon sets an inline display:block that a class cannot outrank. */
 .settings-pane {
   flex: 1 1 auto;
   padding: 18px 24px 22px;
@@ -17298,12 +17329,6 @@ button.msg-panel-name:hover { color: var(--ink-0); }
   border-radius: var(--radius);
   border-left: 2px solid var(--ink-3);
 }
-.settings-head-signout {
-  margin-right: 6px;
-  padding: 4px 10px !important;
-  color: var(--ink-2);
-}
-.settings-head-signout:hover { color: #ef4444; }
 .settings-cat {
   border: 1px solid var(--line-1);
   border-radius: var(--radius-md);
@@ -19640,17 +19665,17 @@ button, [role="button"], a {
     justify-content: center;
   }
 
-  /* ── Settings panel: fit the viewport ─────────────────────────────
-     Desktop renders a 720px dialog with a 160px left tab rail and
-     130px-label form grid — both squeeze the content column to
-     nothing on a 375px phone. Full-bleed the modal, move tabs to a
-     horizontal scrolling pill row at the top, stack form fields
-     label-over-input, drop fixed swatch widths. Sheet conversion
-     (with swipe-to-dismiss) remains a follow-up; this is the
-     tactical fit-fix. */
+  /* ── Settings panel: list → detail ────────────────────────────────
+     Desktop renders a 720px dialog with a 172px tab rail beside the
+     pane; neither fits a 375px phone. This used to full-bleed the
+     modal and turn the rail into a horizontal scrolling pill row —
+     which can't express the You / This workspace grouping, and buried
+     the later tabs off the right edge.
+     So: iOS-Settings shape instead. The rail IS the first screen, a
+     tab is a screen pushed on top of it, and the header's back
+     chevron pops back. `is-list` / `is-detail` come from the panel. */
   .settings-bg { padding: 0; }
-  .settings-modal,
-  .settings-modal-narrow {
+  .settings-modal {
     width: 100vw;
     max-width: 100vw;
     height: 100dvh;
@@ -19662,22 +19687,26 @@ button, [role="button"], a {
     padding-bottom: env(safe-area-inset-bottom);
   }
   .settings-body { flex-direction: column; }
+  .settings-body.is-list .settings-pane { display: none; }
+  .settings-body.is-detail .settings-tabs { display: none; }
   .settings-tabs {
     width: 100%;
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: hidden;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     border-right: none;
-    border-bottom: 1px solid var(--line);
-    padding: 8px;
-    gap: 6px;
-    flex-shrink: 0;
+    padding: 12px 12px 24px;
   }
-  .settings-tabs button {
-    flex-shrink: 0;
-    min-height: 36px;
-    white-space: nowrap;
+  .settings-tabs-group + .settings-tabs-group { margin-top: 22px; }
+  .settings-tab {
+    min-height: 44px;
+    font-size: 14px;
+    padding: 10px 12px;
   }
+  /* No sticky active row on a phone: you are looking at the list only
+     when you are NOT in a tab, so highlighting one is a lie. */
+  .settings-tab.is-active { background: transparent; color: var(--ink-2); }
+  .settings-tab-chev { color: var(--ink-3); flex-shrink: 0; }
   .settings-pane { padding: 16px; }
   .settings-field { grid-template-columns: 1fr; gap: 6px; }
   .settings-field-label { font-weight: 600; }

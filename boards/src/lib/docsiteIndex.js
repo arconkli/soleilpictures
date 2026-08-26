@@ -276,7 +276,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can the scroll wheel zoom instead of scrolling the board around?",
-        "a": "Yes. Settings → Display → Scroll wheel, or Cmd-K and type \"scroll wheel\". Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way."
+        "a": "Yes. Settings → Appearance → Scroll wheel, or Cmd-K and type \"scroll wheel\". Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way."
       },
       {
         "q": "Do these work on Windows?",
@@ -2427,25 +2427,33 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/account/settings",
     "title": "Settings — Soleil Clusters",
-    "metaDescription": "Every setting in Soleil Clusters — Profile, Scout, API tokens, Invite and earn, Billing, Notifications, Defaults, Theme and Display.",
+    "metaDescription": "Every setting in Soleil Clusters — Profile, Appearance, Notifications, Connections, Plan and billing, Invite and earn, General and Card defaults.",
     "h1": "Settings",
-    "answer": "Settings is split into things about you and things about the workspace. Account tabs cover Profile, Scout, API, Invite and earn, Billing and Notifications. Workspace tabs cover Defaults, Theme and Display. Open it from the sidebar or with Cmd-K and typing settings.",
+    "answer": "Settings is one panel with a rail grouped into You and This workspace. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General and Card defaults. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.",
     "section": "account",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-08-25",
     "navLabel": "Settings",
     "headings": [
       {
-        "id": "account",
-        "text": "Account"
+        "id": "you",
+        "text": "You"
       },
       {
-        "id": "workspace",
-        "text": "Workspace"
+        "id": "this-workspace",
+        "text": "This workspace"
+      },
+      {
+        "id": "sign-out",
+        "text": "Sign out"
       },
       {
         "id": "not-in-settings",
         "text": "Not in Settings"
+      },
+      {
+        "id": "on-a-phone",
+        "text": "On a phone"
       }
     ],
     "related": [
@@ -2456,15 +2464,19 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Are settings per device?",
-        "a": "No. They are stored on your account and follow you to any browser or device you sign in on, including the theme."
+        "a": "No. They are stored on your account and follow you to any browser or device you sign in on, including the theme and the scroll-wheel mode."
+      },
+      {
+        "q": "What is the difference between the cog and my avatar?",
+        "a": "Nothing except where they land you. Both open the same panel — the cog on the workspace's General tab, the avatar on your Profile. Everything else is one click away in the same rail."
       },
       {
         "q": "Where do I find my storage usage?",
-        "a": "Under Billing, as a meter showing used against your quota."
+        "a": "Under Plan and billing, as a meter showing used against your quota."
       },
       {
         "q": "Where are API tokens?",
-        "a": "Under the API tab. Tokens are shown once at creation and cannot be recovered afterwards."
+        "a": "Under Connections, alongside Soleil Scout and any apps you have approved. Tokens are shown once at creation and cannot be recovered afterwards."
       }
     ]
   },
@@ -2537,23 +2549,19 @@ export const DOCS_PAGES = [
     "title": "Theme, Fonts and Defaults — Soleil Clusters",
     "metaDescription": "Set light or dark mode, an accent colour and a body font in Soleil Clusters, and choose what new notes, shapes and clusters start as.",
     "h1": "Theme and defaults",
-    "answer": "Theme covers light or dark mode, an accent colour and a body font chosen from a curated list or anything on Google Fonts. Defaults set what new notes and shapes start as — colours, font, size, stroke — and whether clusters open as a canvas or a list. All of it is stored on your account and follows you between devices.",
+    "answer": "Appearance covers light or dark mode, an accent colour, a body font chosen from a curated list or anything on Google Fonts, and what a plain scroll wheel does. Card defaults set what new notes, docs and shapes start as, and whether clusters open as a canvas or a list. Appearance is personal and follows your account between devices; card defaults belong to the workspace.",
     "section": "account",
     "order": 2,
-    "updated": "2026-08-08",
+    "updated": "2026-08-25",
     "navLabel": "Theme and defaults",
     "headings": [
       {
-        "id": "theme",
-        "text": "Theme"
+        "id": "appearance",
+        "text": "Appearance"
       },
       {
-        "id": "defaults",
-        "text": "Defaults"
-      },
-      {
-        "id": "display",
-        "text": "Display"
+        "id": "card-defaults",
+        "text": "Card defaults"
       },
       {
         "id": "custom-fonts",

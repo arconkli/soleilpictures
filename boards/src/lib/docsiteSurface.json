@@ -314,20 +314,24 @@
   },
   "settingsTabs": [
     {
-      "id": "api",
-      "label": "API"
+      "id": "appearance",
+      "label": "Appearance"
     },
     {
       "id": "billing",
-      "label": "Billing"
+      "label": "Plan & billing"
+    },
+    {
+      "id": "connections",
+      "label": "Connections"
     },
     {
       "id": "defaults",
-      "label": "Defaults"
+      "label": "Card defaults"
     },
     {
-      "id": "display",
-      "label": "Display"
+      "id": "general",
+      "label": "General"
     },
     {
       "id": "invite",
@@ -340,10 +344,6 @@
     {
       "id": "profile",
       "label": "Profile"
-    },
-    {
-      "id": "theme",
-      "label": "Theme"
     }
   ],
   "powerRevealKeys": [
@@ -382,7 +382,6 @@
   "publicRoutes": {
     "routeMeta": [
       "/",
-      "/changelog",
       "/legal/cookies",
       "/legal/privacy",
       "/legal/terms",
@@ -398,18 +397,19 @@
       "/tools/shot-list-maker",
       "/tools/storyboard-maker",
       "/use-cases",
+      "/vs/boords",
       "/vs/milanote",
       "/vs/miro",
-      "/vs/pureref"
+      "/vs/pureref",
+      "/vs/storyboarder",
+      "/vs/studiobinder"
     ],
     "listicle": [
       "/best/milanote-alternatives",
       "/best/mood-board-apps",
-      "/best/pureref-alternatives",
-      "/best/storyboard-software"
+      "/best/pureref-alternatives"
     ],
     "router": [
-      "changelogMatch = /^\\/changelog\\/?$/i.test(PATH)",
       "docsMatch = /^\\/docs(?:\\/|$)/i.test(PATH)",
       "exploreMatch = /^\\/explore\\/?$/.test(PATH)",
       "legalMatch = PATH.match(/^\\/legal\\/(privacy|terms|cookies)\\/?$/i)",

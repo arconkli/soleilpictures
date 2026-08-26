@@ -11,7 +11,7 @@ faq:
   - q: How do I see shortcuts without leaving what I am doing?
     a: Press ? on any canvas, or click the help button in the corner of the canvas. The overlay lists every shortcut grouped by what it affects.
   - q: Can the scroll wheel zoom instead of scrolling the board around?
-    a: Yes. Settings → Display → Scroll wheel, or Cmd-K and type "scroll wheel". Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way.
+    a: Yes. Settings → Appearance → Scroll wheel, or Cmd-K and type "scroll wheel". Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way.
   - q: Do these work on Windows?
     a: Yes. Every Cmd shortcut listed here is Ctrl on Windows and Linux. The in-app overlay detects your platform and shows the right modifier.
 related:
@@ -81,7 +81,7 @@ you were rather than at the origin.
 
 ### Swapping what the wheel does
 
-**Settings → Display → Scroll wheel.** Scrolling pans by default and `⌘`-scroll
+**Settings → Appearance → Scroll wheel.** Scrolling pans by default and `⌘`-scroll
 zooms; set it to **Zoom** and they trade places, so a plain scroll zooms at the
 pointer and `⌘`, `Alt` or `Shift` pans. `⌘K` → "scroll wheel" flips it without
 opening settings.

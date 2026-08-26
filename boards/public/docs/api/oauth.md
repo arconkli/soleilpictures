@@ -158,7 +158,7 @@ default that quietly included `delete` would undo that for every connection.
 ## What the person sees
 
 One screen: who is asking, what each scope means in plain words, and two
-buttons. Afterwards the connection appears under **Settings → API → Connected
+buttons. Afterwards the connection appears under **Settings → Connections → Connected
 apps** with its scopes, when it was connected, and how many calls it has made.
 
 Disconnecting revokes the access token in the same statement, so it stops

@@ -69,7 +69,7 @@ and you approve the connection on one screen. No token is ever copied, and if
 you do not have an account yet you get one on that screen — signing in is a
 single email box.
 
-Afterwards the connection is listed under **Settings → API → Connected apps**,
+Afterwards the connection is listed under **Settings → Connections → Connected apps**,
 where you can see what it has done and disconnect it.
 
 **If your client cannot do OAuth**, a [personal access

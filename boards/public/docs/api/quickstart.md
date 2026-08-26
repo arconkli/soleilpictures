@@ -6,7 +6,7 @@ _Source: https://clusters.soleilpictures.com/docs/api/quickstart · Updated 2026
 
 ## 1. Get a token
 
-In the app: **Settings → API → New token**. Tick **Allow writes** if you intend
+In the app: **Settings → Connections → New token**. Tick **Allow writes** if you intend
 to change anything. Copy it immediately — it is shown once.
 
 ```sh

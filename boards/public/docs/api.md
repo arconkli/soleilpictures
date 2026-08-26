@@ -76,7 +76,7 @@ person types by hand answers usefully.
 Two ways in, both ending at a bearer token that resolves to one person's own
 session.
 
-For **your own** scripts, mint a token under **Settings → API**:
+For **your own** scripts, mint a token under **Settings → Connections**:
 
 ```sh
 curl https://clusters.soleilpictures.com/api/v1/me \

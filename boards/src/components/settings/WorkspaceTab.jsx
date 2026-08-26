@@ -1,48 +1,66 @@
-// Workspace settings — the shared half of the panel.
+// The shared half of the panel — the two tabs under "This workspace".
 //
-// Editable by workspace editors and owners only. Viewers see the values for
-// context but the inputs are disabled. Changes apply to every member when they
-// create a new card next.
+// General is what the workspace IS: its name and icon. Those were in two
+// different places before (name behind the switcher popover's ⋯ menu, icon
+// buried inside the defaults tab), which is most of why the panel felt
+// arbitrary. Card defaults is what new cards START as, which is a genuinely
+// different question and keeps its own tab.
+//
+// Editable by workspace editors and owners; viewers see the values for context
+// but the inputs are disabled. Naming and the icon are owner-only.
 import { useEffect, useState } from 'react';
-import { updateWorkspaceSettings } from '../../lib/boardsApi.js';
+import { updateWorkspaceSettings, renameWorkspace } from '../../lib/boardsApi.js';
 import { uploadImage } from '../../lib/uploads.js';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { HARDCODED_FALLBACKS } from '../../hooks/useResolvedDefaults.js';
 import { Field, SettingsCategory, SwatchInput, FontField, AvatarUploadRow } from './fields.jsx';
+import { useSettingsSave } from './saveState.jsx';
 
-export function DefaultsTab({ workspaceId, workspaceName, user, role, workspaceSettings, refresh, onWorkspacesChanged, onOpenRecovery }) {
+const ROLE_COPY = {
+  owner:  'Owner — you can rename it, change the icon, and delete it.',
+  editor: 'Editor — you can change what new cards start as, but not the name or icon.',
+  viewer: 'Viewer — you can see these settings but not change them.',
+};
+
+export function WorkspaceGeneralTab({
+  workspaceId, workspaceName, user, role, workspaceSettings,
+  refresh, onWorkspacesChanged, onOpenRecovery,
+}) {
   const feedback = useFeedback();
-  const canEdit = role === 'editor' || role === 'owner';
+  const save = useSettingsSave();
   const isOwner = role === 'owner';
-  const disabled = !canEdit;
-  // "Saving… → Saved ✓" indicator: visible while the RPC is in flight so a
-  // slow network doesn't read as "did my change take?", then flashes Saved.
-  const [savedAt, setSavedAt] = useState(0);
-  const [saving, setSaving] = useState(false);
-  const flashSaved = () => setSavedAt(Date.now());
-  useEffect(() => {
-    if (!savedAt) return;
-    const t = setTimeout(() => setSavedAt(0), 1600);
-    return () => clearTimeout(t);
-  }, [savedAt]);
+
+  // Name is a text field, so it holds a draft and commits on blur/Enter
+  // rather than per keystroke. Re-seeds when the active workspace changes
+  // underneath (switching workspaces with the panel open).
+  const [name, setName] = useState(workspaceName || '');
+  useEffect(() => { setName(workspaceName || ''); }, [workspaceName, workspaceId]);
+
+  const commitName = () => {
+    const trimmed = name.trim();
+    if (!isOwner || !workspaceId) return;
+    if (!trimmed) { setName(workspaceName || ''); return; }
+    if (trimmed === (workspaceName || '')) return;
+    save(async () => {
+      await renameWorkspace(workspaceId, trimmed);
+      await onWorkspacesChanged?.();
+    });
+  };
 
   // Workspace icon upload — top-level key on workspaces.settings so the
   // sidebar can read it from the workspace row without an extra query.
-  // Owner-only edit; viewers and editors see the section read-only so
-  // the icon is at least visible.
+  // Owner-only edit; everyone else sees the section read-only so the icon
+  // is at least visible.
   const [uploadingIcon, setUploadingIcon] = useState(false);
   const iconSrc = workspaceSettings?.icon_url || '';
   const setIcon = async (nextSrc) => {
     if (!isOwner || !workspaceId) return;
-    try {
+    await save(async () => {
       await updateWorkspaceSettings(workspaceId, { icon_url: nextSrc || null });
       await refresh?.();
       await onWorkspacesChanged?.();
-      flashSaved();
-    } catch (err) {
-      feedback.toast({ type: 'error', message: 'Could not update icon: ' + (err.message || err) });
-    }
+    });
   };
   const onIconPick = async (file) => {
     if (!file || !workspaceId || !user?.id) return;
@@ -59,46 +77,31 @@ export function DefaultsTab({ workspaceId, workspaceName, user, role, workspaceS
     }
   };
 
-  const settings = workspaceSettings;
-  const setKey = (cat, key, value) => savePatch(cat, { [key]: value });
-  const savePatch = async (cat, patch) => {
-    if (!canEdit || !workspaceId) return;
-    const merged = { ...(settings[cat] || {}), ...patch };
-    // Prune empties so the hardcoded fallback shines through.
-    for (const k of Object.keys(merged)) {
-      if (merged[k] === null || merged[k] === undefined || merged[k] === '') delete merged[k];
-    }
-    setSaving(true);
-    try {
-      await updateWorkspaceSettings(workspaceId, { [cat]: merged });
-      refresh?.();
-      flashSaved();
-    } catch (err) {
-      feedback.toast({ type: 'error', message: 'Save failed — check your connection and try again. (' + (err.message || err) + ')' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div className="settings-section">
-      <div className="settings-section-headrow">
-        <h3 className="settings-section-title">Workspace defaults</h3>
-        <span className={`settings-saved-flash ${saving || savedAt ? 'is-on' : ''}`}>{saving ? 'Saving…' : 'Saved ✓'}</span>
-      </div>
+      <h3 className="settings-section-title">General</h3>
       <p className="settings-section-hint">
-        These set the starting look of every new card on this workspace.
-        {canEdit
-          ? ' Anyone you create now will pick these up; existing cards aren’t changed.'
-          : ' You have viewer access — only editors and owners can change them.'}
+        {ROLE_COPY[role] || 'These settings belong to the workspace, not to you — everyone in it sees the same values.'}
       </p>
 
-      <SettingsCategory title="Workspace icon" desc={isOwner ? 'Shows in the sidebar and switcher.' : 'Only owners can change the icon.'}>
-        <Field label={workspaceName || 'Workspace'}>
+      <SettingsCategory title="Identity" desc="Shows in the sidebar and the workspace switcher">
+        <Field label="Name">
+          <input className="settings-input"
+                 value={name}
+                 placeholder="e.g. Soleil Studio"
+                 disabled={!isOwner}
+                 onChange={(e) => setName(e.target.value)}
+                 onBlur={commitName}
+                 onKeyDown={(e) => {
+                   if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+                   if (e.key === 'Escape') { e.preventDefault(); setName(workspaceName || ''); }
+                 }} />
+        </Field>
+        <Field label="Icon">
           <AvatarUploadRow
             src={iconSrc}
             fallbackColor={pickPresenceColor(workspaceId || '')}
-            fallbackInitial={((workspaceName || '?').trim().charAt(0) || '?').toUpperCase()}
+            fallbackInitial={((name || workspaceName || '?').trim().charAt(0) || '?').toUpperCase()}
             uploading={uploadingIcon}
             disabled={!isOwner}
             shape="square"
@@ -107,6 +110,49 @@ export function DefaultsTab({ workspaceId, workspaceName, user, role, workspaceS
           />
         </Field>
       </SettingsCategory>
+
+      {isOwner && onOpenRecovery && (
+        <SettingsCategory
+          title="Recovery"
+          desc="Rewinds every cluster in this workspace at once — for after an accidental mass-delete. The pre-rewind state is kept, so the rewind itself is reversible.">
+          <button type="button" className="settings-link-btn" onClick={onOpenRecovery}>
+            Open recovery →
+          </button>
+        </SettingsCategory>
+      )}
+    </div>
+  );
+}
+
+export function CardDefaultsTab({ workspaceId, role, workspaceSettings, refresh }) {
+  const save = useSettingsSave();
+  const canEdit = role === 'editor' || role === 'owner';
+  const disabled = !canEdit;
+
+  const settings = workspaceSettings;
+  const setKey = (cat, key, value) => savePatch(cat, { [key]: value });
+  const savePatch = (cat, patch) => {
+    if (!canEdit || !workspaceId) return;
+    const merged = { ...(settings[cat] || {}), ...patch };
+    // Prune empties so the hardcoded fallback shines through.
+    for (const k of Object.keys(merged)) {
+      if (merged[k] === null || merged[k] === undefined || merged[k] === '') delete merged[k];
+    }
+    save(async () => {
+      await updateWorkspaceSettings(workspaceId, { [cat]: merged });
+      refresh?.();
+    });
+  };
+
+  return (
+    <div className="settings-section">
+      <h3 className="settings-section-title">Card defaults</h3>
+      <p className="settings-section-hint">
+        These set the starting look of every new card on this workspace.
+        {canEdit
+          ? ' Anything you create now will pick these up; existing cards aren’t changed.'
+          : ' You have viewer access — only editors and owners can change them.'}
+      </p>
 
       {/* NOTES */}
       <SettingsCategory title="Notes" desc="When you create a sticky note">
@@ -189,14 +235,6 @@ export function DefaultsTab({ workspaceId, workspaceName, user, role, workspaceS
                  onChange={(e) => setKey('shape', 'strokeWidth', Number(e.target.value) || 2)} />
         </Field>
       </SettingsCategory>
-
-      {isOwner && onOpenRecovery && (
-        <SettingsCategory title="Workspace recovery" desc="Owner-only. Rewinds every cluster in this workspace atomically — useful after an accidental mass-delete. Each cluster's pre-rewind state is preserved so the operation is reversible.">
-          <button type="button" className="settings-link-btn" onClick={onOpenRecovery}>
-            Open recovery →
-          </button>
-        </SettingsCategory>
-      )}
     </div>
   );
 }
