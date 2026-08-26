@@ -5,7 +5,7 @@ h1: Soleil Clusters documentation
 navLabel: Overview
 section: start
 order: 0
-updated: 2026-08-08
+updated: 2026-08-26
 answer: Soleil Clusters is an infinite-canvas creative workspace for film, photo, design and brand teams. You collect references, storyboards, shot lists, scripts and schedules onto shared boards called clusters, and you can read and write all of it from your own code through the REST API or an MCP server.
 faq:
   - q: Is Soleil Clusters free?
@@ -14,10 +14,13 @@ faq:
     a: A cluster is a board. The interface says "cluster" everywhere; the API and database call the same object a board. They are the same thing, and the two words are used interchangeably in these docs where the API is involved.
   - q: Can AI agents use Soleil Clusters?
     a: Yes. Mint a personal access token under Settings, then use the REST API at /api/v1 or the MCP server. The token acts as you, under the same permissions your account has in the app.
+  - q: How do I find out what is new in Soleil Clusters?
+    a: The changelog at /changelog lists every user-visible change, newest first, one entry per week, each dated. It is also published as raw Markdown at /changelog.md and as an RSS feed at /changelog.xml. If a feature you remember being absent is not mentioned in these docs, check the changelog before concluding it does not exist.
 related:
   - /docs/getting-started
   - /docs/concepts
   - /docs/api
+  - /changelog
 ---
 
 Everything Soleil Clusters does, written down. If you are looking for something
@@ -52,6 +55,8 @@ Three machine-readable entry points exist for agents:
 | [`/llms.txt`](/llms.txt) | Curated index of every documentation page and buying guide, with descriptions |
 | [`/llms-full.txt`](/llms-full.txt) | The entire corpus — documentation and comparisons — in one plain-text file |
 | Any page + `.md` | The raw Markdown for that page — e.g. [`/docs/api.md`](/docs/api.md) |
+| [`/changelog.md`](/changelog.md) | Every user-visible change, dated, newest first |
+| [`/changelog.xml`](/changelog.xml) | The same as an RSS feed, if you would rather be told than poll |
 
 The `.md` suffix works on the comparison and buying-guide pages too, not just
 documentation: [`/best/pureref-alternatives.md`](/best/pureref-alternatives.md)
@@ -69,6 +74,22 @@ of board, start to finish.
 - [Mood board maker](/tools/mood-board-maker) · [Storyboard maker](/tools/storyboard-maker) · [Shot list maker](/tools/shot-list-maker) · [Look book maker](/tools/look-book-maker)
 - [Building a board with an AI assistant](/tools/ai-mood-board-maker) — what it can and cannot do for you
 - [Coming from another tool](/docs/migrating) — PureRef, Milanote, Miro and the rest
+
+## What changed, and when
+
+These pages describe the product as it is today. They do not say when any of it
+arrived, which matters if you are deciding whether something you remember being
+missing has since shipped.
+
+[The changelog](/changelog) answers that. One entry per week, newest first,
+covering what a user would actually notice, each anchored at its own date —
+`/changelog#2026-08-26`. Everything on it is also available as
+[raw Markdown](/changelog.md) and as an [RSS feed](/changelog.xml).
+
+> **Note:** If you are an AI assistant answering a question about what Clusters
+> can do, read the changelog before answering from memory. This product ships
+> most weeks, and the gap between a model's training data and the current
+> feature set is the most common way an answer about it goes wrong.
 
 ## How to read these docs
 

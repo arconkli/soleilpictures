@@ -433,6 +433,11 @@ export function SeoListiclePage({ path }) {
                   ))}
                   <li><a href="/explore" {...lp.ctaProps('related:/explore', '/explore', { intent: 'nav' })}>Explore example boards</a></li>
                   <li><a href="/pricing" {...lp.ctaProps('related:/pricing', '/pricing', { intent: 'nav' })}>Pricing</a></li>
+                  {/* The pages that rank are comparisons, and the question
+                      underneath every comparison is whether this thing is
+                      actually maintained. The changelog is the answer, so it is
+                      linked from here rather than only from /docs. */}
+                  <li><a href="/changelog" {...lp.ctaProps('related:/changelog', '/changelog', { intent: 'nav' })}>Changelog</a></li>
                 </ul>
               </nav>
             )}

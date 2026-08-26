@@ -15,101 +15,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { DOCS_PAGES, DOCS_SECTIONS, getDocsPage } from '../lib/docsiteIndex.js';
 import { DOCS_CONTENT } from '../lib/docsiteContent.js';
+import { Block, Inline } from './docsBlocks.jsx';
 import { NotFoundPage } from './NotFoundPage.jsx';
 import './docsite.css';
-
-// ── Inline + block rendering ────────────────────────────────────────────────
-// One component per node type in the AST that gen-docs.mjs emits. Anything the
-// parser can produce must render here, or the page would silently differ from
-// the crawlable HTML the Worker injected.
-
-// Recursive: strong/em/link carry `children` so bold-wrapping-code and bold
-// links render as markup rather than literal asterisks and backticks. Code
-// spans are terminal by design — `**` inside backticks must stay literal.
-// Must stay in lockstep with inlineHtml() in scripts/gen-docs.mjs.
-function Inline({ nodes }) {
-  return (nodes || []).map((n, i) => {
-    const inner = n.children ? <Inline nodes={n.children} /> : n.v;
-    if (n.t === 'code') return <code key={i}>{n.v}</code>;
-    if (n.t === 'strong') return <strong key={i}>{inner}</strong>;
-    if (n.t === 'em') return <em key={i}>{inner}</em>;
-    if (n.t === 'link') {
-      const external = /^https?:/i.test(n.href);
-      return (
-        <a key={i} href={n.href}
-           {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
-          {inner}
-        </a>
-      );
-    }
-    return <span key={i}>{n.v}</span>;
-  });
-}
-
-// Copy-to-clipboard on every code block: these docs are mostly commands and
-// payloads, and selecting a multi-line <pre> by hand is a small tax paid on
-// every single visit.
-function CodeBlock({ code, lang }) {
-  const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    if (!copied) return undefined;
-    const t = setTimeout(() => setCopied(false), 1600);
-    return () => clearTimeout(t);
-  }, [copied]);
-  return (
-    <div className="docs-code">
-      <button
-        type="button"
-        className="docs-copy"
-        onClick={() => {
-          navigator.clipboard?.writeText(code).then(() => setCopied(true)).catch(() => {});
-        }}
-      >{copied ? 'Copied' : 'Copy'}</button>
-      <pre><code>{code}</code></pre>
-    </div>
-  );
-}
-
-function Block({ b }) {
-  switch (b.type) {
-    case 'heading': {
-      const Tag = b.depth === 2 ? 'h2' : b.depth === 3 ? 'h3' : 'h4';
-      // Self-linking headings: a docs anchor is something people send to each
-      // other, so it should be one click to get.
-      return (
-        <Tag id={b.id} className="docs-heading">
-          <a href={`#${b.id}`} className="docs-anchor" aria-label={`Link to ${b.text}`}>#</a>
-          <Inline nodes={b.inline} />
-        </Tag>
-      );
-    }
-    case 'para':    return <p><Inline nodes={b.inline} /></p>;
-    case 'list':    return b.ordered
-      ? <ol>{b.items.map((it, i) => <li key={i}><Inline nodes={it} /></li>)}</ol>
-      : <ul>{b.items.map((it, i) => <li key={i}><Inline nodes={it} /></li>)}</ul>;
-    case 'code':    return <CodeBlock code={b.code} lang={b.lang} />;
-    case 'callout': return (
-      <aside className={`docs-callout docs-callout-${b.variant}`}>
-        <Inline nodes={b.inline} />
-      </aside>
-    );
-    case 'hr':      return <hr />;
-    case 'table':   return (
-      // Wrapped so a wide table scrolls itself instead of the page.
-      <div className="docs-table-wrap">
-        <table>
-          <thead><tr>{b.head.map((c, i) => <th key={i}><Inline nodes={c} /></th>)}</tr></thead>
-          <tbody>
-            {b.rows.map((r, i) => (
-              <tr key={i}>{r.map((c, j) => <td key={j}><Inline nodes={c} /></td>)}</tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-    default:        return null;
-  }
-}
 
 // ── Navigation ──────────────────────────────────────────────────────────────
 
@@ -352,7 +260,7 @@ export function DocsPage({ path }) {
               than pinned across the bottom of every page. */}
           <footer className="docs-footer">
             <span>Machine-readable: <a href="/llms.txt">llms.txt</a> · <a href="/llms-full.txt">llms-full.txt</a> · <a href="/api/v1/openapi.json">OpenAPI</a></span>
-            <span><a href="/pricing">Pricing</a> · <a href="/explore">Explore</a> · <a href="/legal/privacy">Privacy</a></span>
+            <span><a href="/changelog">Changelog</a> · <a href="/pricing">Pricing</a> · <a href="/explore">Explore</a> · <a href="/legal/privacy">Privacy</a></span>
           </footer>
         </div>
       </div>

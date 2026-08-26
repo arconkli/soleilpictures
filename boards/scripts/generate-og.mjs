@@ -69,6 +69,14 @@ const cards = [
     h1: `${s.label} — documentation`,
     subhead: s.blurb,
   })),
+  // The changelog gets ONE card, not one per entry. worker.js injectChangelog
+  // busts it with ?v=<newest entry date>, so the preview refreshes on a reshare
+  // without the file itself having to change.
+  {
+    file: 'changelog.png',
+    h1: 'Changelog',
+    subhead: 'Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly.',
+  },
   {
     file: 'default.png',
     h1: 'Creative Workspace & Moodboard for Production Teams',

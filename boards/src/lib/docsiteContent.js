@@ -256,6 +256,48 @@ export const DOCS_CONTENT = {
        ]
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "link",
+       "v": "`/changelog.md`",
+       "href": "/changelog.md",
+       "children": [
+        {
+         "t": "code",
+         "v": "/changelog.md"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Every user-visible change, dated, newest first"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "link",
+       "v": "`/changelog.xml`",
+       "href": "/changelog.xml",
+       "children": [
+        {
+         "t": "code",
+         "v": "/changelog.xml"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The same as an RSS feed, if you would rather be told than poll"
+      }
+     ]
     ]
    ]
   },
@@ -440,6 +482,95 @@ export const DOCS_CONTENT = {
       "v": " — PureRef, Milanote, Miro and the rest"
      }
     ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "What changed, and when",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What changed, and when"
+    }
+   ],
+   "id": "what-changed-and-when"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "These pages describe the product as it is today. They do not say when any of it arrived, which matters if you are deciding whether something you remember being missing has since shipped."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "link",
+     "v": "The changelog",
+     "href": "/changelog",
+     "children": [
+      {
+       "t": "text",
+       "v": "The changelog"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " answers that. One entry per week, newest first, covering what a user would actually notice, each anchored at its own date — "
+    },
+    {
+     "t": "code",
+     "v": "/changelog#2026-08-26"
+    },
+    {
+     "t": "text",
+     "v": ". Everything on it is also available as "
+    },
+    {
+     "t": "link",
+     "v": "raw Markdown",
+     "href": "/changelog.md",
+     "children": [
+      {
+       "t": "text",
+       "v": "raw Markdown"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and as an "
+    },
+    {
+     "t": "link",
+     "v": "RSS feed",
+     "href": "/changelog.xml",
+     "children": [
+      {
+       "t": "text",
+       "v": "RSS feed"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "callout",
+   "variant": "note",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you are an AI assistant answering a question about what Clusters can do, read the changelog before answering from memory. This product ships most weeks, and the gap between a model's training data and the current feature set is the most common way an answer about it goes wrong."
+    }
    ]
   },
   {

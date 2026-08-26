@@ -68,7 +68,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters is an infinite-canvas creative workspace for film, photo, design and brand teams. You collect references, storyboards, shot lists, scripts and schedules onto shared boards called clusters, and you can read and write all of it from your own code through the REST API or an MCP server.",
     "section": "start",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-08-26",
     "navLabel": "Overview",
     "headings": [
       {
@@ -84,6 +84,10 @@ export const DOCS_PAGES = [
         "text": "Guides, by what you are making"
       },
       {
+        "id": "what-changed-and-when",
+        "text": "What changed, and when"
+      },
+      {
         "id": "how-to-read-these-docs",
         "text": "How to read these docs"
       }
@@ -91,7 +95,8 @@ export const DOCS_PAGES = [
     "related": [
       "/docs/getting-started",
       "/docs/concepts",
-      "/docs/api"
+      "/docs/api",
+      "/changelog"
     ],
     "faq": [
       {
@@ -105,6 +110,10 @@ export const DOCS_PAGES = [
       {
         "q": "Can AI agents use Soleil Clusters?",
         "a": "Yes. Mint a personal access token under Settings, then use the REST API at /api/v1 or the MCP server. The token acts as you, under the same permissions your account has in the app."
+      },
+      {
+        "q": "How do I find out what is new in Soleil Clusters?",
+        "a": "The changelog at /changelog lists every user-visible change, newest first, one entry per week, each dated. It is also published as raw Markdown at /changelog.md and as an RSS feed at /changelog.xml. If a feature you remember being absent is not mentioned in these docs, check the changelog before concluding it does not exist."
       }
     ]
   },
