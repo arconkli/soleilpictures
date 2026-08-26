@@ -78,6 +78,17 @@
 }
 .docs-cta:hover { color: var(--ink-0); border-color: var(--line-3); }
 
+/* A quiet sibling of .docs-cta, not a second call to action: the changelog is
+   somewhere you go when you have a question, not somewhere we are selling. */
+.docs-toplink {
+  flex: 0 0 auto;
+  color: var(--ink-3);
+  font-size: 0.86rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.docs-toplink:hover { color: var(--ink-1); }
+
 .docs-nav-toggle {
   display: none;
   flex: 0 0 auto;
@@ -468,6 +479,9 @@
   .docs-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
   .docs-nav-toggle { display: inline-block; }
   .docs-cta { display: none; }
+  /* Brand + search + Menu already fill a phone bar. The footer link on every
+     page keeps the changelog one scroll away. */
+  .docs-toplink { display: none; }
   .docs-search { max-width: none; }
   .docs-nav {
     display: none;

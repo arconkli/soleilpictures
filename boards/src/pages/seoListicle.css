@@ -603,3 +603,31 @@
   }
   .seo-li-ranklist li:hover { transform: none; }
 }
+
+/* ── Head-to-head matchups (/best/pureref-alternatives) ─────────────────── */
+/* These sections exist because the head-to-head and platform queries were
+   landing on the page at positions 7–12 with no clicks, answered only by a
+   300-character line inside a collapsed accordion at the very bottom. They sit
+   high on the page and each matchup owns an anchor, so the heading itself is
+   the query and Google can deep-link it. */
+.seo-li-h2h {
+  padding-top: 26px;
+  margin-top: 26px;
+  border-top: 1px solid var(--line-1);
+}
+.seo-li-h2h:first-of-type { border-top: 0; margin-top: 14px; padding-top: 0; }
+
+.seo-li-h2h-h {
+  font: 600 1.35rem/1.3 var(--font-sans);
+  color: var(--ink-0);
+  margin: 0 0 10px;
+}
+
+/* The one-line answer. Larger than body copy because it IS the answer — the
+   paragraphs under it are the working. No box: it earns emphasis by being
+   first, the same rule .docs-answer follows. */
+.seo-li-h2h-verdict {
+  font-size: 1.05rem;
+  color: var(--ink-0);
+  margin-bottom: 1em;
+}

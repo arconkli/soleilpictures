@@ -157,6 +157,12 @@ export function DocsPage({ path }) {
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Search the documentation"
         />
+        {/* The docs describe the product as it is; they never say when any of it
+            arrived. That question has its own page, and it is reachable from the
+            persistent bar rather than only from the hub body and the footer —
+            a reader who landed deep on a reference page from a search result
+            never sees either of those. /changelog links back here the same way. */}
+        <a className="docs-toplink" href="/changelog">Changelog</a>
         <button
           type="button"
           className="docs-nav-toggle"
