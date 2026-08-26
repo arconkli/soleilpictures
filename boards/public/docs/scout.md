@@ -141,13 +141,13 @@ So the first time that number texts Scout, Scout offers:
 Reply `YES` and the phone is bound, along with anything you had already sent.
 Ignore it and everything stays where it is; the offer keeps until you take it.
 
-A pending claim on your account is listed in **Settings → Scout**, so a number
+A pending claim on your account is listed in **Settings → Connections**, so a number
 you do not recognise is something you can see.
 
 ## Connecting to an existing account
 
 If you already have a Clusters account and never joined the waitlist,
-**Settings → Scout** gives you a connect code. Text `/code <code>` and the phone
+**Settings → Connections** gives you a connect code. Text `/code <code>` and the phone
 is bound to your account, so texted photos land in the workspace you already
 use.
 

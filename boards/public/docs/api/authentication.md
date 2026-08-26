@@ -17,7 +17,7 @@ the audit trail applies to both.
 
 ## Minting a token
 
-**Settings → API → New token.** Give it a name that says where it will be used,
+**Settings → Connections → New token.** Give it a name that says where it will be used,
 so you know which one to revoke later.
 
 **Allow writes** is the only scope control. Leave it off for anything that only
@@ -90,7 +90,7 @@ of its own.
 
 ## Revoking
 
-**Settings → API → Revoke**, effective immediately. The next request with that
+**Settings → Connections → Revoke**, effective immediately. The next request with that
 token gets `401`.
 
 Unknown, revoked and expired tokens all return the same `401 invalid token` —

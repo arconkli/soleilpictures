@@ -128,7 +128,7 @@ honest representation of what it is doing.
 | Belongs to | You | The workspace |
 | Survives you leaving | No | Yes |
 | Reach | Everything you can see | One workspace |
-| Created by | Anyone, in Settings → API | The workspace owner, over the API |
+| Created by | Anyone, in Settings → Connections | The workspace owner, over the API |
 | Good for | Your own scripts, trying things out, [MCP](/docs/mcp) on your machine | Anything a team depends on |
 
 A useful rule: if losing access to it would interrupt someone other than you,

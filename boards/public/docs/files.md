@@ -54,7 +54,7 @@ behind it.
 ## Storage
 
 Uploads count against your account's storage quota. Creator accounts
-get 100GB. The meter is in **Settings → Billing**.
+get 100GB. The meter is in **Settings → Plan & billing**.
 
 Storage is counted against the **owner of the cluster**, not the person who
 uploaded. If you are an editor on someone else's board, your uploads use their

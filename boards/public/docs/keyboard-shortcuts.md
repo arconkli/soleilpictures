@@ -66,7 +66,7 @@ you were rather than at the origin.
 
 ### Swapping what the wheel does
 
-**Settings → Display → Scroll wheel.** Scrolling pans by default and `⌘`-scroll
+**Settings → Appearance → Scroll wheel.** Scrolling pans by default and `⌘`-scroll
 zooms; set it to **Zoom** and they trade places, so a plain scroll zooms at the
 pointer and `⌘`, `Alt` or `Shift` pans. `⌘K` → "scroll wheel" flips it without
 opening settings.

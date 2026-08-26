@@ -56,7 +56,7 @@ Everything else is the same on both plans.
 > **Older accounts keep a higher cap.** The free allowance used to be
 > {{fact:legacyDemoCardLimit}} cards. Every account created while that was the
 > plan keeps it, permanently — no existing cap was ever lowered. Your own figure
-> is on the Upgrade pill and in Settings → Billing, and it is the one enforced.
+> is on the Upgrade pill and in Settings → Plan & billing, and it is the one enforced.
 > [Referral credits](/docs/account/referrals) add to whichever cap you have.
 
 > **Note:** Clusters are **not** capped. Neither are collaborators, editing,
@@ -82,7 +82,7 @@ grant bonus cards when someone you invited actually gets started.
 
 ## Billing
 
-**Settings → Billing** shows your plan, the storage meter, and a link to the
+**Settings → Plan & billing** shows your plan, the storage meter, and a link to the
 Stripe customer portal for payment details, invoices and cancellation.
 
 Annual and monthly are the same product. Annual is cheaper per month.

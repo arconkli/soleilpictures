@@ -314,20 +314,24 @@
   },
   "settingsTabs": [
     {
-      "id": "api",
-      "label": "API"
+      "id": "appearance",
+      "label": "Appearance"
     },
     {
       "id": "billing",
-      "label": "Billing"
+      "label": "Plan & billing"
+    },
+    {
+      "id": "connections",
+      "label": "Connections"
     },
     {
       "id": "defaults",
-      "label": "Defaults"
+      "label": "Card defaults"
     },
     {
-      "id": "display",
-      "label": "Display"
+      "id": "general",
+      "label": "General"
     },
     {
       "id": "invite",
@@ -340,14 +344,6 @@
     {
       "id": "profile",
       "label": "Profile"
-    },
-    {
-      "id": "scout",
-      "label": "Scout"
-    },
-    {
-      "id": "theme",
-      "label": "Theme"
     }
   ],
   "powerRevealKeys": [

@@ -1997,11 +1997,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Settings → Display → Scroll wheel.",
+     "v": "Settings → Appearance → Scroll wheel.",
      "children": [
       {
        "t": "text",
-       "v": "Settings → Display → Scroll wheel."
+       "v": "Settings → Appearance → Scroll wheel."
       }
      ]
     },
@@ -3640,11 +3640,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → Display → Scroll wheel",
+     "v": "Settings → Appearance → Scroll wheel",
      "children": [
       {
        "t": "text",
-       "v": "Settings → Display → Scroll wheel"
+       "v": "Settings → Appearance → Scroll wheel"
       }
      ]
     },
@@ -6054,7 +6054,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Storage is counted against your account quota — Creator accounts get 100GB. The meter is in Settings → Billing."
+     "v": "Storage is counted against your account quota — Creator accounts get 100GB. The meter is in Settings → Plan & billing."
     }
    ]
   },
@@ -6415,11 +6415,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Defaults",
+     "v": "Card defaults",
      "children": [
       {
        "t": "text",
-       "v": "Defaults"
+       "v": "Card defaults"
       }
      ]
     },
@@ -6646,11 +6646,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Defaults",
+     "v": "Card defaults",
      "children": [
       {
        "t": "text",
-       "v": "Defaults"
+       "v": "Card defaults"
       }
      ]
     },
@@ -11830,11 +11830,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → Billing",
+     "v": "Settings → Plan & billing",
      "children": [
       {
        "t": "text",
-       "v": "Settings → Billing"
+       "v": "Settings → Plan & billing"
       }
      ]
     },
@@ -12706,11 +12706,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → Billing",
+     "v": "Settings → Plan & billing",
      "children": [
       {
        "t": "text",
-       "v": "Settings → Billing"
+       "v": "Settings → Plan & billing"
       }
      ]
     },
@@ -13271,11 +13271,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Defaults",
+     "v": "Card defaults",
      "children": [
       {
        "t": "text",
-       "v": "Defaults"
+       "v": "Card defaults"
       }
      ]
     },
@@ -23980,11 +23980,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → Scout",
+     "v": "Settings → Connections",
      "children": [
       {
        "t": "text",
-       "v": "Settings → Scout"
+       "v": "Settings → Connections"
       }
      ]
     },
@@ -24015,11 +24015,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → Scout",
+     "v": "Settings → Connections",
      "children": [
       {
        "t": "text",
-       "v": "Settings → Scout"
+       "v": "Settings → Connections"
       }
      ]
     },
@@ -24192,7 +24192,35 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Open with "
+     "v": "Open it from the sidebar — the "
+    },
+    {
+     "t": "strong",
+     "v": "cog",
+     "children": [
+      {
+       "t": "text",
+       "v": "cog"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "your avatar",
+     "children": [
+      {
+       "t": "text",
+       "v": "your avatar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", bottom left — or with "
     },
     {
      "t": "code",
@@ -24200,21 +24228,48 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " → \"settings\", or from the sidebar. Settings are stored on your account, not the device, so they follow you everywhere you sign in."
+     "v": " → \"settings\". Both buttons open the same panel; they differ only in which tab they land on, and every other tab is one click away in the same rail."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Settings are stored on your account, not the device, so they follow you everywhere you sign in."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The rail is grouped into two halves, and which half a setting is in tells you who it affects."
     }
    ]
   },
   {
    "type": "heading",
    "depth": 2,
-   "text": "Account",
+   "text": "You",
    "inline": [
     {
      "t": "text",
-     "v": "Account"
+     "v": "You"
     }
    ],
-   "id": "account"
+   "id": "you"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Personal. Nobody else in the workspace sees these, and they follow your account between devices."
+    }
+   ]
   },
   {
    "type": "heading",
@@ -24261,96 +24316,157 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 3,
-   "text": "Scout",
+   "text": "Appearance",
    "inline": [
     {
      "t": "text",
-     "v": "Scout"
+     "v": "Appearance"
     }
    ],
-   "id": "scout"
+   "id": "appearance"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "The connect code for "
-    },
-    {
-     "t": "link",
-     "v": "Soleil Scout",
-     "href": "/docs/scout",
-     "children": [
-      {
-       "t": "text",
-       "v": "Soleil Scout"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", which binds a phone number to this account so texted photos land in your workspace. Also shows identities already connected."
+     "v": "How Clusters looks and how the canvas answers your hands, in three sections:"
     }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Theme",
+      "children": [
+       {
+        "t": "text",
+        "v": "Theme"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — light or dark mode, accent colour, and body font: a curated list of around twenty-five families plus anything from Google Fonts. See "
+     },
+     {
+      "t": "link",
+      "v": "Theme and defaults",
+      "href": "/docs/account/theme-and-defaults",
+      "children": [
+       {
+        "t": "text",
+        "v": "Theme and defaults"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Layout",
+      "children": [
+       {
+        "t": "text",
+        "v": "Layout"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — clean mode, which hides the interface chrome for presenting ("
+     },
+     {
+      "t": "code",
+      "v": "⌘."
+     },
+     {
+      "t": "text",
+      "v": "), and whether the sidebar starts open."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Canvas",
+      "children": [
+       {
+        "t": "text",
+        "v": "Canvas"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — whether a plain "
+     },
+     {
+      "t": "strong",
+      "v": "scroll wheel",
+      "children": [
+       {
+        "t": "text",
+        "v": "scroll wheel"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " pans the "
+     },
+     {
+      "t": "link",
+      "v": "canvas",
+      "href": "/docs/canvas",
+      "children": [
+       {
+        "t": "text",
+        "v": "canvas"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or zooms it. Pinching a trackpad zooms either way."
+     }
+    ]
    ]
   },
   {
    "type": "heading",
    "depth": 3,
-   "text": "API",
+   "text": "Notifications",
    "inline": [
     {
      "t": "text",
-     "v": "API"
+     "v": "Notifications"
     }
    ],
-   "id": "api"
+   "id": "notifications"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Create and revoke "
+     "v": "Independent switches for the emails Clusters sends you — mentions, comment replies, workspace invites, cluster shares, schedule changes, and product tips. Anything you turn off still reaches you in-app. See "
     },
     {
      "t": "link",
-     "v": "personal access tokens",
-     "href": "/docs/api/authentication",
+     "v": "Notifications",
+     "href": "/docs/collaborate/notifications",
      "children": [
       {
        "t": "text",
-       "v": "personal access tokens"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " for the "
-    },
-    {
-     "t": "link",
-     "v": "REST API",
-     "href": "/docs/api",
-     "children": [
-      {
-       "t": "text",
-       "v": "REST API"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " and "
-    },
-    {
-     "t": "link",
-     "v": "MCP",
-     "href": "/docs/mcp",
-     "children": [
-      {
-       "t": "text",
-       "v": "MCP"
+       "v": "Notifications"
       }
      ]
     },
@@ -24361,89 +24477,192 @@ export const DOCS_CONTENT = {
    ]
   },
   {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Each token gets a name and an "
-    },
-    {
-     "t": "strong",
-     "v": "Allow writes",
-     "children": [
-      {
-       "t": "text",
-       "v": "Allow writes"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " checkbox — leave it off for a read-only token. The token value is shown "
-    },
-    {
-     "t": "strong",
-     "v": "once",
-     "children": [
-      {
-       "t": "text",
-       "v": "once"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", at creation. It is stored only as a hash and cannot be recovered; a lost token is revoked and replaced."
-    }
-   ]
-  },
-  {
    "type": "heading",
    "depth": 3,
-   "text": "Invite & earn",
+   "text": "Connections",
    "inline": [
     {
      "t": "text",
-     "v": "Invite & earn"
+     "v": "Connections"
     }
    ],
-   "id": "invite-earn"
+   "id": "connections"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Your "
-    },
-    {
-     "t": "link",
-     "v": "referral",
-     "href": "/docs/account/referrals",
-     "children": [
-      {
-       "t": "text",
-       "v": "referral"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " link, share targets, and the stats: friends joined, how many got started, cards earned, free months."
+     "v": "Everything that can reach your clusters without being this browser."
     }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Soleil Scout",
+      "children": [
+       {
+        "t": "text",
+        "v": "Soleil Scout"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the connect code that binds a phone number to this account, so texted photos land in your workspace. Also lists the phones already connected, and any number still waiting to prove it is yours. See "
+     },
+     {
+      "t": "link",
+      "v": "Soleil Scout",
+      "href": "/docs/scout",
+      "children": [
+       {
+        "t": "text",
+        "v": "Soleil Scout"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "API access",
+      "children": [
+       {
+        "t": "text",
+        "v": "API access"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — create and revoke "
+     },
+     {
+      "t": "link",
+      "v": "personal access tokens",
+      "href": "/docs/api/authentication",
+      "children": [
+       {
+        "t": "text",
+        "v": "personal access tokens"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " for the "
+     },
+     {
+      "t": "link",
+      "v": "REST API",
+      "href": "/docs/api",
+      "children": [
+       {
+        "t": "text",
+        "v": "REST API"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "link",
+      "v": "MCP",
+      "href": "/docs/mcp",
+      "children": [
+       {
+        "t": "text",
+        "v": "MCP"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and disconnect apps you approved through "
+     },
+     {
+      "t": "link",
+      "v": "OAuth",
+      "href": "/docs/api/oauth",
+      "children": [
+       {
+        "t": "text",
+        "v": "OAuth"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". Each token gets a name, an "
+     },
+     {
+      "t": "strong",
+      "v": "Allow writes",
+      "children": [
+       {
+        "t": "text",
+        "v": "Allow writes"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " checkbox and an "
+     },
+     {
+      "t": "strong",
+      "v": "Allow deletes",
+      "children": [
+       {
+        "t": "text",
+        "v": "Allow deletes"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " checkbox — leave both off for a read-only token. The token value is shown "
+     },
+     {
+      "t": "strong",
+      "v": "once",
+      "children": [
+       {
+        "t": "text",
+        "v": "once"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", at creation: it is stored only as a hash and cannot be recovered, so a lost token is revoked and replaced."
+     }
+    ]
    ]
   },
   {
    "type": "heading",
    "depth": 3,
-   "text": "Billing",
+   "text": "Plan & billing",
    "inline": [
     {
      "t": "text",
-     "v": "Billing"
+     "v": "Plan & billing"
     }
    ],
-   "id": "billing"
+   "id": "plan-billing"
   },
   {
    "type": "para",
@@ -24486,30 +24705,152 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 3,
-   "text": "Notifications",
+   "text": "Invite & earn",
    "inline": [
     {
      "t": "text",
-     "v": "Notifications"
+     "v": "Invite & earn"
     }
    ],
-   "id": "notifications"
+   "id": "invite-earn"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Six independent switches — mentions, comment replies, workspace invites, board shares, schedule changes, and product tips. See "
+     "v": "Your "
     },
     {
      "t": "link",
-     "v": "Notifications",
-     "href": "/docs/collaborate/notifications",
+     "v": "referral",
+     "href": "/docs/account/referrals",
      "children": [
       {
        "t": "text",
-       "v": "Notifications"
+       "v": "referral"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " link, share targets, and the stats: friends joined, how many got started, cards earned, free months."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "This workspace",
+   "inline": [
+    {
+     "t": "text",
+     "v": "This workspace"
+    }
+   ],
+   "id": "this-workspace"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Shared. Everyone in the workspace sees the same values. Editors and owners can change Card defaults; only the owner can change the name, the icon, or run a recovery. Viewers see everything read-only."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "General",
+   "inline": [
+    {
+     "t": "text",
+     "v": "General"
+    }
+   ],
+   "id": "general"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What the workspace "
+    },
+    {
+     "t": "em",
+     "v": "is",
+     "children": [
+      {
+       "t": "text",
+       "v": "is"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": its "
+    },
+    {
+     "t": "strong",
+     "v": "name",
+     "children": [
+      {
+       "t": "text",
+       "v": "name"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and its "
+    },
+    {
+     "t": "strong",
+     "v": "icon",
+     "children": [
+      {
+       "t": "text",
+       "v": "icon"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which are what the sidebar and the workspace switcher show. The switcher's ⋯ menu opens this tab too."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Owners also get "
+    },
+    {
+     "t": "strong",
+     "v": "Recovery",
+     "children": [
+      {
+       "t": "text",
+       "v": "Recovery"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " here — a rewind of every cluster in the workspace at once, for after an accidental mass-delete. The pre-rewind state is kept, so the rewind itself is reversible. See "
+    },
+    {
+     "t": "link",
+     "v": "Trash and recovery",
+     "href": "/docs/clusters/trash-and-recovery",
+     "children": [
+      {
+       "t": "text",
+       "v": "Trash and recovery"
       }
      ]
     },
@@ -24521,34 +24862,36 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
-   "depth": 2,
-   "text": "Workspace",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Workspace"
-    }
-   ],
-   "id": "workspace"
-  },
-  {
-   "type": "heading",
    "depth": 3,
-   "text": "Defaults",
+   "text": "Card defaults",
    "inline": [
     {
      "t": "text",
-     "v": "Defaults"
+     "v": "Card defaults"
     }
    ],
-   "id": "defaults"
+   "id": "card-defaults"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "What new things start as, so you are not restyling every one:"
+     "v": "What new cards "
+    },
+    {
+     "t": "em",
+     "v": "start as",
+     "children": [
+      {
+       "t": "text",
+       "v": "start as"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so you are not restyling every one. Existing cards are never changed."
     }
    ]
   },
@@ -24575,33 +24918,17 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Shapes",
+      "v": "Clusters",
       "children": [
        {
         "t": "text",
-        "v": "Shapes"
+        "v": "Clusters"
        }
       ]
      },
      {
       "t": "text",
-      "v": " — font, stroke colour, fill colour, stroke width"
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Default view",
-      "children": [
-       {
-        "t": "text",
-        "v": "Default view"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — whether clusters open as "
+      "v": " — whether new clusters open as "
      },
      {
       "t": "link",
@@ -24614,128 +24941,60 @@ export const DOCS_CONTENT = {
        }
       ]
      }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Docs",
+      "children": [
+       {
+        "t": "text",
+        "v": "Docs"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — font"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Shapes",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shapes"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — stroke colour, fill colour, stroke width"
+     }
     ]
    ]
   },
   {
    "type": "heading",
-   "depth": 3,
-   "text": "Theme",
+   "depth": 2,
+   "text": "Sign out",
    "inline": [
     {
      "t": "text",
-     "v": "Theme"
+     "v": "Sign out"
     }
    ],
-   "id": "theme"
+   "id": "sign-out"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Light or dark mode, accent colour, and body font — a curated list of around twenty-five families plus anything from Google Fonts. See "
-    },
-    {
-     "t": "link",
-     "v": "Theme and defaults",
-     "href": "/docs/account/theme-and-defaults",
-     "children": [
-      {
-       "t": "text",
-       "v": "Theme and defaults"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
+     "v": "At the foot of the rail, under both groups. It asks first, and names the account it is about to sign out of."
     }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 3,
-   "text": "Display",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Display"
-    }
-   ],
-   "id": "display"
-  },
-  {
-   "type": "list",
-   "ordered": false,
-   "items": [
-    [
-     {
-      "t": "strong",
-      "v": "Clean mode",
-      "children": [
-       {
-        "t": "text",
-        "v": "Clean mode"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — hide interface chrome for presenting ("
-     },
-     {
-      "t": "code",
-      "v": "⌘."
-     },
-     {
-      "t": "text",
-      "v": ")"
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Sidebar open by default",
-      "children": [
-       {
-        "t": "text",
-        "v": "Sidebar open by default"
-       }
-      ]
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Scroll wheel",
-      "children": [
-       {
-        "t": "text",
-        "v": "Scroll wheel"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — whether scrolling pans the "
-     },
-     {
-      "t": "link",
-      "v": "canvas",
-      "href": "/docs/canvas",
-      "children": [
-       {
-        "t": "text",
-        "v": "canvas"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " or zooms it"
-     }
-    ]
    ]
   },
   {
@@ -24879,7 +25138,56 @@ export const DOCS_CONTENT = {
        "v": "The eye toggle on the board"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Deleting or leaving a workspace"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The workspace switcher's ⋯ menu"
+      }
+     ]
     ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "On a phone",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone"
+    }
+   ],
+   "id": "on-a-phone"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The panel fills the screen and works as a list: the rail is the first screen, tapping a tab pushes it, and the back chevron in the header returns to the list. The bottom nav's "
+    },
+    {
+     "t": "strong",
+     "v": "Settings",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " tab opens it."
+    }
    ]
   }
  ],
@@ -25213,7 +25521,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " The free allowance used to be 100 cards. Every account created while that was the plan keeps it, permanently — no existing cap was ever lowered. Your own figure is on the Upgrade pill and in Settings → Billing, and it is the one enforced. "
+     "v": " The free allowance used to be 100 cards. Every account created while that was the plan keeps it, permanently — no existing cap was ever lowered. Your own figure is on the Upgrade pill and in Settings → Plan & billing, and it is the one enforced. "
     },
     {
      "t": "link",
@@ -25422,11 +25730,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Settings → Billing",
+     "v": "Settings → Plan & billing",
      "children": [
       {
        "t": "text",
-       "v": "Settings → Billing"
+       "v": "Settings → Plan & billing"
       }
      ]
     },
@@ -25498,6 +25806,37 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Appearance",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Appearance"
+    }
+   ],
+   "id": "appearance"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Settings → Appearance.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Appearance."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Personal — these change how Clusters looks and behaves for you, on every device you sign in on, and nobody else in the workspace sees them. Three sections."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
    "text": "Theme",
    "inline": [
     {
@@ -25506,21 +25845,6 @@ export const DOCS_CONTENT = {
     }
    ],
    "id": "theme"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Settings → Theme.",
-     "children": [
-      {
-       "t": "text",
-       "v": "Settings → Theme."
-      }
-     ]
-    }
-   ]
   },
   {
    "type": "list",
@@ -25609,7 +25933,7 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
-   "depth": 3,
+   "depth": 4,
    "text": "Readability across themes",
    "inline": [
     {
@@ -25675,7 +25999,7 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
-   "depth": 3,
+   "depth": 4,
    "text": "The reserved accent",
    "inline": [
     {
@@ -25711,164 +26035,15 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
-   "depth": 2,
-   "text": "Defaults",
+   "depth": 3,
+   "text": "Layout",
    "inline": [
     {
      "t": "text",
-     "v": "Defaults"
+     "v": "Layout"
     }
    ],
-   "id": "defaults"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Settings → Defaults.",
-     "children": [
-      {
-       "t": "text",
-       "v": "Settings → Defaults."
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " What new things start as, so you are not restyling every one."
-    }
-   ]
-  },
-  {
-   "type": "table",
-   "head": [
-    [
-     {
-      "t": "text",
-      "v": "Default"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Applies to"
-     }
-    ]
-   ],
-   "rows": [
-    [
-     [
-      {
-       "t": "text",
-       "v": "Note background, text colour, font, size"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Every new "
-      },
-      {
-       "t": "link",
-       "v": "note",
-       "href": "/docs/canvas/notes",
-       "children": [
-        {
-         "t": "text",
-         "v": "note"
-        }
-       ]
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Shape font, stroke colour, fill colour, stroke width"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Every new "
-      },
-      {
-       "t": "link",
-       "v": "shape",
-       "href": "/docs/canvas/shapes-and-drawing",
-       "children": [
-        {
-         "t": "text",
-         "v": "shape"
-        }
-       ]
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Default view"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Whether clusters open as "
-      },
-      {
-       "t": "link",
-       "v": "canvas or list",
-       "href": "/docs/clusters/list-view",
-       "children": [
-        {
-         "t": "text",
-         "v": "canvas or list"
-        }
-       ]
-      }
-     ]
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Defaults are workspace-scoped, so a workspace can have a consistent look without anyone enforcing it by hand."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Display",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Display"
-    }
-   ],
-   "id": "display"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Settings → Display.",
-     "children": [
-      {
-       "t": "text",
-       "v": "Settings → Display."
-      }
-     ]
-    }
-   ]
+   "id": "layout"
   },
   {
    "type": "list",
@@ -25909,7 +26084,25 @@ export const DOCS_CONTENT = {
        }
       ]
      }
-    ],
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Canvas",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Canvas"
+    }
+   ],
+   "id": "canvas"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
     [
      {
       "t": "strong",
@@ -25994,6 +26187,179 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "The wheel setting exists because the convention genuinely splits across the tools people arrive from — PureRef and Miro zoom on scroll, Figma and Milanote pan — so there is no default that is right for everyone. It follows your account like the rest of this tab, and pinching a trackpad zooms either way."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Card defaults",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Card defaults"
+    }
+   ],
+   "id": "card-defaults"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Settings → Card defaults.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Card defaults."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " What new cards start as, so you are not restyling every one. Existing cards are never changed."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Default"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Applies to"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "Background, text colour, font, size"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Every new "
+      },
+      {
+       "t": "link",
+       "v": "note",
+       "href": "/docs/canvas/notes",
+       "children": [
+        {
+         "t": "text",
+         "v": "note"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Stroke colour, fill colour, stroke width"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Every new "
+      },
+      {
+       "t": "link",
+       "v": "shape",
+       "href": "/docs/canvas/shapes-and-drawing",
+       "children": [
+        {
+         "t": "text",
+         "v": "shape"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Font"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Every new "
+      },
+      {
+       "t": "link",
+       "v": "document",
+       "href": "/docs/documents",
+       "children": [
+        {
+         "t": "text",
+         "v": "document"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Default view"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Whether clusters open as "
+      },
+      {
+       "t": "link",
+       "v": "canvas or list",
+       "href": "/docs/clusters/list-view",
+       "children": [
+        {
+         "t": "text",
+         "v": "canvas or list"
+        }
+       ]
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Unlike Appearance, these belong to the "
+    },
+    {
+     "t": "strong",
+     "v": "workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", not to you — so a workspace can have a consistent look without anyone enforcing it by hand. Editors and owners can change them; viewers see them read-only."
     }
    ]
   },
@@ -28280,11 +28646,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → API",
+     "v": "Settings → Connections",
      "children": [
       {
        "t": "text",
-       "v": "Settings → API"
+       "v": "Settings → Connections"
       }
      ]
     },
@@ -28935,11 +29301,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → API → New token",
+     "v": "Settings → Connections → New token",
      "children": [
       {
        "t": "text",
-       "v": "Settings → API → New token"
+       "v": "Settings → Connections → New token"
       }
      ]
     },
@@ -29601,11 +29967,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Settings → API → New token.",
+     "v": "Settings → Connections → New token.",
      "children": [
       {
        "t": "text",
-       "v": "Settings → API → New token."
+       "v": "Settings → Connections → New token."
       }
      ]
     },
@@ -30065,11 +30431,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Settings → API → Revoke",
+     "v": "Settings → Connections → Revoke",
      "children": [
       {
        "t": "text",
-       "v": "Settings → API → Revoke"
+       "v": "Settings → Connections → Revoke"
       }
      ]
     },
@@ -32903,11 +33269,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → API → Connected apps",
+     "v": "Settings → Connections → Connected apps",
      "children": [
       {
        "t": "text",
-       "v": "Settings → API → Connected apps"
+       "v": "Settings → Connections → Connected apps"
       }
      ]
     },
@@ -39918,11 +40284,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → API → Connected apps",
+     "v": "Settings → Connections → Connected apps",
      "children": [
       {
        "t": "text",
-       "v": "Settings → API → Connected apps"
+       "v": "Settings → Connections → Connected apps"
       }
      ]
     },
@@ -44854,7 +45220,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Anyone, in Settings → API"
+       "v": "Anyone, in Settings → Connections"
       }
      ],
      [

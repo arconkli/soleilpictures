@@ -260,7 +260,7 @@ Zoom and pan are remembered per cluster. Reopening a board puts you back where y
 
 Swapping what the wheel does
 
-Settings → Display → Scroll wheel. Scrolling pans by default and ⌘-scroll zooms; set it to Zoom and they trade places, so a plain scroll zooms at the pointer and ⌘, Alt or Shift pans. ⌘K → "scroll wheel" flips it without opening settings.
+Settings → Appearance → Scroll wheel. Scrolling pans by default and ⌘-scroll zooms; set it to Zoom and they trade places, so a plain scroll zooms at the pointer and ⌘, Alt or Shift pans. ⌘K → "scroll wheel" flips it without opening settings.
 
 Which one is right depends on what you came from — PureRef and Miro zoom on scroll, Figma and Milanote pan — which is why it is a setting and not a default we picked for you.
 
@@ -303,7 +303,7 @@ Q: How do I see shortcuts without leaving what I am doing?
 A: Press ? on any canvas, or click the help button in the corner of the canvas. The overlay lists every shortcut grouped by what it affects.
 
 Q: Can the scroll wheel zoom instead of scrolling the board around?
-A: Yes. Settings → Display → Scroll wheel, or Cmd-K and type "scroll wheel". Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way.
+A: Yes. Settings → Appearance → Scroll wheel, or Cmd-K and type "scroll wheel". Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way.
 
 Q: Do these work on Windows?
 A: Yes. Every Cmd shortcut listed here is Ctrl on Windows and Linux. The in-app overlay detects your platform and shows the right modifier.
@@ -408,7 +408,7 @@ Fit selection | ⇧2
 
 Your position is saved per cluster. Close a board deep in a corner of the canvas and it reopens there, not at the origin.
 
-If scrolling to zoom is the habit you arrived with — it is how PureRef and Miro work — Settings → Display → Scroll wheel swaps the two, so a plain scroll zooms at the pointer and ⌘, Alt or Shift pans. Pinching a trackpad zooms in either setting. See keyboard shortcuts.
+If scrolling to zoom is the habit you arrived with — it is how PureRef and Miro work — Settings → Appearance → Scroll wheel swaps the two, so a plain scroll zooms at the pointer and ⌘, Alt or Shift pans. Pinching a trackpad zooms in either setting. See keyboard shortcuts.
 
 The tool rail
 
@@ -627,7 +627,7 @@ Limits
 
 Images are not size-capped on any plan. The caps that exist are on video, audio and PDF for free accounts.
 
-Storage is counted against your account quota — Creator accounts get 100GB. The meter is in Settings → Billing.
+Storage is counted against your account quota — Creator accounts get 100GB. The meter is in Settings → Plan & billing.
 
 Building a reference wall specifically? The mood board maker guide walks the whole workflow.
 
@@ -688,7 +688,7 @@ Colours and defaults
 
 A note's background and text colour are set from the toolbar or the right-click menu. Text colour is always resolved for readability, so a note stays legible if someone switches between light and dark themes.
 
-To stop setting the same thing every time, Settings → Defaults sets the background, text colour, font and size every new note starts with.
+To stop setting the same thing every time, Settings → Card defaults sets the background, text colour, font and size every new note starts with.
 
 Spellcheck
 
@@ -729,7 +729,7 @@ From the rail's + menu → Tools → Shape.
 
 Eight kinds: rectangle, ellipse, line, arrow, diamond, triangle, hexagon and star. Each is a real card, so it moves, resizes, layers, groups and gets tagged like anything else.
 
-Per-shape controls: stroke colour, fill colour, stroke width, and solid or dashed. Settings → Defaults sets what new shapes start with, so you are not restyling every one.
+Per-shape controls: stroke colour, fill colour, stroke width, and solid or dashed. Settings → Card defaults sets what new shapes start with, so you are not restyling every one.
 
 Shapes are the tool for boxing off regions of a board, drawing a rough frame, or building a simple diagram. For connecting two specific cards, use an arrow instead — arrows anchor to cards and stay attached when things move.
 
@@ -1420,7 +1420,7 @@ Batches upload a few at a time so one huge file does not block eleven small ones
 
 Storage
 
-Uploads count against your account's storage quota. Creator accounts get 100GB. The meter is in Settings → Billing.
+Uploads count against your account's storage quota. Creator accounts get 100GB. The meter is in Settings → Plan & billing.
 
 Storage is counted against the owner of the cluster, not the person who uploaded. If you are an editor on someone else's board, your uploads use their quota — which is the same rule that governs the card cap.
 
@@ -1552,7 +1552,7 @@ The photo adjustments available on image cards have no video equivalent.
 
 Storage
 
-Media counts against your storage quota like everything else — 100GB on Creator, with the meter in Settings → Billing. Video is usually what fills it.
+Media counts against your storage quota like everything else — 100GB on Creator, with the meter in Settings → Plan & billing. Video is usually what fills it.
 
 ## Frequently asked questions
 
@@ -1635,7 +1635,7 @@ Every cluster has two views of the same contents:
 Canvas — the infinite surface, where position means something
 List — a sortable, searchable file browser
 
-Switching does not convert anything. Settings → Defaults sets which view new clusters open in.
+Switching does not convert anything. Settings → Card defaults sets which view new clusters open in.
 
 Finding clusters
 
@@ -3017,11 +3017,11 @@ You already made a Clusters account — you@studio.com. Reply YES and this numbe
 
 Reply YES and the phone is bound, along with anything you had already sent. Ignore it and everything stays where it is; the offer keeps until you take it.
 
-A pending claim on your account is listed in Settings → Scout, so a number you do not recognise is something you can see.
+A pending claim on your account is listed in Settings → Connections, so a number you do not recognise is something you can see.
 
 Connecting to an existing account
 
-If you already have a Clusters account and never joined the waitlist, Settings → Scout gives you a connect code. Text /code <code> and the phone is bound to your account, so texted photos land in the workspace you already use.
+If you already have a Clusters account and never joined the waitlist, Settings → Connections gives you a connect code. Text /code <code> and the phone is bound to your account, so texted photos land in the workspace you already use.
 
 If you started from Scout with no account, a claim flow attaches an email address to the shell account created behind your number.
 
@@ -3062,59 +3062,73 @@ A: iMessage is the confirmed transport. SMS and RCS are not confirmed yet, and n
 ========================================================================
 # Settings
 URL: https://clusters.soleilpictures.com/docs/account/settings
-Updated: 2026-08-08
+Updated: 2026-08-25
 
-Settings is split into things about you and things about the workspace. Account tabs cover Profile, Scout, API, Invite and earn, Billing and Notifications. Workspace tabs cover Defaults, Theme and Display. Open it from the sidebar or with Cmd-K and typing settings.
+Settings is one panel with a rail grouped into You and This workspace. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General and Card defaults. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 
-Open with ⌘K → "settings", or from the sidebar. Settings are stored on your account, not the device, so they follow you everywhere you sign in.
+Open it from the sidebar — the cog or your avatar, bottom left — or with ⌘K → "settings". Both buttons open the same panel; they differ only in which tab they land on, and every other tab is one click away in the same rail.
 
-Account
+Settings are stored on your account, not the device, so they follow you everywhere you sign in.
+
+The rail is grouped into two halves, and which half a setting is in tells you who it affects.
+
+You
+
+Personal. Nobody else in the workspace sees these, and they follow your account between devices.
 
 Profile
 
 Profile picture, display name, email, and your presence colour — the colour your cursor and selection halos appear in to everyone else.
 
-Scout
+Appearance
 
-The connect code for Soleil Scout, which binds a phone number to this account so texted photos land in your workspace. Also shows identities already connected.
+How Clusters looks and how the canvas answers your hands, in three sections:
 
-API
+Theme — light or dark mode, accent colour, and body font: a curated list of around twenty-five families plus anything from Google Fonts. See Theme and defaults.
+Layout — clean mode, which hides the interface chrome for presenting (⌘.), and whether the sidebar starts open.
+Canvas — whether a plain scroll wheel pans the canvas or zooms it. Pinching a trackpad zooms either way.
 
-Create and revoke personal access tokens for the REST API and MCP.
+Notifications
 
-Each token gets a name and an Allow writes checkbox — leave it off for a read-only token. The token value is shown once, at creation. It is stored only as a hash and cannot be recovered; a lost token is revoked and replaced.
+Independent switches for the emails Clusters sends you — mentions, comment replies, workspace invites, cluster shares, schedule changes, and product tips. Anything you turn off still reaches you in-app. See Notifications.
+
+Connections
+
+Everything that can reach your clusters without being this browser.
+
+Soleil Scout — the connect code that binds a phone number to this account, so texted photos land in your workspace. Also lists the phones already connected, and any number still waiting to prove it is yours. See Soleil Scout.
+API access — create and revoke personal access tokens for the REST API and MCP, and disconnect apps you approved through OAuth. Each token gets a name, an Allow writes checkbox and an Allow deletes checkbox — leave both off for a read-only token. The token value is shown once, at creation: it is stored only as a hash and cannot be recovered, so a lost token is revoked and replaced.
+
+Plan & billing
+
+Current plan, the Stripe customer portal for payment details and cancellation, and the storage meter showing what you have used against your quota. See Plans.
 
 Invite & earn
 
 Your referral link, share targets, and the stats: friends joined, how many got started, cards earned, free months.
 
-Billing
+This workspace
 
-Current plan, the Stripe customer portal for payment details and cancellation, and the storage meter showing what you have used against your quota. See Plans.
+Shared. Everyone in the workspace sees the same values. Editors and owners can change Card defaults; only the owner can change the name, the icon, or run a recovery. Viewers see everything read-only.
 
-Notifications
+General
 
-Six independent switches — mentions, comment replies, workspace invites, board shares, schedule changes, and product tips. See Notifications.
+What the workspace is: its name and its icon, which are what the sidebar and the workspace switcher show. The switcher's ⋯ menu opens this tab too.
 
-Workspace
+Owners also get Recovery here — a rewind of every cluster in the workspace at once, for after an accidental mass-delete. The pre-rewind state is kept, so the rewind itself is reversible. See Trash and recovery.
 
-Defaults
+Card defaults
 
-What new things start as, so you are not restyling every one:
+What new cards start as, so you are not restyling every one. Existing cards are never changed.
 
 Notes — background, text colour, font, size
-Shapes — font, stroke colour, fill colour, stroke width
-Default view — whether clusters open as canvas or list
+Clusters — whether new clusters open as canvas or list
+Docs — font
+Shapes — stroke colour, fill colour, stroke width
 
-Theme
+Sign out
 
-Light or dark mode, accent colour, and body font — a curated list of around twenty-five families plus anything from Google Fonts. See Theme and defaults.
-
-Display
-
-Clean mode — hide interface chrome for presenting (⌘.)
-Sidebar open by default
-Scroll wheel — whether scrolling pans the canvas or zooms it
+At the foot of the rail, under both groups. It asks first, and names the account it is about to sign out of.
 
 Not in Settings
 
@@ -3125,17 +3139,25 @@ Cluster cover / thumbnail | Right-click the cluster
 Canvas background colour | Right-click the canvas
 Public link expiry and indexing | The Share dialog
 Hiding comments | The eye toggle on the board
+Deleting or leaving a workspace | The workspace switcher's ⋯ menu
+
+On a phone
+
+The panel fills the screen and works as a list: the rail is the first screen, tapping a tab pushes it, and the back chevron in the header returns to the list. The bottom nav's Settings tab opens it.
 
 ## Frequently asked questions
 
 Q: Are settings per device?
-A: No. They are stored on your account and follow you to any browser or device you sign in on, including the theme.
+A: No. They are stored on your account and follow you to any browser or device you sign in on, including the theme and the scroll-wheel mode.
+
+Q: What is the difference between the cog and my avatar?
+A: Nothing except where they land you. Both open the same panel — the cog on the workspace's General tab, the avatar on your Profile. Everything else is one click away in the same rail.
 
 Q: Where do I find my storage usage?
-A: Under Billing, as a meter showing used against your quota.
+A: Under Plan and billing, as a meter showing used against your quota.
 
 Q: Where are API tokens?
-A: Under the API tab. Tokens are shown once at creation and cannot be recovered afterwards.
+A: Under Connections, alongside Soleil Scout and any apps you have approved. Tokens are shown once at creation and cannot be recovered afterwards.
 
 
 ========================================================================
@@ -3172,7 +3194,7 @@ Per-file size | Video 30 MB · audio 50 MB · PDF 50 MB | No limit
 
 Everything else is the same on both plans.
 
-Older accounts keep a higher cap. The free allowance used to be 100 cards. Every account created while that was the plan keeps it, permanently — no existing cap was ever lowered. Your own figure is on the Upgrade pill and in Settings → Billing, and it is the one enforced. Referral credits add to whichever cap you have.
+Older accounts keep a higher cap. The free allowance used to be 100 cards. Every account created while that was the plan keeps it, permanently — no existing cap was ever lowered. Your own figure is on the Upgrade pill and in Settings → Plan & billing, and it is the one enforced. Referral credits add to whichever cap you have.
 
 Clusters are not capped. Neither are collaborators, editing, sharing, public links, comments, documents, screenplay mode or the API. Images have no size cap on any plan.
 
@@ -3190,7 +3212,7 @@ You can also raise your own cap without paying: referrals grant bonus cards when
 
 Billing
 
-Settings → Billing shows your plan, the storage meter, and a link to the Stripe customer portal for payment details, invoices and cancellation.
+Settings → Plan & billing shows your plan, the storage meter, and a link to the Stripe customer portal for payment details, invoices and cancellation.
 
 Annual and monthly are the same product. Annual is cheaper per month.
 
@@ -3218,13 +3240,15 @@ A: Accounts created before the free plan changed keep the 100-card allowance the
 ========================================================================
 # Theme and defaults
 URL: https://clusters.soleilpictures.com/docs/account/theme-and-defaults
-Updated: 2026-08-08
+Updated: 2026-08-25
 
-Theme covers light or dark mode, an accent colour and a body font chosen from a curated list or anything on Google Fonts. Defaults set what new notes and shapes start as — colours, font, size, stroke — and whether clusters open as a canvas or a list. All of it is stored on your account and follows you between devices.
+Appearance covers light or dark mode, an accent colour, a body font chosen from a curated list or anything on Google Fonts, and what a plain scroll wheel does. Card defaults set what new notes, docs and shapes start as, and whether clusters open as a canvas or a list. Appearance is personal and follows your account between devices; card defaults belong to the workspace.
+
+Appearance
+
+Settings → Appearance. Personal — these change how Clusters looks and behaves for you, on every device you sign in on, and nobody else in the workspace sees them. Three sections.
 
 Theme
-
-Settings → Theme.
 
 Mode — light or dark. ⌘K → "toggle theme" switches it without opening settings.
 Accent — the highlight colour used through the interface.
@@ -3240,26 +3264,28 @@ The reserved accent
 
 The gold accent means active, selected or focused. It is reserved for the interface and is not part of the content palette — so "this is selected" never gets confused with "this is gold" on a colourful board.
 
-Defaults
-
-Settings → Defaults. What new things start as, so you are not restyling every one.
-
-Default | Applies to
-Note background, text colour, font, size | Every new note
-Shape font, stroke colour, fill colour, stroke width | Every new shape
-Default view | Whether clusters open as canvas or list
-
-Defaults are workspace-scoped, so a workspace can have a consistent look without anyone enforcing it by hand.
-
-Display
-
-Settings → Display.
+Layout
 
 Clean mode (⌘.) — hides interface chrome for presenting or screenshots
 Sidebar open by default
+
+Canvas
+
 Scroll wheel — Pan (the default: ⌘-scroll zooms) or Zoom (a plain scroll zooms at the pointer; ⌘, Alt or Shift pans)
 
 The wheel setting exists because the convention genuinely splits across the tools people arrive from — PureRef and Miro zoom on scroll, Figma and Milanote pan — so there is no default that is right for everyone. It follows your account like the rest of this tab, and pinching a trackpad zooms either way.
+
+Card defaults
+
+Settings → Card defaults. What new cards start as, so you are not restyling every one. Existing cards are never changed.
+
+Default | Applies to
+Background, text colour, font, size | Every new note
+Stroke colour, fill colour, stroke width | Every new shape
+Font | Every new document
+Default view | Whether clusters open as canvas or list
+
+Unlike Appearance, these belong to the workspace, not to you — so a workspace can have a consistent look without anyone enforcing it by hand. Editors and owners can change them; viewers see them read-only.
 
 Custom fonts
 
@@ -3541,7 +3567,7 @@ Authentication
 
 Two ways in, both ending at a bearer token that resolves to one person's own session.
 
-For your own scripts, mint a token under Settings → API:
+For your own scripts, mint a token under Settings → Connections:
 
 curl https://clusters.soleilpictures.com/api/v1/me \
   -H "Authorization: Bearer undefined…"
@@ -3613,7 +3639,7 @@ Mint a token with write access under Settings then API, export it, and you can c
 
 1. Get a token
 
-In the app: Settings → API → New token. Tick Allow writes if you intend to change anything. Copy it immediately — it is shown once.
+In the app: Settings → Connections → New token. Tick Allow writes if you intend to change anything. Copy it immediately — it is shown once.
 
 export SOLEIL_TOKEN="undefined…"
 export SOLEIL_API="https://clusters.soleilpictures.com/api/v1"
@@ -3784,7 +3810,7 @@ Both end at the same place: a bearer token that resolves to one person's own ses
 
 Minting a token
 
-Settings → API → New token. Give it a name that says where it will be used, so you know which one to revoke later.
+Settings → Connections → New token. Give it a name that says where it will be used, so you know which one to revoke later.
 
 Allow writes is the only scope control. Leave it off for anything that only needs to read.
 
@@ -3833,7 +3859,7 @@ There is no per-resource permission list on a token, because there does not need
 
 Revoking
 
-Settings → API → Revoke, effective immediately. The next request with that token gets 401.
+Settings → Connections → Revoke, effective immediately. The next request with that token gets 401.
 
 Unknown, revoked and expired tokens all return the same 401 invalid token — the API does not distinguish, so a probe cannot learn which tokens once existed.
 
@@ -4226,7 +4252,7 @@ delete is never granted by default. Ask for it in scope only if the application 
 
 What the person sees
 
-One screen: who is asking, what each scope means in plain words, and two buttons. Afterwards the connection appears under Settings → API → Connected apps with its scopes, when it was connected, and how many calls it has made.
+One screen: who is asking, what each scope means in plain words, and two buttons. Afterwards the connection appears under Settings → Connections → Connected apps with its scopes, when it was connected, and how many calls it has made.
 
 Disconnecting revokes the access token in the same statement, so it stops working immediately rather than at its next expiry. Everything the app did is in the audit log, with the tool it used.
 
@@ -5190,7 +5216,7 @@ A URL. That is the whole setup.
 
 The first call comes back 401 with a pointer to our OAuth metadata; the client registers itself, opens a browser, and you approve the connection on one screen. No token is ever copied, and if you do not have an account yet you get one on that screen — signing in is a single email box.
 
-Afterwards the connection is listed under Settings → API → Connected apps, where you can see what it has done and disconnect it.
+Afterwards the connection is listed under Settings → Connections → Connected apps, where you can see what it has done and disconnect it.
 
 If your client cannot do OAuth, a personal access token still works exactly as before:
 
@@ -5703,7 +5729,7 @@ Which credential to use
 Belongs to | You | The workspace
 Survives you leaving | No | Yes
 Reach | Everything you can see | One workspace
-Created by | Anyone, in Settings → API | The workspace owner, over the API
+Created by | Anyone, in Settings → Connections | The workspace owner, over the API
 Good for | Your own scripts, trying things out, MCP on your machine | Anything a team depends on
 
 A useful rule: if losing access to it would interrupt someone other than you, it should be a service account.

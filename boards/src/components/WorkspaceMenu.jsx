@@ -25,7 +25,8 @@ export function WorkspaceMenu({
   onSelect,
   onAddNew,
   onRemove,             // (ws, action: 'delete' | 'leave') => void
-  onRename,             // (ws) => void   — owners only; opens a rename prompt
+  onOpenSettings,       // (ws) => void   — owners only; opens Settings → General,
+                        //                  where the name sits beside the icon
   onClose,
 }) {
   const ref = useRef(null);
@@ -92,7 +93,7 @@ export function WorkspaceMenu({
     // see "Delete workspace" (destroys it for everyone); shared
     // members see "Leave workspace" (removes their own membership).
     const canRemove = !!onRemove && !isPersonal;
-    const canRename = !!onRename && isOwner;
+    const canRename = !!onOpenSettings && isOwner;
     const removeAction = isOwner ? 'delete' : 'leave';
     const isMenuOpen = openMenuId === w.id;
     const hasRowMenu = canRemove || canRename;
@@ -131,10 +132,10 @@ export function WorkspaceMenu({
                   <button className="ws-menu-row-pop-item"
                           onClick={() => {
                             setOpenMenuId(null);
-                            onRename?.(w);
+                            onOpenSettings?.(w);
                           }}>
                     <Icon as={Edit} size={12} />
-                    <span>Rename workspace</span>
+                    <span>Rename &amp; icon…</span>
                   </button>
                 )}
                 {canRemove && (

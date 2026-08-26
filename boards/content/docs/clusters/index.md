@@ -101,7 +101,7 @@ Every cluster has two views of the same contents:
 - **[Canvas](/docs/canvas)** — the infinite surface, where position means something
 - **[List](/docs/clusters/list-view)** — a sortable, searchable file browser
 
-Switching does not convert anything. Settings → **Defaults** sets which view new
+Switching does not convert anything. Settings → **Card defaults** sets which view new
 clusters open in.
 
 ## Finding clusters
