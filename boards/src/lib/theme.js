@@ -35,21 +35,31 @@ export function resolveTheme(explicit) {
   return osPrefersLight() ? 'light' : 'dark';
 }
 
-// Apply an *explicit* theme choice: set data-theme AND mirror it into the
-// soleil.ui cache synchronously, so a remount or the next cold load reads
-// the right value with zero dependency on the async profile fetch. Writing
-// `theme` into the cache is also what marks the choice as explicit (vs. an
-// OS default). Returns the normalised value applied.
+// Apply a theme choice: set data-theme AND mirror it into the soleil.ui cache
+// synchronously, so a remount or the next cold load reads the right value with
+// zero dependency on the async profile fetch.
+//
+// `null` is a real, choosable value — it means "follow the OS", which is what a
+// user who has never picked already gets. PRESENCE of `theme` in the cache is
+// what marks a choice as explicit, so returning to null has to DELETE the key
+// rather than write a resolved colour into it: writing 'dark' there would make
+// the choice explicit again and silently strand the user on whatever the OS
+// happened to be at that moment. This used to coerce every non-'light' input to
+// 'dark', which is exactly why null was unreachable once you had picked once.
+//
+// Returns the theme actually rendered ('light' | 'dark'), never null — callers
+// use it to drive UI that has to name a colour.
 export function applyThemeNow(theme) {
-  const t = theme === 'light' ? 'light' : 'dark';
+  const explicit = (theme === 'light' || theme === 'dark') ? theme : null;
+  const rendered = explicit || (osPrefersLight() ? 'light' : 'dark');
   if (typeof document !== 'undefined') {
-    document.documentElement.setAttribute('data-theme', t);
+    document.documentElement.setAttribute('data-theme', rendered);
   }
   try {
     const raw = localStorage.getItem(UI_CACHE_KEY);
     const ui = raw ? (JSON.parse(raw) || {}) : {};
-    ui.theme = t;
+    if (explicit) ui.theme = explicit; else delete ui.theme;
     localStorage.setItem(UI_CACHE_KEY, JSON.stringify(ui));
   } catch (_) { /* private mode / quota — the attribute is still set */ }
-  return t;
+  return rendered;
 }

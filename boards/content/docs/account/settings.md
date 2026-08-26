@@ -5,7 +5,7 @@ h1: Settings
 navLabel: Settings
 section: account
 order: 0
-updated: 2026-08-25
+updated: 2026-08-26
 answer: Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 faq:
   - q: Are settings per device?
@@ -49,11 +49,15 @@ selection halos appear in to everyone else.
 
 How Clusters looks and how the canvas answers your hands, in three sections:
 
-- **Theme** — light or dark mode, accent colour, and body font: a curated list
-  of around twenty-five families plus anything from Google Fonts. See
-  [Theme and defaults](/docs/account/theme-and-defaults).
+- **Theme** — **System**, **Light** or **Dark**, plus accent colour and body
+  font: a curated list of around twenty-five families plus anything from Google
+  Fonts. **System** follows your device and is what you get before you choose
+  anything, so switching your Mac or phone to dark switches Clusters with it.
+  See [Theme and defaults](/docs/account/theme-and-defaults).
 - **Layout** — clean mode, which hides the interface chrome for presenting
-  (`⌘.`), and whether the sidebar starts open.
+  (`⌘.`), and whether the sidebar starts open. Collapsing the sidebar with
+  `⌘B` sets that preference too, so it follows your account rather than the
+  browser you happen to be in.
 - **Canvas** — whether a plain **scroll wheel** pans the
   [canvas](/docs/canvas) or zooms it. Pinching a trackpad zooms either way.
 
@@ -119,7 +123,7 @@ are never changed.
 - **Clusters** — whether new clusters open as
   [canvas or list](/docs/clusters/list-view)
 - **Docs** — font
-- **Shapes** — stroke colour, fill colour, stroke width
+- **Shapes** — shape, stroke colour, fill colour, stroke width, line style
 
 ## Help
 

@@ -50,6 +50,7 @@ import { getActiveExperiments, assignArm, drawArm } from './lib/experiments.js';
 setJourneySink({ logEvent, logEventNow });
 import { applyThemeNow, resolveTheme, currentTheme } from './lib/theme.js';
 import { applyWheelModeNow, getWheelMode } from './lib/wheelMode.js';
+import { applySidebarOpenNow, getSidebarOpen } from './lib/sidebarPref.js';
 import { R2Image } from './components/R2Image.jsx';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
 import { useResolvedDefaults } from './hooks/useResolvedDefaults.js';
@@ -81,7 +82,10 @@ import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
 import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
-import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
+// Only the hook. The panel components came with BoardsSettingsPanel, which was
+// never rendered anywhere — a second theme control and a rival ⌘. binding, both
+// dead since the settings unification.
+import { useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
 import { useWorkspace } from './hooks/useWorkspace.js';
 import { useAllWorkspaces } from './hooks/useAllWorkspaces.js';
@@ -162,7 +166,9 @@ const TWEAK_DEFAULTS = {
   // Messages defaults to closed — the unread badge guides you to open it.
   // (Replaces the old showInbox: true default; that drawer was demoware.)
   showMessages: false,
-  compactSidebar: false,
+  // compactSidebar used to live here. It is profiles.settings.ui.sidebarOpen
+  // now — see lib/sidebarPref.js — because the Settings toggle for it wrote a
+  // key nothing read while THIS one held the real state.
 };
 
 const SESSION_PREFIX = 'soleil.boards.session.';
@@ -647,9 +653,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // then persists to Supabase.
   const [themeMode, setThemeMode] = useState(() => currentTheme());
   const setTheme = React.useCallback((next) => {
-    const t = applyThemeNow(next);           // data-theme + soleil.ui cache, instant
-    setThemeMode(t);
-    updateOwnSettings({ ui: { ...(mySettings?.ui || {}), theme: t } })
+    // Persist the CHOICE, not the rendered colour. `null` means "follow the
+    // OS" and has to survive the round-trip as null — writing the resolved
+    // 'dark' back would mark the choice explicit and strand the user on
+    // whatever the OS happened to be. applyThemeNow returns what rendered,
+    // which is a different thing and only drives themeMode.
+    const choice = (next === 'light' || next === 'dark') ? next : null;
+    const rendered = applyThemeNow(choice);  // data-theme + soleil.ui cache, instant
+    setThemeMode(rendered);
+    updateOwnSettings({ ui: { ...(mySettings?.ui || {}), theme: choice } })
       .then(() => refreshSettings?.())
       .catch(() => { /* offline: cache + attribute already updated */ });
   }, [mySettings, refreshSettings]);
@@ -662,6 +674,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // wheelModeState mirrors the module the way themeMode mirrors data-theme:
   // the canvas reads the module, this only exists so labels that name the
   // current mode re-render when it changes.
+  // The ONE write path for the sidebar, shared by ⌘B, the collapse chevron,
+  // the ⌘K command and Settings → Appearance. Same apply-then-persist shape as
+  // setTheme/setWheelMode: the sidebar moves under your hand, the account
+  // catches up.
+  const [sidebarOpen, setSidebarOpenState] = useState(() => getSidebarOpen());
+  const setSidebarOpen = React.useCallback((next) => {
+    const v = applySidebarOpenNow(next);
+    setSidebarOpenState(v);
+    updateOwnSettings({ ui: { ...(mySettings?.ui || {}), sidebarOpen: v } })
+      .then(() => refreshSettings?.())
+      .catch(() => {});
+    return v;
+  }, [mySettings, refreshSettings]);
+
   const [wheelModeState, setWheelModeState] = useState(() => getWheelMode());
   const setWheelMode = React.useCallback((next) => {
     const m = applyWheelModeNow(next);
@@ -715,6 +741,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // never seen it. The synchronous localStorage read in wheelMode.js covers
     // every load after the first, so there is no frame of the wrong gesture.
     setWheelModeState(applyWheelModeNow(ui.wheelMode));
+    // Same shape again — this is what carries the preference onto a device
+    // that has never seen it, and what makes the Settings toggle take effect.
+    setSidebarOpenState(applySidebarOpenNow(ui.sidebarOpen));
     // We inject overrides into a single <style> element so changing
     // settings doesn't accumulate stale rules.
     let el = document.getElementById('user-theme-overrides');
@@ -5813,12 +5842,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // ProseMirror/contenteditable-descendant targets.
         if (isEditableTarget(e)) return;
         e.preventDefault();
-        setTweak('compactSidebar', !tweak.compactSidebar);
+        setSidebarOpen(!sidebarOpen);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [tweak.compactSidebar, setTweak]);
+  }, [sidebarOpen, setSidebarOpen]);
 
   // ⌘K / Ctrl-K (and "/" when not typing) — open the global search palette.
   useEffect(() => {
@@ -5859,7 +5888,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     { id: 'theme', label: 'Toggle theme', icon: themeMode === 'dark' ? Sun : Moon, keywords: ['theme', 'dark', 'light', 'mode'],
       run: () => setTheme(themeMode === 'dark' ? 'light' : 'dark') },
     { id: 'sidebar', label: 'Toggle sidebar', icon: PanelLeftClose, keywords: ['sidebar', 'collapse', 'hide', 'panel'],
-      run: () => setTweak('compactSidebar', !tweak.compactSidebar) },
+      run: () => setSidebarOpen(!sidebarOpen) },
     // Keyworded for what people will actually type when the canvas isn't doing
     // what they expect ("scroll", "wheel", "zoom") rather than for the name of
     // the setting, which they have no reason to know.
@@ -5889,8 +5918,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => openInviteFriends('palette') },
     { id: 'signout', label: 'Sign out', icon: LogOut, keywords: ['sign out', 'log out', 'logout', 'exit'],
       run: () => signOut?.() },
-  ], [canEditCurrent, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, tweak.compactSidebar,
-      setTheme, setWheelMode, setTweak, mainMutators, openSettings, openInviteFriends, signOut]);
+  ], [canEditCurrent, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, sidebarOpen,
+      setTheme, setWheelMode, setSidebarOpen, setTweak, mainMutators, openSettings, openInviteFriends, signOut]);
 
 
   // ── Production schedule ───────────────────────────────────────────────────
@@ -6242,7 +6271,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     <OpenDmContext.Provider value={openDmWith}>
     <MessagesUiContext.Provider value={messagesUi}>
     <AppTrieProvider workspaceId={workspace.id}>
-    <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`}
+    <div className={`app ${sidebarOpen ? '' : 'sb-collapsed'}`}
          data-screen-label={`Board · ${currentBoard.name}`}>
       {/* Exit affordance for BOTH the persisted desktop clean mode and the
           ephemeral touch focus mode. CSS shows it only while one of the two
@@ -6299,7 +6328,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               </svg>
             </button>
             <button className="sb-mid-collapse"
-                    onClick={() => setTweak('compactSidebar', !tweak.compactSidebar)}
+                    onClick={() => setSidebarOpen(false)}
                     title="Collapse sidebar (⌘B)" aria-label="Collapse sidebar">
               <Icon as={PanelLeftClose} size={14} />
             </button>
@@ -6497,12 +6526,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <ScoutClaimBanner user={user} />
         <div className="topbar">
           <div className="tb-left">
-            {(tweak.compactSidebar || mobileShell) && (
+            {(!sidebarOpen || mobileShell) && (
               <button className="tb-icon" title={mobileShell ? 'Open menu' : 'Open sidebar (⌘B)'}
                       aria-label={mobileShell ? 'Open menu' : 'Open sidebar'}
                       onClick={() => {
                         if (mobileShell) setMobileNavOpen(true);
-                        else setTweak('compactSidebar', false);
+                        else setSidebarOpen(true);
                       }}>
                 <Icon as={PanelLeftOpen} size={16} />
               </button>
@@ -7045,28 +7074,6 @@ function TopbarAddMenu({ onAddBoard, onAddDoc, onLinkBoard }) {
   );
 }
 
-function BoardsSettingsPanel({ tweak, setTweak }) {
-  return (
-    <TweaksPanel title="Cluster settings">
-      <TweakSection label="Interface">
-        <TweakRadio
-          label="Theme"
-          value={tweak.theme}
-          options={[
-            { value: 'dark', label: 'Dark' },
-            { value: 'light', label: 'Light' },
-          ]}
-          onChange={(value) => setTweak('theme', value)}
-        />
-        <TweakToggle label="Compact sidebar" value={tweak.compactSidebar} onChange={(value) => setTweak('compactSidebar', value)} />
-        <TweakToggle label="Show messages" value={tweak.showMessages} onChange={(value) => setTweak('showMessages', value)} />
-      </TweakSection>
-      <TweakSection label="Canvas">
-        <TweakToggle label="Show arrows" value={tweak.showArrows} onChange={(value) => setTweak('showArrows', value)} />
-      </TweakSection>
-    </TweaksPanel>
-  );
-}
 
 function LoadingShell() {
   return (

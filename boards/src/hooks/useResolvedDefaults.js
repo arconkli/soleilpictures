@@ -62,12 +62,16 @@ export const HARDCODED_FALLBACKS = Object.freeze({
     w: 300, h: 180,
   },
   ui: {
-    theme: null,                // null => leave whatever data-theme is set
+    // null => no explicit choice, which means "follow the OS". It is a real
+    // state, offered as System in Settings → Appearance, not just an absence.
+    theme: null,
     accent: null,               // null => use --soleil from CSS
     fontSans: null,
-    fontDisplay: null,
-    fontMono: null,
+    // fontDisplay / fontMono used to sit here. Nothing ever read them and no
+    // control ever wrote them — the app has exactly one user-settable face.
     hideChrome: false,
+    // Read through lib/sidebarPref.js, which is what ⌘B and the collapse
+    // chevron write. Was declared here and honoured by nothing.
     sidebarOpen: true,
     // What a plain scroll wheel does on the canvas: 'pan' (cmd-wheel zooms —
     // what always shipped) or 'zoom'. An input preference, so per-user like the

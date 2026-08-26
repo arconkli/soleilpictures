@@ -81,7 +81,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 - [Settings](https://clusters.soleilpictures.com/docs/account/settings): Every setting in Soleil Clusters — Profile, Appearance, Notifications, Connections, Plan and billing, Invite and earn, General, Card defaults and Documentation.
 - [Plans and pricing](https://clusters.soleilpictures.com/docs/account/plans): Soleil Clusters is free with 50 cards, unlimited clusters and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.
-- [Theme and defaults](https://clusters.soleilpictures.com/docs/account/theme-and-defaults): Set light or dark mode, an accent colour and a body font in Soleil Clusters, and choose what new notes, shapes and clusters start as.
+- [Theme and defaults](https://clusters.soleilpictures.com/docs/account/theme-and-defaults): Follow your system theme or pick light or dark in Soleil Clusters, set an accent colour and body font, and choose what new notes, shapes and clusters start as.
 - [Referrals](https://clusters.soleilpictures.com/docs/account/referrals): Invite people to Soleil Clusters and earn bonus cards when they actually get started. Your referral link, share targets and stats live in Settings.
 - [Mobile and tablet](https://clusters.soleilpictures.com/docs/account/mobile): Soleil Clusters on phones and tablets — touch gestures, focus view, the mobile add sheet, installing as a PWA, and the iOS and Android apps.
 - [Data and privacy](https://clusters.soleilpictures.com/docs/account/data-and-privacy): Where Soleil Clusters stores your files, how long deleted things are kept, how sharing affects visibility, and how to get your data out or delete it.

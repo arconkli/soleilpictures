@@ -24381,7 +24381,63 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — light or dark mode, accent colour, and body font: a curated list of around twenty-five families plus anything from Google Fonts. See "
+      "v": " — "
+     },
+     {
+      "t": "strong",
+      "v": "System",
+      "children": [
+       {
+        "t": "text",
+        "v": "System"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Light",
+      "children": [
+       {
+        "t": "text",
+        "v": "Light"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "strong",
+      "v": "Dark",
+      "children": [
+       {
+        "t": "text",
+        "v": "Dark"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", plus accent colour and body font: a curated list of around twenty-five families plus anything from Google Fonts. "
+     },
+     {
+      "t": "strong",
+      "v": "System",
+      "children": [
+       {
+        "t": "text",
+        "v": "System"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " follows your device and is what you get before you choose anything, so switching your Mac or phone to dark switches Clusters with it. See "
      },
      {
       "t": "link",
@@ -24420,7 +24476,15 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": "), and whether the sidebar starts open."
+      "v": "), and whether the sidebar starts open. Collapsing the sidebar with "
+     },
+     {
+      "t": "code",
+      "v": "⌘B"
+     },
+     {
+      "t": "text",
+      "v": " sets that preference too, so it follows your account rather than the browser you happen to be in."
      }
     ],
     [
@@ -25030,7 +25094,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — stroke colour, fill colour, stroke width"
+      "v": " — shape, stroke colour, fill colour, stroke width, line style"
      }
     ]
    ]
@@ -25993,7 +26057,49 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — light or dark. "
+      "v": " — "
+     },
+     {
+      "t": "strong",
+      "v": "System",
+      "children": [
+       {
+        "t": "text",
+        "v": "System"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Light",
+      "children": [
+       {
+        "t": "text",
+        "v": "Light"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "strong",
+      "v": "Dark",
+      "children": [
+       {
+        "t": "text",
+        "v": "Dark"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". System follows your device's own setting and changes live when it does; it is what you get until you pick one of the other two, and you can always come back to it. "
      },
      {
       "t": "code",
@@ -26001,7 +26107,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " → \"toggle theme\" switches it without opening settings."
+      "v": " → \"toggle theme\" flips between light and dark without opening settings, which counts as picking one."
      }
     ],
     [
@@ -26213,6 +26319,18 @@ export const DOCS_CONTENT = {
         "v": "Sidebar open by default"
        }
       ]
+     },
+     {
+      "t": "text",
+      "v": " — "
+     },
+     {
+      "t": "code",
+      "v": "⌘B"
+     },
+     {
+      "t": "text",
+      "v": " and the collapse chevron write this same preference, so where you left the sidebar is where it is on your next device"
      }
     ]
    ]
@@ -26397,7 +26515,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Stroke colour, fill colour, stroke width"
+       "v": "Shape, stroke colour, fill colour, stroke width, line style"
       }
      ],
      [
