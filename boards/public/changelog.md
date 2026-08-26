@@ -4,14 +4,29 @@
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
 
-## 2026-08-26 — A tab that says which cluster, and clips that behave like clips
+## 2026-08-26 — Settings you can find, and a tab that says which cluster
 
-Every open cluster now puts its own name in the browser tab, video on a reference board loops the way the GIF it replaced did, and the cluster panel stops changing its right-click menu by region.
+Settings collapse from two modals into one grouped panel, every open cluster puts its own name in the browser tab, and the documentation is finally reachable from inside the app.
+
+Settings used to be two separate modals, and Theme and Display — both personal
+preferences — sat behind a button labelled **Workspace**. There is now one
+grouped Settings panel, and the personal settings live under a heading that
+describes them.
+
+- Uploading a profile picture and then closing the panel no longer discards it.
+- Two checkboxes in Settings silently ticked each other. They are independent now.
+- All 64 documentation pages are reachable from inside the app, and from each
+  other — every page now links to this changelog too. They were public and
+  indexed the whole time, but nothing in the product ever pointed at them.
+
+### Canvas
 
 - Every open cluster now puts **its own name** in the browser tab. Previously
   every tab said the same thing, and it was not the cluster's name — which made
-  a row of open clusters unreadable at exactly the moment you had enough of them
+  a row of open clusters unreadable at exactly the point you had enough of them
   to need it.
+- Vertical scroll pans the canvas. On an infinite surface, scrolling up and down
+  past the content was close to meaningless.
 - A video clip on a reference board behaves like the GIF it replaced: it loops
   quietly instead of presenting a player with controls you did not ask for.
 - Which right-click menu you got in the cluster panel depended on exactly where

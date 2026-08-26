@@ -4,6 +4,65 @@
 export const CHANGELOG_CONTENT = {
  "2026-08-26": [
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Settings used to be two separate modals, and Theme and Display — both personal preferences — sat behind a button labelled "
+    },
+    {
+     "t": "strong",
+     "v": "Workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "Workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". There is now one grouped Settings panel, and the personal settings live under a heading that describes them."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Uploading a profile picture and then closing the panel no longer discards it."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Two checkboxes in Settings silently ticked each other. They are independent now."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "All 64 documentation pages are reachable from inside the app, and from each other — every page now links to this changelog too. They were public and indexed the whole time, but nothing in the product ever pointed at them."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Canvas",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Canvas"
+    }
+   ],
+   "id": "2026-08-26-canvas"
+  },
+  {
    "type": "list",
    "ordered": false,
    "items": [
@@ -24,7 +83,13 @@ export const CHANGELOG_CONTENT = {
      },
      {
       "t": "text",
-      "v": " in the browser tab. Previously every tab said the same thing, and it was not the cluster's name — which made a row of open clusters unreadable at exactly the moment you had enough of them to need it."
+      "v": " in the browser tab. Previously every tab said the same thing, and it was not the cluster's name — which made a row of open clusters unreadable at exactly the point you had enough of them to need it."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Vertical scroll pans the canvas. On an infinite surface, scrolling up and down past the content was close to meaningless."
      }
     ],
     [
