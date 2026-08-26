@@ -19,6 +19,7 @@ import { useFeedback } from '../AppFeedback.jsx';
 import { ColorPicker } from '../ColorPicker.jsx';
 import { Field, SwatchChip, AvatarUploadRow } from './fields.jsx';
 import { useSettingsSave } from './saveState.jsx';
+import { DeleteAccount } from './DeleteAccount.jsx';
 
 export function ProfileTab({ user, workspaceId, onSaved }) {
   const feedback = useFeedback();
@@ -174,6 +175,11 @@ export function ProfileTab({ user, workspaceId, onSaved }) {
       <Field label="Email">
         <div className="settings-readonly">{user?.email || '—'}</div>
       </Field>
+      {/* Last, and behind a click. Everything above autosaves; this is the one
+          thing in the panel that asks twice and cannot be taken back. A Scout
+          shell account has no address to re-type, so it gets nothing here —
+          the server refuses those too. */}
+      {user?.email && <DeleteAccount email={user.email} />}
       {pickerPos && (
         <ColorPicker
           value={color || presenceFallback}
