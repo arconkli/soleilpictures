@@ -144,6 +144,22 @@ comment on function public.notify_share_activity(integer) is
 -- Once a day, not per view: this is a digest, and an owner who is being read by
 -- several people should hear about it once. Mid-morning US eastern, off the
 -- crowded 03:xx maintenance hour and off the hourly lifecycle tick.
+--
+-- ARMED, THEN IMMEDIATELY PARKED (`cron.alter_job(active := false)`), and it
+-- must stay parked until the WORKER ships to production.
+--
+-- The unsubscribe key is checked in two places: email_unsubscribe() in the
+-- database, widened by 0260, and UNSUB_KEYS in boards/src/worker.js, which
+-- rides the SPA. Pushing main deploys a PREVIEW, so production's worker still
+-- rejects `email_share_activity` and answers the link in the email with
+-- "That unsubscribe link is not one we recognise." Verified by curl against
+-- the live domain, not assumed.
+--
+-- Mail with a dead opt-out is not a cosmetic problem, so the producer stays off
+-- rather than the feature going out half-wired. RE-ARM AFTER THE PROMOTE:
+--   select cron.alter_job((select jobid from cron.job
+--                           where jobname='share-activity-daily'), active := true);
+-- and re-check the curl first.
 select cron.schedule(
   'share-activity-daily',
   '20 13 * * *',
