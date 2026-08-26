@@ -367,6 +367,9 @@ test('LINKS: every internal link resolves', () => {
   const known = new Set([
     '/', '/explore', '/pricing', '/settings/billing',
     '/llms.txt', '/llms-full.txt', '/openapi.json', '/openapi.yaml',
+    // The changelog's feed. /changelog itself arrives via routeMeta below, and
+    // /changelog.md is handled by the .md mirror branch further down.
+    '/changelog.xml',
     ...surface.publicRoutes.routeMeta,
     ...surface.publicRoutes.landing,
     ...surface.publicRoutes.listicle,
@@ -386,6 +389,10 @@ test('LINKS: every internal link resolves', () => {
         const stem = base.replace(/\.md$/, '');
         const mirrored = DOCS_PATHS.includes(stem)
           || surface.publicRoutes.landing.includes(stem)
+          // The changelog is the fourth registry gen-docs emits a .md twin for
+          // (public/changelog.md), and it advertises that twin the same way
+          // every docs page advertises its own.
+          || stem === '/changelog'
           || surface.publicRoutes.listicle.includes(stem);
         if (!mirrored) broken.push(`${p.path} -> ${href}`);
         continue;

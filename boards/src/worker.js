@@ -39,6 +39,8 @@ import { buildListicleCrawlableHtml, buildListicleJsonLd } from './lib/seoListic
 // and pulling it in here would double the prose in this bundle for no gain.
 import { DOCS_PAGES, getDocsPage, isDocsPath } from './lib/docsiteIndex.js';
 import { DOCS_HTML } from './lib/docsiteCrawlable.js';
+import { CHANGELOG_ENTRIES, CHANGELOG_LATEST, CHANGELOG_META, isChangelogPath } from './lib/changelogIndex.js';
+import { CHANGELOG_HTML } from './lib/changelogCrawlable.js';
 // /c/<slug> editorial article: shared model + renderer (imported by BOTH this
 // worker and PublicBoardView's article — parity by construction, like seoLanding).
 import { buildPageModel, renderArticleHtml } from './lib/publicPageModel.js';
@@ -99,6 +101,13 @@ const ROUTE_META = {
   '/legal/cookies': {
     title: 'Cookie Policy — Soleil Clusters',
     description: 'How Soleil Clusters uses cookies and similar technologies.',
+  },
+  // Listed here so a HEAD request and any header-only fetcher get the right
+  // title/description, but the GET path never reaches injectRouteMeta — the
+  // changelog branch below runs first and injects the crawlable body too.
+  '/changelog': {
+    title: CHANGELOG_META.title,
+    description: CHANGELOG_META.description,
   },
 };
 
@@ -509,6 +518,26 @@ export default {
       headers.set('x-robots-tag', 'noindex');
       headers.set('cache-control', 'no-store');
       return new Response(out.body, { status: out.status, statusText: out.statusText, headers });
+    }
+
+    // The changelog (/changelog). MUST run before the ROUTE_META block below:
+    // '/changelog' has an entry there so header-only fetchers get a real title,
+    // and injectRouteMeta would return first and ship the page without its
+    // crawlable body.
+    //
+    // /changelog/<anything> is a definitive miss — every entry lives on the one
+    // page under a #YYYY-MM-DD anchor, so there is no sub-path to serve and a
+    // soft-404 carrying homepage meta at 200 is the failure this guards, exactly
+    // as the /docs and landing branches do.
+    //
+    // The raw twins (/changelog.md, /changelog.xml) never reach here: they are
+    // real files in dist/ that env.ASSETS served long ago, and isChangelogPath
+    // deliberately does not match a dotted path.
+    if (isPageReq && contentType.includes('text/html') && isChangelogPath(url.pathname)) {
+      if (normalizePath(url.pathname) === '/changelog') {
+        return withRevalidate(injectChangelog(res));
+      }
+      return notFoundResponse(res, 'Page not found — Soleil Clusters changelog');
     }
 
     // Inject per-route SEO metadata for HTML document navigations to a known
@@ -1258,6 +1287,95 @@ function buildDocsJsonLd(page, url) {
   return { '@context': 'https://schema.org', '@graph': graph };
 }
 
+// The changelog. Structurally a docs page — one crawlable body, one JSON-LD
+// block — but its OG card is static (there is no per-section artwork to pick)
+// and it advertises a feed as well as a markdown twin.
+function injectChangelog(res) {
+  const canonical = `${SITE_ORIGIN}/changelog`;
+  // ?v= the newest entry so a re-share picks up a fresh card without the file
+  // itself having to change.
+  const og = `${SITE_ORIGIN}/og/changelog.png?v=${CHANGELOG_LATEST}`;
+  const desc = CHANGELOG_META.description;
+  return new HTMLRewriter()
+    .on('title',                            new SetText(CHANGELOG_META.title))
+    .on('meta[name="description"]',         new SetContent(desc))
+    .on('meta[property="og:title"]',        new SetContent(CHANGELOG_META.title))
+    .on('meta[property="og:description"]',  new SetContent(desc))
+    .on('meta[property="og:url"]',          new SetContent(canonical))
+    .on('meta[property="og:image"]',        new SetContent(og))
+    .on('meta[property="og:image:alt"]',    new SetContent(CHANGELOG_META.h1))
+    .on('meta[name="twitter:title"]',       new SetContent(CHANGELOG_META.title))
+    .on('meta[name="twitter:description"]', new SetContent(desc))
+    .on('meta[name="twitter:image"]',       new SetContent(og))
+    .on('link[rel="canonical"]',            new SetHref(canonical))
+    .on('main#seo-fallback',                new SetInnerHtml(CHANGELOG_HTML))
+    .on('head', new AppendHead(
+      '<script type="application/ld+json">'
+      + jsonLdSafe(buildChangelogJsonLd(canonical)) + '</script>'
+      + '<link rel="alternate" type="text/markdown" href="/changelog.md">'
+      // The half of this page that directories, feed readers and polling agents
+      // actually consume. Discoverable only if it is declared here.
+      + '<link rel="alternate" type="application/rss+xml" title="Soleil Clusters changelog" href="/changelog.xml">'
+    ))
+    .transform(res);
+}
+
+// CollectionPage + an ItemList of dated TechArticles, mirroring the shape
+// /explore already uses for a page that IS a list of things. Deliberately not
+// one TechArticle for the whole page (its dateModified would be the only date
+// a machine could read, and the per-entry dates are the entire point) and not
+// FAQPage (there are no questions here).
+// Exported for changelog.test.mjs. JSON-LD is read only by machines, so a
+// malformed graph fails silently and forever — nothing in the product looks
+// different, and the page just stops being understood. It is worth an
+// assertion, and this is the only way to get one without the Workers runtime.
+export function buildChangelogJsonLd(url) {
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'CollectionPage',
+        '@id': `${url}#page`,
+        url,
+        name: CHANGELOG_META.title,
+        headline: CHANGELOG_META.h1,
+        description: CHANGELOG_META.description,
+        abstract: CHANGELOG_META.answer,
+        dateModified: CHANGELOG_LATEST,
+        inLanguage: 'en',
+        isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+        about: { '@type': 'SoftwareApplication', name: 'Soleil Clusters' },
+        publisher: { '@id': `${SITE_ORIGIN}/#organization` },
+        mainEntity: {
+          '@type': 'ItemList',
+          itemListOrder: 'https://schema.org/ItemListOrderDescending',
+          numberOfItems: CHANGELOG_ENTRIES.length,
+          itemListElement: CHANGELOG_ENTRIES.map((e, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            item: {
+              '@type': 'TechArticle',
+              '@id': `${url}#${e.date}`,
+              url: `${url}#${e.date}`,
+              headline: e.title,
+              description: e.summary,
+              datePublished: e.date,
+              inLanguage: 'en',
+            },
+          })),
+        },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_ORIGIN}/` },
+          { '@type': 'ListItem', position: 2, name: 'Changelog', item: url },
+        ],
+      },
+    ],
+  };
+}
+
 function buildLandingCrawlableHtml(spec) {
   const H2 = 'font-size:1.35rem;font-weight:600;margin:1.4em 0 .4em;';
   const parts = [];
@@ -1413,6 +1531,10 @@ async function handleSitemap(env, request) {
       changefreq: 'monthly',
       priority: d.path === '/docs' ? '0.8' : '0.6',
     })),
+    // The one page on this site whose lastmod is unambiguously honest under the
+    // policy at the top of this function: the newest entry's date IS the page's
+    // content, not a proxy for it.
+    { loc: `${SITE_ORIGIN}/changelog`, lastmod: CHANGELOG_LATEST, changefreq: 'weekly', priority: '0.6' },
     { loc: `${SITE_ORIGIN}/legal/privacy`,  changefreq: 'yearly',  priority: '0.3' },
     { loc: `${SITE_ORIGIN}/legal/terms`,    changefreq: 'yearly',  priority: '0.3' },
     { loc: `${SITE_ORIGIN}/legal/cookies`,  changefreq: 'yearly',  priority: '0.3' },

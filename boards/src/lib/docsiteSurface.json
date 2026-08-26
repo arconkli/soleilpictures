@@ -386,6 +386,7 @@
   "publicRoutes": {
     "routeMeta": [
       "/",
+      "/changelog",
       "/legal/cookies",
       "/legal/privacy",
       "/legal/terms",
@@ -412,6 +413,7 @@
       "/best/storyboard-software"
     ],
     "router": [
+      "changelogMatch = /^\\/changelog\\/?$/i.test(PATH)",
       "docsMatch = /^\\/docs(?:\\/|$)/i.test(PATH)",
       "exploreMatch = /^\\/explore\\/?$/.test(PATH)",
       "legalMatch = PATH.match(/^\\/legal\\/(privacy|terms|cookies)\\/?$/i)",

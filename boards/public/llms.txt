@@ -9,6 +9,10 @@ Terminology: the product calls a board a **cluster**. The API and database call 
 Every page below is also available as raw Markdown by appending `.md` (e.g. https://clusters.soleilpictures.com/docs/api.md).
 The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
+## Changelog
+
+- [Changelog](https://clusters.soleilpictures.com/changelog): Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly. Most recent entry: 2026-08-26. Raw Markdown at https://clusters.soleilpictures.com/changelog.md, RSS at https://clusters.soleilpictures.com/changelog.xml.
+
 ## Getting started
 
 - [Soleil Clusters documentation](https://clusters.soleilpictures.com/docs): Complete documentation for Soleil Clusters — the infinite canvas for film, photo and design teams. Features, guides, REST API and MCP reference.

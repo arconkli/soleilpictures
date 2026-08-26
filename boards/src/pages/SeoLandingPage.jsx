@@ -296,6 +296,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
                   ))}
                   <li><a href="/explore">Explore example boards</a></li>
                   <li><a href="/pricing">Pricing</a></li>
+                  <li><a href="/changelog">Changelog</a></li>
                 </ul>
               </nav>
             )}

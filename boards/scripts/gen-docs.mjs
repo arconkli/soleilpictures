@@ -51,6 +51,7 @@ import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/im
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '..');
 const CONTENT = resolve(BOARDS, 'content/docs');
+const CHANGELOG = resolve(BOARDS, 'content/changelog');
 const SITE_ORIGIN = 'https://clusters.soleilpictures.com';
 
 const CHECK = process.argv.includes('--check');
@@ -282,6 +283,78 @@ function loadPages() {
   return { pages, sections };
 }
 
+// ── Load: the changelog ─────────────────────────────────────────────────────
+// content/changelog/YYYY-MM-DD.md, one file per weekly entry, newest first.
+//
+// WHY THIS LIVES IN THE DOCS GENERATOR rather than a script of its own: the
+// changelog has to appear in public/llms.txt and llms-full.txt, and those are
+// emitted below. Two scripts writing one file is a race waiting to be committed.
+// It rides along the same way the marketing corpus already does.
+//
+// The page it produces is NOT a search play — ranking first for a query nobody
+// types returns nothing, which the /docs corpus already demonstrates. It exists
+// so an assistant asked "does Clusters do X yet" can retrieve a dated answer
+// rather than repeat whatever its training data last saw, and so a reader
+// checking whether this is a maintained product finds evidence either way.
+const CHANGELOG_TITLE = 'Changelog — Soleil Clusters';
+const CHANGELOG_DESCRIPTION =
+  'Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly.';
+const CHANGELOG_H1 = 'Changelog';
+const CHANGELOG_ANSWER = 'Soleil Clusters ships continuously; this page lists every user-visible change, newest first, with the date it went live. Each entry covers one week. Fixes and additions are described in the same list rather than split apart, because the distinction rarely matters to the person reading.';
+
+function loadChangelog() {
+  if (!existsSync(CHANGELOG)) throw new Error(`gen-docs: no changelog directory at ${CHANGELOG}`);
+  const problems = [];
+
+  const entries = readdirSync(CHANGELOG)
+    .filter((f) => f.endsWith('.md'))
+    .sort()
+    .reverse()                       // newest first; filenames are ISO dates
+    .map((name) => {
+      const file = resolve(CHANGELOG, name);
+      const label = relative(BOARDS, file);
+      const raw = resolveFacts(readFileSync(file, 'utf8'), label);
+      const { fm, body } = parseFrontmatter(raw, label);
+      const bad = (msg) => problems.push(`${label}: ${msg}`);
+
+      for (const req of ['date', 'title', 'summary']) if (!fm[req]) bad(`frontmatter '${req}' is required`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fm.date || '')) bad('date must be YYYY-MM-DD');
+      // The filename IS the date. One obvious name per entry, and the directory
+      // listing sorts chronologically without reading a single file.
+      if (name !== `${fm.date}.md`) bad(`filename should be ${fm.date}.md to match its date`);
+      if ((fm.title || '').length > 90) bad(`title ${fm.title.length} chars (max 90)`);
+      if ((fm.summary || '').length > 220) bad(`summary ${fm.summary.length} chars (max 220)`);
+
+      const blocks = parseMarkdown(body);
+      // Heading ids are page-unique, not entry-unique: every entry renders onto
+      // ONE page, and parseMarkdown only dedupes within its own call — two
+      // entries with a "Canvas" section would otherwise both claim #canvas and
+      // the second deep link would scroll to the wrong year.
+      for (const b of blocks) if (b.type === 'heading') b.id = `${fm.date}-${b.id}`;
+
+      return {
+        date: fm.date,
+        anchor: fm.date,             // the entry's deep link: /changelog#2026-08-26
+        title: fm.title,
+        summary: fm.summary,
+        file: label,
+        blocks,
+        rawMarkdown: body.trim(),
+      };
+    });
+
+  if (!entries.length) problems.push('content/changelog is empty — at least one entry is required');
+  const seen = new Set();
+  for (const e of entries) {
+    if (seen.has(e.date)) problems.push(`duplicate changelog date ${e.date}`);
+    seen.add(e.date);
+  }
+  if (problems.length) {
+    throw new Error(`gen-docs: ${problems.length} changelog problem(s):\n  - ${problems.join('\n  - ')}`);
+  }
+  return entries;
+}
+
 // ── Emit: HTML (Worker) ─────────────────────────────────────────────────────
 // Mirrors buildLandingCrawlableHtml in worker.js: inline styles, because this
 // HTML lands in the SPA shell before any stylesheet the docs page owns has
@@ -293,56 +366,81 @@ const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
 // Recursive, so bold-wrapping-code and bold links render as the markup they
 // are. Must stay in lockstep with the <Inline> component in DocsPage.jsx —
 // docsite.test.mjs asserts the two produce the same text.
-function inlineHtml(nodes) {
+function inlineHtml(nodes, bare = false) {
   return (nodes || []).map((n) => {
-    const inner = n.children ? inlineHtml(n.children) : escapeHtml(n.v);
+    const inner = n.children ? inlineHtml(n.children, bare) : escapeHtml(n.v);
     if (n.t === 'code') return `<code>${escapeHtml(n.v)}</code>`;   // terminal
     if (n.t === 'strong') return `<b>${inner}</b>`;
     if (n.t === 'em') return `<i>${inner}</i>`;
-    if (n.t === 'link') return `<a href="${escapeHtml(n.href)}" style="color:#FFA500;">${inner}</a>`;
+    if (n.t === 'link') {
+      // A feed item travels to somebody else's reader, where a root-relative
+      // href resolves against THEIR origin and 404s. Absolute in bare mode.
+      const href = bare && n.href.startsWith('/') ? `${SITE_ORIGIN}${n.href}` : n.href;
+      return `<a href="${escapeHtml(href)}"${bare ? '' : ' style="color:#FFA500;"'}>${inner}</a>`;
+    }
     return escapeHtml(n.v);
   }).join('');
 }
 
+const H2 = 'font-size:1.35rem;font-weight:600;margin:1.4em 0 .4em;';
+const H3 = 'font-size:1.08rem;font-weight:600;margin:1.1em 0 .3em;';
+
+// Every block type parseMarkdown can emit, rendered once. Shared by the docs
+// pages and the changelog so a construct can never render on one and silently
+// vanish on the other — the same reason DocsPage and ChangelogPage share their
+// block components on the React side.
+//
+// `bare` drops the inline styles and heading ids. Those exist because the
+// crawlable HTML lands in the SPA shell before any stylesheet has loaded, and
+// because deep links need anchors — neither is true inside an RSS
+// <content:encoded>, where they are clutter an agent has to read past and an
+// id that resolves to nothing.
+function blocksToHtml(blocks, { bare = false } = {}) {
+  const attr = (style, id) => (bare ? ''
+    : `${id ? ` id="${escapeHtml(id)}"` : ''}${style ? ` style="${style}"` : ''}`);
+  const out = [];
+  for (const b of blocks) {
+    if (b.type === 'heading') {
+      const tag = b.depth === 2 ? 'h2' : 'h3';
+      // inlineHtml, not escapeHtml(b.text): API headings are code spans, and the
+      // crawlable copy has to match what React renders (parity), not a
+      // backtick-littered plaintext version of it.
+      out.push(`<${tag}${attr(b.depth === 2 ? H2 : H3, b.id)}>${inlineHtml(b.inline, bare)}</${tag}>`);
+    } else if (b.type === 'para') {
+      out.push(`<p>${inlineHtml(b.inline, bare)}</p>`);
+    } else if (b.type === 'list') {
+      const tag = b.ordered ? 'ol' : 'ul';
+      out.push(`<${tag}>${b.items.map((it) => `<li>${inlineHtml(it, bare)}</li>`).join('')}</${tag}>`);
+    } else if (b.type === 'code') {
+      out.push(`<pre><code>${escapeHtml(b.code)}</code></pre>`);
+    } else if (b.type === 'callout') {
+      out.push(`<blockquote${attr('border-left:1px solid #3a3a40;padding-left:1em;margin:1.2em 0;color:#888890;')}>${inlineHtml(b.inline, bare)}</blockquote>`);
+    } else if (b.type === 'hr') {
+      out.push('<hr>');
+    } else if (b.type === 'table') {
+      out.push('<table><thead><tr>'
+        + b.head.map((c) => `<th>${inlineHtml(c, bare)}</th>`).join('')
+        + '</tr></thead><tbody>'
+        + b.rows.map((r) => `<tr>${r.map((c) => `<td>${inlineHtml(c, bare)}</td>`).join('')}</tr>`).join('')
+        + '</tbody></table>');
+    }
+  }
+  return out;
+}
+
+const prettyDate = (iso) => new Date(iso + 'T00:00:00Z')
+  .toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+
 function crawlableHtml(page) {
-  const H2 = 'font-size:1.35rem;font-weight:600;margin:1.4em 0 .4em;';
-  const H3 = 'font-size:1.08rem;font-weight:600;margin:1.1em 0 .3em;';
   const out = [];
   out.push(`<h1 style="font-size:1.9rem;font-weight:650;margin:0 0 .4em;">${escapeHtml(page.h1)}</h1>`);
   // The extractable, self-contained answer: the block AI answer engines lift,
   // and the first thing a reader sees. A lead paragraph, matching what React
   // renders — no box, no emphasis it has not earned.
   out.push(`<p style="color:#d0d0d4;font-size:1.1rem;margin:0 0 1.2em;">${escapeHtml(page.answer)}</p>`);
-  const pretty = new Date(page.updated + 'T00:00:00Z')
-    .toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
-  out.push(`<p style="color:#8a8a92;font-size:.85rem;"><time datetime="${escapeHtml(page.updated)}">Updated ${escapeHtml(pretty)}</time></p>`);
+  out.push(`<p style="color:#8a8a92;font-size:.85rem;"><time datetime="${escapeHtml(page.updated)}">Updated ${escapeHtml(prettyDate(page.updated))}</time></p>`);
 
-  for (const b of page.blocks) {
-    if (b.type === 'heading') {
-      const tag = b.depth === 2 ? 'h2' : 'h3';
-      // inlineHtml, not escapeHtml(b.text): API headings are code spans, and the
-      // crawlable copy has to match what React renders (parity), not a
-      // backtick-littered plaintext version of it.
-      out.push(`<${tag} id="${escapeHtml(b.id)}" style="${b.depth === 2 ? H2 : H3}">${inlineHtml(b.inline)}</${tag}>`);
-    } else if (b.type === 'para') {
-      out.push(`<p>${inlineHtml(b.inline)}</p>`);
-    } else if (b.type === 'list') {
-      const tag = b.ordered ? 'ol' : 'ul';
-      out.push(`<${tag}>${b.items.map((it) => `<li>${inlineHtml(it)}</li>`).join('')}</${tag}>`);
-    } else if (b.type === 'code') {
-      out.push(`<pre><code>${escapeHtml(b.code)}</code></pre>`);
-    } else if (b.type === 'callout') {
-      out.push(`<blockquote style="border-left:1px solid #3a3a40;padding-left:1em;margin:1.2em 0;color:#888890;">${inlineHtml(b.inline)}</blockquote>`);
-    } else if (b.type === 'hr') {
-      out.push('<hr>');
-    } else if (b.type === 'table') {
-      out.push('<table><thead><tr>'
-        + b.head.map((c) => `<th>${inlineHtml(c)}</th>`).join('')
-        + '</tr></thead><tbody>'
-        + b.rows.map((r) => `<tr>${r.map((c) => `<td>${inlineHtml(c)}</td>`).join('')}</tr>`).join('')
-        + '</tbody></table>');
-    }
-  }
+  out.push(...blocksToHtml(page.blocks));
 
   if (page.faq.length) {
     out.push(`<section><h2 style="${H2}">Frequently asked questions</h2>`);
@@ -360,6 +458,74 @@ function crawlableHtml(page) {
   out.push(`<p style="color:#8a8a92;font-size:.85rem;margin-top:2em;">Machine-readable: <a href="${escapeHtml(page.path)}.md" style="color:#FFA500;">${escapeHtml(page.path)}.md</a> · <a href="/llms.txt" style="color:#FFA500;">/llms.txt</a></p>`);
 
   return `<div style="max-width:820px;margin:0 auto;padding:14vh 24px 24px;"><article>${out.join('')}</article></div>`;
+}
+
+// ── Emit: the changelog ─────────────────────────────────────────────────────
+// One page, every entry, newest first, each anchored at #YYYY-MM-DD. Not one
+// route per entry: a week of changes is a thin page on its own, and an
+// assistant that fetches this URL should get the whole recency picture in a
+// single request rather than having to crawl N of them to find out whether a
+// feature exists yet.
+
+function changelogCrawlableHtml(entries) {
+  const out = [];
+  out.push(`<h1 style="font-size:1.9rem;font-weight:650;margin:0 0 .4em;">${escapeHtml(CHANGELOG_H1)}</h1>`);
+  out.push(`<p style="color:#d0d0d4;font-size:1.1rem;margin:0 0 1.2em;">${escapeHtml(CHANGELOG_ANSWER)}</p>`);
+  for (const e of entries) {
+    out.push(`<article id="${escapeHtml(e.anchor)}" style="margin:2.4em 0;">`);
+    out.push(`<p style="color:#8a8a92;font-size:.85rem;margin:0 0 .2em;"><time datetime="${escapeHtml(e.date)}">${escapeHtml(prettyDate(e.date))}</time></p>`);
+    out.push(`<h2 style="${H2}margin-top:.1em;">${escapeHtml(e.title)}</h2>`);
+    out.push(`<p style="color:#d0d0d4;">${escapeHtml(e.summary)}</p>`);
+    out.push(...blocksToHtml(e.blocks));
+    out.push('</article>');
+  }
+  // Same closing line every docs page carries: point machines at the twins.
+  out.push(`<p style="color:#8a8a92;font-size:.85rem;margin-top:2em;">Machine-readable: <a href="/changelog.md" style="color:#FFA500;">/changelog.md</a> · <a href="/changelog.xml" style="color:#FFA500;">RSS</a> · <a href="/llms.txt" style="color:#FFA500;">/llms.txt</a></p>`);
+  return `<div style="max-width:820px;margin:0 auto;padding:14vh 24px 24px;">${out.join('')}</div>`;
+}
+
+function changelogMarkdown(entries) {
+  const out = [`# ${CHANGELOG_H1}`, '', `> ${CHANGELOG_ANSWER}`, '',
+    `_Source: ${SITE_ORIGIN}/changelog · Feed: ${SITE_ORIGIN}/changelog.xml_`, ''];
+  for (const e of entries) {
+    out.push(`## ${e.date} — ${e.title}`, '', e.summary, '', e.rawMarkdown, '');
+  }
+  return out.join('\n').replace(/\n{3,}/g, '\n\n') + '\n';
+}
+
+// RSS 2.0. This is the half of the changelog that directories, feed readers and
+// polling agents actually consume — a page they have to re-fetch and diff is a
+// worse contract than a feed that tells them what is new.
+const rssDate = (iso) => new Date(iso + 'T00:00:00Z').toUTCString();
+// `]]>` inside a CDATA section terminates it early and corrupts the rest of the
+// feed. Split the sequence across two sections rather than escaping it away.
+const cdata = (s) => `<![CDATA[${String(s).replace(/]]>/g, ']]]]><![CDATA[>')}]]>`;
+
+function changelogRss(entries) {
+  const items = entries.map((e) => {
+    const link = `${SITE_ORIGIN}/changelog#${e.date}`;
+    return '    <item>\n'
+      + `      <title>${escapeHtml(e.title)}</title>\n`
+      + `      <link>${escapeHtml(link)}</link>\n`
+      // Anchors differ only by fragment, which some readers collapse — the date
+      // is what actually identifies an entry, so it is the guid.
+      + `      <guid isPermaLink="false">${escapeHtml(`clusters-changelog-${e.date}`)}</guid>\n`
+      + `      <pubDate>${rssDate(e.date)}</pubDate>\n`
+      + `      <description>${escapeHtml(e.summary)}</description>\n`
+      + `      <content:encoded>${cdata(blocksToHtml(e.blocks, { bare: true }).join(''))}</content:encoded>\n`
+      + '    </item>';
+  });
+  return '<?xml version="1.0" encoding="UTF-8"?>\n'
+    + '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">\n'
+    + '  <channel>\n'
+    + `    <title>${escapeHtml(CHANGELOG_H1)} — Soleil Clusters</title>\n`
+    + `    <link>${SITE_ORIGIN}/changelog</link>\n`
+    + `    <description>${escapeHtml(CHANGELOG_DESCRIPTION)}</description>\n`
+    + '    <language>en</language>\n'
+    + `    <lastBuildDate>${rssDate(entries[0].date)}</lastBuildDate>\n`
+    + `    <atom:link href="${SITE_ORIGIN}/changelog.xml" rel="self" type="application/rss+xml"/>\n`
+    + items.join('\n') + '\n'
+    + '  </channel>\n</rss>\n';
 }
 
 // ── Emit: files ─────────────────────────────────────────────────────────────
@@ -513,7 +679,7 @@ function write(absPath, content) {
   }
 }
 
-function emit({ pages, sections }) {
+function emit({ pages, sections, changelog }) {
   // 1. Light index — imported by the Worker (meta, sitemap, 404 decisions), the
   //    React nav, and the tests. Deliberately excludes prose so importing it
   //    never drags the corpus into a chunk. Same firewall as seoListicleIndex.js.
@@ -578,6 +744,51 @@ export function isDocsPath(pathname) {
     write(resolve(BOARDS, 'public', `${marketingMdRel(spec.path)}.md`), md);
   }
 
+  // 4c. The changelog — the same light-index / AST / pre-rendered-HTML split the
+  //     docs use, for the same reason: main.jsx and the Worker must never pull
+  //     the prose into their bundles, and both renderers must walk one parse.
+  write(resolve(BOARDS, 'src/lib/changelogIndex.js'),
+    BANNER('content/changelog/*.md') + `
+export const CHANGELOG_META = ${JSON.stringify({
+      path: '/changelog',
+      title: CHANGELOG_TITLE,
+      description: CHANGELOG_DESCRIPTION,
+      h1: CHANGELOG_H1,
+      answer: CHANGELOG_ANSWER,
+    }, null, 2)};
+
+export const CHANGELOG_ENTRIES = ${JSON.stringify(changelog.map((e) => ({
+      date: e.date, anchor: e.anchor, title: e.title, summary: e.summary,
+      headings: e.blocks.filter((b) => b.type === 'heading' && b.depth === 2)
+        .map((b) => ({ id: b.id, text: b.text })),
+    })), null, 2)};
+
+// The newest entry's date. The sitemap's lastmod for /changelog and the RSS
+// lastBuildDate both read this — it is the one page on the site whose lastmod
+// is unambiguously honest, since the date IS the content.
+export const CHANGELOG_LATEST = CHANGELOG_ENTRIES[0]?.date || null;
+
+// True for anything shaped like a changelog URL, so the Worker can serve a real
+// 404 for /changelog/nope rather than a soft-404 carrying homepage content.
+// Does NOT match /changelog.md or /changelog.xml — those are static assets that
+// env.ASSETS answers long before this is consulted.
+export function isChangelogPath(pathname) {
+  return /^\\/changelog(?:\\/|$)/i.test(String(pathname || ''));
+}
+`);
+
+  write(resolve(BOARDS, 'src/lib/changelogContent.js'),
+    BANNER('content/changelog/*.md')
+    + `\nexport const CHANGELOG_CONTENT = ${JSON.stringify(
+      Object.fromEntries(changelog.map((e) => [e.date, e.blocks])), null, 1)};\n`);
+
+  write(resolve(BOARDS, 'src/lib/changelogCrawlable.js'),
+    BANNER('content/changelog/*.md')
+    + `\nexport const CHANGELOG_HTML = ${JSON.stringify(changelogCrawlableHtml(changelog))};\n`);
+
+  write(resolve(BOARDS, 'public/changelog.md'), changelogMarkdown(changelog));
+  write(resolve(BOARDS, 'public/changelog.xml'), changelogRss(changelog));
+
   // 5. llms.txt — the curated index (llmstxt.org shape): what this product is,
   //    then every page as a labelled link with a one-line description.
   const bySection = new Map(sections.map((s) => [s.id, []]));
@@ -593,6 +804,13 @@ export function isDocsPath(pathname) {
     '',
     `Every page below is also available as raw Markdown by appending \`.md\` (e.g. ${SITE_ORIGIN}/docs/api.md).`,
     `The full corpus in one file: ${SITE_ORIGIN}/llms-full.txt`,
+    '',
+    // Listed FIRST, and with its date stated, because the single most common way
+    // to be wrong about this product is to describe a version of it that shipped
+    // months ago. An assistant that reads one line here should read the right one.
+    '## Changelog',
+    '',
+    `- [Changelog](${SITE_ORIGIN}/changelog): ${CHANGELOG_DESCRIPTION} Most recent entry: ${changelog[0].date}. Raw Markdown at ${SITE_ORIGIN}/changelog.md, RSS at ${SITE_ORIGIN}/changelog.xml.`,
     '',
   ];
   for (const s of sections) {
@@ -637,6 +855,11 @@ export function isDocsPath(pathname) {
   for (const { spec, md } of marketing) {
     full.push('', '='.repeat(72), `URL: ${SITE_ORIGIN}${spec.path}`, `Updated: ${spec.updated}`, '', md);
   }
+  // The changelog goes LAST in the corpus but is the first thing worth checking:
+  // everything above describes the product as documented, this says when each
+  // part of it arrived.
+  full.push('', '='.repeat(72), `URL: ${SITE_ORIGIN}/changelog`, `Updated: ${changelog[0].date}`, '',
+    changelogMarkdown(changelog));
   write(resolve(BOARDS, 'public/llms-full.txt'), full.join('\n') + '\n');
 
   // 7. The public-surface snapshot the docs are held to.
@@ -646,7 +869,8 @@ export function isDocsPath(pathname) {
 
 // ── Run ─────────────────────────────────────────────────────────────────────
 const loaded = loadPages();
-emit(loaded);
+const changelog = loadChangelog();
+emit({ ...loaded, changelog });
 
 if (CHECK && changed.length) {
   console.error(`✗ docs artifacts are stale (${changed.length} file(s) would change):`);
@@ -655,7 +879,7 @@ if (CHECK && changed.length) {
   process.exit(1);
 }
 console.log(CHECK
-  ? `✓ docs artifacts current (${loaded.pages.length} pages)`
-  : `✓ docs generated: ${loaded.pages.length} pages, ${changed.length} file(s) written`);
+  ? `✓ docs artifacts current (${loaded.pages.length} pages, ${changelog.length} changelog entries)`
+  : `✓ docs generated: ${loaded.pages.length} pages, ${changelog.length} changelog entries, ${changed.length} file(s) written`);
 
-export { loadPages, crawlableHtml, parseFrontmatter };
+export { loadPages, loadChangelog, crawlableHtml, changelogCrawlableHtml, parseFrontmatter };

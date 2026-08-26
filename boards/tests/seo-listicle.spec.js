@@ -78,8 +78,12 @@ test('renders the full listicle: hero, answer, disclosure, TOC, table, reviews, 
   await expect(page.locator('.seo-faq-item')).toHaveCount(SPEC.faq.length);
   await expect(page.locator('.seo-li-author-name')).toHaveText(SPEC.author.name);
   await expect(page.locator('.seo-related li a').first()).toBeVisible();
-  // Footer spokes are instrumented too (spec.related + /explore + /pricing).
-  await expect(page.locator('[data-lp-cta^="related:"]')).toHaveCount(SPEC.related.length + 2);
+  // Footer spokes are instrumented too: spec.related, plus the three fixed
+  // spokes every listicle carries — /explore, /pricing and /changelog. The
+  // changelog is here because the question underneath a comparison page is
+  // whether the thing is maintained, and an uninstrumented spoke is a click
+  // the landing scorecard cannot see.
+  await expect(page.locator('[data-lp-cta^="related:"]')).toHaveCount(SPEC.related.length + 3);
 
   // lp_view fired with the listicle page identity.
   await expect.poll(() =>

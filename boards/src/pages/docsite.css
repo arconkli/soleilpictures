@@ -386,6 +386,79 @@
 .docs-footer a { color: var(--ink-3); text-decoration: none; }
 .docs-footer a:hover { color: var(--ink-1); }
 
+/* ── Changelog (/changelog, ChangelogPage.jsx) ────────────────────────── */
+/* Rides the .docs-* shell — same top bar, same two scroll regions, same type.
+   It is the same site, and a changelog that looked like a different one would
+   read as a bolted-on afterthought. Only the pieces that genuinely differ are
+   restated: there is no per-page TOC (the date rail IS the table of contents),
+   and entries need a dateline. */
+
+/* The right-hand 180px column exists for .docs-toc. This page has none, so the
+   article gets the width back rather than sitting beside a gap. */
+.changelog-main { grid-template-columns: minmax(0, 1fr); }
+
+/* Stands in for .docs-search in the top bar: same `flex: 1` job of pushing the
+   CTA to the right, but it holds links instead of an input. */
+.changelog-topnav {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 16px;
+  font-size: 0.86rem;
+}
+.changelog-topnav a { color: var(--ink-3); text-decoration: none; }
+.changelog-topnav a:hover { color: var(--ink-1); }
+
+.changelog-jump { list-style: none; margin: 0; padding: 0; }
+.changelog-jump a {
+  display: block;
+  padding: 7px 0;
+  color: var(--ink-2);
+  text-decoration: none;
+  line-height: 1.4;
+}
+.changelog-jump a:hover { color: var(--ink-0); }
+.changelog-jump time {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.changelog-jump span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Gold = the entry you are reading. Colour alone, matching .docs-nav-section. */
+.changelog-jump a.is-active,
+.changelog-jump a.is-active time { color: var(--soleil); }
+
+.changelog-entry {
+  padding-bottom: 2.2em;
+  border-bottom: 1px solid var(--line-1);
+  scroll-margin-top: 18px;
+}
+.changelog-entry + .changelog-entry { padding-top: 2.6em; }
+.changelog-entry:last-child { border-bottom: 0; }
+
+.changelog-date {
+  position: relative;
+  margin: 0 0 0.25em;
+  font-size: 0.8rem;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.changelog-date:hover .docs-anchor { opacity: 1; }
+
+/* Restated rather than inheriting .docs-article h2, whose 2.4em top margin is
+   for a heading that follows prose. This one follows its own dateline. */
+.docs-article .changelog-title {
+  margin: 0 0 0.4em;
+  font-size: 1.3rem;
+  font-weight: 620;
+}
+.changelog-summary { color: var(--ink-2); }
+
 /* ── Responsive ───────────────────────────────────────────────────────── */
 @media (max-width: 1080px) {
   .docs-main { grid-template-columns: minmax(0, 1fr); }

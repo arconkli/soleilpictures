@@ -39,6 +39,7 @@ const SeoLandingPage  = lazyWithReload(() => import('./pages/SeoLandingPage.jsx'
 const ScoutPage       = lazyWithReload(() => import('./pages/ScoutPage.jsx').then(m => ({ default: m.ScoutPage })));
 const SeoListiclePage = lazyWithReload(() => import('./pages/SeoListiclePage.jsx').then(m => ({ default: m.SeoListiclePage })));
 const DocsPage        = lazyWithReload(() => import('./pages/DocsPage.jsx').then(m => ({ default: m.DocsPage })));
+const ChangelogPage   = lazyWithReload(() => import('./pages/ChangelogPage.jsx').then(m => ({ default: m.ChangelogPage })));
 const OAuthConsentPage = lazyWithReload(() => import('./pages/OAuthConsentPage.jsx').then(m => ({ default: m.OAuthConsentPage })));
 const ResumePage      = lazyWithReload(() => import('./pages/ResumePage.jsx').then(m => ({ default: m.ResumePage })));
 
@@ -187,6 +188,14 @@ const seoListicleMatch = /^\/best\//i.test(window.location.pathname);
 // AuthGate instead. Note the raw markdown mirrors (/docs/x.md) never reach this
 // file — they are static assets served straight out of dist/.
 const docsMatch = /^\/docs(?:\/|$)/i.test(window.location.pathname);
+
+// /changelog = the public changelog (generated from content/changelog/*.md).
+// EXACT, not a prefix, unlike /docs: every entry lives on this one page under a
+// #YYYY-MM-DD anchor, so there is no sub-path to render and the Worker hard-404s
+// /changelog/anything. The raw twins (/changelog.md, /changelog.xml) never reach
+// this file — they are static assets served straight out of dist/, and the shape
+// below deliberately does not match them.
+const changelogMatch = /^\/changelog\/?$/i.test(window.location.pathname);
 
 // /legal/<privacy|terms|cookies> = public legal documents. Like /share, these
 // render before the AuthGate so they're reachable signed-out (footer links,
@@ -413,6 +422,8 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
               <SeoListiclePage path={window.location.pathname} />
             ) : docsMatch ? (
               <DocsPage path={window.location.pathname} />
+            ) : changelogMatch ? (
+              <ChangelogPage />
             ) : showPublicPricing ? (
               <PublicPricingPage />
             ) : exploreMatch ? (
