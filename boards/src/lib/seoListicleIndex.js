@@ -20,4 +20,9 @@ export const SEO_LISTICLE_INDEX = [
     h1: 'The 12 Best Mood Board Apps in 2026',
     navLabel: 'Best Mood Board Apps',
   },
+  {
+    path: '/best/storyboard-software',
+    h1: 'The 10 Best Storyboard Software Tools in 2026',
+    navLabel: 'Best Storyboard Software',
+  },
 ];

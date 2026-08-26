@@ -5,7 +5,7 @@ h1: Coming from another tool
 navLabel: Coming from another tool
 section: start
 order: 4
-updated: 2026-08-08
+updated: 2026-08-25
 answer: There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually a single drag of a folder. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.
 faq:
   - q: Is there an importer?
@@ -60,13 +60,16 @@ nesting maps directly, and the card model is comparable.
 **[Miro](/vs/miro)** — the whiteboard-to-canvas mapping is direct. Clusters is
 built around media and reference rather than diagramming and facilitation.
 
-**[Boords](/vs/boords)** and **[Storyboarder](/vs/storyboarder)** — storyboard
-tools. Panels become [grid](/docs/canvas/grids) cells, and the script side
-becomes a [screenplay document](/docs/documents/screenplay) on the same board.
+**[Boords, Storyboarder and the other storyboard
+tools](/best/storyboard-software)** — panels become
+[grid](/docs/canvas/grids) cells, and the script side becomes a
+[screenplay document](/docs/documents/screenplay) on the same board.
 
-**[StudioBinder](/vs/studiobinder)** — production management. Clusters covers
-the visual and document side and the [schedule](/docs/canvas/schedule); it is
-not a call-sheet-and-crew-management system.
+**StudioBinder** — production management. Clusters covers the visual and
+document side and the [schedule](/docs/canvas/schedule); it is not a
+call-sheet-and-crew-management system. The
+[storyboard software roundup](/best/storyboard-software) compares the two
+directly.
 
 ## Comparisons and alternatives
 
@@ -75,6 +78,7 @@ Roundups of what else is out there, with pricing checked at the date shown:
 - [The best PureRef alternatives](/best/pureref-alternatives)
 - [The best Milanote alternatives](/best/milanote-alternatives)
 - [The best mood board apps](/best/mood-board-apps)
+- [The best storyboard software](/best/storyboard-software)
 
 ## Practical route in
 

@@ -3096,16 +3096,16 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "[Boords](/vs/boords)",
+     "v": "[Boords, Storyboarder and the other storyboard tools](/best/storyboard-software)",
      "children": [
       {
        "t": "link",
-       "v": "Boords",
-       "href": "/vs/boords",
+       "v": "Boords, Storyboarder and the other storyboard tools",
+       "href": "/best/storyboard-software",
        "children": [
         {
          "t": "text",
-         "v": "Boords"
+         "v": "Boords, Storyboarder and the other storyboard tools"
         }
        ]
       }
@@ -3113,28 +3113,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " and "
-    },
-    {
-     "t": "strong",
-     "v": "[Storyboarder](/vs/storyboarder)",
-     "children": [
-      {
-       "t": "link",
-       "v": "Storyboarder",
-       "href": "/vs/storyboarder",
-       "children": [
-        {
-         "t": "text",
-         "v": "Storyboarder"
-        }
-       ]
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — storyboard tools. Panels become "
+     "v": " — panels become "
     },
     {
      "t": "link",
@@ -3173,18 +3152,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "[StudioBinder](/vs/studiobinder)",
+     "v": "StudioBinder",
      "children": [
       {
-       "t": "link",
-       "v": "StudioBinder",
-       "href": "/vs/studiobinder",
-       "children": [
-        {
-         "t": "text",
-         "v": "StudioBinder"
-        }
-       ]
+       "t": "text",
+       "v": "StudioBinder"
       }
      ]
     },
@@ -3205,7 +3177,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "; it is not a call-sheet-and-crew-management system."
+     "v": "; it is not a call-sheet-and-crew-management system. The "
+    },
+    {
+     "t": "link",
+     "v": "storyboard software roundup",
+     "href": "/best/storyboard-software",
+     "children": [
+      {
+       "t": "text",
+       "v": "storyboard software roundup"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " compares the two directly."
     }
    ]
   },
@@ -3269,6 +3256,19 @@ export const DOCS_CONTENT = {
        {
         "t": "text",
         "v": "The best mood board apps"
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "link",
+      "v": "The best storyboard software",
+      "href": "/best/storyboard-software",
+      "children": [
+       {
+        "t": "text",
+        "v": "The best storyboard software"
        }
       ]
      }

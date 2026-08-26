@@ -111,6 +111,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [The 10 Best PureRef Alternatives in 2026](https://clusters.soleilpictures.com/best/pureref-alternatives): The 10 best PureRef alternatives in 2026, tested on real film pre-production. Online, collaborative, and open-source reference boards compared honestly.
 - [The 12 Best Milanote Alternatives in 2026](https://clusters.soleilpictures.com/best/milanote-alternatives): The 12 best Milanote alternatives in 2026, ranked on real production work. Free tiers, item caps, and collaboration compared honestly — including our own app.
 - [The 12 Best Mood Board Apps in 2026](https://clusters.soleilpictures.com/best/mood-board-apps): The 12 best mood board apps in 2026, tested on real film and design work. Free and paid options compared: canvases, collages, and collaboration.
+- [The 10 Best Storyboard Software Tools in 2026](https://clusters.soleilpictures.com/best/storyboard-software): The 10 best storyboard software tools in 2026, tested on real film pre-production. Drawn boards, photo boards, AI frames and animatics compared honestly.
 
 ## Comparisons and tool pages
 
@@ -125,7 +126,4 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [A Milanote Alternative Built for Production Teams](https://clusters.soleilpictures.com/vs/milanote): The free Milanote alternative without per-person pricing — a real-time multiplayer canvas with auto-tagging, 100GB storage and sharing.
 - [PureRef Online: The Closest Thing, in Your Browser](https://clusters.soleilpictures.com/vs/pureref): There is no PureRef web version. Clusters is the closest thing online: the same drop-and-arrange reference wall, in your browser, shared with one link.
 - [A Miro Alternative for Filmmakers and Creative Teams](https://clusters.soleilpictures.com/vs/miro): A Miro alternative for creative work, not diagramming: image-first boards, palettes, storyboards, and client-ready sharing. Free to start.
-- [An Online Alternative to Wonder Unit’s Storyboarder](https://clusters.soleilpictures.com/vs/storyboarder): Storyboarder’s last stable release was 2020. Clusters moves your board to the browser — numbered panels, shot lists, real-time crew edits, one shared link.
-- [A Boords Alternative for the Whole Production, Not Just the Frames](https://clusters.soleilpictures.com/vs/boords): Boords prices by team size — Soleil Clusters is a flat $25 canvas where storyboards live beside shot lists and schedules. Free tier, no credit card.
-- [A StudioBinder Alternative for the Visual Half of Pre-Production](https://clusters.soleilpictures.com/vs/studiobinder): StudioBinder runs $29–99/mo; extra seats $25. Need only the visual half — storyboards, shot lists, lookbooks? Clusters is free to start, then $25 flat.
 - [What You Can Make with Clusters](https://clusters.soleilpictures.com/use-cases): Mood boards, look books, storyboards, shot lists — see what creative teams make with Soleil Clusters, browse example boards, and start yours free.

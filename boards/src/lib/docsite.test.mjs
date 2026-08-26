@@ -440,7 +440,12 @@ test('WEIGHT: worker-imported docs artifacts stay within budget', () => {
 
 test('MARKETING MD: every landing and listicle page has a mirror with real content', () => {
   const paths = [...surface.publicRoutes.landing, ...surface.publicRoutes.listicle];
-  assert.ok(paths.length >= 18, `expected the full marketing registry, got ${paths.length}`);
+  // Floor was 18 (15 landing + 3 listicle) until 2026-08-25, when /vs/storyboarder,
+  // /vs/boords and /vs/studiobinder were 301'd into /best/storyboard-software —
+  // net −2. The floor guards against a registry that failed to load at all, so it
+  // tracks the real surface; it is not a target to grow toward. Lower it only
+  // alongside a deliberate retirement, never to make a red test pass.
+  assert.ok(paths.length >= 16, `expected the full marketing registry, got ${paths.length}`);
 
   const problems = [];
   for (const p of paths) {

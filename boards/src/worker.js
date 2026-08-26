@@ -59,6 +59,22 @@ const PARTYKIT_HOST = 'soleil-boards-party.arconkli.partykit.dev';
 // without adding SSR or a build step. Unknown paths keep the homepage
 // defaults (harmless); non-HTML responses pass through untouched.
 const SITE_ORIGIN = 'https://clusters.soleilpictures.com';
+
+// Retired marketing pages → the page that absorbed them. 301, never 404, so
+// crawl equity and any inbound links land somewhere real.
+//
+// /vs/storyboarder, /vs/boords and /vs/studiobinder each ran four weeks without
+// recording a single impression while the listicle format was outranking its
+// own /vs/ sibling within days of launch. Their competitor research was folded
+// into /best/storyboard-software on 2026-08-25 and the three specs deleted from
+// seoLanding.js — so getLandingSpec() now returns null for them and, without
+// this map, they would hit the landing-shaped-404 guard further down.
+const RETIRED_PAGES = new Map([
+  ['/vs/storyboarder', '/best/storyboard-software'],
+  ['/vs/boords', '/best/storyboard-software'],
+  ['/vs/studiobinder', '/best/storyboard-software'],
+]);
+
 const DEFAULT_DESCRIPTION =
   'Soleil Clusters is a creative workspace and moodboard tool for film, photo, design, and brand teams — organize references, projects, and ideas in one place.';
 const ROUTE_META = {
@@ -308,6 +324,21 @@ export default {
   // never what fails one.
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    // ── Retired pages 301 to their replacement. This runs BEFORE normalization
+    // because that block skips dotted paths (they are real files from ASSETS),
+    // so `/vs/boords.md` would never reach it — and we advertise a `.md` mirror
+    // for every marketing page via rel="alternate", so the mirrors have to
+    // redirect too rather than hard-404.
+    if (request.method === 'GET' || request.method === 'HEAD') {
+      let p = url.pathname.toLowerCase();
+      if (p.length > 1 && p.endsWith('/')) p = p.replace(/\/+$/, '');
+      const isMd = p.endsWith('.md');
+      const to = RETIRED_PAGES.get(isMd ? p.slice(0, -3) : p);
+      if (to) {
+        return Response.redirect(url.origin + to + (isMd ? '.md' : '') + url.search, 301);
+      }
+    }
 
     // ── URL normalization (SEO): 301 duplicate-URL variants onto the canonical
     // form so Google consolidates instead of relying on rel=canonical alone.

@@ -283,7 +283,7 @@ export const DOCS_PAGES = [
     "answer": "There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually a single drag of a folder. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.",
     "section": "start",
     "order": 4,
-    "updated": "2026-08-08",
+    "updated": "2026-08-25",
     "navLabel": "Coming from another tool",
     "headings": [
       {
