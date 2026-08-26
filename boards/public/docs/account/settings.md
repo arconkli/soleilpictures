@@ -27,6 +27,10 @@ Profile picture, display name, email, and your
 **[presence colour](/docs/collaborate/presence)** — the colour your cursor and
 selection halos appear in to everyone else.
 
+**Deleting your account** lives at the foot of this tab. It is the one thing in
+Settings with no undo — see
+[Data and privacy](/docs/account/data-and-privacy#deleting-your-account).
+
 ### Appearance
 
 How Clusters looks and how the canvas answers your hands, in three sections:

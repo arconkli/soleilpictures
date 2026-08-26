@@ -5,9 +5,11 @@ h1: Data and privacy
 navLabel: Data and privacy
 section: account
 order: 5
-updated: 2026-08-08
+updated: 2026-08-26
 answer: Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 faq:
+  - q: How do I delete my account?
+    a: Settings then Profile, at the foot of the tab. It shows what will happen first — clusters removed, and which shared workspaces pass to which collaborator — and asks you to type your email to confirm. There is no undo and no grace period.
   - q: Are my boards private by default?
     a: Yes. A new cluster is visible only to you until you invite someone or create a public link.
   - q: Can someone guess the URL of my image?
@@ -58,6 +60,30 @@ Nothing is trapped:
 - **[Document export](/docs/documents/export)** — PDF, Markdown, HTML, and `.fdx` / Fountain for [screenplays](/docs/documents/screenplay)
 - **Original files** — downloadable exactly as uploaded
 - **[REST API](/docs/api)** — read every board and card programmatically
+
+## Deleting your account
+
+**Settings → Profile → Delete account.** Before it asks you to confirm, it
+tells you what will actually happen to *your* account — how many clusters go,
+and what becomes of anything you share:
+
+- **Workspaces only you are in** are deleted, with every cluster, card,
+  comment, tag and uploaded file in them.
+- **Workspaces you created that other people are in** are *not* deleted.
+  Ownership passes to the longest-standing other member, who is named on the
+  confirmation screen. Their work is never destroyed by your leaving.
+- **Workspaces you were only a member of** simply lose you.
+- **Comments, tags and votes you left on other people's clusters** stay where
+  they are, with your name removed — deleting them would take away context that
+  belongs to someone else.
+- Any **subscription is canceled** as part of the deletion, so nothing bills a
+  removed account.
+- Your **analytics and error records are anonymised**, not merely unlinked: the
+  session identifier is dropped too, so the rows cannot be tied back to you.
+
+Confirmation is typing your own email address. There is no grace period and no
+undo — once it completes, support cannot restore the account, and the address
+is free to sign up again from scratch.
 
 ## Accounts and access
 

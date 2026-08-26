@@ -24364,6 +24364,40 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Deleting your account",
+     "children": [
+      {
+       "t": "text",
+       "v": "Deleting your account"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lives at the foot of this tab. It is the one thing in Settings with no undo — see "
+    },
+    {
+     "t": "link",
+     "v": "Data and privacy",
+     "href": "/docs/account/data-and-privacy#deleting-your-account",
+     "children": [
+      {
+       "t": "text",
+       "v": "Data and privacy"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 3,
    "text": "Appearance",
@@ -27871,6 +27905,184 @@ export const DOCS_CONTENT = {
       "v": " — read every board and card programmatically"
      }
     ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Deleting your account",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Deleting your account"
+    }
+   ],
+   "id": "deleting-your-account"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Settings → Profile → Delete account.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Profile → Delete account."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Before it asks you to confirm, it tells you what will actually happen to "
+    },
+    {
+     "t": "em",
+     "v": "your",
+     "children": [
+      {
+       "t": "text",
+       "v": "your"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " account — how many clusters go, and what becomes of anything you share:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Workspaces only you are in",
+      "children": [
+       {
+        "t": "text",
+        "v": "Workspaces only you are in"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " are deleted, with every cluster, card, comment, tag and uploaded file in them."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Workspaces you created that other people are in",
+      "children": [
+       {
+        "t": "text",
+        "v": "Workspaces you created that other people are in"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " are "
+     },
+     {
+      "t": "em",
+      "v": "not",
+      "children": [
+       {
+        "t": "text",
+        "v": "not"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " deleted. Ownership passes to the longest-standing other member, who is named on the confirmation screen. Their work is never destroyed by your leaving."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Workspaces you were only a member of",
+      "children": [
+       {
+        "t": "text",
+        "v": "Workspaces you were only a member of"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " simply lose you."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Comments, tags and votes you left on other people's clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "Comments, tags and votes you left on other people's clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " stay where they are, with your name removed — deleting them would take away context that belongs to someone else."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Any "
+     },
+     {
+      "t": "strong",
+      "v": "subscription is canceled",
+      "children": [
+       {
+        "t": "text",
+        "v": "subscription is canceled"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " as part of the deletion, so nothing bills a removed account."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Your "
+     },
+     {
+      "t": "strong",
+      "v": "analytics and error records are anonymised",
+      "children": [
+       {
+        "t": "text",
+        "v": "analytics and error records are anonymised"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", not merely unlinked: the session identifier is dropped too, so the rows cannot be tied back to you."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Confirmation is typing your own email address. There is no grace period and no undo — once it completes, support cannot restore the account, and the address is free to sign up again from scratch."
+    }
    ]
   },
   {

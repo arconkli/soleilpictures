@@ -18668,6 +18668,31 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   color: var(--ink-2);
 }
 
+/* Account deletion. Red, because this is the one thing in Settings with no
+   undo toast behind it — the convention everywhere else in the app — and the
+   colour is the only warning left once you have read the copy. */
+.settings-danger-link { color: #ef4444; }
+.settings-danger-link:hover { color: #f87171; }
+.settings-callout-danger {
+  border-color: rgba(239,68,68,.4);
+  background: rgba(239,68,68,.06);
+}
+.settings-callout-danger .settings-callout-title { color: #ef4444; }
+.settings-danger-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: flex; flex-direction: column; gap: 6px;
+  font: 400 12px/1.5 var(--font-sans);
+  color: var(--ink-1);
+}
+.settings-btn-danger {
+  background: #ef4444 !important;
+  border-color: #ef4444 !important;
+  color: #fff !important;
+}
+.settings-btn-danger:hover:not(:disabled) { background: #dc2626 !important; border-color: #dc2626 !important; }
+.settings-btn-danger:disabled { opacity: .45; cursor: not-allowed; }
+
 /* ───────────────────────── Settings → API tokens ───────────────────────── */
 .api-token-row {
   display: flex;

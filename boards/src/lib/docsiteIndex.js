@@ -2708,7 +2708,7 @@ export const DOCS_PAGES = [
     "answer": "Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.",
     "section": "account",
     "order": 5,
-    "updated": "2026-08-08",
+    "updated": "2026-08-26",
     "navLabel": "Data and privacy",
     "headings": [
       {
@@ -2726,6 +2726,10 @@ export const DOCS_PAGES = [
       {
         "id": "getting-your-data-out",
         "text": "Getting your data out"
+      },
+      {
+        "id": "deleting-your-account",
+        "text": "Deleting your account"
       },
       {
         "id": "accounts-and-access",
@@ -2746,6 +2750,10 @@ export const DOCS_PAGES = [
       "/docs/api"
     ],
     "faq": [
+      {
+        "q": "How do I delete my account?",
+        "a": "Settings then Profile, at the foot of the tab. It shows what will happen first — clusters removed, and which shared workspaces pass to which collaborator — and asks you to type your email to confirm. There is no undo and no grace period."
+      },
       {
         "q": "Are my boards private by default?",
         "a": "Yes. A new cluster is visible only to you until you invite someone or create a public link."
