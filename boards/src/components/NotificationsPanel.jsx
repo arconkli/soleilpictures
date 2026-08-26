@@ -82,8 +82,8 @@ export function NotificationsPanel({
           <div className="ntf-empty">Loading…</div>
         ) : items.length === 0 ? (
           <div className="ntf-empty">
-            Nothing yet. When someone opens a cluster you shared, or a day
-            moves, or a call sheet is published, it lands here.
+            Nothing yet. When a day moves or a call sheet is published,
+            it lands here.
           </div>
         ) : (
           <ul className="ntf-list">

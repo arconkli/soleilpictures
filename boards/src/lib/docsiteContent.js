@@ -21954,7 +21954,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Seven categories, seven independent switches, in "
+     "v": "Six categories, six independent switches, in "
     },
     {
      "t": "strong",
@@ -22073,26 +22073,6 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Share link activity",
-       "children": [
-        {
-         "t": "text",
-         "v": "Share link activity"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Someone opens a cluster you shared a link to"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
        "v": "Schedule changes",
        "children": [
         {
@@ -22136,7 +22116,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The last one is the one to switch off if you only want to hear about your own work. The other six are all consequences of something a person did that involves you."
+     "v": "The last one is the one to switch off if you only want to hear about your own work. The other five are all consequences of something a person did that involves you."
     }
    ]
   },
@@ -22422,84 +22402,6 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Share link activity",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Share link activity"
-    }
-   ],
-   "id": "share-link-activity"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "When someone opens a cluster you shared a "
-    },
-    {
-     "t": "link",
-     "v": "link",
-     "href": "/docs/collaborate/sharing",
-     "children": [
-      {
-       "t": "text",
-       "v": "link"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " to, it lands under "
-    },
-    {
-     "t": "strong",
-     "v": "Schedule",
-     "children": [
-      {
-       "t": "text",
-       "v": "Schedule"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " in the sidebar: how many people opened it, and which cluster."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "You are never told who they were.",
-     "children": [
-      {
-       "t": "text",
-       "v": "You are never told who they were."
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " A share link needs no account, so the people reading one are signed out and there is nobody to name. What you get is a count."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "It is gathered up once a day rather than sent per view, counts each person once however many times they look, and emails you at most once a day — and only if you are not already in the app."
     }
    ]
   },
