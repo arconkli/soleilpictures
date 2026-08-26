@@ -3064,13 +3064,13 @@ A: iMessage is the confirmed transport. SMS and RCS are not confirmed yet, and n
 URL: https://clusters.soleilpictures.com/docs/account/settings
 Updated: 2026-08-25
 
-Settings is one panel with a rail grouped into You and This workspace. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General and Card defaults. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
+Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 
 Open it from the sidebar — the cog or your avatar, bottom left — or with ⌘K → "settings". Both buttons open the same panel; they differ only in which tab they land on, and every other tab is one click away in the same rail.
 
 Settings are stored on your account, not the device, so they follow you everywhere you sign in. Nothing here has a Save button — every change is written as you make it, and a Saved ✓ flashes in the header when it lands. A text field commits when you click away or press Enter; a colour commits when you close the picker.
 
-The rail is grouped into two halves, and which half a setting is in tells you who it affects.
+The rail is grouped, and which group a setting is in tells you who it affects.
 
 You
 
@@ -3097,7 +3097,7 @@ Connections
 Everything that can reach your clusters without being this browser.
 
 Soleil Scout — the connect code that binds a phone number to this account, so texted photos land in your workspace. Also lists the phones already connected, and any number still waiting to prove it is yours. See Soleil Scout.
-API access — create and revoke personal access tokens for the REST API and MCP, and disconnect apps you approved through OAuth. Each token gets a name, an Allow writes checkbox and an Allow deletes checkbox — leave both off for a read-only token. The token value is shown once, at creation: it is stored only as a hash and cannot be recovered, so a lost token is revoked and replaced.
+API access — create and revoke personal access tokens for the REST API and MCP, and disconnect apps you approved through OAuth. Connecting an AI assistant usually needs no token at all, so the MCP endpoint is offered first, ready to copy. Each token gets a name and one of three levels — Read only, Read & write, or Full access, which is the only one that can delete. The token value is shown once, at creation: it is stored only as a hash and cannot be recovered, so a lost token is revoked and replaced.
 
 Plan & billing
 
@@ -3126,9 +3126,17 @@ Clusters — whether new clusters open as canvas or list
 Docs — font
 Shapes — stroke colour, fill colour, stroke width
 
+Help
+
+Documentation
+
+A searchable index of every page on this site, grouped the way the docs site is grouped, with a one-line summary under each. Type into the box to filter — it matches headings as well as page titles, so "scroll wheel" finds the keyboard shortcuts page even though no page is called that.
+
+Every link opens in a new tab, so following one never costs you what is on your canvas.
+
 Sign out
 
-At the foot of the rail, under both groups. It asks first, and names the account it is about to sign out of.
+At the foot of the rail, under every group. It asks first, and names the account it is about to sign out of.
 
 Not in Settings
 
@@ -3639,7 +3647,7 @@ Mint a token with write access under Settings then API, export it, and you can c
 
 1. Get a token
 
-In the app: Settings → Connections → New token. Tick Allow writes if you intend to change anything. Copy it immediately — it is shown once.
+In the app: Settings → Connections → New token. Choose Read & write if you intend to change anything, Read only if not. Copy it immediately — it is shown once.
 
 export SOLEIL_TOKEN="undefined…"
 export SOLEIL_API="https://clusters.soleilpictures.com/api/v1"
@@ -3812,7 +3820,7 @@ Minting a token
 
 Settings → Connections → New token. Give it a name that says where it will be used, so you know which one to revoke later.
 
-Allow writes is the only scope control. Leave it off for anything that only needs to read.
+Then choose what it may do — Read only, Read & write, or Full access. Read only is the right choice unless you know you need more; full access is the only one that can delete, and is worth withholding from an AI assistant unless you specifically want it able to throw things away. Deletes are recoverable, but you would have to notice first.
 
 The token is displayed once, at creation. It is the prefix undefined followed by 40 hexadecimal characters — 160 bits of randomness:
 

@@ -17330,14 +17330,16 @@ button.msg-panel-name:hover { color: var(--ink-0); }
   border-left: 2px solid var(--ink-3);
 }
 .settings-section-hint a,
-.settings-cat-desc a {
+.settings-cat-desc a,
+.settings-callout a {
   color: var(--ink-0);
   text-decoration: underline;
   text-underline-offset: 2px;
   text-decoration-color: var(--line-1);
 }
 .settings-section-hint a:hover,
-.settings-cat-desc a:hover { text-decoration-color: currentColor; }
+.settings-cat-desc a:hover,
+.settings-callout a:hover { text-decoration-color: currentColor; }
 .settings-cat {
   border: 1px solid var(--line-1);
   border-radius: var(--radius-md);
@@ -18649,6 +18651,23 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   flex-shrink: 0;
 }
 
+/* A bordered aside inside a settings section — for the thing that is the
+   right answer for most readers and lets them skip the rest of the screen.
+   Bordered rather than tinted: nothing is wrong, it is just important. */
+.settings-callout {
+  margin: 12px 0 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  background: var(--bg-2);
+}
+.settings-callout-title { font: 600 12.5px/1.3 var(--font-sans); color: var(--ink-0); }
+.settings-callout p {
+  margin: 6px 0 0;
+  font: 400 12px/1.5 var(--font-sans);
+  color: var(--ink-2);
+}
+
 /* ───────────────────────── Settings → API tokens ───────────────────────── */
 .api-token-row {
   display: flex;
@@ -18696,12 +18715,65 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   border-top: 1px solid var(--line-1, rgba(255,255,255,.1));
   font-size: 13px;
 }
+.api-token-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.api-token-title {
+  font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* What a token can do, at a glance. Delete gets red because a credential that
+   can destroy work is a different kind of thing from one that can only add to
+   it — and this list is where you decide whether to revoke. Gold stays
+   reserved for active/selection/focus, so it is not used here. */
+.api-token-scopepill {
+  flex: 0 0 auto;
+  font: 600 9.5px/1 var(--font-sans);
+  letter-spacing: .05em; text-transform: uppercase;
+  padding: 3px 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.api-token-scopepill.is-write { color: var(--ink-1); }
+.api-token-scopepill.is-delete { color: #ef4444; border-color: rgba(239,68,68,.32); }
+.api-token-item { align-items: flex-start; }
 .api-token-meta {
-  margin-top: 2px;
+  margin-top: 3px;
   font: 400 11px/1.4 var(--font-sans);
   color: var(--ink-3);
 }
 .api-token-meta code { font-family: var(--font-mono, ui-monospace, monospace); }
+
+/* ───────────────────────── Settings → Documentation ───────────────────────── */
+.settings-doclist { display: flex; flex-direction: column; }
+.settings-doc-item {
+  display: block;
+  padding: 8px 10px;
+  margin: 0 -10px;
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: inherit;
+}
+.settings-doc-item:hover { background: var(--bg-hov); }
+.settings-doc-item:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.settings-doc-title {
+  display: block;
+  font: 500 12.5px/1.3 var(--font-sans);
+  color: var(--ink-1);
+}
+.settings-doc-item:hover .settings-doc-title { color: var(--ink-0); }
+/* One line only. These are the page's `answer` — written for a search engine,
+   so they run long; clamped they work as a scent trail, unclamped they would
+   turn a 64-row index into a wall. */
+.settings-doc-blurb {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 2px;
+  font: 400 11px/1.45 var(--font-sans);
+  color: var(--ink-3);
+}
 
 /* ──────────────────────────── ScoutClaimBanner ─────────────────────────── */
 /* Shown to a Scout shell account — one that has photos but no real email yet.

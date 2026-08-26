@@ -330,6 +330,10 @@
       "label": "Card defaults"
     },
     {
+      "id": "docs",
+      "label": "Documentation"
+    },
+    {
       "id": "general",
       "label": "General"
     },

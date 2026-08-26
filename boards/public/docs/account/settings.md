@@ -1,6 +1,6 @@
 # Settings
 
-> Settings is one panel with a rail grouped into You and This workspace. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General and Card defaults. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
+> Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 
 _Source: https://clusters.soleilpictures.com/docs/account/settings · Updated 2026-08-25_
 
@@ -14,8 +14,7 @@ written as you make it, and a `Saved ✓` flashes in the header when it lands. A
 text field commits when you click away or press `Enter`; a colour commits when
 you close the picker.
 
-The rail is grouped into two halves, and which half a setting is in tells you
-who it affects.
+The rail is grouped, and which group a setting is in tells you who it affects.
 
 ## You
 
@@ -58,10 +57,12 @@ Everything that can reach your clusters without being this browser.
 - **API access** — create and revoke
   [personal access tokens](/docs/api/authentication) for the
   [REST API](/docs/api) and [MCP](/docs/mcp), and disconnect apps you approved
-  through [OAuth](/docs/api/oauth). Each token gets a name, an **Allow writes**
-  checkbox and an **Allow deletes** checkbox — leave both off for a read-only
-  token. The token value is shown **once**, at creation: it is stored only as a
-  hash and cannot be recovered, so a lost token is revoked and replaced.
+  through [OAuth](/docs/api/oauth). Connecting an AI assistant usually needs no
+  token at all, so the [MCP](/docs/mcp) endpoint is offered first, ready to
+  copy. Each token gets a name and one of three levels — **Read only**,
+  **Read & write**, or **Full access**, which is the only one that can delete.
+  The token value is shown **once**, at creation: it is stored only as a hash
+  and cannot be recovered, so a lost token is revoked and replaced.
 
 ### Plan & billing
 
@@ -102,9 +103,22 @@ are never changed.
 - **Docs** — font
 - **Shapes** — stroke colour, fill colour, stroke width
 
+## Help
+
+### Documentation
+
+A searchable index of every page on this site, grouped the way the docs site is
+grouped, with a one-line summary under each. Type into the box to filter — it
+matches headings as well as page titles, so "scroll wheel" finds the
+[keyboard shortcuts](/docs/keyboard-shortcuts) page even though no page is
+called that.
+
+Every link opens in a **new tab**, so following one never costs you what is on
+your canvas.
+
 ## Sign out
 
-At the foot of the rail, under both groups. It asks first, and names the
+At the foot of the rail, under every group. It asks first, and names the
 account it is about to sign out of.
 
 ## Not in Settings
