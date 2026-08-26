@@ -14,6 +14,8 @@ import { useMemo } from 'react';
 import { Icon } from './Icon.jsx';
 import { X, Calendar, Check } from '../lib/icons.js';
 import { parseISO, dayTitle, shortDate, todayISO, daysBetween } from '../lib/schedDates.js';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 import './notificationsPanel.css';
 
 // "in 3 days" / "today" / "tomorrow" — a crew member reads relative time faster
@@ -80,8 +82,8 @@ export function NotificationsPanel({
           <div className="ntf-empty">Loading…</div>
         ) : items.length === 0 ? (
           <div className="ntf-empty">
-            Nothing yet. When a day moves or a call sheet is published,
-            it lands here.
+            Nothing yet. When someone opens a cluster you shared, or a day
+            moves, or a call sheet is published, it lands here.
           </div>
         ) : (
           <ul className="ntf-list">
@@ -89,7 +91,21 @@ export function NotificationsPanel({
               <li key={n.id}>
                 <button type="button"
                   className={`ntf-row${n.read_at ? '' : ' is-unread'}`}
-                  onClick={() => { onMarkRead?.([n.id]); if (n.board_id) onOpenBoard?.(n.board_id); }}>
+                  onClick={() => {
+                    // The bell shipped with no instrumentation at all, so
+                    // whether anyone acts on a notification has never been
+                    // answerable. `kind` is what separates "the schedule works"
+                    // from "share activity works" later.
+                    try {
+                      logEvent(EV.NOTIF_CLICK, {
+                        kind: n.kind || null,
+                        was_unread: !n.read_at,
+                        opened_board: !!n.board_id,
+                      });
+                    } catch (_) {}
+                    onMarkRead?.([n.id]);
+                    if (n.board_id) onOpenBoard?.(n.board_id);
+                  }}>
                   <span className={`ntf-kind ntf-kind-${String(n.kind || '').split('.')[1] || 'other'}`}
                     aria-hidden="true" />
                   <span className="ntf-row-main">
