@@ -1,10 +1,10 @@
 # Notifications
 
-> Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, changes to a shoot day in your schedule, and occasional product tips. Each of the six is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
+> Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/notifications · Updated 2026-08-16_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/notifications · Updated 2026-08-26_
 
-Six categories, six independent switches, in **Settings → Notifications**.
+Seven categories, seven independent switches, in **Settings → Notifications**.
 
 | Category | Fires when |
 |---|---|
@@ -12,11 +12,12 @@ Six categories, six independent switches, in **Settings → Notifications**.
 | **Comment replies** | Someone replies in a thread you are part of |
 | **Workspace invites** | You are added to a workspace |
 | **Board shares** | A cluster is shared with you |
+| **Invite accepted** | Someone you invited opens your link and joins |
 | **Schedule changes** | A shoot day you can see moves, or its call sheet is published |
 | **Product tips and check-ins** | Occasional messages about the product |
 
 The last one is the one to switch off if you only want to hear about your own
-work. The other five are all consequences of something a person did that
+work. The other six are all consequences of something a person did that
 involves you.
 
 ## Where they appear

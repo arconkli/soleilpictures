@@ -64,8 +64,8 @@ How Clusters looks and how the canvas answers your hands, in three sections:
 ### Notifications
 
 Independent switches for the emails Clusters sends you — mentions, comment
-replies, workspace invites, cluster shares, schedule changes, and product tips.
-Anything you turn off still reaches you in-app. See
+replies, workspace invites, cluster shares, accepted invites, schedule changes,
+and product tips. Anything you turn off still reaches you in-app. See
 [Notifications](/docs/collaborate/notifications).
 
 ### Connections

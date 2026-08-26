@@ -91,6 +91,17 @@ export function NotificationsTab({ user }) {
         value={isOn('email_board_shared')}
         onChange={(v) => togglePref('email_board_shared', v)} />
 
+      {/* The other half of the same trigger as Board shares (0189): 'share'
+          fires that one, 'joined' fires this one. It shipped gated on a
+          preference key that had no switch, and a missing key reads as
+          enabled — so this was an email nobody could turn off, on a screen
+          whose whole promise is which emails we send you. */}
+      <Toggle
+        label="Invite accepted"
+        desc="When someone you invited opens your link and joins a cluster. Only sent if you're not already in the app."
+        value={isOn('email_invite_accepted')}
+        onChange={(v) => togglePref('email_invite_accepted', v)} />
+
       <Toggle
         label="Schedule changes"
         desc="When a day you can see moves, or its call sheet is published. Only sent if you're not already in the app."

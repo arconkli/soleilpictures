@@ -5,11 +5,11 @@ h1: Notifications
 navLabel: Notifications
 section: collaborate
 order: 5
-updated: 2026-08-16
-answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, changes to a shoot day in your schedule, and occasional product tips. Each of the six is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
+updated: 2026-08-26
+answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 faq:
   - q: Can I turn off product emails but keep mentions?
-    a: Yes. The six categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
+    a: Yes. The seven categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
   - q: Where do schedule notifications appear?
     a: Under Schedule in the sidebar, which carries an unread count. Unlike a toast, they persist until you read them, so a call sheet published late at night is still there in the morning.
   - q: Do I get browser notifications?
@@ -24,7 +24,7 @@ related:
   - /docs/collaborate/messages
 ---
 
-Six categories, six independent switches, in **Settings → Notifications**.
+Seven categories, seven independent switches, in **Settings → Notifications**.
 
 | Category | Fires when |
 |---|---|
@@ -32,11 +32,12 @@ Six categories, six independent switches, in **Settings → Notifications**.
 | **Comment replies** | Someone replies in a thread you are part of |
 | **Workspace invites** | You are added to a workspace |
 | **Board shares** | A cluster is shared with you |
+| **Invite accepted** | Someone you invited opens your link and joins |
 | **Schedule changes** | A shoot day you can see moves, or its call sheet is published |
 | **Product tips and check-ins** | Occasional messages about the product |
 
 The last one is the one to switch off if you only want to hear about your own
-work. The other five are all consequences of something a person did that
+work. The other six are all consequences of something a person did that
 involves you.
 
 ## Where they appear
