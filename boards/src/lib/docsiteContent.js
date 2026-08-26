@@ -24237,7 +24237,37 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Settings are stored on your account, not the device, so they follow you everywhere you sign in."
+     "v": "Settings are stored on your account, not the device, so they follow you everywhere you sign in. "
+    },
+    {
+     "t": "strong",
+     "v": "Nothing here has a Save button",
+     "children": [
+      {
+       "t": "text",
+       "v": "Nothing here has a Save button"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — every change is written as you make it, and a "
+    },
+    {
+     "t": "code",
+     "v": "Saved ✓"
+    },
+    {
+     "t": "text",
+     "v": " flashes in the header when it lands. A text field commits when you click away or press "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": "; a colour commits when you close the picker."
     }
    ]
   },
