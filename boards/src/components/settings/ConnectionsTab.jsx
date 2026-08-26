@@ -1,10 +1,17 @@
 // Connections — the ways something other than this browser reaches your
-// account: a phone bound to Soleil Scout, personal access tokens, and the
-// apps you approved through OAuth.
+// account: personal access tokens, the apps you approved through OAuth, and
+// (on preview) a phone bound to Soleil Scout.
 //
 // One tab rather than two. Both halves answer the same question — "what else
 // can act as me?" — and a person auditing that should not have to know which
 // of our product names it filed under.
+//
+// SCOUT IS HELD ON PRODUCTION. The section hands you a code to text, and Scout
+// has no phone line connected — so connecting a phone here ends in silence.
+// The ScoutSection component below is intact: restore the one <SettingsCategory>
+// in ConnectionsTab when the bot is answering. This is the same hold that used
+// to live as a commented-out entry in the TABS array, carried onto the new
+// structure — see the git history of SettingsPanel.jsx on this branch.
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { useFeedback } from '../AppFeedback.jsx';
@@ -18,9 +25,10 @@ export function ConnectionsTab({ user }) {
       <p className="settings-section-hint">
         Everything that can reach your clusters without being this browser.
       </p>
-      <SettingsCategory title="Soleil Scout">
-        <ScoutSection user={user} />
-      </SettingsCategory>
+      {/* HELD ON PRODUCTION — see the header. Restore this to ship Scout:
+          <SettingsCategory title="Soleil Scout">
+            <ScoutSection user={user} />
+          </SettingsCategory> */}
       <SettingsCategory title="API access">
         <ApiSection user={user} />
       </SettingsCategory>

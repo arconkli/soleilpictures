@@ -386,6 +386,7 @@
   "publicRoutes": {
     "routeMeta": [
       "/",
+      "/changelog",
       "/legal/cookies",
       "/legal/privacy",
       "/legal/terms",
@@ -401,19 +402,18 @@
       "/tools/shot-list-maker",
       "/tools/storyboard-maker",
       "/use-cases",
-      "/vs/boords",
       "/vs/milanote",
       "/vs/miro",
-      "/vs/pureref",
-      "/vs/storyboarder",
-      "/vs/studiobinder"
+      "/vs/pureref"
     ],
     "listicle": [
       "/best/milanote-alternatives",
       "/best/mood-board-apps",
-      "/best/pureref-alternatives"
+      "/best/pureref-alternatives",
+      "/best/storyboard-software"
     ],
     "router": [
+      "changelogMatch = /^\\/changelog\\/?$/i.test(PATH)",
       "docsMatch = /^\\/docs(?:\\/|$)/i.test(PATH)",
       "exploreMatch = /^\\/explore\\/?$/.test(PATH)",
       "legalMatch = PATH.match(/^\\/legal\\/(privacy|terms|cookies)\\/?$/i)",
