@@ -335,7 +335,8 @@ const PAGES = [
       { q: 'Can my crew collaborate on the storyboard?', a: 'Yes — Clusters is real-time. Your director, DP, and AD can edit and comment on the same storyboard at once with live cursors and presence.' },
       { q: 'Is it free?', a: 'You can build and share storyboards for free on the Demo tier. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaborators edit free.' },
     ],
-    related: ['/tools/shot-list-maker', '/tools/mood-board-maker', '/vs/storyboarder', '/vs/boords', '/use-cases'],
+    siblingListicle: { path: '/best/storyboard-software', label: 'See all 10 storyboard tools, ranked by a film studio.' },
+    related: ['/tools/shot-list-maker', '/tools/mood-board-maker', '/best/storyboard-software', '/use-cases'],
   },
   {
     path: '/tools/shot-list-maker',
@@ -401,7 +402,7 @@ const PAGES = [
       { q: 'Does Clusters have a shot list template?', a: 'The fastest start is the public short-film shot list example board — open it, see how the shot cards and schedule are structured, and rebuild that structure in your own board in a few minutes.' },
       { q: 'Is this a shot planner?', a: 'Yes — planning the shots is the whole point. Each shot card carries its reference frame, lens, and movement, the schedule card maps shots to shoot days and locations, and the crew works from one live board. If what you searched for was a shot planner, this is that tool with the pictures kept in.' },
     ],
-    related: ['/tools/storyboard-maker', '/tools/mood-board-maker', '/vs/studiobinder', '/use-cases', '/tools/ai-mood-board-maker'],
+    related: ['/tools/storyboard-maker', '/tools/mood-board-maker', '/best/storyboard-software', '/use-cases', '/tools/ai-mood-board-maker'],
   },
   {
     path: '/tools/look-book-maker',
@@ -867,274 +868,6 @@ const PAGES = [
     ],
     related: ['/tools/storyboard-maker', '/tools/mood-board-maker', '/vs/milanote', '/use-cases', '/tools/ai-mood-board-maker'],
   },
-  {
-    path: '/vs/storyboarder',
-    kind: 'compare',
-    title: 'Wonder Unit Storyboarder Alternative — Free & Online',
-    metaDescription:
-      'Storyboarder’s last stable release was 2020. Clusters moves your board to the browser — numbered panels, shot lists, real-time crew edits, one shared link.',
-    h1: 'An Online Alternative to Wonder Unit’s Storyboarder',
-    subhead:
-      'Storyboarder is a much-loved free sketching app whose development has gone quiet. Clusters is a browser-based board the whole crew works in — panels, shot lists, and schedules side by side.',
-    answer:
-      'Soleil Clusters is a Wonder Unit Storyboarder alternative that runs in the browser: grid cards hold auto-numbered panels, shot lists and schedules sit beside the frames, and the crew edits together in real time with one shareable link. Storyboarder still wins for hand-sketching every frame in a free desktop app; Clusters wins when the board has to travel.',
-    updated: '2026-07-22',
-    cta: { label: 'Start a board free', sub: 'No install, no credit card — it opens in your browser.' },
-    stepsHeading: 'How to move from Storyboarder to Clusters',
-    steps: [
-      { t: 'Get your frames out', d: 'Storyboarder keeps each board as an image in your project folder, and its exports produce flattened PNGs and PDFs. Gather those frames — or screenshot finished boards — and they drop straight into Clusters.' },
-      { t: 'Drop them into a grid card', d: 'Split a grid card into panels and drag one frame into each. Panels number themselves automatically, and captions hold your action and dialogue notes.' },
-      { t: 'Put the plan next to the pictures', d: 'Flip the board to list view for a working shot list, add a schedule card to map shots to shoot days and locations, and keep the script in a doc on the same board — screenplay mode is built in.' },
-      { t: 'Hand the crew one link', d: 'A public link opens a clean, read-only preview — no download, no account needed. Invited collaborators rearrange panels with you live, cursors and all — editing is free on every tier.' },
-    ],
-    sections: [
-      {
-        heading: 'The real gap: your board is a file on one machine',
-        body: 'Wonder Unit Storyboarder is a desktop application for Windows, Mac, and Linux. There is no web version, and no live collaboration on the boards themselves — v2.0 added a multiuser VR mode for its 3D Shot Generator, but getting a board to your DP or producer still means exporting it or passing project files around. Clusters starts from the opposite premise: the board is a URL. Open it from the laptop at the production office, the phone on a location scout, or the iPad at the table read, and everyone is looking at the same, current version.',
-        bullets: [
-          'Storyboarder: install on a desktop, share by exporting or sending files',
-          'Clusters: open a link — same board on every device, always current',
-          'Native iOS and Android apps when you want them; nothing to install when you don’t',
-        ],
-      },
-      {
-        heading: 'Development has gone quiet — plan accordingly',
-        body: 'Storyboarder is free, open source, and genuinely loved, and it earned that following. But its last stable release, v2.1.0, shipped in September 2020 — a v3.0.0 pre-release followed in early 2021 and never became final — and a community GitHub issue asking whether the project is still alive has sat unanswered since 2025. The downloads are still there and nothing stops you from keeping it installed; the question is whether a tool at the center of your production process will keep pace with new operating systems and formats. Clusters is a maintained commercial product — that cuts both ways, since it isn’t open source, but it means someone’s job is to keep the thing working.',
-      },
-      {
-        heading: 'Storyboards built by arranging, not only by drawing',
-        body: 'Storyboarder assumes you’ll draw every frame. Clusters assumes your frames come from everywhere — quick sketches, location stills, blocking photos, pulls from the lookbook — and gives you a fast way to sequence them. A grid card splits into as many frames as the scene needs, and the storyboard takes shape by dragging, not just drawing.',
-        bullets: [
-          'Split a grid card into frames and drop a still or a sketch into each — panels auto-number as you go',
-          'Captions under every panel carry action, dialogue, and camera notes',
-          'Drag panels to re-order a sequence; the numbering follows',
-          'Sketch directly on the canvas when a quick drawing says it faster',
-          'Non-destructive photo adjustments and palette extraction keep pulled stills on-look',
-        ],
-      },
-      {
-        heading: 'One board, the whole crew in it',
-        body: 'A storyboard is a conversation — between director and DP, between the agency and the client. Clusters is built for that conversation to happen in the board itself rather than in an email thread about an exported PDF. And the pricing fits how crews actually assemble: the free Demo tier has no credit card and no trial clock, and Creator is a flat rate for the board owner, not a per-seat meter that punishes you for inviting the gaffer.',
-        bullets: [
-          'Live cursors and presence — see who’s in the board and where they’re working',
-          'Comments pin to the exact card they’re about, not a general thread',
-          'One public link opens a read-only preview; viewers never need an account',
-          'Creator is $25/mo flat for unlimited cards, 100GB, and any file type — collaborators edit free',
-        ],
-      },
-      {
-        heading: 'Honest about what Storyboarder does well',
-        body: 'If your process is penciling every frame by hand, Storyboarder is still a terrific place to do it — and it’s free. Its six drawing tools are built for fast frame sketching, the Shot Generator mocks up a shot — type a description or block the scene in 3D — boards round-trip through Photoshop, and finished sequences export to Premiere, Final Cut, Avid, PDF, and animated GIF. Clusters has canvas sketch tools, but it is not a dedicated drawing app, and it won’t cut animatics or export into an NLE. Since Storyboarder costs nothing, plenty of teams simply keep both: draw the frames there, then plan, arrange, and share in Clusters.',
-      },
-    ],
-    compare: {
-      competitor: 'Wonder Unit Storyboarder',
-      intro: 'How the two compare for a production team as of July 2026 — including the rows Storyboarder clearly wins.',
-      rows: [
-        { feature: 'Price', us: 'Free tier; Creator $25/mo flat', them: 'Free, open source' },
-        { feature: 'Platform', us: 'Browser — nothing to install; iOS + Android apps', them: 'Desktop only: Windows, Mac, Linux' },
-        { feature: 'Real-time co-editing on boards', us: 'Yes — live cursors, presence', them: 'No' },
-        { feature: 'Share with a link, no viewer account', us: 'Yes', them: 'No — export or send files' },
-        { feature: 'Comments pinned to a specific card', us: 'Yes', them: 'No' },
-        { feature: 'Dedicated drawing tools', us: 'Basic canvas sketching', them: 'Yes — six pens and brushes' },
-        { feature: '3D Shot Generator', us: 'No', them: 'Yes' },
-        { feature: 'Animatic export (Premiere, Final Cut, Avid, GIF)', us: 'No — PDF only', them: 'Yes' },
-        { feature: 'Photoshop round-trip', us: 'No', them: 'Yes' },
-        { feature: 'Shot list and shoot-day schedule with the board', us: 'Yes', them: 'No' },
-        { feature: 'Video, audio, PDFs, and links on the board', us: 'Yes', them: 'Images, sketches, and one audio clip per board' },
-        { feature: 'Most recent stable release', us: 'Continuously updated', them: 'v2.1.0, September 2020' },
-      ],
-    },
-    faq: [
-      { q: 'Is Wonder Unit Storyboarder still maintained?', a: 'Its last stable release, v2.1.0, shipped in September 2020 — a v3.0.0 pre-release followed in 2021 but never went final — and a community GitHub issue asking whether the project is still alive has been open since 2025 without a maintainer reply. The downloads are still available, but by every public signal, development has gone quiet.' },
-      { q: 'Is there an online or browser version of Storyboarder?', a: 'No — Wonder Unit Storyboarder is a desktop app for Windows, Mac, and Linux with no web version. Soleil Clusters covers the same storyboard-panel workflow entirely in the browser, which makes it the closest thing to “Storyboarder online.”' },
-      { q: 'Is this the same app as Toon Boom Storyboard Pro or StoryboardThat?', a: 'No. This page compares Soleil Clusters with Wonder Unit’s Storyboarder, the free, open-source desktop app from wonderunit.com — a different product from both Toon Boom Storyboard Pro and StoryboardThat.' },
-      { q: 'Can Soleil Clusters make animatics or export to Premiere?', a: 'No. Clusters exports boards and docs as PDF, but it does not render animatics or export to editing software — Storyboarder’s Premiere, Final Cut, Avid, and animated GIF exports remain a genuine advantage.' },
-      { q: 'How do I move my existing Storyboarder boards into Clusters?', a: 'Every Storyboarder board is already an image in your project folder, and its exports produce flattened PNGs and PDFs. Drag those frames into a grid card in Clusters — each lands in its own auto-numbered panel with a caption for your notes.' },
-      { q: 'Does Clusters have drawing tools, or do I need finished images?', a: 'Clusters has sketch and draw tools on the canvas, so quick thumbnails are easy — but it is arrangement-first, not a dedicated drawing app. If you pencil every frame by hand, Storyboarder’s brushes are still the better sketching surface.' },
-      { q: 'What does a Storyboarder alternative like Clusters cost?', a: 'The Demo tier is free, with no credit card, no trial clock, and a card cap sized for a real project; invited collaborators edit free. Creator is a flat $25 per month — not per seat — with unlimited cards, 100GB of storage, and any file type.' },
-      { q: 'Can my crew see the storyboard without installing anything?', a: 'Yes. One public link opens a clean, interactive read-only preview in any browser — viewers don’t need an account, and you control each board’s visibility and search indexing.' },
-    ],
-    related: ['/tools/storyboard-maker', '/vs/boords', '/vs/pureref', '/use-cases'],
-  },
-  {
-    path: '/vs/boords',
-    kind: 'compare',
-    title: 'Boords Alternative — Free Collaborative Storyboarding',
-    metaDescription:
-      'Boords prices by team size — Soleil Clusters is a flat $25 canvas where storyboards live beside shot lists and schedules. Free tier, no credit card.',
-    h1: 'A Boords Alternative for the Whole Production, Not Just the Frames',
-    subhead:
-      'Boords is a dedicated storyboarding app with animatics and script tools. Soleil Clusters is a real-time infinite canvas where the storyboard sits beside the mood board, shot list, and schedule — at one flat price.',
-    answer:
-      'Soleil Clusters is a Boords alternative for production teams: a free browser-based infinite canvas where storyboard grids sit beside mood boards, shot lists, and schedules, with real-time collaboration at a flat $25/month — never per seat. Boords remains stronger for animatics, script import, and client-approval workflows; Clusters wins when the storyboard is part of a larger production.',
-    updated: '2026-07-22',
-    cta: { label: 'Start a board free', sub: 'No credit card, no trial clock — the Demo tier stays free.' },
-    stepsHeading: 'Moving a storyboard from Boords to Clusters',
-    steps: [
-      { t: 'Export from Boords', d: 'Download your storyboard from Boords — exports, including PDF, are included on its plans, so your frames come with you.' },
-      { t: 'Drop it onto a board', d: 'Drag the files onto a Clusters board. PDFs land as cards; stills go straight into a grid card’s panels, where captions and auto-numbering pick up where Boords left off.' },
-      { t: 'Add what the storyboard was missing', d: 'Put the mood board next to the frames, flip the board to list view for the shot list, and let a Schedule card map shots to shoot days and locations.' },
-      { t: 'Send one link', d: 'Share a clean, interactive read-only preview that nobody needs an account to open — the same link always shows the current board.' },
-    ],
-    sections: [
-      {
-        heading: 'Seat bands vs. one flat rate',
-        body: 'As of July 2026, Boords advertises a single-user “free forever” plan with no credit card, but its paid ladder starts at $39/month for one user (Solo — $26/mo on annual billing), and collaborating starts at $75/month for up to five people, stepping to $125 for ten and $250 for thirty on monthly billing. Soleil Clusters charges $25/month flat on Creator — the price doesn’t move when the crew grows — and below that sits a free Demo tier with no trial clock and no credit card, where anyone you share with can view through a link.',
-        bullets: [
-          'Boords Solo: $39/mo for one user ($26/mo annual)',
-          'Boords Pro, Team, and Agency: $75–$250/mo for teams of 5 to 30',
-          'Clusters Creator: $25/mo total, regardless of team size',
-          'Clusters Demo: free, a card cap sized for a real project, collaborators edit free',
-        ],
-      },
-      {
-        heading: 'The storyboard is one card, not the whole app',
-        body: 'In Clusters a storyboard is a grid card on an infinite canvas: split cells into panels, drop a still or a sketch into each frame, caption it, and the panels number themselves and re-order by drag. Around that card goes everything else the shoot needs, because the canvas doesn’t care what you put on it.',
-        bullets: [
-          'Mood boards and pulled references beside the frames — with non-destructive photo adjustments and color-palette extraction',
-          'Flip the board to a clean list view for the shot list; a Schedule card maps shots to shoot days and locations',
-          'Docs and a built-in screenplay mode for the script; PDF export of boards and docs when it’s time to send',
-          'Nested boards keep each scene inside the project, and auto-tagging reads dropped files and files them to the right board',
-        ],
-      },
-      {
-        heading: 'Deliberately not an AI storyboard generator',
-        body: 'Search for a Boords alternative and most of what you’ll find pitches AI frame generation. Clusters doesn’t generate frames. It’s the shared workspace for the frames your artist draws, the stills your scout shoots, and the screengrabs your director hoards — with draw and sketch tools on the canvas for when a rough gesture is all a panel needs. If machine-generated boards are the requirement, this isn’t the tool, and we’d rather say so here than after you’ve signed up.',
-      },
-      {
-        heading: 'Built for people who never make an account',
-        body: 'Every board shares as a single public link that opens a clean, interactive read-only preview — no signup for the client, the DP, or the exec who will never install anything, and per-board control over visibility and search indexing. Inside the team, work is genuinely live: cursors and presence show who’s where, and comments pin to the exact card they’re about instead of piling up in a sidebar. Invited collaborators work on the board with you on every tier — editing is free; the public link stays a clean read-only preview.',
-      },
-      {
-        heading: 'Where Boords genuinely earns its price',
-        body: 'Boords is purpose-built for storyboarding, and it shows. If the storyboard itself is the deliverable — timed, versioned, and formally signed off — Boords is the stronger tool, and no canvas app should pretend otherwise.',
-        bullets: [
-          'An animatic editor turns boards into timed video; Clusters has no animatics',
-          'Intelligent script import connects the script to frames; Clusters’ screenplay editor doesn’t sync to panels',
-          'Version control on storyboards; Clusters doesn’t keep frame versions',
-          'No-signup client reviews with a structured approval flow; Clusters shares read-only links but has no approval workflow',
-          'AI image generation with monthly credits, if that’s part of your process',
-        ],
-      },
-    ],
-    compare: {
-      competitor: 'Boords',
-      intro: 'Pricing and features checked on boords.com in July 2026; monthly-billing prices shown (annual is lower). The rows Boords wins are left standing — that’s the point of an honest table.',
-      rows: [
-        { feature: 'Free plan', us: 'Yes — a card cap sized for a real project', them: '“Free forever” — limits unpublished' },
-        { feature: 'Monthly cost for a team of five', us: '$25 flat', them: '$75 (Pro)' },
-        { feature: 'Price rises with headcount', us: 'No', them: 'Yes — up to $250/mo' },
-        { feature: 'Real-time co-editing', us: 'Yes — live cursors', them: 'Yes' },
-        { feature: 'Infinite canvas', us: 'Yes', them: 'No — frame sequence' },
-        { feature: 'Panels, captions, auto-numbering', us: 'Yes — grid cards', them: 'Yes' },
-        { feature: 'Animatics', us: 'No', them: 'Yes' },
-        { feature: 'Script import', us: 'No', them: 'Yes' },
-        { feature: 'Storyboard version control', us: 'No', them: 'Yes' },
-        { feature: 'Client approval workflow', us: 'No — read-only links', them: 'Yes' },
-        { feature: 'AI frame generation', us: 'No — by design', them: 'Yes — credit-metered' },
-        { feature: 'Shot lists', us: 'Yes — list view', them: 'Yes — generated from boards' },
-        { feature: 'Shoot-day schedule mapping shots to days', us: 'Yes — Schedule card', them: 'No' },
-      ],
-    },
-    faq: [
-      { q: 'Is there a free alternative to Boords?', a: 'Yes — Soleil Clusters has a free Demo tier with no credit card, no trial clock, and a card cap sized for a real project, and anyone can view your boards through a share link without creating an account. Boords advertises a “free forever” plan as well, though its limits aren’t published on its pricing page; paid plans start at $39/month for a single user (as of July 2026).' },
-      { q: 'How much does Boords cost for a team compared to Soleil Clusters?', a: 'As of July 2026, Boords’ team plans run $75 to $250 per month on monthly billing, tiered by team size from five to thirty users. Soleil Clusters’ Creator plan is a flat $25 per month for the whole team — it isn’t priced by seat.' },
-      { q: 'Can Soleil Clusters turn a storyboard into an animatic?', a: 'No. Clusters has no animatic editor and won’t render your boards into timed video — if the deliverable is an animatic, Boords is built for exactly that. Clusters exports boards and docs as PDFs instead.' },
-      { q: 'How do you make a storyboard in Soleil Clusters?', a: 'Add a grid card, split its cells into panels, and drop a still or a sketch into each frame. Panels take captions, number themselves automatically, and re-order by drag — and the canvas has draw tools for roughing frames in place.' },
-      { q: 'Does Boords charge per seat?', a: 'Not per individual seat — as of July 2026 Boords prices by band: Solo at $39/month for one user, then team plans at $75, $125, and $250 per month for up to 5, 10, and 30 users on monthly billing. Clusters skips the ladder with one flat $25/month plan.' },
-      { q: 'Can clients review a storyboard without creating an account?', a: 'Yes. A Clusters board shares as one public link that opens a clean, interactive read-only preview — no signup, nothing to install — with per-board control of visibility and search indexing. There’s no formal approval workflow, though; sign-off happens in comments or wherever your production already handles it.' },
-      { q: 'Is Soleil Clusters an AI storyboard generator?', a: 'No, and that’s deliberate. Clusters is the shared canvas for frames your team draws, shoots, or pulls — it doesn’t generate imagery. If AI-generated boards are what you need, Boords’ AI features or a dedicated generator is the better fit.' },
-      { q: 'Can I move my Boords storyboards into Soleil Clusters?', a: 'Yes — export your work from Boords, then drag the files onto a Clusters board. Stills drop into a grid card’s panels and a PDF lands on the canvas as a card, so the frames end up beside your references, shot list, and schedule.' },
-    ],
-    related: ['/tools/storyboard-maker', '/vs/storyboarder', '/vs/studiobinder', '/use-cases'],
-  },
-  {
-    path: '/vs/studiobinder',
-    kind: 'compare',
-    title: 'StudioBinder Alternative — Free to Start, Flat $25/mo',
-    metaDescription:
-      'StudioBinder runs $29–99/mo; extra seats $25. Need only the visual half — storyboards, shot lists, lookbooks? Clusters is free to start, then $25 flat.',
-    h1: 'A StudioBinder Alternative for the Visual Half of Pre-Production',
-    subhead:
-      'StudioBinder manages the paperwork of a shoot. Soleil Clusters is where the look gets decided — storyboards, shot lists, and reference boards on one shared canvas, at one flat price.',
-    answer:
-      'Soleil Clusters is a StudioBinder alternative for visual pre-production: mood boards, storyboards, shot lists with reference frames, and lookbooks on a shared infinite canvas — free to start, then a flat $25/month for the whole team. StudioBinder still owns call sheets, stripboards, and script breakdowns; Clusters replaces the visual planning you were paying suite prices for.',
-    updated: '2026-07-22',
-    cta: { label: 'Start a board free', sub: 'No credit card, no trial clock. Runs in your browser.' },
-    stepsHeading: 'How a small crew moves the visual half to Clusters',
-    steps: [
-      { t: 'Pile the references onto one board', d: 'Drag in stills, screenshots, links, video, PDFs — auto-tagging reads what you drop and files it to the right board, so the wall organizes itself while you collect.' },
-      { t: 'Frame the storyboard', d: 'Add a grid card, split it into panels, and drop a still or sketch into each frame. Captions and auto-numbering come along, and panels renumber themselves when you drag to reorder.' },
-      { t: 'Flip it into a shot list', d: 'Toggle the board from freeform canvas to a clean list view — the reference wall and the shot list are the same data. A Schedule card maps shots to shoot days and locations.' },
-      { t: 'Hand the crew one link', d: 'A public link opens a clean, interactive read-only preview. The director, the client, and the DP see the wall without creating an account.' },
-    ],
-    sections: [
-      {
-        heading: 'Two different jobs on the same budget line',
-        body: 'StudioBinder is production-management software — call sheets, stripboard schedules, script breakdowns, crew contacts — and it’s priced for that scope. As of July 2026, its listed plans run $29, $49, and $99 per month with one to four seats included, and every extra user adds $25 per month. Soleil Clusters does one narrower job: the boards, storyboards, shot lists, and lookbooks where a project’s look takes shape. That job costs a flat $25 a month — never per seat — and starts free. If the tabs you actually open are the visual ones, you’re paying suite prices for the suite’s visual corner.',
-      },
-      {
-        heading: 'If you run call sheets, stay in the suite',
-        body: 'Scope first, because this comparison only works if it’s honest. Clusters will not generate a call sheet, track an RSVP, tag a breakdown element, or lay out a stripboard schedule. If those deliverables are what your production runs on, StudioBinder — or a set-logistics specialist like SetHero — is the right category, full stop. Where Clusters earns its place is the other half: deciding and communicating what the film should look like. Some crews run both, logistics in a suite and the look on a canvas; others discover the visual half was the only part they were using.',
-      },
-      {
-        heading: 'The visual half, on a canvas instead of a form',
-        body: 'Production suites treat images as attachments to records. Clusters treats them as the work itself: an infinite browser canvas where references, frames, and notes sit next to each other and get compared, marked up, and decided.',
-        bullets: [
-          'Storyboards as grid cards — split cells into panels, drop a still or sketch into each frame, caption it, and let panels renumber themselves as you drag to reorder.',
-          'One board, two shapes — flip the freeform canvas to a clean list view for the shot list, and use a Schedule card to map shots to shoot days and locations.',
-          'Reference tools built in — non-destructive brightness, contrast, saturation, warmth, and B&W adjustments, plus color palettes extracted straight from an image.',
-          'Words next to pictures — docs and a screenplay mode live alongside the boards, and both boards and docs export to PDF.',
-          'Structure that scales — nest boards inside boards, connect them in a relationship graph, and let auto-tagging file dropped files where they belong.',
-        ],
-      },
-      {
-        heading: 'Built for the whole crew to look at, together',
-        body: 'A look isn’t decided by one coordinator filling in fields — it’s argued into existence. Clusters is built for that to happen live.',
-        bullets: [
-          'Real-time multiplayer with live cursors and presence, so everyone is looking at the same wall at the same moment.',
-          'Comments pin to the exact card they’re about — “the third frame feels wrong” literally points at the third frame.',
-          'One public link opens an interactive read-only preview; directors, producers, and clients never need an account.',
-          'Per-board control of visibility and search indexing, so a pitch lookbook can be public while the working wall stays private.',
-          'Nothing to install — it runs in the browser on laptops, phones, and tablets, with native iOS and Android apps.',
-        ],
-      },
-      {
-        heading: 'The seat math for a crew of six',
-        body: 'Per-seat pricing is where suite costs quietly compound. At StudioBinder’s listed July 2026 rates, six people cost about $149 a month — Professional at $99 covers four seats plus $25 for each of the other two, and Indie lands on the same number from the other direction. The same six people on Clusters Creator cost $25 total: one flat subscription with unlimited cards, 100GB of storage, and any file type — every collaborator edits free. And before any money moves, the Demo tier is genuinely free — no credit card, no trial countdown, a card cap sized for a real project, with invited collaborators editing free.',
-      },
-    ],
-    compare: {
-      competitor: 'StudioBinder',
-      intro: 'Prices and plan details below were checked against StudioBinder’s published plan documentation in July 2026. The two products only partly overlap — the rows say so plainly.',
-      rows: [
-        { feature: 'Freeform infinite canvas', us: 'Yes', them: 'No' },
-        { feature: 'Storyboards with numbered panels', us: 'Yes', them: 'Yes' },
-        { feature: 'Shot lists', us: 'Yes', them: 'Yes' },
-        { feature: 'Screenplay editor', us: 'Yes', them: 'Yes' },
-        { feature: 'Call sheets with RSVP tracking', us: 'No', them: 'Yes' },
-        { feature: 'Stripboard shooting schedules', us: 'No', them: 'Yes' },
-        { feature: 'Script breakdowns', us: 'No', them: 'Yes' },
-        { feature: 'Crew contacts & messaging', us: 'No', them: 'Yes' },
-        { feature: 'Live cursors on a shared board', us: 'Yes', them: 'No' },
-        { feature: 'No-account share links on the free plan', us: 'Yes', them: 'Paid plans only' },
-        { feature: 'Free plan', us: 'Yes — no trial clock', them: 'Yes — 1 project' },
-        { feature: 'Cost for a team of six', us: '$25/mo flat', them: '~$149/mo' },
-      ],
-    },
-    faq: [
-      { q: 'Is there a free StudioBinder alternative for storyboards and shot lists?', a: 'Soleil Clusters has a free Demo tier with no credit card and no trial countdown — a card cap sized for a real project covers storyboards, shot lists, and reference boards. StudioBinder offers a free plan too, but it’s capped at a single project.' },
-      { q: 'Can Soleil Clusters fully replace StudioBinder?', a: 'No — Clusters covers only visual planning: mood boards, storyboards, shot lists, lookbooks, docs, and screenplays. Call sheets, script breakdowns, and stripboard schedules remain StudioBinder’s category, and Clusters doesn’t attempt them.' },
-      { q: 'Does Soleil Clusters make call sheets?', a: 'No. There is no call-sheet, RSVP, or crew-contact feature in Clusters. For set logistics, a production-management tool like StudioBinder or SetHero is the right choice.' },
-      { q: 'How much does StudioBinder cost per user compared to Clusters?', a: 'As of July 2026, StudioBinder’s listed plans run $29 to $99 per month with one to four seats included, and each additional user costs $25 per month. Clusters Creator is a flat $25 per month for the whole team — collaborators are never charged per seat.' },
-      { q: 'Can I make a storyboard in Soleil Clusters?', a: 'Yes — grid cards split into panels you fill with stills or sketches, with captions, auto-numbered panels, and drag-to-reorder. Boards export to PDF when you need pages to hand out.' },
-      { q: 'How do shot lists work in Clusters?', a: 'Any board flips from freeform canvas to a clean list view, so the reference wall and the shot list are the same data. A Schedule card then maps shots to shoot days and locations.' },
-      { q: 'Can a producer or client view my board without signing up?', a: 'Yes — one public link opens a clean, interactive read-only preview with no account required. Visibility and search indexing are controlled per board.' },
-      { q: 'Do my collaborators need a paid seat to edit?', a: 'No — nobody needs a paid seat. Invited collaborators edit free on every tier; the $25/month Creator plan upgrades the board owner (unlimited cards, any file type, 100GB storage) with no per-seat charges.' },
-    ],
-    related: ['/tools/shot-list-maker', '/tools/storyboard-maker', '/vs/boords', '/use-cases'],
-  },
 
   // ────────────────────────────────────────────────────────────────────────
   // HUB — internal-linking spine that strengthens every page above
@@ -1188,12 +921,10 @@ const PAGES = [
       '/best/pureref-alternatives',
       '/best/milanote-alternatives',
       '/best/mood-board-apps',
+      '/best/storyboard-software',
       '/vs/milanote',
       '/vs/pureref',
       '/vs/miro',
-      '/vs/storyboarder',
-      '/vs/boords',
-      '/vs/studiobinder',
       '/tools/ai-mood-board-maker',
     ],
   },
@@ -1213,9 +944,6 @@ const EXAMPLES_BY_PATH = {
   '/vs/milanote':                 ['japandi-living-room', 'neon-noir-look-book', 'screenplay-beat-sheet'],
   '/vs/pureref':                  ['film-noir-look-book', 'neon-noir-look-book', 'japandi-living-room'],
   '/vs/miro':                     ['screenplay-beat-sheet', 'short-film-shot-list', 'world-cup-2026-moodboard'],
-  '/vs/storyboarder':             ['screenplay-beat-sheet', 'short-film-shot-list'],
-  '/vs/boords':                   ['short-film-shot-list', 'screenplay-beat-sheet'],
-  '/vs/studiobinder':             ['short-film-shot-list', 'screenplay-beat-sheet', 'film-noir-look-book'],
   '/use-cases':                   ['world-cup-2026-moodboard', 'neon-noir-look-book', 'sage-terracotta-wedding'],
 };
 
@@ -1230,9 +958,6 @@ const EYEBROW_BY_PATH = {
   '/vs/milanote':                 'Milanote alternative',
   '/vs/pureref':                  'PureRef alternative',
   '/vs/miro':                     'Miro alternative',
-  '/vs/storyboarder':             'Storyboarder alternative',
-  '/vs/boords':                   'Boords alternative',
-  '/vs/studiobinder':             'StudioBinder alternative',
   '/use-cases':                   'What you can make',
 };
 
