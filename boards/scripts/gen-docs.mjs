@@ -623,6 +623,46 @@ function listicleMarkdown(spec) {
     }
     out.push('');
   }
+  // Head-to-head + platform matrix (both optional). These carry the answers to
+  // the "X vs Y" and "does it run on Z" queries, which are exactly what an
+  // assistant asked to compare two tools needs to read — so they belong in the
+  // .md twin, not just the rendered page.
+  if (spec.headToHead) {
+    out.push(`## ${req(spec.headToHead.heading, spec.path, 'headToHead.heading')}`, '');
+    if (spec.headToHead.intro) out.push(spec.headToHead.intro, '');
+    for (const m of spec.headToHead.matchups || []) {
+      out.push(`### ${req(m.heading, spec.path, 'matchup.heading')}`, '');
+      out.push(`**${req(m.verdict, spec.path, 'matchup.verdict')}**`, '');
+      for (const p of m.paras || []) out.push(p, '');
+      if (m.rows?.length) {
+        out.push(`| | ${m.left} | ${m.right} |`, '| --- | --- | --- |');
+        for (const r of m.rows) {
+          const cells = [r?.feature, r?.left, r?.right];
+          if (cells.some((c) => c == null || c === '')) {
+            throw new Error(`head-to-head row on ${spec.path}/${m.slug} is missing feature/left/right: ${JSON.stringify(r)}`);
+          }
+          out.push(`| ${cells.map((c) => String(c).replace(/\|/g, '\\|')).join(' | ')} |`);
+        }
+        out.push('');
+      }
+    }
+  }
+  if (spec.platforms) {
+    out.push(`## ${req(spec.platforms.heading, spec.path, 'platforms.heading')}`, '');
+    if (spec.platforms.intro) out.push(spec.platforms.intro, '');
+    out.push(`| Tool | ${spec.platforms.columns.join(' | ')} |`,
+      `| --- | ${spec.platforms.columns.map(() => '---').join(' | ')} |`);
+    for (const r of spec.platforms.rows || []) {
+      if (r.cells.length !== spec.platforms.columns.length) {
+        throw new Error(`platform row '${r.name}' on ${spec.path} has ${r.cells.length} cells vs ${spec.platforms.columns.length} columns`);
+      }
+      out.push(`| ${[r.name, ...r.cells].map((c) => String(c).replace(/\|/g, '\\|')).join(' | ')} |`);
+    }
+    out.push('');
+    for (const n of spec.platforms.notes || []) {
+      out.push(`**${req(n.lead, spec.path, 'platforms.note.lead')}.** ${req(n.body, spec.path, 'platforms.note.body')}`, '');
+    }
+  }
   out.push(`## ${req(spec.itemsHeading, spec.path, 'itemsHeading')}`, '');
   for (const it of spec.items || []) {
     out.push(`### ${it.rank}. ${req(it.name, spec.path, 'item.name')}${it.isUs ? ' (that’s us)' : ''}`, '');

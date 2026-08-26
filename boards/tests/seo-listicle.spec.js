@@ -46,9 +46,11 @@ test('renders the full listicle: hero, answer, disclosure, TOC, table, reviews, 
   await expect(page.locator('.seo-li-toc ol li')).toHaveCount(listicleToc(SPEC).length);
 
   // Comparison table: header = Tool + columns; one row per item; ours flagged.
-  const headers = page.locator('.seo-li-table thead th');
+  // SCOPED to #table: .seo-li-table is now worn by the head-to-head and platform
+  // tables too, so a bare selector counts every table on the page.
+  const headers = page.locator('#table .seo-li-table thead th');
   await expect(headers).toHaveCount(1 + SPEC.columns.length);
-  await expect(page.locator('.seo-li-table tbody tr')).toHaveCount(SPEC.items.length);
+  await expect(page.locator('#table .seo-li-table tbody tr')).toHaveCount(SPEC.items.length);
   await expect(page.locator('.seo-li-usrow')).toHaveCount(1);
   // Every table row link is instrumented (they used to be dark).
   await expect(page.locator('[data-lp-cta^="table:"]')).toHaveCount(SPEC.items.length);
@@ -70,6 +72,31 @@ test('renders the full listicle: hero, answer, disclosure, TOC, table, reviews, 
   // Interstitial after our item + our in-card CTA.
   await expect(page.locator('.seo-li-inter')).toHaveCount(SPEC.items.length >= 6 ? 2 : 1);
   await expect(page.locator('[data-lp-cta="item:clusters"]')).toHaveCount(1);
+
+  // Head-to-head + platform matrix (optional; only the pureref page carries
+  // them today). These exist to give the "X vs Y" and "runs on Z" queries a real
+  // section instead of a line in a collapsed accordion, so the assertions are
+  // about STRUCTURE being reachable: an h3 per matchup, its own anchor, and a
+  // platform row per tool aligned to the columns.
+  if (SPEC.headToHead) {
+    await expect(page.locator('#head-to-head')).toHaveCount(1);
+    for (const m of SPEC.headToHead.matchups) {
+      const sec = page.locator(`#${m.slug}`);
+      await expect(sec).toHaveCount(1);
+      // The heading must BE the query — that is the whole point of the section.
+      await expect(sec.locator('h3')).toHaveText(m.heading);
+      await expect(sec.locator('.seo-li-h2h-verdict')).toHaveText(m.verdict);
+      if (m.rows?.length) {
+        await expect(sec.locator('tbody tr')).toHaveCount(m.rows.length);
+      }
+    }
+  }
+  if (SPEC.platforms) {
+    const pl = page.locator('#platforms');
+    await expect(pl).toHaveCount(1);
+    await expect(pl.locator('thead th')).toHaveCount(1 + SPEC.platforms.columns.length);
+    await expect(pl.locator('tbody tr')).toHaveCount(SPEC.platforms.rows.length);
+  }
 
   // Tail sections + author box + related footer.
   for (const id of ['personas', 'mentions', 'honest', 'faq']) {

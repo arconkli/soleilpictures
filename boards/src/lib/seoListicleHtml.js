@@ -72,6 +72,49 @@ export function buildListicleCrawlableHtml(spec) {
   }
   parts.push(`</tbody></table></section>`);
 
+  // ── Head-to-head (optional) ──
+  // Placed here, above the thesis and the reviews, on purpose: these sections
+  // exist for readers who arrived on "beeref vs pureref" or "pureref android
+  // alternative", and burying the answer below ten reviews is what the old
+  // FAQ-only treatment effectively did. Each matchup gets a real h3 AND its own
+  // anchor so it can be deep-linked and so the heading itself carries the query.
+  if (spec.headToHead) {
+    parts.push(`<section id="head-to-head"><h2 style="${H2}">${escapeHtml(spec.headToHead.heading)}</h2>`);
+    if (spec.headToHead.intro) parts.push(`<p>${escapeHtml(spec.headToHead.intro)}</p>`);
+    for (const m of spec.headToHead.matchups) {
+      parts.push(`<section id="${escapeHtml(m.slug)}"><h3 style="${H3}">${escapeHtml(m.heading)}</h3>`);
+      parts.push(`<p><b>${escapeHtml(m.verdict)}</b></p>`);
+      for (const p of m.paras) parts.push(`<p>${escapeHtml(p)}</p>`);
+      if (m.rows?.length) {
+        parts.push(`<table><thead><tr><th></th><th>${escapeHtml(m.left)}</th><th>${escapeHtml(m.right)}</th></tr></thead><tbody>`);
+        for (const r of m.rows) {
+          parts.push(`<tr><th>${escapeHtml(r.feature)}</th><td>${escapeHtml(r.left)}</td><td>${escapeHtml(r.right)}</td></tr>`);
+        }
+        parts.push(`</tbody></table>`);
+      }
+      parts.push(`</section>`);
+    }
+    parts.push(`</section>`);
+  }
+
+  // ── Platform matrix (optional) ──
+  if (spec.platforms) {
+    parts.push(`<section id="platforms"><h2 style="${H2}">${escapeHtml(spec.platforms.heading)}</h2>`);
+    if (spec.platforms.intro) parts.push(`<p>${escapeHtml(spec.platforms.intro)}</p>`);
+    parts.push(`<table><thead><tr><th>Tool</th>${spec.platforms.columns.map((c) => `<th>${escapeHtml(c)}</th>`).join('')}</tr></thead><tbody>`);
+    for (const r of spec.platforms.rows) {
+      const label = r.anchor
+        ? `<a href="#${escapeHtml(r.anchor)}" style="${GOLD}">${escapeHtml(r.name)}</a>`
+        : escapeHtml(r.name);
+      parts.push(`<tr><th>${label}</th>${r.cells.map((c) => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`);
+    }
+    parts.push(`</tbody></table>`);
+    for (const n of spec.platforms.notes || []) {
+      parts.push(`<p><b>${escapeHtml(n.lead)}.</b> ${escapeHtml(n.body)}</p>`);
+    }
+    parts.push(`</section>`);
+  }
+
   // ── Thesis (the branded framework) ──
   parts.push(`<section id="thesis"><h2 style="${H2}">${escapeHtml(spec.thesis.heading)}</h2>`);
   for (const p of spec.thesis.paras) parts.push(`<p>${escapeHtml(p)}</p>`);

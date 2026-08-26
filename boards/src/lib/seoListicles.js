@@ -87,7 +87,7 @@ const PAGES = [
     "answer": "For shared, team reference boards, Soleil Clusters is the best PureRef alternative in 2026 — the same drop-and-arrange feel, in the browser, shared with one link and edited in real time, free to start. BeeRef is the best open-source desktop clone, Eagle the best one-time-purchase reference library, and Milanote the best for structured client presentations.",
     "disclosure": "Soleil Clusters is our app — we are Soleil Pictures, a working film studio, and we built it for our own productions. We rank it first for exactly one job: reference boards a whole team works on together. For a private, offline wall on one machine, PureRef itself is still the better tool, and we say so plainly at the bottom of this page.",
     "published": "2026-08-04",
-    "updated": "2026-08-04",
+    "updated": "2026-08-26",
     "thesis": {
       "heading": "The Reference Wall",
       "paras": [
@@ -637,14 +637,132 @@ const PAGES = [
         "Actively developed: four 2.1.x releases in 2026, including grids, shapes, and batch processing"
       ]
     },
+    "headToHead": {
+      "heading": "PureRef head to head",
+      "intro": "The four comparisons people search for by name, answered at length rather than in a footnote. Every price and platform claim was read off the vendor's own page in August 2026 and is dated where the date matters.",
+      "matchups": [
+        {
+          "slug": "pureref-vs-beeref",
+          "heading": "PureRef vs BeeRef",
+          "left": "PureRef",
+          "right": "BeeRef",
+          "verdict": "BeeRef is the only genuine open-source PureRef clone, and it covers the core wall. It is also effectively unmaintained. If open source is a hard requirement, BeeRef is the answer; if \"still works on a Mac in 2027\" is a hard requirement, it is not.",
+          "paras": [
+            "BeeRef matches the workflow more closely than anything else here. Move, scale, rotate, crop, flip and mass-arrange on an unbounded canvas; always-on-top with optional title-bar removal; a colour sampler that copies hex to the clipboard; per-image opacity and grayscale. Boards are .bee files — a plain SQLite database you can open with standard tools, which is a stronger data-portability guarantee than PureRef's own .pur format. It is GPL-3.0, with no account, no watermark, no caps, and donations are not even solicited.",
+            "The problem is maintenance, and it is not a small one. There has been no release since May 2024 and no commits since June 2024, with pull requests sitting unreviewed. On macOS the builds are unsigned, Gatekeeper launch failures are open unresolved issues, and a 2026 report says newer macOS tightening breaks the workaround people were using. Meanwhile PureRef shipped four 2.1.x releases in the first half of 2026 alone, adding drawing shapes, a snapping background grid, image batch-processing and new UI languages.",
+            "So the honest split is by requirement, not by preference. If your objection to PureRef is philosophical — the code and the file format must be open — BeeRef is the only tool on this page that qualifies, and it is good. If your objection is practical — you want a wall that leaves one machine — BeeRef does not solve that either, because it is the same shape of app. For that, the browser-based options further up the list are the actual answer."
+          ],
+          "rows": [
+            { "feature": "Licence", "left": "Proprietary", "right": "GPL-3.0, open source" },
+            { "feature": "Price", "left": "Pay-what-you-want personal ($15 suggested); $49 one-time small business", "right": "Free, no paid tier" },
+            { "feature": "Last release", "left": "Four 2.1.x releases in H1 2026", "right": "May 2024; no commits since June 2024" },
+            { "feature": "Platforms", "left": "Windows, macOS, Linux", "right": "Windows, Linux, macOS (unsigned builds)" },
+            { "feature": "File format", "left": "Single .pur file", "right": "Open .bee file — a SQLite database" },
+            { "feature": "Always-on-top", "left": "Yes, and can attach to a specific app since 2.0", "right": "Yes" }
+          ]
+        },
+        {
+          "slug": "pureref-vs-eagle",
+          "heading": "PureRef vs Eagle",
+          "left": "PureRef",
+          "right": "Eagle",
+          "verdict": "Different jobs, and plenty of artists pay for both. PureRef is a wall — today's references arranged in a floating window while you work. Eagle is a library — everything you have ever saved, tagged and searchable by colour. Neither one shares with a team.",
+          "paras": [
+            "Eagle's capture workflow is the best we tested anywhere in this category. The browser extension does drag-to-save, batch collection of every image on a page, full-page screenshots, and an Alt+Right-Click grab that still works on sites which disable right-click. It holds images, video, audio, fonts and bookmarks in one browser, with Auto Tag folders, Smart Folders, and search by dominant colour. If your reference gathering happens mostly in a browser at midnight, Eagle removes almost all the friction between seeing a thing and keeping it.",
+            "Its limits are structural rather than fixable. Eagle's own site offers Windows 10+ and macOS 10.15+ downloads and nothing else — no Linux, no phone, no tablet, no web app — checked on 26 August 2026. There is no built-in sync or collaboration either, so multi-machine use means parking the library in a cloud drive and hoping two people never edit at once. The licence covers two devices; each additional machine is $17.47, and the 30-day trial runs once per device.",
+            "The pricing shapes differ more than the sticker suggests. Eagle is $34.95 once, with lifetime updates, and the major 5.0 release is confirmed free for existing owners. PureRef is pay-what-you-want for personal use with $15 suggested, and $49 one-time for small-business use up to three people. Running both, which is what a lot of people actually do, is under $85 for good."
+          ],
+          "rows": [
+            { "feature": "The job", "left": "A wall: today's references, arranged", "right": "A library: everything you have ever saved" },
+            { "feature": "Price", "left": "Pay-what-you-want personal; $49 one-time small business", "right": "$34.95 one-time, 2 devices; +$17.47 per extra device" },
+            { "feature": "Free tier", "left": "Yes — personal use is pay-what-you-want", "right": "No — 30-day trial, once per device" },
+            { "feature": "Platforms", "left": "Windows, macOS, Linux", "right": "Windows 10+, macOS 10.15+ only" },
+            { "feature": "Collaboration", "left": "None", "right": "None — cloud-drive workarounds risk conflicts" },
+            { "feature": "Capture", "left": "Drag and drop", "right": "Best-in-class browser extension" }
+          ]
+        },
+        {
+          "slug": "pureref-vs-milanote",
+          "heading": "PureRef vs Milanote",
+          "left": "PureRef",
+          "right": "Milanote",
+          "verdict": "PureRef is the better private wall; Milanote is the better thing to send a client. They complement each other more than they compete, which is why plenty of productions run both.",
+          "paras": [
+            "PureRef wins on immediacy. It is fully offline, opens instantly, floats always-on-top, and since 2.0 can attach to a specific application so your references ride over Photoshop or Blender exactly where you are looking. A board is one portable .pur file. Nothing in a browser matches that as a working surface at your elbow.",
+            "Milanote wins the moment somebody else has to read the board. It mixes notes, images, video, links, sketches and files on freeform boards, with more than forty template categories including storyboards, shot lists and mood boards, and per-board sharing with edit, comment or view roles. Its platform coverage is the broadest in this roundup — web, Mac, Windows, iPhone, iPad and Android, all first-party and all actively maintained through 2026 — plus a Chrome/Firefox clipper and an iOS share extension.",
+            "The catch is the free tier and the offline gap. Milanote's free plan is 100 cards and ten file uploads total, with a 10MB image cap — tight for visual work — and the help centre states an internet connection is required, so there is no offline mode at all. Pro is $9.99 per person per month billed annually, which means a crew of five is five subscriptions."
+          ],
+          "rows": [
+            { "feature": "Best at", "left": "A private working wall at your elbow", "right": "A structured board you hand to a client" },
+            { "feature": "Runs in a browser", "left": "No", "right": "Yes" },
+            { "feature": "Works offline", "left": "Yes, entirely", "right": "No — an internet connection is required" },
+            { "feature": "Free tier", "left": "Pay-what-you-want personal use", "right": "100 cards, 10 file uploads, 10MB image cap" },
+            { "feature": "Sharing", "left": "Send the .pur file", "right": "Per-board links with edit / comment / view roles" },
+            { "feature": "Mobile", "left": "None", "right": "First-party iPhone, iPad and Android apps" }
+          ]
+        },
+        {
+          "slug": "pureref-vs-miro",
+          "heading": "PureRef vs Miro",
+          "left": "PureRef",
+          "right": "Miro",
+          "verdict": "Miro is a whiteboard that can hold images; PureRef is an image wall. For a workshop with twenty people and sticky notes, Miro. For a reference wall, Miro is heavier than the job needs — and it degrades on exactly the kind of board you would build.",
+          "paras": [
+            "Miro is the heavyweight of collaborative canvases and earns it: an infinite canvas with more than 7,000 templates and 250+ integrations, unlimited team members even on the free plan, connectors that pull live data from Slack and Jira onto the board, recorded board walkthroughs for async review, and a genuinely differentiated 2026 AI layer with canvas agents and MCP connections to coding agents. If the artefact you are making is a workshop, nothing here competes.",
+            "For reference work specifically, two things bite. The free tier caps at three editable boards with low-resolution image export only, which is a hard ceiling if boards are how you organise projects rather than meetings. And there is documented performance degradation on large, image-heavy boards — which is the exact shape of a reference wall. A PureRef board with two hundred stills is unremarkable; the same board in Miro is a bad afternoon.",
+            "Cost is also less legible than it looks. Miro's pricing page shows annual-billed rates only — Starter $8 per member per month, Business $20 — and the true monthly cost is higher and never displayed. Per-member pricing means the crew is the invoice."
+          ],
+          "rows": [
+            { "feature": "Best at", "left": "An image wall you work beside", "right": "Workshops, planning, and large-group sessions" },
+            { "feature": "Image-heavy boards", "left": "Its entire purpose", "right": "Documented performance degradation" },
+            { "feature": "Free tier", "left": "Pay-what-you-want personal use", "right": "3 editable boards, low-res export only" },
+            { "feature": "Paid price", "left": "$49 one-time small business", "right": "$8–20 per member per month, billed yearly" },
+            { "feature": "Platforms", "left": "Windows, macOS, Linux", "right": "Web, Windows, macOS, iOS/iPadOS, Android" },
+            { "feature": "Real-time collaboration", "left": "None", "right": "Yes, with unlimited free members" }
+          ]
+        }
+      ]
+    },
+    "platforms": {
+      "heading": "Where PureRef runs — and what to use where it does not",
+      "intro": "PureRef's own site says it \"currently supports Windows, Mac and most Linux distributions\", read on 26 August 2026. There is no iPad app, no Android app and no web version, and those three gaps are the most common reason people go looking in the first place. This is what runs where. \"App\" means a first-party native application; \"Browser\" means it works there through the web, which for these tools is a real answer rather than a consolation.",
+      "columns": ["Browser", "Windows", "macOS", "Linux", "iPad", "Android"],
+      "rows": [
+        { "name": "PureRef (the incumbent)", "cells": ["—", "App", "App", "App", "—", "—"] },
+        { "name": "Soleil Clusters", "anchor": "soleil-clusters", "cells": ["Yes", "Browser", "Browser", "Browser", "Browser", "Browser"] },
+        { "name": "BeeRef", "anchor": "beeref", "cells": ["—", "App", "App (unsigned)", "App", "—", "—"] },
+        { "name": "Eagle", "anchor": "eagle", "cells": ["—", "App (10+)", "App (10.15+)", "—", "—", "—"] },
+        { "name": "refern", "anchor": "refern", "cells": ["—", "App", "App", "App", "—", "—"] },
+        { "name": "Milanote", "anchor": "milanote", "cells": ["Yes", "App", "App", "Browser", "App", "App"] },
+        { "name": "Obsidian Canvas", "anchor": "obsidian-canvas", "cells": ["—", "App", "App", "App", "App", "App"] },
+        { "name": "Miro", "anchor": "miro", "cells": ["Yes", "App", "App", "Browser", "App", "App"] },
+        { "name": "FigJam", "anchor": "figjam", "cells": ["Yes", "App", "App", "Browser", "App", "Browser"] },
+        { "name": "Are.na", "anchor": "are-na", "cells": ["Yes", "Browser", "Browser", "Browser", "iOS app", "Browser"] },
+        { "name": "Pinterest", "anchor": "pinterest", "cells": ["Yes", "Browser", "Browser", "Browser", "App", "App"] }
+      ],
+      "notes": [
+        {
+          "lead": "A PureRef alternative for iPad",
+          "body": "PureRef has never shipped an iPad build. Soleil Clusters runs in the browser with touch and iPad support, so a board opens on a scout with no install and no App Store account. Milanote has a first-party iPad app, FigJam has a dedicated one, and Obsidian Canvas reaches iPad through its iOS app. Eagle, BeeRef and refern have nothing for tablets at all."
+        },
+        {
+          "lead": "A PureRef alternative for Android",
+          "body": "This is the thinnest column in the table, and it is worth knowing before you start searching. Only Milanote, Obsidian Canvas, Miro and Pinterest ship first-party Android apps. Everything else that works on Android does so through the browser — which for Soleil Clusters is the intended path rather than a fallback, since there is no desktop app to be second to."
+        },
+        {
+          "lead": "If it has to be open source",
+          "body": "BeeRef is the only genuinely open-source option here: GPL-3.0, with an inspectable SQLite-based .bee file format. Obsidian is free for personal use but is not open source, and its Canvas core was open-sourced under MIT while the app itself was not. Read the BeeRef comparison above before committing — the licence is not the only thing that matters."
+        },
+        {
+          "lead": "If it has to be free with no install",
+          "body": "Soleil Clusters is the only tool on this page that is both browser-based and free to start with no trial clock and no credit card, and where a shared board opens without the viewer making an account. Milanote and Miro are free in the browser too, but capped — 100 cards and ten uploads for Milanote, three editable boards for Miro."
+        }
+      ]
+    },
     "faq": [
       {
         "q": "Is there a web version of PureRef?",
         "a": "No. PureRef is a desktop app for Windows, macOS, and Linux; its official pages list no web, iPad, or Android version. If you need a reference board that opens in a browser, Soleil Clusters is built for exactly that, and Milanote and Miro also run fully in the browser."
-      },
-      {
-        "q": "Does PureRef work on iPad?",
-        "a": "No — PureRef ships desktop builds only, with no iPad, iOS, or Android app. For tablet access, Soleil Clusters runs in the browser with touch and iPad support, Milanote has first-party iPad and Android apps, and FigJam has a dedicated iPad app."
       },
       {
         "q": "Is PureRef free? How does pay-what-you-want work?",
@@ -653,18 +771,6 @@ const PAGES = [
       {
         "q": "Is PureRef safe?",
         "a": "Yes. It is an established desktop app distributed through its official site, actively maintained — four 2.1.x releases in the first half of 2026 — with an honest pay-what-you-want model, no account requirement, and boards stored as local files on your machine. Download it from pureref.com rather than third-party mirrors."
-      },
-      {
-        "q": "PureRef vs Eagle — which should I get?",
-        "a": "Different jobs. PureRef is a wall: today's references arranged in a floating window while you work. Eagle ($34.95 one-time) is a library: everything you have ever saved, tagged, color-searchable, captured via its excellent browser extension. Many artists run both — Eagle to store, PureRef to arrange. Neither shares or syncs to a team."
-      },
-      {
-        "q": "PureRef vs BeeRef — is the open-source clone good enough?",
-        "a": "BeeRef covers the core wall workflow — always-on-top, crop, arrange, grayscale — free under GPL-3.0, with an open SQLite-based file format. But its last release was May 2024, contributors call it abandoned, and unsigned macOS builds hit unresolved Gatekeeper failures. If open source is the requirement, yes; otherwise PureRef is the better-maintained tool."
-      },
-      {
-        "q": "Milanote vs PureRef — which is better for mood boards?",
-        "a": "PureRef is the better private wall: offline, always-on-top, instant. Milanote is the better client deliverable: structured boards with templates, annotation, and role-based sharing in the browser. Its free plan caps at 100 cards and 10 file uploads, and there is no offline mode, so it complements PureRef more than it replaces it."
       },
       {
         "q": "What is the best free PureRef alternative with no install?",
@@ -2776,6 +2882,14 @@ export function listicleToc(spec) {
   return [
     { id: 'answer', label: spec.answerHeading },
     { id: 'table', label: 'Comparison table' },
+    // Both optional and both deliberately HIGH in the order. They exist because
+    // the head-to-head and platform queries ("beeref vs pureref", "pureref
+    // android alternative") were landing on this page at positions 7–12 with no
+    // clicks, served only by a 300-character answer inside a collapsed accordion
+    // at the very bottom. A reader who arrived on one of those queries should
+    // not have to scroll past ten product reviews to reach their answer.
+    ...(spec.headToHead ? [{ id: 'head-to-head', label: spec.headToHead.heading }] : []),
+    ...(spec.platforms ? [{ id: 'platforms', label: spec.platforms.heading }] : []),
     { id: 'thesis', label: spec.thesis.heading },
     { id: 'method', label: spec.methodology.heading },
     { id: 'picks', label: spec.itemsHeading },

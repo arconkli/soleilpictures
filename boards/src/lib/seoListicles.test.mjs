@@ -80,6 +80,81 @@ test('toc derives cleanly and ids are unique', () => {
   }
 });
 
+// Both sections are OPTIONAL — only /best/pureref-alternatives carries them
+// today. The assertions run on whichever pages have them, so a second page
+// adopting the shape is validated the moment it does.
+test('headToHead: unique slugs, both sides labelled, every row complete', () => {
+  for (const p of SEO_LISTICLE_PAGES) {
+    if (!p.headToHead) continue;
+    const h = p.headToHead;
+    assert.ok(h.heading, `${p.path}: headToHead.heading`);
+    assert.ok(h.matchups?.length >= 1, `${p.path}: headToHead needs matchups`);
+
+    const slugs = h.matchups.map((m) => m.slug);
+    assert.equal(new Set(slugs).size, slugs.length, `${p.path}: duplicate matchup slug`);
+    // A matchup slug becomes a page anchor, so it must not collide with a
+    // review anchor or a fixed section id — the deep link would land wrong.
+    const taken = new Set([...p.items.map((it) => it.anchor), ...listicleToc(p).map((t) => t.id)]);
+    for (const m of h.matchups) {
+      assert.match(m.slug, /^[a-z0-9-]+$/, `${p.path}/${m.slug}: slug shape`);
+      assert.ok(!taken.has(m.slug), `${p.path}: matchup slug ${m.slug} collides with an existing anchor`);
+      assert.ok(m.heading && m.verdict, `${p.path}/${m.slug}: heading + verdict`);
+      assert.ok(m.left && m.right, `${p.path}/${m.slug}: both sides must be labelled for the table head`);
+      assert.ok(m.paras?.length >= 1, `${p.path}/${m.slug}: paras`);
+      for (const r of m.rows || []) {
+        for (const k of ['feature', 'left', 'right']) {
+          assert.ok(r[k], `${p.path}/${m.slug}: row '${r.feature}' missing ${k} — renders as a blank cell`);
+        }
+      }
+    }
+  }
+});
+
+test('platforms: every row aligns to the columns, notes are complete', () => {
+  for (const p of SEO_LISTICLE_PAGES) {
+    if (!p.platforms) continue;
+    const pl = p.platforms;
+    assert.ok(pl.heading && pl.intro, `${p.path}: platforms heading + intro`);
+    assert.ok(pl.columns?.length >= 2, `${p.path}: platforms needs columns`);
+    assert.ok(pl.rows?.length >= 2, `${p.path}: platforms needs rows`);
+
+    const names = pl.rows.map((r) => r.name);
+    assert.equal(new Set(names).size, names.length, `${p.path}: duplicate platform row`);
+    for (const r of pl.rows) {
+      assert.equal(r.cells.length, pl.columns.length,
+        `${p.path}/${r.name}: ${r.cells.length} cells vs ${pl.columns.length} columns`);
+      for (const c of r.cells) assert.ok(c, `${p.path}/${r.name}: an empty cell reads as "unknown", not "no"`);
+      // An anchor is optional, but a WRONG one is a dead link in a table we ask
+      // people to click through.
+      if (r.anchor) {
+        assert.ok(p.items.some((it) => it.anchor === r.anchor),
+          `${p.path}/${r.name}: anchor ${r.anchor} matches no reviewed item`);
+      }
+    }
+    for (const n of pl.notes || []) {
+      assert.ok(n.lead && n.body, `${p.path}: platform note needs both lead and body`);
+    }
+  }
+});
+
+// The whole point of promoting these out of the FAQ was to stop answering one
+// query in two places. Duplicated text splits the signal and reads as padding.
+test('head-to-head sections did not leave a duplicate FAQ entry behind', () => {
+  for (const p of SEO_LISTICLE_PAGES) {
+    if (!p.headToHead) continue;
+    for (const m of p.headToHead.matchups) {
+      // 'PureRef vs BeeRef' -> the two proper nouns it compares
+      const sides = [m.left, m.right].map((s) => s.toLowerCase());
+      const dupe = (p.faq || []).find((f) => {
+        const q = f.q.toLowerCase();
+        return sides.every((s) => q.includes(s)) && /\bvs\b|versus/.test(q);
+      });
+      assert.equal(dupe, undefined,
+        `${p.path}: FAQ still asks "${dupe?.q}" while ${m.slug} answers it in full — remove one`);
+    }
+  }
+});
+
 test('related[] resolves to real landing/listicle pages', () => {
   const known = new Set([...SEO_LANDING_PATHS, ...SEO_LISTICLE_PAGES.map((p) => p.path)]);
   for (const p of SEO_LISTICLE_PAGES) {

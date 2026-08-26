@@ -80,20 +80,49 @@ export function SeoListiclePage({ path }) {
     getScrollEl: () => scrollRef.current,
   });
 
-  // Deep-linked hash: hydration replaces the server-rendered fallback, so a
-  // #anchor arrival needs a post-mount nudge to land on its section.
-  useEffect(() => {
-    if (!spec) return;
-    const id = (window.location.hash || '').slice(1);
-    if (!id) return;
-    requestAnimationFrame(() => {
-      document.getElementById(id)?.scrollIntoView({ block: 'start' });
-    });
-  }, [spec]);
-
   // Live board titles + thumb cache-busters for the template strip (same lazy
   // load as SeoLandingPage — keeps the supabase client off the critical path).
   const [pubBoards, setPubBoards] = useState(null);
+
+  // Deep-linked hash: hydration replaces the server-rendered fallback, so a
+  // #anchor arrival needs a post-mount nudge to land on its section.
+  //
+  // It needs a SECOND nudge once pubBoards resolves. That fetch adds the
+  // template strip's thumbnails ABOVE most anchors, so the page grows after the
+  // first jump and the reader ends up ~63px short of the section they asked
+  // for — measured, not guessed: the first jump landed at 187px and a re-jump
+  // after settling landed at 124px like every other anchor. Harmless-looking,
+  // and precisely wrong for the head-to-head anchors, which exist to be arrived
+  // at from a search result.
+  //
+  // Guarded on the user not having scrolled yet: re-running scrollIntoView
+  // under someone who has started reading would yank the page out from them.
+  const userScrolledRef = useRef(false);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return undefined;
+    const onScroll = () => { userScrolledRef.current = true; };
+    // Only a real input marks the reader as in control — our own
+    // scrollIntoView fires 'scroll' too and would immediately disarm the fix.
+    el.addEventListener('wheel', onScroll, { passive: true });
+    el.addEventListener('touchmove', onScroll, { passive: true });
+    window.addEventListener('keydown', onScroll);
+    return () => {
+      el.removeEventListener('wheel', onScroll);
+      el.removeEventListener('touchmove', onScroll);
+      window.removeEventListener('keydown', onScroll);
+    };
+  }, [spec]);
+
+  useEffect(() => {
+    if (!spec) return;
+    const id = (window.location.hash || '').slice(1);
+    if (!id || userScrolledRef.current) return;
+    requestAnimationFrame(() => {
+      if (userScrolledRef.current) return;
+      document.getElementById(id)?.scrollIntoView({ block: 'start' });
+    });
+  }, [spec, pubBoards]);
   useEffect(() => {
     if (!spec?.exampleSlugs?.length) return undefined;
     let on = true;
@@ -125,7 +154,13 @@ export function SeoListiclePage({ path }) {
   const toc = listicleToc(spec);
   const heroShot = spec.exampleSlugs?.[0] || null;
   const nItems = spec.items.length;
-  const tailBase = 6 + nItems;   // lp_section idx base for post-review sections
+  // lp_section indices are page-ORDER ordinals, so the two optional head
+  // sections have to push everything after them along. Derived rather than
+  // renumbered by hand so a page without them keeps its existing numbering
+  // exactly — only /best/pureref-alternatives shifts, and it shifts because its
+  // page order genuinely changed.
+  const nHead = (spec.headToHead ? 1 : 0) + (spec.platforms ? 1 : 0);
+  const tailBase = 6 + nHead + nItems;   // lp_section idx base for post-review sections
 
   return (
     <div className="public-shell seo-shell public-dark">
@@ -241,14 +276,91 @@ export function SeoListiclePage({ path }) {
             </div>
           </section>
 
+          {/* Head-to-head (optional). ABOVE the thesis and the reviews on
+              purpose: a reader who arrived on "beeref vs pureref" should not
+              have to scroll past ten reviews to reach their answer, which is
+              what the previous FAQ-only treatment amounted to. Each matchup
+              carries its own id so it deep-links and so the heading itself is
+              the query. */}
+          {spec.headToHead && (
+            <section className="seo-section" id="head-to-head" ref={lp.sectionRef('head-to-head', 4)}>
+              <h2 className="seo-h2">{spec.headToHead.heading}</h2>
+              {spec.headToHead.intro && <p className="seo-body">{spec.headToHead.intro}</p>}
+              {spec.headToHead.matchups.map((m) => (
+                <section className="seo-li-h2h" id={m.slug} key={m.slug}>
+                  <h3 className="seo-li-h2h-h">{m.heading}</h3>
+                  <p className="seo-body seo-li-h2h-verdict">{m.verdict}</p>
+                  {m.paras.map((p, i) => <p className="seo-body" key={i}>{p}</p>)}
+                  {m.rows?.length > 0 && (
+                    <div className="seo-compare-wrap seo-li-tablewrap">
+                      <table className="seo-compare seo-li-table">
+                        <thead>
+                          <tr>
+                            <th scope="col">Attribute</th>
+                            <th scope="col">{m.left}</th>
+                            <th scope="col">{m.right}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {m.rows.map((r) => (
+                            <tr key={r.feature}>
+                              <th scope="row">{r.feature}</th>
+                              <td>{r.left}</td>
+                              <td>{r.right}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+              ))}
+            </section>
+          )}
+
+          {/* Platform matrix (optional) — the answer to "does X run on
+              iPad/Android/Linux", which the comparison table above never had a
+              column for. */}
+          {spec.platforms && (
+            <section className="seo-section" id="platforms" ref={lp.sectionRef('platforms', 4 + (spec.headToHead ? 1 : 0))}>
+              <h2 className="seo-h2">{spec.platforms.heading}</h2>
+              {spec.platforms.intro && <p className="seo-body">{spec.platforms.intro}</p>}
+              <div className="seo-compare-wrap seo-li-tablewrap">
+                <table className="seo-compare seo-li-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Tool</th>
+                      {spec.platforms.columns.map((c) => <th scope="col" key={c}>{c}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {spec.platforms.rows.map((r) => (
+                      <tr key={r.name}>
+                        <th scope="row">
+                          {r.anchor
+                            ? <a href={`#${r.anchor}`} {...lp.ctaProps(`platforms:${r.anchor}`, `#${r.anchor}`, { intent: 'nav' })}>{r.name}</a>
+                            : r.name}
+                        </th>
+                        {r.cells.map((c, j) => <td key={j}>{c}</td>)}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {(spec.platforms.notes || []).map((n) => (
+                <p className="seo-body" key={n.lead}><strong>{n.lead}.</strong> {n.body}</p>
+              ))}
+            </section>
+          )}
+
           {/* Thesis — the framework the whole ranking argues */}
-          <section className="seo-section" id="thesis" ref={lp.sectionRef('thesis', 4)}>
+          <section className="seo-section" id="thesis" ref={lp.sectionRef('thesis', 4 + nHead)}>
             <h2 className="seo-h2">{spec.thesis.heading}</h2>
             {spec.thesis.paras.map((p, i) => <p className="seo-body" key={i}>{p}</p>)}
           </section>
 
           {/* Methodology */}
-          <section className="seo-section" id="method" ref={lp.sectionRef('method', 5)}>
+          <section className="seo-section" id="method" ref={lp.sectionRef('method', 5 + nHead)}>
             <h2 className="seo-h2">{spec.methodology.heading}</h2>
             <p className="seo-body">{spec.methodology.intro}</p>
             <ol className="seo-steps seo-li-criteria">
@@ -262,7 +374,7 @@ export function SeoListiclePage({ path }) {
           </section>
 
           {/* The ranked reviews */}
-          <section className="seo-section" id="picks" ref={lp.sectionRef('picks-head', 6)}>
+          <section className="seo-section" id="picks" ref={lp.sectionRef('picks-head', 6 + nHead)}>
             <h2 className="seo-h2">{spec.itemsHeading}</h2>
           </section>
           {spec.items.map((it, i) => (
@@ -270,7 +382,7 @@ export function SeoListiclePage({ path }) {
               <section
                 className={`seo-li-item${it.isUs ? ' seo-li-item-us' : ''}`}
                 id={it.anchor}
-                ref={lp.sectionRef(`item-${it.rank}-${it.anchor}`, 7 + i)}
+                ref={lp.sectionRef(`item-${it.rank}-${it.anchor}`, 7 + nHead + i)}
               >
                 <h3 className="seo-li-item-h">
                   <span className="seo-li-rank">{it.rank}</span>
