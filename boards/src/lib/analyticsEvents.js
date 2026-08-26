@@ -221,6 +221,15 @@ export const EV = Object.freeze({
   LIFECYCLE_LAND:          'lifecycle_land',              // arrived from a lifecycle email CTA, read off ?lc=<email_type>.<version> {email_type,content_version,signed_in} — the FIRST-PARTY click signal. Resend proxies every click through its own host and reports userAgent "Amazon CloudFront" on all of them, so its click webhook can't separate bot prefetch from a human and can't show whether anyone actually landed. This can. Fires once per page-load REGARDLESS of session — win-back recipients average 27 days since last sign-in, so nearly every one of them lands signed_in:false, and gating this on a user id (as it was until 2026-08-14) hid the entire wall-abandonment population. The param is stripped only once signed in, so it survives the OTP roundtrip
   LIFECYCLE_RESUME:        'lifecycle_resume',            // a lifecycle click that landed signed-OUT subsequently got a session {email_type,content_version} — i.e. they hit the sign-in wall and made it through anyway. lifecycle_land{signed_in:false} minus this is the wall's kill count, and the metric the /resume signed link is meant to move
 
+  // ── The bell (previously COMPLETELY DARK) ──
+  // public.notifications, the panel, the live bus and the browser-notification
+  // path all shipped without a single event between them, so "does anyone act
+  // on a notification" has never been answerable — and the schedule producer
+  // that fills the bell is about to need that answer. `kind` is what separates
+  // one producer from another in the funnel.
+  NOTIF_OPEN:              'notif_open',                  // the bell was opened {unread} — the denominator for notif_click
+  NOTIF_CLICK:             'notif_click',                 // a notification row was clicked {kind,was_unread,opened_board}
+
   // ── View modes + list-mode "drive" usage (previously DARK: the Cluster Browser
   //    shipped with zero instrumentation, and upload-gate rejections left no
   //    signal beyond an eventual pricing_view{header:'storage'}) ──

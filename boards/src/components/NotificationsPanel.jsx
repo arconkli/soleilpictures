@@ -14,6 +14,8 @@ import { useMemo } from 'react';
 import { Icon } from './Icon.jsx';
 import { X, Calendar, Check } from '../lib/icons.js';
 import { parseISO, dayTitle, shortDate, todayISO, daysBetween } from '../lib/schedDates.js';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 import './notificationsPanel.css';
 
 // "in 3 days" / "today" / "tomorrow" — a crew member reads relative time faster
@@ -89,7 +91,21 @@ export function NotificationsPanel({
               <li key={n.id}>
                 <button type="button"
                   className={`ntf-row${n.read_at ? '' : ' is-unread'}`}
-                  onClick={() => { onMarkRead?.([n.id]); if (n.board_id) onOpenBoard?.(n.board_id); }}>
+                  onClick={() => {
+                    // The bell shipped with no instrumentation at all, so
+                    // whether anyone acts on a notification has never been
+                    // answerable. `kind` is what separates one producer from
+                    // another once more than one fills this list.
+                    try {
+                      logEvent(EV.NOTIF_CLICK, {
+                        kind: n.kind || null,
+                        was_unread: !n.read_at,
+                        opened_board: !!n.board_id,
+                      });
+                    } catch (_) {}
+                    onMarkRead?.([n.id]);
+                    if (n.board_id) onOpenBoard?.(n.board_id);
+                  }}>
                   <span className={`ntf-kind ntf-kind-${String(n.kind || '').split('.')[1] || 'other'}`}
                     aria-hidden="true" />
                   <span className="ntf-row-main">

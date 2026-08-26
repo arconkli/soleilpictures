@@ -6315,7 +6315,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             )}
           </div>
           <div className={`sb-row ${notifOpen ? 'active' : ''}`}
-               onClick={() => setNotifOpen(v => !v)}
+               onClick={() => {
+                 // Only the open is worth a row; the close tells us nothing.
+                 // This is the denominator notif_click needs — a notification
+                 // nobody clicked and a bell nobody opened are different
+                 // failures with different fixes.
+                 if (!notifOpen) {
+                   try { logEvent(EV.NOTIF_OPEN, { unread: notifications.unread || 0 }); } catch (_) {}
+                 }
+                 setNotifOpen(v => !v);
+               }}
                title={notifOpen ? 'Hide schedule' : 'Show schedule and updates'}>
             <Icon as={Bell} size={14} />
             <span className="sb-row-label">Schedule</span>
