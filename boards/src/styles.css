@@ -17329,6 +17329,15 @@ button.msg-panel-name:hover { color: var(--ink-0); }
   border-radius: var(--radius);
   border-left: 2px solid var(--ink-3);
 }
+.settings-section-hint a,
+.settings-cat-desc a {
+  color: var(--ink-0);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--line-1);
+}
+.settings-section-hint a:hover,
+.settings-cat-desc a:hover { text-decoration-color: currentColor; }
 .settings-cat {
   border: 1px solid var(--line-1);
   border-radius: var(--radius-md);

@@ -5,9 +5,11 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { Toggle } from './fields.jsx';
+import { useSettingsSave } from './saveState.jsx';
 
 export function NotificationsTab({ user }) {
   const feedback = useFeedback();
+  const save = useSettingsSave();
   const [prefs, setPrefs] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -34,17 +36,19 @@ export function NotificationsTab({ user }) {
   const isOn = (key) => (prefs?.[key] ?? true) !== false;
 
   const togglePref = async (key, value) => {
+    const prev = prefs;
     const next = { ...(prefs || {}), [key]: value };
     setPrefs(next);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ notification_prefs: next })
-      .eq('user_id', user.id);
-    if (error) {
-      feedback.toast({ type: 'error', message: 'Save failed — check your connection and try again. (' + (error.message || error) + ')' });
-      // Roll back optimistic flip
-      setPrefs(prefs);
-    }
+    const ok = await save(async () => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ notification_prefs: next })
+        .eq('user_id', user.id);
+      if (error) throw error;
+    });
+    // Roll back the optimistic flip. A switch that reads "on" for an email
+    // that will not send is worse than a switch that snaps back.
+    if (!ok) setPrefs(prev);
   };
 
   if (loading || !prefs) {

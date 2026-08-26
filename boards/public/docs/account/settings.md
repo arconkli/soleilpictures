@@ -9,7 +9,10 @@ Open it from the sidebar — the **cog** or **your avatar**, bottom left — or 
 tab they land on, and every other tab is one click away in the same rail.
 
 Settings are stored on your account, not the device, so they follow you
-everywhere you sign in.
+everywhere you sign in. **Nothing here has a Save button** — every change is
+written as you make it, and a `Saved ✓` flashes in the header when it lands. A
+text field commits when you click away or press `Enter`; a colour commits when
+you close the picker.
 
 The rail is grouped into two halves, and which half a setting is in tells you
 who it affects.
