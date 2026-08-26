@@ -455,7 +455,12 @@ function crawlableHtml(page) {
   // Every page advertises its own machine-readable twin. This is the single
   // cheapest thing that makes the corpus usable by an agent that landed here
   // from a search result rather than from llms.txt.
-  out.push(`<p style="color:#8a8a92;font-size:.85rem;margin-top:2em;">Machine-readable: <a href="${escapeHtml(page.path)}.md" style="color:#FFA500;">${escapeHtml(page.path)}.md</a> · <a href="/llms.txt" style="color:#FFA500;">/llms.txt</a></p>`);
+  // The changelog rides in the same line, and it is here — in the SERVER-rendered
+  // copy — rather than only in the React footer, because the crawlers this whole
+  // registry exists for do not run JavaScript. A docs page reached from a search
+  // result is the most common entry point into the corpus; without this it is a
+  // dead end for the one question the docs deliberately never answer.
+  out.push(`<p style="color:#8a8a92;font-size:.85rem;margin-top:2em;">Machine-readable: <a href="${escapeHtml(page.path)}.md" style="color:#FFA500;">${escapeHtml(page.path)}.md</a> · <a href="/llms.txt" style="color:#FFA500;">/llms.txt</a><br>What changed and when: <a href="/changelog" style="color:#FFA500;">/changelog</a></p>`);
 
   return `<div style="max-width:820px;margin:0 auto;padding:14vh 24px 24px;"><article>${out.join('')}</article></div>`;
 }
