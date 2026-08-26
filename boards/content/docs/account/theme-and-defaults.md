@@ -1,12 +1,12 @@
 ---
 title: Theme, Fonts and Defaults — Soleil Clusters
-metaDescription: Set light or dark mode, an accent colour and a body font in Soleil Clusters, and choose what new notes, shapes and clusters start as.
+metaDescription: Follow your system theme or pick light or dark in Soleil Clusters, set an accent colour and body font, and choose what new notes, shapes and clusters start as.
 h1: Theme and defaults
 navLabel: Theme and defaults
 section: account
 order: 2
-updated: 2026-08-25
-answer: Appearance covers light or dark mode, an accent colour, a body font chosen from a curated list or anything on Google Fonts, and what a plain scroll wheel does. Card defaults set what new notes, docs and shapes start as, and whether clusters open as a canvas or a list. Appearance is personal and follows your account between devices; card defaults belong to the workspace.
+updated: 2026-08-26
+answer: Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, and what a plain scroll wheel does. Card defaults set what new notes, docs and shapes start as, and whether clusters open as a canvas or a list. Appearance is personal and follows your account between devices; card defaults belong to the workspace.
 faq:
   - q: Does my theme follow me between devices?
     a: Yes. Theme is a per-user account setting, not a browser one, so it syncs everywhere you sign in.
@@ -28,7 +28,11 @@ workspace sees them. Three sections.
 
 ### Theme
 
-- **Mode** — light or dark. `⌘K` → "toggle theme" switches it without opening settings.
+- **Mode** — **System**, **Light** or **Dark**. System follows your device's
+  own setting and changes live when it does; it is what you get until you pick
+  one of the other two, and you can always come back to it. `⌘K` →
+  "toggle theme" flips between light and dark without opening settings, which
+  counts as picking one.
 - **Accent** — the highlight colour used through the interface.
 - **Body font** — a curated list of around twenty-five families, plus anything available on Google Fonts.
 
@@ -54,7 +58,8 @@ confused with "this is gold" on a colourful board.
 ### Layout
 
 - **Clean mode** (`⌘.`) — hides interface chrome for presenting or screenshots
-- **Sidebar open by default**
+- **Sidebar open by default** — `⌘B` and the collapse chevron write this same
+  preference, so where you left the sidebar is where it is on your next device
 
 ### Canvas
 
@@ -74,7 +79,7 @@ every one. Existing cards are never changed.
 | Default | Applies to |
 |---|---|
 | Background, text colour, font, size | Every new [note](/docs/canvas/notes) |
-| Stroke colour, fill colour, stroke width | Every new [shape](/docs/canvas/shapes-and-drawing) |
+| Shape, stroke colour, fill colour, stroke width, line style | Every new [shape](/docs/canvas/shapes-and-drawing) |
 | Font | Every new [document](/docs/documents) |
 | Default view | Whether clusters open as [canvas or list](/docs/clusters/list-view) |
 

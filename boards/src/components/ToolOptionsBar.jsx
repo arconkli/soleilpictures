@@ -14,6 +14,9 @@ import {
 } from '../lib/editorSelection.js';
 import { useRecentColors } from '../hooks/useRecentColors.js';
 import { addRecentColor } from '../lib/recentColors.js';
+// Shared with Settings → Card defaults → Shapes, so the default you set is
+// always a shape this bar can actually render.
+import { SHAPES, DASH_STYLES } from '../lib/shapeOptions.js';
 import { useCustomFonts, useRecentFonts } from '../hooks/useCustomFonts.js';
 import { CustomFontsModal } from './CustomFontsModal.jsx';
 import { FontPickerDropdown } from './FontPickerDropdown.jsx';
@@ -51,22 +54,6 @@ const FONTS = [
 ];
 const SIZES = [11, 13, 15, 18, 24, 32, 48, 64];
 
-const SHAPES = [
-  { id: 'rect', label: 'Rect' },
-  { id: 'ellipse', label: 'Ellipse' },
-  { id: 'line', label: 'Line' },
-  { id: 'arrow', label: 'Arrow' },
-  { id: 'diamond', label: 'Diamond' },
-  { id: 'triangle', label: 'Triangle' },
-  { id: 'hexagon', label: 'Hexagon' },
-  { id: 'star', label: 'Star' },
-];
-
-const DASH_STYLES = [
-  { id: 'solid', label: 'Solid' },
-  { id: 'dashed', label: 'Dashed' },
-  { id: 'dotted', label: 'Dotted' },
-];
 
 // Format helpers — operate on the saved selection from RichNoteEditor.
 //

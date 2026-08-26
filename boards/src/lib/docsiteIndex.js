@@ -2432,7 +2432,7 @@ export const DOCS_PAGES = [
     "answer": "Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.",
     "section": "account",
     "order": 0,
-    "updated": "2026-08-25",
+    "updated": "2026-08-26",
     "navLabel": "Settings",
     "headings": [
       {
@@ -2551,12 +2551,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/account/theme-and-defaults",
     "title": "Theme, Fonts and Defaults — Soleil Clusters",
-    "metaDescription": "Set light or dark mode, an accent colour and a body font in Soleil Clusters, and choose what new notes, shapes and clusters start as.",
+    "metaDescription": "Follow your system theme or pick light or dark in Soleil Clusters, set an accent colour and body font, and choose what new notes, shapes and clusters start as.",
     "h1": "Theme and defaults",
-    "answer": "Appearance covers light or dark mode, an accent colour, a body font chosen from a curated list or anything on Google Fonts, and what a plain scroll wheel does. Card defaults set what new notes, docs and shapes start as, and whether clusters open as a canvas or a list. Appearance is personal and follows your account between devices; card defaults belong to the workspace.",
+    "answer": "Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, and what a plain scroll wheel does. Card defaults set what new notes, docs and shapes start as, and whether clusters open as a canvas or a list. Appearance is personal and follows your account between devices; card defaults belong to the workspace.",
     "section": "account",
     "order": 2,
-    "updated": "2026-08-25",
+    "updated": "2026-08-26",
     "navLabel": "Theme and defaults",
     "headings": [
       {

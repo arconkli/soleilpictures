@@ -14,6 +14,7 @@ import { uploadImage } from '../../lib/uploads.js';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { HARDCODED_FALLBACKS } from '../../hooks/useResolvedDefaults.js';
+import { SHAPES, DASH_STYLES } from '../../lib/shapeOptions.js';
 import { Field, SettingsCategory, SwatchInput, FontField, AvatarUploadRow } from './fields.jsx';
 import { useSettingsSave } from './saveState.jsx';
 
@@ -129,17 +130,27 @@ export function CardDefaultsTab({ workspaceId, role, workspaceSettings, refresh 
   const canEdit = role === 'editor' || role === 'owner';
   const disabled = !canEdit;
 
-  const settings = workspaceSettings;
-  const setKey = (cat, key, value) => savePatch(cat, { [key]: value });
-  const savePatch = (cat, patch) => {
+  // What we have written but not yet seen come back. merge_workspace_settings
+  // replaces a whole top-level category (`settings || patch`), so a patch built
+  // from the last FETCHED value silently drops any change made since — change
+  // the shape and then the line style before the refetch lands and the shape
+  // reverts. Cleared whenever a new workspaceSettings object arrives, which is
+  // the moment the server value becomes authoritative again.
+  const [local, setLocal] = useState({});
+  useEffect(() => { setLocal({}); }, [workspaceSettings]);
+  const cat = (name) => local[name] || workspaceSettings[name] || {};
+
+  const setKey = (name, key, value) => savePatch(name, { [key]: value });
+  const savePatch = (name, patch) => {
     if (!canEdit || !workspaceId) return;
-    const merged = { ...(settings[cat] || {}), ...patch };
+    const merged = { ...cat(name), ...patch };
     // Prune empties so the hardcoded fallback shines through.
     for (const k of Object.keys(merged)) {
       if (merged[k] === null || merged[k] === undefined || merged[k] === '') delete merged[k];
     }
+    setLocal((prev) => ({ ...prev, [name]: merged }));
     save(async () => {
-      await updateWorkspaceSettings(workspaceId, { [cat]: merged });
+      await updateWorkspaceSettings(workspaceId, { [name]: merged });
       refresh?.();
     });
   };
@@ -158,20 +169,20 @@ export function CardDefaultsTab({ workspaceId, role, workspaceSettings, refresh 
       <SettingsCategory title="Notes" desc="When you create a sticky note">
         <Field label="Background">
           <SwatchInput
-            value={settings.note?.bgColor ?? null}
+            value={cat('note').bgColor ?? null}
             fallback={HARDCODED_FALLBACKS.note.bgColor}
             disabled={disabled}
             onChange={(v) => setKey('note', 'bgColor', v)} />
         </Field>
         <Field label="Text color">
           <SwatchInput
-            value={settings.note?.textColor ?? null}
+            value={cat('note').textColor ?? null}
             fallback={HARDCODED_FALLBACKS.note.textColor}
             disabled={disabled}
             onChange={(v) => setKey('note', 'textColor', v)} />
         </Field>
         <Field label="Font">
-          <FontField value={settings.note?.fontFamily ?? null}
+          <FontField value={cat('note').fontFamily ?? null}
                      disabled={disabled}
                      onChange={(v) => setKey('note', 'fontFamily', v)} />
         </Field>
@@ -179,7 +190,7 @@ export function CardDefaultsTab({ workspaceId, role, workspaceSettings, refresh 
           <input type="number" min="8" max="36"
                  className="settings-input"
                  placeholder="12.5"
-                 value={settings.note?.fontSize ?? ''}
+                 value={cat('note').fontSize ?? ''}
                  disabled={disabled}
                  onChange={(e) => {
                    const v = e.target.value;
@@ -192,7 +203,7 @@ export function CardDefaultsTab({ workspaceId, role, workspaceSettings, refresh 
       <SettingsCategory title="Clusters" desc="When you create a new cluster">
         <Field label="Default view">
           <select className="settings-input"
-                  value={settings.board?.view ?? 'canvas'}
+                  value={cat('board').view ?? 'canvas'}
                   disabled={disabled}
                   onChange={(e) => setKey('board', 'view', e.target.value)}>
             <option value="canvas">Canvas</option>
@@ -204,24 +215,34 @@ export function CardDefaultsTab({ workspaceId, role, workspaceSettings, refresh 
       {/* DOCS */}
       <SettingsCategory title="Docs" desc="When you create a new doc">
         <Field label="Font">
-          <FontField value={settings.doc?.fontFamily ?? null}
+          <FontField value={cat('doc').fontFamily ?? null}
                      disabled={disabled}
                      onChange={(v) => setKey('doc', 'fontFamily', v)} />
         </Field>
       </SettingsCategory>
 
-      {/* SHAPES */}
+      {/* SHAPES. Kind and line style are read by the add-shape mutator exactly
+          like stroke/fill/width below — they just never had a control, so the
+          workspace could set three of the five things a new shape starts as. */}
       <SettingsCategory title="Shapes" desc="When you draw a shape">
+        <Field label="Shape">
+          <select className="settings-input"
+                  value={cat('shape').shape ?? HARDCODED_FALLBACKS.shape.shape}
+                  disabled={disabled}
+                  onChange={(e) => setKey('shape', 'shape', e.target.value)}>
+            {SHAPES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+          </select>
+        </Field>
         <Field label="Stroke">
           <SwatchInput
-            value={settings.shape?.stroke ?? null}
+            value={cat('shape').stroke ?? null}
             fallback={HARDCODED_FALLBACKS.shape.stroke}
             disabled={disabled}
             onChange={(v) => setKey('shape', 'stroke', v)} />
         </Field>
         <Field label="Fill">
           <SwatchInput
-            value={settings.shape?.fill ?? null}
+            value={cat('shape').fill ?? null}
             fallback={HARDCODED_FALLBACKS.shape.fill}
             allowTransparent
             disabled={disabled}
@@ -230,9 +251,17 @@ export function CardDefaultsTab({ workspaceId, role, workspaceSettings, refresh 
         <Field label="Stroke width">
           <input type="number" min="1" max="12"
                  className="settings-input"
-                 value={settings.shape?.strokeWidth ?? HARDCODED_FALLBACKS.shape.strokeWidth}
+                 value={cat('shape').strokeWidth ?? HARDCODED_FALLBACKS.shape.strokeWidth}
                  disabled={disabled}
                  onChange={(e) => setKey('shape', 'strokeWidth', Number(e.target.value) || 2)} />
+        </Field>
+        <Field label="Line style">
+          <select className="settings-input"
+                  value={cat('shape').dash ?? HARDCODED_FALLBACKS.shape.dash}
+                  disabled={disabled}
+                  onChange={(e) => setKey('shape', 'dash', e.target.value)}>
+            {DASH_STYLES.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+          </select>
         </Field>
       </SettingsCategory>
     </div>

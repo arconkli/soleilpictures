@@ -8,7 +8,7 @@
 import { updateOwnSettings } from '../../lib/boardsApi.js';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
-import { applyThemeNow } from '../../lib/theme.js';
+import { applyThemeNow, osPrefersLight } from '../../lib/theme.js';
 import { WHEEL_MODES, getWheelMode, applyWheelModeNow } from '../../lib/wheelMode.js';
 import { Field, Toggle, SettingsCategory, AccentPicker, FontField } from './fields.jsx';
 import { useSettingsSave } from './saveState.jsx';
@@ -16,6 +16,14 @@ import { useSettingsSave } from './saveState.jsx';
 // Cmd on a Mac, Ctrl everywhere else — the copy has to name the key the reader
 // actually has. Same derivation as ShortcutsOverlay.
 const WHEEL_CMD = (typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '')) ? '⌘' : 'Ctrl';
+
+// `null` first, because it is the state you are in before you ever touch this
+// and the one the app is designed around — not a fallback for the other two.
+const THEME_MODES = [
+  { id: null,    label: 'System' },
+  { id: 'light', label: 'Light' },
+  { id: 'dark',  label: 'Dark' },
+];
 
 export function AppearanceTab({ mySettings, refresh }) {
   const save = useSettingsSave();
@@ -30,10 +38,14 @@ export function AppearanceTab({ mySettings, refresh }) {
   // the same shared path the topbar quick toggle uses — so the two controls
   // and the next remount/cold-load can never disagree. setUi then persists
   // the choice server-side.
-  const applyTheme = (theme) => {
-    if (!theme) return;
-    applyThemeNow(theme);
-    setUi({ theme });
+  //
+  // `null` is a real choice meaning "follow the OS", and it must persist AS
+  // null: it is the absence of an explicit theme that lets resolveTheme() and
+  // the matchMedia listener in App.jsx take over. Keep this in step with
+  // setTheme() there — same rule, two callers.
+  const applyTheme = (choice) => {
+    applyThemeNow(choice);
+    setUi({ theme: choice });
   };
 
   // getWheelMode() rather than ui.wheelMode: the module is what the canvas
@@ -49,16 +61,26 @@ export function AppearanceTab({ mySettings, refresh }) {
       </p>
 
       <SettingsCategory title="Theme" desc="How the app is painted">
+        {/* Three states, because there have always BEEN three: an explicit
+            light or dark, or no choice at all, which follows the OS. Only two
+            pills shipped, and "no choice" was drawn as Dark — so somebody on a
+            light Mac saw a light app with Dark highlighted, and the first click
+            on either pill locked them out of OS-following for good. */}
         <Field label="Mode">
           <div className="settings-pill-row">
-            <button type="button"
-                    className={`settings-pill ${ui.theme === 'dark' || !ui.theme ? 'is-active' : ''}`}
-                    onClick={() => applyTheme('dark')}>Dark</button>
-            <button type="button"
-                    className={`settings-pill ${ui.theme === 'light' ? 'is-active' : ''}`}
-                    onClick={() => applyTheme('light')}>Light</button>
+            {THEME_MODES.map((m) => (
+              <button key={m.id || 'system'} type="button"
+                      className={`settings-pill ${(ui.theme ?? null) === m.id ? 'is-active' : ''}`}
+                      onClick={() => applyTheme(m.id)}>{m.label}</button>
+            ))}
           </div>
         </Field>
+        {(ui.theme ?? null) === null && (
+          <p className="settings-section-hint">
+            Following your system — Clusters is {osPrefersLight() ? 'light' : 'dark'} right
+            {' '}now and switches when your device does.
+          </p>
+        )}
 
         <Field label="Accent">
           <AccentPicker value={ui.accent || null} onChange={(v) => setUi({ accent: v })} />
