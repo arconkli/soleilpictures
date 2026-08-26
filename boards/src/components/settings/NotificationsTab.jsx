@@ -94,12 +94,6 @@ export function NotificationsTab({ user }) {
         onChange={(v) => togglePref('email_schedule', v)} />
 
       <Toggle
-        label="Share link activity"
-        desc="When someone opens a cluster you shared. A count, never who they were — they never signed in. At most one a day, and only if you're not already in the app."
-        value={isOn('email_share_activity')}
-        onChange={(v) => togglePref('email_share_activity', v)} />
-
-      <Toggle
         label="Product tips & check-ins"
         desc="Occasional nudges to help you get started and get back in when it's been a while."
         value={isOn('email_lifecycle')}
