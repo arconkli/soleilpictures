@@ -24276,7 +24276,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The rail is grouped into two halves, and which half a setting is in tells you who it affects."
+     "v": "The rail is grouped, and which group a setting is in tells you who it affects."
     }
    ]
   },
@@ -24635,35 +24635,64 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ". Each token gets a name, an "
+      "v": ". Connecting an AI assistant usually needs no token at all, so the "
      },
      {
-      "t": "strong",
-      "v": "Allow writes",
+      "t": "link",
+      "v": "MCP",
+      "href": "/docs/mcp",
       "children": [
        {
         "t": "text",
-        "v": "Allow writes"
+        "v": "MCP"
        }
       ]
      },
      {
       "t": "text",
-      "v": " checkbox and an "
+      "v": " endpoint is offered first, ready to copy. Each token gets a name and one of three levels — "
      },
      {
       "t": "strong",
-      "v": "Allow deletes",
+      "v": "Read only",
       "children": [
        {
         "t": "text",
-        "v": "Allow deletes"
+        "v": "Read only"
        }
       ]
      },
      {
       "t": "text",
-      "v": " checkbox — leave both off for a read-only token. The token value is shown "
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Read & write",
+      "children": [
+       {
+        "t": "text",
+        "v": "Read & write"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or "
+     },
+     {
+      "t": "strong",
+      "v": "Full access",
+      "children": [
+       {
+        "t": "text",
+        "v": "Full access"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", which is the only one that can delete. The token value is shown "
      },
      {
       "t": "strong",
@@ -25009,6 +25038,77 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Help",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Help"
+    }
+   ],
+   "id": "help"
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Documentation",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Documentation"
+    }
+   ],
+   "id": "documentation"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A searchable index of every page on this site, grouped the way the docs site is grouped, with a one-line summary under each. Type into the box to filter — it matches headings as well as page titles, so \"scroll wheel\" finds the "
+    },
+    {
+     "t": "link",
+     "v": "keyboard shortcuts",
+     "href": "/docs/keyboard-shortcuts",
+     "children": [
+      {
+       "t": "text",
+       "v": "keyboard shortcuts"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " page even though no page is called that."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every link opens in a "
+    },
+    {
+     "t": "strong",
+     "v": "new tab",
+     "children": [
+      {
+       "t": "text",
+       "v": "new tab"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so following one never costs you what is on your canvas."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Sign out",
    "inline": [
     {
@@ -25023,7 +25123,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "At the foot of the rail, under both groups. It asks first, and names the account it is about to sign out of."
+     "v": "At the foot of the rail, under every group. It asks first, and names the account it is about to sign out of."
     }
    ]
   },
@@ -29341,21 +29441,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Tick "
+     "v": ". Choose "
     },
     {
      "t": "strong",
-     "v": "Allow writes",
+     "v": "Read & write",
      "children": [
       {
        "t": "text",
-       "v": "Allow writes"
+       "v": "Read & write"
       }
      ]
     },
     {
      "t": "text",
-     "v": " if you intend to change anything. Copy it immediately — it is shown once."
+     "v": " if you intend to change anything, "
+    },
+    {
+     "t": "strong",
+     "v": "Read only",
+     "children": [
+      {
+       "t": "text",
+       "v": "Read only"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " if not. Copy it immediately — it is shown once."
     }
    ]
   },
@@ -30015,18 +30129,50 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "text",
+     "v": "Then choose what it may do — "
+    },
+    {
      "t": "strong",
-     "v": "Allow writes",
+     "v": "Read only",
      "children": [
       {
        "t": "text",
-       "v": "Allow writes"
+       "v": "Read only"
       }
      ]
     },
     {
      "t": "text",
-     "v": " is the only scope control. Leave it off for anything that only needs to read."
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Read & write",
+     "children": [
+      {
+       "t": "text",
+       "v": "Read & write"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or "
+    },
+    {
+     "t": "strong",
+     "v": "Full access",
+     "children": [
+      {
+       "t": "text",
+       "v": "Full access"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Read only is the right choice unless you know you need more; full access is the only one that can delete, and is worth withholding from an AI assistant unless you specifically want it able to throw things away. Deletes are recoverable, but you would have to notice first."
     }
    ]
   },

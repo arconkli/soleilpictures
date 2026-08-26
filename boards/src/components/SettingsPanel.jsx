@@ -33,6 +33,7 @@ import { ConnectionsTab } from './settings/ConnectionsTab.jsx';
 import { BillingTab } from './settings/BillingTab.jsx';
 import { InviteTab } from './settings/InviteTab.jsx';
 import { WorkspaceGeneralTab, CardDefaultsTab } from './settings/WorkspaceTab.jsx';
+import { DocsTab } from './settings/DocsTab.jsx';
 
 // `group` decides which heading a tab sits under. Ids are load-bearing beyond
 // this file — `?settings=billing` is the Stripe Customer Portal's return_url
@@ -47,11 +48,13 @@ const TABS = [
   { id: 'invite',        label: 'Invite & earn',  group: 'you' },
   { id: 'general',       label: 'General',        group: 'workspace' },
   { id: 'defaults',      label: 'Card defaults',  group: 'workspace' },
+  { id: 'docs',          label: 'Documentation',  group: 'help' },
 ];
 
 const GROUPS = [
   { id: 'you',       label: 'You' },
   { id: 'workspace', label: 'This workspace' },
+  { id: 'help',      label: 'Help' },
 ];
 
 // Tabs that merged into another one. A stale deep-link should land somewhere
@@ -236,6 +239,9 @@ export function SettingsPanel({
                                  role={role}
                                  workspaceSettings={workspaceSettings}
                                  refresh={refresh} />
+              )}
+              {tab === 'docs' && (
+                <DocsTab />
               )}
             </SettingsSaveProvider>
           </div>

@@ -283,19 +283,36 @@ function ConnectedApps({ user, feedback }) {
   );
 }
 
+// The three things a token can be allowed to do. The database normalizes
+// scopes anyway (delete implies write, read is always granted), so the UI only
+// has to model the intent — and one choice models it better than the two
+// checkboxes this replaced, which silently drove each other: ticking "allow
+// deletes" reached over and ticked "allow writes" for you.
+const SCOPE_LEVELS = [
+  {
+    id: 'read', label: 'Read only', scopes: ['read'],
+    hint: 'Can list and read everything you can already see. Cannot change anything. This is the right choice unless you know you need more.',
+  },
+  {
+    id: 'write', label: 'Read & write', scopes: ['read', 'write'],
+    hint: 'Can also create clusters and cards, and change the ones that are there. Cannot delete anything.',
+  },
+  {
+    id: 'delete', label: 'Full access', scopes: ['read', 'write', 'delete'],
+    hint: 'Can also remove cards and clusters. Leave this off for an AI assistant unless you specifically want it able to throw things away — deletes are recoverable, but you would have to notice first.',
+  },
+];
+
 function ApiSection({ user }) {
   const feedback = useFeedback();
   const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
-  // Two boxes, not one, because "may add to my boards" and "may destroy them"
-  // are different decisions — especially when the token is going to an AI
-  // assistant. The database normalizes the rest (delete implies write, read is
-  // always granted), so this only has to model the intent.
-  const [canWrite, setCanWrite] = useState(false);
-  const [canDelete, setCanDelete] = useState(false);
+  const [level, setLevel] = useState('read');
   const [minting, setMinting] = useState(false);
   const [fresh, setFresh] = useState(null);   // { token, prefix } — shown once
+
+  const mcpUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/mcp`;
 
   const load = async () => {
     const { data, error } = await supabase.rpc('api_token_list');
@@ -308,9 +325,7 @@ function ApiSection({ user }) {
     e.preventDefault();
     if (minting) return;
     setMinting(true);
-    const scopes = ['read'];
-    if (canWrite || canDelete) scopes.push('write');
-    if (canDelete) scopes.push('delete');
+    const scopes = (SCOPE_LEVELS.find((l) => l.id === level) || SCOPE_LEVELS[0]).scopes;
     const { data, error } = await supabase.rpc('api_token_mint', {
       p_name: name.trim() || 'API token',
       p_scopes: scopes,
@@ -324,8 +339,7 @@ function ApiSection({ user }) {
     const row = Array.isArray(data) ? data[0] : data;
     setFresh({ token: row?.token, prefix: row?.prefix });
     setName('');
-    setCanWrite(false);
-    setCanDelete(false);
+    setLevel('read');
     load();
   };
 
@@ -349,32 +363,42 @@ function ApiSection({ user }) {
     load();
   };
 
-  const copy = async (text) => {
+  const copy = async (text, what) => {
     try {
       await navigator.clipboard.writeText(text);
-      feedback.toast({ type: 'success', message: 'Token copied.' });
+      feedback.toast({ type: 'success', message: `${what} copied.` });
     } catch (_) {
-      feedback.toast({ type: 'error', message: 'Couldn’t copy — select the token and copy it manually.' });
+      feedback.toast({ type: 'error', message: `Couldn’t copy — select the ${what.toLowerCase()} and copy it manually.` });
     }
   };
 
   const active = tokens.filter((t) => !t.revoked_at);
+  const levelInfo = SCOPE_LEVELS.find((l) => l.id === level) || SCOPE_LEVELS[0];
 
   return (
     <>
       <p className="settings-section-hint">
-        Drive your boards from your own software, or connect an AI assistant.
+        Drive your clusters from your own software, or connect an AI assistant.
         {' '}A token acts as you — it can reach exactly what you can reach, and
         {' '}nothing more.
       </p>
-      <p className="settings-section-hint">
-        {/* Said first because for most people it is the right answer and it
-            skips this entire screen. A token is for your own scripts. */}
-        <b>Connecting an AI assistant?</b> You probably do not need a token — point it at{' '}
-        <code>{typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/mcp</code>
-        {' '}and approve it in the browser. See the{' '}
-        <a href="/docs/mcp" target="_blank" rel="noreferrer noopener">MCP setup</a>.
-      </p>
+
+      {/* First, because for most people it is the answer and it skips this
+          entire screen. A token is for your own scripts. */}
+      <div className="settings-callout">
+        <div className="settings-callout-title">Connecting an AI assistant?</div>
+        <p>You probably do not need a token. Point it at this endpoint and approve it in the browser.</p>
+        <div className="api-token-row" style={{ marginTop: 8 }}>
+          <input readOnly value={mcpUrl} onFocus={(e) => e.target.select()}
+                 aria-label="MCP endpoint" className="api-token-value" />
+          <button type="button" className="settings-btn"
+                  onClick={() => copy(mcpUrl, 'Endpoint')}>Copy</button>
+        </div>
+        <p>
+          <a href="/docs/mcp" target="_blank" rel="noreferrer noopener">Read the MCP setup</a>
+          {' '}for the exact steps in Claude, Cursor and the rest.
+        </p>
+      </div>
 
       {fresh?.token && (
         <div className="api-token-fresh">
@@ -387,7 +411,7 @@ function ApiSection({ user }) {
             <input readOnly value={fresh.token} onFocus={(e) => e.target.select()}
                    aria-label="Your new API token" className="api-token-value" />
             <button type="button" className="settings-btn settings-btn-primary"
-                    onClick={() => copy(fresh.token)}>Copy</button>
+                    onClick={() => copy(fresh.token, 'Token')}>Copy</button>
             <button type="button" className="settings-btn" onClick={() => setFresh(null)}>Done</button>
           </div>
         </div>
@@ -408,41 +432,37 @@ function ApiSection({ user }) {
             {minting ? 'Creating…' : 'Create token'}
           </button>
         </div>
-        <label className="api-token-scope">
-          <input type="checkbox" checked={canWrite || canDelete}
-                 onChange={(e) => { setCanWrite(e.target.checked); if (!e.target.checked) setCanDelete(false); }} />
-          <span>
-            <b>Allow writes.</b> Create boards, add cards and change them.
-            {' '}Without this the token can only read.
-          </span>
-        </label>
-        <label className="api-token-scope">
-          {/* Ticking this implies writes, so the box above follows it rather
-              than letting someone build a token that may destroy but not edit. */}
-          <input type="checkbox" checked={canDelete}
-                 onChange={(e) => { setCanDelete(e.target.checked); if (e.target.checked) setCanWrite(true); }} />
-          <span>
-            <b>Allow deletes.</b> Remove cards and boards. Leave this off for an AI
-            {' '}assistant unless you specifically want it able to throw things away —
-            {' '}deletes are recoverable, but you would have to notice first.
-          </span>
-        </label>
+        <div className="settings-pill-row" style={{ marginTop: 10 }} role="radiogroup" aria-label="What this token may do">
+          {SCOPE_LEVELS.map((l) => (
+            <button key={l.id} type="button" role="radio" aria-checked={level === l.id}
+                    className={`settings-pill ${level === l.id ? 'is-active' : ''}`}
+                    onClick={() => setLevel(l.id)}>
+              {l.label}
+            </button>
+          ))}
+        </div>
+        <p className="settings-section-hint" style={{ marginTop: 8 }}>{levelInfo.hint}</p>
       </form>
 
       <div className="settings-billing-label" style={{ marginTop: 22 }}>Your tokens</div>
       {loading ? (
         <div className="settings-empty" style={{ marginTop: 8 }}>Loading…</div>
       ) : !active.length ? (
-        <div className="settings-empty" style={{ marginTop: 8 }}>No tokens yet.</div>
+        <p className="settings-section-hint" style={{ marginTop: 8 }}>
+          None yet. Tokens you create appear here with what they can do and when
+          {' '}they were last used, so you can revoke one you no longer recognise.
+        </p>
       ) : (
         <div style={{ marginTop: 8 }}>
           {active.map((t) => (
             <div key={t.id} className="api-token-item">
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 500 }}>{t.name}</div>
+                <div className="api-token-name">
+                  <span className="api-token-title">{t.name}</span>
+                  <ScopePill scopes={t.scopes} />
+                </div>
                 <div className="api-token-meta">
                   <code>{t.prefix}…</code>
-                  {' · '}{scopeLabel(t.scopes)}
                   {' · '}{t.last_used_at
                     ? `last used ${new Date(t.last_used_at).toLocaleDateString()}`
                     : 'never used'}
@@ -464,12 +484,20 @@ function ApiSection({ user }) {
       <p className="settings-section-hint" style={{ marginTop: 18 }}>
         Base URL <code>/api/v1</code>, sent as <code>Authorization: Bearer …</code>.
         {' '}Read the{' '}
-        <a href="/docs/api" target="_blank" rel="noreferrer noopener">API reference</a>,
-        {' '}the{' '}
-        <a href="/docs/mcp" target="_blank" rel="noreferrer noopener">MCP setup</a>
-        {' '}for AI assistants, or the{' '}
+        <a href="/docs/api" target="_blank" rel="noreferrer noopener">API reference</a>
+        {' '}or the{' '}
         <a href="/api/v1/openapi.json" target="_blank" rel="noreferrer noopener">OpenAPI spec</a>.
       </p>
     </>
   );
+}
+
+// What a token can do, at a glance. Delete is called out in red because a
+// credential that can destroy work is a different kind of thing from one that
+// can only add to it — and this list is where you decide whether to revoke.
+function ScopePill({ scopes }) {
+  const s = Array.isArray(scopes) ? scopes : [];
+  const kind = s.includes('delete') ? 'delete' : s.includes('write') ? 'write' : 'read';
+  const text = kind === 'delete' ? 'full access' : kind === 'write' ? 'read + write' : 'read only';
+  return <span className={`api-token-scopepill is-${kind}`}>{text}</span>;
 }

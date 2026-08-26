@@ -20,8 +20,11 @@ the audit trail applies to both.
 **Settings → Connections → New token.** Give it a name that says where it will be used,
 so you know which one to revoke later.
 
-**Allow writes** is the only scope control. Leave it off for anything that only
-needs to read.
+Then choose what it may do — **Read only**, **Read & write**, or **Full
+access**. Read only is the right choice unless you know you need more; full
+access is the only one that can delete, and is worth withholding from an AI
+assistant unless you specifically want it able to throw things away. Deletes
+are recoverable, but you would have to notice first.
 
 The token is displayed **once**, at creation. It is the prefix
 `undefined` followed by 40 hexadecimal characters — 160 bits of
