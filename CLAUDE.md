@@ -116,6 +116,20 @@ Other deploy targets:
 After shipping SEO-relevant changes, bump the `build_min` row in
 `seo_health_expectations` (see `supabase/functions/seo-health/index.ts`).
 
+### The prober asserts on real strings from this repo
+
+`seo_health_expectations` rows are live production checks, and the `body` ones
+assert **exact, case-sensitive substrings** of pages built from
+`boards/content/**` and `src/lib/seo*`. Rewrite the prose and the check goes
+red six hours later blaming the AI crawlers — which is what happened on
+2026-08-26 when a changelog headline moved a phrase mid-sentence.
+
+`boards/src/lib/seoProbeContract.js` mirrors those rows, and
+`seoProbeContract.test.mjs` fails the build naming the row to update. If it goes
+red, reconcile the row — deleting the contract entry just restores the blind
+spot. Expectations stay in the DB (a deploy must never be able to self-certify),
+so the contract is checked at test time only and never feeds the prober.
+
 ---
 
 ## House conventions
