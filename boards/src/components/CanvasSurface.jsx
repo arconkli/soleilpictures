@@ -63,7 +63,7 @@ import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideo
 import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
 import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
-import { eraseStrokes, readCardStrokes } from '../lib/strokeModel.js';
+import { eraseStrokes, readCardStrokes, strokeInPolygon } from '../lib/strokeModel.js';
 import { notePointerType, pointerCanDraw } from '../lib/pointerPolicy.js';
 import { toPathD, polylinePathD, isFilledPath, strokeOpacity, strokeBlendMode, strokeLineCap } from '../lib/strokeRender.js';
 import { DEFAULT_BRUSH } from '../lib/strokeModel.js';
@@ -6094,6 +6094,47 @@ export function CanvasSurface({
         }
         return bestScore > pts.length / 2 ? best : null;
       };
+      // Lasso — circle strokes to select them.
+      //
+      // This is the ONLY way a finger can select strokes at all: one-finger
+      // touch on the select tool is routed to panning (see the touch branch
+      // further down), so the marquee has always been mouse- and stylus-only.
+      if (drawOptions.mode === 'lasso') {
+        const addPoint = (cx, cy) => {
+          const p = clientToCanvas(cx, cy);
+          const last = points[points.length - 1];
+          if (Math.hypot(p.x - last[0], p.y - last[1]) < minStep) return;
+          points.push([Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10]);
+        };
+        setActiveStroke({ lasso: true, points: [...points] });
+        disposeStroke = trackStroke({
+          pointerId: e.pointerId,
+          onSample: (ev) => {
+            for (const s of coalescedOf(ev)) addPoint(s.clientX, s.clientY);
+            setActiveStroke({ lasso: true, points: [...points] });
+          },
+          onEnd: () => {
+            endGesture();
+            // A polygon needs three points; a tap is a deselect.
+            if (!aborted) {
+              const picked = new Set();
+              if (points.length > 2) {
+                (strokes || []).forEach((s, i) => { if (strokeInPolygon(s, points)) picked.add(i); });
+              }
+              setSelected(new Set());
+              setSelectedArrows(new Set());
+              setSelectedStrokes(picked);
+              // Hand straight over to the select tool: that is what makes the
+              // transform handles live (strokes are only interactive under
+              // select), so a lasso that left you in draw mode would select
+              // things you then couldn't touch.
+              if (picked.size) setSelectedTool('select');
+            }
+            setActiveStroke(null);
+          },
+        });
+        return;
+      }
       if (drawOptions.mode === 'eraser') {
         const radius = Math.max(4, (drawOptions.eraserWidth || ERASER_DEFAULT_WIDTH) / 2);
         setActiveStroke({ color: 'rgba(239,68,68,.75)', width: radius * 2, points: [...points], eraser: true });
@@ -9397,7 +9438,18 @@ export function CanvasSurface({
               </g>
             );
           })}
-          {activeStroke && <StrokePath s={activeStroke} pointerEvents="none" />}
+          {/* The lasso is a closed dashed loop with a faint wash, not a stroke —
+              it is a selection gesture and must not read as ink you just drew. */}
+          {activeStroke?.lasso && activeStroke.points.length > 1 && (
+            <path d={`${polylinePathD(activeStroke.points)} Z`}
+                  fill="rgba(245,158,11,.10)"
+                  stroke="rgba(245,158,11,.9)"
+                  strokeWidth={1.5 / zoom}
+                  strokeDasharray={`${6 / zoom} ${4 / zoom}`}
+                  strokeLinejoin="round"
+                  pointerEvents="none" />
+          )}
+          {activeStroke && !activeStroke.lasso && <StrokePath s={activeStroke} pointerEvents="none" />}
           {/* Live eraser ring at the contact point. The size-accurate eraser
               CURSOR above it is a CSS cursor, which does not exist on a touch
               screen — a finger erasing had no indication of its radius at all,

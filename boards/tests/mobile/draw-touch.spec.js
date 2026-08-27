@@ -84,6 +84,47 @@ test.describe('board', () => {
     expect(bar.height).toBeLessThan(120);
   });
 
+  test('a finger can select strokes with the lasso', async ({ page }) => {
+    // The reason the lasso exists: one-finger touch on the select tool pans, so
+    // the marquee is mouse/stylus-only and a finger could not select anything.
+    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await fingerStroke(page, '.canvas-wrap', { from: { x: 200, y: 300 }, to: { x: 280, y: 340 } });
+    await page.waitForTimeout(250);
+    expect(await page.locator('.strokes-layer path').count()).toBe(2);
+
+    await page.getByRole('button', { name: 'Lasso' }).click();
+    await page.waitForTimeout(150);
+    // Trace a loop around it with one finger.
+    await page.evaluate(async () => {
+      const el = document.querySelector('.canvas-wrap');
+      const r = el.getBoundingClientRect();
+      // Canvas-relative, exactly like fingerStroke — the stroke sits at
+      // (200,300)-(280,340) in this space, so the loop has to be in it too.
+      const loop = [[160, 260], [320, 260], [320, 380], [160, 380], [160, 265]]
+        .map(([x, y]) => [r.left + x, r.top + y]);
+      const ev = (type, x, y, extra = {}) => new PointerEvent(type, {
+        bubbles: true, cancelable: true, composed: true, pointerId: 7,
+        pointerType: 'touch', isPrimary: true, button: 0, buttons: 1,
+        clientX: x, clientY: y, ...extra,
+      });
+      el.dispatchEvent(ev('pointerdown', loop[0][0], loop[0][1]));
+      for (let i = 1; i < loop.length; i++) {
+        const [ax, ay] = loop[i - 1], [bx, by] = loop[i];
+        for (let s = 1; s <= 8; s++) {
+          window.dispatchEvent(ev('pointermove', ax + (bx - ax) * s / 8, ay + (by - ay) * s / 8));
+          await new Promise(requestAnimationFrame);
+        }
+      }
+      window.dispatchEvent(ev('pointerup', loop.at(-1)[0], loop.at(-1)[1], { buttons: 0 }));
+      await new Promise(requestAnimationFrame);
+    });
+    await page.waitForTimeout(300);
+
+    // Selected: the stroke gains its selection ring, and the tool hands over.
+    expect(await page.locator('.strokes-layer path').count()).toBe(3);
+    await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-select/);
+  });
+
   test('the sketch pad is reachable from the draw options', async ({ page }) => {
     await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
     const canvasBtn = page.locator('.tob-canvas-btn');
