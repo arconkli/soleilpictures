@@ -14,6 +14,8 @@ import {
 } from '../lib/editorSelection.js';
 import { useRecentColors } from '../hooks/useRecentColors.js';
 import { addRecentColor } from '../lib/recentColors.js';
+import { usePointerPolicy } from '../hooks/usePointerPolicy.js';
+import { setDrawWithFinger } from '../lib/pointerPolicy.js';
 // Shared with Settings → Card defaults → Shapes, so the default you set is
 // always a shape this bar can actually render.
 import { SHAPES, DASH_STYLES } from '../lib/shapeOptions.js';
@@ -383,6 +385,7 @@ export function ToolOptionsBar({
   onUndo,               // global Yjs undo — surfaced as a toolbar button on Draw
 }) {
   const recentColors = useRecentColors();
+  const pointerPolicy = usePointerPolicy();
   const openPickerAt = (e, opts) => {
     if (!openColorPicker) return;
     const r = e.currentTarget.getBoundingClientRect();
@@ -452,6 +455,23 @@ export function ToolOptionsBar({
                   className={isEraser ? 'is-active' : ''}
                   onClick={() => setDrawOptions({ ...drawOptions, mode: 'eraser' })}>Eraser</button>
         </div>
+        {/* Only meaningful once the device has proven it has a stylus — before
+            that the finger is the only way to draw and a toggle offering to
+            turn that off is a trap. See lib/pointerPolicy.js. */}
+        {pointerPolicy.stylus && (
+          <>
+            <span className="tob-sep" />
+            <button className={`tob-action tob-toggle ${pointerPolicy.fingerDraws ? 'is-active' : ''}`}
+                    role="switch"
+                    aria-checked={pointerPolicy.fingerDraws}
+                    title={pointerPolicy.fingerDraws
+                      ? 'Your finger draws. Turn off to let it pan while the stylus draws.'
+                      : 'Your finger pans and only the stylus draws. Turn on to draw with either.'}
+                    onClick={() => setDrawWithFinger(!pointerPolicy.fingerDraws)}>
+              Draw with finger
+            </button>
+          </>
+        )}
         {!isEraser && (
           <>
             <span className="tob-sep" />
