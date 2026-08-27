@@ -6,6 +6,7 @@ import { getOrCreateMyReferralCode, getMyReferralStats } from '../../lib/boardsA
 import { logEvent, logEventNow } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { logClientError } from '../../lib/errorReporting.js';
+import { describeReason } from '../../lib/describeReason.js';
 import { REFERRAL_PITCH, referralMessage, buildShareTargets } from '../../lib/shareTargets.js';
 import { useFeedback } from '../AppFeedback.jsx';
 
@@ -38,10 +39,10 @@ export function InviteTab({ user }) {
       .then(([codeRes, statsRes]) => {
         if (cancelled) return;
         if (codeRes.status === 'rejected') {
-          try { logClientError(codeRes.reason instanceof Error ? codeRes.reason : new Error(String(codeRes.reason)), { kind: 'referral', op: 'get_or_create_my_referral_code' }); } catch (_) {}
+          try { logClientError(describeReason(codeRes.reason, 'referral code'), { kind: 'referral', op: 'get_or_create_my_referral_code' }); } catch (_) {}
         }
         if (statsRes.status === 'rejected') {
-          try { logClientError(statsRes.reason instanceof Error ? statsRes.reason : new Error(String(statsRes.reason)), { kind: 'referral', op: 'get_my_referral_stats' }); } catch (_) {}
+          try { logClientError(describeReason(statsRes.reason, 'referral stats'), { kind: 'referral', op: 'get_my_referral_stats' }); } catch (_) {}
         }
         const c = codeRes.status === 'fulfilled' ? codeRes.value : null;
         const s = statsRes.status === 'fulfilled' ? statsRes.value : null;
@@ -54,7 +55,7 @@ export function InviteTab({ user }) {
       })
       .catch((e) => {
         if (cancelled) return;
-        try { logClientError(e instanceof Error ? e : new Error(String(e)), { kind: 'referral', op: 'invite_tab_load' }); } catch (_) {}
+        try { logClientError(describeReason(e, 'invite tab load'), { kind: 'referral', op: 'invite_tab_load' }); } catch (_) {}
         setErr(true);
         setLoading(false);
       });

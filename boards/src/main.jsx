@@ -10,6 +10,7 @@ import { preloadRecentGoogleFonts } from './lib/googleFonts.js';
 import { getRecentFonts } from './lib/customFonts.js';
 import { captureFbclid, installSpaPageViews } from './lib/metaPixel.js';
 import { logClientError } from './lib/errorReporting.js';
+import { describeReason } from './lib/describeReason.js';
 import { initPerfReport } from './lib/perfReport.js';
 import { lazyWithReload } from './lib/lazyWithReload.js';
 import './styles/breakpoints.css';
@@ -49,8 +50,11 @@ const ResumePage      = lazyWithReload(() => import('./pages/ResumePage.jsx').th
 if (typeof window !== 'undefined') {
   window.addEventListener('error', (e) =>
     logClientError(e?.error || new Error(e?.message || 'window.onerror'), { kind: 'window' }));
+  // describeReason keeps the real Error (and its stack) when there is one, and
+  // otherwise unpacks the shape — Supabase PostgrestError, fetch Response,
+  // socket CloseEvent — instead of stringifying it to "[object Object]".
   window.addEventListener('unhandledrejection', (e) =>
-    logClientError(e?.reason instanceof Error ? e.reason : new Error(`Unhandled rejection: ${String(e?.reason)}`), { kind: 'unhandledrejection' }));
+    logClientError(describeReason(e?.reason), { kind: 'unhandledrejection' }));
 
   // Always-on field jank telemetry (longtasks + interaction-time low fps) →
   // client_errors kind='perf', hard-capped. See lib/perfReport.js.

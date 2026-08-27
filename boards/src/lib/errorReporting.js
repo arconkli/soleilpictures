@@ -18,6 +18,11 @@ const PUBLIC_KEY  = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 const SESSION_KEY = 'soleil_session_id';   // shared with analytics.js → stitch errors to the funnel
 const RELEASE     = import.meta.env.VITE_RELEASE || null;
 
+// describeReason lives in its own module: this file reads import.meta.env at
+// module scope, which makes it unimportable from `node --test`. Re-exported
+// here so `import { describeReason } from './errorReporting.js'` keeps working.
+export { describeReason } from './describeReason.js';
+
 let cachedUserId = null;
 const _seen = new Set();   // collapse identical errors within a page load (avoid floods)
 
@@ -67,6 +72,11 @@ function isNoise(message, stack) {
   if (/Object Not Found Matching Id:\d+/i.test(m)) return true;
   if (/__firefox__/.test(s + m)) return true;
   if (/window\.ethereum|\bselectedAddress\b|Cannot redefine property: ethereum/i.test(m)) return true;
+  // Cloudflare's own Web Analytics beacon, failing inside its own bundle on
+  // ancient browsers ("t.entries.at is not a function" on Chrome 79). Third-
+  // party script, nothing we can fix, and it arrives with a clean
+  // static.cloudflareinsights.com stack — match the source, not the message.
+  if (/static\.cloudflareinsights\.com/i.test(s)) return true;
   return false;
 }
 
