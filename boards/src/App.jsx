@@ -4386,7 +4386,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           // the welcome banner renders + "Start fresh" targets them — same as a real
           // arm-B seed, instead of a verbatim (unflagged) snapshot copy.
           const cards = decodeShowcaseCards(tpl.snapshot);
-          const ydoc = new Y.Doc();
+          const ydoc = boardDoc(b.id);
           const m = ydoc.getMap('cards');
           ydoc.transact(() => { for (const c of cards) m.set(c.id, cardToYMap(c)); });
           await saveBoardSnapshot(b.id, ydoc);

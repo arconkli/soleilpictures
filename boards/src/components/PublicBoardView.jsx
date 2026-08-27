@@ -298,6 +298,10 @@ export function PublicBoardView({ token, slug }) {
       }
     }
     const bundle = await res.json();
+    // Deliberately a bare Y.Doc, NOT boardDoc(): yboard.js is ~870KB and this
+    // is the signed-out /c/ + /share/ route. Importing it here made Rollup hoist
+    // yboard into a shared chunk that public share pages then had to download.
+    // A corruption here reports boardId:null; that is the cheaper trade.
     const ydoc = new Y.Doc();
     if (bundle.snapshot) {
       try { Y.applyUpdate(ydoc, b64ToBytes(bundle.snapshot)); }

@@ -28,6 +28,10 @@ import {
   setBoardSchedule,
 } from '../lib/boardsApi.js';
 import { b64ToBytes, readCards } from '../lib/yhelpers.js';
+// boardDoc, not new Y.Doc(): perf.js's transact guard reads _soleilBoardId to
+// attribute a CRDT corruption, and useYBoard's self-heal needs an exact board
+// match. An untagged temp doc reports boardId:null, which heals nothing.
+import { boardDoc } from '../lib/yboard.js';
 import { supabase } from '../lib/supabase.js';
 import { useFeedback } from './AppFeedback.jsx';
 
@@ -149,7 +153,7 @@ export function VersionHistoryModal({
     try {
       const b64 = await loadBoardVersionDoc(row.id);
       if (!b64) { setPreview({ id: row.id, error: 'Snapshot unavailable' }); return; }
-      const tmp = new Y.Doc();
+      const tmp = boardDoc(boardId);
       Y.applyUpdate(tmp, b64ToBytes(b64));
       const cards = readCards(tmp);
       const titles = cards
@@ -190,7 +194,7 @@ export function VersionHistoryModal({
         } else {
           const cur = await loadBoardSnapshot(boardId);
           if (cur) {
-            const t = new Y.Doc();
+            const t = boardDoc(boardId);
             Y.applyUpdate(t, b64ToBytes(cur));
             await saveBoardVersion(boardId, t, {
               triggerKind: 'manual', label: 'pre-restore', sessionId, userId,
