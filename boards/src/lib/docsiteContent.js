@@ -9520,6 +9520,107 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "heading",
+   "depth": 3,
+   "text": "Ready-made templates",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Ready-made templates"
+    }
+   ],
+   "id": "ready-made-templates"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Three shapes have a page of their own, each explaining what the layout is for and adding it to your templates in one click:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "link",
+      "v": "Storyboard template",
+      "href": "/templates/storyboard-template",
+      "children": [
+       {
+        "t": "text",
+        "v": "Storyboard template"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — a wide establishing frame over two beats, with every panel labelled."
+     }
+    ],
+    [
+     {
+      "t": "link",
+      "v": "Contact sheet template",
+      "href": "/templates/contact-sheet-template",
+      "children": [
+       {
+        "t": "text",
+        "v": "Contact sheet template"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — nine even frames for comparing a shoot at a glance."
+     }
+    ],
+    [
+     {
+      "t": "link",
+      "v": "Shot list template",
+      "href": "/templates/shot-list-template",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shot list template"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — a reference frame beside shot and lens, camera movement and notes."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "These behave exactly like a template you saved yourself once it lands in "
+    },
+    {
+     "t": "strong",
+     "v": "Yours",
+     "children": [
+      {
+       "t": "text",
+       "v": "Yours"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": rename it, share it with your workspace, or re-cut it."
+    }
+   ]
+  },
+  {
    "type": "para",
    "inline": [
     {

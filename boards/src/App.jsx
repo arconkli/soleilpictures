@@ -35,7 +35,7 @@ import { ReferralNudge } from './components/ReferralNudge.jsx';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
 import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
 import { readRemix, clearRemix } from './lib/remix.js';
-import { claimGridLayoutLink, usePublicGridLayout } from './lib/gridLayoutsApi.js';
+import { claimGridLayoutLink, usePublicGridLayout, saveGridLayout } from './lib/gridLayoutsApi.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
@@ -126,7 +126,10 @@ import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap } from './lib/upsell
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel, setGridHints, readGridHints } from './lib/gridState.js';
-import { hintsToCellMap } from './lib/gridLayoutLibrary.js';
+import { hintsToCellMap, bodyFromGrid } from './lib/gridLayoutLibrary.js';
+// Generated projection of the kind:'template' seoLanding specs — the preset id
+// and labels only, never the prose. See gen-docs.mjs step 4d.
+import { CURATED_TEMPLATES } from './lib/gridTemplateIndex.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from './lib/gridLayout.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
@@ -4566,11 +4569,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Two sources, two RPCs, deliberately not merged: 'template' is a private
     // share token from /t/<token>, 'gallery' is a public slug from the published
     // gallery on /templates. Both end as one row in your library.
-    if (src.kind === 'template' || src.kind === 'gallery') {
-      const claim = src.kind === 'gallery' ? usePublicGridLayout : claimGridLayoutLink;
+    if (src.kind === 'template' || src.kind === 'gallery' || src.kind === 'curated') {
       (async () => {
         try {
-          await claim(src.value);
+          if (src.kind === 'curated') {
+            // A template WE ship, arriving from its /templates/<slug> page. The
+            // shape is in the bundle, so this is an insert with no lookup — and
+            // unlike the other two it cannot 404, because nothing was published
+            // that could later be revoked or taken down.
+            const t = CURATED_TEMPLATES[src.value];
+            if (!t) throw new Error('unknown curated template');
+            await saveGridLayout({
+              name: t.name,
+              body: bodyFromGrid(presetTree(t.preset), null, t.hints || null),
+              userId: user.id,
+            });
+          } else if (src.kind === 'gallery') {
+            await usePublicGridLayout(src.value);   // a published gallery slug
+          } else {
+            await claimGridLayoutLink(src.value);   // a private share token
+          }
           feedback.toast({ message: 'Template added — open the grid tool to use it.' });
         } catch (e) {
           feedback.toast({ type: 'info', message: 'That template is no longer live.' });

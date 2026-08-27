@@ -16,6 +16,7 @@ import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import { GridLayoutThumb } from '../components/GridLayoutThumb.jsx';
+import { presetById, leafIds } from '../lib/gridLayout.js';
 import { encodeRemixParam } from '../lib/remix.js';
 import './seoLanding.css';
 
@@ -64,6 +65,21 @@ const yesCheck = (text) => (/^yes\b/i.test(String(text || '').trim())
 function templateHref(slug) {
   const base = `/?utm_source=templates&utm_medium=card&utm_campaign=${encodeURIComponent(slug)}`;
   const param = encodeRemixParam({ kind: 'gallery', value: slug });
+  return param ? `${base}&remix=${encodeURIComponent(param)}` : base;
+}
+
+// A curated template page's CTA. It has to place THAT template, not just start a
+// signup, or the page promises something the button does not do.
+//
+// Built here rather than baked into spec.cta.href because seoLanding.js is
+// deliberately a pure-data module whose one permitted import is demoCardCap —
+// reaching into remix.js from there to spell "k_" would be a second place the
+// tag lives, and the Worker's crawlable HTML renders no CTA link at all, so
+// React is the only renderer that needs this.
+function curatedCtaHref(spec) {
+  const base = spec.cta?.href || '/';
+  if (spec.kind !== 'template') return base;
+  const param = encodeRemixParam({ kind: 'curated', value: spec.path.split('/').pop() });
   return param ? `${base}&remix=${encodeURIComponent(param)}` : base;
 }
 
@@ -140,15 +156,24 @@ export function SeoLandingPage({ spec: specProp, path }) {
 
   if (!spec) return <NotFoundPage />;
 
-  const cta = spec.cta || {};
+  // On a curated template page every conversion CTA carries the template with
+  // it, so "Use this template" is literally true wherever it appears. The brand
+  // logo below deliberately keeps the plain href — clicking a wordmark to go
+  // home should not also claim something.
+  const cta = { ...(spec.cta || {}), href: curatedCtaHref(spec) };
   const related = (spec.related || []).filter((p) => TITLE_BY_PATH.has(p));
+  // Carries its own label, so unlike `related` it needs no lookup map and can
+  // never be silently filtered out here while the Worker renders it. See the
+  // note on docsLinks in worker.js's related nav.
+  const docsLinks = spec.docsLinks || [];
+  const preset = spec.template?.preset ? presetById(spec.template.preset) : null;
   const hero = examples[0] || null;
   const nSec = (spec.sections || []).length;   // lp_section idx base for the tail sections
 
   return (
     <div className="public-shell seo-shell public-dark">
       <div className="public-topbar">
-        <a className="public-brand" href={cta.href || '/'} title="Clusters home">
+        <a className="public-brand" href={spec.cta?.href || '/'} title="Clusters home">
           <ClustersMark size={20} />
           <span className="public-brand-name">Clusters</span>
         </a>
@@ -263,6 +288,37 @@ export function SeoLandingPage({ spec: specProp, path }) {
             </section>
           )}
 
+          {/* The shape a curated template page is about. The Worker renders the
+              same facts as a text list; here they are a numbered diagram beside
+              a numbered list, both derived from the SAME preset the CTA places,
+              so the page cannot show one shape and hand you another.
+
+              Numbering follows reading order, which is not always left-to-right:
+              readingOrder bands cells by their centre, so a full-height cell
+              beside a stacked column sorts by its middle. Deriving the diagram
+              and the list from one call is what keeps them agreeing anyway. */}
+          {preset && (
+            <section className="seo-section seo-tpl-layout" ref={lp.sectionRef('layout', 3 + nSec)}>
+              <h2 className="seo-h2">The layout</h2>
+              <div className="seo-tpl-layout-row">
+                <GridLayoutThumb tree={preset.tree} title={spec.h1} numbered={!!spec.template.hints} />
+                <div>
+                  <p className="seo-body">{preset.label} — {leafIds(preset.tree).length} boxes.</p>
+                  {spec.template.hints?.length > 0 && (
+                    <>
+                      <ol className="seo-tpl-hints">
+                        {spec.template.hints.map((h, i) => <li key={`${h}-${i}`}>{h}</li>)}
+                      </ol>
+                      <p className="seo-body">
+                        Each label shows only while its box is empty, and is never written into the box.
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* Cross-link to the /best/* listicle sibling: the plural-intent
               "compare them all" page (mirrored in the worker's crawlable HTML). */}
           {spec.siblingListicle && (
@@ -354,12 +410,15 @@ export function SeoLandingPage({ spec: specProp, path }) {
 
           {/* Internal-linking footer */}
           <footer className="seo-footer">
-            {related.length > 0 && (
+            {(related.length > 0 || docsLinks.length > 0) && (
               <nav className="seo-related" aria-label="Related pages">
                 <div className="seo-related-label">Keep exploring</div>
                 <ul>
                   {related.map((p) => (
                     <li key={p}><a href={p}>{TITLE_BY_PATH.get(p)}</a></li>
+                  ))}
+                  {docsLinks.map((d) => (
+                    <li key={d.path}><a href={d.path}>{d.label}</a></li>
                   ))}
                   <li><a href="/explore">Explore example boards</a></li>
                   <li><a href="/pricing">Pricing</a></li>

@@ -524,6 +524,37 @@
 }
 .seo-examples-more:hover { color: var(--soleil); text-decoration: underline; }
 
+/* "The layout" block on a curated template page (kind:'template'). The diagram
+   sits beside its own numbered legend, so the number on a box and the number in
+   the list are read together rather than counted. Stacks on narrow screens —
+   at phone width a 56px diagram beside a list is two things too small to read
+   instead of one thing you can. */
+.seo-tpl-layout-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  margin-top: 14px;
+}
+/* The thumb is a fixed 56×44 viewBox; scale it up here, where it is the subject
+   of the section rather than a tile in a grid. */
+.seo-tpl-layout-row .tplt-thumb {
+  flex: none;
+  width: 168px;
+  height: 132px;
+  border-radius: 6px;
+}
+.seo-tpl-hints {
+  margin: 10px 0 12px;
+  padding-left: 1.3em;
+  color: var(--ink-1);
+  font: 400 15px/1.7 var(--font-sans);
+}
+.seo-tpl-hints li { letter-spacing: .04em; }
+@media (max-width: 640px) {
+  .seo-tpl-layout-row { flex-direction: column; gap: 14px; }
+  .seo-tpl-layout-row .tplt-thumb { width: 100%; height: auto; aspect-ratio: 56 / 44; }
+}
+
 /* Community templates strip (/templates). Denser than .pubgrid because a tile
    here is a diagram rather than a photograph — it stays legible small, and a
    gallery of shapes wants to be scanned rather than looked at one at a time. */

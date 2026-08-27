@@ -14,6 +14,7 @@ const REMIX_KEY = 'soleil.boards.pending.remix';
 //   s_  slug      a published /c/<slug> board   → clone the board
 //   g_  template  a grid-template SHARE token   → copy one row into your library
 //   p_  gallery   a PUBLISHED template's slug   → copy one row into your library
+//   k_  curated   a /templates/<slug> page      → save that shipped shape
 //
 // Everything rides these same rails rather than getting its own because the
 // valuable part is not the encoding, it is stashRemix surviving the OTP
@@ -25,7 +26,9 @@ const REMIX_KEY = 'soleil.boards.pending.remix';
 // token is private and unguessable, a gallery slug is public and readable, and
 // they are claimed by different RPCs with different authorization. Collapsing
 // them would mean guessing which one a value is.
-const TAGS = { token: 't', slug: 's', template: 'g', gallery: 'p' };
+// k_ resolves entirely in the bundle (gridTemplateIndex.js), so it is the one
+// kind that needs no network call and works on a brand-new empty account.
+const TAGS = { token: 't', slug: 's', template: 'g', gallery: 'p', curated: 'k' };
 const KINDS = Object.fromEntries(Object.entries(TAGS).map(([k, t]) => [t, k]));
 
 export function encodeRemixParam({ kind, value } = {}) {

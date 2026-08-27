@@ -395,6 +395,9 @@
     "landing": [
       "/scout",
       "/templates",
+      "/templates/contact-sheet-template",
+      "/templates/shot-list-template",
+      "/templates/storyboard-template",
       "/tools/ai-mood-board-maker",
       "/tools/free-mood-board-maker",
       "/tools/look-book-maker",

@@ -1004,6 +1004,192 @@ const PAGES = [
     // renderings the same document (see the anti-cloaking note in this file's
     // header).
     showTemplates: true,
+    docsLinks: [{ path: '/docs/canvas/grids', label: 'Grids documentation' }],
+  },
+
+  // ── Curated template pages (kind: 'template') ─────────────────────────────
+  //
+  // A page per template WE authored, not per template anyone publishes. The
+  // difference is the whole design: these carry ~900 words of distinct prose
+  // each and are held to it by docsite.test.mjs (a >=1000-byte .md mirror and a
+  // docs backlink, both enforced), where a user's published template is a title,
+  // maybe a description and some cell labels. Auto-generating a page per
+  // community template is the thin-doorway pattern this file's header forbids,
+  // and the risk lands site-wide — on /vs/pureref, which is the only page here
+  // actually earning impressions. Community templates stay noindex; see the
+  // /t/<token> decision in worker.js for the same call made once already.
+  //
+  // Only shapes with real search intent get a page. Seven of the ten built-in
+  // presets ('2 × 2', '4 across', 'Stacked pair', 'Single cell'…) are geometry
+  // nobody searches for, and "Stacked Pair Template" is exactly the clone that
+  // would trip the penalty above.
+  //
+  // `template.preset` names an id in gridLayout's PRESETS rather than inlining a
+  // fraction tree, so the diagram on the page and the grid the CTA places are
+  // the same geometry by construction — and the Worker never has to import the
+  // layout engine to draw a decorative SVG.
+  //
+  // `template.hints` are indexed by READING ORDER, which is not always the order
+  // you would guess: readingOrder bands cells by their CENTRE, so a full-height
+  // cell beside a stacked column sorts by its middle. Verified per preset below.
+  {
+    path: '/templates/storyboard-template',
+    kind: 'template',
+    parent: '/templates',
+    template: {
+      preset: 'storyboard-1-2',
+      // reading order a,b,c = top, bottom-left, bottom-right
+      hints: ['ESTABLISHING', 'ACTION', 'REACTION'],
+    },
+    title: 'Storyboard Template — Free and Editable Online',
+    metaDescription:
+      'A free storyboard template: a wide establishing frame over two beats, every panel labelled. Drop in stills or sketches, caption each shot, share one link.',
+    h1: 'Storyboard template',
+    subhead:
+      'Three labelled panels to fill with stills, sketches or notes — and re-cut later without losing the work.',
+    answer:
+      'This storyboard template is a three-panel grid: one wide establishing frame across the top, two beats beneath it. Each box carries a label until you fill it, so a stranger opening the file knows what goes where. Add it to Clusters in one click, then drop in stills, sketches or captions.',
+    updated: '2026-08-27',
+    cta: { label: 'Use this template — free', sub: 'No credit card. It lands in your templates.' },
+    sections: [
+      {
+        heading: 'Why one wide frame over two',
+        body: "A sequence rarely reads as equal boxes. You establish, then you cut — so the template gives the establishing shot the full width and splits the beat underneath it. It is the shape most storyboards actually take, and it means the first thing a reader's eye lands on is the frame that sets the scene. Drag the divider if your scene wants a different balance; the panels re-flow and nothing you have already dropped in moves.",
+        bullets: [
+          'One full-width establishing frame, two beats beneath',
+          'Every panel labelled until you fill it',
+          'Drag any divider to re-balance without losing content',
+        ],
+      },
+      {
+        heading: 'The labels disappear on their own',
+        body: 'ESTABLISHING, ACTION and REACTION sit in the empty boxes as grey guidance — not as content. They are not text you have to select and delete: the moment a panel holds a still, a sketch or a caption, its label is gone, and if you clear the panel later the label comes back. They never appear in an export, never count toward anything, and never end up in a file you hand to a client.',
+      },
+      {
+        heading: 'One panel is not a storyboard — stamp the row',
+        body: 'A scene needs more than three frames. Select the grid and the directional "+" handles appear on each edge: click one and you get an identical, linked panel beside it, carrying the same labels and any numbering slate you have set up. Change a divider on one and the whole row re-cuts together, so a six-panel sequence stays a grid rather than six drifting rectangles.',
+      },
+      {
+        heading: 'Keep the shot list beside the frames',
+        body: 'A storyboard without the logistics is half the picture. Put a doc or a schedule card on the canvas next to the panels — lens, movement, location, shoot day — so the visual and the plan sit in one view. Your director, DP and AD can edit the same board at once, and comments land on the specific frame rather than in a paragraph of email.',
+      },
+    ],
+    faq: [
+      { q: 'How do I use this storyboard template?', a: 'Click the button on this page. The template lands in your Clusters templates, and picking it from the grid tool stamps the three labelled panels onto any board.' },
+      { q: 'Do the panel labels print or export?', a: 'No. A label is guidance, not content — it renders only while a panel is empty, and it is never written into the panel itself. It does not appear in exports and does not count toward your card total.' },
+      { q: 'Can I add more panels?', a: 'Yes. Select the grid and click a "+" on any edge to stamp a linked panel beside it, or use the matrix generator to lay out a whole page at once. Stamped panels carry the same labels.' },
+      { q: 'What if I want a different panel layout?', a: 'Drag any divider to re-balance the frames, or split a panel in two. You can also pick a different template later — the images and captions you have already added carry across to the new shape.' },
+      { q: 'Is it free?', a: 'Yes. You can build and share storyboards for free on the Demo tier. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaborators edit free.' },
+    ],
+    siblingListicle: { path: '/best/storyboard-software', label: 'See all 10 storyboard tools, ranked by a film studio.' },
+    related: ['/templates', '/tools/storyboard-maker', '/tools/shot-list-maker', '/best/storyboard-software'],
+    docsLinks: [{ path: '/docs/canvas/grids', label: 'Grids documentation' }],
+  },
+  {
+    path: '/templates/contact-sheet-template',
+    kind: 'template',
+    parent: '/templates',
+    // Nine uniform frames, so deliberately NO hints: every cell has the same
+    // job, and a label in all nine would be noise rather than guidance.
+    template: { preset: 'contact-sheet-3x3' },
+    title: 'Contact Sheet Template — 3 × 3 Grid, Free Online',
+    metaDescription:
+      'A free 3 × 3 contact sheet template. Drop nine stills, frames or product shots into an even grid, re-order by dragging, and share the sheet with one link.',
+    h1: 'Contact sheet template',
+    subhead:
+      'Nine even frames for comparing a shoot at a glance — in the browser, with no export step.',
+    answer:
+      'A contact sheet template is a nine-frame grid, three across and three down, sized so every frame reads at a glance. Add it to a board in one click and fill the cells with stills, frames or product shots — then re-cut the grid without losing any of them.',
+    updated: '2026-08-27',
+    cta: { label: 'Use this template — free', sub: 'No credit card. It lands in your templates.' },
+    sections: [
+      {
+        heading: 'Nine frames, evenly weighted',
+        body: 'A contact sheet works because nothing on it is emphasised. Three by three is the point where a frame is still big enough to judge and the sheet is still small enough to take in as one image — which is why it is the shape darkroom proof sheets settled on and why it survived into digital. Every cell here is exactly the same size, so what you are comparing is the photographs, not the layout.',
+        bullets: [
+          'Nine equal frames, three across and three down',
+          'Drop images straight in — no upload dialog, no export step',
+          'Drag to re-order; the grid re-flows around what you move',
+        ],
+      },
+      {
+        heading: 'It is a live board, not a flat image',
+        body: 'Most contact sheet templates hand you a file you fill in once. This one stays editable: swap a frame, drag one image past another to re-order, or zoom a single cell to full screen to check focus without leaving the sheet. Nothing is baked, so the sheet a client sees next week is the sheet you have kept working on rather than an export you have to remember to redo.',
+      },
+      {
+        heading: 'Grow past nine without starting again',
+        body: 'A shoot rarely stops at nine. Stamp a linked copy of the sheet beside the first with the "+" handles and you get a second page in the same grid, aligned to the first. Or split a cell if one frame needs two variants. If you outgrow the shape entirely, pick a different template and everything you have already placed carries across to the new one.',
+      },
+      {
+        heading: 'Share the sheet, not a folder',
+        body: 'Publish the board and you get one link that opens the sheet in a browser — no download, no account needed to look. Anyone you invite to edit can comment on a specific frame, so "the third one in the middle row" stops being a sentence anybody has to write.',
+      },
+    ],
+    faq: [
+      { q: 'How many images does the contact sheet hold?', a: 'Nine by default, in a three by three grid. You can split a cell for more, or stamp a second linked sheet beside the first to continue onto another page.' },
+      { q: 'Can I re-order the frames?', a: 'Yes. Drag one frame onto another to swap them, and the grid re-flows around the move. Nothing is fixed in place once it is dropped.' },
+      { q: 'Do I need to export the sheet to share it?', a: 'No. Publishing the board gives you a link that opens the sheet in any browser, and it stays live — later edits show up without you re-sharing anything.' },
+      { q: 'Can I use it for something other than photos?', a: 'Yes. A cell takes an image, text, a link, a video or a nested board, so the same nine-up shape works for product shots, frame grabs, colour options or candidate logos.' },
+      { q: 'Is it free?', a: 'Yes. You can build and share contact sheets for free on the Demo tier. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaborators edit free.' },
+    ],
+    related: ['/templates', '/tools/mood-board-maker', '/tools/reference-board-maker', '/best/mood-board-apps'],
+    docsLinks: [{ path: '/docs/canvas/grids', label: 'Grids documentation' }],
+  },
+  {
+    path: '/templates/shot-list-template',
+    kind: 'template',
+    parent: '/templates',
+    template: {
+      preset: 'db-row-1-3',
+      // READING ORDER IS b,a,c,d — not left to right. `a` is the full-height
+      // frame on the left, but readingOrder bands by cell CENTRE, so the
+      // top-right box (centre near the top) sorts ahead of it. Labels below are
+      // in that true order; the page numbers its diagram from the same call, so
+      // what a reader sees is consistent either way.
+      hints: ['SHOT + LENS', 'FRAME', 'MOVEMENT', 'NOTES'],
+    },
+    title: 'Shot List Template — Frame, Lens, Movement, Notes',
+    metaDescription:
+      'A free shot list template that keeps the reference frame next to the details: shot and lens, camera movement, notes. Stamp one row per setup, numbered.',
+    h1: 'Shot list template',
+    subhead:
+      'A reference frame beside the three things a crew needs on the day — one row per setup.',
+    answer:
+      'This shot list template pairs a reference frame with the three things a crew actually needs beside it: shot and lens, camera movement, and notes. Every box is labelled until you fill it. Add it to a board, then stamp a copy for each setup and the numbering follows.',
+    updated: '2026-08-27',
+    cta: { label: 'Use this template — free', sub: 'No credit card. It lands in your templates.' },
+    sections: [
+      {
+        heading: 'A shot list that shows the shot',
+        body: 'Most shot lists are a spreadsheet, and a spreadsheet cannot show you the frame. This template gives the reference image half the row and stacks the three fields a crew reads on the day beside it — shot and lens, camera movement, notes. On set that means one glance answers both "what are we shooting" and "how", instead of a row of text somebody has to translate back into a picture.',
+        bullets: [
+          'Reference frame at half-width, three fields stacked beside it',
+          'Every field labelled until you fill it',
+          'One row per setup — stamp as many as the day needs',
+        ],
+      },
+      {
+        heading: 'One row per setup, numbered automatically',
+        body: 'Select the row and click the "+" on its edge to stamp the next setup underneath, carrying the labels with it. Put a numbering tag in a field and every copy renders its own number, in the order the rows sit on the canvas — so inserting a pickup between two setups renumbers everything after it rather than leaving you to renumber by hand.',
+      },
+      {
+        heading: 'The fields are guidance, not content',
+        body: 'SHOT + LENS, FRAME, MOVEMENT and NOTES render only while their box is empty. They are not placeholder text you have to clear: fill a box and the label is gone, empty it and the label returns. So the template explains itself to whoever opens it, without leaving a single word behind in the version you hand over.',
+      },
+      {
+        heading: 'Beside the storyboard, not in another file',
+        body: 'The list belongs next to the frames it describes. Put the shot list rows on the same canvas as your storyboard panels and the schedule, and the whole scene is one view instead of three documents that drift apart. Everyone editing sees the same board live, and a comment sits on the setup it is about.',
+      },
+    ],
+    faq: [
+      { q: 'What is in this shot list template?', a: 'Four boxes per row: a reference frame taking the left half, and shot and lens, camera movement and notes stacked on the right. Each is labelled until you fill it.' },
+      { q: 'How do I add a row for every setup?', a: 'Select the row and click the "+" handle on its bottom edge to stamp a linked copy, which carries the same labels. The matrix generator lays out a whole day at once.' },
+      { q: 'Do the shots number themselves?', a: 'Yes. Put a numbering tag in a field and each row renders its own number based on where it sits on the canvas, so inserting a setup renumbers the ones after it automatically.' },
+      { q: 'Can I put a real image in the frame box?', a: 'Yes — that is the point. A box takes an image, text, a link, a video or a nested board, so the frame can be a still from the location scout or a panel from your storyboard.' },
+      { q: 'Is it free?', a: 'Yes. You can build and share shot lists for free on the Demo tier. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaborators edit free.' },
+    ],
+    related: ['/templates', '/tools/shot-list-maker', '/tools/storyboard-maker', '/best/storyboard-software'],
+    docsLinks: [{ path: '/docs/canvas/grids', label: 'Grids documentation' }],
   },
 ];
 
@@ -1036,6 +1222,12 @@ const EYEBROW_BY_PATH = {
   '/vs/pureref':                  'PureRef alternative',
   '/vs/miro':                     'Miro alternative',
   '/use-cases':                   'What you can make',
+  '/templates':                   'Grid templates',
+  // Without these three the fallback below reads "Free online tool", which is
+  // the wrong noun on a page whose subject is a template.
+  '/templates/storyboard-template':    'Free template',
+  '/templates/contact-sheet-template': 'Free template',
+  '/templates/shot-list-template':     'Free template',
 };
 
 // Attach the signup CTA href to each page (campaign = last path segment).

@@ -30,6 +30,10 @@ import { isOAuthRoute, handleOAuthRoute } from './worker-oauth.js';
 // registry shared with the React component so the crawlable server-rendered
 // text can't drift from what the app renders (anti-cloaking).
 import { getLandingSpec, SEO_LANDING_PAGES, landingOgPath, EXPLORE_INTRO, matchToolPath } from './lib/seoLanding.js';
+// Named imports only, so esbuild tree-shakes the rest of the layout engine out
+// of the Worker: a curated template page states its cell count, and that number
+// is DERIVED from the preset rather than typed into the spec beside it.
+import { presetById, leafIds } from './lib/gridLayout.js';
 import { getListicleSpec, SEO_LISTICLE_PAGES } from './lib/seoListicles.js';
 import { buildListicleCrawlableHtml, buildListicleJsonLd } from './lib/seoListicleHtml.js';
 // Public documentation (/docs/*). Two GENERATED modules, both built from
@@ -1402,7 +1406,7 @@ export function buildChangelogJsonLd(url) {
   };
 }
 
-function buildLandingCrawlableHtml(spec) {
+export function buildLandingCrawlableHtml(spec) {
   const H2 = 'font-size:1.35rem;font-weight:600;margin:1.4em 0 .4em;';
   const parts = [];
   if (spec.eyebrow) parts.push(`<p style="color:#FFA500;font-size:.8rem;letter-spacing:.16em;text-transform:uppercase;font-weight:700;margin:0 0 .8em;">${escapeHtml(spec.eyebrow)}</p>`);
@@ -1437,6 +1441,24 @@ function buildLandingCrawlableHtml(spec) {
     }
     parts.push(`</tbody></table></section>`);
   }
+  // The layout a curated template page is about. React draws the same thing as
+  // a numbered SVG diagram; here it is the same list as text, which is what a
+  // crawler can actually read. Both derive from spec.template.preset, so the
+  // page cannot describe a shape different from the one its CTA places.
+  if (spec.template?.preset) {
+    const preset = presetById(spec.template.preset);
+    if (preset) {
+      const n = leafIds(preset.tree).length;
+      parts.push(`<section><h2 style="${H2}">The layout</h2><p>${escapeHtml(preset.label)} — ${n} ${n === 1 ? 'box' : 'boxes'}.</p>`);
+      const hints = spec.template.hints || [];
+      if (hints.length) {
+        parts.push('<ol>');
+        for (const h of hints) parts.push(`<li>${escapeHtml(h)}</li>`);
+        parts.push('</ol><p>Each label shows only while its box is empty, and is never written into the box.</p>');
+      }
+      parts.push('</section>');
+    }
+  }
   // Cross-link to the /best/* listicle sibling (mirrors the React callout).
   if (spec.siblingListicle) {
     parts.push(`<p><b>Comparing more than two?</b> <a href="${escapeHtml(spec.siblingListicle.path)}" style="color:#FFA500;">${escapeHtml(spec.siblingListicle.label)}</a></p>`);
@@ -1457,22 +1479,36 @@ function buildLandingCrawlableHtml(spec) {
     parts.push(`</section>`);
   }
   const related = spec.related || [];
-  if (related.length) {
+  // docsLinks carry their OWN label rather than living in `related`, and that is
+  // not tidiness. `related` resolves its anchor text through the landing and
+  // listicle registries, and falls back to the raw path here — while React
+  // filters related through TITLE_BY_PATH and silently DROPS anything missing
+  // from it. Put a /docs/* path in `related` and this renderer emits a link
+  // React does not: two renderers, two different documents, which is the one
+  // thing the shared-registry design exists to prevent.
+  const docsLinks = spec.docsLinks || [];
+  if (related.length || docsLinks.length) {
     parts.push(`<nav aria-label="Related pages" style="margin-top:1.6em;"><h2 style="font-size:1.1rem;">Keep exploring</h2><ul>`);
     for (const p of related) {
       const label = getLandingSpec(p)?.h1 || getListicleSpec(p)?.h1 || p;
       parts.push(`<li><a href="${escapeHtml(p)}" style="color:#FFA500;">${escapeHtml(label)}</a></li>`);
     }
+    for (const d of docsLinks) {
+      parts.push(`<li><a href="${escapeHtml(d.path)}" style="color:#FFA500;">${escapeHtml(d.label)}</a></li>`);
+    }
     parts.push(`<li><a href="/explore" style="color:#FFA500;">Explore example boards</a></li>`);
-    parts.push(`<li><a href="/pricing" style="color:#FFA500;">Pricing</a></li></ul></nav>`);
+    parts.push(`<li><a href="/pricing" style="color:#FFA500;">Pricing</a></li>`);
+    // React's footer has carried /changelog since it shipped; this did not.
+    parts.push(`<li><a href="/changelog" style="color:#FFA500;">Changelog</a></li></ul></nav>`);
   }
   return `<div style="max-width:800px;margin:0 auto;padding:14vh 24px 24px;"><article>${parts.join('')}</article></div>`;
 }
 
 // SoftwareApplication + BreadcrumbList + (if present) FAQPage — the FAQ is
 // visible on-page (the accordion), which is what FAQ rich results require.
-function buildLandingJsonLd(spec, url) {
+export function buildLandingJsonLd(spec, url) {
   const og = `${SITE_ORIGIN}${landingOgPath(spec)}${spec.updated ? `?v=${spec.updated}` : ''}`;
+  const parentSpec = spec.parent ? getLandingSpec(spec.parent) : null;
   const graph = [
     {
       '@type': 'WebPage',
@@ -1499,12 +1535,35 @@ function buildLandingJsonLd(spec, url) {
     },
     {
       '@type': 'BreadcrumbList',
+      // Home → [parent] → this. The parent rung only appears for a nested path;
+      // asserting a two-level trail on /templates/storyboard-template would be
+      // a plainly false statement about the site's shape, and the breadcrumb
+      // trail is one of the few pieces of this graph a SERP still renders.
       itemListElement: [
         { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_ORIGIN}/` },
-        { '@type': 'ListItem', position: 2, name: spec.h1, item: url },
+        ...(parentSpec
+          ? [{ '@type': 'ListItem', position: 2, name: parentSpec.h1, item: `${SITE_ORIGIN}${parentSpec.path}` }]
+          : []),
+        { '@type': 'ListItem', position: parentSpec ? 3 : 2, name: spec.h1, item: url },
       ],
     },
   ];
+  // Hub → spoke, declared. The curated template pages are real, indexable,
+  // individually-written pages, so listing them is a true statement. The
+  // community strip deliberately gets no ItemList: those tiles resolve to the
+  // signup flow, and an ItemList of URLs that are not the items would be markup
+  // asserting something the page does not contain.
+  const children = SEO_LANDING_PAGES.filter((s) => s.parent === spec.path);
+  if (children.length) {
+    graph.push({
+      '@type': 'ItemList',
+      '@id': `${url}#templates`,
+      name: spec.h1,
+      itemListElement: children.map((c, i) => ({
+        '@type': 'ListItem', position: i + 1, name: c.h1, url: `${SITE_ORIGIN}${c.path}`,
+      })),
+    });
+  }
   if (Array.isArray(spec.faq) && spec.faq.length) {
     graph.push({
       '@type': 'FAQPage',

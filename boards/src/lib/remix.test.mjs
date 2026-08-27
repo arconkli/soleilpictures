@@ -17,6 +17,7 @@ const KINDS = [
   ['slug', 's'],      // a published /c/<slug> board
   ['template', 'g'],  // a grid-template SHARE token
   ['gallery', 'p'],   // a PUBLISHED template's slug
+  ['curated', 'k'],   // a /templates/<slug> page's shipped shape
 ];
 
 test('every kind round-trips through its own tag', () => {

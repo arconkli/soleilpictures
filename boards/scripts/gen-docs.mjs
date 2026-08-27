@@ -41,6 +41,9 @@ import {
 } from './lib/publicSurface.mjs';
 
 import { SEO_LANDING_PAGES } from '../src/lib/seoLanding.js';
+// The layout engine, so a template page's cell count and label order are read
+// off the geometry rather than typed beside it.
+import { presetById, computeCellRects, readingOrder } from '../src/lib/gridLayout.js';
 import { SEO_LISTICLE_PAGES } from '../src/lib/seoListicles.js';
 
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
@@ -567,6 +570,21 @@ function landingMarkdown(spec) {
   if (spec.answer) out.push(`> ${spec.answer}`, '');
   out.push(`_Source: ${SITE_ORIGIN}${spec.path} · Updated ${spec.updated}_`, '');
   if (spec.subhead) out.push(spec.subhead, '');
+  // The shape a curated template page is about, as a table an assistant can
+  // quote. Cell count and label order are DERIVED from the preset — the same
+  // call the page and the Worker make — so the mirror cannot describe a
+  // different grid from the one the page hands you.
+  if (spec.template?.preset) {
+    const preset = req(presetById(spec.template.preset), spec.path, `a real preset (${spec.template.preset})`);
+    const cells = readingOrder(computeCellRects(preset.tree, { x: 0, y: 0, w: 900, h: 600 }));
+    out.push('## The layout', '', `${preset.label} — ${cells.length} boxes.`, '');
+    const hints = spec.template.hints || [];
+    if (hints.length) {
+      out.push('| # | Label |', '| --- | --- |');
+      hints.forEach((h, i) => out.push(`| ${i + 1} | ${h} |`));
+      out.push('', 'Each label shows only while its box is empty, and is never written into the box.', '');
+    }
+  }
   for (const s of spec.sections || []) {
     out.push(`## ${s.heading}`, '');
     if (s.body) out.push(s.body, '');
@@ -788,6 +806,32 @@ export function isDocsPath(pathname) {
   for (const { spec, md } of marketing) {
     write(resolve(BOARDS, 'public', `${marketingMdRel(spec.path)}.md`), md);
   }
+
+  // 4d. The curated grid templates, as a LIGHT index.
+  //
+  //     App.jsx has to turn ?remix=k_<slug> into an actual saved template after
+  //     signup, which means it needs the preset id and the labels — but it must
+  //     never import seoLanding.js to get them, because that would pull several
+  //     thousand words of marketing prose into the app chunk. Same split, same
+  //     reason, as seoListicleIndex.js and docsiteIndex.js.
+  //
+  //     Generated rather than hand-written so the template a page describes and
+  //     the template its button places cannot drift apart: there is one spec,
+  //     and this is a projection of it.
+  const curated = SEO_LANDING_PAGES.filter((s) => s.kind === 'template');
+  write(resolve(BOARDS, 'src/lib/gridTemplateIndex.js'),
+    BANNER('src/lib/seoLanding.js') + `
+export const CURATED_TEMPLATES = ${JSON.stringify(Object.fromEntries(curated.map((s) => {
+      const slug = s.path.split('/').pop();
+      const t = s.template || {};
+      return [slug, {
+        path: s.path,
+        name: req(s.h1, s.path, 'h1'),
+        preset: req(t.preset, s.path, 'template.preset'),
+        ...(t.hints ? { hints: t.hints } : {}),
+      }];
+    })), null, 1)};
+`);
 
   // 4c. The changelog — the same light-index / AST / pre-rendered-HTML split the
   //     docs use, for the same reason: main.jsx and the Worker must never pull
