@@ -6617,7 +6617,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Draw anywhere — over cards, between them, across the whole board."
+     "v": ". On a phone or tablet the draw tool is on the rail itself, and in the add sheet. Draw anywhere — over cards, between them, across the whole board."
     }
    ]
   },
@@ -6664,22 +6664,168 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The "
+     "v": "Line thickness is what you see in the picker at the moment you draw, whatever the zoom, and the stroke then scales with the board like everything else."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Brushes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Brushes"
+    }
+   ],
+   "id": "brushes"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Brush"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Draws"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Pen",
+       "children": [
+        {
+         "t": "text",
+         "v": "Pen"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Tapers with pressure. The default."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Marker",
+       "children": [
+        {
+         "t": "text",
+         "v": "Marker"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Constant width, flat ends."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Highlighter",
+       "children": [
+        {
+         "t": "text",
+         "v": "Highlighter"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Wide and translucent, multiplied over what is underneath so text stays readable through it."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Pencil",
+       "children": [
+        {
+         "t": "text",
+         "v": "Pencil"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Softer, tapers less."
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each is previewed in the picker as the stroke it actually draws."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "The eraser",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The eraser"
+    }
+   ],
+   "id": "the-eraser"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Drag it across a stroke and the stroke is "
     },
     {
      "t": "strong",
-     "v": "eraser",
+     "v": "cut",
      "children": [
       {
        "t": "text",
-       "v": "eraser"
+       "v": "cut"
       }
      ]
     },
     {
      "t": "text",
-     "v": " removes whole strokes rather than parts of them. "
-    },
+     "v": " where you crossed it — the surviving pieces stay. You can rub out the middle of a line without losing its ends. The eraser has its own size, separate from the pen's, and a ring shows how wide it is as you go. A swipe over empty space does nothing at all, so it costs no undo step."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
     {
      "t": "strong",
      "v": "Clear all drawings",
@@ -6692,7 +6838,65 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the canvas right-click menu wipes the layer."
+     "v": " in the canvas right-click menu wipes the whole layer."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Lasso",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Lasso"
+    }
+   ],
+   "id": "lasso"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Switch the brush to "
+    },
+    {
+     "t": "strong",
+     "v": "Lasso",
+     "children": [
+      {
+       "t": "text",
+       "v": "Lasso"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and circle some strokes to select them. A stroke is taken when "
+    },
+    {
+     "t": "em",
+     "v": "most",
+     "children": [
+      {
+       "t": "text",
+       "v": "most"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " of it falls inside the loop. Clusters hands you to the select tool with them selected, so you can move, scale, recolour or delete the group straight away — deleting shows an undo toast like everything else."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a touch device the lasso is the only way to select strokes: a one-finger drag with the select tool pans the board, so the rubber-band marquee is mouse and stylus only."
     }
    ]
   },
@@ -6871,52 +7075,182 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "strong",
+     "v": "Canvas",
+     "children": [
+      {
+       "t": "text",
+       "v": "Canvas"
+      }
+     ]
+    },
+    {
      "t": "text",
-     "v": "The rail's "
+     "v": " in the draw options opens a full-screen sketch pad: an overlay covering the whole viewport, with the same brushes and pressure as inline drawing but without having to fight for canvas space. It is where to do real drawing rather than annotation. Pressing "
     },
     {
      "t": "strong",
-     "v": "+",
+     "v": "Add to canvas",
      "children": [
       {
        "t": "text",
-       "v": "+"
+       "v": "Add to canvas"
       }
      ]
     },
     {
      "t": "text",
-     "v": " → "
+     "v": " places the result as an "
     },
     {
-     "t": "em",
-     "v": "Tools",
+     "t": "link",
+     "v": "art canvas",
+     "href": "#art-canvas",
      "children": [
       {
        "t": "text",
-       "v": "Tools"
+       "v": "art canvas"
       }
      ]
     },
     {
      "t": "text",
-     "v": " → "
-    },
-    {
-     "t": "strong",
-     "v": "Draw",
-     "children": [
-      {
-       "t": "text",
-       "v": "Draw"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " also offers a full-screen sketch pad: an overlay covering the whole viewport, with the same stroke behaviour as inline drawing but without having to fight for canvas space."
+     "v": " card."
     }
    ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Frame formats",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Frame formats"
+    }
+   ],
+   "id": "frame-formats"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A new sketch starts as a "
+    },
+    {
+     "t": "strong",
+     "v": "16:9",
+     "children": [
+      {
+       "t": "text",
+       "v": "16:9"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " frame, because drawing out shots for a shot list is what people mostly open it to do. "
+    },
+    {
+     "t": "strong",
+     "v": "2.39:1",
+     "children": [
+      {
+       "t": "text",
+       "v": "2.39:1"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "4:3",
+     "children": [
+      {
+       "t": "text",
+       "v": "4:3"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "1:1",
+     "children": [
+      {
+       "t": "text",
+       "v": "1:1"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "9:16",
+     "children": [
+      {
+       "t": "text",
+       "v": "9:16"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " are alongside it. The format is offered while the frame is still empty — nothing rescales, so changing it later would crop what you had drawn."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Layers",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Layers"
+    }
+   ],
+   "id": "layers"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Up to eight. Block a shot out loosely on one, ink over the top on another, then hide the rough. Each layer can be shown, hidden, reordered or deleted, and drawing and erasing act on the layer you have selected. Adding, hiding, reordering and deleting are all undoable."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A sketch that only ever used one layer is stored exactly as it was before layers existed, and an art canvas drawn before them opens as \"Layer 1\" with its drawing intact."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Undo and keys",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Undo and keys"
+    }
+   ],
+   "id": "undo-and-keys"
   },
   {
    "type": "para",
@@ -6939,16 +7273,70 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", plus toolbar buttons — covering pen strokes, eraser passes, bucket fills and Clear. While the pad is open, keys apply to the sketch only; nothing you press can affect the board behind it."
+     "v": ", plus toolbar buttons — covering pen strokes, eraser passes, bucket fills, Clear and every layer change. While the pad is open, keys apply to the sketch only; nothing you press can affect the board behind it. The whole session lands on the board as a single undo step."
     }
    ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "On a phone or tablet",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone or tablet"
+    }
+   ],
+   "id": "on-a-phone-or-tablet"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Useful for a quick diagram you want to think through at size before placing."
+     "v": "The pad goes edge to edge. The brushes, colours, sizes, layers and frame formats move into a sheet behind the chip showing your current colour and width, and "
+    },
+    {
+     "t": "strong",
+     "v": "Add",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "close",
+     "children": [
+      {
+       "t": "text",
+       "v": "close"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " stay put while the tools scroll. "
+    },
+    {
+     "t": "strong",
+     "v": "Pinch to zoom",
+     "children": [
+      {
+       "t": "text",
+       "v": "Pinch to zoom"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " into the frame and drag with two fingers to move around — a percentage chip in the corner resets it in one tap."
     }
    ]
   },
@@ -7105,7 +7493,58 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Pointer handling treats stylus, finger and mouse the same. Drawing gestures are guarded so the canvas will not start panning halfway through a stroke, which is the failure that makes drawing on a touch device unusable."
+     "v": "A stylus is the best way to draw here. Pressure varies the width of the line, and the pen's sampling is built for a high-frequency stylus rather than fighting it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Once Clusters has seen a stylus on a device, your finger switches to panning and only the stylus draws.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Once Clusters has seen a stylus on a device, your finger switches to panning and only the stylus draws."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " This is what makes palm rejection work: a palm landing on the glass before the tip would otherwise win the race and own the stroke. It is the same behaviour as Procreate, GoodNotes and Freeform, it is announced the first time it happens, and there is a "
+    },
+    {
+     "t": "strong",
+     "v": "Draw with finger",
+     "children": [
+      {
+       "t": "text",
+       "v": "Draw with finger"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " toggle in the draw options if you want both to mark."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Flipping a pen over to its eraser end erases, and the barrel button does too."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Two fingers always mean pinch-zoom, never a stroke — starting a pinch part-way through a line discards that line rather than smearing it across the board as the canvas moves underneath."
     }
    ]
   }
@@ -26232,7 +26671,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Drawing gestures are guarded so the canvas cannot start panning halfway through a stroke — the failure that makes drawing on touch unusable."
+     "v": "With the draw tool active, one finger draws and two fingers still pinch-zoom. Starting a pinch part-way through a stroke discards that stroke rather than smearing it across the board as the canvas moves underneath — the failure that makes drawing on touch unusable."
     }
    ]
   },
@@ -26350,6 +26789,48 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Tablets get closer to the desktop layout — the rail rather than the sheet — plus stylus drawing. On iPad, drawing, annotating and reviewing all work properly; long document editing is still better on a laptop."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Drawing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Drawing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is on the rail directly on touch, and in the add sheet, rather than behind the "
+    },
+    {
+     "t": "code",
+     "v": "D"
+    },
+    {
+     "t": "text",
+     "v": " shortcut there is no keyboard for. A stylus draws with pressure; flipping it over erases. The full-screen "
+    },
+    {
+     "t": "link",
+     "v": "sketch pad",
+     "href": "/docs/canvas/shapes-and-drawing#the-sketch-pad",
+     "children": [
+      {
+       "t": "text",
+       "v": "sketch pad"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " goes edge to edge, with pinch-to-zoom inside the frame for detail work and its brushes, colours, layers and frame formats in a sheet sized for thumbs."
     }
    ]
   },

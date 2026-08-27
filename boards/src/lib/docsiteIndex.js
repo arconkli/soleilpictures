@@ -581,10 +581,10 @@ export const DOCS_PAGES = [
     "title": "Shapes and Drawing — Soleil Clusters",
     "metaDescription": "Draw freehand on a Soleil Clusters canvas, add shapes with stroke and fill control, use the sketch pad overlay, or place a bounded art canvas card.",
     "h1": "Shapes and drawing",
-    "answer": "Press D to draw freehand anywhere on a canvas. Shapes are proper cards — rectangle, ellipse, line, arrow, diamond, triangle, hexagon and star — with stroke, fill, width and dash controls. There is also a full-screen sketch pad for a bigger surface, and an art canvas card for a drawing that belongs to the board as a movable object.",
+    "answer": "Press D to draw freehand anywhere on a canvas. Four brushes — pen, marker, highlighter and pencil — and a stylus's pressure varies the line. Shapes are proper cards — rectangle, ellipse, line, arrow, diamond, triangle, hexagon and star — with stroke, fill, width and dash controls. There is also a full-screen sketch pad with layers and storyboard frame formats, and an art canvas card for a drawing that belongs to the board as a movable object.",
     "section": "canvas",
     "order": 4,
-    "updated": "2026-08-08",
+    "updated": "2026-08-27",
     "navLabel": "Shapes and drawing",
     "headings": [
       {
@@ -624,11 +624,15 @@ export const DOCS_PAGES = [
       },
       {
         "q": "How do I erase just part of a stroke?",
-        "a": "You cannot. The eraser removes whole strokes. Annotating quickly is the use case, and partial erasing was consistently slower than redrawing."
+        "a": "Drag the eraser across it. Strokes are cut where you cross them and the surviving pieces stay, so you can rub out the middle of a line without losing the ends. The eraser size is separate from the pen size."
       },
       {
         "q": "Can I draw with a stylus on a tablet?",
-        "a": "Yes. Pointer input is handled the same for stylus, finger and mouse, and the canvas will not pan out from under you mid-stroke."
+        "a": "Yes, and it is the best way to. Pressure varies the width of the line. Once Clusters has seen a stylus on a device, your finger switches to panning so a resting palm cannot draw — there is a \"Draw with finger\" toggle in the draw options if you want both to mark."
+      },
+      {
+        "q": "Can I select a group of strokes?",
+        "a": "Yes. Switch the draw tool to Lasso and circle them. A stroke is taken when most of it falls inside the loop, and the selection can then be moved, scaled, recoloured or deleted."
       }
     ]
   },
@@ -2649,10 +2653,10 @@ export const DOCS_PAGES = [
     "title": "Mobile and Tablet — Soleil Clusters",
     "metaDescription": "Soleil Clusters on phones and tablets — touch gestures, focus view, the mobile add sheet, installing as a PWA, and the iOS and Android apps.",
     "h1": "Mobile and tablet",
-    "answer": "Clusters works in a mobile browser, installs as a PWA, and ships as iOS and Android apps. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get full drawing support.",
+    "answer": "Clusters works in a mobile browser, installs as a PWA, and ships as iOS and Android apps. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection.",
     "section": "account",
     "order": 4,
-    "updated": "2026-08-08",
+    "updated": "2026-08-27",
     "navLabel": "Mobile and tablet",
     "headings": [
       {
@@ -2692,7 +2696,11 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I draw on a tablet?",
-        "a": "Yes, with a stylus or a finger. Drawing gestures are guarded so the canvas will not pan mid-stroke."
+        "a": "Yes, with a stylus or a finger. A stylus gets pressure-sensitive strokes, and once one has been used on the device your finger switches to panning so a resting palm cannot draw. A \"Draw with finger\" toggle in the draw options puts that back if you want it."
+      },
+      {
+        "q": "Why did my finger stop drawing?",
+        "a": "Because a stylus was used on this device, so the finger became a pan gesture — that is how palm rejection works. Turn \"Draw with finger\" back on under Brush in the draw options."
       },
       {
         "q": "Is anything unavailable on mobile?",

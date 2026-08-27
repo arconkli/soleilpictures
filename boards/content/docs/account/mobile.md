@@ -5,13 +5,15 @@ h1: Mobile and tablet
 navLabel: Mobile and tablet
 section: account
 order: 4
-updated: 2026-08-08
-answer: Clusters works in a mobile browser, installs as a PWA, and ships as iOS and Android apps. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get full drawing support.
+updated: 2026-08-27
+answer: Clusters works in a mobile browser, installs as a PWA, and ships as iOS and Android apps. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection.
 faq:
   - q: Is there a real app?
     a: Yes, for iOS and Android, with native handling of the status bar, keyboard, splash screen, deep links and the Android back button. It can also be installed from the browser as a PWA.
   - q: Can I draw on a tablet?
-    a: Yes, with a stylus or a finger. Drawing gestures are guarded so the canvas will not pan mid-stroke.
+    a: Yes, with a stylus or a finger. A stylus gets pressure-sensitive strokes, and once one has been used on the device your finger switches to panning so a resting palm cannot draw. A "Draw with finger" toggle in the draw options puts that back if you want it.
+  - q: Why did my finger stop drawing?
+    a: Because a stylus was used on this device, so the finger became a pan gesture — that is how palm rejection works. Turn "Draw with finger" back on under Brush in the draw options.
   - q: Is anything unavailable on mobile?
     a: Nothing is removed, but dense surfaces like long documents and the 3D home graph are much better on a large screen. The graph falls back to 2D on tablets.
 related:
@@ -33,8 +35,10 @@ or the native iOS and Android apps. They are the same app.
 | Long press | Context menu |
 | Double tap | Add menu at that point |
 
-Drawing gestures are guarded so the canvas cannot start panning halfway through
-a stroke — the failure that makes drawing on touch unusable.
+With the draw tool active, one finger draws and two fingers still pinch-zoom.
+Starting a pinch part-way through a stroke discards that stroke rather than
+smearing it across the board as the canvas moves underneath — the failure that
+makes drawing on touch unusable.
 
 ## Layout differences
 
@@ -54,6 +58,12 @@ reviewing on a phone without chrome in the way.
 Tablets get closer to the desktop layout — the rail rather than the sheet — plus
 stylus drawing. On iPad, drawing, annotating and reviewing all work properly;
 long document editing is still better on a laptop.
+
+**Drawing** is on the rail directly on touch, and in the add sheet, rather than
+behind the `D` shortcut there is no keyboard for. A stylus draws with pressure;
+flipping it over erases. The full-screen [sketch pad](/docs/canvas/shapes-and-drawing#the-sketch-pad)
+goes edge to edge, with pinch-to-zoom inside the frame for detail work and its
+brushes, colours, layers and frame formats in a sheet sized for thumbs.
 
 The [Home graph](/docs/clusters/home-graph) renders its 2D fallback on most
 tablets, which has the same nodes and interactions.
