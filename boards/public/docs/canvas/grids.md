@@ -2,7 +2,7 @@
 
 > A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. The grid tool opens a Templates panel: pick a shape like storyboard, 2x2 or contact sheet, then click the canvas to place it, or apply it to a grid you already have. Cells split and merge by dragging the dividers.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/grids · Updated 2026-08-26_
+_Source: https://clusters.soleilpictures.com/docs/canvas/grids · Updated 2026-08-27_
 
 A grid is a card that is divided up. Every cell holds real content, and the
 divisions are yours to move.
@@ -32,8 +32,9 @@ Everything reflows around what you changed.
 
 ## Templates
 
-The grid tool on the left rail opens the **Templates** panel rather than placing
-one fixed shape. Each entry shows the shape it will make, drawn from the same
+The grid tool on the left rail arms the placer and opens the **Templates** panel
+at the same time, so you can click straight through it for the default or pick a
+shape first. Each entry shows the shape it will make, drawn from the same
 geometry the card itself uses — so the tile and the grid you get cannot drift
 apart.
 
@@ -50,11 +51,15 @@ apart.
 | Stacked pair | Two rows |
 | Single cell | One cell |
 
-What clicking a template does depends on what is selected:
+Picking the grid tool arms it *and* opens the panel, so you can ignore the panel
+entirely and click the canvas for the default storyboard. What clicking a
+template does depends on what is selected:
 
 - **Nothing selected** — the next click on the canvas places a new grid in that
-  shape.
+  shape instead of the default.
 - **A grid selected** — that grid is re-cut in place.
+
+Press **Escape** once to close the panel, twice to put the tool away.
 
 Re-cutting keeps your work. Cell content moves to the new cells in reading
 order, so the first filled cell stays first. If the new shape has fewer cells
@@ -63,10 +68,10 @@ Pressing **G** skips the panel and places the default storyboard immediately.
 
 ### Saving your own
 
-Select a grid you like the shape of and choose **Save this grid as a template**
-at the bottom of the panel. It saves the *shape* — the cells and their
-proportions — and not what is in them, so a saved template is a skeleton you
-fill in fresh each time.
+Right-click a grid you like the shape of and choose **Save as template** — or
+select it and use **Save this grid as a template** at the bottom of the panel.
+Either way it saves the *shape*, the cells and their proportions, and not what
+is in them: a saved template is a skeleton you fill in fresh each time.
 
 ### Labelling the boxes
 

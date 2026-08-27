@@ -748,7 +748,7 @@ export const DOCS_PAGES = [
     "answer": "A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. The grid tool opens a Templates panel: pick a shape like storyboard, 2x2 or contact sheet, then click the canvas to place it, or apply it to a grid you already have. Cells split and merge by dragging the dividers.",
     "section": "canvas",
     "order": 7,
-    "updated": "2026-08-26",
+    "updated": "2026-08-27",
     "navLabel": "Grids",
     "headings": [
       {

@@ -42,27 +42,45 @@ async function placeTemplate(page, name, at = { x: 520, y: 300 }) {
 test.describe('grid templates — the rail panel', () => {
   test.beforeEach(async ({ page }) => { await gotoBlankBoard(page); });
 
-  // The core behavioural change: the grid tool used to arm the placer with one
-  // hardcoded shape. It now opens the picker, and opening a picker must not
-  // itself arm anything — otherwise a click meant to dismiss the panel drops a
-  // grid nobody asked for.
-  test('the grid tool opens the panel without arming the placer', async ({ page }) => {
+  // The oldest muscle memory in the app: pick the tool, tap the canvas, get a
+  // grid. Opening the picker must NOT swallow that click — the panel refines
+  // which shape lands, it does not gate landing one.
+  test('the grid tool arms the placer and opens the picker together', async ({ page }) => {
     await gridTool(page).click();
     await expect(panel(page)).toBeVisible();
     await expect(gridTool(page)).toHaveClass(/active/);
     await expect(gridTool(page)).toHaveAttribute('aria-expanded', 'true');
 
-    // Clicking the canvas closes the panel and creates NOTHING.
+    // Ignore the panel entirely and just click: you get the default storyboard.
     await page.locator('.canvas-wrap').click({ position: { x: 600, y: 400 } });
     await expect(panel(page)).toHaveCount(0);
+    await expect(page.locator('.card-kind-grid')).toHaveCount(1);
+    await expect(page.locator('.gridc-cell')).toHaveCount(3); // storyboard-1-2
+  });
+
+  // Clicking it a second time is a cancel, not a second arm.
+  test('clicking the grid tool again disarms it', async ({ page }) => {
+    await gridTool(page).click();
+    await expect(panel(page)).toBeVisible();
+    await gridTool(page).click();
+    await expect(panel(page)).toHaveCount(0);
+    await page.locator('.canvas-wrap').click({ position: { x: 600, y: 400 } });
     await expect(page.locator('.card-kind-grid')).toHaveCount(0);
   });
 
-  test('Escape closes the panel', async ({ page }) => {
+  // Escape is a ladder: the first press closes the picker, the second disarms
+  // the tool. Collapsing both into one press would make "I just wanted to shut
+  // the panel" also cancel the thing you were about to do.
+  test('Escape closes the panel, then disarms the tool', async ({ page }) => {
     await gridTool(page).click();
     await expect(panel(page)).toBeVisible();
+
     await page.keyboard.press('Escape');
     await expect(panel(page)).toHaveCount(0);
+    await expect(gridTool(page)).toHaveClass(/active/);      // still armed
+
+    await page.keyboard.press('Escape');
+    await page.locator('.canvas-wrap').click({ position: { x: 600, y: 400 } });
     await expect(page.locator('.card-kind-grid')).toHaveCount(0);
   });
 
@@ -98,7 +116,9 @@ test.describe('grid templates — the rail panel', () => {
 
   // G is the escape hatch for anyone who already knows the shortcut: it places
   // the default immediately and never opens the picker.
-  test('G still places the default storyboard with no panel', async ({ page }) => {
+  // G arms without opening the picker — the shortcut is for people who already
+  // know what they want.
+  test('G arms the default storyboard with no panel', async ({ page }) => {
     await page.locator('.canvas-wrap').click({ position: { x: 700, y: 500 } });
     await page.keyboard.press('g');
     await expect(panel(page)).toHaveCount(0);
@@ -220,6 +240,18 @@ test.describe('grid templates — applying to an existing grid', () => {
 
     await expect(page.locator('.gridc-cell')).toHaveCount(9);
     await expect(page.locator('.toast', { hasText: 'removed' })).toHaveCount(0);
+  });
+
+  // Saving lives on the card too, not just in the panel footer. Under ?local=1
+  // there is no backend, so the entry is absent rather than present-and-broken
+  // — which is also what this asserts: the menu must not offer an action that
+  // cannot work.
+  test('save-as-template is absent without a backend', async ({ page }) => {
+    await placeTemplate(page, '2 × 2');
+    await page.locator('.card-kind-grid').first().dispatchEvent('contextmenu');
+    await expect(page.locator('.ctx-menu')).toBeVisible();
+    await expect(page.locator('.ctx-menu').getByText('Apply template…', { exact: true })).toBeVisible();
+    await expect(page.locator('.ctx-menu').getByText('Save as template…', { exact: true })).toHaveCount(0);
   });
 
   // Reaching the same panel from the card, which also does the selecting.

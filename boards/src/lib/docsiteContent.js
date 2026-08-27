@@ -8588,7 +8588,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The grid tool on the left rail opens the "
+     "v": "The grid tool on the left rail arms the placer and opens the "
     },
     {
      "t": "strong",
@@ -8602,7 +8602,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " panel rather than placing one fixed shape. Each entry shows the shape it will make, drawn from the same geometry the card itself uses — so the tile and the grid you get cannot drift apart."
+     "v": " panel at the same time, so you can click straight through it for the default or pick a shape first. Each entry shows the shape it will make, drawn from the same geometry the card itself uses — so the tile and the grid you get cannot drift apart."
     }
    ]
   },
@@ -8770,7 +8770,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "What clicking a template does depends on what is selected:"
+     "v": "Picking the grid tool arms it "
+    },
+    {
+     "t": "em",
+     "v": "and",
+     "children": [
+      {
+       "t": "text",
+       "v": "and"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens the panel, so you can ignore the panel entirely and click the canvas for the default storyboard. What clicking a template does depends on what is selected:"
     }
    ]
   },
@@ -8791,7 +8805,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — the next click on the canvas places a new grid in that shape."
+      "v": " — the next click on the canvas places a new grid in that shape instead of the default."
      }
     ],
     [
@@ -8810,6 +8824,29 @@ export const DOCS_CONTENT = {
       "v": " — that grid is re-cut in place."
      }
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Press "
+    },
+    {
+     "t": "strong",
+     "v": "Escape",
+     "children": [
+      {
+       "t": "text",
+       "v": "Escape"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " once to close the panel, twice to put the tool away."
+    }
    ]
   },
   {
@@ -8852,7 +8889,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Select a grid you like the shape of and choose "
+     "v": "Right-click a grid you like the shape of and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Save as template",
+     "children": [
+      {
+       "t": "text",
+       "v": "Save as template"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — or select it and use "
     },
     {
      "t": "strong",
@@ -8866,7 +8917,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " at the bottom of the panel. It saves the "
+     "v": " at the bottom of the panel. Either way it saves the "
     },
     {
      "t": "em",
@@ -8880,7 +8931,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — the cells and their proportions — and not what is in them, so a saved template is a skeleton you fill in fresh each time."
+     "v": ", the cells and their proportions, and not what is in them: a saved template is a skeleton you fill in fresh each time."
     }
    ]
   },

@@ -2005,8 +2005,12 @@ export function CanvasSurface({
   // so the grid's layout is captured when the dialog opens rather than read
   // again on submit — the selection can change while a modal is up.
   const [saveTplLayout, setSaveTplLayout] = useState(null);
-  const openSaveTemplate = useCallback(() => {
-    const id = templateTargetIdRef.current;
+  const openSaveTemplate = useCallback((gridId = null) => {
+    // An explicit id for the card context menu, which knows exactly which grid
+    // was right-clicked. The panel footer passes nothing and falls back to the
+    // selection — reading the ref there is correct because it was already
+    // rendered from it.
+    const id = gridId || templateTargetIdRef.current;
     const card = id ? cardById[id] : null;
     if (!card) return;
     const layout = card.templateId ? gridTemplates?.[card.templateId]?.layout : card.layout;
@@ -5717,6 +5721,13 @@ export function CanvasSurface({
         // Opens the Templates panel with this grid as the target. Selecting it
         // first is what makes the panel apply rather than place — the same rule
         // the panel's header states, reached from the card instead of the rail.
+        if (templatesEnabled) {
+          items.push({
+            id: 'grid-save-template',
+            label: 'Save as template…',
+            run: () => openSaveTemplate(c.id),
+          });
+        }
         items.push({
           id: 'grid-apply-template',
           label: 'Apply template…',
@@ -9948,7 +9959,14 @@ export function CanvasSurface({
           // it, and the right-click Add ▸ Grid is untouched.
           const isTpl = t.id === 'grid';
           const active = isTpl ? (tplPanelOpen || selectedTool === 'grid') : selectedTool === t.id;
-          const activate = isTpl ? () => setTplPanelOpen(o => !o) : () => setSelectedTool(t.id);
+          // The grid tool ARMS the placer and opens the picker at the same
+          // time. Opening a panel used to swallow the click that follows it,
+          // which broke the oldest muscle memory in the app: pick the tool, tap
+          // the canvas, get a grid. The panel is a refinement — choose a shape
+          // before you click and that shape is what lands — not a gate.
+          const activate = isTpl
+            ? () => { const next = !tplPanelOpen; setTplPanelOpen(next); setSelectedTool(next ? 'grid' : 'select'); }
+            : () => setSelectedTool(t.id);
           const btn = (
             <div className={`cnv-tool ${active ? 'active' : ''}`}
                  data-tip={t.title}
@@ -9959,8 +9977,13 @@ export function CanvasSurface({
                  aria-pressed={active}
                  aria-expanded={isTpl ? tplPanelOpen : undefined}
                  onKeyDown={(e) => {
+                   // Escape is deliberately NOT handled here. The window-level
+                   // ladder owns it, and a local handler double-steps: keydown
+                   // is a discrete event, so React flushes this setState
+                   // synchronously, the ladder's effect re-registers with the
+                   // new state, and the same press then falls through to the
+                   // next rung — closing the panel AND disarming the tool.
                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
-                   else if (isTpl && e.key === 'Escape') { setTplPanelOpen(false); }
                  }}
                  onPointerDown={(e) => { e.stopPropagation(); activate(); }}>
               <Icon as={t.icon} size={20} />
