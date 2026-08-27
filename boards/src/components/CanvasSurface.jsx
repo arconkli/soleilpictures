@@ -1936,15 +1936,17 @@ export function CanvasSurface({
   // the ACTIVE workspace — a member of three workspaces shouldn't see all three
   // libraries stacked in one panel.
   const templateSections = useMemo(() => {
-    const mine = rowsFromRecords(
-      savedLayouts.filter((r) => r.created_by === userId && r.scope !== 'workspace'),
-      SOURCES.USER,
-    );
+    const personal = savedLayouts.filter((r) => r.created_by === userId && r.scope !== 'workspace');
+    // origin (0270) is what separates a template you built from a copy you took
+    // off a share link or the gallery — both are scope:'user' rows you own, so
+    // without it they pile into one indistinguishable list.
+    const mine = rowsFromRecords(personal.filter((r) => (r.origin || 'own') === 'own'), SOURCES.USER);
+    const downloaded = rowsFromRecords(personal.filter((r) => (r.origin || 'own') !== 'own'), SOURCES.DOWNLOADED);
     const workspace = rowsFromRecords(
       savedLayouts.filter((r) => r.scope === 'workspace' && r.workspace_id === workspaceId),
       SOURCES.WORKSPACE,
     );
-    return mergeSections({ mine, workspace });
+    return mergeSections({ mine, workspace, downloaded });
   }, [savedLayouts, userId, workspaceId]);
 
   // The grid a template would re-cut: exactly one card selected and it IS a grid.

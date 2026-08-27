@@ -17,7 +17,7 @@ import { supabase } from './supabase.js';
 
 // Columns the panel needs. `body` is the payload; share_token drives the
 // "Copy link" affordance. Never selects anything about other people.
-const COLS = 'id, workspace_id, name, body, scope, share_token, created_by, updated_at';
+const COLS = 'id, workspace_id, name, body, scope, share_token, created_by, origin, updated_at';
 
 // Every template visible to me: my own (any scope) plus anything shared into a
 // workspace I belong to. ONE query — the RLS SELECT policy is the union, so

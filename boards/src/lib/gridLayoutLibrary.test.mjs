@@ -249,20 +249,35 @@ assertEq(rowFromRecord({ id: 'x', body: { layout: presetById('single').tree } },
 
 // Local mode and signed-out both land here: built-ins only, and crucially no
 // hollow "My templates" header sitting above nothing.
-assertEq(mergeSections().map((s) => s.id), [SOURCES.BUILTIN], 'with no data, only Built-in shows');
-assertEq(mergeSections({ mine: [], workspace: [], community: [] }).map((s) => s.id), [SOURCES.BUILTIN], 'empty sections are dropped');
+assertEq(mergeSections().map((s) => s.id), [SOURCES.BUILTIN], 'with no data, only Defaults shows');
+assertEq(mergeSections({ mine: [], workspace: [], downloaded: [], community: [] }).map((s) => s.id),
+  [SOURCES.BUILTIN], 'empty sections are dropped');
 {
-  const mine = [{ key: 'user:1', id: '1', name: 'Mine', tree: presetById('3up').tree, source: SOURCES.USER }];
-  const sections = mergeSections({ mine });
-  assertEq(sections.map((s) => s.id), [SOURCES.BUILTIN, SOURCES.USER], 'a populated section appears');
-  assertEq(sections[1].title, 'My templates', 'section title');
+  const one = (n, src) => [{ key: `${src}:${n}`, id: n, name: n, tree: presetById('3up').tree, source: src }];
+  const sections = mergeSections({
+    mine: one('a', SOURCES.USER),
+    workspace: one('b', SOURCES.WORKSPACE),
+    downloaded: one('c', SOURCES.DOWNLOADED),
+  });
+  // Ordered by how close the templates are to you; Defaults last, because it is
+  // the section you stop needing.
+  assertEq(sections.map((s) => s.id),
+    [SOURCES.USER, SOURCES.WORKSPACE, SOURCES.DOWNLOADED, SOURCES.BUILTIN],
+    'sections are ordered nearest-to-you first, Defaults last');
+  assertEq(sections.map((s) => s.title), ['Yours', 'Workspace', 'Downloaded', 'Defaults'], 'section titles');
 }
+// A copy taken from a link or the gallery is yours to keep but is not something
+// you made — origin is what keeps the two lists apart.
+assertEq(rowFromRecord({ id: 'x', name: 'n', origin: 'link', body: { layout: presetById('3up').tree } }, SOURCES.DOWNLOADED).origin,
+  'link', 'origin carries from the record');
+assertEq(rowFromRecord({ id: 'x', name: 'n', body: { layout: presetById('3up').tree } }, SOURCES.USER).origin,
+  'own', 'a record with no origin defaults to own');
 {
   const mine = [{ key: 'user:1', id: '1', name: 'Shot list', tree: presetById('3up').tree, source: SOURCES.USER }];
   const sections = mergeSections({ mine });
   assertEq(filterSections(sections, 'shot').map((s) => s.id), [SOURCES.USER], 'search finds a saved template');
   assertEq(filterSections(sections, 'SHOT').map((s) => s.id), [SOURCES.USER], 'search is case-insensitive');
-  assertEq(filterSections(sections, 'storyboard').map((s) => s.id), [SOURCES.BUILTIN], 'search matches built-ins too');
+  assertEq(filterSections(sections, 'storyboard').map((s) => s.id), [SOURCES.BUILTIN], 'search matches defaults too');
   assertEq(filterSections(sections, 'zzzz'), [], 'no matches → no sections');
   assertEq(filterSections(sections, '   ').length, sections.length, 'a blank query is not a filter');
   assertEq(filterSections(sections, '').length, sections.length, 'an empty query is not a filter');

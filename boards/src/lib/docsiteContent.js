@@ -8845,7 +8845,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " box to filter by name — across the built-ins and anything you have saved — then press "
+     "v": " box to filter by name — across the defaults and anything you have saved — then press "
     },
     {
      "t": "strong",
@@ -8859,21 +8859,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to take the top match, or "
+     "v": " to take the top match, or use the "
     },
     {
      "t": "strong",
-     "v": "↑ / ↓",
+     "v": "arrow keys",
      "children": [
       {
        "t": "text",
-       "v": "↑ / ↓"
+       "v": "arrow keys"
       }
      ]
     },
     {
      "t": "text",
-     "v": " to move through the results. Press "
+     "v": " to move through the grid. Press "
     },
     {
      "t": "strong",
@@ -9022,6 +9022,135 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "heading",
+   "depth": 3,
+   "text": "Sections",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sections"
+    }
+   ],
+   "id": "sections"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The panel groups templates by where they came from, nearest to you first:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Section"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What is in it"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Yours",
+       "children": [
+        {
+         "t": "text",
+         "v": "Yours"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Templates you saved."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Workspace",
+       "children": [
+        {
+         "t": "text",
+         "v": "Workspace"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Shared with everyone in the current workspace."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Downloaded",
+       "children": [
+        {
+         "t": "text",
+         "v": "Downloaded"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Copies you took from a share link or the public gallery."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Defaults",
+       "children": [
+        {
+         "t": "text",
+         "v": "Defaults"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The layouts that ship with Clusters."
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Click any heading to fold that section away — useful once you have your own and the defaults are mostly in the way. A folded heading still shows how many are inside it, and the panel remembers what you folded. Search always looks inside folded sections, so a match is never hidden behind a closed heading."
+    }
+   ]
+  },
+  {
    "type": "para",
    "inline": [
     {
@@ -9030,17 +9159,17 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "My templates",
+     "v": "Yours",
      "children": [
       {
        "t": "text",
-       "v": "My templates"
+       "v": "Yours"
       }
      ]
     },
     {
      "t": "text",
-     "v": ", above the built-ins. Each one has a "
+     "v": ". Each one has a "
     },
     {
      "t": "strong",

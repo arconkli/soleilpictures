@@ -59,9 +59,9 @@ template does depends on what is selected:
   shape instead of the default.
 - **A grid selected** — that grid is re-cut in place.
 
-Type in the **search** box to filter by name — across the built-ins and anything
-you have saved — then press **Enter** to take the top match, or **↑ / ↓** to move
-through the results. Press **Escape** once to close the panel, twice to put the
+Type in the **search** box to filter by name — across the defaults and anything
+you have saved — then press **Enter** to take the top match, or use the **arrow
+keys** to move through the grid. Press **Escape** once to close the panel, twice to put the
 tool away.
 
 Re-cutting keeps your work. Cell content moves to the new cells in reading
@@ -89,8 +89,23 @@ it and delete it. Clear the box later and the label comes back. Because it is
 never really in the cell, a labelled-but-empty box counts as empty everywhere it
 matters: it adds nothing to your card count and nothing to an export.
 
-Your templates appear under **My templates**, above the built-ins. Each one has
-a **···** menu:
+### Sections
+
+The panel groups templates by where they came from, nearest to you first:
+
+| Section | What is in it |
+|---|---|
+| **Yours** | Templates you saved. |
+| **Workspace** | Shared with everyone in the current workspace. |
+| **Downloaded** | Copies you took from a share link or the public gallery. |
+| **Defaults** | The layouts that ship with Clusters. |
+
+Click any heading to fold that section away — useful once you have your own and
+the defaults are mostly in the way. A folded heading still shows how many are
+inside it, and the panel remembers what you folded. Search always looks inside
+folded sections, so a match is never hidden behind a closed heading.
+
+Your templates appear under **Yours**. Each one has a **···** menu:
 
 | Action | What it does |
 |---|---|

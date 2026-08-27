@@ -91,6 +91,12 @@ body:has(.cnv-tpl-panel) .cnv-depth-dock { display: none; }
   position: sticky;
   top: 0;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: 0;
+  border-radius: 4px;
   font: 600 10px/1 var(--font-sans);
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -98,7 +104,29 @@ body:has(.cnv-tpl-panel) .cnv-depth-dock { display: none; }
   background: var(--bg-1);
   padding: 8px 4px 5px;
   user-select: none;
+  cursor: pointer;
+  text-align: left;
 }
+.tplt-section-head:hover { color: var(--ink-0); }
+.tplt-caret {
+  flex: 0 0 auto;
+  font-size: 8px;
+  line-height: 1;
+  color: var(--ink-3);
+  transition: color var(--dur-fast) var(--ease);
+}
+.tplt-section-head:hover .tplt-caret { color: var(--ink-1); }
+.tplt-section-title { flex: 1 1 auto; min-width: 0; }
+/* The count is what makes a folded section still informative — "Defaults 10"
+   tells you what is behind it without opening it. */
+.tplt-section-count {
+  flex: 0 0 auto;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--ink-3);
+}
+/* A folded section is just its header, so drop the gap it would leave behind. */
+.tplt-section.is-folded { margin-bottom: 2px; }
 .tplt-section:first-child .tplt-section-head { padding-top: 0; }
 
 /* Two columns: a layout is picked by LOOKING at it, so the tile has to be big

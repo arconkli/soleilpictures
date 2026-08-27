@@ -24,6 +24,11 @@ export const SOURCES = Object.freeze({
   BUILTIN: 'builtin',
   USER: 'user',
   WORKSPACE: 'workspace',
+  // Somebody else's, copied into your library from a share link or the public
+  // gallery. Kept apart from USER because both are `scope:'user'` rows owned by
+  // you — without grid_layouts.origin (0270) they are indistinguishable, and a
+  // list of thirty "yours" that you mostly did not make is not a useful list.
+  DOWNLOADED: 'downloaded',
   COMMUNITY: 'community',
 });
 
@@ -59,6 +64,8 @@ export function rowFromRecord(rec, source) {
     // Sanitized on the way OUT as well as in: a community template's labels are
     // text somebody else wrote, and this is the boundary they cross.
     hints: sanitizeHints(body.hints),
+    // 'own' | 'link' | 'gallery' (0270) — which section this belongs in.
+    origin: rec.origin || 'own',
     // Set only when this template is live in the public gallery — the row's
     // actions offer Publish or Remove based on it, never both.
     publishedSlug: rec.published_slug || null,
@@ -70,14 +77,19 @@ export function rowsFromRecords(records, source) {
   return (records || []).map((r) => rowFromRecord(r, source)).filter(Boolean);
 }
 
-// Section list for the panel. Empty sections are dropped so a signed-out or
-// local-mode user sees just "Built-in" with no hollow headers under it.
-export function mergeSections({ mine, workspace, community } = {}) {
+// Section list for the panel, ordered by how close the templates are to you:
+// what you made, what your team shares, what you took from elsewhere, and the
+// shipped set last — it is the one you stop needing.
+//
+// Empty sections are dropped, so a signed-out or local-mode user sees just
+// "Defaults" with no hollow headers above it.
+export function mergeSections({ mine, workspace, downloaded, community } = {}) {
   return [
-    { id: SOURCES.BUILTIN, title: 'Built-in', rows: BUILT_IN_LAYOUTS },
-    { id: SOURCES.USER, title: 'My templates', rows: mine || [] },
+    { id: SOURCES.USER, title: 'Yours', rows: mine || [] },
     { id: SOURCES.WORKSPACE, title: 'Workspace', rows: workspace || [] },
+    { id: SOURCES.DOWNLOADED, title: 'Downloaded', rows: downloaded || [] },
     { id: SOURCES.COMMUNITY, title: 'Community', rows: community || [] },
+    { id: SOURCES.BUILTIN, title: 'Defaults', rows: BUILT_IN_LAYOUTS },
   ].filter((s) => s.rows.length > 0);
 }
 

@@ -174,6 +174,66 @@ test.describe('grid templates — the rail panel', () => {
     expect(geom.bottom).toBeLessThanOrEqual(geom.vh);
   });
 
+  // Sections fold, because once you have your own templates the shipped set is
+  // mostly in the way. The state is remembered — re-collapsing it on every open
+  // would make the affordance worthless.
+  test('a section folds, reports its size, and stays folded', async ({ page }) => {
+    await gridTool(page).click();
+    const head = panel(page).getByRole('button', { name: /^Defaults \(\d+\)$/ });
+    await expect(head).toHaveAttribute('aria-expanded', 'true');
+    const n = await panel(page).getByRole('menuitem').count();
+    expect(n).toBeGreaterThanOrEqual(10);
+
+    await head.click();
+    await expect(head).toHaveAttribute('aria-expanded', 'false');
+    await expect(panel(page).getByRole('menuitem')).toHaveCount(0);
+    // Folded is not hidden: the count is what keeps a closed section informative.
+    await expect(head).toContainText(String(n));
+
+    // Reopen the panel — the fold survived.
+    await page.keyboard.press('Escape');
+    await gridTool(page).click();
+    await expect(panel(page).getByRole('button', { name: /^Defaults/ }))
+      .toHaveAttribute('aria-expanded', 'false');
+  });
+
+  // Searching must reach inside folded sections, or a match hiding behind a
+  // closed header is indistinguishable from no result at all.
+  test('search sees through a folded section', async ({ page }) => {
+    await gridTool(page).click();
+    await panel(page).getByRole('button', { name: /^Defaults/ }).click();
+    await expect(panel(page).getByRole('menuitem')).toHaveCount(0);
+
+    await panel(page).getByRole('searchbox', { name: 'Search templates' }).fill('contact');
+    await expect(template(page, 'Contact sheet · 3 × 3')).toBeVisible();
+  });
+
+  // The rows are a GRID, so stepping the flat index by one on ArrowDown walks
+  // ACROSS a row rather than down it — the cursor visibly jumped left and right
+  // instead of descending. Navigation is geometric now.
+  test('ArrowDown moves down a row, not sideways', async ({ page }) => {
+    await gridTool(page).click();
+    const search = panel(page).getByRole('searchbox', { name: 'Search templates' });
+    await search.click();
+
+    const centreOf = () => panel(page).locator('.tplt-row-wrap.is-active').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+    });
+
+    await page.keyboard.press('ArrowDown');           // seed the cursor
+    const a = await centreOf();
+    await page.keyboard.press('ArrowDown');
+    const b = await centreOf();
+    expect(b.y, 'ArrowDown must descend').toBeGreaterThan(a.y);
+    expect(Math.abs(b.x - a.x), 'ArrowDown must not slide sideways').toBeLessThan(20);
+
+    await page.keyboard.press('ArrowRight');
+    const c = await centreOf();
+    expect(c.x, 'ArrowRight must move right').toBeGreaterThan(b.x);
+    expect(Math.abs(c.y - b.y), 'ArrowRight must stay on its row').toBeLessThan(20);
+  });
+
   // Every built-in ships a thumbnail drawn from the same computeCellRects the
   // card uses, so "what the tile shows" and "what you get" cannot drift.
   test('the panel lists built-ins with a shape preview each', async ({ page }) => {
