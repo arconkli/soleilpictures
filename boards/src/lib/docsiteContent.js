@@ -6753,7 +6753,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Wide and translucent, multiplied over what is underneath so text stays readable through it."
+       "v": "Wide and translucent — whatever it crosses stays readable through it."
       }
      ]
     ],

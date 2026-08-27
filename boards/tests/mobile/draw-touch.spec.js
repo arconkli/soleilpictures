@@ -63,6 +63,34 @@ test.describe('board', () => {
     expect(await page.locator('.strokes-layer path').count()).toBe(before + 2);
   });
 
+  test('the draw options bar stays visible while you draw', async ({ page }) => {
+    // It was added to the auto-hide set alongside the rail and the bottom nav,
+    // which meant the colour you were drawing with faded out the instant you
+    // touched the canvas and popped back ~700ms after you lifted. The rail is
+    // worth hiding — it sits over the drawing area. The bar you are USING is not.
+    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await page.waitForTimeout(300);
+    const mid = await page.evaluate(async () => {
+      const el = document.querySelector('.canvas-wrap');
+      const r = el.getBoundingClientRect();
+      const ev = (t, x, extra = {}) => new PointerEvent(t, {
+        bubbles: true, cancelable: true, composed: true, pointerId: 5,
+        pointerType: 'touch', isPrimary: true, button: 0, buttons: 1,
+        clientX: r.left + x, clientY: r.top + 250, ...extra,
+      });
+      el.dispatchEvent(ev('pointerdown', 120));
+      let seen = '1';
+      for (let i = 1; i <= 30; i++) {
+        window.dispatchEvent(ev('pointermove', 120 + i * 6));
+        await new Promise(requestAnimationFrame);
+        if (i === 15) seen = getComputedStyle(document.querySelector('.tob')).opacity;
+      }
+      window.dispatchEvent(ev('pointerup', 300, { buttons: 0 }));
+      return seen;
+    });
+    expect(parseFloat(mid)).toBeGreaterThan(0.5);
+  });
+
   test('the draw options bar is fully on screen, clear of the bottom nav', async ({ page }) => {
     await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
     const tob = page.locator('.tob');
@@ -270,5 +298,58 @@ test.describe('two fingers', () => {
     await expect(reset).toBeVisible();
     await reset.click();
     await expect(reset).toHaveCount(0);
+  });
+});
+
+test.describe('pad zoom', () => {
+  test('drawing while the pad is zoomed lands where the finger is', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile-chrome', 'CDP touch dispatch is Chromium-only');
+    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await page.locator('.tob-canvas-btn').first().click();
+    await expect(page.locator('.sketchpad-surface')).toBeVisible();
+    await page.waitForTimeout(300);
+
+    const box = await page.locator('.sketchpad-surface').boundingBox();
+    const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+    const cdp = await page.context().newCDPSession(page);
+    const pt = (x, y, id) => ({ x, y, id, radiusX: 10, radiusY: 10, force: 1 });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [pt(cx - 30, cy, 1), pt(cx + 30, cy, 2)] });
+    for (let i = 1; i <= 6; i++) {
+      const d = 30 + i * 12;
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [pt(cx - d, cy, 1), pt(cx + d, cy, 2)] });
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(400);
+    await expect(page.locator('.sp-zoom-reset')).toBeVisible();
+
+    // The zoom/pan transform is applied to the drawing surface ITSELF, so
+    // toLogical's getBoundingClientRect reads it and no coordinate maths has to
+    // know about it. Prove that: a point drawn under the finger must map back
+    // to the same viewport pixel.
+    const probe = await page.evaluate(async () => {
+      const el = document.querySelector('.sketchpad-surface');
+      const r = el.getBoundingClientRect();
+      const X = r.left + r.width * 0.5, Y = r.top + r.height * 0.5;
+      const ev = (t, x, y, extra = {}) => new PointerEvent(t, {
+        bubbles: true, cancelable: true, composed: true, pointerId: 21,
+        pointerType: 'touch', isPrimary: true, button: 0, buttons: 1,
+        clientX: x, clientY: y, ...extra,
+      });
+      el.dispatchEvent(ev('pointerdown', X, Y));
+      for (let i = 1; i <= 8; i++) { window.dispatchEvent(ev('pointermove', X + i * 4, Y)); await new Promise(requestAnimationFrame); }
+      window.dispatchEvent(ev('pointerup', X + 32, Y, { buttons: 0 }));
+      await new Promise(requestAnimationFrame);
+      return { X, Y, rect: { left: r.left, top: r.top, w: r.width, h: r.height } };
+    });
+    await page.waitForTimeout(300);
+    const d = await page.evaluate(() => document.querySelector('.sketchpad-svg path')?.getAttribute('d'));
+    expect(d, 'a stroke should have been committed').toBeTruthy();
+    const m = d.match(/M([-\d.]+),([-\d.]+)/);
+    const vb = await page.evaluate(() =>
+      document.querySelector('.sketchpad-svg').getAttribute('viewBox').split(' ').map(Number));
+    const backX = probe.rect.left + (parseFloat(m[1]) / vb[2]) * probe.rect.w;
+    const backY = probe.rect.top + (parseFloat(m[2]) / vb[3]) * probe.rect.h;
+    expect(Math.abs(backX - probe.X)).toBeLessThan(3);
+    expect(Math.abs(backY - probe.Y)).toBeLessThan(3);
   });
 });

@@ -45,7 +45,7 @@ the zoom, and the stroke then scales with the board like everything else.
 |---|---|
 | **Pen** | Tapers with pressure. The default. |
 | **Marker** | Constant width, flat ends. |
-| **Highlighter** | Wide and translucent, multiplied over what is underneath so text stays readable through it. |
+| **Highlighter** | Wide and translucent — whatever it crosses stays readable through it. |
 | **Pencil** | Softer, tapers less. |
 
 Each is previewed in the picker as the stroke it actually draws.

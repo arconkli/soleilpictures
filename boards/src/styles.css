@@ -17586,12 +17586,10 @@ body:not([data-clean-mode='1']):not([data-focus-mode='1']) .clean-mode-exit { di
   /* Nothing in a single scrolling row may shrink, or the swatches collapse into
      slivers instead of scrolling. */
   .tob > * { flex: 0 0 auto; }
-  /* The bar rides with the nav when the chrome auto-hides during a gesture. */
-  body[data-canvas-interacting='1'] .tob {
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--dur-base) var(--ease);
-  }
+  /* Deliberately NOT in the auto-hide set with .cnv-tools and .mb-nav. Those
+     sit over the drawing area and are worth getting out of the way; the options
+     bar is the thing you are USING, and fading it on every stroke made the
+     colour you were drawing with disappear the moment you touched the canvas. */
 }
 
 /* ── Auto-hide chrome while looking around (touch) ─────────────────────
@@ -18001,11 +17999,31 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
    the array itself is stored bottom-first because that is the paint order. */
 .sp-layers { display: flex; flex-direction: column; gap: 4px; }
 .sp-layer {
-  display: flex; align-items: center; gap: 4px;
+  display: flex; flex-direction: column;
   padding: 3px;
   border: 1px solid transparent;
   border-radius: var(--radius);
 }
+.sp-layer-row { display: flex; align-items: center; gap: 4px; }
+.sp-layer-input {
+  flex: 1 1 auto; min-width: 0;
+  background: var(--bg-0);
+  border: 1px solid var(--soleil);
+  border-radius: 4px;
+  color: var(--ink-0);
+  font: 500 12px/1 var(--font-sans);
+  padding: 8px;
+}
+/* Only the active layer shows its opacity, so the panel stays a list rather
+   than a wall of sliders. */
+.sp-layer-opacity {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 8px 6px 36px;
+  font: 500 10px/1 var(--font-sans);
+  letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.sp-layer-opacity input[type="range"] { flex: 1 1 auto; min-width: 0; accent-color: var(--soleil); }
 .sp-layer.is-active { border-color: var(--soleil); background: var(--bg-3); }
 .sp-layer-name {
   flex: 1 1 auto; min-width: 0;

@@ -30,13 +30,22 @@ export const DEFAULT_BRUSH = 'pen';
 //   smoothing  corner rounding on the generated outline
 //   streamline how much input jitter is damped before outlining
 //   opacity    multiplied into the stroke's own color
-//   blend      CSS mix-blend-mode / Canvas2D globalCompositeOperation
 //   cap        line cap for the constant-width fast path
+//
+// There is deliberately NO blend mode. The highlighter wanted `multiply`, and
+// it is the one property the two renderers cannot agree on: SVG's
+// mix-blend-mode is confined by the stroke layer's own stacking context and
+// blends against transparency, while Canvas2D's globalCompositeOperation
+// composites against whatever is already painted. Over a white card they
+// happen to match; over an image the live canvas gives rgb(153,163,124) and the
+// thumbnail rgb(90,129,124) for the same stroke. A board whose preview doesn't
+// match itself is exactly what this module exists to prevent, so the
+// highlighter is wide and translucent and nothing more.
 export const BRUSHES = {
-  pen:         { thinning: 0.55, smoothing: 0.5,  streamline: 0.42, opacity: 1,    blend: null,       cap: 'round' },
-  marker:      { thinning: 0,    smoothing: 0.42, streamline: 0.36, opacity: 0.92, blend: null,       cap: 'butt'  },
-  highlighter: { thinning: 0,    smoothing: 0.3,  streamline: 0.3,  opacity: 0.38, blend: 'multiply', cap: 'butt'  },
-  pencil:      { thinning: 0.25, smoothing: 0.6,  streamline: 0.5,  opacity: 0.85, blend: null,       cap: 'round' },
+  pen:         { thinning: 0.55, smoothing: 0.5,  streamline: 0.42, opacity: 1,    cap: 'round' },
+  marker:      { thinning: 0,    smoothing: 0.42, streamline: 0.36, opacity: 0.92, cap: 'butt'  },
+  highlighter: { thinning: 0,    smoothing: 0.3,  streamline: 0.3,  opacity: 0.38, cap: 'butt'  },
+  pencil:      { thinning: 0.25, smoothing: 0.6,  streamline: 0.5,  opacity: 0.85, cap: 'round' },
 };
 
 export function brushParams(stroke) {
@@ -84,6 +93,13 @@ export function isConstantWidth(stroke) {
 // An art card may carry `layers: [{ id, name, visible, opacity, strokes }]`.
 // When it does, `layers` is authoritative and `card.strokes` is ignored. When it
 // doesn't, the flat `card.strokes` array reads as one implicit visible layer.
+//
+// A card with `layers` MUST hold an empty `strokes`. Keeping a flattened mirror
+// alongside would be derived data inside a CRDT: two people drawing on
+// different layers each rewrite the whole mirror, last-write-wins picks one, and
+// it silently stops matching the merged `layers` that everything actually
+// renders from. Appending to card.strokes on a layered card is the same bug
+// seen from the other side — see appendStrokeToCard.
 //
 // EVERY consumer that just wants "the strokes to draw for this card" goes
 // through readCardStrokes(), so adding layers never required teaching the

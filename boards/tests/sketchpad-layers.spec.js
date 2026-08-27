@@ -170,3 +170,140 @@ test('reopening a committed sketch restores its layers', async ({ page }) => {
   // Both layers came back — not flattened into one on the round trip.
   await expect(page.locator('.sp-layer')).toHaveCount(2);
 });
+
+// ── Layer controls, and the data-loss trap behind them ────────────────────
+
+test('Cancel warns when work sits on a layer you are not looking at', async ({ page }) => {
+  // The discard prompt used to read the ACTIVE layer's strokes. Draw on one
+  // layer, select another, and the pad believed there was nothing to lose —
+  // Cancel then threw the drawing away without asking.
+  await openPad(page);
+  await page.getByRole('button', { name: /^Layers/ }).click();
+  await page.getByRole('button', { name: 'Add layer' }).click();
+  await padStroke(page, 0);
+  await page.locator('.sp-layer', { hasText: 'Layer 1' }).locator('.sp-layer-name').click();
+  await expect(page.locator('.sp-layer.is-active')).toContainText('Layer 1');
+
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.locator('[role="dialog"]')).toBeVisible();
+});
+
+test('Clear empties only the layer you are drawing on', async ({ page }) => {
+  await openPad(page);
+  await padStroke(page, 0);
+  await page.getByRole('button', { name: /^Layers/ }).click();
+  await page.getByRole('button', { name: 'Add layer' }).click();
+  await padStroke(page, 3);
+  expect(await paths(page)).toBe(2);
+  await page.getByRole('button', { name: 'Clear' }).click();
+  await page.waitForTimeout(250);
+  expect(await paths(page)).toBe(1);
+});
+
+test('a layer can be renamed, and the name survives a commit round trip', async ({ page }) => {
+  await openPad(page);
+  await padStroke(page, 0);
+  await page.getByRole('button', { name: /^Layers/ }).click();
+  await page.getByRole('button', { name: 'Add layer' }).click();
+  await padStroke(page, 3);
+
+  await page.locator('.sp-layer', { hasText: 'Layer 2' }).locator('.sp-layer-name').dblclick();
+  const input = page.locator('.sp-layer-input');
+  await expect(input).toBeVisible();
+  await input.fill('Ink');
+  await input.press('Enter');
+  await expect(page.locator('.sp-layers')).toContainText('Ink');
+
+  await page.getByRole('button', { name: 'Add to canvas' }).click();
+  await page.waitForTimeout(600);
+  await page.locator('.card-kind-art').dblclick();
+  await expect(page.locator('.sketchpad-surface')).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: /^Layers/ }).click();
+  await expect(page.locator('.sp-layers')).toContainText('Ink');
+});
+
+test('typing a layer name never reaches the board shortcuts', async ({ page }) => {
+  await openPad(page);
+  await padStroke(page, 0);
+  await page.getByRole('button', { name: /^Layers/ }).click();
+  await page.locator('.sp-layer').first().locator('.sp-layer-name').dblclick();
+  const input = page.locator('.sp-layer-input');
+  await expect(input).toBeVisible();
+  // d/v/g are tool shortcuts and Backspace deletes the selection — all of which
+  // the pad's capture-phase key handler must keep out of the board.
+  await input.fill('');
+  await input.type('dvg backspace test');
+  await expect(page.locator('.sketchpad-surface')).toBeVisible();
+  expect(await paths(page)).toBe(1);
+  await expect(input).toHaveValue('dvg backspace test');
+
+  await input.press('Escape');
+  await page.waitForTimeout(200);
+  // Escape abandons the rename WITHOUT closing the pad out from under you.
+  await expect(page.locator('.sketchpad-surface')).toBeVisible();
+  await expect(page.locator('.sp-layers')).toContainText('Layer 1');
+});
+
+test('layer opacity changes the render and is undoable', async ({ page }) => {
+  await openPad(page);
+  await padStroke(page, 0);
+  await page.getByRole('button', { name: /^Layers/ }).click();
+  const slider = page.locator('.sp-layer.is-active input[type="range"]');
+  await expect(slider).toBeVisible();
+
+  await slider.evaluate((el) => {
+    el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    setter.call(el, '40');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await page.waitForTimeout(250);
+  const dimmed = await page.evaluate(() =>
+    document.querySelector('.sketchpad-svg path').getAttribute('opacity'));
+  expect(parseFloat(dimmed)).toBeGreaterThan(0.3);
+  expect(parseFloat(dimmed)).toBeLessThan(0.5);
+
+  // History is pushed once per drag, on the way in — a slider that cannot be
+  // undone is a trap.
+  await page.keyboard.press('Meta+z');
+  await page.waitForTimeout(300);
+  const back = await page.evaluate(() =>
+    document.querySelector('.sketchpad-svg path').getAttribute('opacity'));
+  expect(back === null || parseFloat(back) > 0.9).toBeTruthy();
+});
+
+test('the layer cap holds and the button disables at it', async ({ page }) => {
+  await openPad(page);
+  await page.getByRole('button', { name: /^Layers/ }).click();
+  const add = page.getByRole('button', { name: 'Add layer' });
+  for (let i = 0; i < 12; i++) {
+    if (await add.isDisabled()) break;
+    await add.click();
+    await page.waitForTimeout(60);
+  }
+  await expect(page.locator('.sp-layer')).toHaveCount(8);
+  await expect(add).toBeDisabled();
+});
+
+test('deleting the active layer leaves the pad drawable', async ({ page }) => {
+  await openPad(page);
+  await page.getByRole('button', { name: /^Layers/ }).click();
+  await page.getByRole('button', { name: 'Add layer' }).click();
+  await padStroke(page, 0);
+  expect(await paths(page)).toBe(1);
+
+  await page.getByRole('button', { name: 'Delete Layer 2' }).click();
+  // In-app confirm, rendered asynchronously.
+  const confirmBtn = page.getByRole('button', { name: 'Delete', exact: true });
+  await expect(confirmBtn).toBeVisible();
+  await confirmBtn.click();
+  await page.waitForTimeout(400);
+  await expect(page.locator('.sp-layer')).toHaveCount(1);
+  expect(await paths(page)).toBe(0);
+
+  // activeId pointed at the layer that just went away; drawing must still land.
+  await padStroke(page, 2);
+  expect(await paths(page)).toBe(1);
+});

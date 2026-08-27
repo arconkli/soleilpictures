@@ -142,13 +142,29 @@ test('Canvas2D fills an outline stroke instead of stroking it', () => {
   assert.ok(names.includes('quadraticCurveTo'), 'same curve construction as the SVG path');
 });
 
-test('brush opacity and blend reach the Canvas2D context', () => {
+test('brush opacity reaches the Canvas2D context', () => {
   const ctx = recordingCtx();
   drawStroke(ctx, { color: '#ff0', width: 10, brush: 'highlighter', points: [[0, 0], [20, 0]] }, { ppu: 1 });
   const alpha = ctx.calls.find(c => c[0] === 'globalAlpha');
-  const blend = ctx.calls.find(c => c[0] === 'globalCompositeOperation');
   assert.equal(alpha[1], BRUSHES.highlighter.opacity);
-  assert.equal(blend[1], 'multiply', 'a highlighter that does not multiply just hides the text');
+});
+
+test('NO brush sets a blend mode, on either renderer', () => {
+  // The highlighter wanted `multiply` and it is the one property the two
+  // renderers cannot agree on: SVG's mix-blend-mode is confined by the stroke
+  // layer's stacking context and blends against transparency, while Canvas2D's
+  // globalCompositeOperation composites against what is already painted. Over a
+  // white card they match; over an image the same stroke came out
+  // rgb(153,163,124) live and rgb(90,129,124) in the thumbnail. A board whose
+  // preview doesn't match itself is the thing this module exists to prevent.
+  for (const [name, params] of Object.entries(BRUSHES)) {
+    assert.ok(!('blend' in params), `${name} must not carry a blend mode`);
+  }
+  const ctx = recordingCtx();
+  for (const brush of Object.keys(BRUSHES)) {
+    drawStroke(ctx, { color: '#ff0', width: 10, brush, points: [[0, 0], [20, 0]] }, { ppu: 1 });
+  }
+  assert.equal(ctx.calls.filter(c => c[0] === 'globalCompositeOperation').length, 0);
 });
 
 // ── Layers ────────────────────────────────────────────────────────────────
