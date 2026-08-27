@@ -52,6 +52,8 @@ import {
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { Sheet } from './shell/Sheet.jsx';
+import { GridTemplatePanel } from './GridTemplatePanel.jsx';
+import { mergeSections } from '../lib/gridLayoutLibrary.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
@@ -60,7 +62,7 @@ import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideoMeta, readAudioMeta, makeBoundedPreview, captureAndUploadPoster } from '../lib/uploads.js';
 import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
-import { trackStroke } from '../lib/pointerStroke.js';
+import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
 import { eraseStrokes, readCardStrokes } from '../lib/strokeModel.js';
 import { notePointerType, pointerCanDraw } from '../lib/pointerPolicy.js';
 import { toPathD } from '../lib/strokeRender.js';
@@ -1312,6 +1314,12 @@ export function CanvasSurface({
     useWorkspacePalettes(workspaceId);
   useEffect(() => { if (picker) ensureWorkspacePalettes(); }, [picker, ensureWorkspacePalettes]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  // Templates panel (the grid tool's flyout) + the shape it armed. A pending
+  // layout rides along with the 'grid' place-tool: the panel picks the shape,
+  // the next canvas click decides where. Cleared whenever the tool disarms, so a
+  // later bare G never silently reuses the last template someone chose.
+  const [tplPanelOpen, setTplPanelOpen] = useState(false);
+  const [pendingGridLayout, setPendingGridLayout] = useState(null);
   // Phone bottom-nav "+" → full add sheet. { pos } = canvas-space drop point
   // captured when the sheet opens (viewport centre); null = closed.
   const [mobileAdd, setMobileAdd] = useState(null);
@@ -1492,7 +1500,9 @@ export function CanvasSurface({
     noteCreateIntent('tool_place', selectedTool);
     switch (selectedTool) {
       case 'board':   addClusterCard(pos, 'tool_place'); break;
-      case 'grid':    mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); break;
+      // A layout armed by the Templates panel wins; a bare G (or the right-click
+      // Add ▸ Grid, which never opens the panel) still gets the default shape.
+      case 'grid':    mutators.addGrid?.(pos, pendingGridLayout ? { layout: pendingGridLayout } : { preset: 'storyboard-1-2' }); break;
       // Multi-select, like every other image entry point — see the 'image'
       // add-action for why singular was costing day-one depth.
       case 'image':   pickPhotosAtRef.current?.(pos, 'tool_place'); break;
@@ -1894,6 +1904,64 @@ export function CanvasSurface({
     for (const c of (cards || [])) { m[c.id] = c; seen.add(c.id); }
     for (const k of Object.keys(m)) { if (!seen.has(k)) delete m[k]; }
   }
+
+  // ── Templates panel ────────────────────────────────────────────────────────
+  // Phase A ships the built-in catalogue only, which is a module constant — no
+  // fetch, no loading state, works offline and under ?local=1. Saved and shared
+  // templates become extra sections here without the panel changing.
+  const templateSections = useMemo(() => mergeSections(), []);
+
+  // The grid a template would re-cut: exactly one card selected and it IS a grid.
+  // Anything else — nothing selected, a multi-select, a note — means "place a new
+  // one", which is what the panel's header hint says. Deliberately not memoized:
+  // cardById is a mutable ref object, so a memo keyed on it would never notice a
+  // card changing kind underneath it.
+  const templateTargetId = (() => {
+    if (selected.size !== 1) return null;
+    const id = [...selected][0];
+    return cardById[id]?.kind === 'grid' ? id : null;
+  })();
+  // Mirrored into a ref so pickTemplate keeps stable deps — it is handed to a
+  // child and would otherwise re-identify on every selection change.
+  const templateTargetIdRef = useRef(null);
+  templateTargetIdRef.current = templateTargetId;
+
+  const pickTemplate = useCallback((row) => {
+    if (!row?.tree) return;
+    if (!templateTargetIdRef.current) {
+      // Nothing to re-cut → arm the placer and let the next canvas click say where.
+      setPendingGridLayout(row.tree);
+      setSelectedTool('grid');
+      return;
+    }
+    const res = mutators.applyGridLayout?.(templateTargetIdRef.current, row.tree);
+    if (!res) {
+      feedback.toast({ type: 'error', message: 'Could not apply that template.' });
+      return;
+    }
+    const um = mutators.undoManager;
+    const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+    mutators.breakUndo?.();
+    // Only speak up when the apply cost something or reached past the one grid
+    // they had selected. A clean re-cut of a single grid needs no announcement —
+    // they can see what happened.
+    const parts = [];
+    if (res.affected > 1) parts.push(`Re-cut ${res.affected} linked grids`);
+    if (res.dropped) parts.push(`${res.dropped} filled ${res.dropped === 1 ? 'cell' : 'cells'} removed`);
+    if (parts.length) {
+      undoToast(feedback, {
+        message: parts.join(' · '),
+        undoManager: um,
+        stackItem: item,
+        onUndo: () => mutators.undo?.(),
+      });
+    }
+  }, [mutators, feedback, setSelectedTool]);
+
+  // Disarming the tool — Escape, picking another tool, or placing the card —
+  // drops the armed shape, so a later bare G never silently reuses whatever
+  // template was chosen minutes ago.
+  useEffect(() => { if (selectedTool !== 'grid') setPendingGridLayout(null); }, [selectedTool]);
 
   // Refs that always mirror the latest cards / selection — used by
   // pointer-event closures (which capture state at pointer-down) so
@@ -5922,6 +5990,14 @@ export function CanvasSurface({
 
     // Drawing
     if (selectedTool === 'draw') {
+      // Only the FIRST finger draws. A second finger's pointerdown reaches this
+      // handler too, and without this it started a stroke of its own — so the
+      // second-touch abort below would correctly discard stroke #1 and then
+      // stroke #2 would sample its way through the pinch and commit the smear
+      // anyway. Returning BEFORE preventDefault also matters: preventing the
+      // second touch stops useGesture from ever recognising the pinch (the same
+      // reasoning as the touch branch of the select tool further down).
+      if (e.pointerType === 'touch' && e.isPrimary === false) return;
       // A stylus anywhere on this device switches the finger from a drawing
       // implement to a navigation one — see lib/pointerPolicy.js for why palm
       // rejection can't be solved by pointerId filtering alone. Announce the
@@ -6031,7 +6107,7 @@ export function CanvasSurface({
         disposeStroke = trackStroke({
           pointerId: e.pointerId,
           onSample: (ev) => {
-            for (const s of (ev.getCoalescedEvents?.() || [ev])) addPoint(s.clientX, s.clientY);
+            for (const s of coalescedOf(ev)) addPoint(s.clientX, s.clientY);
             setActiveStroke({ color: 'rgba(239,68,68,.75)', width: radius * 2, points: [...points], eraser: true });
           },
           onEnd: () => {
@@ -6092,7 +6168,7 @@ export function CanvasSurface({
       disposeStroke = trackStroke({
         pointerId: e.pointerId,
         onSample: (ev) => {
-          for (const s of (ev.getCoalescedEvents?.() || [ev])) addPoint(s.clientX, s.clientY);
+          for (const s of coalescedOf(ev)) addPoint(s.clientX, s.clientY);
           setActiveStroke({ color, width, points: [...points] });
         },
         onEnd: () => {
@@ -9589,25 +9665,48 @@ export function CanvasSurface({
           )}
         </div>
         <div className="cnv-tool-sep" />
-        {tools.map(t => (
-          <div key={t.id}
-               className={`cnv-tool ${selectedTool === t.id ? 'active' : ''}`}
-               data-tip={t.title}
-               data-tour={t.id === 'board' ? 'cluster-tool' : t.id === 'image' ? 'image-tool' : undefined}
-               role="button"
-               tabIndex={0}
-               aria-label={t.label}
-               aria-pressed={selectedTool === t.id}
-               onKeyDown={(e) => {
-                 if (e.key === 'Enter' || e.key === ' ') {
-                   e.preventDefault();
-                   setSelectedTool(t.id);
-                 }
-               }}
-               onPointerDown={(e) => { e.stopPropagation(); setSelectedTool(t.id); }}>
-            <Icon as={t.icon} size={20} />
-          </div>
-        ))}
+        {tools.map(t => {
+          // The grid tool opens the Templates panel rather than arming the
+          // placer straight away: choosing a shape IS the act of making a grid,
+          // so the picker is the tool. This keeps the rail at eight buttons —
+          // it already overflows on landscape phones and scrolls by a pointer
+          // gesture. G still places the default instantly for anyone who knows
+          // it, and the right-click Add ▸ Grid is untouched.
+          const isTpl = t.id === 'grid';
+          const active = isTpl ? (tplPanelOpen || selectedTool === 'grid') : selectedTool === t.id;
+          const activate = isTpl ? () => setTplPanelOpen(o => !o) : () => setSelectedTool(t.id);
+          const btn = (
+            <div className={`cnv-tool ${active ? 'active' : ''}`}
+                 data-tip={t.title}
+                 data-tour={t.id === 'board' ? 'cluster-tool' : t.id === 'image' ? 'image-tool' : undefined}
+                 role="button"
+                 tabIndex={0}
+                 aria-label={t.label}
+                 aria-pressed={active}
+                 aria-expanded={isTpl ? tplPanelOpen : undefined}
+                 onKeyDown={(e) => {
+                   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
+                   else if (isTpl && e.key === 'Escape') { setTplPanelOpen(false); }
+                 }}
+                 onPointerDown={(e) => { e.stopPropagation(); activate(); }}>
+              <Icon as={t.icon} size={20} />
+            </div>
+          );
+          if (!isTpl) return <Fragment key={t.id}>{btn}</Fragment>;
+          return (
+            <div className="cnv-tpl-wrap" key={t.id}>
+              {btn}
+              <GridTemplatePanel
+                open={tplPanelOpen}
+                onClose={() => setTplPanelOpen(false)}
+                sections={templateSections}
+                onPick={pickTemplate}
+                applyTargetId={templateTargetId}
+                mobileShell={mobileShell}
+              />
+            </div>
+          );
+        })}
         <div className="cnv-tool-sep" />
         <div className="cnv-tool"
              data-tip="Keyboard shortcuts (?)"
