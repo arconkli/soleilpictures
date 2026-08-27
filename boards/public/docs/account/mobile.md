@@ -1,8 +1,8 @@
 # Mobile and tablet
 
-> Clusters works in a mobile browser, installs as a PWA, and ships as iOS and Android apps. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get full drawing support.
+> Clusters works in a mobile browser, installs as a PWA, and ships as iOS and Android apps. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection.
 
-_Source: https://clusters.soleilpictures.com/docs/account/mobile · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/account/mobile · Updated 2026-08-27_
 
 Three ways to run it on a phone or tablet: the mobile browser, an installed PWA,
 or the native iOS and Android apps. They are the same app.
@@ -17,8 +17,10 @@ or the native iOS and Android apps. They are the same app.
 | Long press | Context menu |
 | Double tap | Add menu at that point |
 
-Drawing gestures are guarded so the canvas cannot start panning halfway through
-a stroke — the failure that makes drawing on touch unusable.
+With the draw tool active, one finger draws and two fingers still pinch-zoom.
+Starting a pinch part-way through a stroke discards that stroke rather than
+smearing it across the board as the canvas moves underneath — the failure that
+makes drawing on touch unusable.
 
 ## Layout differences
 
@@ -38,6 +40,12 @@ reviewing on a phone without chrome in the way.
 Tablets get closer to the desktop layout — the rail rather than the sheet — plus
 stylus drawing. On iPad, drawing, annotating and reviewing all work properly;
 long document editing is still better on a laptop.
+
+**Drawing** is on the rail directly on touch, and in the add sheet, rather than
+behind the `D` shortcut there is no keyboard for. A stylus draws with pressure;
+flipping it over erases. The full-screen [sketch pad](/docs/canvas/shapes-and-drawing#the-sketch-pad)
+goes edge to edge, with pinch-to-zoom inside the frame for detail work and its
+brushes, colours, layers and frame formats in a sheet sized for thumbs.
 
 The [Home graph](/docs/clusters/home-graph) renders its 2D fallback on most
 tablets, which has the same nodes and interactions.
