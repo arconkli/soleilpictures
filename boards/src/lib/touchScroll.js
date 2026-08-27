@@ -30,6 +30,10 @@ const CONTAINERS = [
   { sel: '.gc-text', requireActive: true },
   { sel: '.gc-text-edit', requireActive: false },
   { sel: '.schedc-peekbody', requireActive: false },
+  // Listed BEFORE .cnv-tools deliberately — the templates panel lives inside
+  // the rail, so without its own entry findTouchScrollable climbs past it and
+  // a drag over the template list scrolls the rail behind it.
+  { sel: '.tplt-scroll', requireActive: false },
   { sel: '.cnv-tools', requireActive: false },
 ];
 

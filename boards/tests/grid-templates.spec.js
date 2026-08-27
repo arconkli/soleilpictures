@@ -84,6 +84,66 @@ test.describe('grid templates — the rail panel', () => {
     await expect(page.locator('.card-kind-grid')).toHaveCount(0);
   });
 
+  // Search is always present now. It used to be hidden below a 12-row threshold,
+  // which meant the ten built-ins never revealed it and the feature was
+  // effectively invisible until you had saved several of your own.
+  test('search filters the list and survives no matches', async ({ page }) => {
+    await gridTool(page).click();
+    const search = panel(page).getByRole('searchbox', { name: 'Search templates' });
+    await expect(search).toBeVisible();
+
+    await search.fill('contact');
+    await expect(panel(page).getByRole('menuitem')).toHaveCount(1);
+    await expect(template(page, 'Contact sheet · 3 × 3')).toBeVisible();
+
+    await search.fill('zzzz');
+    await expect(panel(page).getByRole('menuitem')).toHaveCount(0);
+    await expect(panel(page).locator('.tplt-empty')).toBeVisible();
+
+    await search.fill('');
+    expect(await panel(page).getByRole('menuitem').count()).toBeGreaterThanOrEqual(10);
+  });
+
+  // Typing then Enter is the fast path, so the first match must always be the
+  // one that is armed — a stale cursor after filtering would pick nothing.
+  test('Enter picks the top match after filtering', async ({ page }) => {
+    await gridTool(page).click();
+    await panel(page).getByRole('searchbox', { name: 'Search templates' }).fill('3 across');
+    await page.keyboard.press('Enter');
+    await expect(panel(page)).toHaveCount(0);
+    await page.locator('.canvas-wrap').click({ position: { x: 520, y: 300 } });
+    await expect(page.locator('.gridc-cell')).toHaveCount(3);
+    await expect(page.locator('.gridc-divider-x')).toHaveCount(2);  // 3 across, not storyboard
+  });
+
+  // The panel is inside .canvas-wrap, where the wheel is claimed for zoom and
+  // touch-action is none. Both had to be carved out explicitly or the list
+  // simply would not move.
+  test('the list scrolls instead of zooming the canvas', async ({ page }) => {
+    // A short window on purpose. The panel is capped at 72vh, so on a tall
+    // display the ten built-ins fit and nothing scrolls — which is exactly why
+    // this was easy to miss. Shrinking the viewport reproduces the real
+    // condition: a list taller than the panel, inside a canvas that claims the
+    // wheel for zoom.
+    await page.setViewportSize({ width: 1280, height: 480 });
+    await gridTool(page).click();
+    const scroller = panel(page).locator('.tplt-scroll');
+    await expect(scroller).toBeVisible();
+
+    const overflows = await scroller.evaluate((el) => el.scrollHeight > el.clientHeight + 1);
+    expect(overflows, 'the list should be taller than the panel at this height').toBe(true);
+
+    const zoomBefore = await page.evaluate(() => document.querySelector('.canvas')?.style.transform || '');
+    await scroller.hover();
+    await page.mouse.wheel(0, 240);
+
+    await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    // ...and the canvas underneath did NOT zoom, which is the half that was
+    // actually broken: the wheel fell through and CanvasSurface ate it.
+    const zoomAfter = await page.evaluate(() => document.querySelector('.canvas')?.style.transform || '');
+    expect(zoomAfter).toBe(zoomBefore);
+  });
+
   // Every built-in ships a thumbnail drawn from the same computeCellRects the
   // card uses, so "what the tile shows" and "what you get" cannot drift.
   test('the panel lists built-ins with a shape preview each', async ({ page }) => {
@@ -151,7 +211,7 @@ test.describe('grid templates — applying to an existing grid', () => {
   // header has to say which one is about to happen.
   test('the panel says whether it will place or replace', async ({ page }) => {
     await gridTool(page).click();
-    await expect(panel(page).locator('.tplt-hint')).toContainText('click the canvas');
+    await expect(panel(page).locator('.tplt-hint')).toContainText('Click the canvas');
     await page.keyboard.press('Escape');
 
     await placeTemplate(page, '2 × 2');

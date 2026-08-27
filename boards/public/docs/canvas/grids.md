@@ -59,7 +59,10 @@ template does depends on what is selected:
   shape instead of the default.
 - **A grid selected** — that grid is re-cut in place.
 
-Press **Escape** once to close the panel, twice to put the tool away.
+Type in the **search** box to filter by name — across the built-ins and anything
+you have saved — then press **Enter** to take the top match, or **↑ / ↓** to move
+through the results. Press **Escape** once to close the panel, twice to put the
+tool away.
 
 Re-cutting keeps your work. Cell content moves to the new cells in reading
 order, so the first filled cell stays first. If the new shape has fewer cells

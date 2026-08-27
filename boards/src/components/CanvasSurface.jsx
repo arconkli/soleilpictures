@@ -3092,7 +3092,7 @@ export function CanvasSurface({
       }, 140);
     };
     const onWheel = (e) => {
-      if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob')) return;
+      if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob, .cnv-tpl-panel')) return;
       // Public pages are pinned to pan semantics whatever the reader's own
       // preference says. They are scrollable documents — a canvas hero with an
       // article under it — so a plain wheel has to scroll the PAGE, and a

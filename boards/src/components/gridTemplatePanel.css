@@ -11,14 +11,25 @@
    Gold (--soleil) does not appear here. It is reserved for active/selection/focus
    and arrives on its own through the global :focus-visible ring in styles.css. */
 
+/* A FIXED HEAD over a SCROLLING BODY, not one scrolling box. The search field
+   and the "what will this do" hint are exactly what you need while scrolling a
+   long list, so they must not scroll away with it.
+
+   The panel itself never scrolls — .tplt-scroll does. That split is also what
+   touchScroll.js hooks: without its own container entry, a finger drag here
+   climbs to .cnv-tools and scrolls the RAIL instead. And CanvasSurface's wheel
+   handler early-returns over .cnv-tpl-panel so the browser performs a native
+   overflow scroll rather than the canvas eating the wheel as zoom. */
 .cnv-tpl-panel {
   position: absolute;
   left: 38px;
   top: 0;
-  width: 248px;
-  max-height: min(70vh, 560px);
-  overflow-y: auto;
-  overflow-x: hidden;
+  width: 300px;
+  max-height: min(72vh, 600px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   padding: 8px;
   border: 1px solid var(--line-2);
   border-radius: var(--radius);
@@ -27,9 +38,34 @@
   z-index: 70;
 }
 
+.tplt-head { flex: 0 0 auto; }
+.tplt-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Keep momentum scrolling on trackpads/touch surfaces that support it. */
+  overscroll-behavior: contain;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+
 /* While the panel is open, don't also float the grid tool's own tooltip over it. */
 .cnv-tpl-wrap { position: relative; }
 .cnv-tpl-wrap .cnv-tool.active[data-tip]::after { display: none; }
+
+/* The depth dock shares this corner, and NO z-index here can beat it.
+   .cnv-tools carries `transform: translateY(-50%)`, which creates a stacking
+   context — so this panel's z-index:70 is scoped INSIDE the rail, and the rail
+   itself only ties with .cnv-depth-dock at z-index 20, with DOM order breaking
+   it. The panel was short enough not to reach the dock until it grew a search
+   field and a taller list; .cnv-add-menu has the same latent trap and is simply
+   never tall enough to hit it.
+
+   Hiding the dock is the fix and the better behaviour anyway: two panels
+   overlapping in one corner reads badly whoever wins, and the dock is an
+   ambient suggestion while this is a deliberate, transient overlay. */
+.canvas-wrap:has(.cnv-tpl-panel) .cnv-depth-dock { display: none; }
 
 .tplt-hint {
   font: 400 11px/1.4 var(--font-sans);
@@ -40,7 +76,7 @@
 
 .tplt-search {
   width: 100%;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   padding: 6px 8px;
   border: 1px solid var(--line-2);
   border-radius: 5px;
@@ -50,12 +86,18 @@
 }
 .tplt-search::placeholder { color: var(--ink-3); }
 
-/* Matches .cnv-add-group-head so the two rail flyouts read as one family. */
+/* Matches .cnv-add-group-head so the two rail flyouts read as one family, and
+   sticky so you always know which section you are inside once the list is long
+   enough to scroll. The background is opaque because rows pass underneath. */
 .tplt-section-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   font: 600 10px/1 var(--font-sans);
   letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--ink-2);
+  background: var(--bg-1);
   padding: 8px 4px 5px;
   user-select: none;
 }
@@ -91,7 +133,8 @@
   width: 100%;
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
-.tplt-row:hover { background: var(--bg-hov); border-color: var(--line-2); }
+.tplt-row:hover,
+.tplt-row-wrap.is-active .tplt-row { background: var(--bg-hov); border-color: var(--line-2); }
 .tplt-row:active { background: var(--bg-act); }
 
 .tplt-name {
@@ -103,7 +146,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tplt-row:hover .tplt-name { color: var(--ink-0); }
+.tplt-row:hover .tplt-name,
+.tplt-row-wrap.is-active .tplt-name { color: var(--ink-0); }
 
 /* The shape itself: neutral ink outlines on a slightly recessed field, so the
    tile reads as a diagram rather than as content. */
@@ -118,7 +162,8 @@
   stroke: var(--line-3);
   stroke-width: .75;
 }
-.tplt-row:hover .tplt-thumb rect { stroke: var(--ink-3); }
+.tplt-row:hover .tplt-thumb rect,
+.tplt-row-wrap.is-active .tplt-thumb rect { stroke: var(--ink-3); }
 
 /* Hidden until the tile is hovered or the trigger itself has focus, so a wall of
    built-ins stays clean and only your own templates grow an affordance. Keyboard
@@ -142,6 +187,7 @@
   transition: opacity var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .tplt-row-wrap:hover .tplt-row-more,
+.tplt-row-wrap.is-active .tplt-row-more,
 .tplt-row-wrap:focus-within .tplt-row-more { opacity: 1; }
 .tplt-row-more:hover { color: var(--ink-0); background: var(--bg-act); }
 /* Touch has no hover, so the affordance would never appear. */
@@ -178,6 +224,7 @@
 .tplt-row-menu button.is-danger { color: var(--danger, #e5484d); }
 
 .tplt-save {
+  flex: 0 0 auto;
   display: block;
   width: 100%;
   margin-top: 8px;
@@ -204,3 +251,7 @@
 .sheet-panel .tplt-rows { grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .sheet-panel .tplt-row { padding: 12px 6px 10px; }
 .sheet-panel .tplt-hint { padding-bottom: 10px; }
+/* The Sheet's own .sheet-body already scrolls, so the inner container must not
+   become a second nested scroll area — two scrollbars fighting over one finger
+   is worse than either alone. */
+.sheet-panel .tplt-scroll { overflow: visible; max-height: none; }

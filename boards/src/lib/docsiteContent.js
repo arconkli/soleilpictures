@@ -8831,7 +8831,49 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Press "
+     "v": "Type in the "
+    },
+    {
+     "t": "strong",
+     "v": "search",
+     "children": [
+      {
+       "t": "text",
+       "v": "search"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " box to filter by name — across the built-ins and anything you have saved — then press "
+    },
+    {
+     "t": "strong",
+     "v": "Enter",
+     "children": [
+      {
+       "t": "text",
+       "v": "Enter"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to take the top match, or "
+    },
+    {
+     "t": "strong",
+     "v": "↑ / ↓",
+     "children": [
+      {
+       "t": "text",
+       "v": "↑ / ↓"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to move through the results. Press "
     },
     {
      "t": "strong",
