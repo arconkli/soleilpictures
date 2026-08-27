@@ -433,6 +433,9 @@ export function ToolOptionsBar({
   if (selectedTool === 'draw') {
     const allColors = [...new Set([...recentColors, ...paletteColors, ...STROKE_COLORS])];
     const isEraser = drawOptions.mode === 'eraser';
+    const isLasso = drawOptions.mode === 'lasso';
+    // Colour, brush and thickness are all meaningless for a selection gesture.
+    const inking = !isEraser && !isLasso;
     const sketchpadBtn = onOpenSketchpad ? (
       <button className="tob-action tob-canvas-btn"
               title="Open a fullscreen drawing canvas"
@@ -474,11 +477,17 @@ export function ToolOptionsBar({
         <span className="tob-label">Brush</span>
         <div className="tob-segmented">
           <button aria-label="Pen"
-                  className={!isEraser ? 'is-active' : ''}
+                  className={inking ? 'is-active' : ''}
                   onClick={() => setDrawOptions({ ...drawOptions, mode: 'pen' })}>Pen</button>
           <button aria-label="Eraser"
                   className={isEraser ? 'is-active' : ''}
                   onClick={() => setDrawOptions({ ...drawOptions, mode: 'eraser' })}>Eraser</button>
+          {/* The only way to select strokes with a finger — one-finger touch on
+              the select tool pans, so the marquee is mouse/stylus-only. */}
+          <button aria-label="Lasso"
+                  title="Circle strokes to select them"
+                  className={isLasso ? 'is-active' : ''}
+                  onClick={() => setDrawOptions({ ...drawOptions, mode: 'lasso' })}>Lasso</button>
         </div>
         {/* Only meaningful once the device has proven it has a stylus — before
             that the finger is the only way to draw and a toggle offering to
@@ -497,7 +506,7 @@ export function ToolOptionsBar({
             </button>
           </>
         )}
-        {!isEraser && (
+        {inking && (
           <>
             <span className="tob-sep" />
             {/* Previewed with a real tapered stroke — "pencil" and "marker" mean
@@ -538,17 +547,26 @@ export function ToolOptionsBar({
             </div>
           </>
         )}
-        <span className="tob-sep" />
-        <div className="tob-thickness">
-          {DRAW_THICKNESS.map(w => (
-            <button key={w}
-                    title={isEraser ? `Eraser size ${w}px` : `Stroke ${w}px`}
-                    className={`tob-thick ${(isEraser ? drawOptions.eraserWidth : drawOptions.width) === w ? 'is-active' : ''}`}
-                    onClick={() => setDrawOptions(isEraser ? { ...drawOptions, eraserWidth: w } : { ...drawOptions, width: w })}>
-              <span style={{ width: 24, height: w, background: isEraser ? '#ef4444' : drawOptions.color, borderRadius: w/2, display: 'block' }} />
-            </button>
-          ))}
-        </div>
+        {isLasso ? (
+          <>
+            <span className="tob-sep" />
+            <span className="tob-label">Circle strokes to select</span>
+          </>
+        ) : (
+          <>
+            <span className="tob-sep" />
+            <div className="tob-thickness">
+              {DRAW_THICKNESS.map(w => (
+                <button key={w}
+                        title={isEraser ? `Eraser size ${w}px` : `Stroke ${w}px`}
+                        className={`tob-thick ${(isEraser ? drawOptions.eraserWidth : drawOptions.width) === w ? 'is-active' : ''}`}
+                        onClick={() => setDrawOptions(isEraser ? { ...drawOptions, eraserWidth: w } : { ...drawOptions, width: w })}>
+                  <span style={{ width: 24, height: w, background: isEraser ? '#ef4444' : drawOptions.color, borderRadius: w/2, display: 'block' }} />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         {!isTouchDevice && sketchpadBtn && (
           <>
             <span className="tob-sep" />
