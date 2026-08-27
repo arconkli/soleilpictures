@@ -97,6 +97,36 @@ export function hasLabelTag(raw) {
   return /\[#{1,3}\]|\[A\]/.test(String(raw == null ? '' : raw));
 }
 
+// What a stamped copy inherits from the grid it was stamped from — the "+"
+// handles on a selected Grid, and the bulk cols×rows generator.
+//
+// The rule is one line long: carry the things that describe HOW the grid is
+// meant to be filled in, and carry nothing that IS filled in. A "SHOT [#]" slate
+// and a "WIDE SHOT" hint both belong on every panel in the row; the photo you
+// dropped in panel one does not.
+//
+// This lives here, shared, because it used to be decided twice — once over the
+// Yjs gridCells map in App.jsx and once over the plain card in LocalBoardsApp —
+// and the two drifted the moment hints existed: stamping produced an unlabelled
+// grid because only one of the copies knew hints were a thing. One function, two
+// callers, and the local shell cannot fall behind the real one again.
+//
+// Both maps are keyed by CELL ID and copy across verbatim. That is safe only
+// because a stamped grid is LINKED: it shares the source's templateId, hence one
+// layout, hence the very same leaf ids. Re-mapping by reading order — which is
+// what applying a TEMPLATE has to do — would be wrong here.
+export function stampCarry(cells, hints) {
+  const out = {};
+  for (const [k, cell] of Object.entries(cells || {})) {
+    if (cell && cell.type === 'text' && hasLabelTag(cell.html)) out[k] = { type: 'text', html: cell.html };
+  }
+  // Null rather than {} when there is nothing to carry, so a caller can skip
+  // writing the key at all and an unhinted grid stays unhinted.
+  const h = hints && typeof hints === 'object' ? Object.entries(hints) : [];
+  const keep = h.filter(([, v]) => typeof v === 'string' && v.trim());
+  return { cells: out, hints: keep.length ? Object.fromEntries(keep) : null };
+}
+
 // Cheap memo key for spatialOrder — positions rounded so sub-px jitter doesn't
 // bust the cache. Sorted so it's order-independent of the input array.
 export function orderKey(grids, pattern) {

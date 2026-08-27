@@ -295,6 +295,64 @@ test.describe('grid templates — the rail panel', () => {
     expect((await scrollPos()).top, 'the last row was scrolled into view').toBeGreaterThan(0);
   });
 
+  // A hint says how a box is meant to be filled, so it belongs on every panel
+  // stamped off the source — a row of six storyboard frames where only the first
+  // is labelled is a row of five unlabelled frames. Hints ride in gridMeta and
+  // were simply not in the list of what a stamp carried.
+  //
+  // Uses the DEV-only __soleilGridLive bridge because the Templates panel is the
+  // only way to author hints and local mode lists built-ins only, none of which
+  // carry any.
+  test('stamping a neighbour carries the cell hints across', async ({ page }) => {
+    await page.evaluate(() => window.__soleilGridLive.addHintedGrid(
+      { x: 420, y: 300 }, ['WIDE SHOT', 'ACTION', 'INSERT'],
+    ));
+    const grids = page.locator('.card-kind-grid');
+    await expect(grids).toHaveCount(1);
+    await expect(page.locator('.gridc-hint')).toHaveCount(3);
+
+    await grids.first().click({ position: { x: 180, y: 8 } });
+    await expect(grids.first()).toHaveClass(/is-selected/);
+    await page.getByRole('button', { name: 'Stamp a Grid right' }).click();
+    await expect(grids).toHaveCount(2);
+
+    // Both grids, three cells each — the copy is labelled exactly like its source.
+    await expect(page.locator('.gridc-hint')).toHaveCount(6);
+    const texts = await page.locator('.gridc-hint').allTextContents();
+    expect(texts.filter((t) => t === 'WIDE SHOT')).toHaveLength(2);
+    expect(texts.filter((t) => t === 'ACTION')).toHaveLength(2);
+    expect(texts.filter((t) => t === 'INSERT')).toHaveLength(2);
+  });
+
+  // A hint is not content, so it must not survive as text in the copy — it has
+  // to still vanish the moment its cell is filled, exactly as on the source.
+  test('a carried hint still disappears when its cell is filled', async ({ page }) => {
+    await page.evaluate(() => window.__soleilGridLive.addHintedGrid(
+      { x: 420, y: 300 }, ['WIDE SHOT', 'ACTION', 'INSERT'],
+    ));
+    const grids = page.locator('.card-kind-grid');
+    await grids.first().click({ position: { x: 180, y: 8 } });
+    await page.getByRole('button', { name: 'Stamp a Grid right' }).click();
+    await expect(grids).toHaveCount(2);
+
+    // Fill one cell of the STAMPED grid (the right-hand one).
+    const xs = await grids.evaluateAll((els) => els.map((e, i) => ({ i, x: e.getBoundingClientRect().x })));
+    xs.sort((a, b) => a.x - b.x);
+    const copy = grids.nth(xs[1].i);
+    const cell = copy.locator('.gridc-cell.is-empty').first();
+    await cell.hover();
+    await cell.getByRole('button', { name: 'Text', exact: true }).click();
+    const editor = copy.locator('[contenteditable="true"]').first();
+    await editor.waitFor({ state: 'visible' });
+    await editor.click();
+    await page.keyboard.type('he walks in');
+    await editor.evaluate((el) => el.blur());
+    await page.locator('.canvas-wrap').click({ position: { x: 40, y: 40 } });
+
+    // Five left: the filled cell's hint is gone, its five siblings remain.
+    await expect(page.locator('.gridc-hint')).toHaveCount(5);
+  });
+
   // Every built-in ships a thumbnail drawn from the same computeCellRects the
   // card uses, so "what the tile shows" and "what you get" cannot drift.
   test('the panel lists built-ins with a shape preview each', async ({ page }) => {

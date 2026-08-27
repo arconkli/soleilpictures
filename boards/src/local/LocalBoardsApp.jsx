@@ -10,7 +10,7 @@ import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from '../lib/gridLayout.js';
 import { hintsToCellMap } from '../lib/gridLayoutLibrary.js';
-import { hasLabelTag } from '../lib/gridSequence.js';
+import { stampCarry } from '../lib/gridSequence.js';
 import { readGridModel } from '../lib/gridState.js';
 import { todayISO } from '../lib/schedDates.js';
 import {
@@ -1104,14 +1104,10 @@ export function LocalBoardsApp({ user, signOut }) {
     const layout = gridTplState[currentId]?.[card.templateId]?.layout || card.layout; if (!layout) return;
     mapGridCard(gridId, c => { const { templateId, ...rest } = c; return { ...rest, layout: clone(layout) }; });
   };
-  // Sequences + stamping (local parity). Carries label-tag text cells to copies.
-  const localLabelTagCells = (card) => {
-    const out = {};
-    for (const [k, cell] of Object.entries(card.cells || {})) {
-      if (cell?.type === 'text' && hasLabelTag(cell.html)) out[k] = { type: 'text', html: cell.html };
-    }
-    return out;
-  };
+  // Sequences + stamping (local parity). What a copy inherits is decided by the
+  // SHARED gridSequence.stampCarry, not restated here — a local twin that
+  // restates the rule is a local twin that falls behind it, which is exactly
+  // what happened to cell hints.
   const ensureLocalTemplate = (card) => {
     if (card.templateId) return card.templateId;
     const tplId = createId('gtpl');
@@ -1134,8 +1130,12 @@ export function LocalBoardsApp({ user, signOut }) {
     else if (dir === 'bottom') ny = y + h + gap; else if (dir === 'top') ny = y - h - gap;
     const tplId = ensureLocalTemplate(card);
     const seqId = ensureLocalSequence(card);
-    const carry = localLabelTagCells(card);
-    addCard({ id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: carry, x: Math.max(8, nx), y: Math.max(8, ny), w, h });
+    const carry = stampCarry(card.cells, card.hints);
+    addCard({
+      id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: carry.cells,
+      ...(carry.hints ? { hints: carry.hints } : {}),
+      x: Math.max(8, nx), y: Math.max(8, ny), w, h,
+    });
   };
   const bulkGenerateGrids = (gridId, cols, rows, opts = {}) => {
     const card = findLocalGrid(gridId); if (!card) return;
@@ -1144,11 +1144,15 @@ export function LocalBoardsApp({ user, signOut }) {
     const w = card.w || 360, h = card.h || 300, x0 = card.x, y0 = card.y, gx = opts.gapX ?? 0, gy = opts.gapY ?? 0;
     const tplId = ensureLocalTemplate(card);
     const seqId = ensureLocalSequence(card);
-    const carry = localLabelTagCells(card);
+    const carry = stampCarry(card.cells, card.hints);
     const newCards = [];
     for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
       if (r === 0 && c === 0) continue;
-      newCards.push({ id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: { ...carry }, x: Math.max(8, x0 + c * (w + gx)), y: Math.max(8, y0 + r * (h + gy)), w, h });
+      newCards.push({
+        id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: { ...carry.cells },
+        ...(carry.hints ? { hints: { ...carry.hints } } : {}),
+        x: Math.max(8, x0 + c * (w + gx)), y: Math.max(8, y0 + r * (h + gy)), w, h,
+      });
     }
     addCards(newCards);
   };
@@ -1258,6 +1262,22 @@ export function LocalBoardsApp({ user, signOut }) {
       setLocalState(prev => ({ ...prev, boardState: { ...prev.boardState, [currentId]: snap } }));
     },
   };
+
+  // Dev-only bridge for the specs. The Templates panel is the only way to put
+  // HINTS on a grid, and in local mode it lists built-ins only — none of which
+  // carry any — so without this there is no way to reach the hinted-grid
+  // behaviour from a test at all, and "stamping carries hints" could only ever
+  // be asserted on the pure helper. Publishes the same addGrid the panel calls,
+  // taking the same reading-order hints array a saved template stores.
+  // import.meta.env.DEV so the bundler drops it from production, matching
+  // ?gridqa / ?alignqa / ?docqa.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return undefined;
+    window.__soleilGridLive = {
+      addHintedGrid: (pos, hints, layout = null) => addGrid(pos, { hints, ...(layout ? { layout } : {}) }),
+    };
+    return () => { delete window.__soleilGridLive; };
+  }, [addGrid]);
 
   // ⌘K / Ctrl-K (and "/" when not typing) — open the global search palette.
   // App.jsx has its own; the local shell had no global keydown handler at all.

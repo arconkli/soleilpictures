@@ -125,10 +125,10 @@ import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap } from './lib/upsellEligibility.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
-import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel, setGridHints } from './lib/gridState.js';
+import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel, setGridHints, readGridHints } from './lib/gridState.js';
 import { hintsToCellMap } from './lib/gridLayoutLibrary.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from './lib/gridLayout.js';
-import { hasLabelTag } from './lib/gridSequence.js';
+import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
 import {
   graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey,
@@ -2799,17 +2799,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
 
     // ── Sequences + stamping ────────────────────────────────────────────────
-    // Label-tag cells (a text cell whose html contains [#]/[A]/…) from a source
-    // Grid are CARRIED to its stamped/generated copies, so a "SHOT [#]" slate
-    // propagates while image/action cells stay blank to fill in.
-    const labelTagCellsOf = (cy) => {
-      const out = {};
+    // What a stamped copy inherits — label-tag cells and cell hints. The rule
+    // itself lives in gridSequence.stampCarry, shared with the local shell,
+    // because deciding it separately in each is how hints came to be dropped
+    // here in the first place. This only flattens the Y.Map for it.
+    const stampCarryOf = (cy) => {
+      const cells = {};
       const cm = cy.get('gridCells');
-      if (cm) cm.forEach((v, k) => {
-        const cell = (v && v.toJSON) ? v.toJSON() : v;
-        if (cell && cell.type === 'text' && hasLabelTag(cell.html)) out[k] = { type: 'text', html: cell.html };
-      });
-      return out;
+      if (cm) cm.forEach((v, k) => { cells[k] = (v && v.toJSON) ? v.toJSON() : v; });
+      return stampCarry(cells, readGridHints(cy));
     };
     // Promote (if needed) so source + copies share ONE layout, and ensure the
     // source belongs to a sequence. Must run inside a transaction. Returns
@@ -2828,7 +2826,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ydoc.getMap('gridSequences').set(seqId, { id: seqId, name: 'Sequence', pattern: 'z', format: { startAt: 1 } });
         cy.set('seqId', seqId);
       }
-      return { tplId, seqId, carry: labelTagCellsOf(cy) };
+      return { tplId, seqId, carry: stampCarryOf(cy) };
     };
     const placeLinkedGrid = (m, tplId, seqId, carry, x, y, w, h) => {
       const id = `grid-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
@@ -2837,7 +2835,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const nym = m.get(id);
       initCardGridStore(ydoc, nym);
       const ncm = nym.get('gridCells');
-      if (ncm) Object.entries(carry).forEach(([k, val]) => ncm.set(k, val));
+      if (ncm) Object.entries(carry.cells).forEach(([k, val]) => ncm.set(k, val));
+      // Hints go to gridMeta, never to gridCells — that separation is what makes
+      // a hint disappear when its cell is filled. Copied AFTER the cells so a
+      // carried label-tag cell already occupies its box: a hint on a filled cell
+      // is stored but never painted, and reappears if you clear the cell, which
+      // is the same behaviour the source grid has.
+      if (carry.hints) setGridHints(ydoc, nym, { ...carry.hints }, 'local');
       return id;
     };
     // Put a linked Grid family into ONE group so they move together (drag one →

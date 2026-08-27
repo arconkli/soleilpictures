@@ -11,7 +11,7 @@ import {
 } from './gridLayout.js';
 import { BUILT_IN_LAYOUTS, sanitizeHints, hintsToCellMap } from './gridLayoutLibrary.js';
 import {
-  SEQ_TUNING, spatialOrder, labelFor, resolveTagText, hasLabelTag, orderKey,
+  SEQ_TUNING, spatialOrder, labelFor, resolveTagText, hasLabelTag, orderKey, stampCarry,
 } from './gridSequence.js';
 
 // Deterministic id generator so seeded trees have stable, inspectable ids.
@@ -46,6 +46,8 @@ export function makeGridTestBridge() {
     // Cell hints: bounds, and the reading-order index → cell id translation.
     sanitizeHints, hintsToCellMap,
     spatialOrder, labelFor, resolveTagText, hasLabelTag, orderKey,
+    // What the directional "+" and the bulk generator hand a stamped copy.
+    stampCarry,
     seedGridLayout, seedGridMatrix,
   };
 }
