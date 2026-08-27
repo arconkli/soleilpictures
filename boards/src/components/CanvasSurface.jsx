@@ -4754,13 +4754,21 @@ export function CanvasSurface({
       const screenDy = ev.clientY - startClient.y;
       const wasClick = Math.hypot(screenDx, screenDy) <= 4;
       if (!wasClick) {
-        const updates = dragIds.map(id => ({
-          id, patch: {
-            x: Math.round(startPositions[id].x + dx),
-            y: Math.round(startPositions[id].y + dy),
-          }
-        }));
-        mutators.updateCards?.(updates);
+        // startPositions is populated only for ids that were in cardById when
+        // the drag armed, but dragIds comes from the selection — a collaborator
+        // deleting a card mid-drag leaves an id with no start entry. Skip those
+        // rather than reading .x off undefined; the liveDrag broadcast above
+        // and the bbox pass already guard the same divergence.
+        const updates = dragIds.map(id => {
+          const start = startPositions[id];
+          return start ? {
+            id, patch: {
+              x: Math.round(start.x + dx),
+              y: Math.round(start.y + dy),
+            }
+          } : null;
+        }).filter(Boolean);
+        if (updates.length) mutators.updateCards?.(updates);
       } else if (openOnClick && !touchHold) {
         // Touch board-open happens on tap (onUp tap branch) / double-tap, not
         // here — a deliberate lift released in place must not open the board.
