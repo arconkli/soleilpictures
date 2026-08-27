@@ -17756,6 +17756,17 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   position: relative;
   background: var(--bg-2);
   cursor: crosshair;
+  /* The pad portals onto document.body, so it sits OUTSIDE
+     .canvas-wrap{touch-action:none} and would otherwise inherit
+     html{touch-action:pan-x pan-y} — which lets the browser claim a one-finger
+     drag as a scroll and fire pointercancel in the middle of a stroke. A
+     drawing surface owns every gesture on it. The callout/user-select rules
+     stop iOS raising "Copy / Look Up" on a long press mid-drawing. */
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   /* Constrained by aspect-ratio (set inline) — fit either width or
      height of the available frame, never overflow. */
   max-width: 100%;

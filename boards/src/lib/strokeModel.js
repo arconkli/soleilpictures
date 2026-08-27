@@ -186,6 +186,7 @@ export function splitStrokeByEraser(stroke, eraserPoints, radius) {
   if (points.length < 2 || eraserPoints.length < 2) return [stroke];
   const pieces = [];
   let current = [];
+  let removed = 0;
   const keepPoint = ([x, y]) => distPointToPolyline({ x, y }, eraserPoints) > radius;
 
   for (const point of points) {
@@ -193,11 +194,57 @@ export function splitStrokeByEraser(stroke, eraserPoints, radius) {
       current.push(point);
       continue;
     }
+    removed++;
     if (current.length > 1) pieces.push({ ...stroke, points: current });
     current = [];
   }
   if (current.length > 1) pieces.push({ ...stroke, points: current });
+  // Nothing was cut: hand back the ORIGINAL object, not the resampled rebuild.
+  // Otherwise every swipe that missed would still replace the stroke with a
+  // denser copy of itself — permanently growing the point count of every stroke
+  // near an eraser gesture, and making a miss indistinguishable from a hit.
+  if (removed === 0) return [stroke];
   return pieces;
+}
+
+// Apply an eraser swipe across a whole surface's strokes.
+//
+// Strokes the swipe never touched are passed through BY IDENTITY, so a miss is
+// a true no-op — nothing to persist, nothing to undo, and the React memos
+// downstream keep their cache. splitStrokeByEraser guarantees the identity for
+// us by returning the original object when it removed nothing.
+//
+// The bounds check in front is a cheap reject, not a correctness test: a swipe
+// in one corner of a busy board shouldn't pay to resample every stroke in the
+// other corner just to discover it missed.
+export function eraseStrokes(strokes, eraserPoints, radius) {
+  const list = Array.isArray(strokes) ? strokes : [];
+  if (!list.length || !Array.isArray(eraserPoints) || eraserPoints.length < 2) {
+    return { next: list, changed: false };
+  }
+  let eMinX = Infinity, eMinY = Infinity, eMaxX = -Infinity, eMaxY = -Infinity;
+  for (const [x, y] of eraserPoints) {
+    if (x < eMinX) eMinX = x;
+    if (y < eMinY) eMinY = y;
+    if (x > eMaxX) eMaxX = x;
+    if (y > eMaxY) eMaxY = y;
+  }
+  const next = [];
+  let changed = false;
+  for (const s of list) {
+    const b = strokeBounds(s);
+    const pad = radius + strokeWidth(s) / 2;
+    if (!b || b.maxX + pad < eMinX || b.minX - pad > eMaxX
+           || b.maxY + pad < eMinY || b.minY - pad > eMaxY) {
+      next.push(s);
+      continue;
+    }
+    const pieces = splitStrokeByEraser(s, eraserPoints, radius);
+    if (pieces.length === 1 && pieces[0] === s) { next.push(s); continue; }
+    changed = true;
+    next.push(...pieces);
+  }
+  return { next, changed };
 }
 
 // Axis-aligned bounds of a stroke's centreline. Callers that need the PAINTED
