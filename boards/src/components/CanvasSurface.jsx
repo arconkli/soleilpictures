@@ -61,7 +61,7 @@ import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideo
 import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
 import { trackStroke } from '../lib/pointerStroke.js';
-import { splitStrokeByEraser, readCardStrokes } from '../lib/strokeModel.js';
+import { eraseStrokes, readCardStrokes } from '../lib/strokeModel.js';
 import { toPathD } from '../lib/strokeRender.js';
 import { findTouchScrollable, driveTouchScroll, startTouchScrollGesture } from '../lib/touchScroll.js';
 import { resolveSrc } from '../lib/r2.js';
@@ -5978,25 +5978,27 @@ export function CanvasSurface({
           onEnd: () => {
             if (points.length > 1) {
               const targetCard = pickStrokeTarget(points);
-              // One erase gesture = its own undo step. updateCard/
-              // replaceStrokes deliberately don't break (gesture coalescing),
-              // so without this the erase merges into whatever happened in
-              // the previous 500ms — including the card-create step.
-              mutators.breakUndo?.();
-              if (targetCard) {
-                const localEraser = points.map(([x, y]) => [x - targetCard.x, y - targetCard.y]);
-                const next = [];
-                (targetCard.strokes || []).forEach(stroke => {
-                  next.push(...splitStrokeByEraser(stroke, localEraser, radius));
-                });
-                mutators.updateCard?.(targetCard.id, { strokes: next });
-              } else {
-                const next = [];
-                (strokes || []).forEach(stroke => {
-                  next.push(...splitStrokeByEraser(stroke, points, radius));
-                });
-                mutators.replaceStrokes?.(next);
-                setSelectedStrokes(new Set());
+              // eraseStrokes reports whether the swipe actually cut anything, so
+              // a pass over empty canvas writes nothing to the Y.Doc and leaves
+              // no undo step behind — it used to rewrite the whole strokes array
+              // with resampled copies of itself on every miss.
+              const eraser = targetCard
+                ? points.map(([x, y]) => [x - targetCard.x, y - targetCard.y])
+                : points;
+              const source = targetCard ? readCardStrokes(targetCard) : (strokes || []);
+              const { next, changed } = eraseStrokes(source, eraser, radius);
+              if (changed) {
+                // One erase gesture = its own undo step. updateCard/
+                // replaceStrokes deliberately don't break (gesture coalescing),
+                // so without this the erase merges into whatever happened in
+                // the previous 500ms — including the card-create step.
+                mutators.breakUndo?.();
+                if (targetCard) {
+                  mutators.updateCard?.(targetCard.id, { strokes: next });
+                } else {
+                  mutators.replaceStrokes?.(next);
+                  setSelectedStrokes(new Set());
+                }
               }
               // Auto-switch only when finishing on an art canvas — board
               // free-erasing is iterative like board free-drawing.

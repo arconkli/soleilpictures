@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import {
   BRUSHES,
   cardLayers,
+  eraseStrokes,
   hasPressure,
   isConstantWidth,
   pointInPolygon,
@@ -156,18 +157,14 @@ test('the eraser splits a stroke in two rather than deleting it', () => {
   assert.equal(pieces[0].width, stroke.width);
 });
 
-test('an eraser that misses leaves the stroke geometrically unchanged', () => {
-  // Note: a stroke that survives is returned RESAMPLED to <=6px spacing, not as
-  // the original point array. That is how the board eraser has always behaved —
-  // the resample happens before the hit test, not after it — so what's pinned
-  // here is the geometry, not the point count.
+test('an eraser that misses hands back the ORIGINAL stroke object', () => {
+  // splitStrokeByEraser resamples to <=6px BEFORE it hit-tests, so a naive
+  // implementation returns a denser rebuild even for a clean miss. Identity here
+  // is what lets eraseStrokes tell a miss from a hit at all.
   const stroke = legacy([[0, 0], [100, 0]]);
   const pieces = splitStrokeByEraser(stroke, [[50, 500], [50, 600]], 8);
   assert.equal(pieces.length, 1, 'a clean miss must not split the stroke');
-  assert.deepEqual(pieces[0].points[0], [0, 0]);
-  assert.deepEqual(pieces[0].points.at(-1), [100, 0]);
-  assert.ok(pieces[0].points.every(([, y]) => y === 0), 'resampling must stay on the line');
-  assert.equal(pieces[0].color, stroke.color);
+  assert.equal(pieces[0], stroke, 'and must not resample it either');
 });
 
 test('an eraser gesture too short to be a polyline is a no-op', () => {
@@ -190,6 +187,43 @@ test('erasing through a pressure stroke keeps pressure on both halves', () => {
   for (const p of pieces) {
     assert.ok(hasPressure(p), 'a split half must not silently lose its taper');
   }
+});
+
+test('an eraser swipe that misses is a TRUE no-op, by identity', () => {
+  // The trap: splitStrokeByEraser resamples before it tests, so it hands back a
+  // rebuilt stroke even for a clean miss. Feeding that back would resample every
+  // stroke on the surface on every swipe and burn an undo step each time.
+  const a = legacy([[0, 0], [100, 0]]);
+  const b = legacy([[0, 50], [100, 50]]);
+  const { next, changed } = eraseStrokes([a, b], [[50, 500], [50, 600]], 8);
+  assert.equal(changed, false, 'nothing was cut, so nothing changed');
+  assert.equal(next[0], a, 'untouched strokes must pass through by IDENTITY');
+  assert.equal(next[1], b);
+});
+
+test('an eraser swipe reports a change only for the strokes it cut', () => {
+  const hit = legacy([[0, 0], [100, 0]]);
+  const miss = legacy([[0, 400], [100, 400]]);
+  const { next, changed } = eraseStrokes([hit, miss], [[50, -10], [50, 10]], 8);
+  assert.equal(changed, true);
+  assert.equal(next.length, 3, 'the cut stroke became two pieces, the other survived whole');
+  assert.equal(next.at(-1), miss, 'the missed stroke is still the same object');
+});
+
+test('a swipe across the middle of a long two-point line still registers', () => {
+  // Neither stored endpoint is near the eraser — only the interpolated middle
+  // is. This is the case the resampling exists for, so the touch test has to
+  // measure eraser samples against the stroke POLYLINE, not point-to-point.
+  const line = legacy([[0, 0], [1000, 0]]);
+  const { changed } = eraseStrokes([line], [[500, -5], [500, 5]], 8);
+  assert.equal(changed, true);
+});
+
+test('eraseStrokes tolerates an empty surface and a degenerate swipe', () => {
+  assert.deepEqual(eraseStrokes([], [[0, 0], [1, 1]], 8), { next: [], changed: false });
+  const s = [legacy([[0, 0], [10, 0]])];
+  assert.deepEqual(eraseStrokes(s, [[5, 0]], 8), { next: s, changed: false });
+  assert.deepEqual(eraseStrokes(null, [[0, 0], [1, 1]], 8), { next: [], changed: false });
 });
 
 // ── Geometry ──────────────────────────────────────────────────────────────

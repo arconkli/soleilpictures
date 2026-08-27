@@ -28,6 +28,8 @@ import { pushDocUndoTarget, removeDocUndoTarget } from '../lib/overlayRouting.js
 import { registerModalOpen } from '../lib/modalGuard.js';
 import { swallowContextMenu } from '../lib/contextMenuGuard.js';
 import { toPathD } from '../lib/strokeRender.js';
+import { trackStroke } from '../lib/pointerStroke.js';
+import { eraseStrokes } from '../lib/strokeModel.js';
 
 // Default pen stroke + bucket fill colors. The pad SURFACE defaults to
 // pure white — when the user commits, the surrounding ArtCanvasCard
@@ -35,8 +37,13 @@ import { toPathD } from '../lib/strokeRender.js';
 const DEFAULT_COLOR = '#0a0a0c';
 const DEFAULT_BG = '#ffffff';
 const DEFAULT_WIDTH = 3;
+// Matches ERASER_DEFAULT_WIDTH on the board so the eraser is the same size on
+// both surfaces, and the same translucent red preview swipe.
+const DEFAULT_ERASER_WIDTH = 16;
+const ERASER_PREVIEW_COLOR = 'rgba(239,68,68,.75)';
 const COLOR_PRESETS = ['#0a0a0c', '#f5f5f6', '#ffa500', '#cf6a4f', '#7c5cc9', '#3fa39a', '#5b8fc7', '#10b981'];
 const WIDTH_PRESETS = [1, 2, 4, 8, 14];
+const ERASER_WIDTH_PRESETS = [8, 16, 28, 44];
 
 // Logical drawing surface size for newly-created canvases. Strokes are
 // stored at this resolution so the SketchPad and the resulting card use
@@ -56,6 +63,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   const [tool, setTool]   = useState('pen'); // 'pen' | 'eraser' | 'bucket'
   const [color, setColor] = useState(DEFAULT_COLOR);
   const [width, setWidth] = useState(DEFAULT_WIDTH);
+  const [eraserWidth, setEraserWidth] = useState(DEFAULT_ERASER_WIDTH);
   const [padBg, setPadBg] = useState(DEFAULT_BG);
   const [pickerPos, setPickerPos] = useState(null);
   // Recent colors strip (per-user, persisted via lib/recentColors).
@@ -76,6 +84,11 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   const [activeStroke, setActive]   = useState(null);
   const wrapRef = useRef(null);
   const feedback = useFeedback();
+  // Live mirror of the in-flight stroke's points, and the teardown for the
+  // window-level pointer tracking behind it. Declared up here because the
+  // open/close effect below has to be able to dispose an in-flight stroke.
+  const activePtsRef = useRef(null);
+  const strokeDisposeRef = useRef(null);
 
   // ── Pad-local undo/redo ────────────────────────────────────────────────
   // The pad's drawing state is plain component state, so its history is a
@@ -214,6 +227,12 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
       window.removeEventListener('keydown', onKey, { capture: true });
       unregisterModal();
       removeDocUndoTarget(padTarget);
+      // Closing mid-stroke (Escape, or Cancel while the finger is still down)
+      // must not leave trackStroke's window listeners behind. The pad renders
+      // null rather than unmounting when it closes, so an unmount-only cleanup
+      // would never run here.
+      strokeDisposeRef.current?.();
+      strokeDisposeRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -227,26 +246,116 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
       y: ((clientY - rect.top) / rect.height) * logicalH,
     };
   };
-  // One history entry per ERASER GESTURE, pushed lazily on the first stroke
-  // it actually removes (an empty swipe must not create a no-op undo step).
-  const eraserPushedRef = useRef(false);
-  const eraseAt = (x, y) => {
-    const HIT = Math.max(width + 6, 12);
-    const hits = strokesLive.current.some(s => pointNearStroke(s, x, y, HIT));
-    if (!hits) return;
-    if (!eraserPushedRef.current) { pushHistory(); eraserPushedRef.current = true; }
-    setStrokes(prev => prev.filter(s => !pointNearStroke(s, x, y, HIT)));
+  // How many LOGICAL units one screen pixel is worth right now. Points closer
+  // together than about a screen pixel are invisible but still cost a path
+  // segment on every render, so the sampler drops them — and the threshold has
+  // to be derived from the live rect because the pad scales to fit the viewport
+  // (the same 1.5px board-space filter measured in the wrong space would be
+  // meaningless here).
+  const logicalPerScreenPx = () => {
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (!rect || !rect.width) return 1;
+    return logicalW / rect.width;
+  };
+
+  // Points accumulate in activePtsRef, NOT in React state: setActive is called
+  // once per animation frame with a copy, so a 240Hz Pencil drives one render
+  // per frame instead of one per native event.
+  const beginStroke = (e, startPoint) => {
+    const points = [startPoint];
+    activePtsRef.current = points;
+    const minStep = 1.2 * logicalPerScreenPx();
+    const stroke = { color, width };
+    setActive({ ...stroke, points: [...points] });
+
+    const addPoint = (clientX, clientY) => {
+      const { x, y } = toLogical(clientX, clientY);
+      const last = points[points.length - 1];
+      if (Math.hypot(x - last[0], y - last[1]) < minStep) return;
+      points.push([Math.round(x * 10) / 10, Math.round(y * 10) / 10]);
+    };
+
+    strokeDisposeRef.current = trackStroke({
+      pointerId: e.pointerId,
+      onSample: (ev) => {
+        // Safari and Chrome dispatch roughly one move per frame and stash the
+        // high-frequency samples in getCoalescedEvents — expanding them here is
+        // what keeps a Pencil line smooth without paying a render per sample.
+        for (const s of (ev.getCoalescedEvents?.() || [ev])) addPoint(s.clientX, s.clientY);
+        setActive({ ...stroke, points: [...points] });
+      },
+      onEnd: () => {
+        // Commit on pointercancel too. iOS fires cancel (not up) on palm
+        // rejection and system gestures; discarding there would silently eat a
+        // finished line, which is the board draw path's reasoning as well.
+        if (points.length > 1) {
+          pushHistory(); // snapshot the pre-stroke state → ⌘Z removes this line
+          setStrokes(prev => [...prev, { ...stroke, points }]);
+          addRecentColor(stroke.color);
+        }
+        setActive(null);
+        activePtsRef.current = null;
+        strokeDisposeRef.current = null;
+      },
+    });
+  };
+
+  const beginErase = (e, startPoint) => {
+    const points = [startPoint];
+    const radius = Math.max(4, (eraserWidth || DEFAULT_ERASER_WIDTH) / 2);
+    const minStep = 1.2 * logicalPerScreenPx();
+    // A translucent red preview of the swipe, exactly like the board eraser, so
+    // you can see the path you're about to cut before you lift.
+    setActive({ color: ERASER_PREVIEW_COLOR, width: radius * 2, points: [...points], eraser: true });
+
+    const addPoint = (clientX, clientY) => {
+      const { x, y } = toLogical(clientX, clientY);
+      const last = points[points.length - 1];
+      if (Math.hypot(x - last[0], y - last[1]) < minStep) return;
+      points.push([Math.round(x * 10) / 10, Math.round(y * 10) / 10]);
+    };
+
+    strokeDisposeRef.current = trackStroke({
+      pointerId: e.pointerId,
+      onSample: (ev) => {
+        for (const s of (ev.getCoalescedEvents?.() || [ev])) addPoint(s.clientX, s.clientY);
+        setActive({ color: ERASER_PREVIEW_COLOR, width: radius * 2, points: [...points], eraser: true });
+      },
+      onEnd: () => {
+        if (points.length > 1) {
+          // Erasing SPLITS strokes here now, the same as on the board. The pad
+          // used to delete a whole stroke on contact, so the identical gesture
+          // did two different things depending on which surface you were on.
+          // eraseStrokes reports whether anything was actually cut, so a swipe
+          // over empty space costs neither a re-render nor an undo step.
+          const { next, changed } = eraseStrokes(strokesLive.current, points, radius);
+          if (changed) {
+            pushHistory();
+            setStrokes(next);
+          }
+        }
+        setActive(null);
+        strokeDisposeRef.current = null;
+      },
+    });
   };
 
   const onPointerDown = (e) => {
-    if (e.button !== 0) return;
+    // Pen tips report button 0; some report -1 (no button change), and the
+    // barrel / eraser end reports 5. Only a genuine secondary or middle click
+    // should be ignored — the old `!== 0` test dropped the Pencil's barrel
+    // button on the floor.
+    if (e.button !== 0 && e.button !== -1 && e.button !== 5) return;
     if (!wrapRef.current) return;
     // The pad lives in a portal, so React events bubble through the
     // React tree all the way back to CanvasSurface's canvas-wrap and
     // trigger its draw handler — every pad stroke would also paint a
-    // board stroke. Stop propagation here (and in move/up below).
+    // board stroke. Stop propagation here.
     e.stopPropagation();
+    e.preventDefault();
     const { x, y } = toLogical(e.clientX, e.clientY);
+    const start = [Math.round(x * 10) / 10, Math.round(y * 10) / 10];
+
     if (tool === 'bucket') {
       // Round 1 of paint bucket: click anywhere to set the WHOLE pad bg.
       // True region-fill (Canvas2D flood fill against rasterized strokes)
@@ -257,45 +366,16 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
       addRecentColor(color);
       return;
     }
-    if (tool === 'eraser') {
-      // Capture so dragging the eraser keeps receiving move events even when
-      // the pointer leaves the pad bounds (without this, erasing stopped at
-      // the edge).
-      try { e.target.setPointerCapture?.(e.pointerId); } catch (_) {}
-      eraserPushedRef.current = false;
-      eraseAt(x, y);
-      return;
-    }
-    setActive({ color, width, points: [[x, y]] });
-    try { e.target.setPointerCapture?.(e.pointerId); } catch (_) {}
+    // Flipping an Apple Pencil / Surface Pen over erases, which is what the
+    // hardware is telling us it wants (button 5 / the eraser bit in `buttons`).
+    const eraserEnd = e.button === 5 || (e.buttons & 32) === 32;
+    if (tool === 'eraser' || eraserEnd) { beginErase(e, start); return; }
+    beginStroke(e, start);
   };
 
-  const onPointerMove = (e) => {
-    if (!wrapRef.current) return;
-    e.stopPropagation();
-    if (tool === 'eraser') {
-      if (e.buttons !== 1) return;
-      const { x, y } = toLogical(e.clientX, e.clientY);
-      eraseAt(x, y);
-      return;
-    }
-    if (!activeStroke) return;
-    const { x, y } = toLogical(e.clientX, e.clientY);
-    setActive(s => s ? { ...s, points: [...s.points, [x, y]] } : s);
-  };
-
-  const onPointerUp = (e) => {
-    e?.stopPropagation?.();
-    // Always release the capture taken in onPointerDown (this also serves
-    // onPointerCancel) so an interrupted gesture can't lock the pointer.
-    try { e?.target?.releasePointerCapture?.(e.pointerId); } catch (_) {}
-    if (activeStroke && activeStroke.points?.length > 1) {
-      pushHistory(); // snapshot the pre-stroke state → ⌘Z removes this line
-      setStrokes(prev => [...prev, activeStroke]);
-      addRecentColor(activeStroke.color);
-    }
-    setActive(null);
-  };
+  // Escape / unmount while a stroke is in flight: tear the window listeners
+  // down without committing. trackStroke's dispose is idempotent.
+  useEffect(() => () => { strokeDisposeRef.current?.(); }, []);
 
   const onCommit = useCallback(() => {
     if (!editingCard && !strokes.length && padBg === DEFAULT_BG) { onClose?.(); return; }
@@ -354,12 +434,12 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                   }}
                   title="Custom color">⋯</button>
           <span className="sp-sep" />
-          {WIDTH_PRESETS.map(w => (
+          {(tool === 'eraser' ? ERASER_WIDTH_PRESETS : WIDTH_PRESETS).map(w => (
             <button key={w}
                     type="button"
-                    className={`sp-width ${width === w ? 'is-active' : ''}`}
-                    onClick={() => setWidth(w)}
-                    title={`${w}px`}>
+                    className={`sp-width ${(tool === 'eraser' ? eraserWidth : width) === w ? 'is-active' : ''}`}
+                    onClick={() => (tool === 'eraser' ? setEraserWidth(w) : setWidth(w))}
+                    title={tool === 'eraser' ? `Eraser size ${w}px` : `${w}px`}>
               <span className="sp-width-dot" style={{
                 width: Math.min(20, w + 4),
                 height: Math.min(20, w + 4),
@@ -410,10 +490,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
         <div ref={wrapRef}
              className={`sketchpad-surface ${tool === 'eraser' ? 'is-eraser' : ''} ${tool === 'bucket' ? 'is-bucket' : ''}`}
              style={{ background: padBg, aspectRatio: `${logicalW} / ${logicalH}` }}
-             onPointerDown={onPointerDown}
-             onPointerMove={onPointerMove}
-             onPointerUp={onPointerUp}
-             onPointerCancel={onPointerUp}>
+             onPointerDown={onPointerDown}>
           <svg className="sketchpad-svg" width="100%" height="100%"
                viewBox={`0 0 ${logicalW} ${logicalH}`}
                preserveAspectRatio="none">
@@ -455,22 +532,3 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   );
 }
 
-// Squared-distance from point (px, py) to the nearest segment in
-// stroke. Returns true if any segment is within `hit` px.
-function pointNearStroke(stroke, px, py, hit) {
-  const pts = stroke?.points;
-  if (!pts || pts.length < 2) return false;
-  const hit2 = hit * hit;
-  for (let i = 1; i < pts.length; i++) {
-    const [x1, y1] = pts[i - 1];
-    const [x2, y2] = pts[i];
-    const dx = x2 - x1, dy = y2 - y1;
-    const lenSq = dx * dx + dy * dy || 1;
-    let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
-    t = Math.max(0, Math.min(1, t));
-    const cx = x1 + t * dx, cy = y1 + t * dy;
-    const ddx = px - cx, ddy = py - cy;
-    if (ddx * ddx + ddy * ddy <= hit2) return true;
-  }
-  return false;
-}
