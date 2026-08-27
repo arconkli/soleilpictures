@@ -16,6 +16,7 @@ import { useRecentColors } from '../hooks/useRecentColors.js';
 import { addRecentColor } from '../lib/recentColors.js';
 import { usePointerPolicy } from '../hooks/usePointerPolicy.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { Sheet } from './shell/Sheet.jsx';
 import { BrushPreview, BRUSH_ORDER, BRUSH_LABELS } from './BrushPreview.jsx';
 import { DEFAULT_BRUSH } from '../lib/strokeModel.js';
 import { setDrawWithFinger } from '../lib/pointerPolicy.js';
@@ -389,7 +390,13 @@ export function ToolOptionsBar({
 }) {
   const recentColors = useRecentColors();
   const pointerPolicy = usePointerPolicy();
-  const { isTouch: isTouchDevice } = useBreakpoint();
+  const { isTouch: isTouchDevice, isPhone, isTablet } = useBreakpoint();
+  // Same shape as `mobileShell` — a phone, or a touch tablet. The draw bar is
+  // the widest in the app and on an iPhone it laid out to 1319px inside a 372px
+  // strip: 72% of it, including every colour swatch and the whole thickness
+  // picker, sat past the right edge of a scroll nobody could see.
+  const compactBar = isPhone || (isTablet && isTouchDevice);
+  const [drawSheet, setDrawSheet] = useState(false);
   const openPickerAt = (e, opts) => {
     if (!openColorPicker) return;
     const r = e.currentTarget.getBoundingClientRect();
@@ -439,112 +446,220 @@ export function ToolOptionsBar({
     const sketchpadBtn = onOpenSketchpad ? (
       <button className="tob-action tob-canvas-btn"
               title="Open a fullscreen drawing canvas"
+              // The label is what makes this findable on a first visit, but on a
+              // phone it is 80px that pushes the thickness picker off the edge.
+              // The icon carries it there, with the name on the accessible label.
+              aria-label="Open a fullscreen drawing canvas"
               onClick={onOpenSketchpad}>
-        <svg width="14" height="14" viewBox="0 0 20 20" style={{ marginRight: 6, verticalAlign: '-2px' }}>
+        <svg width="14" height="14" viewBox="0 0 20 20"
+             style={{ marginRight: compactBar ? 0 : 6, verticalAlign: '-2px' }}>
           <rect x="3" y="3" width="14" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.4" fill="none"/>
           <path d="M6 13 Q9 8 13 11 Q15 12 14 14" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
         </svg>
-        Canvas
+        {compactBar ? null : 'Canvas'}
       </button>
     ) : null;
+
+    // ── Shared control groups ──────────────────────────────────────────────
+    // The same JSX feeds the desktop bar and the phone sheet, so a brush or a
+    // swatch can never exist on one surface and not the other.
+    const undoBtn = onUndo ? (
+      <button className="tob-action tob-icon-btn"
+              title="Undo last stroke (⌘Z)"
+              aria-label="Undo"
+              onClick={onUndo}>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M4 7 L1 4 L4 1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M1 4 H10 C12.7614 4 15 6.23858 15 9 C15 11.7614 12.7614 14 10 14 H7"
+                stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" fill="none" />
+        </svg>
+      </button>
+    ) : null;
+
+    const modeButtons = (
+      <div className="tob-segmented">
+        <button aria-label="Pen"
+                className={inking ? 'is-active' : ''}
+                onClick={() => setDrawOptions({ ...drawOptions, mode: 'pen' })}>Pen</button>
+        <button aria-label="Eraser"
+                className={isEraser ? 'is-active' : ''}
+                onClick={() => setDrawOptions({ ...drawOptions, mode: 'eraser' })}>Eraser</button>
+        {/* The only way to select strokes with a finger — one-finger touch on
+            the select tool pans, so the marquee is mouse/stylus-only. */}
+        <button aria-label="Lasso"
+                title="Circle strokes to select them"
+                className={isLasso ? 'is-active' : ''}
+                onClick={() => setDrawOptions({ ...drawOptions, mode: 'lasso' })}>Lasso</button>
+      </div>
+    );
+
+    // Only meaningful once the device has proven it has a stylus — before that
+    // the finger is the only way to draw and a toggle offering to turn that off
+    // is a trap. See lib/pointerPolicy.js.
+    const fingerToggle = pointerPolicy.stylus ? (
+      <button className={`tob-action tob-toggle ${pointerPolicy.fingerDraws ? 'is-active' : ''}`}
+              role="switch"
+              aria-checked={pointerPolicy.fingerDraws}
+              title={pointerPolicy.fingerDraws
+                ? 'Your finger draws. Turn off to let it pan while the stylus draws.'
+                : 'Your finger pans and only the stylus draws. Turn on to draw with either.'}
+              onClick={() => setDrawWithFinger(!pointerPolicy.fingerDraws)}>
+        Draw with finger
+      </button>
+    ) : null;
+
+    // Previewed with a real tapered stroke — "pencil" and "marker" mean nothing
+    // as words until you see what they draw like.
+    const brushRow = (
+      <div className="sp-brushes">
+        {BRUSH_ORDER.map(id => (
+          <button key={id}
+                  type="button"
+                  className={`sp-brush ${(drawOptions.brush || DEFAULT_BRUSH) === id ? 'is-active' : ''}`}
+                  onClick={() => setDrawOptions({ ...drawOptions, brush: id })}
+                  title={BRUSH_LABELS[id]}
+                  aria-label={`${BRUSH_LABELS[id]} brush`}>
+            <svg viewBox="0 0 56 26" width="46" height="22" aria-hidden="true">
+              <BrushPreview brush={id} />
+            </svg>
+          </button>
+        ))}
+      </div>
+    );
+
+    const swatchRow = (
+      <div className="tob-swatches">
+        {allColors.slice(0, 12).map(c => (
+          <button key={c}
+                  className={`tob-sw ${drawOptions.color === c ? 'is-active' : ''}`}
+                  aria-label={`Colour ${c}`}
+                  style={{ background: c }}
+                  onClick={() => { setDrawOptions({ ...drawOptions, color: c }); addRecentColor(c); }} />
+        ))}
+        <button className="tob-sw tob-sw-custom" title="Custom hex…" aria-label="Custom color"
+                onClick={(e) => openPickerAt(e, {
+                  value: drawOptions.color,
+                  onChange: (col) => {
+                    setDrawOptions({ ...drawOptions, color: col });
+                    // Track the picked color in recents so the
+                    // strip updates as the user explores hexes.
+                    addRecentColor(col);
+                  },
+                })}>+</button>
+      </div>
+    );
+
+    const thicknessRow = (
+      <div className="tob-thickness">
+        {DRAW_THICKNESS.map(w => (
+          <button key={w}
+                  title={isEraser ? `Eraser size ${w}px` : `Stroke ${w}px`}
+                  aria-label={isEraser ? `Eraser size ${w}` : `Stroke width ${w}`}
+                  className={`tob-thick ${(isEraser ? drawOptions.eraserWidth : drawOptions.width) === w ? 'is-active' : ''}`}
+                  onClick={() => setDrawOptions(isEraser ? { ...drawOptions, eraserWidth: w } : { ...drawOptions, width: w })}>
+            <span style={{ width: 24, height: w, background: isEraser ? '#ef4444' : drawOptions.color, borderRadius: w/2, display: 'block' }} />
+          </button>
+        ))}
+      </div>
+    );
+
+    // ── Phone / touch-tablet bar ───────────────────────────────────────────
+    // Five controls that fit, and one sheet holding everything that doesn't.
+    // The chip is the escape hatch that makes that safe: the colour and width
+    // you are drawing with stay visible on the bar even though the pickers for
+    // them moved, so nothing you need at a glance went behind a tap.
+    if (compactBar) {
+      const activeW = isEraser ? drawOptions.eraserWidth : drawOptions.width;
+      return (
+        <>
+          <div {...tobProps} onPointerDown={(e) => e.stopPropagation()}>
+            {sketchpadBtn}
+            {sketchpadBtn && <span className="tob-sep" />}
+            {undoBtn}
+            {undoBtn && <span className="tob-sep" />}
+            {modeButtons}
+            {/* Colour and size are meaningless for a selection gesture, so the
+                chip and its sheet drop out entirely in lasso mode. */}
+            {!isLasso && (
+              <>
+                <button className={`tob-chip ${drawSheet ? 'is-active' : ''}`}
+                        aria-label={isEraser ? 'Eraser size' : 'Brush, colour and width'}
+                        title={isEraser ? 'Eraser size' : 'Brush, colour and width'}
+                        onClick={() => setDrawSheet(true)}>
+                  <span className="tob-chip-dot"
+                        style={{ background: isEraser ? '#ef4444' : drawOptions.color }} />
+                  <span className="tob-chip-dot tob-chip-size"
+                        style={{ width: Math.min(16, activeW + 4), height: Math.min(16, activeW + 4) }} />
+                </button>
+              </>
+            )}
+            {isLasso && <span className="tob-label">Circle strokes to select</span>}
+          </div>
+          {drawSheet && !isLasso && (
+            <Sheet open
+                   snap="half"
+                   title={isEraser ? 'Eraser' : 'Brush, colour & width'}
+                   onClose={() => setDrawSheet(false)}>
+              <div className="sp-sheet-body">
+                {inking && (
+                  <>
+                    <div className="sp-sheet-group">
+                      <div className="sp-sheet-label">Brush</div>
+                      <div className="sp-sheet-row sp-brushes">{brushRow}</div>
+                    </div>
+                    <div className="sp-sheet-group">
+                      <div className="sp-sheet-label">Colour</div>
+                      <div className="sp-sheet-row">{swatchRow}</div>
+                    </div>
+                  </>
+                )}
+                <div className="sp-sheet-group">
+                  <div className="sp-sheet-label">{isEraser ? 'Eraser size' : 'Stroke width'}</div>
+                  <div className="sp-sheet-row">{thicknessRow}</div>
+                </div>
+                {fingerToggle && (
+                  <div className="sp-sheet-group">
+                    <div className="sp-sheet-label">Stylus</div>
+                    <div className="sp-sheet-row">{fingerToggle}</div>
+                  </div>
+                )}
+              </div>
+            </Sheet>
+          )}
+        </>
+      );
+    }
+
     return (
       <div {...tobProps} onPointerDown={(e) => e.stopPropagation()}>
-        {/* On touch the bar is a single scrolling row, and Canvas sat at the far
-            right end of it — off-screen, for the surface people actually want to
-            do real drawing on. Lead with it there; on desktop the whole bar is
-            visible at once and it stays at the end where it always was. */}
+        {/* Non-phone touch (a large tablet in landscape) still gets Canvas first:
+            it used to sit at the far right end of a scrolling row — off-screen,
+            for the surface people actually want to do real drawing on. On
+            desktop the whole bar is visible at once and it stays at the end
+            where it always was. */}
         {isTouchDevice && sketchpadBtn && (
           <>
             {sketchpadBtn}
             <span className="tob-sep" />
           </>
         )}
-        {onUndo && (
-          <>
-            <button className="tob-action tob-icon-btn"
-                    title="Undo last stroke (⌘Z)"
-                    aria-label="Undo"
-                    onClick={onUndo}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path d="M4 7 L1 4 L4 1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M1 4 H10 C12.7614 4 15 6.23858 15 9 C15 11.7614 12.7614 14 10 14 H7"
-                      stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" fill="none" />
-              </svg>
-            </button>
-            <span className="tob-sep" />
-          </>
-        )}
+        {undoBtn}
+        {undoBtn && <span className="tob-sep" />}
         <span className="tob-label">Brush</span>
-        <div className="tob-segmented">
-          <button aria-label="Pen"
-                  className={inking ? 'is-active' : ''}
-                  onClick={() => setDrawOptions({ ...drawOptions, mode: 'pen' })}>Pen</button>
-          <button aria-label="Eraser"
-                  className={isEraser ? 'is-active' : ''}
-                  onClick={() => setDrawOptions({ ...drawOptions, mode: 'eraser' })}>Eraser</button>
-          {/* The only way to select strokes with a finger — one-finger touch on
-              the select tool pans, so the marquee is mouse/stylus-only. */}
-          <button aria-label="Lasso"
-                  title="Circle strokes to select them"
-                  className={isLasso ? 'is-active' : ''}
-                  onClick={() => setDrawOptions({ ...drawOptions, mode: 'lasso' })}>Lasso</button>
-        </div>
-        {/* Only meaningful once the device has proven it has a stylus — before
-            that the finger is the only way to draw and a toggle offering to
-            turn that off is a trap. See lib/pointerPolicy.js. */}
-        {pointerPolicy.stylus && (
+        {modeButtons}
+        {fingerToggle && (
           <>
             <span className="tob-sep" />
-            <button className={`tob-action tob-toggle ${pointerPolicy.fingerDraws ? 'is-active' : ''}`}
-                    role="switch"
-                    aria-checked={pointerPolicy.fingerDraws}
-                    title={pointerPolicy.fingerDraws
-                      ? 'Your finger draws. Turn off to let it pan while the stylus draws.'
-                      : 'Your finger pans and only the stylus draws. Turn on to draw with either.'}
-                    onClick={() => setDrawWithFinger(!pointerPolicy.fingerDraws)}>
-              Draw with finger
-            </button>
+            {fingerToggle}
           </>
         )}
         {inking && (
           <>
             <span className="tob-sep" />
-            {/* Previewed with a real tapered stroke — "pencil" and "marker" mean
-                nothing as words until you see what they draw like. */}
-            <div className="sp-brushes">
-              {BRUSH_ORDER.map(id => (
-                <button key={id}
-                        type="button"
-                        className={`sp-brush ${(drawOptions.brush || DEFAULT_BRUSH) === id ? 'is-active' : ''}`}
-                        onClick={() => setDrawOptions({ ...drawOptions, brush: id })}
-                        title={BRUSH_LABELS[id]}
-                        aria-label={`${BRUSH_LABELS[id]} brush`}>
-                  <svg viewBox="0 0 56 26" width="46" height="22" aria-hidden="true">
-                    <BrushPreview brush={id} />
-                  </svg>
-                </button>
-              ))}
-            </div>
+            {brushRow}
             <span className="tob-sep" />
             <span className="tob-label">Color</span>
-            <div className="tob-swatches">
-              {allColors.slice(0, 12).map(c => (
-                <button key={c}
-                        className={`tob-sw ${drawOptions.color === c ? 'is-active' : ''}`}
-                        style={{ background: c }}
-                        onClick={() => { setDrawOptions({ ...drawOptions, color: c }); addRecentColor(c); }} />
-              ))}
-              <button className="tob-sw tob-sw-custom" title="Custom hex…" aria-label="Custom color"
-                      onClick={(e) => openPickerAt(e, {
-                        value: drawOptions.color,
-                        onChange: (col) => {
-                          setDrawOptions({ ...drawOptions, color: col });
-                          // Track the picked color in recents so the
-                          // strip updates as the user explores hexes.
-                          addRecentColor(col);
-                        },
-                      })}>+</button>
-            </div>
+            {swatchRow}
           </>
         )}
         {isLasso ? (
@@ -555,16 +670,7 @@ export function ToolOptionsBar({
         ) : (
           <>
             <span className="tob-sep" />
-            <div className="tob-thickness">
-              {DRAW_THICKNESS.map(w => (
-                <button key={w}
-                        title={isEraser ? `Eraser size ${w}px` : `Stroke ${w}px`}
-                        className={`tob-thick ${(isEraser ? drawOptions.eraserWidth : drawOptions.width) === w ? 'is-active' : ''}`}
-                        onClick={() => setDrawOptions(isEraser ? { ...drawOptions, eraserWidth: w } : { ...drawOptions, width: w })}>
-                  <span style={{ width: 24, height: w, background: isEraser ? '#ef4444' : drawOptions.color, borderRadius: w/2, display: 'block' }} />
-                </button>
-              ))}
-            </div>
+            {thicknessRow}
           </>
         )}
         {!isTouchDevice && sketchpadBtn && (
