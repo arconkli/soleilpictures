@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { listGridLayouts } from '../lib/gridLayoutsApi.js';
+import { listGridLayouts, myGridLayoutPublications } from '../lib/gridLayoutsApi.js';
 
 // Saved grid layouts for the Templates panel.
 //
@@ -26,11 +26,25 @@ import { listGridLayouts } from '../lib/gridLayoutsApi.js';
 const _cache = new Map();     // userId -> rows
 const _inflight = new Map();  // userId -> Promise<rows>
 
+// One trip for the library and one for "which of these are in the gallery".
+// They are separate calls because the library comes straight from RLS while
+// publication state has to come from a definer function (public_grid_layouts is
+// revoked from clients entirely), and they are fetched together because the
+// panel needs both before it can render a row's actions honestly.
 function fetchFor(userId) {
   let p = _inflight.get(userId);
   if (!p) {
-    p = listGridLayouts()
-      .then((rows) => { _cache.set(userId, rows); _inflight.delete(userId); return rows; })
+    p = Promise.all([listGridLayouts(), myGridLayoutPublications()])
+      .then(([rows, pubs]) => {
+        const bySlug = new Map(pubs.map((x) => [x.layout_id, x]));
+        const merged = rows.map((r) => {
+          const pub = bySlug.get(r.id);
+          return pub?.published_at ? { ...r, published_slug: pub.slug } : r;
+        });
+        _cache.set(userId, merged);
+        _inflight.delete(userId);
+        return merged;
+      })
       .catch((e) => { _inflight.delete(userId); throw e; });
     _inflight.set(userId, p);
   }

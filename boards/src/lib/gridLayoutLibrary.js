@@ -56,6 +56,9 @@ export function rowFromRecord(rec, source) {
     workspaceId: rec.workspace_id || null,
     shareToken: rec.share_token || null,
     textStyle: body.textStyle || null,
+    // Set only when this template is live in the public gallery — the row's
+    // actions offer Publish or Remove based on it, never both.
+    publishedSlug: rec.published_slug || null,
     slug: rec.slug || null,
   });
 }

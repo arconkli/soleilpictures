@@ -58,6 +58,7 @@ import { useGridLayouts } from '../hooks/useGridLayouts.js';
 import {
   saveGridLayout, renameGridLayout, setGridLayoutScope,
   deleteGridLayout, restoreGridLayout, createGridLayoutLink,
+  publishGridLayout, unpublishGridLayout,
 } from '../lib/gridLayoutsApi.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { TEAMMATES } from '../data.js';
@@ -2065,6 +2066,45 @@ export function CanvasSurface({
             try { await navigator.clipboard.writeText(url); feedback.toast({ message: 'Share link copied.' }); }
             catch (_) { feedback.toast({ message: url, ttl: 12000 }); }
           } catch (e) { feedback.toast({ type: 'error', message: 'Could not create a link: ' + (e.message || e) }); }
+        },
+      });
+    }
+    if (isMine) {
+      // Publishing is immediate — there is no review queue — so the copy says
+      // "everyone", not "submit". Offering only the action that applies keeps
+      // the row from asking the user to guess its own state.
+      acts.push(row.publishedSlug ? {
+        id: 'unpublish',
+        label: 'Remove from gallery',
+        run: async () => {
+          try {
+            await unpublishGridLayout(row.id);
+            await reloadGridLayouts();
+            feedback.toast({ message: 'Removed from the public gallery.' });
+          } catch (e) { feedback.toast({ type: 'error', message: 'Could not remove: ' + (e.message || e) }); }
+        },
+      } : {
+        id: 'publish',
+        label: 'Publish to gallery…',
+        run: async () => {
+          const ok = await feedback.confirm({
+            title: 'Publish to the public gallery?',
+            body: `“${row.name}” will appear at /templates for anyone to use. It publishes the shape only — no images, no text, nothing from the board it came from. You can remove it at any time.`,
+            confirmLabel: 'Publish',
+          });
+          if (!ok) return;
+          try {
+            const res = await publishGridLayout(row.id, row.name, null);
+            await reloadGridLayouts();
+            feedback.toast({
+              message: 'Published to the gallery.',
+              action: res?.slug ? { label: 'View', onClick: () => window.open('/templates', '_blank', 'noopener') } : undefined,
+            });
+          } catch (e) {
+            // The 2-cell quality gate raises 22023 with a human-readable
+            // message; surfacing it verbatim beats inventing a vaguer one.
+            feedback.toast({ type: 'error', message: e.message || 'Could not publish.' });
+          }
         },
       });
     }

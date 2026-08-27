@@ -31,6 +31,7 @@ import { AdminGrantsTab } from './admin/AdminGrantsTab.jsx';
 import { AdminCampaignTab } from './admin/AdminCampaignTab.jsx';
 import { AdminDiscoverTab } from './admin/AdminDiscoverTab.jsx';
 import { AdminApprovalsTab } from './admin/AdminApprovalsTab.jsx';
+import { AdminTemplatesTab } from './admin/AdminTemplatesTab.jsx';
 import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
 import { AdminFeedbackTab } from './admin/AdminFeedbackTab.jsx';
 import { AdminErrorsTab } from './admin/AdminErrorsTab.jsx';
@@ -52,6 +53,7 @@ const TABS = [
   { id: 'campaign',  label: 'Campaign' },
   { id: 'discover',  label: 'Discover' },
   { id: 'approvals', label: 'Approvals' },
+  { id: 'templates', label: 'Templates' },
   { id: 'waitlist',  label: 'Waitlist' },
   { id: 'feedback',  label: 'Feedback' },
   { id: 'errors',    label: 'Errors' },
@@ -69,7 +71,7 @@ const STORAGE_KEY = 'admin.tab';
 // PRIMARY_IDS is the one knob — reorder/trim it and the overflow recomputes.
 const PRIMARY_IDS = ['overview', 'analytics', 'users', 'approvals', 'waitlist'];
 // Overflow order is triage-first, then rare/config, split by a single divider.
-const OVERFLOW_IDS = ['discover', 'feedback', 'errors', 'api', 'scout', 'emails', 'grants', 'campaign', 'tagging', 'universe'];
+const OVERFLOW_IDS = ['discover', 'templates', 'feedback', 'errors', 'api', 'scout', 'emails', 'grants', 'campaign', 'tagging', 'universe'];
 const OVERFLOW_SEP_AFTER = 'grants';      // divider between triage and rare-config
 const HEAVY_IDS = new Set(['universe']);  // heaviest to mount → flagged in the menu
 
@@ -271,6 +273,8 @@ export function AdminPage() {
         {tab === 'campaign'  && <AdminCampaignTab />}
         {tab === 'discover'  && <AdminDiscoverTab />}
         {tab === 'approvals' && <AdminApprovalsTab onCountsChange={(c) => setPendingApprovals(c?.pending ?? 0)} />}
+        {/* A takedown surface, not a queue — so no pending-count badge. */}
+        {tab === 'templates' && <AdminTemplatesTab />}
         {tab === 'waitlist'  && <AdminWaitlistTab />}
         {tab === 'feedback'  && <AdminFeedbackTab />}
         {tab === 'scout'     && <AdminScoutTab />}

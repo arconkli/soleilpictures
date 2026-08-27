@@ -15,6 +15,7 @@ import { NotFoundPage } from './NotFoundPage.jsx';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
+import { GridLayoutThumb } from '../components/GridLayoutThumb.jsx';
 import './seoLanding.css';
 
 // path → short link label, for related-page spokes in the footer. Includes the
@@ -81,6 +82,30 @@ export function SeoLandingPage({ spec: specProp, path }) {
   // Live board titles + thumb cache-busters for the example cards. Loaded
   // lazily (dynamic import keeps the supabase client out of this chunk's
   // critical path); cards render immediately with humanized-slug fallbacks.
+  // Published community templates for /templates. Same lazy-import discipline as
+  // the example boards below: the supabase client and the layout math stay out
+  // of this chunk's critical path, and a failure leaves the static page intact.
+  const [communityTemplates, setCommunityTemplates] = useState([]);
+  useEffect(() => {
+    if (!spec?.showTemplates) return undefined;
+    let on = true;
+    Promise.all([
+      import('../lib/gridLayoutsApi.js'),
+      import('../lib/gridLayout.js'),
+    ])
+      .then(async ([api, geom]) => {
+        const rows = await api.listPublicGridLayouts(24);
+        if (!on) return;
+        // Sanitize on the way OUT as well as in: these trees were authored by
+        // other people, and computeCellRects recurses without a depth guard.
+        setCommunityTemplates(rows
+          .map((r) => ({ ...r, tree: geom.sanitizeLayout(r.body?.layout) }))
+          .filter((r) => r.tree));
+      })
+      .catch(() => {});
+    return () => { on = false; };
+  }, [spec]);
+
   const [pubBoards, setPubBoards] = useState(null);
   useEffect(() => {
     if (!spec?.exampleSlugs?.length) return undefined;
@@ -259,6 +284,32 @@ export function SeoLandingPage({ spec: specProp, path }) {
                 ))}
               </ul>
               <a className="seo-examples-more" href="/explore" {...lp.ctaProps('explore_more', '/explore', { intent: 'nav' })}>Explore all example boards →</a>
+            </section>
+          )}
+
+          {/* Published community templates, live. Only /templates asks for this
+              (spec.showTemplates), and it degrades to nothing when the gallery
+              is empty — an empty heading is worse than no heading. The static
+              copy above is what crawlers read; this strip is enhancement, which
+              is what keeps the Worker's server-rendered HTML and React's output
+              the same document. */}
+          {spec.showTemplates && communityTemplates.length > 0 && (
+            <section className="seo-section seo-templates" ref={lp.sectionRef('templates', 4 + nSec)}>
+              <h2 className="seo-h2">From the community</h2>
+              <p className="seo-body">
+                Layouts people have published. Open one to add it to your own templates —
+                you get a copy to change however you like.
+              </p>
+              <ul className="tplgrid">
+                {communityTemplates.map((t) => (
+                  <li key={t.slug}>
+                    <a className="tplcard" href={`/?utm_source=templates&utm_medium=card&utm_campaign=${encodeURIComponent(t.slug)}`}>
+                      <GridLayoutThumb tree={t.tree} title={t.title} />
+                      <span className="tplcard-title">{t.title}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
 

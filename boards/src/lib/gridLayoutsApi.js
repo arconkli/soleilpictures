@@ -113,3 +113,50 @@ export async function claimGridLayoutLink(token) {
   if (error) throw error;
   return data || null;
 }
+
+// ── the public gallery (migration 0266) ──────────────────────────────────────
+// Publishing is immediate — there is no review queue. The moderation surface is
+// small enough to police after the fact: a template carries no images and no
+// cell content, so the only author-controlled strings that reach a public page
+// are its name, title and description.
+
+export async function publishGridLayout(id, title, description) {
+  const { data, error } = await supabase.rpc('submit_grid_layout_to_public', {
+    p_id: id, p_title: title || null, p_description: description || null,
+  });
+  if (error) throw error;
+  return data || null;   // { status, slug }
+}
+
+export async function unpublishGridLayout(id) {
+  const { error } = await supabase.rpc('unpublish_grid_layout', { p_id: id });
+  if (error) throw error;
+}
+
+// Which of MY templates are in the gallery, so a row offers Publish or Remove
+// rather than both. Returns [] rather than throwing — publication state is
+// decoration on the panel, and losing it should not cost the library.
+export async function myGridLayoutPublications() {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc('my_grid_layout_publications');
+  if (error) return [];
+  return Array.isArray(data) ? data : [];
+}
+
+// Anon-callable. Returns rows carrying `body`, because the gallery tile IS the
+// geometry — rendering a preview needs no second round-trip and no thumbnail
+// pipeline. Never returns who submitted it.
+export async function listPublicGridLayouts(limit = 120) {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc('list_public_grid_layouts', { p_limit: limit });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+// Copies a published template into my library. Same COPY semantics as a share
+// link: a later takedown cannot reach into anyone's library.
+export async function usePublicGridLayout(slug) {
+  const { data, error } = await supabase.rpc('use_public_grid_layout', { p_slug: slug });
+  if (error) throw error;
+  return data || null;
+}

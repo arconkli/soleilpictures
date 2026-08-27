@@ -21164,6 +21164,21 @@ button, [role="button"], a {
   background: var(--bg-1);
 }
 .admin-approval-main { flex: 1 1 280px; min-width: 0; }
+/* Grid-template rows carry a shape preview instead of a board thumbnail — the
+   template IS its geometry, so the SVG the picker draws is the whole artefact
+   and there is no image to load. */
+.admin-tpl-thumb {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  padding: 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--bg-2);
+}
+.admin-tpl-thumb .tplt-thumb { width: 100%; height: auto; aspect-ratio: 56 / 44; background: transparent; }
+.admin-tpl-thumb .tplt-thumb rect { fill: var(--bg-1); stroke: var(--line-3); stroke-width: .6; }
 .admin-approval-titleline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .admin-approval-name { font-weight: 650; color: var(--ink-0); }
 .admin-approval-meta { margin-top: 3px; word-break: break-word; }

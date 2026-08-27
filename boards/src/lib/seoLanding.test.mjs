@@ -34,7 +34,10 @@ test('registry basics: unique paths, resolvable, correctly shaped', () => {
   const paths = SEO_LANDING_PAGES.map((p) => p.path);
   assert.equal(new Set(paths).size, paths.length, 'duplicate path in the registry');
   for (const p of SEO_LANDING_PAGES) {
-    assert.match(p.path, /^\/(tools|vs)\/[a-z0-9-]+$|^\/(use-cases|scout)$/, `${p.path}: bad path shape`);
+    // Two shapes: a namespaced page (/tools/*, /vs/*) or a single-segment hub.
+    // The hub list is explicit rather than a wildcard so a typo'd path can't
+    // quietly claim a top-level URL.
+    assert.match(p.path, /^\/(tools|vs)\/[a-z0-9-]+$|^\/(use-cases|scout|templates)$/, `${p.path}: bad path shape`);
     assert.ok(['tool', 'compare', 'hub'].includes(p.kind), `${p.path}: unknown kind ${p.kind}`);
     // Resolution must survive the shapes the Worker actually receives.
     assert.equal(getLandingSpec(p.path), p, `${p.path}: does not resolve`);

@@ -9093,6 +9093,84 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "heading",
+   "depth": 3,
+   "text": "The public gallery",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The public gallery"
+    }
+   ],
+   "id": "the-public-gallery"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Publish to gallery",
+     "children": [
+      {
+       "t": "text",
+       "v": "Publish to gallery"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " puts a template on "
+    },
+    {
+     "t": "link",
+     "v": "/templates",
+     "href": "/templates",
+     "children": [
+      {
+       "t": "text",
+       "v": "/templates"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", where anyone can browse and use it. There is no review queue — it appears immediately — and "
+    },
+    {
+     "t": "strong",
+     "v": "Remove from gallery",
+     "children": [
+      {
+       "t": "text",
+       "v": "Remove from gallery"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " takes it back down just as fast. A template needs at least two cells to be published; a single-cell grid is a box, not a layout."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Publishing shares the shape and the name you gave it. It does not share the board it came from, the images in it, or anything you wrote. Anyone who uses a published template gets their own copy, so removing it later does not reach into anybody's library and take it back."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Only the person who made a template can publish it. A workspace template can be renamed and edited by any member, but publishing it is still the author's call."
+    }
+   ]
+  },
+  {
    "type": "para",
    "inline": [
     {

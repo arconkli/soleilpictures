@@ -77,11 +77,14 @@ export function TemplateSharePage({ token }) {
       <main className="tshare-main">
         {status === 'loading' && <div className="tshare-msg">Loading…</div>}
 
+        {/* No second call to action here on purpose. The topbar already carries
+            one, and repeating it verbatim is the three-CTA mistake
+            PublicBoardView's header describes: the same offer worded twice
+            reads as two choices for one question. */}
         {status === 'invalid' && (
           <div className="tshare-msg">
             <h1 className="tshare-h1">This link is no longer live</h1>
             <p>The template may have been deleted, or the link revoked.</p>
-            <a className="public-cta" href={ctaHref(token, 'invalid')}>Try Clusters free</a>
           </div>
         )}
 

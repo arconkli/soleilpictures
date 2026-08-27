@@ -480,6 +480,27 @@ export async function adminUnpublishBoard(boardId) {
   if (error) throw error;
 }
 
+// ── Public grid-template gallery moderation (migration 0266) ─────────────────
+// A takedown surface rather than a review queue: templates publish immediately,
+// because a template is layout geometry with no images and no cell content.
+export async function adminListGridLayouts(status = 'published') {
+  const { data, error } = await supabase.rpc('admin_list_grid_layouts', { p_status: status });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+export async function adminTakeDownGridLayout(layoutId, reason) {
+  const { error } = await supabase.rpc('admin_take_down_grid_layout', {
+    p_layout_id: layoutId, p_reason: reason || null,
+  });
+  if (error) throw error;
+}
+
+export async function adminRestoreGridLayout(layoutId) {
+  const { error } = await supabase.rpc('admin_restore_grid_layout', { p_layout_id: layoutId });
+  if (error) throw error;
+}
+
 // GSC measurement loop (migration 0138). Stats reader + CSV importer.
 export async function adminPublicBoardStats(days = 90) {
   const { data, error } = await supabase.rpc('admin_public_board_stats', { p_days: days });

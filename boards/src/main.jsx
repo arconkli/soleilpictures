@@ -174,7 +174,13 @@ const exploreMatch = /^\/explore\/?$/.test(window.location.pathname);
 // EVERYTHING the Worker 404s under these prefixes (any depth/charset), or a
 // 404 document would boot into AuthGate instead of the not-found page. Bare
 // /tools and /vs never reach the client — the Worker 301s them to /use-cases.
-const seoLandingMatch = /^\/(?:tools\/|vs\/|use-cases(?:\/|$))/i.test(window.location.pathname);
+// /templates rides this matcher rather than getting a branch of its own: it IS
+// a landing page (a spec in seoLanding.js) that happens to render a live strip
+// of published templates, so the Worker's meta injection, the sitemap and the
+// .md mirror all pick it up from the registry with no further wiring. Note the
+// shape cannot collide with templateShareMatch above — that one requires /t/
+// followed by a slash, and "templates" has no slash after the t.
+const seoLandingMatch = /^\/(?:tools\/|vs\/|use-cases(?:\/|$)|templates(?:\/|$))/i.test(window.location.pathname);
 
 // /scout is in the SAME registry but has its OWN renderer (pages/ScoutPage.jsx)
 // — the page is shaped like a text thread rather than an article, because that

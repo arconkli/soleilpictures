@@ -107,6 +107,21 @@ and offers to add it to your own templates; whoever opens it gets a **copy** the
 can rename or delete, and yours is unaffected. Deleting the template makes every
 link to it stop working.
 
+### The public gallery
+
+**Publish to gallery** puts a template on [/templates](/templates), where anyone
+can browse and use it. There is no review queue — it appears immediately — and
+**Remove from gallery** takes it back down just as fast. A template needs at
+least two cells to be published; a single-cell grid is a box, not a layout.
+
+Publishing shares the shape and the name you gave it. It does not share the board
+it came from, the images in it, or anything you wrote. Anyone who uses a
+published template gets their own copy, so removing it later does not reach into
+anybody's library and take it back.
+
+Only the person who made a template can publish it. A workspace template can be
+renamed and edited by any member, but publishing it is still the author's call.
+
 **Generate matrix** builds an empty N×M grid at whatever size you name — the
 fast path to a contact sheet larger than any template.
 
