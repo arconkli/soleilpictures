@@ -10,7 +10,7 @@
 // minimal controllable shims let the pure logic run in the Node test process.
 
 import { expect, test } from '@playwright/test';
-import { trackStroke } from '../src/lib/pointerStroke.js';
+import { trackStroke, coalescedOf } from '../src/lib/pointerStroke.js';
 
 function harness() {
   const listeners = { pointermove: [], pointerup: [], pointercancel: [] };
@@ -127,4 +127,30 @@ test('a null pointerId tracks any pointer (mouse path keeps working)', () => {
     h.dispatch('pointerup', { pointerId: 88 });
     expect(ended).toEqual({ canceled: false });
   } finally { h.restore(); }
+});
+
+// coalescedOf — the empty-array trap.
+//
+// The idiom `ev.getCoalescedEvents?.() || [ev]` reads as "the coalesced samples,
+// or the event itself", and is wrong: the method returns an EMPTY ARRAY when
+// there is nothing coalesced, and `[]` is truthy. The fallback never ran, so the
+// sampler iterated nothing and added no points. Untrusted (synthetic) events
+// always take that path — which is why drawing could not be tested at all — and
+// nothing obliges a browser to include the event itself for trusted ones.
+test('coalescedOf falls back to the event when the coalesced list is empty', () => {
+  const ev = { clientX: 5, getCoalescedEvents: () => [] };
+  expect(coalescedOf(ev)).toEqual([ev]);
+});
+
+test('coalescedOf returns the high-frequency samples when there are any', () => {
+  const samples = [{ clientX: 1 }, { clientX: 2 }, { clientX: 3 }];
+  const ev = { clientX: 3, getCoalescedEvents: () => samples };
+  expect(coalescedOf(ev)).toEqual(samples);
+});
+
+test('coalescedOf survives a browser without the method, or one that throws', () => {
+  const plain = { clientX: 9 };
+  expect(coalescedOf(plain)).toEqual([plain]);
+  const hostile = { clientX: 9, getCoalescedEvents: () => { throw new Error('nope'); } };
+  expect(coalescedOf(hostile)).toEqual([hostile]);
 });

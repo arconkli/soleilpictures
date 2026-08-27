@@ -17,8 +17,8 @@
 //
 // Contract:
 //   onSample(ev)            — invoked at most once per animation frame with the
-//                             latest pointermove. Expand ev.getCoalescedEvents()
-//                             inside it to keep a Pencil line smooth (Safari and
+//                             latest pointermove. Expand it with coalescedOf()
+//                             below to keep a Pencil line smooth (Safari and
 //                             Chrome dispatch ~one move per frame and stash the
 //                             high-frequency samples there).
 //   onEnd(ev, { canceled }) — fires exactly once, on pointerup OR pointercancel.
@@ -27,6 +27,20 @@
 //   returns dispose()       — for an external abort (Escape). Tears down the
 //                             listeners WITHOUT calling onEnd, so the caller can
 //                             run its own abort cleanup alongside it.
+
+// The high-frequency samples behind one pointermove, or the move itself.
+//
+// `ev.getCoalescedEvents?.() || [ev]` looks equivalent and is not: the method
+// returns an EMPTY ARRAY rather than undefined when there is nothing coalesced,
+// and an empty array is truthy — so the fallback never ran and the sampler
+// added no points at all. Untrusted (synthetic) events always take that path,
+// which is what made drawing untestable, and the spec does not oblige a browser
+// to include the event itself for trusted ones either.
+export function coalescedOf(ev) {
+  let samples;
+  try { samples = ev.getCoalescedEvents?.(); } catch (_) { /* not supported */ }
+  return (samples && samples.length) ? samples : [ev];
+}
 
 export function trackStroke({ pointerId = null, onSample, onEnd }) {
   let rafId = 0;

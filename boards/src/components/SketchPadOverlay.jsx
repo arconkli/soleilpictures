@@ -28,9 +28,10 @@ import { pushDocUndoTarget, removeDocUndoTarget } from '../lib/overlayRouting.js
 import { registerModalOpen } from '../lib/modalGuard.js';
 import { swallowContextMenu } from '../lib/contextMenuGuard.js';
 import { toPathD } from '../lib/strokeRender.js';
-import { trackStroke } from '../lib/pointerStroke.js';
+import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
 import { eraseStrokes } from '../lib/strokeModel.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { useGesture } from '@use-gesture/react';
 import { Sheet } from './shell/Sheet.jsx';
 
 // Default pen stroke + bucket fill colors. The pad SURFACE defaults to
@@ -66,6 +67,27 @@ const ASPECTS = [
 ];
 const DEFAULT_ASPECT = '16x9';
 
+const PAD_ZOOM_MIN = 1;
+const PAD_ZOOM_MAX = 8;
+
+// Keep at least this much of the frame on screen in each axis, so a pan can
+// never lose the drawing off the edge with no way back except Reset.
+const PAD_KEEP_VISIBLE = 0.35;
+
+// w0/h0 are the UNTRANSFORMED size of the surface. At zoom 1 the frame is
+// already fitted, so there is nothing to pan and the offset pins to zero.
+function clampView({ z, x, y }, w0, h0) {
+  const overX = Math.max(0, (w0 * z - w0) / 2);
+  const overY = Math.max(0, (h0 * z - h0) / 2);
+  const limX = overX + w0 * z * (0.5 - PAD_KEEP_VISIBLE);
+  const limY = overY + h0 * z * (0.5 - PAD_KEEP_VISIBLE);
+  return {
+    z,
+    x: Math.max(-limX, Math.min(limX, x)),
+    y: Math.max(-limY, Math.min(limY, y)),
+  };
+}
+
 export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }) {
   // The logical canvas size for the current session. When editing, we
   // adopt the existing card's bounds so strokes stay in card-local
@@ -77,6 +99,15 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   const { isPhone, isTablet, isTouch } = useBreakpoint();
   const compact = isPhone || (isTablet && isTouch);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // ── Pad zoom/pan ──────────────────────────────────────────────────────────
+  // A 16:9 frame on a portrait phone is a thin band — without zoom you cannot
+  // work on any detail of a shot. Pinch to zoom, two fingers to pan, both
+  // applied as a transform on the drawing surface itself so toLogical's rect
+  // reads them for free.
+  const [view, setView] = useState({ z: 1, x: 0, y: 0 });
+  const bodyRef = useRef(null);
+  const viewRef = useRef(view);
+  viewRef.current = view;
   const aspectPreset = ASPECTS.find(a => a.id === aspect) || ASPECTS[0];
   const logicalW = editingCard?.w || aspectPreset.w;
   const logicalH = editingCard?.h || aspectPreset.h;
@@ -210,6 +241,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     setTool('pen');
     setSheetOpen(false);
     setAspect(DEFAULT_ASPECT);
+    setView({ z: 1, x: 0, y: 0 });
     resetHistory();
     const padTarget = { undo: undoPad, redo: redoPad };
     pushDocUndoTarget(padTarget);
@@ -262,6 +294,11 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
 
   // Map a viewport-pixel coord into the pad's logical coord space so
   // strokes get stored at the resolution that will become the card.
+  //
+  // This reads the surface's LIVE bounding rect, which already has the pad's
+  // zoom/pan transform baked into it — so zooming in needs no extra maths here,
+  // and neither does the sample threshold below. That is the whole reason the
+  // transform is applied to the surface element itself rather than to a wrapper.
   const toLogical = (clientX, clientY) => {
     const rect = wrapRef.current.getBoundingClientRect();
     return {
@@ -275,10 +312,78 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   // to be derived from the live rect because the pad scales to fit the viewport
   // (the same 1.5px board-space filter measured in the wrong space would be
   // meaningless here).
+  // Pinch to zoom, two-finger drag to pan. Configured exactly like the board
+  // canvas — in particular `pointer: { capture: false }`, which is a standing
+  // invariant there: use-gesture's PointerEvent fallback otherwise calls
+  // setPointerCapture on every left-button press and retargets everything after
+  // it. See the long comment on the canvas's useGesture config.
+  useGesture(
+    {
+      onPinch: ({ event, origin: [ox, oy], movement: [ms], memo }) => {
+        if (event?.cancelable) event.preventDefault();
+        const surface = wrapRef.current;
+        const body = bodyRef.current;
+        if (!surface || !body) return memo;
+        const start = memo || { ...viewRef.current, rect: surface.getBoundingClientRect() };
+        const z = Math.max(PAD_ZOOM_MIN, Math.min(PAD_ZOOM_MAX, start.z * ms));
+        // Keep the point under the fingers pinned. The fraction of the surface
+        // beneath them can't change, so solve for the offset that preserves it.
+        const fx = start.rect.width ? (ox - start.rect.left) / start.rect.width : 0.5;
+        const fy = start.rect.height ? (oy - start.rect.top) / start.rect.height : 0.5;
+        const base = body.getBoundingClientRect();
+        const w0 = start.rect.width / start.z;
+        const h0 = start.rect.height / start.z;
+        const cx = base.left + base.width / 2;
+        const cy = base.top + base.height / 2;
+        setView(clampView({
+          z,
+          x: (ox - fx * w0 * z) - (cx - (w0 * z) / 2),
+          y: (oy - fy * h0 * z) - (cy - (h0 * z) / 2),
+        }, w0, h0));
+        return start;
+      },
+      onDrag: ({ event, delta: [dx, dy], touches, pinching, pointerType }) => {
+        // Two fingers pan. One finger is always a stroke — that is the whole
+        // point of a drawing surface — so this never competes with drawing.
+        if (pinching) return;
+        if (pointerType !== 'touch') return;
+        if (touches < 2) return;
+        if (event?.cancelable) event.preventDefault();
+        const surface = wrapRef.current;
+        if (!surface) return;
+        const r = surface.getBoundingClientRect();
+        const v = viewRef.current;
+        setView(clampView({ z: v.z, x: v.x + dx, y: v.y + dy }, r.width / v.z, r.height / v.z));
+      },
+    },
+    {
+      target: bodyRef,
+      eventOptions: { passive: false },
+      pinch: { scaleBounds: { min: PAD_ZOOM_MIN / 2, max: PAD_ZOOM_MAX * 2 }, rubberband: true },
+      drag: { pointer: { touch: true, capture: false }, threshold: 0 },
+    },
+  );
+
   const logicalPerScreenPx = () => {
     const rect = wrapRef.current?.getBoundingClientRect();
     if (!rect || !rect.width) return 1;
     return logicalW / rect.width;
+  };
+
+  // A second finger means the user is pinching to zoom, not drawing. The first
+  // finger has already started a stroke by then, and it would keep sampling
+  // through a transform that is now moving — committing a smear across the
+  // frame. Same guard the board canvas needs, for the same reason.
+  const armSecondTouchAbort = (pointerId, onAbort) => {
+    const onDown = (ev) => {
+      if (ev.pointerType !== 'touch' || ev.pointerId === pointerId) return;
+      window.removeEventListener('pointerdown', onDown, true);
+      strokeDisposeRef.current?.();
+      strokeDisposeRef.current = null;
+      onAbort();
+    };
+    window.addEventListener('pointerdown', onDown, true);
+    return () => window.removeEventListener('pointerdown', onDown, true);
   };
 
   // Points accumulate in activePtsRef, NOT in React state: setActive is called
@@ -290,6 +395,14 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     const minStep = 1.2 * logicalPerScreenPx();
     const stroke = { color, width };
     setActive({ ...stroke, points: [...points] });
+    let aborted = false;
+    const disarm = e.pointerType === 'touch'
+      ? armSecondTouchAbort(e.pointerId, () => {
+          aborted = true;
+          activePtsRef.current = null;
+          setActive(null);
+        })
+      : () => {};
 
     const addPoint = (clientX, clientY) => {
       const { x, y } = toLogical(clientX, clientY);
@@ -304,14 +417,15 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
         // Safari and Chrome dispatch roughly one move per frame and stash the
         // high-frequency samples in getCoalescedEvents — expanding them here is
         // what keeps a Pencil line smooth without paying a render per sample.
-        for (const s of (ev.getCoalescedEvents?.() || [ev])) addPoint(s.clientX, s.clientY);
+        for (const s of coalescedOf(ev)) addPoint(s.clientX, s.clientY);
         setActive({ ...stroke, points: [...points] });
       },
       onEnd: () => {
+        disarm();
         // Commit on pointercancel too. iOS fires cancel (not up) on palm
         // rejection and system gestures; discarding there would silently eat a
         // finished line, which is the board draw path's reasoning as well.
-        if (points.length > 1) {
+        if (!aborted && points.length > 1) {
           pushHistory(); // snapshot the pre-stroke state → ⌘Z removes this line
           setStrokes(prev => [...prev, { ...stroke, points }]);
           addRecentColor(stroke.color);
@@ -330,6 +444,10 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     // A translucent red preview of the swipe, exactly like the board eraser, so
     // you can see the path you're about to cut before you lift.
     setActive({ color: ERASER_PREVIEW_COLOR, width: radius * 2, points: [...points], eraser: true });
+    let aborted = false;
+    const disarm = e.pointerType === 'touch'
+      ? armSecondTouchAbort(e.pointerId, () => { aborted = true; setActive(null); })
+      : () => {};
 
     const addPoint = (clientX, clientY) => {
       const { x, y } = toLogical(clientX, clientY);
@@ -341,11 +459,12 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     strokeDisposeRef.current = trackStroke({
       pointerId: e.pointerId,
       onSample: (ev) => {
-        for (const s of (ev.getCoalescedEvents?.() || [ev])) addPoint(s.clientX, s.clientY);
+        for (const s of coalescedOf(ev)) addPoint(s.clientX, s.clientY);
         setActive({ color: ERASER_PREVIEW_COLOR, width: radius * 2, points: [...points], eraser: true });
       },
       onEnd: () => {
-        if (points.length > 1) {
+        disarm();
+        if (!aborted && points.length > 1) {
           // Erasing SPLITS strokes here now, the same as on the board. The pad
           // used to delete a whole stroke on contact, so the identical gesture
           // did two different things depending on which surface you were on.
@@ -370,6 +489,10 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     // button on the floor.
     if (e.button !== 0 && e.button !== -1 && e.button !== 5) return;
     if (!wrapRef.current) return;
+    // Only the first finger draws. A second finger is a pinch, and if it were
+    // allowed to open its own stroke the second-touch abort would kill the
+    // first one only for the second to draw straight through the zoom.
+    if (e.pointerType === 'touch' && e.isPrimary === false) return;
     // The pad lives in a portal, so React events bubble through the
     // React tree all the way back to CanvasSurface's canvas-wrap and
     // trigger its draw handler — every pad stroke would also paint a
@@ -612,10 +735,16 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             </>
           )}
         </div>
-        <div className="sketchpad-frame-body">
+        <div className="sketchpad-frame-body" ref={bodyRef}>
         <div ref={wrapRef}
              className={`sketchpad-surface ${tool === 'eraser' ? 'is-eraser' : ''} ${tool === 'bucket' ? 'is-bucket' : ''}`}
-             style={{ background: padBg, aspectRatio: `${logicalW} / ${logicalH}` }}
+             style={{
+               background: padBg,
+               aspectRatio: `${logicalW} / ${logicalH}`,
+               transform: view.z === 1 && !view.x && !view.y
+                 ? undefined
+                 : `translate(${view.x}px, ${view.y}px) scale(${view.z})`,
+             }}
              onPointerDown={onPointerDown}>
           <svg className="sketchpad-svg" width="100%" height="100%"
                viewBox={`0 0 ${logicalW} ${logicalH}`}
@@ -646,6 +775,13 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             </div>
           )}
         </div>
+        {(view.z !== 1 || view.x || view.y) && (
+          <button type="button"
+                  className="sp-zoom-reset"
+                  onClick={() => setView({ z: 1, x: 0, y: 0 })}>
+            {Math.round(view.z * 100)}% · Reset
+          </button>
+        )}
         </div>
       </div>
       {/* Touch overflow. Everything the compact bar couldn't hold, at full

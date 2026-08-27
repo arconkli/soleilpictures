@@ -17821,7 +17821,30 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   display: flex; align-items: center; justify-content: center;
   padding: 16px;
   min-height: 0;
+  position: relative;
+  /* The body owns pinch/two-finger-pan for the frame inside it, so the browser
+     must not claim those gestures first. */
+  touch-action: none;
+  overflow: hidden;
 }
+
+/* Zoom readout + a way back. A pinch that can't be undone with one tap strands
+   people at 700% with no idea how they got there. */
+.sp-zoom-reset {
+  position: absolute;
+  right: 12px; bottom: 12px;
+  background: rgba(16,16,20,.82);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius);
+  color: #d0d0d4;
+  font: 500 12px/1 var(--font-sans);
+  padding: 9px 12px;
+  min-height: 36px;
+  cursor: pointer;
+}
+@media (pointer: coarse) { .sp-zoom-reset { min-height: 44px; padding: 12px 16px; } }
 .sketchpad-surface {
   position: relative;
   background: var(--bg-2);
