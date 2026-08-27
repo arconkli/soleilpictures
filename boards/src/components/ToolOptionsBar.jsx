@@ -15,6 +15,7 @@ import {
 import { useRecentColors } from '../hooks/useRecentColors.js';
 import { addRecentColor } from '../lib/recentColors.js';
 import { usePointerPolicy } from '../hooks/usePointerPolicy.js';
+import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { setDrawWithFinger } from '../lib/pointerPolicy.js';
 // Shared with Settings → Card defaults → Shapes, so the default you set is
 // always a shape this bar can actually render.
@@ -386,6 +387,7 @@ export function ToolOptionsBar({
 }) {
   const recentColors = useRecentColors();
   const pointerPolicy = usePointerPolicy();
+  const { isTouch: isTouchDevice } = useBreakpoint();
   const openPickerAt = (e, opts) => {
     if (!openColorPicker) return;
     const r = e.currentTarget.getBoundingClientRect();
@@ -429,8 +431,29 @@ export function ToolOptionsBar({
   if (selectedTool === 'draw') {
     const allColors = [...new Set([...recentColors, ...paletteColors, ...STROKE_COLORS])];
     const isEraser = drawOptions.mode === 'eraser';
+    const sketchpadBtn = onOpenSketchpad ? (
+      <button className="tob-action tob-canvas-btn"
+              title="Open a fullscreen drawing canvas"
+              onClick={onOpenSketchpad}>
+        <svg width="14" height="14" viewBox="0 0 20 20" style={{ marginRight: 6, verticalAlign: '-2px' }}>
+          <rect x="3" y="3" width="14" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.4" fill="none"/>
+          <path d="M6 13 Q9 8 13 11 Q15 12 14 14" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
+        </svg>
+        Canvas
+      </button>
+    ) : null;
     return (
       <div {...tobProps} onPointerDown={(e) => e.stopPropagation()}>
+        {/* On touch the bar is a single scrolling row, and Canvas sat at the far
+            right end of it — off-screen, for the surface people actually want to
+            do real drawing on. Lead with it there; on desktop the whole bar is
+            visible at once and it stays at the end where it always was. */}
+        {isTouchDevice && sketchpadBtn && (
+          <>
+            {sketchpadBtn}
+            <span className="tob-sep" />
+          </>
+        )}
         {onUndo && (
           <>
             <button className="tob-action tob-icon-btn"
@@ -507,18 +530,10 @@ export function ToolOptionsBar({
             </button>
           ))}
         </div>
-        {onOpenSketchpad && (
+        {!isTouchDevice && sketchpadBtn && (
           <>
             <span className="tob-sep" />
-            <button className="tob-action"
-                    title="Open a fullscreen drawing canvas"
-                    onClick={onOpenSketchpad}>
-              <svg width="14" height="14" viewBox="0 0 20 20" style={{ marginRight: 6, verticalAlign: '-2px' }}>
-                <rect x="3" y="3" width="14" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.4" fill="none"/>
-                <path d="M6 13 Q9 8 13 11 Q15 12 14 14" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
-              </svg>
-              Canvas
-            </button>
+            {sketchpadBtn}
           </>
         )}
       </div>
