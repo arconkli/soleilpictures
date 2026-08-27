@@ -234,6 +234,67 @@ test.describe('grid templates — the rail panel', () => {
     expect(Math.abs(c.y - b.y), 'ArrowRight must stay on its row').toBeLessThan(20);
   });
 
+  // A long template name used to widen its own `1fr` track — measured, a
+  // 54-character name took the 290px list to 457px — which gave .tplt-scroll a
+  // horizontal overflow. Merely moving the cursor onto a tile then scrolled that
+  // overflow and the whole list slid sideways under the fixed head.
+  //
+  // Asserted on the CONTAINER, not on the name's own styles: `text-overflow`,
+  // `line-clamp` and `min-width` are three ways to spell the same intent and any
+  // of them is fine, but a list that can scroll sideways never is.
+  test('a long template name cannot widen the list', async ({ page }) => {
+    await gridTool(page).click();
+    await expect(panel(page)).toBeVisible();
+
+    const m = await panel(page).evaluate((root) => {
+      const scroll = root.querySelector('.tplt-scroll');
+      const narrow = scroll.querySelector('[data-row-index]').clientWidth;
+      root.querySelectorAll('.tplt-name').forEach((n, i) => {
+        // Real words, plus one unbroken token — only the latter exercises
+        // min-content width, which is what actually sizes the track.
+        n.textContent = i === 1
+          ? 'a'.repeat(70)
+          : `Feature film storyboard master sequence ${i} with alternates`;
+      });
+      return {
+        narrow,
+        wide: scroll.querySelector('[data-row-index]').clientWidth,
+        overflowX: scroll.scrollWidth - scroll.clientWidth,
+        // Two lines of an 11px/1.3 face is ~29px; three would be ~43px.
+        tallestName: Math.max(...[...root.querySelectorAll('.tplt-name')]
+          .map((n) => n.getBoundingClientRect().height)),
+      };
+    });
+
+    expect(m.overflowX, 'the template list must never scroll sideways').toBe(0);
+    expect(m.wide, 'a long name must not widen its column').toBe(m.narrow);
+    expect(m.tallestName, 'the name is clamped to two lines').toBeLessThan(36);
+  });
+
+  // Belt and braces on the same bug from the other side. scrollIntoView moves
+  // BOTH axes and will scroll an `overflow-x: hidden` box quite happily — hidden
+  // clips painting, it does not make a box unscrollable. Force the overflow that
+  // a long name used to cause, then drive the cursor and prove nothing moves
+  // horizontally while vertical scrolling still works.
+  test('moving the cursor never scrolls the list sideways', async ({ page }) => {
+    await gridTool(page).click();
+    await expect(panel(page)).toBeVisible();
+    await page.addStyleTag({ content: '.tplt-rows { width: 900px !important; }' });
+
+    const scrollPos = () => panel(page).locator('.tplt-scroll')
+      .evaluate((el) => ({ left: el.scrollLeft, top: el.scrollTop }));
+
+    await panel(page).getByRole('searchbox', { name: 'Search templates' }).click();
+    for (let i = 0; i < 8; i += 1) {
+      await page.keyboard.press('ArrowDown');
+      expect((await scrollPos()).left, 'no sideways scroll').toBe(0);
+    }
+    await page.keyboard.press('ArrowRight');
+    expect((await scrollPos()).left, 'ArrowRight moves the cursor, not the list').toBe(0);
+    // The vertical half must still work, or "never scrolls" is trivially true.
+    expect((await scrollPos()).top, 'the last row was scrolled into view').toBeGreaterThan(0);
+  });
+
   // Every built-in ships a thumbnail drawn from the same computeCellRects the
   // card uses, so "what the tile shows" and "what you get" cannot drift.
   test('the panel lists built-ins with a shape preview each', async ({ page }) => {

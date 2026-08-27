@@ -47,7 +47,7 @@ import './gridTemplatePanel.css';
 // landscape phones and drives its own scroll with a pointer gesture, so it
 // cannot host a tall flyout at all.
 
-function TemplateRow({ row, onPick, rowActions, active, onHover }) {
+function TemplateRow({ row, index, onPick, rowActions, active, onHover }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const wrapRef = useRef(null);
   useDismissOnOutside(wrapRef, menuOpen, () => setMenuOpen(false));
@@ -57,7 +57,17 @@ function TemplateRow({ row, onPick, rowActions, active, onHover }) {
   const actions = row.source === SOURCES.BUILTIN ? [] : (rowActions?.(row) || []);
 
   return (
-    <div className={`tplt-row-wrap${active ? ' is-active' : ''}`} ref={wrapRef}>
+    // data-row-index lives on THIS element, which is the grid item, rather than
+    // on a wrapper around it. A plain <div> wrapper here silently became the
+    // grid item and had no min-width, so a long name blew its 1fr track out to
+    // double width and the whole list scrolled sideways under the fixed head.
+    // .tplt-rows > * now carries min-width:0 as the actual guard; keeping the
+    // hook and the item on one element is what stops them drifting apart again.
+    <div
+      className={`tplt-row-wrap${active ? ' is-active' : ''}`}
+      data-row-index={index}
+      ref={wrapRef}
+    >
       <button
         type="button"
         role="menuitem"
@@ -73,7 +83,10 @@ function TemplateRow({ row, onPick, rowActions, active, onHover }) {
         onClick={() => onPick(row)}
       >
         <GridLayoutThumb tree={row.tree} title={row.name} />
-        <span className="tplt-name">{row.name}</span>
+        {/* title= so a name clamped at two lines is still recoverable. Safe for
+            the accessible name: the aria-label above wins over a descendant's
+            title, so getByRole lookups still see exactly row.name. */}
+        <span className="tplt-name" title={row.name}>{row.name}</span>
       </button>
 
       {actions.length > 0 && (
@@ -191,10 +204,26 @@ export function GridTemplatePanel({
   useEffect(() => { if (!open) { setQuery(''); setCursor(-1); } }, [open]);
 
   // Keep the highlighted row in view when it moved by keyboard rather than mouse.
+  //
+  // Deliberately NOT scrollIntoView. That method also scrolls the INLINE axis,
+  // and it will happily scroll an `overflow-x: hidden` box — hidden clips
+  // painting, it does not make a box unscrollable. So any horizontal overflow at
+  // all turned "highlight the next template" into "slide the entire list
+  // sideways", which is what a long name used to cause. Setting scrollTop can
+  // only ever move one axis, so the sideways case cannot come back.
+  //
+  // The sticky section header is subtracted on the way up, or arrowing to the
+  // first row of a section parks it underneath its own heading.
   useEffect(() => {
     if (cursor < 0 || !scrollRef.current) return;
-    const el = scrollRef.current.querySelector(`[data-row-index="${cursor}"]`);
-    el?.scrollIntoView({ block: 'nearest' });
+    const c = scrollRef.current;
+    const el = c.querySelector(`[data-row-index="${cursor}"]`);
+    if (!el) return;
+    const cr = c.getBoundingClientRect();
+    const er = el.getBoundingClientRect();
+    const stickyH = el.closest('.tplt-section')?.querySelector('.tplt-section-head')?.offsetHeight || 0;
+    if (er.top - stickyH < cr.top) c.scrollTop -= cr.top - er.top + stickyH;
+    else if (er.bottom > cr.bottom) c.scrollTop += er.bottom - cr.bottom;
   }, [cursor]);
 
   if (!open) return null;
@@ -310,15 +339,15 @@ export function GridTemplatePanel({
                       i += 1;
                       const idx = i;
                       return (
-                        <div data-row-index={idx} key={row.key}>
-                          <TemplateRow
-                            row={row}
-                            onPick={pick}
-                            rowActions={rowActions}
-                            active={idx === cursor}
-                            onHover={() => setCursor(idx)}
-                          />
-                        </div>
+                        <TemplateRow
+                          key={row.key}
+                          row={row}
+                          index={idx}
+                          onPick={pick}
+                          rowActions={rowActions}
+                          active={idx === cursor}
+                          onHover={() => setCursor(idx)}
+                        />
                       );
                     })}
                   </div>

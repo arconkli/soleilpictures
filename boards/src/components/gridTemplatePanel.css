@@ -137,6 +137,18 @@ body:has(.cnv-tpl-panel) .cnv-depth-dock { display: none; }
   gap: 4px;
 }
 
+/* THE guard, and it is on the child selector on purpose.
+   `1fr` is `minmax(auto, 1fr)`, and that `auto` minimum is the item's min-content
+   width — so one long template name widens its track, the sibling track shrinks
+   to match, and .tplt-scroll grows a horizontal overflow it can be scrolled
+   along. (Measured: a 54-character name took a 290px list to 457px.) Anything
+   inside then clipped by `overflow-x: hidden` is still reachable by
+   scrollIntoView, so merely hovering the next tile slid the whole list sideways.
+   Written as `> *` rather than on .tplt-row-wrap because that is exactly how it
+   broke: a wrapper <div> was added for keyboard navigation, became the grid item,
+   and left the min-width behind on its child. */
+.tplt-rows > * { min-width: 0; }
+
 /* The row is a WRAPPER, not the button. A saved template's "···" trigger is a
    SIBLING of the pick-button, because a <button> may not contain a <button> —
    nesting them is invalid HTML and Chromium resolves the click to whichever it
@@ -163,14 +175,27 @@ body:has(.cnv-tpl-panel) .cnv-depth-dock { display: none; }
 .tplt-row-wrap.is-active .tplt-row { background: var(--bg-hov); border-color: var(--line-2); }
 .tplt-row:active { background: var(--bg-act); }
 
+/* Wraps to two lines, then ellipsis. A tile is ~140px wide at 11px, so a single
+   ellipsized line shows about two words — "Feature film stor…" names nothing,
+   and every long template would truncate to the same prefix. Two lines is where
+   a real name ("Feature film storyboard — master") becomes identifiable again.
+
+   `overflow-wrap: anywhere` rather than `break-word` because only `anywhere`
+   also reduces the min-content width, and min-content width is precisely what
+   sizes the `1fr` track above. Without it a single unbroken 60-character token
+   still widens its column. */
 .tplt-name {
-  font: 400 11px/1.2 var(--font-sans);
+  font: 400 11px/1.3 var(--font-sans);
   color: var(--ink-2);
   text-align: center;
-  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 .tplt-row:hover .tplt-name,
 .tplt-row-wrap.is-active .tplt-name { color: var(--ink-0); }
