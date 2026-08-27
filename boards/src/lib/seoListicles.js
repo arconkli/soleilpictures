@@ -815,7 +815,7 @@ const PAGES = [
     "answer": "Soleil Clusters is the best Milanote alternative for production teams in 2026: a free tier with no separate upload budget — files just count as cards — where Milanote stops at 10 file uploads ever, plus flat $25/mo pricing instead of per-person seats and real-time boards that carry a project from mood board to shot list. Miro is the runner-up for team whiteboarding, Obsidian Canvas for free offline work, Canva for polished deliverables.",
     "disclosure": "Soleil Clusters is our app. We are Soleil Pictures, a working film studio, and we built Clusters because our own pre-production kept outgrowing tools like Milanote. We rank it first for one job only — taking a production team from mood board to call sheet — and we say plainly where rivals beat us: Milanote's templates and mobile apps are better than ours, Miro's ecosystem is deeper, and Obsidian and PureRef work offline where we do not.",
     "published": "2026-08-04",
-    "updated": "2026-08-04",
+    "updated": "2026-08-26",
     "thesis": {
       "heading": "From mood board to call sheet",
       "paras": [
@@ -1419,6 +1419,88 @@ const PAGES = [
         "note": "The cautionary tale. A design-collaboration unicorn shut down all services at the end of 2024; its Freehand whiteboard was absorbed into Miro. Any roundup still listing it was written from memory."
       }
     ],
+    "headToHead": {
+      "heading": "Milanote head to head",
+      "intro": "The four comparisons people search for by name. Milanote's own limits below are the ones its plans page and help centre state — 100 cards and ten file uploads as lifetime totals, not monthly — and every rival's pricing was read off its own page in August 2026. Milanote vs PureRef is answered in full on our PureRef roundup rather than repeated here.",
+      "matchups": [
+        {
+          "slug": "milanote-vs-canva",
+          "heading": "Milanote vs Canva",
+          "left": "Milanote",
+          "right": "Canva Whiteboards",
+          "verdict": "Canva's free plan is more generous by a wide margin — there is no board cap at all — but its mood boards are fixed-size collage pages rather than an infinite canvas. Milanote is the better thinking surface; Canva is the better deliverable.",
+          "paras": [
+            "On raw allowance this is not close. Canva's free plan has no board cap: unlimited designs and unlimited whiteboards. Milanote's free plan is 100 total notes, images and links plus ten file uploads, and those are lifetime totals rather than monthly ones, with a 10MB ceiling per image. If the thing stopping you is the card wall, Canva removes it outright.",
+            "What you give up is the motion. Canva's mood-board templates are fixed-size collage pages, so the spread-it-out-and-rearrange feel that makes a board a thinking tool is not the same thing. Background removal, premium stock and brand tools sit behind the paywall, and Pro pricing has risen three times in about two years, to $18 a month. Canva is enormous and shipping hard — Canva AI 2.0 and an offline mode both landed in 2026 — but it is a design tool that has a whiteboard, not a board tool.",
+            "Milanote's edge is calm and structure: more than forty template categories including genuinely good storyboard, shot-list and mood-board templates, annotation, and per-board sharing with edit, comment or view roles. The honest rule is about what the board becomes. If it ends its life as a polished thing you send a client, plan wherever you like and finish in Canva. If it stays a surface the team keeps working in, Milanote — right up until the hundredth card."
+          ],
+          "rows": [
+            { "feature": "Free plan", "left": "100 cards + 10 uploads, lifetime totals", "right": "No board cap — unlimited designs and whiteboards" },
+            { "feature": "Canvas shape", "left": "Infinite freeform board", "right": "Fixed-size collage pages for mood boards" },
+            { "feature": "Best at", "left": "Collecting, arranging, planning", "right": "Turning a board into a finished deliverable" },
+            { "feature": "Paid price", "left": "Pro $9.99/person/mo billed annually", "right": "Pro $18/mo; Business $25/user/mo" },
+            { "feature": "Works offline", "left": "No — an internet connection is required", "right": "Yes, offline mode shipped in 2026" }
+          ]
+        },
+        {
+          "slug": "milanote-vs-notion",
+          "heading": "Milanote vs Notion",
+          "left": "Milanote",
+          "right": "Notion",
+          "verdict": "Not the same shape of tool, and most productions run both. Notion is the production binder — shot lists, breakdowns, trackers — and the best one in the business. Milanote is the board. Teams that try to make Notion hold a mood board end up with a gallery of thumbnails.",
+          "paras": [
+            "Notion has no freeform or infinite canvas at all. Spatial work — pushing stills around until a look declares itself — is simply not possible in it. That is not a gap Notion is embarrassed about; it is a database product, and its table, kanban, timeline and calendar views over the same records are unmatched for structured production paperwork.",
+            "The free tiers fail in opposite directions, which matters more than the headline price. Notion's free plan is very generous for exactly one person — unlimited blocks — and then hard-caps at 1,000 lifetime blocks the moment a second member joins. Its 5MB per-file upload ceiling on free also rules out high-res stills. Milanote's free plan caps content for everyone at 100 cards and ten uploads, but shared boards are unlimited and content shared to a free user does not consume that user's own cap.",
+            "So the split is by the shape of the work, not the budget. If the artefact is images, Milanote. If the artefact is paperwork, Notion. If you can afford one of each, that is what most of the productions we have worked with actually do — and it is why this roundup ranks Notion third rather than dismissing it."
+          ],
+          "rows": [
+            { "feature": "Freeform canvas", "left": "Yes — that is the product", "right": "None at all" },
+            { "feature": "Free tier", "left": "100 cards + 10 uploads, any team size", "right": "Unlimited solo; 1,000 lifetime blocks once 2+ members" },
+            { "feature": "File uploads on free", "left": "10 files, 10MB per image", "right": "5MB per file" },
+            { "feature": "Best at", "left": "Collecting and arranging visual reference", "right": "Shot lists, breakdowns, trackers, wikis" },
+            { "feature": "Paid price", "left": "Pro $9.99/person/mo billed annually", "right": "Plus $10/member/mo billed yearly" }
+          ]
+        },
+        {
+          "slug": "milanote-vs-figjam",
+          "heading": "Milanote vs FigJam",
+          "left": "Milanote",
+          "right": "FigJam",
+          "verdict": "If your team already pays for Figma, FigJam is close to free and the decision is easy. If not, it is a brainstorming board rather than a reference tool — images are second-class in it, which is the whole job on a mood board.",
+          "paras": [
+            "Inside an organisation already on Figma the maths are hard to argue with. A Collab seat is $3 a month on Professional, $5 on Organisation or Enterprise, so a shared thinking canvas costs almost nothing on top of what you already pay. FigJam also has the strongest live-meeting and facilitation feel of any canvas in this roundup — if the board is something a group builds together in an hour, it is genuinely the best of them.",
+            "Outside that org the shape changes. The free Starter tier is three boards, free drafts are shared view-only, and the seat model is confusing to buy on its own. You are also buying into a design-tool ecosystem for a job that is not design.",
+            "For reference work the deciding factor is simpler than pricing. Images are second-class in FigJam — no reference-grade handling, no colour tools — where in Milanote the image is the unit of work. Already on Figma and running a workshop, FigJam. Building a reference wall, or not in Figma at all, Milanote."
+          ],
+          "rows": [
+            { "feature": "Cost inside a Figma org", "left": "Separate subscription", "right": "Collab seat $3–5/mo on top of Figma" },
+            { "feature": "Free tier", "left": "100 cards + 10 uploads", "right": "3 boards; free drafts share view-only" },
+            { "feature": "Image handling", "left": "Images are the unit of work", "right": "Second-class — no colour tools" },
+            { "feature": "Best at", "left": "Reference boards that persist", "right": "Live sessions and facilitation" },
+            { "feature": "Paid price", "left": "Pro $9.99/person/mo billed annually", "right": "Full seat $16/mo Professional billed annually" }
+          ]
+        },
+        {
+          "slug": "milanote-vs-mural",
+          "heading": "Milanote vs Mural",
+          "left": "Milanote",
+          "right": "Mural",
+          "verdict": "Mural is a meeting-runner's canvas — timers, private mode, anonymous voting — and the least mood-board-shaped tool on this list. If nobody is facilitating a session, it is the wrong tool for the job.",
+          "paras": [
+            "Mural's facilitation kit is genuinely differentiated and best-in-class. Timers, private mode so a room writes before it anchors on the loudest voice, anonymous voting, and a public weekly release cadence behind it. For running a workshop it beats everything else here including us.",
+            "Its free tier makes the opposite trade to Milanote's, which is the thing worth knowing before you pick. Mural gives you unlimited members and caps boards: three editable murals, after which older boards go view-only. Milanote caps content at 100 cards and ten uploads but never caps people on a shared board. Whichever of those two walls you hit first should decide it.",
+            "The canvas itself is sticky-note-centric with no image-first features, and there is no AI on the free plan while the paid 'unlimited' AI carries a usage-throttle clause. Running a workshop, Mural. Building a reference board that outlives the meeting, Milanote."
+          ],
+          "rows": [
+            { "feature": "Free tier caps", "left": "Content — 100 cards, 10 uploads", "right": "Boards — 3 editable murals, then view-only" },
+            { "feature": "Collaborators on free", "left": "Unlimited on shared boards", "right": "Unlimited members" },
+            { "feature": "Canvas", "left": "Image- and note-first", "right": "Sticky-note-centric, no image-first features" },
+            { "feature": "Best at", "left": "Reference boards that persist", "right": "Facilitated workshops" },
+            { "feature": "Paid price", "left": "Pro $9.99/person/mo billed annually", "right": "Team+ $9.99/user/mo billed annually ($12 monthly)" }
+          ]
+        }
+      ]
+    },
     "honestAccounting": {
       "heading": "Where Milanote still wins",
       "paras": [
@@ -1448,12 +1530,8 @@ const PAGES = [
         "a": "No. Milanote's help center states you need an internet connection to view and edit boards — there is no offline mode on any platform, desktop apps included. If offline work matters, Obsidian Canvas and PureRef are fully local and offline, and Eagle's asset library also lives entirely on your own disk."
       },
       {
-        "q": "Canva or Milanote — which is better?",
-        "a": "Different jobs. Milanote is a thinking surface: collecting, arranging, planning. Canva is an output machine: its free plan allows unlimited whiteboards and its templates turn a board into a polished deliverable fast, but its mood-board templates are fixed-size collage pages. Plan in a board tool; finish the client-facing artifact in Canva."
-      },
-      {
         "q": "Milanote vs PureRef — which should I use?",
-        "a": "They barely overlap. PureRef is an offline desktop overlay for pinning reference images above your paint or edit tool — fast, private, pay-what-you-want for personal use, with no sharing or collaboration. Milanote is a cloud board app for organizing ideas across devices. Many artists run both: PureRef while working, a board tool for everything shared."
+        "a": "They barely overlap. PureRef is an offline desktop overlay for pinning reference images above your paint or edit tool — fast, private, pay-what-you-want for personal use, with no sharing or collaboration. Milanote is a cloud board app for organizing ideas across devices. Many artists run both: PureRef while working, a board tool for everything shared. The long version, with a feature table, is on our PureRef roundup: /best/pureref-alternatives#pureref-vs-milanote."
       },
       {
         "q": "What is the best open-source Milanote alternative?",
@@ -1470,10 +1548,6 @@ const PAGES = [
       {
         "q": "Is Milanote worth it for teams?",
         "a": "Do the math for your headcount. Milanote Pro is $9.99 per person per month billed annually ($12.50 monthly); team plans run $49/mo for up to 10 people or $99/mo for up to 50, billed annually. A five-person crew on Pro is about $50/mo. Flat-priced alternatives change that shape — Clusters' Creator is $25/mo total, and viewers never need seats."
-      },
-      {
-        "q": "Milanote vs Notion for creative work?",
-        "a": "Milanote wins the visual, spatial side: freeform boards for collecting and arranging. Notion wins the structured side: shot lists, breakdowns, and trackers as databases with table, kanban, timeline, and calendar views. Notion has no freeform canvas at all, and its free tier hard-caps at 1,000 lifetime blocks once a second member joins. Many productions run one of each."
       },
       {
         "q": "What happened to Kosmik?",

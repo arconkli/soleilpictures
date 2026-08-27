@@ -73,11 +73,12 @@ test('renders the full listicle: hero, answer, disclosure, TOC, table, reviews, 
   await expect(page.locator('.seo-li-inter')).toHaveCount(SPEC.items.length >= 6 ? 2 : 1);
   await expect(page.locator('[data-lp-cta="item:clusters"]')).toHaveCount(1);
 
-  // Head-to-head + platform matrix (optional; only the pureref page carries
-  // them today). These exist to give the "X vs Y" and "runs on Z" queries a real
-  // section instead of a line in a collapsed accordion, so the assertions are
-  // about STRUCTURE being reachable: an h3 per matchup, its own anchor, and a
-  // platform row per tool aligned to the columns.
+  // Head-to-head + platform matrix, both optional. These exist to give the
+  // "X vs Y" and "runs on Z" queries a real section instead of a line in a
+  // collapsed accordion, so the assertions are about STRUCTURE being reachable:
+  // an h3 per matchup, its own anchor, and a platform row per tool aligned to
+  // the columns. Every page carrying head-to-heads gets its own pass at the
+  // bottom of this file; this block covers SPEC's alongside everything else.
   if (SPEC.headToHead) {
     await expect(page.locator('#head-to-head')).toHaveCount(1);
     for (const m of SPEC.headToHead.matchups) {
@@ -158,3 +159,39 @@ test('unknown /best/ path renders the branded NotFound client-side', async ({ pa
   await page.goto('/best/zzz-not-a-real-page');
   await expect(page.locator('.public-empty-title')).toHaveText('Page not found');
 });
+
+// Every page that carries the optional head-to-head shape, not just SPEC.
+// SPEC is SEO_LISTICLE_PAGES[0] and the heavy test above would quadruple in
+// runtime if it were parameterised, but these sections are the reason the
+// queries they target have a home at all — shipping a second page's worth of
+// them with no e2e coverage is how the third one arrives broken.
+for (const spec of SEO_LISTICLE_PAGES.filter((p) => p.headToHead)) {
+  test(`${spec.path}: head-to-head sections are reachable and deep-linkable`, async ({ page }) => {
+    await routeAnalytics(page, []);
+    await routeMedia(page);
+    await page.goto(spec.path);
+
+    await expect(page.locator('#head-to-head')).toHaveCount(1);
+    await expect(page.locator('#head-to-head .seo-li-h2h')).toHaveCount(spec.headToHead.matchups.length);
+
+    for (const m of spec.headToHead.matchups) {
+      const sec = page.locator(`#${m.slug}`);
+      await expect(sec).toHaveCount(1);
+      // The heading has to BE the query, or the section is just more prose.
+      await expect(sec.locator('h3')).toHaveText(m.heading);
+      await expect(sec.locator('.seo-li-h2h-verdict')).toHaveText(m.verdict);
+      if (m.rows?.length) await expect(sec.locator('tbody tr')).toHaveCount(m.rows.length);
+    }
+
+    // A matchup arrived at from a search result must actually land on it. This
+    // is the assertion that would have caught the 63px undershoot from the
+    // async board fetch — measured against the top of the scroll container.
+    const last = spec.headToHead.matchups[spec.headToHead.matchups.length - 1];
+    await page.goto(`${spec.path}#${last.slug}`);
+    await expect(page.locator(`#${last.slug}`)).toBeVisible();
+    await expect.poll(async () => {
+      const box = await page.locator(`#${last.slug}`).boundingBox();
+      return box ? Math.round(box.y) : null;
+    }, { message: `${last.slug} did not land in view` }).toBeLessThan(200);
+  });
+}
