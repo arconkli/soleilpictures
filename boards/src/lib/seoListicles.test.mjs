@@ -143,11 +143,18 @@ test('head-to-head sections did not leave a duplicate FAQ entry behind', () => {
   for (const p of SEO_LISTICLE_PAGES) {
     if (!p.headToHead) continue;
     for (const m of p.headToHead.matchups) {
-      // 'PureRef vs BeeRef' -> the two proper nouns it compares
-      const sides = [m.left, m.right].map((s) => s.toLowerCase());
+      // Match on the BRAND word, not the full label: the milanote page compares
+      // "Canva Whiteboards" while its FAQ said plain "Canva", so a whole-label
+      // check found nothing and the duplicate survived the first pass.
+      //
+      // And on "or" as well as "vs": that same entry was phrased "Canva or
+      // Milanote — which is better?". A comparison does not stop being a
+      // comparison because the author picked the friendlier conjunction.
+      const sides = [m.left, m.right].map((s) => s.toLowerCase().split(/\s+/)[0]);
       const dupe = (p.faq || []).find((f) => {
         const q = f.q.toLowerCase();
-        return sides.every((s) => q.includes(s)) && /\bvs\b|versus/.test(q);
+        const namesBoth = sides.every((s) => new RegExp(`\\b${s}\\b`).test(q));
+        return namesBoth && /\bvs\b|\bversus\b|\bor\b/.test(q);
       });
       assert.equal(dupe, undefined,
         `${p.path}: FAQ still asks "${dupe?.q}" while ${m.slug} answers it in full — remove one`);
