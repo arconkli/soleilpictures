@@ -25,9 +25,17 @@ const RELOAD_WINDOW_MS = 10_000;
 // JS was expected, which surfaces as a MIME-type error ("Failed to load module
 // script: Expected a JavaScript module script but the server responded with a
 // MIME type of text/html"). Phrasing varies by browser, so match each token.
+//
+// A lazy route's CSS counts too. Vite code-splits CSS per chunk, so every lazy
+// page ships a hashed .css dep that __vitePreload fetches alongside the JS —
+// and on failure it throws its OWN phrasing, `Unable to preload CSS for
+// /assets/<name>-<hash>.css`, which shares no token with any of the module
+// messages above. That gap put the /best/* landing pages and /c/* share links
+// behind the crash panel instead of reloading them: same stale deploy, same
+// one-shot reload is the right answer, but the predicate said no.
 function isChunkLoadError(err) {
   const msg = String((err && err.message) || err || '');
-  return /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|ChunkLoadError|dynamically imported module|Failed to load module script|Expected a JavaScript module script|MIME type/i.test(msg);
+  return /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|ChunkLoadError|dynamically imported module|Failed to load module script|Expected a JavaScript module script|MIME type|Unable to preload CSS/i.test(msg);
 }
 
 // The downstream symptom of a lazy chunk that resolved to `undefined`: React's
