@@ -32,11 +32,121 @@ export function b64ToBytes(b64) {
   return out;
 }
 
+// ── Copying cards ────────────────────────────────────────────────────────────
+//
+// A card is NOT a flat bag of scalars. note cards carry a live Y.XmlFragment
+// (`noteFragment`), doc cards carry a whole store (`docPages` Y.Array +
+// `docPageContent`/`docComments`/`docMeta` Y.Maps), grid cards carry
+// `gridCells`/`gridMeta`. readCards/yMapToCard hand those out BY REFERENCE —
+// deliberately, see cardHash below.
+//
+// A Yjs type can only ever belong to one place. Re-inserting one that is
+// already integrated re-runs its _integrate, where `_prelimContent` is already
+// null → "Cannot read properties of null (reading 'forEach')" out of
+// YMap._integrate, or "(reading 'length')" out of YArray._integrate. That is
+// the production yjs-transact cluster: 9 users, every cross-board move and
+// every ⌘D of a note/doc/grid card.
+//
+// And it does damage on the way down. AbstractType._integrate assigns
+// `this.doc = y` and `this._item = item` BEFORE the throw, so the SOURCE
+// board's live fragment gets repointed at the destination doc — which, on a
+// cross-board move, is a temp doc that is destroyed moments later. The board
+// the user is still looking at is corrupted by a move that "failed".
+//
+// So: deep-copy into fresh, un-integrated types. cloneYXmlNode below is the
+// node-level clone docState has always used for the sheet migration ("Yjs
+// types can't be re-parented"); cloneYValue applies that idea to every type a
+// card value can be, and cardToYMap applies it to a whole card.
+
+// Is this a Y type that ALREADY lives in a document? `doc` is assigned by
+// _integrate on every AbstractType subclass, so it's the one uniform marker.
+// A freshly-constructed (prelim) type has doc === null and is safe to insert
+// as-is — that's the legitimate "I just made this for you" case, and cloning
+// it would be wrong (prelim types don't answer forEach/toArray yet).
+function isIntegratedYType(v) {
+  return isYType(v) && v.doc != null;
+}
+
+// Deep-clone an XML node (XmlElement | XmlText) — the two things that can be a
+// child of a fragment. XmlText carries its inline marks in the delta;
+// XmlElement recurses over attributes + children. Inline leaves (hardBreak,
+// mentions) are sibling XmlElements, so the recursion covers them.
+export function cloneYXmlNode(src) {
+  if (src && typeof src.toDelta === 'function' && typeof src.toArray !== 'function') {
+    const t = new Y.XmlText();
+    try { t.applyDelta(src.toDelta()); } catch (_) {}
+    return t;
+  }
+  if (src && typeof src.toArray === 'function' && src.nodeName) {
+    const el = new Y.XmlElement(src.nodeName);
+    try {
+      const attrs = src.getAttributes ? src.getAttributes() : {};
+      for (const k of Object.keys(attrs || {})) el.setAttribute(k, attrs[k]);
+    } catch (_) {}
+    const kids = [];
+    for (const c of src.toArray()) { const cl = cloneYXmlNode(c); if (cl) kids.push(cl); }
+    if (kids.length) el.insert(0, kids);
+    return el;
+  }
+  return null;
+}
+
+// Deep-clone any Y type a card value can be, into a fresh un-integrated one.
+// Duck-typed rather than instanceof: constructor names are mangled in prod
+// builds, AND scout can resolve a second copy of yjs (see the note on the Y
+// re-export above), which breaks instanceof outright.
+export function cloneYValue(v) {
+  if (!isYType(v)) return v;
+  // XmlFragment / XmlElement — createTreeWalker is unique to the XML types and
+  // separates them from Y.Array, which also answers toArray.
+  if (typeof v.createTreeWalker === 'function') {
+    if (v.nodeName) return cloneYXmlNode(v);
+    const frag = new Y.XmlFragment();
+    const kids = [];
+    for (const c of v.toArray()) { const cl = cloneYXmlNode(c); if (cl) kids.push(cl); }
+    if (kids.length) frag.insert(0, kids);
+    return frag;
+  }
+  if (typeof v.toArray === 'function') {            // Y.Array
+    const arr = new Y.Array();
+    const items = v.toArray().map(cloneYValue);
+    if (items.length) arr.push(items);
+    return arr;
+  }
+  if (typeof v.toDelta === 'function') {            // Y.Text
+    const t = new Y.Text();
+    try { t.applyDelta(v.toDelta()); } catch (_) {}
+    return t;
+  }
+  if (typeof v.forEach === 'function' && typeof v.set === 'function') {   // Y.Map
+    const m = new Y.Map();
+    v.forEach((val, k) => { m.set(k, cloneYValue(val)); });
+    return m;
+  }
+  // Unknown Y type: drop it rather than re-integrate and corrupt the source.
+  // Losing a value is recoverable; a repointed _item is not.
+  return undefined;
+}
+
 // Convert a plain card object into a Y.Map suitable for inserting into the
 // cards Y.Map. Returns the new Y.Map.
+//
+// Any value that is a live (integrated) Y type is deep-copied first — see the
+// block comment above. This is deliberately handled HERE rather than at the
+// call sites: there are a dozen of them (duplicate, cross-board move + its
+// undo, cross-pane drop, scout ingest), several of which read cards straight
+// out of a doc, and the failure mode of missing one is silent corruption of
+// the board the user is looking at.
 export function cardToYMap(card) {
   const m = new Y.Map();
-  for (const [k, v] of Object.entries(card)) m.set(k, v);
+  for (const [k, v] of Object.entries(card)) {
+    if (isIntegratedYType(v)) {
+      const copy = cloneYValue(v);
+      if (copy !== undefined) m.set(k, copy);
+    } else {
+      m.set(k, v);
+    }
+  }
   return m;
 }
 

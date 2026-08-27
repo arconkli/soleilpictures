@@ -12,6 +12,7 @@
 // pass `cardScope(cardYMap)` for CARD mode. Internals look the same for both.
 
 import * as Y from 'yjs';
+import { cloneYXmlNode } from './yhelpers.js';
 
 // Origin for doc STRUCTURAL ops (add/rename/delete page·sheet·bookmark·comment,
 // mode). Deliberately NOT 'local' so the board-level Y.UndoManager (which
@@ -108,30 +109,11 @@ export function initCardDocStore(ydoc, cardYMap) {
   try { migrateSheetsToSingleFragment(ydoc, cardScope(cardYMap)); } catch (_) {}
 }
 
-// Deep-clone a Y.Xml node (XmlElement / XmlText) into a BRAND-NEW node so it
-// can be inserted into a different fragment — Yjs types can't be re-parented.
-// XmlText carries its inline marks via the delta; XmlElement recurses over its
-// attributes + children. Inline leaf nodes (hardBreak, mentions) are stored by
-// y-prosemirror as sibling XmlElements, so the recursion covers them.
-function cloneYXml(src) {
-  if (src && typeof src.toDelta === 'function' && typeof src.toArray !== 'function') {
-    const t = new Y.XmlText();
-    try { t.applyDelta(src.toDelta()); } catch (_) {}
-    return t;
-  }
-  if (src && typeof src.toArray === 'function' && src.nodeName) {
-    const el = new Y.XmlElement(src.nodeName);
-    try {
-      const attrs = src.getAttributes ? src.getAttributes() : {};
-      for (const k of Object.keys(attrs || {})) el.setAttribute(k, attrs[k]);
-    } catch (_) {}
-    const kids = [];
-    for (const c of src.toArray()) { const cl = cloneYXml(c); if (cl) kids.push(cl); }
-    if (kids.length) el.insert(0, kids);
-    return el;
-  }
-  return null;
-}
+// Deep-clone a Y.Xml node into a BRAND-NEW node so it can be inserted into a
+// different fragment — Yjs types can't be re-parented. Lives in yhelpers now:
+// the same rule governs copying a whole card (cardToYMap), and one
+// implementation is better than two that can drift.
+const cloneYXml = cloneYXmlNode;
 
 // One-time, idempotent migration: collapse a page's stacked SHEETS into the
 // single primary content fragment. Sheets are now a pure PRESENTATION concept —
