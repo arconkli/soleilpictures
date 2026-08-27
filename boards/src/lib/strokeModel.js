@@ -122,6 +122,52 @@ export function readCardStrokes(card) {
   return out;
 }
 
+// ── Writing to a card ─────────────────────────────────────────────────────
+// Both helpers return a PATCH for updateCard rather than mutating, and both
+// exist because `layers` takes precedence over `strokes` when it is present:
+// appending to `card.strokes` on a layered card writes somewhere no reader
+// looks, so the stroke would land in the Y.Doc and never appear.
+
+// Append one stroke to a card, landing it on the topmost VISIBLE layer — the
+// one whose ink is on top is the one you are drawing onto.
+export function appendStrokeToCard(card, stroke) {
+  const layers = card?.layers;
+  if (!Array.isArray(layers) || !layers.length) {
+    const existing = Array.isArray(card?.strokes) ? card.strokes : [];
+    return { strokes: [...existing, stroke] };
+  }
+  let target = -1;
+  for (let i = layers.length - 1; i >= 0; i--) {
+    if (layers[i] && layers[i].visible !== false) { target = i; break; }
+  }
+  // Every layer hidden: fall back to the top of the stack rather than dropping
+  // the stroke on the floor.
+  if (target < 0) target = layers.length - 1;
+  const next = layers.map((l, i) => (i === target
+    ? { ...l, strokes: [...(l.strokes || []), stroke] }
+    : l));
+  return { layers: next };
+}
+
+// Apply an eraser swipe to a card. Erases across every visible layer, since the
+// user is rubbing out what they can see.
+export function eraseOnCard(card, eraserPoints, radius) {
+  const layers = card?.layers;
+  if (!Array.isArray(layers) || !layers.length) {
+    const { next, changed } = eraseStrokes(card?.strokes, eraserPoints, radius);
+    return { changed, patch: changed ? { strokes: next } : null };
+  }
+  let changed = false;
+  const next = layers.map((l) => {
+    if (!l || l.visible === false) return l;
+    const r = eraseStrokes(l.strokes, eraserPoints, radius);
+    if (!r.changed) return l;
+    changed = true;
+    return { ...l, strokes: r.next };
+  });
+  return { changed, patch: changed ? { layers: next } : null };
+}
+
 // ── Geometry helpers ──────────────────────────────────────────────────────
 
 export function distPointToSegment(p, a, b) {

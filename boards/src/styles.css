@@ -17996,6 +17996,69 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 }
 .sp-aspect-lbl { font: 500 10px/1 var(--font-sans); }
 
+/* Layers. Rough a shot out, then ink over the top without the rough in the way.
+   The list reads top-of-stack-first, which is how every drawing app presents it;
+   the array itself is stored bottom-first because that is the paint order. */
+.sp-layers { display: flex; flex-direction: column; gap: 4px; }
+.sp-layer {
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+}
+.sp-layer.is-active { border-color: var(--soleil); background: var(--bg-3); }
+.sp-layer-name {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: transparent; border: 0;
+  color: var(--ink-1);
+  font: 500 12px/1 var(--font-sans);
+  text-align: left;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.sp-layer.is-active .sp-layer-name { color: var(--ink-0); }
+.sp-layer-name:hover { background: var(--bg-hov); }
+.sp-layer-count { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sp-layer-eye, .sp-layer-btn {
+  width: 28px; height: 28px;
+  flex: 0 0 auto;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--ink-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+.sp-layer-eye[aria-pressed="false"] { color: var(--ink-3); opacity: .55; }
+.sp-layer-eye:hover, .sp-layer-btn:hover:not(:disabled) { background: var(--bg-hov); color: var(--ink-0); }
+.sp-layer-btn:disabled { opacity: .28; cursor: not-allowed; }
+.sp-layer-add { width: 100%; margin-top: 2px; }
+.sp-action.is-active { border-color: var(--soleil); background: var(--bg-3); color: var(--ink-0); }
+
+/* Floats over the frame body rather than reflowing it — opening the panel must
+   not resize the surface you are drawing on. */
+.sp-layers-dock {
+  position: absolute;
+  right: 12px; top: 12px;
+  width: 236px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3);
+  padding: 10px;
+  z-index: 2;
+}
+.sp-layers-dock .sp-sheet-label { margin-bottom: 8px; }
+
+@media (pointer: coarse) {
+  .sp-layer-eye, .sp-layer-btn { width: 40px; height: 40px; font-size: 15px; }
+  .sp-layer-name { padding: 12px 8px; }
+}
+
 /* The touch overflow sheet. .sheet-root is z-index 1000; the pad's own portal
    sits at 2147483645, so without this the sheet opens behind the pad. */
 .sheet-root.sp-sheet { z-index: 2147483646; }

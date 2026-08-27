@@ -29,7 +29,7 @@ import { registerModalOpen } from '../lib/modalGuard.js';
 import { swallowContextMenu } from '../lib/contextMenuGuard.js';
 import { toPathD } from '../lib/strokeRender.js';
 import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
-import { eraseStrokes, DEFAULT_BRUSH } from '../lib/strokeModel.js';
+import { eraseStrokes, DEFAULT_BRUSH, cardLayers, readCardStrokes } from '../lib/strokeModel.js';
 import { isFilledPath, strokeOpacity, strokeBlendMode, strokeLineCap } from '../lib/strokeRender.js';
 import { BrushPreview, BRUSH_ORDER, BRUSH_LABELS } from './BrushPreview.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
@@ -68,6 +68,21 @@ const ASPECTS = [
   { id: '9x16',  label: '9:16',   hint: 'Vertical',   w: 304, h: 540 },
 ];
 const DEFAULT_ASPECT = '16x9';
+
+// Layers exist so a shot can be roughed out and then inked over the top without
+// the rough being in the way — the reason to reach for them on a storyboard
+// frame. They live only in the pad and on the art card; board free-strokes stay
+// a flat array.
+//
+// Stable module counter rather than Date.now/random: ids only have to be unique
+// within one pad session.
+let layerSeq = 0;
+function newLayer(n) {
+  layerSeq += 1;
+  return { id: `L${layerSeq}`, name: `Layer ${n}`, visible: true, opacity: 1, strokes: [] };
+}
+const EMPTY_STROKES = [];
+const MAX_LAYERS = 8;
 
 const PAD_ZOOM_MIN = 1;
 const PAD_ZOOM_MAX = 8;
@@ -121,6 +136,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   const { isPhone, isTablet, isTouch } = useBreakpoint();
   const compact = isPhone || (isTablet && isTouch);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [layersOpen, setLayersOpen] = useState(false);
   // ── Pad zoom/pan ──────────────────────────────────────────────────────────
   // A 16:9 frame on a portrait phone is a thin band — without zoom you cannot
   // work on any detail of a shot. Pinch to zoom, two fingers to pan, both
@@ -154,9 +170,27 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     }
     return out;
   })();
-  // Drawing state
-  const [strokes, setStrokes]       = useState([]);
+  // ── Drawing state ─────────────────────────────────────────────────────────
+  // Layers are the storage; `strokes` below is a READ of the active one.
+  //
+  // Keeping that alias is deliberate: drawing, erasing and Clear all act on the
+  // active layer only (which is what every drawing app does), so nearly all the
+  // code that predates layers is still correct as written. Only the WRITES had
+  // to learn about layers, and they all go through setActiveStrokes.
+  const [layers, setLayers] = useState(() => [newLayer(1)]);
+  const [activeId, setActiveId] = useState(null);
   const [activeStroke, setActive]   = useState(null);
+  const activeLayer = layers.find(l => l.id === activeId) || layers[layers.length - 1];
+  const strokes = activeLayer?.strokes || EMPTY_STROKES;
+  // Everything that gets painted, bottom-to-top with hidden layers dropped —
+  // the same accessor the thumbnail renderer and the board use, so the pad
+  // cannot disagree with them about what the card looks like.
+  const visibleStrokes = readCardStrokes({ layers });
+  const setActiveStrokes = useCallback((next) => {
+    setLayers(prev => prev.map(l => (l.id === (activeIdLive.current ?? prev[prev.length - 1]?.id)
+      ? { ...l, strokes: typeof next === 'function' ? next(l.strokes) : next }
+      : l)));
+  }, []);
   const wrapRef = useRef(null);
   const feedback = useFeedback();
   // Live mirror of the in-flight stroke's points, and the teardown for the
@@ -179,33 +213,46 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   const [, setHistTick] = useState(0);
   const strokesLive = useRef(strokes);
   strokesLive.current = strokes;
+  const layersLive = useRef(layers);
+  layersLive.current = layers;
+  const activeIdLive = useRef(activeId);
+  activeIdLive.current = activeLayer?.id ?? null;
   const padBgLive = useRef(padBg);
   padBgLive.current = padBg;
   const pushHistory = useCallback(() => {
-    const snap = { strokes: strokesLive.current, bg: padBgLive.current };
+    // Snapshots the whole layer STACK, not just the active layer's strokes —
+    // otherwise adding, hiding, reordering or deleting a layer would not be
+    // undoable, and ⌘Z after a delete would silently do nothing.
+    const snap = { layers: layersLive.current, bg: padBgLive.current };
     const top = undoStackRef.current[undoStackRef.current.length - 1];
-    if (top && top.strokes === snap.strokes && top.bg === snap.bg) return;
+    if (top && top.layers === snap.layers && top.bg === snap.bg) return;
     undoStackRef.current.push(snap);
     if (undoStackRef.current.length > 100) undoStackRef.current.shift();
     redoStackRef.current.length = 0;
     setHistTick(t => t + 1);
   }, []);
+  // Restoring a snapshot can remove the layer that was active, so both
+  // directions re-point activeId at something that still exists.
+  const restore = useCallback((snap) => {
+    setLayers(snap.layers);
+    setPadBg(snap.bg);
+    if (!snap.layers.some(l => l.id === activeIdLive.current)) {
+      setActiveId(snap.layers[snap.layers.length - 1]?.id ?? null);
+    }
+    setHistTick(t => t + 1);
+  }, []);
   const undoPad = useCallback(() => {
     const snap = undoStackRef.current.pop();
     if (!snap) return;
-    redoStackRef.current.push({ strokes: strokesLive.current, bg: padBgLive.current });
-    setStrokes(snap.strokes);
-    setPadBg(snap.bg);
-    setHistTick(t => t + 1);
-  }, []);
+    redoStackRef.current.push({ layers: layersLive.current, bg: padBgLive.current });
+    restore(snap);
+  }, [restore]);
   const redoPad = useCallback(() => {
     const snap = redoStackRef.current.pop();
     if (!snap) return;
-    undoStackRef.current.push({ strokes: strokesLive.current, bg: padBgLive.current });
-    setStrokes(snap.strokes);
-    setPadBg(snap.bg);
-    setHistTick(t => t + 1);
-  }, []);
+    undoStackRef.current.push({ layers: layersLive.current, bg: padBgLive.current });
+    restore(snap);
+  }, [restore]);
   const resetHistory = () => {
     undoStackRef.current.length = 0;
     redoStackRef.current.length = 0;
@@ -254,15 +301,27 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   useEffect(() => {
     if (!open) return;
     if (editingCard) {
-      setStrokes(Array.isArray(editingCard.strokes) ? editingCard.strokes.map(s => ({ ...s, points: s.points.map(p => [...p]) })) : []);
+      // cardLayers() presents a pre-layers card as one implicit layer, so an
+      // art canvas drawn before layers existed opens as "Layer 1" with its
+      // strokes intact rather than as an empty pad.
+      const seeded = cardLayers(editingCard).map((l, i) => ({
+        ...newLayer(i + 1),
+        ...l,
+        strokes: (l.strokes || []).map(st => ({ ...st, points: st.points.map(pt => [...pt]) })),
+      }));
+      setLayers(seeded);
+      setActiveId(seeded[seeded.length - 1].id);
       setPadBg(editingCard.bg || DEFAULT_BG);
     } else {
-      setStrokes([]);
+      const fresh = [newLayer(1)];
+      setLayers(fresh);
+      setActiveId(fresh[0].id);
       setPadBg(DEFAULT_BG);
     }
     setActive(null);
     setTool('pen');
     setSheetOpen(false);
+    setLayersOpen(false);
     setBrush(DEFAULT_BRUSH);
     setAspect(DEFAULT_ASPECT);
     setView({ z: 1, x: 0, y: 0 });
@@ -457,7 +516,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
         // finished line, which is the board draw path's reasoning as well.
         if (!aborted && points.length > 1) {
           pushHistory(); // snapshot the pre-stroke state → ⌘Z removes this line
-          setStrokes(prev => [...prev, { ...stroke, points }]);
+          setActiveStrokes(prev => [...prev, { ...stroke, points }]);
           addRecentColor(stroke.color);
         }
         setActive(null);
@@ -503,7 +562,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
           const { next, changed } = eraseStrokes(strokesLive.current, points, radius);
           if (changed) {
             pushHistory();
-            setStrokes(next);
+            setActiveStrokes(next);
           }
         }
         setActive(null);
@@ -554,21 +613,26 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   useEffect(() => () => { strokeDisposeRef.current?.(); }, []);
 
   const onCommit = useCallback(() => {
-    if (!editingCard && !strokes.length && padBg === DEFAULT_BG) { onClose?.(); return; }
+    if (!editingCard && !visibleStrokes.length && padBg === DEFAULT_BG) { onClose?.(); return; }
     // Pass the strokes (in logical coords), the chosen pad bg, and the
     // logical canvas size up — the host writes the card with these as
     // its w/h so the SketchPad and the resulting card share one
     // coordinate system. When editing an existing card we forward its
     // id so the host updates instead of creating a new one.
     onCommitStrokes?.({
-      strokes,
+      // `strokes` stays the flattened, ready-to-paint array so every consumer
+      // that predates layers keeps working untouched. `layers` rides alongside
+      // it and is only kept when there is more than one — a single-layer sketch
+      // writes the exact card shape it always did.
+      strokes: visibleStrokes,
+      layers: layers.length > 1 ? layers : null,
       bg: padBg,
       editingId: editingCard?.id || null,
       canvasW: logicalW,
       canvasH: logicalH,
     });
     onClose?.();
-  }, [strokes, padBg, onCommitStrokes, onClose, editingCard, logicalW, logicalH]);
+  }, [layers, visibleStrokes, padBg, onCommitStrokes, onClose, editingCard, logicalW, logicalH]);
 
   if (!open) return null;
 
@@ -580,7 +644,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   const widthPresets = tool === 'eraser' ? ERASER_WIDTH_PRESETS : WIDTH_PRESETS;
   // Changing the frame rescales nothing, so it is only offered while the canvas
   // is still empty — after that it would silently crop what you've drawn.
-  const canPickAspect = !editingCard && !strokes.length;
+  const canPickAspect = !editingCard && !visibleStrokes.length;
 
   const swatches = (
     <>
@@ -633,6 +697,95 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
       <span className="sp-brush-lbl">{BRUSH_LABELS[id]}</span>
     </button>
   ));
+
+  // ── Layers ────────────────────────────────────────────────────────────────
+  // Every mutation pushes history FIRST, so ⌘Z undoes an add / hide / reorder /
+  // delete as readily as it undoes a stroke.
+  const addLayer = () => {
+    if (layers.length >= MAX_LAYERS) return;
+    pushHistory();
+    const l = newLayer(layers.length + 1);
+    setLayers(prev => [...prev, l]);
+    setActiveId(l.id);
+  };
+  const toggleLayer = (id) => {
+    pushHistory();
+    setLayers(prev => prev.map(l => (l.id === id ? { ...l, visible: l.visible === false } : l)));
+  };
+  const moveLayer = (id, dir) => {
+    const i = layers.findIndex(l => l.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= layers.length) return;
+    pushHistory();
+    setLayers(prev => {
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  };
+  const removeLayer = async (id) => {
+    if (layers.length <= 1) return;
+    const doomed = layers.find(l => l.id === id);
+    // Losing work needs a confirm, but an empty layer is not work.
+    if (doomed?.strokes?.length) {
+      const ok = await feedback.confirm({
+        title: `Delete ${doomed.name}?`,
+        message: `${doomed.strokes.length} stroke${doomed.strokes.length === 1 ? '' : 's'} will be removed. You can undo this.`,
+        confirmLabel: 'Delete',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    pushHistory();
+    setLayers(prev => {
+      const next = prev.filter(l => l.id !== id);
+      if (id === activeIdLive.current) setActiveId(next[next.length - 1].id);
+      return next;
+    });
+  };
+
+  const layerRows = [...layers].reverse().map((l) => {
+    const idx = layers.findIndex(x => x.id === l.id);
+    return (
+      <div key={l.id} className={`sp-layer ${l.id === activeLayer?.id ? 'is-active' : ''}`}>
+        <button type="button"
+                className="sp-layer-eye"
+                onClick={() => toggleLayer(l.id)}
+                aria-pressed={l.visible !== false}
+                title={l.visible === false ? 'Show layer' : 'Hide layer'}
+                aria-label={`${l.visible === false ? 'Show' : 'Hide'} ${l.name}`}>
+          {l.visible === false ? '◌' : '◉'}
+        </button>
+        <button type="button"
+                className="sp-layer-name"
+                onClick={() => setActiveId(l.id)}
+                title="Draw on this layer">
+          {l.name}
+          <span className="sp-layer-count">{l.strokes.length || ''}</span>
+        </button>
+        <button type="button" className="sp-layer-btn" onClick={() => moveLayer(l.id, 1)}
+                disabled={idx === layers.length - 1} aria-label={`Move ${l.name} up`}>↑</button>
+        <button type="button" className="sp-layer-btn" onClick={() => moveLayer(l.id, -1)}
+                disabled={idx === 0} aria-label={`Move ${l.name} down`}>↓</button>
+        <button type="button" className="sp-layer-btn" onClick={() => removeLayer(l.id)}
+                disabled={layers.length <= 1} aria-label={`Delete ${l.name}`}>✕</button>
+      </div>
+    );
+  });
+
+  const layerPanel = (
+    <div className="sp-layers">
+      {/* Top of the list is the top of the stack, which is how every drawing
+          app presents it — the array is stored bottom-first for painting. */}
+      {layerRows}
+      <button type="button"
+              className="sp-action sp-layer-add"
+              onClick={addLayer}
+              disabled={layers.length >= MAX_LAYERS}>
+        Add layer
+      </button>
+    </div>
+  );
 
   const aspectButtons = ASPECTS.map(a => (
     <button key={a.id}
@@ -687,7 +840,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   const clearBtn = (
     <button type="button"
             className="sp-action"
-            onClick={() => { if (strokesLive.current.length) { pushHistory(); setStrokes([]); } }}
+            onClick={() => { if (strokesLive.current.length) { pushHistory(); setActiveStrokes([]); } }}
             disabled={!strokes.length}>Clear</button>
   );
   const cancelBtn = (
@@ -699,7 +852,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     <button type="button"
             className="sp-action sp-action-primary"
             onClick={onCommit}
-            disabled={!editingCard && !strokes.length}>
+            disabled={!editingCard && !visibleStrokes.length}>
       {/* A phone has no room for "Add to canvas" alongside finger-sized tools —
           the full label pushed the primary action clean off the right edge. */}
       {editingCard ? 'Save' : (compact ? 'Add' : 'Add to canvas')}
@@ -769,6 +922,13 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                 </>
               )}
               <span className="sp-sep" />
+              <button type="button"
+                      className={`sp-action ${layersOpen ? 'is-active' : ''}`}
+                      onClick={() => setLayersOpen(o => !o)}
+                      aria-expanded={layersOpen}>
+                Layers{layers.length > 1 ? ` (${layers.length})` : ''}
+              </button>
+              <span className="sp-sep" />
               {undoRedo}
               {clearBtn}
               <span style={{ flex: 1 }} />
@@ -797,10 +957,10 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
           <svg className="sketchpad-svg" width="100%" height="100%"
                viewBox={`0 0 ${logicalW} ${logicalH}`}
                preserveAspectRatio="none">
-            {strokes.map((s, i) => <PadStroke key={i} s={s} />)}
+            {visibleStrokes.map((s, i) => <PadStroke key={i} s={s} />)}
             {activeStroke && <PadStroke s={activeStroke} />}
           </svg>
-          {!strokes.length && !activeStroke && (
+          {!visibleStrokes.length && !activeStroke && (
             <div className="sketchpad-hint">
               {compact
                 ? 'Sketch here, then press Add.'
@@ -808,6 +968,15 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             </div>
           )}
         </div>
+        {/* Desktop layer panel — floats over the frame body rather than
+            reflowing the drawing surface, so opening it never resizes what you
+            are drawing on. */}
+        {!compact && layersOpen && (
+          <div className="sp-layers-dock">
+            <div className="sp-sheet-label">Layers</div>
+            {layerPanel}
+          </div>
+        )}
         {(view.z !== 1 || view.x || view.y) && (
           <button type="button"
                   className="sp-zoom-reset"
@@ -837,6 +1006,10 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             <div className="sp-sheet-group">
               <div className="sp-sheet-label">{tool === 'eraser' ? 'Eraser size' : 'Stroke width'}</div>
               <div className="sp-sheet-row">{widths}</div>
+            </div>
+            <div className="sp-sheet-group">
+              <div className="sp-sheet-label">Layers</div>
+              {layerPanel}
             </div>
             {canPickAspect && (
               <div className="sp-sheet-group">

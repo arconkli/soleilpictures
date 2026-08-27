@@ -63,7 +63,7 @@ import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideo
 import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
 import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
-import { eraseStrokes, readCardStrokes, strokeInPolygon } from '../lib/strokeModel.js';
+import { eraseStrokes, eraseOnCard, appendStrokeToCard, readCardStrokes, strokeInPolygon } from '../lib/strokeModel.js';
 import { notePointerType, pointerCanDraw } from '../lib/pointerPolicy.js';
 import { toPathD, polylinePathD, isFilledPath, strokeOpacity, strokeBlendMode, strokeLineCap } from '../lib/strokeRender.js';
 import { DEFAULT_BRUSH } from '../lib/strokeModel.js';
@@ -6175,8 +6175,16 @@ export function CanvasSurface({
               const eraser = targetCard
                 ? points.map(([x, y]) => [x - targetCard.x, y - targetCard.y])
                 : points;
-              const source = targetCard ? readCardStrokes(targetCard) : (strokes || []);
-              const { next, changed } = eraseStrokes(source, eraser, radius);
+              // eraseOnCard walks every visible layer and returns the right
+              // patch shape for the card it was given; a layered card must not
+              // be written through `strokes`, which readers ignore.
+              const result = targetCard
+                ? eraseOnCard(targetCard, eraser, radius)
+                : (() => {
+                    const r = eraseStrokes(strokes || [], eraser, radius);
+                    return { changed: r.changed, patch: r.next };
+                  })();
+              const { changed } = result;
               if (changed) {
                 // One erase gesture = its own undo step. updateCard/
                 // replaceStrokes deliberately don't break (gesture coalescing),
@@ -6184,9 +6192,9 @@ export function CanvasSurface({
                 // the previous 500ms — including the card-create step.
                 mutators.breakUndo?.();
                 if (targetCard) {
-                  mutators.updateCard?.(targetCard.id, { strokes: next });
+                  mutators.updateCard?.(targetCard.id, result.patch);
                 } else {
-                  mutators.replaceStrokes?.(next);
+                  mutators.replaceStrokes?.(result.patch);
                   setSelectedStrokes(new Set());
                 }
               }
@@ -6259,10 +6267,8 @@ export function CanvasSurface({
               const localPoints = points.map(p => (p.length > 2
                 ? [p[0] - targetCard.x, p[1] - targetCard.y, p[2]]
                 : [p[0] - targetCard.x, p[1] - targetCard.y]));
-              const existing = Array.isArray(targetCard.strokes) ? targetCard.strokes : [];
-              mutators.updateCard?.(targetCard.id, {
-                strokes: [...existing, newStroke(localPoints)],
-              });
+              // Lands on the topmost visible layer when the card has them.
+              mutators.updateCard?.(targetCard.id, appendStrokeToCard(targetCard, newStroke(localPoints)));
             } else {
               mutators.addStroke?.(newStroke(points));
             }
@@ -10371,6 +10377,10 @@ export function CanvasSurface({
         onCommitStrokes={(payload) => {
           // Backwards-compat: older shape was a bare strokes array.
           const strokes = Array.isArray(payload) ? payload : (payload?.strokes || []);
+          // Layers only ride along when the sketch actually used more than one.
+          // A single-layer sketch writes the same card shape it always did, and
+          // readCardStrokes() presents either form identically to every reader.
+          const layers = Array.isArray(payload) ? null : (payload?.layers || null);
           const bg = Array.isArray(payload) ? '#ffffff' : (payload?.bg || '#ffffff');
           const editingId = Array.isArray(payload) ? null : (payload?.editingId || null);
           const canvasW = (Array.isArray(payload) ? null : payload?.canvasW) || 480;
@@ -10383,7 +10393,10 @@ export function CanvasSurface({
             // The whole sketch-edit session saves as ONE undo step — and
             // never merges into whatever preceded opening the pad.
             mutators.breakUndo?.();
-            mutators.updateCard?.(editingId, { strokes, bg });
+            // Writing `layers: null` alongside is deliberate: a sketch edited
+            // back down to one layer must CLEAR the old stack, or the card
+            // would keep rendering the stale one and ignore `strokes`.
+            mutators.updateCard?.(editingId, { strokes, layers, bg });
             setSelected(new Set([editingId]));
             setSelectedStrokes(new Set());
             setSelectedArrows(new Set());
@@ -10410,7 +10423,7 @@ export function CanvasSurface({
             id: newId,
             kind: 'art',
             x: cardX, y: cardY, w: cardW, h: cardH,
-            bg, strokes: localStrokes,
+            bg, strokes: localStrokes, ...(layers ? { layers } : {}),
           });
           // Stash the freshly-created card so pickStrokeTarget can find
           // it during the few ms before the Yjs subscription updates
