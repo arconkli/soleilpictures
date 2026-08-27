@@ -52,13 +52,6 @@ import {
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { Sheet } from './shell/Sheet.jsx';
-import { GridTemplatePanel } from './GridTemplatePanel.jsx';
-import { mergeSections, rowsFromRecords, bodyFromGrid, SOURCES } from '../lib/gridLayoutLibrary.js';
-import { useGridLayouts } from '../hooks/useGridLayouts.js';
-import {
-  saveGridLayout, renameGridLayout, setGridLayoutScope,
-  deleteGridLayout, restoreGridLayout, createGridLayoutLink,
-} from '../lib/gridLayoutsApi.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
@@ -1320,12 +1313,6 @@ export function CanvasSurface({
     useWorkspacePalettes(workspaceId);
   useEffect(() => { if (picker) ensureWorkspacePalettes(); }, [picker, ensureWorkspacePalettes]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
-  // Templates panel (the grid tool's flyout) + the shape it armed. A pending
-  // layout rides along with the 'grid' place-tool: the panel picks the shape,
-  // the next canvas click decides where. Cleared whenever the tool disarms, so a
-  // later bare G never silently reuses the last template someone chose.
-  const [tplPanelOpen, setTplPanelOpen] = useState(false);
-  const [pendingGridLayout, setPendingGridLayout] = useState(null);
   // Phone bottom-nav "+" → full add sheet. { pos } = canvas-space drop point
   // captured when the sheet opens (viewport centre); null = closed.
   const [mobileAdd, setMobileAdd] = useState(null);
@@ -1506,9 +1493,7 @@ export function CanvasSurface({
     noteCreateIntent('tool_place', selectedTool);
     switch (selectedTool) {
       case 'board':   addClusterCard(pos, 'tool_place'); break;
-      // A layout armed by the Templates panel wins; a bare G (or the right-click
-      // Add ▸ Grid, which never opens the panel) still gets the default shape.
-      case 'grid':    mutators.addGrid?.(pos, pendingGridLayout ? { layout: pendingGridLayout } : { preset: 'storyboard-1-2' }); break;
+      case 'grid':    mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); break;
       // Multi-select, like every other image entry point — see the 'image'
       // add-action for why singular was costing day-one depth.
       case 'image':   pickPhotosAtRef.current?.(pos, 'tool_place'); break;
@@ -1910,187 +1895,6 @@ export function CanvasSurface({
     for (const c of (cards || [])) { m[c.id] = c; seen.add(c.id); }
     for (const k of Object.keys(m)) { if (!seen.has(k)) delete m[k]; }
   }
-
-  // ── Templates panel ────────────────────────────────────────────────────────
-  // Built-ins are a module constant, so the panel always has something to show:
-  // offline, signed out, and under ?local=1 (which has no supabase client at
-  // all). Saved rows are fetched lazily the first time the panel opens — see
-  // useGridLayouts for why this is not a realtime subscription.
-  //
-  // ?local=1 passes the literal 'local-workspace' rather than a uuid, so the
-  // truthiness check alone is not enough to keep the harness off the network.
-  const templatesEnabled = !!userId && !!workspaceId && workspaceId !== 'local-workspace';
-  const { rows: savedLayouts, ensureLoaded: ensureGridLayouts, reload: reloadGridLayouts } =
-    useGridLayouts(templatesEnabled ? userId : null);
-  useEffect(() => { if (tplPanelOpen) ensureGridLayouts(); }, [tplPanelOpen, ensureGridLayouts]);
-
-  // One RLS query returns everything the caller may see, so the split into
-  // sections happens here rather than as two round-trips. "Workspace" shows only
-  // the ACTIVE workspace — a member of three workspaces shouldn't see all three
-  // libraries stacked in one panel.
-  const templateSections = useMemo(() => {
-    const mine = rowsFromRecords(
-      savedLayouts.filter((r) => r.created_by === userId && r.scope !== 'workspace'),
-      SOURCES.USER,
-    );
-    const workspace = rowsFromRecords(
-      savedLayouts.filter((r) => r.scope === 'workspace' && r.workspace_id === workspaceId),
-      SOURCES.WORKSPACE,
-    );
-    return mergeSections({ mine, workspace });
-  }, [savedLayouts, userId, workspaceId]);
-
-  // The grid a template would re-cut: exactly one card selected and it IS a grid.
-  // Anything else — nothing selected, a multi-select, a note — means "place a new
-  // one", which is what the panel's header hint says. Deliberately not memoized:
-  // cardById is a mutable ref object, so a memo keyed on it would never notice a
-  // card changing kind underneath it.
-  const templateTargetId = (() => {
-    if (selected.size !== 1) return null;
-    const id = [...selected][0];
-    return cardById[id]?.kind === 'grid' ? id : null;
-  })();
-  // Mirrored into a ref so pickTemplate keeps stable deps — it is handed to a
-  // child and would otherwise re-identify on every selection change.
-  const templateTargetIdRef = useRef(null);
-  templateTargetIdRef.current = templateTargetId;
-
-  const pickTemplate = useCallback((row) => {
-    if (!row?.tree) return;
-    if (!templateTargetIdRef.current) {
-      // Nothing to re-cut → arm the placer and let the next canvas click say where.
-      setPendingGridLayout(row.tree);
-      setSelectedTool('grid');
-      return;
-    }
-    const res = mutators.applyGridLayout?.(templateTargetIdRef.current, row.tree);
-    if (!res) {
-      feedback.toast({ type: 'error', message: 'Could not apply that template.' });
-      return;
-    }
-    const um = mutators.undoManager;
-    const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
-    mutators.breakUndo?.();
-    // Only speak up when the apply cost something or reached past the one grid
-    // they had selected. A clean re-cut of a single grid needs no announcement —
-    // they can see what happened.
-    const parts = [];
-    if (res.affected > 1) parts.push(`Re-cut ${res.affected} linked grids`);
-    if (res.dropped) parts.push(`${res.dropped} filled ${res.dropped === 1 ? 'cell' : 'cells'} removed`);
-    if (parts.length) {
-      undoToast(feedback, {
-        message: parts.join(' · '),
-        undoManager: um,
-        stackItem: item,
-        onUndo: () => mutators.undo?.(),
-      });
-    }
-  }, [mutators, feedback, setSelectedTool]);
-
-  // Disarming the tool — Escape, picking another tool, or placing the card —
-  // drops the armed shape, so a later bare G never silently reuses whatever
-  // template was chosen minutes ago.
-  useEffect(() => { if (selectedTool !== 'grid') setPendingGridLayout(null); }, [selectedTool]);
-
-  // Save the selected grid's SHAPE. Link-aware: a grid in a linked family reads
-  // its layout from the shared record, so reaching for card.layout would save
-  // null for exactly the grids most worth saving. Same resolution the text-style
-  // path uses further down.
-  const saveCurrentGridAsTemplate = useCallback(async () => {
-    const id = templateTargetIdRef.current;
-    const card = id ? cardById[id] : null;
-    if (!card) return;
-    const layout = card.templateId ? gridTemplates?.[card.templateId]?.layout : card.layout;
-    const textStyle = card.templateId ? gridTemplates?.[card.templateId]?.textStyle : card.textStyle;
-    const body = bodyFromGrid(layout, textStyle);
-    if (!body) { feedback.toast({ type: 'error', message: 'That grid has no layout to save.' }); return; }
-    const name = await feedback.prompt({
-      title: 'Save as template',
-      label: 'Template name',
-      placeholder: 'Storyboard page',
-      defaultValue: '',
-      confirmLabel: 'Save',
-    });
-    if (!name || !name.trim()) return;
-    try {
-      await saveGridLayout({ name: name.trim().slice(0, 80), body, scope: 'user', userId });
-      await reloadGridLayouts();
-      feedback.toast({ message: `Saved “${name.trim()}” to your templates.` });
-    } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not save: ' + (e.message || e) });
-    }
-  }, [cardById, gridTemplates, feedback, userId, reloadGridLayouts]);
-
-  // Per-row actions. Built-ins never reach here (the panel filters them), and a
-  // workspace template you did not author offers only the actions a member is
-  // allowed: it can be edited, but sharing it outside the workspace stays the
-  // author's call, which is what create_grid_layout_link enforces server-side.
-  const templateRowActions = useCallback((row) => {
-    const isMine = row.ownerId === userId;
-    const acts = [];
-    acts.push({
-      id: 'rename',
-      label: 'Rename…',
-      run: async () => {
-        const next = await feedback.prompt({
-          title: 'Rename template', label: 'Name', defaultValue: row.name, confirmLabel: 'Rename',
-        });
-        if (!next || !next.trim() || next.trim() === row.name) return;
-        try { await renameGridLayout(row.id, next.trim().slice(0, 80)); await reloadGridLayouts(); }
-        catch (e) { feedback.toast({ type: 'error', message: 'Could not rename: ' + (e.message || e) }); }
-      },
-    });
-    if (isMine) {
-      const toWorkspace = row.source !== SOURCES.WORKSPACE;
-      acts.push({
-        id: 'scope',
-        label: toWorkspace ? 'Share with workspace' : 'Make private',
-        run: async () => {
-          try {
-            await setGridLayoutScope(row.id, toWorkspace ? 'workspace' : 'user', workspaceId);
-            await reloadGridLayouts();
-            feedback.toast({ message: toWorkspace ? 'Shared with your workspace.' : 'Now private to you.' });
-          } catch (e) { feedback.toast({ type: 'error', message: 'Could not change sharing: ' + (e.message || e) }); }
-        },
-      });
-      acts.push({
-        id: 'link',
-        label: 'Copy share link',
-        run: async () => {
-          try {
-            const token = await createGridLayoutLink(row.id);
-            const url = `${window.location.origin}/t/${token}`;
-            // Clipboard can be denied; showing the URL is a worse-but-real
-            // fallback rather than a silent failure.
-            try { await navigator.clipboard.writeText(url); feedback.toast({ message: 'Share link copied.' }); }
-            catch (_) { feedback.toast({ message: url, ttl: 12000 }); }
-          } catch (e) { feedback.toast({ type: 'error', message: 'Could not create a link: ' + (e.message || e) }); }
-        },
-      });
-    }
-    acts.push({
-      id: 'delete',
-      label: 'Delete',
-      danger: true,
-      run: async () => {
-        try {
-          await deleteGridLayout(row.id);
-          await reloadGridLayouts();
-          // Soft delete, so Undo is a closure that clears deleted_at — no
-          // UndoManager stack item is involved, which is the shape undoToast
-          // documents for server-side operations.
-          undoToast(feedback, {
-            message: `“${row.name}” deleted`,
-            onUndo: async () => {
-              try { await restoreGridLayout(row.id); await reloadGridLayouts(); }
-              catch (e) { feedback.toast({ type: 'error', message: 'Could not restore: ' + (e.message || e) }); }
-            },
-          });
-        } catch (e) { feedback.toast({ type: 'error', message: 'Could not delete: ' + (e.message || e) }); }
-      },
-    });
-    return acts;
-  }, [userId, workspaceId, feedback, reloadGridLayouts]);
 
   // Refs that always mirror the latest cards / selection — used by
   // pointer-event closures (which capture state at pointer-down) so
@@ -3863,7 +3667,6 @@ export function CanvasSurface({
         e.preventDefault();
         if (ctx.open || bgCtx.open) { setCtx(c => ({ ...c, open: false })); setBgCtx(c => ({ ...c, open: false })); return; }
         if (addMenuOpen) { setAddMenuOpen(false); return; }
-        if (tplPanelOpen) { setTplPanelOpen(false); return; }
         if (annotPlacing) { setAnnotPlacing(null); return; }
         if (arrowFrom || activeStroke || activeFreeArrow) { setArrowFrom(null); setActiveStroke(null); setActiveFreeArrow(null); return; }
         if (selectedTool !== 'select') { setSelectedTool('select'); return; }
@@ -3877,7 +3680,7 @@ export function CanvasSurface({
     return () => window.removeEventListener('keydown', onKey);
   }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform,
       zoomAroundCenter, zoomToSelection, fitToContent, arrangeSelected, groupSelected, canEdit,
-      ctx.open, bgCtx.open, addMenuOpen, tplPanelOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing,
+      ctx.open, bgCtx.open, addMenuOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing,
       hasSplit, paneId]);
 
   // ── Preserve card selection across undo/redo ──────────────────────────────
@@ -5660,18 +5463,8 @@ export function CanvasSurface({
         ]});
       } else if (c.kind === 'grid') {
         const linked = !!c.templateId;
-        // Opens the Templates panel with this grid as the target. Selecting it
-        // first is what makes the panel apply rather than place — the same rule
-        // the panel's header states, reached from the card instead of the rail.
-        items.push({
-          id: 'grid-apply-template',
-          label: 'Apply template…',
-          run: () => { setSelected(new Set([c.id])); setTplPanelOpen(true); },
-        });
         items.push({
           id: 'grid-link',
-          // "Share layout" is the LINKED-FAMILY feature (edit one, all reflow),
-          // not the Templates library above it. Different things, adjacent menu.
           label: linked ? 'Unlink layout' : 'Share layout',
           run: () => { if (linked) mutators.unlinkGrid?.(c.id); else mutators.promoteGridToTemplate?.(c.id); },
         });
@@ -6111,7 +5904,6 @@ export function CanvasSurface({
 
     if (focusedCellRef.current) focusCell(null, null); // clicking the canvas drops cell focus
     setAddMenuOpen(false);
-    setTplPanelOpen(false);
     closeCardMenu();
     setBgCtx(b => ({ ...b, open: false }));
 
@@ -9894,53 +9686,25 @@ export function CanvasSurface({
           )}
         </div>
         <div className="cnv-tool-sep" />
-        {tools.map(t => {
-          // The grid tool opens the Templates panel rather than arming the
-          // placer straight away: choosing a shape IS the act of making a grid,
-          // so the picker is the tool. This keeps the rail at eight buttons —
-          // it already overflows on landscape phones and scrolls by a pointer
-          // gesture. G still places the default instantly for anyone who knows
-          // it, and the right-click Add ▸ Grid is untouched.
-          const isTpl = t.id === 'grid';
-          const active = isTpl ? (tplPanelOpen || selectedTool === 'grid') : selectedTool === t.id;
-          const activate = isTpl ? () => setTplPanelOpen(o => !o) : () => setSelectedTool(t.id);
-          const btn = (
-            <div className={`cnv-tool ${active ? 'active' : ''}`}
-                 data-tip={t.title}
-                 data-tour={t.id === 'board' ? 'cluster-tool' : t.id === 'image' ? 'image-tool' : undefined}
-                 role="button"
-                 tabIndex={0}
-                 aria-label={t.label}
-                 aria-pressed={active}
-                 aria-expanded={isTpl ? tplPanelOpen : undefined}
-                 onKeyDown={(e) => {
-                   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
-                   else if (isTpl && e.key === 'Escape') { setTplPanelOpen(false); }
-                 }}
-                 onPointerDown={(e) => { e.stopPropagation(); activate(); }}>
-              <Icon as={t.icon} size={20} />
-            </div>
-          );
-          if (!isTpl) return <Fragment key={t.id}>{btn}</Fragment>;
-          return (
-            <div className="cnv-tpl-wrap" key={t.id}>
-              {btn}
-              <GridTemplatePanel
-                open={tplPanelOpen}
-                onClose={() => setTplPanelOpen(false)}
-                sections={templateSections}
-                onPick={pickTemplate}
-                applyTargetId={templateTargetId}
-                mobileShell={mobileShell}
-                // Saving and row actions need a backend. Under ?local=1 (and
-                // signed out) they are simply absent rather than present and
-                // broken — the panel keeps working as the built-in picker.
-                rowActions={templatesEnabled ? templateRowActions : null}
-                onSaveCurrent={templatesEnabled ? saveCurrentGridAsTemplate : null}
-              />
-            </div>
-          );
-        })}
+        {tools.map(t => (
+          <div key={t.id}
+               className={`cnv-tool ${selectedTool === t.id ? 'active' : ''}`}
+               data-tip={t.title}
+               data-tour={t.id === 'board' ? 'cluster-tool' : t.id === 'image' ? 'image-tool' : undefined}
+               role="button"
+               tabIndex={0}
+               aria-label={t.label}
+               aria-pressed={selectedTool === t.id}
+               onKeyDown={(e) => {
+                 if (e.key === 'Enter' || e.key === ' ') {
+                   e.preventDefault();
+                   setSelectedTool(t.id);
+                 }
+               }}
+               onPointerDown={(e) => { e.stopPropagation(); setSelectedTool(t.id); }}>
+            <Icon as={t.icon} size={20} />
+          </div>
+        ))}
         <div className="cnv-tool-sep" />
         <div className="cnv-tool"
              data-tip="Keyboard shortcuts (?)"
