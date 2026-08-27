@@ -29,7 +29,9 @@ import { registerModalOpen } from '../lib/modalGuard.js';
 import { swallowContextMenu } from '../lib/contextMenuGuard.js';
 import { toPathD } from '../lib/strokeRender.js';
 import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
-import { eraseStrokes } from '../lib/strokeModel.js';
+import { eraseStrokes, DEFAULT_BRUSH } from '../lib/strokeModel.js';
+import { isFilledPath, strokeOpacity, strokeBlendMode, strokeLineCap } from '../lib/strokeRender.js';
+import { BrushPreview, BRUSH_ORDER, BRUSH_LABELS } from './BrushPreview.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { useGesture } from '@use-gesture/react';
 import { Sheet } from './shell/Sheet.jsx';
@@ -88,6 +90,26 @@ function clampView({ z, x, y }, w0, h0) {
   };
 }
 
+// A constant-width stroke is an open polyline painted with stroke-width; a
+// pressure or brush stroke is a closed outline that must be FILLED, because its
+// width varies along its length and stroke-width is one number. Mirrors
+// StrokePath on the board so the same stroke looks the same on both surfaces.
+function PadStroke({ s }) {
+  const filled = isFilledPath(s);
+  const alpha = strokeOpacity(s);
+  const blend = strokeBlendMode(s);
+  return (
+    <path d={toPathD(s)}
+          fill={filled ? s.color : 'none'}
+          stroke={filled ? 'none' : s.color}
+          strokeWidth={filled ? undefined : s.width}
+          strokeLinecap={filled ? undefined : strokeLineCap(s)}
+          strokeLinejoin={filled ? undefined : 'round'}
+          opacity={alpha === 1 ? undefined : alpha}
+          style={blend ? { mixBlendMode: blend } : undefined} />
+  );
+}
+
 export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }) {
   // The logical canvas size for the current session. When editing, we
   // adopt the existing card's bounds so strokes stay in card-local
@@ -115,6 +137,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   const [tool, setTool]   = useState('pen'); // 'pen' | 'eraser' | 'bucket'
   const [color, setColor] = useState(DEFAULT_COLOR);
   const [width, setWidth] = useState(DEFAULT_WIDTH);
+  const [brush, setBrush] = useState(DEFAULT_BRUSH);
   const [eraserWidth, setEraserWidth] = useState(DEFAULT_ERASER_WIDTH);
   const [padBg, setPadBg] = useState(DEFAULT_BG);
   const [pickerPos, setPickerPos] = useState(null);
@@ -240,6 +263,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     setActive(null);
     setTool('pen');
     setSheetOpen(false);
+    setBrush(DEFAULT_BRUSH);
     setAspect(DEFAULT_ASPECT);
     setView({ z: 1, x: 0, y: 0 });
     resetHistory();
@@ -393,7 +417,12 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     const points = [startPoint];
     activePtsRef.current = points;
     const minStep = 1.2 * logicalPerScreenPx();
-    const stroke = { color, width };
+    // Pressure only from a device that reports it — a mouse and a finger both
+    // report a constant 0.5, which is the spec's "no pressure here" placeholder
+    // rather than a measurement.
+    const wantPressure = e.pointerType === 'pen';
+    if (wantPressure) points[0] = [...startPoint, Math.round((e.pressure || 0.5) * 100) / 100];
+    const stroke = brush === DEFAULT_BRUSH ? { color, width } : { color, width, brush };
     setActive({ ...stroke, points: [...points] });
     let aborted = false;
     const disarm = e.pointerType === 'touch'
@@ -404,11 +433,12 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
         })
       : () => {};
 
-    const addPoint = (clientX, clientY) => {
+    const addPoint = (clientX, clientY, pressure) => {
       const { x, y } = toLogical(clientX, clientY);
       const last = points[points.length - 1];
       if (Math.hypot(x - last[0], y - last[1]) < minStep) return;
-      points.push([Math.round(x * 10) / 10, Math.round(y * 10) / 10]);
+      const px = Math.round(x * 10) / 10, py = Math.round(y * 10) / 10;
+      points.push(wantPressure ? [px, py, Math.round((pressure ?? 0.5) * 100) / 100] : [px, py]);
     };
 
     strokeDisposeRef.current = trackStroke({
@@ -417,7 +447,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
         // Safari and Chrome dispatch roughly one move per frame and stash the
         // high-frequency samples in getCoalescedEvents — expanding them here is
         // what keeps a Pencil line smooth without paying a render per sample.
-        for (const s of coalescedOf(ev)) addPoint(s.clientX, s.clientY);
+        for (const s of coalescedOf(ev)) addPoint(s.clientX, s.clientY, s.pressure);
         setActive({ ...stroke, points: [...points] });
       },
       onEnd: () => {
@@ -588,6 +618,22 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     </button>
   ));
 
+  // Brushes are previewed with an actual stroke rather than a label — "pencil"
+  // and "marker" mean nothing until you see what they draw like.
+  const brushButtons = BRUSH_ORDER.map(id => (
+    <button key={id}
+            type="button"
+            className={`sp-brush ${brush === id ? 'is-active' : ''}`}
+            onClick={() => { setBrush(id); setTool('pen'); }}
+            title={BRUSH_LABELS[id]}
+            aria-label={`${BRUSH_LABELS[id]} brush`}>
+      <svg viewBox="0 0 56 26" width="52" height="24" aria-hidden="true">
+        <BrushPreview brush={id} />
+      </svg>
+      <span className="sp-brush-lbl">{BRUSH_LABELS[id]}</span>
+    </button>
+  ));
+
   const aspectButtons = ASPECTS.map(a => (
     <button key={a.id}
             type="button"
@@ -711,6 +757,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             <>
               {toolButtons}
               <span className="sp-sep" />
+              <div className="sp-brushes">{brushButtons}</div>
+              <span className="sp-sep" />
               {swatches}
               <span className="sp-sep" />
               {widths}
@@ -749,23 +797,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
           <svg className="sketchpad-svg" width="100%" height="100%"
                viewBox={`0 0 ${logicalW} ${logicalH}`}
                preserveAspectRatio="none">
-            {strokes.map((s, i) => (
-              <path key={i}
-                    d={toPathD(s)}
-                    fill="none"
-                    stroke={s.color}
-                    strokeWidth={s.width}
-                    strokeLinecap="round"
-                    strokeLinejoin="round" />
-            ))}
-            {activeStroke && (
-              <path d={toPathD(activeStroke)}
-                    fill="none"
-                    stroke={activeStroke.color}
-                    strokeWidth={activeStroke.width}
-                    strokeLinecap="round"
-                    strokeLinejoin="round" />
-            )}
+            {strokes.map((s, i) => <PadStroke key={i} s={s} />)}
+            {activeStroke && <PadStroke s={activeStroke} />}
           </svg>
           {!strokes.length && !activeStroke && (
             <div className="sketchpad-hint">
@@ -793,6 +826,10 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                title={sheetOpen === 'color' ? 'Colour & size' : 'Sketch'}
                onClose={() => setSheetOpen(false)}>
           <div className="sp-sheet-body">
+            <div className="sp-sheet-group">
+              <div className="sp-sheet-label">Brush</div>
+              <div className="sp-sheet-row sp-brushes">{brushButtons}</div>
+            </div>
             <div className="sp-sheet-group">
               <div className="sp-sheet-label">Colour</div>
               <div className="sp-sheet-row">{swatches}</div>

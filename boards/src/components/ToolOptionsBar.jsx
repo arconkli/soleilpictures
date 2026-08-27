@@ -16,6 +16,8 @@ import { useRecentColors } from '../hooks/useRecentColors.js';
 import { addRecentColor } from '../lib/recentColors.js';
 import { usePointerPolicy } from '../hooks/usePointerPolicy.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { BrushPreview, BRUSH_ORDER, BRUSH_LABELS } from './BrushPreview.jsx';
+import { DEFAULT_BRUSH } from '../lib/strokeModel.js';
 import { setDrawWithFinger } from '../lib/pointerPolicy.js';
 // Shared with Settings → Card defaults → Shapes, so the default you set is
 // always a shape this bar can actually render.
@@ -497,6 +499,23 @@ export function ToolOptionsBar({
         )}
         {!isEraser && (
           <>
+            <span className="tob-sep" />
+            {/* Previewed with a real tapered stroke — "pencil" and "marker" mean
+                nothing as words until you see what they draw like. */}
+            <div className="sp-brushes">
+              {BRUSH_ORDER.map(id => (
+                <button key={id}
+                        type="button"
+                        className={`sp-brush ${(drawOptions.brush || DEFAULT_BRUSH) === id ? 'is-active' : ''}`}
+                        onClick={() => setDrawOptions({ ...drawOptions, brush: id })}
+                        title={BRUSH_LABELS[id]}
+                        aria-label={`${BRUSH_LABELS[id]} brush`}>
+                  <svg viewBox="0 0 56 26" width="46" height="22" aria-hidden="true">
+                    <BrushPreview brush={id} />
+                  </svg>
+                </button>
+              ))}
+            </div>
             <span className="tob-sep" />
             <span className="tob-label">Color</span>
             <div className="tob-swatches">

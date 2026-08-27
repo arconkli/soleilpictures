@@ -17952,6 +17952,27 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   box-shadow: 0 0 0 2px var(--bg-2);
 }
 
+/* Brush picker. Each button IS the stroke it draws, rendered through the real
+   renderer, so a brush can never be previewed as something it doesn't produce. */
+.sp-brushes { display: flex; gap: 4px; align-items: center; }
+.sp-brush {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 4px 6px;
+  cursor: pointer;
+  color: var(--ink-2);
+}
+.sp-brush:hover { background: var(--bg-hov); }
+.sp-brush.is-active { background: var(--bg-3); border-color: var(--soleil); color: var(--ink-0); }
+.sp-brush svg { display: block; }
+.sp-brush-lbl { font: 500 10px/1 var(--font-sans); }
+@media (pointer: coarse) {
+  .sp-brushes { gap: 8px; }
+  .sp-brush { padding: 8px 10px; min-height: 44px; }
+}
+
 /* Frame formats. The swatch is the actual aspect, drawn at the real ratio —
    reading "2.39:1" is slower than seeing it. */
 .sp-aspects { display: flex; gap: 6px; align-items: flex-end; }
