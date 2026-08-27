@@ -131,7 +131,12 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
   const screenplayElement = editor?.isActive('screenplayBlock')
     ? (editor.getAttributes('screenplayBlock')?.element || 'action')
     : '';
-  const setScreenplayElement = (el) => editor?.chain().focus().setScreenplayElement(el).run();
+  // setScreenplayElement routes through commands.setNode → clearNodes when the
+  // block type can't be set directly, which is the same RangeError path the
+  // list/heading toggles below are guarded against. This <select> is the last
+  // clearNodes route a user can still reach unguarded.
+  const setScreenplayElement = (el) =>
+    editor ? safeRun(editor.chain().focus().setScreenplayElement(el), 'doc:screenplay-element') : false;
 
   const setSize = (px) => editor?.chain().focus().setFontSize(`${px}px`).run();
   const setColor = (c) => editor?.chain().focus().setColor(c).run();

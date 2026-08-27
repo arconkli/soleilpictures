@@ -12,6 +12,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { safeRun } from '../lib/safeEditorCmd.js';
 
 // Insert-only blocks (each runs on the live editor). Intentionally excludes
 // anything already reachable from the toolbar (style <select>, list/quote/
@@ -21,11 +22,13 @@ function insertItems({ onInsertImage, onInsertBoardEmbed }) {
     { id: 'image', title: 'Image', subtitle: 'Upload from your machine',
       run: (e) => onInsertImage?.(e) },
     { id: 'table', title: 'Table', subtitle: 'Insert 3×3 table',
-      run: (e) => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
+      run: (e) => safeRun(e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }), 'doc-insert:table') },
     { id: 'divider', title: 'Divider', subtitle: 'Horizontal rule',
-      run: (e) => e.chain().focus().setHorizontalRule().run() },
+      run: (e) => safeRun(e.chain().focus().setHorizontalRule(), 'doc-insert:divider') },
+    // toggleCodeBlock → toggleNode → clearNodes when the block can't be set
+    // directly: the same RangeError route the toolbar toggles are guarded on.
     { id: 'code', title: 'Code block', subtitle: 'Monospace code',
-      run: (e) => e.chain().focus().toggleCodeBlock().run() },
+      run: (e) => safeRun(e.chain().focus().toggleCodeBlock(), 'doc-insert:code') },
     { id: 'embed', title: 'Embed cluster', subtitle: 'Link to another cluster / card',
       run: (e) => onInsertBoardEmbed?.(e) },
   ];
