@@ -44,8 +44,11 @@ long document editing is still better on a laptop.
 **Drawing** is on the rail directly on touch, and in the add sheet, rather than
 behind the `D` shortcut there is no keyboard for. A stylus draws with pressure;
 flipping it over erases. The full-screen [sketch pad](/docs/canvas/shapes-and-drawing#the-sketch-pad)
-goes edge to edge, with pinch-to-zoom inside the frame for detail work and its
-brushes, colours, layers and frame formats in a sheet sized for thumbs.
+goes edge to edge, with pinch-to-zoom inside the frame for detail work. Its
+chrome is two rows that never scroll — leaving and committing on one, the tools
+and **Layers** on the other — with the brushes, colours and sizes a tap behind
+the chip showing what you are drawing with, and the frame formats offered on the
+bar itself while the frame is still empty.
 
 The [Home graph](/docs/clusters/home-graph) renders its 2D fallback on most
 tablets, which has the same nodes and interactions.

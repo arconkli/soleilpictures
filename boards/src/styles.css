@@ -9914,6 +9914,36 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
    than as something that fires. Gold is the active state, which is exactly what
    --soleil is reserved for. */
 .tob-toggle[role="switch"] { white-space: nowrap; }
+
+/* Current-state chip for the phone draw bar. The swatch strip and the
+   thickness picker moved into a sheet, so the bar has to keep answering "what
+   am I drawing with" without them — a picker you can reach is worth nothing if
+   you can no longer see what is selected. Red dot in eraser mode, matching the
+   eraser's own thickness previews. */
+.tob-chip {
+  position: relative;
+  width: 40px; height: 40px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+  padding: 0;
+  flex: 0 0 auto;
+}
+.tob-chip.is-active { border-color: var(--soleil); }
+.tob-chip-dot {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--line-3);
+}
+.tob-chip-size {
+  left: auto; top: auto; right: 3px; bottom: 3px;
+  transform: none;
+  background: var(--ink-1);
+  box-shadow: 0 0 0 2px var(--bg-2);
+}
 .tob-toggle[role="switch"][aria-checked="true"] {
   background: var(--soleil-soft);
   border-color: var(--soleil);
@@ -17910,19 +17940,52 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 }
 .sketchpad-bg.is-compact .sketchpad-frame-body { padding: 8px; }
 .sketchpad-bg.is-compact .sketchpad-toolbar { padding: 8px 10px; gap: 8px; }
-/* Tools scroll, actions don't. Commit and close stay put at any width — a bar
-   where the primary button can scroll out of sight is the trap the board's
-   options bar was already in. */
-.sp-bar-scroll {
-  flex: 1 1 auto; min-width: 0;
-  display: flex; align-items: center; gap: 8px;
-  overflow-x: auto; overflow-y: hidden;
-  scrollbar-width: none;
-  touch-action: pan-x;
+/* Two fixed rows on touch, and NOTHING here scrolls.
+   The previous single scrolling strip fit 373px of controls into 248px on an
+   iPhone: Redo and the "⋯" that opened brushes, colour, width, Layers, frame,
+   Clear and Cancel were clipped off an edge that gave no hint it scrolled. A
+   control you cannot see is a control you do not have — measure the row against
+   the narrowest phone instead of letting overflow hide the overflow. */
+.sp-bars {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column;
+  border-bottom: 1px solid var(--line-1);
 }
-.sp-bar-scroll::-webkit-scrollbar { display: none; }
-.sp-bar-scroll > * { flex: 0 0 auto; }
-.sp-bar-end { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+.sp-bars .sp-bar-row { border-bottom: 0; }
+/* Rows after the first are visually subordinate to the action row above. */
+.sp-bars .sp-bar-row + .sp-bar-row { border-top: 1px solid var(--line-1); }
+.sp-bar-row { flex: 0 0 auto; }
+.sp-bar-row > * { flex: 0 0 auto; }
+.sp-bar-gap { flex: 1 1 auto; min-width: 0; }
+.sp-bar-actions .sp-action { min-height: 40px; }
+
+/* Layers earns a button, not a line item in an overflow sheet: it is the one
+   pad control whose current state (how many layers, which one you are on) you
+   need while drawing, and it was the fourth group down inside a half-height
+   sheet reached through a clipped "⋯". */
+.sp-layers-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+  width: auto; min-width: 44px;
+  padding: 0 8px;
+}
+.sp-layers-n {
+  font: 600 12px/1 var(--font-sans);
+  color: var(--ink-2);
+}
+.sp-layers-btn.is-active .sp-layers-n { color: var(--ink-0); }
+
+/* The frame row exists only while the canvas is empty — nothing rescales once
+   there is ink, so this is the only moment the choice is live. It gives the
+   space straight back with the first stroke. */
+.sp-bar-frame { gap: 10px; }
+.sp-bar-frame .sp-sheet-label { margin: 0; }
+.sp-bar-frame .sp-aspects { flex: 1 1 auto; justify-content: space-between; gap: 4px; }
+/* Constrain the preview by HEIGHT, not width. The shared rule fixes the width
+   and lets aspect-ratio set the height, so 9:16 grew a 67px-tall box and made
+   this row taller than the two functional bars above it — the least important
+   row on screen, shouting loudest. */
+.sp-bar-frame .sp-aspect { padding: 6px 8px; gap: 4px; }
+.sp-bar-frame .sp-aspect-box { width: auto; height: 22px; }
 
 /* The compact bar's current-state chip: the colour you're drawing with and the
    size you're drawing at, stacked, opening the sheet to change either. */

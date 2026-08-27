@@ -928,47 +928,78 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     // defers on the colour picker's hex field.
     <div className={`sketchpad-bg ${compact ? 'is-compact' : ''}`} onContextMenu={swallowContextMenu}>
       <div className="sketchpad-frame">
-        <div className="sketchpad-toolbar">
-          {compact ? (
-            // Two zones on touch: the tools scroll, the actions never do. A
-            // single scrolling row put the primary button off the right edge of
-            // a phone, which is the same trap the board's options bar was in.
-            //
-            // The swatch strip and size row live in the sheet, and the bar keeps
-            // one chip showing the CURRENT colour and width — two taps to change
-            // either, but every target is finger-sized and the bar fits.
-            <>
-              <div className="sp-bar-scroll">
-                {toolButtons}
-                <span className="sp-sep" />
-                <button type="button"
-                        className="sp-chip"
-                        onClick={() => setSheetOpen('color')}
-                        aria-label="Colour and size">
-                  <span className="sp-chip-dot" style={{ background: color }} />
-                  <span className="sp-chip-dot sp-chip-size"
-                        style={{ width: Math.min(18, activeWidth + 4), height: Math.min(18, activeWidth + 4) }} />
-                </button>
-                {undoRedo}
-                <button type="button"
-                        className="sp-tool"
-                        onClick={() => setSheetOpen('more')}
-                        aria-label="More sketch options">⋯</button>
+        {compact ? (
+          // Two fixed rows, and nothing scrolls. The previous single scrolling
+          // strip held 373px of controls in 248px of space on an iPhone, so
+          // Redo and — worse — the "⋯" that was the ONLY route to brushes,
+          // colour, width, Layers, frame, Clear and Cancel were clipped off the
+          // end of a strip that gave no sign it scrolled. "I can't see layers"
+          // was literally true: the door to them was off-screen.
+          //
+          // Splitting actions from tools costs ~55px of chrome, and that comes
+          // out of the letterbox dead space a 16:9 frame leaves on a portrait
+          // phone — the drawing surface is width-constrained there, so it does
+          // not shrink by a pixel.
+          <div className="sp-bars">
+            {/* Row 1 — leaving and committing. Fixed, and never sharing space
+                with a tool that could push it off the edge. */}
+            <div className="sketchpad-toolbar sp-bar-row sp-bar-actions">
+              {/* Leaving without committing must never be buried in a menu —
+                  there is no Escape key on a touch device. */}
+              <button type="button"
+                      className="sp-x"
+                      onClick={async () => { if (await confirmDiscard()) onClose?.(); }}
+                      aria-label="Close">
+                <Icon as={X} size={18} />
+              </button>
+              <span className="sp-bar-gap" />
+              {undoRedo}
+              <span className="sp-bar-gap" />
+              {commitBtn}
+            </div>
+            {/* Row 2 — what you draw with. Layers is a first-class button here
+                rather than the fourth group down inside a half-height sheet. */}
+            <div className="sketchpad-toolbar sp-bar-row sp-bar-tools">
+              {toolButtons}
+              <span className="sp-sep" />
+              {/* The current colour and width, at a glance and in one tap. The
+                  full swatch strip and size row stay in the sheet. */}
+              <button type="button"
+                      className="sp-chip"
+                      onClick={() => setSheetOpen('color')}
+                      aria-label="Colour and size">
+                <span className="sp-chip-dot" style={{ background: color }} />
+                <span className="sp-chip-dot sp-chip-size"
+                      style={{ width: Math.min(18, activeWidth + 4), height: Math.min(18, activeWidth + 4) }} />
+              </button>
+              <button type="button"
+                      className={`sp-tool sp-layers-btn ${sheetOpen === 'layers' ? 'is-active' : ''}`}
+                      onClick={() => setSheetOpen('layers')}
+                      aria-label={`Layers (${layers.length})`}
+                      title="Layers">
+                <span aria-hidden="true">⧉</span>
+                <span className="sp-layers-n">{layers.length}</span>
+              </button>
+              <button type="button"
+                      className={`sp-tool ${sheetOpen === 'more' ? 'is-active' : ''}`}
+                      onClick={() => setSheetOpen('more')}
+                      aria-label="More sketch options">⋯</button>
+            </div>
+            {/* Row 3 — only while the canvas is still empty. The frame shape is
+                the one decision that cannot be revisited (nothing rescales once
+                there is ink) and it was buried below the fold of the sheet. On a
+                portrait phone a 16:9 frame fills 32% of the screen; this is the
+                single tap to 9:16 that fills it. It disappears with the first
+                stroke, giving the space back. */}
+            {canPickAspect && (
+              <div className="sketchpad-toolbar sp-bar-row sp-bar-frame">
+                <span className="sp-sheet-label">Frame</span>
+                <div className="sp-aspects">{aspectButtons}</div>
               </div>
-              <div className="sp-bar-end">
-                {commitBtn}
-                {/* Leaving without committing must never be buried in a menu —
-                    there is no Escape key on a touch device. */}
-                <button type="button"
-                        className="sp-x"
-                        onClick={async () => { if (await confirmDiscard()) onClose?.(); }}
-                        aria-label="Close">
-                  <Icon as={X} size={16} />
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
+            )}
+          </div>
+        ) : (
+          <div className="sketchpad-toolbar">
               {toolButtons}
               <span className="sp-sep" />
               <div className="sp-brushes">{brushButtons}</div>
@@ -1001,9 +1032,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                       aria-label="Close">
                 <Icon as={X} size={14} />
               </button>
-            </>
-          )}
-        </div>
+          </div>
+        )}
         <div className="sketchpad-frame-body" ref={bodyRef}>
         <div ref={wrapRef}
              className={`sketchpad-surface ${tool === 'eraser' ? 'is-eraser' : ''} ${tool === 'bucket' ? 'is-bucket' : ''}`}
@@ -1038,7 +1068,11 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             {layerPanel}
           </div>
         )}
-        {(view.z !== 1 || view.x || view.y) && (
+        {/* `view.x || view.y` are NUMBERS, so at rest this guard evaluated to 0
+            rather than false — and React renders 0. A literal "0" sat against
+            the right edge of the drawing surface on every untouched pad. Compare
+            explicitly so the guard produces a boolean. */}
+        {(view.z !== 1 || view.x !== 0 || view.y !== 0) && (
           <button type="button"
                   className="sp-zoom-reset"
                   onClick={() => setView({ z: 1, x: 0, y: 0 })}>
@@ -1052,36 +1086,39 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
       {compact && sheetOpen && (
         <Sheet open
                className="sp-sheet"
-               snap="half"
-               title={sheetOpen === 'color' ? 'Colour & size' : 'Sketch'}
+               // Layers is a list that grows to eight rows, each with an opacity
+               // slider — half a phone screen cannot hold it without a second
+               // hidden scroll, which is how it got lost in the first place.
+               snap={sheetOpen === 'layers' ? 'full' : 'half'}
+               title={sheetOpen === 'layers' ? 'Layers'
+                 : sheetOpen === 'color' ? 'Colour & size' : 'Sketch'}
                onClose={() => setSheetOpen(false)}>
           <div className="sp-sheet-body">
-            <div className="sp-sheet-group">
-              <div className="sp-sheet-label">Brush</div>
-              <div className="sp-sheet-row sp-brushes">{brushButtons}</div>
-            </div>
-            <div className="sp-sheet-group">
-              <div className="sp-sheet-label">Colour</div>
-              <div className="sp-sheet-row">{swatches}</div>
-            </div>
-            <div className="sp-sheet-group">
-              <div className="sp-sheet-label">{tool === 'eraser' ? 'Eraser size' : 'Stroke width'}</div>
-              <div className="sp-sheet-row">{widths}</div>
-            </div>
-            <div className="sp-sheet-group">
-              <div className="sp-sheet-label">Layers</div>
-              {layerPanel}
-            </div>
-            {canPickAspect && (
-              <div className="sp-sheet-group">
-                <div className="sp-sheet-label">Frame</div>
-                <div className="sp-sheet-row sp-aspects">{aspectButtons}</div>
-              </div>
+            {sheetOpen === 'layers' ? (
+              layerPanel
+            ) : (
+              <>
+                <div className="sp-sheet-group">
+                  <div className="sp-sheet-label">Brush</div>
+                  <div className="sp-sheet-row sp-brushes">{brushButtons}</div>
+                </div>
+                <div className="sp-sheet-group">
+                  <div className="sp-sheet-label">Colour</div>
+                  <div className="sp-sheet-row">{swatches}</div>
+                </div>
+                <div className="sp-sheet-group">
+                  <div className="sp-sheet-label">{tool === 'eraser' ? 'Eraser size' : 'Stroke width'}</div>
+                  <div className="sp-sheet-row">{widths}</div>
+                </div>
+                {/* Layers and Frame are not repeated here — both have their own
+                    control in the bar now, and a second copy in a sheet is one
+                    more thing to scroll past looking for the first. */}
+                <div className="sp-sheet-group sp-sheet-actions">
+                  {clearBtn}
+                  {cancelBtn}
+                </div>
+              </>
             )}
-            <div className="sp-sheet-group sp-sheet-actions">
-              {clearBtn}
-              {cancelBtn}
-            </div>
           </div>
         </Sheet>
       )}

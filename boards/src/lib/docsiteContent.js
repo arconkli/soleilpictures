@@ -7294,21 +7294,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The pad goes edge to edge. The brushes, colours, sizes, layers and frame formats move into a sheet behind the chip showing your current colour and width, and "
-    },
-    {
-     "t": "strong",
-     "v": "Add",
-     "children": [
-      {
-       "t": "text",
-       "v": "Add"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " and "
+     "v": "The pad goes edge to edge, with two rows of chrome that never scroll: "
     },
     {
      "t": "strong",
@@ -7322,7 +7308,95 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " stay put while the tools scroll. "
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "undo",
+     "children": [
+      {
+       "t": "text",
+       "v": "undo"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "redo",
+     "children": [
+      {
+       "t": "text",
+       "v": "redo"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Add",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on the top row, and the pen, eraser, bucket, a chip showing your current colour and width, "
+    },
+    {
+     "t": "strong",
+     "v": "Layers",
+     "children": [
+      {
+       "t": "text",
+       "v": "Layers"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and an overflow button on the second. Layers carries its count, so how many you have and which one you are on is answerable without opening anything."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "While the frame is still empty a third row offers the "
+    },
+    {
+     "t": "strong",
+     "v": "frame formats",
+     "children": [
+      {
+       "t": "text",
+       "v": "frame formats"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " directly — the one choice that cannot be revisited later. It disappears with your first stroke and gives the space back."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The brushes, the full colour strip and the sizes are behind the chip; Clear and Cancel are behind the overflow button. "
     },
     {
      "t": "strong",
@@ -7337,6 +7411,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " into the frame and drag with two fingers to move around — a percentage chip in the corner resets it in one tap."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The board's own draw options get the same treatment on a phone: the sketch pad, undo, pen/eraser/lasso and a colour-and-width chip stay on the bar, and the brushes, colour strip and thickness picker sit one tap behind the chip."
     }
    ]
   },
@@ -26830,7 +26913,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " goes edge to edge, with pinch-to-zoom inside the frame for detail work and its brushes, colours, layers and frame formats in a sheet sized for thumbs."
+     "v": " goes edge to edge, with pinch-to-zoom inside the frame for detail work. Its chrome is two rows that never scroll — leaving and committing on one, the tools and "
+    },
+    {
+     "t": "strong",
+     "v": "Layers",
+     "children": [
+      {
+       "t": "text",
+       "v": "Layers"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on the other — with the brushes, colours and sizes a tap behind the chip showing what you are drawing with, and the frame formats offered on the bar itself while the frame is still empty."
     }
    ]
   },

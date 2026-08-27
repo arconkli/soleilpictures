@@ -230,6 +230,125 @@ test.describe('sketch pad', () => {
   });
 });
 
+// ── Everything fits ────────────────────────────────────────────────────────
+// Every control these tests check was already on the page, laid out, and
+// correctly sized — and invisible, because it sat past the right edge of a
+// horizontal scroll that gave no sign it could scroll. On an iPhone the board's
+// draw bar laid out to 1319px inside a 372px strip (72% of it hidden: every
+// colour swatch, every brush, the whole thickness picker) and the pad's bar to
+// 373px inside 248px, which clipped the "⋯" that was the ONLY route to Layers.
+//
+// boundingBox() returns coordinates for a control nobody can see, so a viewport
+// check passes on all of it. Measure against the CLIPPING ANCESTOR instead.
+test.describe('everything fits', () => {
+  async function openPad(page) {
+    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await page.locator('.tob-canvas-btn').click();
+    await expect(page.locator('.sketchpad-surface')).toBeVisible();
+    await page.waitForTimeout(200);
+  }
+
+  test('the board draw bar holds every control without scrolling', async ({ page }) => {
+    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await page.waitForTimeout(250);
+    const overflow = await page.evaluate(() => {
+      const el = document.querySelector('.tob');
+      return el.scrollWidth - el.clientWidth;
+    });
+    expect(overflow, 'the draw bar is hiding controls in a scroll').toBeLessThanOrEqual(1);
+  });
+
+  test('the board draw bar still answers what you are drawing with', async ({ page }) => {
+    // The swatch strip and thickness picker moved into a sheet; the chip is what
+    // keeps that honest. A picker you can reach is worth nothing if the bar can
+    // no longer tell you what is selected.
+    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await page.waitForTimeout(250);
+    const chip = page.locator('.tob-chip');
+    await expect(chip).toBeVisible();
+    await chip.click();
+    // The label reads BRUSH on screen but is "Brush" in the DOM — the strip is
+    // uppercased by CSS, so match what is actually there.
+    await expect(page.locator('.sp-sheet-label', { hasText: 'Brush' })).toBeVisible();
+    await expect(page.locator('.tob-swatches .tob-sw').first()).toBeVisible();
+    await expect(page.locator('.tob-thickness .tob-thick').first()).toBeVisible();
+    await expect(page.locator('.sp-brush').first()).toBeVisible();
+  });
+
+  test('no pad control is clipped by the row that holds it', async ({ page }) => {
+    await openPad(page);
+    const clipped = await page.evaluate(() => {
+      const out = [];
+      for (const row of document.querySelectorAll('.sp-bar-row')) {
+        const rr = row.getBoundingClientRect();
+        for (const b of row.querySelectorAll('button')) {
+          const br = b.getBoundingClientRect();
+          const name = b.getAttribute('aria-label') || b.textContent.trim();
+          // Past the row's own edge (clipped by overflow) or past the viewport.
+          if (br.right > rr.right + 1 || br.left < rr.left - 1
+              || br.right > innerWidth + 1 || br.left < -1) out.push(name);
+        }
+      }
+      return out;
+    });
+    expect(clipped, 'pad controls sitting outside their row').toEqual([]);
+  });
+
+  test('Layers is a button on the bar, not a scroll inside a sheet', async ({ page }) => {
+    await openPad(page);
+    // One tap from the drawing surface, with its count readable without opening
+    // anything — the state you need while drawing.
+    const btn = page.getByRole('button', { name: /^Layers/ });
+    await expect(btn).toBeVisible();
+    expect(await btn.getAttribute('aria-label')).toBe('Layers (1)');
+
+    await btn.click();
+    await page.waitForTimeout(400);
+    // Reachable WITHOUT scrolling: Layers used to sit at y=694 in a 664px
+    // viewport, below the fold of a half-height sheet.
+    const fits = await page.evaluate(() => {
+      const add = [...document.querySelectorAll('button')]
+        .find(b => b.textContent.trim() === 'Add layer');
+      const r = add?.getBoundingClientRect();
+      return { found: !!r, visible: !!r && r.top >= 0 && r.bottom <= innerHeight };
+    });
+    expect(fits.found).toBe(true);
+    expect(fits.visible, '"Add layer" needs a scroll to reach').toBe(true);
+
+    await page.getByRole('button', { name: 'Add layer' }).click();
+    await page.waitForTimeout(300);
+    expect(await btn.getAttribute('aria-label')).toBe('Layers (2)');
+  });
+
+  test('the frame formats are offered on the bar, and yield the space after a stroke', async ({ page }) => {
+    await openPad(page);
+    // The one choice that cannot be revisited — nothing rescales once there is
+    // ink — so it has to be visible in exactly the window where it is live.
+    const frameRow = page.locator('.sp-bar-frame');
+    await expect(frameRow).toBeVisible();
+    await expect(frameRow.getByRole('button', { name: /9:16/ })).toBeVisible();
+
+    const before = await page.locator('.sketchpad-surface').boundingBox();
+    await fingerStroke(page, '.sketchpad-surface', { from: { x: 30, y: 30 }, to: { x: 200, y: 90 } });
+    await page.waitForTimeout(300);
+    await expect(frameRow).toHaveCount(0);
+    const after = await page.locator('.sketchpad-surface').boundingBox();
+    expect(after.y, 'the row should give its height back').toBeLessThan(before.y);
+  });
+
+  test('the pad renders no stray text beside the canvas', async ({ page }) => {
+    await openPad(page);
+    // `view.x || view.y` are NUMBERS, so the zoom-reset guard evaluated to 0 at
+    // rest rather than false — and React renders 0. A literal "0" sat against
+    // the right edge of the drawing surface on every untouched pad.
+    const strays = await page.evaluate(() =>
+      [...document.querySelector('.sketchpad-frame-body').childNodes]
+        .filter(n => n.nodeType === 3 && n.textContent.trim())
+        .map(n => n.textContent.trim()));
+    expect(strays).toEqual([]);
+  });
+});
+
 // Multi-touch needs CDP, which is Chromium-only.
 test.describe('two fingers', () => {
   test.beforeEach(async ({ page }, testInfo) => {

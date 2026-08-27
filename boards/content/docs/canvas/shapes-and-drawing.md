@@ -127,11 +127,24 @@ board behind it. The whole session lands on the board as a single undo step.
 
 ### On a phone or tablet
 
-The pad goes edge to edge. The brushes, colours, sizes, layers and frame formats
-move into a sheet behind the chip showing your current colour and width, and
-**Add** and **close** stay put while the tools scroll. **Pinch to zoom** into
-the frame and drag with two fingers to move around — a percentage chip in the
-corner resets it in one tap.
+The pad goes edge to edge, with two rows of chrome that never scroll: **close**,
+**undo**, **redo** and **Add** on the top row, and the pen, eraser, bucket, a
+chip showing your current colour and width, **Layers** and an overflow button on
+the second. Layers carries its count, so how many you have and which one you are
+on is answerable without opening anything.
+
+While the frame is still empty a third row offers the **frame formats**
+directly — the one choice that cannot be revisited later. It disappears with
+your first stroke and gives the space back.
+
+The brushes, the full colour strip and the sizes are behind the chip; Clear and
+Cancel are behind the overflow button. **Pinch to zoom** into the frame and drag
+with two fingers to move around — a percentage chip in the corner resets it in
+one tap.
+
+The board's own draw options get the same treatment on a phone: the sketch pad,
+undo, pen/eraser/lasso and a colour-and-width chip stay on the bar, and the
+brushes, colour strip and thickness picker sit one tap behind the chip.
 
 ## Art canvas
 
