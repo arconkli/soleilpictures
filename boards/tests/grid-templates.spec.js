@@ -271,6 +271,40 @@ test.describe('grid templates — pure helpers via ?gridqa=1', () => {
     expect(out.nulls).toEqual([null, null, null]);
   });
 
+  // Cell hints are stored by reading-order INDEX and only become cell ids once
+  // the tree is instantiated. That translation is the seam most likely to break
+  // silently — a hint landing on the wrong box looks like nothing at all.
+  test('hints map to cells by reading order, after instantiation', async ({ page }) => {
+    const out = await page.evaluate(() => {
+      const T = window.__soleilGridTest;
+      // 2x2 is stored column-major, so an id-order scheme would put TR
+      // bottom-left. Reading order is what a person means by "box 2".
+      const tree = T.instantiateLayout(T.BUILT_IN_LAYOUTS.find(r => r.id === '2x2').tree);
+      const box = { x: 0, y: 0, w: 100, h: 100 };
+      const order = T.readingOrder(T.computeCellRects(tree, box));
+      const map = T.hintsToCellMap(tree, ['TL', 'TR', 'BL', 'BR'], box);
+      return { byOrder: order.map(id => map[id]), count: Object.keys(map).length };
+    });
+    expect(out.byOrder).toEqual(['TL', 'TR', 'BL', 'BR']);
+    expect(out.count).toBe(4);
+  });
+
+  test('hints are bounded and stripped before they can be stored', async ({ page }) => {
+    const out = await page.evaluate(() => {
+      const T = window.__soleilGridTest;
+      return {
+        markup: T.sanitizeHints(['<b>WIDE</b>']),
+        allBlank: T.sanitizeHints(['', '   ']),
+        tooLong: T.sanitizeHints(['x'.repeat(80)])[0].length,
+        capped: T.sanitizeHints(Array.from({ length: 200 }, () => 'h')).length,
+      };
+    });
+    expect(out.markup).toEqual(['WIDE']);
+    expect(out.allBlank).toBe(null);      // nothing to say → no hints at all
+    expect(out.tooLong).toBe(40);
+    expect(out.capped).toBe(64);
+  });
+
   test('instantiateLayout never reuses a template’s leaf ids', async ({ page }) => {
     const shared = await page.evaluate(() => {
       const T = window.__soleilGridTest;

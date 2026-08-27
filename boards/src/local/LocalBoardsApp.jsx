@@ -9,6 +9,7 @@ import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIc
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from '../lib/gridLayout.js';
+import { hintsToCellMap } from '../lib/gridLayoutLibrary.js';
 import { hasLabelTag } from '../lib/gridSequence.js';
 import { readGridModel } from '../lib/gridState.js';
 import { todayISO } from '../lib/schedDates.js';
@@ -759,12 +760,17 @@ export function LocalBoardsApp({ user, signOut }) {
     // placeholders shared by every grid stamped from it, so instantiate. Mirrors
     // App.addGrid.
     const tpl = opts.layout ? sanitizeLayout(opts.layout) : null;
+    const layout = tpl ? instantiateLayout(tpl, mkCellId) : presetTree(preset, mkCellId);
+    // No Yjs here, so hints ride on the card exactly as `cells` does
+    // (readGridHints normalizes both paths).
+    const hintMap = hintsToCellMap(layout, opts.hints, { x: 0, y: 0, w, h });
     addCard({
       id: createId('grid'), kind: 'grid',
-      layout: tpl ? instantiateLayout(tpl, mkCellId) : presetTree(preset, mkCellId),
+      layout,
       cells: {}, templateId: null, seqId: null,
       x: Math.max(8, x), y: Math.max(8, y), w, h,
       ...(opts.textStyle ? { textStyle: opts.textStyle } : {}),
+      ...(hintMap ? { hints: hintMap } : {}),
     });
   };
 
@@ -816,7 +822,7 @@ export function LocalBoardsApp({ user, signOut }) {
   // App.applyGridLayout. Same contract: instantiate (a template's leaf ids are
   // placeholders), carry cell content across by reading order, re-cut the WHOLE
   // linked family, and report what was dropped so the caller can offer an undo.
-  const applyGridLayout = (gridId, layout) => {
+  const applyGridLayout = (gridId, layout, hints = null) => {
     const card = findLocalGrid(gridId); if (!card) return null;
     const clean = sanitizeLayout(layout); if (!clean) return null;
     const oldLayout = localGridLayout(card); if (!oldLayout) return null;
@@ -832,12 +838,14 @@ export function LocalBoardsApp({ user, signOut }) {
       const box = { x: 0, y: 0, w: mem.w || 360, h: mem.h || 300 };
       const { mapped, dropped: lost } = rehomeCells(oldLayout, next, mem.cells || {}, box);
       dropped += lost;
-      remap[mem.id] = mapped;
+      remap[mem.id] = { cells: mapped, hints: hintsToCellMap(next, hints, box) };
     });
     localGridLayoutEdit(gridId, () => next);
     updateBoardState(state => ({
       ...state,
-      cards: state.cards.map(c => (remap[c.id] ? { ...c, cells: remap[c.id] } : c)),
+      cards: state.cards.map(c => (remap[c.id]
+        ? { ...c, cells: remap[c.id].cells, hints: remap[c.id].hints || undefined }
+        : c)),
     }));
     return { dropped, affected: members.length };
   };

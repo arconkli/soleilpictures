@@ -8885,6 +8885,50 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "heading",
+   "depth": 3,
+   "text": "Labelling the boxes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Labelling the boxes"
+    }
+   ],
+   "id": "labelling-the-boxes"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "While saving, you can give each box a label — \"WIDE SHOT\", \"ACTION\", \"DIALOGUE\". The dialog shows the shape with every box numbered, and hovering a field lights the box it belongs to, so you always know which one you are naming. Labels are optional, including all of them."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A label is "
+    },
+    {
+     "t": "strong",
+     "v": "guidance, not content",
+     "children": [
+      {
+       "t": "text",
+       "v": "guidance, not content"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". It shows in grey inside an empty box and disappears the moment there is anything in that box — you never have to select it and delete it. Clear the box later and the label comes back. Because it is never really in the cell, a labelled-but-empty box counts as empty everywhere it matters: it adds nothing to your card count and nothing to an export."
+    }
+   ]
+  },
+  {
    "type": "para",
    "inline": [
     {

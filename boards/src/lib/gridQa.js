@@ -9,7 +9,7 @@ import {
   mergeCell, removeDivider, dividerSnapTargets, tileLinkedGrids, leafIds, normalizeTree, presetTree, PRESETS, graftSubtree,
   instantiateLayout, sanitizeLayout, rehomeCells, readingOrder, LAYOUT_LIMITS,
 } from './gridLayout.js';
-import { BUILT_IN_LAYOUTS } from './gridLayoutLibrary.js';
+import { BUILT_IN_LAYOUTS, sanitizeHints, hintsToCellMap } from './gridLayoutLibrary.js';
 import {
   SEQ_TUNING, spatialOrder, labelFor, resolveTagText, hasLabelTag, orderKey,
 } from './gridSequence.js';
@@ -43,6 +43,8 @@ export function makeGridTestBridge() {
     // Templates library: instantiate a stored tree, repair one somebody else
     // authored, and carry cell content across a layout change.
     instantiateLayout, sanitizeLayout, rehomeCells, readingOrder,
+    // Cell hints: bounds, and the reading-order index → cell id translation.
+    sanitizeHints, hintsToCellMap,
     spatialOrder, labelFor, resolveTagText, hasLabelTag, orderKey,
     seedGridLayout, seedGridMatrix,
   };

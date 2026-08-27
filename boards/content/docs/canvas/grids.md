@@ -86,6 +86,19 @@ at the bottom of the panel. It saves the *shape* — the cells and their
 proportions — and not what is in them, so a saved template is a skeleton you
 fill in fresh each time.
 
+### Labelling the boxes
+
+While saving, you can give each box a label — "WIDE SHOT", "ACTION", "DIALOGUE".
+The dialog shows the shape with every box numbered, and hovering a field lights
+the box it belongs to, so you always know which one you are naming. Labels are
+optional, including all of them.
+
+A label is **guidance, not content**. It shows in grey inside an empty box and
+disappears the moment there is anything in that box — you never have to select
+it and delete it. Clear the box later and the label comes back. Because it is
+never really in the cell, a labelled-but-empty box counts as empty everywhere it
+matters: it adds nothing to your card count and nothing to an export.
+
 Your templates appear under **My templates**, above the built-ins. Each one has
 a **···** menu:
 

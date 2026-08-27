@@ -961,6 +961,10 @@ const PAGES = [
         body: 'Build a grid you like and save its shape to your own library. Keep it private, share it with your workspace so every member can use it, or send anyone a link — whoever opens one gets their own copy to rename or change, and yours is untouched. Publish a template here and it joins the gallery below.',
       },
       {
+        heading: 'Label the boxes, so a template explains itself',
+        body: 'A template can carry a label for each box — WIDE SHOT, ACTION, DIALOGUE. The label shows in grey inside the empty box and disappears the moment there is anything in it, so you are never deleting placeholder text to get started. It is guidance rather than content: a labelled empty box still counts as empty, adds nothing to your card count, and never turns up in an export. Clear the box later and the label comes back.',
+      },
+      {
         heading: 'Every cell takes real content',
         body: 'A grid cell is not an image slot. It holds an image, a block of text, a link with a preview, a video, a file, or a whole nested board — so a storyboard panel can be the frame in one cell and the action line in the cell beneath it. Grids also have a defined reading order, which is what makes a storyboard read as a sequence rather than as pictures arranged in rows.',
       },
@@ -976,7 +980,11 @@ const PAGES = [
       },
       {
         q: 'What does a saved template actually contain?',
-        a: 'The cell layout only — the divisions and their proportions, plus a text style if you set one. It stores no images and no text, which is why sharing one is instant and reveals nothing about the board it came from.',
+        a: 'The cell layout — the divisions and their proportions — plus an optional short label per box and a text style if you set one. It stores no images and none of your cell content, which is why sharing one is instant and reveals nothing about the board it came from.',
+      },
+      {
+        q: 'Do the labels get in the way?',
+        a: 'No. A label is grey placeholder guidance, not text you have to delete. It vanishes as soon as the box has something in it and comes back if you clear it, and a labelled empty box still counts as empty everywhere — your card total and your exports never see it.',
       },
       {
         q: 'Can my team share templates?',

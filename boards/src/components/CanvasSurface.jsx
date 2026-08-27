@@ -52,7 +52,9 @@ import {
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { Sheet } from './shell/Sheet.jsx';
+import { sanitizeLayout } from '../lib/gridLayout.js';
 import { GridTemplatePanel } from './GridTemplatePanel.jsx';
+import { SaveTemplateDialog } from './SaveTemplateDialog.jsx';
 import { mergeSections, rowsFromRecords, bodyFromGrid, SOURCES } from '../lib/gridLayoutLibrary.js';
 import { useGridLayouts } from '../hooks/useGridLayouts.js';
 import {
@@ -1509,7 +1511,9 @@ export function CanvasSurface({
       case 'board':   addClusterCard(pos, 'tool_place'); break;
       // A layout armed by the Templates panel wins; a bare G (or the right-click
       // Add ▸ Grid, which never opens the panel) still gets the default shape.
-      case 'grid':    mutators.addGrid?.(pos, pendingGridLayout ? { layout: pendingGridLayout } : { preset: 'storyboard-1-2' }); break;
+      case 'grid':    mutators.addGrid?.(pos, pendingGridLayout
+                        ? { layout: pendingGridLayout.tree, hints: pendingGridLayout.hints }
+                        : { preset: 'storyboard-1-2' }); break;
       // Multi-select, like every other image entry point — see the 'image'
       // add-action for why singular was costing day-one depth.
       case 'image':   pickPhotosAtRef.current?.(pos, 'tool_place'); break;
@@ -1960,11 +1964,11 @@ export function CanvasSurface({
     if (!row?.tree) return;
     if (!templateTargetIdRef.current) {
       // Nothing to re-cut → arm the placer and let the next canvas click say where.
-      setPendingGridLayout(row.tree);
+      setPendingGridLayout({ tree: row.tree, hints: row.hints || null });
       setSelectedTool('grid');
       return;
     }
-    const res = mutators.applyGridLayout?.(templateTargetIdRef.current, row.tree);
+    const res = mutators.applyGridLayout?.(templateTargetIdRef.current, row.tree, row.hints || null);
     if (!res) {
       feedback.toast({ type: 'error', message: 'Could not apply that template.' });
       return;
@@ -1997,30 +2001,40 @@ export function CanvasSurface({
   // its layout from the shared record, so reaching for card.layout would save
   // null for exactly the grids most worth saving. Same resolution the text-style
   // path uses further down.
-  const saveCurrentGridAsTemplate = useCallback(async () => {
+  // Opening the dialog needs the shape; saving needs the shape AND the labels,
+  // so the grid's layout is captured when the dialog opens rather than read
+  // again on submit — the selection can change while a modal is up.
+  const [saveTplLayout, setSaveTplLayout] = useState(null);
+  const openSaveTemplate = useCallback(() => {
     const id = templateTargetIdRef.current;
     const card = id ? cardById[id] : null;
     if (!card) return;
     const layout = card.templateId ? gridTemplates?.[card.templateId]?.layout : card.layout;
     const textStyle = card.templateId ? gridTemplates?.[card.templateId]?.textStyle : card.textStyle;
-    const body = bodyFromGrid(layout, textStyle);
+    const clean = sanitizeLayout(layout);
+    if (!clean) { feedback.toast({ type: 'error', message: 'That grid has no layout to save.' }); return; }
+    setSaveTplLayout({ layout: clean, textStyle: textStyle || null });
+  }, [cardById, gridTemplates, feedback]);
+
+  const commitSaveTemplate = useCallback(async ({ name, hints }) => {
+    const pending = saveTplLayout;
+    setSaveTplLayout(null);
+    if (!pending || !name) return;
+    const body = bodyFromGrid(pending.layout, pending.textStyle, hints);
     if (!body) { feedback.toast({ type: 'error', message: 'That grid has no layout to save.' }); return; }
-    const name = await feedback.prompt({
-      title: 'Save as template',
-      label: 'Template name',
-      placeholder: 'Storyboard page',
-      defaultValue: '',
-      confirmLabel: 'Save',
-    });
-    if (!name || !name.trim()) return;
     try {
-      await saveGridLayout({ name: name.trim().slice(0, 80), body, scope: 'user', userId });
+      await saveGridLayout({ name: name.slice(0, 80), body, scope: 'user', userId });
       await reloadGridLayouts();
-      feedback.toast({ message: `Saved “${name.trim()}” to your templates.` });
+      const n = body.hints ? body.hints.filter(Boolean).length : 0;
+      feedback.toast({
+        message: n
+          ? `Saved “${name}” with ${n} ${n === 1 ? 'label' : 'labels'}.`
+          : `Saved “${name}” to your templates.`,
+      });
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Could not save: ' + (e.message || e) });
     }
-  }, [cardById, gridTemplates, feedback, userId, reloadGridLayouts]);
+  }, [saveTplLayout, feedback, userId, reloadGridLayouts]);
 
   // Per-row actions. Built-ins never reach here (the panel filters them), and a
   // workspace template you did not author offers only the actions a member is
@@ -9967,7 +9981,7 @@ export function CanvasSurface({
                 // signed out) they are simply absent rather than present and
                 // broken — the panel keeps working as the built-in picker.
                 rowActions={templatesEnabled ? templateRowActions : null}
-                onSaveCurrent={templatesEnabled ? saveCurrentGridAsTemplate : null}
+                onSaveCurrent={templatesEnabled ? openSaveTemplate : null}
               />
             </div>
           );
@@ -9991,6 +10005,13 @@ export function CanvasSurface({
           <Icon as={Question} size={20} />
         </div>
       </div>
+
+      <SaveTemplateDialog
+        open={!!saveTplLayout}
+        layout={saveTplLayout?.layout || null}
+        onCancel={() => setSaveTplLayout(null)}
+        onSave={commitSaveTemplate}
+      />
 
       {selectedTool === 'arrow' && (
         <div className="cnv-hint">

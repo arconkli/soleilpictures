@@ -1,0 +1,132 @@
+/* Save-as-template dialog (SaveTemplateDialog.jsx).
+
+   Behaviour — backdrop, Escape, focus trap, scroll lock — comes from the shared
+   Modal primitive; only the look lives here, which is the split that file
+   documents. Gold appears solely on the primary action and on focus rings, per
+   the house rule that --soleil means active/selection/focus and nothing else. */
+
+.savetpl-back { z-index: 1200; }
+
+.savetpl {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 64px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--bg-1);
+  box-shadow: var(--shadow-3, var(--shadow-2));
+  overflow: hidden;
+}
+.savetpl form { display: flex; flex-direction: column; min-height: 0; }
+
+.savetpl-head { padding: 18px 20px 12px; border-bottom: 1px solid var(--line-1); }
+.savetpl-kicker {
+  font: 600 10px/1 var(--font-sans);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+.savetpl-title { font: 600 17px/1.2 var(--font-sans); color: var(--ink-0); }
+
+.savetpl-body { padding: 16px 20px; overflow-y: auto; min-height: 0; }
+
+.savetpl-field { display: block; margin-bottom: 18px; }
+.savetpl-label {
+  display: block;
+  font: 600 11px/1 var(--font-sans);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-bottom: 6px;
+}
+.savetpl-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--bg-2);
+  color: var(--ink-0);
+  font: 400 13px/1.3 var(--font-sans);
+}
+.savetpl-input::placeholder { color: var(--ink-3); }
+
+.savetpl-cells-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.savetpl-optional { font: 400 11px/1 var(--font-sans); color: var(--ink-3); }
+.savetpl-help {
+  font: 400 12px/1.5 var(--font-sans);
+  color: var(--ink-2);
+  margin: 0 0 12px;
+  max-width: 46ch;
+}
+
+/* Diagram left, fields right — the pairing is the point of the dialog, so they
+   sit side by side and the preview stays put while the list scrolls. */
+.savetpl-split { display: flex; gap: 18px; align-items: flex-start; }
+
+.savetpl-preview {
+  flex: 0 0 168px;
+  position: sticky;
+  top: 0;
+  padding: 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--bg-2);
+}
+.savetpl-preview .tplt-thumb { width: 100%; height: auto; aspect-ratio: 56 / 44; background: transparent; }
+.savetpl-preview .tplt-thumb rect { fill: var(--bg-1); stroke: var(--line-3); stroke-width: .6; }
+/* The lit cell. Gold is legitimate here: this IS a selection indicator. */
+.savetpl-preview .tplt-thumb rect.is-highlight { fill: var(--bg-3); stroke: var(--soleil); stroke-width: 1; }
+.savetpl-preview .tplt-thumb text {
+  font: 600 5px/1 var(--font-sans);
+  fill: var(--ink-3);
+  user-select: none;
+}
+.savetpl-preview .tplt-thumb text.is-highlight { fill: var(--soleil); }
+
+.savetpl-list { list-style: none; margin: 0; padding: 0; flex: 1 1 auto; min-width: 0; }
+.savetpl-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 2px 4px;
+  border-radius: 6px;
+  transition: background var(--dur-fast) var(--ease);
+}
+.savetpl-list li.is-active { background: var(--bg-hov); }
+.savetpl-num {
+  flex: 0 0 18px;
+  text-align: center;
+  font: 600 11px/1 var(--font-sans);
+  color: var(--ink-3);
+}
+.savetpl-list li.is-active .savetpl-num { color: var(--ink-0); }
+.savetpl-hint { font-size: 12px; padding: 6px 8px; }
+
+.savetpl-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--line-1);
+}
+.savetpl-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--bg-2);
+  color: var(--ink-1);
+  font: 500 13px/1 var(--font-sans);
+  cursor: pointer;
+}
+.savetpl-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
+.savetpl-btn-primary { background: var(--soleil); border-color: var(--soleil); color: #1a1205; }
+.savetpl-btn-primary:hover { filter: brightness(1.06); background: var(--soleil); color: #1a1205; }
+.savetpl-btn-primary:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+
+@media (max-width: 560px) {
+  .savetpl-split { flex-direction: column; }
+  .savetpl-preview { position: static; flex: 0 0 auto; width: 100%; max-width: 220px; align-self: center; }
+}

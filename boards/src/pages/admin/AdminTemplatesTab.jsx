@@ -4,10 +4,11 @@
 // Unlike AdminApprovalsTab, which is a REVIEW QUEUE, this is a TAKEDOWN
 // SURFACE: templates publish immediately and this is where one gets pulled. The
 // reason that asymmetry is defensible is what a template actually contains — a
-// fraction tree, about a kilobyte of geometry. There are no images, no cell
-// content and nothing from the board it came from, so the only author-written
-// strings that reach a public page are the name, title and description. That is
-// a small enough surface to police after the fact.
+// fraction tree, about a kilobyte of geometry. There are no images and no cell
+// content, so the author-written text reaching a public page is the name, the
+// description, and the per-cell labels (bounded to 64 × 40 chars by the CHECK
+// in 0269). Small enough to police after the fact — but the labels are why
+// they are rendered below rather than left folded inside the JSON.
 //
 // Structure is otherwise the sibling of AdminApprovalsTab: useAdminData for the
 // epoch-guarded fetch, AdminToolbar/AdminAsync for the shell.
@@ -90,8 +91,8 @@ export function AdminTemplatesTab() {
         <h3 className="admin-chart-title">Public grid templates</h3>
         <span className="admin-chart-sub t-meta">
           Templates publish immediately — this is a takedown surface, not a queue. A template is
-          layout geometry only, so the only author-written text on a public page is its name and
-          description. Live ones appear at <code>/templates</code>.
+          layout geometry plus optional cell labels, so the author-written text on a public page is
+          the name, the description and those labels. Live ones appear at <code>/templates</code>.
         </span>
       </header>
 
@@ -147,6 +148,17 @@ export function AdminTemplatesTab() {
                     {r.taken_down_at ? ` · down ${fmtDate(r.taken_down_at)}` : ''}
                   </div>
                   {r.description && <div className="admin-approval-desc">{r.description}</div>}
+                  {/* Cell labels are the only free text a template publishes
+                      beyond its name and description, so they have to be
+                      visible here — moderating something you cannot read is
+                      not moderating. */}
+                  {Array.isArray(r.body?.hints) && r.body.hints.some(Boolean) && (
+                    <div className="admin-tpl-hints">
+                      {r.body.hints.filter(Boolean).map((h, i) => (
+                        <span className="admin-tpl-hint" key={i}>{h}</span>
+                      ))}
+                    </div>
+                  )}
                   {r.review_reason && <div className="admin-approval-desc t-meta">Reason: {r.review_reason}</div>}
                 </div>
                 <div className="admin-approval-actions">

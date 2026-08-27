@@ -21501,3 +21501,18 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
   background: var(--bg-0);
   color: var(--ink-0);
 }
+
+/* Published template cell labels, in the admin takedown tab. The only free text
+   a template puts on a public page beyond its name and description — shown here
+   because moderating text you cannot see is not moderating. */
+.admin-tpl-hints { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.admin-tpl-hint {
+  font: 500 10px/1 var(--font-sans);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  padding: 4px 6px;
+}

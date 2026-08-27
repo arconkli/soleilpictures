@@ -125,7 +125,8 @@ import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap } from './lib/upsellEligibility.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
-import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel } from './lib/gridState.js';
+import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel, setGridHints } from './lib/gridState.js';
+import { hintsToCellMap } from './lib/gridLayoutLibrary.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from './lib/gridLayout.js';
 import { hasLabelTag } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
@@ -2366,7 +2367,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         card.layout = tpl ? instantiateLayout(tpl, mkCellId) : presetTree(preset, mkCellId);
         if (opts.textStyle) card.textStyle = opts.textStyle;
       }
-      addCard(card, { afterInsert: (cardYM) => { if (cardYM) initCardGridStore(ydoc, cardYM); } });
+      // A template's cell labels are stored by reading-order INDEX; they can
+      // only be keyed to real cell ids once the tree above has been
+      // instantiated, which is why this resolves here and not at save time.
+      const hintMap = card.layout ? hintsToCellMap(card.layout, opts.hints, { x: 0, y: 0, w, h }) : null;
+      addCard(card, { afterInsert: (cardYM) => {
+        if (!cardYM) return;
+        initCardGridStore(ydoc, cardYM);
+        // Reentrant inside addCard's 'local' transact, so create+init+hints is
+        // ONE undo step — same reasoning as initCardGridStore's own comment.
+        if (hintMap) setGridHints(ydoc, cardYM, hintMap);
+      } });
       setAutoFocusId(id);
     };
 
@@ -2450,7 +2461,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     //
     // Returns { dropped, affected } for the caller's undo toast. No toast from
     // here: the mutator layer has no `feedback`.
-    const applyGridLayout = (gridId, layout) => {
+    const applyGridLayout = (gridId, layout, hints = null) => {
       const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return null;
       const clean = sanitizeLayout(layout); if (!clean) return null;
       const oldLayout = gridLayoutOf(cy); if (!oldLayout) return null;
@@ -2488,6 +2499,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           // forEach skips entries.
           Object.keys(cells).forEach((k) => cm.delete(k));
           Object.entries(mapped).forEach(([k, v]) => cm.set(k, v));
+          // Hints belong to the SHAPE, so applying a new one replaces them
+          // wholesale rather than merging: the old labels described boxes that
+          // no longer exist. A template with no labels clears them, which is
+          // the honest outcome — stale guidance is worse than none.
+          setGridHints(ydoc, mem, hintsToCellMap(next, hints, box));
         });
         writeGridLayout(cy, gridId, next);
       }, 'local');

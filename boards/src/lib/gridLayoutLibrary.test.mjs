@@ -14,7 +14,8 @@ import {
 } from './gridLayout.js';
 import {
   BUILT_IN_LAYOUTS, SOURCES, rowFromRecord, rowsFromRecords,
-  mergeSections, filterSections, bodyFromGrid,
+  mergeSections, filterSections, bodyFromGrid, sanitizeHints, hintsToCellMap,
+  HINT_LIMITS,
 } from './gridLayoutLibrary.js';
 
 let failed = 0, passed = 0;
@@ -280,6 +281,79 @@ assertEq(bodyFromGrid('junk'), null, 'junk layout → nothing to save');
   // Layout only, by design — no image refs means no cross-workspace R2 grants.
   assert(!JSON.stringify(b).includes('src'), 'a saved body carries no image references');
   assert(JSON.stringify(b).length < 16384, 'a saved body fits the column size check in 0265');
+}
+
+// ── cell hints ──────────────────────────────────────────────────────────────
+
+// A hint is guidance, not content. These bounds are mirrored by a CHECK
+// constraint in migration 0269 — hints are the only free text a template
+// carries, and they publish to a public page.
+assertEq(sanitizeHints(null), null, 'null hints → null');
+assertEq(sanitizeHints('nope'), null, 'a string is not a hints array');
+assertEq(sanitizeHints({ 0: 'a' }), null, 'an object is not a hints array');
+assertEq(sanitizeHints([]), null, 'an empty array carries nothing');
+assertEq(sanitizeHints(['', '', '']), null, 'all-blank labels are dropped entirely');
+assertEq(sanitizeHints(['WIDE', '', 'TIGHT']), ['WIDE', '', 'TIGHT'], 'a gap in the middle is preserved');
+assertEq(sanitizeHints([1, 'ok', null]), ['', 'ok', ''], 'non-strings become blanks, not crashes');
+assertEq(sanitizeHints(['  spaced   out  ']), ['spaced out'], 'whitespace collapses and trims');
+assertEq(sanitizeHints(['<b>bold</b>ish']), ['boldish'], 'markup is stripped from the STORED value');
+assertEq(sanitizeHints(['<script>x()</script>hi']), ['x()hi'], 'tags go even when the text between them stays');
+{
+  const long = 'x'.repeat(80);
+  assertEq(sanitizeHints([long])[0].length, HINT_LIMITS.MAX_LEN, 'a long label is truncated, not rejected');
+  const many = Array.from({ length: 200 }, (_, i) => 'h' + i);
+  assertEq(sanitizeHints(many).length, HINT_LIMITS.MAX_CELLS, 'the count is capped');
+  assertEq(sanitizeHints(['a', 'b', 'c'], 2), ['a', 'b'], 'a caller can cap below the ceiling (cell count)');
+}
+
+// The index→id translation. This is the one place the reading-order storage
+// meets the id-keyed runtime, and it must run AFTER instantiation.
+{
+  const tree = presetTree('2x2', counter());
+  const order = readingOrder(computeCellRects(tree, BOX));
+  const map = hintsToCellMap(tree, ['TL', 'TR', 'BL', 'BR'], BOX);
+  assertEq(map[order[0]], 'TL', 'index 0 lands on the first cell in READING order');
+  assertEq(map[order[1]], 'TR', 'index 1 lands on the second');
+  assertEq(map[order[3]], 'BR', 'index 3 lands on the last');
+  // 2x2 is stored column-major, so an id-keyed scheme would have put TR bottom-left.
+  assertEq(Object.keys(map).length, 4, 'every label maps');
+}
+{
+  const tree = presetTree('3up', counter());
+  const order = readingOrder(computeCellRects(tree, BOX));
+  const map = hintsToCellMap(tree, ['A', '', 'C'], BOX);
+  assertEq(Object.keys(map).sort(), [order[0], order[2]].sort(), 'blank labels produce no entry');
+}
+assertEq(hintsToCellMap(null, ['A'], BOX), null, 'no tree → no map');
+assertEq(hintsToCellMap(presetTree('3up', counter()), null, BOX), null, 'no hints → no map');
+{
+  // One tree, used for both the call and the expectation — instantiating twice
+  // mints different ids, which is the whole point of instantiateLayout.
+  const one = presetTree('single', counter());
+  const only = readingOrder(computeCellRects(one, BOX))[0];
+  assertEq(hintsToCellMap(one, ['A', 'B', 'C'], BOX), { [only]: 'A' },
+    'more labels than cells: the extras are simply unused');
+}
+
+// bodyFromGrid carries them, and still omits the key when there is nothing to say.
+{
+  const t = presetById('2x2').tree;
+  assertEq(Object.keys(bodyFromGrid(t)).sort(), ['layout'], 'no hints → no hints key');
+  assertEq(Object.keys(bodyFromGrid(t, null, ['', ''])).sort(), ['layout'], 'blank hints → no hints key');
+  const b = bodyFromGrid(t, null, ['WIDE', 'TIGHT']);
+  assertEq(b.hints, ['WIDE', 'TIGHT'], 'real hints are stored');
+  assertEq(Object.keys(bodyFromGrid(t, { fontSize: 12 }, ['A'])).sort(), ['hints', 'layout', 'textStyle'],
+    'hints sit alongside layout and textStyle');
+  assert(JSON.stringify(bodyFromGrid(t, null, ['A'])).length < 16384, 'a labelled body still fits the 0265 size check');
+}
+
+// rowFromRecord sanitizes on the way OUT too — a community template's labels
+// are text somebody else wrote.
+{
+  const rec = { id: 'g1', name: 'T', body: { layout: presetById('3up').tree, hints: ['<i>A</i>', 2, 'C'] } };
+  assertEq(rowFromRecord(rec, SOURCES.COMMUNITY).hints, ['A', '', 'C'], 'stored hints are re-sanitized on read');
+  const bare = { id: 'g2', name: 'T', body: { layout: presetById('3up').tree } };
+  assertEq(rowFromRecord(bare, SOURCES.USER).hints, null, 'a record with no hints reads as null');
 }
 
 console.log(`gridLayoutLibrary.test: ${passed} passed, ${failed} failed`);
