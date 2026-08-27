@@ -9910,6 +9910,35 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 }
 .tob-thick:hover { background: var(--bg-hov); }
 .tob-thick.is-active { background: var(--bg-act); border-color: var(--line-3); }
+/* "Draw with finger" — a switch, not a command, so it reads as on/off rather
+   than as something that fires. Gold is the active state, which is exactly what
+   --soleil is reserved for. */
+.tob-toggle[role="switch"] { white-space: nowrap; }
+.tob-toggle[role="switch"][aria-checked="true"] {
+  background: var(--soleil-soft);
+  border-color: var(--soleil);
+  color: var(--ink-0);
+}
+
+/* Touch sizing for the draw options.
+   The swatches were 18px and the thickness buttons 26px tall — under half the
+   44px this app already holds itself to elsewhere (.ctx-item is 40px, the
+   resize handles bump on coarse pointers). Drawing is the one tool people
+   reach for MOST on a tablet, so its controls were the worst-sized in the app.
+   The ::after expands the hit box only as far as the gap allows, so neighbours
+   never overlap and a near-miss lands on nothing rather than on the wrong
+   colour. */
+@media (pointer: coarse) {
+  .tob-swatches { gap: 8px; }
+  .tob-sw { width: 32px; height: 32px; border-radius: 6px; position: relative; }
+  .tob-sw::after { content: ''; position: absolute; inset: -4px; }
+  .tob-sw:hover { transform: none; } /* no hover on touch — it just sticks */
+  .tob-thickness { gap: 8px; }
+  .tob-thick { width: 48px; height: 40px; }
+  .tob-action, .tob-segmented button { min-height: 40px; }
+  .tob-icon-btn { min-width: 40px; }
+}
+
 .tob-pop-wrap { position: relative; display: inline-block; }
 .tob-pop {
   position: absolute;

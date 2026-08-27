@@ -62,6 +62,7 @@ import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
 import { trackStroke } from '../lib/pointerStroke.js';
 import { eraseStrokes, readCardStrokes } from '../lib/strokeModel.js';
+import { notePointerType, pointerCanDraw } from '../lib/pointerPolicy.js';
 import { toPathD } from '../lib/strokeRender.js';
 import { findTouchScrollable, driveTouchScroll, startTouchScrollGesture } from '../lib/touchScroll.js';
 import { resolveSrc } from '../lib/r2.js';
@@ -5921,9 +5922,56 @@ export function CanvasSurface({
 
     // Drawing
     if (selectedTool === 'draw') {
+      // A stylus anywhere on this device switches the finger from a drawing
+      // implement to a navigation one — see lib/pointerPolicy.js for why palm
+      // rejection can't be solved by pointerId filtering alone. Announce the
+      // switch the first time so it doesn't read as the app breaking.
+      if (notePointerType(e.pointerType)) {
+        feedbackRef.current?.toast({
+          type: 'info',
+          message: 'Stylus detected — your finger now pans instead of drawing. Change this under Brush in the draw options.',
+          ttl: 7000,
+        });
+      }
+      if (!pointerCanDraw(e.pointerType)) { startPan(e); return; }
       e.preventDefault();
+      markCanvasInteracting(); // fade the rail / bottom nav out of the way
       const start = clientToCanvas(e.clientX, e.clientY);
       const points = [[start.x, start.y]];
+      // Sample threshold in SCREEN pixels, not board units. A fixed board-space
+      // gate means the filter changes meaning with zoom: at 0.2x it was a third
+      // of a screen pixel (so nothing was filtered and the point arrays ran
+      // huge), and at 4x it was six screen pixels, which is visibly faceted.
+      const minStep = 1.2 / (zoomRef.current || 1);
+      // Two fingers means pinch-zoom, not drawing. The first finger has already
+      // started this stroke by the time the second lands, and the pinch handler
+      // mutates zoomRef/panRef underneath us — so every subsequent sample maps
+      // through a moving transform and the committed line is a smear. Discard
+      // it. startPan solves the same race the same way.
+      let aborted = false;
+      let disposeStroke = null;
+      const endGesture = () => {
+        window.removeEventListener('pointerdown', onSecondTouch, true);
+        if (pointerOpAbortRef.current === abortStroke) pointerOpAbortRef.current = null;
+      };
+      const abortStroke = () => {
+        aborted = true;
+        // dispose() tears the window listeners down WITHOUT running onEnd, so
+        // nothing commits. Escape used to null activeStroke and leave the
+        // listeners live.
+        disposeStroke?.();
+        endGesture();
+        setActiveStroke(null);
+      };
+      const onSecondTouch = (ev) => {
+        if (ev.pointerType !== 'touch' || ev.pointerId === e.pointerId) return;
+        abortStroke();
+      };
+      if (e.pointerType === 'touch') {
+        window.addEventListener('pointerdown', onSecondTouch, true);
+      }
+      // Escape aborts the stroke through the same path.
+      pointerOpAbortRef.current = abortStroke;
       // Routing is decided at COMMIT (in onUp) so the whole stroke is
       // considered, not just the start point — drawing into an art
       // canvas should land in that canvas even if the cursor began
@@ -5974,20 +6022,21 @@ export function CanvasSurface({
         const addPoint = (cx, cy) => {
           const p = clientToCanvas(cx, cy);
           const last = points[points.length - 1];
-          if (Math.hypot(p.x - last[0], p.y - last[1]) < 1.5) return;
+          if (Math.hypot(p.x - last[0], p.y - last[1]) < minStep) return;
           points.push([Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10]);
         };
         // Hardened tracking (pointerId filter + rAF coalesce + pointercancel) —
         // see lib/pointerStroke.js. Commit on cancel too so an iOS palm-reject
         // mid-erase doesn't strand the gesture.
-        trackStroke({
+        disposeStroke = trackStroke({
           pointerId: e.pointerId,
           onSample: (ev) => {
             for (const s of (ev.getCoalescedEvents?.() || [ev])) addPoint(s.clientX, s.clientY);
             setActiveStroke({ color: 'rgba(239,68,68,.75)', width: radius * 2, points: [...points], eraser: true });
           },
           onEnd: () => {
-            if (points.length > 1) {
+            endGesture();
+            if (!aborted && points.length > 1) {
               const targetCard = pickStrokeTarget(points);
               // eraseStrokes reports whether the swipe actually cut anything, so
               // a pass over empty canvas writes nothing to the Y.Doc and leaves
@@ -6020,12 +6069,18 @@ export function CanvasSurface({
         });
         return;
       }
-      const { color, width } = drawOptions;
+      // Width is stored in BOARD units but chosen in screen pixels, so scale it
+      // by the live zoom at creation. Without this the picker lies: a "3px" line
+      // drawn at 0.25x came out a quarter as thick as the swatch showed, and at
+      // 4x it came out four times as thick. Every infinite-canvas tool commits
+      // what you actually see under the cursor.
+      const { color } = drawOptions;
+      const width = drawOptions.width / (zoomRef.current || 1);
       setActiveStroke({ color, width, points: [...points] });
       const addPoint = (cx, cy) => {
         const p = clientToCanvas(cx, cy);
         const last = points[points.length - 1];
-        if (Math.hypot(p.x - last[0], p.y - last[1]) < 1.5) return;
+        if (Math.hypot(p.x - last[0], p.y - last[1]) < minStep) return;
         points.push([Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10]);
       };
       // Hardened tracking — the un-coalesced setActiveStroke-per-event loop here
@@ -6034,14 +6089,15 @@ export function CanvasSurface({
       // getCoalescedEvents keeps the line smooth; pointercancel guarantees
       // cleanup (and commits the stroke) on an iOS palm-reject. See
       // lib/pointerStroke.js.
-      trackStroke({
+      disposeStroke = trackStroke({
         pointerId: e.pointerId,
         onSample: (ev) => {
           for (const s of (ev.getCoalescedEvents?.() || [ev])) addPoint(s.clientX, s.clientY);
           setActiveStroke({ color, width, points: [...points] });
         },
         onEnd: () => {
-          if (points.length > 1) {
+          endGesture();
+          if (!aborted && points.length > 1) {
             const targetCard = pickStrokeTarget(points);
             if (targetCard) {
               // Translate to card-local coords so the stroke stays bounded
@@ -9232,6 +9288,19 @@ export function CanvasSurface({
                   strokeWidth={activeStroke.width}
                   strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
           )}
+          {/* Live eraser ring at the contact point. The size-accurate eraser
+              CURSOR above it is a CSS cursor, which does not exist on a touch
+              screen — a finger erasing had no indication of its radius at all,
+              so you found out what you'd hit only after lifting. Drawn in the
+              canvas transform, so it tracks zoom for free. */}
+          {activeStroke?.eraser && activeStroke.points.length > 0 && (() => {
+            const [ex, ey] = activeStroke.points[activeStroke.points.length - 1];
+            return (
+              <circle cx={ex} cy={ey} r={Math.max(activeStroke.width / 2, 1)}
+                      fill="none" stroke="#ef4444" strokeOpacity="0.9"
+                      strokeWidth={1.5 / zoom} pointerEvents="none" />
+            );
+          })()}
           {/* Selected-stroke transform overlay: bbox + corner handles for
               moving / uniform-scaling the selected strokes. Lives inside
               the strokes-layer SVG so it shares the canvas transform. */}
