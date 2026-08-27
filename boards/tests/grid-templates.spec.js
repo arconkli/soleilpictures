@@ -116,32 +116,62 @@ test.describe('grid templates — the rail panel', () => {
     await expect(page.locator('.gridc-divider-x')).toHaveCount(2);  // 3 across, not storyboard
   });
 
-  // The panel is inside .canvas-wrap, where the wheel is claimed for zoom and
-  // touch-action is none. Both had to be carved out explicitly or the list
-  // simply would not move.
-  test('the list scrolls instead of zooming the canvas', async ({ page }) => {
-    // A short window on purpose. The panel is capped at 72vh, so on a tall
-    // display the ten built-ins fit and nothing scrolls — which is exactly why
-    // this was easy to miss. Shrinking the viewport reproduces the real
-    // condition: a list taller than the panel, inside a canvas that claims the
-    // wheel for zoom.
-    await page.setViewportSize({ width: 1280, height: 480 });
+  // This is the test that should have existed first. The previous one set a
+  // 480px-tall viewport to force overflow, which made it pass while the real
+  // thing was broken at every normal window size: the panel opened at the grid
+  // BUTTON's y — roughly 60% down a vertically-centred rail — and its
+  // max-height was measured against the viewport, so it hung 114-205px below
+  // the bottom of the screen. The content still fit inside max-height, so the
+  // scroll container never activated and the last rows were both invisible and
+  // unreachable.
+  //
+  // So: a NORMAL viewport, and assert the three things that were each false.
+  test('the panel fits on screen and the whole list is reachable', async ({ page }) => {
     await gridTool(page).click();
     const scroller = panel(page).locator('.tplt-scroll');
     await expect(scroller).toBeVisible();
 
-    const overflows = await scroller.evaluate((el) => el.scrollHeight > el.clientHeight + 1);
-    expect(overflows, 'the list should be taller than the panel at this height').toBe(true);
+    const geom = await panel(page).evaluate((el) => ({
+      offscreenBy: Math.round(el.getBoundingClientRect().bottom - window.innerHeight),
+      portaled: el.parentElement === document.body,
+    }));
+    expect(geom.portaled, 'must escape the rail stacking context').toBe(true);
+    expect(geom.offscreenBy, 'panel must not hang below the viewport').toBeLessThanOrEqual(0);
+
+    // With the height now clamped to real space, the built-ins genuinely overflow.
+    expect(await scroller.evaluate((el) => el.scrollHeight > el.clientHeight + 1)).toBe(true);
 
     const zoomBefore = await page.evaluate(() => document.querySelector('.canvas')?.style.transform || '');
     await scroller.hover();
-    await page.mouse.wheel(0, 240);
-
+    await page.mouse.wheel(0, 2000);
     await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
-    // ...and the canvas underneath did NOT zoom, which is the half that was
-    // actually broken: the wheel fell through and CanvasSurface ate it.
+
+    // The last row is actually reachable, not merely scrolled toward.
+    const lastVisible = await page.evaluate(() => {
+      const scroll = document.querySelector('.tplt-scroll');
+      const rows = [...document.querySelectorAll('.cnv-tpl-panel .tplt-row-wrap')];
+      const lr = rows[rows.length - 1].getBoundingClientRect();
+      const sr = scroll.getBoundingClientRect();
+      return lr.bottom <= sr.bottom + 1 && lr.bottom <= window.innerHeight;
+    });
+    expect(lastVisible, 'the last template must be reachable by scrolling').toBe(true);
+
+    // ...and the canvas underneath never zoomed, which is the other half.
     const zoomAfter = await page.evaluate(() => document.querySelector('.canvas')?.style.transform || '');
     expect(zoomAfter).toBe(zoomBefore);
+  });
+
+  // A short window has no room below the button for a usable list, so the panel
+  // repositions to the top edge rather than squeezing into a sliver.
+  test('a short window repositions the panel instead of shrinking it', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await gridTool(page).click();
+    const geom = await panel(page).evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { top: Math.round(r.top), bottom: Math.round(r.bottom), vh: window.innerHeight };
+    });
+    expect(geom.top).toBeGreaterThanOrEqual(0);
+    expect(geom.bottom).toBeLessThanOrEqual(geom.vh);
   });
 
   // Every built-in ships a thumbnail drawn from the same computeCellRects the

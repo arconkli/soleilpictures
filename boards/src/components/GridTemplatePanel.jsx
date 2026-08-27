@@ -1,4 +1,5 @@
-import { useState, useRef, useMemo, useEffect } from 'react';
+import { useState, useRef, useMemo, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { GridLayoutThumb } from './GridLayoutThumb.jsx';
 import { filterSections, SOURCES } from '../lib/gridLayoutLibrary.js';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
@@ -24,9 +25,27 @@ import './gridTemplatePanel.css';
 // Presentation only: it renders the rows it is handed, calls onPick, and asks
 // the parent what a row's actions are.
 //
-// Anchored to the rail on desktop, exactly like .cnv-add-menu. On mobileShell it
-// becomes a bottom Sheet: the rail already overflows on landscape phones and
-// drives its own scroll with a pointer gesture, so it cannot host a tall flyout.
+// PORTALED to <body> and positioned in JS, rather than absolutely placed inside
+// the rail the way .cnv-add-menu is. That is not a style preference — the rail
+// version was broken in two ways that no CSS could reach:
+//
+//   • The panel opened at the grid BUTTON's y, roughly 60% down the rail, and
+//     its max-height was measured against the VIEWPORT. Measured at three normal
+//     window sizes it hung 114–205px below the bottom of the screen, and because
+//     the content still fit inside max-height the scroll container never
+//     activated — so the last rows were both invisible and unreachable.
+//   • .cnv-tools carries `transform: translateY(-50%)`, which creates a stacking
+//     context, so any z-index here was scoped inside the rail and lost to
+//     .cnv-depth-dock.
+//
+// Positioning in JS fixes both: the panel is clamped to the space that actually
+// exists, so max-height is real and the list scrolls exactly when it should.
+// This is the same portal-and-clamp approach .cnv-quick-add and the card context
+// menus already use.
+//
+// On mobileShell it becomes a bottom Sheet instead: the rail already overflows on
+// landscape phones and drives its own scroll with a pointer gesture, so it
+// cannot host a tall flyout at all.
 
 function TemplateRow({ row, onPick, rowActions, active, onHover }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -91,13 +110,46 @@ function TemplateRow({ row, onPick, rowActions, active, onHover }) {
   );
 }
 
+// Keep clear of the viewport edges, and never render a panel so short that the
+// list inside it is useless — below this we reposition rather than shrink.
+const EDGE = 12;
+const MIN_H = 260;
+const MAX_H = 600;
+
 export function GridTemplatePanel({
   open, onClose, sections, onPick, applyTargetId, mobileShell,
-  rowActions = null, onSaveCurrent = null,
+  rowActions = null, onSaveCurrent = null, anchorRef = null,
 }) {
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(-1);
+  const [box, setBox] = useState(null);
   const scrollRef = useRef(null);
+
+  // Place against the live rail button. useLayoutEffect so the panel is never
+  // painted at a stale position, and re-run on resize because the rail is
+  // vertically centred — every window change moves the anchor.
+  useLayoutEffect(() => {
+    if (!open || mobileShell) return undefined;
+    const place = () => {
+      const a = anchorRef?.current?.getBoundingClientRect();
+      if (!a) return;
+      const vh = window.innerHeight;
+      const below = vh - a.top - EDGE;
+      // Prefer aligning with the button. When there isn't room for a usable
+      // list below it, sit the panel against the bottom edge instead of
+      // squeezing it into a sliver.
+      const maxHeight = below >= MIN_H
+        ? Math.min(MAX_H, below)
+        : Math.min(MAX_H, vh - EDGE * 2);
+      const top = below >= MIN_H
+        ? a.top
+        : Math.max(EDGE, vh - EDGE - maxHeight);
+      setBox({ left: Math.round(a.right + 8), top: Math.round(top), maxHeight: Math.round(maxHeight) });
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [open, mobileShell, anchorRef]);
 
   const shown = useMemo(() => filterSections(sections, query), [sections, query]);
   // One flat list of every visible row, so arrow keys can cross section
@@ -206,9 +258,19 @@ export function GridTemplatePanel({
     return <Sheet open={open} onClose={onClose} title="Templates" snap="half">{body}</Sheet>;
   }
 
-  return (
-    <div className="cnv-tpl-panel" role="menu" aria-label="Templates">
+  // Nothing to render until the anchor has been measured — one frame, and it
+  // avoids a flash at the top-left corner.
+  if (!box) return null;
+
+  return createPortal(
+    <div
+      className="cnv-tpl-panel"
+      role="menu"
+      aria-label="Templates"
+      style={{ left: box.left, top: box.top, maxHeight: box.maxHeight }}
+    >
       {body}
-    </div>
+    </div>,
+    document.body,
   );
 }

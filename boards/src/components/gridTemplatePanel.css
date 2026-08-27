@@ -21,11 +21,12 @@
    handler early-returns over .cnv-tpl-panel so the browser performs a native
    overflow scroll rather than the canvas eating the wheel as zoom. */
 .cnv-tpl-panel {
-  position: absolute;
-  left: 38px;
-  top: 0;
+  /* Portaled to <body>: left/top/max-height all arrive as inline style from
+     GridTemplatePanel's measure-and-clamp, because the rail is vertically
+     centred and the anchor therefore moves with every window size. Fixed, not
+     absolute — the viewport is what it must stay inside. */
+  position: fixed;
   width: 300px;
-  max-height: min(72vh, 600px);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -35,7 +36,8 @@
   border-radius: var(--radius);
   background: var(--bg-1);
   box-shadow: var(--shadow-2);
-  z-index: 70;
+  /* Above the rail (20) and its tooltips (60); it is body-level now. */
+  z-index: 200;
 }
 
 .tplt-head { flex: 0 0 auto; }
@@ -54,18 +56,14 @@
 .cnv-tpl-wrap { position: relative; }
 .cnv-tpl-wrap .cnv-tool.active[data-tip]::after { display: none; }
 
-/* The depth dock shares this corner, and NO z-index here can beat it.
-   .cnv-tools carries `transform: translateY(-50%)`, which creates a stacking
-   context — so this panel's z-index:70 is scoped INSIDE the rail, and the rail
-   itself only ties with .cnv-depth-dock at z-index 20, with DOM order breaking
-   it. The panel was short enough not to reach the dock until it grew a search
-   field and a taller list; .cnv-add-menu has the same latent trap and is simply
-   never tall enough to hit it.
-
-   Hiding the dock is the fix and the better behaviour anyway: two panels
-   overlapping in one corner reads badly whoever wins, and the dock is an
-   ambient suggestion while this is a deliberate, transient overlay. */
-.canvas-wrap:has(.cnv-tpl-panel) .cnv-depth-dock { display: none; }
+/* The depth dock shares this corner. Portaling to <body> already settles the
+   stacking argument — the panel is no longer trapped in the rail's context —
+   but two panels overlapping in one corner still reads badly, and the dock is
+   an ambient suggestion where this is a deliberate, transient overlay. Note the
+   selector is on `body`, not `.canvas-wrap`: the panel is no longer inside it.
+   (.cnv-add-menu is still absolutely positioned in the rail and inherits the
+   old trap; it is simply never tall enough to reach the dock.) */
+body:has(.cnv-tpl-panel) .cnv-depth-dock { display: none; }
 
 .tplt-hint {
   font: 400 11px/1.4 var(--font-sans);

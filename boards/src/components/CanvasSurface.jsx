@@ -1328,6 +1328,8 @@ export function CanvasSurface({
   // the next canvas click decides where. Cleared whenever the tool disarms, so a
   // later bare G never silently reuses the last template someone chose.
   const [tplPanelOpen, setTplPanelOpen] = useState(false);
+  // The rail's grid button, so the portaled panel can measure where to open.
+  const tplAnchorRef = useRef(null);
   const [pendingGridLayout, setPendingGridLayout] = useState(null);
   // Phone bottom-nav "+" → full add sheet. { pos } = canvas-space drop point
   // captured when the sheet opens (viewport centre); null = closed.
@@ -6131,7 +6133,7 @@ export function CanvasSurface({
     if (document.body.dataset.tourActive === '1' || document.body.dataset.tourVariant) return;
     if (selectedTool !== 'select') return;   // a place tool handles its own click
     // Clicks on UI chrome / cards are not a "make a card here" gesture.
-    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .readonly-banner')) return;
+    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .readonly-banner')) return;
     // A read-only viewer's double-click to create dies here — surface it (the
     // toast self-silences for public/share viewers) and record the block.
     if (!canEdit) { showEditBlockedToast(); noteCreateBlocked('read_only', 'dblclick'); return; }
@@ -6161,7 +6163,7 @@ export function CanvasSurface({
   const onBackgroundPointerDown = (e) => {
     if (e.button === 1) { startPan(e); return; }
     if (e.button !== 0) return;
-    if (e.target.closest('.cnv-tool, .cnv-tools, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .modal-bg, .tob')) return;
+    if (e.target.closest('.cnv-tool, .cnv-tools, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .modal-bg, .tob')) return;
 
     if (focusedCellRef.current) focusCell(null, null); // clicking the canvas drops cell focus
     setAddMenuOpen(false);
@@ -9991,7 +9993,7 @@ export function CanvasSurface({
           );
           if (!isTpl) return <Fragment key={t.id}>{btn}</Fragment>;
           return (
-            <div className="cnv-tpl-wrap" key={t.id}>
+            <div className="cnv-tpl-wrap" key={t.id} ref={tplAnchorRef}>
               {btn}
               <GridTemplatePanel
                 open={tplPanelOpen}
@@ -10000,6 +10002,7 @@ export function CanvasSurface({
                 onPick={pickTemplate}
                 applyTargetId={templateTargetId}
                 mobileShell={mobileShell}
+                anchorRef={tplAnchorRef}
                 // Saving and row actions need a backend. Under ?local=1 (and
                 // signed out) they are simply absent rather than present and
                 // broken — the panel keeps working as the built-in picker.
