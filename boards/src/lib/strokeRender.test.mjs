@@ -15,7 +15,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   BRUSHES,
+  appendStrokeToCard,
   cardLayers,
+  eraseOnCard,
   eraseStrokes,
   hasPressure,
   isConstantWidth,
@@ -198,6 +200,69 @@ test('layer opacity below 1 is folded onto the stroke, not lost', () => {
   });
   assert.equal(out[0].layerOpacity, 0.4);
   assert.equal(strokeOpacity(out[0]), 0.4);
+});
+
+// ── Writing to a card ─────────────────────────────────────────────────────
+// `layers` takes precedence over `strokes` when present, so appending to
+// card.strokes on a layered card writes somewhere no reader looks: the stroke
+// lands in the Y.Doc and never appears. These pin the patch SHAPE.
+
+test('appending to a card without layers still writes the flat strokes array', () => {
+  const existing = legacy([[0, 0], [1, 1]]);
+  const added = legacy([[5, 5], [6, 6]]);
+  const patch = appendStrokeToCard({ kind: 'art', strokes: [existing] }, added);
+  assert.deepEqual(Object.keys(patch), ['strokes']);
+  assert.deepEqual(patch.strokes, [existing, added]);
+  // A card with nothing on it yet.
+  assert.deepEqual(appendStrokeToCard({}, added), { strokes: [added] });
+});
+
+test('appending to a layered card lands on the topmost VISIBLE layer', () => {
+  const added = legacy([[5, 5], [6, 6]]);
+  const card = {
+    layers: [
+      { id: 'a', visible: true, strokes: [] },
+      { id: 'b', visible: true, strokes: [] },
+      { id: 'c', visible: false, strokes: [] },
+    ],
+  };
+  const patch = appendStrokeToCard(card, added);
+  assert.deepEqual(Object.keys(patch), ['layers'], 'must NOT write `strokes` — nothing reads it here');
+  assert.deepEqual(patch.layers[1].strokes, [added], 'b is the topmost visible layer');
+  assert.deepEqual(patch.layers[0].strokes, []);
+  assert.deepEqual(patch.layers[2].strokes, [], 'a hidden layer is not drawn on');
+});
+
+test('a stroke is never dropped when every layer is hidden', () => {
+  const added = legacy([[5, 5], [6, 6]]);
+  const patch = appendStrokeToCard({
+    layers: [{ id: 'a', visible: false, strokes: [] }, { id: 'b', visible: false, strokes: [] }],
+  }, added);
+  assert.deepEqual(patch.layers[1].strokes, [added], 'falls back to the top of the stack');
+});
+
+test('erasing a layered card cuts every visible layer and skips hidden ones', () => {
+  const hit = legacy([[0, 0], [100, 0]]);
+  const hidden = legacy([[0, 0], [100, 0]]);
+  const card = {
+    layers: [
+      { id: 'a', visible: true, strokes: [hit] },
+      { id: 'b', visible: false, strokes: [hidden] },
+    ],
+  };
+  const { changed, patch } = eraseOnCard(card, [[50, -10], [50, 10]], 8);
+  assert.equal(changed, true);
+  assert.deepEqual(Object.keys(patch), ['layers']);
+  assert.equal(patch.layers[0].strokes.length, 2, 'the visible stroke was split in two');
+  assert.equal(patch.layers[1], card.layers[1], 'the hidden layer is untouched, by identity');
+});
+
+test('erasing nothing on a card produces no patch at all', () => {
+  const s = legacy([[0, 0], [10, 0]]);
+  assert.deepEqual(eraseOnCard({ strokes: [s] }, [[0, 500], [10, 500]], 8),
+    { changed: false, patch: null });
+  assert.deepEqual(eraseOnCard({ layers: [{ id: 'a', visible: true, strokes: [s] }] },
+    [[0, 500], [10, 500]], 8), { changed: false, patch: null });
 });
 
 // ── Eraser ────────────────────────────────────────────────────────────────
