@@ -8836,6 +8836,263 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "heading",
+   "depth": 3,
+   "text": "Saving your own",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Saving your own"
+    }
+   ],
+   "id": "saving-your-own"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Select a grid you like the shape of and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Save this grid as a template",
+     "children": [
+      {
+       "t": "text",
+       "v": "Save this grid as a template"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the bottom of the panel. It saves the "
+    },
+    {
+     "t": "em",
+     "v": "shape",
+     "children": [
+      {
+       "t": "text",
+       "v": "shape"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — the cells and their proportions — and not what is in them, so a saved template is a skeleton you fill in fresh each time."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Your templates appear under "
+    },
+    {
+     "t": "strong",
+     "v": "My templates",
+     "children": [
+      {
+       "t": "text",
+       "v": "My templates"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", above the built-ins. Each one has a "
+    },
+    {
+     "t": "strong",
+     "v": "···",
+     "children": [
+      {
+       "t": "text",
+       "v": "···"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Action"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What it does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Rename",
+       "children": [
+        {
+         "t": "text",
+         "v": "Rename"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Changes the name in your library."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Share with workspace",
+       "children": [
+        {
+         "t": "text",
+         "v": "Share with workspace"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Moves it to "
+      },
+      {
+       "t": "strong",
+       "v": "Workspace",
+       "children": [
+        {
+         "t": "text",
+         "v": "Workspace"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", where every member of the current workspace can use it. "
+      },
+      {
+       "t": "strong",
+       "v": "Make private",
+       "children": [
+        {
+         "t": "text",
+         "v": "Make private"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " moves it back."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Copy share link",
+       "children": [
+        {
+         "t": "text",
+         "v": "Copy share link"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Creates a link to the template. Anyone who opens it gets their own copy."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Delete",
+       "children": [
+        {
+         "t": "text",
+         "v": "Delete"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Removes it, with an Undo toast."
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A workspace template can be renamed and edited by any member, but only the person who made it can create a share link for it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Share links",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Share links"
+    }
+   ],
+   "id": "share-links"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A share link points at the template's shape, nothing else — it carries no images, no text, and nothing about the board it came from. Opening one shows the layout and offers to add it to your own templates; whoever opens it gets a "
+    },
+    {
+     "t": "strong",
+     "v": "copy",
+     "children": [
+      {
+       "t": "text",
+       "v": "copy"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " they can rename or delete, and yours is unaffected. Deleting the template makes every link to it stop working."
+    }
+   ]
+  },
+  {
    "type": "para",
    "inline": [
     {

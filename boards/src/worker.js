@@ -227,6 +227,10 @@ const UUID_RE = /^[0-9a-f-]{36}$/i;
 // of the DB CHECK (which forbids consecutive/edge hyphens) — the DB is the real
 // gate; the route only needs to catch every valid slug. A non-matching-but-
 // routed slug just resolves to no published board → default meta, no noindex.
+// /t/<uuid> — a shared grid template (migration 0265). Kept in lockstep with
+// templateShareMatch in main.jsx: widening one without the other means the
+// Worker and React disagree about what is a real route.
+const TEMPLATE_SHARE_PATH_RE = /^\/t\/([0-9a-f-]{36})\/?$/i;
 const PUBLIC_BOARD_PATH_RE = /^\/c\/([a-z0-9][a-z0-9-]{0,79})\/?$/;
 const EXPLORE_PATH_RE = /^\/explore\/?$/;
 
@@ -611,6 +615,27 @@ export default {
       if (!meta?.public_slug && !meta?.allow_indexing) {
         out.headers.set('x-robots-tag', 'noindex');
       }
+      return out;
+    }
+
+    // Shared grid templates: /t/<token>. Unlike /share this needs no lookup —
+    // the meta is the same for every template, because the page is noindex and
+    // the unfurl only has to say what kind of thing the link is. Fetching the
+    // template's name would buy a slightly nicer preview at the cost of an RPC
+    // on every hit and a new failure mode on a page whose whole point is being
+    // cheap.
+    //
+    // noindex, and canonical pointing at /templates: a per-token URL is a
+    // duplicate of the gallery, and hundreds of them competing with it is how a
+    // share feature quietly becomes an SEO problem. The x-robots-tag HEADER is
+    // the directive rather than a meta tag because it is equally authoritative
+    // and also reaches fetchers that never parse HTML.
+    if (isPageReq && TEMPLATE_SHARE_PATH_RE.test(url.pathname) && contentType.includes('text/html')) {
+      const out = withRevalidate(injectRouteMeta(res, {
+        title: 'Grid template — Soleil Clusters',
+        description: 'Someone shared a grid layout with you. Open it to add the template to your own Clusters workspace.',
+      }, `${SITE_ORIGIN}/templates`));
+      out.headers.set('x-robots-tag', 'noindex');
       return out;
     }
 

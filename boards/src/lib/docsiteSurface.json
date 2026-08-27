@@ -424,7 +424,8 @@
       "scoutMatch = /^\\/scout\\/?$/i.test(PATH)",
       "seoLandingMatch = /^\\/(?:tools\\/|vs\\/|use-cases(?:\\/|$))/i.test(PATH)",
       "seoListicleMatch = /^\\/best\\//i.test(PATH)",
-      "shareMatch = PATH.match(/^\\/share\\/([0-9a-f-]{36})\\/?$/i)"
+      "shareMatch = PATH.match(/^\\/share\\/([0-9a-f-]{36})\\/?$/i)",
+      "templateShareMatch = PATH.match(/^\\/t\\/([0-9a-f-]{36})\\/?$/i)"
     ]
   }
 }

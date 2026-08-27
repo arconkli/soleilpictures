@@ -42,6 +42,7 @@ const DocsPage        = lazyWithReload(() => import('./pages/DocsPage.jsx').then
 const ChangelogPage   = lazyWithReload(() => import('./pages/ChangelogPage.jsx').then(m => ({ default: m.ChangelogPage })));
 const OAuthConsentPage = lazyWithReload(() => import('./pages/OAuthConsentPage.jsx').then(m => ({ default: m.OAuthConsentPage })));
 const ResumePage      = lazyWithReload(() => import('./pages/ResumePage.jsx').then(m => ({ default: m.ResumePage })));
+const TemplateSharePage = lazyWithReload(() => import('./pages/TemplateSharePage.jsx').then(m => ({ default: m.TemplateSharePage })));
 
 // First-party error logging: capture uncaught errors + unhandled promise
 // rejections into our own client_errors table (see lib/errorReporting.js).
@@ -149,6 +150,14 @@ if (typeof window !== 'undefined' &&
 // non-account-holders can preview a board without signing up. Any
 // other path falls through to the normal app + auth gate.
 const shareMatch = window.location.pathname.match(/^\/share\/([0-9a-f-]{36})\/?$/i);
+
+// /t/<uuid> = a shared GRID TEMPLATE (migration 0265). Same trust model as
+// /share — the token in the path is the whole authorization — but a far lighter
+// page: a template is layout geometry, so the viewer is an SVG diagram and a
+// name, and it must never pull in the editor chunk the way the board viewer
+// does. The uuid shape is matched here so a malformed token never reaches the
+// RPC, which takes a uuid argument and would 400 on anything else.
+const templateShareMatch = window.location.pathname.match(/^\/t\/([0-9a-f-]{36})\/?$/i);
 
 // /c/<slug> = admin-curated public marketing board (migration 0136); /explore =
 // the public board index. Both bypass auth and render the public viewer chunk,
@@ -432,6 +441,8 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
               <PublicBoardView slug={publicBoardMatch[1]} />
             ) : shareMatch ? (
               <PublicBoardView token={shareMatch[1]} />
+            ) : templateShareMatch ? (
+              <TemplateSharePage token={templateShareMatch[1]} />
             ) : oauthConsentMatch ? (
               <AuthGate>
                 <OAuthConsentPage />

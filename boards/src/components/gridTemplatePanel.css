@@ -69,6 +69,12 @@
   gap: 4px;
 }
 
+/* The row is a WRAPPER, not the button. A saved template's "···" trigger is a
+   SIBLING of the pick-button, because a <button> may not contain a <button> —
+   nesting them is invalid HTML and Chromium resolves the click to whichever it
+   feels like. */
+.tplt-row-wrap { position: relative; min-width: 0; }
+
 .tplt-row {
   display: flex;
   flex-direction: column;
@@ -82,6 +88,7 @@
   font: inherit;
   cursor: pointer;
   min-width: 0;
+  width: 100%;
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 .tplt-row:hover { background: var(--bg-hov); border-color: var(--line-2); }
@@ -112,6 +119,78 @@
   stroke-width: .75;
 }
 .tplt-row:hover .tplt-thumb rect { stroke: var(--ink-3); }
+
+/* Hidden until the tile is hovered or the trigger itself has focus, so a wall of
+   built-ins stays clean and only your own templates grow an affordance. Keyboard
+   users reach it through :focus-visible, which is why focus-within is here. */
+.tplt-row-more {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--ink-2);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.tplt-row-wrap:hover .tplt-row-more,
+.tplt-row-wrap:focus-within .tplt-row-more { opacity: 1; }
+.tplt-row-more:hover { color: var(--ink-0); background: var(--bg-act); }
+/* Touch has no hover, so the affordance would never appear. */
+@media (hover: none) and (pointer: coarse) { .tplt-row-more { opacity: 1; } }
+
+.tplt-row-menu {
+  position: absolute;
+  top: 22px;
+  right: 2px;
+  z-index: 2;
+  min-width: 148px;
+  padding: 4px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--bg-1);
+  box-shadow: var(--shadow-2);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.tplt-row-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-1);
+  font: 400 12px/1.2 var(--font-sans);
+  cursor: pointer;
+}
+.tplt-row-menu button:hover { background: var(--bg-hov); color: var(--ink-0); }
+.tplt-row-menu button.is-danger { color: var(--danger, #e5484d); }
+
+.tplt-save {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--bg-2);
+  color: var(--ink-1);
+  font: 500 12px/1.2 var(--font-sans);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.tplt-save:hover { background: var(--bg-hov); color: var(--ink-0); }
 
 .tplt-empty {
   font: 400 12px/1.4 var(--font-sans);

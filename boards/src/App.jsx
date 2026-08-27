@@ -35,6 +35,7 @@ import { ReferralNudge } from './components/ReferralNudge.jsx';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
 import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
 import { readRemix, clearRemix } from './lib/remix.js';
+import { claimGridLayoutLink } from './lib/gridLayoutsApi.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
@@ -4537,6 +4538,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!src) return;
     remixConsumedRef.current = true;
     clearRemix();   // one-shot: never re-clone on reload
+    // A grid TEMPLATE claim rides the same stash (so it survives the OTP hop)
+    // but is a different verb: it copies one ~1KB row into the user's library
+    // rather than cloning a board. No board is created, so it short-circuits
+    // before all of the snapshot machinery below.
+    if (src.kind === 'template') {
+      (async () => {
+        try {
+          await claimGridLayoutLink(src.value);
+          feedback.toast({ message: 'Template added — open the grid tool to use it.' });
+        } catch (e) {
+          feedback.toast({ type: 'info', message: 'That template link is no longer live.' });
+        }
+      })();
+      return;
+    }
     (async () => {
       try {
         const b = await createBoard({ workspaceId: workspace.id, parentBoardId: rootBoard.id, name: 'Remix', view: 'canvas', userId: user.id });

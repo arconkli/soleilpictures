@@ -1010,6 +1010,24 @@ A grid selected — that grid is re-cut in place.
 
 Re-cutting keeps your work. Cell content moves to the new cells in reading order, so the first filled cell stays first. If the new shape has fewer cells than you had filled, the leftovers are dropped and the Undo toast says how many. Pressing G skips the panel and places the default storyboard immediately.
 
+Saving your own
+
+Select a grid you like the shape of and choose Save this grid as a template at the bottom of the panel. It saves the shape — the cells and their proportions — and not what is in them, so a saved template is a skeleton you fill in fresh each time.
+
+Your templates appear under My templates, above the built-ins. Each one has a ··· menu:
+
+Action | What it does
+Rename | Changes the name in your library.
+Share with workspace | Moves it to Workspace, where every member of the current workspace can use it. Make private moves it back.
+Copy share link | Creates a link to the template. Anyone who opens it gets their own copy.
+Delete | Removes it, with an Undo toast.
+
+A workspace template can be renamed and edited by any member, but only the person who made it can create a share link for it.
+
+Share links
+
+A share link points at the template's shape, nothing else — it carries no images, no text, and nothing about the board it came from. Opening one shows the layout and offers to add it to your own templates; whoever opens it gets a copy they can rename or delete, and yours is unaffected. Deleting the template makes every link to it stop working.
+
 Generate matrix builds an empty N×M grid at whatever size you name — the fast path to a contact sheet larger than any template.
 
 Reading order
