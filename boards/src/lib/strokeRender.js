@@ -30,10 +30,6 @@ export function strokeOpacity(stroke) {
   return brush * layer;
 }
 
-export function strokeBlendMode(stroke) {
-  return brushParams(stroke).blend;
-}
-
 export function strokeLineCap(stroke) {
   return brushParams(stroke).cap;
 }
@@ -118,9 +114,6 @@ export function drawStroke(ctx, stroke, { offX = 0, offY = 0, ppu = 1 } = {}) {
   ctx.save();
   const alpha = strokeOpacity(stroke);
   if (alpha !== 1) ctx.globalAlpha = alpha;
-  const blend = strokeBlendMode(stroke);
-  if (blend) ctx.globalCompositeOperation = blend;
-
   if (isConstantWidth(stroke)) {
     ctx.strokeStyle = strokeColor(stroke);
     ctx.lineWidth = Math.max(strokeWidth(stroke) || DEFAULT_STROKE_WIDTH, 1.2 / (ppu || 1));

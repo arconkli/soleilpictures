@@ -53,7 +53,12 @@ import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { Sheet } from './shell/Sheet.jsx';
 import { GridTemplatePanel } from './GridTemplatePanel.jsx';
-import { mergeSections } from '../lib/gridLayoutLibrary.js';
+import { mergeSections, rowsFromRecords, bodyFromGrid, SOURCES } from '../lib/gridLayoutLibrary.js';
+import { useGridLayouts } from '../hooks/useGridLayouts.js';
+import {
+  saveGridLayout, renameGridLayout, setGridLayoutScope,
+  deleteGridLayout, restoreGridLayout, createGridLayoutLink,
+} from '../lib/gridLayoutsApi.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
@@ -65,7 +70,7 @@ import { lowMemoryDevice } from '../lib/device.js';
 import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
 import { eraseStrokes, eraseOnCard, appendStrokeToCard, readCardStrokes, strokeInPolygon } from '../lib/strokeModel.js';
 import { notePointerType, pointerCanDraw } from '../lib/pointerPolicy.js';
-import { toPathD, polylinePathD, isFilledPath, strokeOpacity, strokeBlendMode, strokeLineCap } from '../lib/strokeRender.js';
+import { toPathD, polylinePathD, isFilledPath, strokeOpacity, strokeLineCap } from '../lib/strokeRender.js';
 import { DEFAULT_BRUSH } from '../lib/strokeModel.js';
 import { findTouchScrollable, driveTouchScroll, startTouchScrollGesture } from '../lib/touchScroll.js';
 import { resolveSrc } from '../lib/r2.js';
@@ -1907,10 +1912,33 @@ export function CanvasSurface({
   }
 
   // ── Templates panel ────────────────────────────────────────────────────────
-  // Phase A ships the built-in catalogue only, which is a module constant — no
-  // fetch, no loading state, works offline and under ?local=1. Saved and shared
-  // templates become extra sections here without the panel changing.
-  const templateSections = useMemo(() => mergeSections(), []);
+  // Built-ins are a module constant, so the panel always has something to show:
+  // offline, signed out, and under ?local=1 (which has no supabase client at
+  // all). Saved rows are fetched lazily the first time the panel opens — see
+  // useGridLayouts for why this is not a realtime subscription.
+  //
+  // ?local=1 passes the literal 'local-workspace' rather than a uuid, so the
+  // truthiness check alone is not enough to keep the harness off the network.
+  const templatesEnabled = !!userId && !!workspaceId && workspaceId !== 'local-workspace';
+  const { rows: savedLayouts, ensureLoaded: ensureGridLayouts, reload: reloadGridLayouts } =
+    useGridLayouts(templatesEnabled ? userId : null);
+  useEffect(() => { if (tplPanelOpen) ensureGridLayouts(); }, [tplPanelOpen, ensureGridLayouts]);
+
+  // One RLS query returns everything the caller may see, so the split into
+  // sections happens here rather than as two round-trips. "Workspace" shows only
+  // the ACTIVE workspace — a member of three workspaces shouldn't see all three
+  // libraries stacked in one panel.
+  const templateSections = useMemo(() => {
+    const mine = rowsFromRecords(
+      savedLayouts.filter((r) => r.created_by === userId && r.scope !== 'workspace'),
+      SOURCES.USER,
+    );
+    const workspace = rowsFromRecords(
+      savedLayouts.filter((r) => r.scope === 'workspace' && r.workspace_id === workspaceId),
+      SOURCES.WORKSPACE,
+    );
+    return mergeSections({ mine, workspace });
+  }, [savedLayouts, userId, workspaceId]);
 
   // The grid a template would re-cut: exactly one card selected and it IS a grid.
   // Anything else — nothing selected, a multi-select, a note — means "place a new
@@ -1963,6 +1991,106 @@ export function CanvasSurface({
   // drops the armed shape, so a later bare G never silently reuses whatever
   // template was chosen minutes ago.
   useEffect(() => { if (selectedTool !== 'grid') setPendingGridLayout(null); }, [selectedTool]);
+
+  // Save the selected grid's SHAPE. Link-aware: a grid in a linked family reads
+  // its layout from the shared record, so reaching for card.layout would save
+  // null for exactly the grids most worth saving. Same resolution the text-style
+  // path uses further down.
+  const saveCurrentGridAsTemplate = useCallback(async () => {
+    const id = templateTargetIdRef.current;
+    const card = id ? cardById[id] : null;
+    if (!card) return;
+    const layout = card.templateId ? gridTemplates?.[card.templateId]?.layout : card.layout;
+    const textStyle = card.templateId ? gridTemplates?.[card.templateId]?.textStyle : card.textStyle;
+    const body = bodyFromGrid(layout, textStyle);
+    if (!body) { feedback.toast({ type: 'error', message: 'That grid has no layout to save.' }); return; }
+    const name = await feedback.prompt({
+      title: 'Save as template',
+      label: 'Template name',
+      placeholder: 'Storyboard page',
+      defaultValue: '',
+      confirmLabel: 'Save',
+    });
+    if (!name || !name.trim()) return;
+    try {
+      await saveGridLayout({ name: name.trim().slice(0, 80), body, scope: 'user', userId });
+      await reloadGridLayouts();
+      feedback.toast({ message: `Saved “${name.trim()}” to your templates.` });
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not save: ' + (e.message || e) });
+    }
+  }, [cardById, gridTemplates, feedback, userId, reloadGridLayouts]);
+
+  // Per-row actions. Built-ins never reach here (the panel filters them), and a
+  // workspace template you did not author offers only the actions a member is
+  // allowed: it can be edited, but sharing it outside the workspace stays the
+  // author's call, which is what create_grid_layout_link enforces server-side.
+  const templateRowActions = useCallback((row) => {
+    const isMine = row.ownerId === userId;
+    const acts = [];
+    acts.push({
+      id: 'rename',
+      label: 'Rename…',
+      run: async () => {
+        const next = await feedback.prompt({
+          title: 'Rename template', label: 'Name', defaultValue: row.name, confirmLabel: 'Rename',
+        });
+        if (!next || !next.trim() || next.trim() === row.name) return;
+        try { await renameGridLayout(row.id, next.trim().slice(0, 80)); await reloadGridLayouts(); }
+        catch (e) { feedback.toast({ type: 'error', message: 'Could not rename: ' + (e.message || e) }); }
+      },
+    });
+    if (isMine) {
+      const toWorkspace = row.source !== SOURCES.WORKSPACE;
+      acts.push({
+        id: 'scope',
+        label: toWorkspace ? 'Share with workspace' : 'Make private',
+        run: async () => {
+          try {
+            await setGridLayoutScope(row.id, toWorkspace ? 'workspace' : 'user', workspaceId);
+            await reloadGridLayouts();
+            feedback.toast({ message: toWorkspace ? 'Shared with your workspace.' : 'Now private to you.' });
+          } catch (e) { feedback.toast({ type: 'error', message: 'Could not change sharing: ' + (e.message || e) }); }
+        },
+      });
+      acts.push({
+        id: 'link',
+        label: 'Copy share link',
+        run: async () => {
+          try {
+            const token = await createGridLayoutLink(row.id);
+            const url = `${window.location.origin}/t/${token}`;
+            // Clipboard can be denied; showing the URL is a worse-but-real
+            // fallback rather than a silent failure.
+            try { await navigator.clipboard.writeText(url); feedback.toast({ message: 'Share link copied.' }); }
+            catch (_) { feedback.toast({ message: url, ttl: 12000 }); }
+          } catch (e) { feedback.toast({ type: 'error', message: 'Could not create a link: ' + (e.message || e) }); }
+        },
+      });
+    }
+    acts.push({
+      id: 'delete',
+      label: 'Delete',
+      danger: true,
+      run: async () => {
+        try {
+          await deleteGridLayout(row.id);
+          await reloadGridLayouts();
+          // Soft delete, so Undo is a closure that clears deleted_at — no
+          // UndoManager stack item is involved, which is the shape undoToast
+          // documents for server-side operations.
+          undoToast(feedback, {
+            message: `“${row.name}” deleted`,
+            onUndo: async () => {
+              try { await restoreGridLayout(row.id); await reloadGridLayouts(); }
+              catch (e) { feedback.toast({ type: 'error', message: 'Could not restore: ' + (e.message || e) }); }
+            },
+          });
+        } catch (e) { feedback.toast({ type: 'error', message: 'Could not delete: ' + (e.message || e) }); }
+      },
+    });
+    return acts;
+  }, [userId, workspaceId, feedback, reloadGridLayouts]);
 
   // Refs that always mirror the latest cards / selection — used by
   // pointer-event closures (which capture state at pointer-down) so
@@ -6136,7 +6264,13 @@ export function CanvasSurface({
         return;
       }
       if (drawOptions.mode === 'eraser') {
-        const radius = Math.max(4, (drawOptions.eraserWidth || ERASER_DEFAULT_WIDTH) / 2);
+        // Screen-constant, like the pen's width at the moment it is drawn. The
+        // radius used to be fixed in BOARD units, so the eraser grew on screen
+        // as you zoomed: at 4x a "16px" eraser rubbed out a 64px swathe, which
+        // makes zooming in to erase detail actively counterproductive — and at
+        // 0.25x it was a 4px sliver while the cursor drew a 10px circle.
+        const radius = Math.max(4, (drawOptions.eraserWidth || ERASER_DEFAULT_WIDTH) / 2)
+          / (zoomRef.current || 1);
         setActiveStroke({ color: 'rgba(239,68,68,.75)', width: radius * 2, points: [...points], eraser: true });
         const addPoint = (cx, cy) => {
           const p = clientToCanvas(cx, cy);
@@ -6236,6 +6370,10 @@ export function CanvasSurface({
         pointerId: e.pointerId,
         onSample: (ev) => {
           for (const s of coalescedOf(ev)) addPoint(s.clientX, s.clientY, s.pressure);
+          // Re-arm every frame. The flag clears ~700ms after the last call, so
+          // arming only on pointerdown let the rail fade back IN part-way
+          // through a long stroke — exactly the thing it was hidden for.
+          markCanvasInteracting();
           setActiveStroke({ color, width, brush, points: [...points] });
         },
         onEnd: () => {
@@ -8747,11 +8885,12 @@ export function CanvasSurface({
   // radius after you'd already erased something.
   const eraserCursor = useMemo(() => {
     if (selectedTool !== 'draw' || drawOptions.mode !== 'eraser') return null;
-    const d = Math.max(10, Math.min(96, Math.round((drawOptions.eraserWidth || ERASER_DEFAULT_WIDTH) * zoom)));
+    // The eraser is screen-constant, so the cursor is too — no `* zoom`.
+    const d = Math.max(10, Math.min(96, Math.round(drawOptions.eraserWidth || ERASER_DEFAULT_WIDTH)));
     const r = d / 2;
     const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${d}' height='${d}'><circle cx='${r}' cy='${r}' r='${r - 1}' fill='none' stroke='%23ef4444' stroke-opacity='0.85' stroke-width='1.5'/></svg>`;
     return `url("data:image/svg+xml;utf8,${svg}") ${r} ${r}, crosshair`;
-  }, [selectedTool, drawOptions.mode, drawOptions.eraserWidth, zoom]);
+  }, [selectedTool, drawOptions.mode, drawOptions.eraserWidth]);
 
   const wrapStyle = {
     '--canvas-bg': board.bg_color || undefined,
@@ -9784,6 +9923,11 @@ export function CanvasSurface({
                 onPick={pickTemplate}
                 applyTargetId={templateTargetId}
                 mobileShell={mobileShell}
+                // Saving and row actions need a backend. Under ?local=1 (and
+                // signed out) they are simply absent rather than present and
+                // broken — the panel keeps working as the built-in picker.
+                rowActions={templatesEnabled ? templateRowActions : null}
+                onSaveCurrent={templatesEnabled ? saveCurrentGridAsTemplate : null}
               />
             </div>
           );
@@ -10384,10 +10528,12 @@ export function CanvasSurface({
             // The whole sketch-edit session saves as ONE undo step — and
             // never merges into whatever preceded opening the pad.
             mutators.breakUndo?.();
-            // Writing `layers: null` alongside is deliberate: a sketch edited
-            // back down to one layer must CLEAR the old stack, or the card
-            // would keep rendering the stale one and ignore `strokes`.
-            mutators.updateCard?.(editingId, { strokes, layers, bg });
+            // Exactly one of the two carries the drawing. `layers: null` on a
+            // sketch edited back down to one layer must CLEAR the old stack, or
+            // the card keeps rendering it and ignores `strokes`; and a layered
+            // card stores an EMPTY `strokes`, because a flattened mirror is
+            // derived data and derived data does not belong in a CRDT.
+            mutators.updateCard?.(editingId, { strokes: layers ? [] : strokes, layers, bg });
             setSelected(new Set([editingId]));
             setSelectedStrokes(new Set());
             setSelectedArrows(new Set());
@@ -10414,7 +10560,7 @@ export function CanvasSurface({
             id: newId,
             kind: 'art',
             x: cardX, y: cardY, w: cardW, h: cardH,
-            bg, strokes: localStrokes, ...(layers ? { layers } : {}),
+            bg, strokes: layers ? [] : localStrokes, ...(layers ? { layers } : {}),
           });
           // Stash the freshly-created card so pickStrokeTarget can find
           // it during the few ms before the Yjs subscription updates
@@ -10452,7 +10598,6 @@ function StrokePath({ s, d, ...rest }) {
   const filled = isFilledPath(s);
   const color = s.color || DRAW_DEFAULT_COLOR;
   const alpha = strokeOpacity(s);
-  const blend = strokeBlendMode(s);
   return (
     <path d={d ?? toPathD(s)}
           fill={filled ? color : 'none'}
@@ -10461,7 +10606,6 @@ function StrokePath({ s, d, ...rest }) {
           strokeLinecap={filled ? undefined : strokeLineCap(s)}
           strokeLinejoin={filled ? undefined : 'round'}
           opacity={alpha === 1 ? undefined : alpha}
-          style={blend ? { mixBlendMode: blend } : undefined}
           {...rest} />
   );
 }

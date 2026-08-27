@@ -30,11 +30,12 @@ import { swallowContextMenu } from '../lib/contextMenuGuard.js';
 import { toPathD } from '../lib/strokeRender.js';
 import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
 import { eraseStrokes, DEFAULT_BRUSH, cardLayers, readCardStrokes } from '../lib/strokeModel.js';
-import { isFilledPath, strokeOpacity, strokeBlendMode, strokeLineCap } from '../lib/strokeRender.js';
+import { isFilledPath, strokeOpacity, strokeLineCap } from '../lib/strokeRender.js';
 import { BrushPreview, BRUSH_ORDER, BRUSH_LABELS } from './BrushPreview.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { useGesture } from '@use-gesture/react';
 import { Sheet } from './shell/Sheet.jsx';
+import { tapIsDouble } from '../lib/doubleTap.js';
 
 // Default pen stroke + bucket fill colors. The pad SURFACE defaults to
 // pure white — when the user commits, the surrounding ArtCanvasCard
@@ -112,7 +113,6 @@ function clampView({ z, x, y }, w0, h0) {
 function PadStroke({ s }) {
   const filled = isFilledPath(s);
   const alpha = strokeOpacity(s);
-  const blend = strokeBlendMode(s);
   return (
     <path d={toPathD(s)}
           fill={filled ? s.color : 'none'}
@@ -120,8 +120,7 @@ function PadStroke({ s }) {
           strokeWidth={filled ? undefined : s.width}
           strokeLinecap={filled ? undefined : strokeLineCap(s)}
           strokeLinejoin={filled ? undefined : 'round'}
-          opacity={alpha === 1 ? undefined : alpha}
-          style={blend ? { mixBlendMode: blend } : undefined} />
+          opacity={alpha === 1 ? undefined : alpha} />
   );
 }
 
@@ -137,6 +136,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   const compact = isPhone || (isTablet && isTouch);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
+  const [renamingId, setRenamingId] = useState(null);
+  const doubleTapRef = useRef(null);
   // ── Pad zoom/pan ──────────────────────────────────────────────────────────
   // A 16:9 frame on a portrait phone is a thin band — without zoom you cannot
   // work on any detail of a shot. Pinch to zoom, two fingers to pan, both
@@ -186,6 +187,10 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   // the same accessor the thumbnail renderer and the board use, so the pad
   // cannot disagree with them about what the card looks like.
   const visibleStrokes = readCardStrokes({ layers });
+  // "Is there any work in this pad" — every layer, visible or not. Distinct
+  // from visibleStrokes: hiding a layer must not make the pad believe the work
+  // on it has stopped existing.
+  const totalStrokes = layers.reduce((n, l) => n + (l.strokes?.length || 0), 0);
   const setActiveStrokes = useCallback((next) => {
     setLayers(prev => prev.map(l => (l.id === (activeIdLive.current ?? prev[prev.length - 1]?.id)
       ? { ...l, strokes: typeof next === 'function' ? next(l.strokes) : next }
@@ -258,17 +263,22 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     redoStackRef.current.length = 0;
     setHistTick(t => t + 1);
   };
-  // Live mirror of strokes so the discard prompt reads the CURRENT count (the
-  // Escape handler is bound on [open], so a plain closure saw a stale count
-  // and would close without prompting after the user drew something).
-  const strokesRef = useRef(strokes);
-  strokesRef.current = strokes;
+  // Live mirror of the total stroke count so the discard prompt reads the
+  // CURRENT one (the Escape handler is bound on [open], so a plain closure saw
+  // a stale count and would close without prompting after the user drew).
+  //
+  // Counts EVERY layer, visible or not — not the active layer, and not the
+  // flattened visible set. Drawing on one layer and then selecting or hiding
+  // another would otherwise make the pad think there was nothing to lose, and
+  // Cancel would throw the work away without asking.
+  const strokesRef = useRef(0);
+  strokesRef.current = totalStrokes;
   const discardingRef = useRef(false);
   // In-app discard confirm (replaces window.confirm so it layers/traps/styles
   // correctly). Returns true to proceed. Re-entrancy guard prevents a second
   // prompt while one is already open.
   const confirmDiscard = async () => {
-    if (!strokesRef.current?.length) return true;
+    if (!strokesRef.current) return true;
     if (discardingRef.current) return false;
     discardingRef.current = true;
     const ok = await feedback.confirm({
@@ -322,6 +332,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     setTool('pen');
     setSheetOpen(false);
     setLayersOpen(false);
+    setRenamingId(null);
     setBrush(DEFAULT_BRUSH);
     setAspect(DEFAULT_ASPECT);
     setView({ z: 1, x: 0, y: 0 });
@@ -613,17 +624,17 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   useEffect(() => () => { strokeDisposeRef.current?.(); }, []);
 
   const onCommit = useCallback(() => {
-    if (!editingCard && !visibleStrokes.length && padBg === DEFAULT_BG) { onClose?.(); return; }
+    if (!editingCard && !totalStrokes && padBg === DEFAULT_BG) { onClose?.(); return; }
     // Pass the strokes (in logical coords), the chosen pad bg, and the
     // logical canvas size up — the host writes the card with these as
     // its w/h so the SketchPad and the resulting card share one
     // coordinate system. When editing an existing card we forward its
     // id so the host updates instead of creating a new one.
     onCommitStrokes?.({
-      // `strokes` stays the flattened, ready-to-paint array so every consumer
-      // that predates layers keeps working untouched. `layers` rides alongside
-      // it and is only kept when there is more than one — a single-layer sketch
-      // writes the exact card shape it always did.
+      // The host writes ONE of these, never both: a single-layer sketch stores
+      // the flat array it always did, and a layered one stores the stack with an
+      // empty `strokes`. `layers` is only sent when there is more than one, so
+      // the common case is byte-for-byte the pre-layers card shape.
       strokes: visibleStrokes,
       layers: layers.length > 1 ? layers : null,
       bg: padBg,
@@ -644,7 +655,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   const widthPresets = tool === 'eraser' ? ERASER_WIDTH_PRESETS : WIDTH_PRESETS;
   // Changing the frame rescales nothing, so it is only offered while the canvas
   // is still empty — after that it would silently crop what you've drawn.
-  const canPickAspect = !editingCard && !visibleStrokes.length;
+  const canPickAspect = !editingCard && !totalStrokes;
 
   const swatches = (
     <>
@@ -712,6 +723,18 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     pushHistory();
     setLayers(prev => prev.map(l => (l.id === id ? { ...l, visible: l.visible === false } : l)));
   };
+  const renameLayer = (id, name) => {
+    const clean = (name || '').trim().slice(0, 24);
+    const current = layers.find(l => l.id === id)?.name;
+    if (!clean || clean === current) return;
+    pushHistory();
+    setLayers(prev => prev.map(l => (l.id === id ? { ...l, name: clean } : l)));
+  };
+  // Opacity pushes history ONCE per drag, on the way in — a slider fires a
+  // change per pixel and an undo step per pixel would be useless.
+  const setLayerOpacity = (id, value) => {
+    setLayers(prev => prev.map(l => (l.id === id ? { ...l, opacity: value } : l)));
+  };
   const moveLayer = (id, dir) => {
     const i = layers.findIndex(l => l.id === id);
     const j = i + dir;
@@ -746,29 +769,67 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
 
   const layerRows = [...layers].reverse().map((l) => {
     const idx = layers.findIndex(x => x.id === l.id);
+    const isActive = l.id === activeLayer?.id;
+    const opacity = typeof l.opacity === 'number' ? l.opacity : 1;
     return (
-      <div key={l.id} className={`sp-layer ${l.id === activeLayer?.id ? 'is-active' : ''}`}>
-        <button type="button"
-                className="sp-layer-eye"
-                onClick={() => toggleLayer(l.id)}
-                aria-pressed={l.visible !== false}
-                title={l.visible === false ? 'Show layer' : 'Hide layer'}
-                aria-label={`${l.visible === false ? 'Show' : 'Hide'} ${l.name}`}>
-          {l.visible === false ? '◌' : '◉'}
-        </button>
-        <button type="button"
-                className="sp-layer-name"
-                onClick={() => setActiveId(l.id)}
-                title="Draw on this layer">
-          {l.name}
-          <span className="sp-layer-count">{l.strokes.length || ''}</span>
-        </button>
-        <button type="button" className="sp-layer-btn" onClick={() => moveLayer(l.id, 1)}
-                disabled={idx === layers.length - 1} aria-label={`Move ${l.name} up`}>↑</button>
-        <button type="button" className="sp-layer-btn" onClick={() => moveLayer(l.id, -1)}
-                disabled={idx === 0} aria-label={`Move ${l.name} down`}>↓</button>
-        <button type="button" className="sp-layer-btn" onClick={() => removeLayer(l.id)}
-                disabled={layers.length <= 1} aria-label={`Delete ${l.name}`}>✕</button>
+      <div key={l.id} className={`sp-layer ${isActive ? 'is-active' : ''}`}>
+        <div className="sp-layer-row">
+          <button type="button"
+                  className="sp-layer-eye"
+                  onClick={() => toggleLayer(l.id)}
+                  aria-pressed={l.visible !== false}
+                  title={l.visible === false ? 'Show layer' : 'Hide layer'}
+                  aria-label={`${l.visible === false ? 'Show' : 'Hide'} ${l.name}`}>
+            {l.visible === false ? '◌' : '◉'}
+          </button>
+          {renamingId === l.id ? (
+            // Commit on Enter or blur, abandon on Escape. The pad's capture-phase
+            // key handler defers to editable targets, so typing here is safe.
+            <input className="sp-layer-input"
+                   autoFocus
+                   defaultValue={l.name}
+                   maxLength={24}
+                   aria-label={`Rename ${l.name}`}
+                   onBlur={(e) => { renameLayer(l.id, e.target.value); setRenamingId(null); }}
+                   onKeyDown={(e) => {
+                     if (e.key === 'Enter') { renameLayer(l.id, e.currentTarget.value); setRenamingId(null); }
+                     if (e.key === 'Escape') { e.stopPropagation(); setRenamingId(null); }
+                   }} />
+          ) : (
+            <button type="button"
+                    className="sp-layer-name"
+                    onClick={() => setActiveId(l.id)}
+                    // Double-tap to rename. tapIsDouble is the house helper for
+                    // this: native dblclick is unreliable under touch-action:none.
+                    onPointerUp={(e) => {
+                      if (tapIsDouble(doubleTapRef, e, { key: l.id })) setRenamingId(l.id);
+                    }}
+                    onDoubleClick={() => setRenamingId(l.id)}
+                    title="Draw on this layer — double-tap to rename">
+              {l.name}
+              <span className="sp-layer-count">{l.strokes.length || ''}</span>
+            </button>
+          )}
+          <button type="button" className="sp-layer-btn" onClick={() => moveLayer(l.id, 1)}
+                  disabled={idx === layers.length - 1} aria-label={`Move ${l.name} up`}>↑</button>
+          <button type="button" className="sp-layer-btn" onClick={() => moveLayer(l.id, -1)}
+                  disabled={idx === 0} aria-label={`Move ${l.name} down`}>↓</button>
+          <button type="button" className="sp-layer-btn" onClick={() => removeLayer(l.id)}
+                  disabled={layers.length <= 1} aria-label={`Delete ${l.name}`}>✕</button>
+        </div>
+        {/* Only the layer you are working on shows its opacity, so the panel
+            stays a list rather than a wall of sliders. */}
+        {isActive && (
+          <label className="sp-layer-opacity">
+            <span>Opacity</span>
+            <input type="range" min="0" max="100" step="1"
+                   value={Math.round(opacity * 100)}
+                   aria-label={`${l.name} opacity`}
+                   onPointerDown={pushHistory}
+                   onChange={(e) => setLayerOpacity(l.id, Number(e.target.value) / 100)} />
+            <span className="sp-layer-count">{Math.round(opacity * 100)}%</span>
+          </label>
+        )}
       </div>
     );
   });
@@ -852,7 +913,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     <button type="button"
             className="sp-action sp-action-primary"
             onClick={onCommit}
-            disabled={!editingCard && !visibleStrokes.length}>
+            disabled={!editingCard && !totalStrokes}>
       {/* A phone has no room for "Add to canvas" alongside finger-sized tools —
           the full label pushed the primary action clean off the right edge. */}
       {editingCard ? 'Save' : (compact ? 'Add' : 'Add to canvas')}

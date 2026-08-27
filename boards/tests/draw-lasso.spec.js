@@ -111,3 +111,37 @@ test('lasso mode hides the ink controls that mean nothing for a selection', asyn
   const pen = page.getByRole('button', { name: 'Pen', exact: true });
   await expect(pen).not.toHaveClass(/is-active/);
 });
+
+test('a lassoed selection can be dragged, and the strokes move with it', async ({ page }) => {
+  await drawStroke(page, 340, 300, 400, 340);
+  const before = await page.evaluate(() =>
+    document.querySelector('.strokes-layer path[data-stroke-line]').getAttribute('d'));
+
+  await page.getByRole('button', { name: 'Lasso' }).click();
+  await page.waitForTimeout(150);
+  await lasso(page, [[430, 260], [430, 400], [RAIL_RIGHT + 5, 400], [RAIL_RIGHT + 5, 265], [430, 262]]);
+  await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-select/);
+
+  await page.mouse.move(370, 320);
+  await page.mouse.down();
+  await page.mouse.move(410, 360, { steps: 8 });
+  await page.mouse.move(450, 400, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+
+  const after = await page.evaluate(() =>
+    document.querySelector('.strokes-layer path[data-stroke-line]').getAttribute('d'));
+  expect(after).not.toBe(before);
+});
+
+test('a self-intersecting loop selects sanely instead of throwing', async ({ page }) => {
+  await drawStroke(page, 340, 300, 440, 300);
+  expect(await page.locator('.strokes-layer path').count()).toBe(2);
+
+  await page.getByRole('button', { name: 'Lasso' }).click();
+  await page.waitForTimeout(150);
+  // A figure-of-eight. Even-odd fill means the middle counts as outside; what
+  // matters is that nothing crashes and the stroke survives.
+  await lasso(page, [[320, 260], [520, 340], [320, 340], [520, 260], [320, 262]]);
+  expect(await page.locator('.strokes-layer path').count()).toBeGreaterThanOrEqual(2);
+});
