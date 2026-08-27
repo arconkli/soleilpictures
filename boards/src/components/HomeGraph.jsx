@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
 import * as THREE from 'three';
 import { assembleGraph } from '../lib/graphData.js';
@@ -250,19 +250,50 @@ export function HomeGraph({ workspaceId, onNavigate }) {
     };
   }, [selected, data]);
 
-  // Track container size for the canvas
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const measure = () => {
-      const r = containerRef.current.getBoundingClientRect();
-      setSize({ w: Math.max(200, Math.floor(r.width)), h: Math.max(200, Math.floor(r.height)) });
-    };
+  // Track container size for the canvas.
+  //
+  // Measured through a CALLBACK ref, not a [] effect. Two reasons, both of
+  // which produced the production crash "Cannot read properties of null
+  // (reading 'getBoundingClientRect')" at ResizeObserver.e:
+  //
+  //  1. The ref lands on one of FOUR mutually exclusive wrappers (empty state,
+  //     pre-load shell, 2D fallback, main canvas). A [] effect binds the
+  //     observer to whichever node existed after the first commit and keeps
+  //     watching it after a branch swap — the dead node fires, the live one is
+  //     never measured.
+  //  2. On unmount the passive effect cleanup runs AFTER React has already
+  //     nulled the ref and detached the node. The detach is a 0×0 size change,
+  //     so the observer fires once into that window. Seen in the field during
+  //     account deletion, which tears the whole tree down at once.
+  //
+  // A callback ref rebinds on every node change and disconnects synchronously
+  // before the old node goes away; `measure` re-reads the ref and bails if it
+  // is gone, so a queued callback can't deref null either.
+  const measure = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setSize({ w: Math.max(200, Math.floor(r.width)), h: Math.max(200, Math.floor(r.height)) });
+  }, []);
+
+  const roRef = useRef(null);
+  const setContainer = useCallback((node) => {
+    if (roRef.current) { roRef.current.disconnect(); roRef.current = null; }
+    containerRef.current = node;
+    if (!node) return;
     measure();
     const ro = new ResizeObserver(measure);
-    ro.observe(containerRef.current);
+    ro.observe(node);
+    roRef.current = ro;
+  }, [measure]);
+
+  useEffect(() => {
     window.addEventListener('resize', measure);
-    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
-  }, []);
+    return () => {
+      window.removeEventListener('resize', measure);
+      if (roRef.current) { roRef.current.disconnect(); roRef.current = null; }
+    };
+  }, [measure]);
 
   // Load graph data; refresh when workspace / structural toggle changes.
   useEffect(() => {
@@ -355,7 +386,7 @@ export function HomeGraph({ workspaceId, onNavigate }) {
   // confirmed the workspace is genuinely empty (graph load resolved + 0 nodes).
   if (loaded && filtered.nodes.length === 0) {
     return (
-      <div className="home-graph-wrap" ref={containerRef}>
+      <div className="home-graph-wrap" ref={setContainer}>
         <HomeEmptyState />
       </div>
     );
@@ -364,7 +395,7 @@ export function HomeGraph({ workspaceId, onNavigate }) {
   // Pre-load shell — same bg as the canvas so there's no flash, no HUD, no empty.
   if (!loaded) {
     return (
-      <div className="home-graph-wrap" ref={containerRef}
+      <div className="home-graph-wrap" ref={setContainer}
            style={{ background: BG_FOR[theme] }} />
     );
   }
@@ -379,7 +410,7 @@ export function HomeGraph({ workspaceId, onNavigate }) {
 
   if (!supportsWebGL) {
     return (
-      <div className="home-graph-wrap" ref={containerRef}>
+      <div className="home-graph-wrap" ref={setContainer}>
         <HomeGraph2DFallback data={filtered} width={size.w} height={size.h} onNodeClick={setSelected} />
         {sparseHint}
       </div>
@@ -387,7 +418,7 @@ export function HomeGraph({ workspaceId, onNavigate }) {
   }
 
   return (
-    <div className="home-graph-wrap" ref={containerRef}>
+    <div className="home-graph-wrap" ref={setContainer}>
       <div className="grain-surface" aria-hidden="true" style={{ zIndex: 1 }} />
       <div className={`home-graph-stage ${graphReady ? 'is-ready' : ''}`}>
       <ForceGraph3D
