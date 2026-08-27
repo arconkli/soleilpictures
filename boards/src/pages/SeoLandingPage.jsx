@@ -16,6 +16,7 @@ import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import { GridLayoutThumb } from '../components/GridLayoutThumb.jsx';
+import { encodeRemixParam } from '../lib/remix.js';
 import './seoLanding.css';
 
 // path → short link label, for related-page spokes in the footer. Includes the
@@ -56,6 +57,15 @@ function SectionWithMidCta({ index, cta, midCtaProps, children }) {
 const yesCheck = (text) => (/^yes\b/i.test(String(text || '').trim())
   ? <><span className="seo-check" aria-hidden="true">✓</span>{text}</>
   : text);
+
+// A published gallery template's destination: sign up, then get that exact
+// template in your library. Mirrors remixHref in PublicBoardView — same rails,
+// different verb (one row copied, not a board cloned).
+function templateHref(slug) {
+  const base = `/?utm_source=templates&utm_medium=card&utm_campaign=${encodeURIComponent(slug)}`;
+  const param = encodeRemixParam({ kind: 'gallery', value: slug });
+  return param ? `${base}&remix=${encodeURIComponent(param)}` : base;
+}
 
 export function SeoLandingPage({ spec: specProp, path }) {
   // Accept a spec directly, or resolve it from a path (router passes one or
@@ -303,7 +313,13 @@ export function SeoLandingPage({ spec: specProp, path }) {
               <ul className="tplgrid">
                 {communityTemplates.map((t) => (
                   <li key={t.slug}>
-                    <a className="tplcard" href={`/?utm_source=templates&utm_medium=card&utm_campaign=${encodeURIComponent(t.slug)}`}>
+                    {/* ?remix= is the load-bearing part, not the utm_*. Before it
+                        was added these tiles pointed at the bare homepage, so the
+                        promise above was false: there was no way to get the
+                        template, and usePublicGridLayout had no caller anywhere
+                        in the app. The remix rails carry the slug through signup
+                        and the OTP magic-link hop, then App.jsx copies the row. */}
+                    <a className="tplcard" href={templateHref(t.slug)}>
                       <GridLayoutThumb tree={t.tree} title={t.title} />
                       <span className="tplcard-title">{t.title}</span>
                     </a>

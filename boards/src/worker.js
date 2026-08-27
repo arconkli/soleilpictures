@@ -363,7 +363,7 @@ export default {
         && !url.pathname.includes('.')) {
       let p = url.pathname;
       if (p.length > 1 && p.endsWith('/')) p = p.replace(/\/+$/, '') || '/';
-      if (/^\/(tools|vs|best|use-cases|pricing|legal|explore|c|scout|docs)(\/|$)/i.test(p)) p = p.toLowerCase();
+      if (/^\/(tools|vs|best|use-cases|templates|pricing|legal|explore|c|scout|docs)(\/|$)/i.test(p)) p = p.toLowerCase();
       // Bare section prefixes have no page of their own — send them to the hub.
       if (p === '/tools' || p === '/vs' || p === '/best') p = '/use-cases';
       if (p !== url.pathname) {
@@ -556,7 +556,8 @@ export default {
       }
     }
 
-    // Self-authored SEO landing pages (/tools/*, /vs/*, /use-cases): inject the
+    // Self-authored SEO landing pages (/tools/*, /vs/*, /use-cases, /templates*):
+    // inject the
     // spec's meta + crawlable content + JSON-LD (SoftwareApplication + FAQPage +
     // BreadcrumbList). Pure static data, no RPC — resolve the exact spec here.
     // A landing-SHAPED path that's not in the registry is a definitive miss →
@@ -565,7 +566,7 @@ export default {
     if (isPageReq && contentType.includes('text/html')) {
       const landingSpec = getLandingSpec(url.pathname) || getListicleSpec(url.pathname);
       if (landingSpec) return withRevalidate(injectLanding(res, landingSpec));
-      if (/^\/(?:tools|vs|best)\//i.test(url.pathname) || /^\/use-cases\//i.test(url.pathname)) {
+      if (/^\/(?:tools|vs|best|templates)\//i.test(url.pathname) || /^\/use-cases\//i.test(url.pathname)) {
         return notFoundResponse(res);
       }
     }

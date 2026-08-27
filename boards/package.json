@@ -10,6 +10,7 @@
     "docs:build": "node scripts/gen-docs.mjs",
     "docs:check": "node scripts/gen-docs.mjs --check",
     "docs:accept": "node scripts/gen-docs.mjs --accept-surface",
+    "og:build": "node scripts/generate-og.mjs",
     "dev": "vite",
     "dev:party": "partykit dev --port 1999",
     "build": "vite build",

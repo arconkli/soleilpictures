@@ -6,19 +6,34 @@
 
 const REMIX_KEY = 'soleil.boards.pending.remix';
 
-// URL param <-> {kind:'token'|'slug'|'template', value}. Prefixed (t_/s_/g_) so
-// a uuid-shaped slug can never be mistaken for a token — and so a grid-template
-// token, which is also a uuid, can never be mistaken for a board share token.
+// URL param <-> {kind, value}, one single-letter tag each, so a uuid-shaped slug
+// can never be mistaken for a token — and so a grid-template token, which is
+// also a uuid, can never be mistaken for a board share token.
 //
-// 'template' rides these same rails rather than getting its own because the
-// valuable part here is not the encoding, it is stashRemix surviving the OTP
+//   t_  token     a board share token          → clone the board
+//   s_  slug      a published /c/<slug> board   → clone the board
+//   g_  template  a grid-template SHARE token   → copy one row into your library
+//   p_  gallery   a PUBLISHED template's slug   → copy one row into your library
+//
+// Everything rides these same rails rather than getting its own because the
+// valuable part is not the encoding, it is stashRemix surviving the OTP
 // magic-link hop (new tab, or a different device entirely). What it means to
 // CONSUME one differs — a board remix clones a whole board, a template claim
 // inserts one row — so the consumer branches; the transport does not.
+//
+// Note g_ and p_ are BOTH grid templates and are deliberately distinct: a share
+// token is private and unguessable, a gallery slug is public and readable, and
+// they are claimed by different RPCs with different authorization. Collapsing
+// them would mean guessing which one a value is.
+const TAGS = { token: 't', slug: 's', template: 'g', gallery: 'p' };
+const KINDS = Object.fromEntries(Object.entries(TAGS).map(([k, t]) => [t, k]));
+
 export function encodeRemixParam({ kind, value } = {}) {
-  if (!kind || !value) return '';
-  const tag = kind === 'slug' ? 's' : kind === 'template' ? 'g' : 't';
-  return `${tag}_${value}`;
+  // An unknown kind returns '' rather than falling through to a default tag.
+  // The old ternary defaulted to 't', so a typo'd kind minted a board-share
+  // link that would fail much later, somewhere else.
+  if (!kind || !value || !TAGS[kind]) return '';
+  return `${TAGS[kind]}_${value}`;
 }
 
 export function parseRemixParam(raw) {
@@ -28,10 +43,7 @@ export function parseRemixParam(raw) {
   const tag = raw.slice(0, i);
   const value = raw.slice(i + 1);
   if (!value) return null;
-  if (tag === 's') return { kind: 'slug', value };
-  if (tag === 't') return { kind: 'token', value };
-  if (tag === 'g') return { kind: 'template', value };
-  return null;
+  return KINDS[tag] ? { kind: KINDS[tag], value } : null;
 }
 
 export function stashRemix(src) {

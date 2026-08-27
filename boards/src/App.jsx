@@ -35,7 +35,7 @@ import { ReferralNudge } from './components/ReferralNudge.jsx';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
 import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
 import { readRemix, clearRemix } from './lib/remix.js';
-import { claimGridLayoutLink } from './lib/gridLayoutsApi.js';
+import { claimGridLayoutLink, usePublicGridLayout } from './lib/gridLayoutsApi.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
@@ -4562,13 +4562,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // but is a different verb: it copies one ~1KB row into the user's library
     // rather than cloning a board. No board is created, so it short-circuits
     // before all of the snapshot machinery below.
-    if (src.kind === 'template') {
+    //
+    // Two sources, two RPCs, deliberately not merged: 'template' is a private
+    // share token from /t/<token>, 'gallery' is a public slug from the published
+    // gallery on /templates. Both end as one row in your library.
+    if (src.kind === 'template' || src.kind === 'gallery') {
+      const claim = src.kind === 'gallery' ? usePublicGridLayout : claimGridLayoutLink;
       (async () => {
         try {
-          await claimGridLayoutLink(src.value);
+          await claim(src.value);
           feedback.toast({ message: 'Template added — open the grid tool to use it.' });
         } catch (e) {
-          feedback.toast({ type: 'info', message: 'That template link is no longer live.' });
+          feedback.toast({ type: 'info', message: 'That template is no longer live.' });
         }
       })();
       return;

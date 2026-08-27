@@ -35,6 +35,8 @@ import * as SURFACE_MODULE from '../../scripts/lib/publicSurface.mjs';
 import { publicSurface, surfaceJson } from '../../scripts/lib/publicSurface.mjs';
 import { blocksToText, blockLinks } from '../../scripts/lib/markdown.mjs';
 
+import { SEO_LANDING_PAGES, landingOgPath } from './seoLanding.js';
+import { SEO_LISTICLE_PAGES } from './seoListicles.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 import { PRICING } from './billingCopy.js';
 import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP } from './fileIngest.js';
@@ -486,6 +488,42 @@ test('MARKETING MD: compare tables render their rows, not blanks', () => {
     }
   }
   assert.deepEqual(problems, [], `blank compare rows:\n  ${problems.join('\n  ')}`);
+});
+
+// ── OG cards ────────────────────────────────────────────────────────────────
+//
+// Every og:image the Worker can emit must be a file that exists.
+//
+// This is here because it already went wrong once, silently: /templates shipped
+// on 2026-08-27 and injectLanding advertised /og/templates.png from the moment
+// the spec landed, but scripts/generate-og.mjs is hand-run and nobody ran it.
+// The og:image and the JSON-LD primaryImageOfPage both pointed at a 404, so
+// every share of that page was a broken card — and nothing anywhere noticed,
+// because the .md mirror check one test up looks at markdown, not images.
+//
+// The card set is derived exactly as generate-og.mjs derives it: landingOgPath
+// for both registries, one card per docs SECTION (not per page, matching
+// injectDocs), plus the changelog and the default. Deriving it the same way is
+// the point — a new page type that forgets its card fails here rather than in
+// somebody's Slack preview.
+//
+// Fix when this goes red: `npm run og:build`, then commit the PNG.
+test('OG: every page that advertises an og:image has one on disk', () => {
+  const cards = [
+    ...SEO_LANDING_PAGES.map((s) => ({ what: s.path, file: landingOgPath(s) })),
+    ...SEO_LISTICLE_PAGES.map((s) => ({ what: s.path, file: landingOgPath(s) })),
+    ...DOCS_SECTIONS.map((s) => ({ what: `docs section "${s.id}"`, file: `/og/docs-${s.id}.png` })),
+    { what: '/changelog', file: '/og/changelog.png' },
+    { what: 'the default card', file: '/og/default.png' },
+  ];
+  // Same anti-no-op floor as the surface extractors: a registry that failed to
+  // load would make this test vacuously green.
+  assert.ok(cards.length >= 25, `expected the full card set, got ${cards.length}`);
+
+  const missing = cards
+    .filter((c) => !existsSync(resolve(BOARDS, 'public', c.file.replace(/^\//, ''))))
+    .map((c) => `${c.what} → ${c.file}`);
+  assert.deepEqual(missing, [], `og:image files that do not exist:\n  ${missing.join('\n  ')}`);
 });
 
 test('MARKETING MD: llms.txt indexes the comparison pages, not just the docs', () => {
