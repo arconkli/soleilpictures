@@ -61,6 +61,8 @@ import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideo
 import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
 import { trackStroke } from '../lib/pointerStroke.js';
+import { splitStrokeByEraser, readCardStrokes } from '../lib/strokeModel.js';
+import { toPathD } from '../lib/strokeRender.js';
 import { findTouchScrollable, driveTouchScroll, startTouchScrollGesture } from '../lib/touchScroll.js';
 import { resolveSrc } from '../lib/r2.js';
 import { scheduleBoardPreviewBackfill, drainVariantQueue } from '../lib/previewBackfill.js';
@@ -226,43 +228,17 @@ const ERASER_DEFAULT_WIDTH = 16;
 const SVG_ANCHOR_PX = 1;
 const STROKE_HIT_PADDING = 12; // invisible hit region added around each stroke
 
-// Build the SVG path string for a freehand stroke. Module scope + memoized
-// per stroke (strokeGeom below) — this string-builds from every point, and
-// used to re-run for EVERY stroke on EVERY render.
-function strokeToPath(pts) {
-  if (!pts || pts.length === 0) return '';
-  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
-  for (let i = 1; i < pts.length; i++) d += ` L${pts[i][0].toFixed(1)},${pts[i][1].toFixed(1)}`;
-  return d;
-}
+// Stroke path building, eraser splitting and the point/polyline distance math
+// all live in lib/strokeModel.js + lib/strokeRender.js now — the board layer,
+// the per-card overlay, the SketchPad and the thumbnail renderer all draw from
+// that one implementation so they can never disagree about what a stroke looks
+// like. `toPathD` is still memoized per stroke below (strokeGeom): it
+// string-builds from every point and used to re-run for EVERY stroke on EVERY
+// render.
+
 // Module-level singleton — used as the "no peers on this card" default so
 // BoardCard's memo doesn't bust from a fresh `|| []` allocation each render.
 const EMPTY_PEERS_ARR = [];
-
-function distPointToSegment(p, a, b) {
-  const vx = b.x - a.x;
-  const vy = b.y - a.y;
-  const wx = p.x - a.x;
-  const wy = p.y - a.y;
-  const len2 = vx * vx + vy * vy;
-  const t = len2 ? Math.max(0, Math.min(1, (wx * vx + wy * vy) / len2)) : 0;
-  const px = a.x + t * vx;
-  const py = a.y + t * vy;
-  return Math.hypot(p.x - px, p.y - py);
-}
-
-function distPointToPolyline(p, points = []) {
-  if (points.length < 2) return Infinity;
-  let best = Infinity;
-  for (let i = 1; i < points.length; i++) {
-    best = Math.min(best, distPointToSegment(
-      p,
-      { x: points[i - 1][0], y: points[i - 1][1] },
-      { x: points[i][0], y: points[i][1] },
-    ));
-  }
-  return best;
-}
 
 function pointInRect(p, rect) {
   return p.x >= rect.minX && p.x <= rect.maxX && p.y >= rect.minY && p.y <= rect.maxY;
@@ -278,43 +254,6 @@ function strokeIntersectsRect(stroke, rect) {
         (Math.min(a.y, b.y) <= rect.maxY && Math.max(a.y, b.y) >= rect.minY)) return true;
   }
   return false;
-}
-
-function splitStrokeByEraser(stroke, eraserPoints, radius) {
-  const sourcePoints = stroke?.points || [];
-  const points = [];
-  for (let i = 0; i < sourcePoints.length; i++) {
-    const point = sourcePoints[i];
-    if (i === 0) {
-      points.push(point);
-      continue;
-    }
-    const prev = sourcePoints[i - 1];
-    const dist = Math.hypot(point[0] - prev[0], point[1] - prev[1]);
-    const steps = Math.max(1, Math.ceil(dist / 6));
-    for (let step = 1; step <= steps; step++) {
-      const t = step / steps;
-      points.push([
-        Math.round((prev[0] + (point[0] - prev[0]) * t) * 10) / 10,
-        Math.round((prev[1] + (point[1] - prev[1]) * t) * 10) / 10,
-      ]);
-    }
-  }
-  if (points.length < 2 || eraserPoints.length < 2) return [stroke];
-  const pieces = [];
-  let current = [];
-  const keepPoint = ([x, y]) => distPointToPolyline({ x, y }, eraserPoints) > radius;
-
-  for (const point of points) {
-    if (keepPoint(point)) {
-      current.push(point);
-      continue;
-    }
-    if (current.length > 1) pieces.push({ ...stroke, points: current });
-    current = [];
-  }
-  if (current.length > 1) pieces.push({ ...stroke, points: current });
-  return pieces;
 }
 
 function readImageDims(file) {
@@ -7627,7 +7566,7 @@ export function CanvasSurface({
     return (
       <div key={c.id} {...wrapper} data-tour={c.kind === 'board' ? 'cluster-card' : undefined}>
         {inner}
-        <CardStrokesOverlay strokes={c.strokes} w={w} h={h} />
+        <CardStrokesOverlay card={c} w={w} h={h} />
         {cardTags.length > 0 && (
           <div className="card-tags-strip" data-card-id={c.id}>
             {cardTags.slice(0, 4).map(t => (
@@ -8302,7 +8241,7 @@ export function CanvasSurface({
   // Stroke geometry memo: SVG path string + padded bbox per stroke. The
   // strokes array identity changes only on Y.Doc edits (useYBoard snapshot /
   // the public bundle decode), so this survives every pan/zoom/selection
-  // render — previously strokeToPath re-ran per stroke per render.
+  // render — previously the path string was rebuilt per stroke per render.
   const strokeGeom = useMemo(() => (strokes || []).map((s) => {
     const pts = s.points || [];
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -8314,7 +8253,7 @@ export function CanvasSurface({
       if (y > maxY) maxY = y;
     }
     const pad = (s.width || DRAW_DEFAULT_WIDTH) / 2 + STROKE_HIT_PADDING;
-    return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad, d: strokeToPath(pts) };
+    return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad, d: toPathD(s) };
   }), [strokes]);
 
   // World-space cull band for the stroke/arrow SVG layers — same KEEP math
@@ -9257,7 +9196,7 @@ export function CanvasSurface({
                 (g.maxX < svgCullBand.minX || g.minX > svgCullBand.maxX ||
                  g.maxY < svgCullBand.minY || g.minY > svgCullBand.maxY)) return null;
             const w = s.width || DRAW_DEFAULT_WIDTH;
-            const path = g ? g.d : strokeToPath(s.points);
+            const path = g ? g.d : toPathD(s);
             const hitW = Math.max(w + STROKE_HIT_PADDING, 14);
             return (
               <g key={i} data-stroke-idx={i}>
@@ -9277,7 +9216,7 @@ export function CanvasSurface({
             );
           })}
           {activeStroke && (
-            <path d={strokeToPath(activeStroke.points)} fill="none"
+            <path d={toPathD(activeStroke)} fill="none"
                   stroke={activeStroke.color}
                   strokeWidth={activeStroke.width}
                   strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
@@ -10229,9 +10168,13 @@ export function CanvasSurface({
 // a routing bug used to write strokes onto whatever single card was
 // selected, and boards that carry those legacy annotations must keep
 // rendering them.
+// Takes the CARD, not its strokes, so the layer flattening in readCardStrokes
+// happens behind the memo. Passing readCardStrokes(c) from the parent would
+// allocate a fresh array on every parent render and bust the memo outright.
 // Memoized: props are all primitive / stable-by-card-identity, so default
 // shallow compare lets unchanged cards skip the path-string concat.
-const CardStrokesOverlay = memo(function CardStrokesOverlay({ strokes, w, h }) {
+const CardStrokesOverlay = memo(function CardStrokesOverlay({ card, w, h }) {
+  const strokes = readCardStrokes(card);
   if (!Array.isArray(strokes) || strokes.length === 0) return null;
   const vw = Math.max(1, w || 1);
   const vh = Math.max(1, h || 1);
@@ -10241,11 +10184,8 @@ const CardStrokesOverlay = memo(function CardStrokesOverlay({ strokes, w, h }) {
          preserveAspectRatio="none"
          style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}>
       {strokes.map((s, i) => {
-        const pts = s.points || [];
-        if (pts.length === 0) return null;
-        let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
-        for (let k = 1; k < pts.length; k++) d += ` L${pts[k][0].toFixed(1)},${pts[k][1].toFixed(1)}`;
-        return <path key={i} d={d} fill="none"
+        if (!s?.points?.length) return null;
+        return <path key={i} d={toPathD(s)} fill="none"
                      stroke={s.color || '#0a0a0c'}
                      strokeWidth={s.width || 3}
                      strokeLinecap="round" strokeLinejoin="round" />;
