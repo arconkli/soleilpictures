@@ -65,7 +65,8 @@ import { lowMemoryDevice } from '../lib/device.js';
 import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
 import { eraseStrokes, readCardStrokes } from '../lib/strokeModel.js';
 import { notePointerType, pointerCanDraw } from '../lib/pointerPolicy.js';
-import { toPathD } from '../lib/strokeRender.js';
+import { toPathD, polylinePathD, isFilledPath, strokeOpacity, strokeBlendMode, strokeLineCap } from '../lib/strokeRender.js';
+import { DEFAULT_BRUSH } from '../lib/strokeModel.js';
 import { findTouchScrollable, driveTouchScroll, startTouchScrollGesture } from '../lib/touchScroll.js';
 import { resolveSrc } from '../lib/r2.js';
 import { scheduleBoardPreviewBackfill, drainVariantQueue } from '../lib/previewBackfill.js';
@@ -3734,6 +3735,7 @@ export function CanvasSurface({
         e.preventDefault();
         if (ctx.open || bgCtx.open) { setCtx(c => ({ ...c, open: false })); setBgCtx(c => ({ ...c, open: false })); return; }
         if (addMenuOpen) { setAddMenuOpen(false); return; }
+        if (tplPanelOpen) { setTplPanelOpen(false); return; }
         if (annotPlacing) { setAnnotPlacing(null); return; }
         if (arrowFrom || activeStroke || activeFreeArrow) { setArrowFrom(null); setActiveStroke(null); setActiveFreeArrow(null); return; }
         if (selectedTool !== 'select') { setSelectedTool('select'); return; }
@@ -3747,7 +3749,7 @@ export function CanvasSurface({
     return () => window.removeEventListener('keydown', onKey);
   }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform,
       zoomAroundCenter, zoomToSelection, fitToContent, arrangeSelected, groupSelected, canEdit,
-      ctx.open, bgCtx.open, addMenuOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing,
+      ctx.open, bgCtx.open, addMenuOpen, tplPanelOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing,
       hasSplit, paneId]);
 
   // ── Preserve card selection across undo/redo ──────────────────────────────
@@ -5530,8 +5532,18 @@ export function CanvasSurface({
         ]});
       } else if (c.kind === 'grid') {
         const linked = !!c.templateId;
+        // Opens the Templates panel with this grid as the target. Selecting it
+        // first is what makes the panel apply rather than place — the same rule
+        // the panel's header states, reached from the card instead of the rail.
+        items.push({
+          id: 'grid-apply-template',
+          label: 'Apply template…',
+          run: () => { setSelected(new Set([c.id])); setTplPanelOpen(true); },
+        });
         items.push({
           id: 'grid-link',
+          // "Share layout" is the LINKED-FAMILY feature (edit one, all reflow),
+          // not the Templates library above it. Different things, adjacent menu.
           label: linked ? 'Unlink layout' : 'Share layout',
           run: () => { if (linked) mutators.unlinkGrid?.(c.id); else mutators.promoteGridToTemplate?.(c.id); },
         });
@@ -5960,6 +5972,7 @@ export function CanvasSurface({
 
     if (focusedCellRef.current) focusCell(null, null); // clicking the canvas drops cell focus
     setAddMenuOpen(false);
+    setTplPanelOpen(false);
     closeCardMenu();
     setBgCtx(b => ({ ...b, open: false }));
 
@@ -6140,13 +6153,29 @@ export function CanvasSurface({
       // 4x it came out four times as thick. Every infinite-canvas tool commits
       // what you actually see under the cursor.
       const { color } = drawOptions;
+      const brush = drawOptions.brush || DEFAULT_BRUSH;
       const width = drawOptions.width / (zoomRef.current || 1);
-      setActiveStroke({ color, width, points: [...points] });
-      const addPoint = (cx, cy) => {
+      // Only record pressure from a device that actually reports it. A mouse and
+      // a finger both report a constant 0.5, which is not pressure — it's the
+      // spec's placeholder for "this device has none" — and storing it would
+      // send every mouse stroke down the expensive outline path for nothing.
+      const wantPressure = e.pointerType === 'pen';
+      const stamp = (p, pressure) => (wantPressure
+        ? [Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10, Math.round(pressure * 100) / 100]
+        : [Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10]);
+      points[0] = stamp(start, e.pressure || 0.5);
+      // `brush` is omitted for the default pen so an ordinary stroke stays the
+      // exact 3-field object every board already stores — no field churn in the
+      // Y.Doc, and no diff for boards that never touch the brush picker.
+      const newStroke = (pts) => (brush === DEFAULT_BRUSH
+        ? { color, width, points: pts }
+        : { color, width, brush, points: pts });
+      setActiveStroke({ color, width, brush, points: [...points] });
+      const addPoint = (cx, cy, pressure) => {
         const p = clientToCanvas(cx, cy);
         const last = points[points.length - 1];
         if (Math.hypot(p.x - last[0], p.y - last[1]) < minStep) return;
-        points.push([Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10]);
+        points.push(stamp(p, pressure));
       };
       // Hardened tracking — the un-coalesced setActiveStroke-per-event loop here
       // is what froze a 240Hz Apple Pencil. pointerId filtering rejects a resting
@@ -6157,8 +6186,8 @@ export function CanvasSurface({
       disposeStroke = trackStroke({
         pointerId: e.pointerId,
         onSample: (ev) => {
-          for (const s of coalescedOf(ev)) addPoint(s.clientX, s.clientY);
-          setActiveStroke({ color, width, points: [...points] });
+          for (const s of coalescedOf(ev)) addPoint(s.clientX, s.clientY, s.pressure);
+          setActiveStroke({ color, width, brush, points: [...points] });
         },
         onEnd: () => {
           endGesture();
@@ -6175,13 +6204,15 @@ export function CanvasSurface({
               // instead of the line. (Board-level addStroke below already
               // breaks internally.)
               mutators.breakUndo?.();
-              const localPoints = points.map(([x, y]) => [x - targetCard.x, y - targetCard.y]);
+              const localPoints = points.map(p => (p.length > 2
+                ? [p[0] - targetCard.x, p[1] - targetCard.y, p[2]]
+                : [p[0] - targetCard.x, p[1] - targetCard.y]));
               const existing = Array.isArray(targetCard.strokes) ? targetCard.strokes : [];
               mutators.updateCard?.(targetCard.id, {
-                strokes: [...existing, { color, width, points: localPoints }],
+                strokes: [...existing, newStroke(localPoints)],
               });
             } else {
-              mutators.addStroke?.({ color, width, points });
+              mutators.addStroke?.(newStroke(points));
             }
             // Surface the just-used color in recents so the swatch
             // strip in the draw tool options updates as the user works.
@@ -8398,7 +8429,16 @@ export function CanvasSurface({
       if (y > maxY) maxY = y;
     }
     const pad = (s.width || DRAW_DEFAULT_WIDTH) / 2 + STROKE_HIT_PADDING;
-    return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad, d: toPathD(s) };
+    // `d` is what gets PAINTED — an open polyline for a constant-width stroke,
+    // a closed outline for a pressure/brush one. `hit` is always the plain
+    // centreline: a fat transparent stroke along it is both cheaper and a more
+    // accurate hit target than the outline polygon would be.
+    return {
+      minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad,
+      d: toPathD(s),
+      hit: polylinePathD(pts),
+      filled: isFilledPath(s),
+    };
   }), [strokes]);
 
   // World-space cull band for the stroke/arrow SVG layers — same KEEP math
@@ -9342,30 +9382,22 @@ export function CanvasSurface({
                  g.maxY < svgCullBand.minY || g.minY > svgCullBand.maxY)) return null;
             const w = s.width || DRAW_DEFAULT_WIDTH;
             const path = g ? g.d : toPathD(s);
+            const hitPath = g ? g.hit : polylinePathD(s.points);
             const hitW = Math.max(w + STROKE_HIT_PADDING, 14);
             return (
               <g key={i} data-stroke-idx={i}>
-                <path d={path} fill="none" stroke="transparent" strokeWidth={hitW}
+                <path d={hitPath} fill="none" stroke="transparent" strokeWidth={hitW}
                       pointerEvents={strokesInteractive ? 'stroke' : 'none'}
                       style={{ cursor: strokesInteractive ? 'pointer' : 'default' }}
                       onPointerDown={strokesInteractive ? (ev) => onStrokeClick(ev, i) : undefined} />
-                {sel && <path d={path} fill="none" stroke="rgba(245,158,11,.55)"
+                {sel && <path d={hitPath} fill="none" stroke="rgba(245,158,11,.55)"
                               strokeWidth={w + 6} strokeLinecap="round" strokeLinejoin="round"
                               pointerEvents="none" />}
-                <path data-stroke-line d={path} fill="none"
-                      stroke={s.color || DRAW_DEFAULT_COLOR}
-                      strokeWidth={w}
-                      strokeLinecap="round" strokeLinejoin="round"
-                      pointerEvents="none" />
+                <StrokePath data-stroke-line s={s} d={path} pointerEvents="none" />
               </g>
             );
           })}
-          {activeStroke && (
-            <path d={toPathD(activeStroke)} fill="none"
-                  stroke={activeStroke.color}
-                  strokeWidth={activeStroke.width}
-                  strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
-          )}
+          {activeStroke && <StrokePath s={activeStroke} pointerEvents="none" />}
           {/* Live eraser ring at the contact point. The size-accurate eraser
               CURSOR above it is a CSS cursor, which does not exist on a touch
               screen — a finger erasing had no indication of its radius at all,
@@ -10342,6 +10374,33 @@ export function CanvasSurface({
   );
 }
 
+// ── StrokePath ──────────────────────────────────────────────────────────
+// One painted stroke, on any of the SVG surfaces.
+//
+// A constant-width stroke is an OPEN polyline painted with stroke-width — what
+// every stroke in every board still is. A pressure or brush stroke is a CLOSED
+// outline that has to be FILLED instead, because its width varies along its
+// length and `stroke-width` is a single number. Getting that backwards paints a
+// hairline outline of the shape instead of the shape, so the choice lives here
+// rather than being repeated at each call site.
+function StrokePath({ s, d, ...rest }) {
+  const filled = isFilledPath(s);
+  const color = s.color || DRAW_DEFAULT_COLOR;
+  const alpha = strokeOpacity(s);
+  const blend = strokeBlendMode(s);
+  return (
+    <path d={d ?? toPathD(s)}
+          fill={filled ? color : 'none'}
+          stroke={filled ? 'none' : color}
+          strokeWidth={filled ? undefined : (s.width || DRAW_DEFAULT_WIDTH)}
+          strokeLinecap={filled ? undefined : strokeLineCap(s)}
+          strokeLinejoin={filled ? undefined : 'round'}
+          opacity={alpha === 1 ? undefined : alpha}
+          style={blend ? { mixBlendMode: blend } : undefined}
+          {...rest} />
+  );
+}
+
 // ── CardStrokesOverlay ──────────────────────────────────────────────────
 // Renders a card's `strokes` array as an SVG layer bounded to the card's
 // box. The draw tool only routes strokes here for ART canvases (selected or
@@ -10364,13 +10423,7 @@ const CardStrokesOverlay = memo(function CardStrokesOverlay({ card, w, h }) {
          viewBox={`0 0 ${vw} ${vh}`} width="100%" height="100%"
          preserveAspectRatio="none"
          style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}>
-      {strokes.map((s, i) => {
-        if (!s?.points?.length) return null;
-        return <path key={i} d={toPathD(s)} fill="none"
-                     stroke={s.color || '#0a0a0c'}
-                     strokeWidth={s.width || 3}
-                     strokeLinecap="round" strokeLinejoin="round" />;
-      })}
+      {strokes.map((s, i) => (s?.points?.length ? <StrokePath key={i} s={s} /> : null))}
     </svg>
   );
 });

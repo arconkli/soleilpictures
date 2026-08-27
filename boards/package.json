@@ -74,6 +74,7 @@
     "partykit": "^0.0.115",
     "partysocket": "^1.1.18",
     "pdfjs-dist": "^4.10.38",
+    "perfect-freehand": "^1.2.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-force-graph-2d": "^1.29.1",

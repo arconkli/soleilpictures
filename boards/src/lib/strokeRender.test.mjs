@@ -27,7 +27,7 @@ import {
   strokeInPolygon,
   strokeWidth,
 } from './strokeModel.js';
-import { polylinePathD, strokeOpacity, toPathD, isFilledPath, drawStroke } from './strokeRender.js';
+import { polylinePathD, strokeOpacity, toPathD, isFilledPath, drawStroke, outlinePoints } from './strokeRender.js';
 
 const legacy = (points) => ({ color: '#f5f5f6', width: 3, points });
 
@@ -91,6 +91,62 @@ test('brush opacity and layer opacity multiply together', () => {
     strokeOpacity({ brush: 'highlighter', layerOpacity: 0.5 }),
     BRUSHES.highlighter.opacity * 0.5,
   );
+});
+
+// ── Outline geometry ──────────────────────────────────────────────────────
+
+test('a pressure stroke renders as a CLOSED filled outline, not a polyline', () => {
+  const s = { color: '#fff', width: 8, points: [[0, 0, 0.2], [20, 0, 0.9], [40, 0, 0.3]] };
+  assert.equal(isFilledPath(s), true, 'width varies, so stroke-width cannot express it');
+  const d = toPathD(s);
+  assert.match(d, /^M/);
+  assert.match(d, /Z$/, 'an outline must close, or the fill leaks');
+  assert.ok(d.includes('Q'), 'curved through the midpoints, not a faceted polygon');
+});
+
+test('pressure actually changes the outline', () => {
+  const light = { color: '#fff', width: 20, points: [[0, 0, 0.1], [50, 0, 0.1]] };
+  const heavy = { color: '#fff', width: 20, points: [[0, 0, 1], [50, 0, 1]] };
+  const spread = (s) => {
+    const ys = outlinePoints(s).map(p => p[1]);
+    return Math.max(...ys) - Math.min(...ys);
+  };
+  assert.ok(spread(heavy) > spread(light) * 1.5,
+    'a hard press must draw a visibly fatter line than a light one');
+});
+
+test('a zero-thinning brush ignores pressure entirely', () => {
+  // The highlighter must read as a flat marker — that is the whole point of it.
+  const s = { color: '#ff0', width: 20, brush: 'highlighter', points: [[0, 0, 0.1], [50, 0, 1]] };
+  assert.equal(isFilledPath(s), false);
+  assert.equal(toPathD(s), polylinePathD(s.points), 'stays on the cheap polyline path');
+});
+
+test('every brush produces geometry for a plain mouse stroke', () => {
+  // No pressure recorded at all — perfect-freehand simulates it for the tapered
+  // brushes. A brush that returned an empty path here would draw nothing.
+  for (const brush of Object.keys(BRUSHES)) {
+    const s = { color: '#fff', width: 6, brush, points: [[0, 0], [10, 4], [22, 2], [30, 8]] };
+    assert.ok(toPathD(s).length > 0, `${brush} produced no path`);
+  }
+});
+
+test('Canvas2D fills an outline stroke instead of stroking it', () => {
+  const ctx = recordingCtx();
+  drawStroke(ctx, { color: '#fff', width: 10, points: [[0, 0, 0.2], [20, 0, 0.9]] }, { ppu: 1 });
+  const names = ctx.calls.map(c => c[0]);
+  assert.ok(names.includes('fill'), 'a variable-width stroke must be filled');
+  assert.ok(!names.includes('stroke'), 'stroking it would draw a hairline of the shape');
+  assert.ok(names.includes('quadraticCurveTo'), 'same curve construction as the SVG path');
+});
+
+test('brush opacity and blend reach the Canvas2D context', () => {
+  const ctx = recordingCtx();
+  drawStroke(ctx, { color: '#ff0', width: 10, brush: 'highlighter', points: [[0, 0], [20, 0]] }, { ppu: 1 });
+  const alpha = ctx.calls.find(c => c[0] === 'globalAlpha');
+  const blend = ctx.calls.find(c => c[0] === 'globalCompositeOperation');
+  assert.equal(alpha[1], BRUSHES.highlighter.opacity);
+  assert.equal(blend[1], 'multiply', 'a highlighter that does not multiply just hides the text');
 });
 
 // ── Layers ────────────────────────────────────────────────────────────────
@@ -262,6 +318,8 @@ function recordingCtx() {
     calls,
     save: rec('save'), restore: rec('restore'), beginPath: rec('beginPath'),
     moveTo: rec('moveTo'), lineTo: rec('lineTo'), stroke: rec('stroke'),
+    quadraticCurveTo: rec('quadraticCurveTo'), closePath: rec('closePath'), fill: rec('fill'),
+    set fillStyle(v) { calls.push(['fillStyle', v]); },
     set strokeStyle(v) { calls.push(['strokeStyle', v]); },
     set lineWidth(v) { calls.push(['lineWidth', v]); },
     set lineCap(v) { calls.push(['lineCap', v]); },
