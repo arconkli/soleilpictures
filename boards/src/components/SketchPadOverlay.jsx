@@ -30,6 +30,8 @@ import { swallowContextMenu } from '../lib/contextMenuGuard.js';
 import { toPathD } from '../lib/strokeRender.js';
 import { trackStroke } from '../lib/pointerStroke.js';
 import { eraseStrokes } from '../lib/strokeModel.js';
+import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { Sheet } from './shell/Sheet.jsx';
 
 // Default pen stroke + bucket fill colors. The pad SURFACE defaults to
 // pure white — when the user commits, the surrounding ArtCanvasCard
@@ -50,15 +52,34 @@ const ERASER_WIDTH_PRESETS = [8, 16, 28, 44];
 // the exact same coordinate space — every pixel in the pad maps to a
 // fixed pixel in the card. The pad is rendered larger or smaller via
 // CSS while preserving this aspect ratio.
-const NEW_CANVAS_W = 480;
-const NEW_CANVAS_H = 360;
+//
+// The frame formats are the point of this card: sketching out shots for a shot
+// list is what people reach for an art canvas to do, so a new one is a 16:9
+// frame rather than the old 4:3 scratch pad. 2.39:1 is scope, 9:16 is vertical
+// delivery, and 4:3 is still there for anyone using it as a notepad.
+const ASPECTS = [
+  { id: '16x9',  label: '16:9',   hint: 'Widescreen', w: 480, h: 270 },
+  { id: '239x1', label: '2.39:1', hint: 'Scope',      w: 480, h: 201 },
+  { id: '4x3',   label: '4:3',    hint: 'Classic',    w: 480, h: 360 },
+  { id: '1x1',   label: '1:1',    hint: 'Square',     w: 420, h: 420 },
+  { id: '9x16',  label: '9:16',   hint: 'Vertical',   w: 304, h: 540 },
+];
+const DEFAULT_ASPECT = '16x9';
 
 export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }) {
   // The logical canvas size for the current session. When editing, we
   // adopt the existing card's bounds so strokes stay in card-local
   // coords without any rescaling on commit.
-  const logicalW = editingCard?.w || NEW_CANVAS_W;
-  const logicalH = editingCard?.h || NEW_CANVAS_H;
+  const [aspect, setAspect] = useState(DEFAULT_ASPECT);
+  // Touch phones and touch tablets get the compact bar + overflow sheet. Same
+  // condition App/LocalBoardsApp gate the whole mobile shell on, so the pad
+  // agrees with the rest of the app about what "mobile" means.
+  const { isPhone, isTablet, isTouch } = useBreakpoint();
+  const compact = isPhone || (isTablet && isTouch);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const aspectPreset = ASPECTS.find(a => a.id === aspect) || ASPECTS[0];
+  const logicalW = editingCard?.w || aspectPreset.w;
+  const logicalH = editingCard?.h || aspectPreset.h;
   // Tool state
   const [tool, setTool]   = useState('pen'); // 'pen' | 'eraser' | 'bucket'
   const [color, setColor] = useState(DEFAULT_COLOR);
@@ -187,6 +208,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     }
     setActive(null);
     setTool('pen');
+    setSheetOpen(false);
+    setAspect(DEFAULT_ASPECT);
     resetHistory();
     const padTarget = { undo: undoPad, redo: redoPad };
     pushDocUndoTarget(padTarget);
@@ -396,95 +419,198 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
 
   if (!open) return null;
 
+  // ── Toolbar pieces ────────────────────────────────────────────────────────
+  // Shared between the desktop strip and the touch sheet so the two can't drift
+  // apart. On a phone the old single flex row held ~25 controls at 28px and
+  // 22px — roughly half a usable touch target, and wider than the viewport.
+  const activeWidth = tool === 'eraser' ? eraserWidth : width;
+  const widthPresets = tool === 'eraser' ? ERASER_WIDTH_PRESETS : WIDTH_PRESETS;
+  // Changing the frame rescales nothing, so it is only offered while the canvas
+  // is still empty — after that it would silently crop what you've drawn.
+  const canPickAspect = !editingCard && !strokes.length;
+
+  const swatches = (
+    <>
+      {swatchRow.map(c => (
+        <button key={c}
+                type="button"
+                className={`sp-color ${color === c ? 'is-active' : ''}`}
+                style={{ background: c }}
+                onClick={() => { setColor(c); addRecentColor(c); }}
+                title={c}
+                aria-label={`Colour ${c}`} />
+      ))}
+      <button type="button"
+              className="sp-color sp-color-custom"
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                setPickerPos({ x: r.left + r.width / 2, y: r.bottom + 8 });
+              }}
+              title="Custom color"
+              aria-label="Custom colour">⋯</button>
+    </>
+  );
+
+  const widths = widthPresets.map(w => (
+    <button key={w}
+            type="button"
+            className={`sp-width ${activeWidth === w ? 'is-active' : ''}`}
+            onClick={() => (tool === 'eraser' ? setEraserWidth(w) : setWidth(w))}
+            title={tool === 'eraser' ? `Eraser size ${w}px` : `${w}px`}
+            aria-label={tool === 'eraser' ? `Eraser size ${w}` : `Stroke width ${w}`}>
+      <span className="sp-width-dot" style={{
+        width: Math.min(20, w + 4),
+        height: Math.min(20, w + 4),
+      }} />
+    </button>
+  ));
+
+  const aspectButtons = ASPECTS.map(a => (
+    <button key={a.id}
+            type="button"
+            className={`sp-aspect ${aspect === a.id ? 'is-active' : ''}`}
+            onClick={() => setAspect(a.id)}
+            title={a.hint}>
+      <span className="sp-aspect-box" style={{ aspectRatio: `${a.w} / ${a.h}` }} />
+      <span className="sp-aspect-lbl">{a.label}</span>
+    </button>
+  ));
+
+  const toolButtons = (
+    <>
+      <button type="button"
+              className={`sp-tool ${tool === 'pen' ? 'is-active' : ''}`}
+              onClick={() => setTool('pen')}
+              aria-label="Pen" title="Pen">✎</button>
+      <button type="button"
+              className={`sp-tool ${tool === 'eraser' ? 'is-active' : ''}`}
+              onClick={() => setTool('eraser')}
+              aria-label="Eraser" title="Eraser">⌫</button>
+      <button type="button"
+              className={`sp-tool ${tool === 'bucket' ? 'is-active' : ''}`}
+              onClick={() => setTool('bucket')}
+              aria-label="Paint bucket"
+              title="Paint bucket (click pad to fill background)">●</button>
+    </>
+  );
+
+  const undoRedo = (
+    <>
+      <button type="button"
+              className="sp-tool"
+              onClick={undoPad}
+              disabled={!undoStackRef.current.length}
+              title="Undo (⌘Z)"
+              aria-label="Undo sketch change">
+        <Icon as={Undo} size={16} />
+      </button>
+      <button type="button"
+              className="sp-tool"
+              onClick={redoPad}
+              disabled={!redoStackRef.current.length}
+              title="Redo (⌘⇧Z)"
+              aria-label="Redo sketch change">
+        <Icon as={Redo} size={16} />
+      </button>
+    </>
+  );
+
+  const clearBtn = (
+    <button type="button"
+            className="sp-action"
+            onClick={() => { if (strokesLive.current.length) { pushHistory(); setStrokes([]); } }}
+            disabled={!strokes.length}>Clear</button>
+  );
+  const cancelBtn = (
+    <button type="button"
+            className="sp-action"
+            onClick={async () => { if (await confirmDiscard()) onClose?.(); }}>Cancel</button>
+  );
+  const commitBtn = (
+    <button type="button"
+            className="sp-action sp-action-primary"
+            onClick={onCommit}
+            disabled={!editingCard && !strokes.length}>
+      {/* A phone has no room for "Add to canvas" alongside finger-sized tools —
+          the full label pushed the primary action clean off the right edge. */}
+      {editingCard ? 'Save' : (compact ? 'Add' : 'Add to canvas')}
+    </button>
+  );
+
   return createPortal(
     // The pad is a full-viewport portal on document.body, so it sits outside
     // every canvas contextmenu handler and used to leave the OS menu as the
     // only thing a right-click could produce — over a drawing surface, where
     // "Reload / Save image as…" is never the intent. swallowContextMenu still
     // defers on the colour picker's hex field.
-    <div className="sketchpad-bg" onContextMenu={swallowContextMenu}>
+    <div className={`sketchpad-bg ${compact ? 'is-compact' : ''}`} onContextMenu={swallowContextMenu}>
       <div className="sketchpad-frame">
         <div className="sketchpad-toolbar">
-          <button type="button"
-                  className={`sp-tool ${tool === 'pen' ? 'is-active' : ''}`}
-                  onClick={() => setTool('pen')}
-                  title="Pen">✎</button>
-          <button type="button"
-                  className={`sp-tool ${tool === 'eraser' ? 'is-active' : ''}`}
-                  onClick={() => setTool('eraser')}
-                  title="Eraser">⌫</button>
-          <button type="button"
-                  className={`sp-tool ${tool === 'bucket' ? 'is-active' : ''}`}
-                  onClick={() => setTool('bucket')}
-                  title="Paint bucket (click pad to fill background)">●</button>
-          <span className="sp-sep" />
-          {swatchRow.map(c => (
-            <button key={c}
-                    type="button"
-                    className={`sp-color ${color === c ? 'is-active' : ''}`}
-                    style={{ background: c }}
-                    onClick={() => { setColor(c); addRecentColor(c); }}
-                    title={c} />
-          ))}
-          <button type="button"
-                  className="sp-color sp-color-custom"
-                  onClick={(e) => {
-                    const r = e.currentTarget.getBoundingClientRect();
-                    setPickerPos({ x: r.left + r.width / 2, y: r.bottom + 8 });
-                  }}
-                  title="Custom color">⋯</button>
-          <span className="sp-sep" />
-          {(tool === 'eraser' ? ERASER_WIDTH_PRESETS : WIDTH_PRESETS).map(w => (
-            <button key={w}
-                    type="button"
-                    className={`sp-width ${(tool === 'eraser' ? eraserWidth : width) === w ? 'is-active' : ''}`}
-                    onClick={() => (tool === 'eraser' ? setEraserWidth(w) : setWidth(w))}
-                    title={tool === 'eraser' ? `Eraser size ${w}px` : `${w}px`}>
-              <span className="sp-width-dot" style={{
-                width: Math.min(20, w + 4),
-                height: Math.min(20, w + 4),
-              }} />
-            </button>
-          ))}
-          <span className="sp-sep" />
-          <button type="button"
-                  className="sp-tool"
-                  onClick={undoPad}
-                  disabled={!undoStackRef.current.length}
-                  title="Undo (⌘Z)"
-                  aria-label="Undo sketch change">
-            <Icon as={Undo} size={14} />
-          </button>
-          <button type="button"
-                  className="sp-tool"
-                  onClick={redoPad}
-                  disabled={!redoStackRef.current.length}
-                  title="Redo (⌘⇧Z)"
-                  aria-label="Redo sketch change">
-            <Icon as={Redo} size={14} />
-          </button>
-          <button type="button"
-                  className="sp-action"
-                  onClick={() => { if (strokesLive.current.length) { pushHistory(); setStrokes([]); } }}
-                  disabled={!strokes.length}>Clear</button>
-          <span style={{ flex: 1 }} />
-          <button type="button"
-                  className="sp-action"
-                  onClick={async () => {
-                    if (await confirmDiscard()) onClose?.();
-                  }}>Cancel</button>
-          <button type="button"
-                  className="sp-action sp-action-primary"
-                  onClick={onCommit}
-                  disabled={!editingCard && !strokes.length}>
-            {editingCard ? 'Save' : 'Add to canvas'}
-          </button>
-          <button type="button"
-                  className="sp-x"
-                  onClick={() => onClose?.()}
-                  aria-label="Close">
-            <Icon as={X} size={14} />
-          </button>
+          {compact ? (
+            // Two zones on touch: the tools scroll, the actions never do. A
+            // single scrolling row put the primary button off the right edge of
+            // a phone, which is the same trap the board's options bar was in.
+            //
+            // The swatch strip and size row live in the sheet, and the bar keeps
+            // one chip showing the CURRENT colour and width — two taps to change
+            // either, but every target is finger-sized and the bar fits.
+            <>
+              <div className="sp-bar-scroll">
+                {toolButtons}
+                <span className="sp-sep" />
+                <button type="button"
+                        className="sp-chip"
+                        onClick={() => setSheetOpen('color')}
+                        aria-label="Colour and size">
+                  <span className="sp-chip-dot" style={{ background: color }} />
+                  <span className="sp-chip-dot sp-chip-size"
+                        style={{ width: Math.min(18, activeWidth + 4), height: Math.min(18, activeWidth + 4) }} />
+                </button>
+                {undoRedo}
+                <button type="button"
+                        className="sp-tool"
+                        onClick={() => setSheetOpen('more')}
+                        aria-label="More sketch options">⋯</button>
+              </div>
+              <div className="sp-bar-end">
+                {commitBtn}
+                {/* Leaving without committing must never be buried in a menu —
+                    there is no Escape key on a touch device. */}
+                <button type="button"
+                        className="sp-x"
+                        onClick={async () => { if (await confirmDiscard()) onClose?.(); }}
+                        aria-label="Close">
+                  <Icon as={X} size={16} />
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {toolButtons}
+              <span className="sp-sep" />
+              {swatches}
+              <span className="sp-sep" />
+              {widths}
+              {canPickAspect && (
+                <>
+                  <span className="sp-sep" />
+                  <div className="sp-aspects">{aspectButtons}</div>
+                </>
+              )}
+              <span className="sp-sep" />
+              {undoRedo}
+              {clearBtn}
+              <span style={{ flex: 1 }} />
+              {cancelBtn}
+              {commitBtn}
+              <button type="button"
+                      className="sp-x"
+                      onClick={() => onClose?.()}
+                      aria-label="Close">
+                <Icon as={X} size={14} />
+              </button>
+            </>
+          )}
         </div>
         <div className="sketchpad-frame-body">
         <div ref={wrapRef}
@@ -514,12 +640,44 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
           </svg>
           {!strokes.length && !activeStroke && (
             <div className="sketchpad-hint">
-              Sketch freely — your strokes commit to the active board when you press “Add to canvas”.
+              {compact
+                ? 'Sketch here, then press Add.'
+                : 'Sketch freely — your strokes commit to the active board when you press “Add to canvas”.'}
             </div>
           )}
         </div>
         </div>
       </div>
+      {/* Touch overflow. Everything the compact bar couldn't hold, at full
+          finger size. className lifts it above the pad's own portal z-index. */}
+      {compact && sheetOpen && (
+        <Sheet open
+               className="sp-sheet"
+               snap="half"
+               title={sheetOpen === 'color' ? 'Colour & size' : 'Sketch'}
+               onClose={() => setSheetOpen(false)}>
+          <div className="sp-sheet-body">
+            <div className="sp-sheet-group">
+              <div className="sp-sheet-label">Colour</div>
+              <div className="sp-sheet-row">{swatches}</div>
+            </div>
+            <div className="sp-sheet-group">
+              <div className="sp-sheet-label">{tool === 'eraser' ? 'Eraser size' : 'Stroke width'}</div>
+              <div className="sp-sheet-row">{widths}</div>
+            </div>
+            {canPickAspect && (
+              <div className="sp-sheet-group">
+                <div className="sp-sheet-label">Frame</div>
+                <div className="sp-sheet-row sp-aspects">{aspectButtons}</div>
+              </div>
+            )}
+            <div className="sp-sheet-group sp-sheet-actions">
+              {clearBtn}
+              {cancelBtn}
+            </div>
+          </div>
+        </Sheet>
+      )}
       {pickerPos && (
         <ColorPicker value={color}
                      onChange={(c) => { setColor(c); addRecentColor(c); }}

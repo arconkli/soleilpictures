@@ -6429,6 +6429,11 @@ export function CanvasSurface({
     { id: 'doc',     group: 'card', label: 'Doc',     icon: FileText,      run: () => { noteCreateIntent(method, 'doc'); mutators.addDocCard?.(pos); } },
     { id: 'script',  group: 'card', label: 'Script',  icon: Clapperboard,  run: () => { noteCreateIntent(method, 'script'); mutators.addScriptCard?.(pos); } },
     { id: 'shape',   group: 'card', label: 'Shape',   icon: Square,        run: () => { noteCreateIntent(method, 'shape'); mutators.addShape?.(pos, shapeOptions); } },
+    // Switches tools rather than creating a card, so no create-intent is logged
+    // — nothing exists yet to have intended. It lives in the registry so the
+    // mobile "+" sheet can reach it at all: that sheet renders every action in
+    // this list, and Draw's absence meant the puck simply dead-ended for it.
+    { id: 'draw',    group: 'tool', label: 'Draw',    icon: Scribble,      run: () => setSelectedTool('draw') },
     { id: 'palette', group: 'card', label: 'Color palette', icon: Palette, run: () => { noteCreateIntent(method, 'palette'); mutators.addPalette?.(pos); } },
     { id: 'schedule', group: 'card', label: 'Schedule', icon: CalendarPh, run: () => { noteCreateIntent(method, 'schedule'); mutators.addSchedule?.(pos); } },
     { id: 'addurl',  group: 'card', label: 'Link', icon: Link, run: async () => {
@@ -6588,8 +6593,7 @@ export function CanvasSurface({
       sub('note', 'Note'), sub('image'), sub('board'), sub('linkedcluster'), sub('grid'), sub('schedule'), sub('doc'), sub('file'),
       { divider: true },
       { header: 'Visual' },
-      sub('shape'), sub('palette', 'Palette'),
-      { id: 'draw', label: 'Draw', run: settled(() => setSelectedTool('draw')) },
+      sub('shape'), sub('palette', 'Palette'), sub('draw'),
       { divider: true },
       { header: 'Web' },
       sub('addurl', 'Link'),
@@ -8265,6 +8269,11 @@ export function CanvasSurface({
     { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: Browsers },
     { id: 'grid',   title: 'Add grid (G)', label: 'Add grid tool', icon: GridNine },
     { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight },
+    // Draw was moved off the rail deliberately — on a desktop D reaches it
+    // instantly and the rail stays uncluttered. A touch device has no keyboard
+    // and no right-click, which left the rail "+" submenu as the only way in,
+    // for the tool people most want on a tablet. Put it back, on touch only.
+    ...(isTouch ? [{ id: 'draw', title: 'Draw (D)', label: 'Free-draw tool', icon: Scribble }] : []),
   ];
 
   // The rail "+" holds only the SECONDARY creators — anything already on the
@@ -8279,7 +8288,9 @@ export function CanvasSurface({
   };
   const addGroups = [
     { title: 'Tools', items: [
-      { id: 'draw',    label: 'Draw',    icon: Scribble, tip: 'Free-draw (D)',   action: () => setSelectedTool('draw') },
+      // On touch Draw sits on the rail itself, so listing it here too would put
+      // the same tool two taps apart in the same strip.
+      ...(isTouch ? [] : [{ id: 'draw', label: 'Draw', icon: Scribble, tip: 'Free-draw (D)', action: () => setSelectedTool('draw') }]),
       { id: 'shape',   label: 'Shape',   icon: Square,   tip: 'Draw a shape',    action: () => setSelectedTool('shape') },
       { id: 'palette', label: 'Palette', icon: Palette,  tip: 'Color palette',   action: () => setSelectedTool('palette') },
     ]},

@@ -17553,6 +17553,47 @@ body:is([data-clean-mode='1'], [data-focus-mode='1']) .app { grid-template-colum
 /* Visible only while one of the two immersive modes is active. */
 body:not([data-clean-mode='1']):not([data-focus-mode='1']) .clean-mode-exit { display: none; }
 
+/* ── Tool options bar on the mobile shell ──────────────────────────────
+   .tob is `flex-wrap: wrap` at `bottom: 14px`, which on a touch device puts it
+   UNDERNEATH the fixed bottom nav and wraps it into three rows — so on an iPad
+   the draw tool's colour swatches, thickness picker and the "Canvas" button
+   that opens the sketch pad were all simply unreachable, hidden behind the nav.
+   The tool with the most controls in the app had the least room for them.
+
+   One row that scrolls under the finger, lifted clear of the nav. Same query as
+   `mobileShell` so it tracks what the rest of the shell considers mobile. */
+@media (max-width: 640px),
+       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  .tob {
+    left: 8px; right: 8px;
+    transform: none;
+    max-width: none;
+    /* 56px nav row + its safe-area padding, plus breathing room. */
+    bottom: calc(56px + 12px + var(--safe-bottom, 0px));
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    /* The bar is inside .canvas-wrap{touch-action:none}, which would otherwise
+       swallow the scroll. Re-widen to the one axis it needs — touch-action can
+       narrow down the ancestor chain but a descendant may still name the axes
+       it wants when the ancestor said `none`. */
+    touch-action: pan-x;
+    justify-content: flex-start;
+  }
+  .tob::-webkit-scrollbar { display: none; }
+  /* Nothing in a single scrolling row may shrink, or the swatches collapse into
+     slivers instead of scrolling. */
+  .tob > * { flex: 0 0 auto; }
+  /* The bar rides with the nav when the chrome auto-hides during a gesture. */
+  body[data-canvas-interacting='1'] .tob {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-base) var(--ease);
+  }
+}
+
 /* ── Auto-hide chrome while looking around (touch) ─────────────────────
    During a live pan/pinch, CanvasSurface sets body[data-canvas-interacting='1'];
    it clears ~0.7s after the gesture settles. The fixed/absolute overlay chrome
@@ -17829,6 +17870,113 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   font: 400 13px/1.4 var(--font-sans);
   color: var(--ink-3);
   pointer-events: none;
+  padding: 0 16px;
+  text-align: center;
+}
+
+/* ── Sketch pad on touch ──────────────────────────────────────────────────
+   A phone has no room to spare: the framed dialog spent 24px of backdrop
+   padding, a 24px frame inset and 16px of body padding before a single pixel
+   of drawing surface. Go edge to edge and let the safe-area insets do the
+   only inset that matters. */
+.sketchpad-bg.is-compact { padding: 0; }
+.sketchpad-bg.is-compact .sketchpad-frame {
+  width: 100vw; height: 100dvh;
+  max-width: none; max-height: none;
+  border: 0; border-radius: 0;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.sketchpad-bg.is-compact .sketchpad-frame-body { padding: 8px; }
+.sketchpad-bg.is-compact .sketchpad-toolbar { padding: 8px 10px; gap: 8px; }
+/* Tools scroll, actions don't. Commit and close stay put at any width — a bar
+   where the primary button can scroll out of sight is the trap the board's
+   options bar was already in. */
+.sp-bar-scroll {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; align-items: center; gap: 8px;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+.sp-bar-scroll::-webkit-scrollbar { display: none; }
+.sp-bar-scroll > * { flex: 0 0 auto; }
+.sp-bar-end { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+
+/* The compact bar's current-state chip: the colour you're drawing with and the
+   size you're drawing at, stacked, opening the sheet to change either. */
+.sp-chip {
+  position: relative;
+  width: 44px; height: 44px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+  padding: 0;
+  flex: 0 0 auto;
+}
+.sp-chip-dot {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--line-3);
+}
+.sp-chip-size {
+  left: auto; top: auto; right: 3px; bottom: 3px;
+  transform: none;
+  background: var(--ink-1);
+  box-shadow: 0 0 0 2px var(--bg-2);
+}
+
+/* Frame formats. The swatch is the actual aspect, drawn at the real ratio —
+   reading "2.39:1" is slower than seeing it. */
+.sp-aspects { display: flex; gap: 6px; align-items: flex-end; }
+.sp-aspect {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 5px 6px;
+  cursor: pointer;
+  color: var(--ink-2);
+}
+.sp-aspect:hover { background: var(--bg-hov); }
+.sp-aspect.is-active { background: var(--bg-3); border-color: var(--soleil); color: var(--ink-0); }
+.sp-aspect-box {
+  display: block;
+  width: 30px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  opacity: .85;
+}
+.sp-aspect-lbl { font: 500 10px/1 var(--font-sans); }
+
+/* The touch overflow sheet. .sheet-root is z-index 1000; the pad's own portal
+   sits at 2147483645, so without this the sheet opens behind the pad. */
+.sheet-root.sp-sheet { z-index: 2147483646; }
+.sp-sheet-body { display: flex; flex-direction: column; gap: 18px; padding-bottom: 8px; }
+.sp-sheet-group { display: flex; flex-direction: column; gap: 8px; }
+.sp-sheet-label {
+  font: 500 11px/1 var(--font-sans);
+  letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.sp-sheet-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.sp-sheet-actions { flex-direction: row; gap: 10px; }
+.sp-sheet-actions .sp-action { flex: 1; min-height: 44px; }
+
+/* Finger-sized targets everywhere in the pad. These were 28px and 22px — the
+   drawing tool had the smallest controls in an app that already holds itself
+   to 40px for a context-menu row. */
+@media (pointer: coarse) {
+  .sp-tool { width: 44px; height: 44px; font-size: 19px; }
+  .sp-color { width: 36px; height: 36px; }
+  .sp-width { width: 48px; height: 44px; }
+  .sp-action { min-height: 44px; padding: 10px 16px; }
+  .sp-x { width: 44px; height: 44px; }
+  .sp-aspect { padding: 8px 10px; }
+  .sp-aspect-box { width: 38px; }
 }
 
 /* ──────────────────────────── PANEL GRAIN ─────────────────────────────

@@ -13,12 +13,16 @@ import { createPortal } from 'react-dom';
 //   snap      — 'half' | 'full' (default 'full'). Half = 50vh,
 //               full = 90vh. Snap points are visual only here;
 //               the user can still swipe-down to dismiss.
+//   className — extra class on .sheet-root. Exists so a caller that is
+//               ITSELF a high-z portal (the SketchPad overlay) can lift
+//               the sheet above it; .sheet-root's z-index of 1000 sits
+//               far below that and the sheet would open out of sight.
 //
 // Desktop note: this component is intentionally only rendered when
 // useBreakpoint().isPhone is true at the call site. We do not gate
 // internally so callers retain full control over which surface
 // shows what (sheet vs. side panel vs. dialog).
-export function Sheet({ open, onClose, title, children, snap = 'full' }) {
+export function Sheet({ open, onClose, title, children, snap = 'full', className = '' }) {
   const dragStart = useRef(null);
   const sheetRef = useRef(null);
   const snapTimer = useRef(null);
@@ -67,7 +71,7 @@ export function Sheet({ open, onClose, title, children, snap = 'full' }) {
   };
 
   return createPortal(
-    <div className="sheet-root" data-snap={snap} role="dialog" aria-modal="true">
+    <div className={`sheet-root ${className}`.trim()} data-snap={snap} role="dialog" aria-modal="true">
       <div className="sheet-backdrop" onClick={onClose} />
       <div
         ref={sheetRef}
