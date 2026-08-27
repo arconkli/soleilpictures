@@ -20,3 +20,20 @@ export function safeRun(chain, label = 'editor-cmd') {
     return false;
   }
 }
+
+// Same guarantee for a command that isn't a chain — `editor.commands.foo()`,
+// or anything that runs a transaction directly. safeRun can't be used there
+// because there is no chain to hold un-run; pass a thunk instead.
+//
+//   safeCall(() => editor.commands.convertProseToScreenplay(), 'doc:to-screenplay')
+//
+// Same reason it exists: these run from onCreate and from menu handlers, where
+// an uncaught RangeError takes the whole editor surface down.
+export function safeCall(fn, label = 'editor-cmd') {
+  try {
+    return fn();
+  } catch (e) {
+    try { logClientError(e, { kind: 'editor-cmd', componentStack: label }); } catch (_) {}
+    return false;
+  }
+}

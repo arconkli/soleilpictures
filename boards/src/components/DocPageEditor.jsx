@@ -21,7 +21,7 @@ import { untagDocRange, tagDocRange } from '../lib/tagsApi.js';
 import { undoToast } from '../lib/undoToast.js';
 import { updateBacklinks, syncDocPageIndex } from '../lib/boardsApi.js';
 import { extractTagMentions } from '../lib/extractTagMentions.js';
-import { safeRun } from '../lib/safeEditorCmd.js';
+import { safeRun, safeCall } from '../lib/safeEditorCmd.js';
 import { extractParagraphTags } from '../lib/extractParagraphTags.js';
 import { splitSentences, wordContextSpan } from '../lib/sentenceSpan.js';
 import { recordEntityLinks } from '../lib/recordEntityLinks.js';
@@ -880,11 +880,14 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     // onCreate is exactly the mode-transition point. Both conversions no-op
     // when there's nothing of the other flavor → idempotent under collab.
     onCreate: ({ editor }) => {
+      // Guarded: these run during onCreate, so an uncaught RangeError out of
+      // setNode → clearNodes doesn't just fail the conversion, it takes the
+      // editor down before the page ever renders.
       if (docMode === 'screenplay') {
-        if (editor.isEmpty) editor.chain().setScreenplayElement('scene').run();
-        else editor.commands.convertProseToScreenplay();
+        if (editor.isEmpty) safeRun(editor.chain().setScreenplayElement('scene'), 'doc:seed-scene');
+        else safeCall(() => editor.commands.convertProseToScreenplay(), 'doc:to-screenplay');
       } else {
-        editor.commands.convertScreenplayToProse();
+        safeCall(() => editor.commands.convertScreenplayToProse(), 'doc:to-prose');
       }
     },
     // Force a fresh editor when the bound page, doc mode, or page layout
