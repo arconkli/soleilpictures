@@ -27,6 +27,8 @@ import {
 } from './arrowGeometry.js';
 import { paletteLayout, readableInk, hasCustomName } from './paletteLayout.js';
 import { parseISO as schedParseISO, todayISO as schedTodayISO, daysInMonth as schedDaysInMonth, firstWeekdayOfMonth as schedFirstWeekday, monthTitle as schedMonthTitle } from './schedDates.js';
+import { readCardStrokes } from './strokeModel.js';
+import { drawStrokes } from './strokeRender.js';
 
 // Bump when the rendered output changes materially. Stored thumbnails carry
 // this in boards.thumb_version; tiles re-render stale versions in the
@@ -1022,26 +1024,15 @@ function drawVideoInterior(ctx, c, x, y, w, h) {
 function drawArtInterior(ctx, c, x, y, w, h, ppu) {
   ctx.fillStyle = c.bg || '#ffffff';
   ctx.fillRect(x, y, w, h);
-  drawLocalStrokes(ctx, c.strokes, x, y, ppu);
+  drawLocalStrokes(ctx, c, x, y, ppu);
 }
 
 // Card-local strokes (art cards + any card with a CardStrokesOverlay).
 // Points are card-local coords; ctx is board-space, so offset by the card.
-function drawLocalStrokes(ctx, strokes, offX, offY, ppu) {
-  if (!Array.isArray(strokes)) return;
-  for (const s of strokes) {
-    if (!s || !Array.isArray(s.points) || s.points.length < 2) continue;
-    ctx.save();
-    ctx.strokeStyle = s.color || '#f5f5f6';
-    ctx.lineWidth = Math.max(s.width || 3, 1.2 / (ppu || 1));
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(offX + s.points[0][0], offY + s.points[0][1]);
-    for (let j = 1; j < s.points.length; j++) ctx.lineTo(offX + s.points[j][0], offY + s.points[j][1]);
-    ctx.stroke();
-    ctx.restore();
-  }
+// Geometry comes from lib/strokeRender so the thumbnail can't drift from what
+// the live canvas draws, and readCardStrokes flattens any layers for us.
+function drawLocalStrokes(ctx, card, offX, offY, ppu) {
+  drawStrokes(ctx, readCardStrokes(card), { offX, offY, ppu });
 }
 
 function drawGenericInterior(ctx, c, x, y, w, h, boards) {
@@ -1297,7 +1288,7 @@ async function planToBlob(plan, { width, height, allowImages, bgColor }) {
       ctx.save();
       roundRectPath(ctx, x, y, w, h, 8);
       ctx.clip();
-      drawLocalStrokes(ctx, c.strokes, x, y, pxPerUnit);
+      drawLocalStrokes(ctx, c, x, y, pxPerUnit);
       ctx.restore();
     }
   }
@@ -1307,21 +1298,7 @@ async function planToBlob(plan, { width, height, allowImages, bgColor }) {
 
   // Freehand strokes overlay — 1:1 with the live canvas (width as stored,
   // full opacity), floored so they stay visible at fit-to-content scale.
-  for (const s of strokes) {
-    if (!s.points || s.points.length < 2) continue;
-    ctx.save();
-    ctx.strokeStyle = s.color || '#f5f5f6';
-    ctx.lineWidth = Math.max(s.width || 3, 1.2 / pxPerUnit);
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(s.points[0][0], s.points[0][1]);
-    for (let j = 1; j < s.points.length; j++) {
-      ctx.lineTo(s.points[j][0], s.points[j][1]);
-    }
-    ctx.stroke();
-    ctx.restore();
-  }
+  drawStrokes(ctx, strokes, { ppu: pxPerUnit });
 
   // Encode. Prefer WebP for size; browsers reject the call for tainted
   // canvases with a SecurityError — caller retries with allowImages=false.

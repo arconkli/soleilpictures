@@ -27,6 +27,7 @@ import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { pushDocUndoTarget, removeDocUndoTarget } from '../lib/overlayRouting.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
 import { swallowContextMenu } from '../lib/contextMenuGuard.js';
+import { toPathD } from '../lib/strokeRender.js';
 
 // Default pen stroke + bucket fill colors. The pad SURFACE defaults to
 // pure white — when the user commits, the surrounding ArtCanvasCard
@@ -36,13 +37,6 @@ const DEFAULT_BG = '#ffffff';
 const DEFAULT_WIDTH = 3;
 const COLOR_PRESETS = ['#0a0a0c', '#f5f5f6', '#ffa500', '#cf6a4f', '#7c5cc9', '#3fa39a', '#5b8fc7', '#10b981'];
 const WIDTH_PRESETS = [1, 2, 4, 8, 14];
-
-function strokeToPath(pts) {
-  if (!pts || pts.length === 0) return '';
-  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
-  for (let i = 1; i < pts.length; i++) d += ` L${pts[i][0].toFixed(1)},${pts[i][1].toFixed(1)}`;
-  return d;
-}
 
 // Logical drawing surface size for newly-created canvases. Strokes are
 // stored at this resolution so the SketchPad and the resulting card use
@@ -425,7 +419,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                preserveAspectRatio="none">
             {strokes.map((s, i) => (
               <path key={i}
-                    d={strokeToPath(s.points)}
+                    d={toPathD(s)}
                     fill="none"
                     stroke={s.color}
                     strokeWidth={s.width}
@@ -433,7 +427,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                     strokeLinejoin="round" />
             ))}
             {activeStroke && (
-              <path d={strokeToPath(activeStroke.points)}
+              <path d={toPathD(activeStroke)}
                     fill="none"
                     stroke={activeStroke.color}
                     strokeWidth={activeStroke.width}
