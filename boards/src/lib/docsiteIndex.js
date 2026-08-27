@@ -743,12 +743,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/canvas/grids",
     "title": "Grids — Soleil Clusters",
-    "metaDescription": "Grid cards in Soleil Clusters split into resizable cells holding any content — storyboards, contact sheets, comparisons. Presets and generated matrices.",
+    "metaDescription": "Grid cards in Soleil Clusters split into resizable cells holding any content — storyboards, contact sheets, comparisons. Templates and generated matrices.",
     "h1": "Grids",
-    "answer": "A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. Split and merge cells by dragging the dividers, start from a preset like storyboard or 2x2, or generate an empty matrix of any size. Grids have a defined reading order, so a storyboard reads in sequence.",
+    "answer": "A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. The grid tool opens a Templates panel: pick a shape like storyboard, 2x2 or contact sheet, then click the canvas to place it, or apply it to a grid you already have. Cells split and merge by dragging the dividers.",
     "section": "canvas",
     "order": 7,
-    "updated": "2026-08-08",
+    "updated": "2026-08-26",
     "navLabel": "Grids",
     "headings": [
       {
@@ -760,8 +760,8 @@ export const DOCS_PAGES = [
         "text": "Building a layout"
       },
       {
-        "id": "presets",
-        "text": "Presets"
+        "id": "templates",
+        "text": "Templates"
       },
       {
         "id": "reading-order",
@@ -795,8 +795,12 @@ export const DOCS_PAGES = [
         "a": "Drag the dividers between cells. Cells split and merge as you go, and the rest of the grid reflows around what you changed."
       },
       {
+        "q": "Can I change a grid's shape without losing what is in it?",
+        "a": "Yes. Select the grid, open the Templates panel and pick a new shape. Cell content moves across in reading order, and if the new shape has fewer cells than you had filled, the ones with nowhere to go are named in an Undo toast."
+      },
+      {
         "q": "Can several grids share a layout?",
-        "a": "Yes. Grids created from the same template stay linked as a family, so a layout change can carry across them — useful for a storyboard where every page should match."
+        "a": "Yes, but that is a separate feature. A template is a saved shape you stamp out; a grid family is a live link between grids on one board, where changing one reflows the rest."
       }
     ]
   },

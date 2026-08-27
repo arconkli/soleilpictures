@@ -1,0 +1,127 @@
+/* Templates panel — the grid tool's flyout (GridTemplatePanel.jsx).
+
+   Lives in its own file rather than styles.css, following cards/gridCard.css:
+   the panel is one self-contained component and nothing else styles it.
+
+   Geometry deliberately mirrors .cnv-add-menu (left:38px, top:0, z-index:70) so
+   both rail flyouts open in the same place with the same weight. The z-index is
+   load-bearing: .cnv-tool[data-tip]::after sits at 60, and without this the panel
+   opens UNDER the rail's own tooltips.
+
+   Gold (--soleil) does not appear here. It is reserved for active/selection/focus
+   and arrives on its own through the global :focus-visible ring in styles.css. */
+
+.cnv-tpl-panel {
+  position: absolute;
+  left: 38px;
+  top: 0;
+  width: 248px;
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  box-shadow: var(--shadow-2);
+  z-index: 70;
+}
+
+/* While the panel is open, don't also float the grid tool's own tooltip over it. */
+.cnv-tpl-wrap { position: relative; }
+.cnv-tpl-wrap .cnv-tool.active[data-tip]::after { display: none; }
+
+.tplt-hint {
+  font: 400 11px/1.4 var(--font-sans);
+  color: var(--ink-2);
+  padding: 2px 4px 8px;
+  user-select: none;
+}
+
+.tplt-search {
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 5px;
+  background: var(--bg-2);
+  color: var(--ink-0);
+  font: 400 12px/1 var(--font-sans);
+}
+.tplt-search::placeholder { color: var(--ink-3); }
+
+/* Matches .cnv-add-group-head so the two rail flyouts read as one family. */
+.tplt-section-head {
+  font: 600 10px/1 var(--font-sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  padding: 8px 4px 5px;
+  user-select: none;
+}
+.tplt-section:first-child .tplt-section-head { padding-top: 0; }
+
+/* Two columns: a layout is picked by LOOKING at it, so the tile has to be big
+   enough to tell 3-across from 4-across at a glance. */
+.tplt-rows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.tplt-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-1);
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.tplt-row:hover { background: var(--bg-hov); border-color: var(--line-2); }
+.tplt-row:active { background: var(--bg-act); }
+
+.tplt-name {
+  font: 400 11px/1.2 var(--font-sans);
+  color: var(--ink-2);
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tplt-row:hover .tplt-name { color: var(--ink-0); }
+
+/* The shape itself: neutral ink outlines on a slightly recessed field, so the
+   tile reads as a diagram rather than as content. */
+.tplt-thumb {
+  display: block;
+  flex: none;
+  border-radius: 2px;
+  background: var(--bg-3);
+}
+.tplt-thumb rect {
+  fill: var(--bg-1);
+  stroke: var(--line-3);
+  stroke-width: .75;
+}
+.tplt-row:hover .tplt-thumb rect { stroke: var(--ink-3); }
+
+.tplt-empty {
+  font: 400 12px/1.4 var(--font-sans);
+  color: var(--ink-2);
+  padding: 10px 4px 6px;
+  text-align: center;
+}
+
+/* Phone: the panel is a bottom Sheet, so drop the flyout geometry and let the
+   grid breathe to three columns across the wider surface. */
+.sheet-panel .tplt-rows { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.sheet-panel .tplt-row { padding: 12px 6px 10px; }
+.sheet-panel .tplt-hint { padding-bottom: 10px; }

@@ -8574,21 +8574,35 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Presets",
+   "text": "Templates",
    "inline": [
     {
      "t": "text",
-     "v": "Presets"
+     "v": "Templates"
     }
    ],
-   "id": "presets"
+   "id": "templates"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Rather than starting from nothing:"
+     "v": "The grid tool on the left rail opens the "
+    },
+    {
+     "t": "strong",
+     "v": "Templates",
+     "children": [
+      {
+       "t": "text",
+       "v": "Templates"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " panel rather than placing one fixed shape. Each entry shows the shape it will make, drawn from the same geometry the card itself uses — so the tile and the grid you get cannot drift apart."
     }
    ]
   },
@@ -8598,7 +8612,7 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Preset"
+      "v": "Template"
      }
     ],
     [
@@ -8612,50 +8626,8 @@ export const DOCS_CONTENT = {
     [
      [
       {
-       "t": "code",
-       "v": "single"
-      }
-     ],
-     [
-      {
        "t": "text",
-       "v": "One cell"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "2x2"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Four equal cells"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "3up"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Three across"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "storyboard-1-2"
+       "v": "Storyboard · 1 top / 2 bottom"
       }
      ],
      [
@@ -8668,17 +8640,199 @@ export const DOCS_CONTENT = {
     [
      [
       {
-       "t": "code",
-       "v": "db-row-1-3"
+       "t": "text",
+       "v": "Database row · 1 left / 3 stacked"
       }
      ],
      [
       {
        "t": "text",
-       "v": "One, then a row of three"
+       "v": "One, then a column of three"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "2 × 2"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Four equal cells"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "3 across"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Three columns"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "4 across"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Four columns"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Contact sheet · 3 × 3"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Nine equal cells"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Hero + 3 below"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "One large panel over a row of three"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Side by side"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Two columns"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Stacked pair"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Two rows"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Single cell"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "One cell"
       }
      ]
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What clicking a template does depends on what is selected:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Nothing selected",
+      "children": [
+       {
+        "t": "text",
+        "v": "Nothing selected"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the next click on the canvas places a new grid in that shape."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "A grid selected",
+      "children": [
+       {
+        "t": "text",
+        "v": "A grid selected"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — that grid is re-cut in place."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Re-cutting keeps your work. Cell content moves to the new cells in reading order, so the first filled cell stays first. If the new shape has fewer cells than you had filled, the leftovers are dropped and the Undo toast says how many. Pressing "
+    },
+    {
+     "t": "strong",
+     "v": "G",
+     "children": [
+      {
+       "t": "text",
+       "v": "G"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " skips the panel and places the default storyboard immediately."
+    }
    ]
   },
   {
@@ -8696,7 +8850,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " builds an empty N×M grid at whatever size you name — the fast path to a contact sheet."
+     "v": " builds an empty N×M grid at whatever size you name — the fast path to a contact sheet larger than any template."
     }
    ]
   },
@@ -8738,7 +8892,58 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Grids created from the same template stay linked as a family. Change the layout in one and the change can carry to the others — the mechanism that keeps a twelve-page storyboard from drifting into twelve slightly different layouts."
+     "v": "A family is a "
+    },
+    {
+     "t": "strong",
+     "v": "live link",
+     "children": [
+      {
+       "t": "text",
+       "v": "live link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " between grids on one board: change the layout in one and the change carries to the others — the mechanism that keeps a twelve-page storyboard from drifting into twelve slightly different layouts. Right-click a grid and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Share layout",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share layout"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to start one, "
+    },
+    {
+     "t": "strong",
+     "v": "Unlink layout",
+     "children": [
+      {
+       "t": "text",
+       "v": "Unlink layout"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to leave."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "This is not the same thing as a template, though both are about shape. A template is a saved shape you stamp out, and applying one is a one-time copy — the new grid owes nothing to the template afterwards. A family is an ongoing subscription between grids that already exist. Applying a template to a grid that belongs to a family re-cuts the whole family, because that is what belonging to one means."
     }
    ]
   },

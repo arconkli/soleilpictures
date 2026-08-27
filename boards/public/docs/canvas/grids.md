@@ -1,8 +1,8 @@
 # Grids
 
-> A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. Split and merge cells by dragging the dividers, start from a preset like storyboard or 2x2, or generate an empty matrix of any size. Grids have a defined reading order, so a storyboard reads in sequence.
+> A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. The grid tool opens a Templates panel: pick a shape like storyboard, 2x2 or contact sheet, then click the canvas to place it, or apply it to a grid you already have. Cells split and merge by dragging the dividers.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/grids · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/canvas/grids · Updated 2026-08-26_
 
 A grid is a card that is divided up. Every cell holds real content, and the
 divisions are yours to move.
@@ -30,20 +30,39 @@ is why an asymmetric storyboard layout is as easy as a regular one.
 
 Everything reflows around what you changed.
 
-## Presets
+## Templates
 
-Rather than starting from nothing:
+The grid tool on the left rail opens the **Templates** panel rather than placing
+one fixed shape. Each entry shows the shape it will make, drawn from the same
+geometry the card itself uses — so the tile and the grid you get cannot drift
+apart.
 
-| Preset | Layout |
+| Template | Layout |
 |---|---|
-| `single` | One cell |
-| `2x2` | Four equal cells |
-| `3up` | Three across |
-| `storyboard-1-2` | One wide panel on top, two beneath |
-| `db-row-1-3` | One, then a row of three |
+| Storyboard · 1 top / 2 bottom | One wide panel on top, two beneath |
+| Database row · 1 left / 3 stacked | One, then a column of three |
+| 2 × 2 | Four equal cells |
+| 3 across | Three columns |
+| 4 across | Four columns |
+| Contact sheet · 3 × 3 | Nine equal cells |
+| Hero + 3 below | One large panel over a row of three |
+| Side by side | Two columns |
+| Stacked pair | Two rows |
+| Single cell | One cell |
+
+What clicking a template does depends on what is selected:
+
+- **Nothing selected** — the next click on the canvas places a new grid in that
+  shape.
+- **A grid selected** — that grid is re-cut in place.
+
+Re-cutting keeps your work. Cell content moves to the new cells in reading
+order, so the first filled cell stays first. If the new shape has fewer cells
+than you had filled, the leftovers are dropped and the Undo toast says how many.
+Pressing **G** skips the panel and places the default storyboard immediately.
 
 **Generate matrix** builds an empty N×M grid at whatever size you name — the
-fast path to a contact sheet.
+fast path to a contact sheet larger than any template.
 
 ## Reading order
 
@@ -53,9 +72,17 @@ that sequence is what exports and what a reader follows.
 
 ## Grid families
 
-Grids created from the same template stay linked as a family. Change the layout
-in one and the change can carry to the others — the mechanism that keeps a
-twelve-page storyboard from drifting into twelve slightly different layouts.
+A family is a **live link** between grids on one board: change the layout in one
+and the change carries to the others — the mechanism that keeps a twelve-page
+storyboard from drifting into twelve slightly different layouts. Right-click a
+grid and choose **Share layout** to start one, **Unlink layout** to leave.
+
+This is not the same thing as a template, though both are about shape. A
+template is a saved shape you stamp out, and applying one is a one-time copy — 
+the new grid owes nothing to the template afterwards. A family is an ongoing
+subscription between grids that already exist. Applying a template to a grid
+that belongs to a family re-cuts the whole family, because that is what
+belonging to one means.
 
 ## Discovering grids
 

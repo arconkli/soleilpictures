@@ -7,7 +7,9 @@
 import {
   GRID_TUNING, computeCellRects, collectDividers, resizeDivider, splitCell,
   mergeCell, removeDivider, dividerSnapTargets, tileLinkedGrids, leafIds, normalizeTree, presetTree, PRESETS, graftSubtree,
+  instantiateLayout, sanitizeLayout, rehomeCells, readingOrder, LAYOUT_LIMITS,
 } from './gridLayout.js';
+import { BUILT_IN_LAYOUTS } from './gridLayoutLibrary.js';
 import {
   SEQ_TUNING, spatialOrder, labelFor, resolveTagText, hasLabelTag, orderKey,
 } from './gridSequence.js';
@@ -35,9 +37,12 @@ export function seedGridMatrix(cols = 3, rows = 2, cw = 200, ch = 150, gap = 20)
 
 export function makeGridTestBridge() {
   return {
-    GRID_TUNING, SEQ_TUNING, PRESETS,
+    GRID_TUNING, SEQ_TUNING, PRESETS, LAYOUT_LIMITS, BUILT_IN_LAYOUTS,
     computeCellRects, collectDividers, resizeDivider, splitCell, mergeCell,
     removeDivider, dividerSnapTargets, tileLinkedGrids, leafIds, normalizeTree, presetTree, graftSubtree,
+    // Templates library: instantiate a stored tree, repair one somebody else
+    // authored, and carry cell content across a layout change.
+    instantiateLayout, sanitizeLayout, rehomeCells, readingOrder,
     spatialOrder, labelFor, resolveTagText, hasLabelTag, orderKey,
     seedGridLayout, seedGridMatrix,
   };

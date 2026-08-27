@@ -8,7 +8,7 @@ import { Icon } from '../components/Icon.jsx';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote } from '../lib/icons.js';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
-import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from '../lib/gridLayout.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from '../lib/gridLayout.js';
 import { hasLabelTag } from '../lib/gridSequence.js';
 import { readGridModel } from '../lib/gridState.js';
 import { todayISO } from '../lib/schedDates.js';
@@ -755,11 +755,16 @@ export function LocalBoardsApp({ user, signOut }) {
     const x = clickPos ? Math.round(clickPos.x - w / 2) : 60;
     const y = clickPos ? Math.round(clickPos.y - h / 2) : 60;
     const mkCellId = () => 'gc_' + Math.random().toString(36).slice(2, 9);
+    // opts.layout is a TEMPLATE tree from the Templates panel; its leaf ids are
+    // placeholders shared by every grid stamped from it, so instantiate. Mirrors
+    // App.addGrid.
+    const tpl = opts.layout ? sanitizeLayout(opts.layout) : null;
     addCard({
       id: createId('grid'), kind: 'grid',
-      layout: presetTree(preset, mkCellId),
+      layout: tpl ? instantiateLayout(tpl, mkCellId) : presetTree(preset, mkCellId),
       cells: {}, templateId: null, seqId: null,
       x: Math.max(8, x), y: Math.max(8, y), w, h,
+      ...(opts.textStyle ? { textStyle: opts.textStyle } : {}),
     });
   };
 
@@ -806,6 +811,35 @@ export function LocalBoardsApp({ user, signOut }) {
     if (!removedIds.length) return;
     localGridLayoutEdit(gridId, () => tree);
     mapGridCard(gridId, c => { const cells = { ...(c.cells || {}) }; removedIds.forEach(id => delete cells[id]); return { ...c, cells }; });
+  };
+  // Re-cut a Grid to a saved template's shape — the local mirror of
+  // App.applyGridLayout. Same contract: instantiate (a template's leaf ids are
+  // placeholders), carry cell content across by reading order, re-cut the WHOLE
+  // linked family, and report what was dropped so the caller can offer an undo.
+  const applyGridLayout = (gridId, layout) => {
+    const card = findLocalGrid(gridId); if (!card) return null;
+    const clean = sanitizeLayout(layout); if (!clean) return null;
+    const oldLayout = localGridLayout(card); if (!oldLayout) return null;
+    const mkCellId = () => 'gc_' + Math.random().toString(36).slice(2, 9);
+    const next = instantiateLayout(clean, mkCellId);
+    const all = boardState[currentId]?.cards || [];
+    const members = card.templateId
+      ? all.filter(c => c.kind === 'grid' && c.templateId === card.templateId)
+      : [card];
+    let dropped = 0;
+    const remap = {};
+    members.forEach((mem) => {
+      const box = { x: 0, y: 0, w: mem.w || 360, h: mem.h || 300 };
+      const { mapped, dropped: lost } = rehomeCells(oldLayout, next, mem.cells || {}, box);
+      dropped += lost;
+      remap[mem.id] = mapped;
+    });
+    localGridLayoutEdit(gridId, () => next);
+    updateBoardState(state => ({
+      ...state,
+      cards: state.cards.map(c => (remap[c.id] ? { ...c, cells: remap[c.id] } : c)),
+    }));
+    return { dropped, affected: members.length };
   };
   const setGridCellContent = (gridId, cellId, patch) =>
     mapGridCard(gridId, c => {
@@ -1183,7 +1217,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addSchedule,
     addDocCard,
     addGrid,
-    resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent, removeGridCellRecord,
+    resizeGridDivider, splitGridCell, mergeGridCell, applyGridLayout, setGridCellContent, clearGridCellContent, removeGridCellRecord,
     setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
     applyRundownPlan,
     setGridTextStyle, pinCellStyle, unpinCellStyle,

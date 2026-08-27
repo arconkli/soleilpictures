@@ -125,7 +125,7 @@ import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap } from './lib/upsell
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel } from './lib/gridState.js';
-import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from './lib/gridLayout.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from './lib/gridLayout.js';
 import { hasLabelTag } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
 import {
@@ -2354,7 +2354,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         seqId: null,
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       };
-      if (!opts.linkTemplateId) card.layout = presetTree(preset, mkCellId);
+      // opts.layout is a TEMPLATE tree (from the Templates panel — a built-in
+      // preset or one loaded from the database); its leaf ids are placeholders
+      // shared by every grid stamped from it, so it must be instantiated. Falls
+      // back to the named preset, which is the same call one level down. A
+      // template that fails sanitizing is ignored rather than fatal — better a
+      // default storyboard than no card at all.
+      if (!opts.linkTemplateId) {
+        const tpl = opts.layout ? sanitizeLayout(opts.layout) : null;
+        card.layout = tpl ? instantiateLayout(tpl, mkCellId) : presetTree(preset, mkCellId);
+        if (opts.textStyle) card.textStyle = opts.textStyle;
+      }
       addCard(card, { afterInsert: (cardYM) => { if (cardYM) initCardGridStore(ydoc, cardYM); } });
       setAutoFocusId(id);
     };
@@ -2421,6 +2431,66 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const cm = cy.get('gridCells');
         if (cm) removedIds.forEach((id) => cm.delete(id));
       }, 'local');
+    };
+    // Re-cut a Grid to a saved template's shape (the Templates panel). The only
+    // grid operation that can destroy content, so it is also the only one that
+    // reports what it cost.
+    //
+    // Cell content is keyed by LEAF ID and a template's leaf ids are placeholders
+    // shared by every grid stamped from it, so the tree MUST be instantiated —
+    // which mints new ids and would orphan every filled cell. rehomeCells carries
+    // content across by reading order.
+    //
+    // A LINKED grid re-cuts its WHOLE FAMILY, because that is what linked means:
+    // the layout lives on the shared gridTemplates record and writeGridLayout
+    // already routes there. The cells do NOT — each member owns its own gridCells
+    // map — so every member has to be re-homed in the same transaction, or the
+    // family takes the new shape and drops its content on the floor.
+    //
+    // Returns { dropped, affected } for the caller's undo toast. No toast from
+    // here: the mutator layer has no `feedback`.
+    const applyGridLayout = (gridId, layout) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return null;
+      const clean = sanitizeLayout(layout); if (!clean) return null;
+      const oldLayout = gridLayoutOf(cy); if (!oldLayout) return null;
+      const templateId = cy.get('templateId') || null;
+      // A dangling templateId makes setTemplateLayout a no-op (it needs an
+      // existing record to patch). Re-homing cells against a layout that then
+      // never lands would strand every cell under an id the tree doesn't have,
+      // so refuse the whole operation rather than half-apply it.
+      if (templateId && !ydoc.getMap('gridTemplates').get(templateId)) return null;
+
+      const members = [];
+      if (templateId) {
+        m.forEach((ym, id) => {
+          if (ym.get && ym.get('kind') === 'grid' && ym.get('templateId') === templateId) members.push(id);
+        });
+      }
+      if (!members.length) members.push(gridId);
+
+      const mkCellId = () => 'gc_' + Math.random().toString(36).slice(2, 9);
+      let dropped = 0;
+      breakUndo(); // applying a template is its own ⌘Z step
+      ydoc.transact(() => {
+        // ONE instantiation for the whole family: linked members read their
+        // layout from the same record, so they must agree on leaf ids.
+        const next = instantiateLayout(clean, mkCellId);
+        members.forEach((id) => {
+          const mem = m.get(id); if (!mem) return;
+          const cm = mem.get('gridCells'); if (!cm) return;
+          const box = { x: 0, y: 0, w: mem.get('w') || 360, h: mem.get('h') || 300 };
+          const cells = {};
+          cm.forEach((v, k) => { cells[k] = (v && v.toJSON) ? v.toJSON() : v; });
+          const { mapped, dropped: lost } = rehomeCells(oldLayout, next, cells, box);
+          dropped += lost;
+          // Collect keys before deleting — mutating a Y.Map inside its own
+          // forEach skips entries.
+          Object.keys(cells).forEach((k) => cm.delete(k));
+          Object.entries(mapped).forEach(([k, v]) => cm.set(k, v));
+        });
+        writeGridLayout(cy, gridId, next);
+      }, 'local');
+      return { dropped, affected: members.length };
     };
     const setGridCellContent = (gridId, cellId, patch) => {
       const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
@@ -2841,7 +2911,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addArrow, addFreeArrow, deleteArrows, updateArrow,
       addNote, addTextLink, addImageAt, addPdfAt, ingestFilesArranged, updateCardSilent, addNewBoard, addPalette,
       addDocCard, addScriptCard, addGrid,
-      resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, setGridCellContent, clearGridCellContent, removeGridCellRecord,
+      resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, applyGridLayout, setGridCellContent, clearGridCellContent, removeGridCellRecord,
       setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
       applyRundownPlan,
       setGridTextStyle, pinCellStyle, unpinCellStyle, guardWeightedAdd,
