@@ -1,0 +1,56 @@
+/* GridLayoutThumb's own look, imported by the component rather than by each
+   surface that renders one.
+
+   This file exists because the styling used to live in gridTemplatePanel.css,
+   which only the in-app panel loads — so the same component rendered on
+   /templates had no fill, no stroke and BLACK label text on a black card. A
+   component that draws itself has to carry the rules that make it visible.
+
+   Everything is drawn to match the real grid card (cards/gridCard.css): .gridc's
+   recessed field, .gridc-cell boxes on it, and .gridc-hint's centred uppercase
+   guidance. A preview should look like the thing you are about to place.
+
+   NOTE: stroke widths and font sizes here are in the thumb's 280×220 COORDINATE
+   SPACE, not pixels. A stroke-width of 3 renders as a hairline once the SVG is
+   scaled down to a tile. */
+
+.tplt-thumb {
+  display: block;
+  flex: none;
+  border-radius: 3px;
+  background: var(--bg-2);
+}
+
+/* A cell. Matches .gridc-cell on .gridc. */
+.tplt-thumb rect {
+  fill: var(--bg-1);
+  stroke: var(--line-1);
+  stroke-width: 3;
+}
+
+/* A cell hint, matching .gridc-hint: centred, uppercase, tracked, ink-3 at .75 —
+   it explains the box without competing with it. font-size is set per-cell on
+   the element, because a nine-box grid has a third the height of a three-box one
+   and the same label has to fit both. */
+.tplt-cell-hint {
+  fill: var(--ink-3);
+  /* .gridc-hint is .75 on a card you are working at. A preview is scaled down
+     and read at a glance, so it needs a little more to stay legible — the
+     smallest bump that survives a 200px tile. */
+  opacity: .85;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+/* The numbered variant (the save dialog): a box's position in reading order,
+   which is what makes "field 2" mean something. */
+.tplt-thumb.is-numbered text {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 25px;
+  fill: var(--ink-3);
+  user-select: none;
+}

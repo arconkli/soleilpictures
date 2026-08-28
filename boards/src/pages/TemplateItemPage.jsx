@@ -11,8 +11,13 @@
 // keeps these from being doorway clones is not length but difference, enforced by
 // src/lib/templates.test.mjs.
 //
-// The diagram, the numbered labels and the grid the button places all come from
-// the SAME preset id, so the page cannot show one shape and hand over another.
+// The labels are drawn INSIDE the boxes, the way the card draws them, so the
+// preview answers "what goes where" by looking like the thing you are about to
+// place. There is no legend beside it: with the labels in the boxes a numbered
+// list is the same information twice, and on a nine-box casting board it is nine
+// repeated words of noise. The Worker's crawlable body keeps an <ol> because a
+// crawler cannot read SVG text, and the SVG's aria-label carries them for
+// assistive tech — three renderings, one source, all from the same preset id.
 
 import { useEffect } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
@@ -75,7 +80,7 @@ export function TemplateItemPage({ path }) {
               the right. No section headings — there is only one thing here. */}
           <div className="tplitem-hero">
             <div className="tplitem-shot">
-              {preset && <GridLayoutThumb tree={preset.tree} title={item.h1} numbered={hints.length > 0} />}
+              {preset && <GridLayoutThumb tree={preset.tree} title={item.h1} labels={hints.length ? hints : null} />}
             </div>
             <div className="tplitem-detail">
               <h1 className="tplitem-h1">{item.h1}</h1>
@@ -84,12 +89,6 @@ export function TemplateItemPage({ path }) {
                 {item.cells} {item.cells === 1 ? 'box' : 'boxes'}
                 {category && <> · {category.label}</>}
               </p>
-
-              {hints.length > 0 && (
-                <ol className="tplitem-labels">
-                  {hints.map((h, i) => <li key={`${h}-${i}`}><span>{i + 1}</span>{h}</li>)}
-                </ol>
-              )}
 
               <a className="seo-cta-primary tplitem-add" href={addHref(item.slug)}>Add to my templates</a>
               <span className="seo-cta-sub2">

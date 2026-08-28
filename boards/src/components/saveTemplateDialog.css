@@ -75,11 +75,13 @@
   background: var(--bg-2);
 }
 .savetpl-preview .tplt-thumb { width: 100%; height: auto; aspect-ratio: 56 / 44; background: transparent; }
-.savetpl-preview .tplt-thumb rect { fill: var(--bg-1); stroke: var(--line-3); stroke-width: .6; }
+/* Stroke widths and font sizes here are in the thumb's 280×220 COORDINATE
+   SPACE, not pixels — they were 5× smaller when that space was 56×44. */
+.savetpl-preview .tplt-thumb rect { fill: var(--bg-1); stroke: var(--line-3); stroke-width: 3; }
 /* The lit cell. Gold is legitimate here: this IS a selection indicator. */
-.savetpl-preview .tplt-thumb rect.is-highlight { fill: var(--bg-3); stroke: var(--soleil); stroke-width: 1; }
+.savetpl-preview .tplt-thumb rect.is-highlight { fill: var(--bg-3); stroke: var(--soleil); stroke-width: 5; }
 .savetpl-preview .tplt-thumb text {
-  font: 600 5px/1 var(--font-sans);
+  font: 600 25px/1 var(--font-sans);
   fill: var(--ink-3);
   user-select: none;
 }

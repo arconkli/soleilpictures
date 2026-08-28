@@ -249,7 +249,7 @@ export function TemplatesStorePage() {
             return (
               <li key={`${t.category}:${t.slug}`}>
                 <a className="tplstore-card" href={t.path}>
-                  {tree && <GridLayoutThumb tree={tree} title={t.h1} />}
+                  {tree && <GridLayoutThumb tree={tree} title={t.h1} labels={t.hints?.length ? t.hints : null} />}
                   <span className="tplstore-title">{t.h1}</span>
                   <span className="tplstore-blurb">{t.blurb}</span>
                   <span className="tplstore-meta">

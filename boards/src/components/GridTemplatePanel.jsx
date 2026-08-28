@@ -82,6 +82,11 @@ function TemplateRow({ row, index, onPick, rowActions, active, onHover }) {
         onMouseEnter={onHover}
         onClick={() => onPick(row)}
       >
+        {/* Deliberately UNLABELLED here. A panel tile is ~139px wide, and a
+            nine-box grid at that size renders labels as 3px specks — noise, not
+            information. The store's tiles are 230px+ and the item page's is
+            350px, which is where they become legible. The name is directly
+            below this anyway; in the panel the shape is what you are picking. */}
         <GridLayoutThumb tree={row.tree} title={row.name} />
         {/* title= so a name clamped at two lines is still recoverable. Safe for
             the accessible name: the aria-label above wins over a descendant's

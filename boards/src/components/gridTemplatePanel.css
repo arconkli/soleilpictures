@@ -200,21 +200,10 @@ body:has(.cnv-tpl-panel) .cnv-depth-dock { display: none; }
 .tplt-row:hover .tplt-name,
 .tplt-row-wrap.is-active .tplt-name { color: var(--ink-0); }
 
-/* The shape itself: neutral ink outlines on a slightly recessed field, so the
-   tile reads as a diagram rather than as content. */
-.tplt-thumb {
-  display: block;
-  flex: none;
-  border-radius: 2px;
-  background: var(--bg-3);
-}
-.tplt-thumb rect {
-  fill: var(--bg-1);
-  stroke: var(--line-3);
-  stroke-width: .75;
-}
+/* Base look lives with the component (gridLayoutThumb.css) so it travels to
+   every surface that renders one. Only the panel's own hover state is here. */
 .tplt-row:hover .tplt-thumb rect,
-.tplt-row-wrap.is-active .tplt-thumb rect { stroke: var(--ink-3); }
+.tplt-row-wrap.is-active .tplt-thumb rect { stroke: var(--line-3); }
 
 /* Hidden until the tile is hovered or the trigger itself has focus, so a wall of
    built-ins stays clean and only your own templates grow an affordance. Keyboard

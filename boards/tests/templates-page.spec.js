@@ -106,10 +106,22 @@ test.describe('/templates/<slug> — an item page', () => {
     // The diagram is drawn from the same preset the button places, so the box
     // count on screen is the box count you get.
     await expect(page.locator('.tplitem-shot .tplt-thumb rect')).toHaveCount(4);
-    // Labels in READING ORDER, which on db-row-1-3 is not left-to-right:
-    // readingOrder bands cells by their centre, so the top-right box sorts
-    // ahead of the full-height frame beside it.
-    await expect(page.locator('.tplitem-labels li').first()).toContainText('SHOT + LENS');
+    // The labels are drawn INSIDE the boxes, the way the card draws them — no
+    // legend beside the diagram, because that would be the same information
+    // twice. Order is READING ORDER, which on db-row-1-3 is not left-to-right:
+    // readingOrder bands cells by their centre, so the top-right box sorts ahead
+    // of the full-height frame beside it.
+    const labels = page.locator('.tplitem-shot .tplt-cell-hint');
+    await expect(labels).toHaveCount(4);
+    // Asserted as a SET, not a sequence: cells are drawn in tree order while
+    // labels are indexed by reading order, so DOM order is neither and does not
+    // need to be. What matters is that every label landed in a box.
+    expect((await labels.allTextContents()).sort())
+      .toEqual(['FRAME', 'MOVEMENT', 'NOTES', 'SHOT + LENS']);
+    // role="img" hides SVG contents from assistive tech, so the labels have to
+    // survive in the accessible name or a screen reader gets a bare shape.
+    await expect(page.locator('.tplitem-shot .tplt-thumb'))
+      .toHaveAttribute('aria-label', /SHOT \+ LENS, FRAME, MOVEMENT, NOTES/);
 
     for (const href of await page.locator('a.public-cta, a.tplitem-add')
       .evaluateAll((els) => els.map((e) => e.getAttribute('href')))) {
@@ -132,9 +144,8 @@ test.describe('/templates/<slug> — an item page', () => {
   test('an unlabelled template shows no empty legend', async ({ page }) => {
     await page.goto('/templates/contact-sheet-template');
     await expect(page.locator('.tplitem-shot .tplt-thumb rect')).toHaveCount(9);
-    // Nine identical labels would be noise, so this one carries none — and an
-    // empty list would be worse than no list.
-    await expect(page.locator('.tplitem-labels')).toHaveCount(0);
+    // Nine identical labels would be noise, so this template carries none.
+    await expect(page.locator('.tplitem-shot .tplt-cell-hint')).toHaveCount(0);
   });
 
   test('an unknown item is a dead end, not a soft 404', async ({ page }) => {

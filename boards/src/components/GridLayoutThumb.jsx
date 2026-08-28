@@ -1,61 +1,116 @@
 import { computeCellRects, readingOrder } from '../lib/gridLayout.js';
+import './gridLayoutThumb.css';
 
-// A layout's shape at a glance: the cell rects of its fraction tree and nothing
-// else. Pure SVG — no images, no network, no measurement — so a panel of thirty
-// of these renders in one frame, works offline, and works under ?local=1.
+// A layout, drawn the way the card actually draws it.
 //
-// It renders from the SAME computeCellRects the card uses, so the tile in the
-// picker and the grid you get after clicking are the same tiling by
-// construction rather than by a designer keeping two things in sync.
+// Pure SVG — no images, no network, no measurement — so a panel of thirty
+// renders in one frame, works offline, and works under ?local=1. It renders from
+// the SAME computeCellRects the card uses, so the preview and the grid you get
+// after clicking are the same tiling by construction rather than by a designer
+// keeping two things in sync.
 //
-// `numbered` and `highlight` exist for the save dialog, where the diagram has to
-// answer "which box is field 2". Numbering follows READING ORDER, matching how
-// hints are indexed and how a person counts cells — not the depth-first order
-// the tree happens to store them in.
+// `labels` draws the cell hints INSIDE the boxes, which is what the real card
+// does (.gridc-hint: centred, uppercase, tracked, ink-3 at .75) — so a preview
+// answers "what goes in each box" by looking like the thing you are about to
+// place, rather than by a numbered legend beside it.
+//
+// The coordinate space is 280×220 rather than the old 56×44 for one reason: text.
+// A hint is ~11px in a ~360px-wide card, and at 56 units wide there is no font
+// size that renders a word legibly. Same aspect ratio, four times the room, so
+// nothing that relied on the intrinsic 56×44 size moves.
+//
+// `numbered` and `highlight` are the save dialog's, where the diagram has to
+// answer "which box is field 2". Numbering follows READING ORDER — how hints are
+// indexed and how a person counts boxes, not the depth-first order the tree
+// stores them in.
 
-const VB = { w: 56, h: 44 };
-const INSET = 1; // hairline gap so adjacent cells read as separate boxes
+const VB = { w: 280, h: 220 };      // coordinate space
+const SIZE = { w: 56, h: 44 };      // intrinsic size, unchanged
+const INSET = 4;                    // hairline gap so boxes read as separate
+const FONT = 11;                    // matches .gridc-hint's 11px in a ~360px card
+const CHAR = 0.66;                  // uppercase + .06em tracking, measured against the render
 
-export function GridLayoutThumb({ tree, title, numbered = false, highlight = -1 }) {
+// SVG text does not wrap, so a label has to be laid out here. Up to two lines,
+// then an ellipsis — the same shape the real hint takes when a box is too small
+// for it, and better than a word running out past the cell edge.
+function fitLabel(text, boxW, font) {
+  const max = Math.max(1, Math.floor((boxW - font * 0.4) / (font * CHAR)));
+  const words = String(text).trim().split(/\s+/);
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    const next = cur ? `${cur} ${w}` : w;
+    if (next.length <= max) { cur = next; continue; }
+    if (cur) lines.push(cur);
+    cur = w;
+    if (lines.length === 2) break;
+  }
+  if (cur && lines.length < 2) lines.push(cur);
+  // A single word longer than the box still has to stop somewhere.
+  return lines.slice(0, 2).map((l) => (l.length > max ? `${l.slice(0, Math.max(1, max - 1))}…` : l));
+}
+
+export function GridLayoutThumb({ tree, title, labels = null, numbered = false, highlight = -1 }) {
   const rects = tree ? computeCellRects(tree, { x: 0, y: 0, w: VB.w, h: VB.h }) : [];
-  // Map cell id → its position in reading order, so a rect can find its number.
-  const order = numbered || highlight >= 0
+  // Map cell id → its position in reading order, so a rect can find its number
+  // or its label. This is the one place index-keyed hints meet the drawn cells.
+  const order = (labels || numbered || highlight >= 0)
     ? new Map(readingOrder(rects).map((id, i) => [id, i]))
     : null;
 
   return (
     <svg
-      className={`tplt-thumb${numbered ? ' is-numbered' : ''}`}
+      className={`tplt-thumb${numbered ? ' is-numbered' : ''}${labels ? ' is-labelled' : ''}`}
       viewBox={`0 0 ${VB.w} ${VB.h}`}
-      width={VB.w}
-      height={VB.h}
+      width={SIZE.w}
+      height={SIZE.h}
       role="img"
-      aria-label={title ? `${title} layout` : 'Layout preview'}
+      aria-label={[
+        title ? `${title} layout` : 'Layout preview',
+        `${rects.length} ${rects.length === 1 ? 'box' : 'boxes'}`,
+        // role="img" hides the SVG's contents from assistive tech, so the cell
+        // labels have to be in the accessible name or they are invisible to it.
+        labels?.length ? `labelled ${labels.filter(Boolean).join(', ')}` : null,
+      ].filter(Boolean).join(' — ')}
     >
       {rects.map((r) => {
         const i = order ? order.get(r.id) : -1;
         const on = i >= 0 && i === highlight;
+        const w = Math.max(0, r.w - INSET * 2);
+        const h = Math.max(0, r.h - INSET * 2);
+        // Shrink to fit a short box rather than overflowing it — a 9-cell grid
+        // has a third the height of a 3-cell one for the same label.
+        const font = Math.min(FONT, Math.max(6, h * 0.34));
+        const label = labels && i >= 0 ? labels[i] : null;
+        const lines = label ? fitLabel(label, w, font) : [];
         return (
           <g key={r.id}>
             <rect
               className={on ? 'is-highlight' : undefined}
-              x={r.x + INSET}
-              y={r.y + INSET}
-              width={Math.max(0, r.w - INSET * 2)}
-              height={Math.max(0, r.h - INSET * 2)}
-              rx="1.5"
+              x={r.x + INSET} y={r.y + INSET} width={w} height={h} rx="4"
             />
             {numbered && i >= 0 && (
               <text
                 className={on ? 'is-highlight' : undefined}
-                x={r.x + r.w / 2}
-                y={r.y + r.h / 2}
-                textAnchor="middle"
-                dominantBaseline="central"
+                x={r.x + r.w / 2} y={r.y + r.h / 2}
+                textAnchor="middle" dominantBaseline="central"
               >
                 {i + 1}
               </text>
             )}
+            {lines.map((line, li) => (
+              <text
+                key={li}
+                className="tplt-cell-hint"
+                x={r.x + r.w / 2}
+                // Centre the block, then step each line down from it.
+                y={r.y + r.h / 2 + (li - (lines.length - 1) / 2) * font * 1.25}
+                fontSize={font}
+                textAnchor="middle" dominantBaseline="central"
+              >
+                {line}
+              </text>
+            ))}
           </g>
         );
       })}
