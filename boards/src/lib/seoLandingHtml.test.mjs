@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SEO_LANDING_PAGES, getLandingSpec } from './seoLanding.js';
+import { TEMPLATE_ITEMS } from './templateIndex.js';
 
 // The Worker's server-rendered half of every landing page had no test at all.
 //
@@ -18,7 +19,6 @@ import { SEO_LANDING_PAGES, getLandingSpec } from './seoLanding.js';
 const { buildLandingCrawlableHtml, buildLandingJsonLd } = await import('../worker.js');
 
 const ORIGIN = 'https://clusters.soleilpictures.com';
-const templatePages = SEO_LANDING_PAGES.filter((p) => p.kind === 'template');
 const nodesOf = (spec) => buildLandingJsonLd(spec, `${ORIGIN}${spec.path}`)['@graph'];
 // Mirrors worker.js escapeHtml. Prose here contains quotes and apostrophes, so
 // a raw includes() would report a correctly-escaped heading as missing.
@@ -54,7 +54,12 @@ test('every landing page renders its prose into the crawlable body', () => {
 // a docsLink, with the same words.
 test('docsLinks reach the crawlable body with their own label', () => {
   const withDocs = SEO_LANDING_PAGES.filter((p) => (p.docsLinks || []).length);
-  assert.ok(withDocs.length >= 4, `expected the templates family to carry docs links, got ${withDocs.length}`);
+  // Floor was 4 while the template items were landing specs. They moved to
+  // their own registry (templateCrawlable.js renders their docs link directly),
+  // leaving /templates as the one landing page that uses the field. This is an
+  // anti-vacuous floor, not a target: it exists so a docsLinks that stopped
+  // rendering entirely cannot pass by having nothing to render.
+  assert.ok(withDocs.length >= 1, `docsLinks is no longer used by any landing page (${withDocs.length})`);
   for (const spec of withDocs) {
     const html = buildLandingCrawlableHtml(spec);
     for (const d of spec.docsLinks) {
@@ -64,55 +69,32 @@ test('docsLinks reach the crawlable body with their own label', () => {
   }
 });
 
-test('a template page states its real shape, derived not typed', () => {
-  assert.ok(templatePages.length >= 3, `expected the curated pages, got ${templatePages.length}`);
-  for (const spec of templatePages) {
-    const html = buildLandingCrawlableHtml(spec);
-    assert.ok(html.includes('The layout'), `${spec.path}: no layout section`);
-    for (const h of spec.template.hints || []) {
-      assert.ok(html.includes(`<li>${esc(h)}</li>`), `${spec.path}: label "${h}" not in the crawlable list`);
-    }
-    // An empty <ol> would mean the hints array vanished between the spec and
-    // the renderer — visible to nobody, since the page still looks fine.
-    assert.ok(!html.includes('<ol></ol>'), `${spec.path}: empty label list`);
-  }
-});
-
-// A page nested under /templates that claims a two-rung trail is telling Google
-// something false about the site's shape, and the breadcrumb is one of the very
-// few parts of this graph a SERP still renders.
-test('breadcrumbs gain a rung for a nested page and only for a nested page', () => {
-  for (const spec of templatePages) {
-    const crumbs = typed(spec, 'BreadcrumbList').itemListElement;
-    assert.equal(crumbs.length, 3, `${spec.path}: expected Home → parent → self`);
-    assert.deepEqual(crumbs.map((c) => c.position), [1, 2, 3], `${spec.path}: positions out of order`);
-    assert.equal(crumbs[1].item, `${ORIGIN}${spec.parent}`);
-    assert.equal(crumbs[1].name, getLandingSpec(spec.parent).h1);
-    assert.equal(crumbs[2].item, `${ORIGIN}${spec.path}`);
-  }
-  // Everything without a parent keeps the two-rung trail it has always had.
-  for (const spec of SEO_LANDING_PAGES.filter((p) => !p.parent)) {
+// Nothing in the landing registry is nested any more — the template store's
+// items moved to their own registry — so every breadcrumb here is two rungs. The
+// `parent` machinery stays because the store's item pages use it, and asserting
+// the landing side is flat is what would catch a spec quietly growing a parent.
+test('landing breadcrumbs are two rungs, because nothing here is nested', () => {
+  for (const spec of SEO_LANDING_PAGES) {
     assert.equal(typed(spec, 'BreadcrumbList').itemListElement.length, 2, `${spec.path}: unexpected rung`);
   }
 });
 
-// The hub declares its spokes. Every url in the list has to be a real,
-// indexable page in the registry — an ItemList pointing at URLs the page does
-// not actually offer is markup asserting something untrue, which is worse than
-// no markup.
-test('the hub lists its children, and every one of them resolves', () => {
+// The store front declares its shelf. Every url has to be a real, indexable
+// page — an ItemList pointing at URLs the page does not actually offer is
+// markup asserting something untrue, which is worse than no markup.
+test('the store front lists its items, and every one of them resolves', () => {
   const hub = getLandingSpec('/templates');
   const list = typed(hub, 'ItemList');
-  assert.ok(list, '/templates should declare an ItemList of its curated children');
-  assert.equal(list.itemListElement.length, templatePages.length);
+  assert.ok(list, '/templates should declare an ItemList of its templates');
+  assert.equal(list.itemListElement.length, TEMPLATE_ITEMS.length);
+  const byPath = new Map(TEMPLATE_ITEMS.map((t) => [t.path, t]));
   for (const item of list.itemListElement) {
     const path = item.url.replace(ORIGIN, '');
-    const child = getLandingSpec(path);
-    assert.ok(child, `ItemList points at ${path}, which is not in the registry`);
-    assert.equal(child.parent, '/templates', `${path} is listed but does not claim /templates as parent`);
-    assert.equal(item.name, child.h1);
+    const t = byPath.get(path);
+    assert.ok(t, `ItemList points at ${path}, which is not in the template registry`);
+    assert.equal(item.name, t.h1);
   }
-  // And a page with no children must not emit an empty list.
+  // A page with no items must not emit an empty list.
   assert.equal(typed(getLandingSpec('/vs/miro'), 'ItemList'), undefined);
 });
 

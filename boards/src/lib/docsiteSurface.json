@@ -395,9 +395,6 @@
     "landing": [
       "/scout",
       "/templates",
-      "/templates/contact-sheet-template",
-      "/templates/shot-list-template",
-      "/templates/storyboard-template",
       "/tools/ai-mood-board-maker",
       "/tools/free-mood-board-maker",
       "/tools/look-book-maker",
@@ -415,6 +412,23 @@
       "/best/mood-board-apps",
       "/best/pureref-alternatives",
       "/best/storyboard-software"
+    ],
+    "templates": [
+      "/templates/before-and-after-template",
+      "/templates/brand-board-template",
+      "/templates/casting-board-template",
+      "/templates/comparison-grid-template",
+      "/templates/contact-sheet-template",
+      "/templates/location-scout-template",
+      "/templates/look-book-template",
+      "/templates/mood-board-template",
+      "/templates/product-lineup-template",
+      "/templates/recipe-card-template",
+      "/templates/shot-list-template",
+      "/templates/social-media-grid-template",
+      "/templates/storyboard-template",
+      "/templates/video-storyboard-template",
+      "/templates/wedding-mood-board-template"
     ],
     "router": [
       "changelogMatch = /^\\/changelog\\/?$/i.test(PATH)",

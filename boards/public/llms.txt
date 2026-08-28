@@ -132,6 +132,33 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [A Miro Alternative for Filmmakers and Creative Teams](https://clusters.soleilpictures.com/vs/miro): A Miro alternative for creative work, not diagramming: image-first boards, palettes, storyboards, and client-ready sharing. Free to start.
 - [What You Can Make with Clusters](https://clusters.soleilpictures.com/use-cases): Mood boards, look books, storyboards, shot lists — see what creative teams make with Soleil Clusters, browse example boards, and start yours free.
 - [Grid templates](https://clusters.soleilpictures.com/templates): Free grid layout templates for storyboards, contact sheets and comparisons. Pick a shape, fill the cells with images or text, and save your own to reuse.
-- [Storyboard template](https://clusters.soleilpictures.com/templates/storyboard-template): A free storyboard template: a wide establishing frame over two beats, every panel labelled. Drop in stills or sketches, caption each shot, share one link.
-- [Contact sheet template](https://clusters.soleilpictures.com/templates/contact-sheet-template): A free 3 × 3 contact sheet template. Drop nine stills, frames or product shots into an even grid, re-order by dragging, and share the sheet with one link.
-- [Shot list template](https://clusters.soleilpictures.com/templates/shot-list-template): A free shot list template that keeps the reference frame next to the details: shot and lens, camera movement, notes. Stamp one row per setup, numbered.
+
+## Grid templates
+
+### Film and video
+
+- [Casting board template](https://clusters.soleilpictures.com/templates/casting-board-template): Nine headshots, a row per role tier — lead, supporting, background.
+- [Location scout template](https://clusters.soleilpictures.com/templates/location-scout-template): Three locations, three frames each — wide, detail, and the light.
+- [Shot list template](https://clusters.soleilpictures.com/templates/shot-list-template): A reference frame beside shot and lens, movement and notes — one row per setup.
+- [Storyboard template](https://clusters.soleilpictures.com/templates/storyboard-template): A wide establishing frame over two beats, with every panel labelled.
+- [Video storyboard template](https://clusters.soleilpictures.com/templates/video-storyboard-template): Four beats across — hook, two middles, end card.
+
+### Photography
+
+- [Before and after template](https://clusters.soleilpictures.com/templates/before-and-after-template): Two even panels, labelled — the comparison reads at a glance.
+- [Contact sheet template](https://clusters.soleilpictures.com/templates/contact-sheet-template): Nine even frames, sized so a whole shoot reads at a glance.
+- [Product lineup template](https://clusters.soleilpictures.com/templates/product-lineup-template): Four across — front, side, detail, and the in-use shot.
+
+### Design and brand
+
+- [Brand board template](https://clusters.soleilpictures.com/templates/brand-board-template): Logo, palette, typeface and imagery on one page.
+- [Look book template](https://clusters.soleilpictures.com/templates/look-book-template): Four even panels — a cover look, two more, and the detail.
+- [Mood board template](https://clusters.soleilpictures.com/templates/mood-board-template): One hero image over three supporting frames — palette, texture, detail.
+- [Wedding mood board template](https://clusters.soleilpictures.com/templates/wedding-mood-board-template): The overall feeling on top, then the dress, the flowers and the table.
+
+### Planning and comparison
+
+- [Comparison grid template](https://clusters.soleilpictures.com/templates/comparison-grid-template): Two labelled columns for weighing one option against another.
+- [Recipe card template](https://clusters.soleilpictures.com/templates/recipe-card-template): The dish photo at half width, with ingredients, method and notes beside it.
+- [Social media grid template](https://clusters.soleilpictures.com/templates/social-media-grid-template): Nine numbered boxes in the feed's own three-across shape.
+

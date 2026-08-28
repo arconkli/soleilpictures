@@ -19,8 +19,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SEO_LANDING_PAGES, SEO_LANDING_PATHS, getLandingSpec } from './seoLanding.js';
 import { SEO_LISTICLE_PAGES } from './seoListicles.js';
-import { presetById, computeCellRects, readingOrder } from './gridLayout.js';
-import { HINT_LIMITS } from './gridLayoutLibrary.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const words = (s) => String(s || '').trim().split(/\s+/).filter(Boolean).length;
@@ -36,51 +34,18 @@ test('registry basics: unique paths, resolvable, correctly shaped', () => {
   const paths = SEO_LANDING_PAGES.map((p) => p.path);
   assert.equal(new Set(paths).size, paths.length, 'duplicate path in the registry');
   for (const p of SEO_LANDING_PAGES) {
-    // Three shapes: a namespaced page (/tools/*, /vs/*, /templates/*) or a
-    // single-segment hub. The hub list is explicit rather than a wildcard so a
-    // typo'd path can't quietly claim a top-level URL.
-    assert.match(p.path, /^\/(tools|vs|templates)\/[a-z0-9-]+$|^\/(use-cases|scout|templates)$/, `${p.path}: bad path shape`);
-    assert.ok(['tool', 'compare', 'hub', 'template'].includes(p.kind), `${p.path}: unknown kind ${p.kind}`);
+    // Two shapes: a namespaced page (/tools/*, /vs/*) or a single-segment hub.
+    // The hub list is explicit rather than a wildcard so a typo'd path can't
+    // quietly claim a top-level URL. The template STORE's items are not here —
+    // they live in their own generated registry (src/lib/templateIndex.js) and
+    // are gated by src/lib/templates.test.mjs.
+    assert.match(p.path, /^\/(tools|vs)\/[a-z0-9-]+$|^\/(use-cases|scout|templates)$/, `${p.path}: bad path shape`);
+    assert.ok(['tool', 'compare', 'hub'].includes(p.kind), `${p.path}: unknown kind ${p.kind}`);
     // Resolution must survive the shapes the Worker actually receives.
     assert.equal(getLandingSpec(p.path), p, `${p.path}: does not resolve`);
     assert.equal(getLandingSpec(`${p.path}/`), p, `${p.path}: trailing slash does not resolve`);
   }
   assert.deepEqual([...SEO_LANDING_PATHS].sort(), paths.slice().sort(), 'PATHS out of step with PAGES');
-});
-
-// A kind:'template' page promises a specific grid, and the CTA places it. The
-// page's diagram, its .md mirror's label table and the grid you actually get are
-// all derived from `template.preset`, so the one thing that can go wrong is the
-// spec naming geometry that does not exist or labelling boxes that are not
-// there. Both are silent: a bad preset falls through to a single cell
-// (presetTree's documented fallback) and a surplus hint is dropped by
-// sanitizeHints. Neither throws; you would just ship the wrong template.
-test('template pages: the preset exists and the labels fit its cells', () => {
-  const pages = SEO_LANDING_PAGES.filter((p) => p.kind === 'template');
-  assert.ok(pages.length >= 3, `expected the curated template pages, got ${pages.length}`);
-
-  for (const p of pages) {
-    assert.ok(p.template?.preset, `${p.path}: kind 'template' with no template.preset`);
-    const preset = presetById(p.template.preset);
-    assert.ok(preset, `${p.path}: unknown preset "${p.template.preset}"`);
-    assert.equal(p.parent, '/templates', `${p.path}: template pages must declare parent /templates`);
-
-    const cells = readingOrder(computeCellRects(preset.tree, { x: 0, y: 0, w: 900, h: 600 })).length;
-    const hints = p.template.hints;
-    if (hints === undefined) continue;   // uniform grids label nothing on purpose
-
-    assert.ok(Array.isArray(hints), `${p.path}: template.hints must be an array`);
-    assert.ok(hints.length <= cells,
-      `${p.path}: ${hints.length} labels for ${cells} cells — the surplus is silently dropped`);
-    for (const h of hints) {
-      assert.equal(typeof h, 'string', `${p.path}: a label must be a string`);
-      assert.ok(h.trim(), `${p.path}: empty label`);
-      // The same ceiling the database CHECK enforces (migration 0269), so a
-      // page can never advertise a label the app would refuse to store.
-      assert.ok(h.length <= HINT_LIMITS.MAX_LEN,
-        `${p.path}: label "${h}" is ${h.length} chars, over the ${HINT_LIMITS.MAX_LEN} the column allows`);
-    }
-  }
 });
 
 // docsLinks exists instead of putting /docs/* into `related`, and the reason is

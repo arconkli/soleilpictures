@@ -870,3 +870,61 @@
   .exp-toolbar { margin: 0 -8px 12px; padding: 8px; }
   .exp-search { flex-basis: 100%; }
 }
+
+/* ── The template store (/templates and /templates/<slug>) ─────────────────
+   Reuses the /explore toolbar wholesale (.exp-toolbar, .exp-sorts, .exp-chip,
+   .exp-count, .exp-noresults) — browsing is a solved problem here and a second
+   dialect of it would be a worse one. Only the tile is different, because a
+   tile here is a diagram rather than a photograph. */
+.exp-store { margin-top: 28px; }
+.exp-chip-n { opacity: .55; font-variant-numeric: tabular-nums; }
+
+.tplstore-grid {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 0;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 16px;
+}
+.tplstore-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  height: 100%;
+  padding: 16px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--bg-1);
+  color: var(--ink-1);
+  text-decoration: none;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.tplstore-card:hover { border-color: var(--ink-3); background: var(--bg-2); }
+/* The diagram is the product shot. Full width of the tile so the shape is
+   readable at a glance, which is the entire job of this page. */
+.tplstore-card .tplt-thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 56 / 44;
+  border-radius: 6px;
+}
+.tplstore-title { font: 600 15px/1.3 var(--font-sans); color: var(--ink-0); }
+.tplstore-blurb { font: 400 13px/1.5 var(--font-sans); color: var(--ink-2); flex: 1 1 auto; }
+.tplstore-meta {
+  font: 500 11px/1 var(--font-sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* An item page. Narrower than a landing page — there is deliberately less on it. */
+.tplitem-crumbs {
+  font: 400 13px/1.4 var(--font-sans);
+  color: var(--ink-2);
+  margin-bottom: 14px;
+}
+.tplitem-crumbs a { color: var(--ink-1); }
+.tplitem-crumbs span { margin: 0 6px; opacity: .5; }
+.tplitem-layout { margin-top: 8px; }
+.tplitem-add { display: inline-block; margin: 14px 0 6px; }

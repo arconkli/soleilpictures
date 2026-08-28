@@ -7,7 +7,7 @@
 // Code-split (loaded only on a landing path) and dependency-light — it imports
 // just the brand mark and the shared registry, staying out of the editor chunk.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { SEO_LANDING_PAGES, getLandingSpec } from '../lib/seoLanding.js';
 import { SEO_LISTICLE_INDEX } from '../lib/seoListicleIndex.js';
@@ -19,6 +19,14 @@ import { GridLayoutThumb } from '../components/GridLayoutThumb.jsx';
 import { presetById, leafIds } from '../lib/gridLayout.js';
 import { encodeRemixParam } from '../lib/remix.js';
 import './seoLanding.css';
+
+// The template store branches off this component rather than getting its own
+// `const …Match` in main.jsx. seoLandingMatch already matches /templates and
+// /templates/<anything>, and adding a router const would be a public-surface
+// change requiring docs:accept for no behavioural gain. Both children are lazy
+// so the store's registries never land in the landing chunk.
+const TemplatesStorePage = lazy(() => import('./TemplatesStorePage.jsx').then((m) => ({ default: m.TemplatesStorePage })));
+const TemplateItemPage = lazy(() => import('./TemplateItemPage.jsx').then((m) => ({ default: m.TemplateItemPage })));
 
 // path → short link label, for related-page spokes in the footer. Includes the
 // /best/* listicles via the light index (never the full listicle registry —
@@ -90,6 +98,9 @@ export function SeoLandingPage({ spec: specProp, path }) {
   // falling back to page content here would be a soft-404 (content at a URL
   // whose status says "gone").
   const spec = specProp || getLandingSpec(path) || null;
+  // A store item: /templates/<slug> matches seoLandingMatch but is not a landing
+  // spec. Resolved here rather than in main.jsx so the router keeps its shape.
+  const isTemplateItem = !spec && /^\/templates\/[a-z0-9-]+\/?$/i.test(path || '');
 
   useEffect(() => {
     if (!spec) return;
@@ -113,7 +124,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
   // of this chunk's critical path, and a failure leaves the static page intact.
   const [communityTemplates, setCommunityTemplates] = useState([]);
   useEffect(() => {
-    if (!spec?.showTemplates) return undefined;
+    if (!spec?.storefront) return undefined;
     let on = true;
     Promise.all([
       import('../lib/gridLayoutsApi.js'),
@@ -154,6 +165,9 @@ export function SeoLandingPage({ spec: specProp, path }) {
     });
   }, [spec, pubBoards]);
 
+  if (isTemplateItem) {
+    return <Suspense fallback={null}><TemplateItemPage path={path} /></Suspense>;
+  }
   if (!spec) return <NotFoundPage />;
 
   // On a curated template page every conversion CTA carries the template with
@@ -359,7 +373,15 @@ export function SeoLandingPage({ spec: specProp, path }) {
               copy above is what crawlers read; this strip is enhancement, which
               is what keeps the Worker's server-rendered HTML and React's output
               the same document. */}
-          {spec.showTemplates && communityTemplates.length > 0 && (
+          {/* The store itself. Rendered AFTER the static prose so the text that
+              makes this page rank is the first thing in the document — and it
+              is the same text the Worker injects for crawlers, which already
+              carry every item as a real link. The filter is enhancement. */}
+          {spec.storefront && (
+            <Suspense fallback={null}><TemplatesStorePage /></Suspense>
+          )}
+
+          {spec.storefront && communityTemplates.length > 0 && (
             <section className="seo-section seo-templates" ref={lp.sectionRef('templates', 4 + nSec)}>
               <h2 className="seo-h2">From the community</h2>
               <p className="seo-body">

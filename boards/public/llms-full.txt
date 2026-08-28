@@ -1062,15 +1062,16 @@ Publishing shares the shape and the name you gave it. It does not share the boar
 
 Only the person who made a template can publish it. A workspace template can be renamed and edited by any member, but publishing it is still the author's call.
 
-Ready-made templates
+The template store
 
-Three shapes have a page of their own, each explaining what the layout is for and adding it to your templates in one click:
+/templates is a browsable store of ready-made layouts — filter by what you are making, open one to see what each box is for, and add it to your own templates in a click. A few of them:
 
-Storyboard template — a wide establishing frame over two beats, with every panel labelled.
-Contact sheet template — nine even frames for comparing a shoot at a glance.
-Shot list template — a reference frame beside shot and lens, camera movement and notes.
+Storyboard template — a wide establishing frame over two beats.
+Contact sheet template — nine even frames.
+Shot list template — a reference frame beside shot, movement and notes.
+Mood board template — one hero image over three supporting frames.
 
-These behave exactly like a template you saved yourself once it lands in Yours: rename it, share it with your workspace, or re-cut it.
+Anything you add from the store behaves exactly like a template you saved yourself once it lands in Yours: rename it, share it with your workspace, or re-cut it.
 
 Generate matrix builds an empty N×M grid at whatever size you name — the fast path to a contact sheet larger than any template.
 
@@ -7014,203 +7015,6 @@ No. A label is grey placeholder guidance, not text you have to delete. It vanish
 ### Can my team share templates?
 
 Yes. Move a template to your workspace and every member can use it. Any member can rename or edit a workspace template, but only the person who made it can create a public share link.
-
-
-
-========================================================================
-URL: https://clusters.soleilpictures.com/templates/storyboard-template
-Updated: 2026-08-27
-
-# Storyboard template
-
-> This storyboard template is a three-panel grid: one wide establishing frame across the top, two beats beneath it. Each box carries a label until you fill it, so a stranger opening the file knows what goes where. Add it to Clusters in one click, then drop in stills, sketches or captions.
-
-_Source: https://clusters.soleilpictures.com/templates/storyboard-template · Updated 2026-08-27_
-
-Three labelled panels to fill with stills, sketches or notes — and re-cut later without losing the work.
-
-## The layout
-
-Storyboard · 1 top / 2 bottom — 3 boxes.
-
-| # | Label |
-| --- | --- |
-| 1 | ESTABLISHING |
-| 2 | ACTION |
-| 3 | REACTION |
-
-Each label shows only while its box is empty, and is never written into the box.
-
-## Why one wide frame over two
-
-A sequence rarely reads as equal boxes. You establish, then you cut — so the template gives the establishing shot the full width and splits the beat underneath it. It is the shape most storyboards actually take, and it means the first thing a reader's eye lands on is the frame that sets the scene. Drag the divider if your scene wants a different balance; the panels re-flow and nothing you have already dropped in moves.
-
-- One full-width establishing frame, two beats beneath
-- Every panel labelled until you fill it
-- Drag any divider to re-balance without losing content
-
-## The labels disappear on their own
-
-ESTABLISHING, ACTION and REACTION sit in the empty boxes as grey guidance — not as content. They are not text you have to select and delete: the moment a panel holds a still, a sketch or a caption, its label is gone, and if you clear the panel later the label comes back. They never appear in an export, never count toward anything, and never end up in a file you hand to a client.
-
-## One panel is not a storyboard — stamp the row
-
-A scene needs more than three frames. Select the grid and the directional "+" handles appear on each edge: click one and you get an identical, linked panel beside it, carrying the same labels and any numbering slate you have set up. Change a divider on one and the whole row re-cuts together, so a six-panel sequence stays a grid rather than six drifting rectangles.
-
-## Keep the shot list beside the frames
-
-A storyboard without the logistics is half the picture. Put a doc or a schedule card on the canvas next to the panels — lens, movement, location, shoot day — so the visual and the plan sit in one view. Your director, DP and AD can edit the same board at once, and comments land on the specific frame rather than in a paragraph of email.
-
-## Frequently asked questions
-
-### How do I use this storyboard template?
-
-Click the button on this page. The template lands in your Clusters templates, and picking it from the grid tool stamps the three labelled panels onto any board.
-
-### Do the panel labels print or export?
-
-No. A label is guidance, not content — it renders only while a panel is empty, and it is never written into the panel itself. It does not appear in exports and does not count toward your card total.
-
-### Can I add more panels?
-
-Yes. Select the grid and click a "+" on any edge to stamp a linked panel beside it, or use the matrix generator to lay out a whole page at once. Stamped panels carry the same labels.
-
-### What if I want a different panel layout?
-
-Drag any divider to re-balance the frames, or split a panel in two. You can also pick a different template later — the images and captions you have already added carry across to the new shape.
-
-### Is it free?
-
-Yes. You can build and share storyboards for free on the Demo tier. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaborators edit free.
-
-
-
-========================================================================
-URL: https://clusters.soleilpictures.com/templates/contact-sheet-template
-Updated: 2026-08-27
-
-# Contact sheet template
-
-> A contact sheet template is a nine-frame grid, three across and three down, sized so every frame reads at a glance. Add it to a board in one click and fill the cells with stills, frames or product shots — then re-cut the grid without losing any of them.
-
-_Source: https://clusters.soleilpictures.com/templates/contact-sheet-template · Updated 2026-08-27_
-
-Nine even frames for comparing a shoot at a glance — in the browser, with no export step.
-
-## The layout
-
-Contact sheet · 3 × 3 — 9 boxes.
-
-## Nine frames, evenly weighted
-
-A contact sheet works because nothing on it is emphasised. Three by three is the point where a frame is still big enough to judge and the sheet is still small enough to take in as one image — which is why it is the shape darkroom proof sheets settled on and why it survived into digital. Every cell here is exactly the same size, so what you are comparing is the photographs, not the layout.
-
-- Nine equal frames, three across and three down
-- Drop images straight in — no upload dialog, no export step
-- Drag to re-order; the grid re-flows around what you move
-
-## It is a live board, not a flat image
-
-Most contact sheet templates hand you a file you fill in once. This one stays editable: swap a frame, drag one image past another to re-order, or zoom a single cell to full screen to check focus without leaving the sheet. Nothing is baked, so the sheet a client sees next week is the sheet you have kept working on rather than an export you have to remember to redo.
-
-## Grow past nine without starting again
-
-A shoot rarely stops at nine. Stamp a linked copy of the sheet beside the first with the "+" handles and you get a second page in the same grid, aligned to the first. Or split a cell if one frame needs two variants. If you outgrow the shape entirely, pick a different template and everything you have already placed carries across to the new one.
-
-## Share the sheet, not a folder
-
-Publish the board and you get one link that opens the sheet in a browser — no download, no account needed to look. Anyone you invite to edit can comment on a specific frame, so "the third one in the middle row" stops being a sentence anybody has to write.
-
-## Frequently asked questions
-
-### How many images does the contact sheet hold?
-
-Nine by default, in a three by three grid. You can split a cell for more, or stamp a second linked sheet beside the first to continue onto another page.
-
-### Can I re-order the frames?
-
-Yes. Drag one frame onto another to swap them, and the grid re-flows around the move. Nothing is fixed in place once it is dropped.
-
-### Do I need to export the sheet to share it?
-
-No. Publishing the board gives you a link that opens the sheet in any browser, and it stays live — later edits show up without you re-sharing anything.
-
-### Can I use it for something other than photos?
-
-Yes. A cell takes an image, text, a link, a video or a nested board, so the same nine-up shape works for product shots, frame grabs, colour options or candidate logos.
-
-### Is it free?
-
-Yes. You can build and share contact sheets for free on the Demo tier. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaborators edit free.
-
-
-
-========================================================================
-URL: https://clusters.soleilpictures.com/templates/shot-list-template
-Updated: 2026-08-27
-
-# Shot list template
-
-> This shot list template pairs a reference frame with the three things a crew actually needs beside it: shot and lens, camera movement, and notes. Every box is labelled until you fill it. Add it to a board, then stamp a copy for each setup and the numbering follows.
-
-_Source: https://clusters.soleilpictures.com/templates/shot-list-template · Updated 2026-08-27_
-
-A reference frame beside the three things a crew needs on the day — one row per setup.
-
-## The layout
-
-Database row · 1 left / 3 stacked — 4 boxes.
-
-| # | Label |
-| --- | --- |
-| 1 | SHOT + LENS |
-| 2 | FRAME |
-| 3 | MOVEMENT |
-| 4 | NOTES |
-
-Each label shows only while its box is empty, and is never written into the box.
-
-## A shot list that shows the shot
-
-Most shot lists are a spreadsheet, and a spreadsheet cannot show you the frame. This template gives the reference image half the row and stacks the three fields a crew reads on the day beside it — shot and lens, camera movement, notes. On set that means one glance answers both "what are we shooting" and "how", instead of a row of text somebody has to translate back into a picture.
-
-- Reference frame at half-width, three fields stacked beside it
-- Every field labelled until you fill it
-- One row per setup — stamp as many as the day needs
-
-## One row per setup, numbered automatically
-
-Select the row and click the "+" on its edge to stamp the next setup underneath, carrying the labels with it. Put a numbering tag in a field and every copy renders its own number, in the order the rows sit on the canvas — so inserting a pickup between two setups renumbers everything after it rather than leaving you to renumber by hand.
-
-## The fields are guidance, not content
-
-SHOT + LENS, FRAME, MOVEMENT and NOTES render only while their box is empty. They are not placeholder text you have to clear: fill a box and the label is gone, empty it and the label returns. So the template explains itself to whoever opens it, without leaving a single word behind in the version you hand over.
-
-## Beside the storyboard, not in another file
-
-The list belongs next to the frames it describes. Put the shot list rows on the same canvas as your storyboard panels and the schedule, and the whole scene is one view instead of three documents that drift apart. Everyone editing sees the same board live, and a comment sits on the setup it is about.
-
-## Frequently asked questions
-
-### What is in this shot list template?
-
-Four boxes per row: a reference frame taking the left half, and shot and lens, camera movement and notes stacked on the right. Each is labelled until you fill it.
-
-### How do I add a row for every setup?
-
-Select the row and click the "+" handle on its bottom edge to stamp a linked copy, which carries the same labels. The matrix generator lays out a whole day at once.
-
-### Do the shots number themselves?
-
-Yes. Put a numbering tag in a field and each row renders its own number based on where it sits on the canvas, so inserting a setup renumbers the ones after it automatically.
-
-### Can I put a real image in the frame box?
-
-Yes — that is the point. A box takes an image, text, a link, a video or a nested board, so the frame can be a still from the location scout or a panel from your storyboard.
-
-### Is it free?
-
-Yes. You can build and share shot lists for free on the Demo tier. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaborators edit free.
 
 
 

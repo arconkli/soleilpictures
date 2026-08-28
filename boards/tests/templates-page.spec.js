@@ -39,80 +39,84 @@ test.describe('/templates — the gallery landing', () => {
   });
 });
 
-// The curated template pages: real, indexable, hand-written pages for templates
-// WE ship, as opposed to the noindex treatment user-published templates get.
-// Everything here is static and in the bundle, so unlike the gallery strip above
-// these must render fully with no backend at all.
-test.describe('/templates/<slug> — the curated template pages', () => {
-  const PAGES = [
-    { path: '/templates/storyboard-template', h1: 'Storyboard template', boxes: 3, first: 'ESTABLISHING' },
-    { path: '/templates/contact-sheet-template', h1: 'Contact sheet template', boxes: 9, first: null },
-    { path: '/templates/shot-list-template', h1: 'Shot list template', boxes: 4, first: 'SHOT + LENS' },
-  ];
+// The template STORE. /templates is a browsable catalogue; each item is its own
+// page. All of it is in the bundle rather than behind an RPC, so unlike the
+// community strip above these must render completely with no backend at all.
+test.describe('/templates — the store', () => {
+  test('lists the catalogue and filters by category, in the URL', async ({ page }) => {
+    await page.goto('/templates');
+    const cards = page.locator('.tplstore-card');
+    const total = await cards.count();
+    expect(total, 'the store should be stocked').toBeGreaterThanOrEqual(10);
 
-  for (const p of PAGES) {
-    test(`${p.path} renders its layout and its labels`, async ({ page }) => {
-      await page.goto(p.path);
-      await expect(page.getByRole('heading', { name: p.h1, level: 1 })).toBeVisible();
+    // The chips are the "departments". Picking one narrows the grid AND becomes
+    // a shareable URL — but the default is omitted so /templates stays canonical.
+    await page.getByRole('button', { name: /^Film and video/ }).click();
+    await expect.poll(() => cards.count()).toBeLessThan(total);
+    await expect.poll(() => new URL(page.url()).search).toBe('?category=film');
 
-      // The diagram is drawn from the SAME preset the CTA places, so the box
-      // count on screen is the box count you get. A page describing one shape
-      // and handing over another is the failure this guards.
-      const layout = page.locator('.seo-tpl-layout');
-      await expect(layout).toBeVisible();
-      await expect(layout.locator('.tplt-thumb rect')).toHaveCount(p.boxes);
+    // And it hydrates back out of the URL on a cold load.
+    await page.goto('/templates?category=film');
+    await expect(page.getByRole('button', { name: /^Film and video/ })).toHaveAttribute('aria-pressed', 'true');
+  });
 
-      if (p.first) {
-        // Labels are listed in READING ORDER, which is not always left to right
-        // — readingOrder bands cells by their centre. The first item here is the
-        // one the numbered diagram marks "1".
-        await expect(layout.locator('.seo-tpl-hints li').first()).toHaveText(p.first);
-      } else {
-        // A uniform grid labels nothing: nine identical "FRAME" labels would be
-        // noise, so the legend is absent rather than empty.
-        await expect(layout.locator('.seo-tpl-hints')).toHaveCount(0);
-      }
-    });
-  }
+  test('search narrows the grid and reports how many of how many', async ({ page }) => {
+    await page.goto('/templates');
+    const total = await page.locator('.tplstore-card').count();
+    await page.getByRole('searchbox', { name: 'Search templates' }).fill('storyboard');
+    await expect.poll(() => page.locator('.tplstore-card').count()).toBeLessThan(total);
+    await expect(page.locator('.exp-count')).toHaveText(new RegExp(`of ${total}`));
 
-  // The whole point of a curated page over a generic landing page: the button
-  // has to place THAT template. Before this the gallery's CTA went to the bare
-  // homepage and there was no way to obtain a template at all.
-  test('every CTA carries the template, and the wordmark does not', async ({ page }) => {
-    await page.goto('/templates/storyboard-template');
-    // Only the SIGNUP ctas. .seo-cta-primary is also worn by the sibling-listicle
-    // "Read the roundup" button, which is navigation to /best/* and rightly
-    // carries no template.
-    const hrefs = (await page.locator('a.seo-cta-primary')
-      .evaluateAll((els) => els.map((e) => e.getAttribute('href') || '')))
-      .filter((h) => h.startsWith('/?'));
-    expect(hrefs.length, 'hero + mid-read + closing').toBeGreaterThanOrEqual(3);
-    for (const href of hrefs) {
-      expect(href, 'a conversion CTA must carry the template').toContain('remix=k_storyboard-template');
+    // A query with no matches offers a way back rather than an empty page.
+    await page.getByRole('searchbox', { name: 'Search templates' }).fill('zzzznope');
+    await expect(page.locator('.exp-noresults')).toBeVisible();
+    await page.getByRole('button', { name: /^Show all/ }).click();
+    await expect.poll(() => page.locator('.tplstore-card').count()).toBe(total);
+  });
+
+  test('the static prose still renders above the store', async ({ page }) => {
+    await page.goto('/templates');
+    // The prose is what makes this page rank; the grid is the product. Order
+    // matters, and it is the same order the Worker injects.
+    const proseY = await page.locator('.seo-answer').evaluate((el) => el.getBoundingClientRect().top);
+    const gridY = await page.locator('.tplstore-grid').evaluate((el) => el.getBoundingClientRect().top);
+    expect(proseY).toBeLessThan(gridY);
+  });
+});
+
+test.describe('/templates/<slug> — an item page', () => {
+  test('shows the shape, its labels, and a button that carries the template', async ({ page }) => {
+    await page.goto('/templates/shot-list-template');
+    await expect(page.getByRole('heading', { name: 'Shot list template', level: 1 })).toBeVisible();
+
+    // The diagram is drawn from the same preset the button places, so the box
+    // count on screen is the box count you get.
+    await expect(page.locator('.tplitem-layout .tplt-thumb rect')).toHaveCount(4);
+    // Labels in READING ORDER, which on db-row-1-3 is not left-to-right:
+    // readingOrder bands cells by their centre, so the top-right box sorts
+    // ahead of the full-height frame beside it.
+    await expect(page.locator('.seo-tpl-hints li').first()).toHaveText('SHOT + LENS');
+
+    for (const href of await page.locator('a.public-cta, a.tplitem-add')
+      .evaluateAll((els) => els.map((e) => e.getAttribute('href')))) {
+      expect(href).toContain('remix=k_shot-list-template');
     }
-    // Clicking a logo to go home must not also claim a template.
-    await expect(page.locator('a.public-brand')).not.toHaveAttribute('href', /remix=/);
+    // Back to the shelf.
+    await expect(page.locator('.tplitem-crumbs a')).toHaveAttribute('href', '/templates');
   });
 
-  // The docs link is deliberately NOT in `related`: that array resolves anchor
-  // text through the landing registries and falls back to the raw path in the
-  // Worker, while React filters it through TITLE_BY_PATH and would silently drop
-  // a /docs/* entry — one renderer emitting a link the other does not.
-  test('the docs backlink renders, so the link is two-way', async ({ page }) => {
-    await page.goto('/templates/storyboard-template');
-    const nav = page.locator('nav.seo-related');
-    await expect(nav.getByRole('link', { name: 'Grids documentation' }))
-      .toHaveAttribute('href', '/docs/canvas/grids');
-    await expect(nav.getByRole('link', { name: 'Grid templates' })).toHaveAttribute('href', '/templates');
+  test('an unlabelled template shows no empty legend', async ({ page }) => {
+    await page.goto('/templates/contact-sheet-template');
+    await expect(page.locator('.tplitem-layout .tplt-thumb rect')).toHaveCount(9);
+    // Nine identical labels would be noise, so this one carries none — and an
+    // empty <ol> would be worse than no list.
+    await expect(page.locator('.seo-tpl-hints')).toHaveCount(0);
   });
 
-  // A landing-SHAPED path that is not in the registry must be a real 404, not
-  // page content at a URL whose status says gone. The Worker returns the status;
-  // React must not paper over it with a rendered page.
-  test('an unknown /templates/<slug> is a dead end, not a soft 404', async ({ page }) => {
+  test('an unknown item is a dead end, not a soft 404', async ({ page }) => {
     await page.goto('/templates/not-a-real-template');
-    await expect(page.getByRole('heading', { name: /Storyboard template/i })).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: 'Grid templates', level: 1 })).toHaveCount(0);
+    await expect(page.locator('.tplitem-layout')).toHaveCount(0);
+    await expect(page.locator('.tplstore-grid')).toHaveCount(0);
   });
 });
 

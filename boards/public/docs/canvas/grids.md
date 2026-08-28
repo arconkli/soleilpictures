@@ -140,20 +140,23 @@ anybody's library and take it back.
 Only the person who made a template can publish it. A workspace template can be
 renamed and edited by any member, but publishing it is still the author's call.
 
-### Ready-made templates
+### The template store
 
-Three shapes have a page of their own, each explaining what the layout is for and
-adding it to your templates in one click:
+[/templates](/templates) is a browsable store of ready-made layouts — filter by
+what you are making, open one to see what each box is for, and add it to your
+own templates in a click. A few of them:
 
 - [Storyboard template](/templates/storyboard-template) — a wide establishing
-  frame over two beats, with every panel labelled.
-- [Contact sheet template](/templates/contact-sheet-template) — nine even frames
-  for comparing a shoot at a glance.
+  frame over two beats.
+- [Contact sheet template](/templates/contact-sheet-template) — nine even frames.
 - [Shot list template](/templates/shot-list-template) — a reference frame beside
-  shot and lens, camera movement and notes.
+  shot, movement and notes.
+- [Mood board template](/templates/mood-board-template) — one hero image over
+  three supporting frames.
 
-These behave exactly like a template you saved yourself once it lands in
-**Yours**: rename it, share it with your workspace, or re-cut it.
+Anything you add from the store behaves exactly like a template you saved
+yourself once it lands in **Yours**: rename it, share it with your workspace, or
+re-cut it.
 
 **Generate matrix** builds an empty N×M grid at whatever size you name — the
 fast path to a contact sheet larger than any template.

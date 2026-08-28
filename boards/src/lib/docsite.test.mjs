@@ -37,6 +37,7 @@ import { blocksToText, blockLinks } from '../../scripts/lib/markdown.mjs';
 
 import { SEO_LANDING_PAGES, landingOgPath } from './seoLanding.js';
 import { SEO_LISTICLE_PAGES } from './seoListicles.js';
+import { TEMPLATE_CATEGORIES } from './templateCards.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 import { PRICING } from './billingCopy.js';
 import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP } from './fileIngest.js';
@@ -375,6 +376,9 @@ test('LINKS: every internal link resolves', () => {
     ...surface.publicRoutes.routeMeta,
     ...surface.publicRoutes.landing,
     ...surface.publicRoutes.listicle,
+    // The template store's items. They are a public, indexable family that
+    // simply lives in its own registry rather than in seoLanding.js.
+    ...surface.publicRoutes.templates,
     ...DOCS_PATHS,
   ]);
   const broken = [];
@@ -513,6 +517,8 @@ test('OG: every page that advertises an og:image has one on disk', () => {
     ...SEO_LANDING_PAGES.map((s) => ({ what: s.path, file: landingOgPath(s) })),
     ...SEO_LISTICLE_PAGES.map((s) => ({ what: s.path, file: landingOgPath(s) })),
     ...DOCS_SECTIONS.map((s) => ({ what: `docs section "${s.id}"`, file: `/og/docs-${s.id}.png` })),
+    // One per template CATEGORY, matching what injectTemplate advertises.
+    ...TEMPLATE_CATEGORIES.map((c) => ({ what: `template category "${c.id}"`, file: `/og/template-${c.id}.png` })),
     { what: '/changelog', file: '/og/changelog.png' },
     { what: 'the default card', file: '/og/default.png' },
   ];

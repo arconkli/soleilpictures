@@ -34,6 +34,14 @@ import { getLandingSpec, SEO_LANDING_PAGES, landingOgPath, EXPLORE_INTRO, matchT
 // of the Worker: a curated template page states its cell count, and that number
 // is DERIVED from the preset rather than typed into the spec beside it.
 import { presetById, leafIds } from './lib/gridLayout.js';
+// The template store. Three artifacts, all generated from content/templates/*.md:
+// the cards drive the store front's crawlable list, the index drives item meta
+// and the sitemap, and templateHtml is the ONE accessor for pre-rendered item
+// bodies — so swapping it for an env.ASSETS fetch when the store outgrows the
+// Worker's byte budget is a single function body, not a call-site sweep.
+import { TEMPLATE_CARDS, TEMPLATE_CATEGORIES } from './lib/templateCards.js';
+import { TEMPLATE_ITEMS, getTemplateSpec, isTemplatePath } from './lib/templateIndex.js';
+import { templateHtml } from './lib/templateCrawlable.js';
 import { getListicleSpec, SEO_LISTICLE_PAGES } from './lib/seoListicles.js';
 import { buildListicleCrawlableHtml, buildListicleJsonLd } from './lib/seoListicleHtml.js';
 // Public documentation (/docs/*). Two GENERATED modules, both built from
@@ -570,6 +578,12 @@ export default {
     if (isPageReq && contentType.includes('text/html')) {
       const landingSpec = getLandingSpec(url.pathname) || getListicleSpec(url.pathname);
       if (landingSpec) return withRevalidate(injectLanding(res, landingSpec));
+      // A template store item. Resolved BEFORE the 404 guard below, which would
+      // otherwise swallow the entire catalogue — ordering is load-bearing here.
+      if (isTemplatePath(url.pathname)) {
+        const item = getTemplateSpec(url.pathname);
+        if (item) return withRevalidate(injectTemplate(res, item));
+      }
       if (/^\/(?:tools|vs|best|templates)\//i.test(url.pathname) || /^\/use-cases\//i.test(url.pathname)) {
         return notFoundResponse(res);
       }
@@ -1242,6 +1256,89 @@ function injectLanding(res, spec) {
   return rw.transform(res);
 }
 
+// ── The template store's item pages (/templates/<slug>) ─────────────────────
+//
+// A store item, not a landing page: the body is a diagram, its labels, one
+// paragraph saying what it is for, and a button. Deliberately no minimum length
+// — padding an item page to hit a word count is what makes a catalogue read as
+// filler. What keeps these from being doorway clones is enforced instead by
+// src/lib/templates.test.mjs, which measures how DIFFERENT they are from each
+// other rather than how long each one is.
+//
+// The OG card is per CATEGORY, not per item — same reasoning injectDocs applies
+// to docs sections: fifteen near-identical gold cards would be churn in
+// public/og/ for a difference nobody can see in a link preview.
+function injectTemplate(res, item) {
+  const canonical = `${SITE_ORIGIN}${item.path}`;
+  const og = `${SITE_ORIGIN}/og/template-${item.category}.png?v=${item.updated}`;
+  const rw = new HTMLRewriter()
+    .on('title',                            new SetText(item.title))
+    .on('meta[name="description"]',         new SetContent(item.metaDescription))
+    .on('meta[property="og:title"]',        new SetContent(item.title))
+    .on('meta[property="og:description"]',  new SetContent(item.metaDescription))
+    .on('meta[property="og:url"]',          new SetContent(canonical))
+    .on('meta[property="og:image"]',        new SetContent(og))
+    .on('meta[property="og:image:width"]',  new SetContent('1200'))
+    .on('meta[property="og:image:height"]', new SetContent('630'))
+    .on('meta[property="og:image:type"]',   new SetContent('image/png'))
+    .on('meta[property="og:image:alt"]',    new SetContent(item.h1))
+    .on('meta[name="twitter:title"]',       new SetContent(item.title))
+    .on('meta[name="twitter:description"]', new SetContent(item.metaDescription))
+    .on('meta[name="twitter:image"]',       new SetContent(og))
+    .on('meta[name="twitter:image:alt"]',   new SetContent(item.h1))
+    .on('link[rel="canonical"]',            new SetHref(canonical));
+  rw.on('main#seo-fallback', new SetInnerHtml(templateHtml(item.path)));
+  rw.on('head', new AppendHead(
+    '<script type="application/ld+json">' + jsonLdSafe(buildTemplateJsonLd(item, canonical, og)) + '</script>'
+    + `<link rel="alternate" type="text/markdown" href="${escapeHtml(item.path)}.md">`
+  ));
+  return rw.transform(res);
+}
+
+// What a template item page can honestly claim.
+//
+// NOT Product/Offer — the cargo cult an "Amazon for templates" framing invites.
+// Google's product markup wants price, availability and reviews; this page sells
+// nothing, and rating markup is banned repo-wide (see gen-docs.mjs's note on
+// ratings staying visible copy). NOT SoftwareApplication either: a template is
+// an artifact, not an application, and the site-wide node already covers the app.
+//
+// `about` is the one line that earns its place — it is where the entity graph
+// learns this page is about CASTING rather than about a 3×3 grid.
+export function buildTemplateJsonLd(item, url, og) {
+  const graph = [
+    {
+      '@type': 'WebPage',
+      '@id': `${url}#webpage`,
+      url,
+      name: item.title,
+      description: item.metaDescription,
+      dateModified: item.updated,
+      primaryImageOfPage: og,
+      about: { '@type': 'Thing', name: item.useCase },
+      isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_ORIGIN}/` },
+        { '@type': 'ListItem', position: 2, name: 'Grid templates', item: `${SITE_ORIGIN}/templates` },
+        { '@type': 'ListItem', position: 3, name: item.h1, item: url },
+      ],
+    },
+  ];
+  if (item.faq?.length) {
+    graph.push({
+      '@type': 'FAQPage',
+      '@id': `${url}#faq`,
+      mainEntity: item.faq.map((f) => ({
+        '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a },
+      })),
+    });
+  }
+  return { '@context': 'https://schema.org', '@graph': graph };
+}
+
 // ── Public documentation (/docs/*) ──────────────────────────────────────────
 // Meta + crawlable body + JSON-LD for one docs page. The body is already
 // escaped HTML, generated from the same markdown parse that produces the block
@@ -1459,6 +1556,27 @@ export function buildLandingCrawlableHtml(spec) {
       parts.push('</section>');
     }
   }
+  // THE STORE FRONT'S CATALOGUE. Every item, uncapped, as real links.
+  //
+  // The search box, the sort buttons and the category chips are the JavaScript
+  // enhancement; a crawler never needed the filter, it needs the hrefs — and
+  // they are all here. Same shape injectExplore already uses for public boards,
+  // and it is what keeps the two renderings one document: React lists these same
+  // rows from the same templateCards.js.
+  if (spec.storefront && TEMPLATE_CARDS.length) {
+    parts.push(`<section><h2 style="${H2}">Browse by use</h2><p>`);
+    for (const c of TEMPLATE_CATEGORIES) {
+      const n = TEMPLATE_CARDS.filter((t) => t.category === c.id).length;
+      if (!n) continue;
+      parts.push(`<a href="/templates?category=${escapeHtml(c.id)}" style="color:#FFA500;margin-right:1.2em;">${escapeHtml(c.label)} (${n})</a>`);
+    }
+    parts.push('</p></section>');
+    parts.push(`<section><h2 style="${H2}">Every template</h2><ul>`);
+    for (const t of TEMPLATE_CARDS) {
+      parts.push(`<li style="margin:0 0 .8em;"><a href="${escapeHtml(t.path)}" style="color:#FFA500;font-size:1.1rem;font-weight:600;text-decoration:none;">${escapeHtml(t.h1)}</a> — ${escapeHtml(t.blurb)}</li>`);
+    }
+    parts.push('</ul></section>');
+  }
   // Cross-link to the /best/* listicle sibling (mirrors the React callout).
   if (spec.siblingListicle) {
     parts.push(`<p><b>Comparing more than two?</b> <a href="${escapeHtml(spec.siblingListicle.path)}" style="color:#FFA500;">${escapeHtml(spec.siblingListicle.label)}</a></p>`);
@@ -1548,19 +1666,19 @@ export function buildLandingJsonLd(spec, url) {
       ],
     },
   ];
-  // Hub → spoke, declared. The curated template pages are real, indexable,
-  // individually-written pages, so listing them is a true statement. The
-  // community strip deliberately gets no ItemList: those tiles resolve to the
-  // signup flow, and an ItemList of URLs that are not the items would be markup
-  // asserting something the page does not contain.
-  const children = SEO_LANDING_PAGES.filter((s) => s.parent === spec.path);
-  if (children.length) {
+  // The store front declares its shelf. Every item is a real, indexable page, so
+  // listing them is a true statement. The COMMUNITY strip deliberately gets no
+  // ItemList: those tiles resolve to the signup flow, and an ItemList of URLs
+  // that are not the items would be markup asserting something the page does not
+  // contain.
+  if (spec.storefront && TEMPLATE_ITEMS.length) {
     graph.push({
       '@type': 'ItemList',
       '@id': `${url}#templates`,
       name: spec.h1,
-      itemListElement: children.map((c, i) => ({
-        '@type': 'ListItem', position: i + 1, name: c.h1, url: `${SITE_ORIGIN}${c.path}`,
+      numberOfItems: TEMPLATE_ITEMS.length,
+      itemListElement: TEMPLATE_ITEMS.map((t, i) => ({
+        '@type': 'ListItem', position: i + 1, name: t.h1, url: `${SITE_ORIGIN}${t.path}`,
       })),
     });
   }
@@ -1602,6 +1720,12 @@ async function handleSitemap(env, request) {
     // to" / hub. These rank independent of user-uploaded boards.
     ...SEO_LANDING_PAGES.map((s) => ({
       loc: `${SITE_ORIGIN}${s.path}`, lastmod: s.updated || null, changefreq: 'monthly', priority: '0.8',
+    })),
+    // The template store (content/templates/*.md). Priority below the marketing
+    // set: an item page is a real destination but the store front is the page
+    // carrying the topical weight, and the sitemap should say so.
+    ...TEMPLATE_ITEMS.map((t) => ({
+      loc: `${SITE_ORIGIN}${t.path}`, lastmod: t.updated || null, changefreq: 'monthly', priority: '0.6',
     })),
     // /best/* listicles (lib/seoListicles.js) — same honest-lastmod policy.
     ...SEO_LISTICLE_PAGES.map((s) => ({

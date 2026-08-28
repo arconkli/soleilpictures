@@ -9522,21 +9522,32 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 3,
-   "text": "Ready-made templates",
+   "text": "The template store",
    "inline": [
     {
      "t": "text",
-     "v": "Ready-made templates"
+     "v": "The template store"
     }
    ],
-   "id": "ready-made-templates"
+   "id": "the-template-store"
   },
   {
    "type": "para",
    "inline": [
     {
+     "t": "link",
+     "v": "/templates",
+     "href": "/templates",
+     "children": [
+      {
+       "t": "text",
+       "v": "/templates"
+      }
+     ]
+    },
+    {
      "t": "text",
-     "v": "Three shapes have a page of their own, each explaining what the layout is for and adding it to your templates in one click:"
+     "v": " is a browsable store of ready-made layouts — filter by what you are making, open one to see what each box is for, and add it to your own templates in a click. A few of them:"
     }
    ]
   },
@@ -9558,7 +9569,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — a wide establishing frame over two beats, with every panel labelled."
+      "v": " — a wide establishing frame over two beats."
      }
     ],
     [
@@ -9575,7 +9586,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — nine even frames for comparing a shoot at a glance."
+      "v": " — nine even frames."
      }
     ],
     [
@@ -9592,7 +9603,24 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — a reference frame beside shot and lens, camera movement and notes."
+      "v": " — a reference frame beside shot, movement and notes."
+     }
+    ],
+    [
+     {
+      "t": "link",
+      "v": "Mood board template",
+      "href": "/templates/mood-board-template",
+      "children": [
+       {
+        "t": "text",
+        "v": "Mood board template"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — one hero image over three supporting frames."
      }
     ]
    ]
@@ -9602,7 +9630,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "These behave exactly like a template you saved yourself once it lands in "
+     "v": "Anything you add from the store behaves exactly like a template you saved yourself once it lands in "
     },
     {
      "t": "strong",
