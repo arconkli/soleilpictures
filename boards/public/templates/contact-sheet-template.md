@@ -1,8 +1,8 @@
 # Contact sheet template
 
-> A contact sheet template is a nine-frame grid, three across and three down, sized so every frame reads at a glance. Add it to a board in one click and fill the cells with stills, frames or product shots — then re-cut the grid without losing any of them.
+> A roll of 35mm as it was always printed: six strips of six frames, thirty-six in all, each one at 3:2 because that is the shape of the negative. Nothing is labelled, which is the point — a proof sheet is the one sheet you read without being told what to think.
 
-_Source: https://clusters.soleilpictures.com/templates/contact-sheet-template · For proofing a shoot · Updated 2026-08-27_
+_Source: https://clusters.soleilpictures.com/templates/contact-sheet-template · For proofing a shoot · Updated 2026-08-28_
 
-Contact sheet · 3 × 3 — 9 boxes.
+Contact sheet · 36 frames, 3:2 — 36 boxes.
 

@@ -43,7 +43,12 @@ import {
 import { SEO_LANDING_PAGES } from '../src/lib/seoLanding.js';
 // The layout engine, so a template page's cell count and label order are read
 // off the geometry rather than typed beside it.
-import { presetById, computeCellRects, readingOrder } from '../src/lib/gridLayout.js';
+import { computeCellRects, readingOrder } from '../src/lib/gridLayout.js';
+// layoutById resolves BOTH the purpose-built template layouts and the ten bare
+// shapes, and templateCellOrder reads a layout at its own aspect ratio — which
+// matters, because reading order bands cells by centre and a storyboard's
+// panel/caption bands are only bands at the proportions it is placed at.
+import { layoutById, layoutSize, templateCellOrder } from '../src/lib/templateLayouts.js';
 import { HINT_LIMITS } from '../src/lib/gridLayoutLibrary.js';
 import { SEO_LISTICLE_PAGES } from '../src/lib/seoListicles.js';
 
@@ -338,12 +343,21 @@ function loadTemplates() {
     // silently otherwise: presetTree falls back to a single cell for an unknown
     // id, and sanitizeHints drops a surplus label. Neither throws — you would
     // just ship the wrong template.
-    const preset = presetById(fm.preset);
-    if (fm.preset && !preset) bad(`unknown preset '${fm.preset}'`);
-    const cells = preset
-      ? readingOrder(computeCellRects(preset.tree, { x: 0, y: 0, w: 900, h: 600 })).length
-      : 0;
-    const hints = fm.hints || null;
+    const preset = layoutById(fm.preset);
+    if (fm.preset && !preset) bad(`unknown layout '${fm.preset}'`);
+    const cells = preset ? templateCellOrder(preset).length : 0;
+
+    // Labels come from ONE place. A purpose-built layout carries its own, keyed
+    // by leaf id and ordered by asking readingOrder — because on a panel-and-
+    // caption sheet the storage order interleaves (panel, panel, caption,
+    // caption, panel…) and hand-typing that is a coin flip. A template on one of
+    // the bare shapes authors its labels here, where there is nothing to derive
+    // them from. Declaring both is the ambiguous case, so it is an error rather
+    // than a silent precedence rule.
+    if (fm.hints && preset?.hints) {
+      bad(`declares hints, but layout '${fm.preset}' already derives them from its cell ids`);
+    }
+    const hints = fm.hints || preset?.hints || null;
     if (hints) {
       if (hints.length > cells) bad(`${hints.length} labels for ${cells} boxes — the surplus is dropped`);
       for (const h of hints) {
@@ -376,6 +390,10 @@ function loadTemplates() {
       hints,
       cells,
       presetLabel: preset ? preset.label : '',
+      // The card size the layout is meant to be placed at. A set of proportions
+      // only produces 16:9 panels at one aspect ratio, so this rides along to
+      // both the preview and addGrid rather than being re-derived at each.
+      size: layoutSize(preset),
       related: fm.related || [],
     };
   });
@@ -701,10 +719,15 @@ function templateCrawlableHtml(item) {
   out.push(`<p style="color:#d0d0d4;font-size:1.1rem;margin:0 0 1.2em;">${escapeHtml(item.answer)}</p>`);
   out.push(`<p style="color:#8a8a92;font-size:.85rem;">${escapeHtml(lead)} · <time datetime="${escapeHtml(item.updated)}">Updated ${escapeHtml(prettyDate(item.updated))}</time></p>`);
 
-  if (hints.length) {
+  // Blank entries are HOLES, not gaps to close — a contact sheet's frames and a
+  // palette strip's swatches are deliberately unlabelled, and the label array is
+  // positional. So an unlabelled box is skipped while `value` keeps every listed
+  // box on its real number; renumbering would tell a reader that box 3 is the
+  // imagery when box 3 is a swatch.
+  if (hints.some((h) => h)) {
     out.push(`<section><h2 style="${H2}">What each box is for</h2><ol>`);
-    for (const h of hints) out.push(`<li>${escapeHtml(h)}</li>`);
-    out.push('</ol><p>Each label shows only while its box is empty, and is never written into the box.</p></section>');
+    hints.forEach((h, i) => { if (h) out.push(`<li value="${i + 1}">${escapeHtml(h)}</li>`); });
+    out.push('</ol><p>Each label shows only while its box is empty, and is never written into the box. Boxes not listed are deliberately unlabelled.</p></section>');
   }
 
   // Back to the shelf first. An item that does not link to the store is a leaf,
@@ -727,10 +750,11 @@ function templateMarkdown(item) {
   out.push(`> ${req(item.answer, item.path, 'answer')}`, '');
   out.push(`_Source: ${SITE_ORIGIN}${item.path} · For ${item.useCase} · Updated ${item.updated}_`, '');
   out.push(lead, '');
-  if (hints.length) {
+  if (hints.some((h) => h)) {
     out.push('| Box | Label |', '| --- | --- |');
-    hints.forEach((h, i) => out.push(`| ${i + 1} | ${h} |`));
-    out.push('', 'Each label shows only while its box is empty, and is never written into the box.', '');
+    // Box numbers stay absolute; an unlabelled box simply has no row.
+    hints.forEach((h, i) => { if (h) out.push(`| ${i + 1} | ${h} |`); });
+    out.push('', 'Each label shows only while its box is empty, and is never written into the box. Boxes not listed are deliberately unlabelled.', '');
   }
   return out.join('\n').replace(/\n{3,}/g, '\n\n') + '\n';
 }
@@ -746,8 +770,8 @@ function landingMarkdown(spec) {
   // call the page and the Worker make — so the mirror cannot describe a
   // different grid from the one the page hands you.
   if (spec.template?.preset) {
-    const preset = req(presetById(spec.template.preset), spec.path, `a real preset (${spec.template.preset})`);
-    const cells = readingOrder(computeCellRects(preset.tree, { x: 0, y: 0, w: 900, h: 600 }));
+    const preset = req(layoutById(spec.template.preset), spec.path, `a real layout (${spec.template.preset})`);
+    const cells = templateCellOrder(preset);
     out.push('## The layout', '', `${preset.label} — ${cells.length} boxes.`, '');
     const hints = spec.template.hints || [];
     if (hints.length) {
@@ -995,6 +1019,7 @@ export const CURATED_TEMPLATES = ${JSON.stringify(Object.fromEntries(templates.m
       path: it.path,
       name: req(it.h1, it.path, 'h1'),
       preset: req(it.preset, it.path, 'preset'),
+      size: it.size,
       ...(it.hints ? { hints: it.hints } : {}),
     }])), null, 1)};
 `);
@@ -1019,6 +1044,7 @@ export const TEMPLATE_CATEGORIES = ${JSON.stringify(templateCategories, null, 1)
 export const TEMPLATE_CARDS = ${JSON.stringify(templates.map((it) => ({
       slug: it.slug, path: it.path, h1: it.h1, blurb: it.blurb,
       category: it.category, preset: it.preset, hints: it.hints, cells: it.cells,
+      size: it.size,
     })), null, 1)};
 `);
 
@@ -1028,6 +1054,7 @@ export const TEMPLATE_ITEMS = ${JSON.stringify(templates.map((it) => ({
       slug: it.slug, path: it.path, title: it.title, metaDescription: it.metaDescription,
       h1: it.h1, blurb: it.blurb, answer: it.answer, category: it.category,
       preset: it.preset, hints: it.hints, cells: it.cells, presetLabel: it.presetLabel,
+      size: it.size,
       useCase: it.useCase, targetQuery: it.targetQuery, updated: it.updated,
       related: it.related,
     })), null, 1)};

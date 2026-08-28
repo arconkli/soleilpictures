@@ -74,7 +74,11 @@
   border-radius: 8px;
   background: var(--bg-2);
 }
-.savetpl-preview .tplt-thumb { width: 100%; height: auto; aspect-ratio: 56 / 44; background: transparent; }
+/* A fixed window with the diagram centred in it, rather than a box wrapped to
+   the drawing: the preview is sticky beside a scrolling list of label fields, so
+   it must not change height when a different grid is saved. The SVG's
+   preserveAspectRatio contains it at the card's real proportions. */
+.savetpl-preview .tplt-thumb { display: block; width: 100%; height: 172px; }
 /* Stroke widths and font sizes here are in the thumb's 280×220 COORDINATE
    SPACE, not pixels — they were 5× smaller when that space was 56×44. */
 .savetpl-preview .tplt-thumb rect { fill: var(--bg-1); stroke: var(--line-3); stroke-width: 3; }

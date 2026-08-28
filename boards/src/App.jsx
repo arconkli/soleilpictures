@@ -133,6 +133,7 @@ import { hintsToCellMap, bodyFromGrid } from './lib/gridLayoutLibrary.js';
 // and labels only, never the prose. See gen-docs.mjs step 4d.
 import { CURATED_TEMPLATES } from './lib/gridTemplateIndex.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from './lib/gridLayout.js';
+import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
 import {
@@ -4628,10 +4629,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             // unlike the other two it cannot 404, because nothing was published
             // that could later be revoked or taken down.
             const t = CURATED_TEMPLATES[src.value];
-            if (!t) throw new Error('unknown curated template');
+            const layout = t && layoutById(t.preset);
+            if (!layout) throw new Error('unknown curated template');
             await saveGridLayout({
               name: t.name,
-              body: bodyFromGrid(presetTree(t.preset), null, t.hints || null),
+              // The size is stored with it so the copy in your library places at
+              // the proportions the layout means — a storyboard whose panels are
+              // 16:9 rather than square.
+              body: bodyFromGrid(instantiateLayout(layout.tree), null, t.hints || null, t.size || layout.size),
               userId: user.id,
             });
           } else if (src.kind === 'gallery') {

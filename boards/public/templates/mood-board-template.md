@@ -1,17 +1,18 @@
 # Mood board template
 
-> A mood board template that leads with one image instead of treating everything as equal. The hero carries the direction; the three frames beneath it hold the palette, the texture and the detail that back it up. Add it to a board, drop your references in, and share a link.
+> One image carries the direction, three beside it hold the texture, the detail and the type, and a strip of four swatches runs along the bottom. The palette is the part that gets asked for and the part a plain grid of squares has nowhere to put, so it has a row of its own.
 
-_Source: https://clusters.soleilpictures.com/templates/mood-board-template · For setting a visual direction · Updated 2026-08-27_
+_Source: https://clusters.soleilpictures.com/templates/mood-board-template · For setting a visual direction · Updated 2026-08-28_
 
-Hero + 3 below — 4 boxes.
+Mood board · hero, three refs, palette strip — 8 boxes.
 
 | Box | Label |
 | --- | --- |
-| 1 | HERO IMAGE |
-| 2 | PALETTE |
-| 3 | TEXTURE |
-| 4 | DETAIL |
+| 1 | TEXTURE |
+| 2 | HERO IMAGE |
+| 3 | DETAIL |
+| 4 | TYPE |
+| 5 | PALETTE |
 
-Each label shows only while its box is empty, and is never written into the box.
+Each label shows only while its box is empty, and is never written into the box. Boxes not listed are deliberately unlabelled.
 

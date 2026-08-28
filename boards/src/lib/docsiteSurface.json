@@ -416,6 +416,7 @@
     "templates": [
       "/templates/before-and-after-template",
       "/templates/brand-board-template",
+      "/templates/call-sheet-template",
       "/templates/casting-board-template",
       "/templates/comparison-grid-template",
       "/templates/contact-sheet-template",

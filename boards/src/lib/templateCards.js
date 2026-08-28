@@ -26,32 +26,67 @@ export const TEMPLATE_CATEGORIES = [
 
 export const TEMPLATE_CARDS = [
  {
+  "slug": "call-sheet-template",
+  "path": "/templates/call-sheet-template",
+  "h1": "Call sheet template",
+  "blurb": "Header, location, weather, hospital, schedule, cast and crew.",
+  "category": "film",
+  "preset": "call-sheet",
+  "hints": [
+   "PRODUCTION · DAY · CALL",
+   "LOCATION + PARKING",
+   "WEATHER · SUNSET",
+   "NEAREST HOSPITAL",
+   "SCHEDULE — SCENE, CAST, D/N, PAGES",
+   "CAST + CALL TIMES",
+   "CREW BY DEPARTMENT"
+  ],
+  "cells": 7,
+  "size": {
+   "w": 420,
+   "h": 560
+  }
+ },
+ {
   "slug": "casting-board-template",
   "path": "/templates/casting-board-template",
   "h1": "Casting board template",
-  "blurb": "Nine headshots, a row per role tier — lead, supporting, background.",
+  "blurb": "Nine headshots at 4:5, a row per tier, each with a name strip.",
   "category": "film",
-  "preset": "contact-sheet-3x3",
+  "preset": "casting-3x3",
   "hints": [
    "LEAD",
    "LEAD",
    "LEAD",
+   "NAME · AGENT",
+   "NAME · AGENT",
+   "NAME · AGENT",
    "SUPPORTING",
    "SUPPORTING",
    "SUPPORTING",
+   "NAME · AGENT",
+   "NAME · AGENT",
+   "NAME · AGENT",
    "BACKGROUND",
    "BACKGROUND",
-   "BACKGROUND"
+   "BACKGROUND",
+   "NAME · AGENT",
+   "NAME · AGENT",
+   "NAME · AGENT"
   ],
-  "cells": 9
+  "cells": 18,
+  "size": {
+   "w": 400,
+   "h": 595
+  }
  },
  {
   "slug": "location-scout-template",
   "path": "/templates/location-scout-template",
   "h1": "Location scout template",
-  "blurb": "Three locations, three frames each — wide, detail, and the light.",
+  "blurb": "A row per location — a wide that leads, then the detail and the light.",
   "category": "film",
-  "preset": "contact-sheet-3x3",
+  "preset": "location-recce",
   "hints": [
    "LOCATION A — WIDE",
    "A — DETAIL",
@@ -63,51 +98,96 @@ export const TEMPLATE_CARDS = [
    "C — DETAIL",
    "C — LIGHT"
   ],
-  "cells": 9
+  "cells": 9,
+  "size": {
+   "w": 480,
+   "h": 420
+  }
  },
  {
   "slug": "shot-list-template",
   "path": "/templates/shot-list-template",
   "h1": "Shot list template",
-  "blurb": "A reference frame beside shot and lens, movement and notes — one row per setup.",
+  "blurb": "One row per setup — reference frame, then size, angle, movement, notes.",
   "category": "film",
-  "preset": "db-row-1-3",
+  "preset": "shot-list-rows",
   "hints": [
-   "SHOT + LENS",
    "FRAME",
-   "MOVEMENT",
+   "SIZE",
+   "ANGLE",
+   "MOVE",
+   "NOTES",
+   "FRAME",
+   "SIZE",
+   "ANGLE",
+   "MOVE",
+   "NOTES",
+   "FRAME",
+   "SIZE",
+   "ANGLE",
+   "MOVE",
+   "NOTES",
+   "FRAME",
+   "SIZE",
+   "ANGLE",
+   "MOVE",
    "NOTES"
   ],
-  "cells": 4
+  "cells": 20,
+  "size": {
+   "w": 720,
+   "h": 430
+  }
  },
  {
   "slug": "storyboard-template",
   "path": "/templates/storyboard-template",
   "h1": "Storyboard template",
-  "blurb": "A wide establishing frame over two beats, with every panel labelled.",
+  "blurb": "Six 16:9 panels, each with an action line ruled underneath.",
   "category": "film",
-  "preset": "storyboard-1-2",
+  "preset": "storyboard-6up",
   "hints": [
-   "ESTABLISHING",
+   "SHOT 1",
+   "SHOT 2",
    "ACTION",
-   "REACTION"
+   "ACTION",
+   "SHOT 3",
+   "SHOT 4",
+   "ACTION",
+   "ACTION",
+   "SHOT 5",
+   "SHOT 6",
+   "ACTION",
+   "ACTION"
   ],
-  "cells": 3
+  "cells": 12,
+  "size": {
+   "w": 420,
+   "h": 474
+  }
  },
  {
   "slug": "video-storyboard-template",
   "path": "/templates/video-storyboard-template",
   "h1": "Video storyboard template",
-  "blurb": "Four beats across — hook, two middles, end card.",
+  "blurb": "Four 9:16 panels — hook, two beats, end card.",
   "category": "film",
-  "preset": "4up",
+  "preset": "storyboard-vertical-4",
   "hints": [
    "HOOK",
    "BEAT 2",
    "BEAT 3",
-   "END CARD"
+   "END CARD",
+   "VO / TEXT",
+   "VO / TEXT",
+   "VO / TEXT",
+   "VO / TEXT"
   ],
-  "cells": 4
+  "cells": 8,
+  "size": {
+   "w": 540,
+   "h": 274
+  }
  },
  {
   "slug": "before-and-after-template",
@@ -120,77 +200,112 @@ export const TEMPLATE_CARDS = [
    "BEFORE",
    "AFTER"
   ],
-  "cells": 2
+  "cells": 2,
+  "size": {
+   "w": 360,
+   "h": 300
+  }
  },
  {
   "slug": "contact-sheet-template",
   "path": "/templates/contact-sheet-template",
   "h1": "Contact sheet template",
-  "blurb": "Nine even frames, sized so a whole shoot reads at a glance.",
+  "blurb": "Six strips of six, every frame at 3:2 — a whole roll on one sheet.",
   "category": "photography",
-  "preset": "contact-sheet-3x3",
+  "preset": "contact-sheet-36",
   "hints": null,
-  "cells": 9
+  "cells": 36,
+  "size": {
+   "w": 540,
+   "h": 360
+  }
  },
  {
   "slug": "product-lineup-template",
   "path": "/templates/product-lineup-template",
   "h1": "Product lineup template",
-  "blurb": "Four across — front, side, detail, and the in-use shot.",
+  "blurb": "A square main shot, with back, side, detail, scale and in-use around it.",
   "category": "photography",
-  "preset": "4up",
+  "preset": "product-hero-angles",
   "hints": [
-   "FRONT",
+   "BACK",
+   "MAIN SHOT",
    "SIDE",
    "DETAIL",
+   "SCALE",
    "IN USE"
   ],
-  "cells": 4
+  "cells": 6,
+  "size": {
+   "w": 480,
+   "h": 440
+  }
  },
  {
   "slug": "brand-board-template",
   "path": "/templates/brand-board-template",
   "h1": "Brand board template",
-  "blurb": "Logo, palette, typeface and imagery on one page.",
+  "blurb": "Logo and typeface, four palette swatches, three imagery frames.",
   "category": "design",
-  "preset": "2x2",
+  "preset": "brand-board",
   "hints": [
    "LOGO",
-   "PALETTE",
    "TYPEFACE",
+   "PALETTE",
+   "",
+   "",
+   "",
+   "IMAGERY",
+   "IMAGERY",
    "IMAGERY"
   ],
-  "cells": 4
+  "cells": 9,
+  "size": {
+   "w": 480,
+   "h": 430
+  }
  },
  {
   "slug": "look-book-template",
   "path": "/templates/look-book-template",
   "h1": "Look book template",
-  "blurb": "Four even panels — a cover look, two more, and the detail.",
+  "blurb": "A full-height cover look at 2:3, with three stepping down beside it.",
   "category": "design",
-  "preset": "2x2",
+  "preset": "look-book-spread",
   "hints": [
    "COVER LOOK",
    "LOOK 02",
    "LOOK 03",
    "DETAIL"
   ],
-  "cells": 4
+  "cells": 4,
+  "size": {
+   "w": 530,
+   "h": 400
+  }
  },
  {
   "slug": "mood-board-template",
   "path": "/templates/mood-board-template",
   "h1": "Mood board template",
-  "blurb": "One hero image over three supporting frames — palette, texture, detail.",
+  "blurb": "A hero image, three supporting frames, and a palette strip.",
   "category": "design",
-  "preset": "hero-3-strip",
+  "preset": "mood-board-palette",
   "hints": [
-   "HERO IMAGE",
-   "PALETTE",
    "TEXTURE",
-   "DETAIL"
+   "HERO IMAGE",
+   "DETAIL",
+   "TYPE",
+   "PALETTE",
+   "",
+   "",
+   ""
   ],
-  "cells": 4
+  "cells": 8,
+  "size": {
+   "w": 480,
+   "h": 430
+  }
  },
  {
   "slug": "wedding-mood-board-template",
@@ -205,7 +320,11 @@ export const TEMPLATE_CARDS = [
    "FLOWERS",
    "THE TABLE"
   ],
-  "cells": 4
+  "cells": 4,
+  "size": {
+   "w": 360,
+   "h": 300
+  }
  },
  {
   "slug": "comparison-grid-template",
@@ -218,30 +337,38 @@ export const TEMPLATE_CARDS = [
    "OPTION A",
    "OPTION B"
   ],
-  "cells": 2
+  "cells": 2,
+  "size": {
+   "w": 360,
+   "h": 300
+  }
  },
  {
   "slug": "recipe-card-template",
   "path": "/templates/recipe-card-template",
   "h1": "Recipe card template",
-  "blurb": "The dish photo at half width, with ingredients, method and notes beside it.",
+  "blurb": "The dish and the notes down one column, ingredients and method down the other.",
   "category": "planning",
-  "preset": "db-row-1-3",
+  "preset": "recipe-card",
   "hints": [
-   "INGREDIENTS",
    "THE DISH",
-   "METHOD",
-   "NOTES"
+   "INGREDIENTS",
+   "NOTES",
+   "METHOD"
   ],
-  "cells": 4
+  "cells": 4,
+  "size": {
+   "w": 480,
+   "h": 360
+  }
  },
  {
   "slug": "social-media-grid-template",
   "path": "/templates/social-media-grid-template",
   "h1": "Social media grid template",
-  "blurb": "Nine numbered boxes in the feed's own three-across shape.",
+  "blurb": "Nine numbered boxes at 3:4 — the ratio a profile grid actually crops to.",
   "category": "planning",
-  "preset": "contact-sheet-3x3",
+  "preset": "social-grid-3x4",
   "hints": [
    "POST 1",
    "POST 2",
@@ -253,6 +380,10 @@ export const TEMPLATE_CARDS = [
    "POST 8",
    "POST 9"
   ],
-  "cells": 9
+  "cells": 9,
+  "size": {
+   "w": 360,
+   "h": 480
+  }
  }
 ];

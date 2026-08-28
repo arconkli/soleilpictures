@@ -13,5 +13,5 @@ Hero + 3 below — 4 boxes.
 | 3 | FLOWERS |
 | 4 | THE TABLE |
 
-Each label shows only while its box is empty, and is never written into the box.
+Each label shows only while its box is empty, and is never written into the box. Boxes not listed are deliberately unlabelled.
 

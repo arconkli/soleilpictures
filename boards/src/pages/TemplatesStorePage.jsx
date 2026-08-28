@@ -27,7 +27,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TEMPLATE_CARDS, TEMPLATE_CATEGORIES } from '../lib/templateCards.js';
 import { GridLayoutThumb } from '../components/GridLayoutThumb.jsx';
-import { presetById } from '../lib/gridLayout.js';
+import { layoutById } from '../lib/templateLayouts.js';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 
@@ -100,25 +100,37 @@ export function TemplatesStorePage() {
   // the catalogue on the day the 121st template is published.
   useEffect(() => {
     let on = true;
-    Promise.all([import('../lib/gridLayoutsApi.js'), import('../lib/gridLayout.js')])
-      .then(async ([api, geom]) => {
+    Promise.all([
+      import('../lib/gridLayoutsApi.js'),
+      import('../lib/gridLayout.js'),
+      import('../lib/gridLayoutLibrary.js'),
+    ])
+      .then(async ([api, geom, lib]) => {
         const rows = await api.listPublicGridLayouts(120);
         if (!on) return;
         setCommunity(rows
-          // Sanitize on the way OUT as well as in — these trees were authored by
-          // other people and computeCellRects recurses without a depth guard.
-          .map((r) => ({
-            slug: r.slug,
-            path: communityHref(r.slug),
-            h1: r.title,
-            blurb: r.description || 'A layout someone published.',
-            category: COMMUNITY,
-            tree: geom.sanitizeLayout(r.body?.layout),
-            hints: r.body?.hints || null,
-            cells: 0,
-            useCount: r.use_count || 0,
-            source: COMMUNITY,
-          }))
+          // Sanitize on the way OUT as well as in — these trees, labels and
+          // dimensions were authored by other people, and computeCellRects
+          // recurses without a depth guard.
+          .map((r) => {
+            const tree = geom.sanitizeLayout(r.body?.layout);
+            return {
+              slug: r.slug,
+              path: communityHref(r.slug),
+              h1: r.title,
+              blurb: r.description || 'A layout someone published.',
+              category: COMMUNITY,
+              tree,
+              hints: r.body?.hints || null,
+              size: lib.sanitizeSize(r.body?.size),
+              // Counted, not zero: `cells` is what the "Fewest boxes" sort reads,
+              // and a hard 0 sorted every community template above a one-box
+              // template of ours.
+              cells: tree ? geom.leafIds(tree).length : 0,
+              useCount: r.use_count || 0,
+              source: COMMUNITY,
+            };
+          })
           .filter((r) => r.tree));
       })
       .catch(() => {});
@@ -243,13 +255,22 @@ export function TemplatesStorePage() {
       ) : (
         <ul className="pubgrid tplstore-grid">
           {shown.map((t) => {
-            // Ours carry a preset id; a published one carries its own tree.
-            const tree = t.tree || presetById(t.preset)?.tree;
+            // Ours carry a layout id; a published one carries its own tree.
+            const layout = t.tree ? null : layoutById(t.preset);
+            const tree = t.tree || layout?.tree;
+            // Drawn at the layout's real proportions, so a 3:4 posting grid and a
+            // 3:2 contact sheet are not the same picture on the shelf.
+            const size = t.size || layout?.size || null;
             const isCommunity = t.source === COMMUNITY;
             return (
               <li key={`${t.category}:${t.slug}`}>
                 <a className="tplstore-card" href={t.path}>
-                  {tree && <GridLayoutThumb tree={tree} title={t.h1} labels={t.hints?.length ? t.hints : null} />}
+                  {/* The preview sits ON a fixed-height stage rather than
+                      filling the tile, so the row stays level while each layout
+                      keeps its own proportions. */}
+                  <span className="tplstore-stage">
+                    {tree && <GridLayoutThumb tree={tree} title={t.h1} size={size} labels={t.hints?.length ? t.hints : null} />}
+                  </span>
                   <span className="tplstore-title">{t.h1}</span>
                   <span className="tplstore-blurb">{t.blurb}</span>
                   <span className="tplstore-meta">

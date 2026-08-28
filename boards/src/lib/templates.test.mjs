@@ -9,8 +9,9 @@ import { TEMPLATE_CARDS, TEMPLATE_CATEGORIES } from './templateCards.js';
 import { templateHtml } from './templateCrawlable.js';
 import { SEO_LANDING_PAGES } from './seoLanding.js';
 import { SEO_LISTICLE_INDEX } from './seoListicleIndex.js';
-import { presetById, computeCellRects, readingOrder } from './gridLayout.js';
-import { HINT_LIMITS } from './gridLayoutLibrary.js';
+import { computeCellRects, sanitizeLayout, GRID_TUNING } from './gridLayout.js';
+import { layoutById, layoutSize, templateCellOrder, TEMPLATE_LAYOUTS } from './templateLayouts.js';
+import { HINT_LIMITS, sanitizeSize } from './gridLayoutLibrary.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -163,11 +164,12 @@ test('blurb, metaDescription and answer are each unique', () => {
 
 // THE RULE THAT ENCODES THE WHOLE PREMISE OF THE STORE.
 //
-// Geometry is not the product — the labelled use-case is. One 3×3 grid is a
-// contact sheet, a casting board or a posting grid depending on its name and its
-// labels. That is what makes fifteen templates on seven shapes honest rather
-// than a clone farm. But it only holds if two templates sharing a shape actually
-// differ in BOTH: same preset with the same labels is one product with two names.
+// Most templates now own a purpose-built layout, and the test below requires
+// that ownership to be exclusive. This rule governs what is left: the handful
+// that sit on one of the ten bare shapes, where geometry alone cannot tell them
+// apart. Two even panels are a before-and-after or an A/B comparison depending
+// on their labels and their purpose — honest, but only while they differ in
+// BOTH. The same shape with the same labels is one product under two names.
 test('two templates on the same shape differ in labels and in purpose', () => {
   assert.ok(TEMPLATE_ITEMS.length >= FLOOR);
   const problems = [];
@@ -206,22 +208,151 @@ test('two templates on the same shape differ in labels and in purpose', () => {
 test('every template names a real shape, with labels that fit it', () => {
   assert.ok(TEMPLATE_ITEMS.length >= FLOOR);
   for (const it of TEMPLATE_ITEMS) {
-    const preset = presetById(it.preset);
-    assert.ok(preset, `${it.path}: unknown preset "${it.preset}"`);
-    const cells = readingOrder(computeCellRects(preset.tree, { x: 0, y: 0, w: 900, h: 600 })).length;
+    const layout = layoutById(it.preset);
+    assert.ok(layout, `${it.path}: unknown layout "${it.preset}"`);
+    const cells = templateCellOrder(layout).length;
     assert.equal(it.cells, cells, `${it.path}: cached cell count is stale`);
-    assert.equal(it.presetLabel, preset.label, `${it.path}: cached preset label is stale`);
+    assert.equal(it.presetLabel, layout.label, `${it.path}: cached layout label is stale`);
+
+    // The proportions travel with the template, because addGrid is handed them
+    // and the preview draws at them. A junk size would silently fall back to the
+    // default, which is the exact failure this whole change exists to remove.
+    assert.deepEqual(it.size, sanitizeSize(it.size), `${it.path}: size is not a clean {w,h}`);
+    assert.deepEqual(it.size, layoutSize(layout), `${it.path}: cached size is stale`);
+
     if (!it.hints) continue;
     assert.ok(it.hints.length <= cells,
       `${it.path}: ${it.hints.length} labels for ${cells} boxes — the surplus is silently dropped`);
+    // A label may be BLANK — a contact-sheet frame and a palette swatch are
+    // deliberately unlabelled, and the array is positional, so a hole has to
+    // stay a hole. What is forbidden is an array of nothing but holes, which is
+    // a template that thinks it is labelled and is not.
+    assert.ok(it.hints.some((h) => h.trim()), `${it.path}: hints array with no labels in it`);
     for (const h of it.hints) {
-      assert.ok(h.trim(), `${it.path}: empty label`);
       // The same ceiling migration 0269's CHECK enforces, so a page can never
       // advertise a label the app would refuse to store.
       assert.ok(h.length <= HINT_LIMITS.MAX_LEN,
         `${it.path}: label "${h}" is ${h.length} chars, over the ${HINT_LIMITS.MAX_LEN} the column allows`);
     }
   }
+});
+
+// ── the layouts are the product ──────────────────────────────────────────────
+//
+// This is the check that stops the catalogue drifting back into generic boxes.
+// Every ratio below is a real-world fact about the thing being replicated, and
+// each one is the entire reason its template is not just another grid: a 35mm
+// negative is 3:2, an Instagram profile grid has cropped to 3:4 since 2025, a
+// storyboard panel is 16:9. Retuning a layout by eye until it "looks better" is
+// how a contact sheet quietly becomes nine squares again.
+const ASPECTS = {
+  'storyboard-6up': { id: 'p1', ratio: 16 / 9, why: 'a storyboard panel is 16:9' },
+  'storyboard-vertical-4': { id: 'p1', ratio: 9 / 16, why: 'a vertical cut is boarded 9:16' },
+  'shot-list-rows': { id: 'f1', ratio: 16 / 9, why: 'the reference frame is the shot' },
+  'contact-sheet-36': { id: 'f00', ratio: 3 / 2, why: 'a 35mm negative is 3:2' },
+  'casting-3x3': { id: 'h00', ratio: 4 / 5, why: 'a headshot is 4:5' },
+  'social-grid-3x4': { id: 'p1', ratio: 3 / 4, why: 'a profile grid crops to 3:4' },
+  'product-hero-angles': { id: 'main', ratio: 1, why: 'a marketplace thumbnails square' },
+  'look-book-spread': { id: 'cover', ratio: 2 / 3, why: 'a fashion plate is 2:3' },
+};
+
+test('a purpose-built layout keeps the proportions that make it that layout', () => {
+  assert.ok(TEMPLATE_LAYOUTS.length >= FLOOR);
+  const problems = [];
+  for (const l of TEMPLATE_LAYOUTS) {
+    const rects = computeCellRects(l.tree, { x: 0, y: 0, w: l.size.w, h: l.size.h });
+    const byId = new Map(rects.map((r) => [r.id, r]));
+
+    const spec = ASPECTS[l.id];
+    if (spec) {
+      const r = byId.get(spec.id);
+      if (!r) problems.push(`${l.id}: no cell "${spec.id}" to check`);
+      else {
+        const got = r.w / r.h;
+        const off = Math.abs(got - spec.ratio) / spec.ratio;
+        // 3%: tight enough that a cell drifts to a different shape only on
+        // purpose, loose enough that a whole-pixel measurement still passes.
+        if (off > 0.03) {
+          problems.push(`${l.id}: cell "${spec.id}" is ${got.toFixed(3)}, wanted ${spec.ratio.toFixed(3)} — ${spec.why}`);
+        }
+      }
+    }
+
+    // Every cell has to be one the engine will actually draw. A caption band or
+    // a name strip is the thinnest thing in the catalogue, and shaving one under
+    // the floor is invisible until the card is on a canvas.
+    for (const r of rects) {
+      if (Math.min(r.w, r.h) < GRID_TUNING.MIN_CELL_PX) {
+        problems.push(`${l.id}: cell "${r.id}" is ${r.w.toFixed(0)}×${r.h.toFixed(0)}, under MIN_CELL_PX (${GRID_TUNING.MIN_CELL_PX})`);
+      }
+    }
+
+    // Labels are keyed by leaf id and turned into a positional array here, so a
+    // renamed leaf silently drops its label rather than failing. The array being
+    // exactly as long as the grid is what proves the mapping still lines up.
+    if (l.hints) {
+      if (l.hints.length !== rects.length) {
+        problems.push(`${l.id}: ${l.hints.length} labels for ${rects.length} cells — a leaf id was renamed`);
+      }
+    }
+  }
+  assert.deepEqual(problems, [], `layout regressions:\n  ${problems.join('\n  ')}`);
+});
+
+// THE PREVIEW AND THE CARD MUST BE THE SAME GRID.
+//
+// This caught a real one. Layout fracs are authored as pixel MEASUREMENTS (a 118
+// panel over a 40 caption) because computeCellRects normalizes by sum, so the
+// store page and the item page drew a correct storyboard. But every tree entering
+// the app goes through sanitizeLayout first, and it bounds untrusted fracs with
+// `Math.min(1, raw)` — which turned 118 and 40 both into 1. The preview showed
+// six 16:9 panels with caption bands; clicking it placed six equal boxes.
+//
+// Asserting the rects match after a sanitize round-trip is the invariant that
+// covers the whole class, not just the clamp: any repair sanitizeLayout makes to
+// a shipped layout means the thing being sold is not the thing being handed over.
+test('sanitizing a layout cannot change the grid it produces', () => {
+  assert.ok(TEMPLATE_LAYOUTS.length >= FLOOR);
+  const problems = [];
+  for (const l of TEMPLATE_LAYOUTS) {
+    const box = { x: 0, y: 0, w: l.size.w, h: l.size.h };
+    const before = computeCellRects(l.tree, box);
+    const clean = sanitizeLayout(l.tree);
+    if (!clean) { problems.push(`${l.id}: sanitizeLayout rejected it outright`); continue; }
+    const after = computeCellRects(clean, box);
+    if (before.length !== after.length) {
+      problems.push(`${l.id}: ${before.length} cells before sanitizing, ${after.length} after`);
+      continue;
+    }
+    for (let i = 0; i < before.length; i += 1) {
+      const a = before[i];
+      const b = after[i];
+      // Sub-pixel: normalizing is division, so exact equality is not owed.
+      if (Math.abs(a.x - b.x) > 0.5 || Math.abs(a.y - b.y) > 0.5
+        || Math.abs(a.w - b.w) > 0.5 || Math.abs(a.h - b.h) > 0.5) {
+        problems.push(`${l.id}: cell "${a.id}" moved ${a.w.toFixed(0)}×${a.h.toFixed(0)} → ${b.w.toFixed(0)}×${b.h.toFixed(0)} when sanitized`);
+      }
+    }
+  }
+  assert.deepEqual(problems, [], `preview/placement divergence:\n  ${problems.join('\n  ')}`);
+});
+
+// A purpose-built layout IS its template. Two templates sharing one would be the
+// clone the shape/purpose rule above exists to catch, and a layout no template
+// names is dead weight shipped in the bundle.
+test('every purpose-built layout belongs to exactly one template', () => {
+  assert.ok(TEMPLATE_LAYOUTS.length >= FLOOR);
+  const used = new Map();
+  for (const it of TEMPLATE_ITEMS) {
+    used.set(it.preset, [...(used.get(it.preset) || []), it.path]);
+  }
+  const problems = [];
+  for (const l of TEMPLATE_LAYOUTS) {
+    const owners = used.get(l.id) || [];
+    if (!owners.length) problems.push(`${l.id} is shipped but no template names it`);
+    if (owners.length > 1) problems.push(`${l.id} is claimed by ${owners.length}: ${owners.join(', ')}`);
+  }
+  assert.deepEqual(problems, [], `layout ownership:\n  ${problems.join('\n  ')}`);
 });
 
 test('related links resolve to real pages', () => {

@@ -901,14 +901,31 @@
   transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 .tplstore-card:hover { border-color: var(--ink-3); background: var(--bg-2); }
-/* The diagram is the product shot. Full width of the tile so the shape is
-   readable at a glance, which is the entire job of this page. */
-.tplstore-card .tplt-thumb {
+
+/* THE SHELF.
+   A fixed-height stage every tile shares, with the preview centred inside it at
+   its OWN proportions. That combination is the whole look: the row stays level
+   like a shelf, and a 3:4 posting grid, a 3:2 contact sheet and a 2:3 look book
+   are visibly three different products rather than three identical rectangles.
+   Sizing the SVG to the box and letting its preserveAspectRatio letterbox is what
+   contains it — object-fit does nothing to an inline <svg>.
+
+   The stage is --bg-2, the recessed field a real grid card sits in, so a preview
+   looks like the thing it is a preview of. */
+.tplstore-stage {
+  display: grid;
+  place-items: center;
   width: 100%;
-  height: auto;
-  aspect-ratio: 56 / 44;
-  border-radius: 6px;
+  height: 168px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .03);
+  overflow: hidden;
+  transition: background var(--dur-fast) var(--ease);
 }
+.tplstore-card:hover .tplstore-stage { background: var(--bg-3, var(--bg-2)); }
+.tplstore-card .tplt-thumb { width: 100%; height: 100%; }
 .tplstore-title { font: 600 15px/1.3 var(--font-sans); color: var(--ink-0); }
 .tplstore-blurb { font: 400 13px/1.5 var(--font-sans); color: var(--ink-2); flex: 1 1 auto; }
 .tplstore-meta {
@@ -940,13 +957,18 @@
   align-items: start;
   margin: 8px 0 clamp(40px, 7vh, 72px);
 }
+/* The product shot. Unlike a store tile there is only ONE on the page, so
+   nothing has to line up with anything and the stage can hug the drawing at its
+   true aspect instead of letterboxing it inside a fixed window. That is what
+   makes a tall casting board and a wide contact sheet look like different
+   objects at full size rather than two drawings adrift in the same box. */
 .tplitem-shot {
-  padding: 20px;
+  padding: clamp(16px, 3vw, 28px);
   border: 1px solid var(--line-2);
   border-radius: 14px;
-  background: var(--bg-1);
+  background: var(--bg-2);
 }
-.tplitem-shot .tplt-thumb { width: 100%; height: auto; aspect-ratio: 56 / 44; border-radius: 8px; }
+.tplitem-shot .tplt-thumb { width: 100%; height: auto; }
 .tplitem-h1 {
   font: 700 clamp(2rem, 4vw, 2.8rem)/1.1 var(--font-display, var(--font-sans));
   color: var(--ink-0);
@@ -961,6 +983,16 @@
   margin: 0 0 1.4em;
 }
 .tplitem-add { display: inline-flex; margin-bottom: 8px; }
+/* The reassurance under the button, not beside it. .seo-cta-sub2 is only a block
+   inside .seo-cta-band, so here it ran up alongside the CTA and wrapped around
+   it — the one place on the page that read as broken. */
+.tplitem-detail .seo-cta-sub2 {
+  display: block;
+  max-width: 42ch;
+  margin-top: 10px;
+  font: 500 .85rem/1.5 var(--font-sans);
+  color: var(--ink-2);
+}
 @media (max-width: 720px) {
   .tplitem-hero { grid-template-columns: 1fr; }
 }

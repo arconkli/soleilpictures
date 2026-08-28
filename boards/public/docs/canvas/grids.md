@@ -38,7 +38,10 @@ shape first. Each entry shows the shape it will make, drawn from the same
 geometry the card itself uses — so the tile and the grid you get cannot drift
 apart.
 
-| Template | Layout |
+The **Shapes** section holds ten pieces of bare geometry — a rectangle already
+divided, for when you want to cut it up yourself:
+
+| Shape | Layout |
 |---|---|
 | Storyboard · 1 top / 2 bottom | One wide panel on top, two beneath |
 | Database row · 1 left / 3 stacked | One, then a column of three |
@@ -74,7 +77,9 @@ Pressing **G** skips the panel and places the default storyboard immediately.
 Right-click a grid you like the shape of and choose **Save as template** — or
 select it and use **Save this grid as a template** at the bottom of the panel.
 Either way it saves the *shape*, the cells and their proportions, and not what
-is in them: a saved template is a skeleton you fill in fresh each time.
+is in them: a saved template is a skeleton you fill in fresh each time. It also
+remembers the card's width and height, so a grid you built as a storyboard comes
+back the same proportions rather than being squeezed into a default square.
 
 ### Labelling the boxes
 
@@ -100,7 +105,7 @@ The panel groups templates by where they came from, nearest to you first:
 | **Downloaded** | Copies you took from a share link or the public gallery. |
 | **Store** | The ready-made templates, the same ones at [/templates](/templates). |
 | **Community** | Templates other people have published. |
-| **Shapes** | The ten bare layouts that ship with Clusters. |
+| **Shapes** | The ten bare layouts in the table above. |
 
 Click any heading to fold that section away — useful once you have your own and
 the defaults are mostly in the way. A folded heading still shows how many are
@@ -148,15 +153,24 @@ renamed and edited by any member, but publishing it is still the author's call.
 The **Store** and **Community** sections of the panel are the same catalogue you
 can browse at [/templates](/templates) — pick one and it places straight onto
 your board, no download step. On the web, each template has a page showing the
-shape and what every box is for. A few of them:
+shape and what every box is for.
 
-- [Storyboard template](/templates/storyboard-template) — a wide establishing
-  frame over two beats.
-- [Contact sheet template](/templates/contact-sheet-template) — nine even frames.
-- [Shot list template](/templates/shot-list-template) — a reference frame beside
-  shot, movement and notes.
-- [Mood board template](/templates/mood-board-template) — one hero image over
-  three supporting frames.
+Unlike a bare shape, a store template is a **layout with real proportions**, and
+placing one sizes the card to them. That is the difference between a storyboard
+and a grid with six boxes in it: the panels come out 16:9 because the card is the
+height that makes them 16:9. Resize the card afterwards and the cells reflow
+together, as they always do.
+
+- [Storyboard template](/templates/storyboard-template) — six 16:9 panels, each
+  with an action line ruled underneath.
+- [Contact sheet template](/templates/contact-sheet-template) — six strips of
+  six, every frame at 3:2, like a roll of 35mm.
+- [Call sheet template](/templates/call-sheet-template) — header, location,
+  weather, hospital, schedule, cast and crew.
+- [Shot list template](/templates/shot-list-template) — a row per setup, with the
+  reference frame beside shot, movement and notes.
+- [Casting board template](/templates/casting-board-template) — nine headshots at
+  4:5, a row per tier, each with a name strip.
 
 ### Sharing your own
 

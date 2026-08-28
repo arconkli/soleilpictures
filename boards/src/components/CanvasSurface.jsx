@@ -52,10 +52,11 @@ import {
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { Sheet } from './shell/Sheet.jsx';
-import { sanitizeLayout, presetById } from '../lib/gridLayout.js';
+import { sanitizeLayout } from '../lib/gridLayout.js';
 import { GridTemplatePanel } from './GridTemplatePanel.jsx';
 import { SaveTemplateDialog } from './SaveTemplateDialog.jsx';
-import { mergeSections, rowsFromRecords, bodyFromGrid, sanitizeHints, SOURCES } from '../lib/gridLayoutLibrary.js';
+import { mergeSections, rowsFromRecords, bodyFromGrid, sanitizeHints, sanitizeSize, SOURCES } from '../lib/gridLayoutLibrary.js';
+import { layoutById } from '../lib/templateLayouts.js';
 // The shipped store catalogue, so the panel sells the same fifteen templates
 // /templates does. A light index — names, preset ids and labels, never prose.
 import { TEMPLATE_CARDS } from '../lib/templateCards.js';
@@ -1516,8 +1517,17 @@ export function CanvasSurface({
       case 'board':   addClusterCard(pos, 'tool_place'); break;
       // A layout armed by the Templates panel wins; a bare G (or the right-click
       // Add ▸ Grid, which never opens the panel) still gets the default shape.
+      // The size rides along because a layout is proportions, and a set of
+      // proportions is only the shape it means at one aspect ratio — the
+      // six-panel storyboard placed at the default 360×300 has square panels.
+      // Spread so a template without one keeps addGrid's own default.
       case 'grid':    mutators.addGrid?.(pos, pendingGridLayout
-                        ? { layout: pendingGridLayout.tree, hints: pendingGridLayout.hints, textStyle: pendingGridLayout.textStyle }
+                        ? {
+                          layout: pendingGridLayout.tree,
+                          hints: pendingGridLayout.hints,
+                          textStyle: pendingGridLayout.textStyle,
+                          ...(pendingGridLayout.size || {}),
+                        }
                         : { preset: 'storyboard-1-2' }); break;
       // Multi-select, like every other image entry point — see the 'image'
       // add-action for why singular was costing day-one depth.
@@ -1955,10 +1965,13 @@ export function CanvasSurface({
     // under Yours — four steps to place a grid. Here it is one click, and
     // pickTemplate already does the right thing with it.
     const store = TEMPLATE_CARDS.map((t) => {
-      const preset = presetById(t.preset);
-      return preset && {
+      const layout = layoutById(t.preset);
+      return layout && {
         key: `store:${t.slug}`, id: t.slug, name: t.h1,
-        tree: preset.tree, source: SOURCES.STORE, hints: t.hints || null,
+        tree: layout.tree, source: SOURCES.STORE, hints: t.hints || null,
+        // The proportions the layout means: a storyboard's panels are only 16:9
+        // at the size it was drawn for.
+        size: t.size || null,
       };
     }).filter(Boolean);
     // Published by other people. Sanitized on the way out as well as in — these
@@ -1970,6 +1983,7 @@ export function CanvasSurface({
         key: `community:${r.slug}`, id: r.slug, name: r.title,
         tree, source: SOURCES.COMMUNITY, hints: sanitizeHints(r.body?.hints),
         textStyle: r.body?.textStyle || null,
+        size: sanitizeSize(r.body?.size),
       };
     }).filter(Boolean);
     return mergeSections({ mine, workspace, downloaded, store, community });
@@ -1994,7 +2008,10 @@ export function CanvasSurface({
     if (!row?.tree) return;
     if (!templateTargetIdRef.current) {
       // Nothing to re-cut → arm the placer and let the next canvas click say where.
-      setPendingGridLayout({ tree: row.tree, hints: row.hints || null, textStyle: row.textStyle || null });
+      setPendingGridLayout({
+        tree: row.tree, hints: row.hints || null, textStyle: row.textStyle || null,
+        size: row.size || null,
+      });
       setSelectedTool('grid');
       return;
     }
@@ -2047,14 +2064,17 @@ export function CanvasSurface({
     const textStyle = card.templateId ? gridTemplates?.[card.templateId]?.textStyle : card.textStyle;
     const clean = sanitizeLayout(layout);
     if (!clean) { feedback.toast({ type: 'error', message: 'That grid has no layout to save.' }); return; }
-    setSaveTplLayout({ layout: clean, textStyle: textStyle || null });
+    // The card's own proportions ride along, so a grid you built as a storyboard
+    // comes back as one. Read here rather than at submit for the same reason the
+    // layout is: the selection can change while the dialog is up.
+    setSaveTplLayout({ layout: clean, textStyle: textStyle || null, size: { w: card.w, h: card.h } });
   }, [cardById, gridTemplates, feedback]);
 
   const commitSaveTemplate = async ({ name, hints, publish, description }) => {
     const pending = saveTplLayout;
     setSaveTplLayout(null);
     if (!pending || !userId) return;
-    const body = bodyFromGrid(pending.layout, pending.textStyle, hints);
+    const body = bodyFromGrid(pending.layout, pending.textStyle, hints, pending.size);
     if (!body) { feedback.toast({ type: 'error', message: 'Could not read that grid.' }); return; }
     try {
       const row = await saveGridLayout({ name: name.slice(0, 80), body, scope: 'user', userId });
@@ -10097,6 +10117,7 @@ export function CanvasSurface({
         open={!!saveTplLayout}
         canPublish={templatesEnabled}
         layout={saveTplLayout?.layout || null}
+        size={saveTplLayout?.size || null}
         onCancel={() => setSaveTplLayout(null)}
         onSave={commitSaveTemplate}
       />

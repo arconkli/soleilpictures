@@ -33,7 +33,8 @@ import { getLandingSpec, SEO_LANDING_PAGES, landingOgPath, EXPLORE_INTRO, matchT
 // Named imports only, so esbuild tree-shakes the rest of the layout engine out
 // of the Worker: a curated template page states its cell count, and that number
 // is DERIVED from the preset rather than typed into the spec beside it.
-import { presetById, leafIds } from './lib/gridLayout.js';
+import { leafIds } from './lib/gridLayout.js';
+import { layoutById } from './lib/templateLayouts.js';
 // The template store. Three artifacts, all generated from content/templates/*.md:
 // the cards drive the store front's crawlable list, the index drives item meta
 // and the sitemap, and templateHtml is the ONE accessor for pre-rendered item
@@ -1614,14 +1615,16 @@ export function buildLandingCrawlableHtml(spec, extra = null) {
   // crawler can actually read. Both derive from spec.template.preset, so the
   // page cannot describe a shape different from the one its CTA places.
   if (spec.template?.preset) {
-    const preset = presetById(spec.template.preset);
+    const preset = layoutById(spec.template.preset);
     if (preset) {
       const n = leafIds(preset.tree).length;
       parts.push(`<section><h2 style="${H2}">The layout</h2><p>${escapeHtml(preset.label)} — ${n} ${n === 1 ? 'box' : 'boxes'}.</p>`);
       const hints = spec.template.hints || [];
-      if (hints.length) {
+      if (hints.some((h) => h)) {
         parts.push('<ol>');
-        for (const h of hints) parts.push(`<li>${escapeHtml(h)}</li>`);
+        // `value` keeps a listed box on its real number; an unlabelled box (a
+        // contact-sheet frame, a palette swatch) is skipped, not renumbered.
+        hints.forEach((h, i) => { if (h) parts.push(`<li value="${i + 1}">${escapeHtml(h)}</li>`); });
         parts.push('</ol><p>Each label shows only while its box is empty, and is never written into the box.</p>');
       }
       parts.push('</section>');

@@ -1,10 +1,10 @@
 # Video storyboard template
 
-> A short video is four beats, not a scene: the hook that stops the scroll, two beats of substance, and the end card. This lays them left to right in a strip so the pacing is visible as a shape rather than as a page of panels.
+> Boarded in the shape it will be watched in. Four panels at 9:16 rather than 16:9, because a phone cut framed on a landscape sheet is planned wrong before anyone shoots it, and a line under each for the voiceover or the words on screen.
 
-_Source: https://clusters.soleilpictures.com/templates/video-storyboard-template · For boarding a short video · Updated 2026-08-27_
+_Source: https://clusters.soleilpictures.com/templates/video-storyboard-template · For boarding a short vertical video · Updated 2026-08-28_
 
-4 across — 4 boxes.
+Storyboard · 4 vertical beats, 9:16 — 8 boxes.
 
 | Box | Label |
 | --- | --- |
@@ -12,6 +12,10 @@ _Source: https://clusters.soleilpictures.com/templates/video-storyboard-template
 | 2 | BEAT 2 |
 | 3 | BEAT 3 |
 | 4 | END CARD |
+| 5 | VO / TEXT |
+| 6 | VO / TEXT |
+| 7 | VO / TEXT |
+| 8 | VO / TEXT |
 
-Each label shows only while its box is empty, and is never written into the box.
+Each label shows only while its box is empty, and is never written into the box. Boxes not listed are deliberately unlabelled.
 

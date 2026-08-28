@@ -67,6 +67,10 @@ export function rowFromRecord(rec, source) {
     // Sanitized on the way OUT as well as in: a community template's labels are
     // text somebody else wrote, and this is the boundary they cross.
     hints: sanitizeHints(body.hints),
+    // The proportions it was built at, so a storyboard you saved comes back a
+    // storyboard rather than a square. Absent on every row written before this
+    // shipped, which is exactly what `null` means to addGrid: use the default.
+    size: sanitizeSize(body.size),
     // 'own' | 'link' | 'gallery' (0270) — which section this belongs in.
     origin: rec.origin || 'own',
     // Set only when this template is live in the public gallery — the row's
@@ -132,6 +136,28 @@ export function filterSections(sections, query) {
 // write one; and implicitly by the body size cap. Hints are the only part of a
 // template that is free text, and they publish to a public page.
 
+// ── the card size a template wants ───────────────────────────────────────────
+//
+// A layout is a set of PROPORTIONS, and proportions only produce the shape they
+// are meant to at one aspect ratio: place the six-panel storyboard in the default
+// 360×300 and its 16:9 panels come out square. So a template may carry the size
+// it was built at, and addGrid is handed it.
+//
+// No migration: 0265 shaped `body` to grow a key without one, and this is a key.
+// It arrives from other people's records, so it is clamped rather than trusted —
+// a card 90000px wide is not a template, it is a denial of service on the canvas.
+
+export const SIZE_LIMITS = Object.freeze({ MIN: 80, MAX: 2400 });
+
+export function sanitizeSize(size) {
+  if (!size || typeof size !== 'object') return null;
+  const w = Number(size.w);
+  const h = Number(size.h);
+  if (!Number.isFinite(w) || !Number.isFinite(h)) return null;
+  const clamp = (n) => Math.round(Math.min(SIZE_LIMITS.MAX, Math.max(SIZE_LIMITS.MIN, n)));
+  return { w: clamp(w), h: clamp(h) };
+}
+
 export const HINT_LIMITS = Object.freeze({
   MAX_CELLS: 64,   // past this a grid is not a layout anyone labels by hand
   MAX_LEN: 40,     // a label, not a caption — longer will not fit a small cell
@@ -170,12 +196,14 @@ export function hintsToCellMap(tree, hints, box = { x: 0, y: 0, w: 1000, h: 1000
 // selected. Geometry and labels only, by design: no image refs means no
 // cross-workspace R2 grants to solve, and a template stays ~1KB of JSON that is
 // trivially shareable.
-export function bodyFromGrid(layout, textStyle, hints) {
+export function bodyFromGrid(layout, textStyle, hints, size) {
   const tree = sanitizeLayout(layout);
   if (!tree) return null;
   const body = { layout: tree };
   if (textStyle) body.textStyle = textStyle;
   const clean = sanitizeHints(hints);
   if (clean) body.hints = clean;
+  const dims = sanitizeSize(size);
+  if (dims) body.size = dims;
   return body;
 }

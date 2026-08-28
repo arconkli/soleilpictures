@@ -25,7 +25,7 @@ import './saveTemplateDialog.css';
 // Cells are listed in READING ORDER, which is how hints are indexed and how
 // people count boxes — not the depth-first order the tree stores them in.
 
-export function SaveTemplateDialog({ open, layout, defaultName = '', canPublish = false, onCancel, onSave }) {
+export function SaveTemplateDialog({ open, layout, size = null, defaultName = '', canPublish = false, onCancel, onSave }) {
   const [name, setName] = useState(defaultName);
   const [hints, setHints] = useState([]);
   const [active, setActive] = useState(-1);
@@ -33,10 +33,19 @@ export function SaveTemplateDialog({ open, layout, defaultName = '', canPublish 
   const [description, setDescription] = useState('');
   const nameRef = useRef(null);
 
+  // Measured at the CARD's real proportions, not in a square. Reading order bands
+  // cells by their centre, so on a grid of unequal rows — a storyboard's panels
+  // and captions, a casting board's photos and name strips — the order is a
+  // function of the aspect ratio. Number the boxes in a square and the dialog can
+  // label box 3 while hintsToCellMap, which runs against the card's actual w/h at
+  // placement, puts that label in a different box.
+  const box = useMemo(() => (
+    size?.w > 0 && size?.h > 0 ? { x: 0, y: 0, w: size.w, h: size.h } : { x: 0, y: 0, w: 100, h: 100 }
+  ), [size]);
   const cellCount = useMemo(() => {
     if (!layout) return 0;
-    return readingOrder(computeCellRects(layout, { x: 0, y: 0, w: 100, h: 100 })).length;
-  }, [layout]);
+    return readingOrder(computeCellRects(layout, box)).length;
+  }, [layout, box]);
 
   // Reset whenever the dialog opens on a different grid, so the last grid's
   // labels can't bleed into this one.
@@ -103,7 +112,7 @@ export function SaveTemplateDialog({ open, layout, defaultName = '', canPublish 
 
             <div className="savetpl-split">
               <div className="savetpl-preview" aria-hidden="true">
-                <GridLayoutThumb tree={layout} title={name} numbered highlight={active} />
+                <GridLayoutThumb tree={layout} title={name} size={size} numbered highlight={active} />
               </div>
 
               <ol className="savetpl-list">

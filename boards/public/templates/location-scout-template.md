@@ -1,10 +1,10 @@
 # Location scout template
 
-> A recce grid: one row per location, three frames across — the wide that shows the space, the detail that shows the problem, and a photo of the light at the hour you would actually shoot. Three locations compared on one page instead of three folders.
+> One row per location, and the wide takes half the row because it is the frame that decides whether the space works at all. Beside it the two that decide whether it works on the day — the detail that shows the problem, and the light at the hour you would actually be there.
 
-_Source: https://clusters.soleilpictures.com/templates/location-scout-template · For scouting a location · Updated 2026-08-27_
+_Source: https://clusters.soleilpictures.com/templates/location-scout-template · For scouting a location · Updated 2026-08-28_
 
-Contact sheet · 3 × 3 — 9 boxes.
+Location recce · 3 locations, wide plus two — 9 boxes.
 
 | Box | Label |
 | --- | --- |
@@ -18,5 +18,5 @@ Contact sheet · 3 × 3 — 9 boxes.
 | 8 | C — DETAIL |
 | 9 | C — LIGHT |
 
-Each label shows only while its box is empty, and is never written into the box.
+Each label shows only while its box is empty, and is never written into the box. Boxes not listed are deliberately unlabelled.
 

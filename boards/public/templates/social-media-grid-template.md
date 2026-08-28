@@ -1,10 +1,10 @@
 # Social media grid template
 
-> A profile grid is three across, so planning one in any other shape means guessing. Nine numbered boxes in the same arrangement the feed uses, filled in posting order, showing how the next three rows will look together before you publish any of them.
+> Nine boxes three across, at 3:4 rather than square. The profile grid stopped being square in 2025 and now crops every thumbnail to 3:4, so planning a feed in squares means composing for a picture the grid will never show. Fill them in posting order and read the next three rows as they will land.
 
-_Source: https://clusters.soleilpictures.com/templates/social-media-grid-template · For planning a posting grid · Updated 2026-08-27_
+_Source: https://clusters.soleilpictures.com/templates/social-media-grid-template · For planning a posting grid · Updated 2026-08-28_
 
-Contact sheet · 3 × 3 — 9 boxes.
+Posting grid · 9 posts, 3:4 — 9 boxes.
 
 | Box | Label |
 | --- | --- |
@@ -18,5 +18,5 @@ Contact sheet · 3 × 3 — 9 boxes.
 | 8 | POST 8 |
 | 9 | POST 9 |
 
-Each label shows only while its box is empty, and is never written into the box.
+Each label shows only while its box is empty, and is never written into the box. Boxes not listed are deliberately unlabelled.
 

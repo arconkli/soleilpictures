@@ -103,25 +103,24 @@ test.describe('/templates/<slug> — an item page', () => {
     await page.goto('/templates/shot-list-template');
     await expect(page.getByRole('heading', { name: 'Shot list template', level: 1 })).toBeVisible();
 
-    // The diagram is drawn from the same preset the button places, so the box
-    // count on screen is the box count you get.
-    await expect(page.locator('.tplitem-shot .tplt-thumb rect')).toHaveCount(4);
+    // The diagram is drawn from the same layout the button places, so the box
+    // count on screen is the box count you get. A shot list is a TABLE: four
+    // setups down, five columns across.
+    await expect(page.locator('.tplitem-shot .tplt-thumb rect')).toHaveCount(20);
     // The labels are drawn INSIDE the boxes, the way the card draws them — no
     // legend beside the diagram, because that would be the same information
-    // twice. Order is READING ORDER, which on db-row-1-3 is not left-to-right:
-    // readingOrder bands cells by their centre, so the top-right box sorts ahead
-    // of the full-height frame beside it.
+    // twice. Every box on this layout is labelled, one per column per row.
     const labels = page.locator('.tplitem-shot .tplt-cell-hint');
-    await expect(labels).toHaveCount(4);
+    await expect(labels).toHaveCount(20);
     // Asserted as a SET, not a sequence: cells are drawn in tree order while
     // labels are indexed by reading order, so DOM order is neither and does not
-    // need to be. What matters is that every label landed in a box.
-    expect((await labels.allTextContents()).sort())
-      .toEqual(['FRAME', 'MOVEMENT', 'NOTES', 'SHOT + LENS']);
+    // need to be. What matters is that every column landed in a box.
+    expect([...new Set(await labels.allTextContents())].sort())
+      .toEqual(['ANGLE', 'FRAME', 'MOVE', 'NOTES', 'SIZE']);
     // role="img" hides SVG contents from assistive tech, so the labels have to
     // survive in the accessible name or a screen reader gets a bare shape.
     await expect(page.locator('.tplitem-shot .tplt-thumb'))
-      .toHaveAttribute('aria-label', /SHOT \+ LENS, FRAME, MOVEMENT, NOTES/);
+      .toHaveAttribute('aria-label', /FRAME, SIZE, ANGLE, MOVE, NOTES/);
 
     for (const href of await page.locator('a.public-cta, a.tplitem-add')
       .evaluateAll((els) => els.map((e) => e.getAttribute('href')))) {
@@ -143,9 +142,27 @@ test.describe('/templates/<slug> — an item page', () => {
 
   test('an unlabelled template shows no empty legend', async ({ page }) => {
     await page.goto('/templates/contact-sheet-template');
-    await expect(page.locator('.tplitem-shot .tplt-thumb rect')).toHaveCount(9);
-    // Nine identical labels would be noise, so this template carries none.
+    // A roll of 35mm: six strips of six.
+    await expect(page.locator('.tplitem-shot .tplt-thumb rect')).toHaveCount(36);
+    // Thirty-six identical labels would be noise, so this template carries none
+    // — a proof sheet is the one sheet with nothing written on it.
     await expect(page.locator('.tplitem-shot .tplt-cell-hint')).toHaveCount(0);
+  });
+
+  // The point of the whole catalogue: a template is a set of PROPORTIONS, and
+  // the preview has to draw them. Two layouts rendered into the same box are the
+  // same picture, which is what a fixed landscape viewBox used to make them.
+  test('a preview is drawn at the layout\'s real aspect ratio', async ({ page }) => {
+    const ratioOf = async (slug) => {
+      await page.goto(`/templates/${slug}`);
+      const vb = await page.locator('.tplitem-shot .tplt-thumb').getAttribute('viewBox');
+      const [, , w, h] = vb.split(/\s+/).map(Number);
+      return w / h;
+    };
+    // 540 × 360 — a 3:2 negative, six across.
+    expect(await ratioOf('contact-sheet-template')).toBeCloseTo(1.5, 1);
+    // 360 × 480 — 3:4, which is what a profile grid crops to.
+    expect(await ratioOf('social-media-grid-template')).toBeCloseTo(0.75, 1);
   });
 
   test('an unknown item is a dead end, not a soft 404', async ({ page }) => {

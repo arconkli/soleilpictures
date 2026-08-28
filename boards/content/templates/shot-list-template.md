@@ -1,19 +1,14 @@
 ---
-title: Shot List Template — Frame, Lens, Movement, Notes
-metaDescription: A free shot list template that keeps the reference frame next to the details: shot and lens, camera movement, notes. Stamp one row per setup, numbered.
+title: Shot List Template — Frame, Size, Angle, Movement
+metaDescription: A free shot list template with the reference frame in the row. Four setups, each with a column for shot size, camera angle, movement and notes.
 h1: Shot list template
-blurb: A reference frame beside shot and lens, movement and notes — one row per setup.
+blurb: One row per setup — reference frame, then size, angle, movement, notes.
 category: film
-preset: db-row-1-3
+preset: shot-list-rows
 useCase: planning setups
 targetQuery: shot list template
-updated: 2026-08-27
-answer: This shot list template pairs a reference frame with the three things a crew actually needs beside it: shot and lens, camera movement, and notes. Every box is labelled until you fill it. Add it to a board, then stamp a copy for each setup and the numbering follows.
-hints:
-  - SHOT + LENS
-  - FRAME
-  - MOVEMENT
-  - NOTES
+updated: 2026-08-28
+answer: Four setups, one per row, in the columns a crew reads on the day. The reference frame leads at 16:9, then how tight it is, what angle it is from, how the camera moves, and anything to watch for. Stamp a copy when four rows are not enough and the list carries on.
 related:
   - /templates/storyboard-template
   - /templates/location-scout-template

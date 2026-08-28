@@ -201,7 +201,14 @@ body:has(.cnv-tpl-panel) .cnv-depth-dock { display: none; }
 .tplt-row-wrap.is-active .tplt-name { color: var(--ink-0); }
 
 /* Base look lives with the component (gridLayoutThumb.css) so it travels to
-   every surface that renders one. Only the panel's own hover state is here. */
+   every surface that renders one. Only the panel's own sizing and hover are here.
+
+   A FIXED HEIGHT, not a fixed aspect: a store template carries its real
+   proportions now, and rows of different heights would make the two-column grid
+   ragged. The SVG's preserveAspectRatio centres each layout inside that band, so
+   a tall casting board simply draws narrower than a wide contact sheet — which is
+   the useful signal, and the one a forced landscape box destroyed. */
+.tplt-row .tplt-thumb { width: 100%; height: 46px; }
 .tplt-row:hover .tplt-thumb rect,
 .tplt-row-wrap.is-active .tplt-thumb rect { stroke: var(--line-3); }
 

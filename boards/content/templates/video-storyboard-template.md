@@ -1,19 +1,14 @@
 ---
-title: Video Storyboard Template — Four-Beat Strip
-metaDescription: A free video storyboard template: four beats across in a strip, labelled hook to end card. Built for a short social or ad cut rather than a film scene.
+title: Video Storyboard Template — Vertical 9:16 Beats
+metaDescription: A free video storyboard template for vertical cuts. Four 9:16 panels, hook to end card, each with a line for the voiceover or the on-screen text.
 h1: Video storyboard template
-blurb: Four beats across — hook, two middles, end card.
+blurb: Four 9:16 panels — hook, two beats, end card.
 category: film
-preset: 4up
-useCase: boarding a short video
+preset: storyboard-vertical-4
+useCase: boarding a short vertical video
 targetQuery: video storyboard template
-updated: 2026-08-27
-answer: A short video is four beats, not a scene: the hook that stops the scroll, two beats of substance, and the end card. This lays them left to right in a strip so the pacing is visible as a shape rather than as a page of panels.
-hints:
-  - HOOK
-  - BEAT 2
-  - BEAT 3
-  - END CARD
+updated: 2026-08-28
+answer: Boarded in the shape it will be watched in. Four panels at 9:16 rather than 16:9, because a phone cut framed on a landscape sheet is planned wrong before anyone shoots it, and a line under each for the voiceover or the words on screen.
 related:
   - /templates/storyboard-template
   - /templates/social-media-grid-template

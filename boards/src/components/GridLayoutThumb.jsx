@@ -14,18 +14,30 @@ import './gridLayoutThumb.css';
 // answers "what goes in each box" by looking like the thing you are about to
 // place, rather than by a numbered legend beside it.
 //
-// The coordinate space is 280×220 rather than the old 56×44 for one reason: text.
+// The coordinate space is 280 wide rather than the old 56 for one reason: text.
 // A hint is ~11px in a ~360px-wide card, and at 56 units wide there is no font
-// size that renders a word legibly. Same aspect ratio, four times the room, so
-// nothing that relied on the intrinsic 56×44 size moves.
+// size that renders a word legibly.
+//
+// `size` is the layout's REAL card size, and passing it is what makes a preview
+// truthful. A template's proportions ARE the template — a contact sheet's frames
+// are 3:2 because that is a 35mm negative, and a posting grid is 3:4 because that
+// is what a profile crops to. Drawn into a fixed landscape box they all come out
+// as squares, which is the same picture for two different products. Only the
+// WIDTH is normalized (always 280): every thumb then shares one scale factor when
+// CSS sets `width: 100%`, so stroke weights and label sizes stay consistent
+// across the grid instead of a portrait layout drawing itself in heavier ink.
+//
+// With no `size` the old 280×220 box is used exactly, so the bare presets and the
+// save dialog render byte-identically to before.
 //
 // `numbered` and `highlight` are the save dialog's, where the diagram has to
 // answer "which box is field 2". Numbering follows READING ORDER — how hints are
 // indexed and how a person counts boxes, not the depth-first order the tree
 // stores them in.
 
-const VB = { w: 280, h: 220 };      // coordinate space
-const SIZE = { w: 56, h: 44 };      // intrinsic size, unchanged
+const VB_W = 280;                   // coordinate-space width, always
+const OUT_W = 56;                   // intrinsic width, always
+const FALLBACK_RATIO = 220 / 280;   // the box used before layouts carried a size
 const INSET = 4;                    // hairline gap so boxes read as separate
 const FONT = 11;                    // matches .gridc-hint's 11px in a ~360px card
 const CHAR = 0.66;                  // uppercase + .06em tracking, measured against the render
@@ -50,7 +62,15 @@ function fitLabel(text, boxW, font) {
   return lines.slice(0, 2).map((l) => (l.length > max ? `${l.slice(0, Math.max(1, max - 1))}…` : l));
 }
 
-export function GridLayoutThumb({ tree, title, labels = null, numbered = false, highlight = -1 }) {
+export function GridLayoutThumb({ tree, title, size = null, labels = null, numbered = false, highlight = -1 }) {
+  // Clamped so an extreme layout can't draw a tile ten screens tall; nothing in
+  // the catalogue is near either end, but a community template is a tree a
+  // stranger authored and this is the boundary it renders at.
+  const ratio = size?.w > 0 && size?.h > 0
+    ? Math.min(2.2, Math.max(0.4, size.h / size.w))
+    : FALLBACK_RATIO;
+  const VB = { w: VB_W, h: Math.round(VB_W * ratio) };
+  const SIZE = { w: OUT_W, h: Math.round(OUT_W * ratio) };
   const rects = tree ? computeCellRects(tree, { x: 0, y: 0, w: VB.w, h: VB.h }) : [];
   // Map cell id → its position in reading order, so a rect can find its number
   // or its label. This is the one place index-keyed hints meet the drawn cells.

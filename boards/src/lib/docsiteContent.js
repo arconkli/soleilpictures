@@ -8690,12 +8690,35 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The "
+    },
+    {
+     "t": "strong",
+     "v": "Shapes",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shapes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " section holds ten pieces of bare geometry — a rectangle already divided, for when you want to cut it up yourself:"
+    }
+   ]
+  },
+  {
    "type": "table",
    "head": [
     [
      {
       "t": "text",
-      "v": "Template"
+      "v": "Shape"
      }
     ],
     [
@@ -9056,7 +9079,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", the cells and their proportions, and not what is in them: a saved template is a skeleton you fill in fresh each time."
+     "v": ", the cells and their proportions, and not what is in them: a saved template is a skeleton you fill in fresh each time. It also remembers the card's width and height, so a grid you built as a storyboard comes back the same proportions rather than being squeezed into a default square."
     }
    ]
   },
@@ -9273,7 +9296,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "The ten bare layouts that ship with Clusters."
+       "v": "The ten bare layouts in the table above."
       }
      ]
     ]
@@ -9669,7 +9692,30 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — pick one and it places straight onto your board, no download step. On the web, each template has a page showing the shape and what every box is for. A few of them:"
+     "v": " — pick one and it places straight onto your board, no download step. On the web, each template has a page showing the shape and what every box is for."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Unlike a bare shape, a store template is a "
+    },
+    {
+     "t": "strong",
+     "v": "layout with real proportions",
+     "children": [
+      {
+       "t": "text",
+       "v": "layout with real proportions"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and placing one sizes the card to them. That is the difference between a storyboard and a grid with six boxes in it: the panels come out 16:9 because the card is the height that makes them 16:9. Resize the card afterwards and the cells reflow together, as they always do."
     }
    ]
   },
@@ -9691,7 +9737,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — a wide establishing frame over two beats."
+      "v": " — six 16:9 panels, each with an action line ruled underneath."
      }
     ],
     [
@@ -9708,7 +9754,24 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — nine even frames."
+      "v": " — six strips of six, every frame at 3:2, like a roll of 35mm."
+     }
+    ],
+    [
+     {
+      "t": "link",
+      "v": "Call sheet template",
+      "href": "/templates/call-sheet-template",
+      "children": [
+       {
+        "t": "text",
+        "v": "Call sheet template"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — header, location, weather, hospital, schedule, cast and crew."
      }
     ],
     [
@@ -9725,24 +9788,24 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — a reference frame beside shot, movement and notes."
+      "v": " — a row per setup, with the reference frame beside shot, movement and notes."
      }
     ],
     [
      {
       "t": "link",
-      "v": "Mood board template",
-      "href": "/templates/mood-board-template",
+      "v": "Casting board template",
+      "href": "/templates/casting-board-template",
       "children": [
        {
         "t": "text",
-        "v": "Mood board template"
+        "v": "Casting board template"
        }
       ]
      },
      {
       "t": "text",
-      "v": " — one hero image over three supporting frames."
+      "v": " — nine headshots at 4:5, a row per tier, each with a name strip."
      }
     ]
    ]

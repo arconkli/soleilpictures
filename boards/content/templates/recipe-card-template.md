@@ -1,19 +1,14 @@
 ---
 title: Recipe Card Template — Photo, Method, Notes
-metaDescription: A free recipe card template. The dish photo takes half the card, with ingredients, method and notes stacked beside it. Editable and shareable as a link.
+metaDescription: A free recipe card template. The dish photo holds the left column with the notes under it, and ingredients and method run down the right in order.
 h1: Recipe card template
-blurb: The dish photo at half width, with ingredients, method and notes beside it.
+blurb: The dish and the notes down one column, ingredients and method down the other.
 category: planning
-preset: db-row-1-3
+preset: recipe-card
 useCase: writing up a recipe
 targetQuery: recipe card template
-updated: 2026-08-27
-answer: The photo takes half the card because that is what someone decides on, and the ingredients, the method and the notes stack beside it in the order you use them. One card per recipe, and stamping a copy gives you the next one already laid out.
-hints:
-  - INGREDIENTS
-  - THE DISH
-  - METHOD
-  - NOTES
+updated: 2026-08-28
+answer: Two columns. The dish photo takes the top of the left with the notes underneath it, and the right runs ingredients then method — short list first, long list second, which is the order you actually work in. One card per recipe, and stamping a copy gives you the next already laid out.
 related:
   - /templates/shot-list-template
   - /templates/product-lineup-template

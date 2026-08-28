@@ -137,28 +137,29 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 ### Film and video
 
-- [Casting board template](https://clusters.soleilpictures.com/templates/casting-board-template): Nine headshots, a row per role tier — lead, supporting, background.
-- [Location scout template](https://clusters.soleilpictures.com/templates/location-scout-template): Three locations, three frames each — wide, detail, and the light.
-- [Shot list template](https://clusters.soleilpictures.com/templates/shot-list-template): A reference frame beside shot and lens, movement and notes — one row per setup.
-- [Storyboard template](https://clusters.soleilpictures.com/templates/storyboard-template): A wide establishing frame over two beats, with every panel labelled.
-- [Video storyboard template](https://clusters.soleilpictures.com/templates/video-storyboard-template): Four beats across — hook, two middles, end card.
+- [Call sheet template](https://clusters.soleilpictures.com/templates/call-sheet-template): Header, location, weather, hospital, schedule, cast and crew.
+- [Casting board template](https://clusters.soleilpictures.com/templates/casting-board-template): Nine headshots at 4:5, a row per tier, each with a name strip.
+- [Location scout template](https://clusters.soleilpictures.com/templates/location-scout-template): A row per location — a wide that leads, then the detail and the light.
+- [Shot list template](https://clusters.soleilpictures.com/templates/shot-list-template): One row per setup — reference frame, then size, angle, movement, notes.
+- [Storyboard template](https://clusters.soleilpictures.com/templates/storyboard-template): Six 16:9 panels, each with an action line ruled underneath.
+- [Video storyboard template](https://clusters.soleilpictures.com/templates/video-storyboard-template): Four 9:16 panels — hook, two beats, end card.
 
 ### Photography
 
 - [Before and after template](https://clusters.soleilpictures.com/templates/before-and-after-template): Two even panels, labelled — the comparison reads at a glance.
-- [Contact sheet template](https://clusters.soleilpictures.com/templates/contact-sheet-template): Nine even frames, sized so a whole shoot reads at a glance.
-- [Product lineup template](https://clusters.soleilpictures.com/templates/product-lineup-template): Four across — front, side, detail, and the in-use shot.
+- [Contact sheet template](https://clusters.soleilpictures.com/templates/contact-sheet-template): Six strips of six, every frame at 3:2 — a whole roll on one sheet.
+- [Product lineup template](https://clusters.soleilpictures.com/templates/product-lineup-template): A square main shot, with back, side, detail, scale and in-use around it.
 
 ### Design and brand
 
-- [Brand board template](https://clusters.soleilpictures.com/templates/brand-board-template): Logo, palette, typeface and imagery on one page.
-- [Look book template](https://clusters.soleilpictures.com/templates/look-book-template): Four even panels — a cover look, two more, and the detail.
-- [Mood board template](https://clusters.soleilpictures.com/templates/mood-board-template): One hero image over three supporting frames — palette, texture, detail.
+- [Brand board template](https://clusters.soleilpictures.com/templates/brand-board-template): Logo and typeface, four palette swatches, three imagery frames.
+- [Look book template](https://clusters.soleilpictures.com/templates/look-book-template): A full-height cover look at 2:3, with three stepping down beside it.
+- [Mood board template](https://clusters.soleilpictures.com/templates/mood-board-template): A hero image, three supporting frames, and a palette strip.
 - [Wedding mood board template](https://clusters.soleilpictures.com/templates/wedding-mood-board-template): The overall feeling on top, then the dress, the flowers and the table.
 
 ### Planning and comparison
 
 - [Comparison grid template](https://clusters.soleilpictures.com/templates/comparison-grid-template): Two labelled columns for weighing one option against another.
-- [Recipe card template](https://clusters.soleilpictures.com/templates/recipe-card-template): The dish photo at half width, with ingredients, method and notes beside it.
-- [Social media grid template](https://clusters.soleilpictures.com/templates/social-media-grid-template): Nine numbered boxes in the feed's own three-across shape.
+- [Recipe card template](https://clusters.soleilpictures.com/templates/recipe-card-template): The dish and the notes down one column, ingredients and method down the other.
+- [Social media grid template](https://clusters.soleilpictures.com/templates/social-media-grid-template): Nine numbered boxes at 3:4 — the ratio a profile grid actually crops to.
 

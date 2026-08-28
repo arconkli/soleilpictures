@@ -1,18 +1,14 @@
 ---
 title: Storyboard Template — Free and Editable Online
-metaDescription: A free storyboard template: a wide establishing frame over two beats, every panel labelled. Drop in stills or sketches, caption each shot, share one link.
+metaDescription: A free storyboard template on the film-standard sheet — six 16:9 panels, each with an action line ruled underneath. Add it to a board in one click.
 h1: Storyboard template
-blurb: A wide establishing frame over two beats, with every panel labelled.
+blurb: Six 16:9 panels, each with an action line ruled underneath.
 category: film
-preset: storyboard-1-2
+preset: storyboard-6up
 useCase: boarding a scene
 targetQuery: storyboard template
-updated: 2026-08-27
-answer: This storyboard template is a three-panel grid: one wide establishing frame across the top, two beats beneath it. Each box carries a label until you fill it, so a stranger opening the file knows what goes where. Add it to Clusters in one click, then drop in stills, sketches or captions.
-hints:
-  - ESTABLISHING
-  - ACTION
-  - REACTION
+updated: 2026-08-28
+answer: Six panels to a page, two across and three down, each a true 16:9 frame with a band under it for the action and the dialogue. Six is the number a scene is normally boarded at, and the band is what makes a panel legible to someone who was not in the room when it was drawn.
 related:
   - /templates/video-storyboard-template
   - /templates/shot-list-template

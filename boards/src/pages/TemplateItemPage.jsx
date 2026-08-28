@@ -24,7 +24,7 @@ import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { getTemplateSpec } from '../lib/templateIndex.js';
 import { TEMPLATE_CARDS, TEMPLATE_CATEGORIES } from '../lib/templateCards.js';
 import { GridLayoutThumb } from '../components/GridLayoutThumb.jsx';
-import { presetById } from '../lib/gridLayout.js';
+import { layoutById } from '../lib/templateLayouts.js';
 import { NotFoundPage } from './NotFoundPage.jsx';
 import { encodeRemixParam } from '../lib/remix.js';
 import { logEventOnce } from '../lib/analytics.js';
@@ -53,7 +53,7 @@ export function TemplateItemPage({ path }) {
   // here would be a soft-404 — content at a URL whose status says gone.
   if (!item) return <NotFoundPage />;
 
-  const preset = presetById(item.preset);
+  const preset = layoutById(item.preset);
   const hints = item.hints || [];
   const category = TEMPLATE_CATEGORIES.find((c) => c.id === item.category);
   const siblings = TEMPLATE_CARDS.filter((t) => t.category === item.category && t.slug !== item.slug).slice(0, 4);
@@ -80,7 +80,14 @@ export function TemplateItemPage({ path }) {
               the right. No section headings — there is only one thing here. */}
           <div className="tplitem-hero">
             <div className="tplitem-shot">
-              {preset && <GridLayoutThumb tree={preset.tree} title={item.h1} labels={hints.length ? hints : null} />}
+              {preset && (
+                <GridLayoutThumb
+                  tree={preset.tree}
+                  title={item.h1}
+                  size={item.size || preset.size}
+                  labels={hints.length ? hints : null}
+                />
+              )}
             </div>
             <div className="tplitem-detail">
               <h1 className="tplitem-h1">{item.h1}</h1>
@@ -103,11 +110,23 @@ export function TemplateItemPage({ path }) {
               <h2 className="seo-h2">More in {category ? category.label.toLowerCase() : 'this category'}</h2>
               <ul className="pubgrid tplstore-grid">
                 {siblings.map((t) => {
-                  const p = presetById(t.preset);
+                  const p = layoutById(t.preset);
                   return (
                     <li key={t.slug}>
                       <a className="tplstore-card" href={t.path}>
-                        {p && <GridLayoutThumb tree={p.tree} title={t.h1} />}
+                        {/* Labelled, exactly as on the store front — a sibling
+                            tile is the same product on the same shelf, and an
+                            unlabelled twin of it reads as a different thing. */}
+                        <span className="tplstore-stage">
+                          {p && (
+                            <GridLayoutThumb
+                              tree={p.tree}
+                              title={t.h1}
+                              size={t.size || p.size}
+                              labels={t.hints?.length ? t.hints : null}
+                            />
+                          )}
+                        </span>
                         <span className="tplstore-title">{t.h1}</span>
                         <span className="tplstore-blurb">{t.blurb}</span>
                       </a>

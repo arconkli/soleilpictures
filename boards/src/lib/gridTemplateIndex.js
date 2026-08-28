@@ -2,26 +2,61 @@
 // Edit the markdown, then run: npm run docs:build
 
 export const CURATED_TEMPLATES = {
+ "call-sheet-template": {
+  "path": "/templates/call-sheet-template",
+  "name": "Call sheet template",
+  "preset": "call-sheet",
+  "size": {
+   "w": 420,
+   "h": 560
+  },
+  "hints": [
+   "PRODUCTION · DAY · CALL",
+   "LOCATION + PARKING",
+   "WEATHER · SUNSET",
+   "NEAREST HOSPITAL",
+   "SCHEDULE — SCENE, CAST, D/N, PAGES",
+   "CAST + CALL TIMES",
+   "CREW BY DEPARTMENT"
+  ]
+ },
  "casting-board-template": {
   "path": "/templates/casting-board-template",
   "name": "Casting board template",
-  "preset": "contact-sheet-3x3",
+  "preset": "casting-3x3",
+  "size": {
+   "w": 400,
+   "h": 595
+  },
   "hints": [
    "LEAD",
    "LEAD",
    "LEAD",
+   "NAME · AGENT",
+   "NAME · AGENT",
+   "NAME · AGENT",
    "SUPPORTING",
    "SUPPORTING",
    "SUPPORTING",
+   "NAME · AGENT",
+   "NAME · AGENT",
+   "NAME · AGENT",
    "BACKGROUND",
    "BACKGROUND",
-   "BACKGROUND"
+   "BACKGROUND",
+   "NAME · AGENT",
+   "NAME · AGENT",
+   "NAME · AGENT"
   ]
  },
  "location-scout-template": {
   "path": "/templates/location-scout-template",
   "name": "Location scout template",
-  "preset": "contact-sheet-3x3",
+  "preset": "location-recce",
+  "size": {
+   "w": 480,
+   "h": 420
+  },
   "hints": [
    "LOCATION A — WIDE",
    "A — DETAIL",
@@ -37,39 +72,84 @@ export const CURATED_TEMPLATES = {
  "shot-list-template": {
   "path": "/templates/shot-list-template",
   "name": "Shot list template",
-  "preset": "db-row-1-3",
+  "preset": "shot-list-rows",
+  "size": {
+   "w": 720,
+   "h": 430
+  },
   "hints": [
-   "SHOT + LENS",
    "FRAME",
-   "MOVEMENT",
+   "SIZE",
+   "ANGLE",
+   "MOVE",
+   "NOTES",
+   "FRAME",
+   "SIZE",
+   "ANGLE",
+   "MOVE",
+   "NOTES",
+   "FRAME",
+   "SIZE",
+   "ANGLE",
+   "MOVE",
+   "NOTES",
+   "FRAME",
+   "SIZE",
+   "ANGLE",
+   "MOVE",
    "NOTES"
   ]
  },
  "storyboard-template": {
   "path": "/templates/storyboard-template",
   "name": "Storyboard template",
-  "preset": "storyboard-1-2",
+  "preset": "storyboard-6up",
+  "size": {
+   "w": 420,
+   "h": 474
+  },
   "hints": [
-   "ESTABLISHING",
+   "SHOT 1",
+   "SHOT 2",
    "ACTION",
-   "REACTION"
+   "ACTION",
+   "SHOT 3",
+   "SHOT 4",
+   "ACTION",
+   "ACTION",
+   "SHOT 5",
+   "SHOT 6",
+   "ACTION",
+   "ACTION"
   ]
  },
  "video-storyboard-template": {
   "path": "/templates/video-storyboard-template",
   "name": "Video storyboard template",
-  "preset": "4up",
+  "preset": "storyboard-vertical-4",
+  "size": {
+   "w": 540,
+   "h": 274
+  },
   "hints": [
    "HOOK",
    "BEAT 2",
    "BEAT 3",
-   "END CARD"
+   "END CARD",
+   "VO / TEXT",
+   "VO / TEXT",
+   "VO / TEXT",
+   "VO / TEXT"
   ]
  },
  "before-and-after-template": {
   "path": "/templates/before-and-after-template",
   "name": "Before and after template",
   "preset": "split-2",
+  "size": {
+   "w": 360,
+   "h": 300
+  },
   "hints": [
    "BEFORE",
    "AFTER"
@@ -78,34 +158,57 @@ export const CURATED_TEMPLATES = {
  "contact-sheet-template": {
   "path": "/templates/contact-sheet-template",
   "name": "Contact sheet template",
-  "preset": "contact-sheet-3x3"
+  "preset": "contact-sheet-36",
+  "size": {
+   "w": 540,
+   "h": 360
+  }
  },
  "product-lineup-template": {
   "path": "/templates/product-lineup-template",
   "name": "Product lineup template",
-  "preset": "4up",
+  "preset": "product-hero-angles",
+  "size": {
+   "w": 480,
+   "h": 440
+  },
   "hints": [
-   "FRONT",
+   "BACK",
+   "MAIN SHOT",
    "SIDE",
    "DETAIL",
+   "SCALE",
    "IN USE"
   ]
  },
  "brand-board-template": {
   "path": "/templates/brand-board-template",
   "name": "Brand board template",
-  "preset": "2x2",
+  "preset": "brand-board",
+  "size": {
+   "w": 480,
+   "h": 430
+  },
   "hints": [
    "LOGO",
-   "PALETTE",
    "TYPEFACE",
+   "PALETTE",
+   "",
+   "",
+   "",
+   "IMAGERY",
+   "IMAGERY",
    "IMAGERY"
   ]
  },
  "look-book-template": {
   "path": "/templates/look-book-template",
   "name": "Look book template",
-  "preset": "2x2",
+  "preset": "look-book-spread",
+  "size": {
+   "w": 530,
+   "h": 400
+  },
   "hints": [
    "COVER LOOK",
    "LOOK 02",
@@ -116,18 +219,30 @@ export const CURATED_TEMPLATES = {
  "mood-board-template": {
   "path": "/templates/mood-board-template",
   "name": "Mood board template",
-  "preset": "hero-3-strip",
+  "preset": "mood-board-palette",
+  "size": {
+   "w": 480,
+   "h": 430
+  },
   "hints": [
-   "HERO IMAGE",
-   "PALETTE",
    "TEXTURE",
-   "DETAIL"
+   "HERO IMAGE",
+   "DETAIL",
+   "TYPE",
+   "PALETTE",
+   "",
+   "",
+   ""
   ]
  },
  "wedding-mood-board-template": {
   "path": "/templates/wedding-mood-board-template",
   "name": "Wedding mood board template",
   "preset": "hero-3-strip",
+  "size": {
+   "w": 360,
+   "h": 300
+  },
   "hints": [
    "THE FEELING",
    "THE DRESS",
@@ -139,6 +254,10 @@ export const CURATED_TEMPLATES = {
   "path": "/templates/comparison-grid-template",
   "name": "Comparison grid template",
   "preset": "split-2",
+  "size": {
+   "w": 360,
+   "h": 300
+  },
   "hints": [
    "OPTION A",
    "OPTION B"
@@ -147,18 +266,26 @@ export const CURATED_TEMPLATES = {
  "recipe-card-template": {
   "path": "/templates/recipe-card-template",
   "name": "Recipe card template",
-  "preset": "db-row-1-3",
+  "preset": "recipe-card",
+  "size": {
+   "w": 480,
+   "h": 360
+  },
   "hints": [
-   "INGREDIENTS",
    "THE DISH",
-   "METHOD",
-   "NOTES"
+   "INGREDIENTS",
+   "NOTES",
+   "METHOD"
   ]
  },
  "social-media-grid-template": {
   "path": "/templates/social-media-grid-template",
   "name": "Social media grid template",
-  "preset": "contact-sheet-3x3",
+  "preset": "social-grid-3x4",
+  "size": {
+   "w": 360,
+   "h": 480
+  },
   "hints": [
    "POST 1",
    "POST 2",

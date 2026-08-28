@@ -11,5 +11,5 @@ Side by side — 2 boxes.
 | 1 | OPTION A |
 | 2 | OPTION B |
 
-Each label shows only while its box is empty, and is never written into the box.
+Each label shows only while its box is empty, and is never written into the box. Boxes not listed are deliberately unlabelled.
 

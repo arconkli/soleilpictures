@@ -14,11 +14,16 @@
    SPACE, not pixels. A stroke-width of 3 renders as a hairline once the SVG is
    scaled down to a tile. */
 
+/* NO background here, deliberately.
+   The SVG keeps its default preserveAspectRatio, so when a surface sizes it to a
+   fixed box the drawing is letterboxed inside — and a background would paint the
+   letterboxing too, drawing a landscape card behind a portrait layout and undoing
+   the proportions the viewBox exists to tell the truth about. Each surface
+   supplies its own stage instead (.tplstore-stage, .tplitem-shot), which is also
+   what lets the stage read as the recessed field a real grid card sits in. */
 .tplt-thumb {
   display: block;
   flex: none;
-  border-radius: 3px;
-  background: var(--bg-2);
 }
 
 /* A cell. Matches .gridc-cell on .gridc. */
