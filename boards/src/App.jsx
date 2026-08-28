@@ -124,6 +124,7 @@ import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, rejectedNoun, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap } from './lib/upsellEligibility.js';
 import { claimUpsellSlot } from './lib/upsellSlot.js';
+import { shouldAskToShare } from './lib/shareAsk.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel, setGridHints, readGridHints } from './lib/gridState.js';
@@ -1294,6 +1295,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           n: 1, kind: card?.kind || 'card', cards_after: genuineCountInDoc(),
           board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,
         });
+        // Real co-creation, recorded as it happens: this is a guest putting a
+        // card into somebody else's workspace. Joining a collab link switches
+        // you INTO the owner's workspace, so "not my workspace" is exactly the
+        // mechanism that produces nearly all of the co-creation this product
+        // has ever seen. Establishing that previously meant deriving distinct
+        // `actor` values out of card_placed per board — which is how internal
+        // accounts nearly got counted as real collaboration.
+        if (workspace?.created_by && user?.id && workspace.created_by !== user.id) {
+          logEventOnce(`co_creation:${boardId}`, EV.CO_CREATION_STARTED, {
+            board_id: boardId, workspace_id: workspace?.id, how: 'workspace',
+          });
+        }
         // Guided tour: a real content card (note/image/doc/file) placed inside the
         // tour's cluster completes the "add your first image" step. Cluster cards
         // (kind:'board') drive the create step instead (see addNewBoard).
@@ -4858,6 +4871,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       window.dispatchEvent(new CustomEvent('soleil:first-value'));
     }
 
+    // The pride beat: a cluster with enough in it to be worth showing someone.
+    // Fires later than both nudges above (6 cards vs 3 and 2), and is dispatched
+    // rather than called because the handler needs quickCopyShareLink, which is
+    // defined ~250 lines below this effect — naming it in a dep array here is a
+    // TDZ error at render. Decoupling through a window event is what
+    // collab-nudge / first-value / card-index-capped all already do.
+    // Tier-agnostic on purpose: showing your work is not a demo-only act, and a
+    // paid user's shared cluster recruits just as well.
+    if (!tourActive) {
+      window.dispatchEvent(new CustomEvent('soleil:share-ask', {
+        detail: { boardId: currentId, cards: genuine.length },
+      }));
+    }
+
     // Close the coachmark when a genuine card lands while it's showing (UI only;
     // the analytics above no longer depends on it). NOT while the arm-B guided
     // tour is running: its step-1 cluster IS a genuine card, and dismissing here
@@ -5044,6 +5071,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // subtree). Eagerly refreshes the OG thumbnail so the pasted link unfurls with
   // a real preview, not the generic logo. Gated on write access by the caller.
   const [quickShareBusy, setQuickShareBusy] = useState(false);
+  // Boards we KNOW have a live link, learned from this session's own copies.
+  // Deliberately not fetched: listPublicLinks is per-board, and paying a query
+  // on every board open to label a button is the wrong trade. The label stays
+  // honest by never claiming a state we haven't observed — it only sharpens
+  // from "Share" to "Copy link" once we've actually made one.
+  const [sharedBoardIds, setSharedBoardIds] = useState(() => new Set());
   const quickCopyShareLink = React.useCallback(async () => {
     if (quickShareBusy) return;
     setQuickShareBusy(true);
@@ -5057,10 +5090,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const yd = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
         if (yd) forceBoardThumbnail(currentBoard.id, yd, { workspaceId: workspace.id, userId: user.id });
       } catch (_) {}
-      try { logEvent(EV.SHARE_OPEN, { board_id: currentBoard.id, quick: true }); } catch (_) {}
+      // Was SHARE_OPEN{quick:true}, which made a one-tap copy indistinguishable
+      // from opening the permissions dialog — the two ends of this funnel;
+      // reading them as one number is what hid where sharing actually fails.
+      // SHARE_LINK_COPIED is the event ShareModal already emits for the same
+      // act, so the two surfaces are now directly comparable.
+      try {
+        logEventNow(EV.SHARE_LINK_COPIED, { kind: 'view', surface: 'topbar', board_id: currentBoard.id });
+      } catch (_) {}
+      setSharedBoardIds((prev) => (prev.has(currentBoard.id) ? prev : new Set(prev).add(currentBoard.id)));
       feedback.toast(copied
         ? { type: 'success', message: 'Share link copied — anyone with it can view this cluster.',
-            action: { label: 'Manage', onClick: () => setShareOpen(true) }, ttl: 9000 }
+            action: { label: 'Manage access', onClick: () => setShareOpen(true) }, ttl: 9000 }
         : { type: 'info', message: url, ttl: 9000 });
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Could not create a share link — try again.' });
@@ -5068,6 +5109,58 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setQuickShareBusy(false);
     }
   }, [quickShareBusy, currentBoard.id, yb.ready, yb.boardId, yb.ydoc, workspace.id, user.id, feedback]);
+
+  // The ask to SHOW this cluster, offered once per board after a work burst.
+  //
+  // It is a toast whose single action IS the share, so the ask and the act are
+  // one tap — there is no dialog, no second step, and nothing to abandon. That
+  // matters here specifically: the surface this replaces in spirit (the access
+  // console) loses most of the people who reach it.
+  //
+  // The localStorage stamp is written ONLY on an actual show, and only after the
+  // slot is claimed. Stamping on a decline would burn the one-shot for this
+  // board on a user who never saw anything — the same dead-gate shape that
+  // silently retired the first-value banner for whole accounts.
+  const quickCopyShareLinkRef = useRef(quickCopyShareLink);
+  quickCopyShareLinkRef.current = quickCopyShareLink;
+  useEffect(() => {
+    const onAsk = (e) => {
+      const boardId = e?.detail?.boardId;
+      const cards = Number(e?.detail?.cards) || 0;
+      if (!boardId || boardId !== currentBoard.id) return;
+
+      const key = `soleil.shareask.${boardId}`;
+      let already = false;
+      try { already = localStorage.getItem(key) === '1'; } catch (_) {}
+
+      if (!shouldAskToShare({
+        genuineCards: cards,
+        canEdit: canEditCurrent,
+        alreadyShared: sharedBoardIds.has(boardId),
+        dismissed: already,
+      })) return;
+
+      // Somebody else owns this moment (the wall, first-value, the invite
+      // nudge). Declining leaves the stamp unwritten, so the next card retries.
+      if (!claimUpsellSlot('share-ask')) return;
+
+      try { localStorage.setItem(key, '1'); } catch (_) {}
+      try { logEvent(EV.SHARE_ASK_SHOWN, { board_id: boardId, cards }); } catch (_) {}
+      feedback.toast({
+        message: 'This cluster is looking good — send it to someone?',
+        ttl: 9000,
+        action: {
+          label: 'Copy link',
+          onClick: () => {
+            try { logEventNow(EV.SHARE_ASK_TAKEN, { board_id: boardId, cards }); } catch (_) {}
+            quickCopyShareLinkRef.current?.();
+          },
+        },
+      });
+    };
+    window.addEventListener('soleil:share-ask', onAsk);
+    return () => window.removeEventListener('soleil:share-ask', onAsk);
+  }, [currentBoard.id, canEditCurrent, sharedBoardIds, feedback]);
 
   // Per-row write check for the sidebar board context menu. Uses the same
   // pure decider as currentBoardPerm, callable per-board (a hook can't be).
@@ -6773,12 +6866,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             {!canEditCurrent && (
               <span className="tb-viewonly" title="You have view-only access to this cluster">VIEW ONLY</span>
             )}
-            {canEditCurrent && (
-              <button className="tb-icon" onClick={quickCopyShareLink} disabled={quickShareBusy}
-                      title="Copy a view-only link to this cluster">
-                <Icon as={LinkIcon} size={16} />
-              </button>
-            )}
             {isTouch && (
               <button className="tb-icon tb-icon-focus" onClick={() => setFocusMode(true)}
                       title="Focus view — hide everything but the cluster"
@@ -6786,9 +6873,37 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <Icon as={Maximize2} size={16} />
               </button>
             )}
-            <button className="tb-btn" onClick={() => setShareOpen(true)} title="Share this cluster">
-              <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
-            </button>
+            {/* The labelled control does the ONE-TAP COPY; the permissions
+                console moves behind the icon beside it. This is a swap, not new
+                UI, and it inverts what shipped: the visible "Share" button used
+                to open a 929-line access console (two link kinds with their own
+                checkboxes, email invites, a member list, Explore publishing)
+                while the one-tap copy sat next to it as an unlabelled link
+                glyph. That is exactly the shape of the funnel — most people who
+                reach for sharing land in an admin screen and abandon, and only a
+                handful ever find the affordance that just hands them a link.
+                Viewers can't mint a link, so they keep the console as their
+                primary, unchanged. */}
+            {canEditCurrent ? (
+              <>
+                <button className="tb-btn" onClick={quickCopyShareLink} disabled={quickShareBusy}
+                        title="Copy a view-only link to this cluster">
+                  <Icon as={LinkIcon} size={14} />{' '}
+                  <span className="tb-btn-label">
+                    {sharedBoardIds.has(currentBoard.id) ? 'Copy link' : 'Share'}
+                  </span>
+                </button>
+                <button className="tb-icon" onClick={() => setShareOpen(true)}
+                        title="Manage access — invite people, revoke links, publish"
+                        aria-label="Manage access">
+                  <Icon as={Share2} size={16} />
+                </button>
+              </>
+            ) : (
+              <button className="tb-btn" onClick={() => setShareOpen(true)} title="Share this cluster">
+                <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
+              </button>
+            )}
             <button className="tb-icon tb-icon-theme" title="Toggle theme"
                     onClick={() => setTheme(themeMode === 'dark' ? 'light' : 'dark')}>
               <Icon as={themeMode === 'dark' ? Sun : Moon} size={16} />
