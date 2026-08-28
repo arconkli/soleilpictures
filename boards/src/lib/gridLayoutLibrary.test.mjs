@@ -249,7 +249,7 @@ assertEq(rowFromRecord({ id: 'x', body: { layout: presetById('single').tree } },
 
 // Local mode and signed-out both land here: built-ins only, and crucially no
 // hollow "My templates" header sitting above nothing.
-assertEq(mergeSections().map((s) => s.id), [SOURCES.BUILTIN], 'with no data, only Defaults shows');
+assertEq(mergeSections().map((s) => s.id), [SOURCES.BUILTIN], 'with no data, only the bare Shapes show');
 assertEq(mergeSections({ mine: [], workspace: [], downloaded: [], community: [] }).map((s) => s.id),
   [SOURCES.BUILTIN], 'empty sections are dropped');
 {
@@ -259,12 +259,12 @@ assertEq(mergeSections({ mine: [], workspace: [], downloaded: [], community: [] 
     workspace: one('b', SOURCES.WORKSPACE),
     downloaded: one('c', SOURCES.DOWNLOADED),
   });
-  // Ordered by how close the templates are to you; Defaults last, because it is
+  // Ordered by how close the templates are to you; Shapes last, because it is
   // the section you stop needing.
   assertEq(sections.map((s) => s.id),
     [SOURCES.USER, SOURCES.WORKSPACE, SOURCES.DOWNLOADED, SOURCES.BUILTIN],
-    'sections are ordered nearest-to-you first, Defaults last');
-  assertEq(sections.map((s) => s.title), ['Yours', 'Workspace', 'Downloaded', 'Defaults'], 'section titles');
+    'sections are ordered nearest-to-you first, Shapes last');
+  assertEq(sections.map((s) => s.title), ['Yours', 'Workspace', 'Downloaded', 'Shapes'], 'section titles');
 }
 // A copy taken from a link or the gallery is yours to keep but is not something
 // you made — origin is what keeps the two lists apart.

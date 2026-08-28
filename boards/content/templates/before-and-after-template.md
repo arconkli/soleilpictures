@@ -16,7 +16,4 @@ related:
   - /templates/comparison-grid-template
   - /templates/contact-sheet-template
   - /docs/canvas/images
-faq:
-  - q: Can I stack several before-and-afters?
-    a: Yes. Stamp a linked copy below the first with the "+" handle and you get a second labelled pair, aligned to the one above it.
 ---

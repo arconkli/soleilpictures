@@ -52,10 +52,13 @@ import {
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { Sheet } from './shell/Sheet.jsx';
-import { sanitizeLayout } from '../lib/gridLayout.js';
+import { sanitizeLayout, presetById } from '../lib/gridLayout.js';
 import { GridTemplatePanel } from './GridTemplatePanel.jsx';
 import { SaveTemplateDialog } from './SaveTemplateDialog.jsx';
-import { mergeSections, rowsFromRecords, bodyFromGrid, SOURCES } from '../lib/gridLayoutLibrary.js';
+import { mergeSections, rowsFromRecords, bodyFromGrid, sanitizeHints, SOURCES } from '../lib/gridLayoutLibrary.js';
+// The shipped store catalogue, so the panel sells the same fifteen templates
+// /templates does. A light index — names, preset ids and labels, never prose.
+import { TEMPLATE_CARDS } from '../lib/templateCards.js';
 import { useGridLayouts } from '../hooks/useGridLayouts.js';
 import {
   saveGridLayout, renameGridLayout, setGridLayoutScope,
@@ -1514,7 +1517,7 @@ export function CanvasSurface({
       // A layout armed by the Templates panel wins; a bare G (or the right-click
       // Add ▸ Grid, which never opens the panel) still gets the default shape.
       case 'grid':    mutators.addGrid?.(pos, pendingGridLayout
-                        ? { layout: pendingGridLayout.tree, hints: pendingGridLayout.hints }
+                        ? { layout: pendingGridLayout.tree, hints: pendingGridLayout.hints, textStyle: pendingGridLayout.textStyle }
                         : { preset: 'storyboard-1-2' }); break;
       // Multi-select, like every other image entry point — see the 'image'
       // add-action for why singular was costing day-one depth.
@@ -1927,7 +1930,8 @@ export function CanvasSurface({
   // ?local=1 passes the literal 'local-workspace' rather than a uuid, so the
   // truthiness check alone is not enough to keep the harness off the network.
   const templatesEnabled = !!userId && !!workspaceId && workspaceId !== 'local-workspace';
-  const { rows: savedLayouts, ensureLoaded: ensureGridLayouts, reload: reloadGridLayouts } =
+  const { rows: savedLayouts, community: publishedLayouts,
+    ensureLoaded: ensureGridLayouts, reload: reloadGridLayouts } =
     useGridLayouts(templatesEnabled ? userId : null);
   useEffect(() => { if (tplPanelOpen) ensureGridLayouts(); }, [tplPanelOpen, ensureGridLayouts]);
 
@@ -1946,8 +1950,30 @@ export function CanvasSurface({
       savedLayouts.filter((r) => r.scope === 'workspace' && r.workspace_id === workspaceId),
       SOURCES.WORKSPACE,
     );
-    return mergeSections({ mine, workspace, downloaded });
-  }, [savedLayouts, userId, workspaceId]);
+    // The STORE, in the panel. Shopping the catalogue used to mean leaving the
+    // app for /templates, adding to your library, coming back and finding it
+    // under Yours — four steps to place a grid. Here it is one click, and
+    // pickTemplate already does the right thing with it.
+    const store = TEMPLATE_CARDS.map((t) => {
+      const preset = presetById(t.preset);
+      return preset && {
+        key: `store:${t.slug}`, id: t.slug, name: t.h1,
+        tree: preset.tree, source: SOURCES.STORE, hints: t.hints || null,
+      };
+    }).filter(Boolean);
+    // Published by other people. Sanitized on the way out as well as in — these
+    // trees were authored by strangers and computeCellRects recurses without a
+    // depth guard.
+    const community = (publishedLayouts || []).map((r) => {
+      const tree = sanitizeLayout(r.body?.layout);
+      return tree && {
+        key: `community:${r.slug}`, id: r.slug, name: r.title,
+        tree, source: SOURCES.COMMUNITY, hints: sanitizeHints(r.body?.hints),
+        textStyle: r.body?.textStyle || null,
+      };
+    }).filter(Boolean);
+    return mergeSections({ mine, workspace, downloaded, store, community });
+  }, [savedLayouts, publishedLayouts, userId, workspaceId]);
 
   // The grid a template would re-cut: exactly one card selected and it IS a grid.
   // Anything else — nothing selected, a multi-select, a note — means "place a new
@@ -1968,7 +1994,7 @@ export function CanvasSurface({
     if (!row?.tree) return;
     if (!templateTargetIdRef.current) {
       // Nothing to re-cut → arm the placer and let the next canvas click say where.
-      setPendingGridLayout({ tree: row.tree, hints: row.hints || null });
+      setPendingGridLayout({ tree: row.tree, hints: row.hints || null, textStyle: row.textStyle || null });
       setSelectedTool('grid');
       return;
     }
@@ -2024,30 +2050,47 @@ export function CanvasSurface({
     setSaveTplLayout({ layout: clean, textStyle: textStyle || null });
   }, [cardById, gridTemplates, feedback]);
 
-  const commitSaveTemplate = useCallback(async ({ name, hints }) => {
+  const commitSaveTemplate = async ({ name, hints, publish, description }) => {
     const pending = saveTplLayout;
     setSaveTplLayout(null);
-    if (!pending || !name) return;
+    if (!pending || !userId) return;
     const body = bodyFromGrid(pending.layout, pending.textStyle, hints);
-    if (!body) { feedback.toast({ type: 'error', message: 'That grid has no layout to save.' }); return; }
+    if (!body) { feedback.toast({ type: 'error', message: 'Could not read that grid.' }); return; }
     try {
-      await saveGridLayout({ name: name.slice(0, 80), body, scope: 'user', userId });
+      const row = await saveGridLayout({ name: name.slice(0, 80), body, scope: 'user', userId });
+      const labelled = (hints || []).filter((h) => h.trim()).length;
+      // Publishing is a SECOND step that can fail on its own — most usefully on
+      // the two-cell store gate. Saving already succeeded by then, so the
+      // failure toast has to say that rather than implying the whole thing was
+      // lost. The raw Postgres message is surfaced because it is the one that
+      // explains the gate.
+      if (publish && row?.id) {
+        try {
+          await publishGridLayout(row.id, name.slice(0, 80), description || null);
+          await reloadGridLayouts();
+          feedback.toast({
+            message: 'Saved and shared in the store.',
+            actionLabel: 'View',
+            onAction: () => window.open('/templates', '_blank', 'noopener'),
+          });
+          return;
+        } catch (e) {
+          await reloadGridLayouts();
+          feedback.toast({ type: 'info', message: `Saved, but not shared — ${e?.message || 'try again from its ··· menu.'}` });
+          return;
+        }
+      }
       await reloadGridLayouts();
-      const n = body.hints ? body.hints.filter(Boolean).length : 0;
       feedback.toast({
-        message: n
-          ? `Saved “${name}” with ${n} ${n === 1 ? 'label' : 'labels'}.`
+        message: labelled
+          ? `Saved “${name}” with ${labelled} ${labelled === 1 ? 'label' : 'labels'}.`
           : `Saved “${name}” to your templates.`,
       });
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not save: ' + (e.message || e) });
+      feedback.toast({ type: 'error', message: 'Could not save that template.' });
     }
-  }, [saveTplLayout, feedback, userId, reloadGridLayouts]);
+  };
 
-  // Per-row actions. Built-ins never reach here (the panel filters them), and a
-  // workspace template you did not author offers only the actions a member is
-  // allowed: it can be edited, but sharing it outside the workspace stays the
-  // author's call, which is what create_grid_layout_link enforces server-side.
   const templateRowActions = useCallback((row) => {
     const isMine = row.ownerId === userId;
     const acts = [];
@@ -2097,29 +2140,37 @@ export function CanvasSurface({
       // the row from asking the user to guess its own state.
       acts.push(row.publishedSlug ? {
         id: 'unpublish',
-        label: 'Remove from gallery',
+        label: 'Remove from the store',
         run: async () => {
           try {
             await unpublishGridLayout(row.id);
             await reloadGridLayouts();
-            feedback.toast({ message: 'Removed from the public gallery.' });
+            feedback.toast({ message: 'Removed from the store.' });
           } catch (e) { feedback.toast({ type: 'error', message: 'Could not remove: ' + (e.message || e) }); }
         },
       } : {
         id: 'publish',
-        label: 'Publish to gallery…',
+        label: 'Share in the store…',
         run: async () => {
-          const ok = await feedback.confirm({
-            title: 'Publish to the public gallery?',
-            body: `“${row.name}” will appear at /templates for anyone to use. It publishes the shape only — no images, no text, nothing from the board it came from. You can remove it at any time.`,
-            confirmLabel: 'Publish',
+          // A prompt rather than a confirm, because the description IS the tile
+          // line in the store. Publishing used to pass null here, so every
+          // community template arrived with no line under its name — the one
+          // field a shopper actually reads.
+          const desc = await feedback.prompt({
+            title: 'Share in the template store?',
+            message: `“${row.name}” will appear at /templates for anyone to add. It shares the shape and the labels only — no images, no text, nothing from the board it came from. You can remove it at any time.`,
+            label: 'One line about it (optional)',
+            placeholder: 'Three locations, three frames each — wide, detail, light.',
+            confirmLabel: 'Share it',
           });
-          if (!ok) return;
+          // prompt resolves '' for an empty field and null only on cancel, so
+          // this distinguishes "no description" from "changed my mind".
+          if (desc === null || desc === undefined) return;
           try {
-            const res = await publishGridLayout(row.id, row.name, null);
+            const res = await publishGridLayout(row.id, row.name, String(desc).trim() || null);
             await reloadGridLayouts();
             feedback.toast({
-              message: 'Published to the gallery.',
+              message: 'Shared in the store.',
               action: res?.slug ? { label: 'View', onClick: () => window.open('/templates', '_blank', 'noopener') } : undefined,
             });
           } catch (e) {
@@ -10044,6 +10095,7 @@ export function CanvasSurface({
 
       <SaveTemplateDialog
         open={!!saveTplLayout}
+        canPublish={templatesEnabled}
         layout={saveTplLayout?.layout || null}
         onCancel={() => setSaveTplLayout(null)}
         onSave={commitSaveTemplate}

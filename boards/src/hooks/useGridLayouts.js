@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { listGridLayouts, myGridLayoutPublications } from '../lib/gridLayoutsApi.js';
+import { listGridLayouts, myGridLayoutPublications, listPublicGridLayouts } from '../lib/gridLayoutsApi.js';
 
 // Saved grid layouts for the Templates panel.
 //
@@ -31,19 +31,30 @@ const _inflight = new Map();  // userId -> Promise<rows>
 // publication state has to come from a definer function (public_grid_layouts is
 // revoked from clients entirely), and they are fetched together because the
 // panel needs both before it can render a row's actions honestly.
+// The published store rides along as a third call rather than a second hook.
+// It is one more entry in a Promise.all that already exists, so the panel still
+// costs ONE round-trip when it opens — and shopping the community catalogue has
+// to be as cheap as opening the panel or nobody will do it. A failure resolves
+// to [] rather than rejecting: not being able to browse other people's
+// templates must never take your own library down with it.
 function fetchFor(userId) {
   let p = _inflight.get(userId);
   if (!p) {
-    p = Promise.all([listGridLayouts(), myGridLayoutPublications()])
-      .then(([rows, pubs]) => {
+    p = Promise.all([
+      listGridLayouts(),
+      myGridLayoutPublications(),
+      listPublicGridLayouts(120).catch(() => []),
+    ])
+      .then(([rows, pubs, community]) => {
         const bySlug = new Map(pubs.map((x) => [x.layout_id, x]));
         const merged = rows.map((r) => {
           const pub = bySlug.get(r.id);
           return pub?.published_at ? { ...r, published_slug: pub.slug } : r;
         });
-        _cache.set(userId, merged);
+        const out = { rows: merged, community };
+        _cache.set(userId, out);
         _inflight.delete(userId);
-        return merged;
+        return out;
       })
       .catch((e) => { _inflight.delete(userId); throw e; });
     _inflight.set(userId, p);
@@ -51,17 +62,19 @@ function fetchFor(userId) {
   return p;
 }
 
+const EMPTY = { rows: [], community: [] };
+
 export function useGridLayouts(userId) {
-  const [rows, setRows] = useState(() => _cache.get(userId) || []);
+  const [state, setState] = useState(() => _cache.get(userId) || EMPTY);
   const loadedFor = useRef(null);
 
   const ensureLoaded = useCallback(() => {
     if (!userId) return;
     if (loadedFor.current === userId) return;
     loadedFor.current = userId;
-    if (_cache.has(userId)) { setRows(_cache.get(userId)); return; }
+    if (_cache.has(userId)) { setState(_cache.get(userId)); return; }
     fetchFor(userId)
-      .then((next) => { if (loadedFor.current === userId) setRows(next); })
+      .then((next) => { if (loadedFor.current === userId) setState(next); })
       // A library that fails to load leaves the built-in section intact; the
       // panel is still usable, which is better than an error state over a
       // feature the user may not even be reaching for.
@@ -71,14 +84,14 @@ export function useGridLayouts(userId) {
   // Call after any write. Busts the cache and re-reads, so the panel shows what
   // the database actually holds rather than what we hoped it would.
   const reload = useCallback(() => {
-    if (!userId) return Promise.resolve([]);
+    if (!userId) return Promise.resolve(EMPTY);
     _cache.delete(userId);
     _inflight.delete(userId);
     loadedFor.current = userId;
     return fetchFor(userId)
-      .then((next) => { if (loadedFor.current === userId) setRows(next); return next; })
-      .catch(() => []);
+      .then((next) => { if (loadedFor.current === userId) setState(next); return next; })
+      .catch(() => EMPTY);
   }, [userId]);
 
-  return { rows, ensureLoaded, reload };
+  return { rows: state.rows, community: state.community, ensureLoaded, reload };
 }

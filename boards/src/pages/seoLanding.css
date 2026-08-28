@@ -928,3 +928,87 @@
 .tplitem-crumbs span { margin: 0 6px; opacity: .5; }
 .tplitem-layout { margin-top: 8px; }
 .tplitem-add { display: inline-block; margin: 14px 0 6px; }
+
+/* ── A store item page ─────────────────────────────────────────────────────
+   Two columns: the shape on the left, everything you need to decide on the
+   right. No section headings in the hero — there is exactly one thing here, and
+   a heading over a single object is furniture. */
+.tplitem-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 5fr);
+  gap: clamp(24px, 5vw, 56px);
+  align-items: start;
+  margin: 8px 0 clamp(40px, 7vh, 72px);
+}
+.tplitem-shot {
+  padding: 20px;
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: var(--bg-1);
+}
+.tplitem-shot .tplt-thumb { width: 100%; height: auto; aspect-ratio: 56 / 44; border-radius: 8px; }
+.tplitem-h1 {
+  font: 700 clamp(2rem, 4vw, 2.8rem)/1.1 var(--font-display, var(--font-sans));
+  color: var(--ink-0);
+  margin: 0 0 .4em;
+}
+.tplitem-lead { font: 400 1.05rem/1.6 var(--font-sans); color: var(--ink-1); margin: 0 0 1em; }
+.tplitem-specs {
+  font: 500 .8rem/1 var(--font-sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 1.4em;
+}
+/* The labels are the spec sheet — numbered to match the diagram beside them,
+   which is the whole reason the diagram is numbered at all. */
+.tplitem-labels { list-style: none; margin: 0 0 1.6em; padding: 0; display: grid; gap: 7px; }
+.tplitem-labels li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 500 13px/1.3 var(--font-sans);
+  letter-spacing: .04em;
+  color: var(--ink-1);
+}
+.tplitem-labels li span {
+  flex: none;
+  width: 20px; height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: var(--bg-3);
+  color: var(--ink-2);
+  font: 600 11px/1 var(--font-sans);
+  letter-spacing: 0;
+}
+.tplitem-add { display: inline-flex; margin-bottom: 8px; }
+@media (max-width: 720px) {
+  .tplitem-hero { grid-template-columns: 1fr; }
+}
+
+/* A community tile's source badge. There is deliberately no author identity in
+   this system ("a template is a shape, not a person", migration 0266), so the
+   badge names where it came from rather than who made it. */
+.tplstore-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  margin-right: 2px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  font: 600 10px/1.4 var(--font-sans);
+  letter-spacing: .08em;
+  color: var(--ink-2);
+}
+.tplstore-contribute {
+  margin: 28px 0 0;
+  font: 400 14px/1.6 var(--font-sans);
+  color: var(--ink-2);
+}
+.tplstore-contribute a { color: var(--soleil); }
+/* A storefront hero is a shop sign: name, one line, then the goods. */
+.seo-hero.is-storefront { margin-bottom: clamp(20px, 3vh, 32px); text-align: left; }
+.seo-hero.is-storefront .seo-h1 { margin-left: 0; max-width: none; }
+.seo-hero.is-storefront .seo-subhead { margin-left: 0; }
+.seo-hero.is-storefront::before,
+.seo-hero.is-storefront::after { display: none; }

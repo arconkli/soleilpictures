@@ -92,9 +92,13 @@ test.describe('grid templates — the rail panel', () => {
     const search = panel(page).getByRole('searchbox', { name: 'Search templates' });
     await expect(search).toBeVisible();
 
+    // Search crosses every section, so "contact" finds both the bare shape and
+    // the store template built on it — which is the point of having both: one
+    // is geometry, the other is that geometry with a name and labels.
     await search.fill('contact');
-    await expect(panel(page).getByRole('menuitem')).toHaveCount(1);
+    await expect(panel(page).getByRole('menuitem')).toHaveCount(2);
     await expect(template(page, 'Contact sheet · 3 × 3')).toBeVisible();
+    await expect(template(page, 'Contact sheet template')).toBeVisible();
 
     await search.fill('zzzz');
     await expect(panel(page).getByRole('menuitem')).toHaveCount(0);
@@ -179,21 +183,25 @@ test.describe('grid templates — the rail panel', () => {
   // would make the affordance worthless.
   test('a section folds, reports its size, and stays folded', async ({ page }) => {
     await gridTool(page).click();
-    const head = panel(page).getByRole('button', { name: /^Defaults \(\d+\)$/ });
+    const head = panel(page).getByRole('button', { name: /^Shapes \(\d+\)$/ });
     await expect(head).toHaveAttribute('aria-expanded', 'true');
-    const n = await panel(page).getByRole('menuitem').count();
-    expect(n).toBeGreaterThanOrEqual(10);
+    const before = await panel(page).getByRole('menuitem').count();
+    // Store + Shapes: the panel sells the same catalogue /templates does, so
+    // folding one section leaves the other standing.
+    expect(before).toBeGreaterThanOrEqual(20);
+    // The parens live in the aria-label; the visible count is its own span.
+    const shapes = Number(await head.locator('.tplt-section-count').textContent());
 
     await head.click();
     await expect(head).toHaveAttribute('aria-expanded', 'false');
-    await expect(panel(page).getByRole('menuitem')).toHaveCount(0);
+    await expect(panel(page).getByRole('menuitem')).toHaveCount(before - shapes);
     // Folded is not hidden: the count is what keeps a closed section informative.
-    await expect(head).toContainText(String(n));
+    await expect(head.locator('.tplt-section-count')).toHaveText(String(shapes));
 
     // Reopen the panel — the fold survived.
     await page.keyboard.press('Escape');
     await gridTool(page).click();
-    await expect(panel(page).getByRole('button', { name: /^Defaults/ }))
+    await expect(panel(page).getByRole('button', { name: /^Shapes/ }))
       .toHaveAttribute('aria-expanded', 'false');
   });
 
@@ -201,8 +209,9 @@ test.describe('grid templates — the rail panel', () => {
   // closed header is indistinguishable from no result at all.
   test('search sees through a folded section', async ({ page }) => {
     await gridTool(page).click();
-    await panel(page).getByRole('button', { name: /^Defaults/ }).click();
-    await expect(panel(page).getByRole('menuitem')).toHaveCount(0);
+    await panel(page).getByRole('button', { name: /^Shapes/ }).click();
+    // The bare shape is now behind a closed heading; its store namesake is not.
+    await expect(template(page, 'Contact sheet · 3 × 3')).toHaveCount(0);
 
     await panel(page).getByRole('searchbox', { name: 'Search templates' }).fill('contact');
     await expect(template(page, 'Contact sheet · 3 × 3')).toBeVisible();

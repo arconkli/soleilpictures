@@ -6,13 +6,11 @@ import { fileURLToPath } from 'node:url';
 
 import { TEMPLATE_ITEMS, getTemplateSpec, isTemplatePath } from './templateIndex.js';
 import { TEMPLATE_CARDS, TEMPLATE_CATEGORIES } from './templateCards.js';
-import { TEMPLATE_CONTENT } from './templateContent.js';
 import { templateHtml } from './templateCrawlable.js';
 import { SEO_LANDING_PAGES } from './seoLanding.js';
 import { SEO_LISTICLE_INDEX } from './seoListicleIndex.js';
 import { presetById, computeCellRects, readingOrder } from './gridLayout.js';
 import { HINT_LIMITS } from './gridLayoutLibrary.js';
-import { blocksToText } from '../../scripts/lib/markdown.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -38,13 +36,14 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const FLOOR = 3;
 const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
 
-// The prose a template actually carries: its `answer` (every item has one) plus
-// any body. Including the answer matters — a lean item with no body would
-// otherwise sit outside the duplicate check entirely, and lean items are the
-// ones most at risk of being clones.
+// ALL the prose a template carries: its `answer` and its store line. There is no
+// body — an item page is a product page, and gen-docs treats body prose in a
+// template file as an error rather than dropping it silently. So the duplicate
+// check runs over the two sentences that exist, which is exactly right: on lean
+// pages those two sentences ARE the differentiation, and they are the part most
+// at risk of being copy-pasted between templates.
 function proseOf(item) {
-  const body = TEMPLATE_CONTENT[item.path] ? blocksToText(TEMPLATE_CONTENT[item.path]) : '';
-  return norm(`${item.answer} ${body}`);
+  return norm(`${item.answer} ${item.blurb}`);
 }
 
 // Word 5-grams. Jaccard over these is the standard cheap near-duplicate measure
@@ -284,9 +283,9 @@ test('an item page claims only what it can defend', () => {
     assert.equal(crumbs[1].item, `${ORIGIN}/templates`);
     assert.equal(crumbs[2].item, `${ORIGIN}${it.path}`);
 
-    // FAQPage only when there is a FAQ — an empty one is a claim about content
-    // the page does not have.
-    assert.equal(!!typed('FAQPage'), !!it.faq.length, `${it.path}: FAQPage does not match the page`);
+    // No FAQPage. An item page has no FAQ — declaring one would be markup
+    // asserting content the page does not contain.
+    assert.equal(typed('FAQPage'), undefined, `${it.path}: item pages have no FAQ to declare`);
   }
 });
 

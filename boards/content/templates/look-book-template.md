@@ -18,7 +18,4 @@ related:
   - /templates/mood-board-template
   - /templates/brand-board-template
   - /tools/look-book-maker
-faq:
-  - q: How do I add more looks?
-    a: Stamp a linked copy with the "+" on any edge. Each copy carries the same four labels, so a twelve-look book stays consistent without retyping anything.
 ---

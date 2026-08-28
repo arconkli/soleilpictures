@@ -2,13 +2,11 @@
 
 > A wedding mood board arranged the way the decisions actually get made: the overall feeling across the top, then the three that everything else follows from — the dress, the flowers and the table setting. Share the link with your planner or your florist.
 
-_Source: https://clusters.soleilpictures.com/templates/wedding-mood-board-template · Updated 2026-08-27_
-
-## The layout
+_Source: https://clusters.soleilpictures.com/templates/wedding-mood-board-template · For planning a wedding look · Updated 2026-08-27_
 
 Hero + 3 below — 4 boxes.
 
-| # | Label |
+| Box | Label |
 | --- | --- |
 | 1 | THE FEELING |
 | 2 | THE DRESS |

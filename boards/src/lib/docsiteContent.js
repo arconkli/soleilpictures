@@ -9206,11 +9206,11 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Defaults",
+       "v": "Store",
        "children": [
         {
          "t": "text",
-         "v": "Defaults"
+         "v": "Store"
         }
        ]
       }
@@ -9218,7 +9218,62 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "The layouts that ship with Clusters."
+       "v": "The ready-made templates, the same ones at "
+      },
+      {
+       "t": "link",
+       "v": "/templates",
+       "href": "/templates",
+       "children": [
+        {
+         "t": "text",
+         "v": "/templates"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": "."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Community",
+       "children": [
+        {
+         "t": "text",
+         "v": "Community"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Templates other people have published."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Shapes",
+       "children": [
+        {
+         "t": "text",
+         "v": "Shapes"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The ten bare layouts that ship with Clusters."
       }
      ]
     ]
@@ -9371,7 +9426,42 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Creates a link to the template. Anyone who opens it gets their own copy."
+       "v": "Creates a private link. Anyone who opens it gets their own copy."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Share in the store…",
+       "children": [
+        {
+         "t": "text",
+         "v": "Share in the store…"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Publishes it to "
+      },
+      {
+       "t": "link",
+       "v": "/templates",
+       "href": "/templates",
+       "children": [
+        {
+         "t": "text",
+         "v": "/templates"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " for anyone to use."
       }
      ]
     ],
@@ -9444,25 +9534,25 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 3,
-   "text": "The public gallery",
+   "text": "The public store",
    "inline": [
     {
      "t": "text",
-     "v": "The public gallery"
+     "v": "The public store"
     }
    ],
-   "id": "the-public-gallery"
+   "id": "the-public-store"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "strong",
-     "v": "Publish to gallery",
+     "v": "Share in the store…",
      "children": [
       {
        "t": "text",
-       "v": "Publish to gallery"
+       "v": "Share in the store…"
       }
      ]
     },
@@ -9487,11 +9577,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Remove from gallery",
+     "v": "Remove from the store",
      "children": [
       {
        "t": "text",
-       "v": "Remove from gallery"
+       "v": "Remove from the store"
       }
      ]
     },
@@ -9522,18 +9612,50 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 3,
-   "text": "The template store",
+   "text": "The store",
    "inline": [
     {
      "t": "text",
-     "v": "The template store"
+     "v": "The store"
     }
    ],
-   "id": "the-template-store"
+   "id": "the-store"
   },
   {
    "type": "para",
    "inline": [
+    {
+     "t": "text",
+     "v": "The "
+    },
+    {
+     "t": "strong",
+     "v": "Store",
+     "children": [
+      {
+       "t": "text",
+       "v": "Store"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Community",
+     "children": [
+      {
+       "t": "text",
+       "v": "Community"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " sections of the panel are the same catalogue you can browse at "
+    },
     {
      "t": "link",
      "v": "/templates",
@@ -9547,7 +9669,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " is a browsable store of ready-made layouts — filter by what you are making, open one to see what each box is for, and add it to your own templates in a click. A few of them:"
+     "v": " — pick one and it places straight onto your board, no download step. On the web, each template has a page showing the shape and what every box is for. A few of them:"
     }
    ]
   },
@@ -9626,25 +9748,89 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "heading",
+   "depth": 3,
+   "text": "Sharing your own",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sharing your own"
+    }
+   ],
+   "id": "sharing-your-own"
+  },
+  {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Anything you add from the store behaves exactly like a template you saved yourself once it lands in "
+     "v": "Save any grid as a template and tick "
     },
     {
      "t": "strong",
-     "v": "Yours",
+     "v": "Share it in the store",
      "children": [
       {
        "t": "text",
-       "v": "Yours"
+       "v": "Share it in the store"
       }
      ]
     },
     {
      "t": "text",
-     "v": ": rename it, share it with your workspace, or re-cut it."
+     "v": " — it appears at "
+    },
+    {
+     "t": "link",
+     "v": "/templates",
+     "href": "/templates",
+     "children": [
+      {
+       "t": "text",
+       "v": "/templates"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for anyone to use, with the one line you write about it under its name. Whoever adds it gets their own copy, so removing yours later never reaches into anybody else's library. Only the shape and the labels are shared; never your content. A template needs at least two boxes to be shared."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "You can also share one later from its "
+    },
+    {
+     "t": "strong",
+     "v": "···",
+     "children": [
+      {
+       "t": "text",
+       "v": "···"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu, and "
+    },
+    {
+     "t": "strong",
+     "v": "Remove from the store",
+     "children": [
+      {
+       "t": "text",
+       "v": "Remove from the store"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " takes it back down."
     }
    ]
   },

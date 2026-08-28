@@ -23,7 +23,4 @@ related:
   - /templates/location-scout-template
   - /templates/contact-sheet-template
   - /docs/canvas/grids
-faq:
-  - q: Can I put a name or a tape link under each headshot?
-    a: Yes. Split a box in two and put the photo above and the text below, or drop a link card straight into the box — a cell takes an image, text, a link or a video.
 ---

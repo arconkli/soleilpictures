@@ -23,7 +23,4 @@ related:
   - /templates/video-storyboard-template
   - /templates/mood-board-template
   - /docs/canvas/grids
-faq:
-  - q: Does the numbering follow the feed or reading order?
-    a: Reading order, left to right and top to bottom — the same order a profile grid fills, so box 1 is the next thing you post.
 ---

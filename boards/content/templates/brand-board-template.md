@@ -18,7 +18,4 @@ related:
   - /templates/mood-board-template
   - /templates/look-book-template
   - /docs/canvas/palettes-and-color
-faq:
-  - q: Can the palette be real swatches rather than a picture of some?
-    a: Yes. Drop a palette card into that panel and every colour on it becomes pickable everywhere else on the board.
 ---

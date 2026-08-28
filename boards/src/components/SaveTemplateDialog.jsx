@@ -17,13 +17,20 @@ import './saveTemplateDialog.css';
 // the normal case and must stay a two-keystroke save. The name is the only
 // required field.
 //
+// Publishing lives HERE, as one checkbox, rather than behind a ··· menu you find
+// later. Sharing a template is a thought you have while making it, and a store
+// nobody can stock is not a store — burying the only way to contribute three
+// clicks deep is what made publishing feel like posting into a side channel.
+//
 // Cells are listed in READING ORDER, which is how hints are indexed and how
 // people count boxes — not the depth-first order the tree stores them in.
 
-export function SaveTemplateDialog({ open, layout, defaultName = '', onCancel, onSave }) {
+export function SaveTemplateDialog({ open, layout, defaultName = '', canPublish = false, onCancel, onSave }) {
   const [name, setName] = useState(defaultName);
   const [hints, setHints] = useState([]);
   const [active, setActive] = useState(-1);
+  const [publish, setPublish] = useState(false);
+  const [description, setDescription] = useState('');
   const nameRef = useRef(null);
 
   const cellCount = useMemo(() => {
@@ -38,6 +45,10 @@ export function SaveTemplateDialog({ open, layout, defaultName = '', onCancel, o
     setName(defaultName);
     setHints(Array(cellCount).fill(''));
     setActive(-1);
+    // Publishing is opt-in every time. A sticky checkbox would eventually
+    // publish something the person did not mean to make public.
+    setPublish(false);
+    setDescription('');
   }, [open, defaultName, cellCount]);
 
   if (!open) return null;
@@ -48,7 +59,12 @@ export function SaveTemplateDialog({ open, layout, defaultName = '', onCancel, o
   const submit = (e) => {
     e?.preventDefault?.();
     if (!canSave) return;
-    onSave({ name: name.trim(), hints });
+    onSave({
+      name: name.trim(),
+      hints,
+      publish: canPublish && publish,
+      description: description.trim(),
+    });
   };
 
   return (
@@ -118,12 +134,46 @@ export function SaveTemplateDialog({ open, layout, defaultName = '', onCancel, o
               </ol>
             </div>
           </div>
+
+          {/* The store needs at least two boxes to accept a template — the
+              same gate submit_grid_layout_to_public enforces (0266), stated
+              here so the checkbox is not offered on something that would be
+              rejected after the fact. */}
+          {canPublish && cellCount >= 2 && (
+            <div className="savetpl-share">
+              <label className="savetpl-check">
+                <input
+                  type="checkbox"
+                  checked={publish}
+                  onChange={(e) => setPublish(e.target.checked)}
+                />
+                <span>Share it in the store</span>
+              </label>
+              <p className="savetpl-help">
+                Anyone can find it at /templates and add it. They get their own copy,
+                so removing yours later never reaches into anybody else's library.
+                Only the shape and the labels are shared — never your content.
+              </p>
+              {publish && (
+                <label className="savetpl-field">
+                  <span className="savetpl-label">One line about it</span>
+                  <input
+                    className="savetpl-input"
+                    value={description}
+                    maxLength={140}
+                    placeholder="Three locations, three frames each — wide, detail, light."
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </label>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="savetpl-actions">
           <button type="button" className="savetpl-btn" onClick={onCancel}>Cancel</button>
           <button type="submit" className="savetpl-btn savetpl-btn-primary" disabled={!canSave}>
-            Save template
+            {canPublish && publish ? 'Save and share' : 'Save template'}
           </button>
         </div>
       </form>

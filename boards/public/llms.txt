@@ -131,7 +131,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [PureRef Online: The Closest Thing, in Your Browser](https://clusters.soleilpictures.com/vs/pureref): There is no PureRef web version. Clusters is the closest thing online: the same drop-and-arrange reference wall, in your browser, shared with one link.
 - [A Miro Alternative for Filmmakers and Creative Teams](https://clusters.soleilpictures.com/vs/miro): A Miro alternative for creative work, not diagramming: image-first boards, palettes, storyboards, and client-ready sharing. Free to start.
 - [What You Can Make with Clusters](https://clusters.soleilpictures.com/use-cases): Mood boards, look books, storyboards, shot lists — see what creative teams make with Soleil Clusters, browse example boards, and start yours free.
-- [Grid templates](https://clusters.soleilpictures.com/templates): Free grid layout templates for storyboards, contact sheets and comparisons. Pick a shape, fill the cells with images or text, and save your own to reuse.
+- [Grid templates](https://clusters.soleilpictures.com/templates): Free grid layout templates for storyboards, contact sheets, casting boards and more. Pick one, see what each box is for, add it to a board in one click.
 
 ## Grid templates
 

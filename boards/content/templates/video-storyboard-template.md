@@ -18,7 +18,4 @@ related:
   - /templates/storyboard-template
   - /templates/social-media-grid-template
   - /tools/storyboard-maker
-faq:
-  - q: How is this different from the storyboard template?
-    a: That one is a scene — a wide establishing frame with beats under it. This is a strip of four equal beats, which is the shape a short ad or social cut actually takes.
 ---

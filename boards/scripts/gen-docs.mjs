@@ -353,8 +353,12 @@ function loadTemplates() {
       }
     }
 
+    // An item page is a product page: preview, name, one line, specs, button.
+    // There is nowhere for a body to render, so a body is an ERROR rather than
+    // something silently dropped — the failure mode this rule exists to prevent
+    // is prose that someone wrote and nobody ever sees.
+    if (body.trim()) bad('has body prose, but a template page renders frontmatter only');
     const slug = file.replace(/^.*[/\\]/, '').replace(/\.md$/, '');
-    const blocks = parseMarkdown(body);
     return {
       slug,
       path: `/templates/${slug}`,
@@ -373,9 +377,6 @@ function loadTemplates() {
       cells,
       presetLabel: preset ? preset.label : '',
       related: fm.related || [],
-      faq: (fm.faq || []).filter((f) => f.q && f.a),
-      blocks,
-      rawMarkdown: body.trim(),
     };
   });
 
@@ -698,25 +699,16 @@ function templateCrawlableHtml(item) {
   const out = [];
   out.push(`<h1 style="font-size:1.9rem;font-weight:650;margin:0 0 .4em;">${escapeHtml(item.h1)}</h1>`);
   out.push(`<p style="color:#d0d0d4;font-size:1.1rem;margin:0 0 1.2em;">${escapeHtml(item.answer)}</p>`);
-  out.push(`<p style="color:#8a8a92;font-size:.85rem;"><time datetime="${escapeHtml(item.updated)}">Updated ${escapeHtml(prettyDate(item.updated))}</time></p>`);
+  out.push(`<p style="color:#8a8a92;font-size:.85rem;">${escapeHtml(lead)} · <time datetime="${escapeHtml(item.updated)}">Updated ${escapeHtml(prettyDate(item.updated))}</time></p>`);
 
-  out.push(`<section><h2 style="${H2}">The layout</h2><p>${escapeHtml(lead)}</p>`);
   if (hints.length) {
-    out.push('<ol>');
+    out.push(`<section><h2 style="${H2}">What each box is for</h2><ol>`);
     for (const h of hints) out.push(`<li>${escapeHtml(h)}</li>`);
-    out.push('</ol><p>Each label shows only while its box is empty, and is never written into the box.</p>');
+    out.push('</ol><p>Each label shows only while its box is empty, and is never written into the box.</p></section>');
   }
-  out.push('</section>');
 
-  out.push(...blocksToHtml(item.blocks));
-
-  if (item.faq.length) {
-    out.push(`<section><h2 style="${H2}">Frequently asked questions</h2>`);
-    for (const f of item.faq) out.push(`<h3 style="${H3}">${escapeHtml(f.q)}</h3><p>${escapeHtml(f.a)}</p>`);
-    out.push('</section>');
-  }
-  // Back to the store first, then siblings. A store item that does not link back
-  // to its shelf is a leaf, and the shelf is the page carrying the ranking weight.
+  // Back to the shelf first. An item that does not link to the store is a leaf,
+  // and the store is the page carrying the topical weight.
   out.push('<nav aria-label="Related pages" style="margin-top:1.6em;"><h2 style="font-size:1.1rem;">More templates</h2><ul>');
   out.push('<li><a href="/templates" style="color:#FFA500;">All grid templates</a></li>');
   for (const r of item.related) out.push(`<li><a href="${escapeHtml(r)}" style="color:#FFA500;">${escapeHtml(r)}</a></li>`);
@@ -733,17 +725,12 @@ function templateMarkdown(item) {
   const { lead, hints } = templateLayoutLines(item);
   const out = [`# ${req(item.h1, item.path, 'h1')}`, ''];
   out.push(`> ${req(item.answer, item.path, 'answer')}`, '');
-  out.push(`_Source: ${SITE_ORIGIN}${item.path} · Updated ${item.updated}_`, '');
-  out.push('## The layout', '', lead, '');
+  out.push(`_Source: ${SITE_ORIGIN}${item.path} · For ${item.useCase} · Updated ${item.updated}_`, '');
+  out.push(lead, '');
   if (hints.length) {
-    out.push('| # | Label |', '| --- | --- |');
+    out.push('| Box | Label |', '| --- | --- |');
     hints.forEach((h, i) => out.push(`| ${i + 1} | ${h} |`));
     out.push('', 'Each label shows only while its box is empty, and is never written into the box.', '');
-  }
-  if (item.rawMarkdown) out.push(item.rawMarkdown, '');
-  if (item.faq.length) {
-    out.push('## Frequently asked questions', '');
-    for (const f of item.faq) out.push(`### ${f.q}`, '', f.a, '');
   }
   return out.join('\n').replace(/\n{3,}/g, '\n\n') + '\n';
 }
@@ -1042,7 +1029,7 @@ export const TEMPLATE_ITEMS = ${JSON.stringify(templates.map((it) => ({
       h1: it.h1, blurb: it.blurb, answer: it.answer, category: it.category,
       preset: it.preset, hints: it.hints, cells: it.cells, presetLabel: it.presetLabel,
       useCase: it.useCase, targetQuery: it.targetQuery, updated: it.updated,
-      related: it.related, faq: it.faq,
+      related: it.related,
     })), null, 1)};
 
 const BY_PATH = new Map(TEMPLATE_ITEMS.map((t) => [t.path, t]));
@@ -1070,11 +1057,6 @@ const HTML = ${JSON.stringify(Object.fromEntries(templates.map((it) => [it.path,
 // the Worker's byte budget is a single function body rather than a call-site sweep.
 export function templateHtml(path) { return HTML[path] || ''; }
 `);
-
-  write(resolve(BOARDS, 'src/lib/templateContent.js'),
-    BANNER('content/templates/*.md')
-    + `\nexport const TEMPLATE_CONTENT = ${JSON.stringify(
-      Object.fromEntries(templates.filter((it) => it.blocks.length).map((it) => [it.path, it.blocks])), null, 1)};\n`);
 
   for (const it of templates) {
     write(resolve(BOARDS, 'public', `templates/${it.slug}.md`), templateMarkdown(it));

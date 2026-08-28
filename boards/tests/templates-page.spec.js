@@ -74,13 +74,27 @@ test.describe('/templates — the store', () => {
     await expect.poll(() => page.locator('.tplstore-card').count()).toBe(total);
   });
 
-  test('the static prose still renders above the store', async ({ page }) => {
+  // THE fix. The store shipped leading with an eyebrow, an answer card, a CTA
+  // band and five prose sections before a single template — a shop wearing a
+  // landing page's clothes. The goods come first now; the prose stays, below,
+  // because it is what an answer engine quotes and what the .md mirror needs.
+  test('the goods come before the copy', async ({ page }) => {
     await page.goto('/templates');
-    // The prose is what makes this page rank; the grid is the product. Order
-    // matters, and it is the same order the Worker injects.
-    const proseY = await page.locator('.seo-answer').evaluate((el) => el.getBoundingClientRect().top);
     const gridY = await page.locator('.tplstore-grid').evaluate((el) => el.getBoundingClientRect().top);
-    expect(proseY).toBeLessThan(gridY);
+    const proseY = await page.locator('.seo-section .seo-h2')
+      .filter({ hasText: 'A template is a shape' })
+      .evaluate((el) => el.getBoundingClientRect().top);
+    expect(gridY, 'the grid must sit above the prose').toBeLessThan(proseY);
+
+    // And none of the selling furniture a shop does not need.
+    await expect(page.locator('.seo-eyebrow')).toHaveCount(0);
+    await expect(page.locator('.seo-answer')).toHaveCount(0);
+    await expect(page.locator('.seo-midcta')).toHaveCount(0);
+  });
+
+  test('offers a way to stock the shelf', async ({ page }) => {
+    await page.goto('/templates');
+    await expect(page.getByRole('link', { name: 'Share it in the store' })).toBeVisible();
   });
 });
 
@@ -91,26 +105,36 @@ test.describe('/templates/<slug> — an item page', () => {
 
     // The diagram is drawn from the same preset the button places, so the box
     // count on screen is the box count you get.
-    await expect(page.locator('.tplitem-layout .tplt-thumb rect')).toHaveCount(4);
+    await expect(page.locator('.tplitem-shot .tplt-thumb rect')).toHaveCount(4);
     // Labels in READING ORDER, which on db-row-1-3 is not left-to-right:
     // readingOrder bands cells by their centre, so the top-right box sorts
     // ahead of the full-height frame beside it.
-    await expect(page.locator('.seo-tpl-hints li').first()).toHaveText('SHOT + LENS');
+    await expect(page.locator('.tplitem-labels li').first()).toContainText('SHOT + LENS');
 
     for (const href of await page.locator('a.public-cta, a.tplitem-add')
       .evaluateAll((els) => els.map((e) => e.getAttribute('href')))) {
       expect(href).toContain('remix=k_shot-list-template');
     }
-    // Back to the shelf.
     await expect(page.locator('.tplitem-crumbs a')).toHaveAttribute('href', '/templates');
+  });
+
+  // A product page, not a landing page. No body prose and no FAQ — not trimmed
+  // away, never authored: gen-docs errors on a body in a template file rather
+  // than dropping it silently.
+  test('is a product page, with no invented copy on it', async ({ page }) => {
+    await page.goto('/templates/casting-board-template');
+    await expect(page.locator('details')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /Frequently asked/i })).toHaveCount(0);
+    // Exactly one h2 — "More in film and video". Anything else is prose.
+    await expect(page.locator('h2')).toHaveCount(1);
   });
 
   test('an unlabelled template shows no empty legend', async ({ page }) => {
     await page.goto('/templates/contact-sheet-template');
-    await expect(page.locator('.tplitem-layout .tplt-thumb rect')).toHaveCount(9);
+    await expect(page.locator('.tplitem-shot .tplt-thumb rect')).toHaveCount(9);
     // Nine identical labels would be noise, so this one carries none — and an
-    // empty <ol> would be worse than no list.
-    await expect(page.locator('.seo-tpl-hints')).toHaveCount(0);
+    // empty list would be worse than no list.
+    await expect(page.locator('.tplitem-labels')).toHaveCount(0);
   });
 
   test('an unknown item is a dead end, not a soft 404', async ({ page }) => {

@@ -32,12 +32,6 @@ export const TEMPLATE_ITEMS = [
    "/templates/location-scout-template",
    "/templates/contact-sheet-template",
    "/docs/canvas/grids"
-  ],
-  "faq": [
-   {
-    "q": "Can I put a name or a tape link under each headshot?",
-    "a": "Yes. Split a box in two and put the photo above and the text below, or drop a link card straight into the box — a cell takes an image, text, a link or a video."
-   }
   ]
  },
  {
@@ -70,8 +64,7 @@ export const TEMPLATE_ITEMS = [
    "/templates/shot-list-template",
    "/templates/casting-board-template",
    "/tools/shot-list-maker"
-  ],
-  "faq": []
+  ]
  },
  {
   "slug": "shot-list-template",
@@ -98,16 +91,6 @@ export const TEMPLATE_ITEMS = [
    "/templates/storyboard-template",
    "/templates/location-scout-template",
    "/tools/shot-list-maker"
-  ],
-  "faq": [
-   {
-    "q": "How do I add a row for every setup?",
-    "a": "Select the row and click the \"+\" handle on its bottom edge to stamp a linked copy, which carries the same labels. The matrix generator lays out a whole day at once."
-   },
-   {
-    "q": "Do the shots number themselves?",
-    "a": "Yes. Put a numbering tag in a field and each row renders its own number based on where it sits on the canvas, so inserting a setup renumbers the ones after it automatically."
-   }
   ]
  },
  {
@@ -134,16 +117,6 @@ export const TEMPLATE_ITEMS = [
    "/templates/video-storyboard-template",
    "/templates/shot-list-template",
    "/tools/storyboard-maker"
-  ],
-  "faq": [
-   {
-    "q": "Can I add more panels?",
-    "a": "Yes. Select the grid and click a \"+\" on any edge to stamp a linked panel beside it, or use the matrix generator to lay out a whole page at once. Stamped panels carry the same labels."
-   },
-   {
-    "q": "What if I want a different panel layout?",
-    "a": "Drag any divider to re-balance the frames, or split a panel in two. You can also pick a different template later — the images and captions you have already added carry across to the new shape."
-   }
   ]
  },
  {
@@ -171,12 +144,6 @@ export const TEMPLATE_ITEMS = [
    "/templates/storyboard-template",
    "/templates/social-media-grid-template",
    "/tools/storyboard-maker"
-  ],
-  "faq": [
-   {
-    "q": "How is this different from the storyboard template?",
-    "a": "That one is a scene — a wide establishing frame with beats under it. This is a strip of four equal beats, which is the shape a short ad or social cut actually takes."
-   }
   ]
  },
  {
@@ -202,12 +169,6 @@ export const TEMPLATE_ITEMS = [
    "/templates/comparison-grid-template",
    "/templates/contact-sheet-template",
    "/docs/canvas/images"
-  ],
-  "faq": [
-   {
-    "q": "Can I stack several before-and-afters?",
-    "a": "Yes. Stamp a linked copy below the first with the \"+\" handle and you get a second labelled pair, aligned to the one above it."
-   }
   ]
  },
  {
@@ -230,16 +191,6 @@ export const TEMPLATE_ITEMS = [
    "/templates/social-media-grid-template",
    "/templates/casting-board-template",
    "/tools/mood-board-maker"
-  ],
-  "faq": [
-   {
-    "q": "How many images does the contact sheet hold?",
-    "a": "Nine by default, in a three by three grid. You can split a cell for more, or stamp a second linked sheet beside the first to continue onto another page."
-   },
-   {
-    "q": "Can I re-order the frames?",
-    "a": "Yes. Drag one frame onto another to swap them, and the grid re-flows around the move. Nothing is fixed in place once it is dropped."
-   }
   ]
  },
  {
@@ -267,8 +218,7 @@ export const TEMPLATE_ITEMS = [
    "/templates/contact-sheet-template",
    "/templates/before-and-after-template",
    "/docs/canvas/images"
-  ],
-  "faq": []
+  ]
  },
  {
   "slug": "brand-board-template",
@@ -295,12 +245,6 @@ export const TEMPLATE_ITEMS = [
    "/templates/mood-board-template",
    "/templates/look-book-template",
    "/docs/canvas/palettes-and-color"
-  ],
-  "faq": [
-   {
-    "q": "Can the palette be real swatches rather than a picture of some?",
-    "a": "Yes. Drop a palette card into that panel and every colour on it becomes pickable everywhere else on the board."
-   }
   ]
  },
  {
@@ -328,12 +272,6 @@ export const TEMPLATE_ITEMS = [
    "/templates/mood-board-template",
    "/templates/brand-board-template",
    "/tools/look-book-maker"
-  ],
-  "faq": [
-   {
-    "q": "How do I add more looks?",
-    "a": "Stamp a linked copy with the \"+\" on any edge. Each copy carries the same four labels, so a twelve-look book stays consistent without retyping anything."
-   }
   ]
  },
  {
@@ -361,12 +299,6 @@ export const TEMPLATE_ITEMS = [
    "/templates/look-book-template",
    "/templates/brand-board-template",
    "/tools/mood-board-maker"
-  ],
-  "faq": [
-   {
-    "q": "Can I use more than four images?",
-    "a": "Yes. Split any box in two, or stamp a linked copy of the whole board beside the first to continue. The labels come with it."
-   }
   ]
  },
  {
@@ -394,8 +326,7 @@ export const TEMPLATE_ITEMS = [
    "/templates/mood-board-template",
    "/templates/look-book-template",
    "/tools/mood-board-maker"
-  ],
-  "faq": []
+  ]
  },
  {
   "slug": "comparison-grid-template",
@@ -420,12 +351,6 @@ export const TEMPLATE_ITEMS = [
    "/templates/before-and-after-template",
    "/templates/mood-board-template",
    "/docs/canvas/grids"
-  ],
-  "faq": [
-   {
-    "q": "What if I am comparing three or four things?",
-    "a": "Split a column, or start from a four-across layout instead. Content you have already placed moves over when you change the shape."
-   }
   ]
  },
  {
@@ -453,8 +378,7 @@ export const TEMPLATE_ITEMS = [
    "/templates/shot-list-template",
    "/templates/product-lineup-template",
    "/docs/canvas/grids"
-  ],
-  "faq": []
+  ]
  },
  {
   "slug": "social-media-grid-template",
@@ -486,12 +410,6 @@ export const TEMPLATE_ITEMS = [
    "/templates/video-storyboard-template",
    "/templates/mood-board-template",
    "/docs/canvas/grids"
-  ],
-  "faq": [
-   {
-    "q": "Does the numbering follow the feed or reading order?",
-    "a": "Reading order, left to right and top to bottom — the same order a profile grid fills, so box 1 is the next thing you post."
-   }
   ]
  }
 ];

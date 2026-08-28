@@ -98,7 +98,9 @@ The panel groups templates by where they came from, nearest to you first:
 | **Yours** | Templates you saved. |
 | **Workspace** | Shared with everyone in the current workspace. |
 | **Downloaded** | Copies you took from a share link or the public gallery. |
-| **Defaults** | The layouts that ship with Clusters. |
+| **Store** | The ready-made templates, the same ones at [/templates](/templates). |
+| **Community** | Templates other people have published. |
+| **Shapes** | The ten bare layouts that ship with Clusters. |
 
 Click any heading to fold that section away — useful once you have your own and
 the defaults are mostly in the way. A folded heading still shows how many are
@@ -111,7 +113,8 @@ Your templates appear under **Yours**. Each one has a **···** menu:
 |---|---|
 | **Rename** | Changes the name in your library. |
 | **Share with workspace** | Moves it to **Workspace**, where every member of the current workspace can use it. **Make private** moves it back. |
-| **Copy share link** | Creates a link to the template. Anyone who opens it gets their own copy. |
+| **Copy share link** | Creates a private link. Anyone who opens it gets their own copy. |
+| **Share in the store…** | Publishes it to [/templates](/templates) for anyone to use. |
 | **Delete** | Removes it, with an Undo toast. |
 
 A workspace template can be renamed and edited by any member, but only the
@@ -125,11 +128,11 @@ and offers to add it to your own templates; whoever opens it gets a **copy** the
 can rename or delete, and yours is unaffected. Deleting the template makes every
 link to it stop working.
 
-### The public gallery
+### The public store
 
-**Publish to gallery** puts a template on [/templates](/templates), where anyone
+**Share in the store…** puts a template on [/templates](/templates), where anyone
 can browse and use it. There is no review queue — it appears immediately — and
-**Remove from gallery** takes it back down just as fast. A template needs at
+**Remove from the store** takes it back down just as fast. A template needs at
 least two cells to be published; a single-cell grid is a box, not a layout.
 
 Publishing shares the shape and the name you gave it. It does not share the board
@@ -140,11 +143,12 @@ anybody's library and take it back.
 Only the person who made a template can publish it. A workspace template can be
 renamed and edited by any member, but publishing it is still the author's call.
 
-### The template store
+### The store
 
-[/templates](/templates) is a browsable store of ready-made layouts — filter by
-what you are making, open one to see what each box is for, and add it to your
-own templates in a click. A few of them:
+The **Store** and **Community** sections of the panel are the same catalogue you
+can browse at [/templates](/templates) — pick one and it places straight onto
+your board, no download step. On the web, each template has a page showing the
+shape and what every box is for. A few of them:
 
 - [Storyboard template](/templates/storyboard-template) — a wide establishing
   frame over two beats.
@@ -154,9 +158,16 @@ own templates in a click. A few of them:
 - [Mood board template](/templates/mood-board-template) — one hero image over
   three supporting frames.
 
-Anything you add from the store behaves exactly like a template you saved
-yourself once it lands in **Yours**: rename it, share it with your workspace, or
-re-cut it.
+### Sharing your own
+
+Save any grid as a template and tick **Share it in the store** — it appears at
+[/templates](/templates) for anyone to use, with the one line you write about it
+under its name. Whoever adds it gets their own copy, so removing yours later
+never reaches into anybody else's library. Only the shape and the labels are
+shared; never your content. A template needs at least two boxes to be shared.
+
+You can also share one later from its **···** menu, and **Remove from the store**
+takes it back down.
 
 **Generate matrix** builds an empty N×M grid at whatever size you name — the
 fast path to a contact sheet larger than any template.

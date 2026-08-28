@@ -22,6 +22,9 @@ import { PRESETS, sanitizeLayout, computeCellRects, readingOrder } from './gridL
 // actions it offers (a built-in can't be renamed or deleted).
 export const SOURCES = Object.freeze({
   BUILTIN: 'builtin',
+  // The templates WE ship with a use-case and labels — the same catalogue
+  // /templates sells. Distinct from BUILTIN, which is the ten bare shapes.
+  STORE: 'store',
   USER: 'user',
   WORKSPACE: 'workspace',
   // Somebody else's, copied into your library from a share link or the public
@@ -78,18 +81,23 @@ export function rowsFromRecords(records, source) {
 }
 
 // Section list for the panel, ordered by how close the templates are to you:
-// what you made, what your team shares, what you took from elsewhere, and the
-// shipped set last — it is the one you stop needing.
+// what you made, what your team shares, what you took from elsewhere, then the
+// store (ours, then everyone's), and the bare shapes last — that is the section
+// you stop needing.
 //
 // Empty sections are dropped, so a signed-out or local-mode user sees just
 // "Defaults" with no hollow headers above it.
-export function mergeSections({ mine, workspace, downloaded, community } = {}) {
+export function mergeSections({ mine, workspace, downloaded, store, community } = {}) {
   return [
     { id: SOURCES.USER, title: 'Yours', rows: mine || [] },
     { id: SOURCES.WORKSPACE, title: 'Workspace', rows: workspace || [] },
     { id: SOURCES.DOWNLOADED, title: 'Downloaded', rows: downloaded || [] },
+    { id: SOURCES.STORE, title: 'Store', rows: store || [] },
     { id: SOURCES.COMMUNITY, title: 'Community', rows: community || [] },
-    { id: SOURCES.BUILTIN, title: 'Defaults', rows: BUILT_IN_LAYOUTS },
+    // "Shapes", not "Defaults": these ten are bare geometry with generic names,
+    // and calling them defaults beside a Store section of named, labelled
+    // templates invites the reader to think the Store is optional extra.
+    { id: SOURCES.BUILTIN, title: 'Shapes', rows: BUILT_IN_LAYOUTS },
   ].filter((s) => s.rows.length > 0);
 }
 

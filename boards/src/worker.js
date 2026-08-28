@@ -243,6 +243,12 @@ const UUID_RE = /^[0-9a-f-]{36}$/i;
 // templateShareMatch in main.jsx: widening one without the other means the
 // Worker and React disagree about what is a real route.
 const TEMPLATE_SHARE_PATH_RE = /^\/t\/([0-9a-f-]{36})\/?$/i;
+
+// /templates/g/<slug> — a PUBLISHED community template's page. The /g/ segment
+// keeps it out of the flat namespace our own items occupy, so a published slug
+// can never collide with a curated one; slugs are minted once and never
+// re-checked (0266:126), which would make a collision silent and permanent.
+const TEMPLATE_PUBLIC_PATH_RE = /^\/templates\/g\/([a-z0-9-]{1,120})\/?$/i;
 const PUBLIC_BOARD_PATH_RE = /^\/c\/([a-z0-9][a-z0-9-]{0,79})\/?$/;
 const EXPLORE_PATH_RE = /^\/explore\/?$/;
 
@@ -477,6 +483,18 @@ export default {
     const pubContentPromise = pubMatch ? fetchPublicBoardContent(env, pubMatch[1]).catch(() => null) : null;
     const pubPagePromise = pubMatch ? fetchPublicBoardPage(env, pubMatch[1]).catch(() => null) : null;
     const pubRelatedPromise = pubMatch ? fetchRelatedPublicBoards(env, pubMatch[1]).catch(() => null) : null;
+    // The template store's community half. Fetched for the store front (so the
+    // server-rendered catalogue matches the one React renders) and for a single
+    // published item's page. .catch AT CREATION, not at await — an unawaited
+    // rejection would be unhandled on any request that never reaches the branch.
+    const tplStoreMatch = isPageReq && /^\/templates\/?$/i.test(url.pathname);
+    const tplStorePromise = tplStoreMatch
+      ? anonRpc(env, 'list_public_grid_layouts', { p_limit: 120 }, 1500).catch(() => null)
+      : null;
+    const tplPubMatch = isPageReq ? url.pathname.match(TEMPLATE_PUBLIC_PATH_RE) : null;
+    const tplPubPromise = tplPubMatch
+      ? anonRpc(env, 'get_public_grid_layout', { p_slug: tplPubMatch[1] }, 1500).catch(() => null)
+      : null;
     const exploreMatch = isPageReq ? url.pathname.match(EXPLORE_PATH_RE) : null;
     const exploreListPromise = exploreMatch ? fetchPublicBoards(env).catch(() => null) : null;
 
@@ -577,7 +595,17 @@ export default {
     // /tools/<anything>, an unbounded soft-404/doorway surface).
     if (isPageReq && contentType.includes('text/html')) {
       const landingSpec = getLandingSpec(url.pathname) || getListicleSpec(url.pathname);
-      if (landingSpec) return withRevalidate(injectLanding(res, landingSpec));
+      if (landingSpec) {
+        const extra = tplStorePromise ? { community: await tplStorePromise } : null;
+        return withRevalidate(injectLanding(res, landingSpec, extra));
+      }
+      // A published community template. Resolved before the item lookup so a
+      // /g/ slug can never be mistaken for one of ours.
+      if (tplPubMatch) {
+        const pub = await tplPubPromise;
+        if (pub?.slug) return withRevalidate(injectPublicTemplate(res, pub));
+        return notFoundResponse(res);
+      }
       // A template store item. Resolved BEFORE the 404 guard below, which would
       // otherwise swallow the entire catalogue — ordering is load-bearing here.
       if (isTemplatePath(url.pathname)) {
@@ -1213,7 +1241,7 @@ function injectExplore(res, boards) {
 // static (lib/seoLanding.js) but every interpolation is still escapeHtml'd /
 // jsonLdSafe'd for defense in depth. Server-rendered text mirrors what
 // SeoLandingPage.jsx renders from the same spec (anti-cloaking parity).
-function injectLanding(res, spec) {
+function injectLanding(res, spec, extra = null) {
   const canonical = `${SITE_ORIGIN}${spec.path}`;
   // ?v= busts scraper/CDN caches of the immutable OG asset when a page's copy
   // (and thus its card) is refreshed. Keep the query OUT of landingOgPath —
@@ -1239,7 +1267,7 @@ function injectLanding(res, spec) {
   // but carry their own body + JSON-LD builders (Article + ItemList).
   const listicle = spec.kind === 'listicle';
   rw.on('main#seo-fallback', new SetInnerHtml(
-    listicle ? buildListicleCrawlableHtml(spec) : buildLandingCrawlableHtml(spec)
+    listicle ? buildListicleCrawlableHtml(spec) : buildLandingCrawlableHtml(spec, extra)
   ));
   rw.on('head', new AppendHead(
     '<script type="application/ld+json">' + jsonLdSafe(
@@ -1327,16 +1355,56 @@ export function buildTemplateJsonLd(item, url, og) {
       ],
     },
   ];
-  if (item.faq?.length) {
-    graph.push({
-      '@type': 'FAQPage',
-      '@id': `${url}#faq`,
-      mainEntity: item.faq.map((f) => ({
-        '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a },
-      })),
-    });
-  }
   return { '@context': 'https://schema.org', '@graph': graph };
+}
+
+// A PUBLISHED community template (/templates/g/<slug>).
+//
+// Same product-page shape as one of ours, but NOINDEX with canonical → /templates,
+// which is the call already made for /t/<token>: a published template's unique
+// content is a title, an optional description and some box labels — well under
+// the depth an indexable page needs, and hundreds of them competing with the
+// store is how a publishing feature quietly becomes an SEO problem.
+//
+// It exists anyway because a tile in the store has to go somewhere, and sending
+// a shopper to a signup screen instead of the thing they clicked is the dead CTA
+// this whole surface was built to fix.
+function injectPublicTemplate(res, pub) {
+  const canonical = `${SITE_ORIGIN}/templates`;
+  const title = `${pub.title} — a grid template on Soleil Clusters`;
+  const desc = pub.description
+    || 'A grid layout published to the Soleil Clusters template store. Add it to a board in one click.';
+  const layout = pub.body?.layout;
+  const hints = Array.isArray(pub.body?.hints) ? pub.body.hints : [];
+  const cells = layout ? leafIds(layout).length : 0;
+
+  const parts = [];
+  parts.push(`<h1 style="font-size:1.9rem;font-weight:650;margin:0 0 .4em;">${escapeHtml(pub.title)}</h1>`);
+  parts.push(`<p style="color:#d0d0d4;font-size:1.1rem;margin:0 0 1.2em;">${escapeHtml(desc)}</p>`);
+  parts.push(`<p style="color:#8a8a92;font-size:.85rem;">${cells} ${cells === 1 ? 'box' : 'boxes'} · Published to the community store</p>`);
+  if (hints.length) {
+    parts.push('<h2 style="font-size:1.35rem;font-weight:600;margin:1.4em 0 .4em;">What each box is for</h2><ol>');
+    for (const h of hints) parts.push(`<li>${escapeHtml(String(h))}</li>`);
+    parts.push('</ol>');
+  }
+  parts.push('<p><a href="/templates" style="color:#FFA500;">← All grid templates</a></p>');
+
+  const out = withRevalidate(new HTMLRewriter()
+    .on('title', new SetText(title))
+    .on('meta[name="description"]', new SetContent(desc))
+    .on('meta[property="og:title"]', new SetContent(title))
+    .on('meta[property="og:description"]', new SetContent(desc))
+    .on('meta[property="og:url"]', new SetContent(canonical))
+    .on('meta[name="twitter:title"]', new SetContent(title))
+    .on('meta[name="twitter:description"]', new SetContent(desc))
+    .on('link[rel="canonical"]', new SetHref(canonical))
+    .on('main#seo-fallback', new SetInnerHtml(
+      `<div style="max-width:820px;margin:0 auto;padding:14vh 24px 24px;"><article>${parts.join('')}</article></div>`))
+    .transform(res));
+  // The HEADER, not a meta tag: equally authoritative and it also reaches
+  // fetchers that never parse HTML.
+  out.headers.set('x-robots-tag', 'noindex');
+  return out;
 }
 
 // ── Public documentation (/docs/*) ──────────────────────────────────────────
@@ -1503,7 +1571,10 @@ export function buildChangelogJsonLd(url) {
   };
 }
 
-export function buildLandingCrawlableHtml(spec) {
+// `extra` carries the store's community half. Kept as a second argument rather
+// than making this async: every other call site stays byte-identical, and the
+// function stays a pure sync thing a node test can call.
+export function buildLandingCrawlableHtml(spec, extra = null) {
   const H2 = 'font-size:1.35rem;font-weight:600;margin:1.4em 0 .4em;';
   const parts = [];
   if (spec.eyebrow) parts.push(`<p style="color:#FFA500;font-size:.8rem;letter-spacing:.16em;text-transform:uppercase;font-weight:700;margin:0 0 .8em;">${escapeHtml(spec.eyebrow)}</p>`);
@@ -1574,6 +1645,14 @@ export function buildLandingCrawlableHtml(spec) {
     parts.push(`<section><h2 style="${H2}">Every template</h2><ul>`);
     for (const t of TEMPLATE_CARDS) {
       parts.push(`<li style="margin:0 0 .8em;"><a href="${escapeHtml(t.path)}" style="color:#FFA500;font-size:1.1rem;font-weight:600;text-decoration:none;">${escapeHtml(t.h1)}</a> — ${escapeHtml(t.blurb)}</li>`);
+    }
+    // Published templates, same list, same shape. React renders these rows too,
+    // so omitting them here would be a cloaking gap the day somebody publishes.
+    // They link to noindex pages, which is fine — a link is not an index request.
+    for (const t of (extra?.community || [])) {
+      if (!t?.slug || !t?.title) continue;
+      const blurb = t.description ? ` — ${escapeHtml(t.description)}` : '';
+      parts.push(`<li style="margin:0 0 .8em;"><a href="/templates/g/${escapeHtml(t.slug)}" style="color:#FFA500;font-size:1.1rem;font-weight:600;text-decoration:none;">${escapeHtml(t.title)}</a>${blurb} <span style="color:#8a8a92;font-size:.85rem;">Community</span></li>`);
     }
     parts.push('</ul></section>');
   }
