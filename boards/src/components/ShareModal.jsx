@@ -354,6 +354,22 @@ export function ShareModal({
         } else {
           status = await shareBoard({ boardId: board.id, email, role: inviteRole });
         }
+        // Which MECHANISM created access. Of every board that has ever had two
+        // people put cards on it, the overwhelming majority got its second
+        // person through workspace membership rather than a board invite link —
+        // but establishing that took reconstructing actors out of card_placed
+        // props, which is archaeology, not measurement. Recording `how` at the
+        // grant makes the next read a query.
+        if (status !== 'pending') {
+          try {
+            logEventNow(EV.ACCESS_GRANTED, {
+              how: inviteRole === 'workspace' ? 'workspace' : 'email',
+              role: inviteRole,
+              board_id: board.id,
+              surface: 'share_modal',
+            });
+          } catch (_) {}
+        }
         if (status === 'pending') pending.push(email);
         else granted.push(email);
       } catch (e) {

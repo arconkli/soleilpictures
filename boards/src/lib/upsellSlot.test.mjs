@@ -69,6 +69,20 @@ __resetUpsellSlot();
 assert(claimUpsellSlot('cap-hit', T), 'cap-hit takes a free slot');
 assert(claimUpsellSlot('cap-hit', T + 500), 'a second refusal is never swallowed by the slot');
 
+// --- the share ask is ambient too ------------------------------------------
+__resetUpsellSlot();
+assert(claimUpsellSlot('share-ask', T), 'share-ask takes a free slot');
+assertEq(claimUpsellSlot('first-value', T + 2_000), false, 'and holds it against the others');
+
+__resetUpsellSlot();
+assert(claimUpsellSlot('cap-hit', T), 'the wall claims');
+assertEq(claimUpsellSlot('share-ask', T + 2_000), false,
+  'never ask someone to show off work in the same beat they were told they are blocked');
+
+__resetUpsellSlot();
+assert(claimUpsellSlot('share-ask', T), 'share-ask holds the slot');
+assert(claimUpsellSlot('cap-hit', T + 1_000), 'but the wall still outranks it');
+
 // --- the window expires ----------------------------------------------------
 __resetUpsellSlot();
 assert(claimUpsellSlot('first-value', T), 'first-value claims');

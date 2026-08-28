@@ -204,6 +204,17 @@ async function consumePendingJoin(userId) {
     // and 'noop' each return early, so those claims used to leave no trace at
     // all and a join click could vanish with neither a success nor a failure.
     try { logEvent(EV.INVITE_LINK_CLAIM_RESULT, { status: row?.status || 'unknown' }); } catch (_) {}
+    // The third grant mechanism, recorded in the same shape as the two in
+    // ShareModal so "which path actually produces collaborators" is one query
+    // rather than three reconstructions. Only the branches that really created
+    // access count — 'already' and 'noop' granted nothing.
+    if (row?.status === 'joined' || row?.status === 'upgraded') {
+      try {
+        logEvent(EV.ACCESS_GRANTED, {
+          how: 'invite_link', board_id: row?.board_id || null, surface: 'join_link',
+        });
+      } catch (_) {}
+    }
     if (row?.workspace_id) {
       const wsKey = `soleil.boards.session.${userId}.workspace`;
       localStorage.setItem(wsKey, JSON.stringify({ activeWorkspaceId: row.workspace_id }));

@@ -31,7 +31,11 @@ export const UPSELL_STACK_WINDOW_MS = 60_000;
 // other surface is ambient and can wait for the next card.
 const ALWAYS_WINS = 'cap-hit';
 
-const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge']);
+// 'share-ask' is ambient like the other two: it offers to show a cluster, and
+// an offer can always wait for the next card. It must never land on top of the
+// wall — being asked to show off work at the moment you were told you're
+// blocked is the worst possible pairing.
+const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask']);
 
 // Module scope = page lifetime, like boardsApi's _capAnnounced. No auth reset
 // is wired for it on purpose: the claim self-expires in a minute, so the worst

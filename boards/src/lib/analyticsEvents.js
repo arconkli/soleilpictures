@@ -212,11 +212,15 @@ export const EV = Object.freeze({
   // to start.
   SEARCH_RUN:              'search_run',                  // ran a search / command {has_results,q_len,terms,n_results,surface}
   SEARCH_RESULT_OPEN:      'search_result_open',          // a result was actually opened {rank,kind,n_results} — the missing half of search_run: a search that returns rows nobody opens has failed just as completely as one that returns none
-  SHARE_OPEN:              'share_open',                  // opened the share surface {board_id}
+  SHARE_OPEN:              'share_open',                  // opened the share DIALOG (the access console) {board_id,surface}. NOTE: until 2026-08-28 the one-tap topbar copy also emitted this with {quick:true}, which made the two ends of the funnel indistinguishable — that path now emits SHARE_LINK_COPIED{surface:'topbar'}. Rows before that date are mixed; split on props->>'quick'
   // A link was actually put on the clipboard. Previously DARK for every copy
   // made from inside the ShareModal (only the one-tap toolbar path emitted
   // anything, as share_open{quick:true}), so "opened the dialog" was the last
   // observable step and the copy itself was invisible. {kind:'view'|'invite',surface,board_id}
+  ACCESS_GRANTED:          'access_granted',              // somebody was given access to a board/workspace {how:'workspace'|'email'|'invite_link',role,board_id,surface}. Answers WHICH MECHANISM creates collaborators — the board-invite-link machinery or shared workspaces
+  CO_CREATION_STARTED:     'co_creation_started',         // a guest placed a card in someone else's workspace {board_id,workspace_id,how} — logEventOnce per board per pageload. The OUTCOME metric for collaboration; pair with COLLAB_SESSION (live co-presence) and ACCESS_GRANTED (the mechanism)
+  SHARE_ASK_SHOWN:         'share_ask_shown',             // offered to SHOW this cluster after a work burst {board_id,cards} — once per board (localStorage soleil.shareask.<id>), routed through upsellSlot so it can never stack on the cap wall. The FIRST creator-facing surface that asks to show work rather than to recruit a collaborator
+  SHARE_ASK_TAKEN:         'share_ask_taken',             // that offer's action was clicked → link copied {board_id} (must-land). Pair with SHARE_ASK_SHOWN for the ask's conversion rate
   SHARE_LINK_COPIED:       'share_link_copied',
   APP_TRACE:               'app_trace',                   // COALESCED micro-interaction batch for ESTABLISHED users {from_t,to_t,n,ev:[{t,k,tgt,...}]} — k:'dead'|'rage'|'key'|'route'. The third and last trace: lp_trace covers anonymous visitors on public pages, ps_trace covers a new user's FIRST session and closes at activation, and until this existed the largest population — signed-in people using the product they came back for — emitted nothing, so every friction finding we had was about someone's first hour. Deliberately quieter than ps_trace (an established session runs for hours, not minutes): plain clicks are DROPPED and only the evidence we have no other source for is kept. Never captures input values or typed characters — modifier commands only
   RETURN_SESSION:          'return_session',              // app_open on a later calendar day than last-seen {days_since_last_seen,tier}
