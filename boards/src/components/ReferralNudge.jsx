@@ -28,6 +28,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getOwnProfile, updateOwnSettings } from '../lib/boardsApi.js';
 import { logEvent, logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { claimUpsellSlot } from '../lib/upsellSlot.js';
 import { REFERRAL_BONUS_CARDS, REFERRED_START_CARDS } from '../lib/billingCopy.js';
 
 const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;  // between shows
@@ -46,18 +47,7 @@ export function ReferralNudge({ tier, onCollaborate }) {
   const settingsRef = useRef({});  // full profiles.settings so siblings survive
   const firedRef = useRef(false);  // once per session
   const boardIdRef = useRef(null); // board the shown nudge is about (CTA target)
-  const fvFiredAtRef = useRef(0);  // last soleil:first-value dispatch (stacking guard)
   const leaveTimer = useRef(null);
-
-  // Track the first-value upsell's dispatch. When cards 2 and 3 land in one
-  // batch, both events fire in the same synchronous effect — the fv banner
-  // isn't in the DOM yet when ours triggers, so the DOM check below can't see
-  // it. The timestamp covers that ordering gap.
-  useEffect(() => {
-    const onFv = () => { fvFiredAtRef.current = Date.now(); };
-    window.addEventListener('soleil:first-value', onFv);
-    return () => window.removeEventListener('soleil:first-value', onFv);
-  }, []);
 
   // Load eligibility state (profiles.settings is jsonb).
   useEffect(() => {
@@ -88,12 +78,19 @@ export function ReferralNudge({ tier, onCollaborate }) {
       if (st.count >= LIFETIME_CAP) return;          // three passes = a "no"
       if (st.lastAt && Date.now() - st.lastAt < COOLDOWN_MS) return;
       if (boardId && st.boards.includes(boardId)) return; // asked for this one already
-      // Never stack over the first-value upsell (it fires at 2 cards, this at
-      // 3 — one multi-photo drop can land both in the same beat). Skipping
-      // WITHOUT persisting is safe: App re-dispatches on every genuine-card
-      // change past the bar, so we retry on the next one.
-      if (document.querySelector('.fv-banner')) return;
-      if (fvFiredAtRef.current && Date.now() - fvFiredAtRef.current < 60_000) return;
+      // Never stack on another upgrade surface (the first-value banner fires at
+      // 2 cards and this at 3, and the cap-hit modal can arrive from the server
+      // at any moment — one multi-photo drop can land all three in the same
+      // beat). Skipping WITHOUT persisting is safe: App re-dispatches on every
+      // genuine-card change past the bar, so we retry on the next one.
+      //
+      // This used to be a `.fv-banner` DOM query plus a dispatch timestamp,
+      // which only guarded ONE direction and could not see the cap-hit modal at
+      // all. The shared slot outlives a single dispatch tick, which matters:
+      // App's cancelable handshake yields the beat to us per-tick, but once
+      // firedRef is set we decline later ticks WITHOUT preventDefault, so the
+      // upsell dispatched anyway a few seconds later.
+      if (!claimUpsellSlot('invite-nudge')) return;
       firedRef.current = true;
       boardIdRef.current = boardId;
       // Claim the activation beat. App dispatches this cancelable and holds

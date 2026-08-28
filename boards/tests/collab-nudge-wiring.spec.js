@@ -54,12 +54,20 @@ test.describe('collab-invite nudge wiring', () => {
     expect(s).not.toContain('referral_prompts');
   });
 
-  test('the banner never stacks over the first-value upsell', () => {
+  test('the banner never stacks over another upgrade surface', () => {
     const s = nudge();
-    // Both guards: DOM (fv already mounted) + timestamp (both events fired in
-    // the same synchronous batch, before React rendered either banner).
-    expect(s).toMatch(/querySelector\('\.fv-banner'\)/);
-    expect(s).toContain("addEventListener('soleil:first-value'");
+    // Was a `.fv-banner` DOM query plus a soleil:first-value timestamp. That
+    // pair only guarded ONE direction and could not see the cap-hit modal at
+    // all, so a bulk import put all three surfaces on screen inside seven
+    // seconds. Both are replaced by the shared slot.
+    expect(s).toContain("claimUpsellSlot('invite-nudge')");
+    expect(s).not.toMatch(/querySelector\('\.fv-banner'\)/);
+    expect(s).not.toContain("addEventListener('soleil:first-value'");
+    // Declining must not persist anything — App re-dispatches on every card
+    // change past the bar, and a stand-down that burned the once-per-session
+    // flag would retire the banner for the rest of the session.
+    expect(s.indexOf("claimUpsellSlot('invite-nudge')"))
+      .toBeLessThan(s.indexOf('firedRef.current = true'));
   });
 
   test('collaboration claims the activation beat when both nudges are eligible', () => {

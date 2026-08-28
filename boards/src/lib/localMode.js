@@ -261,6 +261,29 @@ export function qaForceFirstValue() {
   return q.get('local') === '1' && q.get('firstvalue') === '1';
 }
 
+// Dev-only force-show for the CAP-HIT wall, with a synthetic refused-file count.
+// Active ONLY in a DEV build with ?local=1 (same trust boundary as
+// qaTierOverride). Returns the count to claim was refused, or 0 when not forcing:
+//   /?local=1&tier=demo&capwall=28
+//
+// This seam exists because the real path is unreachable from the harness: the
+// cap-hit modal is opened by App.jsx's soleil:card-index-capped listener, and
+// App.jsx early-returns to LocalBoardsApp in QA mode, so neither that listener
+// nor pitchCapWall ever mounts here. Without the seam the wall's copy — the one
+// screen where the reader is provably motivated — would ship with no render
+// coverage at all. Like qaForceFirstValue this is a RENDER seam, not a gate
+// seam: it proves the modal says the right thing, never who should see it.
+export function qaForceCapWall() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return 0;
+  const q = new URLSearchParams(window.location.search);
+  if (q.get('local') !== '1') return 0;
+  // Bounded like the 0198 upsell guards: an unbounded digit run here would be a
+  // free integer overflow into whatever reads the rendered number.
+  const raw = q.get('capwall');
+  if (!raw || !/^\d{1,4}$/.test(raw)) return 0;
+  return Number(raw);
+}
+
 // Dev-only waitlist-status override. Active ONLY in a DEV build with ?local=1
 // (same trust boundary as qaTierOverride). Lets us preview each branch of the
 // WaitlistConfirm status page without an authenticated waitlist_entries row

@@ -5910,6 +5910,12 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 /* Cap-hit only: the user's own totals, set above the supporting line. Reads as
    a statement of what they've made, so it carries more weight than the sub. */
 .upgrade-caphit-stats { color: var(--ink-0); margin: 0 0 6px; line-height: 1.5; max-width: 42ch; font-weight: 600; }
+/* Cap-hit only: what the refusal actually cost ("28 photos couldn't be added").
+   Deliberately the same weight as the totals line above it — the two read as a
+   pair, one thing gained and one thing lost. NOT --ink-error: nothing
+   malfunctioned, a limit was reached, and red would frame the paywall as a bug.
+   NOT --soleil either; the accent is reserved for active/selection/focus. */
+.upgrade-caphit-lost { color: var(--ink-0); margin: 0 0 6px; line-height: 1.5; max-width: 42ch; font-weight: 600; }
 /* The same feature list, sitting under the CTA on the cap-hit variant. Quieter
    than the default placement — it's supporting detail there, not the pitch. */
 .upgrade-features-after { margin-top: 14px; }
