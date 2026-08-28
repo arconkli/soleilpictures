@@ -1181,11 +1181,21 @@ async function _doSyncCardIndex(boardId, ydoc) {
       const fresh = rejected.filter(r => !announced.has(r.card_id));
       for (const r of fresh) announced.add(r.card_id);
       if (fresh.length > 0) {
+        // Per-kind tally so the wall can name what was actually lost. A user
+        // who just dropped a folder of photos and got back "cards couldn't be
+        // added" has to translate; naming the count AND the kind is both truer
+        // and the only concrete thing on that screen. Mirrors import_batch.kinds.
+        const kinds = {};
+        for (const r of fresh) {
+          const k = r.kind || 'card';
+          kinds[k] = (kinds[k] || 0) + 1;
+        }
         try {
           window.dispatchEvent(new CustomEvent('soleil:card-index-capped', {
             detail: {
               boardId,
               rejected: fresh.length,
+              kinds,
               // Ids let the app withdraw the cards it optimistically rendered.
               // Without them a refused card stays on canvas but is absent from
               // search, tags and the graph — present and inert.

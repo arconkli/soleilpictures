@@ -120,8 +120,9 @@ import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
-import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
+import { evaluateDemoCap, rejectedNoun, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap } from './lib/upsellEligibility.js';
+import { claimUpsellSlot } from './lib/upsellSlot.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel } from './lib/gridState.js';
@@ -3776,17 +3777,35 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Same idea, one beat earlier: the limit we last showed the approaching-cap
   // warning for. Keyed on the limit so raising the cap re-arms the warning.
   const nearCapWarnedAtRef = useRef(0);
+  // {n, noun} for the cards the server most recently refused, or null. Rendered
+  // by the cap-hit modal. Kept BESIDE upgradeReason rather than folded into it:
+  // that value is string-compared at five sites and widening it would touch all
+  // of them for a field only one branch reads.
+  const [capRejected, setCapRejected] = useState(null);
   const pitchCapWall = useCallback((cs) => {
     const limit = Number(cs?.limit) || 0;
+    // The wall always shows — a refused card is a consequence, not a promotion,
+    // and the user is owed the explanation. Claiming stamps the shared slot so
+    // the AMBIENT surfaces (first-value banner, invite nudge) stand down around
+    // it instead of stacking three pitches into the same few seconds.
+    claimUpsellSlot('cap-hit');
+    // How many cards the server actually refused, and what they were. Without
+    // this the one screen where the reader is provably motivated says nothing
+    // about the thing that just happened to them.
+    const rejected = Math.max(0, Number(cs?.rejected) || 0);
+    setCapRejected(rejected > 0 ? { n: rejected, noun: rejectedNoun(cs?.kinds, rejected) } : null);
     if (capPitchedAtRef.current === limit) {
       // Already explained at this limit. Say what happened, don't re-interrupt.
+      const lost = rejected > 0
+        ? `${rejected} more ${rejectedNoun(cs?.kinds, rejected)} didn't fit. `
+        : '';
       feedback.toast({
         type: 'warning',
-        message: `You're at your ${limit}-card limit. Creator lifts it — or invite friends to earn more free ones.`,
+        message: `${lost}You're at your ${limit}-card limit. Creator lifts it — or invite friends to earn more free ones.`,
         action: {
           label: 'See Creator',
           onClick: () => {
-            logEventNow(EV.UP_CAP_TOAST_CTA, { count: cs?.count ?? null, limit, at: 'hit' });
+            logEventNow(EV.UP_CAP_TOAST_CTA, { count: cs?.count ?? null, limit, at: 'hit', rejected });
             setUpgradeReason('cap-hit');
           },
         },
@@ -3924,14 +3943,32 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // collaborator gets the owner-directed toast — this path used to pitch
       // the collaborator an upgrade keyed to their own irrelevant limit, an
       // upgrade that could never unblock the board.
+      // How many cards this refusal actually cost, and what they were. One sync
+      // carries the WHOLE overflow in a single event (syncCardIndex dispatches
+      // once per board with every freshly-refused row), so this is the true
+      // total for the episode — no buffering across events, which would only
+      // risk pitching from a closure staler than the refetch above.
+      const nRejected = Math.max(0, Number(e?.detail?.rejected) || 0);
+      const rejectedKinds = e?.detail?.kinds || null;
+
       if (ownRejected) {
-        pitchCapWall({ limit: myTier.effectiveCardLimit, count: myTier.demoCardCount });
+        pitchCapWall({
+          limit: myTier.effectiveCardLimit,
+          count: myTier.demoCardCount,
+          rejected: nRejected,
+          kinds: rejectedKinds,
+        });
       } else {
         const capInfo = boardCapacity.get?.(rejectedBoardId);
         const limitTxt = capInfo?.cap ? `${capInfo.cap}-card limit` : 'card limit';
+        // Name the loss here too — a collaborator whose drop half-vanished is
+        // owed the same accounting as an owner, even though the fix isn't theirs.
+        const lead = nRejected > 0
+          ? `${nRejected} ${rejectedNoun(rejectedKinds, nRejected)} couldn't be added. This cluster is at the owner's ${limitTxt}`
+          : `This cluster is at the owner's ${limitTxt}`;
         feedback.toast({
           type: 'warning',
-          message: `This cluster is at the owner's ${limitTxt} — they'll need to upgrade or clear space before more cards fit.`,
+          message: `${lead} — they'll need to upgrade or clear space before more cards fit.`,
         });
       }
     };
@@ -6830,7 +6867,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <UpgradeModal
           reason={upgradeReason}
           clusterCount={Object.keys(boards || {}).length || null}
-          onClose={() => setUpgradeReason(null)}
+          // Gated on the reason: a refusal count left over from an earlier cap
+          // episode must not surface on the storage or generic pitch, where it
+          // would describe something that didn't just happen.
+          rejected={upgradeReason === 'cap-hit' ? capRejected : null}
+          onClose={() => { setUpgradeReason(null); setCapRejected(null); }}
         />
       )}
 

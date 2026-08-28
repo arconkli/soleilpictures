@@ -28,7 +28,7 @@ import { useStorageUsage } from '../hooks/useStorageUsage.js';
 import { evaluateUpsell } from '../lib/upsellEligibility.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 
-export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null }) {
+export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null }) {
   const { user } = useAuth();
   const { tier, demoCardCount, effectiveCardLimit, grantActive } = useMyTier({ userId: user?.id });
   // Only the wall gets personalized, so only the wall pays for the extra RPC.
@@ -156,6 +156,17 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
                   reader is provably motivated — and provably not reading the
                   feature list — so it leads with what they've actually built. */}
               {capStats && <p className="upgrade-caphit-stats t-body">You've built {capStats}.</p>}
+              {/* What the cap just cost them, in the units they were working in.
+                  A large photo drop that silently lands only part of itself is
+                  the most common way this screen is reached, and until now the
+                  screen said nothing about it — users were left to notice the
+                  gap themselves, and the traces show them re-dropping the same
+                  folder and then deleting their own cards to make room. */}
+              {rejected?.n > 0 && (
+                <p className="upgrade-caphit-lost t-body">
+                  {rejected.n} {rejected.noun} couldn't be added.
+                </p>
+              )}
               <p className="upgrade-sub t-body">Creator lifts the cap — and every card you've already made stays exactly where it is.</p>
             </>
           ) : header === 'first-value' ? (

@@ -6,7 +6,7 @@
 // Plain Node ESM, no test framework — exit code 0 on pass, non-zero on failure
 // (matches demoCardCap.test.mjs). The predicate is pure, so no backend.
 
-import { evaluateUpsell, workFloor, THRESHOLDS, ELIGIBILITY_REV, nearCapAt, shouldWarnNearCap } from './upsellEligibility.js';
+import { evaluateUpsell, workFloor, THRESHOLDS, ELIGIBILITY_REV, nearCapAt, shouldWarnNearCap, atCapWall } from './upsellEligibility.js';
 
 let failed = 0;
 let passed = 0;
@@ -129,6 +129,26 @@ assert(warn({ count: 91, adding: 1, limit: 100, warnedAtLimit: 50 }),
 for (const bad of [null, undefined, {}, { count: 1 }, { limit: 0 }, { limit: -5, count: 1 },
                    { limit: 50, count: NaN }, { limit: 50, count: 44, adding: NaN }]) {
   assert(shouldWarnNearCap(bad) === false, `junk input is silent: ${JSON.stringify(bad)}`);
+}
+
+// --- atCapWall -------------------------------------------------------------
+// The first-value banner's gate. Separate from eligibility on purpose.
+assert(atCapWall({ demoCardCount: 50, cardLimit: 50 }), 'exactly at the cap is the wall');
+assert(atCapWall({ demoCardCount: 51, cardLimit: 50 }),
+  'over the cap too — an optimistic render can exceed it before the server refuses');
+assert(!atCapWall({ demoCardCount: 49, cardLimit: 50 }), 'one short is not the wall');
+assert(!atCapWall({ demoCardCount: 0, cardLimit: 50 }), 'a fresh account is not the wall');
+
+// An at-cap user stays maximally ELIGIBLE — the chip must not go quiet at 100%,
+// which is why this predicate is not folded into evaluateUpsell.
+r = demo({ demoCardCount: 50, cardLimit: 50, accountAgeDays: 0 });
+assert(r.eligible && r.reason === 'invested', 'at the cap the user is still eligible');
+assertEq(r.pressure, 'urgent', 'and the chip is at its loudest, not switched off');
+
+for (const bad of [null, undefined, {}, { demoCardCount: 10 }, { cardLimit: 0 },
+                   { cardLimit: -5, demoCardCount: 10 }, { cardLimit: 50, demoCardCount: NaN },
+                   { cardLimit: NaN, demoCardCount: 50 }]) {
+  assert(atCapWall(bad) === false, `unknown cap never claims the wall: ${JSON.stringify(bad)}`);
 }
 
 console.log(`${passed} passed, ${failed} failed`);

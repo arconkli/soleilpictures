@@ -13,7 +13,7 @@
 // constant. The one place a literal is still correct is the pair of cohort
 // tests at the bottom, which exist precisely to pin the two real cap values.
 
-import { evaluateDemoCap, DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from './demoCardCap.js';
+import { evaluateDemoCap, rejectedNoun, DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from './demoCardCap.js';
 
 let failed = 0;
 let passed = 0;
@@ -111,6 +111,23 @@ assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: CAP - 5, requested: 10, 
   { accepted: 5, capHit: true, remaining: 5 }, 'limit 0: falls back to DEMO_CARD_LIMIT');
 assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: CAP - 5, requested: 10, limit: undefined }),
   { accepted: 5, capHit: true, remaining: 5 }, 'limit undefined: defaults to DEMO_CARD_LIMIT');
+
+// --- rejectedNoun ----------------------------------------------------------
+// The wall's copy. An all-image batch is the overwhelmingly common case (users
+// reach the cap by dropping a folder of photos), and it is the only one allowed
+// to say "photos" — a mixed batch must fall back or the sentence is just false.
+assertEq(rejectedNoun({ image: 28 }, 28), 'photos', 'an all-image batch is photos');
+assertEq(rejectedNoun({ image: 1 }, 1), 'photo', 'one image is a photo, singular');
+assertEq(rejectedNoun({ image: 20, note: 3 }, 23), 'cards', 'a mixed batch falls back to cards');
+assertEq(rejectedNoun({ note: 4 }, 4), 'cards', 'a non-image batch is cards');
+assertEq(rejectedNoun({ image: 5, note: 0 }, 5), 'photos',
+  'a zero-count kind does not make the batch mixed');
+assertEq(rejectedNoun({ card: 2 }, 2), 'cards', 'the boardsApi fallback kind reads as cards');
+// Never throws into the cap path, and never says "1 photos".
+for (const bad of [null, undefined, {}, 'nope', 0]) {
+  assertEq(rejectedNoun(bad, 3), 'cards', `junk kinds degrade to cards: ${JSON.stringify(bad)}`);
+}
+assertEq(rejectedNoun({ image: 1 }, '1'), 'photo', 'a stringified count still reads as singular');
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

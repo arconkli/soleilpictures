@@ -87,6 +87,30 @@ export function shouldWarnNearCap(opts) {
   return Number(warnedAtLimit) !== cap;      // already said it for this ceiling
 }
 
+// Is this user standing AT the wall right now (their next card gets refused)?
+//
+// Deliberately NOT part of evaluateUpsell. At 100% of the cap a user is
+// maximally `invested`, so eligibility is exactly right to be true and the
+// upgrade chip should be at its loudest — folding this in would switch the chip
+// off at the one moment it is most earned.
+//
+// It exists for the first-value banner, whose sentence ("You're building
+// something") is simply the wrong one to hand somebody whose card was just
+// refused; the cap-hit modal owns that moment and says something accurate.
+// A bulk import crosses 0% to 100% in a single second, so the two surfaces
+// otherwise fire within a few seconds of each other — which is what the live
+// telemetry showed.
+export function atCapWall(opts) {
+  // Callers sit on render paths where a throw takes the canvas out, and a
+  // destructuring default covers `undefined` but never `null`.
+  const { demoCardCount, cardLimit } = opts || {};
+  const limit = Number(cardLimit);
+  const cards = Number(demoCardCount);
+  if (!Number.isFinite(limit) || limit <= 0) return false;  // unknown cap → never claim the wall
+  if (!Number.isFinite(cards) || cards < 0) return false;
+  return cards >= limit;
+}
+
 // evaluateUpsell({ tier, demoCardCount, cardLimit, accountAgeDays, activeDays })
 //   -> { eligible, pressure, reason, capFrac, capPct }
 //

@@ -38,6 +38,27 @@ export const LEGACY_DEMO_CARD_LIMIT = 100;
 //               get_my_tier().effective_card_limit; callers thread that through,
 //               so both the grandfathered cohort and referral bonuses are already
 //               accounted for by the time the value arrives here.
+// rejectedNoun(kinds, n) -> 'photo' | 'photos' | 'card' | 'cards'
+//
+// What to call the things the cap just refused. `kinds` is the per-kind tally
+// carried on the soleil:card-index-capped event.
+//
+// A user who has just dropped a folder of photos and is told "cards couldn't be
+// added" has to translate; naming the actual thing is both truer and the only
+// concrete fact on that screen. Falls back to the neutral "card" as soon as the
+// batch is mixed, because calling a batch of notes and images "photos" would be
+// wrong — and this copy is only worth having if it is exactly right.
+//
+// All-image batches are the overwhelmingly common case: the way users reach the
+// cap is by dropping a folder of photos in one gesture.
+export function rejectedNoun(kinds, n) {
+  const plural = Number(n) !== 1;
+  const keys = Object.keys(kinds || {}).filter((k) => Number(kinds[k]) > 0);
+  const onlyImages = keys.length === 1 && keys[0] === 'image';
+  if (onlyImages) return plural ? 'photos' : 'photo';
+  return plural ? 'cards' : 'card';
+}
+
 export function evaluateDemoCap({ tier, demoCardCount, requested, limit = DEMO_CARD_LIMIT }) {
   const req = Math.max(0, requested | 0);
   if (tier !== 'demo') return { accepted: req, capHit: false, remaining: Infinity };

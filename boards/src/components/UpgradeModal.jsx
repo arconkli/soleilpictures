@@ -15,7 +15,7 @@
 
 import { PricingModal } from './PricingModal.jsx';
 
-export function UpgradeModal({ onClose, reason = null, clusterCount = null }) {
+export function UpgradeModal({ onClose, reason = null, clusterCount = null, rejected = null }) {
   const header = reason === 'cap-hit' ? 'cap-hit'
                : reason === 'first-value' ? 'first-value'
                : reason === 'storage' ? 'storage'
@@ -27,8 +27,8 @@ export function UpgradeModal({ onClose, reason = null, clusterCount = null }) {
             : reason === 'storage' ? 'storage_gate'
             : reason === 'first-value' ? 'first_value_banner'
             : null;
-  // Only the cap-hit variant uses it (to name what the user has built), but it
-  // is passed through unconditionally so callers don't have to know which
-  // reasons consume it.
-  return <PricingModal onClose={onClose} header={header} surface={surface} via={via} clusterCount={clusterCount} />;
+  // Only the cap-hit variant uses these (to name what the user has built, and
+  // what the cap just cost them), but they are passed through unconditionally
+  // so callers don't have to know which reasons consume them.
+  return <PricingModal onClose={onClose} header={header} surface={surface} via={via} clusterCount={clusterCount} rejected={rejected} />;
 }

@@ -18,10 +18,11 @@ import { FirstValueUpgradeBanner } from './FirstValueUpgradeBanner.jsx';
 import { getOwnProfile, updateOwnSettings } from '../lib/boardsApi.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
-import { qaForceFirstValue } from '../lib/localMode.js';
-import { DEMO_CARD_LIMIT } from '../lib/demoCardCap.js';
+import { qaForceFirstValue, qaForceCapWall } from '../lib/localMode.js';
+import { DEMO_CARD_LIMIT, rejectedNoun } from '../lib/demoCardCap.js';
 import { COPY_REV } from '../lib/billingCopy.js';
-import { evaluateUpsell, ELIGIBILITY_REV } from '../lib/upsellEligibility.js';
+import { evaluateUpsell, atCapWall, ELIGIBILITY_REV } from '../lib/upsellEligibility.js';
+import { claimUpsellSlot } from '../lib/upsellSlot.js';
 
 export function UpgradeChip() {
   const { user } = useAuth();
@@ -34,6 +35,7 @@ export function UpgradeChip() {
     ? Math.max(0, Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86400000))
     : 0;
   const elig = evaluateUpsell({ tier, demoCardCount, cardLimit, accountAgeDays });
+  const capWallQa = qaForceCapWall();             // dev-only render seam, 0 in prod
   const [open, setOpen] = useState(false);       // chip-opened modal
   const [fvBanner, setFvBanner] = useState(false); // first-value banner
   const [fvModal, setFvModal] = useState(false);   // first-value modal
@@ -67,13 +69,15 @@ export function UpgradeChip() {
       // qaForceFirstValue is a RENDER seam, not a gate seam: the banner spec
       // exercises how the banner looks and dismisses, not who qualifies for it
       // (that's upsellEligibility.test.mjs's job), so it bypasses the check.
-      if (!elig.eligible && !qaForceFirstValue()) {
-        // Distinct from the chip's suppression row: this user reached the
-        // first-value moment (2+ genuine cards) and was still held back, which
-        // is a different and more interesting silence than "never qualified".
-        logEventOnce('up_suppressed:first_value', EV.UP_SUPPRESSED, {
+      // Distinct from the chip's suppression row: this user reached the
+      // first-value moment (2+ genuine cards) and was still held back, which
+      // is a different and more interesting silence than "never qualified".
+      // Keyed per REASON so all three are legible in one page-load without
+      // becoming a per-render beacon.
+      const standDown = (reason) => {
+        logEventOnce(`up_suppressed:first_value:${reason}`, EV.UP_SUPPRESSED, {
           surface: 'first_value',
-          reason: elig.reason,
+          reason,
           cap_pct: elig.capPct,
           demo_cards: demoCardCount,
           limit: cardLimit,
@@ -81,8 +85,32 @@ export function UpgradeChip() {
           elig_rev: ELIGIBILITY_REV,
           copy_rev: COPY_REV,
         });
+      };
+
+      if (!elig.eligible && !qaForceFirstValue()) { standDown(elig.reason); return; }
+
+      // Every return below this line must leave the once-per-account stamp
+      // UNWRITTEN. Deferring is not declining: App re-dispatches on every card
+      // change, so a banner that stands down here arrives at the next card.
+      // Burning the one-shot on a deferral retires the surface for this account
+      // permanently — the exact shape of the dead-gate bug from 2026-08-04.
+
+      // A bulk import crosses 0% to 100% of the cap in one second, which makes
+      // this user `invested` (so eligible, correctly) in the very tick their
+      // next card gets refused. "You're building something" is the wrong
+      // sentence for somebody who is blocked; the cap-hit modal owns that
+      // moment and says something true about it.
+      if (atCapWall({ demoCardCount, cardLimit }) && !qaForceFirstValue()) {
+        standDown('cap_reached');
         return;
       }
+
+      // Somebody else (the invite nudge, or the wall) already has this moment.
+      if (!claimUpsellSlot('first-value') && !qaForceFirstValue()) {
+        standDown('slot_busy');
+        return;
+      }
+
       firedRef.current = true;
       const at = new Date().toISOString();
       fvShownAtRef.current = at;
@@ -211,6 +239,18 @@ export function UpgradeChip() {
       {open && <PricingModal onClose={() => setOpen(false)} header={null} via="chip" />}
       {fvBanner && <FirstValueUpgradeBanner onSeeCreator={onSeeCreator} onDismiss={onDismiss} />}
       {fvModal && <PricingModal onClose={() => setFvModal(false)} header="first-value" surface="first_value" via="first_value_banner" />}
+      {/* Dev-only render seam for the cap-hit wall (?local=1&capwall=28). The
+          real mount is App.jsx's UpgradeModal, which the QA harness never
+          reaches — see qaForceCapWall. Dropped from production bundles by the
+          import.meta.env.DEV literal inside the reader. */}
+      {capWallQa > 0 && (
+        <PricingModal
+          onClose={() => {}}
+          header="cap-hit"
+          via="cap_hit"
+          rejected={{ n: capWallQa, noun: rejectedNoun({ image: capWallQa }, capWallQa) }}
+        />
+      )}
     </>
   );
 }
