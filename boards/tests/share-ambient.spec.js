@@ -28,20 +28,39 @@ const authGate  = () => read('src/auth/AuthGate.jsx');
 const events    = () => read('src/lib/analyticsEvents.js');
 
 test.describe('the labelled control does the easy thing', () => {
-  test('the topbar label copies a link; the access console moves behind an icon', () => {
+  test('the board offers exactly ONE share control, and it copies', () => {
     const s = app();
     // Labelled button → one-tap copy.
     expect(s).toMatch(/className="tb-btn"[\s\S]{0,120}onClick=\{quickCopyShareLink\}/);
-    // Console → unlabelled icon, and named for what it actually is.
-    expect(s).toMatch(/className="tb-icon"[\s\S]{0,160}setShareOpen\(true\)[\s\S]{0,160}Manage access/);
-    // The old inversion must not survive anywhere: a labelled tb-btn whose only
-    // job is opening the console is only legal on the viewer branch below.
-    expect(s).not.toMatch(/className="tb-btn"[\s\S]{0,120}onClick=\{\(\) => setShareOpen\(true\)\}[\s\S]{0,120}title="Share this cluster"[\s\S]{0,400}canEditCurrent \?/);
+    // There was briefly a second one — an icon opening the access console next
+    // to it — while the console was still a 929-line admin screen worth routing
+    // around. Two adjacent share affordances reproduce the original confusion in
+    // the other direction, and on a phone .tb-btn-label is hidden, so they
+    // render as two unlabelled share glyphs with nothing to tell them apart.
+    expect(s).not.toMatch(/className="tb-icon"[\s\S]{0,200}setShareOpen\(true\)/);
+
+    // The old inversion must not come back either. Sliced rather than matched
+    // with a bounded regex: now that the branch is short, any window wide
+    // enough to cover it also reaches the viewer branch below, where opening
+    // the console IS the correct behaviour.
+    const at = s.indexOf('{canEditCurrent ? (\n              <button className="tb-btn" onClick={quickCopyShareLink}');
+    expect(at, 'the editor branch of the topbar share control moved').toBeGreaterThan(-1);
+    const editorBranch = s.slice(at, s.indexOf(') : (', at));
+    expect(editorBranch).toContain('quickCopyShareLink');
+    expect(editorBranch, 'the editor branch opens the console instead of copying').not.toContain('setShareOpen');
   });
 
-  test('viewers keep the console as their primary — they cannot mint a link', () => {
+  test('the console keeps a door from the board — the copy toast', () => {
+    // With no permanent icon, the toast is the one board-surface route in. Its
+    // other two doors (⌘K, sidebar right-click) are pinned by
+    // collab-invite-link-wiring.spec.js.
     const s = app();
-    expect(s).toMatch(/canEditCurrent \? \([\s\S]{0,1400}\) : \([\s\S]{0,300}setShareOpen\(true\)[\s\S]{0,200}Share<\/span>/);
+    expect(s).toMatch(/Share link copied[\s\S]{0,200}label: 'Manage access', onClick: \(\) => setShareOpen\(true\)/);
+  });
+
+  test('viewers get the console as their share button — they cannot mint a link', () => {
+    const s = app();
+    expect(s).toMatch(/canEditCurrent \? \([\s\S]{0,900}\) : \([\s\S]{0,300}setShareOpen\(true\)[\s\S]{0,200}Share<\/span>/);
   });
 
   test('the one-tap copy is no longer indistinguishable from opening the dialog', () => {
@@ -54,12 +73,18 @@ test.describe('the labelled control does the easy thing', () => {
     expect(events()).toMatch(/share_open[\s\S]{0,400}quick/);
   });
 
-  test('the label never claims a state we have not observed', () => {
-    // listPublicLinks is per-board; paying a query on every board open to label
-    // a button is the wrong trade, so the label only sharpens once we have
-    // actually made a link in this session.
+  test('one control, one word for it, and no query paid to letter it', () => {
     const s = app();
-    expect(s).toMatch(/sharedBoardIds\.has\(currentBoard\.id\) \? 'Copy link' : 'Share'/);
+    // The button is always "Share". It briefly alternated to "Copy link" once a
+    // link existed, which is accurate but gives one control two names for the
+    // same act — the confusion this whole surface was being cleaned up to end.
+    expect(s).toMatch(/onClick=\{quickCopyShareLink\}[\s\S]{0,200}<span className="tb-btn-label">Share<\/span>/);
+    expect(s).not.toMatch(/\? 'Copy link' : 'Share'/);
+    // sharedBoardIds survives for what it is actually load-bearing for:
+    // suppressing the share ask on a board already shared.
+    expect(s).toMatch(/alreadyShared: sharedBoardIds\.has\(boardId\)/);
+    // Still never fetched — listPublicLinks is per-board and a query on every
+    // board open is the wrong trade.
     expect(s).not.toMatch(/listPublicLinks\(/);
   });
 });
