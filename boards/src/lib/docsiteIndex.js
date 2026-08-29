@@ -2064,8 +2064,8 @@ export const DOCS_PAGES = [
         "text": "People with access"
       },
       {
-        "id": "quick-copy",
-        "text": "Quick copy"
+        "id": "getting-a-link-fast",
+        "text": "Getting a link fast"
       },
       {
         "id": "link-previews",
