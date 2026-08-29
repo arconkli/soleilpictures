@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { submitBoardToExplore, getMyExploreSubmission } from '../lib/boardsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
 
-export function ExplorePublishSection({ board, canManage }) {
+export function ExplorePublishSection({ board, canManage, collapsible = false }) {
   const feedback = useFeedback();
   const [sub, setSub] = useState(undefined);   // undefined=loading, null=never, obj=status
   const [open, setOpen] = useState(false);
@@ -57,10 +57,17 @@ export function ExplorePublishSection({ board, canManage }) {
 
   const ghostBtn = { background: 'transparent', border: '1px solid var(--line-1, rgba(255,255,255,.16))', color: 'inherit', borderRadius: 8, padding: '7px 12px', cursor: 'pointer' };
 
-  return (
-    <div className="share-section">
-      <div className="share-eyebrow">PUBLISH TO EXPLORE</div>
+  // Publishing is a rare, reviewed, one-way-ish step, so inside the share
+  // panel it collapses — but the STATUS travels into the summary, because the
+  // reason to reopen this section is almost always to check on a submission,
+  // and a disclosure that hides its own status just gets opened every time.
+  const statusChip = isLive ? '✓ Live'
+    : status === 'pending' ? '⏳ Pending review'
+    : status === 'rejected' ? 'Not approved'
+    : null;
 
+  const body = (
+    <>
       {isLive ? (
         <p className="share-hint">
           ✓ This cluster is live on Explore.{' '}
@@ -111,6 +118,25 @@ export function ExplorePublishSection({ board, canManage }) {
           <p className="share-hint" style={{ marginTop: 0 }}>Needs at least 3 images. An admin reviews before it goes live.</p>
         </div>
       )}
-    </div>
+    </>
+  );
+
+  if (!collapsible) {
+    return (
+      <div className="share-section">
+        <div className="share-eyebrow">PUBLISH TO EXPLORE</div>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <details className="share-section share-advanced">
+      <summary>
+        <span className="share-eyebrow">PUBLISH TO EXPLORE</span>
+        {statusChip && <span className="share-advanced-status">{statusChip}</span>}
+      </summary>
+      {body}
+    </details>
   );
 }

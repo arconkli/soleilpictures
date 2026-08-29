@@ -2005,19 +2005,27 @@ export const DOCS_PAGES = [
     "title": "Sharing and Public Links — Soleil Clusters",
     "metaDescription": "Share a Soleil Clusters board with a view-only public link that needs no account, set an expiry, include sub-clusters, or invite editors by email.",
     "h1": "Sharing and public links",
-    "answer": "A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, can be set to expire after 7 or 30 days, can include or exclude nested clusters, and can be marked as not indexable by search engines. Inviting by email is separate and is how you grant edit access.",
+    "answer": "A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.",
     "section": "collaborate",
     "order": 1,
-    "updated": "2026-08-08",
+    "updated": "2026-08-28",
     "navLabel": "Sharing",
     "headings": [
       {
-        "id": "public-links-view-only-no-account",
-        "text": "Public links — view only, no account"
+        "id": "general-access-the-link-and-what-it-grants",
+        "text": "General access — the link, and what it grants"
       },
       {
-        "id": "inviting-people-this-is-how-editing-is-granted",
-        "text": "Inviting people — this is how editing is granted"
+        "id": "link-settings",
+        "text": "Link settings"
+      },
+      {
+        "id": "inviting-specific-people",
+        "text": "Inviting specific people"
+      },
+      {
+        "id": "people-with-access",
+        "text": "People with access"
       },
       {
         "id": "quick-copy",
@@ -2044,11 +2052,11 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Does someone need an account to open a shared link?",
-        "a": "No. A public link opens the board read-only for anyone, with no sign-in."
+        "a": "No. A view link opens the board read-only for anyone, with no sign-in."
       },
       {
         "q": "Can a public link be edited by whoever has it?",
-        "a": "Never. Public links are always view-only. Edit access is granted only by inviting a specific person or using a role-bearing invite link."
+        "a": "Never. A view link is always read-only. Edit access comes from a separate kind of link that asks the recipient to sign in before it grants anything, or from inviting a named person by email."
       },
       {
         "q": "Will a shared board show up in Google?",

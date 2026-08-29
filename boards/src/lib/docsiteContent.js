@@ -19814,7 +19814,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Two different mechanisms live behind the "
+     "v": "The "
     },
     {
      "t": "strong",
@@ -19828,21 +19828,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " button, and mixing them up is the main thing to avoid. The dialog leads with inviting people, because that is the one that puts someone "
+     "v": " panel answers one question — who can open this cluster? — and everything in it hangs off that answer. It opens on one button and one picker; the rest is behind "
     },
     {
-     "t": "em",
-     "v": "inside",
+     "t": "strong",
+     "v": "Link settings",
      "children": [
       {
        "t": "text",
-       "v": "inside"
+       "v": "Link settings"
       }
      ]
     },
     {
      "t": "text",
-     "v": " the cluster with you; the view-only link follows it."
+     "v": "."
     }
    ]
   },
@@ -19851,7 +19851,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "You can open it from the board header, from "
+     "v": "You reach it from the icon beside "
+    },
+    {
+     "t": "strong",
+     "v": "Share",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the board header, from "
     },
     {
      "t": "code",
@@ -19880,35 +19894,175 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Public links — view only, no account",
+   "text": "General access — the link, and what it grants",
    "inline": [
     {
      "t": "text",
-     "v": "Public links — view only, no account"
+     "v": "General access — the link, and what it grants"
     }
    ],
-   "id": "public-links-view-only-no-account"
+   "id": "general-access-the-link-and-what-it-grants"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "A public link is a URL anyone can open. No account, no sign-in, no request for access. It is always "
+     "v": "One picker, three answers:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Setting"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What the link does"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Account needed"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Anyone with the link · can view",
+       "children": [
+        {
+         "t": "text",
+         "v": "Anyone with the link · can view"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Opens the cluster read-only"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Anyone with the link · can edit",
+       "children": [
+        {
+         "t": "text",
+         "v": "Anyone with the link · can edit"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Recipient confirms, signs in, and joins as an editor"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Only invited people",
+       "children": [
+        {
+         "t": "text",
+         "v": "Only invited people"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Revokes every link on the cluster"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "—"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Choosing one hands you the link straight away; the button beside the picker copies it again any time. Switching between "
     },
     {
      "t": "strong",
-     "v": "read-only",
+     "v": "can view",
      "children": [
       {
        "t": "text",
-       "v": "read-only"
+       "v": "can view"
       }
      ]
     },
     {
      "t": "text",
-     "v": "."
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "can edit",
+     "children": [
+      {
+       "t": "text",
+       "v": "can edit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " never revokes anything — a link you have already sent someone keeps working, and the panel tells you it is still live. Only "
+    },
+    {
+     "t": "strong",
+     "v": "Only invited people",
+     "children": [
+      {
+       "t": "text",
+       "v": "Only invited people"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " revokes, and it asks first."
     }
    ]
   },
@@ -19917,7 +20071,42 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Options when you create one:"
+     "v": "An edit link is not an editable public link. It grants nothing on its own: the person who opens it sees a preview and an explicit "
+    },
+    {
+     "t": "strong",
+     "v": "Join",
+     "children": [
+      {
+       "t": "text",
+       "v": "Join"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " step, and access is created when they sign in and take it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Link settings",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Link settings"
+    }
+   ],
+   "id": "link-settings"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Everything that qualifies a link lives in one disclosure under the picker."
     }
    ]
   },
@@ -19954,7 +20143,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Never · 7 days · 30 days"
+       "v": "Never · 7 days · 30 days (view links default to never, edit links to 30 days)"
       }
      ]
     ],
@@ -19989,7 +20178,17 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " can be opened too"
+       "v": " open too — "
+      },
+      {
+       "t": "strong",
+       "v": "on by default",
+       "children": [
+        {
+         "t": "text",
+         "v": "on by default"
+        }
+       ]
       }
      ]
     ],
@@ -20020,7 +20219,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "With sub-clusters included, viewers can navigate into nested boards with breadcrumbs. With it off, the link shows exactly one board."
+     "v": "With sub-clusters included, viewers navigate into nested boards with breadcrumbs. With it off, the link shows exactly one board."
     }
    ]
   },
@@ -20029,21 +20228,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Links can be "
+     "v": "The same disclosure lists every link currently live on the cluster, with what each one grants, how many people have joined through it, when it expires, and buttons to copy or "
     },
     {
      "t": "strong",
-     "v": "revoked",
+     "v": "revoke",
      "children": [
       {
        "t": "text",
-       "v": "revoked"
+       "v": "revoke"
       }
      ]
     },
     {
      "t": "text",
-     "v": " at any time from the same dialog."
+     "v": " it."
     }
    ]
   },
@@ -20093,60 +20292,73 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Inviting people — this is how editing is granted",
+   "text": "Inviting specific people",
    "inline": [
     {
      "t": "text",
-     "v": "Inviting people — this is how editing is granted"
+     "v": "Inviting specific people"
     }
    ],
-   "id": "inviting-people-this-is-how-editing-is-granted"
+   "id": "inviting-specific-people"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Separate from public links, and the only way anyone gets edit access."
+     "v": "Use this when you have addresses and want named people rather than whoever holds a URL. Enter one address or several separated by commas, pick "
+    },
+    {
+     "t": "strong",
+     "v": "Can edit",
+     "children": [
+      {
+       "t": "text",
+       "v": "Can edit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "Can view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Can view"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and send. If they do not have an account yet they get an invitation and the access is waiting for them when they sign up."
     }
    ]
   },
   {
-   "type": "list",
-   "ordered": false,
-   "items": [
-    [
-     {
-      "t": "strong",
-      "v": "By email",
-      "children": [
-       {
-        "t": "text",
-        "v": "By email"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — name a person and a role of editor or viewer."
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "By invite link",
-      "children": [
-       {
-        "t": "text",
-        "v": "By invite link"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — a URL carrying a role. Whoever opens it confirms and gets that access. Use when you do not have addresses."
-     }
-    ]
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Workspace owners get a third choice, "
+    },
+    {
+     "t": "strong",
+     "v": "Whole workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "Whole workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — that grants every cluster in the workspace, not just this one, so only the owner can hand it out."
+    }
    ]
   },
   {
@@ -20190,6 +20402,27 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "People with access",
+   "inline": [
+    {
+     "t": "text",
+     "v": "People with access"
+    }
+   ],
+   "id": "people-with-access"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "One list, covering everyone: workspace members, people added to this cluster alone, and invitations still waiting on a signup. Each row says what that person can do and how far it reaches. Owners can change a role, remove access, or transfer the workspace from here."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Quick copy",
    "inline": [
     {
@@ -20204,21 +20437,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The board header has a one-click "
+     "v": "The board header's "
     },
     {
      "t": "strong",
-     "v": "copy view-only link",
+     "v": "Share",
      "children": [
       {
        "t": "text",
-       "v": "copy view-only link"
+       "v": "Share"
       }
      ]
     },
     {
      "t": "text",
-     "v": " for the common case. Boards you are viewing without edit rights show a clear VIEW ONLY badge, so there is never ambiguity about whether your changes will stick."
+     "v": " button copies a view-only link in one click without opening the panel at all — the panel sits behind the icon next to it. Boards you are viewing without edit rights show a clear VIEW ONLY badge, so there is never ambiguity about whether your changes will stick."
     }
    ]
   },

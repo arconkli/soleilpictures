@@ -104,28 +104,31 @@ test.describe('collab invite-link wiring', () => {
     const s = share();
     expect(s).toContain('createCollabLink');
     expect(s).toContain('EV.INVITE_LINK_CREATED');
-    expect(s).toContain('INVITE TO COLLABORATE');
-    // The two link kinds render in separate sections off a kind split.
-    expect(s).toMatch(/publicLinks\.filter\(l => \(l\.kind \|\| 'view'\) === 'view'\)/);
-    expect(s).toMatch(/publicLinks\.filter\(l => l\.kind === 'invite'\)/);
+    // The two kinds are one question with two answers now, so the panel asks it
+    // once and lib/shareAccess.js maps the answer back to rows. The inline
+    // kind-splitting filters this used to assert are that module's job.
+    expect(s).toContain("from '../lib/shareAccess.js'");
+    expect(s).toMatch(/linkForMode\(publicLinks, accessMode/);
+    expect(s).not.toMatch(/publicLinks\.filter\(l => l\.kind === 'invite'\)/);
   });
 
   test('the modal is ordered by what people actually do', () => {
     // Demand order, measured: 29 of the first 32 links ever made were view
     // links and exactly one email invite was ever sent, yet the email form led
-    // the modal and the link sections sat below it. Collaborating comes first,
-    // then the view-only link, then the access list, then Explore.
+    // the modal and the link sections sat below it. Handing someone a link
+    // comes first, then the addressed invite, then the access list, then
+    // Explore — which is now a collapsed disclosure at the bottom.
     const s = share();
-    const order = ['INVITE TO COLLABORATE', 'ANYONE WITH THE LINK', 'PEOPLE WITH ACCESS', 'ExplorePublishSection board='];
+    const order = ['GENERAL ACCESS', 'INVITE SPECIFIC PEOPLE', 'PEOPLE WITH ACCESS', 'ExplorePublishSection board='];
     const at = order.map(k => s.indexOf(k));
     at.forEach((i, n) => expect(i, `${order[n]} missing`).toBeGreaterThan(-1));
     expect(at).toEqual([...at].sort((a, b) => a - b));
-    // Inside the collaborate section the mint button must precede the
-    // role/expiry selects — they were in front of it, so the one action the
-    // modal exists for was never the first thing you could press.
+    // The one action the panel exists for must precede the options that
+    // qualify it — the selects were in front of it once, so the thing you
+    // came for was never the first thing you could press.
     expect(s.indexOf('share-invite-btn-primary')).toBeLessThan(s.indexOf('share-link-options'));
-    // Email invite is the secondary path in that same section, not the lead.
-    expect(s.indexOf('Or invite by email')).toBeGreaterThan(s.indexOf('share-invite-btn-primary'));
+    // The addressed path is secondary to the link, not the lead.
+    expect(s.indexOf('INVITE SPECIFIC PEOPLE')).toBeGreaterThan(s.indexOf('share-invite-btn-primary'));
   });
 
   test('every copy of a link is recorded', () => {
@@ -134,8 +137,14 @@ test.describe('collab invite-link wiring', () => {
     // observable step. One funnel: all copy paths go through copyLinkUrl.
     const s = share();
     expect(s).toMatch(/const copyLinkUrl = async \(token, kind\)[\s\S]{0,400}EV\.SHARE_LINK_COPIED/);
-    expect(s).toMatch(/copyLinkUrl\(token, 'view'\)/);
-    expect(s).toMatch(/copyLinkUrl\(token, 'invite'\)/);
+    // The mint paths must name the kind. copyLinkUrl's fallback looks the token
+    // up in publicLinks, and a link created a moment ago is not in that list
+    // until the refetch lands — so a mint that omits the kind records every new
+    // invite link as a view link.
+    expect(s).toMatch(/kind = 'invite';/);
+    expect(s).toMatch(/kind = 'view';/);
+    expect(s).toMatch(/copyLinkUrl\(token, kind\)/);
+    expect(s).toMatch(/copyLinkUrl\(existing\.token, next === 'edit' \? 'invite' : 'view'\)/);
     // onCopyPublicLink must delegate rather than write its own clipboard call,
     // or the row "Copy" buttons go dark again.
     expect(s).toMatch(/onCopyPublicLink = async \(token\) => \{\s*\n\s*const copied = await copyLinkUrl\(token\)/);
