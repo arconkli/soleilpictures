@@ -2238,19 +2238,62 @@ body {
 }
 .share-close:hover { background: var(--bg-hov); color: var(--ink-0); }
 
+/* ONE scroll container for the whole panel. Each .share-section used to carry
+   its own overflow-y:auto, which on a phone — where .share-modal becomes a
+   full-screen flex column — stacked three independently scrolling regions
+   inside one dialog, so flicking the list moved whichever one the finger
+   happened to land on. */
+.share-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .share-section {
   padding: 14px 18px;
   border-bottom: 1px solid var(--line-1);
-  overflow-y: auto;
 }
 .share-section:last-child { border-bottom: 0; }
 
+/* General access: the one action and the one decision, side by side, wrapping
+   to two rows when there isn't room. */
+.share-access-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.share-access-select { flex: 1 1 200px; font-size: 12.5px; padding-top: 9px; padding-bottom: 9px; }
+
+/* The truthful line under the picker. Built from link rows, never from the
+   picker's value, so it can't announce a link that was never minted. */
+.share-status {
+  font: 600 11px/1.4 var(--font-sans);
+  color: var(--ink-2);
+  margin-top: 8px;
+}
+
+/* An inline text button inside a hint (…"manage"), styled as prose rather
+   than as a control so it doesn't read as a fourth thing to press. */
+.share-linkish {
+  appearance: none; background: none; border: 0; padding: 0;
+  font: inherit; color: var(--ink-1);
+  text-decoration: underline; text-underline-offset: 2px;
+  cursor: pointer;
+}
+.share-linkish:hover { color: var(--ink-0); }
+
+/* Wraps at narrow widths. Unwrapped, the role select and the Invite button
+   held their intrinsic widths and squeezed the email field down to about
+   ninety pixels on a phone — an address field you cannot read what you typed
+   into. Below ~200px of room for the input, the two controls drop to their
+   own line instead. */
 .share-invite-row {
-  display: flex; gap: 6px;
+  display: flex; flex-wrap: wrap; gap: 6px;
   margin-bottom: 6px;
 }
 .share-input {
-  flex: 1 1 auto;
+  flex: 1 1 200px;
   appearance: none;
   background: var(--bg-3);
   border: 1px solid var(--line-2);
@@ -2276,17 +2319,23 @@ body {
   background-repeat: no-repeat;
   background-position: right 8px center;
 }
+/* The panel's buttons come in two weights, and only ONE of them is gold. Every
+   action in here used to be, so the eye was pulled equally by "hand someone a
+   link" and by "submit this cluster for editorial review" — which is the same
+   flattening the whole rework is undoing, expressed in colour. Base is neutral;
+   .share-invite-btn-primary below carries the accent. */
 .share-invite-btn {
-  appearance: none; border: 0;
-  background: var(--soleil);
-  color: var(--bg-0);
+  appearance: none;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  color: var(--ink-0);
   font: 600 12px/1 var(--font-sans);
   padding: 8px 14px;
   border-radius: var(--radius);
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
 }
-.share-invite-btn:hover:not(:disabled) { background: var(--soleil-bright, var(--soleil)); }
+.share-invite-btn:hover:not(:disabled) { background: var(--bg-hov); border-color: var(--line-3, var(--line-2)); }
 .share-invite-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .share-hint {
   font: 500 11px/1.45 var(--font-sans);
@@ -2324,17 +2373,25 @@ body {
 }
 .share-link-opt input[type="checkbox"] { cursor: pointer; }
 
-/* The one action the whole modal exists for: mint-or-copy an invite link.
-   Full width so it reads as the primary move rather than one control in a
-   row of three — the role/expiry selects now sit inside .share-link-options
-   below it, since their defaults are what nearly every invite wants. */
+/* The one action the whole panel exists for: mint-or-copy the link the access
+   picker describes. It leads the row and the picker follows it, so the first
+   thing you can press is the thing you came for — expiry, scope, indexing and
+   the list of live links all sit inside .share-link-options below. */
 .share-invite-btn-primary {
-  flex: 1 1 100%;
+  flex: 1 1 180px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  background: var(--soleil);
+  border-color: transparent;
+  color: var(--bg-0);
   padding: 11px 14px;
   font-size: 13px;
 }
+.share-invite-btn-primary:hover:not(:disabled) {
+  background: var(--soleil-bright, var(--soleil));
+  border-color: transparent;
+}
 
-/* Disclosure holding the invite link's role + expiry selects. Closed by
+/* Disclosure holding expiry, scope and the live-link list. Closed by
    default; the marker is the only affordance, so keep it visible. */
 .share-link-options { margin-top: 10px; }
 .share-link-options > summary {
@@ -2353,11 +2410,21 @@ body {
   padding: 8px 0;
   font-style: italic;
 }
+/* Wraps rather than squeezes. A live-link row can carry four controls (sub-
+   clusters, indexing, copy, revoke) and at panel width they were compressing
+   into two-line labels; the row now drops them to a second line instead, which
+   is also what saves these rows on a phone. */
 .share-row {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
   padding: 8px 6px;
   border-radius: var(--radius);
   transition: background var(--dur-fast) var(--ease);
+}
+.share-row > .share-row-text { flex: 1 1 160px; }
+.share-row-actions {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 2px;
+  margin-left: auto;
 }
 .share-row:hover { background: var(--bg-hov); }
 .share-avatar {
@@ -2397,9 +2464,43 @@ body {
   padding: 4px 8px;
   border-radius: var(--radius);
   cursor: pointer;
+  white-space: nowrap;   /* "Hide sub-clusters" was breaking across two lines */
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 .share-remove:hover { color: #f87171; background: rgba(248,113,113,.12); }
+
+/* A whole section collapsed into a disclosure (Publish to Explore). The
+   summary carries the section eyebrow AND its live status, so collapsing it
+   costs no information — a disclosure that hides whether your submission is
+   still pending gets opened every single time. */
+.share-advanced > summary {
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;   /* display:flex already suppresses the marker in Chrome */
+}
+.share-advanced > summary::-webkit-details-marker { display: none; }
+/* …so the disclosure triangle is drawn back explicitly. Without it the summary
+   is a heading that happens to be clickable, with nothing saying it opens. */
+.share-advanced > summary::before {
+  content: '';
+  width: 0; height: 0;
+  border: 4px solid transparent;
+  border-left-color: var(--ink-3);
+  margin-left: 1px;
+  transition: transform var(--dur-fast) var(--ease);
+}
+.share-advanced[open] > summary::before { transform: rotate(90deg) translateX(1px); }
+.share-advanced > summary .share-eyebrow { margin-bottom: 0; }
+.share-advanced[open] > summary { margin-bottom: 10px; }
+.share-advanced-status {
+  font: 600 10px/1.3 var(--font-sans);
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--bg-3);
+}
 
 /* ──────────── Public viewer (/share/:token) ──────────── */
 /* Anonymous read-only board page. No sidebar, no auth — just a
