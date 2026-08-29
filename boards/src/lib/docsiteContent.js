@@ -19851,7 +19851,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The board header's "
+     "v": "You open it from "
     },
     {
      "t": "strong",
@@ -19865,21 +19865,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " button does not open it — that button copies a view-only link in one click, which is what most sharing is. You reach the panel from "
-    },
-    {
-     "t": "strong",
-     "v": "Manage access",
-     "children": [
-      {
-       "t": "text",
-       "v": "Manage access"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " on the toast that confirms the copy, from "
+     "v": " in the board header, from "
     },
     {
      "t": "code",
@@ -20437,18 +20423,22 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Quick copy",
+   "text": "Getting a link fast",
    "inline": [
     {
      "t": "text",
-     "v": "Quick copy"
+     "v": "Getting a link fast"
     }
    ],
-   "id": "quick-copy"
+   "id": "getting-a-link-fast"
   },
   {
    "type": "para",
    "inline": [
+    {
+     "t": "text",
+     "v": "Two presses, and the second one is already under your cursor: "
+    },
     {
      "t": "strong",
      "v": "Share",
@@ -20461,21 +20451,37 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the board header is one button and it copies. One click puts a view-only link on your clipboard, refreshes the preview image the link will unfurl with, and offers "
+     "v": " opens the panel focused on "
     },
     {
      "t": "strong",
-     "v": "Manage access",
+     "v": "Create link & copy",
      "children": [
       {
        "t": "text",
-       "v": "Manage access"
+       "v": "Create link & copy"
       }
      ]
     },
     {
      "t": "text",
-     "v": " if you wanted the panel after all."
+     "v": ", so "
+    },
+    {
+     "t": "code",
+     "v": "Share"
+    },
+    {
+     "t": "text",
+     "v": " then "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " puts a view-only link on your clipboard. Creating it also refreshes the preview image the link will unfurl with."
     }
    ]
   },
@@ -20484,7 +20490,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Boards you are viewing without edit rights show a clear VIEW ONLY badge, so there is never ambiguity about whether your changes will stick — and since you cannot mint a link there, "
+     "v": "Boards you are viewing without edit rights show a clear VIEW ONLY badge, so there is never ambiguity about whether your changes will stick. You cannot mint a link on one, but you can still open "
     },
     {
      "t": "strong",
@@ -20498,7 +20504,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " opens the panel instead."
+     "v": " to see who has access."
     }
    ]
   },

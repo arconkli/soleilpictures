@@ -95,6 +95,11 @@ export function ShareModal({
   const [accessMode, setAccessMode] = useState('view');
   const derivedFor = useRef(null);
   const [linkSettingsOpen, setLinkSettingsOpen] = useState(false);
+  // Opening the panel lands you ON the copy button rather than on the close X
+  // (Modal's default is the first focusable, which is the header's close). The
+  // topbar is a single "Share" that opens this, so Share → Enter has to be a
+  // link on the clipboard or the one-press path is genuinely gone.
+  const takeLinkRef = useRef(null);
 
   // Expiry is per-kind, and the two defaults are the ones that shipped: a
   // view-only link you paste into a brief should outlive the brief, and an
@@ -703,7 +708,8 @@ export function ShareModal({
   );
 
   return (
-    <Modal open onClose={onClose} className="share-modal" backdropClassName="share-backdrop" labelledBy="share-title">
+    <Modal open onClose={onClose} className="share-modal" backdropClassName="share-backdrop"
+           labelledBy="share-title" initialFocusRef={canInvite ? takeLinkRef : undefined}>
         <div className="share-head">
           <div>
             <div className="share-eyebrow">SHARE</div>
@@ -732,6 +738,7 @@ export function ShareModal({
 
             <div className="share-access-row">
               <button className="share-invite-btn share-invite-btn-primary"
+                      ref={takeLinkRef}
                       onClick={takeLink}
                       disabled={busyLink || accessMode === 'off'}
                       title={accessMode === 'off'

@@ -4900,11 +4900,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, yb.cards, yb.ready, currentId, tourActive, canEditCurrent, view, mobileShell, showCoachmark, myTier.loading, myTier.onboarding, currentBoardPerm.source]);
 
-  // One-tap share: mint-or-reuse a view-only link for the current board and copy
-  // it instantly, collapsing the ~4-click ShareModal flow to one. Defaults to
-  // include-subboards ON so a shared demo shows depth (server still enforces the
-  // subtree). Eagerly refreshes the OG thumbnail so the pasted link unfurls with
-  // a real preview, not the generic logo. Gated on write access by the caller.
+  // Mint-or-reuse a view-only link for the current board and copy it instantly.
+  // Defaults to include-subboards ON so a shared cluster shows depth (server
+  // still enforces the subtree) and so this and the panel converge on ONE link
+  // rather than two of different scope. Eagerly refreshes the OG thumbnail so
+  // the pasted link unfurls with a real preview, not the generic logo.
+  //
+  // No longer wired to the toolbar — Share opens the panel now, where copying is
+  // the first control. This survives as the SHARE ASK's action: that offer is a
+  // toast whose single action IS the share, so there is no dialog to abandon
+  // between being asked and having the link. Gated on write access by the caller.
   const [quickShareBusy, setQuickShareBusy] = useState(false);
   // Boards we KNOW have a live link, learned from this session's own copies.
   // Deliberately not fetched: listPublicLinks is per-board, and paying a query
@@ -6708,33 +6713,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <Icon as={Maximize2} size={16} />
               </button>
             )}
-            {/* ONE control. Share copies a link, and that is the whole story.
-                It briefly took two — a labelled copy plus an icon opening the
-                access console — because the console opened as a 929-line admin
-                screen and needed routing around. That reason is gone: the panel
-                is now one picker and one button. Two adjacent share affordances
-                only reproduced the original confusion in the other direction,
-                and on a phone `.tb-btn-label` is hidden (styles.css), so they
-                rendered as two unlabelled share glyphs side by side with nothing
-                to tell them apart.
+            {/* ONE control, and Share opens sharing. No branch on permission,
+                no second affordance beside it.
 
-                The console keeps three doors — the "Manage access" action on the
-                copy toast, ⌘K → "Share this cluster", and right-clicking a
-                cluster in the sidebar. It is not the volume path: three people
-                have ever sent an invite from it.
+                It briefly did the copy itself, with the access console behind an
+                icon, because the console opened as a 929-line admin screen and
+                was worth routing around — the funnel said so (of everyone who
+                reached for sharing, most landed in the dialog and only a handful
+                found the one-tap copy). But that measurement was taken against a
+                dialog that no longer exists. The panel is now one picker and one
+                button, and its FIRST focusable control is "Create link & copy",
+                so the thing the workaround existed to reach is one press inside
+                the door rather than instead of it.
 
-                Viewers can't mint a link, so the console IS their share button. */}
-            {canEditCurrent ? (
-              <button className="tb-btn" onClick={quickCopyShareLink} disabled={quickShareBusy}
-                      title="Copy a view-only link to this cluster">
-                <Icon as={LinkIcon} size={14} />{' '}
-                <span className="tb-btn-label">Share</span>
-              </button>
-            ) : (
-              <button className="tb-btn" onClick={() => setShareOpen(true)} title="Share this cluster">
-                <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
-              </button>
-            )}
+                What that buys back: invites, revoking, and publishing stop being
+                reachable only through a toast that disappears. */}
+            <button className="tb-btn" onClick={() => setShareOpen(true)} title="Share this cluster">
+              <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
+            </button>
             <button className="tb-icon tb-icon-theme" title="Toggle theme"
                     onClick={() => setTheme(themeMode === 'dark' ? 'light' : 'dark')}>
               <Icon as={themeMode === 'dark' ? Sun : Moon} size={16} />

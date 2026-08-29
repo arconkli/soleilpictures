@@ -2520,7 +2520,7 @@ A public link makes a cluster viewable by anyone with the URL, with no account a
 
 The Share panel answers one question — who can open this cluster? — and everything in it hangs off that answer. It opens on one button and one picker; the rest is behind Link settings.
 
-The board header's Share button does not open it — that button copies a view-only link in one click, which is what most sharing is. You reach the panel from Manage access on the toast that confirms the copy, from ⌘K → "Share this cluster", or by right-clicking any cluster in the sidebar and choosing Share… — the last of these shares the cluster you right-clicked, not the one currently on screen.
+You open it from Share in the board header, from ⌘K → "Share this cluster", or by right-clicking any cluster in the sidebar and choosing Share… — the last of these shares the cluster you right-clicked, not the one currently on screen.
 
 General access — the link, and what it grants
 
@@ -2566,11 +2566,11 @@ People with access
 
 One list, covering everyone: workspace members, people added to this cluster alone, and invitations still waiting on a signup. Each row says what that person can do and how far it reaches. Owners can change a role, remove access, or transfer the workspace from here.
 
-Quick copy
+Getting a link fast
 
-Share in the board header is one button and it copies. One click puts a view-only link on your clipboard, refreshes the preview image the link will unfurl with, and offers Manage access if you wanted the panel after all.
+Two presses, and the second one is already under your cursor: Share opens the panel focused on Create link & copy, so Share then Enter puts a view-only link on your clipboard. Creating it also refreshes the preview image the link will unfurl with.
 
-Boards you are viewing without edit rights show a clear VIEW ONLY badge, so there is never ambiguity about whether your changes will stick — and since you cannot mint a link there, Share opens the panel instead.
+Boards you are viewing without edit rights show a clear VIEW ONLY badge, so there is never ambiguity about whether your changes will stick. You cannot mint a link on one, but you can still open Share to see who has access.
 
 Link previews
 
