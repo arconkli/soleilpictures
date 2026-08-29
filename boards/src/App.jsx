@@ -5078,9 +5078,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [quickShareBusy, setQuickShareBusy] = useState(false);
   // Boards we KNOW have a live link, learned from this session's own copies.
   // Deliberately not fetched: listPublicLinks is per-board, and paying a query
-  // on every board open to label a button is the wrong trade. The label stays
-  // honest by never claiming a state we haven't observed — it only sharpens
-  // from "Share" to "Copy link" once we've actually made one.
+  // on every board open is the wrong trade for what this feeds — suppressing
+  // the share ask on a board already shared. Under-knowing costs one redundant
+  // ask; over-claiming would mean asserting a link exists that never did.
   const [sharedBoardIds, setSharedBoardIds] = useState(() => new Set());
   const quickCopyShareLink = React.useCallback(async () => {
     if (quickShareBusy) return;
@@ -6878,32 +6878,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <Icon as={Maximize2} size={16} />
               </button>
             )}
-            {/* The labelled control does the ONE-TAP COPY; the permissions
-                console moves behind the icon beside it. This is a swap, not new
-                UI, and it inverts what shipped: the visible "Share" button used
-                to open a 929-line access console (two link kinds with their own
-                checkboxes, email invites, a member list, Explore publishing)
-                while the one-tap copy sat next to it as an unlabelled link
-                glyph. That is exactly the shape of the funnel — most people who
-                reach for sharing land in an admin screen and abandon, and only a
-                handful ever find the affordance that just hands them a link.
-                Viewers can't mint a link, so they keep the console as their
-                primary, unchanged. */}
+            {/* ONE control. Share copies a link, and that is the whole story.
+                It briefly took two — a labelled copy plus an icon opening the
+                access console — because the console opened as a 929-line admin
+                screen and needed routing around. That reason is gone: the panel
+                is now one picker and one button. Two adjacent share affordances
+                only reproduced the original confusion in the other direction,
+                and on a phone `.tb-btn-label` is hidden (styles.css), so they
+                rendered as two unlabelled share glyphs side by side with nothing
+                to tell them apart.
+
+                The console keeps three doors — the "Manage access" action on the
+                copy toast, ⌘K → "Share this cluster", and right-clicking a
+                cluster in the sidebar. It is not the volume path: three people
+                have ever sent an invite from it.
+
+                Viewers can't mint a link, so the console IS their share button. */}
             {canEditCurrent ? (
-              <>
-                <button className="tb-btn" onClick={quickCopyShareLink} disabled={quickShareBusy}
-                        title="Copy a view-only link to this cluster">
-                  <Icon as={LinkIcon} size={14} />{' '}
-                  <span className="tb-btn-label">
-                    {sharedBoardIds.has(currentBoard.id) ? 'Copy link' : 'Share'}
-                  </span>
-                </button>
-                <button className="tb-icon" onClick={() => setShareOpen(true)}
-                        title="Manage access — invite people, revoke links, publish"
-                        aria-label="Manage access">
-                  <Icon as={Share2} size={16} />
-                </button>
-              </>
+              <button className="tb-btn" onClick={quickCopyShareLink} disabled={quickShareBusy}
+                      title="Copy a view-only link to this cluster">
+                <Icon as={LinkIcon} size={14} />{' '}
+                <span className="tb-btn-label">Share</span>
+              </button>
             ) : (
               <button className="tb-btn" onClick={() => setShareOpen(true)} title="Share this cluster">
                 <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>

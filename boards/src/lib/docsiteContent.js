@@ -22011,7 +22011,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "You reach it from the icon beside "
+     "v": "The board header's "
     },
     {
      "t": "strong",
@@ -22025,7 +22025,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the board header, from "
+     "v": " button does not open it — that button copies a view-only link in one click, which is what most sharing is. You reach the panel from "
+    },
+    {
+     "t": "strong",
+     "v": "Manage access",
+     "children": [
+      {
+       "t": "text",
+       "v": "Manage access"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on the toast that confirms the copy, from "
     },
     {
      "t": "code",
@@ -22596,8 +22610,41 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "strong",
+     "v": "Share",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share"
+      }
+     ]
+    },
+    {
      "t": "text",
-     "v": "The board header's "
+     "v": " in the board header is one button and it copies. One click puts a view-only link on your clipboard, refreshes the preview image the link will unfurl with, and offers "
+    },
+    {
+     "t": "strong",
+     "v": "Manage access",
+     "children": [
+      {
+       "t": "text",
+       "v": "Manage access"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " if you wanted the panel after all."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Boards you are viewing without edit rights show a clear VIEW ONLY badge, so there is never ambiguity about whether your changes will stick — and since you cannot mint a link there, "
     },
     {
      "t": "strong",
@@ -22611,7 +22658,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " button copies a view-only link in one click without opening the panel at all — the panel sits behind the icon next to it. Boards you are viewing without edit rights show a clear VIEW ONLY badge, so there is never ambiguity about whether your changes will stick."
+     "v": " opens the panel instead."
     }
    ]
   },
