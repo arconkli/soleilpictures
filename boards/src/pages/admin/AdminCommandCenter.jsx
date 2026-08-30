@@ -4,13 +4,20 @@
 // frosted-glass panels frame the edges:
 //   • top    — hero KPI row (MRR, active-now, users, activation, cards today)
 //   • left   — MRR trend, users-growth trend, time in app, content mix
-//   • right  — signups·30d, waitlist funnel, activation funnel, cards created
+//   • right  — signups·30d, live pulse, activation funnel, cards created
 //   • bottom — what the renderer actually drew + the live placement tape
 //
-// Metrics auto-refresh every ~20s (useAdminData pollIntervalMs); the universe
-// numbers stream live over SSE (useUniverseStats); a fullscreen button drives
-// kiosk mode. The open center passes pointer events through to the universe so
-// it stays pan/zoom interactive behind the frame.
+// Refresh is tiered by how fast the underlying number can actually move, rather
+// than one interval for everything (which re-queried 90 days of history 4,320
+// times a day while making "Active now" wait 20 seconds):
+//
+//   pushed   — universe counters (SSE @1Hz), the pulse panel and the placement
+//              tape (Supabase Realtime). No polling at all.
+//   FAST_MS  — admin_stats + admin_active_now. Cheap, and visibly live.
+//   SLOW_MS  — history, funnels, content mix. These change once a night.
+//
+// A fullscreen button drives kiosk mode. The open center passes pointer events
+// through to the universe so it stays pan/zoom interactive behind the frame.
 //
 // Two rules this file learned the hard way, both worth keeping:
 //
@@ -30,8 +37,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ResponsiveContainer,
   AreaChart, Area,
-  BarChart, Bar,
-  LineChart, Line,
+  BarChart, Bar, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
 import { supabase } from '../../lib/supabase.js';
@@ -47,6 +53,7 @@ import { useAdminData } from './useAdminData.js';
 import { useUniverseStats } from './useUniverseStream.js';
 import { UniverseGraph, KIND_COLORS } from './UniverseGraph.jsx';
 import { useCardPlacements } from './useCardPlacements.js';
+import { useActivityPulse } from './useActivityPulse.js';
 
 // The activation funnel's window. The waitlist was switched off on 2026-06-16;
 // any window reaching past it mixes two different products (people who queued
@@ -61,6 +68,16 @@ const CONTENT_DAYS = 365;
 // seven, because a rail panel is ~110px of body and a sixth row was landing
 // half-clipped at the fold.
 const MIX_ROWS = 5;
+
+// Poll tiers. Nothing here is arbitrary: FAST_MS is what "Active now" needs to
+// deserve its name, SLOW_MS is generous for series whose newest point is
+// written once a night by the metrics snapshot.
+const FAST_MS = 5000;
+const SLOW_MS = 60000;
+// The pulse window. 60 one-minute buckets fit the rail at ~4px a bar, which is
+// the right mark for discrete counts in discrete buckets — an area chart across
+// mostly-empty minutes draws slopes between events that never happened.
+const PULSE_MINUTES = 60;
 
 // Live-placement tape labels. Any kind without an article falls through to
 // "a card", which is honest for the long tail.
@@ -95,13 +112,21 @@ export function AdminCommandCenter({ dataSource = null }) {
     return () => clearTimeout(t);
   }, []);
 
-  const { data, lastUpdated } = useAdminData(async () => {
+  // Fast tier — the two numbers a person standing at the wall watches.
+  const { data: fast, lastUpdated } = useAdminData(async () => {
     const r = await Promise.allSettled([
       supabase.rpc('admin_stats'),
       supabase.rpc('admin_active_now', { p_window_minutes: 5 }),
+    ]);
+    const val = (x) => (x.status === 'fulfilled' && !x.value.error ? x.value.data : null);
+    return { stats: val(r[0]), activeNow: val(r[1]) };
+  }, [], { pollIntervalMs: FAST_MS });
+
+  // Slow tier — series whose newest point is written once a night.
+  const { data: slow } = useAdminData(async () => {
+    const r = await Promise.allSettled([
       supabase.rpc('admin_metrics_history', { p_days: 90 }),
       supabase.rpc('admin_signups_by_day', { p_days: 30 }),
-      supabase.rpc('admin_waitlist_funnel', { p_days: 30 }),
       // Windowed + internal-excluded on purpose; the panel says so. The no-arg
       // overload is all-time and straddles the waitlist cutover.
       supabase.rpc('admin_activation_funnel', {
@@ -114,16 +139,15 @@ export function AdminCommandCenter({ dataSource = null }) {
     ]);
     const val = (x) => (x.status === 'fulfilled' && !x.value.error ? x.value.data : null);
     return {
-      stats:       val(r[0]),
-      activeNow:   val(r[1]),
-      history:     val(r[2]) || [],
-      signups:     val(r[3]) || [],
-      waitlist:    val(r[4]) || [],
-      activation:  val(r[5]),
-      cardStats:   val(r[6]),
-      cardsPerDay: val(r[7]) || [],
+      history:     val(r[0]) || [],
+      signups:     val(r[1]) || [],
+      activation:  val(r[2]),
+      cardStats:   val(r[3]),
+      cardsPerDay: val(r[4]) || [],
     };
-  }, [], { pollIntervalMs: 20000 });
+  }, [], { pollIntervalMs: SLOW_MS });
+
+  const data = { ...slow, ...fast };
 
   const stats   = data?.stats || null;
   const history = data?.history || [];
@@ -143,15 +167,12 @@ export function AdminCommandCenter({ dataSource = null }) {
     return days === history.length ? `${days}d` : `${days}d · ${history.length} pts`;
   }, [history]);
 
-  const signups  = (data?.signups  || []).map((s) => ({ ...s, label: shortDate(s.day) }));
-  const waitlist = (data?.waitlist || []).map((w) => ({ ...w, label: shortDate(w.day) }));
+  const signups = (data?.signups || []).map((s) => ({ ...s, label: shortDate(s.day) }));
 
-  // Gates: how many points actually carry a value. Both of these series are
-  // structurally empty right now (no subscription has ever existed; the
-  // waitlist has been off since 2026-06-13), and a flat zero line reads as a
-  // measurement rather than an absence. They light up on their own.
-  const mrrPoints      = trend.filter((t) => t.mrr > 0).length;
-  const waitlistPoints = waitlist.filter((w) => (w.submitted || 0) + (w.accepted || 0) > 0).length;
+  // Gate: how many points actually carry a value. This series is structurally
+  // empty right now (no subscription has ever existed), and a flat zero line
+  // reads as a measurement rather than an absence. It lights up on its own.
+  const mrrPoints = trend.filter((t) => t.mrr > 0).length;
 
   const act = data?.activation || {};
   const activation = [
@@ -165,7 +186,10 @@ export function AdminCommandCenter({ dataSource = null }) {
   ];
   const activated = safeRate(act.first_card || 0, act.signed_up || 0);
 
-  const { items: placements } = useCardPlacements();
+  // Both push-based. `liveTotal` counts only cards placed since mount, which is
+  // what lets today's figures move between polls without inventing anything.
+  const { items: placements, liveTotal } = useCardPlacements();
+  const pulse = useActivityPulse({ minutes: PULSE_MINUTES });
 
   // Content mix — ranked, not a donut. The card kinds span three orders of
   // magnitude, so a pie is a couple of wedges and a dozen sub-degree slivers,
@@ -193,7 +217,41 @@ export function AdminCommandCenter({ dataSource = null }) {
   // i.e. cards last EDITED that day — which meant re-saving an old card moved
   // it out of its original day and the chart's own history rewrote itself as
   // people worked.
-  const cardsDaily = (data?.cardsPerDay || []).map((r) => ({ label: shortDate(r.day), cards: r.cards || 0 }));
+  //
+  // Today's bar is overwritten with the SSE figure, which arrives at 1Hz instead
+  // of waiting out the slow poll. This is a SUBSTITUTION, not an increment, and
+  // that distinction is the whole point: useCardPlacements exposes a `liveTotal`
+  // built for exactly this job, but adding it on top of a polled number
+  // double-counts every placement the moment the next poll includes it.
+  //
+  // The substitution is only legitimate because the two sources are provably the
+  // same measurement. admin_cards_per_day(p_exclude_internal: false) reduces its
+  // WHERE to `ci.created_at >= …` (the internal filter short-circuits), and
+  // admin_universe_stats().today.cards counts card_index since
+  // date_trunc('day', now()) — same table, same column, same boundary, no board
+  // join in play. Flip p_exclude_internal to true and this stops being true.
+  const cardsDaily = useMemo(() => {
+    const rows = (data?.cardsPerDay || []).map((r) => ({ label: shortDate(r.day), cards: r.cards || 0 }));
+    const today = uni?.today?.cards;
+    if (rows.length && Number.isFinite(Number(today))) {
+      const last = rows.length - 1;
+      rows[last] = { ...rows[last], cards: Number(today), live: true };
+    }
+    return rows;
+  }, [data?.cardsPerDay, uni?.today?.cards]);
+
+  // Pulse panel figures. Buckets are never summed into "people": a distinct
+  // count per minute cannot be added across minutes without counting the same
+  // person once per minute they were active. Actors stay in the per-bar tooltip.
+  const pulseBars = useMemo(
+    () => pulse.buckets.map((b) => ({
+      label: new Date(b.minute).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      events: b.events,
+      actors: b.actors,
+    })),
+    [pulse.buckets],
+  );
+  const pulseLive = pulse.buckets.filter((b) => b.events > 0).length;
 
   const toggleFullscreen = () => {
     const el = stageRef.current;
@@ -253,6 +311,8 @@ export function AdminCommandCenter({ dataSource = null }) {
           <Kpi label="Activated"
                value={activated.hide ? '—' : formatPct(activated.rate)}
                sub={`${formatCount(act.first_card ?? 0)} of ${formatCount(act.signed_up ?? 0)} made a card`} />
+          {/* Already live at 1Hz over SSE — nothing to add on top, and adding
+              liveTotal here would double-count within the second. */}
           <Kpi label="Cards today" value={formatCount(uni?.today?.cards ?? 0)}
                sub={`${formatCompact(uni?.total_cards ?? 0)} all-time`} />
           {/* No gold accent on a zero: --soleil is reserved for live/active
@@ -339,22 +399,27 @@ export function AdminCommandCenter({ dataSource = null }) {
             </ResponsiveContainer>
           </CcPanel>
 
-          <CcPanel title="Waitlist funnel · 30d"
-                   sub={waitlistPoints
-                     ? `${formatCount(waitlist.reduce((a, b) => a + (b.accepted || 0), 0))} accepted`
-                     : 'switched off'}>
-            <ChartGate count={waitlistPoints} min={1}
-                       title="Waitlist is off"
-                       sub="No entry has been submitted since 2026-06-13. This lights up on its own if it is re-enabled.">
+          {/* The one panel that moves while you watch it. Everything else here
+              is a day-grain series; this is the platform's pulse, pushed over
+              Realtime with no polling at all. */}
+          <CcPanel
+            title={<><span className={`cc-live-dot ${pulse.status === 'live' ? '' : 'is-stale'}`} /> Pulse · {PULSE_MINUTES}m</>}
+            sub={<PulseSub pulse={pulse} />}>
+            <ChartGate count={pulseLive} min={1}
+                       title="Nothing in the last hour"
+                       sub="No analytics event has been recorded. This fills in on its own the moment anyone touches the product.">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={waitlist} margin={{ top: 6, right: 10, bottom: 0, left: 0 }}>
+                <BarChart data={pulseBars} margin={{ top: 6, right: 10, bottom: 0, left: 0 }}>
                   <CartesianGrid {...CHART.grid} />
-                  <XAxis dataKey="label" {...CHART.axis} interval="preserveStartEnd" minTickGap={24} />
+                  <XAxis dataKey="label" {...CHART.axis} interval="preserveStartEnd" minTickGap={40} />
                   <YAxis {...CHART.axis} width={26} allowDecimals={false} tickFormatter={formatCompact} />
-                  <Tooltip {...CHART.tooltip} />
-                  <Line type="monotone" dataKey="submitted" stroke={CHART.series[3]} strokeWidth={2} dot={false} {...CHART.noAnim} />
-                  <Line type="monotone" dataKey="accepted" stroke={CHART.soleil} strokeWidth={2} dot={false} {...CHART.noAnim} />
-                </LineChart>
+                  <Tooltip {...CHART.tooltip} cursor={{ fill: 'rgba(255,165,0,.08)' }}
+                           formatter={(v, n, p) => [
+                             `${formatCount(v)} event${v === 1 ? '' : 's'}${p?.payload?.actors ? ` · ${formatCount(p.payload.actors)} signed in` : ''}`,
+                             'that minute',
+                           ]} />
+                  <Bar dataKey="events" fill={CHART.soleil} radius={[2, 2, 0, 0]} {...CHART.noAnim} />
+                </BarChart>
               </ResponsiveContainer>
             </ChartGate>
           </CcPanel>
@@ -367,14 +432,24 @@ export function AdminCommandCenter({ dataSource = null }) {
             </PanelNote>
           </CcPanel>
 
-          <CcPanel title="Cards created · 30d" sub="by creation date">
+          <CcPanel title="Cards created · 30d"
+                   sub={liveTotal > 0 ? `by creation date · ${formatCount(liveTotal)} since you opened this` : 'by creation date'}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={cardsDaily} margin={{ top: 6, right: 10, bottom: 0, left: 0 }}>
                 <CartesianGrid {...CHART.grid} />
                 <XAxis dataKey="label" {...CHART.axis} interval="preserveStartEnd" minTickGap={24} />
                 <YAxis {...CHART.axis} width={26} allowDecimals={false} tickFormatter={formatCompact} />
                 <Tooltip {...CHART.tooltip} cursor={{ fill: 'rgba(255,165,0,.08)' }} />
-                <Bar dataKey="cards" fill={CHART.soleil} radius={[3, 3, 0, 0]} {...CHART.noAnim} />
+                {/* Today's bar brightens once it is carrying live placements —
+                    gold is the reserved active-state accent, so a bar that is
+                    still moving is exactly what may wear it. */}
+                <Bar dataKey="cards" radius={[3, 3, 0, 0]} {...CHART.noAnim}>
+                  {cardsDaily.map((d, i) => (
+                    <Cell key={d.label} fill={d.live ? '#ffd06b' : CHART.soleil}
+                          className={d.live ? 'cc-bar-live' : undefined}
+                          data-i={i} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </CcPanel>
@@ -400,7 +475,16 @@ export function AdminCommandCenter({ dataSource = null }) {
           </div>
 
           <div className="cc-ticker">
-            <span className="cc-tape-label"><span className="cc-live-dot" /> Live</span>
+            {/* The dot tracks the socket, not the data. A quiet tape and a dead
+                subscription look identical otherwise, and this wall is exactly
+                where that ambiguity costs the most. */}
+            <span className="cc-tape-label"
+                  title={pulse.status === 'live'
+                    ? 'Subscribed. A still tape means no cards were placed.'
+                    : 'The realtime subscription is not connected — this tape is not updating.'}>
+              <span className={`cc-live-dot ${pulse.status === 'live' ? '' : 'is-stale'}`} />
+              {pulse.status === 'live' ? 'Live' : 'Offline'}
+            </span>
             <Tape items={placements} />
           </div>
         </div>
@@ -424,6 +508,26 @@ export function AdminCommandCenter({ dataSource = null }) {
 }
 
 function noop() {}
+
+// The pulse panel's subtitle doubles as its liveness proof. "N events" alone
+// can't distinguish a quiet platform from a dead socket — the age of the last
+// event can, so it is the thing that gets said out loud.
+function PulseSub({ pulse }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (pulse.status === 'error') return <span className="cc-panel-sub-warn">stream down</span>;
+  if (!pulse.buckets.length)     return <>connecting…</>;
+
+  const total = formatCount(pulse.total);
+  if (!pulse.lastEventAt) return <>{total} events · listening</>;
+  const secs = Math.max(0, Math.round((Date.now() - pulse.lastEventAt) / 1000));
+  const ago = secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m`;
+  return <>{total} events · last {ago} ago</>;
+}
 
 // Live placement tape. The marquee needs two copies of the track to loop
 // seamlessly (-50% lands copy 2's start exactly where copy 1 began), but a

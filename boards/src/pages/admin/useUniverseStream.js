@@ -2,7 +2,7 @@
 //
 // Two hooks:
 //   useUniverseStats()                    → live ticker counters
-//   useUniverseDeltas({ onAdd, onResync }) → live node/edge deltas
+//   useUniverseDeltas({ onNode, onEdge })  → live node/edge deltas
 //
 // Both:
 //   - get the admin's Supabase access token from `supabase`
@@ -10,6 +10,13 @@
 //   - on auth error (401/403 from the SSE) refresh the session
 //     and reconnect with the new token, so a hour-long admin
 //     session doesn't drop when JWTs expire
+//   - report an explicit `status` ('connecting' | 'live' |
+//     'reconnecting'). This matters more here than on a busy feed:
+//     the platform creates a node about once every twenty minutes,
+//     so a healthy universe and a dead socket look IDENTICAL from
+//     the outside. Without a status the only honest reading of a
+//     still screen is "I don't know", which is not what a wall
+//     display is for.
 //
 // PartyKit host is read from VITE_PARTYKIT_HOST (defaults to
 // localhost:1999 for dev), matching boards/src/lib/yPartyKit.js.
@@ -67,6 +74,7 @@ export async function fetchSnapshotPage({
 export function useUniverseStats() {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
+  const [status, setStatus] = useState('connecting');
   const esRef    = useRef(null);
   const stopped  = useRef(false);
 
@@ -76,11 +84,12 @@ export function useUniverseStats() {
 
     const connect = async () => {
       if (stopped.current) return;
+      setStatus((s) => (s === 'live' ? 'reconnecting' : s));
       try {
         const es = await openSse('stats');
         esRef.current = es;
         es.addEventListener('stats', (e) => {
-          try { setStats(JSON.parse(e.data)); setError(null); backoff = 500; }
+          try { setStats(JSON.parse(e.data)); setError(null); setStatus('live'); backoff = 500; }
           catch (_) {}
         });
         es.addEventListener('error', (e) => {
@@ -105,12 +114,14 @@ export function useUniverseStats() {
           esRef.current = null;
           if (stopped.current) return;
           setError('reconnecting…');
+          setStatus('reconnecting');
           const delay = backoff;
           backoff = Math.min(backoff * 2, 30000);
           setTimeout(connect, delay);
         };
       } catch (e) {
         setError(e?.message || String(e));
+        setStatus('reconnecting');
         if (stopped.current) return;
         setTimeout(connect, backoff);
         backoff = Math.min(backoff * 2, 30000);
@@ -125,7 +136,7 @@ export function useUniverseStats() {
     };
   }, []);
 
-  return { stats, error };
+  return { stats, error, status };
 }
 
 // useUniverseDeltas — subscribes to /deltas. Calls callbacks for
@@ -134,25 +145,54 @@ export function useUniverseStats() {
 // re-subscribing on every render. `enabled: false` skips the
 // subscription entirely (the synthetic QA harness has no SSE server
 // to talk to).
-export function useUniverseDeltas({ since, onNode, onEdge, onBatch, onAuthError, enabled = true }) {
+//
+// `sinceRef` is a ref holding a SERVER-authored ISO timestamp — the
+// newest created_at the snapshot walk actually saw. A ref rather than
+// a value because the snapshot resolves after mount and this hook must
+// not re-subscribe every time it moves; `ready` gates the first connect.
+//
+// This used to be `new Date().toISOString()` — the BROWSER's clock.
+// A machine running a few minutes fast asked the server for everything
+// after a moment that had not happened yet, so the stream stayed silent
+// for exactly that long; an hour fast, silent for an hour. Because this
+// universe genuinely does go twenty minutes between nodes, that failure
+// was indistinguishable from working. Server-authored time cannot skew
+// against the server.
+//
+// An empty snapshot leaves no server timestamp to quote, so `since` is
+// omitted entirely and party/universe.ts falls back to its own clock —
+// still server time, just measured a hop later.
+export function useUniverseDeltas({
+  sinceRef, ready = true, onNode, onEdge, onBatch, onAuthError, enabled = true,
+}) {
   const esRef   = useRef(null);
   const stopped = useRef(false);
+  const [status, setStatus] = useState('connecting');
+  const [lastDeltaAt, setLastDeltaAt] = useState(null);
 
   useEffect(() => {
-    if (!enabled) return undefined;
+    if (!enabled || !ready) return undefined;
     stopped.current = false;
     let backoff = 1000;
-    let lastSeen = since || new Date().toISOString();
+    let lastSeen = sinceRef?.current || null;
 
     const connect = async () => {
       if (stopped.current) return;
       try {
-        const es = await openSse('deltas', { since: lastSeen });
+        const es = await openSse('deltas', lastSeen ? { since: lastSeen } : {});
         esRef.current = es;
+        // Open only means the socket is up; the Worker sends nothing
+        // until something is actually created. That is the normal
+        // steady state here, so 'live' must not wait for a first frame.
+        setStatus('live');
 
         es.addEventListener('node', (e) => {
-          try { const n = JSON.parse(e.data); lastSeen = n.created_at || lastSeen; onNode?.(n); }
-          catch (_) {}
+          try {
+            const n = JSON.parse(e.data);
+            lastSeen = n.created_at || lastSeen;
+            setLastDeltaAt(Date.now());
+            onNode?.(n);
+          } catch (_) {}
         });
         es.addEventListener('edge', (e) => {
           try { const x = JSON.parse(e.data); lastSeen = x.created_at || lastSeen; onEdge?.(x); }
@@ -161,8 +201,12 @@ export function useUniverseDeltas({ since, onNode, onEdge, onBatch, onAuthError,
         es.addEventListener('batch', (e) => {
           try {
             const { nodes = [], edges = [] } = JSON.parse(e.data) || {};
-            for (const n of nodes) lastSeen = n.created_at > lastSeen ? n.created_at : lastSeen;
-            for (const x of edges) lastSeen = x.created_at > lastSeen ? x.created_at : lastSeen;
+            // `lastSeen` can be null now (empty snapshot), and `x > null`
+            // is true for any string, so seed off the first row rather
+            // than relying on the comparison.
+            for (const n of nodes) if (!lastSeen || n.created_at > lastSeen) lastSeen = n.created_at || lastSeen;
+            for (const x of edges) if (!lastSeen || x.created_at > lastSeen) lastSeen = x.created_at || lastSeen;
+            if (nodes.length) setLastDeltaAt(Date.now());
             onBatch?.({ nodes, edges });
           } catch (_) {}
         });
@@ -184,6 +228,7 @@ export function useUniverseDeltas({ since, onNode, onEdge, onBatch, onAuthError,
           try { es.close(); } catch (_) {}
           esRef.current = null;
           if (stopped.current) return;
+          setStatus('reconnecting');
           const delay = backoff;
           backoff = Math.min(backoff * 2, 30000);
           setTimeout(connect, delay);
@@ -192,6 +237,7 @@ export function useUniverseDeltas({ since, onNode, onEdge, onBatch, onAuthError,
         backoff = 1000;
       } catch (e) {
         if (stopped.current) return;
+        setStatus('reconnecting');
         setTimeout(connect, backoff);
         backoff = Math.min(backoff * 2, 30000);
       }
@@ -204,7 +250,9 @@ export function useUniverseDeltas({ since, onNode, onEdge, onBatch, onAuthError,
       esRef.current = null;
     };
     // We intentionally don't react to handler-prop changes — callers
-    // pass stable refs. since is captured at mount.
+    // pass stable refs. sinceRef is a ref, read at connect time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [enabled, ready]);
+
+  return { status, lastDeltaAt };
 }

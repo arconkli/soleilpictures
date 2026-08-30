@@ -1,12 +1,19 @@
-// AdminOverviewTab — KPI cards + signups bar + waitlist funnel + tier
-// pie + recent signups. Fires its RPCs with allSettled so one failed
-// query renders a partial page instead of blanking the whole tab; only a
-// total failure shows the retry surface.
+// AdminOverviewTab — KPI cards + signups bar + tier pie + recent signups.
+// Fires its RPCs with allSettled so one failed query renders a partial page
+// instead of blanking the whole tab; only a total failure shows the retry
+// surface.
+//
+// The waitlist funnel used to occupy the full-width panel below the charts and
+// the fourth KPI slot. The waitlist has been switched off since 2026-06-13, so
+// both were permanently drawing a flat zero — and a flat zero reads as a
+// measurement rather than an absence, which is the one thing a dashboard must
+// not do. The KPI slot now carries "Active now", which is the number this page
+// was missing. The waitlist RPCs and the dedicated Waitlist tab are untouched;
+// the feature is off, not gone, and it still has a home if it comes back.
 
 import {
   ResponsiveContainer,
   BarChart, Bar,
-  LineChart, Line,
   PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, Legend, CartesianGrid,
 } from 'recharts';
@@ -25,32 +32,37 @@ export function AdminOverviewTab() {
     const results = await Promise.allSettled([
       supabase.rpc('admin_stats'),
       supabase.rpc('admin_signups_by_day', { p_days: 30 }),
-      supabase.rpc('admin_waitlist_funnel', { p_days: 30 }),
+      supabase.rpc('admin_active_now', { p_window_minutes: 5 }),
       supabase.rpc('admin_list_users', { p_limit: 10, p_offset: 0 }),
       supabase.rpc('admin_avg_time_to_paid'),
     ]);
-    const [s, sb, f, rl, c] = results;
+    const [s, sb, an, rl, c] = results;
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
-    // If every core query failed, surface an error so the retry UI shows.
-    const core = [s, sb, f, rl];
+    // If every core query failed, surface an error so the retry UI shows. The
+    // core set is the queries this page cannot render without — active_now is
+    // one number in one tile, so it stays out of it (it replaced the waitlist
+    // funnel, which was in the set only because it fed a whole panel).
+    const core = [s, sb, rl];
     if (!core.some((r) => r.status === 'fulfilled' && !r.value.error)) {
       throw errOf(core.find(errOf)) || new Error('Failed to load overview');
     }
     return {
-      stats:   val(s),
-      signups: val(sb) || [],
-      funnel:  val(f) || [],
-      recent:  val(rl) || [],
-      conv:    val(c),
+      stats:     val(s),
+      signups:   val(sb) || [],
+      activeNow: val(an),
+      recent:    val(rl) || [],
+      conv:      val(c),
     };
-  }, []);
+    // Poll: this page's numbers were static until a manual refresh, and one of
+    // them is now "in the last 5 minutes".
+  }, [], { pollIntervalMs: 15000 });
 
-  const stats   = data?.stats || null;
-  const signups = data?.signups || [];
-  const funnel  = data?.funnel || [];
-  const recent  = data?.recent || [];
-  const conv    = data?.conv || null;
+  const stats     = data?.stats || null;
+  const signups   = data?.signups || [];
+  const activeNow = data?.activeNow;
+  const recent    = data?.recent || [];
+  const conv      = data?.conv || null;
 
   const tierCounts = stats?.tier_counts || {};
   const pieData = ['admin', 'paid', 'demo', 'waitlist']
@@ -74,7 +86,7 @@ export function AdminOverviewTab() {
             <AdminStatCard label="MRR (active subs)" value={formatMoney(stats?.mrr_cents ?? 0)}
               sub={`${tierCounts.paid || 0} paying customer${(tierCounts.paid || 0) === 1 ? '' : 's'}`} accent />
             <AdminStatCard label="Demo accounts" value={formatCount(tierCounts.demo)} />
-            <AdminStatCard label="Waitlist pending" value={formatCount(stats?.waitlist_pending)} sub={`${stats?.waitlist_total ?? 0} total ever joined`} />
+            <AdminStatCard label="Active now" value={formatCount(activeNow ?? 0)} sub="signed in within the last 5 minutes" accent={(activeNow ?? 0) > 0} />
             {conv && (
               <AdminStatCard label="Median time to paid"
                 value={conv.paid_users > 0 ? formatDuration(conv.median_seconds) : '—'}
@@ -120,29 +132,6 @@ export function AdminOverviewTab() {
               </div>
             </section>
           </div>
-
-          {/* Waitlist funnel */}
-          <section className="admin-chart-panel admin-chart-panel-wide">
-            <header className="admin-chart-head">
-              <h3 className="admin-chart-title">Waitlist funnel · last 30 days</h3>
-              <span className="admin-chart-sub t-meta">
-                {funnel.reduce((a, b) => a + (b.submitted || 0), 0)} submitted · {funnel.reduce((a, b) => a + (b.accepted || 0), 0)} accepted
-              </span>
-            </header>
-            <div className="admin-chart-body">
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={funnel.map((r) => ({ ...r, label: shortDate(r.day) }))} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-                  <CartesianGrid {...CHART.grid} />
-                  <XAxis dataKey="label" {...CHART.axis} interval="preserveStartEnd" />
-                  <YAxis {...CHART.axis} allowDecimals={false} />
-                  <Tooltip {...CHART.tooltip} />
-                  <Legend verticalAlign="top" align="right" iconSize={10} iconType="circle" wrapperStyle={{ fontSize: 11, color: 'var(--ink-2)' }} />
-                  <Line type="monotone" dataKey="submitted" stroke={CHART.series[3]} strokeWidth={2} dot={false} {...CHART.noAnim} />
-                  <Line type="monotone" dataKey="accepted"  stroke={CHART.soleil}    strokeWidth={2} dot={false} {...CHART.noAnim} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
 
           {/* Recent signups */}
           <section className="admin-chart-panel admin-chart-panel-wide">

@@ -12,12 +12,10 @@
 // worker layout, disc/halo/sphere rendering) at sizes the live
 // corpus hasn't reached yet.
 
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { installAdminPreviewMocks } from './adminFixtures.js';
-import { UniverseGraph } from '../pages/admin/UniverseGraph.jsx';
-import { AdminUniverseTicker } from '../pages/admin/AdminUniverseTicker.jsx';
-import { UniverseLegend } from '../pages/admin/UniverseLegend.jsx';
+import { UniverseView } from '../pages/admin/AdminUniverseTab.jsx';
 import { AdminCommandCenter } from '../pages/admin/AdminCommandCenter.jsx';
 import { makeSyntheticDataSource } from './universeQaData.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
@@ -51,6 +49,14 @@ const FIXTURE_UNIVERSE_STATS = {
   today: { users: 7, workspaces: 4, boards: 12, cards: 138, tags: 22, links: 0 },
 };
 
+// The REAL <UniverseView>, over the synthetic corpus.
+//
+// This used to be a hand-copied replica of that view — its own ticker, graph,
+// legend and reset button. Every feature added to the real one then had to be
+// added here as well, and the first time that was missed the harness stopped
+// being the faithful preview it advertises itself as while still looking
+// plausible. Rendering the real component is the only version of this that
+// cannot drift.
 function UniverseQaTab() {
   const [ds] = useState(() => {
     const source = makeSyntheticDataSource({ nodeTarget: readQaNodeTarget() });
@@ -58,20 +64,9 @@ function UniverseQaTab() {
     return source;
   });
   const [picked, setPicked] = useState(null);
-  const [graph, setGraph] = useState(null);
-  const [resetSignal, setResetSignal] = useState(0);
-  const onStats = useCallback((s) => setGraph(s), []);
   return (
     <div className="universe-tab">
-      <AdminUniverseTicker stats={FIXTURE_UNIVERSE_STATS} graph={graph} />
-      <UniverseGraph onNodeClick={setPicked} resetSignal={resetSignal} dataSource={ds} onStats={onStats} />
-      <UniverseLegend graph={graph} />
-      <button
-        className="universe-reset-btn"
-        onClick={() => setResetSignal((n) => n + 1)}
-      >
-        Reset view
-      </button>
+      <UniverseView dataSource={ds} statsOverride={FIXTURE_UNIVERSE_STATS} onPick={setPicked} />
       {picked && (
         <div className="universe-qa-picked" data-testid="universe-qa-picked">
           {picked.kind} · {picked.id}
