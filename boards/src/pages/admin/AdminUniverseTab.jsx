@@ -11,7 +11,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { AdminUniverseTicker } from './AdminUniverseTicker.jsx';
 import { UniverseGraph } from './UniverseGraph.jsx';
 import { UniverseLegend } from './UniverseLegend.jsx';
-import { UniverseArrivals, useArrivals } from './UniverseArrivals.jsx';
 import { useUniverseStats } from './useUniverseStream.js';
 import { useActivityPulse } from './useActivityPulse.js';
 import { AdminCommandCenter } from './AdminCommandCenter.jsx';
@@ -111,23 +110,25 @@ export function UniverseView({ dataSource = null, statsOverride = null, onPick =
   const [resetSignal, setResetSignal] = useState(0);
   const [hiddenKinds, setHiddenKinds] = useState(() => new Set());
   const [isolateWs, setIsolateWs] = useState(null);
-  const [focusRequest, setFocusRequest] = useState(null);
   const [stream, setStream] = useState({ status: 'connecting', lastDeltaAt: null });
-  const [arrivals, pushArrival] = useArrivals();
 
   // What people are DOING, as opposed to what they have made. Creation lands
   // about once every twenty minutes; board-scoped activity is several times an
   // hour, and during a real work session far more than that. Without this layer
   // a correctly-working universe is motionless almost all of the time.
+  //
+  // Feeds the in-scene spark layer only. There was briefly a floating panel
+  // listing recent arrivals here too; it spent almost all of its time saying
+  // nothing had happened, which is a lot of screen furniture to spend on a
+  // non-event. Arrivals still announce themselves in the scene — ring, flash,
+  // and a minute of afterglow.
   const pulse = useActivityPulse();
 
   // Stable identities: UniverseGraph keeps handlers in refs, but an unstable
   // prop would still churn the effect that syncs it on every render.
   const onStats   = useCallback((s) => setGraph(s), []);
   const onSelect  = useCallback((n) => { setActive(n); onPick?.(n); }, [onPick]);
-  const onArrival = useCallback((n) => pushArrival(n), []);   // eslint-disable-line react-hooks/exhaustive-deps
   const onStream  = useCallback((s) => setStream(s), []);
-  const onFocus   = useCallback((id) => setFocusRequest((p) => ({ id, nonce: (p?.nonce || 0) + 1 })), []);
 
   const toggleKind = useCallback((key) => {
     setHiddenKinds((prev) => {
@@ -154,9 +155,7 @@ export function UniverseView({ dataSource = null, statsOverride = null, onPick =
         onNodeClick={onSelect}
         resetSignal={resetSignal}
         onStats={onStats}
-        onArrival={onArrival}
         onStream={onStream}
-        focusRequest={focusRequest}
         hiddenKinds={hiddenKinds}
         isolateWorkspaceId={isolateWs}
         selectedId={active?.id || null}
@@ -164,7 +163,6 @@ export function UniverseView({ dataSource = null, statsOverride = null, onPick =
       />
       <UniverseLegend graph={graph} hiddenKinds={hiddenKinds}
                       onToggleKind={toggleKind} onShowAll={showAll} />
-      <UniverseArrivals items={arrivals} onFocus={onFocus} streamStatus={health} pulse={pulse} />
       <div className="universe-controls">
         {isolateWs && (
           <button className="universe-reset-btn is-active" onClick={() => setIsolateWs(null)}

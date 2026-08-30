@@ -44,10 +44,22 @@ const ALPHA_RESTART = 0.3;
 // of their card swarm (see chargeStrength) so a 300-card galaxy claims
 // proportionally more space than an empty board — and every anchor
 // gets a hashed mass (_m) so spacing comes out ragged, not even.
-// (−140, down from −200: with the home spring holding the wave
-// pattern, stronger repulsion just puffed the crowded arm lanes —
-// the very over-density the layout exists to show.)
-const CHARGE_STRENGTH = -140;
+//
+// History worth keeping: this went 200 → 140 because stronger repulsion
+// puffed the crowded arm lanes, which is the very over-density the
+// layout exists to show. 175 is a deliberate step back toward that
+// edge — the core was reading as one saturated mass — but it stays
+// well under 200, and CHARGE_REACH still stops it from seeing anything
+// at arm wavelength.
+//
+// The lever that does NOT work, tried and reverted: scaling the whole
+// anchor layout up (disk radius + link distances together). The camera
+// auto-fits, so a uniform scale-up is invisible by construction; worse,
+// it pushes the outliers further out, the fit pulls back to frame them,
+// and the crowded core ends up looking DENSER than before. Perceived
+// density here is local crowding measured against the 95th-percentile
+// fit radius, so only a local force can change it.
+const CHARGE_STRENGTH = -175;
 
 // The epicyclic restoring force. Real disk stars oscillate around a
 // guiding center set by their orbit; here every anchor's guiding
@@ -58,7 +70,13 @@ const CHARGE_STRENGTH = -140;
 // center-pull + disk-flatten + spiral-tug trio — those sculpted the
 // layout from outside, which is exactly how the arms ended up looking
 // like drawn tubes instead of emergent crowding.
-const HOME_PULL = 0.08;
+//
+// Eased 0.08 → 0.065 alongside the charge bump: the spring is what
+// decides how much of the extra repulsion actually becomes spacing
+// rather than being pulled straight back to the seed. Below about 0.05
+// the arms start dissolving into an even field, which is the failure
+// mode this force exists to prevent.
+const HOME_PULL = 0.065;
 
 // ── Hierarchical state ───────────────────────────────────────────
 // order[i] mirrors the main thread's node index i:
