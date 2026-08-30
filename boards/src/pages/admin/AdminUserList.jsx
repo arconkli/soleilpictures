@@ -12,7 +12,7 @@ import { ArrowsClockwise, User as UsersIcon } from '../../lib/icons.js';
 import { relativeTime, formatBytes, formatCount } from '../../lib/adminFormat.js';
 import { countryName, countryFlag } from '../../lib/countries.js';
 import { AdminAsync, AdminSkeleton } from './AdminStates.jsx';
-import { Avatar, SourceBadge, PresenceDot, LastWorked, channelLabel } from './AdminUserDetailParts.jsx';
+import { Avatar, SourceBadge, PresenceDot, LastWorked, Joined, channelLabel } from './AdminUserDetailParts.jsx';
 
 const TIERS = ['admin', 'paid', 'demo', 'waitlist'];
 const SORTS = [
@@ -98,12 +98,15 @@ function UserListRow({ row, selected, isSelf, onSelect }) {
         <span className={`admin-user-tierdot tier-${TIERS.includes(row.tier) ? row.tier : 'demo'}`} title={`Tier: ${row.tier}`}>
           {row.tier}
         </span>
-        {/* Two different questions, kept separate on purpose.
-            LastWorked is "when did they last MAKE something" — the one that
-            says whether an account is real. PresenceDot is "are they online",
-            which is what this column used to be while being labelled "last
-            active": nearly a third of rows carry a confident last_seen_at for
-            someone who has never created anything at all. */}
+        {/* Three different questions, kept separate on purpose, and stacked in
+            the order they happen: arrived → last made something → online now.
+            Joined is created_at, the column the default "Newest" sort already
+            orders by. LastWorked is "when did they last MAKE something" — the
+            one that says whether an account is real. PresenceDot is "are they
+            online", which is what this column used to be while being labelled
+            "last active": nearly a third of rows carry a confident last_seen_at
+            for someone who has never created anything at all. */}
+        <Joined at={row.created_at} />
         <LastWorked at={row.last_worked_at} className="admin-user-lastworked" />
         <PresenceDot lastSeenAt={row.last_seen_at} className="admin-user-lastseen" />
       </div>

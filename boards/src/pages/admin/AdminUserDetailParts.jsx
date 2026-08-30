@@ -3,9 +3,17 @@
 //
 //   • Avatar       — initials chip tinted from profiles.color (list rows + detail header)
 //   • SourceBadge  — quiet acquisition-source pill (list rows + Acquisition section)
+//   • Joined       — when the account was created (list rows)
+//   • LastWorked   — when they last MADE something (list rows)
 //   • PresenceDot  — glowing live/idle/offline dot from last_seen_at (list + Engagement)
 //   • DetailSection — frosted section block with an uppercase label (detail panel ×5)
 //   • Timeline     — stepped activation milestones (Activation section)
+//
+// Joined / LastWorked / PresenceDot are three different questions and are kept
+// as three separate primitives on purpose: when did they ARRIVE, when did they
+// last MAKE something, and are they online RIGHT NOW. Collapsing any two of
+// them into one "last active" column is the exact conflation 0248 and 0251
+// unpicked one level down.
 
 import { Icon } from '../../components/Icon.jsx';
 import { relativeTime, fmtDate, fmtDateTime } from '../../lib/adminFormat.js';
@@ -120,6 +128,25 @@ export function PresenceDot({ lastSeenAt, showLabel = true, className = '' }) {
   return (
     <span className={`admin-presence is-${state} ${className}`} title={lastSeenAt ? fmtDateTime(lastSeenAt) : 'Never seen'}>
       {showLabel && label}
+    </span>
+  );
+}
+
+// When did this account arrive? auth.users.created_at, straight through from
+// admin_list_users — the column the default "Newest" sort already orders by,
+// which the roster spent a long time sorting on without ever showing.
+//
+// Absolute date, not relative: this is a cohort marker, and the question an
+// operator is asking is "which week did this person sign up", which "2mo ago"
+// cannot answer. fmtDate already renders '—' for null/invalid, so a missing
+// timestamp reads as missing rather than as a fabricated epoch date.
+export function Joined({ at, className = '' }) {
+  return (
+    <span
+      className={`admin-user-joined ${className}`}
+      title={at ? `Signed up ${fmtDateTime(at)}` : 'No signup date on record'}
+    >
+      {fmtDate(at)}
     </span>
   );
 }
