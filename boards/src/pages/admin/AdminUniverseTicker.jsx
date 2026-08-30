@@ -79,10 +79,31 @@ function AnimatedValue({ value, format }) {
   return <>{text}</>;
 }
 
-export function AdminUniverseTicker({ stats, graph, error }) {
+// Stream health is a first-class cell, not a decoration.
+//
+// This universe legitimately goes twenty minutes without a new node, so a still
+// screen is the normal case — which means a dead socket looks exactly like a
+// healthy quiet one. The old HUD had a single unlabelled warning dot that only
+// appeared on error, so the two states it most needed to separate ("quiet" and
+// "broken") were the two it never distinguished. Now the pill always says which
+// one you are looking at.
+const STREAM_LABEL = {
+  live:         { text: 'Live',       hint: 'Counters are streaming. A still universe means nothing was created — the platform adds a node roughly every 20 minutes.' },
+  connecting:   { text: 'Connecting', hint: 'Opening the counter and delta streams.' },
+  reconnecting: { text: 'Offline',    hint: 'A stream dropped and is retrying with backoff. Numbers on screen are the last ones received, not current.' },
+};
+
+export function AdminUniverseTicker({ stats, graph, error, status = 'live' }) {
   const today = stats?.today || {};
+  const health = STREAM_LABEL[status] || STREAM_LABEL.connecting;
   return (
     <div className="universe-ticker" role="status" aria-live="polite">
+      <div className={`universe-ticker-cell universe-ticker-health is-${status}`} title={health.hint}>
+        <div className="universe-ticker-value">
+          <span className="universe-ticker-pip" />
+        </div>
+        <div className="universe-ticker-label">{health.text}</div>
+      </div>
       {CELLS.map((c) => {
         // The Drawn cell reads the renderer, not the counters, and renders as
         // a paired "nodes · edges" figure rather than a single number.

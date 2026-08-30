@@ -186,10 +186,55 @@ const SOFT_NODE_LIMIT   = 2_000_000;
 const PICK_SLOP_PX = 7;
 
 // FX (live activity).
-const FX_CAPACITY       = 512;     // max concurrent pulses + flashes
+const FX_CAPACITY       = 512;     // max concurrent pulses + flashes + rings
 const PULSE_DURATION_MS = 1500;
 const FLASH_DURATION_MS = 1200;
 const PULSE_COLOR       = new THREE.Color('#ffd06b');  // bright Soleil gold
+
+// Arrival choreography.
+//
+// A new node used to get a 1.2s halo flash and nothing else. On a platform that
+// creates a node about once every twenty minutes, onto a canvas framed to fit
+// ~4,000 of them, that is a two-pixel dot brightening for one second somewhere
+// in your peripheral vision. The event was real; the odds of witnessing it were
+// not. So arrival now has three overlapping timescales:
+//
+//   RING   — a shockwave you can catch out of the corner of your eye
+//   FLASH  — the original bloom, kept, because it marks the exact spot
+//   HOT    — a full minute of elevated halo, so "I saw something flicker over
+//            there" survives long enough for you to actually go look
+//
+// HOT_DURATION_MS is a full minute rather than a few seconds precisely because
+// arrivals are rare: there is no risk of the universe filling up with hot nodes
+// at ~3 arrivals an hour, and the cost is a Map with single-digit entries.
+const RING_DURATION_MS  = 2500;
+const HOT_DURATION_MS   = 60000;
+const RING_MAX_SCALE    = 26;      // multiples of the node's own radius
+const HOT_HALO_BOOST    = 2.2;     // peak halo multiplier, decaying to 1
+
+// Activity sparks — "somebody is working here right now".
+//
+// The universe is a map of what EXISTS, and creation is rare. But people open
+// boards, place cards and move around them roughly five times as often as they
+// create a node, and nearly every in-app analytics event carries a board_id. So
+// the same board that lights up once an hour for an arrival can shimmer several
+// times an hour for presence.
+//
+// Deliberately NOT gold and deliberately small: gold is the reserved
+// active/selection/focus accent and an arrival has to stay the loudest thing on
+// screen. A spark is a cool-white blink at a board, gone in under a second.
+// SPARK_COOLDOWN_MS stops one busy board from strobing — a person placing ten
+// cards is one story, not ten.
+const SPARK_DURATION_MS = 900;
+const SPARK_COOLDOWN_MS = 1800;
+const SPARK_COLOR       = new THREE.Color('#dfe7f2');
+
+// Hover picking is the same O(N) ray walk as click picking (~1-2ms at a few
+// thousand nodes). That is nothing per click and too much per mousemove, so it
+// is throttled — and disabled outright past a corpus size where the walk would
+// start costing frames. Click picking has no ceiling; it stays exact forever.
+const HOVER_THROTTLE_MS = 70;
+const HOVER_MAX_NODES   = 200_000;
 
 function nextPow2(n, base) { let c = base; while (c < n) c *= 2; return c; }
 
@@ -270,29 +315,74 @@ function reportStats(refs) {
 // 512 cap respects common MAX_POINT_SIZE limits (cards are the
 // smallest bodies — only anchors are ever viewed closer than that,
 // and those are true spheres).
+// Depth fog.
+//
+// A galaxy rendered without it is flat: every star is equally crisp, so the
+// only depth cue is parallax while you move, and a still frame reads as a
+// sticker sheet. Real distance eats contrast, so the far side of the disk
+// should sink toward the background.
+//
+// Not THREE.Fog — scene fog only applies to materials with `fog: true`, and
+// both node clouds are custom ShaderMaterials. The edge material deliberately
+// opts out (fog would push already-dim threads below visibility), so putting
+// this in the two node shaders is also the only way to fog nodes WITHOUT
+// fogging edges.
+//
+// Opaque bodies mix toward the background colour; additive halos cannot — a
+// mix toward a near-black background is a no-op under additive blending — so
+// they lose alpha instead. Same perceptual result, two different mechanisms.
+const FOG_NEAR_FACTOR = 0.9;   // × universe radius: fog starts past the bulk
+const FOG_FAR_FACTOR  = 4.2;   // × universe radius: fully sunk at the rim
+const _fogColor = new THREE.Color(SPACE_BG);
+
+function setFogRange(refs, radius) {
+  if (!Number.isFinite(radius) || radius <= 0) return;
+  const near = radius * FOG_NEAR_FACTOR;
+  const far  = radius * FOG_FAR_FACTOR;
+  for (const m of [refs.bodyPoints?.material, refs.haloPoints?.material]) {
+    if (!m?.uniforms?.uFogNear) continue;
+    m.uniforms.uFogNear.value = near;
+    m.uniforms.uFogFar.value  = far;
+  }
+  refs.fogNear = near;
+  refs.fogFar  = far;
+}
+
 function makeBodyMaterial() {
   return new THREE.ShaderMaterial({
     uniforms: {
       uPxPerUnit: { value: 600 },   // set for real on mount + resize
+      uFogNear:   { value: 1e9 },   // 1e9 = fog off until the first fit sizes it
+      uFogFar:    { value: 2e9 },
+      uFogColor:  { value: _fogColor },
     },
     vertexShader: /* glsl */`
       uniform float uPxPerUnit;
       attribute float size;
       varying vec3 vColor;
+      varying float vDepth;
       void main() {
         vColor = color;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vDepth = -mv.z;
         float px = size * (uPxPerUnit / max(-mv.z, 1.0));
         gl_PointSize = size > 0.0 ? clamp(px, 1.25, 512.0) : 0.0;
         gl_Position = projectionMatrix * mv;
       }
     `,
     fragmentShader: /* glsl */`
-      varying vec3 vColor;
+      uniform float uFogNear;
+      uniform float uFogFar;
+      uniform vec3  uFogColor;
+      varying vec3  vColor;
+      varying float vDepth;
       void main() {
         vec2 c = gl_PointCoord - 0.5;
         if (dot(c, c) > 0.25) discard;
-        gl_FragColor = vec4(vColor, 1.0);
+        float f = smoothstep(uFogNear, uFogFar, vDepth);
+        // Cap at 0.82 so the deepest bodies stay findable rather than merging
+        // into the background entirely — this is a depth cue, not a cull.
+        gl_FragColor = vec4(mix(vColor, uFogColor, f * 0.82), 1.0);
       }
     `,
     vertexColors: true,
@@ -310,14 +400,18 @@ function makeHaloMaterial() {
       map:      { value: HALO_TEXTURE },
       uOpacity: { value: 0.30 },  // bumped 0.22→0.30 so the bloom pass has luminance to glow from
       uScale:   { value: 350 },
+      uFogNear: { value: 1e9 },
+      uFogFar:  { value: 2e9 },
     },
     vertexShader: /* glsl */`
       uniform float uScale;
       attribute float size;
       varying vec3 vColor;
+      varying float vDepth;
       void main() {
         vColor = color;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vDepth = -mv.z;
         // Clamp upper bound so we stay under MAX_POINT_SIZE; clamp
         // LOWER bound so even at extreme zoom-out the halo stays a
         // visible pinprick instead of vanishing entirely — keeps
@@ -331,10 +425,16 @@ function makeHaloMaterial() {
     fragmentShader: /* glsl */`
       uniform sampler2D map;
       uniform float uOpacity;
-      varying vec3 vColor;
+      uniform float uFogNear;
+      uniform float uFogFar;
+      varying vec3  vColor;
+      varying float vDepth;
       void main() {
         vec4 tex = texture2D(map, gl_PointCoord);
-        gl_FragColor = vec4(vColor, tex.a * uOpacity);
+        // Additive blending means mixing toward a near-black background does
+        // nothing; distance has to remove energy instead.
+        float f = smoothstep(uFogNear, uFogFar, vDepth);
+        gl_FragColor = vec4(vColor, tex.a * uOpacity * (1.0 - f * 0.75));
       }
     `,
     vertexColors: true,
@@ -362,7 +462,11 @@ function makeFxMaterial() {
         vColor = color;
         vAlpha = alpha;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = min(size * (uScale / max(-mv.z, 1.0)), 220.0);
+        // 512, not 220: an arrival ring expands to ~26x the node radius and
+        // clipping it at the halo's ceiling froze the expansion mid-flight,
+        // which is the one thing a shockwave must not do. 512 is the same cap
+        // the body shader uses and stays inside common MAX_POINT_SIZE limits.
+        gl_PointSize = min(size * (uScale / max(-mv.z, 1.0)), 512.0);
         gl_Position = projectionMatrix * mv;
       }
     `,
@@ -407,7 +511,23 @@ function makeFxPoints(capacity) {
 // which never become nodes or edges (tag attachments, cards on soft-deleted
 // boards), so a HUD reading the counters can claim connections the universe
 // does not draw.
-export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSource = null, onStats = null }) {
+// onArrival — fires once per node the delta stream adds, with the render node.
+//   Feeds the arrivals rail, which is what makes a rare event catchable: miss
+//   the ring and the thing that arrived is still listed, one click from being
+//   flown to.
+// onStream — fires with { status, lastDeltaAt } so a HUD can say whether the
+//   socket is alive. On a universe that is legitimately still for twenty
+//   minutes at a stretch, "nothing is happening" and "nothing is arriving
+//   because the stream died" are the same picture without this.
+// focusRequest — { id, nonce }; bump the nonce to fly the camera to that node.
+// hiddenKinds — Set of render kinds to hide (legend filtering).
+// isolateWorkspaceId — dim everything outside one workspace.
+export function UniverseGraph({
+  onNodeClick, resetSignal, fitAll = false, dataSource = null, onStats = null,
+  onArrival = null, onStream = null, focusRequest = null,
+  hiddenKinds = null, isolateWorkspaceId = null, selectedId = null,
+  activity = null,
+}) {
   const containerRef = useRef(null);
 
   // ── React state for shell UI only ────────────────────────────────
@@ -415,6 +535,12 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
   const [reloadKey, setReloadKey] = useState(0);
   const [progress, setProgress]   = useState({ nodes: 0, edges: 0 });
   const [calibrating, setCalibrating] = useState(true);
+  // Gate the delta stream on the snapshot: before it lands there is no
+  // server-authored timestamp to start from, and a flush would push nodes into
+  // a worker that has no sim yet.
+  const [deltaReady, setDeltaReady] = useState(false);
+  const sinceRef = useRef(null);
+  const [hover, setHover] = useState(null);   // { x, y, node } in container px
 
   // ── Refs to all the Three.js + sim state (kept out of React) ─────
   const refs = useRef({
@@ -424,6 +550,8 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
     sharedPosAttr: null,            // ONE position buffer feeding body + halo clouds
     activeFx: [],                   // [{ kind:'pulse'|'flash', src, tgt, nodeIdx, start, dur, color }]
     baseScale: new Float32Array(INITIAL_NODE_CAP),   // per-node radius (0 = invisible user)
+    visMul:    new Float32Array(INITIAL_NODE_CAP).fill(1),  // 0 = filtered out by the legend
+    dimMul:    new Float32Array(INITIAL_NODE_CAP).fill(1),  // < 1 = outside the isolated workspace
     anchorSlot: new Int32Array(INITIAL_NODE_CAP),    // global idx → sphere slot (-1 = not an anchor)
     anchorGlobals: [],              // sphere slot → global idx
     nodeCapacity: INITIAL_NODE_CAP, anchorCapacity: INITIAL_ANCHOR_CAP, edgeCapacity: INITIAL_EDGE_CAP,
@@ -440,8 +568,22 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
     onClick: null,
     pendingNodes: [],               // delta buffer
     pendingEdges: [],               // [{ raw, attempts }]
+    // Arrival FX cannot be spawned at the moment a node is appended: the
+    // worker has not placed it yet, so refs.positions[idx] is still the zeroed
+    // tail of a freshly grown buffer and every ring/flash fired at the world
+    // ORIGIN — a gold bloom at the galactic centre for a card created out on
+    // the rim. These queue instead and drain on the first tick that carries a
+    // real position for them.
+    pendingFx: [],                  // [{ idx, color, val }]
+    hotNodes: new Map(),            // idx → { until, color } — the 60s afterglow
+    hiddenKinds: null,              // Set of legend keys the operator switched off
+    isolateWs: null,                // workspace_id to keep lit; everything else dims
+    selectionFx: null,              // the persistent ring on the selected node
+    seenActivity: new Set(),        // analytics_events ids already sparked
+    sparkCooldown: new Map(),       // node idx → next allowed spark (perf clock)
     onNodeClickFn: onNodeClick,
     onStatsFn: onStats,
+    onArrivalFn: onArrival,
     // Auto-fit state. didInitialFit gates the first snap-to-fit.
     // fitAnimating drives a smooth pull-back when the universe grows.
     interacting: false,
@@ -452,9 +594,81 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
     fitStart: 0, fitDuration: 700, fitAnimating: false,
   }).current;
 
-  // Keep onNodeClick fresh without re-mounting the whole scene.
+  // Keep callbacks fresh without re-mounting the whole scene.
   useEffect(() => { refs.onNodeClickFn = onNodeClick; }, [onNodeClick, refs]);
   useEffect(() => { refs.onStatsFn = onStats; }, [onStats, refs]);
+  useEffect(() => { refs.onArrivalFn = onArrival; }, [onArrival, refs]);
+
+  // Legend filtering + workspace isolation. Both repaint through the same
+  // multiplier pass, so they compose: hide every kind but images, then isolate
+  // one workspace, and you get that workspace's images.
+  useEffect(() => {
+    refs.hiddenKinds = hiddenKinds && hiddenKinds.size ? hiddenKinds : null;
+    refs.isolateWs   = isolateWorkspaceId || null;
+    applyVisualFilters(refs);
+  }, [hiddenKinds, isolateWorkspaceId, refs]);
+
+  // Selection: a persistent gold ring on the picked node. --soleil is reserved
+  // for active/selection/focus, which is exactly what this is.
+  useEffect(() => {
+    if (refs.selectionFx) {
+      const at = refs.activeFx.indexOf(refs.selectionFx);
+      if (at >= 0) refs.activeFx.splice(at, 1);
+      refs.selectionFx = null;
+    }
+    if (!selectedId) return;
+    const idx = refs.nodeIndex.get(selectedId);
+    if (idx == null) return;
+    // dur = Infinity keeps it alive until the selection changes; updateFx's
+    // expiry check is `t >= 1`, which never trips.
+    refs.selectionFx = {
+      kind: 'select', nodeIdx: idx, start: performance.now(),
+      dur: Infinity, color: PULSE_COLOR, val: refs.nodes[idx]?.val || 8,
+    };
+    pushFx(refs, refs.selectionFx);
+  }, [selectedId, refs]);
+
+  // ── Activity layer ───────────────────────────────────────────────
+  // Real analytics events, mapped onto the board they happened on. Events that
+  // carry no board_id — landing views, signups, anything signed-out — are
+  // DROPPED rather than placed somewhere plausible. Inventing a location would
+  // make the universe show activity where none occurred, which is the one thing
+  // this surface has always refused to do.
+  useEffect(() => {
+    if (!activity || !activity.length || !refs.snapshotReady) return;
+    const now = performance.now();
+    for (const ev of activity) {
+      if (!ev?.id || refs.seenActivity.has(ev.id)) continue;
+      refs.seenActivity.add(ev.id);
+      const boardId = ev.props?.board_id;
+      if (!boardId) continue;
+      const idx = refs.nodeIndex.get(`board:${boardId}`);
+      if (idx == null || refs.visMul[idx] === 0) continue;
+      const until = refs.sparkCooldown.get(idx) || 0;
+      if (now < until) continue;
+      refs.sparkCooldown.set(idx, now + SPARK_COOLDOWN_MS);
+      pushFx(refs, {
+        kind: 'spark', nodeIdx: idx, start: now,
+        dur: SPARK_DURATION_MS, color: SPARK_COLOR,
+        val: refs.nodes[idx]?.val || 14,
+      });
+    }
+    // The id set is bounded by the hook's own window; trim if it ever isn't.
+    if (refs.seenActivity.size > 4000) refs.seenActivity = new Set();
+  }, [activity, refs]);
+
+  // Fly to a node on request (the arrivals rail). nonce, not id, so asking for
+  // the same node twice still flies.
+  useEffect(() => {
+    if (!focusRequest?.id) return;
+    const idx = refs.nodeIndex.get(focusRequest.id);
+    if (idx == null) return;
+    flyToNode(refs, idx);
+    // Select it too. Flying somewhere and then having to find the thing you
+    // flew to defeats the trip — the selection ring is what says "this one",
+    // and it is the only marker that survives the arrival glow expiring.
+    refs.onNodeClickFn?.(refs.nodes[idx]);
+  }, [focusRequest?.nonce, focusRequest?.id, refs]);
 
   // Opt-in: frame every visible node on auto-fit/reset (Command Center wants the
   // whole universe inside its box, not the 95th-percentile bulk).
@@ -572,6 +786,8 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
     refs.fxPoints = fxPoints;
     refs.activeFx = [];
     refs.baseScale  = new Float32Array(INITIAL_NODE_CAP);
+    refs.visMul     = new Float32Array(INITIAL_NODE_CAP).fill(1);
+    refs.dimMul     = new Float32Array(INITIAL_NODE_CAP).fill(1);
     refs.anchorSlot = new Int32Array(INITIAL_NODE_CAP).fill(-1);
     refs.anchorGlobals = [];
     refs.nodeCapacity = INITIAL_NODE_CAP;
@@ -599,6 +815,11 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
           }
           refs.positions.set(msg.positions.subarray(0, msg.count * 3));
           uploadPositions(refs, msg.count);
+          // Positions for the newly-arrived nodes exist as of this frame, so
+          // their arrival FX can finally be placed where they actually are.
+          // The worker posts a tick immediately on addNodes, so this is the
+          // very next message — not a perceptible delay.
+          if (refs.pendingFx.length) drainArrivalFx(refs, msg.count);
         }
       } else if (msg.type === 'ready') {
         setCalibrating(false);
@@ -638,6 +859,39 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
     };
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointerup',   onPointerUp);
+
+    // ── Hover readout ───────────────────────────────────────────────
+    // The universe had no hover at all: every node was an anonymous dot until
+    // you committed to a click. pickNode is the same O(N) ray walk the click
+    // path uses — nothing per click, too much per mousemove — so it is
+    // throttled, skipped while dragging or flying, and disabled outright past
+    // HOVER_MAX_NODES, where the walk would start costing frames. Clicking is
+    // never gated; it stays exact at any corpus size.
+    let lastHoverAt = 0;
+    let hoveredId = null;
+    const onHoverMove = (e) => {
+      if (isPointerLocked || refs.interacting || downAt) return;
+      if (refs.nodes.length === 0 || refs.nodes.length > HOVER_MAX_NODES) return;
+      if (e.timeStamp - lastHoverAt < HOVER_THROTTLE_MS) return;
+      lastHoverAt = e.timeStamp;
+      const r = renderer.domElement.getBoundingClientRect();
+      ndc.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+      ndc.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+      raycaster.setFromCamera(ndc, camera);
+      const picked = pickNode(refs, raycaster.ray);
+      const id = picked ? picked.id : null;
+      renderer.domElement.style.cursor = id ? 'pointer' : '';
+      if (id === hoveredId && !id) return;
+      hoveredId = id;
+      setHover(picked ? { x: e.clientX - r.left, y: e.clientY - r.top, node: picked } : null);
+    };
+    const onHoverLeave = () => {
+      hoveredId = null;
+      renderer.domElement.style.cursor = '';
+      setHover(null);
+    };
+    renderer.domElement.addEventListener('pointermove',  onHoverMove);
+    renderer.domElement.addEventListener('pointerleave', onHoverLeave);
 
     // ── FPS-style mouse-look while pointer is locked ────────────────
     // Pointer-lock hides the cursor and feeds us raw mouse deltas via
@@ -772,9 +1026,12 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
           controls.target.add(move);
         }
       }
-      // Update live FX (pulses + spawn flashes) — cheap walk over
+      // Update live FX (rings, flashes, edge pulses) — cheap walk over
       // activeFx, splat into the fxPoints buffer, drop expired.
       updateFx(refs, now);
+      // The minute-long arrival afterglow, written straight into the halo
+      // sizes. No-ops entirely when nothing is hot.
+      updateHot(refs, now);
       controls.update();
       // Edge fade by distance — at long zoom the edges drown out
       // the actual node dots; fade them so the nodes shine through.
@@ -843,6 +1100,8 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
       }
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointerup',   onPointerUp);
+      renderer.domElement.removeEventListener('pointermove',  onHoverMove);
+      renderer.domElement.removeEventListener('pointerleave', onHoverLeave);
       window.removeEventListener('resize', onWinResize);
       ro.disconnect();
       if (refs.rafId) cancelAnimationFrame(refs.rafId);
@@ -888,6 +1147,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
     // worker silently drops (no sim yet), desyncing indices, and the
     // loader's rebuild below would strand their anchor slots.
     refs.snapshotReady = false;
+    setDeltaReady(false);
 
     (async () => {
       try {
@@ -919,7 +1179,15 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
         refs.anchorSlot.fill(-1);
         if (refs.anchorMesh) refs.anchorMesh.count = 0;
         refs.activeFx = [];
+        refs.pendingFx = [];
+        refs.hotNodes = new Map();
+        // The delta cursor. Every one of these timestamps was written by
+        // Postgres, so starting the stream here cannot be thrown off by a
+        // browser clock (see useUniverseDeltas). Edges are scanned too because
+        // an edge can carry a timestamp newer than any node's.
+        let maxTs = null;
         for (const raw of allRawNodes) {
+          if (raw.created_at && (!maxTs || raw.created_at > maxTs)) maxTs = raw.created_at;
           if (refs.nodeIndex.has(raw.node_id)) continue;
           const node = toNode(raw);
           const idx = refs.nodes.length;
@@ -931,6 +1199,7 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
         // Resolve edges; drop orphans and any duplicate (src,tgt,kind).
         const resolvedEdges = [];
         for (const raw of allRawEdges) {
+          if (raw.created_at && (!maxTs || raw.created_at > maxTs)) maxTs = raw.created_at;
           const s = refs.nodeIndex.get(raw.source_id);
           const t = refs.nodeIndex.get(raw.target_id);
           if (s == null || t == null) continue;
@@ -947,6 +1216,11 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
         refs.edges = resolvedEdges;
         writeEdgeColors(refs);
 
+        // Filters set before the corpus arrived (or surviving a "Try again")
+        // apply to the freshly built node list — otherwise a reload silently
+        // un-hides everything while the legend still shows the rows struck out.
+        if (refs.hiddenKinds || refs.isolateWs) applyVisualFilters(refs);
+
         // Hand off to the worker. The worker computes positions and
         // posts them back; we render whatever it gives us.
         if (refs.worker) {
@@ -959,6 +1233,10 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
           refs.worker.postMessage({ type: 'init', nodes: initNodes, links: initLinks });
         }
         refs.snapshotReady = true;
+        // Null when the corpus is empty — useUniverseDeltas then omits `since`
+        // entirely rather than substituting a local clock.
+        sinceRef.current = maxTs;
+        setDeltaReady(true);
         reportStats(refs);
         if (import.meta.env.DEV && typeof window !== 'undefined') {
           // QA hook for the ?adminpreview universe bench + Playwright.
@@ -1049,14 +1327,19 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
           refs.nodeIndex.set(n.id, idx);
           countKind(refs, n);
           writeNodeAppearance(refs, idx, n);
-          // Spawn a brief halo flash on every new node so the user
-          // can see it appear in the universe.
-          spawnFlash(refs, idx, n.threeColor);
+          // Queue, don't spawn — the worker hasn't placed this index yet, so
+          // there is no position to attach the effect to (see refs.pendingFx).
+          refs.pendingFx.push({ idx, color: n.threeColor, val: n.val || 8 });
+          refs.onArrivalFn?.(n);
         }
         refs.worker.postMessage({
           type: 'addNodes',
           nodes: newNodes.map(n => ({ id: n.id, val: n.val })),
         });
+        // New indices default to fully visible. If a filter is active, classify
+        // them now — otherwise a hidden kind quietly reappears one node at a
+        // time as the stream runs.
+        if (refs.hiddenKinds || refs.isolateWs) applyVisualFilters(refs);
       }
       if (newEdges.length) {
         ensureEdgeCapacity(refs, refs.edges.length + newEdges.length);
@@ -1083,8 +1366,10 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
     return () => clearInterval(id);
   }, [refs]);
 
-  useUniverseDeltas({
+  const deltaStream = useUniverseDeltas({
     enabled: !dataSource?.disableDeltas,
+    ready: deltaReady,
+    sinceRef,
     onNode: (raw) => {
       if (refs.nodeIndex.has(raw.node_id)) return;
       refs.pendingNodes.push(toNode(raw));
@@ -1098,6 +1383,66 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
       for (const raw of edges) refs.pendingEdges.push({ raw, attempts: 0 });
     },
   });
+
+  // Surface stream health upward. Without this a still universe is ambiguous:
+  // it looks the same whether nothing was created or the socket is gone.
+  useEffect(() => {
+    onStream?.(deltaStream);
+  }, [onStream, deltaStream.status, deltaStream.lastDeltaAt]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Dev-only arrival injector ────────────────────────────────────
+  // Arrival choreography is the one thing here that cannot be iterated on by
+  // looking at it: the real event fires about three times an hour, at a
+  // location you did not choose. So DEV builds get a way to fire one on demand,
+  // through the SAME buffers the SSE path writes to — not a shortcut around
+  // them, or it would prove nothing about the code that actually runs.
+  //
+  // Guarded by the literal import.meta.env.DEV so the bundler drops it from
+  // production, matching every other QA harness in this repo.
+  useEffect(() => {
+    if (!import.meta.env.DEV || typeof window === 'undefined') return undefined;
+    window.__universeInject = (opts = {}) => {
+      if (!refs.snapshotReady || refs.nodes.length === 0) return null;
+      // Hang it off a real board so it lands somewhere plausible rather than
+      // at the origin, and so the board→card edge resolves like a real one.
+      const boards = refs.nodes.filter((n) => n.kind === 'board');
+      const host = boards.length
+        ? boards[Math.floor((opts.at ?? 0.5) * (boards.length - 1))]
+        : refs.nodes[0];
+      const id = `card:${host.id.slice(6)}:qa-${refs.nodes.length}-${opts.seq ?? 0}`;
+      const created_at = new Date().toISOString();
+      refs.pendingNodes.push(toNode({
+        node_id: id, kind: opts.kind || 'image',
+        workspace_id: host.workspace_id, created_at,
+      }));
+      refs.pendingEdges.push({
+        raw: { source_id: host.id, target_id: id, edge_kind: 'structural', created_at },
+        attempts: 0,
+      });
+      return id;
+    };
+    // Activity sparks have the same observability problem as arrivals, minus
+    // the delta stream — the harness has no realtime server at all, so without
+    // this the layer is invisible in the one place it can be iterated on.
+    window.__universeSpark = (count = 6) => {
+      const boards = refs.nodes
+        .map((n, i) => (n.kind === 'board' && refs.visMul[i] !== 0 ? i : -1))
+        .filter((i) => i >= 0);
+      if (!boards.length) return 0;
+      const now = performance.now();
+      for (let k = 0; k < count; k++) {
+        const idx = boards[Math.floor((k / count) * (boards.length - 1))];
+        pushFx(refs, {
+          kind: 'spark', nodeIdx: idx, start: now + k * 60,
+          dur: SPARK_DURATION_MS, color: SPARK_COLOR, val: refs.nodes[idx]?.val || 14,
+        });
+      }
+      return count;
+    };
+    return () => {
+      try { delete window.__universeInject; delete window.__universeSpark; } catch (_) { /* ignore */ }
+    };
+  }, [refs]);
 
   // ── Error / loading UI ───────────────────────────────────────────
   if (error) {
@@ -1117,6 +1462,12 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
   return (
     <div className="universe-canvas" ref={containerRef} style={{ background: SPACE_BG }}>
       <div className="grain-surface" aria-hidden="true" style={{ zIndex: 1, pointerEvents: 'none' }} />
+      {/* Vignette. A CSS overlay rather than a post-processing pass: the
+          composer already runs bloom over the full frame, and a second pass to
+          darken corners would cost real milliseconds to do what one gradient
+          does for free. */}
+      <div className="universe-vignette" aria-hidden="true" />
+      {hover && <HoverCard hover={hover} />}
       {calibrating && (
         <div className="universe-overlay">
           <div className="universe-overlay-inner">
@@ -1129,6 +1480,42 @@ export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false, dataSo
       )}
     </div>
   );
+}
+
+// The hover readout. Deliberately the same three facts the click drawer shows —
+// kind, workspace, created — because the privacy contract is that this view
+// carries identity and never content, and hover is not an exception to it.
+function HoverCard({ hover }) {
+  const n = hover.node;
+  const label = KIND_HOVER_LABELS[n.cardKind] || KIND_HOVER_LABELS[n.kind] || n.cardKind || n.kind;
+  return (
+    <div className="universe-hover surface-frosted"
+         style={{ left: hover.x, top: hover.y }}
+         aria-hidden="true">
+      <span className="universe-hover-dot" style={{ background: n.color }} />
+      <span className="universe-hover-kind">{label}</span>
+      <span className="universe-hover-time">{shortAgo(n.created_at)}</span>
+    </div>
+  );
+}
+
+const KIND_HOVER_LABELS = {
+  ws: 'Workspace', board: 'Board', doc: 'Doc', note: 'Note', image: 'Image',
+  palette: 'Palette', link: 'Link', grid: 'Grid', url: 'External link',
+  boardlink: 'Board link', card: 'Card',
+};
+
+// Compact relative age. adminFormat's relativeTime is prose ("3 hours ago");
+// this sits inside a ~140px chip beside a colour dot, where prose wraps.
+function shortAgo(iso) {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return '';
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if (s < 60)     return `${Math.round(s)}s`;
+  if (s < 3600)   return `${Math.round(s / 60)}m`;
+  if (s < 86400)  return `${Math.round(s / 3600)}h`;
+  if (s < 2592000) return `${Math.round(s / 86400)}d`;
+  return new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -1198,7 +1585,12 @@ const _tmpMatrix = new THREE.Matrix4();
 const _tmpPos    = new THREE.Vector3();
 const _tmpScale  = new THREE.Vector3();
 const _tmpQuat   = new THREE.Quaternion();
+const _tmpColor  = new THREE.Color();
 
+// Allocate this node's slot (anchors get a sphere; leaves get a disc) and then
+// write its appearance. Slot allocation is one-time and append-only; the visual
+// write is re-runnable, which is what lets filtering and isolation repaint
+// without disturbing the index alignment the worker mirrors.
 function writeNodeAppearance(refs, idx, node) {
   // User nodes are PHYSICS-ONLY — they exist in the simulation so
   // workspaces with shared people lean toward each other, but they
@@ -1206,42 +1598,95 @@ function writeNodeAppearance(refs, idx, node) {
   const r = node.kind === 'user' ? 0 : (node.val || 8) * 0.4;
   refs.baseScale[idx] = r;
 
-  // Halo attributes — color + size (per-vertex), all nodes.
+  if (node.isAnchor) {
+    ensureAnchorCapacity(refs, refs.anchorGlobals.length + 1);
+    const slot = refs.anchorGlobals.length;
+    refs.anchorGlobals.push(idx);
+    refs.anchorSlot[idx] = slot;
+    // Seed a valid zero-scale matrix. The real one is written on the next tick
+    // from the worker's position; until then the slot is already inside
+    // anchorMesh.count, and an all-zero (never-composed) matrix is degenerate
+    // rather than merely invisible. Zero SCALE is the well-defined way to say
+    // "not yet placed" — and it beats the old behaviour, which composed the
+    // sphere at full size on the world origin for a frame.
+    _tmpScale.set(0, 0, 0);
+    _tmpPos.set(0, 0, 0);
+    _tmpMatrix.compose(_tmpPos, _tmpQuat, _tmpScale);
+    refs.anchorMesh.setMatrixAt(slot, _tmpMatrix);
+    refs.anchorMesh.instanceMatrix.needsUpdate = true;
+    refs.anchorMesh.count = refs.anchorGlobals.length;
+  } else {
+    refs.anchorSlot[idx] = -1;
+  }
+  writeNodeVisual(refs, idx, node);
+}
+
+// The re-runnable half: colour and size only, with the per-node visibility and
+// dim multipliers folded in.
+//
+// Those two multipliers exist so legend filtering, workspace isolation and the
+// arrival afterglow never have to know about each other. Each feature writes a
+// multiplier; this is the single place that turns multipliers into pixels.
+// Mutating colours in place instead (the obvious approach) means whichever
+// feature repaints last silently wins, and the node's true colour is gone.
+function writeNodeVisual(refs, idx, node) {
+  const vis = refs.visMul[idx];
+  const dim = refs.dimMul[idx];
+  const r = refs.baseScale[idx];
+  const c = node.threeColor;
+  const cr = c.r * dim, cg = c.g * dim, cb = c.b * dim;
+
   const hc = refs.haloPoints.geometry.attributes.color;
   const hs = refs.haloPoints.geometry.attributes.size;
-  hc.array[idx * 3]     = node.threeColor.r;
-  hc.array[idx * 3 + 1] = node.threeColor.g;
-  hc.array[idx * 3 + 2] = node.threeColor.b;
-  hs.array[idx]         = r * 3.7;
+  hc.array[idx * 3]     = cr;
+  hc.array[idx * 3 + 1] = cg;
+  hc.array[idx * 3 + 2] = cb;
+  hs.array[idx]         = r * 3.7 * vis;
   hc.needsUpdate = true;
   hs.needsUpdate = true;
 
   const bc = refs.bodyPoints.geometry.attributes.color;
   const bs = refs.bodyPoints.geometry.attributes.size;
-  if (node.isAnchor) {
-    // Sphere slot; body disc disabled for this index.
-    ensureAnchorCapacity(refs, refs.anchorGlobals.length + 1);
-    const slot = refs.anchorGlobals.length;
-    refs.anchorGlobals.push(idx);
-    refs.anchorSlot[idx] = slot;
-    _tmpScale.set(r, r, r);
-    _tmpPos.set(0, 0, 0);
-    _tmpMatrix.compose(_tmpPos, _tmpQuat, _tmpScale);
-    refs.anchorMesh.setMatrixAt(slot, _tmpMatrix);
-    refs.anchorMesh.setColorAt(slot, node.threeColor);
-    refs.anchorMesh.count = refs.anchorGlobals.length;
-    refs.anchorMesh.instanceMatrix.needsUpdate = true;
+  const slot = refs.anchorSlot[idx];
+  if (slot >= 0) {
+    // Anchors are true spheres. Hiding one means scaling its instance to zero;
+    // the matrix is rewritten every tick from baseScale, so the vis multiplier
+    // has to live there too (see uploadPositions).
+    refs.anchorMesh.setColorAt(slot, _tmpColor.setRGB(cr, cg, cb));
     if (refs.anchorMesh.instanceColor) refs.anchorMesh.instanceColor.needsUpdate = true;
     bs.array[idx] = 0;
   } else {
-    refs.anchorSlot[idx] = -1;
-    bc.array[idx * 3]     = node.threeColor.r;
-    bc.array[idx * 3 + 1] = node.threeColor.g;
-    bc.array[idx * 3 + 2] = node.threeColor.b;
-    bs.array[idx]         = r * 2;      // shader takes world DIAMETER
+    bc.array[idx * 3]     = cr;
+    bc.array[idx * 3 + 1] = cg;
+    bc.array[idx * 3 + 2] = cb;
+    bs.array[idx]         = r * 2 * vis;   // shader takes world DIAMETER
   }
   bc.needsUpdate = true;
   bs.needsUpdate = true;
+}
+
+// Recompute every node's visibility/dim from the current filters, then repaint.
+// O(N) — a few milliseconds on today's corpus, and it only runs when a filter
+// actually changes, never per frame.
+const DIM_FACTOR = 0.16;
+function applyVisualFilters(refs) {
+  if (!refs.bodyPoints || !refs.haloPoints) return;
+  const hidden = refs.hiddenKinds;
+  const iso    = refs.isolateWs;
+  const hasHidden = hidden && hidden.size > 0;
+  for (let i = 0; i < refs.nodes.length; i++) {
+    const n = refs.nodes[i];
+    if (!n) continue;
+    const legendKey = n.cardKind && COLOR[n.cardKind] ? n.cardKind : n.kind;
+    // Users are invisible either way; isolating never dims them into a
+    // different kind of invisible.
+    const isHidden = hasHidden && hidden.has(legendKey);
+    const isDim    = !!iso && n.kind !== 'user' && n.workspace_id !== iso;
+    refs.visMul[i] = isHidden ? 0 : 1;
+    refs.dimMul[i] = isDim ? DIM_FACTOR : 1;
+    writeNodeVisual(refs, i, n);
+  }
+  writeEdgeColors(refs);
 }
 
 function writeEdgeColors(refs) {
@@ -1256,10 +1701,18 @@ function writeEdgeColors(refs) {
             : e.kind === 'scaffold'   ? SCAFFOLD_RGB
             : e.kind === 'structural' ? STRUCTURAL_RGB
             :                           SEMANTIC_RGB;
+    // An edge is only as visible as its dimmer endpoint. A thread left at full
+    // strength between two dimmed nodes reads as the brightest thing on screen
+    // once everything around it fades — the isolate view would be all edges.
+    const m = c
+      ? Math.min(refs.visMul[e.sourceIdx], refs.visMul[e.targetIdx]) *
+        Math.min(refs.dimMul[e.sourceIdx], refs.dimMul[e.targetIdx])
+      : 0;
     const base = i * 6;
-    if (c) {
-      ca.array[base]     = c.r; ca.array[base + 1] = c.g; ca.array[base + 2] = c.b;
-      ca.array[base + 3] = c.r; ca.array[base + 4] = c.g; ca.array[base + 5] = c.b;
+    if (c && m > 0) {
+      const r = c.r * m, g = c.g * m, b = c.b * m;
+      ca.array[base]     = r; ca.array[base + 1] = g; ca.array[base + 2] = b;
+      ca.array[base + 3] = r; ca.array[base + 4] = g; ca.array[base + 5] = b;
     } else {
       ca.array[base] = ca.array[base + 1] = ca.array[base + 2] = 0;
       ca.array[base + 3] = ca.array[base + 4] = ca.array[base + 5] = 0;
@@ -1287,7 +1740,10 @@ function uploadPositions(refs, count) {
   for (let s = 0; s < refs.anchorGlobals.length; s++) {
     const i = refs.anchorGlobals[s];
     if (i >= count) continue;
-    const r = base[i];
+    // A filtered-out anchor scales to zero here rather than being removed from
+    // the instance list: slots are index-aligned with anchorGlobals for the
+    // life of the snapshot, and compacting them would desync every slot after.
+    const r = base[i] * refs.visMul[i];
     _tmpPos.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
     _tmpScale.set(r, r, r);
     _tmpMatrix.compose(_tmpPos, _tmpQuat, _tmpScale);
@@ -1331,7 +1787,10 @@ function pickNode(refs, ray) {
   let best = null, bestT = Infinity;
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-    if (!node || node.kind === 'user') continue;
+    // Users are invisible by design; filtered-out kinds are invisible by
+    // request. Neither may be picked — a click landing on something you cannot
+    // see is the definition of a phantom hit.
+    if (!node || node.kind === 'user' || refs.visMul[i] === 0) continue;
     const px = pos[i * 3]     - ro.x;
     const py = pos[i * 3 + 1] - ro.y;
     const pz = pos[i * 3 + 2] - ro.z;
@@ -1403,6 +1862,9 @@ function maybeAutoFit(refs, count) {
   if (!refs.camera || !refs.controls || count === 0) return;
   const bs = computeBoundingSphere(refs, count);
   if (!bs || !isFinite(bs.radius)) return;
+  // Size the fog to the universe rather than to fixed world units, so a
+  // 500-unit corpus and a 5,000-unit one both get the same amount of depth.
+  setFogRange(refs, bs.radius);
   const targetCenter = new THREE.Vector3(bs.cx, bs.cy, bs.cz);
   const needed = fitDistance(bs.radius, refs.camera);
   const dir = refs.camera.position.clone().sub(refs.controls.target).normalize();
@@ -1422,6 +1884,7 @@ function requestFit(refs) {
   if (count === 0) return;
   const bs = computeBoundingSphere(refs, count);
   if (!bs || !isFinite(bs.radius)) return;
+  setFogRange(refs, bs.radius);
   const targetCenter = new THREE.Vector3(bs.cx, bs.cy, bs.cz);
   const needed = fitDistance(bs.radius, refs.camera);
   const dir = refs.camera.position.clone().sub(refs.controls.target).normalize();
@@ -1431,6 +1894,40 @@ function requestFit(refs) {
   refs.fitToPos      = targetCenter.clone().add(dir.multiplyScalar(needed));
   refs.fitToTarget   = targetCenter.clone();
   refs.fitStart      = performance.now();
+  refs.fitDuration   = 700;
+  refs.fitAnimating  = true;
+  refs.lastFitAt     = refs.fitStart;
+}
+
+// Fly to one node, keeping the current viewing direction so the trip reads as
+// approaching rather than teleporting. Same lerp machinery as requestFit —
+// this is that function with an arbitrary target instead of the bounding
+// sphere's centre.
+//
+// The stop distance scales with the node's own radius, so arriving at a
+// workspace anchor frames a neighbourhood and arriving at a card frames the
+// card. A fixed distance does one of those two jobs badly.
+function flyToNode(refs, idx) {
+  if (!refs.camera || !refs.controls) return;
+  const pos = refs.positions;
+  if (!pos || idx * 3 + 2 >= pos.length) return;
+  const target = new THREE.Vector3(pos[idx * 3], pos[idx * 3 + 1], pos[idx * 3 + 2]);
+  const r = Math.max(refs.baseScale[idx] || 0, 3);
+  // Stop far enough out to see the node's neighbourhood. Scaling purely by the
+  // node's own radius put a card's camera ~90 units away, which lands you
+  // INSIDE the swarm: the arrival is dead centre and completely
+  // indistinguishable from the hundred cards crowding the frame. The floor is
+  // what makes the destination legible; the multiplier still gives a board or
+  // workspace the wider berth it needs.
+  const needed = Math.max(240, r * 30);
+  const dir = refs.camera.position.clone().sub(refs.controls.target).normalize();
+  if (dir.lengthSq() === 0) dir.set(0, 1, 0);
+  refs.fitFromPos    = refs.camera.position.clone();
+  refs.fitFromTarget = refs.controls.target.clone();
+  refs.fitToPos      = target.clone().add(dir.multiplyScalar(needed));
+  refs.fitToTarget   = target.clone();
+  refs.fitStart      = performance.now();
+  refs.fitDuration   = 900;
   refs.fitAnimating  = true;
   refs.lastFitAt     = refs.fitStart;
 }
@@ -1452,6 +1949,14 @@ function ensureNodeCapacity(refs, needed) {
   const newBody = makeBodyPoints(newCap, newShared);
   const newHalo = makeHaloPoints(newCap, newShared);
   newBody.material.uniforms.uPxPerUnit.value = refs.pxPerUnit;
+  // Fresh materials come with fog disabled (1e9). Carry the sized range across
+  // the swap or the universe silently flattens the moment it outgrows a buffer.
+  if (refs.fogNear) {
+    newBody.material.uniforms.uFogNear.value = refs.fogNear;
+    newBody.material.uniforms.uFogFar.value  = refs.fogFar;
+    newHalo.material.uniforms.uFogNear.value = refs.fogNear;
+    newHalo.material.uniforms.uFogFar.value  = refs.fogFar;
+  }
 
   const ob = oldBody.geometry.attributes;
   const nb = newBody.geometry.attributes;
@@ -1477,6 +1982,17 @@ function ensureNodeCapacity(refs, needed) {
   const newBase = new Float32Array(newCap);
   newBase.set(refs.baseScale.subarray(0, oldCount));
   refs.baseScale = newBase;
+
+  // Grown filled with 1 so a node that arrives while a filter is active is
+  // visible-by-default until applyVisualFilters classifies it — the delta path
+  // calls that right after appending, so the window is one flush wide.
+  const newVis = new Float32Array(newCap).fill(1);
+  newVis.set(refs.visMul.subarray(0, oldCount));
+  refs.visMul = newVis;
+
+  const newDim = new Float32Array(newCap).fill(1);
+  newDim.set(refs.dimMul.subarray(0, oldCount));
+  refs.dimMul = newDim;
 
   const newSlot = new Int32Array(newCap).fill(-1);
   newSlot.set(refs.anchorSlot.subarray(0, oldCount));
@@ -1545,9 +2061,67 @@ function spawnFlash(refs, nodeIdx, color) {
   });
 }
 
+// The shockwave. Gold, because --soleil is the reserved active-state accent and
+// a node arriving is about as active as this surface gets.
+function spawnRing(refs, nodeIdx, val) {
+  pushFx(refs, {
+    kind: 'ring',
+    nodeIdx,
+    start: performance.now(),
+    dur: RING_DURATION_MS,
+    color: PULSE_COLOR,
+    val: val || refs.nodes[nodeIdx]?.val || 8,
+  });
+}
+
+// Drain queued arrival effects for every node the worker has now placed.
+// `count` is the tick's node count: anything at or past it still has no
+// position, so it waits for the next tick rather than being drawn at (0,0,0).
+function drainArrivalFx(refs, count) {
+  const now = performance.now();
+  const waiting = [];
+  for (const q of refs.pendingFx) {
+    if (q.idx >= count) { waiting.push(q); continue; }
+    spawnRing(refs, q.idx, q.val);
+    spawnFlash(refs, q.idx, q.color);
+    refs.hotNodes.set(q.idx, { start: now, until: now + HOT_DURATION_MS });
+  }
+  refs.pendingFx = waiting;
+}
+
+// The minute-long afterglow. Walks only the nodes currently hot — a Map with
+// single-digit entries at this platform's arrival rate — and writes straight
+// into the halo size attribute, restoring the resting value on expiry.
+//
+// Indices are stable for the lifetime of a snapshot and ensureNodeCapacity
+// copies the size array forward, so a buffer swap mid-glow is transparent here.
+function updateHot(refs, now) {
+  if (refs.hotNodes.size === 0 || !refs.haloPoints) return;
+  const hs = refs.haloPoints.geometry.attributes.size;
+  for (const [idx, h] of refs.hotNodes) {
+    // Filtered-out nodes glow at zero: an arrival must never punch through a
+    // filter the operator deliberately set.
+    const base = refs.baseScale[idx] * 3.7 * refs.visMul[idx];
+    if (now >= h.until) {
+      hs.array[idx] = base;
+      refs.hotNodes.delete(idx);
+      continue;
+    }
+    const t = (now - h.start) / HOT_DURATION_MS;
+    hs.array[idx] = base * (1 + (HOT_HALO_BOOST - 1) * Math.pow(1 - t, 2));
+  }
+  hs.needsUpdate = true;
+}
+
 function pushFx(refs, entry) {
-  // Bounded buffer — drop oldest if we'd exceed FX_CAPACITY.
-  if (refs.activeFx.length >= FX_CAPACITY) refs.activeFx.shift();
+  // Bounded buffer — drop oldest if we'd exceed FX_CAPACITY. The selection ring
+  // is exempt: it is state rather than an event, and evicting it would make the
+  // selection quietly vanish from the scene while the drawer still shows it.
+  if (refs.activeFx.length >= FX_CAPACITY) {
+    const at = refs.activeFx.findIndex((f) => f.kind !== 'select');
+    if (at >= 0) refs.activeFx.splice(at, 1);
+    else refs.activeFx.shift();
+  }
   refs.activeFx.push(entry);
 }
 
@@ -1591,6 +2165,39 @@ function updateFx(refs, now) {
       const base = (f.val || 8) * 3.7;
       size  = base * (1 + 2 * (1 - t));
       alpha = (1 - t) * 0.7;
+    } else if (f.kind === 'spark') {
+      x = pos[f.nodeIdx * 3];
+      y = pos[f.nodeIdx * 3 + 1];
+      z = pos[f.nodeIdx * 3 + 2];
+      // A quick blink out and back: peaks early, gone fast. Small enough that a
+      // busy hour reads as a shimmer across the map rather than a fireworks
+      // display competing with real arrivals.
+      size  = (f.val || 14) * (2.2 + 2.6 * t);
+      alpha = Math.sin(Math.PI * t) * 0.42;
+    } else if (f.kind === 'select') {
+      // Persistent while selected: a slow breathe rather than a decay, so it
+      // reads as state instead of as an event that never finished.
+      x = pos[f.nodeIdx * 3];
+      y = pos[f.nodeIdx * 3 + 1];
+      z = pos[f.nodeIdx * 3 + 2];
+      // Sized well clear of the node's own halo. At the original 5.5x it sat
+      // inside the local bloom and was indistinguishable from any other bright
+      // spot — which matters most right after a fly-to, when finding the thing
+      // you travelled to is the entire job.
+      const breathe = 0.5 + 0.5 * Math.sin((now - f.start) / 420);
+      size  = (f.val || 8) * (10 + 3 * breathe);
+      alpha = 0.30 + 0.25 * breathe;
+    } else if (f.kind === 'ring') {
+      x = pos[f.nodeIdx * 3];
+      y = pos[f.nodeIdx * 3 + 1];
+      z = pos[f.nodeIdx * 3 + 2];
+      // Expands fast then coasts, fading quadratically — the eye catches the
+      // leading edge of the growth, not the peak brightness. Cubic ease-out on
+      // size against a squared alpha falloff is what makes it read as a
+      // shockwave rather than a slow bloom.
+      const eased = 1 - Math.pow(1 - t, 3);
+      size  = (f.val || 8) * 2 * (1 + (RING_MAX_SCALE - 1) * eased);
+      alpha = Math.pow(1 - t, 2) * 0.5;
     }
     ap[writeIdx * 3]     = x;
     ap[writeIdx * 3 + 1] = y;

@@ -22,9 +22,22 @@ const series = (n, fn) => Array.from({ length: n }, (_, i) => fn(n - 1 - i)); //
 
 const signupsByDay = series(30, (back) => ({ day: dayISO(back), signups: Math.max(0, wave(30 - back, 9, 5)) }));
 const cardsPerDay  = series(30, (back) => ({ day: dayISO(back), cards: Math.max(0, wave(30 - back, 58, 26)) }));
-const waitlistFunnel = series(30, (back) => {
-  const submitted = Math.max(0, wave(30 - back, 14, 6));
-  return { day: dayISO(back), submitted, accepted: Math.round(submitted * 0.42) };
+// Per-minute activity for the Command Center's Pulse panel. Oldest→newest,
+// ending one minute short of now — the same complete-minutes-only window
+// admin_activity_pulse() returns, because the live appender in
+// useActivityPulse owns the in-progress minute and the harness must exercise
+// that handoff rather than paper over it.
+//
+// Bursty on purpose: a smooth wave would hide the case the real panel spends
+// most of its time in, which is a scatter of mostly-empty minutes.
+const activityPulse = series(60, (back) => {
+  const i = 60 - back;
+  const burst = (i % 7 === 0) ? 9 : (i % 3 === 0) ? 3 : (i % 5 === 0) ? 1 : 0;
+  return {
+    minute: new Date(TODAY.getTime() - (back + 1) * 60000).toISOString(),
+    events: burst,
+    actors: burst > 0 ? Math.min(3, Math.ceil(burst / 4)) : 0,
+  };
 });
 const metricsHistory = series(60, (back) => {
   const i = 60 - back;
@@ -227,7 +240,7 @@ const RPCS = {
   ],
   admin_avg_time_to_paid: { paid_users: 142, avg_seconds: 205200, median_seconds: 151200 },
   admin_signups_by_day: signupsByDay,
-  admin_waitlist_funnel: waitlistFunnel,
+  admin_activity_pulse: activityPulse,
   admin_metrics_history: metricsHistory,
   admin_cards_per_day: cardsPerDay,
   admin_kpi_summary: kpi,
@@ -556,11 +569,20 @@ export function installAdminPreviewMocks(supabase) {
   supabase.rpc = (name, params) =>
     Promise.resolve({ data: rpcResult(name, params), error: null });
   supabase.from = (table) => makeBuilder(table);
-  // The Command Center's live placement tape subscribes to a realtime channel.
-  // Stub it so the harness renders the backfilled tape instead of throwing;
-  // no live rows arrive, which is the honest quiet-wall state anyway.
+  // The Command Center's live placement tape and its Pulse panel each subscribe
+  // to a realtime channel. Stub both so the harness renders the backfilled data
+  // instead of throwing; no live rows arrive, which is the honest quiet-wall
+  // state anyway.
+  //
+  // The subscribe callback IS invoked with 'SUBSCRIBED'. Skipping it leaves
+  // those panels stuck reporting a dead socket, which would make the harness
+  // exercise the one state it is least able to tell you anything true about.
   supabase.channel = () => {
-    const ch = { on: () => ch, subscribe: () => ch, unsubscribe: () => Promise.resolve('ok') };
+    const ch = {
+      on: () => ch,
+      subscribe: (cb) => { try { cb?.('SUBSCRIBED'); } catch (_) { /* ignore */ } return ch; },
+      unsubscribe: () => Promise.resolve('ok'),
+    };
     return ch;
   };
   supabase.removeChannel = () => Promise.resolve('ok');
