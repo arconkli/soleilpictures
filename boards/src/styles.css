@@ -19583,64 +19583,6 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   text-align: left;
 }
 
-/* ── Recent arrivals ───────────────────────────────────────────────── */
-/* Top-left, opposite the legend. This is the panel that makes a once-per-
-   twenty-minutes event catchable: the ring you missed is still listed here. */
-.universe-arrivals {
-  position: absolute;
-  left: 18px;
-  top: 74px;
-  z-index: 3;
-  width: 208px;
-  padding: 10px 12px;
-  pointer-events: auto;
-}
-.universe-arrivals-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
-.universe-arrivals-dot {
-  width: 6px; height: 6px; border-radius: 999px;
-  background: var(--soleil);
-  box-shadow: 0 0 8px rgba(255,165,0,0.8);
-  animation: universe-pip 2.4s ease-in-out infinite;
-}
-.universe-arrivals-dot.is-down {
-  background: var(--ink-3);
-  box-shadow: none;
-  animation: none;
-}
-.universe-arrivals-pulse {
-  margin: -2px 0 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-  color: var(--ink-2);
-  font-variant-numeric: tabular-nums;
-}
-.universe-arrivals-empty { line-height: 1.45; color: var(--ink-3); }
-.universe-arrivals-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.universe-arrival {
-  display: grid;
-  grid-template-columns: 8px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 4px 6px;
-  margin-left: -6px;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.15s var(--ease);
-}
-.universe-arrival:hover { background: rgba(255,255,255,0.07); }
-.universe-arrival-dot { width: 8px; height: 8px; border-radius: 999px; box-shadow: 0 0 6px currentColor; }
-.universe-arrival-kind { font: 500 11px/1.2 var(--font-sans); color: var(--ink-1); }
-.universe-arrival-age  { font: 500 10px/1.2 var(--font-sans); color: var(--ink-3); font-variant-numeric: tabular-nums; }
-@media (max-width: 720px) {
-  .universe-arrivals { display: none; }
-}
-
 /* ── Hover readout ─────────────────────────────────────────────────── */
 /* Offset from the cursor so it never sits under the pointer and never blocks
    the click it is describing. */
@@ -19699,8 +19641,7 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   50%      { opacity: 0.35; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .universe-ticker-health .universe-ticker-pip,
-  .universe-arrivals-dot { animation: none; }
+  .universe-ticker-health .universe-ticker-pip { animation: none; }
 }
 
 /* Drawer action — "Isolate this workspace". */

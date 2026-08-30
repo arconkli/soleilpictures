@@ -511,20 +511,15 @@ function makeFxPoints(capacity) {
 // which never become nodes or edges (tag attachments, cards on soft-deleted
 // boards), so a HUD reading the counters can claim connections the universe
 // does not draw.
-// onArrival — fires once per node the delta stream adds, with the render node.
-//   Feeds the arrivals rail, which is what makes a rare event catchable: miss
-//   the ring and the thing that arrived is still listed, one click from being
-//   flown to.
 // onStream — fires with { status, lastDeltaAt } so a HUD can say whether the
 //   socket is alive. On a universe that is legitimately still for twenty
 //   minutes at a stretch, "nothing is happening" and "nothing is arriving
 //   because the stream died" are the same picture without this.
-// focusRequest — { id, nonce }; bump the nonce to fly the camera to that node.
 // hiddenKinds — Set of render kinds to hide (legend filtering).
 // isolateWorkspaceId — dim everything outside one workspace.
 export function UniverseGraph({
   onNodeClick, resetSignal, fitAll = false, dataSource = null, onStats = null,
-  onArrival = null, onStream = null, focusRequest = null,
+  onStream = null,
   hiddenKinds = null, isolateWorkspaceId = null, selectedId = null,
   activity = null,
 }) {
@@ -583,7 +578,6 @@ export function UniverseGraph({
     sparkCooldown: new Map(),       // node idx → next allowed spark (perf clock)
     onNodeClickFn: onNodeClick,
     onStatsFn: onStats,
-    onArrivalFn: onArrival,
     // Auto-fit state. didInitialFit gates the first snap-to-fit.
     // fitAnimating drives a smooth pull-back when the universe grows.
     interacting: false,
@@ -597,7 +591,6 @@ export function UniverseGraph({
   // Keep callbacks fresh without re-mounting the whole scene.
   useEffect(() => { refs.onNodeClickFn = onNodeClick; }, [onNodeClick, refs]);
   useEffect(() => { refs.onStatsFn = onStats; }, [onStats, refs]);
-  useEffect(() => { refs.onArrivalFn = onArrival; }, [onArrival, refs]);
 
   // Legend filtering + workspace isolation. Both repaint through the same
   // multiplier pass, so they compose: hide every kind but images, then isolate
@@ -656,19 +649,6 @@ export function UniverseGraph({
     // The id set is bounded by the hook's own window; trim if it ever isn't.
     if (refs.seenActivity.size > 4000) refs.seenActivity = new Set();
   }, [activity, refs]);
-
-  // Fly to a node on request (the arrivals rail). nonce, not id, so asking for
-  // the same node twice still flies.
-  useEffect(() => {
-    if (!focusRequest?.id) return;
-    const idx = refs.nodeIndex.get(focusRequest.id);
-    if (idx == null) return;
-    flyToNode(refs, idx);
-    // Select it too. Flying somewhere and then having to find the thing you
-    // flew to defeats the trip — the selection ring is what says "this one",
-    // and it is the only marker that survives the arrival glow expiring.
-    refs.onNodeClickFn?.(refs.nodes[idx]);
-  }, [focusRequest?.nonce, focusRequest?.id, refs]);
 
   // Opt-in: frame every visible node on auto-fit/reset (Command Center wants the
   // whole universe inside its box, not the 95th-percentile bulk).
@@ -854,7 +834,11 @@ export function UniverseGraph({
         if (refs.onNodeClickFn) refs.onNodeClickFn(picked);
       } else {
         // Empty space click → enter pointer-lock fly mode.
-        try { renderer.domElement.requestPointerLock(); } catch (_) {}
+        // Returns a PROMISE in current Chrome, so a refusal ("not valid for
+        // pointer lock" — sandboxed frames, headless) rejects asynchronously
+        // and sails straight past the try/catch as an unhandled rejection.
+        // Both arms are needed: the throw for older engines, the catch for new.
+        try { renderer.domElement.requestPointerLock()?.catch?.(() => {}); } catch (_) {}
       }
     };
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
@@ -1330,7 +1314,6 @@ export function UniverseGraph({
           // Queue, don't spawn — the worker hasn't placed this index yet, so
           // there is no position to attach the effect to (see refs.pendingFx).
           refs.pendingFx.push({ idx, color: n.threeColor, val: n.val || 8 });
-          refs.onArrivalFn?.(n);
         }
         refs.worker.postMessage({
           type: 'addNodes',
@@ -1899,38 +1882,6 @@ function requestFit(refs) {
   refs.lastFitAt     = refs.fitStart;
 }
 
-// Fly to one node, keeping the current viewing direction so the trip reads as
-// approaching rather than teleporting. Same lerp machinery as requestFit —
-// this is that function with an arbitrary target instead of the bounding
-// sphere's centre.
-//
-// The stop distance scales with the node's own radius, so arriving at a
-// workspace anchor frames a neighbourhood and arriving at a card frames the
-// card. A fixed distance does one of those two jobs badly.
-function flyToNode(refs, idx) {
-  if (!refs.camera || !refs.controls) return;
-  const pos = refs.positions;
-  if (!pos || idx * 3 + 2 >= pos.length) return;
-  const target = new THREE.Vector3(pos[idx * 3], pos[idx * 3 + 1], pos[idx * 3 + 2]);
-  const r = Math.max(refs.baseScale[idx] || 0, 3);
-  // Stop far enough out to see the node's neighbourhood. Scaling purely by the
-  // node's own radius put a card's camera ~90 units away, which lands you
-  // INSIDE the swarm: the arrival is dead centre and completely
-  // indistinguishable from the hundred cards crowding the frame. The floor is
-  // what makes the destination legible; the multiplier still gives a board or
-  // workspace the wider berth it needs.
-  const needed = Math.max(240, r * 30);
-  const dir = refs.camera.position.clone().sub(refs.controls.target).normalize();
-  if (dir.lengthSq() === 0) dir.set(0, 1, 0);
-  refs.fitFromPos    = refs.camera.position.clone();
-  refs.fitFromTarget = refs.controls.target.clone();
-  refs.fitToPos      = target.clone().add(dir.multiplyScalar(needed));
-  refs.fitToTarget   = target.clone();
-  refs.fitStart      = performance.now();
-  refs.fitDuration   = 900;
-  refs.fitAnimating  = true;
-  refs.lastFitAt     = refs.fitStart;
-}
 
 // Grow the per-node buffers (shared positions, body + halo colors and
 // sizes, baseScale, anchorSlot). Anchor sphere capacity grows
