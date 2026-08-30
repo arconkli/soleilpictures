@@ -63,6 +63,32 @@ function loadLocalSession() {
 }
 
 function createInitialState() {
+  // The photo-dump surface (see MIX_QA_COUNT): images only, no writing anywhere.
+  // Checked before BLANK_SEED so `&blank=1&mixqa=N` reads the way it looks —
+  // still a bare Studio, just one already carrying the pictures.
+  if (MIX_QA_COUNT > 0) {
+    return {
+      boards: {
+        [ROOT_ID]: {
+          id: ROOT_ID, name: 'Studio', view: 'canvas',
+          workspace_id: 'local-workspace', parent_board_id: null,
+          created_at: new Date(0).toISOString(),
+        },
+      },
+      boardState: {
+        [ROOT_ID]: {
+          // No `src`: the tone placeholder is enough, and the dock counts kinds
+          // rather than pixels. Keeping them off the network also keeps the
+          // spec from depending on a fixture load.
+          cards: Array.from({ length: MIX_QA_COUNT }, (_, i) => ({
+            id: `mixqa-${i}`, kind: 'image', tone: 'neutral',
+            x: 80 + (i % 5) * 260, y: 120 + Math.floor(i / 5) * 220, w: 240, h: 180,
+          })),
+          arrows: [], strokes: [],
+        },
+      },
+    };
+  }
   // Blank test surface (see BLANK_SEED): a clean empty Studio root so bare-canvas
   // placement clicks aren't swallowed by seeded demo cards. Same shape as
   // createOnboardingState's return.
@@ -121,6 +147,30 @@ const ONBOARD_PREVIEW = typeof window !== 'undefined'
 // demo card and places nothing. See createInitialState() below.
 const BLANK_SEED = typeof window !== 'undefined'
   && new URLSearchParams(window.location.search).get('blank') === '1';
+
+// Dev/test-only: ?local=1&reset=1&mixqa=4 boots a Studio root holding N image
+// cards and NOTHING else — the day-one photo dump. That board shape is the one
+// the mix prompt exists for (see lib/mixPrompt.js) and the one the harness
+// otherwise cannot reach at all: every other seam places cards by clicking a
+// rail tool, and there is no image tool because images need an upload backend.
+// Without this the prompt's whole render path would be assertable only against
+// source, which is the weaker of the two and reserved for App.jsx-only plumbing.
+//
+// Bounded to \d{1,2} per the 0198 rule that a QA seam never accepts an
+// unbounded number, and DEV-guarded on the same literal as the other harnesses
+// so the bundler drops it from production entirely.
+// The `import.meta.env.DEV` literal must gate the whole expression from the
+// OUTSIDE, not from inside the IIFE. Vite substitutes it textually, so this
+// folds to a plain `0` and every branch reading it becomes provably dead —
+// verified by grepping dist for `mixqa` after a production build. With the
+// check inside the body instead, the seeder survives terser into the shipped
+// bundle: the constant is still correct at runtime, but the dead code ships.
+const MIX_QA_COUNT = typeof window !== 'undefined' && import.meta.env.DEV
+  ? (() => {
+      const raw = new URLSearchParams(window.location.search).get('mixqa');
+      return /^\d{1,2}$/.test(raw || '') ? Number(raw) : 0;
+    })()
+  : 0;
 
 // Dev-only: add &tour=1 (best alongside &blank=1) to walk the REAL first-run
 // guided tour on a live local canvas — no Supabase / arm enrollment needed.

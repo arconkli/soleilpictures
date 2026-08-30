@@ -98,6 +98,8 @@ import { getWheelMode, resolveWheelIntent } from '../lib/wheelMode.js';
 import { wheelHintSeen, markWheelHintSeen, trackWheelFrustration, freshWheelState } from '../lib/wheelHint.js';
 import { genuineCards, hasGenuineCard } from '../lib/firstValueTrigger.js';
 import { shouldShowDepthDock } from '../lib/depthDock.js';
+import { shouldPromptMix } from '../lib/mixPrompt.js';
+import { claimUpsellSlot, UPSELL_STACK_WINDOW_MS } from '../lib/upsellSlot.js';
 import { momentumHintSeen, markMomentumHintSeen } from '../lib/momentumHint.js';
 import { setJourneyState } from '../lib/journey.js';
 import { ShowcaseBanner } from './ShowcaseBanner.jsx';
@@ -1419,8 +1421,87 @@ export function CanvasSurface({
     setDepthDockDismissed(stored);
   }, [depthDockKey]);
 
-  const depthGenuineCount = genuineCards(cards).length;
-  const depthDockVisible = shouldShowDepthDock({
+  const depthGenuine = genuineCards(cards);
+  const depthGenuineCount = depthGenuine.length;
+
+  // ── Mix prompt ──
+  // The dock's second message. "Add images" is the right offer while a board is
+  // thin; once it is a pile of pictures with nothing written on it, the offer
+  // that correlates with the user ever coming back is "say what this is" — see
+  // mixPrompt.js for the day-one return table. Same dock, two asks, chosen by
+  // what is actually on the board.
+  //
+  // `text` counts every card written INTO, not just notes: a doc already is the
+  // behaviour being asked for, so prompting its author would be a false
+  // positive. Seeds and showcase cards are already excluded by genuineCards.
+  const mixImageCount = depthGenuine.filter((c) => c?.kind === 'image').length;
+  const mixTextCount = depthGenuine.filter(
+    (c) => c?.kind === 'note' || c?.kind === 'doc' || c?.kind === 'script',
+  ).length;
+
+  const mixPromptKey = board?.id ? `soleil.mixprompt.dismissed.${board.id}` : null;
+  const [mixPromptDismissed, setMixPromptDismissed] = useState(false);
+  useEffect(() => {
+    if (!mixPromptKey) { setMixPromptDismissed(false); return; }
+    let stored = false;
+    try { stored = localStorage.getItem(mixPromptKey) === '1'; } catch (_) {}
+    setMixPromptDismissed(stored);
+  }, [mixPromptKey]);
+
+  // Dismissal is tracked separately from the depth dock's on purpose. Waving
+  // away "add a few more" at one card must not also retire the ask that is
+  // actually load-bearing for return — they are different questions asked at
+  // different times, and sharing a key would let the cheap one silence the
+  // valuable one before it was ever eligible.
+  const mixPromptEligible = shouldPromptMix({
+    images: mixImageCount,
+    text: mixTextCount,
+    dismissed: mixPromptDismissed,
+    canEdit,
+    isPublic,
+  });
+
+  // The eligibility condition — a board going image-heavy with no writing — is
+  // satisfied by a bulk import in ONE tick, the same tick that trips the cap and
+  // crosses investedFrac. Claim the shared slot so this cannot join that
+  // pile-up. A refusal is a deferral, never a decline: retry when the window
+  // closes rather than losing the ask for the rest of the session.
+  // Whether we already hold the slot lives in a REF, not in state, and the
+  // per-board reset happens inside the same effect rather than a separate one.
+  // Both are load-bearing: claiming CONSUMES the slot, so any path that forgets
+  // a successful claim leaves the surface locked out for the full window while
+  // its own claim is the thing blocking it. A sibling reset effect plus React's
+  // double-invoked effects in development is exactly that path — claim, reset,
+  // re-claim against a slot we are already holding, and land on false. This is
+  // the same hazard upsellSlot's header describes as "a gate that burned a
+  // one-shot just by asking"; a ref survives the double-invoke, state does not.
+  const mixClaimRef = useRef({ boardId: null, held: false });
+  const [mixSlotHeld, setMixSlotHeld] = useState(false);
+  const [mixSlotRetry, setMixSlotRetry] = useState(0);
+  useEffect(() => {
+    if (!board?.id) return undefined;
+    if (mixClaimRef.current.boardId !== board.id) {
+      mixClaimRef.current = { boardId: board.id, held: false };
+      setMixSlotHeld(false);
+    }
+    if (!mixPromptEligible || mixClaimRef.current.held) return undefined;
+    if (claimUpsellSlot('mix-prompt')) {
+      mixClaimRef.current = { boardId: board.id, held: true };
+      setMixSlotHeld(true);
+      return undefined;
+    }
+    // Deferred, not declined: something louder owns this moment. Come back when
+    // its window closes rather than losing the ask for the rest of the session.
+    const t = setTimeout(() => setMixSlotRetry((n) => n + 1), UPSELL_STACK_WINDOW_MS);
+    return () => clearTimeout(t);
+  }, [mixPromptEligible, board?.id, mixSlotRetry]);
+
+  const mixPromptVisible = mixPromptEligible && mixSlotHeld;
+
+  // Mix wins the dock outright where the two bands overlap: at 3-5 images with
+  // no writing both are true, and "add more of the thing that doesn't predict
+  // return" is the offer being corrected.
+  const depthDockVisible = !mixPromptVisible && shouldShowDepthDock({
     genuine: depthGenuineCount,
     dismissed: depthDockDismissed,
     canEdit,
@@ -1434,11 +1515,28 @@ export function CanvasSurface({
     });
   }, [depthDockVisible, board?.id, depthGenuineCount]);
 
+  useEffect(() => {
+    if (!mixPromptVisible || !board?.id) return;
+    logEventOnce(`mix_prompt_shown:${board.id}`, EV.MIX_PROMPT_SHOWN, {
+      board_id: board.id,
+      images: mixImageCount,
+      text: mixTextCount,
+    });
+  }, [mixPromptVisible, board?.id, mixImageCount, mixTextCount]);
+
   const dismissDepthDock = () => {
     setDepthDockDismissed(true);
     try { if (depthDockKey) localStorage.setItem(depthDockKey, '1'); } catch (_) {}
     try {
       logEvent(EV.DEPTH_DOCK_DISMISSED, { board_id: board?.id || null, cards: depthGenuineCount });
+    } catch (_) {}
+  };
+
+  const dismissMixPrompt = () => {
+    setMixPromptDismissed(true);
+    try { if (mixPromptKey) localStorage.setItem(mixPromptKey, '1'); } catch (_) {}
+    try {
+      logEvent(EV.MIX_PROMPT_DISMISSED, { board_id: board?.id || null, images: mixImageCount });
     } catch (_) {}
   };
 
@@ -10222,6 +10320,38 @@ export function CanvasSurface({
                   aria-label="Dismiss"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={dismissDepthDock}>
+            <Icon as={X} size={14} weight="regular" />
+          </button>
+        </div>
+      )}
+
+      {/* Mix prompt — the same dock, asking a board of pictures for words.
+          Shares the dock's chrome deliberately: it is the same quiet corner
+          affordance making the next ask, not a new surface competing with it.
+          Resting control, so neutral ink — gold is reserved for active,
+          selection and focus states. */}
+      {mixPromptVisible && selectedTool === 'select' && (
+        <div className="cnv-depth-dock" role="group" aria-label="Add a note">
+          <button type="button" className="cnv-depth-dock-add"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => {
+                    markViewSettled();
+                    try {
+                      logEvent(EV.MIX_PROMPT_ENGAGED, {
+                        board_id: board?.id || null,
+                        images: mixImageCount,
+                      });
+                    } catch (_) {}
+                    buildAddActions(emptyCenterPos(), 'mix_prompt').find((a) => a.id === 'note')?.run();
+                  }}>
+            <Icon as={NotePencil} size={18} weight="regular" />
+            <span className="cnv-depth-dock-lbl">Add a note</span>
+            <span className="cnv-depth-dock-hint">say what this is</span>
+          </button>
+          <button type="button" className="cnv-depth-dock-x"
+                  aria-label="Dismiss"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={dismissMixPrompt}>
             <Icon as={X} size={14} weight="regular" />
           </button>
         </div>

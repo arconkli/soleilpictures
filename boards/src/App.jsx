@@ -4810,8 +4810,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       if (genuine.length >= MOMENTUM_THRESHOLD && !momDone) {
         localStorage.setItem(momKey, '1');
+        // `mix` answers the question CARD_MOMENTUM's own note left open — which
+        // bar lifecycle email should key off. Neither, as it turns out: day-one
+        // return splits on composition, not count. A board of images only comes
+        // back at the rate of an account that placed nothing; images plus any
+        // writing comes back at roughly twice that. Recording the composition at
+        // the moment the count bar is crossed is what makes the two separable
+        // in the same row, without disturbing a threshold that dormancy gates
+        // and months of history already read.
+        const nImg = genuine.filter((c) => c?.kind === 'image').length;
+        const nText = genuine.filter(
+          (c) => c?.kind === 'note' || c?.kind === 'doc' || c?.kind === 'script',
+        ).length;
         logEventOnce('card_momentum', EV.CARD_MOMENTUM, {
           board_id: currentId, n: genuine.length, threshold: MOMENTUM_THRESHOLD,
+          images: nImg,
+          text: nText,
+          mix: nImg > 0 && nText > 0 ? 'mixed' : nImg > 0 ? 'images_only' : 'text_only',
         });
       }
     } catch { /* localStorage unavailable — logEventOnce still de-dupes per page load */ }
