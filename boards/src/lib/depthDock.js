@@ -9,10 +9,19 @@
 // having added anything to look at.
 //
 // That matters because multi-select is the sharpest behavioural line between
-// users who fill a board and users who place one card and stop: filling a board
+// users who FILL a board and users who place one card and stop: filling a board
 // happens in one gesture that selects many files, far more often than in many
 // gestures that select one. The dock keeps a quiet version of the offer alive
 // through the band where boards are still too thin to be worth returning to.
+//
+// FILLING A BOARD IS NOT THE SAME AS COMING BACK, and this dock only ever
+// claimed the first. Bucketing day-one behaviour against whether the user ever
+// returned: one board of images only returns at 25%, which is exactly what
+// users who placed NOTHING return at. Images plus any writing returns at 55%.
+// So "add images" is the right offer while a board is still thin and the wrong
+// one the moment it isn't — past that point the ask is mixPrompt's ("say what
+// this is"), and this module deliberately stops at DEPTH_DOCK_MAX so it hands
+// off rather than competing. See mixPrompt.js for the full table.
 //
 // Kept pure and tested for the same reason `shouldWarnNearCap` is: the near-cap
 // warning lived inline as an equality test against a counter that moves in

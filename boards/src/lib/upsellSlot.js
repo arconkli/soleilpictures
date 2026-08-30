@@ -35,7 +35,13 @@ const ALWAYS_WINS = 'cap-hit';
 // an offer can always wait for the next card. It must never land on top of the
 // wall — being asked to show off work at the moment you were told you're
 // blocked is the worst possible pairing.
-const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask']);
+//
+// 'mix-prompt' is ambient for the same reason, and belongs here specifically
+// because of WHEN it becomes eligible: it triggers on a board going image-heavy
+// with no writing on it, which is precisely what a bulk import does in a single
+// tick — the same tick that crosses the cap and the investedFrac line. Without
+// a claim it would join the exact pile-up this module was written to stop.
+const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt']);
 
 // Module scope = page lifetime, like boardsApi's _capAnnounced. No auth reset
 // is wired for it on purpose: the claim self-expires in a minute, so the worst
