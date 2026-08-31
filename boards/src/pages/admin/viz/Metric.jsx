@@ -51,6 +51,15 @@ export function Metric({
   delta,
   /** Show the directional chip instead of a delta, with this denominator. */
   flagN,
+  /**
+   * The lifetime counterpart, shown small beside the window figure.
+   *
+   * Every total on this dashboard is paired with its recent number on purpose.
+   * A lifetime count on its own is a vanity number — it only goes up, so it
+   * cannot tell you anything is wrong — but sitting next to "this week" it
+   * gives the week a sense of scale. `{ value, label }`.
+   */
+  total,
   muted,
   hero,
   accent,
@@ -79,7 +88,15 @@ export function Metric({
         <div className="admin-stat-label">{label}</div>
         {delta ? <DeltaBadge delta={delta} /> : flagN != null ? <NFlag n={flagN} /> : null}
       </div>
-      <div className="admin-stat-value">{value == null ? '—' : value}</div>
+      <div className="admin-stat-figures">
+        <span className="admin-stat-value">{value == null ? '—' : value}</span>
+        {total && (
+          <span className="admin-stat-total">
+            <b>{total.value}</b>
+            <span>{total.label}</span>
+          </span>
+        )}
+      </div>
       {sub && <div className="admin-stat-sub">{sub}</div>}
       {spark && spark.length > 0 && (
         <div className="admin-stat-spark"><Spark values={spark} color={sparkColor} /></div>

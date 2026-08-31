@@ -532,6 +532,14 @@ RPCS.admin_journey_reconstruct_by_user = [
   journey('j-recent', 190, JOURNEY_A),
 ];
 
+// admin_universe_stats() -> platform_counters + today. Today's lifetime strip
+// and the "all time" figure beside each window metric read from this.
+RPCS.admin_universe_stats = {
+  total_users: 1284, total_workspaces: 640, total_boards: 1810, total_cards: 18420,
+  total_links: 2140, nodes_created_24h: 96, total_seconds_in_app: 4_812_000,
+  today: { users: 7, workspaces: 4, boards: 12, cards: 138, tags: 22, links: 0 },
+};
+
 RPCS.admin_paid_grants_status_counts = (() => {
   const g = RPCS.admin_list_paid_grants || [];
   const by = (s) => g.filter((r) => r.status === s).length;
