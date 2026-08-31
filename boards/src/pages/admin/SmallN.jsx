@@ -10,8 +10,8 @@
 //
 // Red is reserved for leaks/losses; amber means "interpret carefully".
 
-import { ResponsiveContainer, LineChart, Line } from 'recharts';
 import { MIN_POINTS, formatCount, formatPct, safeRate } from '../../lib/adminFormat.js';
+import { Spark as VizSpark } from './viz/TrendLine.jsx';
 
 // Amber "directional · n=N" chip — for KPI tiles whose rate is below the trust
 // floor but above the suppression floor.
@@ -43,20 +43,13 @@ export function ChartGate({ count, min = MIN_POINTS, title, sub, children }) {
   return children;
 }
 
-// Tiny sparkline with the MIN_POINTS honesty floor (shared by the KPI strip
-// and the landing scorecard). data = [{v}] ordered oldest→newest.
+// Tiny sparkline with the MIN_POINTS honesty floor. Kept as a thin adapter so
+// existing callers can keep passing [{v}]; the drawing (and the floor) now live
+// in viz/TrendLine, which is plain SVG and gap-aware.
 export function Spark({ data, color }) {
-  // Raised floor: sparse series are common, and a 1–2 point line reads as a
-  // trend. Below MIN_POINTS we show a muted "collecting" caption instead.
-  const pts = (data || []).length;
-  if (pts < MIN_POINTS) return <div className="admin-stat-spark-empty t-meta">collecting…</div>;
   return (
     <div className="admin-stat-spark">
-      <ResponsiveContainer width="100%" height={30}>
-        <LineChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
-          <Line type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} dot={false} isAnimationActive={false} />
-        </LineChart>
-      </ResponsiveContainer>
+      <VizSpark values={(data || []).map((d) => d?.v)} color={color} />
     </div>
   );
 }

@@ -10,12 +10,11 @@
 // outside the histogram. Gated below MIN_RATE_SHOW.
 
 import { useState } from 'react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LabelList } from 'recharts';
+import { Distribution } from '../../viz/Distribution.jsx';
 import { formatCount, MIN_RATE_SHOW } from '../../../../lib/adminFormat.js';
 import { CHART } from '../../chartTheme.js';
 import { PanelNote, ChartPlaceholder } from '../../SmallN.jsx';
 
-const SOLEIL = '#ffa500';
 // Canonical order so a missing bucket still shows a 0-height bar, left→right by time.
 const BUCKETS = ['<30s', '30-60s', '1-5m', '5-30m', '>30m', 'never'];
 
@@ -42,21 +41,16 @@ function Panel({ children }) {
 
 function Histogram({ buckets }) {
   const counts = new Map((buckets || []).map((b) => [b.label, Number(b.users) || 0]));
-  const chartData = BUCKETS.map((label) => ({ label, users: counts.get(label) || 0 }));
+  // BUCKETS is the fixed ordered set, so a bucket nobody landed in still gets a
+  // column — a histogram that silently drops its empty buckets is a lie about
+  // the shape of the distribution.
   return (
-    <ResponsiveContainer width="100%" height={200}>
-      <BarChart data={chartData} margin={{ top: 12, right: 12, bottom: 0, left: -12 }}>
-        <CartesianGrid {...CHART.grid} />
-        <XAxis dataKey="label" {...CHART.axis} />
-        <YAxis {...CHART.axis} allowDecimals={false} />
-        <Tooltip {...CHART.tooltip} cursor={{ fill: 'rgba(255,165,0,.08)' }}
-          formatter={(v) => [`${formatCount(v)} user${Number(v) === 1 ? '' : 's'}`, 'users']}
-          labelFormatter={(l) => (l === 'never' ? 'never (no card after >30m)' : l)} />
-        <Bar dataKey="users" fill={SOLEIL} radius={[3, 3, 0, 0]} {...CHART.noAnim}>
-          <LabelList dataKey="users" position="top" formatter={(v) => (v > 0 ? formatCount(v) : '')} fill="var(--ink-2)" fontSize={11} />
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <Distribution
+      buckets={BUCKETS.map((label) => ({ label, value: counts.get(label) || 0 }))}
+      height={170}
+      formatValue={(v) => `${formatCount(v)} user${v === 1 ? '' : 's'}`}
+      emptyLabel="No first cards measured in this window."
+    />
   );
 }
 

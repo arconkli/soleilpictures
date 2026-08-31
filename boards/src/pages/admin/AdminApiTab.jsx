@@ -17,7 +17,6 @@
 // whether anyone has been given a key.
 
 import { useState } from 'react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import { supabase } from '../../lib/supabase.js';
 import { CopyableText } from '../../components/CopyableText.jsx';
 import { formatCount, formatPct, relativeTime, fmtDateTime, shortDate } from '../../lib/adminFormat.js';
@@ -25,7 +24,8 @@ import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminStatCard } from './AdminStatCard.jsx';
 import { AdminTimeRange } from './AdminTimeRange.jsx';
-import { CHART } from './chartTheme.js';
+import { MultiTrend } from './viz/TrendLine.jsx';
+import { VAR } from './viz/palette.js';
 
 const RECENT_LIMIT = 150;
 
@@ -184,17 +184,19 @@ export function AdminApiTab() {
                   </span>
                 </header>
                 <div className="admin-chart-body">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={chart}>
-                      <CartesianGrid {...CHART.grid} />
-                      <XAxis dataKey="day" {...CHART.axis} />
-                      <YAxis {...CHART.axis} allowDecimals={false} />
-                      <Tooltip {...CHART.tooltip} />
-                      <Legend wrapperStyle={{ fontSize: 11 }} />
-                      <Bar dataKey="MCP" stackId="a" fill={CHART.soleil} {...CHART.noAnim} />
-                      <Bar dataKey="REST" stackId="a" fill={CHART.series[2]} {...CHART.noAnim} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {/* Two lines rather than a stacked bar: the question is
+                      whether MCP traffic is growing relative to REST, and a
+                      stack makes you read the upper band's thickness against a
+                      moving baseline to answer it. */}
+                  <MultiTrend
+                    labels={chart.map((r) => r.day)}
+                    height={200}
+                    formatValue={(v) => `${formatCount(v)} calls`}
+                    series={[
+                      { key: 'MCP',  label: 'MCP',  color: VAR.cat[0], values: chart.map((r) => Number(r.MCP) || 0) },
+                      { key: 'REST', label: 'REST', color: VAR.cat[1], values: chart.map((r) => Number(r.REST) || 0) },
+                    ]}
+                  />
                 </div>
               </section>
 

@@ -3652,3 +3652,9 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 @media (prefers-reduced-motion: reduce) {
   .adm-journey-caret { transition: none; }
 }
+
+/* Multi-series tooltip: a swatch per row, because identity in a shared tooltip
+   cannot rest on the reader remembering which line was which colour. */
+.adm-trend-tip-row { display: flex; align-items: center; gap: 6px; }
+
+.adm-trend-tip-row .adm-legend-swatch { width: 7px; height: 7px; }

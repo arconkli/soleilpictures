@@ -191,6 +191,122 @@ export function TrendLine({
 }
 
 /**
+ * MultiTrend — several series sharing one plot, one x-axis and one crosshair.
+ *
+ * This is the only genuine multi-series chart on the dashboard, which is why
+ * the categorical palette exists at all. It carries a legend unconditionally
+ * (identity must never rest on colour alone) and reads its hues from
+ * `series[].color`, so colour follows the entity: hiding a source because it is
+ * below the sample floor must not repaint the survivors.
+ *
+ * `series` = [{ key, label, color, values: (number|null)[] }], all the same
+ * length as `labels`.
+ */
+export function MultiTrend({
+  series = [],
+  labels = [],
+  height = 200,
+  formatValue = (v) => String(v),
+  domain,
+}) {
+  const wrapRef = useRef(null);
+  const [hover, setHover] = useState(null);
+
+  const live = series.filter((s) => (s.values || []).some((v) => v != null));
+  if (!live.length) return <div className="admin-empty">Nothing to plot yet.</div>;
+
+  const all = live.flatMap((s) => s.values).filter((v) => v != null).map(Number);
+  const lo = domain ? domain[0] : Math.min(0, ...all);
+  const hiRaw = domain ? domain[1] : Math.max(...all);
+  const hi = hiRaw === lo ? lo + 1 : hiRaw;
+
+  const n = labels.length || Math.max(...live.map((s) => s.values.length));
+  const x = (i) => (n === 1 ? 50 : (i / (n - 1)) * 100);
+  const y = (v) => 100 - ((v - lo) / (hi - lo)) * 100;
+
+  const onMove = (e) => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const t = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    setHover(Math.round(t * (n - 1)));
+  };
+
+  return (
+    <div className="adm-trend">
+      <div className="adm-legend">
+        {live.map((s) => (
+          <span className="adm-legend-item" key={s.key}>
+            <span className="adm-legend-swatch" style={{ background: s.color }} />
+            {s.label}
+          </span>
+        ))}
+      </div>
+      <div
+        ref={wrapRef}
+        className="adm-trend-plot"
+        style={{ height }}
+        onPointerMove={onMove}
+        onPointerLeave={() => setHover(null)}
+      >
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          {live.map((s) => {
+            const runs = segments(s.values.map((v) => (v == null ? null : Number(v))));
+            return runs.filter((r) => r.length > 1).map((r, k) => (
+              <path
+                key={`${s.key}-${k}`}
+                d={r.map((i, j) => `${j === 0 ? 'M' : 'L'}${x(i).toFixed(2)} ${y(Number(s.values[i])).toFixed(2)}`).join(' ')}
+                fill="none"
+                stroke={s.color}
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            ));
+          })}
+        </svg>
+
+        {hover != null && (
+          <>
+            <div className="adm-trend-crosshair" style={{ left: `${x(hover)}%` }} />
+            {live.map((s) => {
+              const v = s.values[hover];
+              if (v == null) return null;
+              return (
+                <div
+                  key={s.key}
+                  className="adm-trend-dot"
+                  style={{ left: `${x(hover)}%`, top: `${y(Number(v))}%`, background: s.color }}
+                />
+              );
+            })}
+            <div className={`adm-trend-tip ${x(hover) > 60 ? 'is-left' : ''}`} style={{ left: `${x(hover)}%` }}>
+              {labels[hover] && <span className="adm-trend-tip-x">{labels[hover]}</span>}
+              {live.map((s) => (
+                s.values[hover] == null ? null : (
+                  <span className="adm-trend-tip-row" key={s.key}>
+                    <span className="adm-legend-swatch" style={{ background: s.color }} />
+                    <span className="adm-trend-tip-v">{formatValue(Number(s.values[hover]))}</span>
+                    <span className="adm-trend-tip-x">{s.label}</span>
+                  </span>
+                )
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+      {labels.length > 0 && (
+        <div className="adm-trend-axis">
+          <span>{labels[0]}</span>
+          <span>{labels[labels.length - 1]}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Sparkline shorthand — `values` is a plain number array, oldest first.
  *
  * baselineZero is off here on purpose. A sparkline is 30px tall and exists to
