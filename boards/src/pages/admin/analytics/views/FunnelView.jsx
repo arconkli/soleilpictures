@@ -40,9 +40,12 @@ const num = (x) => (x == null || Number.isNaN(Number(x)) ? 0 : Number(x));
  * Where signups came from.
  *
  * Was a bare table of numbers with no visual weight; a ranked bar makes the
- * shape of the mix readable at a glance. Neutral ink, because this is
- * magnitude — colouring rows by rank would make the colour mean position,
- * which changes as soon as the window does.
+ * shape of the mix readable at a glance.
+ *
+ * Ramped rather than flat: the shade is keyed to the VALUE, not to the row's
+ * position, so re-sorting or filtering never repaints a channel that has not
+ * changed. Colouring by rank would make the colour mean position, which is the
+ * anti-pattern; colouring by magnitude just says the same thing twice.
  */
 function ChannelMix({ rows, days }) {
   const data = (rows || [])
@@ -59,6 +62,7 @@ function ChannelMix({ rows, days }) {
         </span>
       </header>
       <BarRows
+        ramp
         rows={data}
         limit={8}
         formatValue={(v) => formatCount(v)}

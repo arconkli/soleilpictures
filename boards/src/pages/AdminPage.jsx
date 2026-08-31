@@ -20,7 +20,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './admin/admin.css';
-import { adminLookClass } from './admin/adminLook.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { useFeedback } from '../components/AppFeedback.jsx';
@@ -235,7 +234,7 @@ export function AdminPage() {
     : (activePrimaryIdx >= 0 ? activePrimaryIdx : 0);
 
   return (
-    <div className={`admin-screen${adminLookClass()}`}>
+    <div className="admin-screen">
       <header className="admin-header">
         <SoleilWordmark size="block" />
         <div className="admin-tabs" role="tablist" aria-label="Admin sections">

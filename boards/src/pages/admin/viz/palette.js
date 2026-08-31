@@ -27,6 +27,13 @@
 //     3-hue sets clear by 4.4-5.2. Three that hold is worth more than four that
 //     barely do. A fourth category folds into `other`.
 //
+//     Re-checked when the dashboard wanted more colour, this time demanding
+//     that the four hues ALSO separate from the neutral bucket and from the two
+//     status colours: 37 sets out of 20,475 survive, the best clearing by 0.19,
+//     and they look like salmon / olive / pale blue / orchid. So four is not
+//     available at any quality — more colour has to come from the sequential
+//     ramp, from tinted surfaces and from status, not from more categories.
+//
 //   * Light and dark are SEPARATE steps of the same hue families, not a flip.
 //     No single set clears 3:1 against both #16161a and #ededf0.
 //

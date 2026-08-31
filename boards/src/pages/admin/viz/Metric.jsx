@@ -65,6 +65,8 @@ export function Metric({
   accent,
   /** Plain number array, oldest first. Gated internally on MIN_POINTS. */
   spark,
+  /** `{ pct, title }` — a proportion bar for metrics with no daily series. */
+  ratio,
   sparkColor = VAR.ink,
   title,
   onClick,
@@ -100,6 +102,15 @@ export function Metric({
       {sub && <div className="admin-stat-sub">{sub}</div>}
       {spark && spark.length > 0 && (
         <div className="admin-stat-spark"><Spark values={spark} color={sparkColor} /></div>
+      )}
+      {/* A metric with a lifetime counterpart but no daily series would leave a
+          hole in the row where its neighbours have sparklines. The proportion
+          bar fills it with something true: how much of the total this window
+          is. */}
+      {!spark && ratio != null && (
+        <div className="admin-stat-ratio" title={ratio.title}>
+          <span style={{ width: `${Math.max(1, Math.min(100, ratio.pct * 100))}%`, background: sparkColor }} />
+        </div>
       )}
       {children}
     </Tag>

@@ -90,6 +90,7 @@ export function AdminEventBreakdown({ rows = [], reliability, days = 30 }) {
           <div className="admin-funnel-grid">
             <div className="admin-funnel-chart">
               <BarRows
+                ramp
                 rows={data.map((d) => ({ label: d.name, value: Number(d.sessions) || 0 }))}
                 formatValue={(v) => formatCount(v)}
               />

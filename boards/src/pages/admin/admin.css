@@ -3693,260 +3693,228 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
- * VISUAL DIRECTIONS  (dev-only, ?adminstyle=a|b|c — see adminLook.js)
+ * EDITORIAL LAYER
  *
- * Three complete treatments of the same markup, so they can be compared on
- * real data instead of described. None of them changes a single element or
- * class in the views — only how they look.
+ * The chosen direction, promoted from the three that were built to compare.
+ * Two treatments were deleted with it; this is the one that stayed.
+ *
+ * Its whole argument: a panel is a block of content, not a box. Separation
+ * comes from air, a shared measure and the occasional hairline, and hierarchy
+ * comes from the size of the numerals rather than from borders. The version
+ * before it had four identically-bordered rectangles at identical weight,
+ * which is why the page had no opinion about what mattered.
  * ══════════════════════════════════════════════════════════════════════════ */
 
-/* ── A · EDITORIAL ─────────────────────────────────────────────────────────
- * No boxes at all. A panel becomes a block of content, separated by air and
- * the occasional hairline, on a column narrow enough to read. Big numerals
- * with tight tracking carry the hierarchy instead of borders.
- */
-.adm-look-a .admin-body:not(.admin-body-flush) {
-  max-width: 1160px; margin: 0 auto; width: 100%; padding: 30px 28px 90px;
+:root {
+  /* One measure for the whole surface. The header's contents and the page's
+     contents share it, so the wordmark, the tabs and the first metric all
+     start on the same vertical line — which is most of the difference between
+     "designed" and "assembled". */
+  --adm-col: 1240px;
 }
 
-.adm-look-a .admin-chart-panel,
-.adm-look-a .admin-needs,
-.adm-look-a .admin-stat-card {
+.admin-body:not(.admin-body-flush) {
+  max-width: var(--adm-col);
+  margin: 0 auto;
+  width: 100%;
+  padding: 28px 28px 90px;
+}
+
+/* ── Header ────────────────────────────────────────────────────────────────
+ * Was a centred pill-bar floating over a full-width strip, aligned to nothing.
+ * Now: one row on the shared measure, tabs as plain text carrying a gold
+ * underline when active. Gold is correct here — this is the definition of an
+ * active state — but it does not need a filled pill to say so.
+ */
+.admin-header {
+  padding: 0;
+  background: var(--bg-0);
+  border-bottom: 1px solid var(--adm-line);
+  display: block;
+}
+
+.admin-header > * { min-width: 0; }
+
+.admin-header {
+  --_pad: 28px;
+}
+
+/* The inner row is what actually carries the measure. */
+.admin-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 26px;
+  max-width: var(--adm-col); margin: 0 auto; width: 100%;
+  padding: 13px var(--_pad);
+}
+
+.admin-tabs { gap: 2px; margin-right: auto; margin-left: 8px; }
+
+.admin-tab {
+  position: relative;
+  padding: 7px 11px;
+  border-radius: 0;
+  background: transparent;
+  font: 500 13px/1 var(--font-sans);
+  color: var(--ink-2);
+}
+
+.admin-tab:hover { background: transparent; color: var(--ink-0); }
+
+.admin-tab.is-active { background: transparent; color: var(--ink-0); font-weight: 600; }
+
+.admin-tab.is-active::after {
+  content: ''; position: absolute; left: 11px; right: 11px; bottom: -14px; height: 2px;
+  background: var(--soleil); border-radius: 2px 2px 0 0;
+}
+
+/* ── Sub-tabs: the real page navigation now that Overview holds four views ── */
+.admin-subtabs { gap: 4px; border-bottom: 1px solid var(--adm-line); }
+
+.admin-subtab {
+  padding: 11px 2px; margin-right: 20px;
+  font: 500 14px/1 var(--font-sans);
+  border-bottom-width: 2px;
+}
+
+.admin-subtab.is-active { font-weight: 600; }
+
+/* ── Panels become blocks ─────────────────────────────────────────────────── */
+.admin-chart-panel,
+.admin-needs,
+.admin-stat-card {
   background: transparent; border: 0; border-radius: 0; padding: 0;
 }
 
-.adm-look-a .admin-chart-panel { gap: 14px; margin-bottom: 34px; }
+.admin-chart-panel { gap: 13px; margin-bottom: 32px; }
 
-.adm-look-a .admin-chart-head { padding-bottom: 9px; border-bottom: 1px solid var(--adm-line); }
+.admin-chart-head { padding-bottom: 9px; border-bottom: 1px solid var(--adm-line); }
 
-.adm-look-a .admin-chart-title { font: 600 15px/1.2 var(--font-sans); letter-spacing: -.005em; }
+.admin-chart-title { font: 600 15px/1.2 var(--font-sans); letter-spacing: -.005em; }
 
-.adm-look-a .admin-section-title {
+.admin-section-title {
   font: 600 19px/1.25 var(--font-sans); letter-spacing: -.012em;
-  margin: 52px 0 6px; padding-top: 0; border-top: 0;
+  margin: 50px 0 6px; padding-top: 0; border-top: 0;
 }
 
-.adm-look-a .admin-section-title:first-of-type { margin-top: 8px; }
+.admin-section-title:first-of-type { margin-top: 6px; padding-top: 0; border-top: 0; }
 
-.adm-look-a .admin-section-sub { font-size: 13px; margin: 0 0 20px; max-width: 62ch; }
+.admin-section-sub { font-size: 13px; margin: 0 0 20px; max-width: 64ch; }
 
-/* Metrics: a row of figures on a shared baseline, divided by hairlines rather
-   than wrapped in four identical rectangles. */
-.adm-look-a .admin-stat-grid { gap: 0; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+/* ── Metrics: figures on a shared baseline, divided by rules ──────────────── */
+.admin-stat-grid { gap: 0; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 
-.adm-look-a .admin-stat-card { padding: 2px 26px; border-left: 1px solid var(--adm-line); min-height: 0; gap: 7px; }
+.admin-stat-card {
+  padding: 2px 26px; border-left: 1px solid var(--adm-line); min-height: 0; gap: 7px;
+}
 
-.adm-look-a .admin-stat-card:first-child { border-left: 0; padding-left: 0; }
+.admin-stat-card:first-child { border-left: 0; padding-left: 0; }
 
-.adm-look-a .admin-stat-label {
+.admin-stat-card.is-accent { border-color: var(--adm-line); }
+
+.admin-stat-label {
   font: 500 11.5px/1 var(--font-sans); letter-spacing: 0;
   text-transform: none; color: var(--ink-2);
 }
 
-.adm-look-a .admin-stat-card.is-hero .admin-stat-value {
+.admin-stat-card.is-hero { padding: 2px 26px; min-height: 0; }
+
+.admin-stat-card.is-hero .admin-stat-value {
   font: 600 44px/1 var(--font-sans); letter-spacing: -.032em;
 }
 
-.adm-look-a .admin-stat-sub { font-size: 12px; color: var(--ink-3); }
+.admin-stat-sub { font-size: 12px; color: var(--ink-3); }
 
-.adm-look-a .admin-stat-spark { height: 38px; margin-top: 8px; }
+.admin-stat-spark { height: 38px; margin-top: 8px; }
 
-.adm-look-a .admin-lifetime { margin-top: 26px; padding-top: 14px; gap: 0 30px; }
+.admin-lifetime { margin-top: 26px; padding-top: 14px; gap: 0 30px; }
 
-/* Needs you: a left rule carries the severity; no card, no chrome. */
-.adm-look-a .admin-needs { margin-bottom: 4px; gap: 6px; }
+.admin-charts-row { gap: 32px; }
 
-.adm-look-a .admin-needs-rows { gap: 0; }
-
-.adm-look-a .admin-needs-row {
-  background: transparent; border: 0; border-bottom: 1px solid var(--adm-line);
-  border-radius: 0; padding: 13px 4px 13px 15px; position: relative;
-}
-
-.adm-look-a .admin-needs-row::before {
-  content: ''; position: absolute; left: 0; top: 11px; bottom: 11px; width: 2px;
-  border-radius: 2px; background: var(--ink-3);
-}
-
-.adm-look-a .admin-needs-row.is-bad::before { background: var(--adm-bad); }
-
-.adm-look-a .admin-needs-row:hover { background: var(--bg-1); }
-
-.adm-look-a .admin-needs-count { font: 600 22px/1 var(--font-sans); letter-spacing: -.02em; }
-
-.adm-look-a .admin-needs-label { font-size: 13.5px; color: var(--ink-1); }
-
-.adm-look-a .admin-charts-row { gap: 34px; }
-
-/* ── B · TECHNICAL ─────────────────────────────────────────────────────────
- * More signal per screen. Monospace figures on a strict grid, tiles fused
- * into one ruled strip, micro-labels. A console you operate, not a report.
+/* ── Needs you ─────────────────────────────────────────────────────────────
+ * The one block that is about acting, so it is the one block allowed to carry
+ * colour as its ground. The tint is what the severity means; the left rule and
+ * the wording repeat it, because a colour wash on its own is not a signal.
  */
-.adm-look-b .admin-body:not(.admin-body-flush) { max-width: 1560px; margin: 0 auto; padding: 18px 20px 70px; }
+.admin-needs { margin-bottom: 4px; gap: 8px; }
 
-.adm-look-b .admin-chart-panel,
-.adm-look-b .admin-needs {
-  border-radius: 3px; padding: 11px 13px; gap: 7px;
-  background: var(--bg-1); border: 1px solid var(--adm-line);
+.admin-needs-rows { gap: 4px; }
+
+.admin-needs-row {
+  border: 0; border-radius: 8px;
+  padding: 12px 12px 12px 16px; position: relative;
+  background: color-mix(in srgb, var(--ink-2) 8%, transparent);
 }
 
-[data-theme='light'] .adm-look-b .admin-chart-panel,
-[data-theme='light'] .adm-look-b .admin-needs { background: var(--bg-3); }
-
-.adm-look-b .admin-chart-title {
-  font: 700 10.5px/1 var(--font-display, var(--font-sans));
-  letter-spacing: .13em; text-transform: uppercase; color: var(--ink-1);
+.admin-needs-row::before {
+  content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--ink-3);
 }
 
-.adm-look-b .admin-chart-sub { font-size: 10.5px; }
-
-/* Section headings are a label plus a rule that runs to the edge. */
-.adm-look-b .admin-section-title {
-  display: flex; align-items: center; gap: 12px;
-  font: 700 10.5px/1 var(--font-display, var(--font-sans));
-  letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3);
-  margin: 26px 0 9px; padding-top: 0; border-top: 0;
+.admin-needs-row.is-act {
+  background: color-mix(in srgb, var(--adm-cat-1) 13%, transparent);
 }
 
-.adm-look-b .admin-section-title::after {
-  content: ''; flex: 1 1 auto; height: 1px; background: var(--adm-line);
+.admin-needs-row.is-act::before { background: var(--adm-cat-1); }
+
+.admin-needs-row.is-bad {
+  background: color-mix(in srgb, var(--adm-bad) 13%, transparent);
 }
 
-.adm-look-b .admin-section-title:first-of-type { margin-top: 2px; }
+.admin-needs-row.is-bad::before { background: var(--adm-bad); }
 
-.adm-look-b .admin-section-sub { font-size: 11.5px; margin: -4px 0 10px; }
+.admin-needs-row:hover { background: color-mix(in srgb, var(--adm-cat-1) 20%, transparent); }
 
-/* One fused strip, not four cards. */
-.adm-look-b .admin-stat-grid {
-  gap: 0; border: 1px solid var(--adm-line); border-radius: 3px; overflow: hidden;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-}
+.admin-needs-row.is-bad:hover { background: color-mix(in srgb, var(--adm-bad) 20%, transparent); }
 
-.adm-look-b .admin-stat-card {
-  border: 0; border-right: 1px solid var(--adm-line); border-radius: 0;
-  background: var(--bg-1); padding: 10px 13px; min-height: 0; gap: 4px;
-}
+.admin-needs-count { font: 600 22px/1 var(--font-sans); letter-spacing: -.02em; color: var(--ink-0); }
 
-[data-theme='light'] .adm-look-b .admin-stat-card { background: var(--bg-3); }
+.admin-needs-row.is-bad .admin-needs-count { color: var(--adm-bad); }
 
-.adm-look-b .admin-stat-card:last-child { border-right: 0; }
+.admin-needs-label { font-size: 13.5px; color: var(--ink-0); }
 
-.adm-look-b .admin-stat-label { font-size: 9.5px; letter-spacing: .11em; color: var(--ink-3); }
-
-.adm-look-b .admin-stat-card.is-hero .admin-stat-value,
-.adm-look-b .admin-stat-value,
-.adm-look-b .admin-needs-count,
-.adm-look-b .admin-lifetime dd,
-.adm-look-b .admin-right-now-value {
-  font-family: var(--font-mono); font-weight: 500; letter-spacing: -.02em;
-}
-
-.adm-look-b .admin-stat-card.is-hero .admin-stat-value { font-size: 25px; }
-
-.adm-look-b .admin-stat-sub { font-size: 11px; }
-
-.adm-look-b .admin-stat-total { font-size: 10px; }
-
-.adm-look-b .admin-stat-spark { height: 22px; margin-top: 3px; }
-
-.adm-look-b .admin-needs-rows { gap: 3px; }
-
-.adm-look-b .admin-needs-row { padding: 6px 10px; border-radius: 2px; }
-
-.adm-look-b .admin-needs-count { font-size: 15px; }
-
-.adm-look-b .admin-needs-label { font-size: 12px; }
-
-.adm-look-b .admin-lifetime { gap: 0 20px; }
-
-.adm-look-b .admin-lifetime dt { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
-
-.adm-look-b .admin-lifetime dd { font-size: 12.5px; }
-
-.adm-look-b .adm-bar-row { padding: 0; }
-
-.adm-look-b .adm-bar-value, .adm-look-b .adm-bar-secondary { font-family: var(--font-mono); }
-
-/* ── C · LAYERED ───────────────────────────────────────────────────────────
- * Real surface depth and display type. Panels sit on a tinted ground with a
- * soft gradient and a coloured top rule; the numbers are the loudest thing on
- * the page by a wide margin.
+/* ── Bars carry the sequential ramp when they encode magnitude ─────────────
+ * Neutral ink was correct and dull. A single-hue ramp keyed to the value is
+ * still honest — it encodes the same quantity twice — and it is the cheapest
+ * honest colour on the page.
  */
-.adm-look-c .admin-body:not(.admin-body-flush) {
-  max-width: 1320px; margin: 0 auto; padding: 30px 26px 90px;
-  background:
-    radial-gradient(1200px 460px at 12% -8%, color-mix(in srgb, var(--adm-cat-1) 9%, transparent), transparent 70%),
-    radial-gradient(900px 400px at 92% 4%, color-mix(in srgb, var(--adm-cat-3) 6%, transparent), transparent 70%);
+.adm-bar-fill.is-ramped { background: var(--adm-seq-4); }
+
+.adm-bar-track { height: 10px; }
+
+/* ── People ───────────────────────────────────────────────────────────────── */
+.admin-people-row { padding: 8px 0; }
+
+.admin-people-dot { width: 7px; height: 7px; }
+
+.admin-people-dot.is-did { box-shadow: 0 0 0 3px color-mix(in srgb, var(--adm-cat-2) 22%, transparent); }
+
+@media (max-width: 900px) {
+  .admin-stat-card { border-left: 0; padding-left: 0; }
+  .admin-header { flex-wrap: wrap; gap: 12px; }
 }
 
-.adm-look-c .admin-chart-panel,
-.adm-look-c .admin-needs,
-.adm-look-c .admin-stat-card {
-  border-radius: 14px;
-  border: 1px solid var(--adm-line-strong);
-  background: linear-gradient(180deg, var(--bg-3), var(--adm-surface) 74%);
-  box-shadow: 0 1px 2px rgba(0,0,0,.18), 0 14px 34px -22px rgba(0,0,0,.5);
+/* Proportion bar, for a metric whose neighbours have sparklines and which has
+   no daily series of its own. Same height as the sparkline slot so the row's
+   baseline does not break where one tile happens to lack a series. */
+.admin-stat-ratio {
+  position: relative; height: 38px; margin-top: 8px;
+  display: flex; align-items: center;
 }
 
-[data-theme='light'] .adm-look-c .admin-chart-panel,
-[data-theme='light'] .adm-look-c .admin-needs,
-[data-theme='light'] .adm-look-c .admin-stat-card {
-  background: linear-gradient(180deg, #fff, var(--bg-1) 92%);
-  box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 28px -20px rgba(0,0,0,.16);
+.admin-stat-ratio::after {
+  content: ''; position: absolute; inset: 50% 0 auto 0;
+  height: 6px; transform: translateY(-50%);
+  border-radius: 3px; background: var(--adm-line);
 }
 
-.adm-look-c .admin-chart-panel { padding: 18px 20px; }
-
-.adm-look-c .admin-needs { padding: 18px 20px; }
-
-.adm-look-c .admin-stat-card { padding: 17px 19px 19px; position: relative; overflow: hidden; }
-
-/* A coloured hairline along the top edge — the one place colour is decorative,
-   and it is what makes these read as surfaces rather than outlines. */
-.adm-look-c .admin-stat-card::before {
-  content: ''; position: absolute; inset: 0 0 auto 0; height: 2px;
-  background: linear-gradient(90deg, var(--adm-cat-1), color-mix(in srgb, var(--adm-cat-1) 15%, transparent));
+.admin-stat-ratio > span {
+  position: relative; z-index: 1;
+  display: block; height: 6px; min-width: 3px;
+  border-radius: 3px;
 }
 
-.adm-look-c .admin-section-title {
-  font: 700 21px/1.2 var(--font-display, var(--font-sans));
-  letter-spacing: .04em; text-transform: uppercase;
-  color: var(--ink-0); margin: 44px 0 8px; padding-top: 0; border-top: 0;
-}
+.admin-lifetime + .admin-chart-panel { margin-top: 34px; }
 
-.adm-look-c .admin-section-title:first-of-type { margin-top: 6px; }
-
-.adm-look-c .admin-section-sub { font-size: 13px; margin: 0 0 18px; }
-
-.adm-look-c .admin-chart-title { font: 600 15.5px/1.2 var(--font-sans); }
-
-.adm-look-c .admin-stat-label { font-size: 10px; letter-spacing: .17em; color: var(--ink-2); }
-
-.adm-look-c .admin-stat-card.is-hero .admin-stat-value {
-  font: 700 46px/1 var(--font-display, var(--font-sans)); letter-spacing: .012em;
-}
-
-.adm-look-c .admin-stat-spark { height: 36px; margin-top: 10px; }
-
-.adm-look-c .admin-stat-grid { gap: 16px; }
-
-.adm-look-c .admin-needs-row {
-  border-radius: 10px; padding: 12px 14px;
-  border: 1px solid transparent; background: color-mix(in srgb, var(--ink-2) 7%, transparent);
-}
-
-.adm-look-c .admin-needs-row.is-bad {
-  background: color-mix(in srgb, var(--adm-bad) 12%, transparent);
-  border-color: color-mix(in srgb, var(--adm-bad) 26%, transparent);
-}
-
-.adm-look-c .admin-needs-row.is-act {
-  background: color-mix(in srgb, var(--adm-cat-1) 12%, transparent);
-  border-color: color-mix(in srgb, var(--adm-cat-1) 26%, transparent);
-}
-
-.adm-look-c .admin-needs-count { font: 700 21px/1 var(--font-display, var(--font-sans)); }
-
-.adm-look-c .admin-needs-label { font-size: 13.5px; color: var(--ink-0); }
-
-.adm-look-c .admin-right-now-value { font: 700 38px/1 var(--font-display, var(--font-sans)); }
+/* A panel body sized itself to 200px whether or not it had 200px of content,
+   which left a visible hole under any short chart. Blocks size to their
+   contents; the rhythm between them is the section margin's job. */
+.admin-chart-body { min-height: 0; }
