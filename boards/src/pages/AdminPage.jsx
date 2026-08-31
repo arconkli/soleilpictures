@@ -5,6 +5,7 @@
 //   • Analytics — deeper analytics
 //   • Users     — paginated list with tier mutation buttons
 //   • Grants    — issue / revoke time-bound paid access
+//   • Discounts — create / deactivate Stripe discount codes (monthly only)
 //   • Waitlist  — pending entries with Accept now / Reject / Reschedule
 //   • Feedback  — in-app feedback submissions
 //   • Errors    — first-party client-side error logs (client_errors)
@@ -28,6 +29,7 @@ import { AdminOverviewTab } from './admin/AdminOverviewTab.jsx';
 import { AdminAnalyticsTab } from './admin/AdminAnalyticsTab.jsx';
 import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
 import { AdminGrantsTab } from './admin/AdminGrantsTab.jsx';
+import { AdminDiscountsTab } from './admin/AdminDiscountsTab.jsx';
 import { AdminCampaignTab } from './admin/AdminCampaignTab.jsx';
 import { AdminDiscoverTab } from './admin/AdminDiscoverTab.jsx';
 import { AdminApprovalsTab } from './admin/AdminApprovalsTab.jsx';
@@ -49,6 +51,7 @@ const TABS = [
   { id: 'analytics', label: 'Analytics' },
   { id: 'users',     label: 'Users' },
   { id: 'grants',    label: 'Grants' },
+  { id: 'discounts', label: 'Discounts' },
   { id: 'campaign',  label: 'Campaign' },
   { id: 'discover',  label: 'Discover' },
   { id: 'approvals', label: 'Approvals' },
@@ -69,7 +72,7 @@ const STORAGE_KEY = 'admin.tab';
 // PRIMARY_IDS is the one knob — reorder/trim it and the overflow recomputes.
 const PRIMARY_IDS = ['overview', 'analytics', 'users', 'approvals', 'waitlist'];
 // Overflow order is triage-first, then rare/config, split by a single divider.
-const OVERFLOW_IDS = ['discover', 'feedback', 'errors', 'api', 'scout', 'emails', 'grants', 'campaign', 'tagging', 'universe'];
+const OVERFLOW_IDS = ['discover', 'feedback', 'errors', 'api', 'scout', 'emails', 'discounts', 'grants', 'campaign', 'tagging', 'universe'];
 const OVERFLOW_SEP_AFTER = 'grants';      // divider between triage and rare-config
 const HEAVY_IDS = new Set(['universe']);  // heaviest to mount → flagged in the menu
 
@@ -268,6 +271,7 @@ export function AdminPage() {
         {tab === 'analytics' && <AdminAnalyticsTab />}
         {tab === 'users'     && <AdminUsersTab />}
         {tab === 'grants'    && <AdminGrantsTab />}
+        {tab === 'discounts' && <AdminDiscountsTab />}
         {tab === 'campaign'  && <AdminCampaignTab />}
         {tab === 'discover'  && <AdminDiscoverTab />}
         {tab === 'approvals' && <AdminApprovalsTab onCountsChange={(c) => setPendingApprovals(c?.pending ?? 0)} />}
