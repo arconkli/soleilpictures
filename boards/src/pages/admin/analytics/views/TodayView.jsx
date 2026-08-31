@@ -206,7 +206,7 @@ export function TodayView() {
   const f = useAnalyticsFilters();
 
   const q = useAdminData(async () => {
-    const [kpi, hist, cards, signups, active, errs, subs, fb, dorm, users, work, mail] = await Promise.allSettled([
+    const [kpi, hist, cards, signups, active, errs, subs, fb, dorm, users, work, mail, life] = await Promise.allSettled([
       supabase.rpc('admin_kpi_summary', { p_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_metrics_history', { p_days: 60 }),
       supabase.rpc('admin_cards_per_day', { p_days: 30, p_exclude_internal: f.excludeInternal }),
@@ -222,6 +222,11 @@ export function TodayView() {
       // must come from different calls or the second is just the first again.
       supabase.rpc('admin_habit_curve', { p_exclude_internal: f.excludeInternal, p_require_work: true, p_window_days: 7 }),
       supabase.rpc('admin_email_stats', { p_days: 7, p_exclude_internal: f.excludeInternal, p_include_foreign: false }),
+      // Lifetime scale, straight off platform_counters. Every window figure on
+      // this screen is paired with one of these: a total on its own only ever
+      // goes up, so it cannot tell you anything is wrong, but beside "this
+      // week" it gives the week a size.
+      supabase.rpc('admin_universe_stats'),
     ]);
 
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
@@ -251,6 +256,7 @@ export function TodayView() {
       approvals: num(val(subs)?.pending) || 0,
       feedbackCount: feedbackRows.filter((r) => new Date(r.created_at).getTime() > weekAgo).length,
       emailFailures: (val(mail) || []).reduce((a, r) => a + (num(r.failed) || 0) + (num(r.bounced) || 0), 0),
+      lifetime: val(life) || null,
       stalled: (val(dorm) || [])
         .filter((r) => !r.did_card && (num(r.days_dormant) ?? 999) <= 14)
         .sort((a, b) => (num(b.active_day_count) || 0) - (num(a.active_day_count) || 0))
@@ -263,6 +269,8 @@ export function TodayView() {
   const d = q.data;
   const cur = d?.kpi?.current || {};
   const prev = d?.kpi?.previous || {};
+  const life = d?.lifetime || {};
+  const lifeN = (k) => num(life[k]);
 
   return (
     <AdminAsync
@@ -286,6 +294,8 @@ export function TodayView() {
             label="Signups"
             value={cur.signups != null ? formatCount(cur.signups) : null}
             sub="new accounts"
+            total={lifeN('total_users') != null
+              ? { value: formatCount(lifeN('total_users')), label: 'all time' } : null}
             delta={deltaInfo(num(cur.signups), num(prev.signups))}
             spark={(d?.signups || []).map((r) => num(r.signups) || 0)}
             sparkColor={VAR.cat[0]}
@@ -295,6 +305,8 @@ export function TodayView() {
             label="Weekly active"
             value={cur.wau != null ? formatCount(cur.wau) : null}
             sub="opened the app"
+            total={lifeN('total_users') != null && cur.wau != null
+              ? { value: formatCount(lifeN('total_users')), label: 'signed up' } : null}
             delta={deltaInfo(num(cur.wau), num(prev.wau))}
             spark={(d?.history || []).map((r) => num(r.active_users) || 0)}
             sparkColor={VAR.cat[0]}
@@ -304,6 +316,8 @@ export function TodayView() {
             label="Did real work"
             value={d?.workUsers != null ? formatCount(d.workUsers) : null}
             sub="placed, edited or shared something"
+            total={d?.workUsers != null && cur.wau
+              ? { value: formatCount(cur.wau), label: 'were here' } : null}
             title="Counts days containing a work event, not days the app was merely open — user_active_day over-counts presence by roughly 2x."
           />
           <Metric
@@ -311,11 +325,31 @@ export function TodayView() {
             label="Cards created"
             value={cur.cards_created != null ? formatCompact(cur.cards_created) : null}
             sub="across every cluster"
+            total={lifeN('total_cards') != null
+              ? { value: formatCompact(lifeN('total_cards')), label: 'all time' } : null}
             delta={deltaInfo(num(cur.cards_created), num(prev.cards_created))}
             spark={(d?.cards || []).map((r) => num(r.cards) || 0)}
             sparkColor={VAR.cat[0]}
           />
         </MetricGrid>
+
+        {/* Everything the platform has ever accumulated, on one line. Kept out
+            of the tiles above because a total that only ever rises cannot tell
+            you anything is wrong — it is scale, not a signal, and it should
+            read that way. */}
+        {lifeN('total_users') != null && (
+          <dl className="admin-lifetime">
+            <div><dt>Signups</dt><dd>{formatCount(lifeN('total_users'))}</dd></div>
+            <div><dt>Clusters</dt><dd>{formatCount(lifeN('total_boards'))}</dd></div>
+            <div><dt>Cards</dt><dd>{formatCount(lifeN('total_cards'))}</dd></div>
+            <div><dt>Workspaces</dt><dd>{formatCount(lifeN('total_workspaces'))}</dd></div>
+            <div>
+              <dt>Time in app</dt>
+              <dd>{lifeN('total_seconds_in_app') != null
+                ? `${formatCount(Math.round(lifeN('total_seconds_in_app') / 3600))}h` : '—'}</dd>
+            </div>
+          </dl>
+        )}
 
         <div style={{ height: 14 }} />
         <RightNow activeNow={d?.activeNow} />

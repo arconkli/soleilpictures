@@ -16,6 +16,7 @@ import { useState } from 'react';
 // The harness renders the tab components directly rather than through
 // AdminPage, so it has to pull the admin stylesheet in itself.
 import '../pages/admin/admin.css';
+import { adminLookClass } from '../pages/admin/adminLook.js';
 import { supabase } from '../lib/supabase.js';
 import { installAdminPreviewMocks } from './adminFixtures.js';
 import { UniverseView } from '../pages/admin/AdminUniverseTab.jsx';
@@ -138,7 +139,7 @@ export function AdminPreviewHarness() {
   }
 
   return (
-    <div className="admin-screen">
+    <div className={`admin-screen${adminLookClass()}`}>
       <header className="admin-header">
         <SoleilWordmark size="block" />
         <div className="admin-tabs" role="tablist" aria-label="Admin sections">

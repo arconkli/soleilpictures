@@ -3660,3 +3660,293 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 .adm-trend-tip-row { display: flex; align-items: center; gap: 6px; }
 
 .adm-trend-tip-row .adm-legend-swatch { width: 7px; height: 7px; }
+
+/* ── Paired window / lifetime figures ─────────────────────────────────── */
+.admin-stat-figures {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap;
+}
+
+.admin-stat-total {
+  display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap;
+  font: 400 11px/1 var(--font-sans); color: var(--ink-3);
+}
+
+.admin-stat-total b {
+  font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums;
+}
+
+/* The all-time strip. Scale, not signal — so it reads as a caption under the
+   metrics rather than as another row of tiles. */
+.admin-lifetime {
+  display: flex; flex-wrap: wrap; gap: 0 26px; margin: 12px 0 0; padding-top: 11px;
+  border-top: 1px solid var(--adm-line);
+}
+
+.admin-lifetime > div { display: flex; align-items: baseline; gap: 7px; }
+
+.admin-lifetime dt { font: 400 11.5px/1 var(--font-sans); color: var(--ink-3); }
+
+.admin-lifetime dd {
+  margin: 0; font: 600 13.5px/1 var(--font-sans); color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * VISUAL DIRECTIONS  (dev-only, ?adminstyle=a|b|c — see adminLook.js)
+ *
+ * Three complete treatments of the same markup, so they can be compared on
+ * real data instead of described. None of them changes a single element or
+ * class in the views — only how they look.
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── A · EDITORIAL ─────────────────────────────────────────────────────────
+ * No boxes at all. A panel becomes a block of content, separated by air and
+ * the occasional hairline, on a column narrow enough to read. Big numerals
+ * with tight tracking carry the hierarchy instead of borders.
+ */
+.adm-look-a .admin-body:not(.admin-body-flush) {
+  max-width: 1160px; margin: 0 auto; width: 100%; padding: 30px 28px 90px;
+}
+
+.adm-look-a .admin-chart-panel,
+.adm-look-a .admin-needs,
+.adm-look-a .admin-stat-card {
+  background: transparent; border: 0; border-radius: 0; padding: 0;
+}
+
+.adm-look-a .admin-chart-panel { gap: 14px; margin-bottom: 34px; }
+
+.adm-look-a .admin-chart-head { padding-bottom: 9px; border-bottom: 1px solid var(--adm-line); }
+
+.adm-look-a .admin-chart-title { font: 600 15px/1.2 var(--font-sans); letter-spacing: -.005em; }
+
+.adm-look-a .admin-section-title {
+  font: 600 19px/1.25 var(--font-sans); letter-spacing: -.012em;
+  margin: 52px 0 6px; padding-top: 0; border-top: 0;
+}
+
+.adm-look-a .admin-section-title:first-of-type { margin-top: 8px; }
+
+.adm-look-a .admin-section-sub { font-size: 13px; margin: 0 0 20px; max-width: 62ch; }
+
+/* Metrics: a row of figures on a shared baseline, divided by hairlines rather
+   than wrapped in four identical rectangles. */
+.adm-look-a .admin-stat-grid { gap: 0; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+
+.adm-look-a .admin-stat-card { padding: 2px 26px; border-left: 1px solid var(--adm-line); min-height: 0; gap: 7px; }
+
+.adm-look-a .admin-stat-card:first-child { border-left: 0; padding-left: 0; }
+
+.adm-look-a .admin-stat-label {
+  font: 500 11.5px/1 var(--font-sans); letter-spacing: 0;
+  text-transform: none; color: var(--ink-2);
+}
+
+.adm-look-a .admin-stat-card.is-hero .admin-stat-value {
+  font: 600 44px/1 var(--font-sans); letter-spacing: -.032em;
+}
+
+.adm-look-a .admin-stat-sub { font-size: 12px; color: var(--ink-3); }
+
+.adm-look-a .admin-stat-spark { height: 38px; margin-top: 8px; }
+
+.adm-look-a .admin-lifetime { margin-top: 26px; padding-top: 14px; gap: 0 30px; }
+
+/* Needs you: a left rule carries the severity; no card, no chrome. */
+.adm-look-a .admin-needs { margin-bottom: 4px; gap: 6px; }
+
+.adm-look-a .admin-needs-rows { gap: 0; }
+
+.adm-look-a .admin-needs-row {
+  background: transparent; border: 0; border-bottom: 1px solid var(--adm-line);
+  border-radius: 0; padding: 13px 4px 13px 15px; position: relative;
+}
+
+.adm-look-a .admin-needs-row::before {
+  content: ''; position: absolute; left: 0; top: 11px; bottom: 11px; width: 2px;
+  border-radius: 2px; background: var(--ink-3);
+}
+
+.adm-look-a .admin-needs-row.is-bad::before { background: var(--adm-bad); }
+
+.adm-look-a .admin-needs-row:hover { background: var(--bg-1); }
+
+.adm-look-a .admin-needs-count { font: 600 22px/1 var(--font-sans); letter-spacing: -.02em; }
+
+.adm-look-a .admin-needs-label { font-size: 13.5px; color: var(--ink-1); }
+
+.adm-look-a .admin-charts-row { gap: 34px; }
+
+/* ── B · TECHNICAL ─────────────────────────────────────────────────────────
+ * More signal per screen. Monospace figures on a strict grid, tiles fused
+ * into one ruled strip, micro-labels. A console you operate, not a report.
+ */
+.adm-look-b .admin-body:not(.admin-body-flush) { max-width: 1560px; margin: 0 auto; padding: 18px 20px 70px; }
+
+.adm-look-b .admin-chart-panel,
+.adm-look-b .admin-needs {
+  border-radius: 3px; padding: 11px 13px; gap: 7px;
+  background: var(--bg-1); border: 1px solid var(--adm-line);
+}
+
+[data-theme='light'] .adm-look-b .admin-chart-panel,
+[data-theme='light'] .adm-look-b .admin-needs { background: var(--bg-3); }
+
+.adm-look-b .admin-chart-title {
+  font: 700 10.5px/1 var(--font-display, var(--font-sans));
+  letter-spacing: .13em; text-transform: uppercase; color: var(--ink-1);
+}
+
+.adm-look-b .admin-chart-sub { font-size: 10.5px; }
+
+/* Section headings are a label plus a rule that runs to the edge. */
+.adm-look-b .admin-section-title {
+  display: flex; align-items: center; gap: 12px;
+  font: 700 10.5px/1 var(--font-display, var(--font-sans));
+  letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3);
+  margin: 26px 0 9px; padding-top: 0; border-top: 0;
+}
+
+.adm-look-b .admin-section-title::after {
+  content: ''; flex: 1 1 auto; height: 1px; background: var(--adm-line);
+}
+
+.adm-look-b .admin-section-title:first-of-type { margin-top: 2px; }
+
+.adm-look-b .admin-section-sub { font-size: 11.5px; margin: -4px 0 10px; }
+
+/* One fused strip, not four cards. */
+.adm-look-b .admin-stat-grid {
+  gap: 0; border: 1px solid var(--adm-line); border-radius: 3px; overflow: hidden;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.adm-look-b .admin-stat-card {
+  border: 0; border-right: 1px solid var(--adm-line); border-radius: 0;
+  background: var(--bg-1); padding: 10px 13px; min-height: 0; gap: 4px;
+}
+
+[data-theme='light'] .adm-look-b .admin-stat-card { background: var(--bg-3); }
+
+.adm-look-b .admin-stat-card:last-child { border-right: 0; }
+
+.adm-look-b .admin-stat-label { font-size: 9.5px; letter-spacing: .11em; color: var(--ink-3); }
+
+.adm-look-b .admin-stat-card.is-hero .admin-stat-value,
+.adm-look-b .admin-stat-value,
+.adm-look-b .admin-needs-count,
+.adm-look-b .admin-lifetime dd,
+.adm-look-b .admin-right-now-value {
+  font-family: var(--font-mono); font-weight: 500; letter-spacing: -.02em;
+}
+
+.adm-look-b .admin-stat-card.is-hero .admin-stat-value { font-size: 25px; }
+
+.adm-look-b .admin-stat-sub { font-size: 11px; }
+
+.adm-look-b .admin-stat-total { font-size: 10px; }
+
+.adm-look-b .admin-stat-spark { height: 22px; margin-top: 3px; }
+
+.adm-look-b .admin-needs-rows { gap: 3px; }
+
+.adm-look-b .admin-needs-row { padding: 6px 10px; border-radius: 2px; }
+
+.adm-look-b .admin-needs-count { font-size: 15px; }
+
+.adm-look-b .admin-needs-label { font-size: 12px; }
+
+.adm-look-b .admin-lifetime { gap: 0 20px; }
+
+.adm-look-b .admin-lifetime dt { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
+
+.adm-look-b .admin-lifetime dd { font-size: 12.5px; }
+
+.adm-look-b .adm-bar-row { padding: 0; }
+
+.adm-look-b .adm-bar-value, .adm-look-b .adm-bar-secondary { font-family: var(--font-mono); }
+
+/* ── C · LAYERED ───────────────────────────────────────────────────────────
+ * Real surface depth and display type. Panels sit on a tinted ground with a
+ * soft gradient and a coloured top rule; the numbers are the loudest thing on
+ * the page by a wide margin.
+ */
+.adm-look-c .admin-body:not(.admin-body-flush) {
+  max-width: 1320px; margin: 0 auto; padding: 30px 26px 90px;
+  background:
+    radial-gradient(1200px 460px at 12% -8%, color-mix(in srgb, var(--adm-cat-1) 9%, transparent), transparent 70%),
+    radial-gradient(900px 400px at 92% 4%, color-mix(in srgb, var(--adm-cat-3) 6%, transparent), transparent 70%);
+}
+
+.adm-look-c .admin-chart-panel,
+.adm-look-c .admin-needs,
+.adm-look-c .admin-stat-card {
+  border-radius: 14px;
+  border: 1px solid var(--adm-line-strong);
+  background: linear-gradient(180deg, var(--bg-3), var(--adm-surface) 74%);
+  box-shadow: 0 1px 2px rgba(0,0,0,.18), 0 14px 34px -22px rgba(0,0,0,.5);
+}
+
+[data-theme='light'] .adm-look-c .admin-chart-panel,
+[data-theme='light'] .adm-look-c .admin-needs,
+[data-theme='light'] .adm-look-c .admin-stat-card {
+  background: linear-gradient(180deg, #fff, var(--bg-1) 92%);
+  box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 28px -20px rgba(0,0,0,.16);
+}
+
+.adm-look-c .admin-chart-panel { padding: 18px 20px; }
+
+.adm-look-c .admin-needs { padding: 18px 20px; }
+
+.adm-look-c .admin-stat-card { padding: 17px 19px 19px; position: relative; overflow: hidden; }
+
+/* A coloured hairline along the top edge — the one place colour is decorative,
+   and it is what makes these read as surfaces rather than outlines. */
+.adm-look-c .admin-stat-card::before {
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 2px;
+  background: linear-gradient(90deg, var(--adm-cat-1), color-mix(in srgb, var(--adm-cat-1) 15%, transparent));
+}
+
+.adm-look-c .admin-section-title {
+  font: 700 21px/1.2 var(--font-display, var(--font-sans));
+  letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ink-0); margin: 44px 0 8px; padding-top: 0; border-top: 0;
+}
+
+.adm-look-c .admin-section-title:first-of-type { margin-top: 6px; }
+
+.adm-look-c .admin-section-sub { font-size: 13px; margin: 0 0 18px; }
+
+.adm-look-c .admin-chart-title { font: 600 15.5px/1.2 var(--font-sans); }
+
+.adm-look-c .admin-stat-label { font-size: 10px; letter-spacing: .17em; color: var(--ink-2); }
+
+.adm-look-c .admin-stat-card.is-hero .admin-stat-value {
+  font: 700 46px/1 var(--font-display, var(--font-sans)); letter-spacing: .012em;
+}
+
+.adm-look-c .admin-stat-spark { height: 36px; margin-top: 10px; }
+
+.adm-look-c .admin-stat-grid { gap: 16px; }
+
+.adm-look-c .admin-needs-row {
+  border-radius: 10px; padding: 12px 14px;
+  border: 1px solid transparent; background: color-mix(in srgb, var(--ink-2) 7%, transparent);
+}
+
+.adm-look-c .admin-needs-row.is-bad {
+  background: color-mix(in srgb, var(--adm-bad) 12%, transparent);
+  border-color: color-mix(in srgb, var(--adm-bad) 26%, transparent);
+}
+
+.adm-look-c .admin-needs-row.is-act {
+  background: color-mix(in srgb, var(--adm-cat-1) 12%, transparent);
+  border-color: color-mix(in srgb, var(--adm-cat-1) 26%, transparent);
+}
+
+.adm-look-c .admin-needs-count { font: 700 21px/1 var(--font-display, var(--font-sans)); }
+
+.adm-look-c .admin-needs-label { font-size: 13.5px; color: var(--ink-0); }
+
+.adm-look-c .admin-right-now-value { font: 700 38px/1 var(--font-display, var(--font-sans)); }
