@@ -43,7 +43,7 @@ import { ExplorePublishSection } from './ExplorePublishSection.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
-import { X as XIcon, Link as LinkIcon } from '../lib/icons.js';
+import { X as XIcon, Link as LinkIcon, UserPlus as UserPlusIcon } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
 
 // Turn an expiry choice into a timestamp. 'never' is an explicit null, which
@@ -662,8 +662,11 @@ export function ShareModal({
 
   const linkRow = (l) => (
     <div key={l.token} className="share-row">
-      <span className="share-avatar" style={{ background: 'var(--bg-3)', color: 'var(--ink-1)' }}>
-        {linkKind(l) === 'invite' ? '🤝' : '🔗'}
+      {/* The two link kinds are only distinguishable here and in the sub-line,
+          so this icon is load-bearing — it can be neutral, but not absent. */}
+      <span className="share-avatar" style={{ background: 'var(--bg-3)', color: 'var(--ink-1)' }}
+            aria-label={linkKind(l) === 'invite' ? 'Invite link' : 'View-only link'}>
+        <Glyph as={linkKind(l) === 'invite' ? UserPlusIcon : LinkIcon} size={14} />
       </span>
       <div className="share-row-text">
         <div className="share-row-name">/share/{l.token.slice(0, 8)}…</div>

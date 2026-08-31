@@ -134,7 +134,6 @@ export function ReferralNudge({ tier, onCollaborate }) {
   return (
     <div className={`fv-banner surface-frosted${leaving ? ' is-leaving' : ''}`}
          role="dialog" aria-label="Invite someone to build this cluster with you">
-      <div className="fv-banner-spark" aria-hidden="true">🤝</div>
       <div className="fv-banner-copy">
         <div className="fv-banner-title">Build this together?</div>
         <div className="fv-banner-body">

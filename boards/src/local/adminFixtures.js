@@ -349,7 +349,7 @@ const RPCS = {
   admin_list_feedback: [
     { id: 'f1', user_id: 'u-2', email: 'priya@acme.io', kind: 'bug', message: 'The funnel chart tooltip flickers when I hover near the fork divider — looks like a re-render loop. Repro: 90d range, hover the email→otp band quickly.', url: '/admin?tab=analytics', viewport: '1512x982', user_agent: 'Mac · Chrome 128', created_at: tsISO(40) },
     { id: 'f2', user_id: 'u-5', email: 'theo@gmail.com', kind: 'idea', message: 'Could the Users table let me bulk-grant paid access by pasting a column of emails?', url: '/admin?tab=users', viewport: '1728x1080', user_agent: 'Mac · Safari 17', created_at: tsISO(180) },
-    { id: 'f3', user_id: null, email: null, kind: 'praise', message: 'New analytics tab is gorgeous 🔥', url: '/admin', viewport: '1440x900', user_agent: 'Win · Edge 128', created_at: tsISO(520) },
+    { id: 'f3', user_id: null, email: null, kind: 'praise', message: 'New analytics tab is gorgeous', url: '/admin', viewport: '1440x900', user_agent: 'Win · Edge 128', created_at: tsISO(520) },
     { id: 'f4', user_id: 'u-9', email: 'ravi@proton.me', kind: 'other', message: 'Typo on the waitlist email: "you’re in in".', url: '/welcome', viewport: '390x844', user_agent: 'iPhone · Safari', created_at: tsISO(1300) },
     { id: 'f5', user_id: 'u-1', email: 'devon@gmail.com', kind: 'bug', message: 'Storage tab showed "—" for a sec on load then filled in.', url: '/admin?tab=analytics&view=system', viewport: '2560x1440', user_agent: 'Mac · Chrome 128', created_at: tsISO(2600) },
   ],

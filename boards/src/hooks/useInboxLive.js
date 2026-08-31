@@ -47,7 +47,7 @@ export function useInboxLive({ userId, openConversationId, onOpenConversation, f
       const senderName = userProfiles.getName(payload.sender_id, payload.sender_email || 'New message');
       const mentionsMe = Array.isArray(payload.mentions) && payload.mentions.includes(userId);
       const preview = payload.body_preview
-        || (payload.has_attachments ? '📎 Attachment' : '');
+        || (payload.has_attachments ? 'Attachment' : '');
       const message = mentionsMe
         ? `${senderName} mentioned you${preview ? `: ${preview}` : ''}`
         : (preview ? `${senderName}: ${preview}` : senderName);

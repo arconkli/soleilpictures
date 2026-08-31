@@ -44,10 +44,10 @@ export function OnboardingCoachmark({ boardId, onDismiss, hasTutorialBoard = fal
         <div className="onboarding-coachmark-title">{v?.title || 'Make it yours'}</div>
         <div className="onboarding-coachmark-body">
           {hasTutorialBoard
-            ? (v?.hasTutorial || 'Drag the note into the “Ideas” board to organize it ✨')
+            ? (v?.hasTutorial || 'Drag the note into the “Ideas” board to organize it')
             : isTouch
-              ? (v?.touch || 'Tap the + on the left, or long-press the canvas, to add your first card.')
-              : (v?.desktop || 'Right-click, use the + on the left, or drag an image straight in to add your first card.')}
+              ? (v?.touch || 'Tap a tool on the toolbar at the left, or long-press the canvas, to add your first card.')
+              : (v?.desktop || 'Right-click, use the toolbar on the left, or drag an image straight in to add your first card.')}
         </div>
       </div>
       <button

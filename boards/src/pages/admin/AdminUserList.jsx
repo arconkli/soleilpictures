@@ -10,7 +10,7 @@ import { useEffect, useRef } from 'react';
 import { Icon } from '../../components/Icon.jsx';
 import { ArrowsClockwise, User as UsersIcon } from '../../lib/icons.js';
 import { relativeTime, formatBytes, formatCount } from '../../lib/adminFormat.js';
-import { countryName, countryFlag } from '../../lib/countries.js';
+import { countryName, normalizeCountry } from '../../lib/countries.js';
 import { AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { Avatar, SourceBadge, PresenceDot, LastWorked, Joined, channelLabel } from './AdminUserDetailParts.jsx';
 
@@ -86,10 +86,10 @@ function UserListRow({ row, selected, isSelf, onSelect }) {
         {ghost && <span className="admin-badge-ghost" title="Signed up but never joined the waitlist">ghost</span>}
       </div>
       <div className="admin-user-meta">
-        {/* Flag only — the row is already dense, and the name is one hover away. */}
+        {/* Code only — the row is already dense, and the name is one hover away. */}
         {row.country && (
           <span className="admin-muted" style={{ fontSize: 12 }} title={countryName(row.country)}>
-            {countryFlag(row.country)}
+            {normalizeCountry(row.country) || row.country}
           </span>
         )}
         <span className="admin-muted" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }} title={usageTitle}>

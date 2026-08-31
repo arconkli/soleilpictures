@@ -182,7 +182,7 @@ export function MessageBubble({
                 <img alt={att.name || ''} src={publicUrl(att.storage_path)} />
               )}
               {att.kind === 'file' && (
-                <span className="msg-attachment-file">📎 {att.name || 'file'}</span>
+                <span className="msg-attachment-file">{att.name || 'file'}</span>
               )}
               {att.kind === 'url' && (
                 <a href={att.href} target="_blank" rel="noopener noreferrer">{att.title || att.href}</a>

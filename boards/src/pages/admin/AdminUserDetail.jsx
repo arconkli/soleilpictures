@@ -20,7 +20,7 @@ import { DEMO_CARD_LIMIT } from '../../lib/demoCardCap.js';
 import {
   formatCount, formatMoney, formatExpires, fmtDate, relativeTime, formatBytes,
 } from '../../lib/adminFormat.js';
-import { countryName, countryFlag } from '../../lib/countries.js';
+import { countryName } from '../../lib/countries.js';
 import { StatusPill } from './AdminPills.jsx';
 import { AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminUserRowMenu } from './AdminUserRowMenu.jsx';
@@ -175,7 +175,7 @@ function EngagementSection({ eng, tier, lastSignInAt, lastWorkedAt, device, geo 
           {geo?.country || geo?.signup_country ? (
             <>
               <span className="is-strong">
-                {countryFlag(geo.country || geo.signup_country)} {countryName(geo.country || geo.signup_country)}
+                {countryName(geo.country || geo.signup_country)}
               </span>
               {geo.signup_country && geo.signup_country !== geo.country && (
                 <span className="is-muted"> · signed up from {countryName(geo.signup_country)}</span>
