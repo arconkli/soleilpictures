@@ -19,6 +19,7 @@ import {
   periodEndFromSubscription,
   pickReusableCustomer,
   planFromPriceId,
+  promoCodesAllowedForPlan,
   subscriptionEventAction,
 } from '../../../supabase/functions/_shared/activateCore.mjs';
 
@@ -82,7 +83,43 @@ test('forever percent_off halves; 100%-off comp records $0, not list price', () 
 });
 test('once coupons do not reduce MRR', () => {
   const s = sub(usdPrice(2500), { discounts: [coupon({ id: 'c', amount_off: 500, duration: 'once' })] });
-  assert.equal(netMonthlyFromSubscription(s).monthlyAmountCents, 2500);
+  const r = netMonthlyFromSubscription(s);
+  assert.equal(r.monthlyAmountCents, 2500);
+  assert.equal(r.discount.amount_off, 500);   // recorded, just not subtracted
+});
+test('a once coupon is RECORDED even though it does not move MRR', () => {
+  const s = sub(usdPrice(2500), { discounts: [coupon({ id: 'c_first', percent_off: 50, duration: 'once' })] });
+  const r = netMonthlyFromSubscription(s);
+  assert.equal(r.monthlyAmountCents, 2500);          // MRR untouched — correct
+  assert.equal(r.discount.coupon, 'c_first');        // but the redemption is visible
+  assert.equal(r.discount.percent_off, 50);
+  assert.equal(r.discount.duration, 'once');
+  assert.equal(r.discount.applies_to, 'first_invoice');
+});
+test('a recurring coupon outranks a once coupon as the primary record', () => {
+  const s = sub(usdPrice(2500), {
+    discounts: [
+      coupon({ id: 'c_first', percent_off: 50, duration: 'once' }),
+      coupon({ id: 'c_forever', percent_off: 20, duration: 'forever' }),
+    ],
+  });
+  const r = netMonthlyFromSubscription(s);
+  assert.equal(r.monthlyAmountCents, 2000);          // only the forever one applies
+  assert.equal(r.discount.coupon, 'c_forever');      // the one that explains MRR wins
+  assert.equal(r.discount.applies_to, undefined);
+});
+test('a once coupon carries its promotion code through', () => {
+  const s = sub(usdPrice(2500), {
+    discounts: [{ coupon: { id: 'c_first', percent_off: 50, duration: 'once' }, promotion_code: 'promo_abc' }],
+  });
+  assert.equal(netMonthlyFromSubscription(s).discount.promotion_code, 'promo_abc');
+});
+test('promo codes are offered on monthly only', () => {
+  assert.equal(promoCodesAllowedForPlan('monthly'), true);
+  assert.equal(promoCodesAllowedForPlan('annual'), false);
+  assert.equal(promoCodesAllowedForPlan(undefined), false);
+  assert.equal(promoCodesAllowedForPlan(null), false);
+  assert.equal(promoCodesAllowedForPlan('MONTHLY'), false);   // exact match only
 });
 test('annual amount_off is a per-invoice figure, spread over 12 months', () => {
   // A $50-off forever coupon on a $240/yr plan reduces each YEARLY invoice by

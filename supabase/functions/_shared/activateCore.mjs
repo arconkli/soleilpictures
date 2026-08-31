@@ -96,12 +96,40 @@ export function netMonthlyFromSubscription(sub) {
 
     const firstPrice = sub.items?.data?.[0]?.price;
     let net = grossMonthly;
-    let primary = null;
+    let primary = null;           // a RECURRING coupon — the one that explains MRR
+    let firstInvoiceOnly = null;  // a 'once' coupon — recorded, never subtracted
+
+    // Shared shape so a 'once' coupon and a recurring one are described
+    // identically; only the MRR arithmetic differs between them.
+    const describe = (c, d) => ({
+      coupon: c.id ?? c.name ?? null,
+      name: c.name ?? null,
+      percent_off: c.percent_off ?? null,
+      amount_off: c.amount_off ?? null,
+      duration: c.duration ?? null,
+      ...(c.duration === "repeating"
+        ? { duration_in_months: c.duration_in_months ?? null }
+        : {}),
+      promotion_code: d.promotion_code ?? null,
+    });
+
     for (const d of list) {
       if (!d || typeof d === "string") continue; // unexpanded id — can't read coupon
       const coupon = d.coupon;
       if (!coupon) continue;
-      if (coupon.duration === "once") continue; // first invoice only — doesn't recur
+
+      // A 'once' coupon discounts the FIRST INVOICE only, so it must not move
+      // the monthly figure. It is still a discount that HAPPENED, though —
+      // skipping the record entirely (as this did until 2026-08-31) makes every
+      // first-month promo invisible to subscription_discounted, the admin promo
+      // flag and discounted_subs. Record it; just don't subtract it.
+      if (coupon.duration === "once") {
+        if (!firstInvoiceOnly) {
+          firstInvoiceOnly = { ...describe(coupon, d), applies_to: "first_invoice" };
+        }
+        continue;
+      }
+
       // An amount_off in a different currency than the price cannot be applied
       // without a rate; record the discount but leave the amount untouched
       // rather than subtracting apples from oranges.
@@ -116,24 +144,34 @@ export function netMonthlyFromSubscription(sub) {
       }
       if (!primary) {
         primary = {
-          coupon: coupon.id ?? coupon.name ?? null,
-          name: coupon.name ?? null,
-          percent_off: coupon.percent_off ?? null,
-          amount_off: coupon.amount_off ?? null,
-          duration: coupon.duration ?? null,
-          ...(coupon.duration === "repeating"
-            ? { duration_in_months: coupon.duration_in_months ?? null }
-            : {}),
+          ...describe(coupon, d),
           ...(currencyMismatch ? { currency_mismatch: coupon.currency } : {}),
-          promotion_code: d.promotion_code ?? null,
         };
       }
     }
 
-    return { monthlyAmountCents: Math.max(0, Math.round(net)), discount: primary };
+    // A recurring coupon wins the slot when both exist — it is the one the
+    // monthly figure needs explaining by.
+    return {
+      monthlyAmountCents: Math.max(0, Math.round(net)),
+      discount: primary ?? firstInvoiceOnly,
+    };
   } catch (_e) {
     return { monthlyAmountCents: null, discount: null };
   }
+}
+
+// Whether Stripe Checkout should offer its promotion-code field for `plan`.
+//
+// Codes are MONTHLY-ONLY, and this is the only place that can enforce it.
+// Stripe discounts INVOICES, not months: a `duration: 'once'` coupon takes its
+// percentage off the first invoice, which is one month on the monthly plan but
+// an ENTIRE YEAR on the annual one. The usual fix — restricting the coupon with
+// applies_to.products — is unavailable here because monthly and annual are two
+// Prices on a single Product, so no coupon can tell them apart. Withholding the
+// field is therefore the enforcement, not a UI preference.
+export function promoCodesAllowedForPlan(plan) {
+  return plan === "monthly";
 }
 
 // Should a customer.subscription.updated/deleted event write through to the
