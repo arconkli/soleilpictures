@@ -8,9 +8,10 @@
 // Conversion is gated by safeRate (solid ≥20, directional 5–19, suppressed <5);
 // counts are shown raw (a bar/tile of 1 honestly reads as 1).
 
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LabelList } from 'recharts';
 import { formatCount, formatPct, safeRate, MIN_RATE_SHOW } from '../../../../lib/adminFormat.js';
-import { CHART } from '../../chartTheme.js';
+import { BarRows } from '../../viz/BarRows.jsx';
+import { Metric, MetricGrid } from '../../viz/Metric.jsx';
+import { DEVICE_COLOR, VAR } from '../../viz/palette.js';
 import { PanelNote, ChartPlaceholder } from '../../SmallN.jsx';
 
 // Friendly labels for the pinned enums (see analyticsEvents.js). Unknown =
@@ -36,18 +37,9 @@ const METHOD_LABELS = {
   mobile_nav: 'Mobile + button',
   unknown: 'Uncategorized',
 };
-// Mirrors DeviceBreakdown.jsx (not exported there — re-declared per convention).
-const DEVICE_COLORS = { desktop: '#5b8def', mobile: '#ffa500', tablet: '#43c59e', unknown: '#6b7280' };
-
-function Tile({ label, value, sub, danger }) {
-  return (
-    <div style={{ flex: 1, border: '1px solid var(--line-2)', borderRadius: 8, padding: '12px 14px' }}>
-      <div className="t-meta" style={{ color: 'var(--ink-2)' }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 600, color: danger ? 'var(--danger, #e5484d)' : 'var(--ink-1)' }}>{value}</div>
-      {sub && <div className="t-meta" style={{ color: 'var(--ink-2)' }}>{sub}</div>}
-    </div>
-  );
-}
+// Device colours come from viz/palette now. This file used to carry its own
+// copy, with a comment explaining it was re-declared "per convention" — and
+// painted mobile in the reserved gold accent.
 
 export function FirstCardFriction({ data }) {
   if (!data) return null;
@@ -85,27 +77,29 @@ export function FirstCardFriction({ data }) {
         <span className="admin-chart-sub t-meta">of sessions that tried to make a card — did they succeed, or hit a dead-end?</span>
       </header>
       <div className="admin-chart-body">
-        <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
-          <Tile label="Tried (sessions)" value={formatCount(intents)} sub={`${formatCount(data.intents_total)} intents`} />
-          <Tile label="Intent → card"
-            value={rate.hide ? '—' : `${formatPct(rate.rate)}${rate.flag ? ' ⚠' : ''}`}
+        <MetricGrid>
+          <Metric label="Tried (sessions)" value={formatCount(intents)} sub={`${formatCount(data.intents_total)} intents`} />
+          <Metric label="Intent → card"
+            value={rate.hide ? null : `${formatPct(rate.rate)}${rate.flag ? ' ⚠' : ''}`}
+            muted={!rate.ok}
             sub={rate.hide ? `too few (n=${formatCount(intents)})` : `${formatCount(converted)} of ${formatCount(intents)}`} />
-          <Tile label="Stuck sessions" value={formatCount(stuck)} danger={stuck > 0}
+          <Metric label="Stuck sessions" value={formatCount(stuck)}
             sub="rage-clicks or 12s with no card" />
-        </div>
+        </MetricGrid>
 
         {blocked.length > 0 && (
-          <ResponsiveContainer width="100%" height={Math.max(120, 40 + blocked.length * 34)}>
-            <BarChart data={blocked} layout="vertical" margin={{ top: 6, right: 56, bottom: 6, left: 8 }}>
-              <XAxis type="number" {...CHART.axis} allowDecimals={false} />
-              <YAxis dataKey="name" type="category" {...CHART.axis} width={170} />
-              <Tooltip {...CHART.tooltip}
-                formatter={(v) => [`${formatCount(v)} session${Number(v) === 1 ? '' : 's'}`, 'blocked']} />
-              <Bar dataKey="sessions" fill="var(--danger, #e5484d)" fillOpacity={0.65} radius={[0, 3, 3, 0]} {...CHART.noAnim}>
-                <LabelList dataKey="sessions" position="right" formatter={(v) => (v > 0 ? formatCount(v) : '')} fill="var(--ink-2)" fontSize={11} />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <div style={{ marginTop: 14 }}>
+            <div className="t-meta" style={{ color: 'var(--ink-3)', marginBottom: 6 }}>
+              Where the attempt died
+            </div>
+            {/* The one place a status colour is the mark: every row here is a
+                dead end, so red is the subject rather than a category. */}
+            <BarRows
+              rows={blocked.map((b) => ({ label: b.name, value: b.sessions }))}
+              formatValue={(v) => formatCount(v)}
+              colors={VAR.bad}
+            />
+          </div>
         )}
 
         {methods.length > 0 && (
@@ -135,7 +129,7 @@ export function FirstCardFriction({ data }) {
                     <tr key={d.device}>
                       <td style={{ textTransform: 'capitalize' }}>
                         <span aria-hidden="true" style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2,
-                          background: DEVICE_COLORS[d.device] || DEVICE_COLORS.unknown, marginRight: 6 }} />
+                          background: DEVICE_COLOR[d.device] || DEVICE_COLOR.unknown, marginRight: 6 }} />
                         {d.device}
                       </td>
                       <td className="num">{formatCount(d.intent_sessions)}</td>

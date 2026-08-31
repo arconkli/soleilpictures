@@ -104,6 +104,22 @@ export const VAR = {
 };
 
 /**
+ * Device identity, one place.
+ *
+ * This map was declared independently in DeviceBreakdown and FirstCardFriction
+ * — the second one carrying the comment "re-declared per convention" — with
+ * mobile painted #ffa500, i.e. the reserved accent used as a category colour.
+ * Device IS identity, so it earns categorical hues; it just has to be the same
+ * hues in both places.
+ */
+export const DEVICE_COLOR = {
+  desktop: VAR.cat[0],
+  mobile:  VAR.cat[1],
+  tablet:  VAR.cat[2],
+  unknown: VAR.other,
+};
+
+/**
  * Colour for series `i` of `n`, as a CSS var.
  *
  * Past the third series this returns the neutral `other` rather than inventing

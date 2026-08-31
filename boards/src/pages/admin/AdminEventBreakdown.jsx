@@ -3,10 +3,9 @@
 // admin_event_breakdown() + admin_checkout_reliability() (migration 0103).
 // Mirrors AdminFunnel's chart+table layout; reuses existing admin classes.
 
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
+import { BarRows } from './viz/BarRows.jsx';
 import { formatCount, formatPct } from '../../lib/adminFormat.js';
 
-const SOLEIL = '#ffa500';
 
 const LABELS = {
   email_submit_error:      'Email send failed',
@@ -90,20 +89,10 @@ export function AdminEventBreakdown({ rows = [], reliability, days = 30 }) {
           </header>
           <div className="admin-funnel-grid">
             <div className="admin-funnel-chart">
-              <ResponsiveContainer width="100%" height={Math.max(260, data.length * 26)}>
-                <BarChart data={data} layout="vertical" margin={{ top: 6, right: 24, bottom: 6, left: 8 }}>
-                  <XAxis type="number" stroke="var(--ink-3)" fontSize={10} tickLine={false} axisLine={false} />
-                  <YAxis dataKey="name" type="category" stroke="var(--ink-3)" fontSize={10} tickLine={false} axisLine={false} width={150} />
-                  <Tooltip
-                    contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 8, fontSize: 12 }}
-                    labelStyle={{ color: 'var(--ink-1)' }}
-                    formatter={(v) => [formatCount(v), 'sessions']}
-                  />
-                  <Bar dataKey="sessions" radius={[0, 3, 3, 0]} isAnimationActive={false}>
-                    {data.map((_, i) => <Cell key={i} fill={SOLEIL} fillOpacity={0.85} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <BarRows
+                rows={data.map((d) => ({ label: d.name, value: Number(d.sessions) || 0 }))}
+                formatValue={(v) => formatCount(v)}
+              />
             </div>
 
             <div className="admin-funnel-table">

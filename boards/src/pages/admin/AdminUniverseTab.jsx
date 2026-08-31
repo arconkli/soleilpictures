@@ -7,13 +7,22 @@
 // The graph renderer + privacy contract (IDs/counts only, no titles/content) are
 // untouched; the Command Center only *reuses* <UniverseGraph>.
 
-import { useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { AdminUniverseTicker } from './AdminUniverseTicker.jsx';
 import { UniverseGraph } from './UniverseGraph.jsx';
 import { UniverseLegend } from './UniverseLegend.jsx';
 import { useUniverseStats } from './useUniverseStream.js';
 import { useActivityPulse } from './useActivityPulse.js';
-import { AdminCommandCenter } from './AdminCommandCenter.jsx';
+// Lazy, and for one specific reason: the Command Center is the last consumer of
+// Recharts in the app. Every other chart on the admin surface is now plain SVG,
+// so a static import here would keep ~136KB gzipped of charting library in the
+// admin bundle to serve one wall display that is opened deliberately. This
+// splits it into its own chunk that loads when someone asks for it.
+//
+// The Command Center itself is untouched — it is a different design language on
+// purpose and the owner likes it as it is.
+const AdminCommandCenter = lazy(() =>
+  import('./AdminCommandCenter.jsx').then((m) => ({ default: m.AdminCommandCenter })));
 import { fmtDateTime } from '../../lib/adminFormat.js';
 
 const KIND_LABELS = {
@@ -235,7 +244,11 @@ export function AdminUniverseTab() {
       {/* Remount on switch (key) so each view owns a clean UniverseGraph lifecycle. */}
       {view === 'universe'
         ? <UniverseView key="universe" />
-        : <AdminCommandCenter key="command" />}
+        : (
+          <Suspense fallback={<div className="admin-empty">Loading Command Center…</div>}>
+            <AdminCommandCenter key="command" />
+          </Suspense>
+        )}
     </div>
   );
 }

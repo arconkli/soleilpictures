@@ -7,12 +7,15 @@
 // where some source clears the floor, only draw a source line once it itself
 // clears MIN_RATE_SHOW, and gate to a placeholder below MIN_POINTS days.
 
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import { formatPct, MIN_RATE_SHOW, MIN_POINTS } from '../../../../lib/adminFormat.js';
-import { CHART } from '../../chartTheme.js';
+import { MultiTrend } from '../../viz/TrendLine.jsx';
+import { VAR } from '../../viz/palette.js';
 import { PanelNote, ChartPlaceholder } from '../../SmallN.jsx';
 
-const COLORS = { ad: '#ffa500', referral: '#5b8def', organic: '#43c59e' };
+// Colour follows the SOURCE, not its position in the filtered list — a bucket
+// dropping below the sample floor must not repaint the two that remain. `ad`
+// was gold, which is the reserved accent.
+const COLORS = { ad: VAR.cat[2], referral: VAR.cat[0], organic: VAR.cat[1] };
 
 function Panel({ children }) {
   return (
@@ -61,19 +64,18 @@ export function RetentionBySource({ rows = [] }) {
 
   return (
     <Panel>
-      <ResponsiveContainer width="100%" height={240}>
-        <LineChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: -8 }}>
-          <CartesianGrid {...CHART.grid} />
-          <XAxis dataKey="d" {...CHART.axis} tickFormatter={(v) => `D${v}`} interval="preserveStartEnd" />
-          <YAxis {...CHART.axis} domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} width={40} />
-          <Tooltip {...CHART.tooltip} formatter={(v) => formatPct(v)} labelFormatter={(l) => `Day ${l} since signup`} />
-          <Legend wrapperStyle={{ fontSize: 11, color: 'var(--ink-2)' }} iconType="plainline" iconSize={14} />
-          {shown.map((s) => (
-            <Line key={s} type="monotone" dataKey={s} name={s} stroke={COLORS[s] || '#888'}
-              strokeWidth={2} dot={{ r: 2 }} connectNulls {...CHART.noAnim} />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
+      <MultiTrend
+        labels={data.map((o) => `Day ${o.d}`)}
+        domain={[0, 1]}
+        height={220}
+        formatValue={(v) => formatPct(v)}
+        series={shown.map((s) => ({
+          key: s,
+          label: s,
+          color: COLORS[s] || VAR.other,
+          values: data.map((o) => (o[s] == null ? null : Number(o[s]))),
+        }))}
+      />
       <PanelNote>
         Pooled snapshot with the same observable-window clamp as the retention curve. Source bucket comes from
         first-touch (fbclid / utm / referrer){hidden.length ? ` · ${hidden.join(' & ')} hidden until ≥${MIN_RATE_SHOW} users` : ''} · directional at low volume.
