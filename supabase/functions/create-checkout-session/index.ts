@@ -12,7 +12,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@17";
 import { clientIpFromHeaders, emitCapi } from "../_shared/meta-capi.ts";
-import { decideCheckoutRoute, filterLiveSubscriptions, pickReusableCustomer } from "../_shared/activateCore.mjs";
+import { decideCheckoutRoute, filterLiveSubscriptions, pickReusableCustomer, promoCodesAllowedForPlan } from "../_shared/activateCore.mjs";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -162,7 +162,11 @@ Deno.serve(async (req) => {
       line_items: [{ price, quantity: 1 }],
       success_url: successUrl,
       cancel_url:  cancelUrl,
-      allow_promotion_codes: true,
+      // Monthly only. Stripe discounts invoices, not months — a `once` coupon
+      // is half off ONE month here but half off a WHOLE YEAR on annual, and no
+      // coupon can restrict itself to a plan because monthly and annual are two
+      // Prices on one Product. Withholding the field IS the enforcement.
+      allow_promotion_codes: promoCodesAllowedForPlan(plan),
       // Default session lifetime is 24h — a payable sibling from a two-tab race
       // or an abandoned attempt would linger all day and could still mint a
       // second subscription after the first one paid. One hour is plenty to

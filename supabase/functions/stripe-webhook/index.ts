@@ -146,6 +146,11 @@ async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, sessi
     return;
   }
 
+  // Durable discount-redemption record. Same reasoning as the Purchase emit
+  // below: past the soft-refusal return the payment is real, so the redemption
+  // is real and worth recording even if our own tier flip later fails.
+  await recordDiscountRedemption(admin, { session, subscription, userId, subId: subId ?? null });
+
   // Meta CAPI Purchase. The payment is real regardless of whether our DB tier
   // flip succeeded, so emit even on a HARD activation failure (DB write error).
   // Keyed on session.id so it dedups against verify-checkout-session's
@@ -205,6 +210,82 @@ async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, sessi
   // event instead of treating the lost write as delivered (emitCapi dedups
   // on session.id across retries, so the emit stays single-counted).
   if (!result.activated) throw new Error(`activation failed: ${result.reason}`);
+}
+
+// Durable redemption record — see migration 0274. subscriptions.discount is a
+// snapshot Stripe clears after the first invoice, so a first-month promo is
+// only ever attributable if it is captured here, at checkout.
+//
+// Never throws: the money has already moved, and a failed ledger write must not
+// turn into a 500 that makes Stripe retry a completed activation.
+async function recordDiscountRedemption(
+  admin: ReturnType<typeof createClient>,
+  args: {
+    session: Stripe.Checkout.Session;
+    subscription: Stripe.Subscription | null;
+    userId: string;
+    subId: string | null;
+  },
+): Promise<void> {
+  const { session, subscription, userId, subId } = args;
+  try {
+    let promo: string | null = null;
+    let couponId: string | null = null;
+    let percentOff: number | null = null;
+    let amountOff: number | null = null;
+
+    const take = (c: Stripe.Coupon, pc: string | Stripe.PromotionCode | null | undefined) => {
+      couponId = c.id ?? null;
+      percentOff = c.percent_off ?? null;
+      amountOff = c.amount_off ?? null;
+      promo = typeof pc === "string" ? pc : pc?.id ?? null;
+    };
+
+    // Preferred source: the subscription, already retrieved with
+    // expand: ["discounts"] by the caller — no extra Stripe call.
+    for (const d of (subscription?.discounts ?? []) as (string | Stripe.Discount)[]) {
+      if (!d || typeof d === "string") continue; // unexpanded id
+      if (!d.coupon) continue;
+      take(d.coupon, d.promotion_code);
+      break;
+    }
+
+    // Fallback: Stripe removes a `once` discount as soon as it is applied, and
+    // the first invoice is paid DURING checkout — so it can already be gone by
+    // the time we retrieve the subscription. The Checkout Session records what
+    // was actually applied, and keeps it.
+    if (!couponId) {
+      const full = await stripe.checkout.sessions.retrieve(session.id, {
+        expand: ["total_details.breakdown.discounts"],
+      });
+      for (const bd of full.total_details?.breakdown?.discounts ?? []) {
+        const c = bd.discount?.coupon;
+        if (!c) continue;
+        take(c, bd.discount?.promotion_code);
+        break;
+      }
+    }
+
+    if (!couponId) return; // no discount on this checkout — nothing to record
+
+    const ins = await admin.from("discount_redemptions").insert({
+      user_id: userId,
+      stripe_promotion_code_id: promo,
+      stripe_coupon_id: couponId,
+      stripe_session_id: session.id,
+      stripe_subscription_id: subId,
+      plan: (session.metadata?.plan as string | undefined) ?? null,
+      percent_off: percentOff,
+      amount_off_cents: amountOff,
+    });
+    // 23505 = unique violation on stripe_session_id → this is a webhook retry,
+    // which is expected and correct, not an error.
+    if (ins.error && ins.error.code !== "23505") {
+      console.error("[stripe] discount_redemptions insert failed", ins.error);
+    }
+  } catch (e) {
+    console.error("[stripe] recordDiscountRedemption threw", e);
+  }
 }
 
 async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub: Stripe.Subscription) {
