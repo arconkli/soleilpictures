@@ -1729,9 +1729,11 @@
 /* Hero funnel — stepped horizontal bars; all four numbers per step visible. */
 .admin-hero-funnel { display: flex; flex-direction: column; gap: 2px; }
 
+/* The "From top" column is 78px, not 64px, because at 64 the header wraps onto
+   two lines and drags the whole header row's baseline with it. */
 .admin-funnel-row {
   display: grid;
-  grid-template-columns: 160px 1fr 64px 64px 120px;
+  grid-template-columns: 160px 1fr 72px 78px 120px;
   align-items: center; gap: 12px;
   padding: 7px 8px; border-radius: var(--radius);
 }
