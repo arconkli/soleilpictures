@@ -20,7 +20,7 @@ const wave = (i, base, amp, period = 7) => Math.round(base + amp * Math.sin(i / 
 // ── series ──────────────────────────────────────────────────────────
 const series = (n, fn) => Array.from({ length: n }, (_, i) => fn(n - 1 - i)); // oldest→newest
 
-const signupsByDay = series(30, (back) => ({ day: dayISO(back), signups: Math.max(0, wave(30 - back, 9, 5)) }));
+const signupsByDay = series(90, (back) => ({ day: dayISO(back), signups: Math.max(0, wave(90 - back, 9, 5)) }));
 const cardsPerDay  = series(30, (back) => ({ day: dayISO(back), cards: Math.max(0, wave(30 - back, 58, 26)) }));
 // Per-minute activity for the Command Center's Pulse panel. Oldest→newest,
 // ending one minute short of now — the same complete-minutes-only window
@@ -540,6 +540,33 @@ RPCS.admin_universe_stats = {
   today: { users: 7, workspaces: 4, boards: 12, cards: 138, tags: 22, links: 0 },
 };
 
+// admin_activity_heatmap -> 168 zero-filled buckets. Shaped like a real
+// product's week on purpose: a weekday working-hours ridge, an evening bump, a
+// dead overnight band and quieter weekends. A flat random grid would make the
+// chart look like noise and hide whether it reads at all.
+RPCS.admin_activity_heatmap = (() => {
+  const out = [];
+  for (let dow = 1; dow <= 7; dow++) {
+    for (let hour = 0; hour < 24; hour++) {
+      const weekend = dow >= 6;
+      let base = 0;
+      if (hour >= 9 && hour <= 18) base = weekend ? 26 : 96;
+      else if (hour >= 19 && hour <= 22) base = weekend ? 40 : 62;
+      else if (hour >= 7 && hour <= 8) base = weekend ? 8 : 44;
+      else if (hour >= 23 || hour <= 1) base = weekend ? 14 : 20;
+      else base = weekend ? 1 : 3;
+      // Deterministic ripple so screenshots are stable (no Math.random).
+      const ripple = Math.round(base * 0.28 * Math.sin(dow * 1.7 + hour * 0.9));
+      const events = Math.max(0, base + ripple);
+      out.push({ dow, hour, events, actors: events > 0 ? Math.max(1, Math.round(events / 14)) : 0 });
+    }
+  }
+  // One genuine peak, so the ring and the sqrt scale both get exercised.
+  const peak = out.find((c) => c.dow === 2 && c.hour === 14);
+  if (peak) { peak.events = 240; peak.actors = 17; }
+  return out;
+})();
+
 RPCS.admin_paid_grants_status_counts = (() => {
   const g = RPCS.admin_list_paid_grants || [];
   const by = (s) => g.filter((r) => r.status === s).length;
@@ -668,6 +695,14 @@ function rpcResult(name, params) {
   // app was open, once for days containing real work. Returning the same rows
   // for both would draw two identical series over a panel whose entire point is
   // that they differ.
+  // Series RPCs take p_days and the callers genuinely ask for different
+  // windows — the growth chart wants 90 days where the Command Center wants
+  // 30. Ignoring the argument would draw one of them at the wrong length.
+  if (name === 'admin_signups_by_day' || name === 'admin_cards_per_day' || name === 'admin_metrics_history') {
+    const rows = RPCS[name] || [];
+    const want = Number(params?.p_days) || rows.length;
+    return rows.slice(Math.max(0, rows.length - want));
+  }
   if (name === 'admin_habit_curve') {
     const rows = params?.p_require_work ? RPCS.admin_habit_curve_work : RPCS.admin_habit_curve;
     const window = Number(params?.p_window_days) || 28;

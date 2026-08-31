@@ -141,6 +141,34 @@ test.describe('admin dashboard charts', () => {
     expect(offenders, `data marks painted in --soleil: ${offenders.join(', ')}`).toEqual([]);
   });
 
+  test('the heatmap draws all 168 buckets, including the empty ones', async ({ page }) => {
+    // A heatmap that omits its empty cells misrepresents the shape of the
+    // week, and the empty cells are half of what you read. The RPC zero-fills
+    // for this reason; this asserts the client does not filter them back out.
+    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await expect(page.locator('.adm-heat-grid')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.adm-heat-cell')).toHaveCount(168);
+    // Exactly one busiest hour, ringed.
+    await expect(page.locator('.adm-heat-cell.is-peak')).toHaveCount(1);
+  });
+
+  test('the area chart is drawn at its stated height, not its viewBox ratio', async ({ page }) => {
+    // Regression: the SVG's 1:1 viewBox drove the grid row's intrinsic height,
+    // so a 230px chart laid out 1,566px tall with its content off-screen.
+    await openAdmin(page, { view: 'today', theme: 'dark' });
+    const frame = page.locator('.adm-area-frame').first();
+    await expect(frame).toBeVisible({ timeout: 15000 });
+    const sizes = await page.evaluate(() => {
+      const f = document.querySelector('.adm-area-frame');
+      const p = document.querySelector('.adm-area-plot');
+      return { frame: f.getBoundingClientRect().height, plot: p.getBoundingClientRect().height };
+    });
+    expect(sizes.frame).toBeLessThan(400);
+    expect(Math.abs(sizes.plot - sizes.frame)).toBeLessThan(4);
+    // And it actually drew something.
+    expect(await page.locator('.adm-area-plot svg path').count()).toBeGreaterThan(0);
+  });
+
   test('a sparse series is drawn with gaps, not bridged', async ({ page }) => {
     // metrics_daily has no backfill, so the series genuinely has holes. A line
     // drawn straight across a hole invents the days it is missing.
