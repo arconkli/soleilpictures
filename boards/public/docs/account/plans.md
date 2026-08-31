@@ -69,6 +69,14 @@ Stripe customer portal for payment details, invoices and cancellation.
 
 Annual and monthly are the same product. Annual is cheaper per month.
 
+## Discount codes
+
+If you have a discount code, enter it at checkout — the payment page has an
+**Add promotion code** field. The discount comes off your first month.
+
+Codes apply to the **monthly** plan only. The annual plan is already discounted
+against paying monthly, so its checkout does not offer a code field.
+
 ## Free forever
 
 The Demo plan is not a trial. It does not expire and it does not degrade. If

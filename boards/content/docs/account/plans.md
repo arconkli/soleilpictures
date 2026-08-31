@@ -16,6 +16,8 @@ faq:
     a: You are told, and asked to upgrade. Nothing already made is taken away or locked.
   - q: My card limit is {{fact:legacyDemoCardLimit}}, not {{fact:demoCardLimit}}. Why?
     a: Accounts created before the free plan changed keep the {{fact:legacyDemoCardLimit}}-card allowance they signed up under, permanently. Nobody's cap was lowered.
+  - q: Where do I enter a discount code?
+    a: On the payment page, under Add promotion code. Codes apply to the monthly plan only and come off your first month.
 related:
   - /docs/canvas/cards
   - /docs/files
@@ -86,6 +88,14 @@ grant bonus cards when someone you invited actually gets started.
 Stripe customer portal for payment details, invoices and cancellation.
 
 Annual and monthly are the same product. Annual is cheaper per month.
+
+## Discount codes
+
+If you have a discount code, enter it at checkout — the payment page has an
+**Add promotion code** field. The discount comes off your first month.
+
+Codes apply to the **monthly** plan only. The annual plan is already discounted
+against paying monthly, so its checkout does not offer a code field.
 
 ## Free forever
 

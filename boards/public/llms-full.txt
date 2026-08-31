@@ -3216,6 +3216,12 @@ Settings → Plan & billing shows your plan, the storage meter, and a link to th
 
 Annual and monthly are the same product. Annual is cheaper per month.
 
+Discount codes
+
+If you have a discount code, enter it at checkout — the payment page has an Add promotion code field. The discount comes off your first month.
+
+Codes apply to the monthly plan only. The annual plan is already discounted against paying monthly, so its checkout does not offer a code field.
+
 Free forever
 
 The Demo plan is not a trial. It does not expire and it does not degrade. If 50 cards is enough for what you do, that is a complete account.
@@ -3235,6 +3241,9 @@ A: You are told, and asked to upgrade. Nothing already made is taken away or loc
 
 Q: My card limit is 100, not 50. Why?
 A: Accounts created before the free plan changed keep the 100-card allowance they signed up under, permanently. Nobody's cap was lowered.
+
+Q: Where do I enter a discount code?
+A: On the payment page, under Add promotion code. Codes apply to the monthly plan only and come off your first month.
 
 
 ========================================================================
