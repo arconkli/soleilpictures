@@ -56,12 +56,13 @@ export function periodEndFromSubscription(sub) {
 }
 
 // True net monthly-equivalent recurring revenue for a subscription, with
-// CURRENTLY-RECURRING discounts applied. A 'once' coupon is ignored because it
-// only affects the first invoice — it doesn't recur, so it shouldn't reduce
-// MRR. Used so a 100%-off comp counts as $0 and a 50%-off counts as half,
-// instead of the flat list price. Returns {null,null} on any anomaly so
-// activation never breaks; callers fall back to the list-price estimate in
-// admin_stats.
+// CURRENTLY-RECURRING discounts applied. A 'once' coupon does not move the
+// figure — it only affects the first invoice, so it doesn't recur — but it IS
+// still returned as `discount`, because a first-month promo that goes unrecorded
+// is invisible to every downstream readout. Used so a 100%-off comp counts as $0
+// and a 50%-off counts as half, instead of the flat list price. Returns
+// {null,null} on any anomaly so activation never breaks; callers fall back to
+// the list-price estimate in admin_stats.
 //
 // NOTE: pass a subscription retrieved with `expand: ['discounts']` so each
 // applied discount carries its Coupon object (percent_off / amount_off /
