@@ -13,6 +13,9 @@
 // corpus hasn't reached yet.
 
 import { useState } from 'react';
+// The harness renders the tab components directly rather than through
+// AdminPage, so it has to pull the admin stylesheet in itself.
+import '../pages/admin/admin.css';
 import { supabase } from '../lib/supabase.js';
 import { installAdminPreviewMocks } from './adminFixtures.js';
 import { UniverseView } from '../pages/admin/AdminUniverseTab.jsx';
