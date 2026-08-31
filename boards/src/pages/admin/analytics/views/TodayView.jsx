@@ -29,7 +29,22 @@ import { useActivityPulse } from '../../useActivityPulse.js';
 import { useAnalyticsFilters, useRegisterViewRuntime } from '../AnalyticsFiltersContext.jsx';
 import { Metric, MetricGrid, deltaInfo } from '../../viz/Metric.jsx';
 import { TrendLine } from '../../viz/TrendLine.jsx';
+import { AreaChart } from '../../viz/AreaChart.jsx';
+import { Heatmap } from '../../viz/Heatmap.jsx';
 import { VAR } from '../../viz/palette.js';
+
+// The browser's zone, so the heatmap buckets by the hours the owner keeps
+// rather than by UTC — which would smear a US-hours product diagonally across
+// the grid and make the dead hours look busy.
+const TZ = (() => {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; }
+})();
+
+const shortDay = (iso) => {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  } catch { return String(iso); }
+};
 
 const num = (x) => (x == null || Number.isNaN(Number(x)) ? null : Number(x));
 const goTo = (tab) => {
@@ -206,7 +221,7 @@ export function TodayView() {
   const f = useAnalyticsFilters();
 
   const q = useAdminData(async () => {
-    const [kpi, hist, cards, signups, active, errs, subs, fb, dorm, users, work, mail, life] = await Promise.allSettled([
+    const [kpi, hist, cards, signups, active, errs, subs, fb, dorm, users, work, mail, life, heat, sig90] = await Promise.allSettled([
       supabase.rpc('admin_kpi_summary', { p_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_metrics_history', { p_days: 60 }),
       supabase.rpc('admin_cards_per_day', { p_days: 30, p_exclude_internal: f.excludeInternal }),
@@ -227,6 +242,9 @@ export function TodayView() {
       // goes up, so it cannot tell you anything is wrong, but beside "this
       // week" it gives the week a size.
       supabase.rpc('admin_universe_stats'),
+      // The two charts that are worth looking at rather than reading.
+      supabase.rpc('admin_activity_heatmap', { p_days: 30, p_tz: TZ, p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_signups_by_day', { p_days: 90, p_verified_only: f.verifiedOnly }),
     ]);
 
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
@@ -257,6 +275,8 @@ export function TodayView() {
       feedbackCount: feedbackRows.filter((r) => new Date(r.created_at).getTime() > weekAgo).length,
       emailFailures: (val(mail) || []).reduce((a, r) => a + (num(r.failed) || 0) + (num(r.bounced) || 0), 0),
       lifetime: val(life) || null,
+      heatmap: val(heat) || [],
+      signups90: val(sig90) || [],
       stalled: (val(dorm) || [])
         .filter((r) => !r.did_card && (num(r.days_dormant) ?? 999) <= 14)
         .sort((a, b) => (num(b.active_day_count) || 0) - (num(a.active_day_count) || 0))
@@ -360,6 +380,63 @@ export function TodayView() {
             </div>
           </dl>
         )}
+
+        {/* The two charts the page is actually worth opening for. Ninety days
+            of growth beside thirty days folded onto a week: one says whether
+            the line is going up, the other says when anyone is here to make it
+            go up. Neither question was answerable before. */}
+        <h2 className="admin-section-title">Growth</h2>
+        <div className="admin-section-sub">
+          Ninety days of each, on their own scales. Sharing one axis would flatten signups
+          against a number ten times its size — which is the dual-axis mistake wearing a disguise.
+        </div>
+        <div className="admin-charts-row">
+          <section className="admin-chart-panel">
+            <header className="admin-chart-head">
+              <h3 className="admin-chart-title">Signups</h3>
+              <span className="admin-chart-sub t-meta">per day · 90 days</span>
+            </header>
+            <div className="admin-chart-body">
+              <AreaChart
+                height={230}
+                labels={(d?.signups90 || []).map((r) => shortDay(r.day))}
+                formatValue={(v) => formatCount(v)}
+                series={[{ name: 'Signups', color: VAR.cat[0], values: (d?.signups90 || []).map((r) => num(r.signups) ?? 0) }]}
+              />
+            </div>
+          </section>
+
+          <section className="admin-chart-panel">
+            <header className="admin-chart-head">
+              <h3 className="admin-chart-title">Active users</h3>
+              <span className="admin-chart-sub t-meta">
+                per day · gaps are days metrics_daily never captured
+              </span>
+            </header>
+            <div className="admin-chart-body">
+              <AreaChart
+                height={230}
+                labels={(d?.history || []).map((r) => shortDay(r.day))}
+                formatValue={(v) => formatCount(v)}
+                series={[{ name: 'Active users', color: VAR.cat[1], values: (d?.history || []).map((r) => num(r.active_users)) }]}
+              />
+            </div>
+          </section>
+        </div>
+
+        <h2 className="admin-section-title">When people are here</h2>
+        <div className="admin-section-sub">
+          Every event of the last thirty days folded onto one week, in your timezone. The daily
+          totals are too small to have a shape; a month of them stacked on a week is not.
+        </div>
+        <section className="admin-chart-panel admin-chart-panel-wide">
+          <div className="admin-chart-body">
+            <Heatmap
+              cells={d?.heatmap || []}
+              formatValue={(v) => `${formatCount(v)} event${v === 1 ? '' : 's'}`}
+            />
+          </div>
+        </section>
 
         <RightNow activeNow={d?.activeNow} />
 

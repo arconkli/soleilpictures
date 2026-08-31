@@ -3706,18 +3706,17 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
  * ══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* One measure for the whole surface. The header's contents and the page's
-     contents share it, so the wordmark, the tabs and the first metric all
-     start on the same vertical line — which is most of the difference between
-     "designed" and "assembled". */
-  --adm-col: 1240px;
+  /* The surface is full-bleed: a dashboard is read at a glance, and capping it
+     at a reading measure left a third of a wide monitor empty while the charts
+     that wanted the room stayed small. What still gets capped is PROSE — the
+     section descriptions — because a 1900px line of body text is unreadable.
+     The header shares the same gutter so it aligns with the page below it. */
+  --adm-gutter: 30px;
 }
 
 .admin-body:not(.admin-body-flush) {
-  max-width: var(--adm-col);
-  margin: 0 auto;
   width: 100%;
-  padding: 28px 28px 90px;
+  padding: 26px var(--adm-gutter) 90px;
 }
 
 /* ── Header ────────────────────────────────────────────────────────────────
@@ -3727,24 +3726,14 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
  * active state — but it does not need a filled pill to say so.
  */
 .admin-header {
-  padding: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 26px;
+  width: 100%;
+  padding: 13px var(--adm-gutter);
   background: var(--bg-0);
   border-bottom: 1px solid var(--adm-line);
-  display: block;
 }
 
 .admin-header > * { min-width: 0; }
-
-.admin-header {
-  --_pad: 28px;
-}
-
-/* The inner row is what actually carries the measure. */
-.admin-header {
-  display: flex; align-items: center; justify-content: space-between; gap: 26px;
-  max-width: var(--adm-col); margin: 0 auto; width: 100%;
-  padding: 13px var(--_pad);
-}
 
 .admin-tabs { gap: 2px; margin-right: auto; margin-left: 8px; }
 
@@ -3935,3 +3924,177 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 .admin-discount-preview { margin: 0; color: var(--ink-2); }
 .admin-discount-code { font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
 .admin-discounts-note { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── AreaChart ─────────────────────────────────────────────────────────────
+ * The chart you scrolled to a section for. A gradient ground, a readable
+ * scale, and a crosshair on any day.
+ */
+.adm-area { display: flex; flex-direction: column; gap: 10px; }
+
+/* The row must be explicit. Without it the row is auto-sized, the SVG's 1:1
+   viewBox aspect ratio decides its own intrinsic height, and a 280px chart
+   renders 1,566px tall with its content off-screen. */
+.adm-area-frame {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.adm-area-plot { height: 100%; }
+
+.adm-area-scale {
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 0 0 1px;
+}
+
+.adm-area-tick {
+  display: flex; align-items: center; justify-content: flex-end;
+  height: 0;
+  font: 400 10.5px/1 var(--font-sans); color: var(--adm-axis);
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-area-plot { position: relative; min-width: 0; }
+
+.adm-area-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* Grid sits under the marks and is meant to be barely there. */
+.adm-area-grid {
+  position: absolute; left: 0; right: 0; height: 1px;
+  background: var(--adm-grid); pointer-events: none;
+}
+
+.adm-area-grid:first-of-type { background: var(--adm-line-strong); }
+
+.adm-area-last { position: absolute; transform: translate(-50%, -50%); pointer-events: none; }
+
+.adm-area-last-dot {
+  display: block; width: 9px; height: 9px; border-radius: 999px;
+  background: var(--_c); box-shadow: 0 0 0 3px var(--bg-0), 0 0 14px 1px var(--_c);
+}
+
+.adm-area-crosshair {
+  position: absolute; top: 0; bottom: 0; width: 1px;
+  background: var(--adm-line-strong); transform: translateX(-.5px); pointer-events: none;
+}
+
+.adm-area-dot {
+  position: absolute; width: 8px; height: 8px; border-radius: 999px;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px var(--bg-0); pointer-events: none; z-index: 2;
+}
+
+.adm-area-tip {
+  position: absolute; top: 6px; transform: translateX(10px);
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 8px 10px; border-radius: var(--radius-md);
+  background: var(--bg-3); border: 1px solid var(--adm-line-strong);
+  box-shadow: var(--shadow-2);
+  white-space: nowrap; pointer-events: none; z-index: 3;
+}
+
+.adm-area-tip.is-left { transform: translateX(calc(-100% - 10px)); }
+
+.adm-area-tip-x { font: 500 10.5px/1 var(--font-sans); color: var(--ink-3); }
+
+.adm-area-tip-row { display: flex; align-items: center; gap: 6px; }
+
+.adm-area-tip-row .adm-legend-swatch { width: 7px; height: 7px; }
+
+.adm-area-tip-v {
+  font: 600 13px/1 var(--font-sans); color: var(--ink-0);
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-area-tip-n { font: 400 11px/1 var(--font-sans); color: var(--ink-2); }
+
+.adm-area-x {
+  display: flex; justify-content: space-between;
+  padding-left: 54px;
+  font: 400 10.5px/1 var(--font-sans); color: var(--adm-axis);
+}
+
+/* ── Heatmap ───────────────────────────────────────────────────────────────
+ * 168 cells, every one drawn — the empty ones are half of what you read.
+ */
+.adm-heat { display: flex; flex-direction: column; gap: 12px; }
+
+/* Rows are a fixed height rather than square: at full width a 1:1 cell is 65px
+   across and the grid becomes a wall of tiles instead of a week you can take
+   in at a glance. */
+.adm-heat-grid {
+  display: grid;
+  grid-template-columns: 34px repeat(24, minmax(0, 1fr));
+  grid-template-rows: 13px repeat(7, 26px);
+  gap: 3px;
+  align-items: stretch;
+}
+
+.adm-heat-corner { grid-column: 1; grid-row: 1; }
+
+.adm-heat-hour {
+  grid-row: 1; justify-self: start;
+  font: 400 9.5px/1 var(--font-sans); color: var(--adm-axis);
+}
+
+.adm-heat-day {
+  grid-column: 1; justify-self: end; padding-right: 8px;
+  font: 500 10.5px/1 var(--font-sans); color: var(--ink-3);
+}
+
+.adm-heat-cell {
+  border: 0; padding: 0; cursor: default;
+  width: 100%; height: 100%;
+  border-radius: 3px;
+  transition: outline-color var(--dur-quick) var(--ease);
+  outline: 1px solid transparent; outline-offset: 1px;
+}
+
+.adm-heat-cell:hover { outline-color: var(--ink-1); }
+
+/* An hour with nothing in it is a fact, and it needs to look unlike an hour
+   with a little in it — so zero gets its own flat tone rather than the bottom
+   of the ramp. */
+:root { --adm-heat-zero: var(--bg-3); }
+
+[data-theme='light'] { --adm-heat-zero: var(--bg-hov); }
+
+/* The busiest hour of the week earns a ring — it is the single fact most
+   people want off this chart. */
+.adm-heat-cell.is-peak { outline-color: var(--adm-cat-1); outline-width: 2px; }
+
+.adm-heat-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; padding-left: 37px;
+}
+
+.adm-heat-legend {
+  display: flex; align-items: center; gap: 4px;
+  font: 400 10.5px/1 var(--font-sans); color: var(--ink-3);
+}
+
+.adm-heat-swatch { width: 12px; height: 12px; border-radius: 3px; }
+
+.adm-heat-read {
+  font: 400 11.5px/1 var(--font-sans); color: var(--ink-2);
+  font-variant-numeric: tabular-nums; min-height: 12px;
+}
+
+.adm-heat-read b { color: var(--ink-0); font-weight: 600; }
+
+.adm-heat-hint { color: var(--ink-3); }
+
+/* ── Full-bleed dashboard grid ─────────────────────────────────────────────
+ * Now that the page uses the whole width, panels can sit side by side at
+ * proportions that suit them rather than in equal halves.
+ */
+.admin-grid-2 {
+  display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 34px; align-items: start;
+}
+
+@media (max-width: 1180px) { .admin-grid-2 { grid-template-columns: 1fr; } }
+
+/* Prose stays at a readable measure even though the page does not. */
+.admin-section-sub { max-width: 78ch; }
