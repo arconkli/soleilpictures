@@ -17,6 +17,7 @@
 // operator's tab instead of remounting the heavy WebGL Universe graph.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import './admin/admin.css';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { useFeedback } from '../components/AppFeedback.jsx';
