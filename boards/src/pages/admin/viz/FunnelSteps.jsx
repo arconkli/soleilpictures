@@ -1,29 +1,39 @@
-// SignupFunnelPanel — the hero funnel visualization.
+// FunnelSteps — the stepped-bar funnel. Moved here from
+// analytics/widgets/SignupFunnelPanel.jsx, where it was the one genuinely good
+// chart on the dashboard and the only one already hand-rolled.
 //
-// We deliberately hand-roll a stepped horizontal-bar table instead of using a
-// Recharts FunnelChart: at this scale (133 → 13 → … → 1) a trapezoid chart is
-// visually broken and can't show four numbers per step. Here every row shows
-// the proportional bar (from-top %), the absolute count, the from-top %, and
-// the step-to-step drop at once — and the single biggest drop gets a red
-// accent + ⚠ so the eye lands on the one real problem (the landing→email leak).
+// The original reasoning still holds and is worth keeping: a Recharts
+// FunnelChart is visually broken at this scale (133 → 13 → … → 1) and can only
+// show one number per step. Here each row carries the proportional bar, the
+// absolute count, the share of the top, and the step-to-step drop at once, and
+// the single biggest drop takes a red accent and a ⚠ so the eye lands on the
+// actual problem.
+//
+// Two things changed in the move:
+//
+//   * The bars were gold. Gold is the reserved active/selection accent, and a
+//     funnel is the largest block of colour on the page — so it was most of why
+//     the dashboard read orange. Bars now use the validated series hues.
+//
+//   * The waitlist branch is no longer rendered by default. The waitlist has
+//     been off since 2026-06-13, so ords 5-6 draw a permanent flat zero, and a
+//     flat zero reads as a measurement rather than an absence. The branch and
+//     its RPC are untouched — pass branches={['waitlist','pricing']} if it ever
+//     comes back.
 //
 // Reads admin_signup_funnel rows { ord, step, label, branch, sessions, users }.
-// The shared `core` steps render once (landing → email → otp → welcome); the
-// flow then forks into the waitlist and pricing branches, each denominated
-// against the welcome_view count ("of those who reached the fork").
 
 import { useMemo } from 'react';
-import { formatCount, formatPct, MIN_RATE_FLAG } from '../../../../lib/adminFormat.js';
-import { PanelNote } from '../../SmallN.jsx';
+import { formatCount, formatPct, MIN_RATE_FLAG } from '../../../lib/adminFormat.js';
+import { PanelNote } from '../SmallN.jsx';
+import { VAR } from './palette.js';
 
-const SOLEIL = '#ffa500';
-const GREEN  = '#50c878';
 const BRANCH_META = {
-  waitlist: { marker: '◆', color: SOLEIL, label: 'Waitlist intent'  },
-  pricing:  { marker: '◇', color: GREEN,  label: 'Pricing intent'   },
+  waitlist: { marker: '◆', color: VAR.cat[1], label: 'Waitlist intent' },
+  pricing:  { marker: '◇', color: VAR.cat[1], label: 'Pricing intent' },
   // FB/IG instant-demo funnel: the two choices on the AdWelcome price offer.
-  demo:     { marker: '◆', color: SOLEIL, label: 'Free workspace'   },
-  buy:      { marker: '◇', color: GREEN,  label: 'Creator purchase' },
+  demo:     { marker: '◆', color: VAR.cat[0], label: 'Free workspace' },
+  buy:      { marker: '◇', color: VAR.cat[1], label: 'Creator purchase' },
 };
 
 function row(s, sessions, prev, top, branch, isForkStart) {
@@ -55,7 +65,7 @@ function buildRows(steps, branches) {
       rows: bsteps.map((s, i) =>
         row(s, Number(s.sessions) || 0, i > 0 ? Number(bsteps[i - 1].sessions) || 0 : forkSessions, top, b, i === 0)),
     };
-  });
+  }).filter((bg) => bg.rows.length > 0);
 
   // Biggest single drop across every sequential transition → gets the ⚠.
   // Skip each branch's FIRST row: its "drop" from the fork is the split between
@@ -73,7 +83,9 @@ function buildRows(steps, branches) {
 
 function FunnelRow({ r, lowN, biggest }) {
   const meta = BRANCH_META[r.branch];
-  const color = meta?.color || SOLEIL;
+  // Core steps are one series and take the workhorse hue; a branch is a
+  // genuinely different path, so it earns a different one.
+  const color = meta?.color || VAR.cat[0];
   const isLeak = biggest;
   const dropText = r.drop <= 0 || r.step == null
     ? (r.step == null ? '—' : '0')
@@ -96,12 +108,12 @@ function FunnelRow({ r, lowN, biggest }) {
   );
 }
 
-export function SignupFunnelPanel({
+export function FunnelSteps({
   steps = [],
   days = 30,
   title = 'Signup funnel',
   sub = 'where sessions fall off, top → fork → outcome',
-  branches = ['waitlist', 'pricing'],
+  branches = ['pricing'],
   forkLabel = 'Forks at Welcome →',
 }) {
   const { top, coreRows, branchRows, biggestKey } = useMemo(() => buildRows(steps, branches), [steps, branches]);
@@ -122,14 +134,18 @@ export function SignupFunnelPanel({
     <section className="admin-chart-panel admin-chart-panel-wide">
       <header className="admin-chart-head">
         <h3 className="admin-chart-title">{title}</h3>
-        <span className="admin-chart-sub t-meta">{sub} · n={formatCount(top)} sessions · last {days}d</span>
+        {/* Every panel states its population and window — the Command Center
+            rule. "browsers" rather than "sessions" is deliberate: the funnel
+            RPCs count distinct session_id, which 0248 documents as a DEVICE id
+            minted once into localStorage and never rotated. */}
+        <span className="admin-chart-sub t-meta">{sub} · n={formatCount(top)} browsers · last {days}d</span>
       </header>
       <div className="admin-chart-body">
         <div className="admin-hero-funnel">
           <div className="admin-funnel-row admin-funnel-row-head">
             <span className="admin-funnel-row-label">Step</span>
             <span />
-            <span className="admin-funnel-row-count">Sessions</span>
+            <span className="admin-funnel-row-count">Browsers</span>
             <span className="admin-funnel-row-pct">From top</span>
             <span className="admin-funnel-row-drop">Drop</span>
           </div>

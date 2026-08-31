@@ -190,7 +190,21 @@ export function TrendLine({
   );
 }
 
-/** Sparkline shorthand — `values` is a plain number array, oldest first. */
+/**
+ * Sparkline shorthand — `values` is a plain number array, oldest first.
+ *
+ * baselineZero is off here on purpose. A sparkline is 30px tall and exists to
+ * show the SHAPE of a series; anchoring it to zero flattens a 96-to-115 signup
+ * week into a horizontal line. The tile's own value carries the magnitude.
+ */
 export function Spark({ values = [], color = VAR.ink, height = 30 }) {
-  return <TrendLine points={values.map((v) => ({ v }))} height={height} color={color} spark />;
+  return (
+    <TrendLine
+      points={values.map((v) => ({ v }))}
+      height={height}
+      color={color}
+      spark
+      baselineZero={false}
+    />
+  );
 }

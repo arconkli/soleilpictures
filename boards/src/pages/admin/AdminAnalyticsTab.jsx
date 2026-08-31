@@ -14,30 +14,50 @@ import { AdminToolbar } from './AdminStates.jsx';
 import { AdminTimeRange } from './AdminTimeRange.jsx';
 import { AnalyticsFiltersProvider, useAnalyticsFilters } from './analytics/AnalyticsFiltersContext.jsx';
 import { SegmentSelect } from './analytics/widgets/SegmentSelect.jsx';
-import { OverviewView } from './analytics/views/OverviewView.jsx';
-import { AcquisitionView } from './analytics/views/AcquisitionView.jsx';
-import { EngagementView } from './analytics/views/EngagementView.jsx';
-import { RevenueView } from './analytics/views/RevenueView.jsx';
+import { TodayView } from './analytics/views/TodayView.jsx';
+import { FunnelView } from './analytics/views/FunnelView.jsx';
+import { RetentionView } from './analytics/views/RetentionView.jsx';
 import { SystemView } from './analytics/views/SystemView.jsx';
 
+// Four views, each answering one question, down from five that overlapped.
+//
+// Money has no view of its own while zero subscriptions have ever existed: a
+// whole screen of structural zeros reads as a measurement rather than as an
+// absence. The pricing path lives inside Funnel, where it is one branch of a
+// real flow. Bring the view back when admin_stats.sub_counts is non-empty.
 const VIEWS = [
-  { id: 'overview',    label: 'Overview' },
-  { id: 'acquisition', label: 'Acquisition' },
-  { id: 'engagement',  label: 'Engagement' },
-  { id: 'revenue',     label: 'Revenue' },
-  { id: 'system',      label: 'System' },
+  { id: 'today',     label: 'Today' },
+  { id: 'funnel',    label: 'Funnel' },
+  { id: 'retention', label: 'Retention' },
+  { id: 'system',    label: 'System' },
 ];
 const VIEW_IDS = VIEWS.map((v) => v.id);
 const SUBTAB_KEY = 'admin.analytics.view';
 
+// Old sub-tab ids, from when this was Overview / Acquisition / Engagement /
+// Revenue / System. Bookmarks and persisted prefs land somewhere sensible
+// rather than silently resetting to the default.
+const VIEW_ALIASES = {
+  overview: 'today',
+  acquisition: 'funnel',
+  engagement: 'retention',
+  revenue: 'funnel',
+};
+
+function resolveView(id) {
+  if (!id) return null;
+  if (VIEW_IDS.includes(id)) return id;
+  return VIEW_ALIASES[id] || null;
+}
+
 function readInitialView() {
   try {
-    const fromUrl = new URLSearchParams(window.location.search).get('view');
-    if (fromUrl && VIEW_IDS.includes(fromUrl)) return fromUrl;
-    const stored = window.localStorage.getItem(SUBTAB_KEY);
-    if (stored && VIEW_IDS.includes(stored)) return stored;
+    const fromUrl = resolveView(new URLSearchParams(window.location.search).get('view'));
+    if (fromUrl) return fromUrl;
+    const stored = resolveView(window.localStorage.getItem(SUBTAB_KEY));
+    if (stored) return stored;
   } catch { /* ignore */ }
-  return 'overview';
+  return 'today';
 }
 
 function InternalToggle() {
@@ -76,7 +96,11 @@ function VerifiedToggle() {
 
 function AnalyticsToolbar({ view }) {
   const f = useAnalyticsFilters();
-  const showSegments = view === 'overview' || view === 'acquisition';
+  // Segment dropdowns only mean something where a funnel is on screen.
+  const showSegments = view === 'funnel';
+  // Today is a fixed seven-day window by definition — its own heading says so.
+  // A range selector that silently does nothing is worse than no selector.
+  const showRange = view !== 'today';
   const opts = (dim) => f.segments.filter((s) => s.dim === dim);
   const onRefresh = () => { f.runtime.refresh?.(); f.refreshShell?.(); };
   return (
@@ -85,7 +109,7 @@ function AnalyticsToolbar({ view }) {
       refreshing={f.runtime.refreshing}
       lastUpdated={f.runtime.lastUpdated}
     >
-      <AdminTimeRange value={f.days} onChange={f.setDays} />
+      {showRange && <AdminTimeRange value={f.days} onChange={f.setDays} />}
       {showSegments && (
         <>
           <SegmentSelect label="Source"   value={f.source}   onChange={f.setSource}   options={opts('source')} />
@@ -152,11 +176,10 @@ export function AdminAnalyticsTab() {
 
         {/* Remount by key so each view owns a clean useAdminData lifecycle and
             only the mounted view runs its RPCs. */}
-        {view === 'overview'    && <OverviewView    key="overview" />}
-        {view === 'acquisition' && <AcquisitionView key="acquisition" />}
-        {view === 'engagement'  && <EngagementView  key="engagement" />}
-        {view === 'revenue'     && <RevenueView     key="revenue" />}
-        {view === 'system'      && <SystemView      key="system" />}
+        {view === 'today'     && <TodayView     key="today" />}
+        {view === 'funnel'    && <FunnelView    key="funnel" />}
+        {view === 'retention' && <RetentionView key="retention" />}
+        {view === 'system'    && <SystemView    key="system" />}
       </div>
     </AnalyticsFiltersProvider>
   );
