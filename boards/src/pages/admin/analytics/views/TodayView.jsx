@@ -17,12 +17,16 @@
 //     reads as a measurement rather than an absence. A number that cannot move
 //     does not earn the top of the screen.
 //
-//   * "Needs you" renders only non-zero rows. Feedback has one row in its
-//     entire history; a row that always says 0 is the waitlist funnel mistake
-//     again. When everything is clear the block says so in a sentence.
+// MRR is on this screen from before the first subscription exists, by explicit
+// decision. The argument against it was that a structurally-zero number reads
+// as a measurement rather than an absence — which is true, and the reason the
+// tile does NOT draw a sparkline or a delta while it is zero. What it draws
+// instead is the reason it is zero, in words. The moment a subscription lands
+// it becomes a normal metric with a trend, and nobody has to remember to add
+// it back on the day it would first have mattered.
 
 import { supabase } from '../../../../lib/supabase.js';
-import { formatCount, formatCompact, relativeTime, fmtDateTime } from '../../../../lib/adminFormat.js';
+import { formatCount, formatCompact, formatMoney, relativeTime, fmtDateTime } from '../../../../lib/adminFormat.js';
 import { useAdminData } from '../../useAdminData.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
 import { useActivityPulse } from '../../useActivityPulse.js';
@@ -47,79 +51,6 @@ const shortDay = (iso) => {
 };
 
 const num = (x) => (x == null || Number.isNaN(Number(x)) ? null : Number(x));
-const goTo = (tab) => {
-  try {
-    const url = new URL(window.location.href);
-    url.searchParams.set('tab', tab);
-    url.searchParams.delete('view');
-    window.location.assign(url.toString());
-  } catch { /* ignore */ }
-};
-
-/**
- * The actionable block. Each row is a queue with a count and somewhere to go.
- *
- * Everything here is derived from counts the dashboard already fetched for
- * other tabs — no new RPC, no new migration. The whole feature is that nobody
- * had put them on one screen.
- */
-function NeedsYou({ errors, approvals, feedback, emailFailures }) {
-  const rows = [
-    approvals > 0 && {
-      key: 'approvals',
-      count: approvals,
-      label: approvals === 1 ? 'cluster waiting for review' : 'clusters waiting for review',
-      tab: 'approvals',
-      tone: 'act',
-    },
-    errors > 0 && {
-      key: 'errors',
-      count: errors,
-      label: errors === 1 ? 'distinct error in the last 24h' : 'distinct errors in the last 24h',
-      tab: 'errors',
-      tone: 'bad',
-    },
-    emailFailures > 0 && {
-      key: 'emails',
-      count: emailFailures,
-      label: 'email sends failed or bounced this week',
-      tab: 'emails',
-      tone: 'bad',
-    },
-    feedback > 0 && {
-      key: 'feedback',
-      count: feedback,
-      label: feedback === 1 ? 'new piece of feedback' : 'new pieces of feedback',
-      tab: 'feedback',
-      tone: 'act',
-    },
-  ].filter(Boolean);
-
-  return (
-    <section className="admin-needs">
-      <header className="admin-chart-head">
-        <h3 className="admin-chart-title">Needs you</h3>
-        <span className="admin-chart-sub t-meta">queues and breakage, across every tab</span>
-      </header>
-      {rows.length === 0 ? (
-        <p className="admin-needs-clear">
-          Nothing needs you. No pending reviews, no new errors in 24 hours, no failed sends.
-        </p>
-      ) : (
-        <div className="admin-needs-rows">
-          {rows.map((r) => (
-            <button key={r.key} type="button" className={`admin-needs-row is-${r.tone}`} onClick={() => goTo(r.tab)}>
-              <span className="admin-needs-count">{formatCount(r.count)}</span>
-              <span className="admin-needs-label">{r.label}</span>
-              <span className="admin-needs-go" aria-hidden="true">→</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
 /**
  * Right now.
  *
@@ -221,22 +152,18 @@ export function TodayView() {
   const f = useAnalyticsFilters();
 
   const q = useAdminData(async () => {
-    const [kpi, hist, cards, signups, active, errs, subs, fb, dorm, users, work, mail, life, heat, sig90] = await Promise.allSettled([
+    const [kpi, hist, cards, signups, active, dorm, users, work, life, heat, sig90] = await Promise.allSettled([
       supabase.rpc('admin_kpi_summary', { p_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_metrics_history', { p_days: 60 }),
       supabase.rpc('admin_cards_per_day', { p_days: 30, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_signups_by_day', { p_days: 30, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_active_now', { p_window_minutes: 5 }),
-      supabase.rpc('admin_recent_errors', { p_days: 1, p_limit: 200, p_include_muted: false }),
-      supabase.rpc('admin_public_board_submission_counts'),
-      supabase.rpc('admin_list_feedback', { p_limit: 50, p_offset: 0, p_kind: null, p_q: null }),
       supabase.rpc('admin_user_dormancy', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_list_users', { p_limit: 8, p_offset: 0 }),
       // Presence and work are different things: 54% of user_active_day rows
       // contain no work event at all, so "weekly active" and "did real work"
       // must come from different calls or the second is just the first again.
       supabase.rpc('admin_habit_curve', { p_exclude_internal: f.excludeInternal, p_require_work: true, p_window_days: 7 }),
-      supabase.rpc('admin_email_stats', { p_days: 7, p_exclude_internal: f.excludeInternal, p_include_foreign: false }),
       // Lifetime scale, straight off platform_counters. Every window figure on
       // this screen is paired with one of these: a total on its own only ever
       // goes up, so it cannot tell you anything is wrong, but beside "this
@@ -250,12 +177,9 @@ export function TodayView() {
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
 
-    // Only the headline numbers gate the view. Every queue count degrades to
-    // zero — a broken errors query must not blank the morning check-in.
+    // Only the headline numbers gate the view; everything else degrades in
+    // place rather than blanking the morning check-in.
     if (kpi.status !== 'fulfilled' || kpi.value.error) throw errOf(kpi) || new Error('Failed to load today');
-
-    const feedbackRows = val(fb) || [];
-    const weekAgo = Date.now() - 7 * 86400_000;
 
     return {
       kpi: val(kpi),
@@ -268,12 +192,6 @@ export function TodayView() {
       // "nobody did anything this week" when what happened is that we did not
       // find out — the same class of lie as the flat-zero waitlist funnel.
       workUsers: val(work) == null ? null : val(work).reduce((a, r) => a + (num(r.users) || 0), 0),
-      // Distinct messages, not occurrences: one loop firing 400 times is one
-      // thing to fix, and counting the occurrences would make it look like 400.
-      errorCount: new Set((val(errs) || []).map((e) => e.message)).size,
-      approvals: num(val(subs)?.pending) || 0,
-      feedbackCount: feedbackRows.filter((r) => new Date(r.created_at).getTime() > weekAgo).length,
-      emailFailures: (val(mail) || []).reduce((a, r) => a + (num(r.failed) || 0) + (num(r.bounced) || 0), 0),
       lifetime: val(life) || null,
       heatmap: val(heat) || [],
       signups90: val(sig90) || [],
@@ -292,6 +210,21 @@ export function TodayView() {
   const life = d?.lifetime || {};
   const lifeN = (k) => num(life[k]);
 
+  // MRR rides admin_stats, which the shell already fetches for every view —
+  // no extra call. The prior value comes off the same metrics_daily series the
+  // sparkline uses, so the badge and the line can never disagree.
+  const mrrCents = num(f.stats?.mrr_cents);
+  const payingUsers = num(f.stats?.tier_counts?.paid) || 0;
+  const arpu = mrrCents != null && payingUsers > 0 ? mrrCents / payingUsers : null;
+  const mrrPrev = (() => {
+    const h = d?.history || [];
+    for (let i = h.length - 2; i >= 0; i--) {
+      const v = num(h[i]?.mrr_cents);
+      if (v != null) return v;
+    }
+    return null;
+  })();
+
   return (
     <AdminAsync
       loading={q.loading}
@@ -300,13 +233,6 @@ export function TodayView() {
       skeleton={<><AdminSkeleton variant="cards" rows={4} /><div style={{ height: 16 }} /><AdminSkeleton variant="chart" /></>}
     >
       <div className={q.refreshing ? 'is-refreshing' : ''}>
-        <NeedsYou
-          errors={d?.errorCount || 0}
-          approvals={d?.approvals || 0}
-          feedback={d?.feedbackCount || 0}
-          emailFailures={d?.emailFailures || 0}
-        />
-
         {/* Sparkline hue follows the metric's FAMILY — acquisition, engagement,
             output — rather than being four decorative colours. Three hues for
             three families is the most colour this palette can carry honestly:
@@ -349,6 +275,23 @@ export function TodayView() {
               : null}
             sparkColor={VAR.cat[1]}
             title="Counts days containing a work event, not days the app was merely open — user_active_day over-counts presence by roughly 2x."
+          />
+          <Metric
+            hero
+            label="MRR"
+            value={mrrCents == null ? null : formatMoney(mrrCents)}
+            sub={payingUsers > 0
+              ? `${formatCount(payingUsers)} paying ${payingUsers === 1 ? 'account' : 'accounts'}`
+              : 'no subscription yet'}
+            muted={!(mrrCents > 0)}
+            total={payingUsers > 0 && arpu != null
+              ? { value: formatMoney(arpu), label: 'per account' } : null}
+            delta={mrrCents > 0 ? deltaInfo(mrrCents, mrrPrev, 'money') : null}
+            spark={mrrCents > 0 ? (d?.history || []).map((r) => num(r.mrr_cents) || 0) : null}
+            sparkColor={VAR.cat[1]}
+            title={mrrCents > 0
+              ? 'Live monthly recurring revenue from active + trialing subscriptions.'
+              : 'No subscription has ever existed, so this is zero by absence rather than by measurement. It gets a trend line and a change badge as soon as there is something to trend.'}
           />
           <Metric
             hero
