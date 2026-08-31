@@ -699,6 +699,21 @@ export async function getRootBoard(workspaceId) {
   return (data && data[0]) || null;
 }
 
+// Repair a workspace that has no reachable root cluster, and return the id of
+// the root it settled on.
+//
+// getRootBoard() returns null — not an error — for such a workspace, and the
+// app has nothing to render without a root. That combination used to park the
+// user on a permanent spinner (see 0275). The RPC lifts any board stranded
+// under a deleted parent back to the top level, and only invents a 'Studio' if
+// there was genuinely nothing left to rescue.
+export async function ensureWorkspaceRoot(workspaceId) {
+  const { data, error } = await supabase
+    .rpc('ensure_workspace_root', { p_workspace_id: workspaceId });
+  if (error) throw error;
+  return data || null;
+}
+
 export async function createBoard({ workspaceId, parentBoardId = null, name, view = 'canvas', cover = null, meta = null, userId = null }) {
   // We generate the id client-side so we DON'T have to use INSERT…
   // RETURNING. RETURNING re-runs the boards SELECT policy

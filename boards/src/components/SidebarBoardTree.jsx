@@ -214,9 +214,19 @@ export function SidebarBoardTree({
         disabled: boardClipboardSize() === 0,
         run: () => onPasteBoardInto?.(board.id),
       });
+      // A workspace with no top-level cluster left has nothing to open, and
+      // the app can't render a workspace without one. Deleting the last one
+      // used to be allowed and stranded the account on a loading screen.
+      const isLastRootCluster = !board.parent_board_id
+        && Object.values(boards || {}).filter(b => (
+          b && b.workspace_id === board.workspace_id && !b.parent_board_id && !b.deleted_at
+        )).length <= 1;
       metaItems.push({
-        id: 'delete', label: 'Delete', danger: true,
-        run: () => onDeleteBoard?.(board.id),
+        id: 'delete',
+        label: isLastRootCluster ? 'Delete (last cluster)' : 'Delete',
+        danger: !isLastRootCluster,
+        disabled: isLastRootCluster,
+        run: () => { if (!isLastRootCluster) onDeleteBoard?.(board.id); },
       });
     }
 

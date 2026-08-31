@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthGate.jsx';
-import { getOrCreatePersonalWorkspace, getRootBoard } from '../lib/boardsApi.js';
+import { getOrCreatePersonalWorkspace, getRootBoard, ensureWorkspaceRoot } from '../lib/boardsApi.js';
 
 export function useWorkspace() {
   const { user } = useAuth();
@@ -23,9 +23,17 @@ export function useWorkspace() {
         // definer transaction), so we just hydrate it after.
         const ws = await getOrCreatePersonalWorkspace({ userId: user.id });
         if (!ws?.id) throw new Error('personal workspace bootstrap returned nothing');
-        const root = await getRootBoard(ws.id);
-
+        let root = await getRootBoard(ws.id);
+        // A null root is not an error to the query, but it is to us: App.jsx
+        // renders a bare spinner until a root exists, so storing null here
+        // used to mean a permanent, unrecoverable loading screen. Repair and
+        // retry once, then surface it as a real error rather than hanging.
+        if (!root) {
+          await ensureWorkspaceRoot(ws.id);
+          root = await getRootBoard(ws.id);
+        }
         if (cancelled) return;
+        if (!root) throw new Error('your workspace has no clusters and could not be repaired');
         setState({ loading: false, workspace: ws, rootBoard: root, error: null });
       } catch (error) {
         console.error('useWorkspace', error);

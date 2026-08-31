@@ -52,6 +52,19 @@ export class AppErrorBoundary extends Component {
 
   reload = () => { window.location.reload(); };
 
+  // Reloading cannot help when the thing that breaks the app is what we
+  // restored FROM localStorage — the stored workspace/board selection is read
+  // back on every boot, so a bad one survives any number of reloads. Drop the
+  // per-session view state (not auth, not drafts) and start clean.
+  resetLocalState = () => {
+    try {
+      const doomed = Object.keys(localStorage)
+        .filter(k => k.startsWith('soleil.boards.session.'));
+      for (const k of doomed) localStorage.removeItem(k);
+    } catch (_) {}
+    window.location.reload();
+  };
+
   copy = () => {
     const { error, info } = this.state;
     const text = [
@@ -117,6 +130,9 @@ export class AppErrorBoundary extends Component {
           <div className="app-error-actions">
             <button className="app-error-btn" onClick={this.copy}>
               Copy error
+            </button>
+            <button className="app-error-btn" onClick={this.resetLocalState}>
+              Reset view state
             </button>
             <button className="app-error-btn is-primary" onClick={this.reload}>
               Reload
