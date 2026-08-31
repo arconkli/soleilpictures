@@ -11,7 +11,7 @@
 // so we label that share instead of quietly dropping it.
 
 import { formatCount, formatPct } from '../../../../lib/adminFormat.js';
-import { countryName } from '../../../../lib/countries.js';
+import { countryName, countryFlag } from '../../../../lib/countries.js';
 import { PanelNote } from '../../SmallN.jsx';
 
 const TOP_N = 12;
@@ -35,6 +35,7 @@ function CountryCell({ code }) {
   const known = code && code !== 'unknown';
   return (
     <>
+      <span aria-hidden="true">{countryFlag(code)}</span>{' '}
       <span className={known ? '' : 'admin-muted'}>{countryName(code)}</span>
     </>
   );
