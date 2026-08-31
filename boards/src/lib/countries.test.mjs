@@ -7,7 +7,7 @@
 // (matches demoCardCap.test.mjs / op_classifier.test.mjs). Pure helpers, so no
 // backend, no DOM.
 
-import { normalizeCountry, countryName } from './countries.js';
+import { normalizeCountry, countryName, countryFlag } from './countries.js';
 
 let failed = 0;
 let passed = 0;
@@ -40,6 +40,12 @@ assertEq(countryName('gb'), 'United Kingdom', 'names a country case-insensitivel
 assertEq(countryName('unknown'), 'Unknown', "renders the SQL sentinel as 'Unknown'");
 assertEq(countryName(null), 'Unknown', "renders null as 'Unknown'");
 assertEq(countryName(''), 'Unknown', "renders the empty string as 'Unknown'");
+
+// countryFlag — regional-indicator math, with a globe for anything unusable.
+assertEq(countryFlag('US'), '🇺🇸', 'builds a flag from a code');
+assertEq(countryFlag('us'), '🇺🇸', 'builds a flag case-insensitively');
+assertEq(countryFlag('unknown'), '🌐', 'falls back to a globe for the sentinel');
+assertEq(countryFlag(null), '🌐', 'falls back to a globe for null');
 
 console.log(`countries.test.mjs — ${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
