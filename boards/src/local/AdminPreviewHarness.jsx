@@ -22,7 +22,6 @@ import { UniverseView } from '../pages/admin/AdminUniverseTab.jsx';
 import { AdminCommandCenter } from '../pages/admin/AdminCommandCenter.jsx';
 import { makeSyntheticDataSource } from './universeQaData.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
-import { AdminOverviewTab } from '../pages/admin/AdminOverviewTab.jsx';
 import { AdminAnalyticsTab } from '../pages/admin/AdminAnalyticsTab.jsx';
 import { AdminUsersTab } from '../pages/admin/AdminUsersTab.jsx';
 import { AdminGrantsTab } from '../pages/admin/AdminGrantsTab.jsx';
@@ -93,8 +92,8 @@ function CommandCenterQaTab() {
 }
 
 const TABS = [
-  { id: 'overview',  label: 'Overview',  Component: AdminOverviewTab },
-  { id: 'analytics', label: 'Analytics', Component: AdminAnalyticsTab },
+  // One dashboard tab now — its four views live behind ?view= inside it.
+  { id: 'overview',  label: 'Overview',  Component: AdminAnalyticsTab },
   { id: 'users',     label: 'Users',     Component: AdminUsersTab },
   { id: 'grants',    label: 'Grants',    Component: AdminGrantsTab },
   { id: 'waitlist',  label: 'Waitlist',  Component: AdminWaitlistTab },

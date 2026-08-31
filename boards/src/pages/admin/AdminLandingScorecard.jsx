@@ -134,7 +134,7 @@ export function AdminLandingScorecard({ rows }) {
                 <RateCell numer={p.signups} denom={p.sessions} />
               </td>
               <td style={{ textAlign: 'center', minWidth: 90 }}>
-                <Spark data={(p.spark || []).map((v) => ({ v: Number(v) || 0 }))} color={CHART.soleil} />
+                <Spark data={(p.spark || []).map((v) => ({ v: Number(v) || 0 }))} color={CHART.primary} />
               </td>
             </tr>
           );

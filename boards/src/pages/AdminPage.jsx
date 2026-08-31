@@ -1,8 +1,10 @@
 // AdminPage — /admin. Visible only to tier='admin'. Tabs:
 //   • Universe  — anonymous, real-time graph of every node every user
 //                 has created across the platform, with a stats ticker
-//   • Overview  — KPIs + signups bar + tier-distribution pie + waitlist funnel
-//   • Analytics — deeper analytics
+//   • Overview  — the dashboard: Today / Funnel / Retention / System
+//                 (AdminAnalyticsTab). This used to be two tabs, Overview and
+//                 Analytics, which both led with total users, signups and MRR
+//                 and disagreed about which was authoritative.
 //   • Users     — paginated list with tier mutation buttons
 //   • Grants    — issue / revoke time-bound paid access
 //   • Discounts — create / deactivate Stripe discount codes (monthly only)
@@ -26,7 +28,6 @@ import { EmptyState } from '../components/EmptyState.jsx';
 import { Lock } from '../lib/icons.js';
 import { AdminError } from './admin/AdminStates.jsx';
 import { AdminUniverseTab } from './admin/AdminUniverseTab.jsx';
-import { AdminOverviewTab } from './admin/AdminOverviewTab.jsx';
 import { AdminAnalyticsTab } from './admin/AdminAnalyticsTab.jsx';
 import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
 import { AdminGrantsTab } from './admin/AdminGrantsTab.jsx';
@@ -47,9 +48,12 @@ import { AdminPhoneGate } from './admin/AdminPhoneGate.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { adminPublicBoardSubmissionCounts } from '../lib/boardsApi.js';
 
+// Overview and Analytics were two tabs showing the same numbers: both led with
+// total users, signups and MRR, and neither was authoritative. They are one tab
+// now, with four question-shaped views inside it (Today / Funnel / Retention /
+// System) — see AdminAnalyticsTab.
 const TABS = [
   { id: 'overview',  label: 'Overview' },
-  { id: 'analytics', label: 'Analytics' },
   { id: 'users',     label: 'Users' },
   { id: 'grants',    label: 'Grants' },
   { id: 'discounts', label: 'Discounts' },
@@ -71,7 +75,7 @@ const STORAGE_KEY = 'admin.tab';
 // The header shows only the daily/frequent sections as pills; the rarely-touched
 // long tail folds into a single "More" overflow so the bar isn't 11 items wide.
 // PRIMARY_IDS is the one knob — reorder/trim it and the overflow recomputes.
-const PRIMARY_IDS = ['overview', 'analytics', 'users', 'approvals', 'waitlist'];
+const PRIMARY_IDS = ['overview', 'users', 'approvals', 'waitlist'];
 // Overflow order is triage-first, then rare/config, split by a single divider.
 const OVERFLOW_IDS = ['discover', 'feedback', 'errors', 'api', 'scout', 'emails', 'discounts', 'grants', 'campaign', 'tagging', 'universe'];
 const OVERFLOW_SEP_AFTER = 'grants';      // divider between triage and rare-config
@@ -86,9 +90,10 @@ const OVERFLOW_ITEMS = OVERFLOW_IDS.map((id) => ({
   sepAfter: id === OVERFLOW_SEP_AFTER,
 }));
 
-// The 'funnel' tab was merged into Analytics (now the Overview sub-tab). Old
-// deep links and persisted prefs alias to 'analytics' so they don't dead-end.
-const TAB_ALIASES = { funnel: 'analytics' };
+// Tabs that have been merged away. Old deep links and persisted prefs land on
+// the tab that absorbed them rather than dead-ending: 'funnel' folded into
+// Analytics in an earlier pass, and Analytics has now folded into Overview.
+const TAB_ALIASES = { funnel: 'overview', analytics: 'overview' };
 
 // Restore the last tab from ?tab= (preferred — survives deep links), then
 // localStorage, then default to the fast Overview tab.
@@ -130,17 +135,19 @@ export function AdminPage() {
     } catch { /* ignore */ }
   }, []);
 
-  // Rewrite an old ?tab=funnel deep link to the merged tab + its hero sub-tab
-  // (the funnel now lives on Analytics → Overview), once on mount.
+  // Rewrite a retired ?tab= deep link to the tab that absorbed it, once on
+  // mount, so the URL in the address bar matches what is actually rendered.
+  // The sub-view is left alone — AdminAnalyticsTab has its own alias table and
+  // knows which of its four views an old ?view= belongs to.
   useEffect(() => {
     try {
       const url = new URL(window.location.href);
-      if (url.searchParams.get('tab') === 'funnel') {
-        url.searchParams.set('tab', 'analytics');
-        url.searchParams.set('view', 'overview');
-        window.history.replaceState({}, '', url);
-        window.localStorage.setItem(STORAGE_KEY, 'analytics');
-      }
+      const from = url.searchParams.get('tab');
+      const to = from && TAB_ALIASES[from];
+      if (!to) return;
+      url.searchParams.set('tab', to);
+      window.history.replaceState({}, '', url);
+      window.localStorage.setItem(STORAGE_KEY, to);
     } catch { /* ignore */ }
   }, []);
 
@@ -268,8 +275,7 @@ export function AdminPage() {
 
       <main className={`admin-body ${tab === 'universe' ? 'admin-body-flush' : ''}`}>
         {tab === 'universe'  && <AdminUniverseTab />}
-        {tab === 'overview'  && <AdminOverviewTab />}
-        {tab === 'analytics' && <AdminAnalyticsTab />}
+        {tab === 'overview'  && <AdminAnalyticsTab />}
         {tab === 'users'     && <AdminUsersTab />}
         {tab === 'grants'    && <AdminGrantsTab />}
         {tab === 'discounts' && <AdminDiscountsTab />}

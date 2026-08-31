@@ -243,7 +243,7 @@ export function UpsellBehaviorPanel({ scorecard, exposures, days }) {
                     : <span className="admin-muted" title={`n=${g.exposures} — too few to trust`}>—</span>}</td>
                   <td><RateCell numer={Number(g.toggled_n) || 0} denom={Number(g.exposures) || 0} /></td>
                   <td><RateCell numer={Number(g.feat_read_n) || 0} denom={Number(g.exposures) || 0} /></td>
-                  <td><Spark data={(g.spark || []).map((v) => ({ v: Number(v) || 0 }))} color={CHART.soleil} /></td>
+                  <td><Spark data={(g.spark || []).map((v) => ({ v: Number(v) || 0 }))} color={CHART.primary} /></td>
                 </tr>
               );
             })}
