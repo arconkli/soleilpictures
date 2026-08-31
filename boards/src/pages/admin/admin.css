@@ -3234,3 +3234,179 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   padding: 4px 6px;
 }
 
+
+/* ══ viz primitives ═══════════════════════════════════════════════════════
+ *
+ * Styles for pages/admin/viz/*. Thin marks, recessive furniture, neutral ink
+ * by default — the mark specs the charts are built to. Kept here rather than in
+ * a sibling file because admin.css is already the one stylesheet this surface
+ * loads, and a second import buys nothing.
+ */
+
+/* ── TrendLine ── */
+.adm-trend { display: flex; flex-direction: column; gap: 6px; }
+
+.adm-trend-plot { position: relative; width: 100%; }
+
+.adm-trend-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+.adm-trend.is-spark .adm-trend-plot { pointer-events: none; }
+
+/* A 1px hairline the eye can follow to the axis without it competing with the
+   series it is measuring. */
+.adm-trend-crosshair {
+  position: absolute; top: 0; bottom: 0; width: 1px;
+  background: var(--adm-line-strong);
+  transform: translateX(-0.5px);
+  pointer-events: none;
+}
+
+/* Drawn in HTML: a circle inside the non-uniformly scaled viewBox would come
+   out an ellipse. */
+.adm-trend-dot {
+  position: absolute; width: 7px; height: 7px; border-radius: 999px;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px var(--adm-surface);   /* the 2px surface ring */
+  pointer-events: none;
+}
+
+.adm-trend-tip {
+  position: absolute; top: 0; transform: translateX(6px);
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 5px 8px; border-radius: var(--radius-md);
+  background: var(--bg-3); border: 1px solid var(--adm-line-strong);
+  font: 500 11px/1.3 var(--font-sans);
+  white-space: nowrap; pointer-events: none; z-index: 2;
+}
+
+.adm-trend-tip.is-left { transform: translateX(calc(-100% - 6px)); }
+
+.adm-trend-tip-v { color: var(--ink-0); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.adm-trend-tip-x { color: var(--ink-2); }
+
+.adm-trend-axis {
+  display: flex; justify-content: space-between; gap: 8px;
+  font: 400 10.5px/1 var(--font-sans); color: var(--adm-axis);
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-trend-axis-mid { color: var(--ink-2); }
+
+.adm-viz-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; border-radius: var(--adm-radius);
+  border: 1px dashed var(--adm-line-strong);
+  color: var(--ink-3); font: 500 12px/1.3 var(--font-sans); text-align: center;
+}
+
+.adm-viz-empty-sub { font-size: 11px; color: var(--ink-4); }
+
+/* ── BarRows ── */
+.adm-bars { display: flex; flex-direction: column; gap: 5px; }
+
+.adm-bar-row {
+  display: grid;
+  grid-template-columns: minmax(84px, 168px) 1fr auto;
+  align-items: center; gap: 10px;
+  padding: 2px 0;
+}
+
+.adm-bars.has-secondary .adm-bar-row { grid-template-columns: minmax(84px, 168px) 1fr auto auto; }
+
+.adm-bar-row.is-muted { opacity: .75; }
+
+.adm-bar-label {
+  display: flex; align-items: center; gap: 5px; min-width: 0;
+  font: 500 12px/1.3 var(--font-sans); color: var(--ink-1);
+}
+
+.adm-bar-label-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.adm-bar-track {
+  position: relative; height: 9px; border-radius: 999px;
+  background: var(--bg-1); overflow: hidden;
+}
+
+[data-theme='light'] .adm-bar-track { background: var(--bg-0); }
+
+/* Square at the baseline, rounded at the data end — so the bar reads as
+   growing from zero rather than floating. */
+.adm-bar-fill {
+  display: block; height: 100%;
+  border-radius: 0 4px 4px 0;
+  transition: width var(--dur-base) var(--ease);
+}
+
+.adm-bar-value {
+  font: 600 12px/1 var(--font-sans); color: var(--ink-0);
+  font-variant-numeric: tabular-nums; text-align: right; min-width: 42px;
+}
+
+.adm-bar-secondary {
+  font: 400 11.5px/1 var(--font-sans); color: var(--ink-2);
+  font-variant-numeric: tabular-nums; text-align: right; min-width: 52px;
+}
+
+/* ── Distribution ── */
+.adm-dist { display: flex; flex-direction: column; gap: 7px; }
+
+.adm-dist-plot { display: flex; align-items: flex-end; gap: 3px; }
+
+.adm-dist-col { flex: 1 1 0; min-width: 0; height: 100%; position: relative;
+  display: flex; align-items: flex-end; }
+
+.adm-dist-stack { position: relative; width: 100%; height: 100%;
+  display: flex; align-items: flex-end; justify-content: center; }
+
+.adm-dist-bar {
+  display: block; width: 100%; min-height: 2px;
+  border-radius: 4px 4px 0 0;
+  transition: height var(--dur-base) var(--ease);
+}
+
+/* The subset draws in front at partial width rather than stacking, so neither
+   bar's total is ambiguous. */
+.adm-dist-bar.is-compare {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  width: 52%;
+}
+
+.adm-dist-peak {
+  position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+  font: 600 10.5px/1 var(--font-sans); color: var(--ink-2);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+.adm-dist-axis { display: flex; gap: 3px; }
+
+.adm-dist-tick {
+  flex: 1 1 0; min-width: 0; text-align: center;
+  font: 400 10px/1.2 var(--font-sans); color: var(--adm-axis);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── Legend ── */
+.adm-legend { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.adm-legend-item {
+  display: inline-flex; align-items: center; gap: 5px;
+  font: 400 11px/1 var(--font-sans);
+  color: var(--ink-2);            /* text wears text tokens, never the series colour */
+}
+
+.adm-legend-swatch { width: 9px; height: 9px; border-radius: 2px; flex: 0 0 auto; }
+
+/* Hero metric row: four across on a laptop without dropping to two. */
+.admin-stat-grid.is-hero { grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); }
+
+.admin-stat-card.is-clickable {
+  text-align: left; font: inherit; cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.admin-stat-card.is-clickable:hover { border-color: var(--adm-line-strong); background: var(--bg-hov); }
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-bar-fill, .adm-dist-bar { transition: none; }
+}
