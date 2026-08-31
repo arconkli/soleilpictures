@@ -287,6 +287,11 @@ export function TodayView() {
           emailFailures={d?.emailFailures || 0}
         />
 
+        {/* Sparkline hue follows the metric's FAMILY — acquisition, engagement,
+            output — rather than being four decorative colours. Three hues for
+            three families is the most colour this palette can carry honestly:
+            a fourth categorical hue does not survive the contrast and
+            colour-blindness floors (see viz/palette.js). */}
         <h2 className="admin-section-title">The last seven days</h2>
         <MetricGrid hero>
           <Metric
@@ -298,7 +303,7 @@ export function TodayView() {
               ? { value: formatCount(lifeN('total_users')), label: 'all time' } : null}
             delta={deltaInfo(num(cur.signups), num(prev.signups))}
             spark={(d?.signups || []).map((r) => num(r.signups) || 0)}
-            sparkColor={VAR.cat[0]}
+            sparkColor={VAR.cat[0]}   /* acquisition */
           />
           <Metric
             hero
@@ -309,7 +314,7 @@ export function TodayView() {
               ? { value: formatCount(lifeN('total_users')), label: 'signed up' } : null}
             delta={deltaInfo(num(cur.wau), num(prev.wau))}
             spark={(d?.history || []).map((r) => num(r.active_users) || 0)}
-            sparkColor={VAR.cat[0]}
+            sparkColor={VAR.cat[1]}   /* engagement */
           />
           <Metric
             hero
@@ -318,6 +323,11 @@ export function TodayView() {
             sub="placed, edited or shared something"
             total={d?.workUsers != null && cur.wau
               ? { value: formatCount(cur.wau), label: 'were here' } : null}
+            ratio={d?.workUsers != null && cur.wau
+              ? { pct: d.workUsers / Math.max(1, num(cur.wau)),
+                  title: `${formatCount(d.workUsers)} of ${formatCount(cur.wau)} weekly actives did real work` }
+              : null}
+            sparkColor={VAR.cat[1]}
             title="Counts days containing a work event, not days the app was merely open — user_active_day over-counts presence by roughly 2x."
           />
           <Metric
@@ -329,7 +339,7 @@ export function TodayView() {
               ? { value: formatCompact(lifeN('total_cards')), label: 'all time' } : null}
             delta={deltaInfo(num(cur.cards_created), num(prev.cards_created))}
             spark={(d?.cards || []).map((r) => num(r.cards) || 0)}
-            sparkColor={VAR.cat[0]}
+            sparkColor={VAR.cat[2]}   /* output */
           />
         </MetricGrid>
 
@@ -351,7 +361,6 @@ export function TodayView() {
           </dl>
         )}
 
-        <div style={{ height: 14 }} />
         <RightNow activeNow={d?.activeNow} />
 
         <h2 className="admin-section-title">People</h2>

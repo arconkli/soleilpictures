@@ -53,6 +53,7 @@ export function AdminCardsSection({ perDay, cardStats, days = 30 }) {
         </header>
         <div className="admin-chart-body">
           <BarRows
+            ramp
             rows={topKinds}
             formatValue={(v) => formatCount(v)}
             secondary={(r) => (total ? formatPct(r.value / total) : '—')}

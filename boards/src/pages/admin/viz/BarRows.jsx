@@ -14,7 +14,7 @@
 // would be the exact anti-pattern of colour-follows-position. Pass `colors`
 // only when each row is a real entity whose colour should follow it.
 
-import { VAR } from './palette.js';
+import { VAR, rampColor } from './palette.js';
 
 const num = (x) => (x == null || Number.isNaN(Number(x)) ? 0 : Number(x));
 
@@ -32,6 +32,15 @@ export function BarRows({
   emptyLabel = 'Nothing in this window',
   /** Cap the list and roll the rest into one honest remainder row. */
   limit,
+  /**
+   * Shade each bar by its own magnitude, using the single-hue sequential ramp.
+   *
+   * Honest because it encodes the quantity the bar already encodes — length
+   * and darkness say the same thing — and it is the cheapest real colour
+   * available to a chart whose data has no categories to distinguish. Not the
+   * default: a list with genuine entities should colour by entity instead.
+   */
+  ramp = false,
 }) {
   const all = rows.filter(Boolean);
   if (!all.length) return <div className="admin-empty">{emptyLabel}</div>;
@@ -53,6 +62,9 @@ export function BarRows({
     if (row.muted || isMuted?.(row, i)) return VAR.other;
     if (typeof colors === 'function') return colors(row, i);
     if (typeof colors === 'string') return colors;
+    // The ramp is keyed to the value, not to the row's position — so filtering
+    // or re-sorting the list never repaints a row that has not changed.
+    if (ramp) return rampColor(0.35 + 0.65 * (num(row.value) / ceiling));
     return VAR.ink;
   };
 

@@ -47,6 +47,7 @@ export function ActivationFunnel({ data, days = 30 }) {
       </header>
       <div className="admin-chart-body">
         <BarRows
+          ramp
           rows={rows}
           max={top}
           formatValue={(v) => formatCount(v)}
