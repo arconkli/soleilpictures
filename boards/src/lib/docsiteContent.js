@@ -28127,6 +28127,64 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Discount codes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Discount codes"
+    }
+   ],
+   "id": "discount-codes"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you have a discount code, enter it at checkout — the payment page has an "
+    },
+    {
+     "t": "strong",
+     "v": "Add promotion code",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add promotion code"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " field. The discount comes off your first month."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Codes apply to the "
+    },
+    {
+     "t": "strong",
+     "v": "monthly",
+     "children": [
+      {
+       "t": "text",
+       "v": "monthly"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " plan only. The annual plan is already discounted against paying monthly, so its checkout does not offer a code field."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Free forever",
    "inline": [
     {

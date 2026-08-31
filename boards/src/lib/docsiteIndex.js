@@ -2568,6 +2568,10 @@ export const DOCS_PAGES = [
         "text": "Billing"
       },
       {
+        "id": "discount-codes",
+        "text": "Discount codes"
+      },
+      {
         "id": "free-forever",
         "text": "Free forever"
       }
@@ -2593,6 +2597,10 @@ export const DOCS_PAGES = [
       {
         "q": "My card limit is 100, not 50. Why?",
         "a": "Accounts created before the free plan changed keep the 100-card allowance they signed up under, permanently. Nobody's cap was lowered."
+      },
+      {
+        "q": "Where do I enter a discount code?",
+        "a": "On the payment page, under Add promotion code. Codes apply to the monthly plan only and come off your first month."
       }
     ]
   },
