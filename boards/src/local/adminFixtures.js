@@ -413,6 +413,125 @@ RPCS.admin_waitlist_status_counts = {
   canceled: 0,
 };
 
+// ── Fixtures for the rebuilt dashboard (Today / Funnel / Retention / System)
+//
+// Without these the harness renders the honest-but-uninformative empty states —
+// "Did real work: 0", "everyone who signed up has made something", "no
+// milestones reached" — which look like the views are broken rather than like
+// the fixtures are thin. Each shape below was taken from the RPC's declared
+// return type, not guessed.
+
+// admin_habit_curve(active_days, users, pct). Only users with >= 1 qualifying
+// day appear, so there is deliberately no zero bucket. The `work` variant is a
+// strict subset — that asymmetry is the whole point of the panel.
+const habitCurve = (requireWork) => {
+  const shape = requireWork
+    ? [38, 21, 14, 9, 7, 5, 4, 3, 2, 2, 1, 1]
+    : [96, 44, 29, 21, 16, 12, 10, 8, 6, 5, 4, 3];
+  const total = shape.reduce((a, b) => a + b, 0);
+  return shape.map((users, i) => ({
+    active_days: i + 1,
+    users,
+    pct: Number((users / total).toFixed(4)),
+  }));
+};
+RPCS.admin_habit_curve = habitCurve(false);
+RPCS.admin_habit_curve_work = habitCurve(true);
+
+// admin_return_rate(day_offset, eligible, returned_on, on_pct, returned_within, within_pct)
+RPCS.admin_return_rate = [1, 7, 30].map((d) => {
+  const eligible = [136, 112, 74][[1, 7, 30].indexOf(d)];
+  const on = Math.round(eligible * [0.34, 0.19, 0.11][[1, 7, 30].indexOf(d)]);
+  const within = Math.round(eligible * [0.34, 0.42, 0.51][[1, 7, 30].indexOf(d)]);
+  return {
+    day_offset: d, eligible,
+    returned_on: on, on_pct: Number((on / eligible).toFixed(4)),
+    returned_within: within, within_pct: Number((within / eligible).toFixed(4)),
+  };
+});
+
+// admin_user_dormancy(...). did_card false + a small days_dormant is what the
+// Today view's "arrived and stalled" list is looking for, so several rows are
+// built to match — an all-healthy fixture would hide that panel entirely.
+RPCS.admin_user_dormancy = Array.from({ length: 18 }, (_, i) => {
+  const stalled = i < 6;
+  return {
+    user_id: `u-${i}`,
+    email: `${NAMES[i % NAMES.length]}${i}@studio.co`,
+    tier: i % 5 === 0 ? 'paid' : 'demo',
+    signup: tsISO(1440 * (stalled ? (i + 2) : (i + 20))).slice(0, 10),
+    last_active_day: tsISO(1440 * (i + 1)).slice(0, 10),
+    days_dormant: stalled ? (i + 1) : (18 + i * 3),
+    active_day_count: stalled ? (i % 3) + 1 : 4 + (i % 9),
+    did_card: !stalled,
+    did_populated_board: !stalled && i % 3 !== 0,
+    resurrected: i % 7 === 0,
+  };
+});
+
+// admin_event_coverage(milestone, server_truth, client_event, coverage_pct).
+// One deliberately-poor row: the panel's job is to make a reporting gap
+// visible, and a fixture where everything is 100% never exercises that.
+RPCS.admin_event_coverage = [
+  { milestone: 'first_card',            server_truth: 96, client_event: 90, coverage_pct: 0.9375 },
+  { milestone: 'first_populated_board', server_truth: 41, client_event: 39, coverage_pct: 0.9512 },
+  { milestone: 'first_share',           server_truth: 31, client_event: 19, coverage_pct: 0.6129 },
+  { milestone: 'first_paid',            server_truth: 17, client_event: 17, coverage_pct: 1 },
+];
+
+// admin_email_stats(category, template, sent, delivered, opened, clicked,
+// bounced, complained, failed)
+RPCS.admin_email_stats = [
+  { category: 'lifecycle', template: 'welcome',      sent: 137, delivered: 134, opened: 71, clicked: 18, bounced: 2, complained: 0, failed: 1 },
+  { category: 'lifecycle', template: 'day3_nudge',   sent: 96,  delivered: 95,  opened: 33, clicked: 6,  bounced: 1, complained: 0, failed: 0 },
+  { category: 'transact',  template: 'otp',          sent: 383, delivered: 381, opened: 340, clicked: 331, bounced: 0, complained: 0, failed: 2 },
+];
+
+RPCS.admin_public_board_submission_counts = { pending: 2, approved: 8, rejected: 1 };
+
+// admin_journey_reconstruct_by_user → [{ jid, t0_iso, n_events, events: [...] }]
+// Two sessions with a real shape: one that reaches a first card, one that
+// stalls on the photo picker after a long pause. The gap is the point.
+const JOURNEY_A = [
+  ['landing',   'lp_view',            0],
+  ['landing',   'lp_scroll',        820],
+  ['landing',   'lp_cta_click',    4310],
+  ['auth',      'email_submit',    9040],
+  ['auth',      'otp_verify',     31200],
+  ['onboard',   'ps_app_enter',   33100],
+  ['onboard',   'onboarding_step', 34050],
+  ['onboard',   'ps_seed_start',  38900],
+  ['onboard',   'ps_seed_done',   41220],
+  ['work',      'board_open',     42600],
+  ['work',      'card_create_intent', 47800],
+  ['work',      'card_placed',    51300],
+  ['work',      'card_placed',    58940],
+];
+const JOURNEY_B = [
+  ['landing',   'lp_view',            0],
+  ['auth',      'email_submit',    6100],
+  ['auth',      'otp_verify',     22400],
+  ['onboard',   'ps_app_enter',   24000],
+  ['onboard',   'empty_board_shown', 24900],
+  ['onboard',   'photo_pick_open', 29500],
+  ['onboard',   'ps_pause',       78300],
+  ['onboard',   'card_create_stuck', 96100],
+];
+const journey = (jid, minutesAgo, rows) => ({
+  jid,
+  t0_iso: tsISO(minutesAgo),
+  n_events: rows.length,
+  events: rows.map(([phase, event, t_ms], i) => ({
+    seq: i + 1, t_ms, phase, event,
+    occurred_at: tsISO(minutesAgo - Math.round(t_ms / 60000)),
+    detail: { jid, phase, seq: i + 1, t_ms },
+  })),
+});
+RPCS.admin_journey_reconstruct_by_user = [
+  journey('j-older', 4300, JOURNEY_B),
+  journey('j-recent', 190, JOURNEY_A),
+];
+
 RPCS.admin_paid_grants_status_counts = (() => {
   const g = RPCS.admin_list_paid_grants || [];
   const by = (s) => g.filter((r) => r.status === s).length;
@@ -526,13 +645,25 @@ const TABLES = {
 };
 
 // ── mock supabase shim ──────────────────────────────────────────────
-// admin_top_users is called with { p_tier } — route to the right list.
+// A few RPCs return different things for different arguments, and the
+// difference is the reason the panel exists — so the shim has to honour it or
+// the harness renders a view that cannot show what it is for.
 function rpcResult(name, params) {
+  // admin_top_users is called with { p_tier } — route to the right list.
   if (name === 'admin_top_users') {
     const v = params?.p_tier === 'paid' ? RPCS.admin_top_users_paid
       : params?.p_tier === 'demo' ? RPCS.admin_top_users_demo
       : [...RPCS.admin_top_users_paid, ...RPCS.admin_top_users_demo].slice(0, params?.p_limit || 20);
     return v;
+  }
+  // admin_habit_curve is called twice on the Retention view — once for days the
+  // app was open, once for days containing real work. Returning the same rows
+  // for both would draw two identical series over a panel whose entire point is
+  // that they differ.
+  if (name === 'admin_habit_curve') {
+    const rows = params?.p_require_work ? RPCS.admin_habit_curve_work : RPCS.admin_habit_curve;
+    const window = Number(params?.p_window_days) || 28;
+    return window >= 28 ? rows : rows.slice(0, Math.max(1, Math.round(window / 2)));
   }
   return Object.prototype.hasOwnProperty.call(RPCS, name) ? RPCS[name] : null;
 }

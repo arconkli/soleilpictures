@@ -26,6 +26,7 @@ import { AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminUserRowMenu } from './AdminUserRowMenu.jsx';
 import { Avatar, SourceBadge, PresenceDot, LastWorked, DetailSection, Timeline } from './AdminUserDetailParts.jsx';
 import { OutreachSection } from './AdminOutreachSection.jsx';
+import { AdminUserJourneys } from './AdminUserJourneys.jsx';
 
 const TIERS = ['admin', 'paid', 'demo', 'waitlist'];
 
@@ -473,6 +474,10 @@ export function AdminUserDetail({
             <Timeline activation={detail?.activation} />
           </DetailSection>
           <EngagementSection eng={detail?.engagement} tier={detail?.identity?.tier || row.tier} lastSignInAt={row.last_sign_in_at} lastWorkedAt={row.last_worked_at} device={detail?.device} geo={detail?.geo} />
+          {/* Keyed on the user so switching rows resets the expand state —
+              otherwise you open one person's sessions and every subsequent
+              click silently fetches twenty thousand events. */}
+          <AdminUserJourneys key={row.user_id} userId={row.user_id} />
           <IntegrationsSection api={api} />
           <BillingSection billing={detail?.billing} />
           <GrantsSection grants={detail?.grants} />
