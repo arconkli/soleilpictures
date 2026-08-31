@@ -13,15 +13,24 @@ export function useBoardList(workspaceId) {
   const [boards, setBoards] = useState({});
   const [loading, setLoading] = useState(true);
 
+  // listBoards() throws on any RLS or network error. Letting that escape left
+  // `loading` true forever, and every stale-id cleanup in App.jsx early-returns
+  // on boardsLoading — so one failed fetch quietly froze the whole board map.
+  // Always clear the flag, the way useSharedBoards already does.
   const refresh = useCallback(async () => {
     if (!workspaceId) return;
     console.log('[boards] refresh start', { workspaceId });
-    const arr = await listBoards(workspaceId);
-    const map = {};
-    for (const b of arr) map[b.id] = b;
-    console.log('[boards] refresh done', { workspaceId, count: arr.length, ids: arr.map(b => b.id) });
-    setBoards(map);
-    setLoading(false);
+    try {
+      const arr = await listBoards(workspaceId);
+      const map = {};
+      for (const b of arr) map[b.id] = b;
+      console.log('[boards] refresh done', { workspaceId, count: arr.length, ids: arr.map(b => b.id) });
+      setBoards(map);
+    } catch (e) {
+      console.error('[boards] refresh failed', e);
+    } finally {
+      setLoading(false);
+    }
   }, [workspaceId]);
 
   useEffect(() => { refresh(); }, [refresh]);

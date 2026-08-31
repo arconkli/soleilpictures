@@ -62,6 +62,14 @@ function clearAuthUrl() {
 // mount, so a signed-in user lands directly on the right workspace +
 // board without manual navigation. MUST run before App's first render
 // — call this BEFORE setSession() flips us from "loading" → "signed in".
+//
+// The ids are NOT validated here, and deliberately so: this runs before we
+// have the workspace list, and an async membership check would block the boot
+// path. Two things make that safe. A workspace the user isn't a member of
+// falls back to personal (App.jsx, `workspaces.find(...) || personalWorkspace`),
+// and a workspace that can't be opened now surfaces a recoverable error that
+// CLEARS this key rather than looping on it. Before that existed, a stale
+// email link could park an account on a permanent spinner.
 function consumeDeepLink(userId) {
   if (typeof window === 'undefined' || !userId) return;
   const url = new URL(window.location.href);

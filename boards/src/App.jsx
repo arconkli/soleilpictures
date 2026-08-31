@@ -113,7 +113,7 @@ const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx')
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced } from './lib/boardsApi.js';
 import { undoToast } from './lib/undoToast.js';
 import { forceBoardThumbnail, boardDoc } from './lib/yboard.js';
 import { planReparent } from './lib/boardTree.js';
@@ -300,6 +300,10 @@ export function App() {
     : personalWorkspace;
 
   const [activeRoot, setActiveRoot] = useState(null);
+  // A workspace we could not open. Kept separate from wsError (which is about
+  // the personal-workspace bootstrap) so the recovery offered can be the
+  // useful one: forget the stored workspace and fall back to personal.
+  const [activeRootError, setActiveRootError] = useState(null);
   useEffect(() => {
     if (!activeWorkspace) { setActiveRoot(null); return; }
     if (personalWorkspace && activeWorkspace.id === personalWorkspace.id) {
@@ -309,14 +313,51 @@ export function App() {
     let cancelled = false;
     (async () => {
       try {
-        const r = await getRootBoard(activeWorkspace.id);
-        if (!cancelled) setActiveRoot(r);
-      } catch (e) { console.error('getRootBoard failed', e); }
+        let r = await getRootBoard(activeWorkspace.id);
+        // null is not an error from the query's point of view — it means the
+        // workspace has no live root cluster. Left alone, activeRoot stays
+        // null and the LoadingShell gate below never opens, which is exactly
+        // how an account got stuck forever. Repair, then retry once.
+        if (!r) {
+          await ensureWorkspaceRoot(activeWorkspace.id);
+          r = await getRootBoard(activeWorkspace.id);
+        }
+        if (cancelled) return;
+        if (!r) throw new Error('This workspace has no clusters and could not be repaired.');
+        setActiveRoot(r);
+        setActiveRootError(null);
+      } catch (e) {
+        console.error('getRootBoard failed', e);
+        // Never fall through to an unrecoverable spinner.
+        if (!cancelled) setActiveRootError(e);
+      }
     })();
     return () => { cancelled = true; };
   }, [activeWorkspace?.id, personalWorkspace?.id, personalRoot?.id]);
 
+  // Forget the stored workspace and go back to the personal one. This is the
+  // escape hatch whose absence turned one bad workspace into a dead account:
+  // the id lives in localStorage and the switcher is inside <Workspace>, which
+  // never mounts while we're stuck.
+  const recoverToPersonalWorkspace = useCallback(() => {
+    try { localStorage.removeItem(workspaceSessionKey); } catch (_) {}
+    setActiveRootError(null);
+    setActiveRoot(null);
+    setActiveWorkspaceId(personalWorkspace?.id || null);
+  }, [workspaceSessionKey, personalWorkspace?.id]);
+
   if (wsError) return <FullScreenError error={wsError} signOut={signOut} />;
+  if (activeRootError) {
+    return (
+      <FullScreenError
+        error={activeRootError}
+        signOut={signOut}
+        actionLabel={personalWorkspace && activeWorkspace?.id !== personalWorkspace.id
+          ? 'Back to your workspace' : null}
+        onAction={recoverToPersonalWorkspace}
+      />
+    );
+  }
   // Gate on activeRoot.workspace_id matching the active workspace —
   // otherwise the render between an activeWorkspaceId change and the
   // async getRootBoard() finishing mounts <Workspace key={newWs.id}>
@@ -7210,7 +7251,7 @@ function LoadingShell() {
   );
 }
 
-function FullScreenError({ error, signOut }) {
+function FullScreenError({ error, signOut, actionLabel = null, onAction = null }) {
   return (
     <div className="auth-screen">
       <div className="auth-card">
@@ -7219,6 +7260,9 @@ function FullScreenError({ error, signOut }) {
         <pre style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)', whiteSpace: 'pre-wrap', marginBottom: 14 }}>
           {String(error.message || error)}
         </pre>
+        {actionLabel && onAction && (
+          <button className="auth-btn" onClick={onAction} style={{ marginBottom: 8 }}>{actionLabel}</button>
+        )}
         <button className="auth-btn" onClick={signOut}>Sign out</button>
       </div>
     </div>
