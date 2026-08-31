@@ -3565,3 +3565,90 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 @media (prefers-reduced-motion: reduce) {
   .adm-detail-caret { transition: none; }
 }
+
+/* ── Session replay (AdminUserJourneys) ───────────────────────────────────
+ *
+ * Reading a raw event list, the interesting thing is almost never an event —
+ * it is the pause before someone left. So gaps get the same visual weight as
+ * the events either side, and phase changes are the only thing labelled.
+ */
+.adm-journey-load {
+  width: 100%; padding: 9px 12px; cursor: pointer; text-align: center;
+  border-radius: var(--radius-md); border: 1px dashed var(--adm-line-strong);
+  background: transparent; color: var(--ink-2);
+  font: 500 12.5px/1 var(--font-sans);
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.adm-journey-load:hover { color: var(--ink-0); border-color: var(--ink-3); }
+
+.adm-journeys { display: flex; flex-direction: column; gap: 4px; }
+
+.adm-journey { border-radius: var(--radius-md); border: 1px solid var(--adm-line); overflow: hidden; }
+
+.adm-journey-head {
+  display: grid; grid-template-columns: 12px auto 1fr auto;
+  align-items: baseline; gap: 9px; width: 100%; text-align: left; cursor: pointer;
+  padding: 8px 11px; background: var(--bg-1); border: 0;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+[data-theme='light'] .adm-journey-head { background: var(--bg-0); }
+
+.adm-journey-head:hover { background: var(--bg-hov); }
+
+.adm-journey-caret {
+  font-size: 9px; color: var(--ink-3);
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.adm-journey.is-open .adm-journey-caret { transform: rotate(90deg); }
+
+.adm-journey-when { font: 600 12px/1 var(--font-sans); color: var(--ink-1); white-space: nowrap; }
+
+.adm-journey-meta { font: 400 11px/1 var(--font-sans); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.adm-journey-last {
+  font: 500 10.5px/1 var(--font-sans); color: var(--ink-2);
+  padding: 3px 7px; border-radius: 999px; background: var(--bg-3);
+  white-space: nowrap;
+}
+
+.adm-journey-events { list-style: none; margin: 0; padding: 6px 11px 10px; }
+
+.adm-journey-event {
+  display: grid; grid-template-columns: 46px 92px 1fr;
+  align-items: baseline; gap: 9px; padding: 2px 0;
+}
+
+.adm-journey-t {
+  font: 400 10.5px/1.4 var(--font-mono); color: var(--ink-3);
+  text-align: right; font-variant-numeric: tabular-nums;
+}
+
+.adm-journey-phase { font: 500 10.5px/1.4 var(--font-sans); color: transparent; }
+
+.adm-journey-phase.is-new { color: var(--adm-cat-1); }
+
+.adm-journey-name { font: 400 11.5px/1.4 var(--font-mono); color: var(--ink-1); }
+
+/* The pause, drawn as a break in the list rather than as a missing row. */
+.adm-journey-gap {
+  display: flex; align-items: center; gap: 8px;
+  margin: 3px 0 3px 55px;
+  font: 400 10.5px/1 var(--font-sans); color: var(--ink-3);
+}
+
+.adm-journey-gap::before,
+.adm-journey-gap::after {
+  content: ''; flex: 1 1 auto; height: 1px;
+  background: repeating-linear-gradient(90deg, var(--adm-line-strong) 0 3px, transparent 3px 6px);
+}
+
+.adm-journey-gap span { flex: 0 0 auto; }
+
+.adm-journey-more { font: 400 11px/1 var(--font-sans); color: var(--ink-3); padding: 4px 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-journey-caret { transition: none; }
+}
