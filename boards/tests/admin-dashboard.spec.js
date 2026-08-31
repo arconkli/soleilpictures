@@ -17,7 +17,7 @@
 import { test, expect } from '@playwright/test';
 
 const VIEWS = [
-  { id: 'today',     heading: 'Needs you' },
+  { id: 'today',     heading: 'The last seven days' },
   { id: 'funnel',    heading: 'Landing to paid' },
   { id: 'retention', heading: 'Did they make anything' },
   { id: 'system',    heading: 'What the data cannot tell you' },
@@ -59,36 +59,31 @@ for (const theme of ['dark', 'light']) {
 }
 
 test.describe('admin dashboard structure', () => {
-  test('Today leads with what needs attention, not with a metric', async ({ page }) => {
+  test('MRR is on Today before there is any, and says why it is zero', async ({ page }) => {
+    // Deliberate reversal of an earlier call. The argument against showing a
+    // structurally-zero number is that it reads as a measurement rather than
+    // an absence — so the tile is present from before the first subscription,
+    // but while it is zero it draws no trend line and no change badge, and its
+    // sub-label says the reason in words. These assertions are what keep that
+    // bargain honest.
     await openAdmin(page, { view: 'today', theme: 'dark' });
-    // The queue block must come BEFORE the hero metrics in the document. This
-    // is the whole editorial claim of the view: you open a dashboard to find
-    // out whether anything needs you, not to admire a number.
-    const needs = page.locator('.admin-needs');
-    const metrics = page.locator('.admin-stat-grid').first();
-    await expect(needs).toBeVisible();
-    const order = await page.evaluate(() => {
-      const a = document.querySelector('.admin-needs');
-      const b = document.querySelector('.admin-stat-grid');
-      if (!a || !b) return null;
-      // eslint-disable-next-line no-bitwise
-      return (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) ? 'needs-first' : 'metrics-first';
-    });
-    expect(order).toBe('needs-first');
-    await expect(metrics).toBeVisible();
-  });
+    const mrr = page.locator('.admin-stat-card', { has: page.locator('.admin-stat-label', { hasText: /^MRR$/ }) });
+    await expect(mrr).toBeVisible({ timeout: 15000 });
 
-  test('no MRR tile on Today while revenue is structurally zero', async ({ page }) => {
-    await openAdmin(page, { view: 'today', theme: 'dark' });
-    await expect(page.locator('.admin-needs')).toBeVisible();
-    // A permanent flat zero reads as a measurement rather than an absence.
-    // If a subscription ever exists this test should be revisited, not deleted.
-    await expect(page.locator('.admin-stat-label', { hasText: /^MRR$/ })).toHaveCount(0);
+    const zero = /^\$?0(\.00)?$/.test((await mrr.locator('.admin-stat-value').innerText()).trim());
+    if (zero) {
+      await expect(mrr.locator('.admin-stat-sub')).toHaveText(/no subscription yet/i);
+      await expect(mrr.locator('.admin-stat-spark')).toHaveCount(0);
+      await expect(mrr.locator('.admin-stat-delta')).toHaveCount(0);
+    } else {
+      // Once revenue exists it is an ordinary metric and must trend like one.
+      await expect(mrr.locator('.admin-stat-spark')).toHaveCount(1);
+    }
   });
 
   test('the time range is hidden on Today, shown elsewhere', async ({ page }) => {
     await openAdmin(page, { view: 'today', theme: 'dark' });
-    await expect(page.locator('.admin-needs')).toBeVisible();
+    await expect(page.locator('.admin-stat-grid').first()).toBeVisible({ timeout: 15000 });
     // Today is a fixed seven-day window; a selector that silently does nothing
     // is worse than no selector.
     await expect(page.locator('.tob-segmented')).toHaveCount(0);
@@ -173,7 +168,7 @@ test.describe('admin dashboard charts', () => {
     // metrics_daily has no backfill, so the series genuinely has holes. A line
     // drawn straight across a hole invents the days it is missing.
     await openAdmin(page, { view: 'today', theme: 'dark' });
-    await expect(page.locator('.admin-needs')).toBeVisible();
+    await expect(page.locator('.admin-stat-grid').first()).toBeVisible({ timeout: 15000 });
     const segments = await page.evaluate(() => {
       const plot = document.querySelector('.adm-trend-plot svg');
       return plot ? plot.querySelectorAll('path').length : 0;

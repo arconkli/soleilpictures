@@ -679,11 +679,39 @@ const TABLES = {
   card_index: cardIndexRows, tag_eval_labels: tagEvalLabels,
 };
 
+function zeroRevenue() {
+  try { return new URLSearchParams(window.location.search).get('mrr') === '0'; } catch { return false; }
+}
+
 // ── mock supabase shim ──────────────────────────────────────────────
 // A few RPCs return different things for different arguments, and the
 // difference is the reason the panel exists — so the shim has to honour it or
 // the harness renders a view that cannot show what it is for.
 function rpcResult(name, params) {
+  // ?mrr=0 forces the pre-revenue state.
+  //
+  // The fixtures are deliberately rich so the UI is judged against a populated
+  // product, but that makes the ONE state production is actually in —
+  // no subscription has ever existed — impossible to look at. The MRR tile
+  // behaves differently there (no trend line, no change badge, and a sub-label
+  // that says why), and that behaviour needs to be previewable.
+  if (name === 'admin_stats' && zeroRevenue()) {
+    const s = RPCS.admin_stats;
+    return {
+      ...s,
+      mrr_cents: 0,
+      sub_counts: {},
+      comped_paid: 0,
+      subscribed_paid: 0,
+      discounted_subs: 0,
+      tier_counts: { ...s.tier_counts, paid: 0, demo: (s.tier_counts.demo || 0) + (s.tier_counts.paid || 0) },
+    };
+  }
+  if (name === 'admin_metrics_history' && zeroRevenue()) {
+    const rows = RPCS.admin_metrics_history || [];
+    const want = Number(params?.p_days) || rows.length;
+    return rows.slice(Math.max(0, rows.length - want)).map((r) => ({ ...r, mrr_cents: 0, paid_users: 0 }));
+  }
   // admin_top_users is called with { p_tier } — route to the right list.
   if (name === 'admin_top_users') {
     const v = params?.p_tier === 'paid' ? RPCS.admin_top_users_paid
