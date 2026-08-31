@@ -422,11 +422,11 @@ export function AdminDiscoverTab() {
                   <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap', alignItems: 'center' }}>
                     <button className="btn-secondary" disabled={aiBusy || !aiBoardId} onClick={onDraftAI}
                             title={aiBoardId ? 'Draft title/description/body from this board' : 'Save as draft first (or paste a board id)'}>
-                      {aiBusy ? 'Working…' : '✨ Draft SEO with AI'}
+                      {aiBusy ? 'Working…' : 'Draft SEO with AI'}
                     </button>
                     <button className="btn-secondary" disabled={aiBusy || !aiBoardId} onClick={onGenAlts}
                             title={aiBoardId ? 'Generate alt text for images missing it' : 'Save as draft first (or paste a board id)'}>
-                      🖼 Generate alt text
+                      Generate alt text
                     </button>
                     {!aiBoardId && (
                       <span className="t-meta admin-muted">Save as draft first to enable AI.</span>

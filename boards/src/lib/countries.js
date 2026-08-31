@@ -1,4 +1,4 @@
-// countries.js — ISO 3166-1 alpha-2 code → display name and flag emoji.
+// countries.js — ISO 3166-1 alpha-2 code → display name.
 //
 // No lookup table: Intl.DisplayNames ships the ~250-entry country list in the
 // platform, so we don't carry one. Both helpers are TOTAL — any input that
@@ -11,8 +11,6 @@
 // rejects it and it renders as "Unknown" like any other missing value.
 
 const UNKNOWN_NAME = 'Unknown';
-const UNKNOWN_FLAG = '🌐';
-const FLAG_OFFSET = 0x1f1e6 - 'A'.charCodeAt(0);   // 'A' → REGIONAL INDICATOR SYMBOL LETTER A
 
 // Built once and cached — constructing Intl.DisplayNames per row is measurably
 // slow in a long list. `null` marks an environment without it (we then fall
@@ -38,8 +36,3 @@ export function countryName(code) {
   catch (_) { return cc; }
 }
 
-export function countryFlag(code) {
-  const cc = normalizeCountry(code);
-  if (!cc) return UNKNOWN_FLAG;
-  return String.fromCodePoint(...[...cc].map((c) => c.charCodeAt(0) + FLAG_OFFSET));
-}

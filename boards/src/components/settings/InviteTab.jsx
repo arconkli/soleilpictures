@@ -168,7 +168,7 @@ export function InviteTab({ user }) {
           )}
           {(stats?.friendsPaid ?? 0) > 0 && (
             <p className="settings-section-hint" style={{ marginTop: 8 }}>
-              🎉 {stats.friendsPaid} {stats.friendsPaid === 1 ? 'friend' : 'friends'} you invited
+              {stats.friendsPaid} {stats.friendsPaid === 1 ? 'friend' : 'friends'} you invited
               {' '}upgraded to a paid plan — that’s {stats.monthsEarned} free {stats.monthsEarned === 1 ? 'month' : 'months'} for you.
             </p>
           )}

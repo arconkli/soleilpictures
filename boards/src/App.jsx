@@ -3751,7 +3751,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const slug = n.detail;
         feedback.toast({
           type: 'success',
-          message: '🎉 Your cluster is now public on Explore!',
+          message: 'Your cluster is now public on Explore.',
           ttl: 8000,
           ...(slug ? { action: { label: 'View', onClick: () => { try { window.open(`/c/${slug}`, '_blank', 'noopener,noreferrer'); } catch (_) {} } } } : {}),
         });
@@ -3773,7 +3773,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         feedback.toast({
           type: 'success',
           ttl: 8000,
-          message: `🤝 ${n.detail || 'Someone'} joined "${joinedName}" — say hi.`,
+          message: `${n.detail || 'Someone'} joined "${joinedName}" — say hi.`,
           ...(joinedBoard ? { action: { label: 'Open', onClick: () => openBoard(n.board_id) } } : {}),
         });
         continue;
@@ -3935,7 +3935,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       try {
         feedback.toast({
           type: 'success',
-          message: `You earned ${delta} free card${delta === 1 ? '' : 's'}! A friend you invited just got started 🎉`,
+          message: `You earned ${delta} free card${delta === 1 ? '' : 's'} — a friend you invited just got started.`,
           // The highest-intent re-share moment — turn the celebration back into
           // the loop instead of dead-ending. Longer ttl so the CTA is clickable.
           action: { label: 'Invite more', onClick: () => openInviteFriends('reward_toast') },
@@ -4666,7 +4666,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (META_REG_BAR === 'first_card') fireMetaReg();
         // A small confirming beat on the very first genuine card — once per account
         // (the fcKey stamp guards it, so a reload never re-fires it).
-        try { feedback.toast({ type: 'success', message: 'Nice — your first card is on the cluster 🎉', ttl: 3500 }); } catch (_) {}
+        try { feedback.toast({ type: 'success', message: 'Nice — your first card is on the cluster', ttl: 3500 }); } catch (_) {}
         // First value reached → end any passive escalation immediately (the
         // dedicated effect below also stops the friction signal on this change).
         setFrictionStuck(false);
@@ -5069,7 +5069,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }).canEdit;
   }, [boards, workspace, workspaceMembers, sharedBoards, user.id, myTier.tier]);
   // Pre-compute a sync set of board ids the user can read — used by the
-  // canvas to render the "🔒 No access" placeholder for boardlinks /
+  // canvas to render the "No access" placeholder for boardlinks /
   // embedded boards that point outside the user's reach.
   const readableBoardIds = useMemo(() => {
     const set = new Set(Object.keys(boards || {}));
@@ -5339,7 +5339,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             && movedCards.some((c) => isSeedCard(c))) {
           logEvent(EV.ONBOARDING_NEST, { board_id: targetBoardId, source_board_id: sourceBoardId, n: movedCards.length });
           try { setJourneyState({ phase: JOURNEY_PHASE.NEST }); } catch (_) {}
-          feedback.toast({ type: 'success', message: 'Nice — that’s how you organize ✨' });
+          feedback.toast({ type: 'success', message: 'Nice — that’s how you organize' });
           // Never let a mid-tour nest kill the guided tour (arm B has no
           // tutorialBoardId today, so this is insurance; the body flag is the
           // live source of truth inside this long-lived listener closure).

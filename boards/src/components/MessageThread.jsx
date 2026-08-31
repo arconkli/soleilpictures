@@ -623,7 +623,7 @@ export function MessageThread({
           <div className="msg-empty msg-empty-hero">
             <SoleilMark size={32} color="var(--soleil)" glow />
             <div className="msg-empty-title">No messages yet</div>
-            <div className="msg-empty-sub">Say hi 👋</div>
+            <div className="msg-empty-sub">Say hi</div>
           </div>
         ) : replyParent && threadList ? (
           <>

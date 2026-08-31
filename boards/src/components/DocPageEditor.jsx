@@ -1296,7 +1296,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
                   onClick={() => editor.chain().focus().toggleHighlight().run()}>H</button>
           <button aria-label="Link"
                   onPointerDown={(e) => e.preventDefault()}
-                  onClick={() => openLinkPicker(editor)}>🔗</button>
+                  onClick={() => openLinkPicker(editor)}><LinkIcon /></button>
         </div>
       )}
       <DocTagGutter
