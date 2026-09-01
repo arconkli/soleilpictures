@@ -33,6 +33,15 @@ function segments(values) {
 }
 
 /** A rounded scale ceiling, so the axis reads 0 / 40 / 80 rather than 0 / 37 / 74. */
+/**
+ * Minor cells per major cell, on both axes.
+ *
+ * Four is what makes it read as graph paper rather than as a slightly denser
+ * set of gridlines, and — the whole point — every SUBth minor line lands
+ * exactly on a tick, because both are expressed as fractions of the same box.
+ */
+const SUB = 4;
+
 function niceMax(v) {
   if (!(v > 0)) return 1;
   const mag = 10 ** Math.floor(Math.log10(v));
@@ -107,21 +116,23 @@ export function AreaChart({
 
         <div
           ref={wrapRef}
-          className="adm-area-plot"
+          className="adm-area-plot is-ruled"
+          style={{ '--adm-gx': vLines * SUB, '--adm-gy': gridLines * SUB }}
           onPointerMove={onMove}
           onPointerLeave={() => setHover(null)}
         >
-          {/* THE GRATICULE IS THE SCALE.
+          {/* THE GRATICULE IS THE SCALE, AND THE PAPER SUBDIVIDES IT.
              *
-             * There used to be a second, decorative graph paper behind this at
-             * a fixed pixel pitch, and because the tick spacing is a function
-             * of the data's range it never lined up with these — two grids
-             * crossing at unrelated intervals, which is what made the charts
-             * look busy rather than instrumented.
+             * The dense ruling is back, but it is no longer independent of the
+             * chart. It used to sit at a fixed 18px pitch, and tick spacing is
+             * a function of the data's RANGE, so the two could never line up —
+             * two grids crossing at unrelated intervals, which is what made
+             * this look wrong.
              *
-             * So the ruling is only ever the axes now. Horizontals sit on the
-             * value ticks; verticals divide the time span evenly, which on a
-             * linear date axis is a real interval and not a decoration. */}
+             * Now the paper is drawn in PERCENTAGES of the same divisions:
+             * SUB minor cells per major, on both axes. Every fourth minor line
+             * therefore falls exactly on a tick, at any size, with no
+             * arithmetic to keep in sync — see --adm-gx / --adm-gy below. */}
           {ticks.map((t, i) => (
             <div key={i} className="adm-area-grid" style={{ bottom: `${(t / top) * 100}%` }} aria-hidden="true" />
           ))}

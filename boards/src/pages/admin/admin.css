@@ -3881,11 +3881,8 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
    because the y-rules carry readable numbers and these carry an interval. */
 .adm-area-vgrid {
   position: absolute; top: 0; bottom: 0; width: 1px;
-  background: var(--adm-plot-line); pointer-events: none;
+  background: var(--adm-plot-line-major); pointer-events: none;
 }
-
-.adm-area-vgrid:first-of-type,
-.adm-area-vgrid:last-of-type { background: var(--adm-plot-line-major); }
 
 .adm-area-last { position: absolute; transform: translate(-50%, -50%); pointer-events: none; }
 
@@ -4098,7 +4095,12 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
      marks, and ruling you don't is the thing that makes a plot read as an
      instrument. If you can read the grid without looking for it, it is loud. */
   --adm-plot-line:       rgba(255, 255, 255, .042);
-  --adm-plot-line-major: rgba(255, 255, 255, .075);
+  --adm-plot-line-major: rgba(255, 255, 255, .085);
+  /* The paper's own step. It sits UNDER the majors and there is a lot of it,
+     so it is the one value that has to be tuned by eye rather than derived:
+     too low and the density the whole look rests on disappears, too high and
+     the ruling competes with the line it is there to support. */
+  --adm-plot-paper:      rgba(255, 255, 255, .055);
   --adm-plot-edge:       rgba(255, 255, 255, .085);
 
   --adm-plot-ink:        #e8e9ee;
@@ -4199,16 +4201,65 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   color: var(--adm-plot-ink);
 }
 
-/* NO DECORATIVE GRAPH PAPER HERE. It used to live on this pseudo-element at a
-   fixed pixel pitch, and that was the mistake: a well's contents already carry
-   a grid — the chart's value ticks, the heatmap's 168 cells, the cohort
-   matrix's rows and columns — and none of those land on a fixed pitch, because
-   their spacing is a function of the data. Two unrelated grids crossing each
-   other is not texture, it is interference, and it read as mess.
-   The rule the layout follows now: ONE GRID PER SURFACE, AND IT IS THE
-   STRUCTURE OF WHAT IS IN IT. Charts rule themselves on their own axes (see
-   .adm-area-grid / .adm-area-vgrid); cellular instruments are their own grid;
-   the page rules the gutters between panels and nothing else. */
+/* ── Graph paper ────────────────────────────────────────────────────────────
+ * Dense ruling is the look, and it stays. What it may NOT do is disagree with
+ * a grid the panel already has.
+ *
+ * The original was a fixed 18px/72px pitch behind everything, and it could
+ * never line up: a chart's tick spacing is a function of the data's RANGE and
+ * a heatmap cell's is a function of the container's WIDTH, so neither lands on
+ * a pixel pitch. Two grids crossing at unrelated intervals is interference,
+ * not texture.
+ *
+ * So the ruling now goes in exactly two places, and in both it is derived from
+ * the thing it rules:
+ *
+ *   1. INSIDE A PLOT — `.is-ruled`, below. Percentage cells subdividing the
+ *      chart's own divisions, so every 4th line falls on a tick at any size.
+ *   2. ON A WELL WHOSE CONTENTS ARE NOT A GRID — bars, funnels, the console.
+ *      There is nothing for a pitch to disagree with there, so it is free.
+ *
+ * The `:has()` guard is what keeps rule 2 honest, and it reads as the rule
+ * itself: skip any well that already contains something which rules itself —
+ * a plot marked `.is-ruled`, or a cellular instrument whose cells ARE the
+ * grid. Nobody has to remember a flag when a panel changes shape.
+ *
+ * `.is-ruled` rather than `.adm-trend-plot` on purpose: the hero rail is full
+ * of sparklines, which are trend plots that are deliberately NOT ruled, and
+ * matching the element would have quietly stripped the paper off the rail.
+ */
+.adm-well:not(:has(.is-ruled, .adm-heat, .adm-cohort))::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(to right,  var(--adm-plot-line-major) 0 1px, transparent 1px 72px),
+    repeating-linear-gradient(to bottom, var(--adm-plot-line-major) 0 1px, transparent 1px 72px),
+    repeating-linear-gradient(to right,  var(--adm-plot-paper) 0 1px, transparent 1px 18px),
+    repeating-linear-gradient(to bottom, var(--adm-plot-paper) 0 1px, transparent 1px 18px);
+}
+
+/* A ruled plot rectangle. --adm-gx / --adm-gy are set by the chart as
+   (its own divisions × 4), and the cells are PERCENTAGES of the box — which is
+   the entire trick. The majors are drawn separately as positioned rules at
+   fractions of the same box, so the two can never drift apart, at any width,
+   for any data range. */
+.is-ruled {
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      var(--adm-plot-paper) 0 1px,
+      transparent 1px calc(100% / var(--adm-gx, 24))
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      var(--adm-plot-paper) 0 1px,
+      transparent 1px calc(100% / var(--adm-gy, 16))
+    );
+}
 
 /* Corner ticks — four 8px L-brackets, drawn as eight hairline gradients in one
    pseudo-element. Pure HUD vocabulary, and it costs nothing. Shared with the

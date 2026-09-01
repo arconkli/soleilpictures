@@ -117,9 +117,13 @@ export function TrendLine({
 
   return (
     <div className={`adm-trend ${spark ? 'is-spark' : ''}`}>
+      {/* Ruled in equal divisions of its own box. This chart carries no
+          value axis, so there are no ticks for the paper to contradict, and
+          equal divisions of a linear index axis are honest. Sparklines are
+          exempt: at 30px tall the ruling would outweigh the line. */}
       <div
         ref={wrapRef}
-        className="adm-trend-plot"
+        className={`adm-trend-plot ${spark ? 'is-spark' : 'is-ruled'}`}
         style={{ height }}
         onPointerMove={onMove}
         onPointerLeave={() => setHover(null)}
@@ -244,7 +248,7 @@ export function MultiTrend({
       </div>
       <div
         ref={wrapRef}
-        className="adm-trend-plot"
+        className="adm-trend-plot is-ruled"
         style={{ height }}
         onPointerMove={onMove}
         onPointerLeave={() => setHover(null)}
