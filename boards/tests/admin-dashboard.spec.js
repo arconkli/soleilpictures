@@ -380,6 +380,73 @@ test.describe('admin dashboard charts', () => {
     expect(sideBySide, 'no two bullets share a row — the list is still one column').toBe(true);
   });
 
+  test('one grid per surface — no panel rules itself twice', async ({ page }) => {
+    // The wells used to carry decorative graph paper at a fixed pixel pitch,
+    // on top of contents that already have a grid: the chart's value ticks,
+    // the heatmap's 168 cells, the cohort matrix's rows. The two never lined
+    // up, because tick spacing is a function of the data's range and cell
+    // spacing is a function of the container's width, so every plot was two
+    // unrelated grids crossing each other. That is not texture, it is
+    // interference, and it is what made the page look messy.
+    //
+    // The rule now: a panel's ruling is the structure of its own contents.
+    // Decoration on top of that is banned, and this is what bans it.
+    for (const view of ['today', 'retention', 'funnel', 'system']) {
+      await openAdmin(page, { view, theme: 'dark' });
+      await expect(page.locator('.adm-well').first()).toBeVisible({ timeout: 15000 });
+
+      const ruled = await page.evaluate(() => {
+        const bad = [];
+        for (const el of document.querySelectorAll('.adm-well, .adm-plate')) {
+          for (const pseudo of [null, '::before']) {
+            const cs = getComputedStyle(el, pseudo);
+            // repeating-linear-gradient is the graph-paper signature.
+            if (/repeating-linear-gradient/.test(cs.backgroundImage || '')) {
+              bad.push(`${el.className}${pseudo || ''}`);
+            }
+          }
+        }
+        return bad;
+      });
+      expect(
+        ruled,
+        `panels carrying a decorative ruling on ${view}: ${ruled.join(', ')}`,
+      ).toEqual([]);
+    }
+  });
+
+  test('the chart graticule is the scale, on both axes', async ({ page }) => {
+    // Having removed the decoration, the plot still needs a coordinate system —
+    // and it has to be one the marks are actually measured against. Horizontals
+    // sit on the value ticks, so there is exactly one per printed label;
+    // verticals divide the span evenly, which on a linear date axis is a real
+    // interval rather than a pattern.
+    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await expect(page.locator('.adm-area-frame').first()).toBeVisible({ timeout: 15000 });
+
+    const first = page.locator('.adm-area').first();
+    const hLines = await first.locator('.adm-area-grid').count();
+    const vLines = await first.locator('.adm-area-vgrid').count();
+    const labels = await first.locator('.adm-area-tick').count();
+
+    expect(hLines, 'horizontal rules must match the printed value ticks').toBe(labels);
+    expect(vLines).toBeGreaterThan(2);
+
+    // Every horizontal must land on its label, which is what "the graticule is
+    // the scale" means in practice.
+    const aligned = await page.evaluate(() => {
+      const root = document.querySelector('.adm-area');
+      const ys = (sel) => [...root.querySelectorAll(sel)]
+        .map((el) => Math.round(el.getBoundingClientRect().top))
+        .sort((a, b) => a - b);
+      const rules = ys('.adm-area-grid');
+      const ticks = ys('.adm-area-tick');
+      if (rules.length !== ticks.length) return false;
+      return rules.every((y, i) => Math.abs(y - ticks[i]) <= 2);
+    });
+    expect(aligned, 'a value rule does not sit on its own label').toBe(true);
+  });
+
   test('a sparse series is drawn with gaps, not bridged', async ({ page }) => {
     // metrics_daily has no backfill, so the series genuinely has holes. A line
     // drawn straight across a hole invents the days it is missing.
