@@ -4888,47 +4888,37 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // isn't ready at two cards never sees the banner at all — the surface would
     // die silently for everyone it was re-timed to reach. Re-dispatching costs
     // one event per card change; the listener is the guard.
-    // (dispatched below, AFTER the collaborator nudge — see the ordering note there)
-
-    // Moment-of-value collaborator invite: once this board crosses the
-    // activation bar (≥3 genuine cards), suggest bringing a second person
-    // INTO it — a collaborator is the strongest return + growth signal we
-    // have (47% of populated users return vs 5%; email invites attribute as
-    // referrals too, 0163). Fires for demo AND paid — demo invites are
-    // viewer-only and the ShareModal owns the editor upsell. Never mid-tour:
-    // 3 cards is reachable while the guided tour runs and the banner would
-    // render dead under its pointer lock; this effect re-runs when the tour
-    // closes and the dispatch fires then, like the fv nudge above.
-    // ReferralNudge owns the tier-gate + once-per-account guard + the
-    // fv-banner stacking guard; repeated dispatches as the count grows are
-    // its retry mechanism, not a bug.
+    // THE COLLABORATOR NUDGE NO LONGER TAKES THIS BEAT (2026-08-31).
     //
-    // ORDERING: the collaborator nudge is dispatched BEFORE the first-value
-    // upsell, and claims the beat when both are eligible on the same card
-    // change. A photo drop routinely takes a board from 0 to 5+ genuine cards
-    // in one change, so both used to fire in the same synchronous batch and
-    // the upsell — dispatched first, at the lower threshold — always won; the
-    // collaborator banner then declined on its own anti-stacking guard. Across
-    // the whole base that left it seen by a handful of people while sharing
-    // was still the single strongest retention signal we have.
+    // `soleil:collab-nudge` used to be dispatched here, ahead of the upsell, so
+    // that "build this together" claimed the activation beat whenever both were
+    // eligible on the same card change. The reasoning was that a second person in
+    // the workspace is the strongest return signal we have. That reasoning is
+    // still right; the banner was the wrong instrument for it.
     //
-    // The event is cancelable and ReferralNudge calls preventDefault() only
-    // when it actually shows the banner. So this yields the beat to
-    // collaboration exactly when collaboration can use it: if the nudge is
-    // capped, cooling down, already-fired or ineligible, it declines and the
-    // upsell dispatches in the same tick, unchanged.
+    // Measured over the whole program, the great majority of people shown it
+    // dismissed it, and the click-through was a small single-digit percentage —
+    // an order of magnitude below the one-tap share ask. It asks for a
+    // collaborator: a second human who cares about this specific board, which is
+    // a materially harder thing than it looks, and it spent the most valuable
+    // moment in the product to ask it. shareAsk.js makes the same argument in its
+    // own header and asks the easy version instead: show what you made, one tap,
+    // no dialog, one person required.
     //
-    // This does NOT re-time the upsell's own 2-card threshold — a user who
-    // places cards one at a time still meets the upsell at card 2, before the
-    // collaborator beat at card 3 exists. That threshold was deliberately
-    // chosen and is not ours to move here.
-    let collabTookTheBeat = false;
-    if ((myTier.tier === 'demo' || myTier.tier === 'paid') && !tourActive && genuine.length >= POP_BOARD_THRESHOLD) {
-      const ev = new CustomEvent('soleil:collab-nudge', { detail: { boardId: currentId }, cancelable: true });
-      window.dispatchEvent(ev);
-      collabTookTheBeat = ev.defaultPrevented;
-    }
-    if (myTier.tier === 'demo' && !tourActive && genuine.length >= 2 && !collabTookTheBeat) {
+    // So the beat is given back. Nothing about inviting is removed — the Share
+    // panel and the sidebar context menu both still reach openCollabInvite, which
+    // is where the invite mail with by far our best click-through comes from. What is
+    // removed is the interruption that asked for it unprompted, mid-way through
+    // the depth dock's [1, 6) band, and got a "no" three times out of four.
+    //
+    // ReferralNudge.jsx and its render are deliberately LEFT IN PLACE and inert.
+    // Restoring the experiment is re-adding the dispatch below and nothing else;
+    // deleting the component would make that a rebuild instead of a revert.
+    //
+    // The upsell is consequently no longer gated on `collabTookTheBeat` — with
+    // nothing claiming the beat, that flag could only ever be false. Its own
+    // 2-card threshold is untouched and is not ours to move here.
+    if (myTier.tier === 'demo' && !tourActive && genuine.length >= 2) {
       window.dispatchEvent(new CustomEvent('soleil:first-value'));
     }
 

@@ -72,14 +72,44 @@ export function ResumePage() {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(!token);
 
-  // The arrival. Fired on mount, signed_in:false, because that is the honest
-  // description of everyone who reaches this page — and counting the ones who
-  // get this far and still don't come back is the entire point.
+  // The arrival. Counting the ones who get this far and still don't come back is
+  // the entire point, so this fires on mount for everyone, redeemed or not.
+  //
+  // `signed_in` is MEASURED, not assumed. It used to be a hardcoded `false` on
+  // the reasoning that everyone reaching this page is signed out — but every
+  // lifecycle CTA carries ?rt= and therefore lands here, so that literal was the
+  // only value the field ever took across the whole program. It read as evidence
+  // of a total sign-in wall while actually being a constant, which is worse than
+  // the gap it replaced: migration 0235 left the wall an open question
+  // explicitly, and a constant answers it wrongly rather than not at all.
+  //
+  // Mail is routinely read on the device that signed up, so a live session here
+  // is a real case — and it is precisely the case that tells us the wall is NOT
+  // what costs us the click. getSession() reads the SDK's own storage; it cannot
+  // be substituted with a synchronous check, which is why this effect is async.
+  //
+  // Deliberately NOT delegated to AuthGate's consumeLifecycleLanding, which does
+  // measure this correctly: this page renders outside the gate, and AuthGate only
+  // sees the arrivals that redeem. Routing it there would count survivors and
+  // silently drop the abandonment population this event exists to size.
   useEffect(() => {
-    logEvent(EV.LIFECYCLE_LAND, {
-      email_type: emailType, content_version: contentVersion,
-      signed_in: false, via: 'resume',
-    });
+    let cancelled = false;
+    (async () => {
+      let signedIn = false;
+      try {
+        const { data } = await supabase.auth.getSession();
+        signedIn = !!data?.session?.user?.id;
+      } catch (_) {
+        // A restore that throws is a signed-out arrival for our purposes; the
+        // arrival itself still has to be counted.
+      }
+      if (cancelled) return;
+      logEvent(EV.LIFECYCLE_LAND, {
+        email_type: emailType, content_version: contentVersion,
+        signed_in: signedIn, via: 'resume',
+      });
+    })();
+    return () => { cancelled = true; };
   }, [emailType, contentVersion]);
 
   async function resume() {

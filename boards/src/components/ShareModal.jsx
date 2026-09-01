@@ -248,6 +248,19 @@ export function ShareModal({
           expiresAt: expiryAt(linkExpiry),
         });
         token = r.token; reused = r.reused;
+        // Symmetric with the editor branch above, which has logged its mint
+        // since the link rework. This branch did not, so the whole view-link
+        // path — the common case, and the one shareAsk pushes people down —
+        // registered only as a copy and never as a creation. Anyone reading
+        // share_open → invite_link_created as a funnel was measuring the
+        // collaborator path against an audience that mostly wanted this one.
+        // Mint only: a reused link is a copy, which copyLinkUrl already records.
+        if (!reused) {
+          logEventNow(EV.SHARE_LINK_CREATED, {
+            expiry: linkExpiry, include_subboards: !!linkIncludeSubboards,
+            board_id: board.id, surface: 'share_modal',
+          });
+        }
       }
       // Refresh the board's OG thumbnail so the link unfurls with a real preview.
       if (!reused) { try { onLinkCreated?.(); } catch (_) {} }

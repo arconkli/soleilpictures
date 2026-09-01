@@ -14,6 +14,7 @@ const share = () => read('src/components/ShareModal.jsx');
 const api = () => read('src/lib/boardsApi.js');
 const party = () => read('party/upload.ts');
 const perm = () => read('src/hooks/useBoardPermission.js');
+const events = () => read('src/lib/analyticsEvents.js');
 
 test.describe('collab invite-link wiring', () => {
   test('AuthGate captures ?join= and claims it in BOTH session paths', () => {
@@ -148,6 +149,23 @@ test.describe('collab invite-link wiring', () => {
     // onCopyPublicLink must delegate rather than write its own clipboard call,
     // or the row "Copy" buttons go dark again.
     expect(s).toMatch(/onCopyPublicLink = async \(token\) => \{\s*\n\s*const copied = await copyLinkUrl\(token\)/);
+  });
+
+  test('both link kinds record their MINT, not just their copy', () => {
+    // The editor branch has logged INVITE_LINK_CREATED since the link rework;
+    // the view branch minted through ensurePublicLink and logged nothing, so the
+    // common case — showing someone a cluster — was invisible as a creation and
+    // share_open → invite_link_created read as a funnel that was really only
+    // ever measuring the collaborator path. Keep the two branches symmetric.
+    const s = share();
+    expect(s).toMatch(/EV\.INVITE_LINK_CREATED/);
+    expect(s).toMatch(/EV\.SHARE_LINK_CREATED/);
+    // Mint only. A reused link is a copy — counting it as a creation would make
+    // the mint rate climb every time somebody pressed Copy twice.
+    expect(s).toMatch(/if \(!reused\) \{\s*\n\s*logEventNow\(EV\.SHARE_LINK_CREATED/);
+    expect(s).toMatch(/if \(!reused\) \{\s*\n\s*logEventNow\(EV\.INVITE_LINK_CREATED/);
+    // Both must be in the registry, or the props are unreadable at query time.
+    expect(events()).toMatch(/SHARE_LINK_CREATED:\s*'share_link_created'/);
   });
 
   test('the anonymous copy-share-link path can never hand out an invite link', () => {
