@@ -4077,10 +4077,13 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   --adm-plot:            #101015;
 
   /* Graph paper. Fixed alphas over the plot, not derived from --line-*, which
-     would invert with the theme and rule the grid in black-on-black. */
-  --adm-plot-line:       rgba(255, 255, 255, .055);
-  --adm-plot-line-major: rgba(255, 255, 255, .10);
-  --adm-plot-edge:       rgba(255, 255, 255, .09);
+     would invert with the theme and rule the grid in black-on-black.
+     Deliberately faint: ruling you notice is a pattern competing with the
+     marks, and ruling you don't is the thing that makes a plot read as an
+     instrument. If you can read the grid without looking for it, it is loud. */
+  --adm-plot-line:       rgba(255, 255, 255, .042);
+  --adm-plot-line-major: rgba(255, 255, 255, .075);
+  --adm-plot-edge:       rgba(255, 255, 255, .085);
 
   --adm-plot-ink:        #e8e9ee;
   --adm-plot-ink-2:      #9a9cab;
@@ -4088,6 +4091,26 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 
   --adm-plot-radius:     8px;
   --adm-plot-tip:        #1b1b23;   /* tooltips, which float above the well */
+
+  /* The page the instruments are mounted on. Ruled at roughly a third of the
+     well's contrast, so the wells read as lit screens set into a console
+     rather than as dark rectangles dropped onto a blank page. This is the
+     "apply the grid to the whole thing" half — it is texture, not pattern. */
+  --adm-page-rule:  rgba(255, 255, 255, .026);
+  --adm-page-pitch: 46px;
+
+  /* Plates: the themed sibling of the well, for panels that hold lists, tables
+     and prose. Same geometry — radius, corner ticks, mono numerals — on the
+     page's own surface, because a wall of prose reversed onto near-black is
+     heavy and a table does not need a plot ground. Two surfaces, one language. */
+  --adm-plate-bg:   rgba(255, 255, 255, .022);
+  --adm-plate-edge: rgba(255, 255, 255, .062);
+}
+
+[data-theme='light'] {
+  --adm-page-rule:  rgba(0, 0, 0, .032);
+  --adm-plate-bg:   rgba(255, 255, 255, .72);
+  --adm-plate-edge: rgba(0, 0, 0, .075);
 }
 
 /* ── The well ───────────────────────────────────────────────────────────────
@@ -4111,7 +4134,9 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   isolation: isolate;
   background: var(--adm-plot);
   border-radius: var(--adm-plot-radius);
-  padding: 12px 14px 10px;
+  /* The bottom is deeper than the top: the foot line sits there, and at 10px it
+     rode the corner ticks. */
+  padding: 12px 14px 13px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -4158,7 +4183,9 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 
 /* Graph paper, behind everything. The single cheapest thing on this page and
    the one that does most of the work — a plot on ruled ground reads as an
-   instrument, the same plot on flat ground reads as a slide. */
+   instrument, the same plot on flat ground reads as a slide.
+   The two pitches are a 4:1 ratio so the majors land exactly on a minor and
+   the ruling stays square instead of beating against itself. */
 .adm-well::before {
   content: '';
   position: absolute;
@@ -4167,36 +4194,90 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   border-radius: inherit;
   pointer-events: none;
   background-image:
-    repeating-linear-gradient(to right,  var(--adm-plot-line-major) 0 1px, transparent 1px 84px),
-    repeating-linear-gradient(to bottom, var(--adm-plot-line-major) 0 1px, transparent 1px 84px),
-    repeating-linear-gradient(to right,  var(--adm-plot-line) 0 1px, transparent 1px 21px),
-    repeating-linear-gradient(to bottom, var(--adm-plot-line) 0 1px, transparent 1px 21px);
+    repeating-linear-gradient(to right,  var(--adm-plot-line-major) 0 1px, transparent 1px 72px),
+    repeating-linear-gradient(to bottom, var(--adm-plot-line-major) 0 1px, transparent 1px 72px),
+    repeating-linear-gradient(to right,  var(--adm-plot-line) 0 1px, transparent 1px 18px),
+    repeating-linear-gradient(to bottom, var(--adm-plot-line) 0 1px, transparent 1px 18px);
 }
 
-/* Corner ticks — four 9px L-brackets, drawn as eight hairline gradients in one
-   pseudo-element. Pure HUD vocabulary, and it costs nothing. */
-.adm-well::after {
+/* Corner ticks — four 8px L-brackets, drawn as eight hairline gradients in one
+   pseudo-element. Pure HUD vocabulary, and it costs nothing. Shared with the
+   plate, so both surfaces are cornered the same way. */
+.adm-well::after,
+.adm-plate::after {
   content: '';
   position: absolute;
-  inset: 5px;
+  inset: 6px;
   z-index: 0;
   pointer-events: none;
   background:
-    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 0 0 / 9px 1px no-repeat,
-    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 0 0 / 1px 9px no-repeat,
-    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 100% 0 / 9px 1px no-repeat,
-    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 100% 0 / 1px 9px no-repeat,
-    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 0 100% / 9px 1px no-repeat,
-    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 0 100% / 1px 9px no-repeat,
-    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 100% 100% / 9px 1px no-repeat,
-    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 100% 100% / 1px 9px no-repeat;
+    linear-gradient(var(--_tick), var(--_tick)) 0 0 / 8px 1px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 0 0 / 1px 8px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 100% 0 / 8px 1px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 100% 0 / 1px 8px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 0 100% / 8px 1px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 0 100% / 1px 8px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 100% 100% / 8px 1px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 100% 100% / 1px 8px no-repeat;
 }
 
-/* In light theme the well is a dark object on a pale page, so it needs an edge
-   or it reads as a hole punched through the layout. */
-[data-theme='light'] .adm-well {
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, .10), 0 1px 2px rgba(0, 0, 0, .06);
+.adm-well  { --_tick: var(--adm-plot-edge); }
+.adm-plate { --_tick: var(--adm-plate-edge); }
+
+/* A one-pixel lit top edge. Screens set into a console catch the light along
+   their upper bezel, and without it a well is a flat hole. */
+.adm-well {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
 }
+
+/* In light theme the well is a dark object on a pale page, so it needs a real
+   edge or it reads as a hole punched through the layout. */
+[data-theme='light'] .adm-well {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .06),
+    0 0 0 1px rgba(0, 0, 0, .10),
+    0 1px 2px rgba(0, 0, 0, .06);
+}
+
+/* ── The plate ──────────────────────────────────────────────────────────────
+ * Everything on Overview that is NOT a plot: people lists, tables, the honesty
+ * bullets, the disclosure bodies. Same radius, same corner ticks, same mono
+ * numerals, same head/meta/foot — on the page's own surface.
+ *
+ * Two surfaces rather than one because reversing a wall of prose or a
+ * twelve-row table onto near-black is heavy and hard to read, and neither
+ * needs a plot ground. What unifies them is the geometry, not the colour.
+ */
+.adm-plate {
+  position: relative;
+  isolation: isolate;
+  background: var(--adm-plate-bg);
+  border-radius: var(--adm-plot-radius);
+  padding: 12px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  box-shadow: inset 0 0 0 1px var(--adm-plate-edge);
+}
+
+/* Same ruling as the well at a lower amplitude — the page's texture, carried
+   onto the panel so a plate and a well read as the same instrument family. */
+.adm-plate::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(to right,  var(--adm-page-rule) 0 1px, transparent 1px 72px),
+    repeating-linear-gradient(to bottom, var(--adm-page-rule) 0 1px, transparent 1px 72px);
+}
+
+.adm-plate > .adm-well-head,
+.adm-plate > .adm-well-body,
+.adm-plate > .adm-well-foot { position: relative; z-index: 1; }
 
 /* Well head: the panel title moves INSIDE the plot, as an instrument label.
    Denser than a separate bordered header row, and it is what makes the thing
@@ -4206,10 +4287,13 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   gap: 12px; position: relative; z-index: 1; min-height: 12px;
 }
 
+/* head / title / meta / foot are shared by the well and the plate, so they
+   resolve through --ink-*, which the well re-points at its own steps. One set
+   of rules, two surfaces, and neither needs to know which it is on. */
 .adm-well-title {
   font: 600 10px/1 var(--font-sans);
   letter-spacing: .09em; text-transform: uppercase;
-  color: var(--adm-plot-ink-2);
+  color: var(--ink-2);
 }
 
 /* Micro-caps here are NOT a reversal of dropping the 16px ALL-CAPS section
@@ -4218,7 +4302,7 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
    stay sentence-case at 19px. */
 .adm-well-meta {
   font: 500 10px/1 var(--font-mono);
-  color: var(--adm-plot-ink-3);
+  color: var(--ink-3);
   font-variant-numeric: tabular-nums;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -4249,7 +4333,7 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 .adm-well-foot {
   position: relative; z-index: 1;
   font: 500 10.5px/1.35 var(--font-mono);
-  color: var(--adm-plot-ink-3);
+  color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
 
@@ -4336,6 +4420,106 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   .adm-deck > * { grid-column: span 12; }
 }
 
+/* ── The page is part of the instrument ─────────────────────────────────────
+ * The wells are ruled; so is the surface they sit on, at about a third of the
+ * contrast. Painted on .adm-view (the per-view root) rather than on .admin-body
+ * so it never leaks onto the fourteen admin tabs that are not this one.
+ */
+.adm-view {
+  position: relative;
+  background-image:
+    repeating-linear-gradient(to right,  var(--adm-page-rule) 0 1px, transparent 1px var(--adm-page-pitch)),
+    repeating-linear-gradient(to bottom, var(--adm-page-rule) 0 1px, transparent 1px var(--adm-page-pitch));
+  background-position: -1px -1px;
+  padding-bottom: 8px;
+}
+
+/* ── Section titles get a leader ────────────────────────────────────────────
+ * A hairline running from the title to the right edge. It is the cheapest way
+ * to make a heading read as a labelled band on a console rather than as a
+ * heading in a document, and it ties the sections to the ruling.
+ */
+.admin-analytics .admin-section-title {
+  display: flex; align-items: center; gap: 14px;
+}
+
+.admin-analytics .admin-section-title::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(to right, var(--adm-plate-edge), transparent 70%);
+}
+
+/* ── Background refresh ─────────────────────────────────────────────────────
+ * The old indicator was `.is-refreshing { opacity: .55; pointer-events: none }`
+ * on the whole view. On a 30-second poll that meant the page faded and went
+ * dead under the cursor twice a minute — which is not a background refresh, it
+ * is a foreground one that nobody asked for. The views dropped that class; this
+ * dot is the whole replacement.
+ */
+.adm-refresh-dot {
+  width: 6px; height: 6px; border-radius: 999px;
+  background: var(--ink-3); opacity: .5; flex: 0 0 auto;
+  transition: opacity var(--dur-base) var(--ease), background-color var(--dur-base) var(--ease);
+}
+
+.adm-refresh-dot.is-working {
+  background: var(--adm-cat-2); opacity: 1;
+  animation: adm-led 1.1s ease-in-out infinite;
+}
+
+/* Content must never move or fade while a poll lands — the entire point. The
+   only thing that may change is the toolbar. */
+.admin-toolbar.is-working .admin-toolbar-updated { opacity: .6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-refresh-dot.is-working { animation: none; }
+}
+
+/* ── The metric rail ────────────────────────────────────────────────────────
+ * The five hero figures now sit on the plot ground with everything else, and
+ * the lifetime totals ride underneath as the rail's footer rather than as a
+ * floating caption line.
+ */
+.adm-rail { padding: 14px 16px 12px; }
+
+.adm-rail .admin-stat-card:first-child { padding-left: 0; }
+
+/* The foot already has the well's own top rule; the strip's second border-top
+   made a double hairline. */
+.adm-rail .admin-well-foot,
+.adm-rail .adm-well-foot { padding-top: 0; }
+
+.adm-rail .admin-lifetime {
+  margin: 0; padding-top: 0; border-top: 0;
+  gap: 0 28px;
+}
+
+.adm-rail .admin-lifetime dt { color: var(--ink-3); }
+
+/* The foot is separated from the figures by the rule, so give it one. */
+.adm-rail > .adm-well-foot {
+  margin-top: 2px; padding-top: 11px;
+  border-top: 1px solid var(--adm-plot-line-major);
+}
+
+/* ── Everything left on the page inherits the plate ─────────────────────────
+ * The panels inside the Detail disclosures are the long tail: raw tables,
+ * top-user lists, storage figures. They were the last surfaces on Overview
+ * still floating with no geometry at all, which made an opened disclosure look
+ * like a different application. One rule adopts all of them.
+ */
+.admin-analytics .adm-detail-body .admin-chart-panel {
+  position: relative;
+  background: var(--adm-plate-bg);
+  border-radius: var(--adm-plot-radius);
+  padding: 12px 14px 10px;
+  box-shadow: inset 0 0 0 1px var(--adm-plate-edge);
+  margin-bottom: 0;
+}
+
+.admin-analytics .adm-detail-body { display: flex; flex-direction: column; gap: 10px; }
+
 /* ── Take the air out ───────────────────────────────────────────────────────
  * These six numbers are where the four screens of scroll came from.
  */
@@ -4356,11 +4540,15 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 /* Six prose bullets stacked full-width was half of System's default screen and
    a ~200-character measure. Columns fix both at once. */
 .admin-dq-list.is-two-col {
+  /* The base rule is `display: flex; flex-direction: column`, and a flex
+     container ignores `columns` outright — so this rule did nothing at all
+     until the display was reset with it. Multi-column needs a block box. */
+  display: block;
   columns: 2;
   column-gap: 42px;
 }
 
-.admin-dq-list.is-two-col > li { break-inside: avoid; }
+.admin-dq-list.is-two-col > li { break-inside: avoid; margin-bottom: 12px; }
 
 @media (max-width: 1100px) {
   .admin-dq-list.is-two-col { columns: 1; }

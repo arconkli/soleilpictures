@@ -21,7 +21,7 @@ import { supabase } from '../../../../lib/supabase.js';
 import { formatCount } from '../../../../lib/adminFormat.js';
 import { useAdminData } from '../../useAdminData.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
-import { useAnalyticsFilters, useRegisterViewRuntime } from '../AnalyticsFiltersContext.jsx';
+import { useAnalyticsFilters, useRegisterViewRuntime, POLL_MS } from '../AnalyticsFiltersContext.jsx';
 import { Distribution } from '../../viz/Distribution.jsx';
 import { TrendLine } from '../../viz/TrendLine.jsx';
 import { AreaChart } from '../../viz/AreaChart.jsx';
@@ -202,22 +202,32 @@ export function RetentionView() {
       cohorts: val(cm) || [],
       sessionDepth: val(sd) || [],
     };
-  }, [f.days, f.excludeInternal, f.verifiedOnly]);
+  }, [f.days, f.excludeInternal, f.verifiedOnly],
+     { pollIntervalMs: POLL_MS.retention, refetchOnFocus: true });
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
 
   return (
     <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh}
       skeleton={<><AdminSkeleton variant="chart" /><div style={{ height: 16 }} /><AdminSkeleton variant="chart" /></>}>
-      <div className={q.refreshing ? 'is-refreshing' : ''}>
+      <div className="adm-view">
         <h2 className="admin-section-title">Did they make anything</h2>
         <div className="admin-section-sub">
           Server-stamped milestones from profiles.first_*_at, not events — the trustworthy funnel.
         </div>
-        {q.data?.activation && <ActivationFunnel data={q.data.activation} days={f.days} />}
+        <Deck>
+          {q.data?.activation && <ActivationFunnel data={q.data.activation} days={f.days} />}
+        </Deck>
 
         <h2 className="admin-section-title">Did they come back</h2>
-        <ReturnRate rows={q.data?.returnRate || []} />
+        {/* On the plot ground with the matrix under it, for the same reason
+            Today's hero rail is: a headline readout floating on the bare page
+            between two instrumented sections reads as a caption, not a gauge. */}
+        <Deck>
+          <Well span={12} className="adm-rail" title="Return rate" meta="work-days, within the window">
+            <ReturnRate rows={q.data?.returnRate || []} />
+          </Well>
+        </Deck>
 
         <Deck>
           <Well

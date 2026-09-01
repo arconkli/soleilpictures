@@ -20,7 +20,7 @@ import { supabase } from '../../../../lib/supabase.js';
 import { useAdminData } from '../../useAdminData.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
 import { formatCount } from '../../../../lib/adminFormat.js';
-import { useAnalyticsFilters, useRegisterViewRuntime } from '../AnalyticsFiltersContext.jsx';
+import { useAnalyticsFilters, useRegisterViewRuntime, POLL_MS } from '../AnalyticsFiltersContext.jsx';
 import { FunnelSteps } from '../../viz/FunnelSteps.jsx';
 import { Deck, Well } from '../../viz/Well.jsx';
 import { BarRows } from '../../viz/BarRows.jsx';
@@ -138,7 +138,8 @@ export function FunnelView() {
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
     if (fn.status !== 'fulfilled' || fn.value.error) throw errOf(fn) || new Error('Failed to load funnel');
     return { steps: val(fn) || [], acquisition: val(ab) || [] };
-  }, [f.days, f.source, f.campaign, f.content, f.excludeInternal, f.verifiedOnly]);
+  }, [f.days, f.source, f.campaign, f.content, f.excludeInternal, f.verifiedOnly],
+     { pollIntervalMs: POLL_MS.funnel, refetchOnFocus: true });
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
 
@@ -146,7 +147,7 @@ export function FunnelView() {
 
   return (
     <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="chart" />}>
-      <div className={q.refreshing ? 'is-refreshing' : ''}>
+      <div className="adm-view">
         <h2 className="admin-section-title">Landing to paid</h2>
         <div className="admin-section-sub">
           Where sessions fall off between the landing page and a subscription.

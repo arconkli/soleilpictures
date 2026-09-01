@@ -4,6 +4,7 @@
 // and empties the same way. The cardinal rule: empty is only shown when
 // !loading && !error, so a fetch failure never masquerades as "no data".
 
+import { useEffect, useState } from 'react';
 import { Icon } from '../../components/Icon.jsx';
 import { EmptyState } from '../../components/EmptyState.jsx';
 import { relativeTime, fmtDateTime } from '../../lib/adminFormat.js';
@@ -77,12 +78,40 @@ export function AdminError({ error, onRetry }) {
   );
 }
 
+/**
+ * Re-render on a timer.
+ *
+ * "updated 4 minutes ago" was computed once, at fetch time, and then sat there
+ * being wrong until the next fetch — so a stamp whose entire job is to say how
+ * stale the data is was itself stale. Ticking is cheap: one setState on a
+ * component that renders a dozen nodes.
+ */
+function useTick(ms) {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => force((n) => n + 1), ms);
+    return () => clearInterval(id);
+  }, [ms]);
+}
+
 // ── Toolbar: filters on the left, Refresh + "updated …" on the right ──
-export function AdminToolbar({ onRefresh, refreshing, lastUpdated, children }) {
+export function AdminToolbar({ onRefresh, refreshing, lastUpdated, live = false, children }) {
+  useTick(10_000);
   return (
-    <div className="admin-toolbar">
+    <div className={`admin-toolbar ${refreshing ? 'is-working' : ''}`}>
       <div className="admin-toolbar-left">{children}</div>
       <div className="admin-toolbar-right">
+        {/* The dot is the whole background-refresh indicator. It replaces
+            dimming the page to 55% and killing its pointer events every time
+            the poll fires — which is not a background refresh, it is a
+            foreground one that happens to be automatic. */}
+        {live && (
+          <span
+            className={`adm-refresh-dot ${refreshing ? 'is-working' : ''}`}
+            title={refreshing ? 'Refreshing…' : 'Refreshes on its own'}
+            aria-hidden="true"
+          />
+        )}
         {lastUpdated != null && (
           <span className="admin-toolbar-updated t-meta" title={fmtDateTime(lastUpdated)}>
             updated {relativeTime(lastUpdated)}

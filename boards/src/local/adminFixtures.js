@@ -877,8 +877,18 @@ function makeBuilder(table) {
 // edits are needed. Returns false if the client is null (env not configured).
 export function installAdminPreviewMocks(supabase) {
   if (!supabase) return false;
-  supabase.rpc = (name, params) =>
-    Promise.resolve({ data: rpcResult(name, params), error: null });
+  supabase.rpc = (name, params) => {
+    // A per-RPC call tally, so a test can prove the dashboard refreshes itself
+    // rather than asserting that a poll interval was passed somewhere. Only
+    // exists inside this harness, which is already DEV-gated behind
+    // ?adminpreview=1 and dropped from production by the bundler.
+    try {
+      const t = (window.__admRpcCalls ||= {});
+      t[name] = (t[name] || 0) + 1;
+      t.__total = (t.__total || 0) + 1;
+    } catch { /* ignore */ }
+    return Promise.resolve({ data: rpcResult(name, params), error: null });
+  };
   supabase.from = (table) => makeBuilder(table);
   // The Command Center's live placement tape and its Pulse panel each subscribe
   // to a realtime channel. Stub both so the harness renders the backfilled data

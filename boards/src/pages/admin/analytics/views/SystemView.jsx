@@ -20,12 +20,12 @@ import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
 import { AdminStorageSection } from '../../AdminStorageSection.jsx';
 import { MetaCapiHealth } from '../widgets/MetaCapiHealth.jsx';
 import { Detail } from '../../viz/Detail.jsx';
-import { Deck, Well } from '../../viz/Well.jsx';
+import { Deck, Well, Plate } from '../../viz/Well.jsx';
 import { BarRows } from '../../viz/BarRows.jsx';
 import { VAR } from '../../viz/palette.js';
 import { ActivationByExperiment } from '../widgets/ActivationByExperiment.jsx';
 import { getActiveExperiments } from '../../../../lib/experiments.js';
-import { useAnalyticsFilters, useRegisterViewRuntime } from '../AnalyticsFiltersContext.jsx';
+import { useAnalyticsFilters, useRegisterViewRuntime, POLL_MS } from '../AnalyticsFiltersContext.jsx';
 
 const num = (x) => (x == null || Number.isNaN(Number(x)) ? 0 : Number(x));
 
@@ -116,15 +116,18 @@ function OnboardingErrors({ rows, days }) {
  * this dashboard deserves to find out here rather than by re-deriving it.
  */
 function KnownLimits({ excludeInternal }) {
+  // A plate, not a well: six paragraphs reversed onto near-black is heavy and
+  // prose does not need graph paper under it. Same radius, ticks and register,
+  // so it still belongs to the deck.
   return (
-    <section className="admin-chart-panel admin-chart-panel-wide">
-      <header className="admin-chart-head">
-        <h3 className="admin-chart-title">What the data cannot tell you</h3>
-        <span className="admin-chart-sub t-meta">read this before trusting a number elsewhere</span>
-      </header>
+    <Plate
+      span={12}
+      title="What the data cannot tell you"
+      meta="read this before trusting a number elsewhere"
+    >
       {/* Two columns. Six full-width prose bullets across a 1900px page was
           half of what System showed by default, and an unreadably long line. */}
-      <div className="admin-chart-body">
+      <div>
         <ul className="admin-dq-list is-two-col">
           <li>
             <span className={`admin-dq-pill ${excludeInternal ? 'is-on' : 'is-off'}`}>
@@ -164,7 +167,7 @@ function KnownLimits({ excludeInternal }) {
           </li>
         </ul>
       </div>
-    </section>
+    </Plate>
   );
 }
 
@@ -178,7 +181,8 @@ export function SystemView() {
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     return { coverage: val(ec) || [], onboardingErrors: val(oe) || [] };
-  }, [f.days, f.excludeInternal, f.verifiedOnly]);
+  }, [f.days, f.excludeInternal, f.verifiedOnly],
+     { pollIntervalMs: POLL_MS.system, refetchOnFocus: true });
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
 
@@ -186,9 +190,11 @@ export function SystemView() {
 
   return (
     <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
-      <div className={q.refreshing ? 'is-refreshing' : ''}>
+      <div className="adm-view">
         <h2 className="admin-section-title">Honesty</h2>
-        <KnownLimits excludeInternal={f.excludeInternal} />
+        <Deck>
+          <KnownLimits excludeInternal={f.excludeInternal} />
+        </Deck>
 
         <h2 className="admin-section-title">Instrumentation</h2>
         <div className="admin-section-sub">

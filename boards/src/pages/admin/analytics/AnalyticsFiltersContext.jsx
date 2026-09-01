@@ -21,6 +21,27 @@ const LS_RANGE    = 'admin.analytics.range';
 const LS_INTERNAL = 'admin.analytics.excludeInternal';
 const LS_VERIFIED = 'admin.analytics.verifiedOnly';
 
+/**
+ * Background refresh cadence, per view.
+ *
+ * The dashboard keeps itself current rather than waiting to be reloaded, and
+ * `useAdminData` pauses every one of these while the tab is hidden, so a
+ * dashboard left open on a second monitor overnight costs nothing until it is
+ * looked at again.
+ *
+ * The intervals are not uniform because the views are not: Today is eleven
+ * cheap windowed RPCs and is the one people leave open, while System reads
+ * storage and coverage figures that move on the order of hours. Polling those
+ * as often as Today would be work nobody asked for and nobody would see.
+ */
+export const POLL_MS = {
+  today: 30_000,
+  funnel: 120_000,
+  retention: 120_000,
+  system: 180_000,
+  shell: 60_000,
+};
+
 const Ctx = createContext(null);
 
 export function useAnalyticsFilters() {
@@ -104,7 +125,11 @@ export function AnalyticsFiltersProvider({ children }) {
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     return { segments: val(sg) || [], stats: val(st) };
-  }, [days, excludeInternal, verifiedOnly]);
+    // The shell carries MRR and the tier counts, which Today puts in a hero
+    // tile — so it has to stay as fresh as the view that reads it, or the
+    // headline number quietly ages while everything around it updates.
+  }, [days, excludeInternal, verifiedOnly],
+     { pollIntervalMs: POLL_MS.shell, refetchOnFocus: true });
 
   const [runtime, setRuntime] = useState({ refresh: null, lastUpdated: null, refreshing: false });
   const registerRuntime = useCallback((r) => setRuntime(r), []);

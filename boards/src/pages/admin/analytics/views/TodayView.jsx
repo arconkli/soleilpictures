@@ -29,12 +29,12 @@ import { supabase } from '../../../../lib/supabase.js';
 import { formatCount, formatCompact, formatMoney, relativeTime, fmtDateTime } from '../../../../lib/adminFormat.js';
 import { useAdminData } from '../../useAdminData.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
-import { useAnalyticsFilters, useRegisterViewRuntime } from '../AnalyticsFiltersContext.jsx';
+import { useAnalyticsFilters, useRegisterViewRuntime, POLL_MS } from '../AnalyticsFiltersContext.jsx';
 import { Metric, MetricGrid, deltaInfo } from '../../viz/Metric.jsx';
 import { AreaChart } from '../../viz/AreaChart.jsx';
 import { Heatmap } from '../../viz/Heatmap.jsx';
 import { EventConsole } from '../../viz/EventConsole.jsx';
-import { Deck, Well } from '../../viz/Well.jsx';
+import { Deck, Well, Plate } from '../../viz/Well.jsx';
 import { VAR } from '../../viz/palette.js';
 
 // The browser's zone, so the heatmap buckets by the hours the owner keeps
@@ -163,7 +163,8 @@ export function TodayView() {
         .sort((a, b) => (num(b.active_day_count) || 0) - (num(a.active_day_count) || 0))
         .slice(0, 6),
     };
-  }, [f.excludeInternal, f.verifiedOnly], { pollIntervalMs: 30_000 });
+  }, [f.excludeInternal, f.verifiedOnly],
+     { pollIntervalMs: POLL_MS.today, refetchOnFocus: true });
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
 
@@ -195,13 +196,39 @@ export function TodayView() {
       onRetry={q.refresh}
       skeleton={<><AdminSkeleton variant="cards" rows={4} /><div style={{ height: 16 }} /><AdminSkeleton variant="chart" /></>}
     >
-      <div className={q.refreshing ? 'is-refreshing' : ''}>
+      <div className="adm-view">
         {/* Sparkline hue follows the metric's FAMILY — acquisition, engagement,
             output — rather than being four decorative colours. Three hues for
             three families is the most colour this palette can carry honestly:
             a fourth categorical hue does not survive the contrast and
             colour-blindness floors (see viz/palette.js). */}
         <h2 className="admin-section-title">The last seven days</h2>
+        {/* The primary readout goes on the plot ground with everything else.
+            The tiles were the last part of the page still floating on the bare
+            surface, which made the top of the screen read as a document header
+            with instruments below it rather than as one console. */}
+        <Deck>
+        <Well
+          span={12}
+          className="adm-rail"
+          foot={lifeN('total_users') != null ? (
+            /* Everything the platform has ever accumulated, on one line. Kept
+               out of the tiles because a total that only ever rises cannot tell
+               you anything is wrong — it is scale, not a signal, and now it
+               reads as the rail's footer rather than as five more metrics. */
+            <dl className="admin-lifetime">
+              <div><dt>Signups</dt><dd>{formatCount(lifeN('total_users'))}</dd></div>
+              <div><dt>Clusters</dt><dd>{formatCount(lifeN('total_boards'))}</dd></div>
+              <div><dt>Cards</dt><dd>{formatCount(lifeN('total_cards'))}</dd></div>
+              <div><dt>Workspaces</dt><dd>{formatCount(lifeN('total_workspaces'))}</dd></div>
+              <div>
+                <dt>Time in app</dt>
+                <dd>{lifeN('total_seconds_in_app') != null
+                  ? `${formatCount(Math.round(lifeN('total_seconds_in_app') / 3600))}h` : '—'}</dd>
+              </div>
+            </dl>
+          ) : null}
+        >
         <MetricGrid hero>
           <Metric
             hero
@@ -268,24 +295,8 @@ export function TodayView() {
             sparkColor={VAR.cat[2]}   /* output */
           />
         </MetricGrid>
-
-        {/* Everything the platform has ever accumulated, on one line. Kept out
-            of the tiles above because a total that only ever rises cannot tell
-            you anything is wrong — it is scale, not a signal, and it should
-            read that way. */}
-        {lifeN('total_users') != null && (
-          <dl className="admin-lifetime">
-            <div><dt>Signups</dt><dd>{formatCount(lifeN('total_users'))}</dd></div>
-            <div><dt>Clusters</dt><dd>{formatCount(lifeN('total_boards'))}</dd></div>
-            <div><dt>Cards</dt><dd>{formatCount(lifeN('total_cards'))}</dd></div>
-            <div><dt>Workspaces</dt><dd>{formatCount(lifeN('total_workspaces'))}</dd></div>
-            <div>
-              <dt>Time in app</dt>
-              <dd>{lifeN('total_seconds_in_app') != null
-                ? `${formatCount(Math.round(lifeN('total_seconds_in_app') / 3600))}h` : '—'}</dd>
-            </div>
-          </dl>
-        )}
+        </Well>
+        </Deck>
 
         {/* Four series on four scales. Sharing one axis would flatten signups
             against a number ten times its size — the dual-axis mistake wearing
@@ -358,22 +369,14 @@ export function TodayView() {
         <div className="admin-section-sub">
           At this volume the individuals are legible, so read them rather than an average.
         </div>
-        <div className="admin-charts-row">
-          <section className="admin-chart-panel">
-            <header className="admin-chart-head">
-              <h3 className="admin-chart-title">Just arrived</h3>
-              <span className="admin-chart-sub t-meta">newest {d?.users?.length || 0}</span>
-            </header>
+        <Deck>
+          <Plate span={6} title="Just arrived" meta={`newest ${d?.users?.length || 0}`}>
             <WhoArrived users={d?.users || []} />
-          </section>
-          <section className="admin-chart-panel">
-            <header className="admin-chart-head">
-              <h3 className="admin-chart-title">Arrived and stalled</h3>
-              <span className="admin-chart-sub t-meta">signed up ≤14d ago, no card ever</span>
-            </header>
+          </Plate>
+          <Plate span={6} title="Arrived and stalled" meta="signed up ≤14d ago, no card ever">
             <WhoStalled rows={d?.stalled || []} />
-          </section>
-        </div>
+          </Plate>
+        </Deck>
       </div>
     </AdminAsync>
   );
