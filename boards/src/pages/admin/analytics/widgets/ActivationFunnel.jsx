@@ -12,6 +12,7 @@
 
 import { formatCount, formatPct, MIN_RATE_FLAG } from '../../../../lib/adminFormat.js';
 import { BarRows } from '../../viz/BarRows.jsx';
+import { Well } from '../../viz/Well.jsx';
 import { PanelNote } from '../../SmallN.jsx';
 
 const STEPS = [
@@ -38,29 +39,25 @@ export function ActivationFunnel({ data, days = 30 }) {
   }));
 
   return (
-    <section className="admin-chart-panel admin-chart-panel-wide">
-      <header className="admin-chart-head">
-        <h3 className="admin-chart-title">Activation milestones</h3>
-        <span className="admin-chart-sub t-meta">
-          post-signup product milestones · n={formatCount(signed)} signed up · last {days}d
-        </span>
-      </header>
-      <div className="admin-chart-body">
-        <BarRows
-          ramp
-          rows={rows}
-          max={top}
-          formatValue={(v) => formatCount(v)}
-          secondary={showPct ? (r) => formatPct(r.pct) : undefined}
-          emptyLabel="No signups in this window."
-        />
-        {!showPct && (
-          <PanelNote>
-            Showing counts, not rates — the cohort is below {MIN_RATE_FLAG} signups, so conversion
-            percentages aren&rsquo;t yet meaningful.
-          </PanelNote>
-        )}
-      </div>
-    </section>
+    <Well
+      span={12}
+      title="Activation milestones"
+      meta={`post-signup product milestones · n=${formatCount(signed)} signed up · last ${days}d`}
+    >
+      <BarRows
+        ramp
+        rows={rows}
+        max={top}
+        formatValue={(v) => formatCount(v)}
+        secondary={showPct ? (r) => formatPct(r.pct) : undefined}
+        emptyLabel="No signups in this window."
+      />
+      {!showPct && (
+        <PanelNote>
+          Showing counts, not rates — the cohort is below {MIN_RATE_FLAG} signups, so conversion
+          percentages aren&rsquo;t yet meaningful.
+        </PanelNote>
+      )}
+    </Well>
   );
 }

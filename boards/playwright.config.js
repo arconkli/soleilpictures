@@ -11,6 +11,15 @@ import { defineConfig, devices } from '@playwright/test';
 // Mobile projects run a narrower test path; the existing chromium suite is
 // preserved verbatim under the new `desktop-chrome` name.
 
+// Port override, for the case the note below did not anticipate: SEVERAL
+// working trees of this repo running tests at once. reuseExistingServer means a
+// run attaches to whatever is already on the port — and if that server belongs
+// to another worktree, the whole suite silently reports on THAT tree's code
+// while looking completely normal. `PW_PORT=5199 npx playwright test` gets you
+// a server that is definitely yours. The default is unchanged.
+const PORT = Number(process.env.PW_PORT) || 5174;
+const ORIGIN = `http://127.0.0.1:${PORT}`;
+
 export default defineConfig({
   testDir: './tests',
   reporter: 'list',
@@ -21,7 +30,7 @@ export default defineConfig({
   // straw, which makes a moving set of unrelated-looking flakes.
   globalSetup: './tests/global-setup.js',
   use: {
-    baseURL: 'http://127.0.0.1:5174',
+    baseURL: ORIGIN,
     trace: 'on-first-retry',
   },
   webServer: {
@@ -32,7 +41,7 @@ export default defineConfig({
     // never applied, and the fixtures (?local=1&tier=demo&cards=60 …) were
     // written straight into the PRODUCTION analytics table. Owning a dedicated
     // port means the suite always gets a server it configured itself.
-    command: 'npm run dev -- --host 127.0.0.1 --port 5174 --strictPort',
+    command: `npm run dev -- --host 127.0.0.1 --port ${PORT} --strictPort`,
     env: {
       ...process.env,
       // Forced, not defaulted. These specs are written against a backend that
@@ -42,7 +51,7 @@ export default defineConfig({
       VITE_SUPABASE_PUBLISHABLE_KEY: 'local-playwright-key',
       VITE_SUPABASE_ANON_KEY: 'local-playwright-key',
     },
-    url: 'http://127.0.0.1:5174',
+    url: ORIGIN,
     // Safe to reuse now that the port is ours: nothing but this config ever
     // starts a server on 5174, and it always starts it with the forced fake
     // credentials above. Reuse also keeps the server warm between runs, which

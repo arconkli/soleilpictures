@@ -59,6 +59,36 @@ export function Well({
 }
 
 /**
+ * Plate — the well's themed sibling, for panels that are not plots.
+ *
+ * People lists, tables, the honesty bullets. Same radius, same corner ticks,
+ * same head/meta/foot, same mono numerals — on the page's own surface instead
+ * of a plot ground. Reversing a twelve-row table or six paragraphs onto
+ * near-black is heavy and none of it needs graph paper underneath; what makes
+ * the page cohere is the geometry, not painting everything black.
+ *
+ * Identical API to Well, deliberately: swapping one for the other is a one-word
+ * edit when a panel turns out to be the other kind of thing.
+ */
+export function Plate({
+  span, title, meta, foot, className = '', children, ...rest
+}) {
+  const cls = ['adm-plate', span ? `adm-c${span}` : '', className].filter(Boolean).join(' ');
+  return (
+    <section className={cls} {...rest}>
+      {(title || meta) && (
+        <div className="adm-well-head">
+          {title ? <span className="adm-well-title">{title}</span> : <span />}
+          {meta ? <span className="adm-well-meta">{meta}</span> : null}
+        </div>
+      )}
+      <div className="adm-well-body">{children}</div>
+      {foot ? <div className="adm-well-foot">{foot}</div> : null}
+    </section>
+  );
+}
+
+/**
  * A well whose contents are still loading.
  *
  * Worth having rather than wrapping AdminAsync by hand at every call site: the

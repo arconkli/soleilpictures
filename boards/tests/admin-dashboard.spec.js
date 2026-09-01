@@ -116,24 +116,32 @@ test.describe('admin dashboard charts', () => {
     // made every screen read orange, and it crept back twice while this was
     // being written. Tab pills and toggles are legitimately gold, so they are
     // excluded by selector rather than by colour.
-    await openAdmin(page, { view: 'retention', theme: 'dark' });
-    await expect(page.locator('.admin-chart-panel').first()).toBeVisible();
+    // Checked on every view, because the marks are no longer all in one place —
+    // and the panels are wells now, so waiting on `.admin-chart-panel` waits
+    // for something Retention no longer contains.
+    for (const view of ['today', 'retention', 'funnel', 'system']) {
+      await openAdmin(page, { view, theme: 'dark' });
+      await expect(page.locator('.adm-well').first()).toBeVisible({ timeout: 15000 });
 
-    const offenders = await page.evaluate(() => {
-      const gold = ['rgb(255, 165, 0)'];
-      const marks = document.querySelectorAll(
-        '.adm-bar-fill, .adm-dist-bar, .admin-funnel-bar-fill, .adm-trend-plot path[stroke]',
-      );
-      const bad = [];
-      for (const el of marks) {
-        const cs = getComputedStyle(el);
-        if (gold.includes(cs.backgroundColor) || gold.includes(cs.stroke)) {
-          bad.push(el.className?.toString?.() || el.tagName);
+      const offenders = await page.evaluate(() => {
+        const gold = ['rgb(255, 165, 0)'];
+        const marks = document.querySelectorAll([
+          '.adm-bar-fill', '.adm-dist-bar', '.admin-funnel-bar-fill',
+          '.adm-trend-plot path[stroke]', '.adm-area-plot path[stroke]',
+          '.adm-cohort-cell', '.adm-heat-cell', '.adm-heat-marg > span',
+          '.adm-console-dot', '.adm-console-tick', '.admin-stat-ratio > span',
+        ].join(', '));
+        const bad = [];
+        for (const el of marks) {
+          const cs = getComputedStyle(el);
+          if (gold.includes(cs.backgroundColor) || gold.includes(cs.stroke)) {
+            bad.push(el.className?.toString?.() || el.tagName);
+          }
         }
-      }
-      return bad;
-    });
-    expect(offenders, `data marks painted in --soleil: ${offenders.join(', ')}`).toEqual([]);
+        return bad;
+      });
+      expect(offenders, `data marks painted in --soleil on ${view}: ${offenders.join(', ')}`).toEqual([]);
+    }
   });
 
   test('the heatmap draws all 168 buckets, including the empty ones', async ({ page }) => {
@@ -311,6 +319,65 @@ test.describe('admin dashboard charts', () => {
       reversals.reversals / reversals.points,
       `${reversals.reversals} direction changes over ${reversals.points} points — that is a sawtooth, not a decay curve`,
     ).toBeLessThan(0.4);
+  });
+
+  test('the page refreshes itself, without fading or freezing', async ({ page }) => {
+    // Two halves of one feature.
+    //
+    // It refreshes: Today polls, so the RPC tally has to keep climbing with no
+    // interaction at all. Asserting the interval was passed somewhere would
+    // pass just as happily if the hook ignored it.
+    //
+    // In the background: the old indicator was `.is-refreshing { opacity: .55;
+    // pointer-events: none }` on the view root, so a 30-second poll faded the
+    // page and killed the cursor twice a minute. A background refresh that you
+    // have to wait out is a foreground refresh on a timer.
+    test.setTimeout(90_000);
+    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await expect(page.locator('.adm-well').first()).toBeVisible({ timeout: 15000 });
+
+    // Counted on an RPC only THIS view issues. The first version of this test
+    // watched the grand total and passed even with Today's poll deleted,
+    // because the shell polls too — it was measuring that something on the page
+    // refreshes, not that this view does.
+    const calls = () => page.evaluate(() => window.__admRpcCalls?.admin_activity_heatmap || 0);
+    const first = await calls();
+    expect(first, 'the harness call tally never armed').toBeGreaterThan(0);
+
+    await expect.poll(calls, {
+      message: 'Today re-issued none of its own RPCs while sitting idle — it is not refreshing itself',
+      timeout: 60_000,
+      intervals: [1000],
+    }).toBeGreaterThan(first);
+
+    // …and nothing about the page dimmed or went inert to do it.
+    await expect(page.locator('.admin-analytics .is-refreshing')).toHaveCount(0);
+    const view = await page.evaluate(() => {
+      const el = document.querySelector('.adm-view');
+      const cs = getComputedStyle(el);
+      return { opacity: Number(cs.opacity), pointer: cs.pointerEvents };
+    });
+    expect(view.opacity).toBe(1);
+    expect(view.pointer).not.toBe('none');
+    // The dot in the toolbar is the entire replacement affordance.
+    await expect(page.locator('.adm-refresh-dot')).toHaveCount(1);
+  });
+
+  test('the honesty list is actually in two columns', async ({ page }) => {
+    // `.admin-dq-list` is `display: flex`, and a flex container ignores
+    // `columns` outright — so the two-column rule was dead from the day it was
+    // written and the page looked exactly as it had. Measure the boxes; a
+    // stylesheet that silently does nothing is the thing being guarded.
+    await openAdmin(page, { view: 'system', theme: 'dark' });
+    await expect(page.locator('.admin-dq-list.is-two-col')).toBeVisible({ timeout: 15000 });
+
+    const sideBySide = await page.evaluate(() => {
+      const items = [...document.querySelectorAll('.admin-dq-list.is-two-col > li')]
+        .map((el) => el.getBoundingClientRect());
+      return items.some((a, i) => items.some((b, j) =>
+        j !== i && b.left > a.right && b.top < a.bottom && b.bottom > a.top));
+    });
+    expect(sideBySide, 'no two bullets share a row — the list is still one column').toBe(true);
   });
 
   test('a sparse series is drawn with gaps, not bridged', async ({ page }) => {

@@ -108,6 +108,7 @@ function AnalyticsToolbar({ view }) {
       onRefresh={f.runtime.refresh ? onRefresh : null}
       refreshing={f.runtime.refreshing}
       lastUpdated={f.runtime.lastUpdated}
+      live
     >
       {showRange && <AdminTimeRange value={f.days} onChange={f.setDays} />}
       {showSegments && (
