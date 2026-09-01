@@ -1130,30 +1130,30 @@ A: Yes, but that is a separate feature. A template is a saved shape you stamp ou
 ========================================================================
 # Schedules
 URL: https://clusters.soleilpictures.com/docs/canvas/schedule
-Updated: 2026-08-16
+Updated: 2026-09-01
 
-A schedule card is a real calendar living on your canvas, split into two panes: a month grid showing the shape of the schedule, and a day rail listing what is actually on each date — start time, place, and whether the call sheet has been published. It shows one, three or six months at once, and each day can hold both loose content and whole clusters. Dragging a day to another date moves that cluster and, if it has been published, tells everyone who can see it.
+A schedule card is a real calendar on your canvas. It shows a month as day tiles, as a list, or as a grid, with a wall chart above it spanning the whole production. Each date can hold notes, images and files, and whole clusters that carry a date. A day opens as a running order — every item has a length, and the start times cascade.
+
+Being rebuilt. Schedule cards are temporarily off the Add menu while the calendar and the day view are reworked. Existing cards keep rendering and keep their content — nothing has been removed. This page describes what those cards do today; it will grow again as the rebuild lands.
 
 A schedule card is a calendar with real dates, sitting on the canvas next to everything it refers to. Shooting days beside the location photos; a release plan beside the assets.
-
-Add one from the rail's + menu → Create → Schedule.
 
 Three densities, one control
 
 The same calendar, shown three ways. Pick with the control in the header.
 
  | What you get | Good for
-Tiles | Weeks as rows, each day a tile showing that day's cluster — its own thumbnail, name and start time | A production, where nearly every day is a board
-List | Day rows with a small preview, the name, where and when | Running the week; a fortnight at a glance
+Tiles | Weeks as rows, each day a tile showing that day's cluster — its own thumbnail and name | A production, where nearly every day is a board
+List | Day rows with a small preview and the name | Running the week; a fortnight at a glance
 Grid | The classic month grid | A release plan or a prep calendar — anything sparse
 
-Tiles is the default because in a production nearly every day is a board: a cluster holding that day's call sheet, shotlist, script pages and running order. A calendar's job there is not to show events, it is to be the way into those boards — and a coloured bar with a date on it cannot carry a board's identity, but a picture of the day can.
+Tiles is the default because in a production nearly every day is a board: a cluster holding that day's call sheet, shot list, script pages and running order. A calendar's job there is not to show events, it is to be the way into those boards — and a coloured bar with a date on it cannot carry a board's identity, but a picture of the day can.
 
 Grid is kept rather than traded away. A month grid is built for a sparse calendar, most cells empty, and that is exactly what a release plan is.
 
 The wall chart
 
-Above Tiles and List sits a strip: one row per month, one thin column per day, coloured by phase. It spans the whole production, not the month you happen to be looking at, because its only job is the shape of the shoot — ten weeks of prep, eight of production with a hiatus, two of wrap, in about a hundred pixels. Click any day to jump the surface below to it.
+Above Tiles and List sits a strip: one row per month, one thin column per day. It spans the whole production, not the month you happen to be looking at, because its only job is the shape of the schedule — ten weeks of prep, eight of production, two of wrap, in about a hundred pixels. Click any day to jump the surface below to it.
 
 It does not try to be readable up close. It navigates; the surface below details.
 
@@ -1161,14 +1161,14 @@ Full screen (the ⤢ in the header) gives the whole window over. A production ca
 
 Views
 
-Four zoom levels of the same schedule:
+Three ways into the same schedule:
 
 View | Shows
-Month | A whole month in a grid — or three, or six
+Month | A whole month — or three, or six
 Week | Seven days side by side
 Day | The day's running order — see below
 
-In month view, the 1 / 3 / 6 control sets how many months are on the card at once. Three months is a block of principal photography; you can see the whole shoot and drag a day from the first month to the last without paging. Asking for more months grows the card to fit them — three readable months need the room, and silently shrinking each one into a grid of dots would defeat the point.
+In month view, the 1 / 3 / 6 control sets how many months are on the card at once. Three months is a block of principal photography; you can see the whole shoot without paging. Asking for more months grows the card to fit them — three readable months need the room, and silently shrinking each one into a grid of dots would defeat the point.
 
 A prep week can sit at month view while the shoot day sits at day view in the same board.
 
@@ -1197,9 +1197,11 @@ A crew call and a meal break happen at a time, not "whenever we get to them". Pi
 runs 12m past the pin — the item above overruns it. The pin does not slide; the day after it stays on schedule and you are told what has to give.
 20m spare before the pin — dead air you can fill.
 
-The header carries the day's call time and its estimated wrap, and, if the day has a planned end, how far over or under it is running.
+The header carries the day's start and its estimated wrap.
 
-A row can also be a cluster — the setup's own board, with its shotlist, references and pages inside — opened straight from the row.
+A day can also cross midnight: an 18:00 start wrapping at 04:00 accumulates past midnight rather than reading as time travel.
+
+A row can also be a cluster — the setup's own board, with its shot list, references and pages inside — opened straight from the row.
 
 Adding a day with Set up this day seeds three rows: the call, a first setup, and a meal break six hours after the call. An empty list is a blank page.
 
@@ -1209,44 +1211,28 @@ Stepping through months, jumping to a date, and Go to today only move your view.
 
 Two things live on a date
 
-Loose content — a note, an image, a file, a link — dropped straight into a slot. This is the quick kind: a reminder on a Tuesday, a reference photo on the day it is needed.
+Loose content — a note, an image, a file, a link — dropped straight onto a date. This is the quick kind: a reminder on a Tuesday, a reference photo on the day it is needed.
 
-Days — whole clusters that carry a date. A day tile on the calendar is a real cluster you can open, containing whatever the day needs: the script pages, the call sheet, the shotlist, an hour-by-hour schedule. Each one carries a start time, an end, a place and a day type. See Production schedules.
-
-Moving things
-
-Drag a day tile onto another date. The cluster moves, and if it has been published, everyone who can see it is notified that it moved — including what it moved from and to. A multi-day block keeps its length.
-
-Loose content moves from the peek panel, or with Move to date on the slot. It stays read-only in the month grid for the reason below.
+Days — whole clusters that carry a date. A day tile on the calendar is a real cluster you can open, containing whatever the day needs: the script pages, the call sheet, the shot list, the running order. See Production schedules.
 
 Reading it
 
 The month grid has no vertical rules — just a line between weeks, and space. Dates you can act on are bright; days from the neighbouring month and weekend dates step back. Today is a filled circle.
 
-Colour means phase
+Where a month is too narrow for a word — a three-month strip, say — a day renders as a bar rather than a truncated name. Switch to List for names at a size you can read.
 
-A day's colour is its type — prep, production, travel, off, wrap, milestone — so three months of work reads as a shape rather than a wall of identical tiles. The types are yours to rename: a film production calls the middle one Shoot, a game studio calls it Sprint and renames Wrap to Ship. A schedule that has never been customised uses those six defaults.
-
-Publish state is a mark, not a hue: a hollow ring while a day is a draft, the version number once it is published, and a struck-through Cancelled if it is called off. Colour is spent on the question a calendar is for; once a shoot is running every day is published, so colouring by that would say nothing.
-
-Where a month is too narrow for a word — a three-month strip, say — a day renders as a coloured bar instead of a truncated name. The rail beside it carries the name at a size you can read.
-
-The peek panel
+The day panel
 
 For loose content, the month and week grids are read-only. A dense calendar grid with inline editing produced constant mis-clicks: reaching for a slot and accidentally editing the one next to it.
 
-Clicking a date selects it. Double-clicking a tile opens that day's cluster; double-clicking a cell in Grid density opens the peek, where loose content pinned to an hour is edited. The day's running order lives in Day view, not here.
-
-An empty tile carries a +. It creates that one day, scaffolded, with an undo toast — Add days… on the right-click menu is still there for a range.
-
-Day tiles are the exception to read-only. They are draggable in the grid, because moving a day to a new date is the single thing a production schedule exists to do, and routing that through a panel would miss the point. Rows in the rail drag the same way.
+Clicking a date selects it. Double-clicking a tile opens that day's cluster; double-clicking a cell in Grid density opens the day panel, where loose content is edited at a comfortable size whatever the card's size on the canvas. The day's running order lives in Day view, not here.
 
 What a schedule is for
 
 Anything where the cells mean time:
 
 Shoot days and unit moves
-Call sheets, with the location photo attached to the hour
+Call sheets, with the location photo attached to the day
 Delivery and release timelines
 A prep calendar with references attached to the day they are needed
 
@@ -1254,14 +1240,11 @@ If the cells mean position rather than time — a storyboard, a contact sheet, a
 
 ## Frequently asked questions
 
+Q: Can I add a schedule card right now?
+A: Not at the moment. Schedule cards are being rebuilt, so the Schedule entry is off the Add menu. Cards you already have keep working, and everything on this page still describes them.
+
 Q: Can I drop images and notes into a schedule?
-A: Yes. Any card can go into a time slot, not just text. A call sheet with the location photo attached to the right hour works exactly as you would expect.
-
-Q: How do I move a day to a different date?
-A: Drag its tile onto the new date. If the day has been published, everyone who can see the schedule is notified that it moved. Loose content moves from the peek panel or with "Move to date".
-
-Q: What happened to the Hour view?
-A: It is gone. Its only job was splitting one hour into four fifteen-minute buckets, which stopped meaning anything once an item can be two hours and fifteen minutes long. A card saved in that view opens as the day's running order instead.
+A: Yes. Any card can go into a date, not just text. A location photo attached to the day it is needed works exactly as you would expect.
 
 Q: If I change one item's length, what moves?
 A: Everything below it, and the estimated wrap. Nothing above it moves, and nothing after a pinned row moves — a pin is a fixed time of day and it holds.
@@ -1273,13 +1256,10 @@ Q: Can I still have a plain month grid?
 A: Yes — it is the third density in the header control. A month grid is built for a sparse calendar, which is exactly what a release plan or a prep calendar is, so it is kept rather than traded away.
 
 Q: Why can I not type directly into the calendar grid?
-A: Loose content in the month and week grids is deliberately read-only, because inline editing in a dense calendar produced constant mis-clicks. Clicking a date selects it in the rail; double-clicking opens the day by the hour.
+A: Loose content in the month and week grids is deliberately read-only, because inline editing in a dense calendar produced constant mis-clicks. Clicking a date selects it; double-clicking a grid cell opens the day panel.
 
 Q: Does paging to next month move it for everyone?
 A: No. Navigation is yours alone. The card remembers where it opens, but stepping through months, jumping to a date and "Go to today" are all local to you.
-
-Q: How do I get back to today?
-A: The "Go to today" control, or the mini-calendar in the header to jump to any date.
 
 
 ========================================================================
@@ -1948,9 +1928,11 @@ A: A 2D fallback renders automatically. The graph and its interactions are the s
 ========================================================================
 # Production schedules
 URL: https://clusters.soleilpictures.com/docs/clusters/production-schedule
-Updated: 2026-08-16
+Updated: 2026-09-01
 
-A production schedule is one cluster holding a multi-month calendar, with each day as a child cluster carrying a date, a start time and a place. Open a day and you get its script pages, call sheet, shotlist and hour-by-hour schedule. Drag the day to a new date and everyone who can see the schedule is told it moved. Publishing a day bumps its call-sheet version and notifies the crew, which is the replacement for mailing a new attachment every night.
+A production schedule is one cluster holding a multi-month calendar, with each day as a child cluster that carries a date. Open a day and you get its script pages, call sheet, shot list and running order — every item with a length, so the day re-times itself when one runs long. Share the production once and every day inside it comes with it.
+
+Being rebuilt. The schedule card is temporarily off the Add menu, and with it the "Add days" flow that lays a production out. Productions you already built keep working. Publishing a day and notifying the crew is part of the rebuild and is not available yet — this page no longer describes it.
 
 A production runs on two questions: what are we shooting, and when. This is how Clusters answers both in one place.
 
@@ -1962,7 +1944,7 @@ Each day is a child cluster with a date. It appears as a tile on its day in the 
 
 the day's script pages (a PDF or a document)
 the call sheet
-the shotlist
+the shot list
 the day's running order — every item with a length, so the day re-times itself when one runs long
 
 Share the production cluster with the crew once. Everything inside it — every day, every call sheet — comes with it.
@@ -1975,54 +1957,15 @@ They are created empty on purpose. Clusters are unlimited on every plan, but car
 
 The date is never written into a day's name. Day 12 stays Day 12; the date is rendered from the calendar every time it is shown, so a day that moves twice still reads correctly everywhere.
 
-What a day carries
+The running order
 
-Beyond its date, a day holds a start time, an end, a place and a type. The start time is the one that matters most — it is the first thing anyone opens a schedule to find — so it is set large in the rail's Today block and shown on every row.
+The part of a day that changes most during the day itself is its schedule, and it lives in the day's own schedule card, in Day view. Each item carries a length; start times cascade from the one above; a crew call or a meal break can be pinned to a wall-clock time, and the pin holds while the report of what overran it moves. An overnight day is fine: start at 18:00, wrap at 04:00.
 
-Changing a start time or a place on a published day notifies the crew straight away, with what changed: "Start 07:00 → 05:30". Renaming a day or retyping it does not — that is housekeeping, and a call sheet that pings forty times is a call sheet nobody opens.
-
-An overnight day is fine: call at 18:00, wrap at 04:00. Nothing treats that as an error.
-
-Day types are yours
-
-The six types — Prep, Production, Travel, Off, Wrap, Milestone — are a starting point, not a vocabulary. Rename them per production: a feature calls the middle one Shoot; a game studio calls it Sprint and renames Wrap to Ship; a photo studio uses Scout / Shoot / Edit / Deliver. The colour is what makes a quarter of work legible at a glance, and which word sits on it is the production's business.
-
-Moving a day
-
-Drag its tile to another date.
-
-That is one write. The day moves on everyone's calendar, the hour-by-hour card inside it re-anchors itself, and — if the day was published — everyone who can read the schedule is notified, told what it moved from and to. There is an undo on the toast.
-
-A multi-day block (travel, a company move) keeps its length when dragged.
-
-Publishing, instead of the nightly email
-
-A day is a draft until someone publishes it. Drafts are silent: you can build twelve weeks of schedule, drag days around and rewrite call sheets without anyone hearing anything.
-
-Publish bumps the day's version — v1, v2, v3 — and notifies everyone who can read it. That is the unit a crew already works in: "Day 12, call sheet v3".
-
-State is a quiet mark rather than a colour, because colour is spent on the day's type — see reading the calendar.
-
-State | On the calendar | Who is told
-Draft | Dashed outline; a hollow ring on its row | Nobody
-Published | Solid, with its version on the row | Everyone who can read it, on publish, on any move, and when its start time or place changes
-Cancelled | Red, struck through, still visible | Everyone, if it had been published
-
-A cancelled day stays on the calendar rather than disappearing. Deleting it would leave the crew with no record of a day they had planned around.
-
-What the crew sees
-
-The Schedule item in the sidebar carries an unread count and opens two things:
-
-Updates — what changed and when. These persist until you read them, so a call sheet published at 21:40 is still there at 06:00.
-
-Your schedule — every dated cluster you can reach, from today forward, across every production, with the ones that changed since you last looked marked. This is the thing to open when you want to know what you are called for.
-
-If you are not in the app when a day is published or moved, you get an email instead — one per change, not a nightly attachment. It is a separate switch in Settings → Notifications and carries a one-click unsubscribe. If you are in the app you only get the in-app notification, because a duplicate email is how people learn to filter you.
+Full detail is on the schedule card page.
 
 Driving it from another system
 
-Boards carry scheduled_date, scheduled_end and day_label over the API and MCP, so a scheduling package or a call-sheet generator can create days and move them without anyone opening the app. Moving a published day through the API notifies the crew exactly as dragging it would; pass notify: false to move one quietly.
+Boards carry scheduled_date, scheduled_end and day_label over the API and MCP, so a scheduling package or a call-sheet generator can create days and move them without anyone opening the app.
 
 A note on timezones
 
@@ -2030,16 +1973,13 @@ Dates are plain calendar dates, with no timezone attached — a production shoot
 
 ## Frequently asked questions
 
-Q: How does the crew find out a day changed?
-A: Publishing a day, or moving one that has already been published, notifies everyone who can read the schedule — in the app immediately, and by email if they are not currently in it. Nothing is sent while you are still building the schedule.
-
-Q: Will building a schedule spam everyone?
-A: No. A day is a draft until you publish it, and drafts are silent. You can lay out twelve weeks and drag days around without anyone being told anything.
+Q: Can I start a production schedule right now?
+A: Not at the moment. The schedule card is being rebuilt, so it is off the Add menu and new shoot days cannot be laid out. Productions you already built keep working and keep their days.
 
 Q: Does everyone need an account on my plan?
 A: Editors you share with are free. Capacity is charged to whoever owns the boards, not per seat. See Sharing and roles.
 
-Q: What happens to the hour-by-hour schedule when a day moves?
+Q: What happens to the running order when a day moves?
 A: It follows. The schedule card inside a day reads its date from the cluster, so it re-anchors itself and there is nothing to keep in sync.
 
 Q: Can another system push the schedule in?
@@ -2953,9 +2893,9 @@ A: Unread count. An @ prefix means at least one of them mentions you directly.
 ========================================================================
 # Notifications
 URL: https://clusters.soleilpictures.com/docs/collaborate/notifications
-Updated: 2026-08-26
+Updated: 2026-09-01
 
-Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
+Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 
 Seven categories, seven independent switches, in Settings → Notifications.
 
@@ -2965,7 +2905,7 @@ Comment replies | Someone replies in a thread you are part of
 Workspace invites | You are added to a workspace
 Board shares | A cluster is shared with you
 Invite accepted | Someone you invited opens your link and joins
-Schedule changes | A shoot day you can see moves, or its call sheet is published
+Schedule changes | A shoot day you can see moves (being rebuilt — quiet for now)
 Product tips and check-ins | Occasional messages about the product
 
 The last one is the one to switch off if you only want to hear about your own work. The other six are all consequences of something a person did that involves you.
@@ -2998,9 +2938,9 @@ The mention notification is the important one. When someone @s you, the notifica
 
 Schedule changes
 
-If you are on a production schedule, this is the one that matters. Publishing a shoot day, or moving one that has already been published, notifies everyone who can read it — with the day, what changed, and the call-sheet version.
+The schedule card is being rebuilt, and publishing a shoot day is part of that rebuild. The switch is here and the sidebar section is here; nothing is sent yet.
 
-Nothing is sent while a schedule is being built. A day is a draft until someone publishes it, and drafts are silent, so laying out a twelve-week shoot does not page anybody.
+When it returns, this is the one that matters on a production schedule: a shoot day moving, or a call sheet being published, tells everyone who can read it what changed. Nothing is sent while a schedule is being built — a day is a draft until someone publishes it, and drafts are silent, so laying out a twelve-week shoot does not page anybody.
 
 ## Frequently asked questions
 
@@ -3008,7 +2948,7 @@ Q: Can I turn off product emails but keep mentions?
 A: Yes. The seven categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
 
 Q: Where do schedule notifications appear?
-A: Under Schedule in the sidebar, which carries an unread count. Unlike a toast, they persist until you read them, so a call sheet published late at night is still there in the morning.
+A: Under Schedule in the sidebar, which carries an unread count. Unlike a toast, they persist until you read them. The schedule card that produces them is being rebuilt, so this switch is quiet for now.
 
 Q: Do I get browser notifications?
 A: Only if you grant permission. Nothing is requested until there is a reason.

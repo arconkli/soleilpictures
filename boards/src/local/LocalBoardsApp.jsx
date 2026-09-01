@@ -8,6 +8,7 @@ import { Icon } from '../components/Icon.jsx';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote } from '../lib/icons.js';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
+import { scheduleCreationAllowed } from '../lib/appHost.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from '../lib/gridLayout.js';
 import { hintsToCellMap } from '../lib/gridLayoutLibrary.js';
 import { stampCarry } from '../lib/gridSequence.js';
@@ -1534,7 +1535,9 @@ export function LocalBoardsApp({ user, signOut }) {
             gridSequences={currentSequences}
             onOpenBoard={openBoard}
             onSetSchedule={setLocalSchedule}
-            onAddShootDay={addLocalShootDays}
+            /* Twin of App.jsx's gate — the local shell is DEV-only, so this is
+               always open in practice; kept in lockstep so the two shells can't drift. */
+            onAddShootDay={scheduleCreationAllowed() ? addLocalShootDays : null}
             tweak={tweak}
             depth={stack.length - 1}
             onOpenPicker={(pos) => openBoardLinkPicker(pos)}

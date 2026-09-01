@@ -12,17 +12,14 @@
 // navigation, not a pretty in-place swap — that's the deliberate trade for
 // keeping it simple (no edge proxy, no second worker, no secrets).
 import { supabase } from './supabase.js';
+// The host predicates live in appHost.js so callers that only need "am I on
+// production" don't pull supabase.js in with them. Re-exported here because
+// this module was their original home and StagingBanner imports them from it.
+import { PROD_HOST, onProdHost, onPreviewHost } from './appHost.js';
+export { onProdHost, onPreviewHost };
 
-const PROD_HOST   = 'clusters.soleilpictures.com';
 const STABLE_PREF = 'soleil.staging.stable';      // localStorage '1' = stay on prod
 const REDIR_GUARD = 'soleil.staging.redirected';  // sessionStorage one-shot guard
-
-export function onProdHost() {
-  return typeof window !== 'undefined' && window.location.hostname === PROD_HOST;
-}
-export function onPreviewHost() {
-  return typeof window !== 'undefined' && /\.workers\.dev$/i.test(window.location.hostname);
-}
 function stablePref() {
   try { return localStorage.getItem(STABLE_PREF) === '1'; } catch (_) { return false; }
 }

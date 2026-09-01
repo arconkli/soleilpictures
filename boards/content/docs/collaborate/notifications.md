@@ -5,13 +5,13 @@ h1: Notifications
 navLabel: Notifications
 section: collaborate
 order: 5
-updated: 2026-08-26
-answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
+updated: 2026-09-01
+answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 faq:
   - q: Can I turn off product emails but keep mentions?
     a: Yes. The seven categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
   - q: Where do schedule notifications appear?
-    a: Under Schedule in the sidebar, which carries an unread count. Unlike a toast, they persist until you read them, so a call sheet published late at night is still there in the morning.
+    a: Under Schedule in the sidebar, which carries an unread count. Unlike a toast, they persist until you read them. The schedule card that produces them is being rebuilt, so this switch is quiet for now.
   - q: Do I get browser notifications?
     a: Only if you grant permission. Nothing is requested until there is a reason.
   - q: How do I unsubscribe without logging in?
@@ -33,7 +33,7 @@ Seven categories, seven independent switches, in **Settings → Notifications**.
 | **Workspace invites** | You are added to a workspace |
 | **Board shares** | A cluster is shared with you |
 | **Invite accepted** | Someone you invited opens your link and joins |
-| **Schedule changes** | A shoot day you can see moves, or its call sheet is published |
+| **Schedule changes** | A shoot day you can see moves *(being rebuilt — quiet for now)* |
 | **Product tips and check-ins** | Occasional messages about the product |
 
 The last one is the one to switch off if you only want to hear about your own
@@ -85,11 +85,13 @@ notification links to the exact card, comment or passage, not just to the board
 
 ## Schedule changes
 
-If you are on a [production schedule](/docs/clusters/production-schedule), this
-is the one that matters. Publishing a shoot day, or moving one that has already
-been published, notifies everyone who can read it — with the day, what changed,
-and the call-sheet version.
+> The [schedule card](/docs/canvas/schedule) is being rebuilt, and publishing a
+> shoot day is part of that rebuild. The switch is here and the sidebar section
+> is here; nothing is sent yet.
 
-Nothing is sent while a schedule is being built. A day is a draft until someone
+When it returns, this is the one that matters on a
+[production schedule](/docs/clusters/production-schedule): a shoot day moving,
+or a call sheet being published, tells everyone who can read it what changed.
+Nothing is sent while a schedule is being built — a day is a draft until someone
 publishes it, and drafts are silent, so laying out a twelve-week shoot does not
 page anybody.

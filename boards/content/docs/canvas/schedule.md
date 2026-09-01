@@ -1,19 +1,17 @@
 ---
 title: Schedule Cards — Soleil Clusters
-metaDescription: Real-date calendar cards on the Soleil Clusters canvas — a month grid, a day rail, and days that run as a timed running order.
+metaDescription: Real-date calendar cards on the Soleil Clusters canvas — day tiles, a list, a month grid, and days that run as a timed running order.
 h1: Schedules
 navLabel: Schedules
 section: canvas
 order: 8
-updated: 2026-08-16
-answer: A schedule card is a real calendar living on your canvas, split into two panes: a month grid showing the shape of the schedule, and a day rail listing what is actually on each date — start time, place, and whether the call sheet has been published. It shows one, three or six months at once, and each day can hold both loose content and whole clusters. Dragging a day to another date moves that cluster and, if it has been published, tells everyone who can see it.
+updated: 2026-09-01
+answer: A schedule card is a real calendar on your canvas. It shows a month as day tiles, as a list, or as a grid, with a wall chart above it spanning the whole production. Each date can hold notes, images and files, and whole clusters that carry a date. A day opens as a running order — every item has a length, and the start times cascade.
 faq:
+  - q: Can I add a schedule card right now?
+    a: Not at the moment. Schedule cards are being rebuilt, so the Schedule entry is off the Add menu. Cards you already have keep working, and everything on this page still describes them.
   - q: Can I drop images and notes into a schedule?
-    a: Yes. Any card can go into a time slot, not just text. A call sheet with the location photo attached to the right hour works exactly as you would expect.
-  - q: How do I move a day to a different date?
-    a: Drag its tile onto the new date. If the day has been published, everyone who can see the schedule is notified that it moved. Loose content moves from the peek panel or with "Move to date".
-  - q: What happened to the Hour view?
-    a: It is gone. Its only job was splitting one hour into four fifteen-minute buckets, which stopped meaning anything once an item can be two hours and fifteen minutes long. A card saved in that view opens as the day's running order instead.
+    a: Yes. Any card can go into a date, not just text. A location photo attached to the day it is needed works exactly as you would expect.
   - q: If I change one item's length, what moves?
     a: Everything below it, and the estimated wrap. Nothing above it moves, and nothing after a pinned row moves — a pin is a fixed time of day and it holds.
   - q: Why do the days show pictures?
@@ -21,22 +19,23 @@ faq:
   - q: Can I still have a plain month grid?
     a: Yes — it is the third density in the header control. A month grid is built for a sparse calendar, which is exactly what a release plan or a prep calendar is, so it is kept rather than traded away.
   - q: Why can I not type directly into the calendar grid?
-    a: Loose content in the month and week grids is deliberately read-only, because inline editing in a dense calendar produced constant mis-clicks. Clicking a date selects it in the rail; double-clicking opens the day by the hour.
+    a: Loose content in the month and week grids is deliberately read-only, because inline editing in a dense calendar produced constant mis-clicks. Clicking a date selects it; double-clicking a grid cell opens the day panel.
   - q: Does paging to next month move it for everyone?
     a: No. Navigation is yours alone. The card remembers where it opens, but stepping through months, jumping to a date and "Go to today" are all local to you.
-  - q: How do I get back to today?
-    a: The "Go to today" control, or the mini-calendar in the header to jump to any date.
 related:
   - /docs/canvas/grids
   - /docs/clusters
-  - /docs/collaborate/notifications
+  - /docs/clusters/production-schedule
 ---
+
+> **Being rebuilt.** Schedule cards are temporarily off the Add menu while the
+> calendar and the day view are reworked. Existing cards keep rendering and
+> keep their content — nothing has been removed. This page describes what those
+> cards do today; it will grow again as the rebuild lands.
 
 A schedule card is a calendar with real dates, sitting on the canvas next to
 everything it refers to. Shooting days beside the location photos; a release
 plan beside the assets.
-
-Add one from the rail's **+** menu → *Create* → **Schedule**.
 
 ## Three densities, one control
 
@@ -44,12 +43,12 @@ The same calendar, shown three ways. Pick with the control in the header.
 
 | | What you get | Good for |
 |---|---|---|
-| **Tiles** | Weeks as rows, each day a tile showing that day's **cluster** — its own thumbnail, name and start time | A production, where nearly every day is a board |
-| **List** | Day rows with a small preview, the name, where and when | Running the week; a fortnight at a glance |
+| **Tiles** | Weeks as rows, each day a tile showing that day's **cluster** — its own thumbnail and name | A production, where nearly every day is a board |
+| **List** | Day rows with a small preview and the name | Running the week; a fortnight at a glance |
 | **Grid** | The classic month grid | A release plan or a prep calendar — anything **sparse** |
 
 Tiles is the default because in a production nearly every day *is* a board: a
-cluster holding that day's call sheet, shotlist, script pages and running
+cluster holding that day's call sheet, shot list, script pages and running
 order. A calendar's job there is not to show events, it is to be the way into
 those boards — and a coloured bar with a date on it cannot carry a board's
 identity, but a picture of the day can.
@@ -59,11 +58,11 @@ calendar, most cells empty, and that is exactly what a release plan is.
 
 ### The wall chart
 
-Above Tiles and List sits a strip: one row per month, one thin column per day,
-coloured by phase. It spans the **whole production**, not the month you happen
-to be looking at, because its only job is the shape of the shoot — ten weeks of
-prep, eight of production with a hiatus, two of wrap, in about a hundred
-pixels. Click any day to jump the surface below to it.
+Above Tiles and List sits a strip: one row per month, one thin column per day.
+It spans the **whole production**, not the month you happen to be looking at,
+because its only job is the shape of the schedule — ten weeks of prep, eight of
+production, two of wrap, in about a hundred pixels. Click any day to jump the
+surface below to it.
 
 It does not try to be readable up close. It navigates; the surface below
 details.
@@ -74,19 +73,19 @@ with everything around it.
 
 ## Views
 
-Four zoom levels of the same schedule:
+Three ways into the same schedule:
 
 | View | Shows |
 |---|---|
-| **Month** | A whole month in a grid — or three, or six |
+| **Month** | A whole month — or three, or six |
 | **Week** | Seven days side by side |
 | **Day** | The day's running order — see below |
 
 In month view, the **1 / 3 / 6** control sets how many months are on the card at
 once. Three months is a block of principal photography; you can see the whole
-shoot and drag a day from the first month to the last without paging. Asking for
-more months grows the card to fit them — three readable months need the room,
-and silently shrinking each one into a grid of dots would defeat the point.
+shoot without paging. Asking for more months grows the card to fit them — three
+readable months need the room, and silently shrinking each one into a grid of
+dots would defeat the point.
 
 A prep week can sit at month view while the shoot day sits at day view in the
 same board.
@@ -123,15 +122,16 @@ Pin them, and the pin holds — what moves is the report:
   slide; the day after it stays on schedule and you are told what has to give.
 - **20m spare before the pin** — dead air you can fill.
 
-The header carries the day's **call time** and its **estimated wrap**, and, if
-the day has a planned end, how far over or under it is running.
+The header carries the day's start and its **estimated wrap**.
 
-A row can also be a **cluster** — the setup's own board, with its shotlist,
+A day can also cross midnight: an 18:00 start wrapping at 04:00 accumulates past
+midnight rather than reading as time travel.
+
+A row can also be a **cluster** — the setup's own board, with its shot list,
 references and pages inside — opened straight from the row.
 
-Adding a day with **Set up this day** seeds three rows: the call, a first
-setup, and a meal break six hours after the call. An empty list is a blank
-page.
+Adding a day with **Set up this day** seeds three rows: the call, a first setup,
+and a meal break six hours after the call. An empty list is a blank page.
 
 ### Navigation is yours
 
@@ -141,24 +141,14 @@ people does not jerk under everyone else when you page forward.
 
 ## Two things live on a date
 
-**Loose content** — a note, an image, a file, a link — dropped straight into a
-slot. This is the quick kind: a reminder on a Tuesday, a reference photo on the
+**Loose content** — a note, an image, a file, a link — dropped straight onto a
+date. This is the quick kind: a reminder on a Tuesday, a reference photo on the
 day it is needed.
 
 **Days** — whole clusters that carry a date. A day tile on the calendar is a
 real cluster you can open, containing whatever the day needs: the script pages,
-the call sheet, the shotlist, an hour-by-hour schedule. Each one carries a start
-time, an end, a place and a day type. See
+the call sheet, the shot list, the running order. See
 [Production schedules](/docs/clusters/production-schedule).
-
-## Moving things
-
-**Drag a day tile** onto another date. The cluster moves, and if it has been
-published, everyone who can see it is notified that it moved — including what it
-moved from and to. A multi-day block keeps its length.
-
-**Loose content** moves from the peek panel, or with **Move to date** on the
-slot. It stays read-only in the month grid for the reason below.
 
 ## Reading it
 
@@ -166,48 +156,27 @@ The month grid has no vertical rules — just a line between weeks, and space.
 Dates you can act on are bright; days from the neighbouring month and weekend
 dates step back. Today is a filled circle.
 
-### Colour means phase
-
-A day's colour is its **type** — prep, production, travel, off, wrap, milestone
-— so three months of work reads as a shape rather than a wall of identical
-tiles. The types are yours to rename: a film production calls the middle one
-*Shoot*, a game studio calls it *Sprint* and renames *Wrap* to *Ship*. A
-schedule that has never been customised uses those six defaults.
-
-Publish state is a **mark**, not a hue: a hollow ring while a day is a draft,
-the version number once it is published, and a struck-through *Cancelled* if it
-is called off. Colour is spent on the question a calendar is for; once a shoot
-is running every day is published, so colouring by that would say nothing.
-
 Where a month is too narrow for a word — a three-month strip, say — a day
-renders as a coloured bar instead of a truncated name. The rail beside it
-carries the name at a size you can read.
+renders as a bar rather than a truncated name. Switch to List for names at a
+size you can read.
 
-## The peek panel
+## The day panel
 
 For loose content, the month and week grids are **read-only**. A dense calendar
 grid with inline editing produced constant mis-clicks: reaching for a slot and
 accidentally editing the one next to it.
 
-Clicking a date **selects** it. Double-clicking a tile opens that day's
-cluster; double-clicking a cell in Grid density opens the **peek**, where loose
-content pinned to an hour is edited. The day's running order lives in Day view,
-not here.
-
-An empty tile carries a **+**. It creates that one day, scaffolded, with an
-undo toast — **Add days…** on the right-click menu is still there for a range.
-
-Day tiles are the exception to read-only. They are draggable in the grid,
-because moving a day to a new date is the single thing a production schedule
-exists to do, and routing that through a panel would miss the point. Rows in
-the rail drag the same way.
+Clicking a date **selects** it. Double-clicking a tile opens that day's cluster;
+double-clicking a cell in Grid density opens the **day panel**, where loose
+content is edited at a comfortable size whatever the card's size on the canvas.
+The day's running order lives in Day view, not here.
 
 ## What a schedule is for
 
 Anything where the cells mean *time*:
 
 - Shoot days and unit moves
-- Call sheets, with the location photo attached to the hour
+- Call sheets, with the location photo attached to the day
 - Delivery and release timelines
 - A prep calendar with references attached to the day they are needed
 

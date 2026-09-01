@@ -31,7 +31,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [Arrows](https://clusters.soleilpictures.com/docs/canvas/arrows): Connect cards with arrows in Soleil Clusters. Arrows anchor to cards, re-route as you move things, and carry labels, colours, thickness and head styles.
 - [Groups](https://clusters.soleilpictures.com/docs/canvas/groups): Group cards on a Soleil Clusters canvas. Named, outlined selections that move as one and can be commented on, tagged and coloured as a unit.
 - [Grids](https://clusters.soleilpictures.com/docs/canvas/grids): Grid cards in Soleil Clusters split into resizable cells holding any content — storyboards, contact sheets, comparisons. Templates and generated matrices.
-- [Schedules](https://clusters.soleilpictures.com/docs/canvas/schedule): Real-date calendar cards on the Soleil Clusters canvas — a month grid, a day rail, and days that run as a timed running order.
+- [Schedules](https://clusters.soleilpictures.com/docs/canvas/schedule): Real-date calendar cards on the Soleil Clusters canvas — day tiles, a list, a month grid, and days that run as a timed running order.
 - [Vote cards](https://clusters.soleilpictures.com/docs/canvas/vote-cards): Vote cards in Soleil Clusters are up/down polls you can anchor anywhere on a board, so a team can decide between options without a thread of comments.
 - [Colour palettes and the picker](https://clusters.soleilpictures.com/docs/canvas/palettes-and-color): Palette cards, the colour picker with eyedropper and hex input, recent colours, and how board colours stay readable in light and dark themes.
 - [Snapping and alignment](https://clusters.soleilpictures.com/docs/canvas/snapping-and-alignment): Alignment guides and snapping on the Soleil Clusters canvas. Cards snap to each other's edges and centres as you drag; hold Alt to bypass.
@@ -48,7 +48,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [Clusters](https://clusters.soleilpictures.com/docs/clusters): Create, nest, rename and organize clusters in Soleil Clusters. Unlimited nesting, cover images, thumbnails, moving boards and the sidebar tree.
 - [List view](https://clusters.soleilpictures.com/docs/clusters/list-view): Every cluster in Soleil Clusters is also a drive. List view gives you table and gallery modes, search, sort, type filters and a detail panel with previews.
 - [Home graph](https://clusters.soleilpictures.com/docs/clusters/home-graph): The Home view in Soleil Clusters shows your whole workspace as a 3D relationship graph of clusters, documents, cards and links you can fly through.
-- [Production schedules](https://clusters.soleilpictures.com/docs/clusters/production-schedule): Run a production schedule in Soleil Clusters — a multi-month calendar shared with the crew, each day its own cluster with a call time, notifications not email.
+- [Production schedules](https://clusters.soleilpictures.com/docs/clusters/production-schedule): Run a production schedule in Soleil Clusters — a multi-month calendar shared with the crew, each day its own cluster holding that day's material.
 - [Trash and recovery](https://clusters.soleilpictures.com/docs/clusters/trash-and-recovery): Restore deleted clusters from a 30-day trash, roll a board back through version history, or rewind an entire workspace to a point in time.
 
 ## Documents
