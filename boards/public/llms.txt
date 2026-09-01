@@ -48,7 +48,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [Clusters](https://clusters.soleilpictures.com/docs/clusters): Create, nest, rename and organize clusters in Soleil Clusters. Unlimited nesting, cover images, thumbnails, moving boards and the sidebar tree.
 - [List view](https://clusters.soleilpictures.com/docs/clusters/list-view): Every cluster in Soleil Clusters is also a drive. List view gives you table and gallery modes, search, sort, type filters and a detail panel with previews.
 - [Home graph](https://clusters.soleilpictures.com/docs/clusters/home-graph): The Home view in Soleil Clusters shows your whole workspace as a 3D relationship graph of clusters, documents, cards and links you can fly through.
-- [Production schedules](https://clusters.soleilpictures.com/docs/clusters/production-schedule): Run a production schedule in Soleil Clusters — a multi-month calendar shared with the crew, each shoot day its own cluster, notifications not email.
+- [Production schedules](https://clusters.soleilpictures.com/docs/clusters/production-schedule): Run a production schedule in Soleil Clusters — a multi-month calendar shared with the crew, each shoot day its own cluster holding that day's material.
 - [Trash and recovery](https://clusters.soleilpictures.com/docs/clusters/trash-and-recovery): Restore deleted clusters from a 30-day trash, roll a board back through version history, or rewind an entire workspace to a point in time.
 
 ## Documents

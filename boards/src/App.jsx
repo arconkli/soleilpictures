@@ -130,6 +130,7 @@ import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readG
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from './lib/gridLayout.js';
 import { hasLabelTag } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
+import { scheduleCreationAllowed } from './lib/appHost.js';
 import {
   graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey,
   reslotItemKey, moveSlotSubtree as schedMoveSlotSubtree,
@@ -6301,7 +6302,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          depth={(isMain ? stack.length : splitStack.length) - 1}
                          onDockDoc={({ cardId }) => dockDocCard({ cardId, boardId: board.id })}
                          dockedDocCardId={splitDoc?.cardId || null}
-                         onSetSchedule={handleSetSchedule} onAddShootDay={handleAddShootDay}
+                         onSetSchedule={handleSetSchedule}
+                         /* Held with the calendar rebuild (lib/appHost.js). This is the
+                            SECOND minting path: scaffoldShootDay puts a schedView:'day'
+                            card inside every day it creates without ever going through
+                            mutators.addSchedule. Passing null closes the tile '+', the
+                            rail's "Add days" range and the slot-menu items — all three
+                            already branch on this prop being falsy. */
+                         onAddShootDay={scheduleCreationAllowed() ? handleAddShootDay : null}
                          onOpenPicker={(pos) => openBoardLinkPicker(pos, paneId)}
                          onDropInboxItem={dropInboxItemFor(muts)}
                          onDropFileImage={dropFileImageFor(muts)}

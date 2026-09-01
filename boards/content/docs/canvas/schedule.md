@@ -5,13 +5,15 @@ h1: Schedules
 navLabel: Schedules
 section: canvas
 order: 8
-updated: 2026-08-16
-answer: A schedule card is a real calendar living on your canvas. It shows one, three or six months at once, and each day can hold both loose content and whole clusters — a shoot day with its call sheet, shotlist and hour-by-hour inside. Dragging a day tile to another date moves that cluster and, if it has been published, tells everyone who can see it. Loose content in the month grid stays read-only and is edited in the peek panel.
+updated: 2026-09-01
+answer: A schedule card is a real calendar living on your canvas. It shows one, three or six months at once, and each day can hold both loose content and whole clusters — a shoot day with its call sheet, shotlist and hour-by-hour inside. Dragging a day tile to another date moves that cluster. Loose content in the month grid stays read-only and is edited in the peek panel.
 faq:
   - q: Can I drop images and notes into a schedule?
     a: Yes. Any card can go into a time slot, not just text. A call sheet with the location photo attached to the right hour works exactly as you would expect.
+  - q: Can I add a schedule card right now?
+    a: Not at the moment. Schedule cards are being rebuilt, so the Schedule entry is off the Add menu. Cards you already have keep working, and everything on this page still describes them.
   - q: How do I move a day to a different date?
-    a: Drag its tile onto the new date. If the day has been published, everyone who can see the schedule is notified that it moved. Loose content moves from the peek panel or with "Move to date".
+    a: Drag its tile onto the new date. A multi-day block keeps its length.
   - q: Why can I not type directly into the calendar grid?
     a: Loose content in the month and week grids is deliberately read-only — clicking a slot opens a peek panel and every edit happens there, because inline editing in a dense calendar produced constant mis-clicks. Day tiles are the exception: they are draggable, because moving a day is the thing a schedule exists for.
   - q: Does paging to next month move it for everyone?
@@ -24,11 +26,14 @@ related:
   - /docs/collaborate/notifications
 ---
 
+> **Being rebuilt.** Schedule cards are temporarily off the Add menu while the
+> calendar and the day view are reworked. Existing cards keep rendering and keep
+> their content — nothing has been removed. This page describes what those cards
+> do today.
+
 A schedule card is a calendar with real dates, sitting on the canvas next to
 everything it refers to. Shooting days beside the location photos; a release
 plan beside the assets.
-
-Add one from the rail's **+** menu → *Create* → **Schedule**.
 
 ## Views
 
@@ -66,14 +71,10 @@ a real cluster you can open, containing whatever the day needs: the script
 pages, the call sheet, the shotlist, an hour-by-hour schedule. See
 [Production schedules](/docs/clusters/production-schedule).
 
-## Moving things
+## Moving a day
 
-**Drag a day tile** onto another date. The cluster moves, and if it has been
-published, everyone who can see it is notified that it moved — including what it
-moved from and to. A multi-day block keeps its length.
-
-**Loose content** moves from the peek panel, or with **Move to date** on the
-slot. It stays read-only in the month grid for the reason below.
+**Drag a day tile** onto another date. The cluster moves, and a multi-day block
+keeps its length.
 
 ## The peek panel
 

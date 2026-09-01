@@ -8988,11 +8988,22 @@ export const DOCS_CONTENT = {
  ],
  "/docs/canvas/schedule": [
   {
-   "type": "para",
+   "type": "callout",
+   "variant": "note",
    "inline": [
     {
+     "t": "strong",
+     "v": "Being rebuilt.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Being rebuilt."
+      }
+     ]
+    },
+    {
      "t": "text",
-     "v": "A schedule card is a calendar with real dates, sitting on the canvas next to everything it refers to. Shooting days beside the location photos; a release plan beside the assets."
+     "v": " Schedule cards are temporarily off the Add menu while the calendar and the day view are reworked. Existing cards keep rendering and keep their content — nothing has been removed. This page describes what those cards do today."
     }
    ]
   },
@@ -9001,49 +9012,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Add one from the rail's "
-    },
-    {
-     "t": "strong",
-     "v": "+",
-     "children": [
-      {
-       "t": "text",
-       "v": "+"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " menu → "
-    },
-    {
-     "t": "em",
-     "v": "Create",
-     "children": [
-      {
-       "t": "text",
-       "v": "Create"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " → "
-    },
-    {
-     "t": "strong",
-     "v": "Schedule",
-     "children": [
-      {
-       "t": "text",
-       "v": "Schedule"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
+     "v": "A schedule card is a calendar with real dates, sitting on the canvas next to everything it refers to. Shooting days beside the location photos; a release plan beside the assets."
     }
    ]
   },
@@ -9316,14 +9285,14 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Moving things",
+   "text": "Moving a day",
    "inline": [
     {
      "t": "text",
-     "v": "Moving things"
+     "v": "Moving a day"
     }
    ],
-   "id": "moving-things"
+   "id": "moving-a-day"
   },
   {
    "type": "para",
@@ -9340,40 +9309,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " onto another date. The cluster moves, and if it has been published, everyone who can see it is notified that it moved — including what it moved from and to. A multi-day block keeps its length."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Loose content",
-     "children": [
-      {
-       "t": "text",
-       "v": "Loose content"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " moves from the peek panel, or with "
-    },
-    {
-     "t": "strong",
-     "v": "Move to date",
-     "children": [
-      {
-       "t": "text",
-       "v": "Move to date"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " on the slot. It stays read-only in the month grid for the reason below."
+     "v": " onto another date. The cluster moves, and a multi-day block keeps its length."
     }
    ]
   },
@@ -14257,6 +14193,26 @@ export const DOCS_CONTENT = {
  ],
  "/docs/clusters/production-schedule": [
   {
+   "type": "callout",
+   "variant": "note",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Being rebuilt.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Being rebuilt."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " The schedule card is temporarily off the Add menu, and with it the \"Add shoot days\" flow that lays a production out. Productions you already built keep working. Publishing a day and notifying the crew is part of the rebuild and is not available yet — this page no longer describes it."
+    }
+   ]
+  },
+  {
    "type": "para",
    "inline": [
     {
@@ -14544,7 +14500,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "That is one write. The day moves on everyone's calendar, the hour-by-hour card inside it re-anchors itself, and — if the day was published — everyone who can read the schedule is notified, told what it moved from and to. There is an undo on the toast."
+     "v": "That is one write. The day moves on everyone's calendar, the hour-by-hour card inside it re-anchors itself, and there is an undo on the toast."
     }
    ]
   },
@@ -14554,186 +14510,6 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "A multi-day block (travel, a company move) keeps its length when dragged."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Publishing, instead of the nightly email",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Publishing, instead of the nightly email"
-    }
-   ],
-   "id": "publishing-instead-of-the-nightly-email"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A shoot day is a "
-    },
-    {
-     "t": "strong",
-     "v": "draft",
-     "children": [
-      {
-       "t": "text",
-       "v": "draft"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " until someone publishes it. Drafts are silent: you can build twelve weeks of schedule, drag days around and rewrite call sheets without anyone hearing anything."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Publish",
-     "children": [
-      {
-       "t": "text",
-       "v": "Publish"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " bumps the day's version — v1, v2, v3 — and notifies everyone who can read it. That is the unit a crew already works in: "
-    },
-    {
-     "t": "em",
-     "v": "\"Day 12, call sheet v3\"",
-     "children": [
-      {
-       "t": "text",
-       "v": "\"Day 12, call sheet v3\""
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
-    }
-   ]
-  },
-  {
-   "type": "table",
-   "head": [
-    [
-     {
-      "t": "text",
-      "v": "State"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "On the calendar"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Who is told"
-     }
-    ]
-   ],
-   "rows": [
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Draft",
-       "children": [
-        {
-         "t": "text",
-         "v": "Draft"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Dashed outline"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Nobody"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Published",
-       "children": [
-        {
-         "t": "text",
-         "v": "Published"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Solid, with its version"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Everyone who can read it, on publish and on any move"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Cancelled",
-       "children": [
-        {
-         "t": "text",
-         "v": "Cancelled"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Struck through, still visible"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Everyone, if it had been published"
-      }
-     ]
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A cancelled day stays on the calendar rather than disappearing. Deleting it would leave the crew with no record of a day they had planned around."
     }
    ]
   },
@@ -14768,82 +14544,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " item in the sidebar carries an unread count and opens two things:"
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Updates",
-     "children": [
-      {
-       "t": "text",
-       "v": "Updates"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — what changed and when. These persist until you read them, so a call sheet published at 21:40 is still there at 06:00."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Your schedule",
-     "children": [
-      {
-       "t": "text",
-       "v": "Your schedule"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — every dated cluster you can reach, from today forward, across every production, with the ones that changed since you last looked marked. This is the thing to open when you want to know what you are called for."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "If you are not in the app when a day is published or moved, you get an email instead — one per change, not a nightly attachment. It is a separate switch in "
+     "v": " item in the sidebar opens "
     },
     {
      "t": "strong",
-     "v": "Settings → Notifications",
+     "v": "your schedule",
      "children": [
       {
        "t": "text",
-       "v": "Settings → Notifications"
+       "v": "your schedule"
       }
      ]
     },
     {
      "t": "text",
-     "v": " and carries a one-click unsubscribe. If you "
-    },
-    {
-     "t": "em",
-     "v": "are",
-     "children": [
-      {
-       "t": "text",
-       "v": "are"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " in the app you only get the in-app notification, because a duplicate email is how people learn to filter you."
+     "v": " — every dated cluster you can reach, from today forward, across every production. This is the thing to open when you want to know what you are called for."
     }
    ]
   },
@@ -14918,15 +14633,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", so a scheduling package or a call-sheet generator can create days and move them without anyone opening the app. Moving a published day through the API notifies the crew exactly as dragging it would; pass "
-    },
-    {
-     "t": "code",
-     "v": "notify: false"
-    },
-    {
-     "t": "text",
-     "v": " to move one quietly."
+     "v": ", so a scheduling package or a call-sheet generator can create days and move them without anyone opening the app."
     }
    ]
   },
@@ -22068,7 +21775,17 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "A shoot day you can see moves, or its call sheet is published"
+       "v": "A shoot day you can see moves "
+      },
+      {
+       "t": "em",
+       "v": "(being rebuilt — quiet for now)",
+       "children": [
+        {
+         "t": "text",
+         "v": "(being rebuilt — quiet for now)"
+        }
+       ]
       }
      ]
     ],
@@ -22401,11 +22118,36 @@ export const DOCS_CONTENT = {
    "id": "schedule-changes"
   },
   {
+   "type": "callout",
+   "variant": "note",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The "
+    },
+    {
+     "t": "link",
+     "v": "schedule card",
+     "href": "/docs/canvas/schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "schedule card"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is being rebuilt, and publishing a shoot day is part of that rebuild. The switch is here and the sidebar section is here; nothing is sent yet."
+    }
+   ]
+  },
+  {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "If you are on a "
+     "v": "When it returns, this is the one that matters on a "
     },
     {
      "t": "link",
@@ -22420,16 +22162,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", this is the one that matters. Publishing a shoot day, or moving one that has already been published, notifies everyone who can read it — with the day, what changed, and the call-sheet version."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Nothing is sent while a schedule is being built. A day is a draft until someone publishes it, and drafts are silent, so laying out a twelve-week shoot does not page anybody."
+     "v": ": a shoot day moving, or a call sheet being published, tells everyone who can read it what changed. Nothing is sent while a schedule is being built — a day is a draft until someone publishes it, and drafts are silent, so laying out a twelve-week shoot does not page anybody."
     }
    ]
   }

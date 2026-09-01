@@ -5,6 +5,7 @@ import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
 import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey as mintSchedItemKey, newUid as schedUid, parseSlotKey as schedParseSlotKey } from '../lib/schedLayout.js';
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
+import { scheduleCreationAllowed } from '../lib/appHost.js';
 
 // Live expand map for a schedule card — Yjs gridMeta when present, else the
 // local shell's plain card.gridMeta.
@@ -6625,7 +6626,14 @@ export function CanvasSurface({
     // this list, and Draw's absence meant the puck simply dead-ended for it.
     { id: 'draw',    group: 'tool', label: 'Draw',    icon: Scribble,      run: () => setSelectedTool('draw') },
     { id: 'palette', group: 'card', label: 'Color palette', icon: Palette, run: () => { noteCreateIntent(method, 'palette'); mutators.addPalette?.(pos); } },
-    { id: 'schedule', group: 'card', label: 'Schedule', icon: CalendarPh, run: () => { noteCreateIntent(method, 'schedule'); mutators.addSchedule?.(pos); } },
+    // Held while the calendar is rebuilt (lib/appHost.js). sub() and
+    // addFromRegistry both resolve through this list, so dropping the entry
+    // here closes the right-click Add submenu and the mobile "+" sheet at once
+    // — sub() returns null for an unknown id and the array is filter(Boolean)'d.
+    // Rendering the card is NOT gated: existing schedule cards keep working.
+    ...(scheduleCreationAllowed() ? [
+      { id: 'schedule', group: 'card', label: 'Schedule', icon: CalendarPh, run: () => { noteCreateIntent(method, 'schedule'); mutators.addSchedule?.(pos); } },
+    ] : []),
     { id: 'addurl',  group: 'card', label: 'Link', icon: Link, run: async () => {
       const v = await feedback.prompt({
         title: 'Add a link card',
@@ -8487,7 +8495,9 @@ export function CanvasSurface({
     { title: 'Create', items: [
       { id: 'file',          label: 'File',           icon: Paperclip,      tip: 'Upload any file',         action: () => addFromRegistry('file') },
       { id: 'addurl',        label: 'Link',           icon: Link,           tip: 'Add a web link',          action: () => addFromRegistry('addurl') },
-      { id: 'schedule',      label: 'Schedule',       icon: CalendarPh,     tip: 'A calendar you can drop anything into', action: () => addFromRegistry('schedule') },
+      ...(scheduleCreationAllowed() ? [
+        { id: 'schedule',      label: 'Schedule',       icon: CalendarPh,     tip: 'A calendar you can drop anything into', action: () => addFromRegistry('schedule') },
+      ] : []),
       { id: 'linkedcluster', label: 'Linked cluster', icon: ArrowSquareOut, tip: 'Link an existing cluster',action: () => onOpenPicker?.(resolvePastePos().pos) },
     ]},
     { title: 'Annotate', items: [

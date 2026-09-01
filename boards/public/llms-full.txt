@@ -1044,13 +1044,13 @@ A: Yes. Grids created from the same template stay linked as a family, so a layou
 ========================================================================
 # Schedules
 URL: https://clusters.soleilpictures.com/docs/canvas/schedule
-Updated: 2026-08-16
+Updated: 2026-09-01
 
-A schedule card is a real calendar living on your canvas. It shows one, three or six months at once, and each day can hold both loose content and whole clusters — a shoot day with its call sheet, shotlist and hour-by-hour inside. Dragging a day tile to another date moves that cluster and, if it has been published, tells everyone who can see it. Loose content in the month grid stays read-only and is edited in the peek panel.
+A schedule card is a real calendar living on your canvas. It shows one, three or six months at once, and each day can hold both loose content and whole clusters — a shoot day with its call sheet, shotlist and hour-by-hour inside. Dragging a day tile to another date moves that cluster. Loose content in the month grid stays read-only and is edited in the peek panel.
+
+Being rebuilt. Schedule cards are temporarily off the Add menu while the calendar and the day view are reworked. Existing cards keep rendering and keep their content — nothing has been removed. This page describes what those cards do today.
 
 A schedule card is a calendar with real dates, sitting on the canvas next to everything it refers to. Shooting days beside the location photos; a release plan beside the assets.
-
-Add one from the rail's + menu → Create → Schedule.
 
 Views
 
@@ -1076,11 +1076,9 @@ Loose content — a note, an image, a file, a link — dropped straight into a s
 
 Shoot days — whole clusters that carry a date. A day tile on the calendar is a real cluster you can open, containing whatever the day needs: the script pages, the call sheet, the shotlist, an hour-by-hour schedule. See Production schedules.
 
-Moving things
+Moving a day
 
-Drag a day tile onto another date. The cluster moves, and if it has been published, everyone who can see it is notified that it moved — including what it moved from and to. A multi-day block keeps its length.
-
-Loose content moves from the peek panel, or with Move to date on the slot. It stays read-only in the month grid for the reason below.
+Drag a day tile onto another date. The cluster moves, and a multi-day block keeps its length.
 
 The peek panel
 
@@ -1106,8 +1104,11 @@ If the cells mean position rather than time — a storyboard, a contact sheet, a
 Q: Can I drop images and notes into a schedule?
 A: Yes. Any card can go into a time slot, not just text. A call sheet with the location photo attached to the right hour works exactly as you would expect.
 
+Q: Can I add a schedule card right now?
+A: Not at the moment. Schedule cards are being rebuilt, so the Schedule entry is off the Add menu. Cards you already have keep working, and everything on this page still describes them.
+
 Q: How do I move a day to a different date?
-A: Drag its tile onto the new date. If the day has been published, everyone who can see the schedule is notified that it moved. Loose content moves from the peek panel or with "Move to date".
+A: Drag its tile onto the new date. A multi-day block keeps its length.
 
 Q: Why can I not type directly into the calendar grid?
 A: Loose content in the month and week grids is deliberately read-only — clicking a slot opens a peek panel and every edit happens there, because inline editing in a dense calendar produced constant mis-clicks. Day tiles are the exception: they are draggable, because moving a day is the thing a schedule exists for.
@@ -1785,9 +1786,11 @@ A: A 2D fallback renders automatically. The graph and its interactions are the s
 ========================================================================
 # Production schedules
 URL: https://clusters.soleilpictures.com/docs/clusters/production-schedule
-Updated: 2026-08-16
+Updated: 2026-09-01
 
-A production schedule is one cluster holding a multi-month calendar, with each shoot day as a child cluster carrying a date. Open a day and you get its script pages, call sheet, shotlist and hour-by-hour schedule. Drag the day to a new date and everyone who can see the schedule is told it moved. Publishing a day bumps its call-sheet version and notifies the crew, which is the replacement for mailing a new attachment every night.
+A production schedule is one cluster holding a multi-month calendar, with each shoot day as a child cluster carrying a date. Open a day and you get its script pages, call sheet, shotlist and hour-by-hour schedule. Drag the day to a new date and it moves on everyone's calendar, with an undo on the toast. Share the production once and every day inside it comes with it.
+
+Being rebuilt. The schedule card is temporarily off the Add menu, and with it the "Add shoot days" flow that lays a production out. Productions you already built keep working. Publishing a day and notifying the crew is part of the rebuild and is not available yet — this page no longer describes it.
 
 A production runs on two questions: what are we shooting, and when. This is how Clusters answers both in one place.
 
@@ -1816,36 +1819,17 @@ Moving a day
 
 Drag its tile to another date.
 
-That is one write. The day moves on everyone's calendar, the hour-by-hour card inside it re-anchors itself, and — if the day was published — everyone who can read the schedule is notified, told what it moved from and to. There is an undo on the toast.
+That is one write. The day moves on everyone's calendar, the hour-by-hour card inside it re-anchors itself, and there is an undo on the toast.
 
 A multi-day block (travel, a company move) keeps its length when dragged.
 
-Publishing, instead of the nightly email
-
-A shoot day is a draft until someone publishes it. Drafts are silent: you can build twelve weeks of schedule, drag days around and rewrite call sheets without anyone hearing anything.
-
-Publish bumps the day's version — v1, v2, v3 — and notifies everyone who can read it. That is the unit a crew already works in: "Day 12, call sheet v3".
-
-State | On the calendar | Who is told
-Draft | Dashed outline | Nobody
-Published | Solid, with its version | Everyone who can read it, on publish and on any move
-Cancelled | Struck through, still visible | Everyone, if it had been published
-
-A cancelled day stays on the calendar rather than disappearing. Deleting it would leave the crew with no record of a day they had planned around.
-
 What the crew sees
 
-The Schedule item in the sidebar carries an unread count and opens two things:
-
-Updates — what changed and when. These persist until you read them, so a call sheet published at 21:40 is still there at 06:00.
-
-Your schedule — every dated cluster you can reach, from today forward, across every production, with the ones that changed since you last looked marked. This is the thing to open when you want to know what you are called for.
-
-If you are not in the app when a day is published or moved, you get an email instead — one per change, not a nightly attachment. It is a separate switch in Settings → Notifications and carries a one-click unsubscribe. If you are in the app you only get the in-app notification, because a duplicate email is how people learn to filter you.
+The Schedule item in the sidebar opens your schedule — every dated cluster you can reach, from today forward, across every production. This is the thing to open when you want to know what you are called for.
 
 Driving it from another system
 
-Boards carry scheduled_date, scheduled_end and day_label over the API and MCP, so a scheduling package or a call-sheet generator can create days and move them without anyone opening the app. Moving a published day through the API notifies the crew exactly as dragging it would; pass notify: false to move one quietly.
+Boards carry scheduled_date, scheduled_end and day_label over the API and MCP, so a scheduling package or a call-sheet generator can create days and move them without anyone opening the app.
 
 A note on timezones
 
@@ -1853,11 +1837,8 @@ Dates are plain calendar dates, with no timezone attached — a production shoot
 
 ## Frequently asked questions
 
-Q: How does the crew find out a day changed?
-A: Publishing a day, or moving one that has already been published, notifies everyone who can read the schedule — in the app immediately, and by email if they are not currently in it. Nothing is sent while you are still building the schedule.
-
-Q: Will building a schedule spam everyone?
-A: No. A day is a draft until you publish it, and drafts are silent. You can lay out twelve weeks and drag days around without anyone being told anything.
+Q: Can I start a production schedule right now?
+A: Not at the moment. The schedule card is being rebuilt, so it is off the Add menu and new shoot days cannot be laid out. Productions you already built keep working and keep their days.
 
 Q: Does everyone need an account on my plan?
 A: Editors you share with are free. Capacity is charged to whoever owns the boards, not per seat. See Sharing and roles.
@@ -2776,9 +2757,9 @@ A: Unread count. An @ prefix means at least one of them mentions you directly.
 ========================================================================
 # Notifications
 URL: https://clusters.soleilpictures.com/docs/collaborate/notifications
-Updated: 2026-08-26
+Updated: 2026-09-01
 
-Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is a separate switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
+Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 
 Seven categories, seven independent switches, in Settings → Notifications.
 
@@ -2788,7 +2769,7 @@ Comment replies | Someone replies in a thread you are part of
 Workspace invites | You are added to a workspace
 Board shares | A cluster is shared with you
 Invite accepted | Someone you invited opens your link and joins
-Schedule changes | A shoot day you can see moves, or its call sheet is published
+Schedule changes | A shoot day you can see moves (being rebuilt — quiet for now)
 Product tips and check-ins | Occasional messages about the product
 
 The last one is the one to switch off if you only want to hear about your own work. The other six are all consequences of something a person did that involves you.
@@ -2821,9 +2802,9 @@ The mention notification is the important one. When someone @s you, the notifica
 
 Schedule changes
 
-If you are on a production schedule, this is the one that matters. Publishing a shoot day, or moving one that has already been published, notifies everyone who can read it — with the day, what changed, and the call-sheet version.
+The schedule card is being rebuilt, and publishing a shoot day is part of that rebuild. The switch is here and the sidebar section is here; nothing is sent yet.
 
-Nothing is sent while a schedule is being built. A day is a draft until someone publishes it, and drafts are silent, so laying out a twelve-week shoot does not page anybody.
+When it returns, this is the one that matters on a production schedule: a shoot day moving, or a call sheet being published, tells everyone who can read it what changed. Nothing is sent while a schedule is being built — a day is a draft until someone publishes it, and drafts are silent, so laying out a twelve-week shoot does not page anybody.
 
 ## Frequently asked questions
 
@@ -2831,7 +2812,7 @@ Q: Can I turn off product emails but keep mentions?
 A: Yes. The seven categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
 
 Q: Where do schedule notifications appear?
-A: Under Schedule in the sidebar, which carries an unread count. Unlike a toast, they persist until you read them, so a call sheet published late at night is still there in the morning.
+A: Under Schedule in the sidebar, which carries an unread count. Unlike a toast, they persist until you read them. The schedule card that produces them is being rebuilt, so this switch is quiet for now.
 
 Q: Do I get browser notifications?
 A: Only if you grant permission. Nothing is requested until there is a reason.
