@@ -5,6 +5,8 @@
 
 import { useMemo } from 'react';
 import { formatCount, formatPct } from '../../../../lib/adminFormat.js';
+import { Well } from '../../viz/Well.jsx';
+import { BarRows } from '../../viz/BarRows.jsx';
 
 function toSteps(rows) {
   return rows.map((r, i) => {
@@ -33,39 +35,44 @@ export function LeaksSummary({ steps = [] }) {
     return all[0] || null;
   }, [waitlist, pricing]);
 
-  const hasFriction = leaks.some((l) => Number(l.sessions) > 0);
+  const frictionRows = leaks
+    .filter((l) => Number(l.sessions) > 0)
+    .map((l) => ({ key: l.step, label: l.label, value: Number(l.sessions) || 0 }));
 
+  // Was a full-page-width titled panel whose entire body was one sentence —
+  // roughly 1,800px of horizontal rule around eleven words. It is a sidebar to
+  // the funnel now, and the friction events are bars rather than a two-column
+  // table, so the shape of the problem is visible without reading.
   return (
-    <section className="admin-chart-panel admin-chart-panel-wide">
-      <header className="admin-chart-head">
-        <h3 className="admin-chart-title">Biggest leaks &amp; friction</h3>
-        <span className="admin-chart-sub t-meta">where the most sessions drop, plus error / abandon signals</span>
-      </header>
-      <div className="admin-chart-body">
-        {biggest ? (
-          <p className="admin-section-sub">
-            Largest single drop: <strong>{biggest.from} → {biggest.to}</strong>{' '}
-            — lost <span className="admin-funnel-drop is-loss">{formatCount(biggest.drop)} sessions ({formatPct(biggest.dropPct)})</span>.
-          </p>
-        ) : (
-          <p className="admin-section-sub">No step-to-step drops detected in this window.</p>
-        )}
-        {hasFriction && (
-          <table className="admin-table">
-            <thead>
-              <tr><th>Friction event</th><th className="num">Sessions</th></tr>
-            </thead>
-            <tbody>
-              {leaks.map((l) => (
-                <tr key={l.step}>
-                  <td>{l.label}</td>
-                  <td className="num admin-funnel-num">{formatCount(l.sessions)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </section>
+    <Well
+      span={4}
+      title="Biggest leak"
+      meta="worst step, plus error and abandon signals"
+      foot={frictionRows.length === 0
+        ? 'No error or abandon events recorded off the happy path in this window.'
+        : 'Friction events sit off the funnel — they are not a step, they are what happens instead of one.'}
+    >
+      {biggest ? (
+        <div className="adm-leak">
+          <div className="adm-leak-step">{biggest.from} → {biggest.to}</div>
+          <div className="adm-leak-figure">
+            <span className="adm-leak-pct">{formatPct(biggest.dropPct)}</span>
+            <span className="adm-leak-abs">{formatCount(biggest.drop)} browsers lost</span>
+          </div>
+        </div>
+      ) : (
+        <div className="admin-empty">No step-to-step drops in this window.</div>
+      )}
+
+      {frictionRows.length > 0 && (
+        <BarRows
+          rows={frictionRows}
+          ramp
+          limit={6}
+          formatValue={(v) => formatCount(v)}
+          emptyLabel="No friction events."
+        />
+      )}
+    </Well>
   );
 }

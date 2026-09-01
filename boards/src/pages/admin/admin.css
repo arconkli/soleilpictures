@@ -3922,6 +3922,43 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   align-items: stretch;
 }
 
+/* With margins: one extra column on the right for people-per-day, one extra
+   row under the hour ticks for events-per-hour. */
+.adm-heat-grid.has-margins {
+  grid-template-columns: 34px repeat(24, minmax(0, 1fr)) 46px;
+  grid-template-rows: 13px 24px repeat(7, 26px);
+}
+
+.adm-heat-marg { display: flex; }
+
+/* A margin is furniture, not data. At full column width and full row height
+   these read as an eighth day of the week sitting on top of the grid, so they
+   are narrower, dimmer, and hold a gap above the first real row. */
+.adm-heat-marg.is-hour {
+  align-items: flex-end; justify-content: center;
+  padding-bottom: 7px;
+}
+
+.adm-heat-marg.is-hour > span {
+  width: 62%; background: var(--adm-plot-ink-3); opacity: .7;
+  border-radius: 1px 1px 0 0;
+}
+
+.adm-heat-marg.is-day { align-items: center; padding-left: 6px; }
+
+.adm-heat-marg.is-day > span {
+  height: 8px; background: var(--adm-plot-ink-3); border-radius: 0 2px 2px 0;
+}
+
+/* The busiest day earns the accent, the same way the peak hour does. */
+.adm-heat-marg.is-day.is-busiest > span { background: var(--adm-cat-1); }
+
+.adm-heat-marg-label {
+  font: 500 8.5px/1 var(--font-mono); color: var(--adm-plot-ink-3);
+  align-self: end; padding-left: 6px;
+  letter-spacing: .04em;
+}
+
 .adm-heat-corner { grid-column: 1; grid-row: 1; }
 
 .adm-heat-hour {
@@ -3989,3 +4026,533 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 
 /* Prose stays at a readable measure even though the page does not. */
 .admin-section-sub { max-width: 78ch; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * INSTRUMENT DECK
+ *
+ * The editorial layer above made the page calm. It also made it thin: Today
+ * showed about six things across four screens, LeaksSummary was a titled panel
+ * containing one sentence, and RightNow was a full-width panel holding a single
+ * numeral. This layer packs it.
+ *
+ * Two ideas, and everything here is one of them.
+ *
+ *   1. A PLOT IS A SCREEN SET INTO A CONSOLE, not a region of the page. So it
+ *      gets its own near-black ground — the same colour in both themes — and
+ *      the marks on it stop caring what the theme is.
+ *
+ *   2. DENSITY IS INFORMATION PER SQUARE INCH, not more chrome. The air comes
+ *      out, a real 12-column grid goes in, and panels earn their width.
+ *
+ * This is NOT the return of "boxes inside boxes", which is what the editorial
+ * layer was written to kill. That failure was three nested levels each carrying
+ * a border and three stacked shadows. Here there is exactly ONE box level: the
+ * well. A section is still whitespace plus a heading; a panel is still
+ * transparent. Only the plot is a surface.
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* The plot ground. Deliberately NOT themed — see the SURFACES comment in
+     viz/palette.js. #101015 sits just above the --bg-0 page in dark (so it
+     reads as a lit screen rather than a hole) and far below it in light.
+     Every hue was re-measured against it: contrast RISES versus the #16161a
+     panel it replaces, on all ten. chartPalette.test.mjs asserts this hex. */
+  --adm-plot:            #101015;
+
+  /* Graph paper. Fixed alphas over the plot, not derived from --line-*, which
+     would invert with the theme and rule the grid in black-on-black. */
+  --adm-plot-line:       rgba(255, 255, 255, .055);
+  --adm-plot-line-major: rgba(255, 255, 255, .10);
+  --adm-plot-edge:       rgba(255, 255, 255, .09);
+
+  --adm-plot-ink:        #e8e9ee;
+  --adm-plot-ink-2:      #9a9cab;
+  --adm-plot-ink-3:      #6a6c7a;
+
+  --adm-plot-radius:     8px;
+  --adm-plot-tip:        #1b1b23;   /* tooltips, which float above the well */
+}
+
+/* ── The well ───────────────────────────────────────────────────────────────
+ * The whole design rests on this block.
+ *
+ * It re-declares the DARK palette steps locally, so a component that draws with
+ * var(--adm-cat-1) lands on the right colour without knowing it is inside a
+ * well — no component colour code changed for any of this.
+ *
+ * It also re-points the app's own --ink-*, --bg-* and --line-* tokens at the
+ * well's steps. That is a broad hammer and it is deliberate: roughly forty
+ * existing rules (tooltips, dots, axis text, table hairlines) reference those
+ * tokens, and in light theme every one of them would otherwise paint
+ * near-black on near-black. Custom properties resolve in the context of the
+ * element that USES them, so `--adm-line: var(--line-1)` declared up at :root
+ * still picks up the well's --line-1 down here. The scope is the price: put
+ * only plots inside a well, never a stretch of page furniture.
+ */
+.adm-well {
+  position: relative;
+  isolation: isolate;
+  background: var(--adm-plot);
+  border-radius: var(--adm-plot-radius);
+  padding: 12px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+
+  /* Data steps — the dark set, in both themes. Kept in lockstep with
+     viz/palette.js by chartPalette.test.mjs, which parses this very block. */
+  --adm-cat-1: #6e9eef;
+  --adm-cat-2: #83dc97;
+  --adm-cat-3: #df7a9b;
+  --adm-cat-other: #737477;
+  --adm-seq-1: #1d4a93;
+  --adm-seq-2: #3967b3;
+  --adm-seq-3: #5685d4;
+  --adm-seq-4: #73a5f6;
+  --adm-seq-5: #a6c6f9;
+  --adm-good: #62c37a;
+  --adm-bad: #f8818d;
+  --adm-directional: #da9e3f;
+
+  /* Furniture, and the app tokens the existing rules reach for. */
+  --adm-axis: var(--adm-plot-ink-3);
+  --adm-grid: var(--adm-plot-line);
+  --adm-mark-neutral: var(--adm-plot-ink-2);
+  --adm-mark-neutral-soft: var(--adm-plot-ink-3);
+  --adm-heat-zero: rgba(255, 255, 255, .045);
+  --ink-0: var(--adm-plot-ink);
+  --ink-1: var(--adm-plot-ink);
+  --ink-2: var(--adm-plot-ink-2);
+  --ink-3: var(--adm-plot-ink-3);
+  --bg-0: var(--adm-plot);
+  --bg-1: var(--adm-plot);
+  --bg-2: var(--adm-plot);
+  --bg-3: var(--adm-plot-tip);
+  --bg-hov: rgba(255, 255, 255, .05);
+  --line-1: var(--adm-plot-line-major);
+  --line-2: var(--adm-plot-edge);
+  --adm-surface: var(--adm-plot);
+  --adm-line: var(--adm-plot-line-major);
+  --adm-line-strong: var(--adm-plot-edge);
+
+  color: var(--adm-plot-ink);
+}
+
+/* Graph paper, behind everything. The single cheapest thing on this page and
+   the one that does most of the work — a plot on ruled ground reads as an
+   instrument, the same plot on flat ground reads as a slide. */
+.adm-well::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(to right,  var(--adm-plot-line-major) 0 1px, transparent 1px 84px),
+    repeating-linear-gradient(to bottom, var(--adm-plot-line-major) 0 1px, transparent 1px 84px),
+    repeating-linear-gradient(to right,  var(--adm-plot-line) 0 1px, transparent 1px 21px),
+    repeating-linear-gradient(to bottom, var(--adm-plot-line) 0 1px, transparent 1px 21px);
+}
+
+/* Corner ticks — four 9px L-brackets, drawn as eight hairline gradients in one
+   pseudo-element. Pure HUD vocabulary, and it costs nothing. */
+.adm-well::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 0 0 / 9px 1px no-repeat,
+    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 0 0 / 1px 9px no-repeat,
+    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 100% 0 / 9px 1px no-repeat,
+    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 100% 0 / 1px 9px no-repeat,
+    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 0 100% / 9px 1px no-repeat,
+    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 0 100% / 1px 9px no-repeat,
+    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 100% 100% / 9px 1px no-repeat,
+    linear-gradient(var(--adm-plot-edge), var(--adm-plot-edge)) 100% 100% / 1px 9px no-repeat;
+}
+
+/* In light theme the well is a dark object on a pale page, so it needs an edge
+   or it reads as a hole punched through the layout. */
+[data-theme='light'] .adm-well {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .10), 0 1px 2px rgba(0, 0, 0, .06);
+}
+
+/* Well head: the panel title moves INSIDE the plot, as an instrument label.
+   Denser than a separate bordered header row, and it is what makes the thing
+   read as a readout rather than a card. */
+.adm-well-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; position: relative; z-index: 1; min-height: 12px;
+}
+
+.adm-well-title {
+  font: 600 10px/1 var(--font-sans);
+  letter-spacing: .09em; text-transform: uppercase;
+  color: var(--adm-plot-ink-2);
+}
+
+/* Micro-caps here are NOT a reversal of dropping the 16px ALL-CAPS section
+   headings. A 16px letterspaced h2 was shouting; a 10px micro-cap on an
+   instrument is the convention that makes it legible as one. Section titles
+   stay sentence-case at 19px. */
+.adm-well-meta {
+  font: 500 10px/1 var(--font-mono);
+  color: var(--adm-plot-ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.adm-well-body { position: relative; z-index: 1; min-width: 0; }
+
+/* The heatmap and the console rule their own edges, so they take the well
+   without its padding. */
+.adm-well.is-flush { padding: 12px 12px 10px; }
+
+.adm-well-skeleton {
+  height: 120px; border-radius: 6px;
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, .03) 0%, rgba(255, 255, 255, .07) 50%, rgba(255, 255, 255, .03) 100%);
+  background-size: 200% 100%;
+  animation: adm-well-shimmer 1.4s linear infinite;
+}
+
+@keyframes adm-well-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-well-skeleton { animation: none; }
+}
+
+.adm-well-foot {
+  position: relative; z-index: 1;
+  font: 500 10.5px/1.35 var(--font-mono);
+  color: var(--adm-plot-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tooltips float above the well and need their own ground. */
+.adm-well .adm-area-tip,
+.adm-well .adm-trend-tip {
+  background: var(--adm-plot-tip);
+  border-color: rgba(255, 255, 255, .14);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .55);
+}
+
+/* Marks ring themselves against the surface to stay separable where they
+   overlap; inside a well that surface is the well. */
+.adm-well .adm-area-last-dot { box-shadow: 0 0 0 3px var(--adm-plot), 0 0 16px 2px var(--_c); }
+
+.adm-well .adm-area-dot,
+.adm-well .adm-trend-dot { box-shadow: 0 0 0 2px var(--adm-plot); }
+
+/* ── The mono register ──────────────────────────────────────────────────────
+ * --font-mono is already JetBrains Mono and already loaded. Every numeral on
+ * the dashboard moves onto it, tabular: digits stop dancing on the 30s poll,
+ * and columns line up without a single explicit width.
+ */
+.admin-stat-value,
+.admin-stat-total b,
+.admin-right-now-value,
+.adm-bar-value,
+.adm-area-tick,
+.adm-area-tip-v,
+.adm-area-x,
+.adm-trend-axis,
+.adm-dist-peak,
+.adm-dist-tick,
+.admin-lifetime dd,
+.admin-funnel-count,
+.admin-funnel-pct,
+.admin-funnel-drop {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mono runs optically larger and heavier than the sans at the same size, so the
+   display numerals come down a step and lose a little weight. */
+.admin-stat-card.is-hero .admin-stat-value {
+  font: 500 36px/1 var(--font-mono);
+  letter-spacing: -.02em;
+}
+
+/* ── The deck ───────────────────────────────────────────────────────────────
+ * A real 12-column grid, replacing `.admin-charts-row`'s fixed halves and
+ * `.admin-chart-panel-wide` — which was inert almost everywhere it was used,
+ * because it set `grid-column: 1 / -1` on elements that were not grid children.
+ */
+.adm-deck {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 12px;
+}
+
+/* The grid gap owns the spacing now, so children give up their own margins. */
+.adm-deck > * { grid-column: span 12; min-width: 0; margin-bottom: 0; }
+
+.adm-c2  { grid-column: span 2; }
+.adm-c3  { grid-column: span 3; }
+.adm-c4  { grid-column: span 4; }
+.adm-c5  { grid-column: span 5; }
+.adm-c6  { grid-column: span 6; }
+.adm-c7  { grid-column: span 7; }
+.adm-c8  { grid-column: span 8; }
+.adm-c9  { grid-column: span 9; }
+.adm-c10 { grid-column: span 10; }
+
+/* One intermediate step, then everything stacks. Thirds become halves rather
+   than collapsing straight to full width, which is what keeps a 1200px laptop
+   dense instead of turning it into a single column of tall charts. */
+@media (max-width: 1400px) {
+  .adm-c2, .adm-c3, .adm-c4 { grid-column: span 6; }
+  .adm-c5, .adm-c7, .adm-c8, .adm-c9, .adm-c10 { grid-column: span 12; }
+}
+
+@media (max-width: 1000px) {
+  .adm-deck > * { grid-column: span 12; }
+}
+
+/* ── Take the air out ───────────────────────────────────────────────────────
+ * These six numbers are where the four screens of scroll came from.
+ */
+.admin-analytics .admin-section-title { margin: 26px 0 4px; }
+
+.admin-analytics .admin-section-title:first-of-type { margin-top: 4px; }
+
+.admin-analytics .admin-section-sub { margin: 0 0 12px; }
+
+.admin-analytics .admin-charts-row { gap: 12px; }
+
+.admin-analytics .admin-lifetime + .admin-chart-panel { margin-top: 12px; }
+
+.admin-analytics .adm-detail-body > * { margin-bottom: 0; }
+
+.admin-body:not(.admin-body-flush) { padding-bottom: 40px; }
+
+/* Six prose bullets stacked full-width was half of System's default screen and
+   a ~200-character measure. Columns fix both at once. */
+.admin-dq-list.is-two-col {
+  columns: 2;
+  column-gap: 42px;
+}
+
+.admin-dq-list.is-two-col > li { break-inside: avoid; }
+
+@media (max-width: 1100px) {
+  .admin-dq-list.is-two-col { columns: 1; }
+}
+
+/* ── Cohort matrix ──────────────────────────────────────────────────────────
+ * Rows are signup weeks, columns are weeks since. Three cell states, and the
+ * CSS is where two of them are actually expressed: `is-future` draws nothing
+ * (that week has not happened), `is-unknown` hatches (that week predates the
+ * instrumentation). Only a measured cell gets a colour.
+ */
+.adm-cohort { display: flex; flex-direction: column; gap: 10px; }
+
+.adm-cohort-grid { display: flex; flex-direction: column; gap: 2px; }
+
+.adm-cohort-row {
+  display: grid;
+  grid-template-columns: 88px repeat(var(--adm-cohort-cols), minmax(0, 1fr));
+  gap: 2px;
+}
+
+.adm-cohort-col-head {
+  font: 500 9.5px/1 var(--font-mono);
+  color: var(--adm-plot-ink-3);
+  text-align: center; padding-bottom: 3px;
+}
+
+.adm-cohort-row-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 6px; padding-right: 9px; min-width: 0;
+}
+
+.adm-cohort-week {
+  font: 500 10.5px/1 var(--font-sans); color: var(--adm-plot-ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* The denominator is never hidden. A cohort chart without its n is a rumour. */
+.adm-cohort-n {
+  font: 500 9.5px/1 var(--font-mono); color: var(--adm-plot-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-cohort-cell {
+  height: 22px; border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  font: 500 10.5px/1 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-cohort-cell.is-future { background: transparent; }
+
+.adm-cohort-cell.is-unknown {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, .075) 0 2px,
+    transparent 2px 5px
+  );
+}
+
+.adm-cohort-row.is-avg {
+  margin-top: 5px; padding-top: 6px;
+  border-top: 1px solid var(--adm-plot-edge);
+}
+
+.adm-cohort-cell.is-avg {
+  background: transparent; color: var(--adm-plot-ink);
+  font-weight: 600;
+}
+
+.adm-cohort-read {
+  font: 500 10.5px/1.4 var(--font-mono); color: var(--adm-plot-ink-2);
+  font-variant-numeric: tabular-nums; min-height: 15px;
+}
+
+.adm-cohort-read b { color: var(--adm-plot-ink); }
+
+.adm-cohort-hint { color: var(--adm-plot-ink-3); }
+
+/* The peak column's direct label is absolutely positioned 14px ABOVE the
+   tallest bar, which put it on top of the legend whenever the first column was
+   the peak — which for a habit curve it always is. Reserve the space. */
+.adm-dist-plot { padding-top: 15px; }
+
+/* Ticks are for orientation, not precision: "50.0 min" wrapped onto two lines
+   in a 44px gutter, which is worse than losing the decimal. */
+.adm-well .adm-area-tick { white-space: nowrap; }
+
+/* ── Biggest leak ───────────────────────────────────────────────────────────
+ * The number the funnel is for, sized like it matters.
+ */
+.adm-leak { display: flex; flex-direction: column; gap: 5px; margin-bottom: 4px; }
+
+.adm-leak-step {
+  font: 500 11.5px/1.3 var(--font-sans); color: var(--adm-plot-ink-2);
+}
+
+.adm-leak-figure { display: flex; align-items: baseline; gap: 9px; }
+
+.adm-leak-pct {
+  font: 500 30px/1 var(--font-mono); letter-spacing: -.02em;
+  color: var(--adm-bad); font-variant-numeric: tabular-nums;
+}
+
+.adm-leak-abs {
+  font: 500 11px/1 var(--font-mono); color: var(--adm-plot-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Live event console ─────────────────────────────────────────────────────
+ * The only thing on the deck that moves on its own.
+ */
+.adm-console {
+  display: flex; flex-direction: column; gap: 9px;
+  height: 100%; min-height: 0;
+}
+
+.adm-console-head {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  font: 500 10.5px/1 var(--font-mono); color: var(--adm-plot-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-console-stat { color: var(--adm-plot-ink-2); }
+
+.adm-console-stat b { color: var(--adm-plot-ink); font-weight: 600; }
+
+.adm-console-status { margin-left: auto; }
+
+/* Status is carried by the word beside it as well as the colour — green and red
+   are indistinguishable under deuteranopia, and this is a status. */
+.adm-live-led {
+  width: 7px; height: 7px; border-radius: 999px;
+  background: var(--adm-plot-ink-3); flex: 0 0 auto;
+}
+
+.adm-live-led.is-live {
+  background: var(--adm-good);
+  box-shadow: 0 0 9px 1px var(--adm-good);
+  animation: adm-led 2.4s ease-in-out infinite;
+}
+
+@keyframes adm-led {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .45; }
+}
+
+.adm-console-strip {
+  display: flex; align-items: flex-end; gap: 1px;
+  height: 32px; flex: 0 0 auto;
+}
+
+.adm-console-tick {
+  flex: 1 1 0; min-width: 0;
+  background: var(--adm-seq-2); border-radius: 1px 1px 0 0;
+}
+
+/* The in-progress minute is the one the hook owns outright — the backfill stops
+   deliberately one minute short — so it is lit, not merely last. */
+.adm-console-tick.is-now {
+  background: var(--adm-cat-1);
+  box-shadow: 0 0 8px 1px var(--adm-cat-1);
+}
+
+/* Capped so the console does not drive the height of the whole deck row: the
+   stream would happily grow to 26 rows and leave the heatmap beside it sitting
+   in 200px of dead space. It shows as many as fit and clips the rest, which is
+   what a console does. */
+.adm-console-stream {
+  display: flex; flex-direction: column; gap: 1px;
+  flex: 1 1 auto; min-height: 0; max-height: 232px; overflow: hidden;
+}
+
+.adm-console-row {
+  display: grid; grid-template-columns: 54px 7px minmax(0, 1fr) auto;
+  gap: 7px; align-items: center;
+  font: 500 10.5px/1.55 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  animation: adm-console-in .4s var(--ease, ease) both;
+}
+
+@keyframes adm-console-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.adm-console-t { color: var(--adm-plot-ink-3); }
+
+.adm-console-dot { width: 7px; height: 7px; border-radius: 999px; }
+
+.adm-console-ev {
+  color: var(--adm-plot-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.adm-console-who { color: var(--adm-plot-ink-3); }
+
+.adm-console-idle { font: 500 10.5px/1.5 var(--font-mono); color: var(--adm-plot-ink-3); }
+
+.adm-console-legend {
+  display: flex; align-items: center; gap: 11px; flex-wrap: wrap;
+  font: 500 9.5px/1 var(--font-mono); color: var(--adm-plot-ink-3);
+}
+
+.adm-console-key { display: flex; align-items: center; gap: 4px; }
+
+/* Reduced motion kills every live animation on the deck. A dashboard that
+   pulses is a dashboard some people cannot read. */
+@media (prefers-reduced-motion: reduce) {
+  .adm-live-led,
+  .adm-console-row { animation: none !important; }
+}

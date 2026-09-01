@@ -18,13 +18,15 @@
 // is shown next to it rather than instead of it.
 
 import { supabase } from '../../../../lib/supabase.js';
-import { formatCount, formatPct } from '../../../../lib/adminFormat.js';
+import { formatCount } from '../../../../lib/adminFormat.js';
 import { useAdminData } from '../../useAdminData.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
-import { PanelNote } from '../../SmallN.jsx';
 import { useAnalyticsFilters, useRegisterViewRuntime } from '../AnalyticsFiltersContext.jsx';
 import { Distribution } from '../../viz/Distribution.jsx';
 import { TrendLine } from '../../viz/TrendLine.jsx';
+import { AreaChart } from '../../viz/AreaChart.jsx';
+import { CohortMatrix } from '../../viz/CohortMatrix.jsx';
+import { Deck, Well } from '../../viz/Well.jsx';
 import { Detail } from '../../viz/Detail.jsx';
 import { VAR } from '../../viz/palette.js';
 import { ActivationFunnel } from '../widgets/ActivationFunnel.jsx';
@@ -42,56 +44,91 @@ import { AdminCardsSection } from '../../AdminCardsSection.jsx';
 const num = (x) => (x == null || Number.isNaN(Number(x)) ? 0 : Number(x));
 
 /**
- * The retention curve, as a line rather than the cohort heatmap that used to
- * sit here.
+ * The retention curve, as a line.
  *
- * RetentionCohorts is gone: its own header called it "the worst offender" for
- * small samples, and it is — weekly cohorts here are five to thirty people, so
- * the grid was thirty cells of noise with most of them suppressed anyway. The
- * curve says the same thing with the whole population behind each point.
+ * The old daily cohort grid is still gone, and for the reason its own header
+ * gave: at 5-30 people per DAILY cohort it was a wall of suppressed cells. What
+ * has come back beside this is a WEEKLY matrix at 25-51 per cohort, which is a
+ * different chart with a different denominator — see CohortMatrix.
  */
 function RetentionCurvePanel({ rows, windowDays }) {
-  const points = (rows || [])
+  // admin_retention_curve returns THREE rows per day_offset — segment all /
+  // demo / paid — and this panel plotted every one of them in RPC order. The
+  // result was a 22-day decay drawn as a 66-point sawtooth, with the zigzag
+  // between segments reading as wild day-to-day volatility. It has always been
+  // wrong; putting the chart on a ruled ground is what made it obvious.
+  const all = (rows || []).filter((r) => (r.segment ?? 'all') === 'all');
+  const points = all
     .filter((r) => num(r.eligible) > 0)
+    .sort((a, b) => num(a.day_offset) - num(b.day_offset))
     .map((r) => ({ v: num(r.active_pct) * 100, label: `D${num(r.day_offset)}` }));
 
-  const eligible = num(rows?.[0]?.eligible);
-  const at = (d) => (rows || []).find((r) => num(r.day_offset) === d);
-  const marks = [1, 7, 30].map((d) => ({ d, row: at(d) })).filter((m) => m.row);
+  const eligible = num(all?.[0]?.eligible);
 
   return (
-    <section className="admin-chart-panel admin-chart-panel-wide">
-      <header className="admin-chart-head">
-        <h3 className="admin-chart-title">Return curve</h3>
-        <span className="admin-chart-sub t-meta">
-          share still active N days after signup · n={formatCount(eligible)} · {windowDays}d window
-        </span>
-      </header>
-      <div className="admin-chart-body">
-        {marks.length > 0 && (
-          <div className="adm-marks">
-            {marks.map(({ d, row }) => (
-              <div className="adm-mark" key={d}>
-                <span className="adm-mark-label">Day {d}</span>
-                <span className="adm-mark-value">{formatPct(num(row.active_pct))}</span>
-                <span className="adm-mark-sub">{formatCount(num(row.active))} of {formatCount(num(row.eligible))}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        <TrendLine
-          points={points}
-          height={140}
-          color={VAR.cat[0]}
-          area
-          formatValue={(v) => `${v.toFixed(1)}%`}
-        />
-      </div>
-      <PanelNote>
-        Counts a day on which the account did real work, not a day the app was merely open —
-        user_active_day contains no work event on 54% of its rows.
-      </PanelNote>
-    </section>
+    <Well
+      span={4}
+      title="Return curve"
+      meta={`n=${formatCount(eligible)} · ${windowDays}d`}
+      foot="Work-days, not app-open days — user_active_day carries no work event on 54% of its rows."
+    >
+      <TrendLine
+        points={points}
+        height={168}
+        color={VAR.cat[0]}
+        area
+        formatValue={(v) => `${v.toFixed(1)}%`}
+      />
+    </Well>
+  );
+}
+
+/**
+ * Session depth — how long a session actually is.
+ *
+ * admin_session_depth has been deployed since migration 0250 and had NEVER been
+ * called from anywhere. It is the only function in the schema exposing session
+ * length percentiles, and "are sessions getting longer" was simply not
+ * answerable on this dashboard before now.
+ *
+ * p90 rather than the mean: session length is heavily skewed, a single
+ * left-open tab drags an average anywhere, and the long sessions are the ones
+ * worth watching.
+ */
+function SessionDepth({ rows = [] }) {
+  const labels = rows.map((r) => {
+    try {
+      return new Date(`${r.week}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    } catch { return String(r.week); }
+  });
+
+  if (rows.length < 2) {
+    return (
+      <Well span={6} title="Session depth" meta="never drawn before now">
+        <div className="admin-empty">usage_session has fewer than two weeks of history.</div>
+      </Well>
+    );
+  }
+
+  const last = rows[rows.length - 1] || {};
+
+  return (
+    <Well
+      span={6}
+      title="Session length"
+      meta={`p50 ${num(last.median_minutes).toFixed(0)}m · p90 ${num(last.p90_minutes).toFixed(0)}m`}
+      foot={`${formatCount(num(last.sessions))} sessions from ${formatCount(num(last.users))} people in the latest week.`}
+    >
+      <AreaChart
+        height={168}
+        labels={labels}
+        formatValue={(v) => `${v.toFixed(0)}m`}
+        series={[
+          { name: 'p90', color: VAR.cat[2], values: rows.map((r) => num(r.p90_minutes)) },
+          { name: 'median', color: VAR.cat[1], values: rows.map((r) => num(r.median_minutes)) },
+        ]}
+      />
+    </Well>
   );
 }
 
@@ -105,34 +142,27 @@ function HabitPanel({ presence, work }) {
   const workTotal = (work || []).reduce((a, r) => a + num(r.users), 0);
 
   return (
-    <section className="admin-chart-panel admin-chart-panel-wide">
-      <header className="admin-chart-head">
-        <h3 className="admin-chart-title">How many days out of 28</h3>
-        <span className="admin-chart-sub t-meta">
-          {formatCount(total)} present · {formatCount(workTotal)} did work · last 28d
-        </span>
-      </header>
-      <div className="admin-chart-body">
-        {days.length === 0 ? (
-          <div className="admin-empty">Nothing measured yet.</div>
-        ) : (
-          <Distribution
-            buckets={days.map((d) => ({ label: String(d), value: pick(presence, d) }))}
-            compare={days.map((d) => ({ label: String(d), value: pick(work, d) }))}
-            primaryLabel="App open"
-            compareLabel="Did real work"
-            color={VAR.inkSoft}
-            compareColor={VAR.cat[0]}
-            height={140}
-            formatValue={(v) => `${formatCount(v)} people`}
-          />
-        )}
-      </div>
-      <PanelNote>
-        did_work cannot be backfilled — every row before migration 0248 is false, so an empty left
-        edge means &ldquo;not yet measured&rdquo;, not zero.
-      </PanelNote>
-    </section>
+    <Well
+      span={6}
+      title="Days out of 28"
+      meta={`${formatCount(total)} present · ${formatCount(workTotal)} worked`}
+      foot="did_work is false for every row before 2026-08-17 and cannot be backfilled, so a thin work series here means not-yet-measured, not zero."
+    >
+      {days.length === 0 ? (
+        <div className="admin-empty">Nothing measured yet.</div>
+      ) : (
+        <Distribution
+          buckets={days.map((d) => ({ label: String(d), value: pick(presence, d) }))}
+          compare={days.map((d) => ({ label: String(d), value: pick(work, d) }))}
+          primaryLabel="App open"
+          compareLabel="Did real work"
+          color={VAR.inkSoft}
+          compareColor={VAR.cat[0]}
+          height={168}
+          formatValue={(v) => `${formatCount(v)} people`}
+        />
+      )}
+    </Well>
   );
 }
 
@@ -142,7 +172,7 @@ export function RetentionView() {
   // One wave, not four. The old view's sequencing was incidental — no call
   // depended on another's result — so it was pure added latency.
   const q = useAdminData(async () => {
-    const [af, rc, rr, hp, hw] = await Promise.allSettled([
+    const [af, rc, rr, hp, hw, cm, sd] = await Promise.allSettled([
       supabase.rpc('admin_activation_funnel', { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_retention_curve', { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // p_require_work: the old call omitted it, so this panel and the habit
@@ -150,6 +180,15 @@ export function RetentionView() {
       supabase.rpc('admin_return_rate', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly, p_require_work: true }),
       supabase.rpc('admin_habit_curve', { p_exclude_internal: f.excludeInternal, p_require_work: false, p_window_days: 28 }),
       supabase.rpc('admin_habit_curve', { p_exclude_internal: f.excludeInternal, p_require_work: true, p_window_days: 28 }),
+      // Weekly, not daily. The daily version of this (admin_retention_cohorts)
+      // is still deployed and still wrong for the job: its counts are distinct
+      // per DAY, so seven of them cannot be summed into a week without
+      // double-counting anyone who came back twice.
+      supabase.rpc('admin_retention_cohort_matrix', {
+        p_weeks: 13, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly, p_require_work: true,
+      }),
+      // Deployed since 0250 and never once called from the client.
+      supabase.rpc('admin_session_depth', { p_days: 84, p_exclude_internal: f.excludeInternal }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
@@ -160,6 +199,8 @@ export function RetentionView() {
       returnRate: val(rr) || [],
       habitPresence: val(hp) || [],
       habitWork: val(hw) || [],
+      cohorts: val(cm) || [],
+      sessionDepth: val(sd) || [],
     };
   }, [f.days, f.excludeInternal, f.verifiedOnly]);
 
@@ -176,11 +217,25 @@ export function RetentionView() {
         {q.data?.activation && <ActivationFunnel data={q.data.activation} days={f.days} />}
 
         <h2 className="admin-section-title">Did they come back</h2>
-        <RetentionCurvePanel rows={q.data?.retention} windowDays={Math.max(f.days, 30)} />
         <ReturnRate rows={q.data?.returnRate || []} />
 
+        <Deck>
+          <Well
+            span={8}
+            title="Cohort retention"
+            meta="signup week × weeks since · work-days only"
+            foot="Each row is a signup week; each column a week of its life. Blank = that week has not happened yet. Hatched = it predates work instrumentation, so nobody was counting — not that nobody came."
+          >
+            <CohortMatrix rows={q.data?.cohorts || []} />
+          </Well>
+          <RetentionCurvePanel rows={q.data?.retention} windowDays={Math.max(f.days, 30)} />
+        </Deck>
+
         <h2 className="admin-section-title">How deep does it go</h2>
-        <HabitPanel presence={q.data?.habitPresence} work={q.data?.habitWork} />
+        <Deck>
+          <HabitPanel presence={q.data?.habitPresence} work={q.data?.habitWork} />
+          <SessionDepth rows={q.data?.sessionDepth || []} />
+        </Deck>
 
         <h2 className="admin-section-title">Detail</h2>
         <div className="admin-section-sub">Each section fetches only once opened.</div>

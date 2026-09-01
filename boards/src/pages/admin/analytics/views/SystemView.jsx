@@ -20,6 +20,7 @@ import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
 import { AdminStorageSection } from '../../AdminStorageSection.jsx';
 import { MetaCapiHealth } from '../widgets/MetaCapiHealth.jsx';
 import { Detail } from '../../viz/Detail.jsx';
+import { Deck, Well } from '../../viz/Well.jsx';
 import { BarRows } from '../../viz/BarRows.jsx';
 import { VAR } from '../../viz/palette.js';
 import { ActivationByExperiment } from '../widgets/ActivationByExperiment.jsx';
@@ -32,11 +33,9 @@ const num = (x) => (x == null || Number.isNaN(Number(x)) ? 0 : Number(x));
  * Instrumentation coverage: server truth vs the client event that should
  * accompany it.
  *
- * Merges the old EventCoverage and OnboardingErrorCoverage widgets, which were
- * two panels asking the same question about different milestones. A gap here
- * means a number elsewhere on the dashboard is low for a reporting reason
- * rather than a product one, which is exactly the kind of thing that should
- * live next to the honesty contract instead of inside a retention view.
+ * A gap here means a number elsewhere on the dashboard is low for a reporting
+ * reason rather than a product one, which is exactly the kind of thing that
+ * should live next to the honesty contract instead of inside a retention view.
  */
 function Instrumentation({ rows }) {
   const data = (rows || []).map((r) => ({
@@ -47,13 +46,11 @@ function Instrumentation({ rows }) {
   }));
 
   return (
-    <section className="admin-chart-panel admin-chart-panel-wide">
-      <header className="admin-chart-head">
-        <h3 className="admin-chart-title">Event coverage</h3>
-        <span className="admin-chart-sub t-meta">
-          share of server-stamped milestones that also emitted their client event
-        </span>
-      </header>
+    <Well
+      span={6}
+      title="Event coverage"
+      meta="server-stamped milestones that also emitted their client event"
+    >
       <BarRows
         rows={data}
         max={100}
@@ -66,7 +63,48 @@ function Instrumentation({ rows }) {
         colors={(r) => (r.value < 80 ? VAR.bad : VAR.ink)}
         emptyLabel="No milestones reached in this window."
       />
-    </section>
+    </Well>
+  );
+}
+
+/**
+ * Where onboarding actually breaks.
+ *
+ * THIS PANEL DID NOT EXIST, and the RPC behind it was being fetched anyway:
+ * SystemView has been calling admin_onboarding_error_coverage into
+ * `q.data.onboardingErrors` and passing only `coverage` to the component below
+ * it. The header of `Instrumentation` even claimed to have merged the two.
+ *
+ * It survived a production promotion because the preview harness had no fixture
+ * for that RPC — so it returned null, and a panel that renders nothing is
+ * indistinguishable from a panel that was never meant to be there. Both halves
+ * are fixed together: the fixture exists now, and so does this.
+ */
+function OnboardingErrors({ rows, days }) {
+  const data = (rows || []).map((r) => ({
+    label: r.event,
+    value: num(r.sessions),
+    title: r.top_reason ? `${r.event} — most common reason: ${r.top_reason}` : r.event,
+  }));
+
+  return (
+    <Well
+      span={6}
+      title="Onboarding failures"
+      meta={`sessions hitting an error · ${days}d`}
+      foot="Ranked by sessions, not occurrences: one person retrying six times is one broken experience, not six."
+    >
+      <BarRows
+        rows={data}
+        ramp
+        limit={8}
+        formatValue={(v) => formatCount(v)}
+        secondary={(r, i) => (
+          <span className="admin-muted">{(rows[i]?.top_reason) || '—'}</span>
+        )}
+        emptyLabel="No onboarding errors recorded in this window."
+      />
+    </Well>
   );
 }
 
@@ -84,8 +122,10 @@ function KnownLimits({ excludeInternal }) {
         <h3 className="admin-chart-title">What the data cannot tell you</h3>
         <span className="admin-chart-sub t-meta">read this before trusting a number elsewhere</span>
       </header>
+      {/* Two columns. Six full-width prose bullets across a 1900px page was
+          half of what System showed by default, and an unreadably long line. */}
       <div className="admin-chart-body">
-        <ul className="admin-dq-list">
+        <ul className="admin-dq-list is-two-col">
           <li>
             <span className={`admin-dq-pill ${excludeInternal ? 'is-on' : 'is-off'}`}>
               {excludeInternal ? 'Internal traffic excluded' : 'Internal traffic included'}
@@ -152,9 +192,13 @@ export function SystemView() {
 
         <h2 className="admin-section-title">Instrumentation</h2>
         <div className="admin-section-sub">
-          Whether the events the rest of this dashboard counts are actually being emitted.
+          Whether the events the rest of this dashboard counts are actually being emitted,
+          and where the onboarding path is failing while they are.
         </div>
-        <Instrumentation rows={q.data?.coverage} />
+        <Deck>
+          <Instrumentation rows={q.data?.coverage} />
+          <OnboardingErrors rows={q.data?.onboardingErrors} days={f.days} />
+        </Deck>
 
         <h2 className="admin-section-title">Detail</h2>
         <Detail id="sys.integrations" label="Integrations and delivery">
