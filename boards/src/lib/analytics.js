@@ -18,7 +18,9 @@ import { supabase } from './supabase.js';
 import { setErrorUser } from './errorReporting.js';
 import { getDeviceInfo } from './device.js';
 import { isAnyQaMode } from './localMode.js';
-import { touchAppSession, noteAuthChange, persistAppSession } from './appSession.js';
+import { touchAppSession, noteAuthChange, persistAppSession,
+         getAppSession, setSessionRotateHandler } from './appSession.js';
+import { createSummary, noteEvent, summaryProps, worthEmitting } from './sessionSummary.js';
 import { BUILD_SHA } from './buildInfo.js';
 // Safe to import: analyticsEvents.js is a leaf module with no imports of its
 // own, so there is no cycle back into this file. (An older comment here claimed
@@ -637,6 +639,10 @@ export function logEvent(name, props = {}) {
   // definition; see analyticsEvents.js for where the bar is drawn.
   try { if (WORK_EVENTS.has(name)) noteWorkOp(); } catch (_) {}
   try { enqueue(buildRow(name, props)); } catch (_) {}
+  // AFTER buildRow, never inside it: buildRow advances the session clock and can
+  // therefore rotate, which fires the summary handler. Folding the event in
+  // beforehand would attribute it to the session that just ended.
+  try { noteEvent(ensureSummary(), name, props); } catch (_) {}
 }
 
 // Fire once per page-load for a given key — StrictMode-safe view/once events.
@@ -653,19 +659,65 @@ export function logEventOnce(key, name, props = {}) {
 export function logEventNow(name, props = {}) {
   if (!supabase || !name) return;
   try { if (WORK_EVENTS.has(name)) noteWorkOp(); } catch (_) {}
-  try { enqueue(buildRow(name, props)); flushBeacon(); } catch (_) {}
+  try { enqueue(buildRow(name, props)); } catch (_) {}
+  try { noteEvent(ensureSummary(), name, props); } catch (_) {}
+  try { flushBeacon(); } catch (_) {}
 }
 
 // Manual flush escape hatch (tests / explicit teardown).
 export function flushNow() { try { flushBeacon(); } catch (_) {} }
 
+// ── The per-session terminal row ────────────────────────────────────────────
+//
+// One dense summary when a session ends. See sessionSummary.js for why it
+// exists: ps_* covers only a new user's first session and app_trace is
+// deliberately sparse, so the session preceding visit two — the transition
+// where this product actually loses people — summarises to nothing today.
+//
+// Emitted on the first of a rotation (idle / day boundary / sign-in) and the
+// page going away. A session that is hidden and then RESUMED without rotating
+// emits a second, later row for the same of_session; the reader takes the last
+// one per of_session, which is strictly the more complete. That is preferred to
+// emitting once and under-reporting long sessions, because session length is
+// the sharpest thing separating the two populations.
+let summaryAcc = null;
+
+function ensureSummary(now) {
+  const sess = getAppSession();
+  if (!summaryAcc || summaryAcc.id !== sess.id) summaryAcc = createSummary(sess, now);
+  return summaryAcc;
+}
+
+function emitSessionSummary(ended) {
+  try {
+    const acc = summaryAcc;
+    if (!worthEmitting(acc)) return;
+    const props = summaryProps(acc, ended);
+    // Straight to the queue: going through logEvent would fold this row into
+    // the very accumulator it is reporting on.
+    enqueue(buildRow(EV.SESSION_SUMMARY, props));
+  } catch (_) { /* a summary must never break a page teardown */ }
+}
+
+// The rotate hook is a SINGLE slot on appSession — claiming it here means a
+// future second consumer would silently replace this one. It was declared for
+// closing out usage slices and had never been claimed by anything.
+try {
+  setSessionRotateHandler((next) => {
+    // `next` is the session that just STARTED; summaryAcc still describes the
+    // one that ended, which is why of_session rides in props.
+    emitSessionSummary('rotate');
+    summaryAcc = createSummary(next);
+  });
+} catch (_) { /* non-browser import */ }
+
 // Beacon the queue when the page is hidden or unloading. visibilitychange→hidden
 // is the reliable mobile signal; pagehide/beforeunload back it up on desktop.
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') flushBeacon();
+    if (document.visibilityState === 'hidden') { emitSessionSummary('hide'); flushBeacon(); }
   });
-  window.addEventListener('pagehide', flushBeacon);
+  window.addEventListener('pagehide', () => { emitSessionSummary('pagehide'); flushBeacon(); });
   window.addEventListener('beforeunload', flushBeacon);
 }
 

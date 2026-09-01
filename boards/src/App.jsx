@@ -32,6 +32,7 @@ import {
   viewEverSwitched, markViewSwitched,
 } from './lib/powerReveals.js';
 import { ReferralNudge } from './components/ReferralNudge.jsx';
+import { ReturnReasonAsk } from './components/ReturnReasonAsk.jsx';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
 import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
 import { readRemix, clearRemix } from './lib/remix.js';
@@ -4212,11 +4213,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const key = `soleil_last_seen_day_${user?.id || 'anon'}`;
       const today = new Date().toISOString().slice(0, 10);
       const last = localStorage.getItem(key);
-      if (last && last !== today) {
-        const days = Math.max(1, Math.round((Date.parse(today) - Date.parse(last)) / 86400000));
-        logEvent(EV.RETURN_SESSION, { days_since_last_seen: days, tier: myTier.tier });
+      const returnedAfter = last && last !== today
+        ? Math.max(1, Math.round((Date.parse(today) - Date.parse(last)) / 86400000))
+        : null;
+      if (returnedAfter != null) {
+        logEvent(EV.RETURN_SESSION, { days_since_last_seen: returnedAfter, tier: myTier.tier });
       }
       localStorage.setItem(key, today);
+      // AFTER the stamp, and in its own try. dispatchEvent runs listeners
+      // synchronously, so one that throws would otherwise skip the setItem
+      // above and leave this browser re-announcing a return on every load.
+      // This is the only place the app knows somebody came BACK, which is the
+      // one population the return question can honestly be put to; dispatched
+      // rather than called so the ask owns its timing — see ReturnReasonAsk.jsx.
+      if (returnedAfter != null) {
+        try {
+          window.dispatchEvent(new CustomEvent('soleil:returned', { detail: { days: returnedAfter } }));
+        } catch (_) { /* a listener threw; the day is already stamped */ }
+      }
     } catch { /* localStorage unavailable */ }
   }, [myTier.tier]);
 
@@ -7247,6 +7261,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       )}
 
       <ReferralNudge tier={myTier.tier} onCollaborate={openCollabInvite} />
+      {/* Gates itself entirely on the soleil:returned signal above, so it is
+          inert for every first session and costs a listener otherwise. */}
+      <ReturnReasonAsk />
 
       {mobileShell && (() => {
         // The "+" appears only when a board canvas is the active surface and

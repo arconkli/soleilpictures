@@ -5026,3 +5026,268 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   border-radius: 0;
   padding: 9px 2px 0;
 }
+
+/* ── Survival curve + return gap ────────────────────────────────────────────
+ *
+ * The uncertainty is drawn, so it needs to read as part of the mark rather than
+ * as decoration: the interval and its point share one colour and differ only in
+ * weight. A step below the trust floor is drawn hollow — visibly a measurement
+ * that has not earned its place, without being hidden.
+ *
+ * Type is monospaced and small for the same reason it is everywhere else on
+ * this deck: these are readings off an instrument, not headlines.
+ */
+.adm-surv { display: block; overflow: visible; }
+
+.adm-surv-val {
+  font: 600 12px/1 var(--font-mono);
+}
+
+.adm-surv-step {
+  font: 500 10.5px/1 var(--font-mono);
+  fill: var(--adm-mark-neutral);
+  letter-spacing: .04em;
+}
+
+.adm-surv-n {
+  font: 500 9.5px/1 var(--font-mono);
+  fill: var(--ink-3);
+  letter-spacing: .03em;
+}
+
+.adm-surv-read {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--adm-plate-edge);
+}
+
+.adm-surv-read p {
+  margin: 0 0 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.adm-surv-read p:last-child { margin-bottom: 0; }
+.adm-surv-read strong { color: var(--ink-1); font-weight: 600; }
+
+/* The power note is a caveat about the panel above it, not a finding of its
+   own, so it sits a register quieter than the reading it qualifies. */
+.adm-surv-power { color: var(--ink-3) !important; font-size: 11.5px !important; }
+
+.adm-gap { display: flex; flex-direction: column; gap: 6px; }
+
+.adm-gap-row {
+  display: grid;
+  grid-template-columns: 74px 1fr 40px 92px;
+  align-items: center;
+  gap: 10px;
+}
+
+.adm-gap-label {
+  font: 500 11px/1 var(--font-mono);
+  color: var(--ink-2);
+}
+
+.adm-gap-val {
+  font: 600 11.5px/1 var(--font-mono);
+  color: var(--ink-1);
+  text-align: right;
+}
+
+.adm-gap-cum {
+  font: 500 10px/1 var(--font-mono);
+  color: var(--ink-3);
+  text-align: right;
+  letter-spacing: .02em;
+}
+
+/* ── Return predictors ──────────────────────────────────────────────────────
+ *
+ * A table rather than a chart, because the comparison being made is across two
+ * axes at once (signal x depth band) and the interesting content is which cells
+ * DISAGREE. A grid of small signed numbers shows that at a glance; nine little
+ * bar charts would not.
+ *
+ * The direction colours are the deck's loss/gain pair, used at low saturation:
+ * these are differences of a few points on small samples, and painting them at
+ * full strength would assert more confidence than the numbers carry.
+ */
+.adm-pred-wrap { overflow-x: auto; }
+
+.adm-pred {
+  width: 100%;
+  border-collapse: collapse;
+  font: 500 11.5px/1.3 var(--font-mono);
+}
+
+.adm-pred thead th {
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  text-align: center;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--adm-plate-edge);
+}
+
+.adm-pred thead th.adm-pred-label { text-align: left; }
+
+.adm-pred tbody tr { border-bottom: 1px solid var(--adm-plate-edge); }
+.adm-pred tbody tr:last-child { border-bottom: 0; }
+
+.adm-pred-label {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ink-1);
+  padding: 9px 14px 9px 0;
+  white-space: nowrap;
+}
+
+.adm-pred-n {
+  display: block;
+  font: 500 9.5px/1 var(--font-mono);
+  color: var(--ink-3);
+  margin-top: 3px;
+  letter-spacing: .03em;
+}
+
+.adm-pred-cell {
+  text-align: center;
+  padding: 9px 8px;
+  min-width: 44px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-pred-cell.is-up   { color: var(--adm-good); }
+.adm-pred-cell.is-down { color: var(--adm-bad); }
+.adm-pred-cell.is-flat { color: var(--ink-3); }
+
+/* Below the floor, and never observed, are different statements. One says the
+   measurement is too thin to read; the other says the behaviour does not
+   happen. Rendering both as an empty cell would erase that distinction. */
+.adm-pred-cell.is-thin { color: var(--ink-3); opacity: .65; font-size: 9.5px; }
+.adm-pred-cell.is-none { color: var(--ink-3); opacity: .4; }
+
+.adm-pred-pooled {
+  text-align: center;
+  padding: 9px 8px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  border-left: 1px solid var(--adm-plate-edge);
+}
+
+/* The confound, drawn. A pooled figure the bands contradict is not a weaker
+   finding than the bands — it is an artefact, and it should look retracted. */
+.adm-pred-pooled .is-struck {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  color: var(--ink-3);
+  opacity: .8;
+}
+
+.adm-pred-verdict { text-align: right; padding: 9px 0 9px 10px; }
+
+.adm-pred-chip {
+  display: inline-block;
+  font: 500 9.5px/1 var(--font-mono);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 4px 7px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.adm-pred-chip.is-ok   { color: var(--adm-good); border-color: color-mix(in srgb, var(--adm-good) 34%, transparent); }
+.adm-pred-chip.is-warn { color: var(--ink-2);    border-color: var(--adm-plate-edge); }
+.adm-pred-chip.is-bad  { color: var(--adm-bad);  border-color: color-mix(in srgb, var(--adm-bad) 34%, transparent); }
+.adm-pred-chip.is-off  { color: var(--ink-3);    border-color: var(--adm-plate-edge); opacity: .7; }
+
+/* A confounded row is evidence about the method, not about the product, so it
+   recedes without disappearing — the reader still needs to see WHY. */
+.adm-pred-row.is-inconsistent .adm-pred-label,
+.adm-pred-row.is-unmeasured .adm-pred-label { color: var(--ink-2); }
+
+/* ── First-session autopsy ──────────────────────────────────────────────────
+ *
+ * Two columns of the same measurement, and a gap column that does the reading
+ * for you. Rows where the two groups genuinely diverge are marked; everything
+ * else stays quiet, because most of these metrics do NOT separate and a panel
+ * that emphasised all of them equally would imply they all mattered.
+ */
+.adm-fsc-wrap { overflow-x: auto; }
+
+.adm-fsc {
+  width: 100%;
+  border-collapse: collapse;
+  font: 500 11.5px/1.35 var(--font-mono);
+}
+
+.adm-fsc thead th {
+  font: 500 10px/1.3 var(--font-mono);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  text-align: right;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--adm-plate-edge);
+  vertical-align: bottom;
+}
+
+.adm-fsc thead th.adm-fsc-label { text-align: left; }
+
+.adm-fsc-n {
+  display: block;
+  font: 500 9px/1 var(--font-mono);
+  color: var(--ink-3);
+  opacity: .75;
+  margin-top: 3px;
+  text-transform: none;
+  letter-spacing: .02em;
+}
+
+.adm-fsc tbody tr { border-bottom: 1px solid var(--adm-plate-edge); }
+.adm-fsc tbody tr:last-child { border-bottom: 0; }
+
+.adm-fsc-label {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ink-1);
+  padding: 9px 16px 9px 0;
+}
+
+.adm-fsc-since {
+  display: block;
+  font: 500 9px/1 var(--font-mono);
+  color: var(--ink-3);
+  opacity: .7;
+  margin-top: 3px;
+}
+
+.adm-fsc-val,
+.adm-fsc-gap {
+  text-align: right;
+  padding: 9px 0 9px 18px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.adm-fsc-val.is-ret { color: var(--ink-1); }
+.adm-fsc-val.is-one { color: var(--ink-2); }
+.adm-fsc-gap { color: var(--ink-3); }
+
+/* Only the rows that actually separate get weight. */
+.adm-fsc-row.is-strong .adm-fsc-gap { color: var(--adm-cat-1); font-weight: 600; }
+.adm-fsc-row.is-strong .adm-fsc-label { color: var(--ink-1); }
+
+/* A record that does not go back far enough is not a measurement of zero. */
+.adm-fsc-row.is-unmeasurable .adm-fsc-label { color: var(--ink-3); }
+.adm-fsc-pair {
+  text-align: right;
+  padding: 9px 0;
+  color: var(--ink-3);
+  font-size: 10.5px;
+  opacity: .8;
+}

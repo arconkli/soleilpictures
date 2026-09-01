@@ -41,7 +41,12 @@ const ALWAYS_WINS = 'cap-hit';
 // with no writing on it, which is precisely what a bulk import does in a single
 // tick — the same tick that crosses the cap and the investedFrac line. Without
 // a claim it would join the exact pile-up this module was written to stop.
-const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt']);
+// 'return-reason' is ambient like the rest, and belongs here for the same
+// reason share-ask does: it is a request for the user's attention that can
+// always wait for another day. It is also the only one that arrives on a
+// TIMER rather than off a card count, so without a claim it would be the one
+// surface capable of landing on top of any of the others at random.
+const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason']);
 
 // Module scope = page lifetime, like boardsApi's _capAnnounced. No auth reset
 // is wired for it on purpose: the claim self-expires in a minute, so the worst

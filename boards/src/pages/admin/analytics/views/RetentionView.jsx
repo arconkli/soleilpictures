@@ -32,6 +32,9 @@ import { VAR } from '../../viz/palette.js';
 import { ActivationFunnel } from '../widgets/ActivationFunnel.jsx';
 import { ActivationByDevice } from '../widgets/ActivationByDevice.jsx';
 import { ReturnRate } from '../widgets/ReturnRate.jsx';
+import { SurvivalCurve, ReturnGap } from '../widgets/SurvivalCurve.jsx';
+import { ReturnPredictors } from '../widgets/ReturnPredictors.jsx';
+import { FirstSessionCompare, SessionOutcomes } from '../widgets/FirstSessionCompare.jsx';
 import { RetentionBySource } from '../widgets/RetentionBySource.jsx';
 import { UserDormancy } from '../widgets/UserDormancy.jsx';
 import { FeatureAdoption } from '../widgets/FeatureAdoption.jsx';
@@ -172,7 +175,7 @@ export function RetentionView() {
   // One wave, not four. The old view's sequencing was incidental — no call
   // depended on another's result — so it was pure added latency.
   const q = useAdminData(async () => {
-    const [af, rc, rr, hp, hw, cm, sd] = await Promise.allSettled([
+    const [af, rc, rr, hp, hw, cm, sd, sc, rg, sb] = await Promise.allSettled([
       supabase.rpc('admin_activation_funnel', { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_retention_curve', { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // p_require_work: the old call omitted it, so this panel and the habit
@@ -189,10 +192,23 @@ export function RetentionView() {
       }),
       // Deployed since 0250 and never once called from the client.
       supabase.rpc('admin_session_depth', { p_days: 84, p_exclude_internal: f.excludeInternal }),
+      // The visit-indexed pair (0279). Deliberately NOT filtered by f.days:
+      // both are cohort reads over the whole post-waitlist history, and slicing
+      // them to a trailing window would shrink the denominator without
+      // answering a different question. p_require_work is left at its default
+      // FALSE — see the migration header, the pooled work-gated version spans
+      // the did_work epoch and reads as churn.
+      supabase.rpc('admin_survival_curve', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      supabase.rpc('admin_return_gap', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      // Only to size the intake for the power note — how long a change would
+      // take to become readable depends on how fast people arrive.
+      supabase.rpc('admin_signups_by_day', { p_days: 28, p_verified_only: f.verifiedOnly }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
     if (af.status !== 'fulfilled' || af.value.error) throw errOf(af) || new Error('Failed to load activation');
+    const signupDays = val(sb) || [];
+    const signupTotal = signupDays.reduce((a, d) => a + (Number(d?.signups) || 0), 0);
     return {
       activation: val(af),
       retention: val(rc) || [],
@@ -201,6 +217,12 @@ export function RetentionView() {
       habitWork: val(hw) || [],
       cohorts: val(cm) || [],
       sessionDepth: val(sd) || [],
+      survival: val(sc) || [],
+      returnGap: val(rg) || [],
+      // Mean weekly intake over the last 28 days. A mean rather than the latest
+      // week on purpose: one quiet week would otherwise double the estimate of
+      // how long everything takes to measure.
+      weeklySignups: signupDays.length ? (signupTotal / signupDays.length) * 7 : 0,
     };
   }, [f.days, f.excludeInternal, f.verifiedOnly],
      { pollIntervalMs: POLL_MS.retention, refetchOnFocus: true });
@@ -220,6 +242,29 @@ export function RetentionView() {
         </Deck>
 
         <h2 className="admin-section-title">Did they come back</h2>
+        {/* The visit-indexed pair leads, because it is the only thing here that
+            says WHERE the loss is. Everything below it is calendar-indexed and
+            answers "how much is left by day N" — a useful question, but one
+            that pools the answer to this one away. */}
+        <Deck>
+          <Well
+            span={7}
+            title="Chance of the next visit"
+            meta="by visit, not by date"
+            foot="Bars are 95% Wilson intervals; hollow points rest on too few people to carry weight. Steps below the suppression floor are omitted rather than drawn as a confident 100%."
+          >
+            <SurvivalCurve rows={q.data?.survival || []} weeklySignups={q.data?.weeklySignups} />
+          </Well>
+          <Well
+            span={5}
+            title="How long until the second visit"
+            meta="among those who made one"
+            foot="The window any timed intervention has to hit. Measured from the first active day to the second."
+          >
+            <ReturnGap rows={q.data?.returnGap || []} />
+          </Well>
+        </Deck>
+
         {/* On the plot ground with the matrix under it, for the same reason
             Today's hero rail is: a headline readout floating on the bare page
             between two instrumented sections reads as a caption, not a gauge. */}
@@ -249,6 +294,9 @@ export function RetentionView() {
 
         <h2 className="admin-section-title">Detail</h2>
         <div className="admin-section-sub">Each section fetches only once opened.</div>
+        <Detail id="ret.predictors" label="What day-one behaviour goes with coming back">
+          <LazyPredictors f={f} />
+        </Detail>
         <Detail id="ret.friction" label="Where first-time users get stuck">
           <LazyFriction days={f.days} f={f} />
         </Detail>
@@ -259,6 +307,42 @@ export function RetentionView() {
           <LazyProduct days={f.days} f={f} />
         </Detail>
       </div>
+    </AdminAsync>
+  );
+}
+
+/**
+ * The predictor table is a cohort read, not a windowed one, so it takes no
+ * p_days: narrowing it to a trailing window would shrink already-thin band
+ * cells without asking a different question.
+ */
+function LazyPredictors({ f }) {
+  const q = useAdminData(async () => {
+    // Both are cohort reads over the same population, and the autopsy's caption
+    // points at the predictor table for verdicts — so they belong in one
+    // section, fetched together.
+    const [pr, fs, so] = await Promise.allSettled([
+      supabase.rpc('admin_return_predictors', {
+        p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly,
+      }),
+      supabase.rpc('admin_first_session_compare', {
+        p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly,
+      }),
+      // The read side of session_summary. Has no history before the deploy that
+      // added the event, and says so rather than drawing a zero.
+      supabase.rpc('admin_session_outcomes', { p_exclude_internal: f.excludeInternal }),
+    ]);
+    const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
+    const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
+    if (pr.status !== 'fulfilled' || pr.value.error) throw errOf(pr) || new Error('Failed to load predictors');
+    return { predictors: val(pr) || [], firstSession: val(fs) || [], outcomes: val(so) || [] };
+  }, [f.excludeInternal, f.verifiedOnly]);
+
+  return (
+    <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
+      <ReturnPredictors rows={q.data?.predictors || []} />
+      <FirstSessionCompare rows={q.data?.firstSession || []} />
+      <SessionOutcomes rows={q.data?.outcomes || []} />
     </AdminAsync>
   );
 }
