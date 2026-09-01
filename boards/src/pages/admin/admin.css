@@ -3850,13 +3850,25 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 
 .adm-area-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
 
-/* Grid sits under the marks and is meant to be barely there. */
+/* The graticule. Under the marks, and meant to be barely there — but it is the
+   only ruling in the well, so it is also the only thing giving the plot a
+   coordinate system to read against. */
 .adm-area-grid {
   position: absolute; left: 0; right: 0; height: 1px;
   background: var(--adm-grid); pointer-events: none;
 }
 
 .adm-area-grid:first-of-type { background: var(--adm-line-strong); }
+
+/* Verticals: equal divisions of the time span. Fainter than the value ticks,
+   because the y-rules carry readable numbers and these carry an interval. */
+.adm-area-vgrid {
+  position: absolute; top: 0; bottom: 0; width: 1px;
+  background: var(--adm-plot-line); pointer-events: none;
+}
+
+.adm-area-vgrid:first-of-type,
+.adm-area-vgrid:last-of-type { background: var(--adm-plot-line-major); }
 
 .adm-area-last { position: absolute; transform: translate(-50%, -50%); pointer-events: none; }
 
@@ -3926,32 +3938,36 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
    row under the hour ticks for events-per-hour. */
 .adm-heat-grid.has-margins {
   grid-template-columns: 34px repeat(24, minmax(0, 1fr)) 46px;
-  grid-template-rows: 13px 24px repeat(7, 26px);
+  grid-template-rows: 13px 17px repeat(7, 26px);
 }
 
 .adm-heat-marg { display: flex; }
 
-/* A margin is furniture, not data. At full column width and full row height
-   these read as an eighth day of the week sitting on top of the grid, so they
-   are narrower, dimmer, and hold a gap above the first real row. */
+/* A margin is furniture, not data. Full-width, full-height bars at the cells'
+   own size read as an eighth day of the week stacked on the grid — same
+   footprint, same weight, so the eye files them as more of the same. Narrow,
+   short and dim, with a gap above the first real row, they read as what they
+   are: a scale in the margin. */
 .adm-heat-marg.is-hour {
   align-items: flex-end; justify-content: center;
-  padding-bottom: 7px;
+  padding-bottom: 6px;
 }
 
 .adm-heat-marg.is-hour > span {
-  width: 62%; background: var(--adm-plot-ink-3); opacity: .7;
-  border-radius: 1px 1px 0 0;
+  width: 52%; max-height: 11px;
+  background: var(--adm-plot-ink-3); opacity: .5;
+  border-radius: 1px;
 }
 
-.adm-heat-marg.is-day { align-items: center; padding-left: 6px; }
+.adm-heat-marg.is-day { align-items: center; padding-left: 7px; }
 
 .adm-heat-marg.is-day > span {
-  height: 8px; background: var(--adm-plot-ink-3); border-radius: 0 2px 2px 0;
+  height: 5px; background: var(--adm-plot-ink-3); opacity: .5;
+  border-radius: 0 2px 2px 0;
 }
 
 /* The busiest day earns the accent, the same way the peak hour does. */
-.adm-heat-marg.is-day.is-busiest > span { background: var(--adm-cat-1); }
+.adm-heat-marg.is-day.is-busiest > span { background: var(--adm-cat-1); opacity: 1; }
 
 .adm-heat-marg-label {
   font: 500 8.5px/1 var(--font-mono); color: var(--adm-plot-ink-3);
@@ -4085,14 +4101,16 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   /* Plates: the themed sibling of the well, for panels that hold lists, tables
      and prose. Same geometry — radius, corner ticks, mono numerals — on the
      page's own surface, because a wall of prose reversed onto near-black is
-     heavy and a table does not need a plot ground. Two surfaces, one language. */
-  --adm-plate-bg:   rgba(255, 255, 255, .022);
+     heavy and a table does not need a plot ground. Two surfaces, one language.
+     OPAQUE: a translucent plate let the page ruling through as a second grid
+     over the table's own rows. */
+  --adm-plate-bg:   #131317;
   --adm-plate-edge: rgba(255, 255, 255, .062);
 }
 
 [data-theme='light'] {
   --adm-page-rule:  rgba(0, 0, 0, .032);
-  --adm-plate-bg:   rgba(255, 255, 255, .72);
+  --adm-plate-bg:   #ffffff;
   --adm-plate-edge: rgba(0, 0, 0, .075);
 }
 
@@ -4164,24 +4182,16 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   color: var(--adm-plot-ink);
 }
 
-/* Graph paper, behind everything. The single cheapest thing on this page and
-   the one that does most of the work — a plot on ruled ground reads as an
-   instrument, the same plot on flat ground reads as a slide.
-   The two pitches are a 4:1 ratio so the majors land exactly on a minor and
-   the ruling stays square instead of beating against itself. */
-.adm-well::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  pointer-events: none;
-  background-image:
-    repeating-linear-gradient(to right,  var(--adm-plot-line-major) 0 1px, transparent 1px 72px),
-    repeating-linear-gradient(to bottom, var(--adm-plot-line-major) 0 1px, transparent 1px 72px),
-    repeating-linear-gradient(to right,  var(--adm-plot-line) 0 1px, transparent 1px 18px),
-    repeating-linear-gradient(to bottom, var(--adm-plot-line) 0 1px, transparent 1px 18px);
-}
+/* NO DECORATIVE GRAPH PAPER HERE. It used to live on this pseudo-element at a
+   fixed pixel pitch, and that was the mistake: a well's contents already carry
+   a grid — the chart's value ticks, the heatmap's 168 cells, the cohort
+   matrix's rows and columns — and none of those land on a fixed pitch, because
+   their spacing is a function of the data. Two unrelated grids crossing each
+   other is not texture, it is interference, and it read as mess.
+   The rule the layout follows now: ONE GRID PER SURFACE, AND IT IS THE
+   STRUCTURE OF WHAT IS IN IT. Charts rule themselves on their own axes (see
+   .adm-area-grid / .adm-area-vgrid); cellular instruments are their own grid;
+   the page rules the gutters between panels and nothing else. */
 
 /* Corner ticks — four 8px L-brackets, drawn as eight hairline gradients in one
    pseudo-element. Pure HUD vocabulary, and it costs nothing. Shared with the
@@ -4244,20 +4254,11 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   box-shadow: inset 0 0 0 1px var(--adm-plate-edge);
 }
 
-/* Same ruling as the well at a lower amplitude — the page's texture, carried
-   onto the panel so a plate and a well read as the same instrument family. */
-.adm-plate::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  pointer-events: none;
-  background-image:
-    repeating-linear-gradient(to right,  var(--adm-page-rule) 0 1px, transparent 1px 72px),
-    repeating-linear-gradient(to bottom, var(--adm-page-rule) 0 1px, transparent 1px 72px);
-}
-
+/* A plate carries no ruling of its own, and it is OPAQUE. Both for the same
+   reason: it holds a table or a list, which is already a grid of rows, and a
+   translucent panel let the page's ruling show through it as a third grid on
+   top of that. What ties a plate to a well is the geometry — radius, corner
+   ticks, micro-cap head, mono numerals — not a pattern. */
 .adm-plate > .adm-well-head,
 .adm-plate > .adm-well-body,
 .adm-plate > .adm-well-foot { position: relative; z-index: 1; }
@@ -4408,12 +4409,21 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
  * contrast. Painted on .adm-view (the per-view root) rather than on .admin-body
  * so it never leaks onto the fourteen admin tabs that are not this one.
  */
+/* Vertical only, and ruled in TWELFTHS OF THE PAGE rather than at a pixel
+   pitch — so every rule lands on a deck column boundary and therefore on a
+   panel edge, at every window width, instead of cutting across panels at an
+   angle unrelated to the layout. Panels are opaque, so all you ever see of it
+   is the gutters between them: the structure the page is built on, showing
+   through the gaps. Horizontals are gone; there is no horizontal rhythm on
+   this page for them to agree with. */
 .adm-view {
   position: relative;
   background-image:
-    repeating-linear-gradient(to right,  var(--adm-page-rule) 0 1px, transparent 1px var(--adm-page-pitch)),
-    repeating-linear-gradient(to bottom, var(--adm-page-rule) 0 1px, transparent 1px var(--adm-page-pitch));
-  background-position: -1px -1px;
+    repeating-linear-gradient(
+      to right,
+      var(--adm-page-rule) 0 1px,
+      transparent 1px calc(100% / 12)
+    );
   padding-bottom: 8px;
 }
 

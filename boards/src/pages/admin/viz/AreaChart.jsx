@@ -50,6 +50,9 @@ export function AreaChart({
   /** Draw the last point as a dot with its value in a pill. */
   markLast = true,
   gridLines = 4,
+  /** Vertical divisions of the time span. Equal divisions of a linear date
+   *  axis are equal intervals, so these carry meaning rather than texture. */
+  vLines = 6,
   emptyLabel = 'Nothing to plot yet',
 }) {
   const uid = useId();
@@ -108,8 +111,27 @@ export function AreaChart({
           onPointerMove={onMove}
           onPointerLeave={() => setHover(null)}
         >
+          {/* THE GRATICULE IS THE SCALE.
+             *
+             * There used to be a second, decorative graph paper behind this at
+             * a fixed pixel pitch, and because the tick spacing is a function
+             * of the data's range it never lined up with these — two grids
+             * crossing at unrelated intervals, which is what made the charts
+             * look busy rather than instrumented.
+             *
+             * So the ruling is only ever the axes now. Horizontals sit on the
+             * value ticks; verticals divide the time span evenly, which on a
+             * linear date axis is a real interval and not a decoration. */}
           {ticks.map((t, i) => (
             <div key={i} className="adm-area-grid" style={{ bottom: `${(t / top) * 100}%` }} aria-hidden="true" />
+          ))}
+          {Array.from({ length: vLines + 1 }, (_, i) => (
+            <div
+              key={`v${i}`}
+              className="adm-area-vgrid"
+              style={{ left: `${(i / vLines) * 100}%` }}
+              aria-hidden="true"
+            />
           ))}
 
           <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
