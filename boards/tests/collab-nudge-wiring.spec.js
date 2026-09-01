@@ -1,12 +1,19 @@
-// Source-guard for the "build this together" collaborator-invite loop: the
-// banner fires at the activation beat (3 genuine cards) with a board-scoped
-// ShareModal CTA that lands on the invite-link section, and invite
-// submissions emit the k-factor numerator (invite_sent). Since the collab
-// rework the nudge is re-eligible per newly populated board (7d cooldown,
-// lifetime cap) under settings.collab_nudge — NOT the legacy
-// referral_prompts keys, which were shared with the retired 5-card banner
-// and permanently muted most of the base. None of it is reachable from the
-// backend-free harness, so this mirrors onboarding-tour-wiring.spec's style.
+// Source-guard for the "build this together" collaborator-invite loop: a
+// board-scoped ShareModal CTA landing on the invite-link section, with invite
+// submissions emitting the k-factor numerator (invite_sent). The nudge is
+// eligible per newly populated board (7d cooldown, lifetime cap) under
+// settings.collab_nudge — NOT the legacy referral_prompts keys, which were
+// shared with the retired 5-card banner and permanently muted most of the base.
+// None of it is reachable from the backend-free harness, so this mirrors
+// onboarding-tour-wiring.spec's style.
+//
+// AS OF 2026-08-31 THE BANNER IS INERT. App no longer dispatches
+// soleil:collab-nudge, so nothing here asserts that it appears — the tests below
+// guard the retirement (App), the still-working invite path (ShareModal, sidebar)
+// and the component's continued readiness to be switched back on. The banner's
+// own internals are still guarded because leaving them to rot is how a revert
+// turns into a rebuild. See the comment block at the old dispatch site for the
+// numbers that retired it.
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
@@ -17,18 +24,24 @@ const share = () => read('src/components/ShareModal.jsx');
 const events = () => read('src/lib/analyticsEvents.js');
 
 test.describe('collab-invite nudge wiring', () => {
-  test('App dispatches at the activation beat with the board id, gated off the tour', () => {
+  test('App no longer spends the activation beat on the collaborator nudge', () => {
     const s = app();
-    // The dispatch must share the fv nudge's !tourActive gate: 3 cards is
-    // reachable mid-tour, where a banner renders dead under the pointer lock.
-    expect(s).toMatch(/!tourActive && genuine\.length >= POP_BOARD_THRESHOLD/);
-    // The event carries WHICH board crossed the bar — the banner's per-board
-    // eligibility and the CTA's navigate-then-share routing both need it —
-    // and is cancelable so the banner can claim the beat (see below).
-    expect(s).toMatch(/new CustomEvent\('soleil:collab-nudge', \{ detail: \{ boardId: currentId \}, cancelable: true \}\)/);
-    // The old 5-card referral dispatch must not come back alongside it.
+    // RETIRED 2026-08-31. Most people shown it dismissed it and the
+    // click-through was a small single-digit percentage. It asked for a second
+    // human who cares about this specific board, and it spent the activation
+    // beat to do it. The capability is untouched — Share panel and sidebar still
+    // reach openCollabInvite — only the unprompted interruption is gone.
+    // Matched as the DISPATCH, not as the bare string: the comment block that
+    // records why this went away necessarily names the event, and a guard that
+    // cannot tell code from prose would force that explanation to be deleted.
+    expect(s).not.toMatch(/new CustomEvent\('soleil:collab-nudge'/);
+    expect(s).not.toMatch(/dispatchEvent\(\s*ev\s*\)/);
+    // The old 5-card referral dispatch must not come back in its place either.
     expect(s).not.toContain('soleil:referral-nudge');
     expect(s).not.toMatch(/genuine\.length >= 5\b/);
+    // The comment must survive with it: a bare deletion reads as an accident and
+    // invites someone to "restore" the dispatch without the numbers.
+    expect(s).toMatch(/COLLABORATOR NUDGE NO LONGER TAKES THIS BEAT/);
   });
 
   test('the banner listens for the collab signal and reports as invite_nudge', () => {
@@ -70,23 +83,25 @@ test.describe('collab-invite nudge wiring', () => {
       .toBeLessThan(s.indexOf('firedRef.current = true'));
   });
 
-  test('collaboration claims the activation beat when both nudges are eligible', () => {
-    // A photo drop takes a board from 0 to 5+ genuine cards in ONE change, so
-    // both nudges used to fire in the same synchronous batch — and the upsell,
-    // dispatched first at the lower threshold, always won. The collab dispatch
-    // must now come first and hold the upsell back only when it actually shows.
+  test('the first-value upsell is no longer gated on a beat nobody claims', () => {
     const s = app();
-    const collabAt = s.indexOf("soleil:collab-nudge");
-    const fvAt     = s.indexOf("soleil:first-value'");
-    expect(collabAt).toBeGreaterThan(-1);
-    expect(fvAt).toBeGreaterThan(-1);
-    expect(collabAt).toBeLessThan(fvAt);
-    // The upsell yields only on an actual show, never merely on eligibility.
-    expect(s).toMatch(/collabTookTheBeat = ev\.defaultPrevented/);
-    expect(s).toMatch(/genuine\.length >= 2 && !collabTookTheBeat/);
-    // The banner claims it by cancelling — AFTER every early return, so a
-    // capped / cooling-down / already-fired nudge hands the tick straight on.
+    // With the dispatch gone, `collabTookTheBeat` could only ever be false, and
+    // leaving the conjunct in place would be a dead gate on a live surface —
+    // the exact shape that silently retired the first-value banner once before.
+    // Again matched as code, not prose — the retirement comment names the flag.
+    expect(s).not.toMatch(/collabTookTheBeat\s*=/);
+    expect(s).not.toMatch(/!collabTookTheBeat/);
+    expect(s).toMatch(/genuine\.length >= 2\) \{\s*\n\s*window\.dispatchEvent\(new CustomEvent\('soleil:first-value'\)\)/);
+    // The upsell keeps its own tour gate and its own 2-card threshold.
+    expect(s).toMatch(/!tourActive && genuine\.length >= 2/);
+  });
+
+  test('the banner is left inert rather than deleted, so the revert is one line', () => {
+    // Restoring the experiment must be re-adding the dispatch and nothing else.
+    // The component still listens, still claims the shared slot, and is still
+    // rendered — it simply never hears the event now.
     const n = nudge();
+    expect(n).toContain("addEventListener('soleil:collab-nudge'");
     expect(n).toMatch(/e\?\.preventDefault\?\.\(\)/);
     expect(n.indexOf('preventDefault')).toBeGreaterThan(n.indexOf('boards.includes(boardId)'));
   });
