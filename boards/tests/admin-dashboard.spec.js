@@ -380,60 +380,75 @@ test.describe('admin dashboard charts', () => {
     expect(sideBySide, 'no two bullets share a row — the list is still one column').toBe(true);
   });
 
-  test('one grid per surface — no panel rules itself twice', async ({ page }) => {
-    // The wells used to carry decorative graph paper at a fixed pixel pitch,
-    // on top of contents that already have a grid: the chart's value ticks,
-    // the heatmap's 168 cells, the cohort matrix's rows. The two never lined
-    // up, because tick spacing is a function of the data's range and cell
-    // spacing is a function of the container's width, so every plot was two
-    // unrelated grids crossing each other. That is not texture, it is
-    // interference, and it is what made the page look messy.
+  test('nothing is ruled twice', async ({ page }) => {
+    // Graph paper is the look and it stays. What it may not do is disagree
+    // with a grid the panel already has — a chart's ticks (spaced by the
+    // data's range), a heatmap's cells (spaced by the container's width).
+    // Neither lands on a pixel pitch, so paint a pitch behind them and you get
+    // two grids crossing at unrelated intervals.
     //
-    // The rule now: a panel's ruling is the structure of its own contents.
-    // Decoration on top of that is banned, and this is what bans it.
+    // So the rule is not "no paper", it is "no SECOND grid": a well that
+    // contains something which rules itself must not also rule itself.
     for (const view of ['today', 'retention', 'funnel', 'system']) {
       await openAdmin(page, { view, theme: 'dark' });
       await expect(page.locator('.adm-well').first()).toBeVisible({ timeout: 15000 });
 
-      const ruled = await page.evaluate(() => {
+      const doubled = await page.evaluate(() => {
+        const papered = (el, pseudo) =>
+          /repeating-linear-gradient/.test(getComputedStyle(el, pseudo).backgroundImage || '');
         const bad = [];
-        for (const el of document.querySelectorAll('.adm-well, .adm-plate')) {
-          for (const pseudo of [null, '::before']) {
-            const cs = getComputedStyle(el, pseudo);
-            // repeating-linear-gradient is the graph-paper signature.
-            if (/repeating-linear-gradient/.test(cs.backgroundImage || '')) {
-              bad.push(`${el.className}${pseudo || ''}`);
-            }
+        for (const w of document.querySelectorAll('.adm-well, .adm-plate')) {
+          const selfRuling = w.querySelector('.is-ruled, .adm-heat, .adm-cohort');
+          if (selfRuling && (papered(w, null) || papered(w, '::before'))) {
+            bad.push(w.className);
           }
         }
         return bad;
       });
       expect(
-        ruled,
-        `panels carrying a decorative ruling on ${view}: ${ruled.join(', ')}`,
+        doubled,
+        `these panels rule themselves on top of contents that already have a grid on ${view}: ${doubled.join(' | ')}`,
       ).toEqual([]);
     }
   });
 
-  test('the chart graticule is the scale, on both axes', async ({ page }) => {
-    // Having removed the decoration, the plot still needs a coordinate system —
-    // and it has to be one the marks are actually measured against. Horizontals
-    // sit on the value ticks, so there is exactly one per printed label;
-    // verticals divide the span evenly, which on a linear date axis is a real
-    // interval rather than a pattern.
+  test('the paper subdivides the graticule exactly', async ({ page }) => {
+    // The fix for the interference is not that the paper is gone — it is that
+    // it is expressed in the SAME divisions as the ticks, as percentages of
+    // the same box. Every --adm-gx/gy minor cell per major cell means every
+    // Nth line lands on a tick, at any width, for any data range.
+    //
+    // Asserting the ratio is a whole number is the whole invariant: fractional
+    // and the two drift apart again, which is exactly how this looked wrong.
     await openAdmin(page, { view: 'today', theme: 'dark' });
     await expect(page.locator('.adm-area-frame').first()).toBeVisible({ timeout: 15000 });
 
-    const first = page.locator('.adm-area').first();
-    const hLines = await first.locator('.adm-area-grid').count();
-    const vLines = await first.locator('.adm-area-vgrid').count();
-    const labels = await first.locator('.adm-area-tick').count();
+    const ratios = await page.evaluate(() => {
+      const out = [];
+      for (const area of document.querySelectorAll('.adm-area')) {
+        const plot = area.querySelector('.adm-area-plot');
+        const cs = getComputedStyle(plot);
+        const gx = Number(cs.getPropertyValue('--adm-gx'));
+        const gy = Number(cs.getPropertyValue('--adm-gy'));
+        // Majors are drawn as positioned rules: N lines bound N-1 intervals.
+        const hMaj = area.querySelectorAll('.adm-area-grid').length - 1;
+        const vMaj = area.querySelectorAll('.adm-area-vgrid').length - 1;
+        out.push({ gx, gy, hMaj, vMaj, ruled: plot.classList.contains('is-ruled') });
+      }
+      return out;
+    });
 
-    expect(hLines, 'horizontal rules must match the printed value ticks').toBe(labels);
-    expect(vLines).toBeGreaterThan(2);
+    expect(ratios.length).toBeGreaterThan(0);
+    for (const r of ratios) {
+      expect(r.ruled, 'the plot is not ruled at all').toBe(true);
+      expect(r.hMaj, 'no horizontal majors').toBeGreaterThan(0);
+      expect(r.vMaj, 'no vertical majors').toBeGreaterThan(0);
+      expect(r.gy % r.hMaj, `${r.gy} minor rows do not divide into ${r.hMaj} major rows`).toBe(0);
+      expect(r.gx % r.vMaj, `${r.gx} minor cols do not divide into ${r.vMaj} major cols`).toBe(0);
+    }
 
-    // Every horizontal must land on its label, which is what "the graticule is
-    // the scale" means in practice.
+    // And the majors still sit on their own labels — the paper subdividing
+    // them is worth nothing if the majors themselves have drifted.
     const aligned = await page.evaluate(() => {
       const root = document.querySelector('.adm-area');
       const ys = (sel) => [...root.querySelectorAll(sel)]
