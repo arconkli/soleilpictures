@@ -321,6 +321,150 @@ test.describe('admin dashboard charts', () => {
     ).toBeLessThan(0.4);
   });
 
+  test('the survival curve draws its uncertainty, and drops the steps it cannot support', async ({ page }) => {
+    // The panel exists because every other retention chart here is indexed by
+    // calendar day, which pools away the fact that the loss is concentrated in
+    // one step. Three things have to hold for it to be worth trusting:
+    //
+    //  1. it renders at all (a fetch with no fixture and no panel look alike);
+    //  2. the deep steps, which rest on a handful of people, are DROPPED rather
+    //     than drawn as a confident 100% — the fixture deliberately includes
+    //     steps below the floor;
+    //  3. every point carries an interval, because a step measured on tens and
+    //     one measured on hundreds otherwise render identically.
+    await openAdmin(page, { view: 'retention', theme: 'dark' });
+    const surv = page.locator('.adm-surv');
+    await expect(surv).toBeVisible({ timeout: 15000 });
+
+    const drawn = await page.evaluate(() => {
+      const svg = document.querySelector('.adm-surv');
+      return {
+        steps: [...svg.querySelectorAll('.adm-surv-step')].map((t) => t.textContent.trim()),
+        points: svg.querySelectorAll('circle').length,
+        // Two caps and a stem per interval; the gridlines span the full width
+        // and are excluded by requiring a short horizontal or vertical run.
+        rules: svg.querySelectorAll('line').length,
+      };
+    });
+
+    expect(drawn.steps[0]).toBe('1→2');
+    expect(drawn.steps.length).toBeGreaterThan(2);
+    expect(
+      drawn.steps,
+      'a step resting on fewer than five people must not be plotted at all',
+    ).not.toContain('8→9');
+    expect(drawn.points).toBeGreaterThanOrEqual(drawn.steps.length);
+    expect(
+      drawn.rules,
+      'each step needs a stem and two caps beside the gridlines — no intervals means the panel is lying about its precision',
+    ).toBeGreaterThanOrEqual(drawn.steps.length * 3);
+  });
+
+  test('the survival panel states what it cannot yet measure', async ({ page }) => {
+    // The power note is the half of this panel that changes decisions: at this
+    // intake most differences worth arguing about are not yet distinguishable
+    // from noise, and a dashboard that prints percentages without saying so
+    // invites reading noise as a result. If the arithmetic silently returns
+    // null the note vanishes and the panel looks finished, so assert the text.
+    await openAdmin(page, { view: 'retention', theme: 'dark' });
+    const note = page.locator('.adm-surv-power');
+    await expect(note).toBeVisible({ timeout: 15000 });
+    await expect(note).toContainText(/points/);
+    await expect(note).toContainText(/weeks/);
+  });
+
+  test('the return gap is cumulative and front-loaded', async ({ page }) => {
+    // The number every timed intervention is judged against. The cumulative
+    // column is the point — a per-bucket share alone does not answer "would a
+    // nudge tomorrow reach most of them".
+    await openAdmin(page, { view: 'retention', theme: 'dark' });
+    await expect(page.locator('.adm-gap-row').first()).toBeVisible({ timeout: 15000 });
+
+    const cum = await page.$$eval('.adm-gap-cum', (els) =>
+      els.map((e) => Number(e.textContent.replace(/[^\d]/g, ''))));
+    expect(cum.length).toBeGreaterThan(3);
+    for (let i = 1; i < cum.length; i += 1) {
+      expect(cum[i], 'a cumulative share must never decrease').toBeGreaterThanOrEqual(cum[i - 1]);
+    }
+    expect(cum[cum.length - 1]).toBe(100);
+  });
+
+  test('the predictor table refuses to state an effect the bands contradict', async ({ page }) => {
+    // The regression guard for the whole confound problem.
+    //
+    // Read pooled, this dataset says hitting an error on day one IMPROVES
+    // retention by a wide margin — an artefact of depth driving both. The
+    // panel's contract is that a signal whose sign flips band to band is
+    // labelled confounded and its pooled figure is struck through, so the
+    // number cannot be lifted out and acted on. If this test goes green while
+    // showing a clean effect size on that row, the guard is gone.
+    await openAdmin(page, { view: 'retention', theme: 'dark' });
+    const trigger = page.getByRole('button', { name: /day-one behaviour/i });
+    await trigger.click();
+    await expect(page.locator('.adm-pred').first()).toBeVisible({ timeout: 15000 });
+
+    const err = page.locator('.adm-pred-row.is-inconsistent').filter({ hasText: 'Hit an error' });
+    await expect(err, 'the error signal must be classed inconsistent').toHaveCount(1);
+    await expect(err.locator('.adm-pred-chip')).toHaveText(/confounded/i);
+    await expect(
+      err.locator('.adm-pred-pooled .is-struck'),
+      'the pooled figure must be retracted, not merely de-emphasised',
+    ).toBeVisible();
+
+    // And the converse: a signal whose sign survives every band keeps its
+    // pooled number.
+    const shared = page.locator('.adm-pred-row').filter({ hasText: 'Shared' });
+    await expect(shared).not.toHaveClass(/is-inconsistent/);
+    await expect(shared.locator('.adm-pred-chip')).toHaveText(/holds up/i);
+    await expect(
+      shared.locator('.adm-pred-pooled .is-struck'),
+      'a consistent signal must keep its pooled figure',
+    ).toHaveCount(0);
+
+    // Mobile is the best-evidenced real gap in this data and is negative in
+    // every band that says anything, with one flat band. It must NOT be thrown
+    // out as confounded — an over-eager guard that condemns real findings is
+    // just as useless as no guard at all.
+    const mobile = page.locator('.adm-pred-row').filter({ hasText: 'Was on a phone' });
+    await expect(mobile).not.toHaveClass(/is-inconsistent/);
+    await expect(mobile.locator('.adm-pred-chip')).toHaveText(/directional/i);
+  });
+
+  test('a signal nobody ever triggers reads as absent, not as no-effect', async ({ page }) => {
+    // "Nobody did this" and "doing this made no difference" are different
+    // findings. Collapsing them into one blank cell would quietly retire a
+    // gesture the onboarding calls its retention moment.
+    await openAdmin(page, { view: 'retention', theme: 'dark' });
+    await page.getByRole('button', { name: /day-one behaviour/i }).click();
+    await expect(page.locator('.adm-pred').first()).toBeVisible({ timeout: 15000 });
+
+    const nested = page.locator('.adm-pred-row').filter({ hasText: 'Nested a card' });
+    await expect(nested.locator('.adm-pred-cell.is-none').first()).toBeVisible();
+    await expect(nested.locator('.adm-pred-chip')).toHaveText(/too thin/i);
+  });
+
+  test('the autopsy never reports a signal younger than the cohort as zero', async ({ page }) => {
+    // Two surfaces here began recording after almost everyone old enough to be
+    // measured had signed up. Rendered as 0% they read "this never happens",
+    // when the truth is "nothing was recording it yet" — the mistake 0277 had
+    // to write into the table comments after it cost an analysis.
+    await openAdmin(page, { view: 'retention', theme: 'dark' });
+    await page.getByRole('button', { name: /day-one behaviour/i }).click();
+    await expect(page.locator('.adm-fsc').first()).toBeVisible({ timeout: 15000 });
+
+    const dock = page.locator('.adm-fsc-row').filter({ hasText: 'add-more dock' });
+    await expect(dock).toHaveClass(/is-unmeasurable/);
+    await expect(dock).toContainText(/not measurable yet/i);
+    await expect(dock, 'an unrecorded signal must never render a percentage').not.toContainText('0%');
+
+    // And the headline the panel exists to carry: the groups separate on TIME,
+    // not on how much they made.
+    const mins = page.locator('.adm-fsc-row').filter({ hasText: 'Minutes in the first session' });
+    await expect(mins).toHaveClass(/is-strong/);
+    const cards = page.locator('.adm-fsc-row').filter({ hasText: 'Cards on the board' });
+    await expect(cards, 'card count does not separate the two groups').not.toHaveClass(/is-strong/);
+  });
+
   test('the page refreshes itself, without fading or freezing', async ({ page }) => {
     // Two halves of one feature.
     //

@@ -2760,6 +2760,10 @@ export const DOCS_PAGES = [
         "text": "Error reporting"
       },
       {
+        "id": "when-clusters-asks-you-a-question",
+        "text": "When Clusters asks you a question"
+      },
+      {
         "id": "legal",
         "text": "Legal"
       }

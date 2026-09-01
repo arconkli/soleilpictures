@@ -19361,3 +19361,72 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 .admin-discount-preview { margin: 0; color: var(--ink-2); }
 .admin-discount-code { font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
 .admin-discounts-note { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
+/* ── The return question ────────────────────────────────────────────────────
+ *
+ * Rides the fv-banner frame so it sits where every other ambient ask sits and
+ * inherits the same frosted surface. Only the choice row and the optional note
+ * are new, because only those are new.
+ *
+ * Deliberately quiet: the chips are neutral ink on a neutral fill, and pick up
+ * the accent only on hover and focus. Gold is reserved for active, selection
+ * and focus states, and a row of five gold buttons would read as five things
+ * demanding to be pressed.
+ */
+.rr-ask { max-width: 460px; align-items: flex-start; }
+
+.rr-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.rr-chip {
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line-1);
+  background: var(--bg-1);
+  color: var(--ink-1);
+  font: 500 11.5px/1 var(--font-sans);
+  cursor: pointer;
+  transition: border-color .12s ease, color .12s ease, background .12s ease;
+}
+
+.rr-chip:hover:not(:disabled) {
+  border-color: var(--soleil);
+  color: var(--ink-0);
+}
+
+.rr-chip:focus-visible {
+  outline: none;
+  border-color: var(--soleil);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--soleil) 30%, transparent);
+}
+
+.rr-chip:disabled { opacity: .5; cursor: default; }
+
+.rr-note {
+  margin-top: 9px;
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid var(--line-1);
+  background: var(--bg-1);
+  color: var(--ink-0);
+  font: 400 12px/1 var(--font-sans);
+}
+
+.rr-note::placeholder { color: var(--ink-3); }
+
+.rr-note:focus-visible {
+  outline: none;
+  border-color: var(--soleil);
+}
+
+@media (max-width: 640px) {
+  .rr-ask { max-width: calc(100vw - 24px); }
+}

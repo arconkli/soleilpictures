@@ -3490,6 +3490,17 @@ Error reporting
 
 Errors are recorded first-party, in Clusters' own infrastructure, to fix crashes. There is no Google Analytics and no third-party error monitoring service in the app.
 
+When Clusters asks you a question
+
+Clusters may ask you one question, once: on a day you come back, it can ask what brought you back, with a short list of answers and an optional free-text box.
+
+It is asked once per account, ever — answering or dismissing it both close it permanently, and that is recorded on the server, so it will not return if you clear your browser storage.
+It never appears on your first session.
+Whatever you type in the optional box is stored as written text you chose to send, readable by Clusters staff. It is not analysed automatically and is not shared with anyone outside Clusters.
+Nothing you type into your own clusters — card contents, notes, documents, search terms — is ever collected this way. Search is measured by shape only (how many results, whether any were opened), never by content.
+
+If you would rather it had never been asked, deleting your account removes it along with everything else.
+
 Legal
 
 The full policies: Privacy · Terms · Cookies.

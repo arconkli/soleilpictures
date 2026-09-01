@@ -27893,6 +27893,94 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "When Clusters asks you a question",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When Clusters asks you a question"
+    }
+   ],
+   "id": "when-clusters-asks-you-a-question"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Clusters may ask you one question, once: on a day you come back, it can ask what brought you back, with a short list of answers and an optional free-text box."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "It is asked "
+     },
+     {
+      "t": "strong",
+      "v": "once per account, ever",
+      "children": [
+       {
+        "t": "text",
+        "v": "once per account, ever"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — answering or dismissing it both close it permanently, and that is recorded on the server, so it will not return if you clear your browser storage."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "It never appears on your first session."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Whatever you type in the optional box is stored as "
+     },
+     {
+      "t": "strong",
+      "v": "written text you chose to send",
+      "children": [
+       {
+        "t": "text",
+        "v": "written text you chose to send"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", readable by Clusters staff. It is not analysed automatically and is not shared with anyone outside Clusters."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Nothing you type into your own clusters — card contents, notes, documents, search terms — is ever collected this way. Search is measured by shape only (how many results, whether any were opened), never by content."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you would rather it had never been asked, deleting your account removes it along with everything else."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Legal",
    "inline": [
     {

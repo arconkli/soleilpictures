@@ -662,6 +662,139 @@ RPCS.admin_session_depth = Array.from({ length: 12 }, (_, i) => {
   };
 });
 
+// admin_survival_curve(visit, reached, continued, pct, since, work_floor) — 0279.
+//
+// Shaped like the real thing rather than like a smooth decay, because the SHAPE
+// is the entire finding: a first step far worse than every step after it, and
+// later steps that climb while their denominators collapse. A fixture that
+// decayed monotonically would make the panel look correct while hiding the one
+// thing it was built to show.
+//
+// The tail deliberately runs below the suppression floor so the harness
+// exercises the drop — a step resting on a couple of people must not render as
+// a confident 100%.
+RPCS.admin_survival_curve = (() => {
+  const steps = [
+    [1, 184, 61], [2, 52, 26], [3, 24, 17], [4, 15, 10],
+    [5, 10, 9], [6, 7, 4], [7, 3, 3], [8, 2, 2],
+  ];
+  return steps.map(([visit, reached, continued]) => ({
+    visit,
+    reached,
+    continued,
+    pct: Number((continued / reached).toFixed(4)),
+    since: '2026-06-16',
+    work_floor: null,
+  }));
+})();
+
+// admin_return_gap(bucket, lo, n, pct, cum_pct) — 0279.
+// Front-loaded on purpose: the panel's job is to show that the window closes
+// within days, and a flat distribution would quietly contradict the caption.
+RPCS.admin_return_gap = (() => {
+  const rows = [
+    ['next day', 1, 47], ['2-3 days', 2, 9], ['4-7 days', 4, 7],
+    ['8-14 days', 8, 4], ['15-30 days', 15, 8], ['31+ days', 31, 3],
+  ];
+  const total = rows.reduce((a, r) => a + r[2], 0);
+  let run = 0;
+  return rows.map(([bucket, lo, n]) => {
+    run += n;
+    return {
+      bucket, lo, n,
+      pct: Number((n / total).toFixed(4)),
+      cum_pct: Number((run / total).toFixed(4)),
+    };
+  });
+})();
+
+// admin_return_predictors(signal, band, band_ord, with_n, with_ret, without_n,
+// without_ret) — 0280.
+//
+// Shaped from the real reading, and sized to exercise all four verdicts,
+// because telling them apart is the panel's entire job:
+//
+//   shared       consistent positive, separating in a band → holds up
+//   multi_board  consistent positive, nothing separating   → directional
+//   mobile       consistent negative across every band     → directional
+//   day1_error   sign flips band to band while the POOLED
+//                row looks like a large positive           → confounded
+//   nested       never fires at all                        → too thin
+//
+// mobile is the load-bearing one. It is negative in every band, and an earlier
+// version of the consistency check called it confounded because a single band
+// differed by a fraction of a point — a guard that throws out real findings is
+// no better than no guard. It must stay directional here.
+//
+// day1_error is the important one. It is shaped like the real reading, whose
+// plain interpretation is that shipping bugs improves retention. If a change to
+// this panel ever renders an effect size on that row, the guard has been lost.
+RPCS.admin_return_predictors = (() => {
+  const BANDS = [['all', 0], ['0', 1], ['1-2', 2], ['3-5', 3], ['6+', 4]];
+  // [with_n, with_ret, without_n, without_ret] per band, in BANDS order.
+  const DATA = {
+    shared:          [[22, 13, 198, 47], [2, 0, 96, 17], [4, 1, 44, 13], [7, 4, 32, 8], [9, 8, 26, 9]],
+    mobile:          [[54, 8, 166, 52], [34, 4, 68, 15], [9, 2, 38, 11], [6, 1, 30, 10], [5, 1, 30, 15]],
+    wrote_text:      [[64, 27, 156, 33], [0, 0, 102, 17], [20, 8, 28, 6], [22, 5, 14, 5], [22, 14, 12, 5]],
+    day1_error:      [[63, 24, 157, 36], [16, 6, 86, 12], [15, 3, 33, 11], [16, 5, 20, 5], [16, 10, 18, 8]],
+    answered_intent: [[47, 19, 173, 41], [15, 5, 87, 13], [11, 4, 37, 10], [9, 5, 27, 5], [12, 5, 22, 13]],
+    hit_friction:    [[32, 9, 188, 51], [3, 0, 99, 17], [11, 2, 37, 12], [9, 3, 27, 7], [9, 4, 25, 15]],
+    multi_board:     [[11, 5, 209, 55], [0, 0, 102, 17], [2, 0, 46, 13], [3, 1, 33, 9], [6, 4, 28, 16]],
+    batch_upload:    [[3, 2, 217, 58], [0, 0, 102, 17], [0, 0, 48, 13], [0, 0, 36, 10], [3, 2, 31, 18]],
+    nested:          [[0, 0, 220, 60], [0, 0, 102, 17], [0, 0, 48, 13], [0, 0, 36, 10], [0, 0, 34, 20]],
+  };
+  const out = [];
+  for (const [signal, perBand] of Object.entries(DATA)) {
+    BANDS.forEach(([band, band_ord], i) => {
+      const [with_n, with_ret, without_n, without_ret] = perBand[i];
+      out.push({ signal, band, band_ord, with_n, with_ret, without_n, without_ret });
+    });
+  }
+  return out;
+})();
+
+// admin_first_session_compare(metric, kind, ord, measured_from, returned_n,
+// returned_val, oneshot_n, oneshot_val) — 0281.
+//
+// Shaped from the real reading, whose headline is that the two groups diverge
+// on TIME rather than on output: people who came back spent multiples longer in
+// their first session, and finished it with the same number of cards. Every
+// activation surface in the product counts cards, so a fixture that made cards
+// the discriminator would quietly agree with the thing this panel contradicts.
+//
+// The last two rows carry n=0 with a recent measured_from. They are the
+// not-yet-measurable case — a surface younger than anyone old enough to be
+// counted — and they must render as "not measurable yet", never as 0%.
+RPCS.admin_first_session_compare = [
+  { metric: 'Minutes in the first session',   kind: 'median', ord: 1,  measured_from: null,         returned_n: 59, returned_val: 12.4, oneshot_n: 122, oneshot_val: 3.6 },
+  { metric: 'Events recorded in it',          kind: 'median', ord: 2,  measured_from: null,         returned_n: 59, returned_val: 31,   oneshot_n: 122, oneshot_val: 26 },
+  { metric: 'Cards on the board by the end',  kind: 'median', ord: 3,  measured_from: null,         returned_n: 59, returned_val: 1,    oneshot_n: 122, oneshot_val: 1 },
+  { metric: 'Clusters open',                  kind: 'median', ord: 4,  measured_from: null,         returned_n: 59, returned_val: 2,    oneshot_n: 122, oneshot_val: 1 },
+  { metric: 'Got stuck placing a card',       kind: 'share',  ord: 10, measured_from: '2026-06-20', returned_n: 55, returned_val: 14,   oneshot_n: 120, oneshot_val: 18 },
+  { metric: 'Opened the share panel',         kind: 'share',  ord: 11, measured_from: '2026-06-10', returned_n: 59, returned_val: 16,   oneshot_n: 122, oneshot_val: 5 },
+  { metric: 'Edited a document',              kind: 'share',  ord: 12, measured_from: '2026-06-11', returned_n: 59, returned_val: 22,   oneshot_n: 122, oneshot_val: 11 },
+  { metric: 'Was shown the empty-board panel',kind: 'share',  ord: 13, measured_from: '2026-08-19', returned_n: 0,  returned_val: null, oneshot_n: 0,   oneshot_val: null },
+  { metric: 'Saw the add-more dock',          kind: 'share',  ord: 14, measured_from: '2026-08-23', returned_n: 0,  returned_val: null, oneshot_n: 0,   oneshot_val: null },
+  { metric: 'Hit an error',                   kind: 'share',  ord: 15, measured_from: null,         returned_n: 59, returned_val: 44,   oneshot_n: 122, oneshot_val: 33 },
+];
+
+// admin_session_outcomes(bucket, ord, sessions, returned_after, users, since)
+// — 0283, the read side of the session_summary event.
+//
+// Populated rather than empty, because the harness has to exercise the DRAWN
+// state: in production this panel starts with nothing and shows its
+// collecting-since notice, and that path is reachable by deleting a row here.
+// The shape follows the first-session finding — longer sessions are followed by
+// a return far more often — and the shortest bucket is deliberately under the
+// suppression floor so the "—" is exercised too.
+RPCS.admin_session_outcomes = [
+  { bucket: 'under a minute', ord: 1, sessions: 4,  returned_after: 0,  users: 4,  since: '2026-09-01' },
+  { bucket: '1-5 min',        ord: 2, sessions: 72, returned_after: 13, users: 55, since: '2026-09-01' },
+  { bucket: '5-15 min',       ord: 3, sessions: 41, returned_after: 17, users: 31, since: '2026-09-01' },
+  { bucket: '15-60 min',      ord: 4, sessions: 26, returned_after: 15, users: 21, since: '2026-09-01' },
+  { bucket: 'over an hour',   ord: 5, sessions: 12, returned_after: 8,  users: 10, since: '2026-09-01' },
+];
+
 // admin_onboarding_error_coverage(event, sessions, users, total, top_reason,
 // ord).
 //
