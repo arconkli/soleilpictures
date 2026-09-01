@@ -29,12 +29,12 @@ import { supabase } from '../../../../lib/supabase.js';
 import { formatCount, formatCompact, formatMoney, relativeTime, fmtDateTime } from '../../../../lib/adminFormat.js';
 import { useAdminData } from '../../useAdminData.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
-import { useActivityPulse } from '../../useActivityPulse.js';
 import { useAnalyticsFilters, useRegisterViewRuntime } from '../AnalyticsFiltersContext.jsx';
 import { Metric, MetricGrid, deltaInfo } from '../../viz/Metric.jsx';
-import { TrendLine } from '../../viz/TrendLine.jsx';
 import { AreaChart } from '../../viz/AreaChart.jsx';
 import { Heatmap } from '../../viz/Heatmap.jsx';
+import { EventConsole } from '../../viz/EventConsole.jsx';
+import { Deck, Well } from '../../viz/Well.jsx';
 import { VAR } from '../../viz/palette.js';
 
 // The browser's zone, so the heatmap buckets by the hours the owner keeps
@@ -51,48 +51,11 @@ const shortDay = (iso) => {
 };
 
 const num = (x) => (x == null || Number.isNaN(Number(x)) ? null : Number(x));
-/**
- * Right now.
- *
- * The pulse is push-based (analytics_events is in the realtime publication),
- * so this costs one backfill and then nothing. Worth knowing before reading it:
- * the platform creates a node roughly every twenty minutes, so a quiet minute
- * here is normal, not a broken pipeline.
- */
-function RightNow({ activeNow }) {
-  const pulse = useActivityPulse({ minutes: 60 });
-  const points = pulse.buckets.map((b) => ({
-    v: b.events,
-    label: new Date(b.minute).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
-  }));
 
-  return (
-    <section className="admin-chart-panel">
-      <header className="admin-chart-head">
-        <h3 className="admin-chart-title">Right now</h3>
-        <span className="admin-chart-sub t-meta">
-          {formatCount(pulse.total)} events in the last hour
-          {pulse.status === 'live' ? ' · live' : pulse.status === 'error' ? ' · reconnecting' : ' · connecting'}
-        </span>
-      </header>
-      <div className="admin-right-now">
-        <div className="admin-right-now-figure">
-          <span className="admin-right-now-value">{formatCount(activeNow ?? 0)}</span>
-          <span className="admin-right-now-label">signed in within 5 minutes</span>
-        </div>
-        <div className="admin-right-now-plot">
-          <TrendLine
-            points={points}
-            height={64}
-            color={VAR.cat[0]}
-            area
-            formatValue={(v) => `${formatCount(v)} events`}
-          />
-        </div>
-      </div>
-    </section>
-  );
-}
+// `RightNow` used to live here: a full-page-width panel holding one numeral and
+// a 64px sparkline, which made it the sparsest thing on the densest screen. It
+// measured the same stream the live console does, so it moved inside it — the
+// numeral is now a readout in the console header.
 
 /** Who arrived, and whether they did anything once they got here. */
 function WhoArrived({ users }) {
@@ -324,64 +287,72 @@ export function TodayView() {
           </dl>
         )}
 
-        {/* The two charts the page is actually worth opening for. Ninety days
-            of growth beside thirty days folded onto a week: one says whether
-            the line is going up, the other says when anyone is here to make it
-            go up. Neither question was answerable before. */}
+        {/* Four series on four scales. Sharing one axis would flatten signups
+            against a number ten times its size — the dual-axis mistake wearing
+            a disguise — so they are small multiples instead.
+
+            Two of these cost nothing new. admin_metrics_history returns NINE
+            columns and this view was reading three of them; `total_users` was
+            fetched and dropped on every poll. It is the growth curve, and it
+            was already in the payload. */}
         <h2 className="admin-section-title">Growth</h2>
-        <div className="admin-section-sub">
-          Ninety days of each, on their own scales. Sharing one axis would flatten signups
-          against a number ten times its size — which is the dual-axis mistake wearing a disguise.
-        </div>
-        <div className="admin-charts-row">
-          <section className="admin-chart-panel">
-            <header className="admin-chart-head">
-              <h3 className="admin-chart-title">Signups</h3>
-              <span className="admin-chart-sub t-meta">per day · 90 days</span>
-            </header>
-            <div className="admin-chart-body">
-              <AreaChart
-                height={230}
-                labels={(d?.signups90 || []).map((r) => shortDay(r.day))}
-                formatValue={(v) => formatCount(v)}
-                series={[{ name: 'Signups', color: VAR.cat[0], values: (d?.signups90 || []).map((r) => num(r.signups) ?? 0) }]}
-              />
-            </div>
-          </section>
+        <Deck>
+          <Well span={3} title="Signups" meta="per day · 90d">
+            <AreaChart
+              height={168}
+              labels={(d?.signups90 || []).map((r) => shortDay(r.day))}
+              formatValue={(v) => formatCount(v)}
+              series={[{ name: 'Signups', color: VAR.cat[0], values: (d?.signups90 || []).map((r) => num(r.signups) ?? 0) }]}
+            />
+          </Well>
 
-          <section className="admin-chart-panel">
-            <header className="admin-chart-head">
-              <h3 className="admin-chart-title">Active users</h3>
-              <span className="admin-chart-sub t-meta">
-                per day · gaps are days metrics_daily never captured
-              </span>
-            </header>
-            <div className="admin-chart-body">
-              <AreaChart
-                height={230}
-                labels={(d?.history || []).map((r) => shortDay(r.day))}
-                formatValue={(v) => formatCount(v)}
-                series={[{ name: 'Active users', color: VAR.cat[1], values: (d?.history || []).map((r) => num(r.active_users)) }]}
-              />
-            </div>
-          </section>
-        </div>
+          <Well span={3} title="Total users" meta="cumulative · 60d">
+            <AreaChart
+              height={168}
+              labels={(d?.history || []).map((r) => shortDay(r.day))}
+              formatValue={(v) => formatCount(v)}
+              series={[{ name: 'Total users', color: VAR.cat[0], values: (d?.history || []).map((r) => num(r.total_users)) }]}
+            />
+          </Well>
 
-        <h2 className="admin-section-title">When people are here</h2>
-        <div className="admin-section-sub">
-          Every event of the last thirty days folded onto one week, in your timezone. The daily
-          totals are too small to have a shape; a month of them stacked on a week is not.
-        </div>
-        <section className="admin-chart-panel admin-chart-panel-wide">
-          <div className="admin-chart-body">
+          <Well span={3} title="Active users" meta="per day · gaps = never captured">
+            <AreaChart
+              height={168}
+              labels={(d?.history || []).map((r) => shortDay(r.day))}
+              formatValue={(v) => formatCount(v)}
+              series={[{ name: 'Active users', color: VAR.cat[1], values: (d?.history || []).map((r) => num(r.active_users)) }]}
+            />
+          </Well>
+
+          <Well span={3} title="Cards created" meta="per day · 30d">
+            <AreaChart
+              height={168}
+              labels={(d?.cards || []).map((r) => shortDay(r.day))}
+              formatValue={(v) => formatCount(v)}
+              series={[{ name: 'Cards', color: VAR.cat[2], values: (d?.cards || []).map((r) => num(r.cards) ?? 0) }]}
+            />
+          </Well>
+        </Deck>
+
+        <h2 className="admin-section-title">When people are here, and what is happening now</h2>
+        <Deck>
+          <Well
+            span={8}
+            flush
+            title="Activity by weekday and hour"
+            meta="30d of events, folded onto one week, your timezone"
+            foot="Daily totals are too small to have a shape. A month of them stacked on a week is."
+          >
             <Heatmap
               cells={d?.heatmap || []}
               formatValue={(v) => `${formatCount(v)} event${v === 1 ? '' : 's'}`}
             />
-          </div>
-        </section>
+          </Well>
 
-        <RightNow activeNow={d?.activeNow} />
+          <Well span={4} flush title="Live" meta="pushed, not polled">
+            <EventConsole activeNow={d?.activeNow} minutes={60} excludeInternal={f.excludeInternal} />
+          </Well>
+        </Deck>
 
         <h2 className="admin-section-title">People</h2>
         <div className="admin-section-sub">

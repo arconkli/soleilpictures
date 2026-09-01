@@ -22,6 +22,17 @@
 // The scale is sqrt, not linear. One outlier hour of 1,207 events against a
 // median in the tens would otherwise push every other cell into the bottom
 // bucket and the grid would read as empty.
+//
+// MARGINALS. A per-hour total across the top and a per-day total down the right
+// side. The grid alone makes you squint to answer "which day is busiest" and
+// "which hour is busiest", which are the two questions people bring to it; the
+// margins answer both at a glance and cost no extra query, because the 168
+// cells were already fetched.
+//
+// The day margin plots ACTORS, not events. `actors` has been returned by the
+// RPC all along and appeared nowhere except a hover tooltip, and it is the more
+// honest of the two at this end: one person having a very busy Tuesday should
+// not make Tuesday look like a popular day.
 
 import { useState } from 'react';
 import { VAR } from './palette.js';
@@ -51,9 +62,23 @@ export function Heatmap({
     return Math.min(4, Math.floor(t * 5));
   };
 
+  // Margins. Hours sum events across the seven days; days sum DISTINCT-ish
+  // actors across the twenty-four hours — a per-hour distinct count, so summing
+  // it over-counts anyone active in two hours. That is stated in the tooltip
+  // rather than silently presented as a headcount.
+  const hourTotals = Array.from({ length: 24 }, (_, h) =>
+    DAYS.reduce((a, _d, di) => a + num(byKey.get(`${di + 1}-${h}`)?.events), 0));
+  const hourMax = Math.max(1, ...hourTotals);
+
+  const dayActors = DAYS.map((_d, di) =>
+    Array.from({ length: 24 }, (_, h) => num(byKey.get(`${di + 1}-${h}`)?.actors))
+      .reduce((a, b) => a + b, 0));
+  const dayMax = Math.max(1, ...dayActors);
+  const busiestDay = dayActors.indexOf(Math.max(...dayActors));
+
   return (
     <div className="adm-heat">
-      <div className="adm-heat-grid" onPointerLeave={() => setHover(null)}>
+      <div className="adm-heat-grid has-margins" onPointerLeave={() => setHover(null)}>
         <div className="adm-heat-corner" />
         {Array.from({ length: 24 }, (_, h) => (
           <div className="adm-heat-hour" key={`h${h}`} style={{ gridColumn: h + 2 }}>
@@ -61,8 +86,21 @@ export function Heatmap({
           </div>
         ))}
 
+        {/* Hour margin — total events at this hour across the whole window. */}
+        {hourTotals.map((t, h) => (
+          <div
+            className="adm-heat-marg is-hour"
+            key={`hm${h}`}
+            style={{ gridColumn: h + 2, gridRow: 2 }}
+            title={`${HOUR_TICKS[h] || `${h}:00`} — ${formatValue(t)} across the window`}
+          >
+            <span style={{ height: `${Math.max(4, (t / hourMax) * 100)}%` }} />
+          </div>
+        ))}
+        <div className="adm-heat-marg-label" style={{ gridColumn: 26, gridRow: 2 }}>people</div>
+
         {DAYS.map((day, di) => (
-          <div className="adm-heat-day" key={day} style={{ gridRow: di + 2 }}>{day}</div>
+          <div className="adm-heat-day" key={day} style={{ gridRow: di + 3 }}>{day}</div>
         ))}
 
         {DAYS.map((day, di) => Array.from({ length: 24 }, (_, h) => {
@@ -77,7 +115,7 @@ export function Heatmap({
               className={`adm-heat-cell ${isPeak ? 'is-peak' : ''} ${si < 0 ? 'is-zero' : ''}`}
               style={{
                 gridColumn: h + 2,
-                gridRow: di + 2,
+                gridRow: di + 3,
                 background: si < 0 ? 'var(--adm-heat-zero)' : VAR.seq[si],
               }}
               onPointerEnter={() => setHover({ day, h, v, actors: num(c?.actors) })}
@@ -85,6 +123,18 @@ export function Heatmap({
             />
           );
         }))}
+
+        {/* Day margin — people, not events, for the reason in the header. */}
+        {dayActors.map((t, di) => (
+          <div
+            className={`adm-heat-marg is-day ${di === busiestDay ? 'is-busiest' : ''}`}
+            key={`dm${di}`}
+            style={{ gridColumn: 26, gridRow: di + 3 }}
+            title={`${DAYS[di]} — ${t} person-hours (someone active in two hours counts twice)`}
+          >
+            <span style={{ width: `${Math.max(4, (t / dayMax) * 100)}%` }} />
+          </div>
+        ))}
       </div>
 
       <div className="adm-heat-foot">

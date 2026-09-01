@@ -22,6 +22,7 @@ import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
 import { formatCount } from '../../../../lib/adminFormat.js';
 import { useAnalyticsFilters, useRegisterViewRuntime } from '../AnalyticsFiltersContext.jsx';
 import { FunnelSteps } from '../../viz/FunnelSteps.jsx';
+import { Deck, Well } from '../../viz/Well.jsx';
 import { BarRows } from '../../viz/BarRows.jsx';
 import { Detail } from '../../viz/Detail.jsx';
 import { RateCell } from '../../SmallN.jsx';
@@ -54,13 +55,11 @@ function ChannelMix({ rows, days }) {
   const total = data.reduce((a, r) => a + r.value, 0);
 
   return (
-    <section className="admin-chart-panel admin-chart-panel-wide">
-      <header className="admin-chart-head">
-        <h3 className="admin-chart-title">Where they came from</h3>
-        <span className="admin-chart-sub t-meta">
-          first-touch source · {formatCount(total)} signups · last {days}d
-        </span>
-      </header>
+    <Well
+      span={6}
+      title="Where they came from"
+      meta={`first-touch source · ${formatCount(total)} signups · ${days}d`}
+    >
       <BarRows
         ramp
         rows={data}
@@ -71,7 +70,51 @@ function ChannelMix({ rows, days }) {
           : null)}
         emptyLabel="No attributed signups in this window."
       />
-    </section>
+    </Well>
+  );
+}
+
+/**
+ * Campaigns and creatives, by traffic.
+ *
+ * Free. admin_funnel_segments is already fetched by the shell on every view —
+ * it is what fills the three dropdowns in the toolbar — and it returns a
+ * session count per value that nothing has ever drawn. The dropdowns let you
+ * pick a campaign; they never told you which campaigns exist in any quantity,
+ * so choosing one meant guessing.
+ */
+function SegmentTraffic({ segments = [], days }) {
+  const DIMS = [
+    { dim: 'campaign', label: 'Campaign' },
+    { dim: 'content', label: 'Creative' },
+  ];
+
+  const rows = DIMS.flatMap(({ dim, label }) => (segments || [])
+    .filter((s) => s.dim === dim && s.value)
+    .sort((a, b) => num(b.sessions) - num(a.sessions))
+    .slice(0, 5)
+    .map((s) => ({
+      key: `${dim}:${s.value}`,
+      label: s.value,
+      value: num(s.sessions),
+      title: `${label}: ${s.value}`,
+    })));
+
+  return (
+    <Well
+      span={6}
+      title="Campaigns and creatives"
+      meta={`browsers per tagged value · ${days}d`}
+      foot="Top five of each. These are the values behind the toolbar's dropdowns — picking one was previously a guess about whether it had any traffic."
+    >
+      <BarRows
+        ramp
+        rows={rows}
+        limit={10}
+        formatValue={(v) => formatCount(v)}
+        emptyLabel="No campaign or creative tags in this window."
+      />
+    </Well>
   );
 }
 
@@ -111,17 +154,22 @@ export function FunnelView() {
           {' '}The waitlist fork is not drawn — it has been switched off since 2026-06-13, so it would
           only ever draw a flat zero.
         </div>
-        <FunnelSteps steps={q.data?.steps || []} days={f.days} />
-        <LeaksSummary steps={q.data?.steps || []} />
+        <Deck>
+          <FunnelSteps steps={q.data?.steps || []} days={f.days} span={8} />
+          <LeaksSummary steps={q.data?.steps || []} />
+        </Deck>
 
         <h2 className="admin-section-title">Channels</h2>
-        <ChannelMix rows={q.data?.acquisition} days={f.days} />
+        <Deck>
+          <ChannelMix rows={q.data?.acquisition} days={f.days} />
+          <SegmentTraffic segments={f.segments} days={f.days} />
+        </Deck>
 
         <h2 className="admin-section-title">Detail</h2>
         <div className="admin-section-sub">
           Real, but not what this view is for. Each section fetches only once opened.
         </div>
-        <DetailSections days={f.days} f={f} steps={q.data?.steps || []} />
+        <DetailSections days={f.days} f={f} />
       </div>
     </AdminAsync>
   );
@@ -134,7 +182,7 @@ export function FunnelView() {
  * on mount whether or not you looked at the geography table, and Engagement
  * fired twenty-five. Here nothing runs until a section is opened.
  */
-function DetailSections({ days, f, steps }) {
+function DetailSections({ days, f }) {
   return (
     <>
       <Detail id="funnel.paths" label="Other paths into the product">
@@ -144,7 +192,7 @@ function DetailSections({ days, f, steps }) {
         <LazyAudience days={days} f={f} />
       </Detail>
       <Detail id="funnel.money" label="Checkout, upsell and the biggest accounts">
-        <LazyMoney days={days} f={f} steps={steps} />
+        <LazyMoney days={days} f={f} />
       </Detail>
     </>
   );
@@ -195,7 +243,7 @@ function LazyAudience({ days, f }) {
   );
 }
 
-function LazyMoney({ days, f, steps }) {
+function LazyMoney({ days, f }) {
   const q = useAdminData(async () => {
     const [cr, eb, td, tp, us, ux] = await Promise.allSettled([
       supabase.rpc('admin_checkout_reliability', { p_days: days, p_exclude_internal: f.excludeInternal }),
@@ -223,13 +271,10 @@ function LazyMoney({ days, f, steps }) {
           ? `${formatCount(paid)} paying account${paid === 1 ? '' : 's'}.`
           : 'No subscription has ever existed, so every rate below has a zero numerator by absence rather than by measurement.'}
       </p>
-      <FunnelSteps
-        steps={steps}
-        days={days}
-        title="Pricing path"
-        sub="of those who reached the fork: pricing → checkout → paid"
-        branches={['pricing']}
-      />
+      {/* The "Pricing path" funnel that used to sit here rendered the SAME
+          `steps` array as the funnel at the top of this view, filtered to the
+          branch that funnel already draws. Two charts, one dataset, one of them
+          redundant. */}
       <UpsellBehaviorPanel scorecard={q.data?.upsell} exposures={q.data?.upsellExposures || []} days={days} />
       <AdminEventBreakdown rows={q.data?.eventBreakdown || []} reliability={q.data?.reliability} days={days} />
       <AdminTopUsersList topDemo={q.data?.topDemo || []} topPaid={q.data?.topPaid || []} />

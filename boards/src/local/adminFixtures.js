@@ -567,6 +567,115 @@ RPCS.admin_activity_heatmap = (() => {
   return out;
 })();
 
+// admin_retention_cohort_matrix(cohort_week, week_offset, cohort_size,
+// active_n, active_pct, measurable, work_floor).
+//
+// Shaped to exercise all THREE cell states, because a fixture that only
+// produces measured cells cannot tell you whether the other two render:
+//
+//   • the unreached upper triangle is ABSENT — a cohort three weeks old emits
+//     three cells, not thirteen. If this fixture emitted a full rectangle the
+//     component could fill the future with zeros and no test would notice.
+//   • weeks before `work_floor` come back measurable:false with a null pct.
+//     Production has eleven of thirteen rows in that state, because did_work
+//     was added by 0248 and deliberately never backfilled.
+//   • everything else is a real number, including genuine zeros.
+RPCS.admin_retention_cohort_matrix = (() => {
+  const WEEKS = 13;
+  const monday = (weeksAgo) => {
+    const d = new Date(Date.UTC(2026, 7, 31));           // fixed: no Date.now()
+    d.setUTCDate(d.getUTCDate() - weeksAgo * 7);
+    return d.toISOString().slice(0, 10);
+  };
+  // Three weeks of instrumented history, matching production's shape.
+  const floor = monday(2);
+  const out = [];
+  for (let w = 0; w < WEEKS; w++) {
+    const cohortWeek = monday(w);
+    const size = [10, 41, 32, 25, 33, 31, 29, 26, 26, 33, 25, 15, 13][w];
+    for (let off = 0; off <= w; off++) {
+      const weekStart = (() => {
+        const d = new Date(`${cohortWeek}T00:00:00Z`);
+        d.setUTCDate(d.getUTCDate() + off * 7);
+        return d.toISOString().slice(0, 10);
+      })();
+      const measurable = weekStart >= floor;
+      // W0 is high, then it falls off a cliff — which is the real finding.
+      const pct = off === 0 ? 0.7 : off === 1 ? 0.11 : off === 2 ? 0.05 : 0;
+      const activeN = measurable ? Math.round(size * pct) : 0;
+      out.push({
+        cohort_week: cohortWeek,
+        week_offset: off,
+        cohort_size: size,
+        active_n: activeN,
+        active_pct: measurable ? Number((activeN / size).toFixed(4)) : null,
+        measurable,
+        work_floor: floor,
+      });
+    }
+  }
+  return out;
+})();
+
+// admin_recent_events(id, event, occurred_at, user_id, email, path).
+// One row per family so the console's colour key is actually exercised; the
+// mix is weighted the way production is (lp_/ps_ traces dominate).
+RPCS.admin_recent_events = (() => {
+  const EVENTS = [
+    'lp_trace', 'ps_trace', 'card_placed', 'ps_heartbeat', 'card_create_intent',
+    'lp_view', 'app_open', 'board_open', 'lp_dwell', 'onboarding_step',
+    'ps_signup', 'up_suppressed', 'empty_board_shown', 'experiment_enrolled',
+    'note_edit', 'share_open', 'lp_cta_click', 'app_trace', 'grid_apply',
+    'landing_field_engage', 'doc_edit', 'ps_tier_resolved', 'card_placed', 'board_open',
+    'lp_section', 'seo_landing_view',
+  ];
+  return EVENTS.map((event, i) => ({
+    id: `ev-${i}`,
+    event,
+    occurred_at: tsISO(i * 3 + 1),
+    user_id: i % 4 === 0 ? null : `u-${i % 18}`,
+    email: i % 4 === 0 ? null : `${NAMES[i % NAMES.length]}${i % 18}@studio.co`,
+    path: i % 3 === 0 ? '/' : '/app',
+  }));
+})();
+
+// admin_session_depth(week, users, sessions, sessions_per_user,
+// median_minutes, p90_minutes, surfaces_per_session).
+// Deployed since 0250 and never called until now, so it had no fixture — which
+// is exactly why nobody noticed it existed.
+RPCS.admin_session_depth = Array.from({ length: 12 }, (_, i) => {
+  const week = (() => {
+    const d = new Date(Date.UTC(2026, 7, 31));
+    d.setUTCDate(d.getUTCDate() - (11 - i) * 7);
+    return d.toISOString().slice(0, 10);
+  })();
+  const users = 22 + ((i * 5) % 19);
+  const sessions = Math.round(users * (1.6 + (i % 4) * 0.2));
+  return {
+    week,
+    users,
+    sessions,
+    sessions_per_user: Number((sessions / users).toFixed(2)),
+    median_minutes: Number((5.5 + Math.sin(i * 0.8) * 2.4).toFixed(1)),
+    p90_minutes: Number((21 + Math.sin(i * 0.6) * 9).toFixed(1)),
+    surfaces_per_session: Number((1.3 + (i % 3) * 0.2).toFixed(2)),
+  };
+});
+
+// admin_onboarding_error_coverage(event, sessions, users, total, top_reason,
+// ord).
+//
+// This one is a repair. SystemView has been FETCHING this RPC and never
+// rendering it, and the reason that survived a production promotion is right
+// here: with no fixture the harness returned null, an unrendered panel and an
+// absent panel look identical, and no test can tell them apart.
+RPCS.admin_onboarding_error_coverage = [
+  { event: 'upload_failed',    sessions: 34, users: 29, total: 41, top_reason: 'file too large',        ord: 1 },
+  { event: 'card_create_fail', sessions: 18, users: 16, total: 22, top_reason: 'network',               ord: 2 },
+  { event: 'auth_error',       sessions: 11, users: 11, total: 12, top_reason: 'otp expired',           ord: 3 },
+  { event: 'board_load_fail',  sessions: 4,  users: 4,  total: 4,  top_reason: 'stale chunk',           ord: 4 },
+];
+
 RPCS.admin_paid_grants_status_counts = (() => {
   const g = RPCS.admin_list_paid_grants || [];
   const by = (s) => g.filter((r) => r.status === s).length;

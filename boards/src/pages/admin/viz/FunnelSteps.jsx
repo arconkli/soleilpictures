@@ -26,6 +26,7 @@
 import { useMemo } from 'react';
 import { formatCount, formatPct, MIN_RATE_FLAG } from '../../../lib/adminFormat.js';
 import { PanelNote } from '../SmallN.jsx';
+import { Well } from './Well.jsx';
 import { VAR } from './palette.js';
 
 const BRANCH_META = {
@@ -115,33 +116,34 @@ export function FunnelSteps({
   sub = 'where sessions fall off, top → fork → outcome',
   branches = ['pricing'],
   forkLabel = 'Forks at Welcome →',
+  /** Columns on the 12-wide deck. Omit to keep the old full-width page panel. */
+  span,
 }) {
   const { top, coreRows, branchRows, biggestKey } = useMemo(() => buildRows(steps, branches), [steps, branches]);
   const lowN = top > 0 && top < MIN_RATE_FLAG;
 
+  // Every panel states its population and window — the Command Center rule.
+  // "browsers" rather than "sessions" is deliberate: the funnel RPCs count
+  // distinct session_id, which 0248 documents as a DEVICE id minted once into
+  // localStorage and never rotated.
+  const meta = `${sub} · n=${formatCount(top)} browsers · last ${days}d`;
+
   if (top === 0) {
-    return (
-      <section className="admin-chart-panel admin-chart-panel-wide">
-        <header className="admin-chart-head">
-          <h3 className="admin-chart-title">{title}</h3>
-        </header>
-        <div className="admin-empty">No funnel sessions in this window.</div>
-      </section>
-    );
+    return span
+      ? <Well span={span} title={title}><div className="admin-empty">No funnel sessions in this window.</div></Well>
+      : (
+        <section className="admin-chart-panel admin-chart-panel-wide">
+          <header className="admin-chart-head">
+            <h3 className="admin-chart-title">{title}</h3>
+          </header>
+          <div className="admin-empty">No funnel sessions in this window.</div>
+        </section>
+      );
   }
 
-  return (
-    <section className="admin-chart-panel admin-chart-panel-wide">
-      <header className="admin-chart-head">
-        <h3 className="admin-chart-title">{title}</h3>
-        {/* Every panel states its population and window — the Command Center
-            rule. "browsers" rather than "sessions" is deliberate: the funnel
-            RPCs count distinct session_id, which 0248 documents as a DEVICE id
-            minted once into localStorage and never rotated. */}
-        <span className="admin-chart-sub t-meta">{sub} · n={formatCount(top)} browsers · last {days}d</span>
-      </header>
-      <div className="admin-chart-body">
-        <div className="admin-hero-funnel">
+  const body = (
+    <>
+      <div className="admin-hero-funnel">
           <div className="admin-funnel-row admin-funnel-row-head">
             <span className="admin-funnel-row-label">Step</span>
             <span />
@@ -168,13 +170,24 @@ export function FunnelSteps({
               ))}
             </div>
           ))}
-        </div>
-        {lowN && (
-          <PanelNote>
-            Percentages are directional at this volume (n={formatCount(top)}). Bars and counts are exact. Internal/admin traffic excluded.
-          </PanelNote>
-        )}
       </div>
+      {lowN && (
+        <PanelNote>
+          Percentages are directional at this volume (n={formatCount(top)}). Bars and counts are exact. Internal/admin traffic excluded.
+        </PanelNote>
+      )}
+    </>
+  );
+
+  if (span) return <Well span={span} title={title} meta={meta}>{body}</Well>;
+
+  return (
+    <section className="admin-chart-panel admin-chart-panel-wide">
+      <header className="admin-chart-head">
+        <h3 className="admin-chart-title">{title}</h3>
+        <span className="admin-chart-sub t-meta">{meta}</span>
+      </header>
+      <div className="admin-chart-body">{body}</div>
     </section>
   );
 }

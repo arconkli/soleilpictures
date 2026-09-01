@@ -41,8 +41,40 @@
 //     distributions and single-series trends encode magnitude, not identity —
 //     they render in neutral ink. Spend colour on identity and on status.
 
-/** Panel surfaces these were validated against — `--bg-2` dark, `--bg-3` light. */
-export const SURFACES = { dark: '#16161a', light: '#ededf0' };
+/**
+ * Surfaces these were validated against.
+ *
+ * `dark` / `light` are the page-level panel surfaces (`--bg-2` / `--bg-3`), and
+ * they are what tiles, sparklines and tables sit on — those follow the theme.
+ *
+ * `well` is different, and it is the reason the dashboard can look like an
+ * instrument at all: every PLOT is painted into a near-black well that is THE
+ * SAME COLOUR IN BOTH THEMES. A chart is a screen set into a console, not a
+ * region of the page, so it does not change with the page.
+ *
+ * That has a consequence worth stating plainly: marks drawn inside a well use
+ * the DARK categorical set regardless of theme, because the surface under them
+ * is dark regardless of theme. `.adm-well` in admin.css re-declares the dark
+ * steps as local custom properties, so every component keeps drawing through
+ * `VAR.*` and none of them know this happened.
+ *
+ * The well is darker than the dark panel it replaces (#101015 vs #16161a), so
+ * contrast rises for every hue rather than falling — measured, not assumed:
+ * chartPalette.test.mjs runs the same six checks against it.
+ */
+export const SURFACES = { dark: '#16161a', light: '#ededf0', well: '#101015' };
+
+/**
+ * The well's own furniture. Graph-paper rules and axis ink live at fixed alphas
+ * over `SURFACES.well` rather than deriving from `--ink-*`, which would flip
+ * with the theme and turn the grid black-on-black in light mode.
+ */
+export const WELL = {
+  surface: SURFACES.well,
+  ink: '#e8e9ee',
+  ink2: '#9a9cab',
+  ink3: '#6a6c7a',
+};
 
 /**
  * Categorical hues in FIXED ORDER. Never cycled: a 4th series is `other`, or
@@ -108,6 +140,14 @@ export const VAR = {
   axis:     'var(--adm-axis)',
   grid:     'var(--adm-grid)',
   surface:  'var(--adm-surface)',
+  // The well. Inside `.adm-well` the four names above already resolve to the
+  // well's own steps via the local custom-property block, so components almost
+  // never need these directly — they are here for the cases that must name the
+  // plot ground explicitly, such as an SVG halo drawn around a mark.
+  well:     'var(--adm-plot)',
+  wellInk:  'var(--adm-plot-ink)',
+  wellInk2: 'var(--adm-plot-ink-2)',
+  wellInk3: 'var(--adm-plot-ink-3)',
 };
 
 /**

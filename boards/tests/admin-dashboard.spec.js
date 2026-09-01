@@ -164,6 +164,155 @@ test.describe('admin dashboard charts', () => {
     expect(await page.locator('.adm-area-plot svg path').count()).toBeGreaterThan(0);
   });
 
+  test('every plot well is darker than the page, in LIGHT theme', async ({ page }) => {
+    // This is the whole bargain of the instrument deck: a plot is a screen set
+    // into a console, so its ground does not follow the theme. If a well ever
+    // resolves to a light surface, the marks on it are the DARK palette steps
+    // and the chart drops to roughly 1.7:1 — which is the exact failure the
+    // palette work was done to end. Light is the only theme where this can
+    // regress silently, so light is where it is asserted.
+    await openAdmin(page, { view: 'today', theme: 'light' });
+    await expect(page.locator('.adm-well').first()).toBeVisible({ timeout: 15000 });
+
+    const result = await page.evaluate(() => {
+      const lum = (c) => {
+        const [r, g, b] = c.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number).map((v) => {
+          const s = v / 255;
+          return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      };
+      const page_ = lum(getComputedStyle(document.body).backgroundColor);
+      const wells = [...document.querySelectorAll('.adm-well')];
+      return {
+        count: wells.length,
+        page: page_,
+        lighter: wells
+          .map((w) => ({ cls: w.className, l: lum(getComputedStyle(w).backgroundColor) }))
+          .filter((w) => w.l >= page_)
+          .map((w) => w.cls),
+      };
+    });
+
+    expect(result.count).toBeGreaterThan(2);
+    expect(result.lighter, `wells not darker than the page: ${result.lighter.join(' | ')}`).toEqual([]);
+  });
+
+  test('the cohort matrix never draws the future, and hatches what it did not measure', async ({ page }) => {
+    // Three cell states, and two of them are how a cohort chart lies. Filling
+    // the unreached upper triangle with 0% invents a churn cliff out of the
+    // future; painting the pre-instrumentation weeks as 0% invents one out of
+    // a column that was not being written (did_work is false for everything
+    // before 2026-08-17 and 0248 deliberately did not backfill it).
+    await openAdmin(page, { view: 'retention', theme: 'dark' });
+    await expect(page.locator('.adm-cohort-grid')).toBeVisible({ timeout: 15000 });
+
+    // Newest cohort first, so row 1 has the fewest cells with content.
+    const shape = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll('.adm-cohort-row')]
+        .filter((r) => !r.classList.contains('is-head') && !r.classList.contains('is-avg'));
+      return rows.map((r) => {
+        const cells = [...r.querySelectorAll('.adm-cohort-cell')];
+        return {
+          future: cells.filter((c) => c.classList.contains('is-future')).length,
+          unknown: cells.filter((c) => c.classList.contains('is-unknown')).length,
+          // A measured cell prints a number; future and unknown print nothing.
+          labelled: cells.filter((c) => c.textContent.trim() !== '').length,
+          futureLabelled: cells.filter((c) => c.classList.contains('is-future') && c.textContent.trim() !== '').length,
+          unknownLabelled: cells.filter((c) => c.classList.contains('is-unknown') && c.textContent.trim() !== '').length,
+        };
+      });
+    });
+
+    expect(shape.length).toBeGreaterThan(3);
+    // Newest cohort has lived one week; the oldest has lived many.
+    expect(shape[0].labelled + shape[0].unknown).toBeLessThan(shape[shape.length - 1].labelled + shape[shape.length - 1].unknown);
+    for (const [i, r] of shape.entries()) {
+      expect(r.futureLabelled, `row ${i} printed a value in an unreached week`).toBe(0);
+      expect(r.unknownLabelled, `row ${i} printed a value in an unmeasured week`).toBe(0);
+    }
+    // The fixture deliberately spans the instrumentation boundary.
+    expect(shape.some((r) => r.unknown > 0), 'no hatched cells — the unknown state is untested').toBe(true);
+  });
+
+  test('the live console seeds from the backfill and never announces itself', async ({ page }) => {
+    // `recent` on useActivityPulse starts empty and fills only as events are
+    // pushed, so without admin_recent_events the console is blank for its first
+    // few minutes and reads as broken. And it must NOT be a live region: two
+    // thousand events a day announced to a screen reader is unusable.
+    await openAdmin(page, { view: 'today', theme: 'dark' });
+    const stream = page.locator('.adm-console-stream');
+    await expect(stream).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.adm-console-row').first()).toBeVisible();
+
+    const live = await stream.getAttribute('aria-live');
+    expect(live, 'the event stream must not be an aria-live region').toBeNull();
+    await expect(stream).toHaveAttribute('aria-hidden', 'true');
+    // The non-visual equivalent has to exist in its place.
+    await expect(page.locator('.adm-console').locator('.sr-only')).toHaveCount(1);
+  });
+
+  test('Today packs the first screen', async ({ page }) => {
+    // Guards the decision, not the pixels. Before this pass Today showed about
+    // six things across four screens of scroll; the deck exists to make the
+    // first screen worth opening. If someone re-introduces generous vertical
+    // rhythm here, this is what says so.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await expect(page.locator('.adm-well').first()).toBeVisible({ timeout: 15000 });
+
+    const aboveFold = await page.evaluate(() => [
+      ...document.querySelectorAll('.adm-well, .admin-stat-card'),
+    ].filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top < 900 && r.height > 20;
+    }).length);
+
+    expect(aboveFold).toBeGreaterThanOrEqual(11);
+  });
+
+  test('the heatmap margins are drawn, and are not mistaken for cells', async ({ page }) => {
+    // `actors` was returned by admin_activity_heatmap all along and appeared
+    // only in a hover tooltip. The margins spend it — but they are furniture,
+    // so they must not inflate the 168-cell count the test above asserts.
+    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await expect(page.locator('.adm-heat-grid')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.adm-heat-marg.is-hour')).toHaveCount(24);
+    await expect(page.locator('.adm-heat-marg.is-day')).toHaveCount(7);
+    await expect(page.locator('.adm-heat-cell')).toHaveCount(168);
+    await expect(page.locator('.adm-heat-marg.is-day.is-busiest')).toHaveCount(1);
+  });
+
+  test('the return curve plots one segment, not three interleaved', async ({ page }) => {
+    // admin_retention_curve returns a row per (segment, day_offset) — all /
+    // demo / paid. The panel used to plot every row in RPC order, drawing a
+    // 22-day decay as a 66-point sawtooth and passing the zigzag between
+    // segments off as day-to-day volatility.
+    await openAdmin(page, { view: 'retention', theme: 'dark' });
+    await expect(page.locator('.adm-trend-plot').first()).toBeVisible({ timeout: 15000 });
+
+    // A monotonic-ish decay reverses direction a handful of times; three
+    // interleaved series reverse on nearly every point.
+    const reversals = await page.evaluate(() => {
+      const path = document.querySelector('.adm-trend-plot svg path[stroke]');
+      if (!path) return -1;
+      const ys = [...path.getAttribute('d').matchAll(/[ML,]\s*[\d.]+[ ,]([\d.]+)/g)].map((m) => Number(m[1]));
+      let n = 0;
+      for (let i = 2; i < ys.length; i++) {
+        const a = Math.sign(ys[i - 1] - ys[i - 2]);
+        const b = Math.sign(ys[i] - ys[i - 1]);
+        if (a !== 0 && b !== 0 && a !== b) n++;
+      }
+      return { reversals: n, points: ys.length };
+    });
+
+    expect(reversals.points).toBeGreaterThan(5);
+    expect(
+      reversals.reversals / reversals.points,
+      `${reversals.reversals} direction changes over ${reversals.points} points — that is a sawtooth, not a decay curve`,
+    ).toBeLessThan(0.4);
+  });
+
   test('a sparse series is drawn with gaps, not bridged', async ({ page }) => {
     // metrics_daily has no backfill, so the series genuinely has holes. A line
     // drawn straight across a hole invents the days it is missing.

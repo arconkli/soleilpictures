@@ -18,8 +18,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import {
-  SURFACES, CATEGORICAL, OTHER, SEQUENTIAL, STATUS, DIRECTIONAL,
+  SURFACES, CATEGORICAL, OTHER, SEQUENTIAL, STATUS, DIRECTIONAL, WELL,
 } from '../pages/admin/viz/palette.js';
 
 // Floors. Normal vision is the strict one: below 15 a full-colour reader
@@ -82,7 +84,11 @@ function contrast(hexA, hexB) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-const MODES = ['dark', 'light'];
+// `well` is not a theme — it is the plot ground, identical in both themes, and
+// it carries the DARK steps. Running it as a third mode means the same six
+// checks apply to the surface most marks actually land on.
+const MODES = ['dark', 'light', 'well'];
+const STEPS_FOR = (mode) => (mode === 'well' ? 'dark' : mode);
 const VISION = ['normal', 'deuteranopia', 'protanopia', 'tritanopia'];
 
 /** Every pair in `hexes` must clear the floor for every vision type. */
@@ -105,7 +111,8 @@ function assertSeparable(hexes, label) {
 
 for (const mode of MODES) {
   const surface = SURFACES[mode];
-  const cats = CATEGORICAL[mode];
+  const steps = STEPS_FOR(mode);
+  const cats = CATEGORICAL[steps];
 
   test(`${mode}: categorical hues are separable to every reader`, () => {
     assertSeparable(cats, `${mode} categorical`);
@@ -126,13 +133,13 @@ for (const mode of MODES) {
   // The remainder bucket sits alongside the real series, so it has to survive
   // the same scrutiny. This is the check that rules out the obvious light grey.
   test(`${mode}: the "other" bucket separates from the series`, () => {
-    assertSeparable([...cats, OTHER[mode]], `${mode} categorical + other`);
-    const c = contrast(OTHER[mode], surface);
-    assert.ok(c >= FLOOR_CONTRAST, `${mode}: other ${OTHER[mode]} is ${c.toFixed(2)}:1 on ${surface}`);
+    assertSeparable([...cats, OTHER[steps]], `${mode} categorical + other`);
+    const c = contrast(OTHER[steps], surface);
+    assert.ok(c >= FLOOR_CONTRAST, `${mode}: other ${OTHER[steps]} is ${c.toFixed(2)}:1 on ${surface}`);
   });
 
   test(`${mode}: the sequential ramp rises monotonically and reads on surface`, () => {
-    const ramp = SEQUENTIAL[mode];
+    const ramp = SEQUENTIAL[steps];
     const ls = ramp.map((h) => oklab(hexToLinear(h))[0]);
     const rising = ls.every((v, i) => i === 0 || v > ls[i - 1]);
     const falling = ls.every((v, i) => i === 0 || v < ls[i - 1]);
@@ -157,8 +164,8 @@ for (const mode of MODES) {
   });
 
   test(`${mode}: status colours are legible, and stay out of the series`, () => {
-    const { good, bad } = STATUS[mode];
-    for (const [name, hex] of [['good', good], ['bad', bad], ['directional', DIRECTIONAL[mode]]]) {
+    const { good, bad } = STATUS[steps];
+    for (const [name, hex] of [['good', good], ['bad', bad], ['directional', DIRECTIONAL[steps]]]) {
       const c = contrast(hex, surface);
       assert.ok(c >= FLOOR_CONTRAST, `${mode}: status ${name} ${hex} is ${c.toFixed(2)}:1 on ${surface}`);
     }
@@ -194,7 +201,7 @@ for (const mode of MODES) {
 // arrows out of the delta badge because the colours look sufficient, this test
 // is the record that they are not.
 test('good and bad are NOT separable by colour alone — the glyph is required', () => {
-  for (const mode of MODES) {
+  for (const mode of ['dark', 'light']) {
     const { good, bad } = STATUS[mode];
     const d = deltaE(good, bad, 'deuteranopia');
     assert.ok(
@@ -204,6 +211,57 @@ test('good and bad are NOT separable by colour alone — the glyph is required',
       + 'icon-plus-label requirement in the UI.',
     );
   }
+});
+
+// The well only works because `.adm-well` in admin.css re-declares the dark
+// steps as local custom properties — that is what lets every viz component keep
+// drawing through VAR.* while landing on a surface that ignores the theme.
+//
+// Nothing in JavaScript can observe that block, so a well-meaning edit to
+// admin.css could silently leave light-theme marks on a near-black ground at
+// 1.7:1 — the exact failure this whole file exists to prevent, reintroduced by
+// the fix for it. So read the stylesheet and check.
+test('.adm-well re-declares the dark steps, and admin.css agrees with palette.js', () => {
+  const cssPath = fileURLToPath(new URL('../pages/admin/admin.css', import.meta.url));
+  const css = readFileSync(cssPath, 'utf8');
+
+  const block = css.match(/\.adm-well\s*\{([^}]*)\}/);
+  assert.ok(block, 'admin.css has no .adm-well rule — the plot ground is undefined.');
+  const body = block[1];
+
+  const declared = (name) => {
+    const m = body.match(new RegExp(`--${name}\\s*:\\s*(#[0-9a-fA-F]{6})`));
+    return m ? m[1].toLowerCase() : null;
+  };
+
+  const expected = {
+    'adm-cat-1': CATEGORICAL.dark[0],
+    'adm-cat-2': CATEGORICAL.dark[1],
+    'adm-cat-3': CATEGORICAL.dark[2],
+    'adm-cat-other': OTHER.dark,
+    'adm-good': STATUS.dark.good,
+    'adm-bad': STATUS.dark.bad,
+    'adm-directional': DIRECTIONAL.dark,
+    ...Object.fromEntries(SEQUENTIAL.dark.map((hex, i) => [`adm-seq-${i + 1}`, hex])),
+  };
+
+  for (const [name, hex] of Object.entries(expected)) {
+    assert.equal(
+      declared(name), hex.toLowerCase(),
+      `.adm-well declares --${name} as ${declared(name)}, but palette.js says ${hex}. `
+      + 'The well carries the DARK steps in both themes; if these drift, light-theme '
+      + 'charts go back to being invisible.',
+    );
+  }
+
+  // And the ground itself, which is what all of the above was measured against.
+  const plot = css.match(/--adm-plot\s*:\s*(#[0-9a-fA-F]{6})/);
+  assert.ok(plot, 'admin.css never defines --adm-plot.');
+  assert.equal(
+    plot[1].toLowerCase(), SURFACES.well.toLowerCase(),
+    `--adm-plot is ${plot[1]} but the palette was validated against ${SURFACES.well}.`,
+  );
+  assert.equal(WELL.surface, SURFACES.well);
 });
 
 // Gold is the app's focus/selection accent. If it turns up in the data palette
