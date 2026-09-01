@@ -4822,3 +4822,207 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   .adm-live-led,
   .adm-console-row { animation: none !important; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * THE COCKPIT
+ *
+ * The instruments read as instruments; the chrome around them still read as a
+ * web page — sentence-case headings, a sans sub-nav, a page that states none
+ * of its own operating conditions. An instrument in a document is a chart. An
+ * instrument in a console is an instrument.
+ *
+ * Everything here is frame, label and status. No data is drawn, no number is
+ * changed, and nothing below is allowed to cost legibility: the register is
+ * monospace and small, but the contrast tokens are the same ones the rest of
+ * the dashboard already passes its checks with.
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Section bands ──────────────────────────────────────────────────────────
+ * A numbered, monospaced band with a rule running to the edge, instead of a
+ * document heading. The index is a CSS counter, so sections number themselves
+ * in document order and nothing has to be threaded through the JSX.
+ */
+.adm-view { counter-reset: adm-sec; }
+
+.admin-analytics .admin-section-title {
+  counter-increment: adm-sec;
+  font: 600 12.5px/1 var(--font-mono);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-1);
+  gap: 12px;
+  margin: 30px 0 10px;
+}
+
+.admin-analytics .admin-section-title:first-of-type { margin-top: 6px; }
+
+.admin-analytics .admin-section-title::before {
+  content: counter(adm-sec, decimal-leading-zero);
+  font: 600 12.5px/1 var(--font-mono);
+  letter-spacing: .08em;
+  color: var(--ink-3);
+  padding-right: 2px;
+}
+
+/* ── Status strip ───────────────────────────────────────────────────────────
+ * The operating conditions of everything below it, on one line: what window,
+ * which population, how often it re-reads itself, and whether the live link is
+ * up. The Command Center rule says every panel states its population and
+ * window; this says it once, for the whole deck, so the panels do not each
+ * have to spend a line on it.
+ */
+.adm-status {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 0 18px;
+  padding: 7px 12px;
+  margin-bottom: 14px;
+  border-radius: 6px;
+  background: var(--adm-plate-bg);
+  box-shadow: inset 0 0 0 1px var(--adm-plate-edge);
+  font: 500 10.5px/1.6 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.adm-status-item { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+
+.adm-status-k { color: var(--ink-3); letter-spacing: .1em; }
+
+.adm-status-v { color: var(--ink-1); }
+
+.adm-status-sep { flex: 1 1 auto; min-width: 0; }
+
+/* ── Instrument frames ──────────────────────────────────────────────────────
+ * Corner brackets already; add a tick at the middle of each edge. Four more
+ * gradients on the same pseudo-element, so it stays one paint.
+ */
+.adm-well::after,
+.adm-plate::after {
+  background:
+    linear-gradient(var(--_tick), var(--_tick)) 0 0 / 8px 1px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 0 0 / 1px 8px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 100% 0 / 8px 1px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 100% 0 / 1px 8px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 0 100% / 8px 1px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 0 100% / 1px 8px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 100% 100% / 8px 1px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 100% 100% / 1px 8px no-repeat,
+    /* edge midpoints */
+    linear-gradient(var(--_tick), var(--_tick)) 50% 0 / 14px 1px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 50% 100% / 14px 1px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 0 50% / 1px 14px no-repeat,
+    linear-gradient(var(--_tick), var(--_tick)) 100% 50% / 1px 14px no-repeat;
+}
+
+/* ── Screen lighting ────────────────────────────────────────────────────────
+ * A lit panel is brighter where the backlight enters. One gradient, almost
+ * imperceptible on its own, and the thing that stops a well reading as a flat
+ * dark rectangle.
+ */
+.adm-well {
+  background-image:
+    radial-gradient(120% 90% at 50% -10%, rgba(255, 255, 255, .035), transparent 60%);
+  background-repeat: no-repeat;
+}
+
+/* ── Axis ticks ─────────────────────────────────────────────────────────────
+ * A real gauge marks its scale on the frame, not only in the numbers.
+ */
+.adm-area-tick::after {
+  content: '';
+  width: 4px; height: 1px; margin-left: 5px;
+  background: var(--adm-plot-line-major);
+  flex: 0 0 auto;
+}
+
+/* ── Sub-nav ────────────────────────────────────────────────────────────────
+ * The views are modes, and modes are selected, not browsed. Monospace, spaced,
+ * with the active one bracketed as well as underlined — the gold underline is
+ * a legitimate active state, but colour alone is never the only cue here.
+ */
+.admin-analytics .admin-subtab {
+  font: 500 11.5px/1 var(--font-mono);
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.admin-analytics .admin-subtab.is-active { font-weight: 600; }
+
+/* Brackets are DRAWN, not typed. `content: '['` is generated text, and
+   generated text is part of the accessible name — the active tab was
+   announcing itself as "left bracket system right bracket", and every
+   getByRole('tab', {name:/^system$/}) stopped matching, which is how it was
+   caught. Borders render identically and are invisible to the a11y tree.
+   The padding is on every subtab, not just the active one, so selecting a tab
+   does not shift the row. */
+.admin-analytics .admin-subtab { position: relative; padding: 11px 11px; margin-right: 18px; }
+
+.admin-analytics .admin-subtab.is-active::before,
+.admin-analytics .admin-subtab.is-active::after {
+  content: '';
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
+  width: 4px; height: 12px;
+  border: 1px solid var(--ink-3);
+  pointer-events: none;
+}
+
+.admin-analytics .admin-subtab.is-active::before { left: 0; border-right: 0; }
+
+.admin-analytics .admin-subtab.is-active::after { right: 0; border-left: 0; }
+
+/* The hero figures are the readouts you look at from across the room. */
+.adm-rail .admin-stat-card.is-hero .admin-stat-value {
+  text-shadow: 0 0 26px rgba(255, 255, 255, .16);
+}
+
+[data-theme='light'] .adm-rail .admin-stat-card.is-hero .admin-stat-value {
+  text-shadow: none;
+}
+
+/* ── Cockpit controls ───────────────────────────────────────────────────────
+ * The toolbar was the last of the page still dressed as an ordinary web form:
+ * rounded pills, a native select, a sentence-case segmented control. They sit
+ * directly above a mono status strip that reads back the state they set, and
+ * the mismatch was the loudest remaining seam.
+ *
+ * A switch and its readout should look like they belong to the same panel, so
+ * the controls take the same register as the strip below them. Nothing about
+ * the hit areas or the semantics changes — these are the same buttons.
+ */
+.admin-analytics .admin-toggle {
+  font: 500 10.5px/1 var(--font-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  border-radius: 5px;
+  padding: 8px 11px;
+  background: var(--adm-plate-bg);
+  border-color: var(--adm-plate-edge);
+}
+
+.admin-analytics .admin-range,
+.admin-analytics .tob-segmented {
+  border-radius: 5px;
+}
+
+.admin-analytics .tob-segmented button {
+  font: 500 10.5px/1 var(--font-mono);
+  letter-spacing: .06em;
+}
+
+.admin-analytics .admin-filter-select {
+  font: 500 10.5px/1 var(--font-mono);
+  letter-spacing: .04em;
+  border-radius: 5px;
+}
+
+/* The strip is the readout for the row above it, so it loses its own box and
+   hangs off the toolbar instead — one control block, not two stacked panels. */
+.adm-status {
+  margin-top: -6px;
+  background: transparent;
+  box-shadow: none;
+  border-top: 1px solid var(--adm-plate-edge);
+  border-radius: 0;
+  padding: 9px 2px 0;
+}

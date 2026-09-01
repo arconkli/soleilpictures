@@ -462,6 +462,48 @@ test.describe('admin dashboard charts', () => {
     expect(aligned, 'a value rule does not sit on its own label').toBe(true);
   });
 
+  test('ornament never enters an accessible name', async ({ page }) => {
+    // The active view tab is bracketed. The first version did that with
+    // `content: '[ '`, and generated text is part of the accessible name — so
+    // the tab announced itself as "left bracket system right bracket". The
+    // brackets are drawn with borders now.
+    //
+    // This is a whole class of mistake rather than one bug: the cockpit is
+    // full of ornament (corner ticks, edge marks, section numbers, LEDs), and
+    // any of it done with `content` becomes something a screen reader reads
+    // out. Cheaper to assert the names are clean than to remember.
+    for (const view of ['today', 'retention']) {
+      await openAdmin(page, { view, theme: 'dark' });
+      await expect(page.locator('[role="tab"]').first()).toBeVisible({ timeout: 15000 });
+
+      // getByRole matches on the browser's ACCESSIBLE NAME, which is the thing
+      // generated content pollutes. An earlier version of this test read
+      // textContent instead and could not see pseudo-element content at all —
+      // it passed happily with the brackets put back.
+      for (const id of ['today', 'funnel', 'retention', 'system']) {
+        await expect(
+          page.getByRole('tab', { name: new RegExp(`^${id}$`, 'i') }),
+          `the ${id} tab is not reachable by its own name`,
+        ).toHaveCount(1);
+      }
+
+      // And directly: no tab may carry generated text at all, active or not.
+      const generated = await page.locator('[role="tab"]').evaluateAll((els) => {
+        const bad = [];
+        for (const el of els) {
+          for (const p of ['::before', '::after']) {
+            const c = getComputedStyle(el, p).content;
+            if (c && c !== 'none' && c !== 'normal' && c !== '""' && c !== "''") {
+              bad.push(`${el.textContent.trim()}${p} = ${c}`);
+            }
+          }
+        }
+        return bad;
+      });
+      expect(generated, `tabs carrying generated text: ${generated.join(' | ')}`).toEqual([]);
+    }
+  });
+
   test('a sparse series is drawn with gaps, not bridged', async ({ page }) => {
     // metrics_daily has no backfill, so the series genuinely has holes. A line
     // drawn straight across a hole invents the days it is missing.
