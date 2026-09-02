@@ -28,6 +28,10 @@ import {
 import { paletteLayout, readableInk, hasCustomName } from './paletteLayout.js';
 import { parseISO as schedParseISO, todayISO as schedTodayISO, daysInMonth as schedDaysInMonth, firstWeekdayOfMonth as schedFirstWeekday, monthTitle as schedMonthTitle } from './schedDates.js';
 import { dayTypesFor, dayTypeColor } from './dayTypes.js';
+// The item-key test used to be hand-copied into drawScheduleCalendarInterior as
+// an inline /\/i:[^/]+$/, which silently stopped matching the moment rundown
+// rows arrived. One owner, imported.
+import { isItemKey as isSchedItemKey } from './schedLayout.js';
 import { readCardStrokes } from './strokeModel.js';
 import { drawStrokes } from './strokeRender.js';
 
@@ -852,7 +856,7 @@ function drawScheduleCalendarInterior(ctx, c, x, y, w, h, boards) {
   let itemCount = 0;
   for (const k in cells) {
     const rec = cells[k];
-    if (!rec || !rec.type || rec.type === 'empty' || !/\/i:[^/]+$/.test(k)) continue;
+    if (!rec || !rec.type || rec.type === 'empty' || !isSchedItemKey(k)) continue;
     itemCount++;
     const m = /^d:(\d{4})-(\d{2})-(\d{2})\//.exec(k);
     if (m && +m[1] === anchorT.y && +m[2] === anchorT.m) dotDays.add(+m[3]);

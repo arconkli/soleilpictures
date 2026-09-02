@@ -20,11 +20,27 @@ export function isCellFilled(cell) {
   }
 }
 
+// A schedule card's day view is a RUNDOWN: an ordered list of items with
+// durations, keyed `d:<date>/r:<uid>` (lib/rundown.js). Those rows are the
+// interior of one card — the shape of a day — not fifteen separate cards, and
+// "Set up this day" seeds three of them before anyone has typed anything. This
+// loop is otherwise grammar-blind, so a fifteen-row shooting day was costing a
+// free user fifteen of fifty cards while, until the same change widened
+// isItemKey, rendering as an empty date on every other surface.
+//
+// Deliberately a suffix test rather than an import: this module is pure and
+// dependency-free so the client count and the card_index sync can both use it,
+// and a `/r:` segment cannot occur in a grid's cell ids.
+const RUNDOWN_ROW_RE = /\/r:[^/]+$/;
+
 // Number of filled cells in a { cellId: record } map.
 export function cellsWeight(cells) {
   if (!cells || typeof cells !== 'object') return 0;
   let n = 0;
-  for (const k in cells) if (isCellFilled(cells[k])) n++;
+  for (const k in cells) {
+    if (RUNDOWN_ROW_RE.test(k)) continue;
+    if (isCellFilled(cells[k])) n++;
+  }
   return n;
 }
 

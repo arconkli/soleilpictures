@@ -657,13 +657,30 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
 
   // A minted-once add: every component-owned affordance writes ITEM keys, so
   // the generic grid mutators need no append semantics.
+  //
+  // YOU CANNOT MINT AN ITEM UNDER AN ITEM. The rundown row menu passes the ROW's
+  // key here (`d:<date>/r:<uid>`), and minting under it produced
+  // `d:<date>/r:<uid>/i:<uid>` — a key whose slot path parses as nothing, so
+  // schedItems and schedDayCounts skip it and the row it was typed into never
+  // shows it, while cellsWeight still charges a card for it. Typing produced
+  // nothing; an upload vanished. Refusing is not the finished answer — the row
+  // menu should be calling the rundown's own add — but a mint that cannot be
+  // read is never the right write.
+  const mintUnder = (slotKey) => (parseSlotKey(slotKey) ? mintItemKey(slotKey, newUid()) : null);
   const addText = (slotKey, surface = 'card') => {
-    const itemKey = mintItemKey(slotKey, newUid());
+    const itemKey = mintUnder(slotKey);
+    if (!itemKey) return;
     gridActions.setCellContent(card.id, itemKey, { type: 'text', html: '' });
     enterTextEdit(itemKey, surface);
   };
-  const addImage = (slotKey) => gridActions.pickImageForCell(card.id, mintItemKey(slotKey, newUid()));
-  const addLink = (slotKey) => gridActions.addLinkToCell(card.id, mintItemKey(slotKey, newUid()));
+  const addImage = (slotKey) => {
+    const k = mintUnder(slotKey);
+    if (k) gridActions.pickImageForCell(card.id, k);
+  };
+  const addLink = (slotKey) => {
+    const k = mintUnder(slotKey);
+    if (k) gridActions.addLinkToCell(card.id, k);
+  };
 
   // Open (or re-target) the peek from a slot's trigger/overflow affordance.
   // From the card, the panel anchors beside the source slot; from inside the

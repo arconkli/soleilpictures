@@ -53,5 +53,29 @@ assertEq(cardWeight('schedule', {
   'd:2026-07-16/i:c': { type: 'empty' },
 }), 2, 'schedule weighs its 2 filled items');
 
+// A RUNDOWN ROW IS NOT A CARD. The day view is an ordered list of items with
+// durations keyed `d:<date>/r:<uid>`; those rows are one card's interior — the
+// shape of a day — and "Set up this day" seeds three of them before anyone has
+// typed a word. This loop is otherwise grammar-blind, so a fifteen-row shooting
+// day was spending fifteen of a free account's fifty cards.
+assertEq(cardWeight('schedule', {
+  'd:2026-09-08/r:a': { type: 'text', html: 'Crew call' },
+  'd:2026-09-08/r:b': { type: 'text', html: 'Shoot 14A' },
+  'd:2026-09-08/r:c': { type: 'board', boardId: 'setup-1' },
+}), 1, 'a day of rundown rows weighs 1, not 3');
+assertEq(cardWeight('schedule', {
+  'd:2026-09-08/i:a': { type: 'image', src: 'r2:1' },
+  'd:2026-09-08/r:b': { type: 'image', src: 'r2:2' },
+}), 1, 'loose content counts, the row beside it does not');
+// The exclusion is a suffix test, so it must not swallow a grid cell that
+// merely contains the letter r, or a loose item under an hour row.
+assertEq(cardWeight('grid', {
+  'r0c0': { type: 'image', src: 'r2:1' },
+  'r1c1': { type: 'image', src: 'r2:2' },
+}), 2, 'grid cell ids are untouched');
+assertEq(cardWeight('schedule', {
+  'd:2026-09-08/h:09/i:x': { type: 'image', src: 'r2:1' },
+}), 1, 'an item under an hour row still counts');
+
 console.log(`gridCount.test: ${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

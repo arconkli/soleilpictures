@@ -20,9 +20,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   computeSchedSlots, monthGrid, schedLodTier, reslotItemKey, moveSlotSubtree,
-  SCHED_TUNING, isItemKey, parseSlotKey, slotOfItem,
+  SCHED_TUNING, isItemKey, parseSlotKey, slotOfItem, itemRole, parseItemKey,
+  itemsForSlot, schedDayCounts, schedItems, schedLegacyRows,
   splitSchedPanes, schedVisibleRange, schedDayRows, schedNextDay, schedSizeForMonths,
 } from './schedLayout.js';
+import { rundownKey } from './rundown.js';
 
 const TODAY = '2026-08-15';
 
@@ -444,4 +446,110 @@ test('the rail tuning constants the CSS mirrors are present', () => {
   for (const k of ['RAIL_W', 'RAIL_MIN_W', 'RAIL_MIN_H', 'DAYTILE_COMPACT_W', 'DAYTILE_COMPACT_H']) {
     assert.equal(typeof SCHED_TUNING[k], 'number', `${k} missing`);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Two item roles, one grammar
+//
+// `d:<date>/r:<uid>` is a rundown row and `d:<date>/i:<uid>` is loose content,
+// and BOTH are items. isItemKey used to match only the second, so every read
+// that gates on it — the day counts, the "N items" caption, the month chips,
+// thumbnails, the search index, the public page — silently skipped a day's
+// entire running order. These tests exist so that cannot come back.
+
+const ROW = rundownKey('2026-08-18', 'r1');
+const LOOSE = 'd:2026-08-18/i:l1';
+const HOURED = 'd:2026-08-18/h:09/i:h1';
+
+test('a rundown row is an item, and knows it is a row', () => {
+  assert.equal(isItemKey(ROW), true);
+  assert.equal(isItemKey(LOOSE), true);
+  assert.equal(itemRole(ROW), 'row');
+  assert.equal(itemRole(LOOSE), 'item');
+  assert.equal(itemRole(HOURED), 'item');
+  assert.equal(itemRole('d:2026-08-18'), null, 'a slot path is not an item');
+  assert.equal(isItemKey('d:2026-08-18'), false);
+});
+
+test('both roles resolve to the same day slot', () => {
+  assert.equal(slotOfItem(ROW), 'd:2026-08-18');
+  assert.equal(slotOfItem(LOOSE), 'd:2026-08-18');
+  assert.equal(slotOfItem(HOURED), 'd:2026-08-18/h:09');
+  assert.deepEqual(parseItemKey(ROW), { slotPath: 'd:2026-08-18', role: 'row', uid: 'r1' });
+  assert.equal(parseSlotKey(slotOfItem(ROW)).date, '2026-08-18');
+});
+
+test('moving a row to another date KEEPS it a row', () => {
+  // lastIndexOf('/i:') returns -1 on a `/r:` key, so the old arithmetic sliced
+  // from index 2 and would have re-minted the row as loose content whose uid
+  // was a chunk of its own path.
+  assert.equal(reslotItemKey(ROW, 'd:2026-08-19'), 'd:2026-08-19/r:r1');
+  assert.equal(reslotItemKey(LOOSE, 'd:2026-08-19'), 'd:2026-08-19/i:l1');
+  assert.equal(reslotItemKey(ROW, 'd:2026-08-18'), null, 'a move to home is a no-op');
+});
+
+test('a day with only a running order is not an empty day', () => {
+  const cells = {
+    [rundownKey('2026-08-18', 'a')]: { type: 'text', html: 'Crew call', dur: 30, pin: '07:00', ord: 'a0' },
+    [rundownKey('2026-08-18', 'b')]: { type: 'text', html: 'Shoot 14A', dur: 135, ord: 'a1' },
+  };
+  assert.deepEqual(schedDayCounts(cells), { '2026-08-18': 2 },
+    'the month grid and the LOD map count rundown rows');
+  assert.equal(itemsForSlot('d:2026-08-18', Object.keys(cells)).length, 2);
+  assert.equal(schedItems(cells).length, 2);
+});
+
+test('the summary reads a running order in the order it runs', () => {
+  // Deliberately inserted with the LATER row first and a uid that sorts before
+  // it, so plain key order would get this backwards.
+  const cells = {
+    [rundownKey('2026-08-18', 'aaa')]: { type: 'text', html: 'Shoot 14A', dur: 135, ord: 'a2' },
+    [rundownKey('2026-08-18', 'zzz')]: { type: 'text', html: 'Crew call', dur: 30, pin: '07:00', ord: 'a1' },
+  };
+  const items = schedItems(cells);
+  assert.deepEqual(items.map((i) => i.title), ['Crew call', 'Shoot 14A'],
+    'ordered by the cascade, not by uid');
+
+  // A PINNED row states its own time, so the summary may repeat it.
+  assert.equal(items[0].hour, 7);
+  assert.equal(items[0].minute, 0);
+  // An unpinned row does NOT: its wall clock depends on boards.day_start, which
+  // a cells map cannot see. Saying 09:15 when the card says 08:15 would be
+  // worse than saying nothing.
+  assert.equal(items[1].hour, null);
+  assert.deepEqual(schedLegacyRows(items).map((r) => r.loc), ['7 AM', '']);
+});
+
+test('loose content sits above the clock, and mixes with rows on one date', () => {
+  const cells = {
+    'd:2026-08-18/i:note': { type: 'text', html: 'Bring the long lens' },
+    [rundownKey('2026-08-18', 'a')]: { type: 'text', html: 'Crew call', dur: 30, pin: '07:00', ord: 'a0' },
+    'd:2026-08-19/i:x': { type: 'image', src: 'r2:1' },
+  };
+  const items = schedItems(cells);
+  assert.deepEqual(items.map((i) => i.date), ['2026-08-18', '2026-08-18', '2026-08-19']);
+  assert.equal(items[0].title, 'Bring the long lens', 'untimed first, as the day view stacks it');
+  assert.deepEqual(schedDayCounts(cells), { '2026-08-18': 2, '2026-08-19': 1 });
+});
+
+test('itemsForSlot orders rows by ord when it is given the records', () => {
+  const cells = {
+    [rundownKey('2026-08-18', 'zz')]: { type: 'text', html: 'second', ord: 'a2' },
+    [rundownKey('2026-08-18', 'aa')]: { type: 'text', html: 'first', ord: 'a1' },
+    'd:2026-08-18/i:l': { type: 'text', html: 'loose' },
+  };
+  const keys = Object.keys(cells);
+  const ordered = itemsForSlot('d:2026-08-18', keys, { cells });
+  assert.deepEqual(ordered, ['d:2026-08-18/i:l', rundownKey('2026-08-18', 'aa'), rundownKey('2026-08-18', 'zz')],
+    'loose content, then the day in the order it runs');
+  // Without the records it degrades to key order rather than throwing — every
+  // pre-existing caller passes two arguments.
+  assert.equal(itemsForSlot('d:2026-08-18', keys).length, 3);
+});
+
+test('direct vs deep still distinguishes an hour row from the day above it', () => {
+  const keys = [ROW, LOOSE, HOURED];
+  assert.deepEqual(itemsForSlot('d:2026-08-18', keys).sort(), [LOOSE, ROW].sort());
+  assert.equal(itemsForSlot('d:2026-08-18', keys, { deep: true }).length, 3);
+  assert.deepEqual(itemsForSlot('d:2026-08-18/h:09', keys), [HOURED]);
 });

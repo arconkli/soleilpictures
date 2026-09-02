@@ -6,7 +6,8 @@
 //   day slot      d:2026-07-15
 //   hour slot     d:2026-07-15/h:09
 //   minute slot   d:2026-07-15/h:09/m:15     (m ∈ 00/15/30/45 at MINUTE_STEP 15)
-//   item          <slotPath>/i:<uid>         (value = ONE standard grid cell record)
+//   loose item    <slotPath>/i:<uid>         (value = ONE standard grid cell record)
+//   rundown row   d:2026-07-15/r:<uid>       (same record + dur/pin/ord; lib/rundown.js)
 // Zero-padded segments make plain string sort chronological, so "every item
 // under this slot" (a collapsed day aggregating its hour items) is a sorted
 // prefix scan.
@@ -27,6 +28,9 @@ import {
   startOfWeek, addDays, addMonths, monthTitle, hourLabel, timeLabel, shortDate,
   weekdayOf, WEEKDAYS,
 } from './schedDates.js';
+// One-way edge: rundown.js imports schedDates and fracIndex only, never this
+// file, so the summary read can run the cascade without a cycle.
+import { computeRundown, rundownFromCells } from './rundown.js';
 
 export const SCHED_TUNING = Object.freeze({
   HEADER_H: 44,       // in-card header (nav/title/view pill) — component subtracts it before calling computeSchedSlots; CSS mirror: .schedc-head flex-basis
@@ -249,10 +253,45 @@ export function dayKey(iso) { return `d:${iso}`; }
 export function hourKey(iso, h) { return `d:${iso}/h:${pad2(h)}`; }
 export function minuteKey(iso, h, m) { return `d:${iso}/h:${pad2(h)}/m:${pad2(m)}`; }
 
-const ITEM_RE = /\/i:[^/]+$/;
+// TWO ROLES LIVE UNDER A DAY, and both of them are items:
+//
+//   d:2026-09-08/i:<uid>   LOOSE — a note, an image, a file dropped on a date
+//                          (or on an hour row beneath it). Minted here.
+//   d:2026-09-08/r:<uid>   ROW — an ordered rundown item with a duration, from
+//                          which the day's running order cascades. Minted by
+//                          rundownKey() in lib/rundown.js.
+//
+// This regex used to be /\/i:[^/]+$/, and that one missing alternative was the
+// worst bug in the feature. Every read that gates on isItemKey — itemsForSlot,
+// schedDayCounts, schedItems, and therefore the month grid, the day tiles, the
+// "N items" caption, the rail's loose-row count, card thumbnails, the list
+// preview, the search index and the public /c page — skipped every rundown row.
+// A day with a twenty-row running order rendered as a COMPLETELY EMPTY date
+// everywhere except the Day view it was typed into. Meanwhile cellsWeight in
+// lib/gridCount.js reads the map directly and knows nothing about the grammar,
+// so the card cap charged for all twenty of them.
+//
+// The role is carried by the KEY, never by a field on the record. `untimed` and
+// `kind` already discriminate rundown rows; a third flag would be a fourth
+// source of truth for the same question.
+const ITEM_RE = /\/(i|r):([^/]+)$/;
 export function isItemKey(key) { return typeof key === 'string' && ITEM_RE.test(key); }
-// An item key → its slot path; a slot path passes through unchanged.
+// 'item' | 'row' | null.
+export function itemRole(key) {
+  const m = ITEM_RE.exec(typeof key === 'string' ? key : '');
+  return m ? (m[1] === 'r' ? 'row' : 'item') : null;
+}
+export function parseItemKey(key) {
+  const m = ITEM_RE.exec(typeof key === 'string' ? key : '');
+  if (!m) return null;
+  return { slotPath: key.slice(0, key.length - m[0].length), role: m[1] === 'r' ? 'row' : 'item', uid: m[2] };
+}
+// An item key of EITHER role → its slot path; a slot path passes through
+// unchanged.
 export function slotOfItem(key) { return isItemKey(key) ? key.replace(ITEM_RE, '') : key; }
+// Mints a LOOSE key. Rundown rows are minted by rundownKey() — the two roles
+// have different owners on purpose, because only rundown.js knows what makes a
+// valid row.
 export function mintItemKey(slotPath, uid) { return `${slotPath}/i:${uid}`; }
 export function newUid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -277,15 +316,30 @@ export function parseSlotKey(key) {
 // Item keys belonging to a slot, chronological. deep=false → direct items only
 // (`<slot>/i:*`); deep=true → every item anywhere under the slot (`<slot>/…`) —
 // what a COLLAPSED slot aggregates so collapsing is visibly non-destructive.
-export function itemsForSlot(slotPath, cellKeys, { deep = false } = {}) {
-  const direct = `${slotPath}/i:`;
+export function itemsForSlot(slotPath, cellKeys, { deep = false, cells = null } = {}) {
   const under = `${slotPath}/`;
   const out = [];
   for (const k of cellKeys || []) {
     if (!isItemKey(k)) continue;
-    if (deep ? k.startsWith(under) : k.startsWith(direct)) out.push(k);
+    if (!k.startsWith(under)) continue;
+    // Direct = one segment below the slot, whichever role it carries.
+    if (!deep && k.slice(under.length).includes('/')) continue;
+    out.push(k);
   }
-  out.sort();
+  // Lexicographic is chronological for loose keys (dates and hours are
+  // zero-padded) but meaningless for a rundown row, whose uid is random and
+  // whose real order is the fractional `ord` on the record. Pass `cells` and
+  // rows sort the way the day actually runs; without it they keep key order,
+  // which is what every existing caller already got.
+  out.sort((a, b) => {
+    const ra = itemRole(a) === 'row', rb = itemRole(b) === 'row';
+    if (cells && ra && rb) {
+      const oa = cells[a]?.ord || '', ob = cells[b]?.ord || '';
+      if (oa !== ob) return oa < ob ? -1 : 1;
+    }
+    if (ra !== rb) return ra ? 1 : -1;   // loose content first, then the day's order
+    return a < b ? -1 : 1;
+  });
   return out;
 }
 
@@ -595,18 +649,63 @@ function itemTitle(rec) {
 // shared summary read behind thumbnails, list previews, search indexing, and
 // the public-page meta. Each: { key, date, hour?, minute?, type, title }.
 export function schedItems(cells, { max = Infinity } = {}) {
-  const out = [];
-  for (const k of Object.keys(cells || {}).sort()) {
+  const src = cells || {};
+  const picked = [];
+  const rowDates = new Set();
+  for (const k of Object.keys(src).sort()) {
     if (!isItemKey(k)) continue;
-    const rec = cells[k];
+    const rec = src[k];
     if (!rec || !rec.type || rec.type === 'empty') continue;
     if (rec.type === 'image' && !rec.src) continue;
     const slot = parseSlotKey(slotOfItem(k));
     if (!slot) continue;
-    out.push({ key: k, date: slot.date, hour: slot.hour ?? null, minute: slot.minute ?? null, type: rec.type, title: itemTitle(rec) });
-    if (out.length >= max) break;
+    const isRow = itemRole(k) === 'row';
+    if (isRow) rowDates.add(slot.date);
+    picked.push({
+      key: k, date: slot.date,
+      hour: slot.hour ?? null, minute: slot.minute ?? null,
+      type: rec.type, title: itemTitle(rec),
+      _row: isRow, _at: null,
+    });
   }
-  return out;
+
+  // A rundown row's position is NOT in its key — it comes out of the cascade in
+  // lib/rundown.js. Running it here is what makes a running order read as a
+  // running order in a thumbnail, a list preview and a search result rather
+  // than an arbitrary shuffle by random uid. Only dates carrying rows pay.
+  //
+  // The CLOCK is a different matter. computeRundown needs the day's start time,
+  // which lives on the dated cluster (boards.day_start) and is not reachable
+  // from a cells map — so an unpinned row's wall clock here would come off the
+  // 08:00 default and could disagree with what the card shows. A summary that
+  // states the wrong call time is worse than one that states none, so only a
+  // PINNED row — whose time is a fact on its own record — gets an hour.
+  if (rowDates.size) {
+    const at = new Map();
+    for (const date of rowDates) {
+      for (const r of computeRundown(rundownFromCells(src, date).items).rows) at.set(r.key, r);
+    }
+    for (const it of picked) {
+      const r = it._row ? at.get(it.key) : null;
+      if (!r) continue;
+      it._at = r.startMin;
+      if (r.pinned) {
+        const [h, m] = String(r.start).split(':');
+        it.hour = Number(h); it.minute = Number(m);
+      }
+    }
+  }
+
+  picked.sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    // Untimed content sits above the clock, exactly as the day stacks it.
+    const ta = a._at ?? (a.hour == null ? -1 : a.hour * 60 + (a.minute || 0));
+    const tb = b._at ?? (b.hour == null ? -1 : b.hour * 60 + (b.minute || 0));
+    if (ta !== tb) return ta - tb;
+    return a.key < b.key ? -1 : 1;
+  });
+
+  return picked.slice(0, max).map(({ _row, _at, ...it }) => it);
 }
 
 // Items → the legacy schedule row shape {day, what, loc}, so every renderer
@@ -632,10 +731,15 @@ export function schedLegacyRows(items) {
 // slot prefix changes. Returns null when the move is a no-op or the input isn't
 // an item key, so callers can skip the transaction entirely.
 export function reslotItemKey(itemKey, dstSlotPath) {
-  if (!isItemKey(itemKey) || !dstSlotPath) return null;
+  const parsed = parseItemKey(itemKey);
+  if (!parsed || !dstSlotPath) return null;
   if (!parseSlotKey(dstSlotPath)) return null;
-  const uid = itemKey.slice(itemKey.lastIndexOf('/i:') + 3);
-  const next = mintItemKey(dstSlotPath, uid);
+  // The ROLE survives the move. This used to be lastIndexOf('/i:') + 3, which
+  // on a `/r:` key finds nothing, returns 2, and would have re-minted a rundown
+  // row as a loose item keyed on a slice of its own path.
+  const next = parsed.role === 'row'
+    ? `${dstSlotPath}/r:${parsed.uid}`
+    : mintItemKey(dstSlotPath, parsed.uid);
   return next === itemKey ? null : next;
 }
 
