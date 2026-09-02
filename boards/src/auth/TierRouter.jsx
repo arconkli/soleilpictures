@@ -83,6 +83,15 @@ export function TierRouter({ children }) {
   // Resolve: open the journey for new users + stamp the tier-gate outcome.
   useEffect(() => {
     if (loading || !user?.id) return;
+    // Newness must FAIL CLOSED. A resolved tier is the only positive evidence
+    // that get_my_tier actually landed: useMyTier leaves its store at EMPTY when
+    // the RPC throws (tier null, onboarding {}) while still flipping loading→false,
+    // so `onboarding?.done !== true` reads TRUE for a fetch that never happened.
+    // That mis-read once produced a run of phantom ps_signup rows — every one of
+    // them tier:null, with no otp_verify and no email_submit anywhere in the
+    // session, i.e. sessions that never authenticated at all. Missing data is not
+    // newness; without a tier we know nothing about this user, so we claim nothing.
+    if (!tier) return;
     const isNew = onboarding?.done !== true;
     if (!isNew) return;
     beginJourney(user.id, { isNew, tier });   // idempotent; emits PS_SIGNUP once
