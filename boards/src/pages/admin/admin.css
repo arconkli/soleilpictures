@@ -4838,30 +4838,58 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
  * ══════════════════════════════════════════════════════════════════════════ */
 
 /* ── Section bands ──────────────────────────────────────────────────────────
- * A numbered, monospaced band with a rule running to the edge, instead of a
- * document heading. The index is a CSS counter, so sections number themselves
- * in document order and nothing has to be threaded through the JSX.
+ * A numbered, monospaced band instead of a document heading. The index is a
+ * CSS counter, so sections number themselves in document order and nothing has
+ * to be threaded through the JSX.
+ *
+ * Three things the first version got wrong, all of them the same mistake —
+ * treating the parts as one run of text rather than as a label plate:
+ *
+ *   * The index was set at the title's own size and weight, so `01` read as a
+ *     stray number someone had typed rather than as a designation. It is a
+ *     bordered chip now: smaller, boxed, unmistakably an index.
+ *   * The rule faded out at 70%, which at this alpha meant it was gone within
+ *     a couple of hundred pixels and read as a smudge trailing off the title.
+ *     It runs at constant weight to the far edge and terminates in a vertical
+ *     tick, the way a dimension line does.
+ *   * The tracking was wide enough (.16em) that the title stopped reading as a
+ *     word and started reading as spaced letters.
  */
 .adm-view { counter-reset: adm-sec; }
 
 .admin-analytics .admin-section-title {
   counter-increment: adm-sec;
-  font: 600 12.5px/1 var(--font-mono);
-  letter-spacing: .16em;
+  font: 600 12px/1 var(--font-mono);
+  letter-spacing: .13em;
   text-transform: uppercase;
-  color: var(--ink-1);
-  gap: 12px;
-  margin: 30px 0 10px;
+  color: var(--ink-0);
+  gap: 11px;
+  margin: 26px 0 11px;
 }
 
-.admin-analytics .admin-section-title:first-of-type { margin-top: 6px; }
+.admin-analytics .admin-section-title:first-of-type { margin-top: 4px; }
 
+/* The designation chip. */
 .admin-analytics .admin-section-title::before {
   content: counter(adm-sec, decimal-leading-zero);
-  font: 600 12.5px/1 var(--font-mono);
-  letter-spacing: .08em;
-  color: var(--ink-3);
-  padding-right: 2px;
+  font: 600 9.5px/1 var(--font-mono);
+  letter-spacing: .06em;
+  color: var(--ink-2);
+  padding: 4px 5px 3px;
+  border: 1px solid var(--adm-plate-edge);
+  border-radius: 3px;
+  background: var(--adm-plate-bg);
+  flex: 0 0 auto;
+}
+
+/* The rule, with an end cap — one element, two gradients. A dimension line
+   that stops somewhere definite reads as measurement; one that fades reads as
+   a shadow under the text. */
+.admin-analytics .admin-section-title::after {
+  height: 9px;
+  background:
+    linear-gradient(var(--adm-plate-edge), var(--adm-plate-edge)) 0 50% / 100% 1px no-repeat,
+    linear-gradient(var(--adm-plate-edge), var(--adm-plate-edge)) 100% 50% / 1px 9px no-repeat;
 }
 
 /* ── Status strip ───────────────────────────────────────────────────────────
@@ -5017,14 +5045,18 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 }
 
 /* The strip is the readout for the row above it, so it loses its own box and
-   hangs off the toolbar instead — one control block, not two stacked panels. */
+   hangs off the toolbar instead — one control block, not two stacked panels.
+   And no rule of its own: with one, the top of the page was three full-width
+   horizontal lines inside 230px — the sub-nav underline, the strip, and the
+   first section band — which is what made the head of the deck read as a
+   stack of bars rather than as controls, conditions and a heading. The band
+   keeps its rule because a band IS a rule; the strip is a caption. */
 .adm-status {
-  margin-top: -6px;
+  margin-top: -8px;
   background: transparent;
   box-shadow: none;
-  border-top: 1px solid var(--adm-plate-edge);
   border-radius: 0;
-  padding: 9px 2px 0;
+  padding: 0 2px;
 }
 
 /* ── Survival curve + return gap ────────────────────────────────────────────
