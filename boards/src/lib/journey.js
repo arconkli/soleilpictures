@@ -117,7 +117,10 @@ function freshSnapshot() {
 // ── Small helpers ─────────────────────────────────────────────────────────────
 function ls() { try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch (_) { return null; } }
 function readLS(k) { try { const s = ls(); return s ? s.getItem(k) : null; } catch (_) { return null; } }
-function writeLS(k, v) { try { const s = ls(); if (s) s.setItem(k, v); } catch (_) {} }
+// Returns whether the value actually persisted. Callers that rely on a stamp for
+// once-only semantics MUST check it — a silent no-op here turns "exactly once"
+// into "every pageload" (see the PS_SIGNUP anchor in beginJourney).
+function writeLS(k, v) { try { const s = ls(); if (!s) return false; s.setItem(k, v); return true; } catch (_) { return false; } }
 function doneStamp(uid) { return readLS(DONE_KEY + uid) === '1'; }
 function tNow() { return Math.max(0, _now() - T0); }
 function trunc(s, n) { s = String(s == null ? '' : s); return s.length > n ? s.slice(0, n) : s; }
@@ -174,8 +177,12 @@ export function beginJourney(uid, { isNew = false, tier = null } = {}) {
   startTraceFlush();
 
   // The signup anchor — exactly once per uid (so a returning sign-in never re-fires).
-  if (readLS(SIGNUP_KEY + uid) !== '1') {
-    writeLS(SIGNUP_KEY + uid, '1');
+  // The persisted stamp IS the dedupe, so emit only if it actually stuck. When
+  // storage is unavailable (private mode, quota, blocked third-party context) the
+  // write silently no-ops, doneStamp() can never go true, and a fresh jid is minted
+  // on every single pageload — turning the anchor into an unbounded signup counter.
+  // Under-counting a signup is recoverable from auth.users; a phantom one is not.
+  if (readLS(SIGNUP_KEY + uid) !== '1' && writeLS(SIGNUP_KEY + uid, '1')) {
     let msSinceOtp = null;
     const otpAt = Number(readLS(OTP_KEY)) || 0;
     if (otpAt > 0) msSinceOtp = Math.max(0, _now() - otpAt);

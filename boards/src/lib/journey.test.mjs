@@ -90,6 +90,40 @@ test('seq is monotonic across a simulated reload', () => {
   assert.equal(events2.filter((e) => e.name === 'ps_signup').length, 0, 'no duplicate signup after reload');
 });
 
+// Regression: a run of phantom ps_signup rows once landed in analytics — one per
+// pageload, each with a fresh jid, none with an authenticated user. The stamp that
+// makes the anchor once-per-uid lives in localStorage, and the write silently
+// swallowed its error, so in a context where storage is unavailable the "exactly
+// once" guarantee degraded to "every single load" with no signal at all. Refusing
+// to emit is the right trade: a missed signup is recoverable from auth.users, a
+// fabricated one is indistinguishable from a real one forever after.
+test('ps_signup is suppressed when the dedupe stamp cannot be persisted', () => {
+  const { events } = setup();
+  // Storage that reads back nothing and rejects writes (Safari private mode, quota).
+  globalThis.localStorage = {
+    getItem: () => null,
+    setItem: () => { throw new Error('QuotaExceededError'); },
+    removeItem: () => {},
+  };
+  __resetForTest();
+
+  const jid = beginJourney('u-nostore', { isNew: true, tier: 'demo' });
+  assert.ok(jid, 'the journey still opens — in-session telemetry is unaffected');
+  assert.equal(isJourneyOpen(), true);
+  assert.equal(
+    events.filter((e) => e.name === 'ps_signup').length, 0,
+    'no anchor emitted when the once-only stamp cannot be written',
+  );
+
+  // And it must not creep back on the next pageload either.
+  __resetForTest();
+  beginJourney('u-nostore', { isNew: true, tier: 'demo' });
+  assert.equal(
+    events.filter((e) => e.name === 'ps_signup').length, 0,
+    'still no anchor after a reload — this is the unbounded-counter case',
+  );
+});
+
 test('journey() is a no-op when no journey is open', () => {
   const { events } = setup();
   journey('ps_heartbeat', { idle_ms: 5 });
