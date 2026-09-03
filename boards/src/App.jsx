@@ -123,7 +123,9 @@ import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, rejectedNoun, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
+import { planImport } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap } from './lib/upsellEligibility.js';
+import { ImportCapDialog } from './components/ImportCapDialog.jsx';
 import { claimUpsellSlot } from './lib/upsellSlot.js';
 import { shouldAskToShare } from './lib/shareAsk.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
@@ -1235,21 +1237,48 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Owner-pays cap source (0187): the cap's subject is the board's WORKSPACE
     // OWNER, not the actor. On boards the user owns this reads myTier; on
     // shared boards it reads the owner's capacity from the ref-stable
-    // boardCapacity cache (get_board_capacity RPC). An unknown capacity (not
-    // yet fetched) reads as uncapped — the server card-cap trigger backstops.
+    // boardCapacity cache (get_board_capacity RPC).
+    //
+    // `resolved` says whether the cap state has actually LOADED. It used to be
+    // conflated with `capped`, and that conflation is what let whole folders
+    // past the client gate: useMyTier holds tier:null while loading AND after a
+    // failed get_my_tier (the catch leaves the store EMPTY and only a window
+    // focus retries), so `myTier.tier === 'demo'` read false and the gate went
+    // off entirely. Same for a not-yet-fetched board capacity.
+    //
+    // Single adds still treat unresolved as uncapped — the server trigger
+    // backstops them, and hard-blocking on a slow RPC would make the canvas
+    // feel broken for paid users. BULK imports must not: see the preflight in
+    // ingestFiles, which resolves first and then decides. Being wrong about one
+    // card costs a retry; being wrong about eighty-five costs the whole drop.
+    //
+    // Read through myTierRef, NOT the closed-over myTier. This memo only
+    // recomputes when the board changes, so the captured object froze whatever
+    // the count was when the board opened — which is the "stale cached count"
+    // the server_cap path keeps blaming, and which would also make the
+    // preflight's refetch pointless, since the re-plan would read the same
+    // frozen number it just paid a round trip to replace.
     const capSource = () => {
       const b = boards?.[boardId];
       const own = !b || (b.workspace_id === workspace?.id && workspace?.created_by === user?.id);
       if (own) {
+        const mt = myTierRef.current || myTier;
         return {
           own,
-          capped: myTier.tier === 'demo',
-          count: myTier.demoCardCount,
-          limit: myTier.effectiveCardLimit || DEMO_CARD_LIMIT,
+          resolved: mt.tier !== null && mt.tier !== undefined,
+          capped: mt.tier === 'demo',
+          count: mt.demoCardCount,
+          limit: mt.effectiveCardLimit || DEMO_CARD_LIMIT,
         };
       }
       const cap = boardCapacity.get(boardId);
-      return { own, capped: Boolean(cap?.isCapped), count: cap?.used || 0, limit: cap?.cap || DEMO_CARD_LIMIT };
+      return {
+        own,
+        resolved: Boolean(cap),
+        capped: Boolean(cap?.isCapped),
+        count: cap?.used || 0,
+        limit: cap?.cap || DEMO_CARD_LIMIT,
+      };
     };
     // Cap-hit surfacing differs by ownership: owners get the upgrade modal;
     // collaborators get a toast — upgrading THEIR account wouldn't lift the
@@ -1297,6 +1326,80 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             setUpgradeReason('cap-hit');
           },
         },
+      });
+    };
+
+    // Bulk-import preflight — the ONE cap decision that happens before any byte
+    // moves. Returns { take }: how many of `n` the caller may place. Callers
+    // must honour it; it is the only thing standing between a folder drop and
+    // the server refusing the batch.
+    //
+    // Three things happen here that the per-card gate structurally cannot:
+    //
+    //   1. It RESOLVES the cap instead of guessing. capSource() reports
+    //      resolved:false while get_my_tier is in flight and after it has
+    //      failed, and that state used to read as "not a demo user" — the gate
+    //      off entirely. That is how whole folders reached a server that then
+    //      refused them.
+    //   2. It asks BEFORE bytes move. A per-card gate can only refuse a card
+    //      that has already been measured, laid out and uploaded, so the cheque
+    //      is written before anyone checks the balance.
+    //   3. It offers the partial. The cards that FIT are owed to the user. The
+    //      old path withdrew them along with the overflow, which is why a
+    //      hundred-file folder drop leaves its user holding a fraction of it —
+    //      a count BELOW their own cap, because the batch had not merely
+    //      overflowed, it had failed whole.
+    const preflightImport = async ({ n, kinds = null, source = 'drop' } = {}) => {
+      const requested = Math.max(0, Number(n) | 0);
+      if (requested <= 0) return { take: 0 };
+
+      let cs = capSource();
+      let plan = planImport({ ...cs, requested });
+
+      // Unknown cap: pay for one round trip rather than gamble a whole folder
+      // on it. This is the only place in the app that waits on the tier before
+      // acting, and somebody who has just dropped a folder is already waiting.
+      if (plan.outcome === 'unresolved') {
+        try {
+          if (cs.own) await myTierRef.current?.refetch?.();
+          else await boardCapacity.refetch?.(boardId);
+        } catch (_) { /* the re-plan below decides */ }
+        cs = capSource();
+        plan = planImport({ ...cs, requested });
+      }
+
+      // STILL unknown — the RPC is down. Proceed rather than swallow the drop:
+      // a folder that silently does nothing is indistinguishable from a broken
+      // app, and syncCardIndex now withdraws only the genuine overflow, so the
+      // worst case here is the cap wall rather than the data loss this whole
+      // path exists to stop.
+      if (plan.outcome === 'unresolved') return { take: requested };
+
+      if (plan.outcome === 'proceed') return { take: plan.take };
+
+      if (plan.outcome === 'blocked') {
+        noteBlocked('demo_cap');
+        logEventNow(EV.IMPORT_PREFLIGHT, {
+          action: 'blocked', n_files: requested, take: 0, over: requested,
+          count: plan.count, limit: plan.limit, source, board_id: boardId,
+        });
+        surfaceCapHit({ ...cs, rejected: requested, kinds });
+        return { take: 0 };
+      }
+
+      // 'partial' — ask. Nothing is read, uploaded or placed until this settles.
+      // The 'view' row is what makes the two failure modes separable: a dialog
+      // nobody accepts and a dialog nobody sees are the same empty query.
+      logEventNow(EV.IMPORT_PREFLIGHT, {
+        action: 'view', n_files: requested, take: plan.take, over: plan.over,
+        count: plan.count, limit: plan.limit, source, board_id: boardId,
+      });
+      return await new Promise((resolve) => {
+        setImportAsk({
+          n: requested, take: plan.take, over: plan.over,
+          count: plan.count, limit: plan.limit,
+          kinds, source, boardId, own: cs.own, resolve,
+        });
       });
     };
 
@@ -2996,7 +3099,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, applyGridLayout, setGridCellContent, clearGridCellContent, removeGridCellRecord,
       setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
       applyRundownPlan,
-      setGridTextStyle, pinCellStyle, unpinCellStyle, guardWeightedAdd,
+      setGridTextStyle, pinCellStyle, unpinCellStyle, guardWeightedAdd, preflightImport,
       promoteGridToTemplate, linkGridToTemplate, unlinkGrid, resizeLinkedGrids, graftGridIntoCell,
       stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern, setGridSequenceStartAt,
       addShape, addSchedule, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
@@ -3946,6 +4049,33 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     },
   });
   const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'storage' | 'manual' | null ('shared-edit' died with 0188)
+
+  // The pending over-cap import question, or null. Carries the `resolve` of the
+  // promise preflightImport is awaiting, so the drop is genuinely SUSPENDED —
+  // no file read, no upload, no card — until one of the three buttons answers
+  // it. That suspension is the feature: the old path had already spent the
+  // bytes by the time it discovered it couldn't keep them.
+  const [importAsk, setImportAsk] = useState(null);
+  // Answer the pending import question exactly once. Belt-and-braces against a
+  // double-click resolving a settled promise and a second drop inheriting it.
+  const answerImportAsk = useCallback((action, take) => {
+    setImportAsk((ask) => {
+      if (!ask) return null;
+      try {
+        logEventNow(EV.IMPORT_PREFLIGHT, {
+          action, n_files: ask.n, take, over: ask.n - take,
+          count: ask.count, limit: ask.limit, source: ask.source, board_id: ask.boardId,
+        });
+      } catch (_) {}
+      // Upgrading does NOT continue the import: Stripe checkout navigates away,
+      // so there is no honest way to hold a FileList across it. The folder is
+      // untouched on disk and the dialog says so — which is the whole point of
+      // asking before the upload rather than after the withdrawal.
+      if (action === 'upgrade') setUpgradeReason('cap-hit');
+      try { ask.resolve?.({ take }); } catch (_) {}
+      return null;
+    });
+  }, []);
 
   // The cap limit we last opened the upgrade modal for, or 0 for never.
   //
@@ -7205,6 +7335,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <EntityBacklinksPanel
           ref={backlinksRef}
           onClose={() => setBacklinksRef(null)}
+        />
+      )}
+
+      {/* Asked BEFORE the folder is read, so cancelling costs the user nothing
+          and choosing the partial keeps the cards they're entitled to. Rendered
+          ahead of UpgradeModal because "Upgrade" here opens that one. */}
+      {importAsk && (
+        <ImportCapDialog
+          open
+          n={importAsk.n}
+          take={importAsk.take}
+          over={importAsk.over}
+          count={importAsk.count}
+          limit={importAsk.limit}
+          kinds={importAsk.kinds}
+          onTakePartial={() => answerImportAsk('partial', importAsk.take)}
+          onUpgrade={() => answerImportAsk('upgrade', 0)}
+          onCancel={() => answerImportAsk('cancel', 0)}
         />
       )}
 

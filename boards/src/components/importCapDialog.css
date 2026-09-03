@@ -1,0 +1,88 @@
+/* Over-cap import dialog (ImportCapDialog.jsx).
+
+   Behaviour — backdrop, Escape, focus trap, scroll lock — comes from the shared
+   Modal primitive; only the look lives here, matching saveTemplateDialog.css.
+   Gold appears solely on the primary action and on focus rings, per the house
+   rule that --soleil means active/selection/focus and nothing else. The meter
+   fill is deliberately neutral ink, not gold: it is a reading of the account's
+   current state, not a selected or focused thing. */
+
+.impcap-back { z-index: 1200; }
+
+.impcap {
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100dvh - 64px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--bg-1);
+  box-shadow: var(--shadow-3, var(--shadow-2));
+  overflow: hidden;
+}
+
+.impcap-head { padding: 18px 20px 12px; border-bottom: 1px solid var(--line-1); }
+.impcap-kicker {
+  font: 600 10px/1 var(--font-sans);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+.impcap-title { font: 600 17px/1.25 var(--font-sans); color: var(--ink-0); }
+
+.impcap-body { padding: 16px 20px; overflow-y: auto; min-height: 0; }
+.impcap-lede {
+  margin: 0;
+  font: 400 14px/1.5 var(--font-sans);
+  color: var(--ink-1);
+}
+.impcap-lede strong { color: var(--ink-0); font-weight: 600; }
+
+.impcap-meter {
+  margin: 12px 0 10px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-3, var(--bg-2));
+  overflow: hidden;
+}
+.impcap-meter-fill {
+  display: block;
+  height: 100%;
+  background: var(--ink-3);
+  border-radius: 2px;
+}
+
+.impcap-note {
+  margin: 0;
+  font: 400 12px/1.5 var(--font-sans);
+  color: var(--ink-3);
+}
+
+.impcap-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--line-1);
+}
+.impcap-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--bg-2);
+  color: var(--ink-1);
+  font: 500 13px/1 var(--font-sans);
+  cursor: pointer;
+}
+.impcap-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
+.impcap-btn-primary { background: var(--soleil); border-color: var(--soleil); color: #1a1205; }
+.impcap-btn-primary:hover { filter: brightness(1.06); background: var(--soleil); color: #1a1205; }
+
+/* Three actions do not fit one phone row; stack them so the two real choices
+   stay full-width targets rather than 90px slivers. */
+@media (max-width: 460px) {
+  .impcap-actions { flex-direction: column-reverse; }
+  .impcap-btn { width: 100%; }
+}

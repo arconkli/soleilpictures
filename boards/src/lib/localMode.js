@@ -284,6 +284,30 @@ export function qaForceCapWall() {
   return Number(raw);
 }
 
+// Dev-only force-show for the over-cap IMPORT dialog — the question a folder
+// drop asks before it uploads anything. Active ONLY in a DEV build with
+// ?local=1 (same trust boundary as qaTierOverride). Returns { n, take, count,
+// limit } to render, or null when not forcing:
+//   /?local=1&tier=demo&importask=76,50,0,50      (files, take, count, limit)
+//
+// Same reason qaForceCapWall exists: the real path runs through App.jsx's
+// preflightImport, and App.jsx early-returns to LocalBoardsApp in QA mode, so
+// the dialog would otherwise ship with no render coverage. A RENDER seam, not a
+// gate seam — it proves the dialog says the right thing and that its three
+// buttons are reachable, never who should see it.
+export function qaForceImportAsk() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return null;
+  const q = new URLSearchParams(window.location.search);
+  if (q.get('local') !== '1') return null;
+  const raw = q.get('importask');
+  // Bounded like qaForceCapWall: an unbounded digit run is a free integer
+  // overflow into whatever renders the number.
+  if (!raw || !/^\d{1,4}(,\d{1,4}){3}$/.test(raw)) return null;
+  const [n, take, count, limit] = raw.split(',').map(Number);
+  if (take > n) return null;
+  return { n, take, over: n - take, count, limit };
+}
+
 // Dev-only waitlist-status override. Active ONLY in a DEV build with ?local=1
 // (same trust boundary as qaTierOverride). Lets us preview each branch of the
 // WaitlistConfirm status page without an authenticated waitlist_entries row
