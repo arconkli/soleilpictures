@@ -1021,6 +1021,55 @@ const _cardIndexCache = new Map();   // boardId → { sigs: Map<card_id, sig>, i
 // flat 10-second cadence for twenty minutes, ~80 cycles, no user input involved.
 const _capAnnounced = new Map();   // boardId → Set<card_id>
 
+// Land as many of `rows` as the cap will ACTUALLY take, and return only the
+// ones that genuinely did not fit.
+//
+// PostgREST fails a batch upsert whole, so the cap-refusal path used to treat
+// every genuinely-new row in the batch as rejected and withdraw all of them.
+// That is not what the cap says. A user with room for 17 who drops 85 is owed
+// 17 cards; the old path gave them none, which is why a folder drop leaves its
+// user sitting BELOW their own cap — the limit had not even been reached, the
+// batch had merely failed.
+//
+// Normal path: one RPC for the true remaining room, one sized batch. The probe
+// loop below only runs when the RPC is unavailable or another device consumed
+// the room mid-flight; the trigger's test is monotonic (count >= cap), so the
+// first refusal ends it and later rows cannot fit either.
+async function landUpToCap({ boardId, rows, sigFor, cache }) {
+  if (!rows.length) return rows;
+
+  let room = null;
+  try {
+    const { data, error } = await supabase.rpc('get_board_capacity', { p_board_id: boardId });
+    if (!error) {
+      const r = Array.isArray(data) ? data[0] : data;
+      // Not capped after all — the refusal belonged to a workspace this board
+      // has since moved out of, or to a cap that has just been raised.
+      if (r) room = r.is_capped ? Math.max(0, Number(r.cap ?? 0) - Number(r.used ?? 0)) : rows.length;
+    }
+  } catch (_) { /* room stays null → probe */ }
+
+  if (room === 0) return rows;
+
+  if (room !== null) {
+    const head = rows.slice(0, room);
+    const res = await supabase.from('card_index').upsert(head, { onConflict: 'board_id,card_id' });
+    if (!res.error) {
+      for (const r of head) cache.sigs.set(r.card_id, sigFor(r));
+      return rows.slice(head.length);
+    }
+    // Raced: somebody else took the room between the RPC and the write. Nothing
+    // landed (the batch is atomic), so the probe below starts from zero.
+  }
+
+  for (let i = 0; i < rows.length; i++) {
+    const res = await supabase.from('card_index').upsert([rows[i]], { onConflict: 'board_id,card_id' });
+    if (res.error) return rows.slice(i);
+    cache.sigs.set(rows[i].card_id, sigFor(rows[i]));
+  }
+  return [];
+}
+
 // Forget what we announced, so a genuine second cap episode still surfaces.
 // Called when the cap moves (upgrade, referral credits) — see App's tier watch.
 export function clearCapAnnounced(boardId = null) {
@@ -1180,7 +1229,7 @@ async function _doSyncCardIndex(boardId, ydoc) {
       const known = await supabase.from('card_index').select('card_id').eq('board_id', boardId);
       const knownIds = new Set((known.data || []).map(r => r.card_id));
       const retryable = changed.filter(r => knownIds.has(r.card_id));
-      const rejected  = changed.filter(r => !knownIds.has(r.card_id));
+      const overflow  = changed.filter(r => !knownIds.has(r.card_id));
       if (retryable.length > 0) {
         const retry = await supabase.from('card_index').upsert(retryable, { onConflict: 'board_id,card_id' });
         // Only cache signatures we actually persisted; rejected cards keep a
@@ -1189,6 +1238,9 @@ async function _doSyncCardIndex(boardId, ydoc) {
         if (!retry.error) for (const r of retryable) cache.sigs.set(r.card_id, sigFor(r));
         else console.warn('syncCardIndex cap-retry', retry.error);
       }
+      // "New" is not the same as "over the cap". Land the ones that still fit
+      // and reject only the true overflow — see landUpToCap.
+      const rejected = await landUpToCap({ boardId, rows: overflow, sigFor, cache });
       // Announce only cards we haven't already reported for this board. The
       // retry above is unconditional on purpose; the notification is not.
       let announced = _capAnnounced.get(boardId);

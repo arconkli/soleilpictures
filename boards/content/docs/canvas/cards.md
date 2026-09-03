@@ -103,6 +103,14 @@ yours.
 
 {{fact:planName}} removes the limit entirely. See [Plans](/docs/account/plans).
 
+### Dropping more files than you have room for
+
+If you drag in a folder with more files than your remaining allowance, Clusters
+asks before it uploads anything. You can add the ones that fit, upgrade to keep
+the whole folder, or cancel — and until you answer, nothing is uploaded and
+nothing on the canvas changes. Choosing to add the ones that fit always gives
+you every card you still have room for; the rest stay on your disk.
+
 ## Cards through the API
 
 The [REST API](/docs/api/cards) exposes a deliberately narrower card model than

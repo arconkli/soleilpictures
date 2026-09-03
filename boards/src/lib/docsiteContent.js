@@ -5652,6 +5652,27 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
+   "depth": 3,
+   "text": "Dropping more files than you have room for",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Dropping more files than you have room for"
+    }
+   ],
+   "id": "dropping-more-files-than-you-have-room-for"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you drag in a folder with more files than your remaining allowance, Clusters asks before it uploads anything. You can add the ones that fit, upgrade to keep the whole folder, or cancel — and until you answer, nothing is uploaded and nothing on the canvas changes. Choosing to add the ones that fit always gives you every card you still have room for; the rest stay on your disk."
+    }
+   ]
+  },
+  {
+   "type": "heading",
    "depth": 2,
    "text": "Cards through the API",
    "inline": [

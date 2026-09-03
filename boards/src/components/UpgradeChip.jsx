@@ -18,7 +18,8 @@ import { FirstValueUpgradeBanner } from './FirstValueUpgradeBanner.jsx';
 import { getOwnProfile, updateOwnSettings } from '../lib/boardsApi.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
-import { qaForceFirstValue, qaForceCapWall } from '../lib/localMode.js';
+import { qaForceFirstValue, qaForceCapWall, qaForceImportAsk } from '../lib/localMode.js';
+import { ImportCapDialog } from './ImportCapDialog.jsx';
 import { DEMO_CARD_LIMIT, rejectedNoun } from '../lib/demoCardCap.js';
 import { COPY_REV } from '../lib/billingCopy.js';
 import { evaluateUpsell, atCapWall, ELIGIBILITY_REV } from '../lib/upsellEligibility.js';
@@ -36,6 +37,7 @@ export function UpgradeChip() {
     : 0;
   const elig = evaluateUpsell({ tier, demoCardCount, cardLimit, accountAgeDays });
   const capWallQa = qaForceCapWall();             // dev-only render seam, 0 in prod
+  const importAskQa = qaForceImportAsk();         // dev-only render seam, null in prod
   const [open, setOpen] = useState(false);       // chip-opened modal
   const [fvBanner, setFvBanner] = useState(false); // first-value banner
   const [fvModal, setFvModal] = useState(false);   // first-value modal
@@ -249,6 +251,24 @@ export function UpgradeChip() {
           header="cap-hit"
           via="cap_hit"
           rejected={{ n: capWallQa, noun: rejectedNoun({ image: capWallQa }, capWallQa) }}
+        />
+      )}
+      {/* Dev-only render seam for the over-cap import question
+          (?local=1&importask=76,50,0,50). Its real mount is App.jsx, behind
+          preflightImport — see qaForceImportAsk. Same DEV literal, same
+          dead-code elimination in production. */}
+      {importAskQa && (
+        <ImportCapDialog
+          open
+          n={importAskQa.n}
+          take={importAskQa.take}
+          over={importAskQa.over}
+          count={importAskQa.count}
+          limit={importAskQa.limit}
+          kinds={{ image: importAskQa.n }}
+          onTakePartial={() => {}}
+          onUpgrade={() => {}}
+          onCancel={() => {}}
         />
       )}
     </>

@@ -2699,17 +2699,52 @@ export function CanvasSurface({
       accepted.push({ file: f, ...c });
     }
 
-    // One row for the whole gesture, before any of it can fail. Every other
-    // signal here is per-card, and per-card rows cannot answer "was this one
-    // drop of ten or ten drops of one" — the image route adds each file
-    // separately, so a ten-file selection is ten identical card_placed{n:1}
-    // rows. That distinction is the point of the measurement.
+    const kinds = {};
+    for (const it of accepted) kinds[it.kind] = (kinds[it.kind] || 0) + 1;
+    const classified = accepted.length;
+
+    // Cap preflight, BEFORE anything is measured, uploaded or placed.
+    //
+    // This path had no cap check whatsoever — the list path always sliced, the
+    // canvas simply never did — so an over-cap folder rendered in full,
+    // uploaded in full, and was withdrawn by the server trigger seconds later.
+    // The live traces all end the same way: a folder of a hundred-odd photos
+    // dropped minutes after signup, and a user left holding a fraction of it —
+    // a count BELOW their own cap, because the batch had not merely overflowed,
+    // it had failed whole. None of them came back.
+    //
+    // `take` is authoritative. The mutator resolves the cap (rather than
+    // reading an unloaded tier as "uncapped", which is what let those batches
+    // through), asks the user when the folder only partly fits, and answers
+    // with how many may be placed. 0 means it has already surfaced the wall or
+    // the user declined — there is nothing left to do but the blocked-file
+    // toast below.
+    let over = 0;
+    if (classified && mutators.preflightImport) {
+      const { take } = await mutators.preflightImport({ n: classified, kinds, source }) || {};
+      const keep = Math.max(0, Math.min(classified, Number(take) || 0));
+      over = classified - keep;
+      if (keep < classified) accepted.splice(keep);
+    }
+
+    // One row for the whole gesture. Every other signal here is per-card, and
+    // per-card rows cannot answer "was this one drop of ten or ten drops of
+    // one" — the image route adds each file separately, so a ten-file selection
+    // is ten identical card_placed{n:1} rows. That distinction is the point of
+    // the measurement.
+    //
+    // Logged AFTER the preflight so `n_over` is a real number rather than a
+    // guess. That costs nothing: if the user abandons the dialog this row never
+    // lands, but import_preflight{action:'view'} already fired, so the gesture
+    // is never invisible. `n_files` still means what the user chose and
+    // `n_accepted` still means what passed classification — the pair that
+    // reported a whole folder accepted for a user who ended up holding a
+    // fraction of it. `n_over` is the cap's share of that gap.
     try {
-      const kinds = {};
-      for (const it of accepted) kinds[it.kind] = (kinds[it.kind] || 0) + 1;
       logEvent(EV.IMPORT_BATCH, {
         n_files: files.length,
-        n_accepted: accepted.length,
+        n_accepted: classified,
+        n_over: over,
         n_blocked: blockedForUpgrade.length,
         source,
         kinds,
@@ -2793,7 +2828,7 @@ export function CanvasSurface({
     }
   }, [ownsWorkspace, isPaidPlan, optimisticDropImage, dropVideoFile, dropAudioFile,
       optimisticDropPdf, dropLargeMedia, optimisticDropFile, onRequestStorageUpgrade,
-      onRequestUpgrade, feedback, board?.id]);
+      onRequestUpgrade, feedback, board?.id, mutators]);
 
   // Unified "Add → File" picker: opens a native file chooser with NO accept
   // filter (any type) and routes the chosen file(s) through ingestFiles — the
