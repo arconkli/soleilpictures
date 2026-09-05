@@ -946,43 +946,21 @@ const PAGES = [
       'A grid template is a cell layout you stamp onto any board — a storyboard page, a 3×3 contact sheet, a casting board, a shot list row. Each one is empty geometry with a label on every box, so it explains itself. Every cell takes an image, text, a link, a video or a nested board.',
     updated: '2026-08-28',
     cta: { label: 'Start free', sub: 'No credit card. Your first board in seconds.' },
-    // THREE short sections, deliberately. They sit BELOW the catalogue and exist
-    // for two reasons that are not "SEO copy": an answer engine quotes prose,
-    // not a grid of tiles, and docsite.test.mjs requires a >=1000-byte .md
-    // mirror. Anything longer would push the shop below the fold to sell to a
-    // crawler, which is the mistake this page shipped with.
-    sections: [
-      {
-        heading: 'A template is a shape, not a document',
-        body: 'Most template galleries hand you a finished document to delete your way out of. A grid template is the opposite: cell structure and nothing else, with every box empty and labelled. You are never deleting somebody else\'s placeholder text, because there is none. A template is about a kilobyte of geometry, so it applies instantly and carries nothing from the board it came from.',
-      },
-      {
-        heading: 'The labels explain the template, then get out of the way',
-        body: 'Each box can carry a label — WIDE SHOT, INGREDIENTS, OPTION A. It shows in grey while the box is empty and disappears the moment there is anything in it, so nobody starts by clearing placeholder text. It is guidance rather than content: a labelled empty box still counts as empty, adds nothing to your card total, and never appears in an export.',
-      },
-      {
-        heading: 'Change the shape without losing the work',
-        body: 'Layouts are a tree of splits rather than fixed rows and columns, so an asymmetric storyboard page is no harder than a regular grid — drag any divider and the rest reflows. Apply a different template to a grid you have already filled and the content moves across in reading order. If the new shape has fewer boxes than you had filled, the leftovers are named in an Undo toast rather than disappearing quietly.',
-      },
-    ],
-    faq: [
-      {
-        q: 'Are the templates free?',
-        a: 'Yes. Every template here is free to use, and saving or publishing your own costs nothing.',
-      },
-      {
-        q: 'Do I lose my images if I change template?',
-        a: 'No. Cell content moves to the new layout in reading order. If the new shape has fewer boxes than you had filled, the ones with nowhere to go are dropped and the Undo toast tells you how many.',
-      },
-      {
-        q: 'What does a template actually contain?',
-        a: 'The cell layout — the divisions and their proportions — plus an optional short label per box and a text style if one was set. No images and no cell content, which is why adding one is instant and reveals nothing about the board it came from.',
-      },
-      {
-        q: 'Can I add my own template to the store?',
-        a: 'Yes. Save the shape of any grid you build, tick "share it in the store" and it appears here for anyone to use. Whoever adds it gets their own copy, so removing yours later never reaches into anybody else\'s library.',
-      },
-    ],
+    // NO `sections` AND NO `faq`. A storefront is the one page kind here whose
+    // content is its INVENTORY, and the prose floor every other landing page
+    // obeys (seoLanding.test.mjs: >=3 sections, >=3 FAQ) does not apply to it —
+    // the test exempts a storefront by name and demands a catalogue instead.
+    //
+    // This page shipped twice with copy below the goods, and measured at 1909px
+    // of it under the last tile — 44% of the page. The argument for keeping it
+    // was that an answer engine quotes prose rather than a grid of tiles. That
+    // argument was answering the wrong question. Somebody asking an assistant
+    // for a storyboard template wants the LIST: sixteen names, what each is for,
+    // the layout, the box count. So the .md mirror now serializes the catalogue
+    // (gen-docs `storefrontMarkdown`), which is both more quotable than three
+    // paragraphs about what a template is AND comfortably over the 1000-byte
+    // floor docsite.test.mjs enforces. The prose was not carrying the AEO weight
+    // it was justified by; the inventory does.
     related: [
       '/tools/storyboard-maker',
       '/tools/shot-list-maker',

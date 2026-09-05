@@ -26,7 +26,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TEMPLATE_CARDS, TEMPLATE_CATEGORIES } from '../lib/templateCards.js';
-import { GridLayoutThumb } from '../components/GridLayoutThumb.jsx';
+import { GridLayoutThumb, minHintFontFor } from '../components/GridLayoutThumb.jsx';
 import { layoutById } from '../lib/templateLayouts.js';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
@@ -41,6 +41,19 @@ const SORTS = [
 // footnote in a strip below the real store — that separation is what made
 // publishing feel like posting into a side channel.
 const COMMUNITY = 'community';
+
+// When a template gets a double-width tile. TWO tests, because either kind of
+// density makes a preview unreadable at one column:
+//
+//   BIG_CELLS   sheer count — a 36-frame contact sheet has nothing legible in a
+//               250px tile even though none of its frames carries a label.
+//   SMALL_LABEL the thin-band case, in viewbox units. Measured on the shelf: the
+//               smallest label on every one-column template lands at 9px except
+//               the vertical storyboard's caption strip, which lands at 4.9.
+//               Only a font under 8 units gets there, and asking the thumb keeps
+//               the rule tied to the formula that actually sets the size.
+const BIG_CELLS = 12;
+const SMALL_LABEL = 8;
 
 // A community tile's destination. There is deliberately no author identity
 // anywhere in this system (0266: "a template is a shape, not a person"), so the
@@ -253,7 +266,11 @@ export function TemplatesStorePage() {
           </button>
         </div>
       ) : (
-        <ul className="pubgrid tplstore-grid">
+        // `is-featured` turns on the mixed-size shelf (see seoLanding.css): dense
+        // layouts take two columns, and `dense` packing backfills the gaps that
+        // leaves. Only under the default sort — A–Z and Fewest boxes are
+        // promises about order, and dense packing would visibly break them.
+        <ul className={`pubgrid tplstore-grid${sort === 'featured' ? ' is-featured' : ''}`}>
           {shown.map((t) => {
             // Ours carry a layout id; a published one carries its own tree.
             const layout = t.tree ? null : layoutById(t.preset);
@@ -262,8 +279,10 @@ export function TemplatesStorePage() {
             // 3:2 contact sheet are not the same picture on the shelf.
             const size = t.size || layout?.size || null;
             const isCommunity = t.source === COMMUNITY;
+            const isBig = (t.cells || 0) >= BIG_CELLS
+              || minHintFontFor(tree, size, t.hints) < SMALL_LABEL;
             return (
-              <li key={`${t.category}:${t.slug}`}>
+              <li key={`${t.category}:${t.slug}`} className={isBig ? 'is-big' : undefined}>
                 <a className="tplstore-card" href={t.path}>
                   {/* The preview sits ON a fixed-height stage rather than
                       filling the tile, so the row stays level while each layout

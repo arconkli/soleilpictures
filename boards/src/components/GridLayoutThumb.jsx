@@ -62,15 +62,51 @@ function fitLabel(text, boxW, font) {
   return lines.slice(0, 2).map((l) => (l.length > max ? `${l.slice(0, Math.max(1, max - 1))}…` : l));
 }
 
-export function GridLayoutThumb({ tree, title, size = null, labels = null, numbered = false, highlight = -1 }) {
-  // Clamped so an extreme layout can't draw a tile ten screens tall; nothing in
-  // the catalogue is near either end, but a community template is a tree a
-  // stranger authored and this is the boundary it renders at.
+// The coordinate space a layout is drawn in. Clamped so an extreme layout can't
+// draw a tile ten screens tall; nothing in the catalogue is near either end, but
+// a community template is a tree a stranger authored and this is the boundary it
+// renders at.
+function viewBoxFor(size) {
   const ratio = size?.w > 0 && size?.h > 0
     ? Math.min(2.2, Math.max(0.4, size.h / size.w))
     : FALLBACK_RATIO;
-  const VB = { w: VB_W, h: Math.round(VB_W * ratio) };
-  const SIZE = { w: OUT_W, h: Math.round(OUT_W * ratio) };
+  return {
+    VB: { w: VB_W, h: Math.round(VB_W * ratio) },
+    SIZE: { w: OUT_W, h: Math.round(OUT_W * ratio) },
+  };
+}
+
+// Shrink to fit a short box rather than overflowing it — a 9-cell grid has a
+// third the height of a 3-cell one for the same label.
+const fontFor = (cellH) => Math.min(FONT, Math.max(6, Math.max(0, cellH - INSET * 2) * 0.34));
+
+// The size the SMALLEST label on this layout will be drawn at, in VIEWBOX UNITS.
+//
+// Exported because the store has to decide which templates need a bigger tile,
+// and only this module can answer "how small will the smallest label get" — it
+// owns the formula. Cell count is a bad proxy and measurably so: the vertical
+// storyboard has EIGHT cells and its smallest label lands at 4.9px on a shelf
+// where a nine-cell mood board lands at 9px, because a caption band under a 9:16
+// panel is thin and the card it sits on is wide. Counting boxes would have given
+// that one a small tile and a nine-cell one a large tile, backwards.
+export function minHintFontFor(tree, size, labels) {
+  if (!tree || !labels?.length) return FONT;
+  const { VB } = viewBoxFor(size);
+  const rects = computeCellRects(tree, { x: 0, y: 0, w: VB.w, h: VB.h });
+  const order = new Map(readingOrder(rects).map((id, i) => [id, i]));
+  let min = FONT;
+  for (const r of rects) {
+    const i = order.get(r.id);
+    // Unlabelled cells cannot be illegible — a contact sheet's 36 blank frames
+    // must not drag this down.
+    if (i == null || !labels[i]) continue;
+    min = Math.min(min, fontFor(r.h));
+  }
+  return min;
+}
+
+export function GridLayoutThumb({ tree, title, size = null, labels = null, numbered = false, highlight = -1 }) {
+  const { VB, SIZE } = viewBoxFor(size);
   const rects = tree ? computeCellRects(tree, { x: 0, y: 0, w: VB.w, h: VB.h }) : [];
   // Map cell id → its position in reading order, so a rect can find its number
   // or its label. This is the one place index-keyed hints meet the drawn cells.
@@ -98,9 +134,7 @@ export function GridLayoutThumb({ tree, title, size = null, labels = null, numbe
         const on = i >= 0 && i === highlight;
         const w = Math.max(0, r.w - INSET * 2);
         const h = Math.max(0, r.h - INSET * 2);
-        // Shrink to fit a short box rather than overflowing it — a 9-cell grid
-        // has a third the height of a 3-cell one for the same label.
-        const font = Math.min(FONT, Math.max(6, h * 0.34));
+        const font = fontFor(r.h);
         const label = labels && i >= 0 ? labels[i] : null;
         const lines = label ? fitLabel(label, w, font) : [];
         return (

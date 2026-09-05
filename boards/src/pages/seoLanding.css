@@ -883,8 +883,40 @@
   list-style: none;
   padding: 0;
   margin: 18px 0 0;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 18px;
+  /* Tiles are their own height. The default `stretch` makes every tile in a row
+     as tall as the tallest, which once a row contains a double-width tile means
+     300px of nothing inside its neighbours — and growing the preview to fill it
+     instead just made the tiles enormous (the shelf went from 3990px to 4760px
+     for the same sixteen products). A shop wants MORE product per screen, so the
+     row is allowed to be ragged at the bottom and every stage stays its own
+     size. */
+  align-items: start;
+}
+
+/* THE BIG SHELF. A dense layout — a 36-frame contact sheet, a 20-cell shot list,
+   an 18-cell casting board — cannot be read in a 250px tile at any stage height:
+   the labels land at four or five pixels and the whole thing reads as grey mush.
+   So the dense ones take two columns and a taller stage, which is roughly double
+   the linear scale and takes those labels back over 8px.
+
+   It also makes the grid worth scrolling. A shop where every product is in an
+   identical box is a spreadsheet; one where the big items get big frames has a
+   rhythm, and the eye keeps going.
+
+   `dense` backfills the holes a mixed span would otherwise leave — which is why
+   this is scoped to the FEATURED sort only (see .is-featured in the JSX). Under
+   A–Z or Fewest boxes the order is a promise, and dense packing would visibly
+   break it. Above 640px only: at one column a span of 2 overflows the track. */
+@media (min-width: 640px) {
+  .tplstore-grid.is-featured { grid-auto-flow: dense; }
+  .tplstore-grid.is-featured > li.is-big { grid-column: span 2; }
+  /* 360, not 320: the wide ones (shot list, contact sheet) are limited by the
+     doubled WIDTH and barely notice, but the portrait casting board is limited
+     by height — extra columns do nothing for it and every 40px here is directly
+     bigger type on the one template that needs it most. */
+  .tplstore-grid.is-featured > li.is-big .tplstore-stage { height: 360px; }
 }
 .tplstore-card {
   display: flex;
@@ -916,8 +948,8 @@
   display: grid;
   place-items: center;
   width: 100%;
-  height: 168px;
-  padding: 12px;
+  height: 200px;
+  padding: 14px;
   border-radius: 8px;
   background: var(--bg-2);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .03);
@@ -927,8 +959,11 @@
 .tplstore-card:hover .tplstore-stage { background: var(--bg-3, var(--bg-2)); }
 .tplstore-card .tplt-thumb { width: 100%; height: 100%; }
 .tplstore-title { font: 600 15px/1.3 var(--font-sans); color: var(--ink-0); }
-.tplstore-blurb { font: 400 13px/1.5 var(--font-sans); color: var(--ink-2); flex: 1 1 auto; }
+.tplstore-blurb { font: 400 13px/1.5 var(--font-sans); color: var(--ink-2); flex: none; }
 .tplstore-meta {
+  /* Pinned to the bottom so box counts line up across a row even when one blurb
+     runs to two lines and its neighbour runs to one. */
+  margin-top: auto;
   font: 500 11px/1 var(--font-sans);
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -957,6 +992,9 @@
   align-items: start;
   margin: 8px 0 clamp(40px, 7vh, 72px);
 }
+/* A dense layout takes the wider half. The detail column is a name, a sentence
+   and a button — it does not need the room, and a 36-frame contact sheet does. */
+.tplitem-hero.is-big { grid-template-columns: minmax(0, 6fr) minmax(0, 4fr); }
 /* The product shot. Unlike a store tile there is only ONE on the page, so
    nothing has to line up with anything and the stage can hug the drawing at its
    true aspect instead of letterboxing it inside a fixed window. That is what
@@ -1016,9 +1054,15 @@
   color: var(--ink-2);
 }
 .tplstore-contribute a { color: var(--soleil); }
-/* A storefront hero is a shop sign: name, one line, then the goods. */
+/* A storefront hero is a shop sign: name, one line, then the goods.
+
+   The 12vh of air above a marketing headline is doing a job there — it is the
+   pause before a pitch. Above a shelf it is just distance between someone and
+   the product, so the storefront takes a third of it and the first row of tiles
+   comes up ~140px sooner. */
 .seo-hero.is-storefront { margin-bottom: clamp(20px, 3vh, 32px); text-align: left; }
-.seo-hero.is-storefront .seo-h1 { margin-left: 0; max-width: none; }
+.seo-hero.is-storefront .seo-h1 { margin-left: 0; max-width: none; font-size: clamp(2.1rem, 4.4vw, 3rem); }
+.seo-main:has(.seo-hero.is-storefront) { padding-top: clamp(32px, 4vh, 52px); }
 .seo-hero.is-storefront .seo-subhead { margin-left: 0; }
 .seo-hero.is-storefront::before,
 .seo-hero.is-storefront::after { display: none; }

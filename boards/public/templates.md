@@ -6,33 +6,51 @@ _Source: https://clusters.soleilpictures.com/templates · Updated 2026-08-28_
 
 Pick a shape, see what each box is for, add it to a board.
 
-## A template is a shape, not a document
+## Every template
 
-Most template galleries hand you a finished document to delete your way out of. A grid template is the opposite: cell structure and nothing else, with every box empty and labelled. You are never deleting somebody else's placeholder text, because there is none. A template is about a kilobyte of geometry, so it applies instantly and carries nothing from the board it came from.
+### Film and video
 
-## The labels explain the template, then get out of the way
+Storyboards, shot lists and the boards a crew reads on the day.
 
-Each box can carry a label — WIDE SHOT, INGREDIENTS, OPTION A. It shows in grey while the box is empty and disappears the moment there is anything in it, so nobody starts by clearing placeholder text. It is guidance rather than content: a labelled empty box still counts as empty, adds nothing to your card total, and never appears in an export.
+| Template | For | Layout | Boxes |
+| --- | --- | --- | --- |
+| [Call sheet template](https://clusters.soleilpictures.com/templates/call-sheet-template) | running a shoot day | Call sheet · header, schedule, cast and crew | 7 |
+| [Casting board template](https://clusters.soleilpictures.com/templates/casting-board-template) | casting a role | Casting board · 9 headshots, 4:5 with names | 18 |
+| [Location scout template](https://clusters.soleilpictures.com/templates/location-scout-template) | scouting a location | Location recce · 3 locations, wide plus two | 9 |
+| [Shot list template](https://clusters.soleilpictures.com/templates/shot-list-template) | planning setups | Shot list · 4 setups, frame and columns | 20 |
+| [Storyboard template](https://clusters.soleilpictures.com/templates/storyboard-template) | boarding a scene | Storyboard · 6 panels, 16:9 | 12 |
+| [Video storyboard template](https://clusters.soleilpictures.com/templates/video-storyboard-template) | boarding a short vertical video | Storyboard · 4 vertical beats, 9:16 | 8 |
 
-## Change the shape without losing the work
+### Photography
 
-Layouts are a tree of splits rather than fixed rows and columns, so an asymmetric storyboard page is no harder than a regular grid — drag any divider and the rest reflows. Apply a different template to a grid you have already filled and the content moves across in reading order. If the new shape has fewer boxes than you had filled, the leftovers are named in an Undo toast rather than disappearing quietly.
+Comparing frames — proof sheets, before-and-afters, product lineups.
 
-## Frequently asked questions
+| Template | For | Layout | Boxes |
+| --- | --- | --- | --- |
+| [Before and after template](https://clusters.soleilpictures.com/templates/before-and-after-template) | showing a change | Side by side | 2 |
+| [Contact sheet template](https://clusters.soleilpictures.com/templates/contact-sheet-template) | proofing a shoot | Contact sheet · 36 frames, 3:2 | 36 |
+| [Product lineup template](https://clusters.soleilpictures.com/templates/product-lineup-template) | lining up product shots | Product · square hero and five angles | 6 |
 
-### Are the templates free?
+### Design and brand
 
-Yes. Every template here is free to use, and saving or publishing your own costs nothing.
+Mood boards, look books and the boards that hold a visual direction.
 
-### Do I lose my images if I change template?
+| Template | For | Layout | Boxes |
+| --- | --- | --- | --- |
+| [Brand board template](https://clusters.soleilpictures.com/templates/brand-board-template) | pinning a brand identity | Brand board · logo, type, palette, imagery | 9 |
+| [Look book template](https://clusters.soleilpictures.com/templates/look-book-template) | presenting looks | Look book · cover look and three | 4 |
+| [Mood board template](https://clusters.soleilpictures.com/templates/mood-board-template) | setting a visual direction | Mood board · hero, three refs, palette strip | 8 |
+| [Wedding mood board template](https://clusters.soleilpictures.com/templates/wedding-mood-board-template) | planning a wedding look | Hero + 3 below | 4 |
 
-No. Cell content moves to the new layout in reading order. If the new shape has fewer boxes than you had filled, the ones with nowhere to go are dropped and the Undo toast tells you how many.
+### Planning and comparison
 
-### What does a template actually contain?
+Weighing options side by side, and laying a thing out before you make it.
 
-The cell layout — the divisions and their proportions — plus an optional short label per box and a text style if one was set. No images and no cell content, which is why adding one is instant and reveals nothing about the board it came from.
+| Template | For | Layout | Boxes |
+| --- | --- | --- | --- |
+| [Comparison grid template](https://clusters.soleilpictures.com/templates/comparison-grid-template) | weighing two options | Side by side | 2 |
+| [Recipe card template](https://clusters.soleilpictures.com/templates/recipe-card-template) | writing up a recipe | Recipe card · dish, ingredients, method | 4 |
+| [Social media grid template](https://clusters.soleilpictures.com/templates/social-media-grid-template) | planning a posting grid | Posting grid · 9 posts, 3:4 | 9 |
 
-### Can I add my own template to the store?
-
-Yes. Save the shape of any grid you build, tick "share it in the store" and it appears here for anyone to use. Whoever adds it gets their own copy, so removing yours later never reaches into anybody else's library.
+Every template is free. Adding one places the layout on a board with each box labelled until you fill it; the labels are guidance and never become content.
 

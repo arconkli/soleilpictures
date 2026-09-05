@@ -760,7 +760,10 @@ function templateMarkdown(item) {
 }
 
 // A landing spec ('/tools/*', '/vs/*', '/use-cases', '/scout') → Markdown.
-function landingMarkdown(spec) {
+// `catalogue` is { items, categories } and is only read for a storefront spec —
+// passed in rather than reached for, because this function sits at module scope
+// and the template registry is loaded inside emit().
+function landingMarkdown(spec, catalogue = null) {
   const out = [`# ${spec.h1}`, ''];
   if (spec.answer) out.push(`> ${spec.answer}`, '');
   out.push(`_Source: ${SITE_ORIGIN}${spec.path} · Updated ${spec.updated}_`, '');
@@ -779,6 +782,32 @@ function landingMarkdown(spec) {
       hints.forEach((h, i) => out.push(`| ${i + 1} | ${h} |`));
       out.push('', 'Each label shows only while its box is empty, and is never written into the box.', '');
     }
+  }
+  // A STOREFRONT'S MIRROR IS ITS CATALOGUE.
+  //
+  // This replaces the three prose sections /templates used to carry, and it is a
+  // straight upgrade for the thing the prose was justified by. An assistant
+  // asked for a storyboard template needs the inventory — the name, what it is
+  // for, the layout and the box count, one row each, with a URL to send someone
+  // to. Three paragraphs explaining what a template is answered a question
+  // nobody asks. It is also what keeps the mirror over the 1000-byte floor
+  // docsite.test.mjs enforces, without a word of it being written by hand.
+  if (spec.storefront && catalogue) {
+    out.push('## Every template', '');
+    for (const c of catalogue.categories) {
+      const items = catalogue.items.filter((t) => t.category === c.id);
+      if (!items.length) continue;
+      out.push(`### ${c.label}`, '', c.blurb, '');
+      out.push('| Template | For | Layout | Boxes |', '| --- | --- | --- | --- |');
+      for (const t of items) {
+        const cell = (s) => String(s ?? '').replace(/\|/g, '\\|');
+        out.push(`| [${cell(t.h1)}](${SITE_ORIGIN}${t.path}) | ${cell(t.useCase)} | ${cell(t.presetLabel)} | ${t.cells} |`);
+      }
+      out.push('');
+    }
+    out.push('Every template is free. Adding one places the layout on a board with '
+      + 'each box labelled until you fill it; the labels are guidance and never '
+      + 'become content.', '');
   }
   for (const s of spec.sections || []) {
     out.push(`## ${s.heading}`, '');
@@ -995,7 +1024,10 @@ export function isDocsPath(pathname) {
   //     the /docs mirrors above; see landingMarkdown/listicleMarkdown for why
   //     these exist (AI assistants cite the comparison pages, not the docs).
   const marketing = [
-    ...SEO_LANDING_PAGES.map((s) => ({ spec: s, md: landingMarkdown(s) })),
+    ...SEO_LANDING_PAGES.map((s) => ({
+      spec: s,
+      md: landingMarkdown(s, { items: templates, categories: templateCategories }),
+    })),
     ...SEO_LISTICLE_PAGES.map((s) => ({ spec: s, md: listicleMarkdown(s) })),
   ];
   for (const { spec, md } of marketing) {

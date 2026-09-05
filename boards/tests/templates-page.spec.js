@@ -13,8 +13,9 @@ test.describe('/templates — the gallery landing', () => {
   test('renders the static page signed out', async ({ page }) => {
     await page.goto('/templates');
     await expect(page.getByRole('heading', { name: 'Grid templates', level: 1 })).toBeVisible();
-    // The prose is the crawlable half and the part seo-health asserts.
-    await expect(page.getByText('A template is a shape, not a document')).toBeVisible();
+    // The catalogue is the crawlable half now — the prose that used to be
+    // asserted here is gone, and the .md mirror carries the inventory instead.
+    await expect(page.locator('.tplstore-card').first()).toBeVisible();
     await expect(page).toHaveTitle(/Grid Templates/);
   });
 
@@ -26,9 +27,27 @@ test.describe('/templates — the gallery landing', () => {
     await expect(page.locator('.seo-templates')).toHaveCount(0);
   });
 
-  test('carries the FAQ the JSON-LD mirrors', async ({ page }) => {
+  // It is a SHOP. Not a landing page with a shop in it, which is what it was:
+  // measured at 1909px of prose under the last tile, 44% of the page. The
+  // catalogue is the content, and the .md mirror carries it for the assistants
+  // that used to be the argument for the copy.
+  test('is a store, with no copy stapled under the shelf', async ({ page }) => {
     await page.goto('/templates');
-    await expect(page.getByText('Do I lose my images if I change template?')).toBeVisible();
+    await expect(page.locator('.tplstore-card').first()).toBeVisible();
+    await expect(page.locator('details')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /Frequently asked/i })).toHaveCount(0);
+    // The only h2 is the catalogue's own. Any other is a prose section that has
+    // crept back in above or below the goods.
+    await expect(page.locator('h2')).toHaveCount(1);
+
+    // Nothing substantial below the last tile — the footer nav and the
+    // "share your own" line are links, not reading.
+    const tail = await page.evaluate(() => {
+      const sc = document.querySelector('.seo-scroll');
+      const grid = document.querySelector('.tplstore-grid');
+      return sc.scrollHeight - Math.round(grid.getBoundingClientRect().bottom + sc.scrollTop);
+    });
+    expect(tail).toBeLessThan(420);
   });
 
   // /templates is a landing page, not a router special case — so the shape must
@@ -76,20 +95,50 @@ test.describe('/templates — the store', () => {
 
   // THE fix. The store shipped leading with an eyebrow, an answer card, a CTA
   // band and five prose sections before a single template — a shop wearing a
-  // landing page's clothes. The goods come first now; the prose stays, below,
-  // because it is what an answer engine quotes and what the .md mirror needs.
-  test('the goods come before the copy', async ({ page }) => {
+  // landing page's clothes. First the goods moved above the copy; then the copy
+  // went entirely. What is left has to STAY a shop, so this asserts the absence
+  // of every piece of landing-page furniture by name.
+  test('carries none of the landing-page furniture', async ({ page }) => {
     await page.goto('/templates');
-    const gridY = await page.locator('.tplstore-grid').evaluate((el) => el.getBoundingClientRect().top);
-    const proseY = await page.locator('.seo-section .seo-h2')
-      .filter({ hasText: 'A template is a shape' })
-      .evaluate((el) => el.getBoundingClientRect().top);
-    expect(gridY, 'the grid must sit above the prose').toBeLessThan(proseY);
-
-    // And none of the selling furniture a shop does not need.
     await expect(page.locator('.seo-eyebrow')).toHaveCount(0);
     await expect(page.locator('.seo-answer')).toHaveCount(0);
     await expect(page.locator('.seo-midcta')).toHaveCount(0);
+    // No "Updated <date>" under the sign, and no closing "Your next board is 30
+    // seconds away" band. A shop is dated by its stock and ends by inviting you
+    // to keep looking.
+    await expect(page.locator('.seo-updated')).toHaveCount(0);
+    await expect(page.locator('.seo-cta-band')).toHaveCount(0);
+
+    // The products start high. 12vh of air is a pause before a pitch; here it is
+    // just distance between someone and the shelf.
+    const top = await page.locator('.tplstore-card').first()
+      .evaluate((el) => el.getBoundingClientRect().top + el.closest('.seo-scroll, body').scrollTop);
+    expect(top, 'the first product should be near the top of the page').toBeLessThan(460);
+  });
+
+  // The dense layouts get a double-width tile, because a 36-frame contact sheet
+  // in a 250px tile is grey mush. The rule is not cell count alone — the
+  // vertical storyboard has eight cells and the thinnest label on the shelf.
+  test('a dense template gets a bigger tile, and every label stays legible', async ({ page }) => {
+    await page.goto('/templates');
+    await expect(page.locator('.tplstore-grid.is-featured > li.is-big').first()).toBeVisible();
+
+    // The measurement that matters: the smallest label actually rendered on any
+    // tile. It was 4.9px on the vertical storyboard before that template started
+    // earning a big tile on its label size rather than its box count.
+    const smallest = await page.evaluate(() => {
+      let min = Infinity;
+      for (const card of document.querySelectorAll('.tplstore-card')) {
+        const svg = card.querySelector('.tplt-thumb');
+        const hints = [...card.querySelectorAll('.tplt-cell-hint')];
+        if (!svg || !hints.length) continue;
+        const vbW = Number(svg.getAttribute('viewBox').split(/\s+/)[2]);
+        const scale = svg.getBoundingClientRect().width / vbW;
+        for (const h of hints) min = Math.min(min, parseFloat(h.getAttribute('font-size')) * scale);
+      }
+      return min;
+    });
+    expect(smallest).toBeGreaterThan(8);
   });
 
   test('offers a way to stock the shelf', async ({ page }) => {

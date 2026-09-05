@@ -170,7 +170,11 @@ export function SeoLandingPage({ spec: specProp, path }) {
                 </div>
               </>
             )}
-            {spec.updated && (
+            {/* Not on a storefront. "Updated August 28, 2026" under the sign is
+                landing-page furniture — a shop is dated by its stock. The field
+                still drives the sitemap lastmod, the JSON-LD dateModified and
+                the .md mirror, so nothing downstream loses it. */}
+            {spec.updated && !spec.storefront && (
               <div className="seo-updated">
                 Updated {new Date(spec.updated + 'T00:00:00Z').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
               </div>
@@ -310,14 +314,21 @@ export function SeoLandingPage({ spec: specProp, path }) {
             </section>
           )}
 
-          {/* Closing CTA */}
-          <section className="seo-cta-band" ref={lp.sectionRef('closing', 6 + nSec)}>
-            <h2 className="seo-cta-headline">
-              {spec.kind === 'compare' ? 'See it for yourself' : 'Your next board is 30 seconds away'}
-            </h2>
-            <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('closing', cta.href || '/')}>{cta.label || 'Start free'}</a>
-            {cta.sub && <span className="seo-cta-sub2">{cta.sub}</span>}
-          </section>
+          {/* Closing CTA — not on a storefront. "Your next board is 30 seconds
+              away" under the last shelf is the landing-page tell, and it closes
+              a page that should end by inviting you to keep shopping. The ask is
+              already in three better places here: the topbar button, an "Add to
+              my templates" on every item page, and the line under the grid
+              asking you to stock the store yourself. */}
+          {!spec.storefront && (
+            <section className="seo-cta-band" ref={lp.sectionRef('closing', 6 + nSec)}>
+              <h2 className="seo-cta-headline">
+                {spec.kind === 'compare' ? 'See it for yourself' : 'Your next board is 30 seconds away'}
+              </h2>
+              <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('closing', cta.href || '/')}>{cta.label || 'Start free'}</a>
+              {cta.sub && <span className="seo-cta-sub2">{cta.sub}</span>}
+            </section>
+          )}
 
           {/* Internal-linking footer */}
           <footer className="seo-footer">

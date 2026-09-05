@@ -78,7 +78,7 @@ export function TemplateItemPage({ path }) {
 
           {/* The product: shape on the left, everything you need to decide on
               the right. No section headings — there is only one thing here. */}
-          <div className="tplitem-hero">
+          <div className={`tplitem-hero${item.cells >= 12 ? ' is-big' : ''}`}>
             <div className="tplitem-shot">
               {preset && (
                 <GridLayoutThumb

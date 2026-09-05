@@ -91,8 +91,40 @@ test('every page: an honest ISO date, not in the future', () => {
   }
 });
 
+// A STOREFRONT IS EXEMPT FROM THE PROSE FLOORS, AND ONLY A STOREFRONT.
+//
+// The >=3 sections / >=3 FAQ rules below exist to stop a thin doorway page
+// shipping — and that penalty lands site-wide, including on /vs/pureref, which
+// is the only page here earning real impressions. But a page whose content is
+// sixteen products with names, one-liners, layouts and box counts is not thin;
+// it is a shop, and prose stapled under the shelf was 44% of its height.
+//
+// Exempting by an explicit flag rather than by `kind` is deliberate: `kind:'hub'`
+// covers /use-cases too, and this must not become the loophole every future page
+// reaches for. `storefrontPages` also has to be NON-EMPTY, so deleting the flag
+// from the only page that has it fails here rather than quietly widening nothing.
+const storefronts = SEO_LANDING_PAGES.filter((p) => p.storefront);
+const prosePages = SEO_LANDING_PAGES.filter((p) => !p.storefront);
+
+test('a storefront replaces its prose with an actual catalogue', async () => {
+  assert.ok(storefronts.length >= 1, 'the storefront exemption exists but nothing uses it — delete the exemption');
+  const { TEMPLATE_CARDS } = await import('./templateCards.js');
+  for (const p of storefronts) {
+    // The trade, made mechanical: no prose floor, but there must be inventory,
+    // and every item must carry the line a shopper actually reads.
+    assert.ok(TEMPLATE_CARDS.length >= 8, `${p.path}: a storefront with ${TEMPLATE_CARDS.length} items is not a store`);
+    for (const t of TEMPLATE_CARDS) {
+      assert.ok(t.h1?.trim(), `${p.path}: an item with no name`);
+      assert.ok(t.blurb?.trim(), `${p.path}: ${t.slug} has no blurb — the one line under a tile`);
+    }
+    // And nothing may creep back above the goods.
+    assert.equal(p.sections, undefined, `${p.path}: a storefront sells, it does not explain — drop the sections`);
+    assert.equal(p.faq, undefined, `${p.path}: a storefront has no FAQ; the item pages answer for themselves`);
+  }
+});
+
 test('sections are whole: every one has a heading and a body', () => {
-  for (const p of SEO_LANDING_PAGES) {
+  for (const p of prosePages) {
     assert.ok(Array.isArray(p.sections) && p.sections.length >= 3,
       `${p.path}: wants at least 3 sections, has ${p.sections?.length}`);
     for (const [i, s] of p.sections.entries()) {
@@ -132,7 +164,7 @@ test('compare tables: every row is {feature, us, them} and nothing else', () => 
 });
 
 test('FAQ and steps are whole', () => {
-  for (const p of SEO_LANDING_PAGES) {
+  for (const p of prosePages) {
     assert.ok(Array.isArray(p.faq) && p.faq.length >= 3, `${p.path}: wants at least 3 FAQ entries`);
     for (const [i, f] of p.faq.entries()) {
       assert.ok(f.q && typeof f.q === 'string', `${p.path}: faq ${i} has no question`);
