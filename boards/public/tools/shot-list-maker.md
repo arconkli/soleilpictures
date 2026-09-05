@@ -62,7 +62,7 @@ Yes. Share a live link with your crew, or export boards and docs to PDF.
 
 ### Is it free to start?
 
-Yes, the Demo tier is free. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type.
+Yes. The free Demo tier covers 50 cards across unlimited boards, with no credit card and no trial clock. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type.
 
 ### How do I make a shot list for a short film?
 

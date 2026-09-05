@@ -52,7 +52,7 @@ How the two compare on the things production teams care about:
 | Built-in docs & screenplay mode | Yes | Notes |
 | Share a live, interactive link | Yes | Yes |
 | Free tier | Yes | Yes (capped) |
-| Free-plan item cap | Generous card cap | Caps total items |
+| Free-plan item cap | 50 cards, uploads never metered | Caps items, plus 10 uploads ever |
 | Template library | Growing | Extensive |
 
 ## Frequently asked questions
@@ -67,7 +67,7 @@ Clusters focuses on live team production — multiplayer editing with cursors an
 
 ### Does Clusters have a free tier like Milanote?
 
-Yes. The Demo tier is free with no credit card. Creator is $25/mo for unlimited cards, 100GB storage, and any file type.
+Yes. The Demo tier is free with no credit card and covers 50 cards across unlimited boards, with uploads never metered. Creator is $25/mo for unlimited cards, 100GB storage, and any file type.
 
 ### Can I move my Milanote boards over?
 

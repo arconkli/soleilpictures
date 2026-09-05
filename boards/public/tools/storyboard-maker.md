@@ -50,5 +50,5 @@ Yes — Clusters is real-time. Your director, DP, and AD can edit and comment on
 
 ### Is it free?
 
-You can build and share storyboards for free on the Demo tier. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaborators edit free.
+Yes. The free Demo tier covers 50 cards across unlimited boards, with unlimited photo uploads. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaborators edit free.
 

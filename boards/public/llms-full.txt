@@ -5968,7 +5968,7 @@ Send a board to a client or collaborator with one link — they see a clean, int
 
 ### Is the mood board maker free?
 
-Yes. You can start building and sharing mood boards for free with the Demo tier. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaboration is free for everyone.
+Yes. The free Demo tier covers 50 cards across unlimited boards, with unlimited photo uploads and collaborators included. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaboration is free for everyone.
 
 ### Can I make a mood board with my team?
 
@@ -6067,7 +6067,7 @@ It sees exactly what your account sees — no more. It runs as you, under the sa
 
 ### Is it free?
 
-Yes. Connecting an assistant costs nothing and works on the free plan. The usual plan limits apply to what it creates, exactly as they would if you made those cards yourself.
+Yes. Connecting an assistant costs nothing and works on the free plan. The usual plan limits apply to what it creates, exactly as they would if you made those cards yourself — the free Demo tier covers 50 cards across unlimited boards.
 
 
 
@@ -6127,7 +6127,7 @@ Yes — Clusters is real-time. Your director, DP, and AD can edit and comment on
 
 ### Is it free?
 
-You can build and share storyboards for free on the Demo tier. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaborators edit free.
+Yes. The free Demo tier covers 50 cards across unlimited boards, with unlimited photo uploads. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaborators edit free.
 
 
 
@@ -6199,7 +6199,7 @@ Yes. Share a live link with your crew, or export boards and docs to PDF.
 
 ### Is it free to start?
 
-Yes, the Demo tier is free. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type.
+Yes. The free Demo tier covers 50 cards across unlimited boards, with no credit card and no trial clock. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type.
 
 ### How do I make a shot list for a short film?
 
@@ -6271,7 +6271,7 @@ Yes. Nest boards inside boards so each season, campaign, or client has its own s
 
 ### Is it free?
 
-You can start free on the Demo tier. Creator ($25/mo) adds unlimited cards, 100GB storage, and any file type.
+Yes. The free Demo tier covers 50 cards across unlimited boards, with unlimited photo uploads. Creator ($25/mo) adds unlimited cards, 100GB storage, and any file type.
 
 
 
@@ -6315,7 +6315,7 @@ This is not a generic whiteboard. Clusters is built for film, photo, design, and
 
 ### Is it really free?
 
-Yes. The Demo tier lets you build and share mood boards for free, with no credit card. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type.
+Yes. The free Demo tier covers 50 cards across unlimited boards, with no credit card and no trial clock. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type.
 
 ### Do I have to download anything?
 
@@ -6377,7 +6377,7 @@ Clusters treats a reference board as a working surface, not a gallery.
 
 ## Free to start, flat when you grow
 
-The Demo tier is genuinely free: no credit card, no trial countdown, and a card cap sized for a real project. Invited collaborators edit free on every tier. When a team needs any file type or serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and 100GB of storage.
+The Demo tier is genuinely free: no credit card, no trial countdown, and 50 cards across unlimited boards. Invited collaborators edit free on every tier. When a team needs any file type or serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and 100GB of storage.
 
 ## The case for staying on desktop
 
@@ -6403,7 +6403,7 @@ A mood board communicates a direction to other people; a reference board support
 
 ### Is there a free online reference board maker?
 
-Yes — Soleil Clusters’ Demo tier is free with no credit card and no trial clock, and comes with a card cap sized for a real project. It runs in the browser with nothing to install.
+Yes — Soleil Clusters’ Demo tier is free with no credit card and no trial clock, and covers 50 cards across unlimited boards. It runs in the browser with nothing to install.
 
 ### Do I need to install anything to make a reference board?
 
@@ -6485,7 +6485,7 @@ How the two compare on the things production teams care about:
 | Built-in docs & screenplay mode | Yes | Notes |
 | Share a live, interactive link | Yes | Yes |
 | Free tier | Yes | Yes (capped) |
-| Free-plan item cap | Generous card cap | Caps total items |
+| Free-plan item cap | 50 cards, uploads never metered | Caps items, plus 10 uploads ever |
 | Template library | Growing | Extensive |
 
 ## Frequently asked questions
@@ -6500,7 +6500,7 @@ Clusters focuses on live team production — multiplayer editing with cursors an
 
 ### Does Clusters have a free tier like Milanote?
 
-Yes. The Demo tier is free with no credit card. Creator is $25/mo for unlimited cards, 100GB storage, and any file type.
+Yes. The Demo tier is free with no credit card and covers 50 cards across unlimited boards, with uploads never metered. Creator is $25/mo for unlimited cards, 100GB storage, and any file type.
 
 ### Can I move my Milanote boards over?
 

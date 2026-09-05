@@ -50,5 +50,5 @@ Yes. Nest boards inside boards so each season, campaign, or client has its own s
 
 ### Is it free?
 
-You can start free on the Demo tier. Creator ($25/mo) adds unlimited cards, 100GB storage, and any file type.
+Yes. The free Demo tier covers 50 cards across unlimited boards, with unlimited photo uploads. Creator ($25/mo) adds unlimited cards, 100GB storage, and any file type.
 
