@@ -11,6 +11,8 @@ import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { scheduleCreationAllowed } from '../lib/appHost.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from '../lib/gridLayout.js';
 import { hintsToCellMap } from '../lib/gridLayoutLibrary.js';
+import { CURATED_TEMPLATES } from '../lib/gridTemplateIndex.js';
+import { layoutById } from '../lib/templateLayouts.js';
 import { stampCarry } from '../lib/gridSequence.js';
 import { readGridModel } from '../lib/gridState.js';
 import { todayISO } from '../lib/schedDates.js';
@@ -179,6 +181,18 @@ const MIX_QA_COUNT = typeof window !== 'undefined' && import.meta.env.DEV
 // &tour=project walks the desktop project_first intent-ask variant; a bare
 // &tour=1 keeps the legacy 6-step full tour for reference.
 // e.g. /?local=1&reset=1&blank=1&tour=project
+// ?tplqa=<slug> stages the "Grid template added → place it" prompt, which is
+// otherwise only reachable by signing up through a /templates page — an auth
+// round-trip Playwright cannot drive. Resolves a real shipped template out of the
+// bundle, so the prompt under test is the same row the live flow produces.
+//
+// DEV-only, and gated the way MIX_QA_COUNT documents above: the
+// `import.meta.env.DEV` literal is on the OUTSIDE so Vite folds the whole
+// expression to null and the branch is provably dead in production.
+const TPL_QA_SLUG = typeof window !== 'undefined' && import.meta.env.DEV
+  ? new URLSearchParams(window.location.search).get('tplqa')
+  : null;
+
 const TOUR_PARAM = typeof window !== 'undefined' && import.meta.env.DEV
   ? new URLSearchParams(window.location.search).get('tour') : null;
 const TOUR_DEMO = TOUR_PARAM === '1' || TOUR_PARAM === 'mobile' || TOUR_PARAM === 'project';
@@ -199,6 +213,20 @@ const SHOWCASE_PREVIEW = typeof window !== 'undefined'
 // import.meta.env.DEV guard (and the synthetic-row labelling that rides with
 // it) applies here too.
 const readOnlyQa = isReadOnlyQaMode();
+
+// The row ?tplqa=<slug> stages, built the way App.jsx builds a real one: the
+// shipped template's layout, hints and card size, resolved out of the bundle.
+// null for an unknown slug, so a typo shows nothing rather than a broken prompt.
+const TPL_QA_ROW = (() => {
+  if (!TPL_QA_SLUG) return null;
+  const t = CURATED_TEMPLATES[TPL_QA_SLUG];
+  const layout = t && layoutById(t.preset);
+  if (!layout) return null;
+  return {
+    key: `qa:${TPL_QA_SLUG}`, id: TPL_QA_SLUG, name: t.name,
+    tree: layout.tree, hints: t.hints || null, size: t.size || layout.size,
+  };
+})();
 
 function createShowcasePreviewState() {
   // A clean Studio root; the snapshot loads into it asynchronously (effect below).
@@ -266,6 +294,9 @@ export function LocalBoardsApp({ user, signOut }) {
   ));
   const [tweak, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [stack, setStack] = useState(() => initialSession?.stack?.length ? initialSession.stack : [ROOT_ID]);
+  // ?tplqa=<slug> only. Stateful rather than the constant directly, so dismissing
+  // and placing behave exactly as they do in the signed-in shell.
+  const [qaTemplate, setQaTemplate] = useState(TPL_QA_ROW);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
   // Shared Grid layout templates (global sync), keyed by boardId → { tplId: {id,name,layout} }.
   // Kept separate from boardState (whose updater only threads cards/arrows/strokes).
@@ -1526,6 +1557,9 @@ export function LocalBoardsApp({ user, signOut }) {
             // predicate is import.meta.env.DEV-guarded), default false.
             canEdit={!readOnlyQa}
             isPublic={readOnlyQa}
+            /* ?tplqa=<slug> — see TPL_QA_ROW. Dead code in production. */
+            justAddedTemplate={qaTemplate}
+            onDismissJustAdded={() => setQaTemplate(null)}
             board={currentBoard}
             boards={boards}
             cards={currentState.cards}

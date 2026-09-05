@@ -173,6 +173,12 @@ can browse at [/templates](/templates) — pick one and it places straight onto
 your board, no download step. On the web, each template has a page showing the
 shape and what every box is for.
 
+Adding one from the web takes you into the app — signing you in first if you are
+not already — and drops you on your board with **Grid template added** and a
+small prompt in the top right showing what arrived. Press **Place it** and the
+next click on the canvas puts it down, so you never have to go looking for it in
+the panel. Dismiss the prompt and it is still saved under **Yours**.
+
 Unlike a bare shape, a store template is a **layout with real proportions**, and
 placing one sizes the card to them. That is the difference between a storyboard
 and a grid with six boxes in it: the panels come out 16:9 because the card is the

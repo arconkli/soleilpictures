@@ -9722,6 +9722,57 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "Adding one from the web takes you into the app — signing you in first if you are not already — and drops you on your board with "
+    },
+    {
+     "t": "strong",
+     "v": "Grid template added",
+     "children": [
+      {
+       "t": "text",
+       "v": "Grid template added"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and a small prompt in the top right showing what arrived. Press "
+    },
+    {
+     "t": "strong",
+     "v": "Place it",
+     "children": [
+      {
+       "t": "text",
+       "v": "Place it"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and the next click on the canvas puts it down, so you never have to go looking for it in the panel. Dismiss the prompt and it is still saved under "
+    },
+    {
+     "t": "strong",
+     "v": "Yours",
+     "children": [
+      {
+       "t": "text",
+       "v": "Yours"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "Unlike a bare shape, a store template is a "
     },
     {

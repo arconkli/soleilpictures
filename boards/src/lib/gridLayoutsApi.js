@@ -34,6 +34,23 @@ export async function listGridLayouts() {
   return Array.isArray(data) ? data : [];
 }
 
+// ONE row by id. Exists because claim_grid_layout_link and use_public_grid_layout
+// both return a bare uuid, and the "you just added this — place it" prompt needs
+// the geometry to draw a preview and arm the placer. Straight through RLS: the
+// row was just copied into the caller's own library, so the SELECT policy already
+// answers it. Returns null rather than throwing when it is gone.
+export async function getGridLayout(id) {
+  if (!supabase || !id) return null;
+  const { data, error } = await supabase
+    .from('grid_layouts')
+    .select(COLS)
+    .eq('id', id)
+    .is('deleted_at', null)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
 // `body` comes from gridLayoutLibrary.bodyFromGrid (already sanitized).
 // created_by is sent explicitly because the INSERT policy checks it against
 // auth.uid() — there is no column default doing it for us.

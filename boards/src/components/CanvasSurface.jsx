@@ -58,6 +58,7 @@ import { GridTemplatePanel } from './GridTemplatePanel.jsx';
 import { SaveTemplateDialog } from './SaveTemplateDialog.jsx';
 import { mergeSections, rowsFromRecords, bodyFromGrid, sanitizeHints, sanitizeSize, SOURCES } from '../lib/gridLayoutLibrary.js';
 import { layoutById } from '../lib/templateLayouts.js';
+import { TemplateAddedPrompt } from './TemplateAddedPrompt.jsx';
 // The shipped store catalogue, so the panel sells the same fifteen templates
 // /templates does. A light index — names, preset ids and labels, never prose.
 import { TEMPLATE_CARDS } from '../lib/templateCards.js';
@@ -389,6 +390,11 @@ export function CanvasSurface({
   // `onDock` prop: the workspace hosts the docked doc so it survives
   // navigating to another cluster.
   onDockDoc = null, dockedDocCardId = null,
+  // A template that just landed in the library (from /templates, a share link or
+  // the public gallery) plus the way to let it go. The canvas owns the prompt
+  // because placing is a canvas verb and pickTemplate already does exactly the
+  // right thing with a row.
+  justAddedTemplate = null, onDismissJustAdded = null,
   // Shoot days are dated CLUSTERS, so these write Postgres (set_board_schedule)
   // rather than the Y.Doc — they can't ride gridActions with the cell mutators.
   onSetSchedule = null, onAddShootDay = null,
@@ -1627,7 +1633,13 @@ export function CanvasSurface({
                           textStyle: pendingGridLayout.textStyle,
                           ...(pendingGridLayout.size || {}),
                         }
-                        : { preset: 'storyboard-1-2' }); break;
+                        : { preset: 'storyboard-1-2' });
+                      // The grid is down, so the "you just added this" prompt has
+                      // done its job. Cleared on ANY grid placement rather than
+                      // only the armed one: once there is a grid on the canvas,
+                      // an offer to place one is noise.
+                      onDismissJustAdded?.();
+                      break;
       // Multi-select, like every other image entry point — see the 'image'
       // add-action for why singular was costing day-one depth.
       case 'image':   pickPhotosAtRef.current?.(pos, 'tool_place'); break;
@@ -10264,6 +10276,30 @@ export function CanvasSurface({
         onCancel={() => setSaveTplLayout(null)}
         onSave={commitSaveTemplate}
       />
+
+      {/* "Grid template added" → put it down. pickTemplate is reused verbatim, so
+          this button behaves exactly like picking the same row out of the panel:
+          with a grid selected it re-cuts that grid (done — clear the prompt), and
+          with nothing selected it arms the placer and the prompt switches to
+          "click anywhere". One code path, so the shortcut can never drift from
+          the long way round. */}
+      {justAddedTemplate && (
+        <TemplateAddedPrompt
+          template={justAddedTemplate}
+          armed={selectedTool === 'grid' && !!pendingGridLayout}
+          onPlace={() => {
+            const reCut = !!templateTargetIdRef.current;
+            pickTemplate(justAddedTemplate);
+            if (reCut) onDismissJustAdded?.();
+          }}
+          onDismiss={() => {
+            // Disarm too, or dismissing the prompt leaves the canvas silently
+            // holding a template the next click would place.
+            if (selectedTool === 'grid') setSelectedTool('select');
+            onDismissJustAdded?.();
+          }}
+        />
+      )}
 
       {selectedTool === 'arrow' && (
         <div className="cnv-hint">

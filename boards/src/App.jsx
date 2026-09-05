@@ -36,7 +36,7 @@ import { ReturnReasonAsk } from './components/ReturnReasonAsk.jsx';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
 import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
 import { readRemix, clearRemix } from './lib/remix.js';
-import { claimGridLayoutLink, usePublicGridLayout, saveGridLayout } from './lib/gridLayoutsApi.js';
+import { claimGridLayoutLink, usePublicGridLayout, saveGridLayout, getGridLayout } from './lib/gridLayoutsApi.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
@@ -131,7 +131,7 @@ import { shouldAskToShare } from './lib/shareAsk.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel, setGridHints, readGridHints } from './lib/gridState.js';
-import { hintsToCellMap, bodyFromGrid } from './lib/gridLayoutLibrary.js';
+import { hintsToCellMap, bodyFromGrid, rowFromRecord, SOURCES } from './lib/gridLayoutLibrary.js';
 // Generated projection of the kind:'template' seoLanding specs — the preset id
 // and labels only, never the prose. See gen-docs.mjs step 4d.
 import { CURATED_TEMPLATES } from './lib/gridTemplateIndex.js';
@@ -4789,6 +4789,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // doc and the clone gets overwritten (the board opened EMPTY). Seeding through
   // the live doc (the same path the onboarding seed uses) persists with no race.
   const remixConsumedRef = useRef(false);
+  // The template that just landed in the library, held so the canvas can offer to
+  // place it. Cleared when it is placed or dismissed; see TemplateAddedPrompt.
+  const [justAddedTemplate, setJustAddedTemplate] = useState(null);
   const pendingRemixRef = useRef(null);   // { boardId, cards, kind } awaiting the live seed below
   const [, setRemixPendingTick] = useState(0);
   useEffect(() => {
@@ -4809,6 +4812,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (src.kind === 'template' || src.kind === 'gallery' || src.kind === 'curated') {
       (async () => {
         try {
+          // The row that ends up in the library, whichever door it came through.
+          // Held onto because the flow does not end at "saved": the prompt below
+          // needs the geometry to draw a preview and to arm the placer, so the
+          // person who asked for a storyboard gets to put it down rather than
+          // being told to go and find it.
+          let saved = null;
           if (src.kind === 'curated') {
             // A template WE ship, arriving from its /templates/<slug> page. The
             // shape is in the bundle, so this is an insert with no lookup — and
@@ -4817,7 +4826,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             const t = CURATED_TEMPLATES[src.value];
             const layout = t && layoutById(t.preset);
             if (!layout) throw new Error('unknown curated template');
-            await saveGridLayout({
+            saved = await saveGridLayout({
               name: t.name,
               // The size is stored with it so the copy in your library places at
               // the proportions the layout means — a storyboard whose panels are
@@ -4825,12 +4834,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               body: bodyFromGrid(instantiateLayout(layout.tree), null, t.hints || null, t.size || layout.size),
               userId: user.id,
             });
-          } else if (src.kind === 'gallery') {
-            await usePublicGridLayout(src.value);   // a published gallery slug
           } else {
-            await claimGridLayoutLink(src.value);   // a private share token
+            // Both RPCs return a bare uuid, not the row, so the geometry has to
+            // be read back before it can be previewed or placed.
+            const id = src.kind === 'gallery'
+              ? await usePublicGridLayout(src.value)   // a published gallery slug
+              : await claimGridLayoutLink(src.value);  // a private share token
+            saved = await getGridLayout(id);
           }
-          feedback.toast({ message: 'Template added — open the grid tool to use it.' });
+          feedback.toast({ message: 'Grid template added' });
+          // rowFromRecord is the same reader the panel uses, so the prompt gets a
+          // sanitized tree, reading-order hints and a clamped size by the one path
+          // that has always produced them. A row that fails to parse simply means
+          // no prompt — the template is still saved and the toast still fired.
+          const row = saved ? rowFromRecord(saved, SOURCES.DOWNLOADED) : null;
+          if (row) setJustAddedTemplate(row);
         } catch (e) {
           feedback.toast({ type: 'info', message: 'That template is no longer live.' });
         }
@@ -6629,6 +6647,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          onDropFileImage={dropFileImageFor(muts)}
                          workspaceId={workspace.id} userId={user.id}
                          personalWorkspaceId={personalWorkspaceId}
+                         /* Main pane only: one prompt, on the canvas you are
+                            looking at. Placing or dismissing it clears the state
+                            here, so it cannot come back on the next render. */
+                         justAddedTemplate={isMain ? justAddedTemplate : null}
+                         onDismissJustAdded={() => setJustAddedTemplate(null)}
                          selectedTool={selectedTool} setSelectedTool={setSelectedTool}
                          mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus}
                          autotagSuggest={autotagSuggest}

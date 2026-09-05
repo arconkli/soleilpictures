@@ -549,6 +549,53 @@ test.describe('grid templates — applying to an existing grid', () => {
 // The panel applies trees that other people authored (a teammate's saved
 // template today, the public library later), so the repair path is load-bearing
 // and has to be reachable from the QA bridge.
+// The last step of the store flow: you clicked "Add to my templates" on
+// /templates, signed in, and landed on a board. Adding used to END at a toast
+// saying "open the grid tool to use it" — an instruction to go and find the thing
+// you just asked for. ?tplqa=<slug> stages the prompt that closes that gap
+// (DEV-only; the real path needs a signup round-trip Playwright cannot drive).
+test.describe('grid templates — the "just added, place it" prompt', () => {
+  const open = (page) => page.goto('/?local=1&reset=1&blank=1&tplqa=storyboard-template');
+
+  test('names the template that arrived and offers to place it', async ({ page }) => {
+    await open(page);
+    const prompt = page.locator('.tpladd');
+    await expect(prompt).toBeVisible();
+    await expect(prompt.getByText('Storyboard template')).toBeVisible();
+    await expect(prompt.getByText('Added to your templates')).toBeVisible();
+    // The preview proves it is the right one before you commit to placing it.
+    await expect(prompt.locator('.tplt-thumb rect')).toHaveCount(12);
+  });
+
+  test('Place it arms the canvas, and the next click puts the grid down', async ({ page }) => {
+    await open(page);
+    await page.locator('.tpladd-go').click();
+    // Arming is not placing, so the prompt has to say what it is waiting for.
+    await expect(page.locator('.tpladd.is-armed')).toBeVisible();
+    await expect(page.getByText('Click anywhere to place it')).toBeVisible();
+
+    await page.mouse.click(700, 480);
+    // The real storyboard, not a default: twelve cells, six panels over six
+    // caption bands.
+    await expect(page.locator('.gridc-cell')).toHaveCount(12);
+    // Job done — an offer to place a grid is noise once one is on the canvas.
+    await expect(page.locator('.tpladd')).toHaveCount(0);
+  });
+
+  test('dismissing leaves the canvas disarmed, not silently loaded', async ({ page }) => {
+    await open(page);
+    await page.locator('.tpladd-go').click();
+    await expect(page.locator('.tpladd.is-armed')).toBeVisible();
+    await page.locator('.tpladd-x').click();
+    await expect(page.locator('.tpladd')).toHaveCount(0);
+    // THE BUG THIS GUARDS: dismissing while armed used to leave the grid tool
+    // holding the template, so the next click anywhere dropped a card nobody
+    // asked for.
+    await page.mouse.click(700, 480);
+    await expect(page.locator('.gridc-cell')).toHaveCount(0);
+  });
+});
+
 test.describe('grid templates — pure helpers via ?gridqa=1', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/?gridqa=1');
