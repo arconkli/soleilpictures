@@ -34,7 +34,7 @@ This is not a generic whiteboard. Clusters is built for film, photo, design, and
 
 ### Is it really free?
 
-Yes. The Demo tier lets you build and share mood boards for free, with no credit card. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type.
+Yes. The free Demo tier covers 50 cards across unlimited boards, with no credit card and no trial clock. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type.
 
 ### Do I have to download anything?
 

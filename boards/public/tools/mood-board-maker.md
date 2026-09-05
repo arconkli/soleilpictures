@@ -34,7 +34,7 @@ Send a board to a client or collaborator with one link — they see a clean, int
 
 ### Is the mood board maker free?
 
-Yes. You can start building and sharing mood boards for free with the Demo tier. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaboration is free for everyone.
+Yes. The free Demo tier covers 50 cards across unlimited boards, with unlimited photo uploads and collaborators included. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaboration is free for everyone.
 
 ### Can I make a mood board with my team?
 

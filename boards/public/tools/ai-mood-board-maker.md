@@ -69,5 +69,5 @@ It sees exactly what your account sees — no more. It runs as you, under the sa
 
 ### Is it free?
 
-Yes. Connecting an assistant costs nothing and works on the free plan. The usual plan limits apply to what it creates, exactly as they would if you made those cards yourself.
+Yes. Connecting an assistant costs nothing and works on the free plan. The usual plan limits apply to what it creates, exactly as they would if you made those cards yourself — the free Demo tier covers 50 cards across unlimited boards.
 

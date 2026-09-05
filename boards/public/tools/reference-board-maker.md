@@ -36,7 +36,7 @@ Clusters treats a reference board as a working surface, not a gallery.
 
 ## Free to start, flat when you grow
 
-The Demo tier is genuinely free: no credit card, no trial countdown, and a card cap sized for a real project. Invited collaborators edit free on every tier. When a team needs any file type or serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and 100GB of storage.
+The Demo tier is genuinely free: no credit card, no trial countdown, and 50 cards across unlimited boards. Invited collaborators edit free on every tier. When a team needs any file type or serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and 100GB of storage.
 
 ## The case for staying on desktop
 
@@ -62,7 +62,7 @@ A mood board communicates a direction to other people; a reference board support
 
 ### Is there a free online reference board maker?
 
-Yes — Soleil Clusters’ Demo tier is free with no credit card and no trial clock, and comes with a card cap sized for a real project. It runs in the browser with nothing to install.
+Yes — Soleil Clusters’ Demo tier is free with no credit card and no trial clock, and covers 50 cards across unlimited boards. It runs in the browser with nothing to install.
 
 ### Do I need to install anything to make a reference board?
 
