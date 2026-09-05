@@ -66,18 +66,37 @@ async function fetchCandidates(env) {
       'content-type': 'application/json',
       accept: 'application/json',
     },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ p_limit: MAX_BUCKETS_PER_RUN }),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`candidates rpc ${res.status}: ${text.slice(0, 200)}`);
   }
   const all = await res.json();
-  return Array.isArray(all) ? all.slice(0, MAX_BUCKETS_PER_RUN) : [];
+  return Array.isArray(all) ? all : [];
 }
 
 async function compactOneBucket(env, bucket, dryRun) {
-  // bucket: { board_id, hour_bucket, from_seq, to_seq, op_count, byte_size, tx_ids }
+  // bucket: { board_id, hour_bucket, from_seq, to_seq, op_count }
+  //
+  // A dry run returns before touching the ops. It used to fetch up to 500 rows
+  // and Y.mergeUpdates them purely to throw the result away, and every field it
+  // reported except merged_bytes/merged_hash is already on the candidate row.
+  // The r2_key here is the key the real run WOULD write; it can differ if the
+  // bucket holds more than MAX_OPS_PER_BUCKET ops, since the live path names
+  // the file after the ops it actually merged.
+  if (dryRun) {
+    return {
+      committed: false,
+      dry_run: true,
+      r2_key: `boards/${bucket.board_id}/ops/hourly/${bucket.from_seq}-${bucket.to_seq}.bin`,
+      hour_bucket: bucket.hour_bucket,
+      from_seq: bucket.from_seq,
+      to_seq: bucket.to_seq,
+      op_count: Number(bucket.op_count),
+    };
+  }
+
   const ops = await rpc(env, 'fetch_ops_for_compaction', {
     p_board_id: bucket.board_id,
     p_hour_start: bucket.hour_bucket,
@@ -101,19 +120,6 @@ async function compactOneBucket(env, bucket, dryRun) {
   const txIds = Array.from(new Set(ops.map((o) => o.tx_id).filter(Boolean)));
   const r2Keys = Array.from(new Set(ops.flatMap((o) => o.r2_keys || []).filter(Boolean)));
   const r2Key = `boards/${bucket.board_id}/ops/hourly/${fromSeq}-${toSeq}.bin`;
-
-  if (dryRun) {
-    return {
-      committed: false,
-      dry_run: true,
-      r2_key: r2Key,
-      from_seq: fromSeq, to_seq: toSeq,
-      from_ts: fromTs, to_ts: toTs,
-      op_count: ops.length,
-      merged_bytes: merged.length,
-      merged_hash: mergedHash,
-    };
-  }
 
   // R2 PUT. We store the merged update as raw bytes (not base64) since
   // R2 is binary-safe — saves ~33% storage vs the base64 in Postgres.

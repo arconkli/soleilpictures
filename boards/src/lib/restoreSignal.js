@@ -32,7 +32,12 @@ import { supabase } from './supabase.js';
 // and fast (10s) only when it's degraded — cutting steady-state poll volume 6x
 // per open board.
 const POLL_DEGRADED_MS = 10_000;
-const POLL_HEALTHY_MS = 60_000;
+// When Realtime is SUBSCRIBED it is the primary signal and this poll is only a
+// durability backstop for a restore that arrived while the socket was briefly
+// down. Restores happen a handful of times a year; a minute was a cadence for
+// a signal that fires constantly. This was the highest-CALL-COUNT query on the
+// instance (320k+ executions) purely because every open board ran it forever.
+const POLL_HEALTHY_MS = 300_000;
 const SOFT_FAILURE_LOGGED = new Set();
 
 function softLog(boardId, message, err) {
@@ -111,10 +116,19 @@ export function watchBoardRestores(boardId, onRestore) {
 
   // Polling loop. Skipped entirely if the table is missing (pre-migration).
   let pollTimer = null;
+  let onVisible = null;
   const startPolling = () => {
     if (tableMissing) return;
     const tick = async () => {
       if (cancelled || tableMissing) return;
+      // Never poll on behalf of a tab nobody is looking at. A restore that
+      // lands while the tab is hidden is picked up by the catch-up tick on
+      // visibilitychange below, so nothing is missed — it is just noticed when
+      // someone is actually there to see it.
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        pollTimer = setTimeout(tick, nextPollDelay());
+        return;
+      }
       try {
         const { data, error } = await supabase
           .from('board_state_version')
@@ -136,6 +150,16 @@ export function watchBoardRestores(boardId, onRestore) {
       if (!cancelled && !tableMissing) pollTimer = setTimeout(tick, nextPollDelay());
     };
     pollTimer = setTimeout(tick, nextPollDelay());
+
+    // Coming back to the tab checks immediately rather than waiting out the
+    // remainder of a 5-minute interval.
+    onVisible = () => {
+      if (cancelled || tableMissing) return;
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      if (pollTimer) clearTimeout(pollTimer);
+      pollTimer = setTimeout(tick, 0);
+    };
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisible);
   };
 
   // Realtime subscription. Skipped if the version table is known to be missing.
@@ -189,6 +213,10 @@ export function watchBoardRestores(boardId, onRestore) {
     if (pollTimer) {
       clearTimeout(pollTimer);
       pollTimer = null;
+    }
+    if (onVisible && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', onVisible);
+      onVisible = null;
     }
     if (channel) {
       try { supabase.removeChannel(channel); } catch (_) {}

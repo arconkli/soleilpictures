@@ -34,9 +34,11 @@ export function useAdminData(fetchFn, deps = [], opts = {}) {
 
   const epochRef = useRef(0);
   const hasDataRef = useRef(false);
+  const lastRunAtRef = useRef(0);
 
   const run = useCallback(async () => {
     const epoch = ++epochRef.current;
+    lastRunAtRef.current = Date.now();
     if (hasDataRef.current) setRefreshing(true); else setLoading(true);
     setError(null);
     try {
@@ -59,12 +61,20 @@ export function useAdminData(fetchFn, deps = [], opts = {}) {
 
   useEffect(() => { run(); }, [run]);
 
+  // Refetch when the operator comes back to the tab — but not more often than
+  // the poll would have. Without the floor, alt-tabbing replayed the whole
+  // view on every focus event: on Today that is eleven multi-second RPCs, on
+  // demand, as fast as you can switch windows.
   useEffect(() => {
     if (!refetchOnFocus) return undefined;
-    const onFocus = () => { run(); };
+    const floor = pollIntervalMs || 30_000;
+    const onFocus = () => {
+      if (Date.now() - lastRunAtRef.current < floor) return;
+      run();
+    };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, [refetchOnFocus, run]);
+  }, [refetchOnFocus, pollIntervalMs, run]);
 
   // Optional periodic auto-refresh (live dashboards). Pauses while the tab is
   // hidden so a backgrounded wall display doesn't hammer the API; fires once on
