@@ -51,10 +51,16 @@ binding = "AI"
 #                    This is the path that carries changes made IN THE APP;
 #                    API-driven events are already delivered inline. It costs
 #                    one indexed probe when there is nothing pending.
+# Mondays 06:00 UTC: the AEO retrieval probe — asks an assistant the questions a
+#                    buyer asks and records whether we are cited (migration
+#                    0296, src/worker-aeo.js). Weekly because retrieval moves at
+#                    the speed of index refreshes; daily would sample answer
+#                    variance and read it as movement. No-ops without
+#                    OPENAI_API_KEY.
 # event.cron lets the worker dispatch to the right handler in scheduled().
 # To enable actual writes/deletes, set HISTORY_COMPACTION_MODE=run and/or
 # R2_SWEEP_MODE=delete via `wrangler secret put`.
-crons = ["0 4 * * *", "15 * * * *", "* * * * *"]
+crons = ["0 4 * * *", "15 * * * *", "* * * * *", "0 6 * * 1"]
 
 # R2 binding for the orphan sweeper. Matches PartyKit's R2_BUCKET so
 # the same bucket uploads go into is the one being swept.
