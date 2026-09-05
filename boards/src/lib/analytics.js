@@ -81,17 +81,30 @@ function readUrlCampaignSignals(params) {
 }
 
 // External referrer as host + path (query/hash dropped to bound length + PII)
-// plus the bare host for cheap brand-matching in SQL. Returns {} for internal or
-// missing referrers — internal navigation is not an acquisition channel.
+// plus the bare host for cheap brand-matching in SQL. Internal navigation is not
+// an acquisition channel, so it still contributes no referrer_host.
+//
+// It does contribute referrer_kind:'internal', though, and that distinction is
+// load-bearing. This used to return a bare {} for BOTH an internal referrer and
+// a missing one, which made a same-host page-load indistinguishable from a
+// genuine direct arrival — and from an assistant that strips its referrer.
+// Three quite different things collapsed into one silent bucket that, on some
+// page families, swallowed most of the sessions — leaving the AI-vs-search
+// split to be inferred from the minority that happened to keep a referrer.
+// Absent referrer_kind now means "no referrer at all"; 'internal' means ours.
 function readReferrer() {
   const out = {};
   try {
     if (!document?.referrer) return out;
     const ref = new URL(document.referrer);
-    if (ref.hostname && ref.hostname !== window.location.hostname) {
-      out.referrer      = (ref.hostname + ref.pathname).slice(0, 200);
-      out.referrer_host = ref.hostname.slice(0, 120);
+    if (!ref.hostname) return out;
+    if (ref.hostname === window.location.hostname) {
+      out.referrer_kind = 'internal';
+      return out;
     }
+    out.referrer      = (ref.hostname + ref.pathname).slice(0, 200);
+    out.referrer_host = ref.hostname.slice(0, 120);
+    out.referrer_kind = 'external';
   } catch (_) {}
   return out;
 }
@@ -499,6 +512,11 @@ function buildRow(name, props) {
   if (merged.device_type === undefined) merged.device_type = device.device_type;
   if (merged.os === undefined)          merged.os          = device.os;
   if (merged.browser === undefined)     merged.browser     = device.browser;
+  // Automated clients that run JS reach this emitter and are indistinguishable
+  // from humans once classified — Googlebot-Smartphone reads as mobile/Android/
+  // Chrome. Flagged only when true (same shape as `synthetic` below) so the
+  // column stays cheap. Every device/channel cut should filter it out.
+  if (device.bot) merged.is_bot = true;
   // A/B arm(s) the user is enrolled in, so any event can be sliced by treatment.
   const exp = getExperiments();
   for (const k in exp) if (merged[k] === undefined) merged[k] = exp[k];

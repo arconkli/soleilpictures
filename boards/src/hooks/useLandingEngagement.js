@@ -108,24 +108,61 @@ export function useLandingEngagement({ page, pageKind, scroll = 'container', get
       tracker.markFullyVisible();
     }
 
-    // ── Section visibility (shared IntersectionObserver, viewport root) ──
-    // A section counts as seen at ≥50% of itself OR ≥50% of the viewport
-    // (sections taller than the screen can never reach ratio 0.5).
+    // ── Section visibility (viewport root) ──
+    // A section counts as seen at ≥50% of ITSELF or ≥50% of the VIEWPORT — the
+    // second arm exists because a section taller than the screen can never reach
+    // ratio 0.5.
+    //
+    // That second arm cannot be expressed with ratio thresholds, which is why
+    // this used to under-report every long section on the site. For a section
+    // taller than two viewports the ratio never reaches 0.5, so a
+    // threshold-[0.5,0.95] observer delivers only the implicit 0-crossings —
+    // and at both entry and exit the intersection is a hairline, so the
+    // "≥50% of the viewport" escape hatch is false at exactly the moments it
+    // gets to run. The section could fill the screen for a full minute in
+    // between and never fire. Only sections already on screen at mount were
+    // recorded, via the observer's initial delivery.
+    //
+    // So: two observers, one exact test. The centre-line observer has its root
+    // shrunk to a zero-height band at the viewport middle, so it fires while a
+    // tall section actually covers the screen. Any run of ≥half the viewport
+    // must contain the midpoint, so nothing satisfying the second arm is
+    // missed. Both feed consider(), which measures against the real viewport
+    // rather than trusting a clipped intersectionRect. sectionSeen() dedupes on
+    // its own, so a double delivery is harmless.
     if (typeof IntersectionObserver !== 'undefined') {
-      const io = new IntersectionObserver((entries) => {
-        for (const entry of entries) {
-          const seen = entry.isIntersecting
-            && (entry.intersectionRatio >= 0.5
-                || entry.intersectionRect.height >= window.innerHeight * 0.5);
-          if (!seen) continue;
-          for (const [id, reg] of lp.__sections) {
-            if (reg.el === entry.target) { tracker.sectionSeen(id, reg.idx); io.unobserve(entry.target); break; }
+      const observers = [];
+      const consider = (target) => {
+        const r = target.getBoundingClientRect();
+        const vh = window.innerHeight || 0;
+        const visible = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+        if (visible <= 0) return;
+        if (visible < r.height * 0.5 && visible < vh * 0.5) return;
+        for (const [id, reg] of lp.__sections) {
+          if (reg.el === target) {
+            tracker.sectionSeen(id, reg.idx);
+            for (const io of observers) io.unobserve(target);
+            break;
           }
         }
-      }, { threshold: [0.5, 0.95] });
-      lp.__sections.observer = io;
-      for (const [, reg] of lp.__sections) if (reg.el) io.observe(reg.el);
-      cleanups.push(() => { io.disconnect(); lp.__sections.observer = null; });
+      };
+      const onEntries = (entries) => {
+        for (const entry of entries) if (entry.isIntersecting) consider(entry.target);
+      };
+      observers.push(
+        new IntersectionObserver(onEntries, { threshold: [0, 0.5, 0.95] }),
+        new IntersectionObserver(onEntries, { rootMargin: '-50% 0px -50% 0px', threshold: 0 }),
+      );
+      // Facade so sectionRef's observe/unobserve calls reach both observers.
+      lp.__sections.observer = {
+        observe(el)   { for (const io of observers) io.observe(el); },
+        unobserve(el) { for (const io of observers) io.unobserve(el); },
+      };
+      for (const [, reg] of lp.__sections) if (reg.el) lp.__sections.observer.observe(reg.el);
+      cleanups.push(() => {
+        for (const io of observers) io.disconnect();
+        lp.__sections.observer = null;
+      });
     }
 
     // ── Anonymous interaction trace — armed only with no session + no journey ──
