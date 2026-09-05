@@ -58,7 +58,16 @@
 
   <!-- Structured data: WebSite + SoftwareApplication, linked to the existing
        Soleil Pictures Organization on the root domain so Google connects the
-       two entities and Clusters inherits brand authority. -->
+       two entities and Clusters inherits brand authority.
+
+       The #app node deliberately carries NO "offers". This file is static, so
+       any price here would be a hand-typed literal — the thing CLAUDE.md
+       forbids, and the kind that goes stale silently because nobody reads
+       structured data. It used to say {"price":"0"}, i.e. the product is free
+       full stop; once buildLandingJsonLd started stating the real 0–25 range,
+       this node contradicted it on every landing page, and a model reading two
+       disagreeing prices for one product learns less than from either alone.
+       Price is asserted in exactly one place: worker.js, from billingCopy. -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -86,11 +95,6 @@
         ],
         "image": "https://clusters.soleilpictures.com/clusters-logo-dark.png",
         "description": "Soleil Clusters is a creative workspace and moodboard tool for film, photo, design, and brand teams — organize references, projects, and ideas in one place.",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        },
         "publisher": { "@id": "https://clusters.soleilpictures.com/#organization" }
       },
       {
