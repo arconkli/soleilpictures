@@ -26,6 +26,7 @@ import {
 } from './worker-scout.js';
 import { runCompactionJob1 } from './worker-compaction.js';
 import { isOAuthRoute, handleOAuthRoute } from './worker-oauth.js';
+import { classifyCrawler, isCrawlablePath } from './lib/crawlerUa.js';
 // Self-authored SEO landing pages (tool / "alternative to" / hub). Pure-data
 // registry shared with the React component so the crawlable server-rendered
 // text can't drift from what the app renders (anti-cloaking).
@@ -364,6 +365,29 @@ export default {
       if (p === '/tools' || p === '/vs' || p === '/best') p = '/use-cases';
       if (p !== url.pathname) {
         return Response.redirect(url.origin + p + url.search, 301);
+      }
+    }
+
+    // ── Crawler attribution (see migration 0295) ──
+    // The only AI signal this system had was a human arriving with an assistant
+    // in their referrer, which cannot see an assistant that strips it and
+    // cannot see a crawler that fetches without ever sending anyone. The
+    // seo-health prober proves a bot COULD read a page; nothing recorded that
+    // one did. This does.
+    //
+    // Placed after the redirect blocks so a crawl is attributed to the URL we
+    // actually serve, not the one it asked for. Fire-and-forget in waitUntil
+    // and swallowed on failure: counting a crawl must never be what makes a
+    // page slow, and never what fails one.
+    if ((request.method === 'GET' || request.method === 'HEAD')
+        && isCrawlablePath(url.pathname) && env.SUPABASE_SERVICE_ROLE_KEY) {
+      const seen = classifyCrawler(request.headers.get('user-agent'));
+      if (seen) {
+        ctx.waitUntil(
+          rpc(env, 'record_crawler_hit', {
+            p_bot: seen.bot, p_kind: seen.kind, p_path: url.pathname.slice(0, 300),
+          }).catch(() => {}),
+        );
       }
     }
 
