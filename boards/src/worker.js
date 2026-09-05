@@ -20,7 +20,7 @@ import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
 import { handleApiRoute } from './worker-api.js';
 import { runWebhooks } from './lib/webhooks.js';
-import { PRICING_META_DESCRIPTION } from './lib/billingCopy.js';
+import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME } from './lib/billingCopy.js';
 import {
   handleScoutSession, handleScoutSessionMint, handleScoutSignup, handleScoutClaim,
 } from './worker-scout.js';
@@ -1761,7 +1761,38 @@ export function buildLandingJsonLd(spec, url) {
       url,
       description: spec.metaDescription,
       screenshot: og,
-      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      // A single Offer at price 0 said the product is free, full stop — which
+      // is the one pricing claim on the site a machine reads verbatim, and it
+      // omitted the paid tier entirely. An AggregateOffer states the actual
+      // range. The high end comes from billingCopy so it cannot drift from the
+      // price Stripe charges; a literal here would be the exact hand-typed
+      // number that rule exists to prevent.
+      offers: {
+        '@type': 'AggregateOffer',
+        priceCurrency: 'USD',
+        lowPrice: '0',
+        highPrice: String(PRICING.monthly.perMonth),
+        offerCount: 2,
+        // Named rather than bare numbers so the free tier is not mistaken for a
+        // trial and the paid one not mistaken for a one-off purchase.
+        offers: [
+          { '@type': 'Offer', name: 'Demo', price: '0', priceCurrency: 'USD' },
+          {
+            '@type': 'Offer',
+            name: PLAN_NAME,
+            price: String(PRICING.monthly.perMonth),
+            priceCurrency: 'USD',
+            priceSpecification: {
+              '@type': 'UnitPriceSpecification',
+              price: String(PRICING.monthly.perMonth),
+              priceCurrency: 'USD',
+              billingDuration: 1,
+              billingIncrement: 1,
+              unitCode: 'MON',
+            },
+          },
+        ],
+      },
       isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
     },
     {
