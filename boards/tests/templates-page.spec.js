@@ -141,6 +141,46 @@ test.describe('/templates — the store', () => {
     expect(smallest).toBeGreaterThan(8);
   });
 
+  // Download counts (migration 0300). Community templates always had one
+  // (use_count); ours had none, so "Most downloaded" could only ever sort a
+  // single item. Both count DISTINCT PEOPLE, which is what lets the two numbers
+  // sit beside each other on one shelf.
+  test('shows real download counts and sorts by them', async ({ page }) => {
+    await page.route('**/rpc/template_download_counts', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        { slug: 'contact-sheet-template', downloads: 12 },
+        { slug: 'storyboard-template', downloads: 3 },
+      ]),
+    }));
+    await page.goto('/templates');
+    await expect(page.locator('.tplstore-dl').first()).toBeVisible();
+    await expect(page.getByText('12 downloads')).toBeVisible();
+    // Singular/plural is a real number's business.
+    await expect(page.getByText('3 downloads')).toBeVisible();
+    // Never printed as a zero — a template nobody has taken says nothing.
+    await expect(page.getByText('0 downloads')).toHaveCount(0);
+
+    // The sort appears only because something has a count, and it orders by it.
+    await page.getByRole('button', { name: 'Most downloaded' }).click();
+    const titles = await page.locator('.tplstore-title').allTextContents();
+    expect(titles[0]).toBe('Contact sheet template');
+    expect(titles[1]).toBe('Storyboard template');
+  });
+
+  test('hides the downloads sort while nothing has been downloaded', async ({ page }) => {
+    await page.route('**/rpc/template_download_counts', (route) => route.fulfill({
+      status: 200, contentType: 'application/json', body: '[]',
+    }));
+    await page.goto('/templates');
+    await expect(page.locator('.tplstore-card').first()).toBeVisible();
+    // A button that sorts sixteen zeroes is not a sort, and it advertises an
+    // emptiness the store has no reason to advertise.
+    await expect(page.getByRole('button', { name: 'Most downloaded' })).toHaveCount(0);
+    await expect(page.locator('.tplstore-dl')).toHaveCount(0);
+  });
+
   test('offers a way to stock the shelf', async ({ page }) => {
     await page.goto('/templates');
     await expect(page.getByRole('link', { name: 'Share it in the store' })).toBeVisible();

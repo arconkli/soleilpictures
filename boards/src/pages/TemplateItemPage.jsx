@@ -19,7 +19,7 @@
 // crawler cannot read SVG text, and the SVG's aria-label carries them for
 // assistive tech — three renderings, one source, all from the same preset id.
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { getTemplateSpec } from '../lib/templateIndex.js';
 import { TEMPLATE_CARDS, TEMPLATE_CATEGORIES } from '../lib/templateCards.js';
@@ -42,6 +42,22 @@ function addHref(slug) {
 
 export function TemplateItemPage({ path }) {
   const item = getTemplateSpec(path);
+
+  // The download count (0300), fetched rather than baked: the page itself is
+  // static and in the bundle, and a number that moves does not belong in a
+  // generated registry. It appears after load and only when it is non-zero, so
+  // a template nobody has taken yet simply says nothing — the alternative is
+  // printing "0 downloads" on every page in the catalogue.
+  const [downloads, setDownloads] = useState(0);
+  useEffect(() => {
+    if (!item) return undefined;
+    let on = true;
+    import('../lib/gridLayoutsApi.js')
+      .then((api) => api.templateDownloadCounts())
+      .then((counts) => { if (on) setDownloads(counts?.[item.slug] || 0); })
+      .catch(() => { /* a missing count must never cost the page */ });
+    return () => { on = false; };
+  }, [item]);
 
   useEffect(() => {
     if (!item) return;
@@ -95,6 +111,7 @@ export function TemplateItemPage({ path }) {
               <p className="tplitem-specs">
                 {item.cells} {item.cells === 1 ? 'box' : 'boxes'}
                 {category && <> · {category.label}</>}
+                {downloads > 0 && <> · <span className="tplstore-dl">{downloads} download{downloads === 1 ? '' : 's'}</span></>}
               </p>
 
               <a className="seo-cta-primary tplitem-add" href={addHref(item.slug)}>Add to my templates</a>

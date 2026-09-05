@@ -36,7 +36,7 @@ import { ReturnReasonAsk } from './components/ReturnReasonAsk.jsx';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
 import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
 import { readRemix, clearRemix } from './lib/remix.js';
-import { claimGridLayoutLink, usePublicGridLayout, saveGridLayout, getGridLayout } from './lib/gridLayoutsApi.js';
+import { claimGridLayoutLink, usePublicGridLayout, saveGridLayout, getGridLayout, recordTemplateDownload } from './lib/gridLayoutsApi.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
@@ -4834,6 +4834,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               body: bodyFromGrid(instantiateLayout(layout.tree), null, t.hints || null, t.size || layout.size),
               userId: user.id,
             });
+            // The count behind "Most downloaded" (0300). Idempotent per (slug,
+            // user) in the RPC, so re-adding the same template never inflates
+            // it. Awaited but never fatal — recordTemplateDownload swallows,
+            // because a counter must not be able to fail the save it counts.
+            await recordTemplateDownload(src.value);
           } else {
             // Both RPCs return a bare uuid, not the row, so the geometry has to
             // be read back before it can be previewed or placed.

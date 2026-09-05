@@ -172,6 +172,38 @@ export async function listPublicGridLayouts(limit = 120) {
 
 // Copies a published template into my library. Same COPY semantics as a share
 // link: a later takedown cannot reach into anyone's library.
+// ── download counts for the templates WE ship (migration 0300) ───────────────
+//
+// Community templates already had a counter (public_grid_layouts.use_count);
+// ours had none, so "Most downloaded" could only ever sort one item. Both count
+// the same thing — DISTINCT PEOPLE — so the two numbers sit beside each other in
+// the store honestly: use_public_grid_layout only bumps on a genuinely new copy,
+// and template_downloads is keyed (slug, user).
+//
+// Aggregate read, granted to anon because /templates renders signed out. It
+// never returns who downloaded what.
+
+export async function templateDownloadCounts() {
+  if (!supabase) return {};
+  const { data, error } = await supabase.rpc('template_download_counts');
+  if (error) throw error;
+  const out = {};
+  for (const r of (Array.isArray(data) ? data : [])) {
+    if (r?.slug) out[r.slug] = Number(r.downloads) || 0;
+  }
+  return out;
+}
+
+// Fire-and-forget by contract: a counter must never be able to fail the thing it
+// counts, so this swallows everything. NOT `.catch()` on the builder — a
+// PostgREST builder is a thenable with no catch method, and calling one throws
+// synchronously (the house rule that has bitten this repo before). `await` puts a
+// real promise in front of it.
+export async function recordTemplateDownload(slug) {
+  if (!supabase || !slug) return;
+  try { await supabase.rpc('record_template_download', { p_slug: slug }); } catch (_) { /* never fatal */ }
+}
+
 // ONE published template by its public slug, for /templates/g/<slug>. Granted to
 // `anon` as well as `authenticated` (0266) because that page has to render for a
 // signed-out visitor — it is where a store tile goes, and sending a shopper to a

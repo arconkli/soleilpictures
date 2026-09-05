@@ -96,6 +96,9 @@ function matchesQuery(t, q) {
 export function TemplatesStorePage() {
   const [state, setState] = useState(readUrlState);
   const [community, setCommunity] = useState([]);
+  // slug -> distinct downloaders, for the templates we ship. Community rows
+  // carry their own count on the row itself (use_count).
+  const [downloads, setDownloads] = useState({});
   const { q, sort, category } = state;
   const set = (patch) => setState((s) => ({ ...s, ...patch }));
   const searchRef = useRef(null);
@@ -124,8 +127,19 @@ export function TemplatesStorePage() {
       import('../lib/gridLayoutLibrary.js'),
     ])
       .then(async ([api, geom, lib]) => {
-        const rows = await api.listPublicGridLayouts(120);
+        // Together for one paint, but INDEPENDENTLY FAILING — each catches its
+        // own. They are two unrelated questions ("what has the community
+        // published" and "what has been downloaded"), and a bare Promise.all
+        // makes them one: the first rejection discards the other's answer.
+        // Caught by a test, and it was not a test artifact — the community list
+        // going down would have silently erased every count from the shelf.
+        // (0300 — one row per person, same as community use_count.)
+        const [rows, counts] = await Promise.all([
+          api.listPublicGridLayouts(120).catch(() => []),
+          api.templateDownloadCounts().catch(() => ({})),
+        ]);
         if (!on) return;
+        setDownloads(counts || {});
         setCommunity(rows
           // Sanitize on the way OUT as well as in — these trees, labels and
           // dimensions were authored by other people, and computeCellRects
@@ -168,7 +182,13 @@ export function TemplatesStorePage() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const all = useMemo(() => [...TEMPLATE_CARDS, ...community], [community]);
+  // Ours gain their count here rather than in the registry: TEMPLATE_CARDS is
+  // generated from content/templates/*.md and ships in the bundle, so a number
+  // that changes hourly has no business being baked into it.
+  const all = useMemo(() => [
+    ...TEMPLATE_CARDS.map((t) => (downloads[t.slug] ? { ...t, useCount: downloads[t.slug] } : t)),
+    ...community,
+  ], [community, downloads]);
 
   // Only community templates carry a real count: use_public_grid_layout bumps
   // public_grid_layouts.use_count when someone takes a copy. Our own sixteen have

@@ -9730,7 +9730,58 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", showing the shape and what each box is for. Those pages carry a download count once anyone has taken a copy, and the store can be sorted by it. A template you take from the community lands under "
+     "v": ", showing the shape and what each box is for."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every template — ours and the community's — carries a "
+    },
+    {
+     "t": "strong",
+     "v": "download count",
+     "children": [
+      {
+       "t": "text",
+       "v": "download count"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and the store can be sorted by "
+    },
+    {
+     "t": "strong",
+     "v": "Most downloaded",
+     "children": [
+      {
+       "t": "text",
+       "v": "Most downloaded"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". A download is one "
+    },
+    {
+     "t": "em",
+     "v": "person",
+     "children": [
+      {
+       "t": "text",
+       "v": "person"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": adding the same template again, on another board, or after deleting your copy, never counts twice. A count only appears once there is one, so a template nobody has taken yet simply shows its box count, and the sort is offered only when something has actually been downloaded. A template you take from the community lands under "
     },
     {
      "t": "strong",
