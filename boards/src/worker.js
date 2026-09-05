@@ -410,7 +410,7 @@ export default {
         ctx.waitUntil(
           rpc(env, 'record_crawler_hit', {
             p_bot: seen.bot, p_kind: seen.kind, p_path: url.pathname.slice(0, 300),
-          }).catch(() => {}),
+          }, 5_000).catch(() => {}),
         );
       }
     }
@@ -929,7 +929,10 @@ async function handleUnsubscribe(request, url, env) {
   return new Response(unsubConfirmPage(action), { status: 200, headers });
 }
 
-async function rpc(env, fn, params) {
+// timeoutMs defaults to the cron budget. Callers on a REQUEST path must pass a
+// short one: 30s is sized for an orphan scan, and inherited unthinkingly it lets
+// a stalled Supabase hold a waitUntil open for half a minute per crawler hit.
+async function rpc(env, fn, params, timeoutMs = 30_000) {
   const url = `${env.SUPABASE_URL}/rest/v1/rpc/${fn}`;
   const res = await fetch(url, {
     method: 'POST',
@@ -943,7 +946,7 @@ async function rpc(env, fn, params) {
     // Generous because the cron RPCs (orphan scan, compaction) do real
     // table scans — but bounded, so a hung request can't eat the whole
     // scheduled() invocation.
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
