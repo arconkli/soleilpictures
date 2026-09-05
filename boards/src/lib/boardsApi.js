@@ -988,14 +988,51 @@ export async function loadBoardSnapshot(boardId) {
   return data?.doc || null; // base64 string or null
 }
 
-export async function saveBoardSnapshot(boardId, ydoc) {
-  const update = Y.encodeStateAsUpdate(ydoc);
-  const b64 = bytesToB64(update);
-  const { error } = await supabase
-    .from('board_state')
-    .upsert({ board_id: boardId, doc: b64, updated_at: new Date().toISOString() },
-            { onConflict: 'board_id' });
-  if (error) throw error;
+// When PartyKit is the transport, a board's ROOM is the authoritative writer of
+// board_state: boardStateSync.js flushes the room's doc on its own debounce and
+// already skips a flush whose bytes match the last one. The client's 250ms
+// snapshot is then a second full-document upsert of the same content — measured
+// at ~9.5k calls and 638MB of WAL, against a table that is 6.8MB on disk.
+//
+// It is NOT simply dropped, for three reasons that each cost data if ignored:
+//
+//  1. Most callers pass a DETACHED Y.Doc for a board with no room open —
+//     App.jsx's board creation and cross-board moves, productionDay.js, the
+//     /api/v1 path. There the client upsert is the ONLY writer, so the default
+//     stays 'always' and every existing call site is unchanged.
+//  2. yboard's persistSoon clears the localStorage draft and flips the "Saved"
+//     footer only after this resolves, so it still needs a real confirmed write
+//     — just not four times a second.
+//  3. board_state carries no card_index/group_index trigger; those are
+//     maintained here, on the client. They run on every call regardless of
+//     whether the state write was due, because the demo card cap counts
+//     card_index rows and search reads both.
+//
+// So the hot path asks for 'backstop': under PartyKit it writes at most once a
+// minute, and every other path (pagehide, flushNow, destroy, detached docs)
+// keeps writing every time.
+const STATE_BACKSTOP_MS = 60_000;
+const _lastStateWrite = new Map();   // boardId → timestamp of last confirmed write
+
+export async function saveBoardSnapshot(boardId, ydoc, { stateWrite = 'always' } = {}) {
+  const partyOwnsState = import.meta.env.VITE_USE_PARTYKIT === 'true';
+  const now = Date.now();
+  const due = stateWrite === 'always'
+    || !partyOwnsState
+    || (now - (_lastStateWrite.get(boardId) || 0)) >= STATE_BACKSTOP_MS;
+
+  if (due) {
+    const update = Y.encodeStateAsUpdate(ydoc);
+    const b64 = bytesToB64(update);
+    const { error } = await supabase
+      .from('board_state')
+      .upsert({ board_id: boardId, doc: b64, updated_at: new Date().toISOString() },
+              { onConflict: 'board_id' });
+    if (error) throw error;
+    // Only after a confirmed write, so a failure retries on the next tick
+    // instead of starting a fresh minute of silence.
+    _lastStateWrite.set(boardId, now);
+  }
   // Mirror the board's cards into card_index so the home graph can render
   // every card as a node (not just boards). Best-effort — failures don't
   // block the snapshot save.

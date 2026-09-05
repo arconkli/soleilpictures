@@ -329,7 +329,10 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
       snapTimer = null;
       if (destroyed) return;
       try {
-        await saveBoardSnapshot(boardId, ydoc);
+        // 'backstop': under PartyKit the room already persists board_state, so
+        // this only needs to land a confirmed write often enough to clear the
+        // local draft. The card_index / group_index sync inside runs every time.
+        await saveBoardSnapshot(boardId, ydoc, { stateWrite: 'backstop' });
         clearLocalDraft(boardId, version);
         if (pendingLocal) { pendingLocal = false; emitSaveState('saved'); }
         // Round 16: refresh the localStorage preview cache for this
