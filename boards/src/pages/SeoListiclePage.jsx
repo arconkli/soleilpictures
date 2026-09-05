@@ -545,6 +545,9 @@ export function SeoListiclePage({ path }) {
                   ))}
                   <li><a href="/explore" {...lp.ctaProps('related:/explore', '/explore', { intent: 'nav' })}>Explore example boards</a></li>
                   <li><a href="/pricing" {...lp.ctaProps('related:/pricing', '/pricing', { intent: 'nav' })}>Pricing</a></li>
+                  {/* Kept in lockstep with seoListicleHtml.js — /docs was an
+                      island with no inbound link from anywhere but itself. */}
+                  <li><a href="/docs" {...lp.ctaProps('related:/docs', '/docs', { intent: 'nav' })}>Docs</a></li>
                   {/* The pages that rank are comparisons, and the question
                       underneath every comparison is whether this thing is
                       actually maintained. The changelog is the answer, so it is

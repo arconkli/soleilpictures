@@ -333,6 +333,9 @@ export function SeoLandingPage({ spec: specProp, path }) {
                   ))}
                   <li><a href="/explore">Explore example boards</a></li>
                   <li><a href="/pricing">Pricing</a></li>
+                  {/* Kept in lockstep with the Worker's fallback nav in
+                      worker.js — /docs was an island with no inbound link. */}
+                  <li><a href="/docs">Docs</a></li>
                   <li><a href="/changelog">Changelog</a></li>
                 </ul>
               </nav>

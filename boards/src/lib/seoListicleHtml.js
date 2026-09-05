@@ -199,7 +199,13 @@ export function buildListicleCrawlableHtml(spec) {
     parts.push(`<nav aria-label="Related pages" style="margin-top:1.6em;"><h2 style="font-size:1.1rem;">Keep exploring</h2><ul>`);
     for (const p of spec.related) parts.push(`<li><a href="${escapeHtml(p)}" style="${GOLD}">${escapeHtml(p)}</a></li>`);
     parts.push(`<li><a href="/explore" style="${GOLD}">Explore example boards</a></li>`);
-    parts.push(`<li><a href="/pricing" style="${GOLD}">Pricing</a></li></ul></nav>`);
+    parts.push(`<li><a href="/pricing" style="${GOLD}">Pricing</a></li>`);
+    // These two were in SeoListiclePage.jsx's footer and not here — the two
+    // renderers were serving different documents, which is the single thing
+    // the shared-registry design exists to prevent. /docs additionally had no
+    // inbound link from anywhere but itself.
+    parts.push(`<li><a href="/docs" style="${GOLD}">Docs</a></li>`);
+    parts.push(`<li><a href="/changelog" style="${GOLD}">Changelog</a></li></ul></nav>`);
   }
 
   return `<div style="max-width:800px;margin:0 auto;padding:14vh 24px 24px;"><article>${parts.join('')}</article></div>`;
