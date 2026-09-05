@@ -44,6 +44,7 @@ import { layoutById } from './lib/templateLayouts.js';
 // Worker's byte budget is a single function body, not a call-site sweep.
 import { TEMPLATE_CARDS, TEMPLATE_CATEGORIES } from './lib/templateCards.js';
 import { TEMPLATE_ITEMS, getTemplateSpec, isTemplatePath } from './lib/templateIndex.js';
+import { publicTemplateSlug } from './lib/templatePaths.js';
 import { templateHtml } from './lib/templateCrawlable.js';
 import { getListicleSpec, SEO_LISTICLE_PAGES } from './lib/seoListicles.js';
 import { buildListicleCrawlableHtml, buildListicleJsonLd } from './lib/seoListicleHtml.js';
@@ -251,7 +252,11 @@ const TEMPLATE_SHARE_PATH_RE = /^\/t\/([0-9a-f-]{36})\/?$/i;
 // keeps it out of the flat namespace our own items occupy, so a published slug
 // can never collide with a curated one; slugs are minted once and never
 // re-checked (0266:126), which would make a collision silent and permanent.
-const TEMPLATE_PUBLIC_PATH_RE = /^\/templates\/g\/([a-z0-9-]{1,120})\/?$/i;
+//
+// The matcher moved to lib/templatePaths.js and is now imported by the React
+// router too. It used to live only here, which is precisely why every published
+// template rendered a full page for a crawler and "Page not found" for a person:
+// the client had no idea this shape existed.
 const PUBLIC_BOARD_PATH_RE = /^\/c\/([a-z0-9][a-z0-9-]{0,79})\/?$/;
 const EXPLORE_PATH_RE = /^\/explore\/?$/;
 
@@ -524,9 +529,9 @@ export default {
     const tplStorePromise = tplStoreMatch
       ? anonRpc(env, 'list_public_grid_layouts', { p_limit: 120 }, 1500).catch(() => null)
       : null;
-    const tplPubMatch = isPageReq ? url.pathname.match(TEMPLATE_PUBLIC_PATH_RE) : null;
+    const tplPubMatch = isPageReq ? publicTemplateSlug(url.pathname) : null;
     const tplPubPromise = tplPubMatch
-      ? anonRpc(env, 'get_public_grid_layout', { p_slug: tplPubMatch[1] }, 1500).catch(() => null)
+      ? anonRpc(env, 'get_public_grid_layout', { p_slug: tplPubMatch }, 1500).catch(() => null)
       : null;
     const exploreMatch = isPageReq ? url.pathname.match(EXPLORE_PATH_RE) : null;
     const exploreListPromise = exploreMatch ? fetchPublicBoards(env).catch(() => null) : null;

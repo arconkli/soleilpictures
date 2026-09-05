@@ -102,9 +102,9 @@ The panel groups templates by where they came from, nearest to you first:
 |---|---|
 | **Yours** | Templates you saved. |
 | **Workspace** | Shared with everyone in the current workspace. |
-| **Downloaded** | Copies you took from a share link or the public gallery. |
+| **Downloaded** | Copies you took from a private share link. |
 | **Store** | The ready-made templates, the same ones at [/templates](/templates). |
-| **Community** | Templates other people have published. |
+| **Community** | Templates other people have published, plus your own copies of any you have taken. |
 | **Shapes** | The ten bare layouts in the table above. |
 
 Click any heading to fold that section away — useful once you have your own and
@@ -154,6 +154,13 @@ The **Store** and **Community** sections of the panel are the same catalogue you
 can browse at [/templates](/templates) — pick one and it places straight onto
 your board, no download step. On the web, each template has a page showing the
 shape and what every box is for.
+
+Every published template has its own page too, at `/templates/g/<slug>`, showing
+the shape and what each box is for. Those pages carry a download count once
+anyone has taken a copy, and the store can be sorted by it. A template you take
+from the community lands under **Community** in the panel — where you got it is
+the section it lives in — and it is your own copy, so it stays even if the
+original is taken down.
 
 Adding one from the web takes you into the app — signing you in first if you are
 not already — and drops you on your board with **Grid template added** and a

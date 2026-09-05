@@ -2066,7 +2066,18 @@ export function CanvasSurface({
     // off a share link or the gallery — both are scope:'user' rows you own, so
     // without it they pile into one indistinguishable list.
     const mine = rowsFromRecords(personal.filter((r) => (r.origin || 'own') === 'own'), SOURCES.USER);
-    const downloaded = rowsFromRecords(personal.filter((r) => (r.origin || 'own') !== 'own'), SOURCES.DOWNLOADED);
+    // WHERE YOU GOT IT IS THE SECTION IT LIVES IN.
+    //
+    // 'link' and 'gallery' both used to land in Downloaded, so a template you
+    // took from the community store turned up in a section that said nothing
+    // about the community. Downloaded now means what it says — a copy off a
+    // private share link — and a gallery copy joins the Community section it
+    // came from, listed above the public rows because it is yours: renameable,
+    // deletable, and still there if the original is ever taken down.
+    const downloaded = rowsFromRecords(personal.filter((r) => (r.origin || 'own') === 'link'), SOURCES.DOWNLOADED);
+    const takenFromGallery = rowsFromRecords(
+      personal.filter((r) => (r.origin || 'own') === 'gallery'), SOURCES.COMMUNITY,
+    );
     const workspace = rowsFromRecords(
       savedLayouts.filter((r) => r.scope === 'workspace' && r.workspace_id === workspaceId),
       SOURCES.WORKSPACE,
@@ -2088,15 +2099,30 @@ export function CanvasSurface({
     // Published by other people. Sanitized on the way out as well as in — these
     // trees were authored by strangers and computeCellRects recurses without a
     // depth guard.
-    const community = (publishedLayouts || []).map((r) => {
+    // Everything of yours that is already a copy of a community template, so the
+    // public list below can skip it. Two keys because there are two ways to
+    // already have one:
+    //   publishedSlug — exact. A template YOU published is in the public list;
+    //                   without this it showed under both Yours and Community.
+    //   name          — best effort, for a gallery copy. The copy keeps the
+    //                   source's name and publishing defaults the title to it,
+    //                   so this matches in practice; an exact key would need the
+    //                   source slug recorded on the copy, which is a migration.
+    const ownedSlugs = new Set([...mine, ...workspace].map((r) => r.publishedSlug).filter(Boolean));
+    const ownedNames = new Set(takenFromGallery.map((r) => (r.name || '').trim().toLowerCase()));
+    const published = (publishedLayouts || []).map((r) => {
       const tree = sanitizeLayout(r.body?.layout);
-      return tree && {
+      if (!tree) return null;
+      if (ownedSlugs.has(r.slug)) return null;
+      if (ownedNames.has(String(r.title || '').trim().toLowerCase())) return null;
+      return {
         key: `community:${r.slug}`, id: r.slug, name: r.title,
         tree, source: SOURCES.COMMUNITY, hints: sanitizeHints(r.body?.hints),
         textStyle: r.body?.textStyle || null,
         size: sanitizeSize(r.body?.size),
       };
     }).filter(Boolean);
+    const community = [...takenFromGallery, ...published];
     return mergeSections({ mine, workspace, downloaded, store, community });
   }, [savedLayouts, publishedLayouts, userId, workspaceId]);
 

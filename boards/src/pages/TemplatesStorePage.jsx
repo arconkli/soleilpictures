@@ -31,8 +31,13 @@ import { layoutById } from '../lib/templateLayouts.js';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 
+// "Most downloaded" is OFFERED CONDITIONALLY (see `hasDownloads`). A sort button
+// that orders sixteen zeroes is not a sort, and it advertises an emptiness the
+// store does not need to advertise — the same reason the Community chip only
+// appears once there is something behind it.
 const SORTS = [
   { key: 'featured', label: 'Featured' },
+  { key: 'downloads', label: 'Most downloaded', needsDownloads: true },
   { key: 'az', label: 'A–Z' },
   { key: 'boxes', label: 'Fewest boxes' },
 ];
@@ -165,11 +170,18 @@ export function TemplatesStorePage() {
 
   const all = useMemo(() => [...TEMPLATE_CARDS, ...community], [community]);
 
+  // Only community templates carry a real count: use_public_grid_layout bumps
+  // public_grid_layouts.use_count when someone takes a copy. Our own sixteen have
+  // no counter behind them at all, so they sort as zero rather than as a number
+  // somebody made up.
+  const hasDownloads = useMemo(() => all.some((t) => (t.useCount || 0) > 0), [all]);
+
   const shown = useMemo(() => {
     let list = all.filter((t) => matchesQuery(t, q.trim()));
     if (category !== 'all') list = list.filter((t) => t.category === category);
     if (sort === 'az') list = [...list].sort((a, b) => a.h1.localeCompare(b.h1));
     else if (sort === 'boxes') list = [...list].sort((a, b) => (a.cells || 99) - (b.cells || 99) || a.h1.localeCompare(b.h1));
+    else if (sort === 'downloads') list = [...list].sort((a, b) => (b.useCount || 0) - (a.useCount || 0) || a.h1.localeCompare(b.h1));
     return list;
   }, [all, q, sort, category]);
 
@@ -206,7 +218,7 @@ export function TemplatesStorePage() {
           )}
         </div>
         <div className="exp-sorts">
-          {SORTS.map((s) => (
+          {SORTS.filter((s) => !s.needsDownloads || hasDownloads).map((s) => (
             <button
               key={s.key}
               type="button"
@@ -293,12 +305,15 @@ export function TemplatesStorePage() {
                   <span className="tplstore-title">{t.h1}</span>
                   <span className="tplstore-blurb">{t.blurb}</span>
                   <span className="tplstore-meta">
-                    {isCommunity ? (
-                      <>
-                        <span className="tplstore-badge">Community</span>
-                        {t.useCount > 0 && <> · used {t.useCount}×</>}
-                      </>
-                    ) : `${t.cells} ${t.cells === 1 ? 'box' : 'boxes'}`}
+                    {isCommunity && <span className="tplstore-badge">Community</span>}
+                    {t.cells > 0 && <>{isCommunity ? ' · ' : ''}{t.cells} {t.cells === 1 ? 'box' : 'boxes'}</>}
+                    {/* Shown only when it is a real number. A shelf of "0
+                        downloads" reads as a dead shop, and the fix for that is
+                        to say nothing until there is something to say — not to
+                        put a number there that nobody earned. */}
+                    {t.useCount > 0 && (
+                      <> · <span className="tplstore-dl">{t.useCount} download{t.useCount === 1 ? '' : 's'}</span></>
+                    )}
                   </span>
                 </a>
               </li>

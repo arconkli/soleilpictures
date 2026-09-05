@@ -172,6 +172,18 @@ export async function listPublicGridLayouts(limit = 120) {
 
 // Copies a published template into my library. Same COPY semantics as a share
 // link: a later takedown cannot reach into anyone's library.
+// ONE published template by its public slug, for /templates/g/<slug>. Granted to
+// `anon` as well as `authenticated` (0266) because that page has to render for a
+// signed-out visitor — it is where a store tile goes, and sending a shopper to a
+// signup screen instead of the thing they clicked is the dead-CTA bug the whole
+// surface exists to fix. Returns { slug, title, description, body, use_count }.
+export async function getPublicGridLayout(slug) {
+  if (!supabase || !slug) return null;
+  const { data, error } = await supabase.rpc('get_public_grid_layout', { p_slug: slug });
+  if (error) throw error;
+  return data || null;
+}
+
 export async function usePublicGridLayout(slug) {
   const { data, error } = await supabase.rpc('use_public_grid_layout', { p_slug: slug });
   if (error) throw error;

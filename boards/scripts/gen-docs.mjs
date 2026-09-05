@@ -1102,10 +1102,15 @@ export function getTemplateSpec(pathname) {
 }
 
 // Shape-match, so an unknown /templates/<slug> can be a real 404 rather than
-// page content at a URL whose status says gone.
+// page content at a URL whose status says gone. ONE segment only — a two-segment
+// path is the community shape below, and conflating them is what made every
+// published template 404 in the browser while the Worker served it a real page.
 export function isTemplatePath(pathname) {
   return /^\\/templates\\/[a-z0-9-]+\\/?$/i.test(String(pathname || ''));
 }
+// The community shape (/templates/g/<slug>) lives in lib/templatePaths.js, NOT
+// here: this module carries the whole prose registry, and the React router needs
+// the matcher without dragging every metaDescription into the landing chunk.
 `);
 
   write(resolve(BOARDS, 'src/lib/templateCrawlable.js'),

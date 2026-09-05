@@ -9242,7 +9242,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Copies you took from a share link or the public gallery."
+       "v": "Copies you took from a private share link."
       }
      ]
     ],
@@ -9297,7 +9297,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Templates other people have published."
+       "v": "Templates other people have published, plus your own copies of any you have taken."
       }
      ]
     ],
@@ -9714,6 +9714,37 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " — pick one and it places straight onto your board, no download step. On the web, each template has a page showing the shape and what every box is for."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every published template has its own page too, at "
+    },
+    {
+     "t": "code",
+     "v": "/templates/g/<slug>"
+    },
+    {
+     "t": "text",
+     "v": ", showing the shape and what each box is for. Those pages carry a download count once anyone has taken a copy, and the store can be sorted by it. A template you take from the community lands under "
+    },
+    {
+     "t": "strong",
+     "v": "Community",
+     "children": [
+      {
+       "t": "text",
+       "v": "Community"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the panel — where you got it is the section it lives in — and it is your own copy, so it stays even if the original is taken down."
     }
    ]
   },

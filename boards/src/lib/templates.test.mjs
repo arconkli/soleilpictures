@@ -12,6 +12,7 @@ import { SEO_LISTICLE_INDEX } from './seoListicleIndex.js';
 import { computeCellRects, sanitizeLayout, GRID_TUNING } from './gridLayout.js';
 import { layoutById, layoutSize, templateCellOrder, TEMPLATE_LAYOUTS } from './templateLayouts.js';
 import { HINT_LIMITS, sanitizeSize } from './gridLayoutLibrary.js';
+import { publicTemplateSlug } from './templatePaths.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -353,6 +354,42 @@ test('every purpose-built layout belongs to exactly one template', () => {
     if (owners.length > 1) problems.push(`${l.id} is claimed by ${owners.length}: ${owners.join(', ')}`);
   }
   assert.deepEqual(problems, [], `layout ownership:\n  ${problems.join('\n  ')}`);
+});
+
+// THE ROUTE THAT 404'd FOR PEOPLE AND RENDERED FOR CRAWLERS.
+//
+// /templates/g/<slug> is a published community template. The Worker had matched
+// it since the store shipped — real meta, a crawlable body, canonical, noindex —
+// but the client had no matcher at all, because isTemplatePath only ever matched
+// ONE path segment. So the two halves disagreed about whether the URL existed,
+// and the failure was invisible: each was correct by its own rules.
+//
+// Both now import publicTemplateSlug, and these are the cases that separate the
+// two shapes from each other.
+test('the community path shape is distinct from ours, and shared by both halves', () => {
+  // Ours: one segment. Theirs: two, behind /g/.
+  assert.equal(publicTemplateSlug('/templates/g/my-layout'), 'my-layout');
+  assert.equal(publicTemplateSlug('/templates/g/my-layout/'), 'my-layout');
+  // Normalized, so /g/FOO and /g/foo are one template rather than two.
+  assert.equal(publicTemplateSlug('/templates/g/MyLayout'), 'mylayout');
+
+  // Must NOT swallow the store, the catalogue, or one of our items — the /g/
+  // segment exists precisely so a published slug can never collide with a
+  // curated one (slugs are minted once and never re-checked).
+  assert.equal(publicTemplateSlug('/templates'), null);
+  assert.equal(publicTemplateSlug('/templates/g'), null);
+  assert.equal(publicTemplateSlug('/templates/g/'), null);
+  assert.equal(publicTemplateSlug('/templates/storyboard-template'), null);
+  assert.equal(publicTemplateSlug('/templates/g/a/b'), null);
+  assert.equal(publicTemplateSlug(''), null);
+  assert.equal(publicTemplateSlug(null), null);
+
+  // And the two matchers must not both claim a path.
+  for (const it of TEMPLATE_ITEMS) {
+    assert.equal(publicTemplateSlug(it.path), null, `${it.path}: claimed by the community matcher too`);
+  }
+  assert.equal(isTemplatePath('/templates/g/my-layout'), false,
+    'a community path must not be mistaken for one of ours');
 });
 
 test('related links resolve to real pages', () => {

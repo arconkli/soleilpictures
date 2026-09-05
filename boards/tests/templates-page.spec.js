@@ -214,6 +214,49 @@ test.describe('/templates/<slug> — an item page', () => {
     expect(await ratioOf('social-media-grid-template')).toBeCloseTo(0.75, 1);
   });
 
+  // THE BUG: this route rendered a full page for a crawler and "Page not found"
+  // for a person, because the Worker matched /templates/g/<slug> and the client
+  // had no matcher for it at all. Stubbed rather than hitting the real gallery so
+  // the test does not depend on somebody having published something.
+  test('a published community template renders, rather than 404ing', async ({ page }) => {
+    await page.route('**/rpc/get_public_grid_layout', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        slug: 'a-shared-layout',
+        title: 'A shared layout',
+        description: 'Two panels over a strip.',
+        use_count: 7,
+        body: {
+          layout: { type: 'col', children: [
+            { type: 'leaf', id: 'a', frac: 0.6 },
+            { type: 'row', frac: 0.4, children: [
+              { type: 'leaf', id: 'b', frac: 0.5 }, { type: 'leaf', id: 'c', frac: 0.5 }] },
+          ] },
+          hints: ['HERO', 'LEFT', 'RIGHT'],
+        },
+      }),
+    }));
+    await page.goto('/templates/g/a-shared-layout');
+    await expect(page.getByRole('heading', { name: 'A shared layout', level: 1 })).toBeVisible();
+    await expect(page.getByText('Two panels over a strip.')).toBeVisible();
+    await expect(page.locator('.tplitem-shot .tplt-thumb rect')).toHaveCount(3);
+    // A real download count, shown because it is non-zero.
+    await expect(page.locator('.tplitem-specs')).toContainText('7 downloads');
+    // The CTA rides the gallery rail (p_), not the curated one (k_) — different
+    // RPCs with different authorization.
+    await expect(page.locator('.tplitem-add')).toHaveAttribute('href', /remix=p_a-shared-layout/);
+  });
+
+  test('a community slug that resolves to nothing is a dead end', async ({ page }) => {
+    await page.route('**/rpc/get_public_grid_layout', (route) => route.fulfill({
+      status: 200, contentType: 'application/json', body: 'null',
+    }));
+    await page.goto('/templates/g/never-published');
+    await expect(page.getByText(/Page not found|doesn.t exist/i).first()).toBeVisible();
+    await expect(page.locator('.tplitem-hero')).toHaveCount(0);
+  });
+
   test('an unknown item is a dead end, not a soft 404', async ({ page }) => {
     await page.goto('/templates/not-a-real-template');
     await expect(page.locator('.tplitem-layout')).toHaveCount(0);

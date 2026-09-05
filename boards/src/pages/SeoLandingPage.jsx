@@ -12,6 +12,7 @@ import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { SEO_LANDING_PAGES, getLandingSpec } from '../lib/seoLanding.js';
 import { SEO_LISTICLE_INDEX } from '../lib/seoListicleIndex.js';
 import { NotFoundPage } from './NotFoundPage.jsx';
+import { publicTemplateSlug } from '../lib/templatePaths.js';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
@@ -24,6 +25,7 @@ import './seoLanding.css';
 // so the store's registries never land in the landing chunk.
 const TemplatesStorePage = lazy(() => import('./TemplatesStorePage.jsx').then((m) => ({ default: m.TemplatesStorePage })));
 const TemplateItemPage = lazy(() => import('./TemplateItemPage.jsx').then((m) => ({ default: m.TemplateItemPage })));
+const PublicTemplatePage = lazy(() => import('./PublicTemplatePage.jsx').then((m) => ({ default: m.PublicTemplatePage })));
 
 // path → short link label, for related-page spokes in the footer. Includes the
 // /best/* listicles via the light index (never the full listicle registry —
@@ -74,6 +76,11 @@ export function SeoLandingPage({ spec: specProp, path }) {
   // A store item: /templates/<slug> matches seoLandingMatch but is not a landing
   // spec. Resolved here rather than in main.jsx so the router keeps its shape.
   const isTemplateItem = !spec && /^\/templates\/[a-z0-9-]+\/?$/i.test(path || '');
+  // A published community template. Checked through the SAME matcher the Worker
+  // uses (generated into templateIndex.js) rather than a second regex here —
+  // this route 404'd in the browser for exactly as long as the two halves had
+  // separate ideas about what the path looked like.
+  const publicSlug = !spec ? publicTemplateSlug(path) : null;
 
   useEffect(() => {
     if (!spec) return;
@@ -116,6 +123,9 @@ export function SeoLandingPage({ spec: specProp, path }) {
 
   if (isTemplateItem) {
     return <Suspense fallback={null}><TemplateItemPage path={path} /></Suspense>;
+  }
+  if (publicSlug) {
+    return <Suspense fallback={null}><PublicTemplatePage slug={publicSlug} /></Suspense>;
   }
   if (!spec) return <NotFoundPage />;
 

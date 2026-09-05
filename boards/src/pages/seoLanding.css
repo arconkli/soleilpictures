@@ -1048,6 +1048,22 @@
   letter-spacing: .08em;
   color: var(--ink-2);
 }
+/* A real download count, and only ever a real one — see the tile meta in
+   TemplatesStorePage. Ink-1 rather than ink-3 so the one piece of social proof
+   on a tile is the part of the meta line you actually read. */
+.tplstore-dl { color: var(--ink-1); }
+
+/* The community item page always needs a round-trip, so it gets a skeleton. A
+   blank frame here reads as the 404 this route used to be. */
+.tplitem-shot.is-loading {
+  aspect-ratio: 4 / 3;
+  background: linear-gradient(90deg, var(--bg-2) 25%, var(--bg-3, var(--bg-hov)) 37%, var(--bg-2) 63%);
+  background-size: 400% 100%;
+  animation: tplitemShimmer 1.4s ease infinite;
+}
+@keyframes tplitemShimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .tplitem-shot.is-loading { animation: none; } }
+
 .tplstore-contribute {
   margin: 28px 0 0;
   font: 400 14px/1.6 var(--font-sans);
