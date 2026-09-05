@@ -27,6 +27,7 @@ import {
 import { runCompactionJob1 } from './worker-compaction.js';
 import { isOAuthRoute, handleOAuthRoute } from './worker-oauth.js';
 import { classifyCrawler, isCrawlablePath } from './lib/crawlerUa.js';
+import { runAeoRetrievalProbe } from './worker-aeo.js';
 // Self-authored SEO landing pages (tool / "alternative to" / hub). Pure-data
 // registry shared with the React component so the crawlable server-rendered
 // text can't drift from what the app renders (anti-cloaking).
@@ -743,6 +744,12 @@ export default {
       // daily 04:00 UTC — fill in any missing image sizes (additive, runs live),
       // then the history-aware orphan sweep. Sequential so R2 ops don't spike.
       ctx.waitUntil(runImageSizeBackfill(env).then(() => runR2Sweep(env)));
+    } else if (which === '0 6 * * 1') {
+      // Mondays 06:00 UTC — the AEO retrieval probe (migration 0296). Weekly
+      // because retrieval moves on the timescale of index refreshes; daily
+      // would mostly sample answer-to-answer variance. No-ops without
+      // OPENAI_API_KEY.
+      ctx.waitUntil(runAeoRetrievalProbe(env));
     } else {
       // An edited wrangler.toml schedule must never silently reroute into the
       // destructive sweep — unknown crons are a loud no-op.
