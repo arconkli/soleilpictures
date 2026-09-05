@@ -1469,7 +1469,16 @@ function buildLandingCrawlableHtml(spec) {
       parts.push(`<li><a href="${escapeHtml(p)}" style="color:#FFA500;">${escapeHtml(label)}</a></li>`);
     }
     parts.push(`<li><a href="/explore" style="color:#FFA500;">Explore example boards</a></li>`);
-    parts.push(`<li><a href="/pricing" style="color:#FFA500;">Pricing</a></li></ul></nav>`);
+    parts.push(`<li><a href="/pricing" style="color:#FFA500;">Pricing</a></li>`);
+    // /docs had no inbound link from anywhere but itself. All 64 docs pages
+    // plus /changelog formed a closed island whose only entry was sitemap.xml
+    // — reachable, but with no path a crawler could follow in. This is the one
+    // edge that breaks it, and it is a FIXED footer entry rather than a
+    // `related` path for the reason the comment above gives: a /docs/* in
+    // `related` renders here and silently vanishes in React.
+    parts.push(`<li><a href="/docs" style="color:#FFA500;">Docs</a></li>`);
+    // React's footer has carried /changelog since it shipped; this did not.
+    parts.push(`<li><a href="/changelog" style="color:#FFA500;">Changelog</a></li></ul></nav>`);
   }
   return `<div style="max-width:800px;margin:0 auto;padding:14vh 24px 24px;"><article>${parts.join('')}</article></div>`;
 }
