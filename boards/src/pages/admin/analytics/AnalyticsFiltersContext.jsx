@@ -30,12 +30,18 @@ const LS_VERIFIED = 'admin.analytics.verifiedOnly';
  * looked at again.
  *
  * The intervals are not uniform because the views are not: Today is eleven
- * cheap windowed RPCs and is the one people leave open, while System reads
- * storage and coverage figures that move on the order of hours. Polling those
- * as often as Today would be work nobody asked for and nobody would see.
+ * windowed RPCs and is the one people leave open, while System reads storage
+ * and coverage figures that move on the order of hours. Polling those as often
+ * as Today would be work nobody asked for and nobody would see.
+ *
+ * `today` was 30s, which is a live-ops cadence applied to a view whose inputs
+ * are daily rollups. Eleven concurrent RPCs twice a minute was the largest
+ * single driver of call volume on the instance; the one genuinely live number
+ * (admin_active_now, ~30ms) is cheap enough to poll on its own if it ever
+ * needs to be finer than this.
  */
 export const POLL_MS = {
-  today: 30_000,
+  today: 300_000,
   funnel: 120_000,
   retention: 120_000,
   system: 180_000,
@@ -115,21 +121,31 @@ export function AnalyticsFiltersProvider({ children }) {
   const setExcludeInternal = useCallback((b) => { setExcludeInternalState(b); setParam('internal', b ? '1' : '0'); setStored(LS_INTERNAL, b ? '1' : '0'); }, []);
   const setVerifiedOnly    = useCallback((b) => { setVerifiedOnlyState(b); setParam('verified', b ? '1' : '0'); setStored(LS_VERIFIED, b ? '1' : '0'); }, []);
 
-  // Shell-level shared fetch: segment options (for the dropdowns) + live stats
-  // (MRR/ARPU + tier/sub counts, reused by Overview & Revenue). Cheap and
-  // filter-light, so it runs once at shell level rather than per view.
+  // Shell-level shared fetches. These were ONE call on one poll, and that was
+  // the single most expensive thing this database did.
+  //
+  // admin_funnel_segments scans analytics_events and materialises a CTE holding
+  // the whole JSONB props column for every event in the window, then re-scans
+  // it. At work_mem=2184kB that spills ~21MB to disk per call. On the shell's
+  // 60s poll it wrote 9.9GB of temp files — 54% of every temp byte this
+  // database has ever written — to populate three dropdowns whose values move
+  // on the order of days. The comment above used to call it "cheap".
+  //
+  // So the two are split by how fast their data actually moves:
+  //   stats    — MRR/ARPU/tier counts. Today renders these in a hero tile, so
+  //              they keep the shell's poll and the focus refetch.
+  //   segments — dropdown options only. Fetched once per filter change, never
+  //              polled, never refetched on focus.
   const shell = useAdminData(async () => {
-    const [sg, st] = await Promise.allSettled([
-      supabase.rpc('admin_funnel_segments', { p_days: days, p_exclude_internal: excludeInternal }),
-      supabase.rpc('admin_stats', { p_verified_only: verifiedOnly }),
-    ]);
-    const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
-    return { segments: val(sg) || [], stats: val(st) };
-    // The shell carries MRR and the tier counts, which Today puts in a hero
-    // tile — so it has to stay as fresh as the view that reads it, or the
-    // headline number quietly ages while everything around it updates.
-  }, [days, excludeInternal, verifiedOnly],
+    const st = await supabase.rpc('admin_stats', { p_verified_only: verifiedOnly });
+    return { stats: st.error ? null : st.data };
+  }, [verifiedOnly],
      { pollIntervalMs: POLL_MS.shell, refetchOnFocus: true });
+
+  const segmentsQuery = useAdminData(async () => {
+    const sg = await supabase.rpc('admin_funnel_segments', { p_days: days, p_exclude_internal: excludeInternal });
+    return sg.error ? [] : (sg.data || []);
+  }, [days, excludeInternal]);
 
   const [runtime, setRuntime] = useState({ refresh: null, lastUpdated: null, refreshing: false });
   const registerRuntime = useCallback((r) => setRuntime(r), []);
@@ -139,13 +155,13 @@ export function AnalyticsFiltersProvider({ children }) {
     source, setSource, campaign, setCampaign, content, setContent,
     excludeInternal, setExcludeInternal,
     verifiedOnly, setVerifiedOnly,
-    segments: shell.data?.segments || [],
+    segments: segmentsQuery.data || [],
     stats: shell.data?.stats || null,
     refreshShell: shell.refresh,
     runtime, registerRuntime,
   }), [days, setDays, source, setSource, campaign, setCampaign, content, setContent,
        excludeInternal, setExcludeInternal, verifiedOnly, setVerifiedOnly,
-       shell.data, shell.refresh, runtime, registerRuntime]);
+       shell.data, shell.refresh, segmentsQuery.data, runtime, registerRuntime]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -134,13 +134,26 @@ export async function primeImageMetaForBoard(boardId) {
   if (primedBoards.has(boardId)) return;
   primedBoards.add(boardId);
   const _t0 = perf.isEnabled() ? performance.now() : 0;
+  const COLS = 'storage_path,blur_hash,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,width,height';
   try {
-    const { data, error } = await supabase
-      .from('images')
-      .select('storage_path,blur_hash,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,width,height')
-      .or(`board_id.eq.${boardId},referenced_in_board_ids.cs.{${boardId}}`);
-    if (error) { primedBoards.delete(boardId); return; }
-    for (const row of (data || [])) {
+    // Two queries, not one .or(). PostgREST turns
+    //   .or('board_id.eq.X,referenced_in_board_ids.cs.{X}')
+    // into a single OR across two different columns, and the images RLS policy
+    // is itself a three-way OR — so the planner cannot build a BitmapOr and
+    // falls back to scanning. Measured at ~63,000 buffers and 2.3s per board
+    // open. Split apart, each half has a single-column predicate the planner
+    // can serve from an index (images_board_card_idx and images_boards_gin
+    // respectively; the GIN existed all along and had never once been used).
+    //
+    // Deduping is free: the loop below skips any key already in the cache, so
+    // a row matching both halves is written once. Deliberately NOT filtered on
+    // deleted_at — a soft-deleted image still renders during its undo window.
+    const [own, ref] = await Promise.all([
+      supabase.from('images').select(COLS).eq('board_id', boardId),
+      supabase.from('images').select(COLS).contains('referenced_in_board_ids', [boardId]),
+    ]);
+    if (own.error && ref.error) { primedBoards.delete(boardId); return; }
+    for (const row of [...(own.data || []), ...(ref.data || [])]) {
       if (cache.has(row.storage_path)) continue;
       cache.set(row.storage_path, rowToMeta(row));
       notify(row.storage_path);
