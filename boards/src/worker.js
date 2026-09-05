@@ -403,8 +403,15 @@ export default {
     // actually serve, not the one it asked for. Fire-and-forget in waitUntil
     // and swallowed on failure: counting a crawl must never be what makes a
     // page slow, and never what fails one.
+    //
+    // Our own seo-health prober fetches these pages with spoofed GPTBot,
+    // ClaudeBot and PerplexityBot agents, four times a day, to prove a crawler
+    // still gets real content. Counting those would put roughly thirty fake AI
+    // visits a day on precisely the pages this table exists to measure — so the
+    // prober identifies itself with x-soleil-probe and is skipped.
     if ((request.method === 'GET' || request.method === 'HEAD')
-        && isCrawlablePath(url.pathname) && env.SUPABASE_SERVICE_ROLE_KEY) {
+        && isCrawlablePath(url.pathname) && env.SUPABASE_SERVICE_ROLE_KEY
+        && !request.headers.get('x-soleil-probe')) {
       const seen = classifyCrawler(request.headers.get('user-agent'));
       if (seen) {
         ctx.waitUntil(

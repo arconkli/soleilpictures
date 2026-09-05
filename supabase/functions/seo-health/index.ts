@@ -128,8 +128,20 @@ Deno.serve(async (req) => {
     let body = "";
     let fetchErr = "";
     try {
+      // x-soleil-probe marks this as US, not a crawler. Eight of these rows
+      // fetch with a spoofed GPTBot/ClaudeBot/PerplexityBot user-agent -- that
+      // is the point, it is how we prove a crawler still gets real content --
+      // but the Worker records recognized crawler fetches into crawler_hits,
+      // and without this header our own liveness check writes ~32 fake AI-bot
+      // visits a day onto exactly the pages we most want an honest count for.
+      // The Worker skips logging when it sees this; the request is otherwise
+      // unchanged, so what the probe ASSERTS on is identical.
       const res = await fetch(url, {
-        headers: { "user-agent": ua, "accept": "text/html,application/json;q=0.9,*/*;q=0.8" },
+        headers: {
+          "user-agent": ua,
+          "accept": "text/html,application/json;q=0.9,*/*;q=0.8",
+          "x-soleil-probe": "1",
+        },
         redirect: "follow",
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
