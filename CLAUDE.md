@@ -132,6 +132,59 @@ so the contract is checked at test time only and never feeds the prober.
 
 ---
 
+## Reading the SEO numbers
+
+Four traps, each of which has already produced a confident wrong answer here.
+
+**1. Two tables, one of them a snapshot.** `seo_page_daily` is the true per-day
+Search Console series and is safe to `SUM`. `seo_page_stats` is a **rolling
+28-day window keyed by sync date** — summing it multiplies by ~28.
+
+**2. Within `seo_page_daily`, never mix the two row types.** Rows with
+`query = ''` are the **page-level total**. Rows with `query <> ''` are Google's
+anonymized partial breakdown covering only **~37% of web impressions**. Summing
+both together double-counts every page; summing only the query rows undercounts
+it by two thirds. Pick one, and say which you used.
+
+```sql
+-- page-level truth
+select day, clicks, impressions, position from seo_page_daily
+ where path = '/vs/pureref' and query = '' and search_type = 'web' order by day;
+```
+
+**3. Never quote a CTR that includes `path = '/'`.** The homepage is brand
+navigational traffic at ~43% CTR on a few hundred impressions, and it drags any
+blended figure it appears in. A "position 4–10 CTR of 3.78%" was really the
+homepage contributing 5% of the impressions and 43% of the clicks; content-only
+was 2.21%. Segment brand out first, always.
+
+**4. `search_type` is not optional.** `/vs/pureref` alone carried 792 zero-click
+*image* impressions in one month. An unfiltered read reports a CTR collapse that
+is really an image-search artifact.
+
+### Pre-register a title change or the result is unreadable
+
+Before editing a `title` / `metaDescription` in `seoLanding.js`, write into the
+comment block above it: the **target query predicate**, the **evaluation
+window**, and an **impression floor (≥200 post-change)**. One surface per
+commit. The one title change here with a defensible result is the one whose
+comment named its target queries in advance; the ones that changed five things
+at once are permanently ungradable. Grade with ±7/±14 day buckets and
+impression-weighted position, and **never inside 3 days of a ship** — GSC lags
+~3 days and Google restates the trailing ~3.
+
+### Non-human traffic is quarantined, not filtered
+
+`analytics_events` diverts QA-harness rows (`reason='qa_harness'`, 0230) and
+crawler rows (`reason='bot_ua'`, 0294) into `analytics_events_synthetic` on
+insert, so every reader is clean without knowing to filter. Two consequences:
+**crawler rows before 0294 shipped cannot be identified** (the raw user-agent is
+never stored), so public-page counts step down at that deploy and any
+before/after straddling it is invalid; and if you actually want crawler
+behaviour, read the archive or `crawler_hits`, not the live table.
+
+---
+
 ## House conventions
 
 - **The repo is public.** No business metrics, revenue figures or user counts in commit messages or committed files.
