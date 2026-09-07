@@ -17,6 +17,8 @@ import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission, computeBoardPermission } from './hooks/useBoardPermission.js';
 import { setBoardClipboard, getBoardClipboard } from './lib/boardClipboard.js';
 import { useMyTier } from './hooks/useMyTier.js';
+import { setCapture } from './lib/captureState.js';
+import { useCaptureMode } from './hooks/useCaptureMode.js';
 import { useBoardCapacity } from './hooks/useBoardCapacity.js';
 import { useAppTrace } from './hooks/useAppTrace.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
@@ -82,7 +84,7 @@ import { CommandPalette } from './components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen } from './lib/icons.js';
+import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 // Only the hook. The panel components came with BoardsSettingsPanel, which was
 // never rendered anywhere — a second theme control and a rival ⌘. binding, both
@@ -166,6 +168,11 @@ const HomeGraph = lazyWithReload(() => import('./components/HomeGraph.jsx').then
 // haul both toward AppShell for every signed-in user, when only the people who
 // actually dock a doc need it.
 const DockedDocPane = lazyWithReload(() => import('./components/DocCard.jsx').then(m => ({ default: m.DockedDocPane })));
+// Capture Mode's on-canvas surfaces. Lazy so the only person who ever
+// downloads them is an admin who has actually turned the mode on — this ships
+// to production, and nobody else should pay for it.
+const CaptureHud = lazyWithReload(() => import('./components/capture/CaptureHud.jsx').then(m => ({ default: m.CaptureHud })));
+const AspectMask = lazyWithReload(() => import('./components/capture/AspectMask.jsx').then(m => ({ default: m.AspectMask })));
 import { useBreakpoint } from './hooks/useBreakpoint.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
 
@@ -4037,6 +4044,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // tier/onboarding without re-creating on every tier refetch.
   const myTierRef = useRef(myTier);
   myTierRef.current = myTier;
+
+  // ── Capture Mode (admin) ─────────────────────────────────────────────────
+  // Staging for marketing screenshots and screen recordings. Ships to
+  // production because the phone footage gets made on a real phone against the
+  // real app — /admin is desktop-only, so this had to live in the app itself.
+  //
+  // captureState refuses every write until armed, so THIS is the gate. Arm on
+  // tier === 'admin' and disarm the moment it stops being true, which also
+  // resets and clears storage: losing admin can never leave a chromeless app.
+  const captureAllowed = myTier.tier === 'admin';
+  const { capture, active: captureActive } = useCaptureMode(captureAllowed);
   // Owner-pays (0187): capacity of the current/split board's OWNER, for boards
   // the user doesn't own. myTier covers owned boards; this covers shared ones
   // so the client cap gates agree with the server trigger's subject. The api
@@ -6359,6 +6377,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => { setCurrentSurface('board'); mainMutators.addNote?.(); } },
     { id: 'home', label: 'Go to Home', icon: Home, keywords: ['home', 'graph', 'overview'],
       run: () => setCurrentSurface('home') },
+    // Admin only, and deliberately NOT in the shortcuts modal: that modal's
+    // SECTIONS is a documented public surface, and this is internal staging.
+    // The palette is the discoverable door; Settings → Capture is the manual.
+    { id: 'capture', label: capture.on ? 'Turn off capture mode' : 'Capture mode',
+      icon: Camera, keywords: ['capture', 'screenshot', 'record', 'demo', 'marketing', 'clean'],
+      available: captureAllowed,
+      run: () => setCapture({ on: !capture.on, clean: true, silence: true, freeze: true }) },
     { id: 'link-board', label: 'Link a cluster onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'cluster', 'board'],
       available: canEditCurrent && currentSurface === 'board',
       run: () => openBoardLinkPicker() },
@@ -6402,6 +6427,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     { id: 'signout', label: 'Sign out', icon: LogOut, keywords: ['sign out', 'log out', 'logout', 'exit'],
       run: () => signOut?.() },
   ], [canEditCurrent, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, sidebarOpen,
+      captureAllowed, capture.on,
       setTheme, setWheelMode, setSidebarOpen, setTweak, mainMutators, openSettings, openInviteFriends, signOut]);
 
 
@@ -7009,7 +7035,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         refresh={refreshSettings}
         workspaceSettings={workspaceSettings}
         mySettings={mySettings}
+        isAdmin={captureAllowed}
         onOpenRecovery={() => { setSettingsOpen(false); setWorkspaceRecoveryOpen(true); }} />
+
+      {/* Capture Mode surfaces. Rendered outside .main so the mask can letterbox
+          the whole viewport and the HUD is not clipped by the canvas. Both are
+          off the DOM entirely unless an admin has the mode on, so there is
+          nothing to hide from a recording that isn't already gone. */}
+      {captureActive && (
+        <Suspense fallback={null}>
+          <AspectMask aspect={capture.aspect} />
+          <CaptureHud />
+        </Suspense>
+      )}
 
       <main className="main">
         <WorkspaceAlertBanner

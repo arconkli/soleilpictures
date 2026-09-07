@@ -40,6 +40,13 @@
 [data-theme="light"] .clusters-mark-light { display: block; }
 
 :root {
+  /* The film grain, as one token rather than five copies of a url().
+     It is an ANIMATED gif, which makes it the single biggest obstacle to a
+     deterministic capture: it is why tests/visual/desktop-baseline.spec.js has
+     to mask .grain-canvas before it can diff anything. Capture Mode's freeze
+     sets this to `none` on <body> and every surface inherits it at once. */
+  --grain-url: url('/grain.gif');
+
   /* neutral dark (default) */
   --bg-0:    #0a0a0c;
   --bg-1:    #111114;
@@ -205,7 +212,7 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: url('/grain.gif');
+  background-image: var(--grain-url);
   background-repeat: repeat;
   background-size: 320px 240px;
   opacity: 0.03;
@@ -11467,7 +11474,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
       color-mix(in srgb, var(--bg-0) 97%, transparent),
       color-mix(in srgb, var(--bg-0) 97%, transparent)
     ),
-    url('/grain.gif');
+    var(--grain-url);
   background-repeat: repeat, repeat;
   background-size: auto, 320px 240px;
   background-attachment: local, local;
@@ -16072,37 +16079,52 @@ button.msg-panel-name:hover { color: var(--ink-0); }
      • data-clean-mode='1' — persisted desktop clean mode (⌘. / Settings).
      • data-focus-mode='1' — ephemeral touch "Focus view" (topbar button).
 
+     • data-capture-clean='1' — admin Capture Mode staging a shot.
+
    Selectors below mirror the actual class names on the rendered elements;
    anything that doesn't match is silently ignored, which is why earlier
    versions only half-hid chrome (the mobile bars below were the gap). If you
-   add a new chrome surface, add its real class here too. */
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .sidebar,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .topbar,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .crumbs,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .tob,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .cnv-tools,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .cnv-zoom,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .cnv-hint,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .cnv-selcount,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .cnv-comments-eye,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .ws-presence,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .ws-presence-audit,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .canvas-comment-layer,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .msg-panel,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .split-close,
+   add a new chrome surface, add its real class here too — tests/capture-chrome
+   .spec.js asserts this whole list has nothing visible left, so a surface added
+   without its selector fails there rather than in someone's finished video. */
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .sidebar,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .topbar,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .crumbs,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .tob,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .cnv-tools,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .cnv-zoom,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .cnv-hint,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .cnv-selcount,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .cnv-comments-eye,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .ws-presence,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .ws-presence-audit,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .canvas-comment-layer,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .msg-panel,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .split-close,
 /* Mobile / overlay chrome the original clean-mode list missed: */
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .mb-nav,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .board-tags-strip,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .presence-stack-wrap,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .upgrade-chip,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .feedback-trigger,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .fv-banner,
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .onboarding-coachmark {
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .mb-nav,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .board-tags-strip,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .presence-stack-wrap,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .upgrade-chip,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .feedback-trigger,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .fv-banner,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .onboarding-coachmark {
   display: none !important;
 }
 /* Collapse the sidebar column so the canvas fills the screen instead
-   of leaving a 240px gutter where the sidebar used to be. */
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .app { grid-template-columns: 0 1fr !important; --sb-w: 0px; }
+   of leaving a 240px gutter where the sidebar used to be.
+
+   .main MUST be pinned to column 2. The rule above hides .sidebar with
+   `display: none`, which stops it being a grid item at all — so without an
+   explicit placement .main becomes the FIRST grid item and auto-places itself
+   into the 0px column that was reserved for the sidebar it just replaced. The
+   canvas then computes to zero width and the whole immersive view renders
+   nothing. Both existing doors into this (⌘. clean mode and the touch Focus
+   view) shipped with that, because a grid whose only visible child is a
+   full-bleed canvas looks identical to a blank one until you measure it.
+   tests/capture-chrome.spec.js measures it. */
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .app { grid-template-columns: 0 1fr !important; --sb-w: 0px; }
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .main { grid-column: 2 !important; }
 .clean-mode-exit {
   position: fixed;
   /* Inside the safe-area so it never hides under an iPad/iPhone notch. */
@@ -16128,8 +16150,182 @@ body:is([data-clean-mode='1'], [data-focus-mode='1']) .app { grid-template-colum
    text color flips with the theme — pin it to the dark-mode ink so the label
    stays legible light-on-dark instead of near-black-on-dark in light mode. */
 [data-theme='light'] .clean-mode-exit { color: #d0d0d4; }
-/* Visible only while one of the two immersive modes is active. */
+/* Visible only while one of the two immersive modes is active. Capture Mode is
+   deliberately NOT in this list: its own HUD is the way out, and a second exit
+   pill would just be one more thing to crop. */
 body:not([data-clean-mode='1']):not([data-focus-mode='1']) .clean-mode-exit { display: none; }
+
+/* ── Capture-only hides ────────────────────────────────────────────────
+   The surfaces above are the ones a USER wants gone in an immersive view. These
+   are the ones only a CAMERA wants gone, and they must stay visible in clean /
+   focus mode: hiding live cursors or peer selections from a real person working
+   in clean mode would silently break collaboration for them.
+
+   Each of these was a real gap — clean mode has shipped for months and every
+   one of them still rendered over it. */
+body[data-capture-clean='1'] .cursors-layer,
+body[data-capture-clean='1'] .peer-sel-layer,
+body[data-capture-clean='1'] .peer-marquees-layer,
+body[data-capture-clean='1'] .peer-sel-pill,
+body[data-capture-clean='1'] .canvas-presence-roster,
+/* Ephemera that would land mid-take. The toast stack is portaled to <body>,
+   so it is not inside .app and would have survived any container-scoped rule. */
+body[data-capture-clean='1'] .toast-stack,
+body[data-capture-clean='1'] .staging-banner,
+body[data-capture-clean='1'] .alt-session-banner,
+body[data-capture-clean='1'] .twk-gear,
+body[data-capture-clean='1'] .board-loading-overlay,
+/* Empty-state and quick-add furniture: correct prompts for a person, noise in
+   a product shot of a board that is deliberately sparse. */
+body[data-capture-clean='1'] .cnv-empty-tiles,
+body[data-capture-clean='1'] .cnv-depth-dock,
+body[data-capture-clean='1'] .cnv-quick-add {
+  display: none !important;
+}
+
+/* Freeze. The grain is an animated gif at 0.03 opacity — invisible in a still,
+   ruinous in a video (it is pure noise, so it defeats interframe compression)
+   and the reason the visual baseline spec has to mask it before diffing.
+   Dropping the token to `none` reaches all five surfaces that paint it. */
+body[data-capture-freeze='1'] { --grain-url: none; }
+
+/* ── Capture HUD ───────────────────────────────────────────────────────
+   Above the immersive z-indices and above the staging pill (2147483600),
+   because it has to remain reachable in a mode whose entire job is hiding
+   everything else. */
+.capture-hud {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483630;
+  display: flex; align-items: center; gap: 6px;
+  max-width: min(calc(100vw - 24px), 720px);
+  overflow-x: auto;
+  padding: 7px 9px;
+  border-radius: 999px;
+  background: rgba(16,16,20,.88);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 6px 24px rgba(0,0,0,.45);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  font: 500 11px/1 var(--font-sans);
+  color: #d0d0d4;
+  scrollbar-width: none;
+}
+.capture-hud::-webkit-scrollbar { display: none; }
+.capture-hud-title {
+  padding: 0 4px 0 2px; opacity: .5;
+  text-transform: uppercase; letter-spacing: .08em; font-size: 9px;
+  flex: 0 0 auto;
+}
+.capture-hud-chip {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  min-height: 34px; padding: 5px 9px;
+  border-radius: 999px; cursor: pointer;
+  background: rgba(255,255,255,.05);
+  border: 1px solid transparent;
+  color: inherit; font: inherit;
+}
+.capture-hud-chip-label { opacity: .55; font-size: 9px; letter-spacing: .04em; }
+.capture-hud-chip-val { font-size: 11px; }
+/* Gold is the house's active/selection colour and this is an active state. */
+.capture-hud-chip.is-on {
+  background: color-mix(in srgb, var(--soleil) 18%, transparent);
+  border-color: color-mix(in srgb, var(--soleil) 45%, transparent);
+  color: var(--soleil);
+}
+.capture-hud-chip.is-on .capture-hud-chip-label { opacity: .75; }
+.capture-hud-sep { width: 1px; height: 20px; background: rgba(255,255,255,.10); flex: 0 0 auto; }
+.capture-hud-btn {
+  flex: 0 0 auto;
+  min-height: 30px; padding: 6px 10px;
+  background: rgba(255,255,255,.05); color: inherit;
+  border: 1px solid rgba(255,255,255,.08); border-radius: 999px;
+  font: inherit; cursor: pointer;
+}
+.capture-hud-icon {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0;
+  background: transparent; color: inherit;
+  border: none; border-radius: 50%; cursor: pointer; opacity: .6;
+}
+.capture-hud-icon:hover { opacity: 1; background: rgba(255,255,255,.07); }
+.capture-hud-dot {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  left: 50%; transform: translateX(-50%);
+  z-index: 2147483630;
+  width: 22px; height: 22px; padding: 0; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: rgba(16,16,20,.88);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 2px 10px rgba(0,0,0,.4);
+}
+.capture-hud-dot-pip {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--soleil);
+  box-shadow: 0 0 6px var(--soleil);
+}
+
+/* ── Aspect mask ───────────────────────────────────────────────────────
+   The frame is the largest rect of --cap-ratio that fits the viewport, solved
+   in CSS so there is no resize listener to keep in sync. The dim outside it is
+   one enormous box-shadow rather than four positioned bars — same result, no
+   extra elements, and nothing to get the arithmetic wrong at the corners. */
+.capture-mask {
+  position: fixed; inset: 0;
+  z-index: 2147483620;
+  pointer-events: none;
+}
+.capture-mask-frame {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width:  min(100vw, calc(100vh * var(--cap-ratio)));
+  height: min(100vh, calc(100vw / var(--cap-ratio)));
+  box-shadow: 0 0 0 100vmax rgba(0,0,0,.55);
+  outline: 1px solid rgba(255,255,255,.28);
+}
+.capture-mask-safe {
+  position: absolute;
+  inset: calc(var(--cap-safe) * 100%);
+  border: 1px dashed rgba(255,255,255,.22);
+  border-radius: 2px;
+}
+.capture-mask-label {
+  position: absolute; top: 6px; left: 8px;
+  font: 500 10px/1 var(--font-sans);
+  letter-spacing: .06em;
+  color: rgba(255,255,255,.55);
+}
+
+/* Thumbs. The HUD is compact on a desk because it is in the shot, but on a
+   phone it is the only control surface there is — and the phone is where the
+   phone footage gets made, so every target goes to a real 44px. */
+@media (hover: none) and (pointer: coarse) {
+  .capture-hud-chip,
+  .capture-hud-btn { min-height: 44px; }
+  .capture-hud-icon { width: 44px; height: 44px; }
+  .capture-hud-dot { width: 34px; height: 34px; }
+}
+
+/* Chrome-hiding also removes .mb-nav, so the HUD can sit at the bottom edge.
+   With chrome still up — framing a shot that deliberately includes the app's
+   own UI — it would land on top of the bottom nav instead. */
+body:not([data-capture-clean='1']) .capture-hud,
+body:not([data-capture-clean='1']) .capture-hud-dot {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px + var(--capture-nav-clearance, 0px));
+}
+/* Same query as `mobileShell` in App.jsx — the condition that decides whether
+   .mb-nav renders at all. Keyed off a phone width alone this missed the touch
+   tablet, which shows the nav at 834px wide. */
+@media (max-width: 640px),
+       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  body:not([data-capture-clean='1']) { --capture-nav-clearance: 64px; }
+}
 
 /* ── Tool options bar on the mobile shell ──────────────────────────────
    .tob is `flex-wrap: wrap` at `bottom: 14px`, which on a touch device puts it
@@ -16773,7 +16969,7 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: url('/grain.gif');
+  background-image: var(--grain-url);
   background-repeat: repeat;
   background-size: 320px 240px;
   opacity: 0.025;
@@ -16932,7 +17128,7 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: url('/grain.gif');
+  background-image: var(--grain-url);
   background-repeat: repeat;
   background-size: 320px 240px;
   opacity: 0.012;
@@ -19108,7 +19304,7 @@ button, [role="button"], a {
 .pa-wrap::after {
   content: '';
   position: absolute; inset: 0; z-index: -1;
-  background: url('/grain.gif');
+  background: var(--grain-url);
   background-size: 320px 240px;
   opacity: 0.025;
   pointer-events: none;

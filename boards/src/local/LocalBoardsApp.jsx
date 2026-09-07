@@ -25,6 +25,9 @@ import { shootDayDates } from '../lib/productionDayPlan.js';
 import { DEFAULT_DAY_TYPE as LOCAL_DEFAULT_DAY_TYPE } from '../lib/dayTypes.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
+import { useCaptureMode } from '../hooks/useCaptureMode.js';
+import { CaptureHud } from '../components/capture/CaptureHud.jsx';
+import { AspectMask } from '../components/capture/AspectMask.jsx';
 import { HomeGraph } from '../components/HomeGraph.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
@@ -286,6 +289,12 @@ function collectBoardTreeIds(boards, rootIds) {
 }
 
 export function LocalBoardsApp({ user, signOut }) {
+  // Capture Mode, on the same wiring the signed-in shell uses. Gated on DEV
+  // rather than on a tier because this harness only exists in DEV — which is
+  // what lets a Playwright spec drive the real chrome through
+  // ?local=1&capture=1 with no auth, no Supabase and no PartyKit, exercising
+  // the shipped code path rather than a stand-in for it.
+  const { capture: capState, active: captureActive } = useCaptureMode(import.meta.env.DEV);
   const [initialSession] = useState(() => ((ONBOARD_PREVIEW || SHOWCASE_PREVIEW) ? null : loadLocalSession()));
   const [{ boards, boardState }, setLocalState] = useState(() => (
     SHOWCASE_PREVIEW ? createShowcasePreviewState()
@@ -1399,6 +1408,7 @@ export function LocalBoardsApp({ user, signOut }) {
 
   return (
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`} data-screen-label={`Local Board - ${currentBoard.name}`}>
+      {captureActive && (<><AspectMask aspect={capState.aspect} /><CaptureHud /></>)}
       <ShortcutsHost />
       {mobileShell && mobileNavOpen && (
         <div className="sidebar-mobile-backdrop"

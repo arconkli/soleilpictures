@@ -1,0 +1,101 @@
+// Capture — staging the app for a screenshot or a screen recording.
+//
+// Admin-only, and deliberately not wired to the settings save pipeline: nothing
+// on this tab touches profiles.settings. Capture state lives in sessionStorage
+// so a reload mid-shoot resumes, and the identity swap lives only in memory. A
+// staging mode that follows your account onto another device — or that outlives
+// the tab — is a support incident waiting to happen, so it does neither.
+//
+// This tab is reachable on a phone, which is the point: the real device is
+// where the phone footage gets made, and /admin is desktop-only.
+import { Toggle, SettingsCategory, Field } from './fields.jsx';
+import { setCapture, resetCapture } from '../../lib/captureState.js';
+import { useCaptureState } from '../../hooks/useCaptureState.js';
+import { ASPECTS } from '../../lib/captureAspect.js';
+
+const IS_MAC = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
+const CMD = IS_MAC ? '⌘' : 'Ctrl';
+
+export function CaptureTab() {
+  const cap = useCaptureState();
+  const set = (patch) => setCapture(patch);
+
+  return (
+    <div className="settings-section">
+      <h3 className="settings-section-title">Capture</h3>
+      <p className="settings-section-hint">
+        Stages this device for a screenshot or a recording. Nothing here is saved to
+        {' '}your account or synced anywhere — it clears when you close the tab.
+      </p>
+
+      <SettingsCategory title="Mode" desc="The master switch">
+        <Toggle
+          label="Capture mode"
+          desc={`Turns the staging controls below on. ${CMD}⇧. toggles it from anywhere.`}
+          value={cap.on}
+          onChange={(v) => set({ on: v })} />
+        {cap.on && (
+          <p className="settings-section-hint">
+            On. The floating controls sit at the corner of the canvas — hide them with
+            {' '}their ✕, then {CMD}⇧H or a three-finger tap brings them back mid-take.
+          </p>
+        )}
+      </SettingsCategory>
+
+      <SettingsCategory title="Stage" desc="What the camera sees">
+        <Toggle
+          label="Hide chrome"
+          desc="Sidebar, topbar, breadcrumb, tool rail, zoom, presence, banners — everything but the canvas."
+          value={cap.clean}
+          onChange={(v) => set({ clean: v })} />
+
+        <Toggle
+          label="Silence toasts"
+          desc="Stops a stray “Copied” landing mid-take. Confirm dialogs still appear — they block a flow, so muting one would strand you."
+          value={cap.silence}
+          onChange={(v) => set({ silence: v })} />
+        {cap.silence && (
+          <p className="settings-section-hint">
+            Deleting normally offers an undo in a toast. While silenced it still
+            {' '}deletes and {CMD}Z still works — you just won’t be offered the shortcut.
+          </p>
+        )}
+
+        <Toggle
+          label="Drop the film grain"
+          desc="The grain is an animated texture. It’s invisible in a still and ruinous in a video — pure noise compresses terribly — so a shoot is better without it."
+          value={cap.freeze}
+          onChange={(v) => set({ freeze: v })} />
+
+        <Toggle
+          label="Cursor spotlight"
+          desc="Draws your pointer with a click ripple, so a recording reads at phone size."
+          value={cap.spotlight}
+          onChange={(v) => set({ spotlight: v })} />
+      </SettingsCategory>
+
+      <SettingsCategory title="Framing" desc="The shape you’re shipping">
+        <Field label="Guide">
+          <div className="settings-pill-row">
+            {ASPECTS.map(a => (
+              <button key={a.id ?? 'off'} type="button"
+                      className={`settings-pill ${(cap.aspect ?? null) === a.id ? 'is-active' : ''}`}
+                      onClick={() => set({ aspect: a.id })}>{a.label}</button>
+            ))}
+          </div>
+        </Field>
+        <p className="settings-section-hint">
+          Dims everything outside the crop and marks a safe area inside it. It only
+          {' '}draws the frame — the app keeps its real size, so what you see inside is
+          {' '}exactly what it does at that size.
+        </p>
+      </SettingsCategory>
+
+      <SettingsCategory title="Reset" desc="Back to a normal app">
+        <button type="button" className="settings-btn" onClick={resetCapture}>
+          Turn everything off
+        </button>
+      </SettingsCategory>
+    </div>
+  );
+}
