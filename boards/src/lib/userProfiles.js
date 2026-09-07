@@ -26,6 +26,7 @@
 
 import { supabase } from './supabase.js';
 import { pickPresenceColor } from './presenceColor.js';
+import { maskProfile } from './captureIdentity.js';
 import { getProfilesByIds } from './boardsApi.js';
 
 const cache = new Map();          // userId → { name, email, color, hasProfile }
@@ -69,14 +70,20 @@ function setEntry(userId, partial) {
 
 // ── Public API ───────────────────────────────────────────────────────
 
+// Capture Mode's persona swap rides these two functions, and only these two.
+// This is the app's single name-resolution choke point — comments, messages,
+// the inbox, peer dots and the share panel all render through it — so masking
+// here covers every one of them instead of eight separate edits. maskProfile
+// returns its input BY IDENTITY when capture is off, so this is inert in
+// normal operation.
 export function get(userId) {
   if (!userId) return null;
-  return cache.get(userId) || null;
+  return maskProfile(userId, cache.get(userId) || null);
 }
 
 export function getName(userId, fallback = 'Member') {
   if (!userId) return fallback;
-  const e = cache.get(userId);
+  const e = maskProfile(userId, cache.get(userId));
   return e?.name || e?.email || fallback;
 }
 

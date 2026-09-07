@@ -143,6 +143,9 @@ import {
 } from '../lib/snapGuides.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
 import { solveFit, sampleTween, CAMERA_MS } from '../lib/captureCamera.js';
+import { useCaptureState } from '../hooks/useCaptureState.js';
+import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
+import { makeCastAwareness } from '../lib/castAwareness.js';
 import { classifyDropFile, sizeBucket, fitImageDims } from '../lib/fileIngest.js';
 import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
@@ -2418,6 +2421,65 @@ export function CanvasSurface({
   const selectedRef = useRef(selected);
   useEffect(() => { cardsRef.current = cards; }, [cards]);
   useEffect(() => { selectedRef.current = selected; }, [selected]);
+
+  // ── Capture Mode: the synthetic cast ─────────────────────────────────────
+  // Collaboration is the hardest thing here to film, because it needs other
+  // people on other machines doing something plausible at the moment you press
+  // record. These are those people.
+  //
+  // The cast is generated over the board's OWN bounds and card ids, so it moves
+  // across the actual content rather than wandering empty canvas where nobody
+  // would ever be. Positions are a pure function of elapsed time, sampled by
+  // the proxy's ticker — so there is no React state churning at 10Hz and no
+  // timer of ours to leak.
+  // captureState's setters no-op until an admin tier arms them, so a non-zero
+  // `cast` already implies the gate passed. Never on a public share view, and
+  // never in the split pane — one board being filmed is enough.
+  const captureCast = useCaptureState();
+  const castSize = (!isPublic && paneId === 'main' && captureCast.on) ? captureCast.cast : 0;
+  const castSeedRef = useRef(1);
+  const cast = useMemo(() => {
+    if (!castSize) return [];
+    const b = boundsOfCards(cardsRef.current || []) || { x: 0, y: 0, w: 1200, h: 800 };
+    return makeCast(castSize, {
+      seed: castSeedRef.current,
+      bounds: b,
+      cardIds: (cardsRef.current || []).slice(0, 12).map(c => c.id),
+    });
+    // Rebuilt only when the cast size changes: re-deriving it on every card
+    // edit would teleport everyone the moment you typed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [castSize, board.id]);
+  const castRef = useRef(cast);
+  castRef.current = cast;
+  const castT0Ref = useRef(0);
+  useEffect(() => { castT0Ref.current = performance.now(); }, [castSize, board.id]);
+
+  const syntheticStates = useCallback(
+    () => advanceCast(castRef.current, performance.now() - castT0Ref.current, board.id),
+    [board.id],
+  );
+
+  // The awareness the two PRESENCE components read. Falls straight through to
+  // the real one whenever there is no cast, so the proxy is not in the path at
+  // all in normal operation.
+  const castProxyRef = useRef({ real: null, proxy: null });
+  const presenceAwareness = useCallback(() => {
+    const real = getAwareness?.();
+    if (!castSize) return real || null;
+    // Note `real` may be null — the room may not have connected, and the
+    // offline harness has none at all. The cast renders either way; a shot
+    // should not depend on a socket being up.
+    if (castProxyRef.current.real !== real) {
+      castProxyRef.current.proxy?.destroy?.();
+      castProxyRef.current = { real, proxy: makeCastAwareness(real, syntheticStates) };
+    }
+    return castProxyRef.current.proxy;
+  }, [getAwareness, castSize, syntheticStates]);
+  useEffect(() => () => {
+    castProxyRef.current.proxy?.destroy?.();
+    castProxyRef.current = { real: null, proxy: null };
+  }, []);
 
   // Tracks IDs that the user has explicitly dragged out of this canvas. The
   // deleteCards guard in App.jsx consults this (via a CustomEvent) so the
@@ -9332,8 +9394,15 @@ export function CanvasSurface({
           ))}
         </div>
       )}
+      {/* Capture Mode's synthetic cast is spliced in HERE and nowhere else.
+          These two components read presence; everything else that touches
+          awareness WRITES through it — the cursor broadcast, the selection
+          publish, and NoteCard handing the real object to TipTap's
+          CollaborationCursor, which needs far more of the Yjs surface than the
+          proxy implements. Swapping it globally would break collaborative
+          typing and could push a fake peer onto the wire. */}
       <CanvasPresence
-        getAwareness={getAwareness}
+        getAwareness={presenceAwareness}
         boardId={board.id}
         pan={pan}
         zoom={zoom}
@@ -9343,7 +9412,7 @@ export function CanvasSurface({
       {/* Who's-here facepile + hover roster. The authoritative presence list at
           scale (canvas cursors are culled/capped); floats top-right. */}
       <div className="canvas-presence-roster">
-        <PresenceStack getAwareness={getAwareness} />
+        <PresenceStack getAwareness={presenceAwareness} />
       </div>
       <div ref={canvasRef}
            className={`canvas ${smoothXform ? 'is-smooth' : ''}`}

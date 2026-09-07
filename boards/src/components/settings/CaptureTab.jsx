@@ -128,6 +128,37 @@ export function CaptureTab() {
         </p>
       </SettingsCategory>
 
+      <SettingsCategory title="Cast" desc="Who else is in the shot">
+        <Toggle
+          label="Persona"
+          desc="Swaps your name, address and avatar for a consistent stand-in — sidebar, share panel, comments and your own cursor flag."
+          value={cap.persona}
+          onChange={(v) => set({ persona: v })} />
+        {cap.persona && (
+          <p className="settings-section-hint">
+            Your name is broadcast, so anyone else on the board sees the persona too
+            {' '}while this is on — which is what makes THEIR recording clean as well.
+            {' '}It is never written to your account and never survives this tab.
+          </p>
+        )}
+
+        <Field label="Collaborators">
+          <div className="settings-pill-row">
+            {[0, 1, 2, 3, 5].map(n => (
+              <button key={n} type="button"
+                      className={`settings-pill ${cap.cast === n ? 'is-active' : ''}`}
+                      onClick={() => set({ cast: n })}>{n === 0 ? 'None' : n}</button>
+            ))}
+          </div>
+        </Field>
+        <p className="settings-section-hint">
+          Adds stand-in collaborators with moving cursors and live selections, so
+          {' '}multiplayer can be filmed without arranging three other people. They
+          {' '}exist only in your own view — nothing is sent, and nobody really on the
+          {' '}board sees them.
+        </p>
+      </SettingsCategory>
+
       <SettingsCategory title="Reset" desc="Back to a normal app">
         <button type="button" className="settings-btn" onClick={resetCapture}>
           Turn everything off

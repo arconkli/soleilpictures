@@ -16163,11 +16163,15 @@ body:not([data-clean-mode='1']):not([data-focus-mode='1']) .clean-mode-exit { di
 
    Each of these was a real gap — clean mode has shipped for months and every
    one of them still rendered over it. */
-body[data-capture-clean='1'] .cursors-layer,
-body[data-capture-clean='1'] .peer-sel-layer,
-body[data-capture-clean='1'] .peer-marquees-layer,
-body[data-capture-clean='1'] .peer-sel-pill,
-body[data-capture-clean='1'] .canvas-presence-roster,
+/* Presence, hidden UNLESS a synthetic cast is running. Chrome-hiding exists to
+   get real collaborators out of a marketing shot; the cast exists to put
+   believable ones in. Hiding both with one rule meant turning the cast on while
+   the chrome was hidden showed nothing at all — the two features cancelled. */
+body[data-capture-clean='1']:not([data-capture-cast='1']) .cursors-layer,
+body[data-capture-clean='1']:not([data-capture-cast='1']) .peer-sel-layer,
+body[data-capture-clean='1']:not([data-capture-cast='1']) .peer-marquees-layer,
+body[data-capture-clean='1']:not([data-capture-cast='1']) .peer-sel-pill,
+body[data-capture-clean='1']:not([data-capture-cast='1']) .canvas-presence-roster,
 /* Ephemera that would land mid-take. The toast stack is portaled to <body>,
    so it is not inside .app and would have survived any container-scoped rule. */
 body[data-capture-clean='1'] .toast-stack,
@@ -16300,6 +16304,39 @@ body[data-capture-freeze='1'] { --grain-url: none; }
   font: 500 10px/1 var(--font-sans);
   letter-spacing: .06em;
   color: rgba(255,255,255,.55);
+}
+
+/* ── Cursor spotlight ──────────────────────────────────────────────────
+   Above everything including the HUD, and pointer-events:none throughout —
+   an overlay that could swallow a click would break the app in the exact
+   moment it is being filmed. */
+.capture-spot,
+.capture-spot-ripples {
+  position: fixed; inset: 0;
+  z-index: 2147483640;
+  pointer-events: none;
+}
+.capture-spot-dot {
+  position: absolute; top: 0; left: 0;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: color-mix(in srgb, var(--soleil) 22%, transparent);
+  border: 1.5px solid var(--soleil);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--soleil) 55%, transparent);
+  /* Positioned imperatively from a rAF — see Spotlight.jsx. Starts off-screen
+     so it doesn't flash at 0,0 before the first pointer event. */
+  transform: translate3d(-9999px, -9999px, 0);
+  will-change: transform;
+}
+.capture-spot-ripple {
+  position: absolute;
+  width: 14px; height: 14px; margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  border: 2px solid var(--soleil);
+  animation: capture-ripple 520ms var(--ease) forwards;
+}
+@keyframes capture-ripple {
+  from { transform: scale(0.4); opacity: 0.85; }
+  to   { transform: scale(3.4); opacity: 0; }
 }
 
 .capture-width { display: flex; align-items: center; gap: 10px; }

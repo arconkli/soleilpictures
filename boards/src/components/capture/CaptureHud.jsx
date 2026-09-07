@@ -25,7 +25,11 @@ const CHIPS = [
   { key: 'silence',   label: 'Toasts',    on: 'Muted',   off: 'Live' },
   { key: 'freeze',    label: 'Grain',     on: 'Off',     off: 'On' },
   { key: 'spotlight', label: 'Cursor',    on: 'Lit',     off: 'Plain' },
+  { key: 'persona',   label: 'Identity',  on: 'Persona', off: 'Real' },
 ];
+
+// How many stand-in collaborators the Cast button steps through.
+const CAST_SIZES = [0, 2, 3, 5];
 
 export function CaptureHud() {
   const cap = useCaptureState();
@@ -78,6 +82,9 @@ export function CaptureHud() {
   const aspectLabel = ASPECTS[aspectIdx].label;
   const cycleAspect = () => setCapture({ aspect: ASPECTS[(aspectIdx + 1) % ASPECTS.length].id });
 
+  const castIdx = Math.max(0, CAST_SIZES.indexOf(cap.cast));
+  const cycleCast = () => setCapture({ cast: CAST_SIZES[(castIdx + 1) % CAST_SIZES.length] });
+
   return (
     <div className="capture-hud" role="group" aria-label="Capture controls">
       <span className="capture-hud-title">Capture</span>
@@ -103,6 +110,13 @@ export function CaptureHud() {
               onClick={cycleAspect}>
         <span className="capture-hud-chip-label">Frame</span>
         <span className="capture-hud-chip-val">{aspectLabel}</span>
+      </button>
+
+      <button type="button" className={`capture-hud-chip ${cap.cast ? 'is-on' : ''}`}
+              aria-label={`Stand-in collaborators: ${cap.cast || 'none'}. Tap to change.`}
+              onClick={cycleCast}>
+        <span className="capture-hud-chip-label">Cast</span>
+        <span className="capture-hud-chip-val">{cap.cast || 'None'}</span>
       </button>
 
       {/* The camera. A tweened move is what separates a product video from

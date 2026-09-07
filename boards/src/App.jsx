@@ -18,6 +18,8 @@ import { useBoardPermission, computeBoardPermission } from './hooks/useBoardPerm
 import { setBoardClipboard, getBoardClipboard } from './lib/boardClipboard.js';
 import { useMyTier } from './hooks/useMyTier.js';
 import { setCapture } from './lib/captureState.js';
+import { maskName, maskEmail } from './lib/captureIdentity.js';
+import { useCaptureState } from './hooks/useCaptureState.js';
 import { useCaptureMode } from './hooks/useCaptureMode.js';
 import { useCaptureFrame } from './hooks/useCaptureFrame.js';
 import { widthForFrame } from './lib/reframeLayout.js';
@@ -177,6 +179,7 @@ const DockedDocPane = lazyWithReload(() => import('./components/DocCard.jsx').th
 // to production, and nobody else should pay for it.
 const CaptureHud = lazyWithReload(() => import('./components/capture/CaptureHud.jsx').then(m => ({ default: m.CaptureHud })));
 const AspectMask = lazyWithReload(() => import('./components/capture/AspectMask.jsx').then(m => ({ default: m.AspectMask })));
+const Spotlight = lazyWithReload(() => import('./components/capture/Spotlight.jsx').then(m => ({ default: m.Spotlight })));
 import { useBreakpoint } from './hooks/useBreakpoint.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
 
@@ -677,14 +680,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // edit without a reload.
   }, [user?.id, settingsOpen]);
 
+  // Subscribed here rather than reading it off useCaptureMode below, because
+  // userInfo has to re-derive the moment the persona flips and it is computed
+  // long before the tier that arms capture is known. captureState's setters
+  // no-op until armed, so this can only be true for an admin.
+  const capState = useCaptureState();
+  const capturePersona = capState.on && capState.persona;
+
+  // NOTE the default: with no display_name set, your name IS your email's local
+  // part — and this object is published over awareness, so it becomes the flag
+  // on your cursor in every OTHER person's session too. Capture Mode's persona
+  // swap has to reach it here or a recording made by a collaborator still shows
+  // your address. maskName/maskEmail return their input by identity when
+  // capture is off, so the memo below is unaffected in normal operation.
   const userInfo = useMemo(() => ({
     id: user.id,
-    name: ownProfile?.display_name
+    name: maskName(ownProfile?.display_name
        || user.user_metadata?.full_name
-       || user.email?.split('@')[0],
-    email: user.email,
+       || user.email?.split('@')[0], user.id),
+    email: maskEmail(user.email, user.id),
     color: ownProfile?.color || undefined,
-  }), [user.id, user.email, user.user_metadata?.full_name, ownProfile?.display_name, ownProfile?.color]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [user.id, user.email, user.user_metadata?.full_name, ownProfile?.display_name, ownProfile?.color, capturePersona]);
 
   // Stable currentUser identity for downstream <CanvasSurface currentUser={...}>.
   // Without this useMemo the inline object literal at the mount site churned
@@ -6909,7 +6926,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               ? 'Personal'
               : isOwner
                 ? 'Yours'
-                : `Shared by ${ownerPeer?.user?.email || ownerPeer?.user?.name || 'someone'}`;
+                // A shared workspace names its owner by address, right under
+                // the workspace title — the most prominent leak on the screen.
+                : `Shared by ${maskEmail(ownerPeer?.user?.email, workspace.created_by)
+                             || maskName(ownerPeer?.user?.name, workspace.created_by)
+                             || 'someone'}`;
             const visibleMembers = workspaceMembers.slice(0, 6);
             const overflow = workspaceMembers.length - visibleMembers.length;
             return (
@@ -7042,7 +7063,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <button className="sb-foot-avatar" title="Account"
                         style={{ background: userInfo.color || pickPresenceColor(user.id) }}
                         onClick={() => openSettings('profile')}>
-                  {(user.email?.[0] || 'Y').toUpperCase()}
+                  {/* With no avatar set this is the first letter of your
+                      address, sitting in the corner of every screenshot. */}
+                  {(maskEmail(user.email, user.id)?.[0] || 'Y').toUpperCase()}
                 </button>
               );
             })()}
@@ -7075,6 +7098,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       {captureActive && (
         <Suspense fallback={null}>
           <AspectMask aspect={capture.aspect} />
+          {capture.spotlight && <Spotlight />}
           <CaptureHud />
         </Suspense>
       )}

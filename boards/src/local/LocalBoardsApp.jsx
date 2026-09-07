@@ -32,6 +32,7 @@ import { aspectSpec } from '../lib/captureAspect.js';
 import { guardCaptureMutators } from '../lib/captureMutatorGuard.js';
 import { CaptureHud } from '../components/capture/CaptureHud.jsx';
 import { AspectMask } from '../components/capture/AspectMask.jsx';
+import { Spotlight } from '../components/capture/Spotlight.jsx';
 import { HomeGraph } from '../components/HomeGraph.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
@@ -1427,7 +1428,11 @@ export function LocalBoardsApp({ user, signOut }) {
 
   return (
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`} data-screen-label={`Local Board - ${currentBoard.name}`}>
-      {captureActive && (<><AspectMask aspect={capState.aspect} /><CaptureHud /></>)}
+      {captureActive && (<>
+        <AspectMask aspect={capState.aspect} />
+        {capState.spotlight && <Spotlight />}
+        <CaptureHud />
+      </>)}
       <ShortcutsHost />
       {mobileShell && mobileNavOpen && (
         <div className="sidebar-mobile-backdrop"

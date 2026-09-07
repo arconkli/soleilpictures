@@ -65,6 +65,11 @@ export function useCaptureMode(allowed) {
     else b.removeAttribute('data-capture-clean');
     if (active && capture.freeze) b.setAttribute('data-capture-freeze', '1');
     else b.removeAttribute('data-capture-freeze');
+    // Chrome-hiding removes remote cursors so real collaborators stay out of a
+    // marketing shot. A synthetic cast is the opposite intent, so it re-admits
+    // exactly those layers — without this the two features cancelled out.
+    if (active && capture.cast > 0) b.setAttribute('data-capture-cast', '1');
+    else b.removeAttribute('data-capture-cast');
     // A reframe shrinks cards in BOARD units, so R2Image would pick a preview
     // tier for images that are about to be photographed — the failure where a
     // marketing shot is subtly soft and nobody can say why. One tier of
@@ -81,12 +86,13 @@ export function useCaptureMode(allowed) {
     // networkidle, which never settles on a live canvas.
     if (active) document.documentElement.setAttribute('data-capture-ready', '1');
     else document.documentElement.removeAttribute('data-capture-ready');
-  }, [active, capture.clean, capture.freeze]);
+  }, [active, capture.clean, capture.freeze, capture.cast]);
 
   // Leaving the surface entirely (unmount) must not leave the DOM staged.
   useEffect(() => () => {
     document.body.removeAttribute('data-capture-clean');
     document.body.removeAttribute('data-capture-freeze');
+    document.body.removeAttribute('data-capture-cast');
     document.documentElement.removeAttribute('data-capture-ready');
     setCaptureScaleBoost(1);
     suspendViewPersistence(false);
