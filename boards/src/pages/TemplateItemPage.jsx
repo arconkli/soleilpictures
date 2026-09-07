@@ -112,7 +112,7 @@ export function TemplateItemPage({ path }) {
                 {item.cells} {item.cells === 1 ? 'box' : 'boxes'}
                 {category && <> · {category.label}</>}
                 {' · '}
-                <span className="tplstore-dl">{downloads} download{downloads === 1 ? '' : 's'}</span>
+                <span className="tplitem-dl">{downloads} download{downloads === 1 ? '' : 's'}</span>
               </p>
 
               <a className="seo-cta-primary tplitem-add" href={addHref(item.slug)}>Add to my templates</a>

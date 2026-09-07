@@ -31,13 +31,14 @@ import { layoutById } from '../lib/templateLayouts.js';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 
-// "Most downloaded" is OFFERED CONDITIONALLY (see `hasDownloads`). A sort button
-// that orders sixteen zeroes is not a sort, and it advertises an emptiness the
-// store does not need to advertise — the same reason the Community chip only
-// appears once there is something behind it.
+// "Most downloaded" is always offered. It was gated on some template having a
+// non-zero count, on the reasoning that ordering sixteen zeroes does nothing —
+// but a sort that appears and disappears depending on the data is a worse
+// surprise than one that is briefly a no-op, and the ordering is stable and
+// alphabetical underneath, so it never looks random.
 const SORTS = [
   { key: 'featured', label: 'Featured' },
-  { key: 'downloads', label: 'Most downloaded', needsDownloads: true },
+  { key: 'downloads', label: 'Most downloaded' },
   { key: 'az', label: 'A–Z' },
   { key: 'boxes', label: 'Fewest boxes' },
 ];
@@ -61,12 +62,14 @@ const BIG_CELLS = 12;
 const SMALL_LABEL = 8;
 
 // Inline rather than from lib/icons.js: this page is a public SEO chunk and the
-// icon set drags Phosphor into it for one 10px arrow.
+// icon set drags Phosphor into it for one 12px arrow.
 function DownloadGlyph() {
   return (
-    <svg className="tplstore-dl-i" viewBox="0 0 16 16" width="11" height="11" aria-hidden="true" focusable="false">
-      <path d="M8 2v7m0 0 3-3m-3 3L5 6M3 12h10" fill="none" stroke="currentColor"
-            strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <svg className="tplstore-dl-i" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
+      <path d="M8 2.75v6.5m0 0 2.75-2.75M8 9.25 5.25 6.5" fill="none" stroke="currentColor"
+            strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3.25 11.5v.75a1 1 0 0 0 1 1h7.5a1 1 0 0 0 1-1v-.75" fill="none" stroke="currentColor"
+            strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }
@@ -201,12 +204,6 @@ export function TemplatesStorePage() {
     ...community,
   ], [community, downloads]);
 
-  // Only community templates carry a real count: use_public_grid_layout bumps
-  // public_grid_layouts.use_count when someone takes a copy. Our own sixteen have
-  // no counter behind them at all, so they sort as zero rather than as a number
-  // somebody made up.
-  const hasDownloads = useMemo(() => all.some((t) => (t.useCount || 0) > 0), [all]);
-
   const shown = useMemo(() => {
     let list = all.filter((t) => matchesQuery(t, q.trim()));
     if (category !== 'all') list = list.filter((t) => t.category === category);
@@ -249,7 +246,7 @@ export function TemplatesStorePage() {
           )}
         </div>
         <div className="exp-sorts">
-          {SORTS.filter((s) => !s.needsDownloads || hasDownloads).map((s) => (
+          {SORTS.map((s) => (
             <button
               key={s.key}
               type="button"
@@ -332,22 +329,23 @@ export function TemplatesStorePage() {
                       keeps its own proportions. */}
                   <span className="tplstore-stage">
                     {tree && <GridLayoutThumb tree={tree} title={t.h1} size={size} labels={t.hints?.length ? t.hints : null} />}
+                    {/* ON the preview, bottom-right — the place a view count
+                        sits on a video thumbnail. In the meta row it was a
+                        glyph jammed into a line of tracked uppercase, fighting
+                        the box count for the same rhythm. */}
+                    <span
+                      className="tplstore-dl"
+                      title={`${t.useCount || 0} ${(t.useCount || 0) === 1 ? 'person has' : 'people have'} added this template`}
+                    >
+                      <DownloadGlyph />
+                      {t.useCount || 0}
+                    </span>
                   </span>
                   <span className="tplstore-title">{t.h1}</span>
                   <span className="tplstore-blurb">{t.blurb}</span>
                   <span className="tplstore-meta">
                     {isCommunity && <span className="tplstore-badge">Community</span>}
                     {t.cells > 0 && <>{isCommunity ? ' · ' : ''}{t.cells} {t.cells === 1 ? 'box' : 'boxes'}</>}
-                    {/* ALWAYS RENDERED, like a view count — a metadata row that
-                        appears and disappears per tile reads as broken, and a
-                        template with no downloads yet is a fact about the store
-                        rather than something to hide. The number is whatever it
-                        actually is; there is no floor and nothing seeded. */}
-                    {' · '}
-                    <span className="tplstore-dl" title={`${t.useCount || 0} ${(t.useCount || 0) === 1 ? 'person has' : 'people have'} added this template`}>
-                      <DownloadGlyph />
-                      {t.useCount || 0}
-                    </span>
                   </span>
                 </a>
               </li>

@@ -945,6 +945,7 @@
    The stage is --bg-2, the recessed field a real grid card sits in, so a preview
    looks like the thing it is a preview of. */
 .tplstore-stage {
+  position: relative;   /* anchors the download count overlay */
   display: grid;
   place-items: center;
   width: 100%;
@@ -1048,19 +1049,39 @@
   letter-spacing: .08em;
   color: var(--ink-2);
 }
-/* The download count, rendered like a view count: a glyph and a number, always
-   present so the meta row is the same shape on every tile. Ink-1 against the
-   ink-3 of the rest of the line, because it is the one part of the metadata
-   anybody scans for. The number is whatever it really is — nothing is seeded,
-   and there is no floor below which it hides. */
-.tplstore-dl {
+/* The download count, sitting ON the preview at bottom-right — where a view
+   count sits on a video thumbnail. It was previously inline in .tplstore-meta,
+   where a 11px glyph had to share a line with tracked uppercase and lost: the
+   icon rode high, the gap read as a typo, and it competed with the box count for
+   the same rhythm. As an overlay it has its own shape and reads at a glance.
+
+   A translucent plate rather than a solid one, so it belongs to the preview
+   instead of covering it. `color-mix` degrades to the plain colour where it is
+   unsupported, which is fine — the border still separates it from the stage. */
+.tplstore-stage .tplstore-dl {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  padding: 3px 8px 3px 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-1) 82%, transparent);
+  backdrop-filter: blur(6px);
   color: var(--ink-1);
+  font: 600 11.5px/1 var(--font-sans);
+  letter-spacing: 0;
   font-variant-numeric: tabular-nums;
+  text-transform: none;
 }
-.tplstore-dl-i { flex: none; opacity: .75; }
+.tplstore-dl-i { flex: none; opacity: .7; }
+.tplstore-card:hover .tplstore-stage .tplstore-dl { border-color: var(--ink-3); }
+
+/* On an item page the count is one fact in a spec line, not an overlay — there
+   is no thumbnail for it to sit on. Just ink-1 against the ink-3 around it. */
+.tplitem-dl { color: var(--ink-1); font-variant-numeric: tabular-nums; }
 
 /* The community item page always needs a round-trip, so it gets a skeleton. A
    blank frame here reads as the 404 this route used to be. */

@@ -182,16 +182,20 @@ test.describe('/templates — the store', () => {
     expect(titles[1]).toBe('Storyboard template');
   });
 
-  test('hides the downloads sort while nothing has been downloaded', async ({ page }) => {
+  test('the downloads sort is always offered, even with nothing downloaded yet', async ({ page }) => {
     await page.route('**/rpc/template_download_counts', (route) => route.fulfill({
       status: 200, contentType: 'application/json', body: '[]',
     }));
     await page.goto('/templates');
     await expect(page.locator('.tplstore-card').first()).toBeVisible();
-    // A button that sorts sixteen zeroes is not a sort — the SORT is gated on
-    // there being something to order. The INDICATOR is not: it shows the real
-    // zero on every tile.
-    await expect(page.getByRole('button', { name: 'Most downloaded' })).toHaveCount(0);
+    // A control that comes and goes with the data is a worse surprise than one
+    // that is briefly a no-op.
+    await page.getByRole('button', { name: 'Most downloaded' }).click();
+    await expect(page.getByRole('button', { name: 'Most downloaded' })).toHaveAttribute('aria-pressed', 'true');
+    // All zero, so the tiebreak carries it: stable and alphabetical, never random.
+    const titles = await page.locator('.tplstore-title').allTextContents();
+    expect(titles).toEqual([...titles].sort((a, b) => a.localeCompare(b)));
+    // And every tile still shows its real zero.
     const cards = await page.locator('.tplstore-card').count();
     await expect(page.locator('.tplstore-dl')).toHaveCount(cards);
     await expect(page.locator('.tplstore-dl').first()).toHaveText(/0/);
