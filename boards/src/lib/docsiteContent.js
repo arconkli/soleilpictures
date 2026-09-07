@@ -9739,7 +9739,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Every template — ours and the community's — carries a "
+     "v": "Every template — ours and the community's — shows a "
     },
     {
      "t": "strong",
@@ -9753,7 +9753,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", and the store can be sorted by "
+     "v": " beside its box count, and the store can be sorted by "
     },
     {
      "t": "strong",
@@ -9781,7 +9781,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ": adding the same template again, on another board, or after deleting your copy, never counts twice. A count only appears once there is one, so a template nobody has taken yet simply shows its box count, and the sort is offered only when something has actually been downloaded. A template you take from the community lands under "
+     "v": ": adding the same template again, on another board, or after deleting your copy, never counts twice. The number is always the real one, including zero for a template nobody has taken yet. The "
+    },
+    {
+     "t": "em",
+     "v": "sort",
+     "children": [
+      {
+       "t": "text",
+       "v": "sort"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " only appears once something has actually been downloaded, because ordering a list of zeroes does nothing. A template you take from the community lands under "
     },
     {
      "t": "strong",

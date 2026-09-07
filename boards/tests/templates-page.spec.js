@@ -65,6 +65,10 @@ test.describe('/templates — the store', () => {
   test('lists the catalogue and filters by category, in the URL', async ({ page }) => {
     await page.goto('/templates');
     const cards = page.locator('.tplstore-card');
+    // count() does NOT auto-wait, and the store is a lazy chunk — so this raced
+    // the chunk load and only ever passed because the page happened to be quick.
+    // Wait for the first tile before counting.
+    await expect(cards.first()).toBeVisible();
     const total = await cards.count();
     expect(total, 'the store should be stocked').toBeGreaterThanOrEqual(10);
 
@@ -81,6 +85,8 @@ test.describe('/templates — the store', () => {
 
   test('search narrows the grid and reports how many of how many', async ({ page }) => {
     await page.goto('/templates');
+    // Same lazy-chunk race as the test above: wait for a tile before counting.
+    await expect(page.locator('.tplstore-card').first()).toBeVisible();
     const total = await page.locator('.tplstore-card').count();
     await page.getByRole('searchbox', { name: 'Search templates' }).fill('storyboard');
     await expect.poll(() => page.locator('.tplstore-card').count()).toBeLessThan(total);
@@ -155,12 +161,19 @@ test.describe('/templates — the store', () => {
       ]),
     }));
     await page.goto('/templates');
+    // The indicator is on EVERY tile, like a view count — a metadata row that
+    // appears and disappears per tile reads as broken.
+    await expect(page.locator('.tplstore-card').first()).toBeVisible();
+    const cards = await page.locator('.tplstore-card').count();
+    await expect(page.locator('.tplstore-dl')).toHaveCount(cards);
     await expect(page.locator('.tplstore-dl').first()).toBeVisible();
-    await expect(page.getByText('12 downloads')).toBeVisible();
-    // Singular/plural is a real number's business.
-    await expect(page.getByText('3 downloads')).toBeVisible();
-    // Never printed as a zero — a template nobody has taken says nothing.
-    await expect(page.getByText('0 downloads')).toHaveCount(0);
+
+    const countFor = (title) => page.locator('.tplstore-card', { hasText: title })
+      .first().locator('.tplstore-dl');
+    await expect(countFor('Contact sheet template')).toHaveText(/12/);
+    await expect(countFor('Storyboard template')).toHaveText(/3/);
+    // And a template nobody has taken shows its real zero rather than hiding it.
+    await expect(countFor('Recipe card template')).toHaveText(/0/);
 
     // The sort appears only because something has a count, and it orders by it.
     await page.getByRole('button', { name: 'Most downloaded' }).click();
@@ -175,10 +188,13 @@ test.describe('/templates — the store', () => {
     }));
     await page.goto('/templates');
     await expect(page.locator('.tplstore-card').first()).toBeVisible();
-    // A button that sorts sixteen zeroes is not a sort, and it advertises an
-    // emptiness the store has no reason to advertise.
+    // A button that sorts sixteen zeroes is not a sort — the SORT is gated on
+    // there being something to order. The INDICATOR is not: it shows the real
+    // zero on every tile.
     await expect(page.getByRole('button', { name: 'Most downloaded' })).toHaveCount(0);
-    await expect(page.locator('.tplstore-dl')).toHaveCount(0);
+    const cards = await page.locator('.tplstore-card').count();
+    await expect(page.locator('.tplstore-dl')).toHaveCount(cards);
+    await expect(page.locator('.tplstore-dl').first()).toHaveText(/0/);
   });
 
   test('offers a way to stock the shelf', async ({ page }) => {

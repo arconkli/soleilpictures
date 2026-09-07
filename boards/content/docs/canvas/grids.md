@@ -176,12 +176,12 @@ shape and what every box is for.
 Every published template has its own page too, at `/templates/g/<slug>`, showing
 the shape and what each box is for.
 
-Every template — ours and the community's — carries a **download count**, and
-the store can be sorted by **Most downloaded**. A download is one *person*: adding
-the same template again, on another board, or after deleting your copy, never
-counts twice. A count only appears once there is one, so a template nobody has
-taken yet simply shows its box count, and the sort is offered only when something
-has actually been downloaded. A template you take
+Every template — ours and the community's — shows a **download count** beside its
+box count, and the store can be sorted by **Most downloaded**. A download is one
+*person*: adding the same template again, on another board, or after deleting
+your copy, never counts twice. The number is always the real one, including zero
+for a template nobody has taken yet. The *sort* only appears once something has
+actually been downloaded, because ordering a list of zeroes does nothing. A template you take
 from the community lands under **Community** in the panel — where you got it is
 the section it lives in — and it is your own copy, so it stays even if the
 original is taken down.

@@ -45,9 +45,9 @@ export function TemplateItemPage({ path }) {
 
   // The download count (0300), fetched rather than baked: the page itself is
   // static and in the bundle, and a number that moves does not belong in a
-  // generated registry. It appears after load and only when it is non-zero, so
-  // a template nobody has taken yet simply says nothing — the alternative is
-  // printing "0 downloads" on every page in the catalogue.
+  // generated registry. Rendered whatever it is, including zero — the store
+  // shows the same, and a product page that hides its own number until the
+  // number flatters it is not one anybody should trust.
   const [downloads, setDownloads] = useState(0);
   useEffect(() => {
     if (!item) return undefined;
@@ -111,7 +111,8 @@ export function TemplateItemPage({ path }) {
               <p className="tplitem-specs">
                 {item.cells} {item.cells === 1 ? 'box' : 'boxes'}
                 {category && <> · {category.label}</>}
-                {downloads > 0 && <> · <span className="tplstore-dl">{downloads} download{downloads === 1 ? '' : 's'}</span></>}
+                {' · '}
+                <span className="tplstore-dl">{downloads} download{downloads === 1 ? '' : 's'}</span>
               </p>
 
               <a className="seo-cta-primary tplitem-add" href={addHref(item.slug)}>Add to my templates</a>

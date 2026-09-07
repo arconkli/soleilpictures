@@ -1048,10 +1048,19 @@
   letter-spacing: .08em;
   color: var(--ink-2);
 }
-/* A real download count, and only ever a real one — see the tile meta in
-   TemplatesStorePage. Ink-1 rather than ink-3 so the one piece of social proof
-   on a tile is the part of the meta line you actually read. */
-.tplstore-dl { color: var(--ink-1); }
+/* The download count, rendered like a view count: a glyph and a number, always
+   present so the meta row is the same shape on every tile. Ink-1 against the
+   ink-3 of the rest of the line, because it is the one part of the metadata
+   anybody scans for. The number is whatever it really is — nothing is seeded,
+   and there is no floor below which it hides. */
+.tplstore-dl {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+}
+.tplstore-dl-i { flex: none; opacity: .75; }
 
 /* The community item page always needs a round-trip, so it gets a skeleton. A
    blank frame here reads as the 404 this route used to be. */

@@ -60,6 +60,17 @@ const COMMUNITY = 'community';
 const BIG_CELLS = 12;
 const SMALL_LABEL = 8;
 
+// Inline rather than from lib/icons.js: this page is a public SEO chunk and the
+// icon set drags Phosphor into it for one 10px arrow.
+function DownloadGlyph() {
+  return (
+    <svg className="tplstore-dl-i" viewBox="0 0 16 16" width="11" height="11" aria-hidden="true" focusable="false">
+      <path d="M8 2v7m0 0 3-3m-3 3L5 6M3 12h10" fill="none" stroke="currentColor"
+            strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // A community tile's destination. There is deliberately no author identity
 // anywhere in this system (0266: "a template is a shape, not a person"), so the
 // badge names the source rather than a person.
@@ -327,13 +338,16 @@ export function TemplatesStorePage() {
                   <span className="tplstore-meta">
                     {isCommunity && <span className="tplstore-badge">Community</span>}
                     {t.cells > 0 && <>{isCommunity ? ' · ' : ''}{t.cells} {t.cells === 1 ? 'box' : 'boxes'}</>}
-                    {/* Shown only when it is a real number. A shelf of "0
-                        downloads" reads as a dead shop, and the fix for that is
-                        to say nothing until there is something to say — not to
-                        put a number there that nobody earned. */}
-                    {t.useCount > 0 && (
-                      <> · <span className="tplstore-dl">{t.useCount} download{t.useCount === 1 ? '' : 's'}</span></>
-                    )}
+                    {/* ALWAYS RENDERED, like a view count — a metadata row that
+                        appears and disappears per tile reads as broken, and a
+                        template with no downloads yet is a fact about the store
+                        rather than something to hide. The number is whatever it
+                        actually is; there is no floor and nothing seeded. */}
+                    {' · '}
+                    <span className="tplstore-dl" title={`${t.useCount || 0} ${(t.useCount || 0) === 1 ? 'person has' : 'people have'} added this template`}>
+                      <DownloadGlyph />
+                      {t.useCount || 0}
+                    </span>
                   </span>
                 </a>
               </li>
