@@ -16277,6 +16277,36 @@ body[data-capture-freeze='1'] { --grain-url: none; }
   border: 1px solid rgba(255,255,255,.08); border-radius: 999px;
   font: inherit; cursor: pointer;
 }
+/* Record. The one control here that is not gold, deliberately: gold is the
+   house's active/selection colour and appears all over this strip, so a record
+   button in it would read as one chip among many. Red is the only thing on
+   screen that means "rolling", and it has to register at a glance while your
+   attention is on the canvas. */
+.capture-hud-rec {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 30px; padding: 6px 11px;
+  background: rgba(255,255,255,.05); color: inherit;
+  border: 1px solid rgba(255,255,255,.08); border-radius: 999px;
+  font: inherit; cursor: pointer;
+}
+.capture-hud-rec:disabled { opacity: .38; cursor: not-allowed; }
+.capture-hud-rec-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #e5484d; flex: 0 0 auto;
+}
+.capture-hud-rec:disabled .capture-hud-rec-dot { background: #6d6d75; }
+.capture-hud-rec.is-live {
+  background: rgba(229,72,77,.18);
+  border-color: rgba(229,72,77,.55);
+  color: #ff8a8d;
+}
+.capture-hud-rec.is-live .capture-hud-rec-dot { animation: capture-rec-pulse 1.4s ease-in-out infinite; }
+@keyframes capture-rec-pulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) {
+  .capture-hud-rec.is-live .capture-hud-rec-dot { animation: none; }
+}
+
 .capture-hud-icon {
   flex: 0 0 auto;
   display: inline-flex; align-items: center; justify-content: center;
@@ -16367,6 +16397,29 @@ body[data-capture-freeze='1'] { --grain-url: none; }
   to   { transform: scale(3.4); opacity: 0; }
 }
 
+/* Take list. Name, running time, what it's for — the running time is the part
+   that decides which one you reach for, so it gets its own column rather than
+   being buried in the sentence. */
+.capture-takes { display: flex; flex-direction: column; gap: 2px; }
+.capture-take {
+  display: grid;
+  grid-template-columns: minmax(84px, auto) auto;
+  column-gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-1);
+}
+.capture-take:last-child { border-bottom: 0; }
+.capture-take-name { font-size: 13px; font-weight: 500; color: var(--ink-1); }
+.capture-take-secs {
+  font-size: 12px; color: var(--ink-3);
+  font-variant-numeric: tabular-nums; text-align: right;
+}
+.capture-take-blurb {
+  grid-column: 1 / -1;
+  font-size: 12px; line-height: 1.5; color: var(--ink-2);
+  margin-top: 2px;
+}
+
 .capture-width { display: flex; align-items: center; gap: 10px; }
 .capture-width input[type='range'] { flex: 1 1 auto; min-width: 120px; accent-color: var(--soleil); }
 .capture-width .settings-pill { flex: 0 0 auto; min-width: 64px; }
@@ -16376,6 +16429,7 @@ body[data-capture-freeze='1'] { --grain-url: none; }
    phone footage gets made, so every target goes to a real 44px. */
 @media (hover: none) and (pointer: coarse) {
   .capture-hud-chip,
+  .capture-hud-rec,
   .capture-hud-btn { min-height: 44px; }
   .capture-hud-icon { width: 44px; height: 44px; }
   .capture-hud-dot { width: 34px; height: 34px; }

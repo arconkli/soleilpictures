@@ -14,6 +14,7 @@ import { useEffect } from 'react';
 import { armCapture, setCapture, isCaptureActive, getCaptureState, resetCapture } from '../lib/captureState.js';
 import { setCaptureScaleBoost } from '../lib/canvasScale.js';
 import { suspendViewPersistence } from '../lib/boardViewState.js';
+import { resolveTake, takeDuration } from '../lib/captureTakes.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { useCaptureState } from './useCaptureState.js';
 
@@ -40,7 +41,12 @@ export function useCaptureMode(allowed) {
     // scripted shoot cannot stage them by seeding storage and needs a real
     // entry point. Every call still goes through setCapture, so the gate and
     // the type coercion apply exactly as they do to the UI.
-    window.__soleilCapture = { set: setCapture, get: getCaptureState, reset: resetCapture };
+    window.__soleilCapture = {
+      set: setCapture, get: getCaptureState, reset: resetCapture,
+      // So a scripted run waits the take's OWN length instead of a number
+      // copied into the shot list that then drifts when the take is retimed.
+      takeMs: (id) => takeDuration(resolveTake(id)),
+    };
     return () => { delete window.__soleilCapture; };
   }, [allowed]);
 

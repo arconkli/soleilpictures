@@ -56,6 +56,33 @@ export function easeInOutCubic(t) {
   return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 }
 
+const clamp01 = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t);
+
+// The curve is the difference between a move that reads as a camera operator
+// and one that reads as a script. Each of these does a different job, which is
+// why there is more than one rather than a single "nice" default:
+//
+//   smooth  eases both ends — a considered move between two places
+//   settle  leaves fast, lands gently — a reveal; the arrival is the beat
+//   lead    starts gently, arrives quickly — good going INTO a cut
+//   drift   barely accelerates at all — ambient motion behind a title
+//   snap    almost all the distance immediately, then a long tail — punchy
+export const EASINGS = Object.freeze({
+  smooth: easeInOutCubic,
+  settle: (t) => 1 - Math.pow(1 - clamp01(t), 3),
+  lead:   (t) => Math.pow(clamp01(t), 3),
+  drift:  (t) => -(Math.cos(Math.PI * clamp01(t)) - 1) / 2,
+  snap:   (t) => 1 - Math.pow(1 - clamp01(t), 5),
+});
+
+export const DEFAULT_EASE = 'smooth';
+
+/** Resolve an easing by name. Unknown names fall back rather than throwing —
+ *  a typo in a shot list should produce a plain move, not a dead run. */
+export function easingFor(name) {
+  return EASINGS[name] || EASINGS[DEFAULT_EASE];
+}
+
 /**
  * Sample a camera move at normalised time `t`.
  *

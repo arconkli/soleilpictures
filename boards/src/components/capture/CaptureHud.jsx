@@ -10,12 +10,14 @@
 // no ⌘ to summon it back with. So: Hide removes it from the DOM entirely, and a
 // three-finger tap anywhere brings it back. Three fingers because the canvas
 // uses one (draw, drag) and two (pan, pinch) — nothing else listens above that.
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Minus } from '../../lib/icons.js';
 import { Icon } from '../Icon.jsx';
 import { setCapture, resetCapture } from '../../lib/captureState.js';
 import { useCaptureState } from '../../hooks/useCaptureState.js';
 import { ASPECTS } from '../../lib/captureAspect.js';
+import { TAKES, takeFor, takeDuration } from '../../lib/captureTakes.js';
+import { recordingSupport, startRecording, stopRecording, saveClip, clipFilename } from '../../lib/captureRecorder.js';
 
 const CHIPS = [
   // Reframe first: on a phone shoot it is the control you reach for between
@@ -35,6 +37,19 @@ export function CaptureHud() {
   const cap = useCaptureState();
   const [hidden, setHidden] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  // Which take is armed, and whether we are rolling. Local, not in captureState:
+  // neither should survive a reload — coming back to a page that thinks it is
+  // recording, with no MediaRecorder behind it, is a dead button.
+  const [takeId, setTakeId] = useState(null);
+  const [recording, setRecording] = useState(false);
+  const stopTimerRef = useRef(null);
+  const support = useMemo(() => recordingSupport(), []);
+  const canRecord = support.ok;
+
+  // A hidden HUD must not leave a recording running with no way to stop it.
+  useEffect(() => () => {
+    if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
+  }, []);
 
   // Summon paths. ⌘⇧H for a desk, three fingers for a phone. Both are toggles,
   // so the same gesture that dismissed the panel brings it back — there is no
@@ -85,6 +100,50 @@ export function CaptureHud() {
   const castIdx = Math.max(0, CAST_SIZES.indexOf(cap.cast));
   const cycleCast = () => setCapture({ cast: CAST_SIZES[(castIdx + 1) % CAST_SIZES.length] });
 
+  // ── Takes and recording ──────────────────────────────────────────────────
+  const take = takeFor(takeId);
+  const cycleTake = () => {
+    const ids = [null, ...TAKES.map(t => t.id)];
+    setTakeId(ids[(ids.indexOf(takeId) + 1) % ids.length]);
+  };
+  const playTake = (id) => {
+    document.dispatchEvent(new CustomEvent('soleil-capture-camera', { detail: { take: id } }));
+  };
+
+  const recordTitle = !support.ok ? support.reason
+    : recording ? 'Stop and save'
+    : take ? `Record ${take.label} — starts, plays it, saves the clip`
+    : 'Start recording. Pick a take to have it played for you.';
+
+  // One press does the whole thing. Recording starts BEFORE the take so the
+  // first move is in frame, and stops on the take's own duration rather than a
+  // guess — takeDuration is derived from the moves.
+  const onRecord = async () => {
+    if (recording) {
+      setRecording(false);
+      const blob = await stopRecording();
+      if (blob) saveClip(blob, clipFilename(takeId || 'clip'));
+      return;
+    }
+    try {
+      await startRecording();
+    } catch (_) {
+      // Dismissing the browser's surface picker is a cancellation, not a
+      // failure — say nothing and leave the button where it was.
+      return;
+    }
+    setRecording(true);
+    if (!take) return;                       // free-running: stop by hand
+
+    playTake(take.id);
+    const ms = takeDuration(take.moves) + 400;   // a beat of tail
+    stopTimerRef.current = window.setTimeout(async () => {
+      setRecording(false);
+      const blob = await stopRecording();
+      if (blob) saveClip(blob, clipFilename(take.id));
+    }, ms);
+  };
+
   return (
     <div className="capture-hud" role="group" aria-label="Capture controls">
       <span className="capture-hud-title">Capture</span>
@@ -130,7 +189,28 @@ export function CaptureHud() {
         Push in
       </button>
 
+      {/* A take is a written-down sequence — establish, hold, go in, come back.
+          Doing that by hand means hitting two buttons at the right moments
+          while also recording, and getting it identical on the retake is luck. */}
+      <button type="button" className="capture-hud-chip"
+              aria-label={`Take: ${take ? take.label : 'none'}. Tap to change.`}
+              onClick={cycleTake}>
+        <span className="capture-hud-chip-label">Take</span>
+        <span className="capture-hud-chip-val">{take ? take.label : 'None'}</span>
+      </button>
+
       <span className="capture-hud-sep" />
+
+      {/* One press: start recording, play the take, stop, save. */}
+      <button type="button"
+              className={`capture-hud-rec ${recording ? 'is-live' : ''}`}
+              disabled={!canRecord}
+              title={recordTitle}
+              aria-label={recordTitle}
+              onClick={onRecord}>
+        <span className="capture-hud-rec-dot" />
+        <span>{recording ? 'Stop' : take ? 'Record' : 'Rec'}</span>
+      </button>
 
       <button type="button" className="capture-hud-btn" onClick={resetCapture}>Reset</button>
 

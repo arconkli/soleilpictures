@@ -142,7 +142,8 @@ import {
   computeSnap as computeSnapPure, computeResizeSnap as computeResizeSnapPure,
 } from '../lib/snapGuides.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
-import { solveFit, sampleTween, CAMERA_MS } from '../lib/captureCamera.js';
+import { solveFit, sampleTween, easingFor, CAMERA_MS } from '../lib/captureCamera.js';
+import { normalizeMoves, resolveTake } from '../lib/captureTakes.js';
 import { useCaptureState } from '../hooks/useCaptureState.js';
 import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
 import { makeCastAwareness } from '../lib/castAwareness.js';
@@ -1866,29 +1867,125 @@ export function CanvasSurface({
   // the board sixty times a second. Deliberately does NOT call
   // enableSmoothTransform(); its CSS transition would fight the rAF.
   const cameraRafRef = useRef(0);
-  const tweenCameraTo = useCallback((cam, ms = CAMERA_MS) => {
-    if (!cam || !Number.isFinite(cam.zoom)) return;
+  // Bumped on every new run. A move checks it before committing, so starting a
+  // second take mid-flight abandons the first rather than the two fighting
+  // over the transform.
+  const cameraRunRef = useRef(0);
+
+  // `runToken` lets a SEQUENCE own the counter: a take bumps it once and passes
+  // it to every move, so its own second move doesn't read as an interruption of
+  // its first. Called on its own (the HUD's Fit / Push in), it claims a fresh
+  // token, which is what makes a manual press cancel a running take.
+  const tweenCameraTo = useCallback((cam, ms = CAMERA_MS, ease = 'smooth', runToken) => {
+    if (!cam || !Number.isFinite(cam.zoom)) return Promise.resolve();
     cancelAnimationFrame(cameraRafRef.current);
+    const run = runToken ?? ++cameraRunRef.current;
+    const fn = easingFor(ease);
     const from = { zoom: zoomRef.current, pan: { ...panRef.current } };
+    // A zero-duration move is a CUT, not a tween — used to set a starting pose
+    // before a take begins. Commit it and get out.
+    if (!(ms > 0)) {
+      applyCamera(cam);
+      scheduleVisibleRecompute?.();
+      return Promise.resolve();
+    }
     const t0 = performance.now();
-    const step = (now) => {
-      const t = Math.min(1, (now - t0) / Math.max(1, ms));
-      const s = sampleTween(from, cam, t);
-      zoomRef.current = s.zoom;
-      panRef.current = s.pan;
-      applyCanvasTransform();
-      if (t < 1) {
-        cameraRafRef.current = requestAnimationFrame(step);
-      } else {
-        // One state commit at the end, so culling and image tiers re-evaluate
-        // against the settled pose rather than against every frame of the move.
-        applyCamera(cam);
-        scheduleVisibleRecompute?.();
-      }
-    };
-    cameraRafRef.current = requestAnimationFrame(step);
+    return new Promise((resolve) => {
+      const step = (now) => {
+        if (cameraRunRef.current !== run) return resolve();
+        const t = Math.min(1, (now - t0) / ms);
+        const s = sampleTween(from, cam, t, fn);
+        zoomRef.current = s.zoom;
+        panRef.current = s.pan;
+        applyCanvasTransform();
+        if (t < 1) {
+          cameraRafRef.current = requestAnimationFrame(step);
+        } else {
+          // One state commit at the end, so culling and image tiers re-evaluate
+          // against the settled pose rather than against every frame.
+          applyCamera(cam);
+          scheduleVisibleRecompute?.();
+          resolve();
+        }
+      };
+      cameraRafRef.current = requestAnimationFrame(step);
+    });
   }, [applyCamera]);
-  useEffect(() => () => cancelAnimationFrame(cameraRafRef.current), []);
+  useEffect(() => () => { cameraRunRef.current++; cancelAnimationFrame(cameraRafRef.current); }, []);
+
+  // Solve one move against the camera and content as they are AT THE MOMENT IT
+  // STARTS, not when the take was queued — a sweep after a zoom has to know
+  // about the zoom.
+  const solveMove = useCallback((move) => {
+    const wrap = wrapRef.current;
+    if (!wrap) return null;
+    const r = wrap.getBoundingClientRect();
+    if (r.width < 50 || r.height < 50) return null;
+    const vp = { w: r.width, h: r.height };
+    const z = zoomRef.current;
+    const pan = panRef.current;
+    const all = cardsRef.current || [];
+
+    const framed = (subject, margin) => {
+      const b = boundsOfCards(subject);
+      return b ? solveFit(b, vp, { margin, zoomMin: ZOOM_MIN, zoomMax: ZOOM_MAX }) : null;
+    };
+
+    switch (move.type) {
+      case 'fit':
+        return framed(all, fitMargin(r));
+      case 'selection': {
+        const ids = [...selectedRef.current];
+        const sel = ids.length ? all.filter(c => ids.includes(c.id)) : all;
+        return framed(sel, ids.length ? SELECTION_FIT_MARGIN : fitMargin(r));
+      }
+      case 'card': {
+        const one = all.filter(c => c.id === move.id);
+        return one.length ? framed(one, SELECTION_FIT_MARGIN) : null;
+      }
+      case 'zoom': {
+        // Around the viewport centre, mirroring zoomAroundCenter's math so a
+        // scripted zoom and a keyboard zoom feel like the same instrument.
+        const next = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z * (Number(move.by) || 1)));
+        const sx = vp.w / 2, sy = vp.h / 2;
+        const cx = (sx - pan.x) / z, cy = (sy - pan.y) / z;
+        return { zoom: next, pan: { x: sx - cx * next, y: sy - cy * next } };
+      }
+      case 'pan':
+        // dx/dy are BOARD units, so a pan covers the same amount of content at
+        // any zoom rather than the same number of screen pixels.
+        return { zoom: z, pan: { x: pan.x - (Number(move.dx) || 0) * z, y: pan.y - (Number(move.dy) || 0) * z } };
+      case 'sweep': {
+        const b = boundsOfCards(all);
+        if (!b) return null;
+        // Travel to the right edge at the CURRENT zoom, keeping the vertical
+        // centre — so a sweep reads as one continuous pass over the work.
+        const targetX = vp.w - (b.x + b.w) * z - fitMargin(r);
+        return { zoom: z, pan: { x: targetX, y: pan.y } };
+      }
+      case 'hold':
+      default:
+        return { zoom: z, pan: { ...pan } };
+    }
+  }, []);
+
+  // Play a sequence. Sequential by construction — each move resolves before the
+  // next is solved.
+  const runMoves = useCallback(async (moves) => {
+    const list = normalizeMoves(moves);
+    if (!list.length) return;
+    const run = ++cameraRunRef.current;
+    for (const move of list) {
+      if (cameraRunRef.current !== run) return;      // superseded
+      if (move.type === 'hold') {
+        await new Promise(res => setTimeout(res, move.ms));
+        continue;
+      }
+      const cam = solveMove(move);
+      if (!cam) continue;
+      await tweenCameraTo(cam, move.ms, move.ease, run);
+    }
+  }, [solveMove, tweenCameraTo]);
 
   // Fit the entire board content into the viewport. Wired to a
   // double-tap on the zoom % control (replaces what used to happen
@@ -1964,28 +2061,21 @@ export function CanvasSurface({
   useEffect(() => {
     if (isPublic || paneId !== 'main') return undefined;
     const onMove = (e) => {
-      const wrap = wrapRef.current;
-      if (!wrap) return;
-      const r = wrap.getBoundingClientRect();
-      if (r.width < 50 || r.height < 50) return;
-      const target = e.detail?.target || 'fit';
-      const ids = target === 'selection' ? [...selectedRef.current] : null;
-      const subject = ids?.length
-        ? (cardsRef.current || []).filter(c => ids.includes(c.id))
-        : (cardsRef.current || []);
-      const b = boundsOfCards(subject);
-      if (!b) return;
-      tweenCameraTo(
-        solveFit(b, { w: r.width, h: r.height }, {
-          margin: ids?.length ? SELECTION_FIT_MARGIN : fitMargin(r),
-          zoomMin: ZOOM_MIN, zoomMax: ZOOM_MAX,
-        }),
-        Number.isFinite(e.detail?.ms) ? e.detail.ms : CAMERA_MS,
-      );
+      const d = e.detail || {};
+      // Three shapes, one event: a named take, an explicit list of moves (what
+      // the shot list sends), or a single target (what the HUD's two buttons
+      // send). All of them end up in the same player.
+      if (d.take) return void runMoves(resolveTake(d.take));
+      if (Array.isArray(d.moves)) return void runMoves(d.moves);
+      runMoves([{
+        type: d.target === 'selection' ? 'selection' : 'fit',
+        ms: Number.isFinite(d.ms) ? d.ms : CAMERA_MS,
+        ease: d.ease,
+      }]);
     };
     document.addEventListener('soleil-capture-camera', onMove);
     return () => document.removeEventListener('soleil-capture-camera', onMove);
-  }, [isPublic, paneId, tweenCameraTo]);
+  }, [isPublic, paneId, runMoves]);
 
   // After a list-view file drop, when the user switches to canvas: select the
   // freshly-arranged cards and frame them so the batch is impossible to miss.

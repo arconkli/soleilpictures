@@ -27,7 +27,33 @@ import { mkdirSync, writeFileSync, readFileSync, rmSync, readdirSync } from 'nod
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, webkit, devices } from '@playwright/test';
+import { spawnSync } from 'node:child_process';
 import sharp from 'sharp';
+
+// Playwright starts recording when the CONTEXT is created and cannot be paused,
+// so every clip opens with however long the page took to load and settle —
+// several seconds of nothing before the first move. There is no API to trim it.
+//
+// So trim it afterwards, and while we are re-encoding anyway, land on mp4/h264:
+// Playwright writes webm, and every platform you would actually post this to
+// prefers mp4. If ffmpeg is not on PATH the webm is kept as-is and the offset
+// is printed, so the clip is still usable — just cut it yourself.
+const HAS_FFMPEG = spawnSync('ffmpeg', ['-version'], { stdio: 'ignore' }).status === 0;
+
+function trimToMp4(src, dest, startMs) {
+  const r = spawnSync('ffmpeg', [
+    '-v', 'error', '-y',
+    '-ss', (Math.max(0, startMs) / 1000).toFixed(3),
+    '-i', src,
+    // h264 needs even dimensions and yuv420p to play everywhere, including
+    // in-feed players that silently refuse anything else.
+    '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-preset', 'medium',
+    '-movflags', '+faststart', '-an',
+    dest,
+  ], { stdio: 'ignore' });
+  return r.status === 0;
+}
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -107,6 +133,24 @@ async function runActions(page, actions = []) {
       await page.waitForTimeout((a.ms || 900) + 250);
       continue;
     }
+    if (a.take) {
+      // A named sequence — the same ones the HUD offers. The app reports the
+      // duration back so the wait comes from the take's own arithmetic rather
+      // than a number copied into the shot list that then drifts.
+      const ms = await page.evaluate((id) => {
+        document.dispatchEvent(new CustomEvent('soleil-capture-camera', { detail: { take: id } }));
+        return window.__soleilCapture?.takeMs?.(id) ?? 6000;
+      }, a.take);
+      await page.waitForTimeout(ms + 400);
+      continue;
+    }
+    if (a.moves) {
+      await page.evaluate((moves) => {
+        document.dispatchEvent(new CustomEvent('soleil-capture-camera', { detail: { moves } }));
+      }, a.moves);
+      await page.waitForTimeout(a.moves.reduce((s, m) => s + (m.ms ?? 900), 0) + 400);
+      continue;
+    }
     if (a.capture) {
       // Change staging mid-take — e.g. bring the cast in after the first beat.
       await page.evaluate((patch) => window.__soleilCapture?.set(patch), a.capture);
@@ -161,6 +205,9 @@ for (const shot of wanted) {
 
     const page = await context.newPage();
     const url = `${ORIGIN}${shot.path}`;
+    // Recording is already running by now — the clock for the lead-in trim
+    // starts with the context, not with the first move.
+    const startedAt = Date.now();
     process.stdout.write(`${shot.name} @ ${profileName} … `);
 
     try {
@@ -182,18 +229,28 @@ for (const shot of wanted) {
       }
       await page.waitForTimeout(shot.settle ?? list.defaults?.settle ?? 1500);
 
+      // Everything before this point is page load and staging — dead air in a
+      // recording. Remember where the shot actually starts.
+      const leadInMs = Date.now() - startedAt;
+
       await runActions(page, shot.actions);
 
       if (shot.video) {
         await context.close();
         await browser.close();
-        // Playwright names the file itself; move the one it produced.
+        // Playwright names the file itself; take the one it produced.
         const produced = readdirSync(videoDir).find(f => f.endsWith('.webm'));
         if (produced) {
-          const dest = join(OUT, `${shot.name}@${profileName}.webm`);
-          writeFileSync(dest, readFileSync(join(videoDir, produced)));
+          const raw = join(videoDir, produced);
+          const mp4 = join(OUT, `${shot.name}@${profileName}.mp4`);
+          if (HAS_FFMPEG && trimToMp4(raw, mp4, leadInMs)) {
+            console.log(`→ ${shot.name}@${profileName}.mp4  (trimmed ${(leadInMs / 1000).toFixed(1)}s of lead-in)`);
+          } else {
+            const dest = join(OUT, `${shot.name}@${profileName}.webm`);
+            writeFileSync(dest, readFileSync(raw));
+            console.log(`→ ${shot.name}@${profileName}.webm  (cut the first ${(leadInMs / 1000).toFixed(1)}s — no ffmpeg)`);
+          }
           rmSync(videoDir, { recursive: true, force: true });
-          console.log(`→ ${shot.name}@${profileName}.webm`);
           made++;
         } else {
           console.log('! no video produced');

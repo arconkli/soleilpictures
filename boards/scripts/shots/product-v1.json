@@ -55,19 +55,29 @@
       "frame": true
     },
     {
-      "name": "tour-fit-then-push",
+      "name": "clip-establish",
       "path": "/?local=1&reset=1",
       "readySelector": ".canvas-wrap",
-      "capture": { "on": true, "clean": true, "silence": true, "freeze": true, "spotlight": true },
+      "capture": { "on": true, "clean": true, "silence": true, "freeze": true },
       "profiles": ["desktop"],
       "video": true,
       "actions": [
-        { "wait": 800 },
-        { "camera": "fit", "ms": 1100 },
-        { "wait": 700 },
+        { "wait": 600 },
         { "capture": { "cast": 3, "persona": true } },
-        { "wait": 2600 }
+        { "take": "establish" }
       ]
+    },
+    {
+      "name": "clip-reveal-phone",
+      "path": "/?local=1&reset=1",
+      "readySelector": ".canvas-wrap",
+      "capture": {
+        "on": true, "clean": true, "silence": true, "freeze": true,
+        "reframe": true, "aspect": "9:16"
+      },
+      "profiles": ["phone"],
+      "video": true,
+      "actions": [{ "wait": 150 }, { "take": "reveal" }]
     }
   ]
 }

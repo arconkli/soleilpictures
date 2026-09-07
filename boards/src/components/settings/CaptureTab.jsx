@@ -12,12 +12,15 @@ import { Toggle, SettingsCategory, Field } from './fields.jsx';
 import { setCapture, resetCapture } from '../../lib/captureState.js';
 import { useCaptureState } from '../../hooks/useCaptureState.js';
 import { ASPECTS } from '../../lib/captureAspect.js';
+import { TAKES, takeDuration } from '../../lib/captureTakes.js';
+import { recordingSupport } from '../../lib/captureRecorder.js';
 
 const IS_MAC = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 const CMD = IS_MAC ? '⌘' : 'Ctrl';
 
 export function CaptureTab() {
   const cap = useCaptureState();
+  const recording = recordingSupport();
   const set = (patch) => setCapture(patch);
 
   return (
@@ -156,6 +159,28 @@ export function CaptureTab() {
           {' '}multiplayer can be filmed without arranging three other people. They
           {' '}exist only in your own view — nothing is sent, and nobody really on the
           {' '}board sees them.
+        </p>
+      </SettingsCategory>
+
+      <SettingsCategory title="Takes" desc="Written-down camera moves">
+        <p className="settings-section-hint">
+          A clip isn’t one move, it’s a shape: establish, hold, go in on what matters,
+          {' '}come back. Pick one on the floating controls and press Record — it starts,
+          {' '}plays the take, stops, and saves the file. Same shape every retake.
+        </p>
+        <div className="capture-takes">
+          {TAKES.map(t => (
+            <div key={t.id} className="capture-take">
+              <span className="capture-take-name">{t.label}</span>
+              <span className="capture-take-secs">{(takeDuration(t.moves) / 1000).toFixed(1)}s</span>
+              <span className="capture-take-blurb">{t.blurb}</span>
+            </div>
+          ))}
+        </div>
+        <p className="settings-section-hint">
+          {recording.ok
+            ? 'Recording saves a .webm to your downloads. The browser asks which surface to share once — pick this tab.'
+            : recording.reason}
         </p>
       </SettingsCategory>
 
