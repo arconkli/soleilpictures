@@ -89,10 +89,42 @@ function cleanup() {
  * Rejects if the person dismisses the browser's surface picker — that is a
  * cancellation, not a failure, and the caller should treat it as one.
  */
-export async function startRecording({ fps = 30 } = {}) {
+// ── Keeping the controls out of the recording ──────────────────────────────
+//
+// The obvious problem with a control panel you drive DURING a take is that a
+// tab capture records the rendered page, so the panel is in every frame. Hiding
+// it solves the recording and breaks the driving.
+//
+// Element Capture is the way out: restrictTo() captures one element's subtree
+// and ignores anything painted over it. So the panel can sit on top of the app,
+// fully usable, and simply not exist as far as the video is concerned.
+//
+// It needs the element to be OUTSIDE the restricted subtree — which is why the
+// HUD portals to <body> rather than living inside #root like the rest of the UI.
+export function elementCaptureSupported() {
+  return typeof window !== 'undefined'
+    && typeof window.RestrictionTarget !== 'undefined'
+    && typeof MediaStreamTrack !== 'undefined'
+    && typeof MediaStreamTrack.prototype.restrictTo === 'function';
+}
+
+/**
+ * Start recording.
+ *
+ * `restrictToElement` is the subtree to film. When Element Capture is
+ * available, everything outside it — the capture controls, the framing guide —
+ * is absent from the video while staying on your screen. Returns
+ * `{ restricted }` so the caller knows whether it still has to hide itself.
+ *
+ * The trade-off, stated plainly because it is invisible otherwise: restricting
+ * to #root also excludes anything React portals to <body>, which is every
+ * modal and the command palette. Fine for a canvas demo, wrong if the modal IS
+ * the shot — hence the opt-out.
+ */
+export async function startRecording({ fps = 30, restrictToElement = null } = {}) {
   const support = recordingSupport();
   if (!support.ok) throw new Error(support.reason);
-  if (isRecording()) return;
+  if (isRecording()) return { restricted: false };
 
   stream = await navigator.mediaDevices.getDisplayMedia({
     video: { frameRate: fps },
@@ -103,6 +135,21 @@ export async function startRecording({ fps = 30 } = {}) {
     selfBrowserSurface: 'include',
     surfaceSwitching: 'exclude',
   });
+
+  let restricted = false;
+  if (restrictToElement && elementCaptureSupported()) {
+    try {
+      const track = stream.getVideoTracks()[0];
+      const target = await window.RestrictionTarget.fromElement(restrictToElement);
+      await track.restrictTo(target);
+      restricted = true;
+    } catch (_) {
+      // Restriction only works when self-capturing this tab. Pick a window or a
+      // whole screen in the picker and it throws — that is a legitimate choice,
+      // so carry on unrestricted and let the caller hide its own controls.
+      restricted = false;
+    }
+  }
 
   chunks = [];
   recorder = new MediaRecorder(stream, { mimeType: pickMime() });
@@ -117,6 +164,7 @@ export async function startRecording({ fps = 30 } = {}) {
   recorder.start();
   // One frame of headroom so the first move isn't clipped.
   await new Promise(r => setTimeout(r, 120));
+  return { restricted };
 }
 
 /**

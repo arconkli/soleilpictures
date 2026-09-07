@@ -176,6 +176,75 @@ test('the HUD takes itself out of the picture, and comes back', async ({ page })
   await expect(page.locator('.capture-hud')).toBeVisible();
 });
 
+// ── Staying out of the recording while staying usable ──────────────────────
+//
+// A tab capture records the rendered page, so a control panel you drive DURING
+// a take is in every frame. Element Capture is the way out: restrictTo(#root)
+// films the app's subtree and ignores anything painted over it. That only works
+// if the panel is OUTSIDE that subtree, which is the structural property below.
+
+test('the controls live outside #root, which is what lets them be excluded', async ({ page }) => {
+  await boot(page);
+  const placement = await page.evaluate(() => {
+    const hud = document.querySelector('.capture-hud');
+    const root = document.getElementById('root');
+    return {
+      exists: !!hud,
+      insideRoot: !!(hud && root && root.contains(hud)),
+      parentIsBody: hud?.parentElement === document.body,
+    };
+  });
+  expect(placement.exists).toBe(true);
+  expect(placement.insideRoot, 'the HUD is inside #root — restrictTo would still film it').toBe(false);
+  expect(placement.parentIsBody).toBe(true);
+});
+
+test('the framing guide is outside #root too — it is a viewfinder, not content', async ({ page }) => {
+  await boot(page);
+  await page.locator('[aria-label^="Framing guide"]').click();
+  await expect(page.locator('.capture-mask')).toBeVisible();
+  const insideRoot = await page.evaluate(() =>
+    document.getElementById('root').contains(document.querySelector('.capture-mask')));
+  expect(insideRoot).toBe(false);
+});
+
+test('with Element Capture, the panel stays up and says it is off-camera', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 800; c.height = 600;
+    setInterval(() => c.getContext('2d').fillRect(0, 0, 800, 600), 100);
+    // Stand in for a browser that supports restrictTo.
+    window.RestrictionTarget = { fromElement: async (el) => ({ el }) };
+    MediaStreamTrack.prototype.restrictTo = async function () { return undefined; };
+    navigator.mediaDevices.getDisplayMedia = async () => c.captureStream(30);
+  });
+
+  await page.locator('.capture-hud-rec').click();
+  const hud = page.locator('.capture-hud');
+  await expect(hud).toBeVisible();
+  await expect(hud).toHaveAttribute('data-excluded', '1');
+  await expect(hud.locator('.capture-hud-title')).toHaveText('Off-camera');
+  // And it is still operable mid-recording — the entire point.
+  await expect(page.locator('[aria-label^="Take:"]')).toBeEnabled();
+});
+
+test('without Element Capture, the panel ducks out of frame instead', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 800; c.height = 600;
+    setInterval(() => c.getContext('2d').fillRect(0, 0, 800, 600), 100);
+    delete window.RestrictionTarget;
+    delete MediaStreamTrack.prototype.restrictTo;
+    navigator.mediaDevices.getDisplayMedia = async () => c.captureStream(30);
+  });
+
+  await page.locator('.capture-hud-rec').click();
+  // Nothing else can keep it out of the video, so it leaves.
+  await expect(page.locator('.capture-hud')).toHaveCount(0);
+});
+
 test('an unknown take or a junk move is ignored rather than throwing', async ({ page }) => {
   await boot(page);
   const errors = [];

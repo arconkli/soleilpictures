@@ -10,6 +10,7 @@
 // the view rather than resizing it means what you see inside the frame is
 // exactly what the app does at that size, with no reflow to second-guess. The
 // reframe (Fit) is the tool that changes the content; this one only frames it.
+import { createPortal } from 'react-dom';
 import { ASPECTS } from '../../lib/captureAspect.js';
 
 // A uniform 5% inset marking roughly where platform furniture (captions,
@@ -29,12 +30,16 @@ export function AspectMask({ aspect }) {
     '--cap-safe': String(SAFE_INSET),
   };
 
-  return (
+  // Portalled to <body>, outside #root, for the same reason the HUD is: a
+  // recording restricted to #root then films the app without the viewfinder
+  // drawn over it. It is a guide for you, never part of the picture.
+  return createPortal(
     <div className="capture-mask" style={style} aria-hidden="true" data-capture-aspect={spec.id}>
       <div className="capture-mask-frame">
         <div className="capture-mask-safe" />
         <span className="capture-mask-label">{spec.label}</span>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -13,7 +13,7 @@ import { setCapture, resetCapture } from '../../lib/captureState.js';
 import { useCaptureState } from '../../hooks/useCaptureState.js';
 import { ASPECTS } from '../../lib/captureAspect.js';
 import { TAKES, takeDuration } from '../../lib/captureTakes.js';
-import { recordingSupport } from '../../lib/captureRecorder.js';
+import { recordingSupport, elementCaptureSupported } from '../../lib/captureRecorder.js';
 
 const IS_MAC = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 const CMD = IS_MAC ? '⌘' : 'Ctrl';
@@ -179,9 +179,16 @@ export function CaptureTab() {
         </div>
         <p className="settings-section-hint">
           {recording.ok
-            ? 'Recording saves a .webm to your downloads. The browser asks which surface to share once — pick this tab.'
+            ? 'Recording saves an .mp4 to your downloads, and stills save as .png. The browser asks which surface to share once — pick this tab.'
             : recording.reason}
         </p>
+        {recording.ok && (
+          <p className="settings-section-hint">
+            {elementCaptureSupported()
+              ? 'This browser can film the app while ignoring anything drawn over it, so the floating controls stay usable mid-take and never appear in the video — they read “Off-camera” while that’s true. The trade-off: modals and the command palette are drawn outside the filmed layer, so they’re left out too. If the modal IS the shot, record with the controls hidden instead.'
+              : 'This browser films the whole tab, so the floating controls duck out of frame while recording and ⌘⇧H brings them back — that press lands in the video. Chrome can film the app while ignoring overlays, which keeps them usable mid-take.'}
+          </p>
+        )}
       </SettingsCategory>
 
       <SettingsCategory title="Reset" desc="Back to a normal app">

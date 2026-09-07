@@ -16246,6 +16246,15 @@ body[data-capture-freeze='1'] { --grain-url: none; }
   scrollbar-width: none;
 }
 .capture-hud::-webkit-scrollbar { display: none; }
+/* Rolling, but excluded from the video by Element Capture. Worth saying plainly
+   — the whole point is that you can keep using the panel mid-take, and you will
+   not believe that unless the panel tells you. */
+.capture-hud[data-excluded] {
+  border-color: rgba(229,72,77,.4);
+  box-shadow: 0 6px 24px rgba(0,0,0,.45), inset 0 0 0 1px rgba(229,72,77,.12);
+}
+.capture-hud[data-excluded] .capture-hud-title { color: #ff8a8d; opacity: .9; }
+
 .capture-hud-title {
   padding: 0 4px 0 2px; opacity: .5;
   text-transform: uppercase; letter-spacing: .08em; font-size: 9px;

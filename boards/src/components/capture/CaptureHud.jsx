@@ -11,6 +11,7 @@
 // three-finger tap anywhere brings it back. Three fingers because the canvas
 // uses one (draw, drag) and two (pan, pinch) — nothing else listens above that.
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Minus } from '../../lib/icons.js';
 import { Icon } from '../Icon.jsx';
 import { setCapture, resetCapture } from '../../lib/captureState.js';
@@ -20,6 +21,7 @@ import { TAKES, takeFor, takeDuration } from '../../lib/captureTakes.js';
 import {
   recordingSupport, stillSupport, startRecording, stopRecording,
   grabStill, saveClip, saveFile, clipFilename, stillFilename, extForBlob,
+  elementCaptureSupported,
 } from '../../lib/captureRecorder.js';
 
 const CHIPS = [
@@ -46,6 +48,10 @@ export function CaptureHud() {
   const [takeId, setTakeId] = useState(null);
   const [recording, setRecording] = useState(false);
   const [shooting, setShooting] = useState(false);
+  // Whether the running recording is EXCLUDING this panel. When it is, the HUD
+  // stays on screen and stays usable mid-take; when it isn't, it has to get out
+  // of the frame the old-fashioned way.
+  const [excluded, setExcluded] = useState(false);
   const stopTimerRef = useRef(null);
   const support = useMemo(() => recordingSupport(), []);
   const stills = useMemo(() => stillSupport(), []);
@@ -77,16 +83,23 @@ export function CaptureHud() {
     };
   }, []);
 
-  if (hidden) return null;
+  // Rolling, and the recording is NOT excluding us: the only way to stay out of
+  // frame is to leave it. ⌘⇧H still summons the panel back, but that press will
+  // be in the video — which is the whole reason Element Capture is preferred.
+  const mustDuck = recording && !excluded;
+  if (hidden || mustDuck) return null;
 
+  // Everything below portals to <body>, OUTSIDE #root. That placement is what
+  // makes restrictTo(#root) able to film the app and not these controls.
   if (collapsed) {
-    return (
+    return createPortal(
       <button type="button" className="capture-hud-dot"
               onClick={() => setCollapsed(false)}
               title="Capture mode — click to expand"
               aria-label="Expand capture controls">
         <span className="capture-hud-dot-pip" />
-      </button>
+      </button>,
+      document.body,
     );
   }
 
@@ -155,17 +168,23 @@ export function CaptureHud() {
   const onRecord = async () => {
     if (recording) {
       setRecording(false);
+      setExcluded(false);
       const blob = await stopRecording();
       if (blob) saveClip(blob, clipFilename(takeId || 'clip', extForBlob(blob)));
       return;
     }
+    let restricted = false;
     try {
-      await startRecording();
+      // Film #root and nothing else, so this panel — which portals to <body>,
+      // outside that subtree — is absent from the video while staying usable.
+      const res = await startRecording({ restrictToElement: document.getElementById('root') });
+      restricted = !!res?.restricted;
     } catch (_) {
       // Dismissing the browser's surface picker is a cancellation, not a
       // failure — say nothing and leave the button where it was.
       return;
     }
+    setExcluded(restricted);
     setRecording(true);
     if (!take) return;                       // free-running: stop by hand
 
@@ -173,14 +192,16 @@ export function CaptureHud() {
     const ms = takeDuration(take.moves) + 400;   // a beat of tail
     stopTimerRef.current = window.setTimeout(async () => {
       setRecording(false);
+      setExcluded(false);
       const blob = await stopRecording();
       if (blob) saveClip(blob, clipFilename(take.id));
     }, ms);
   };
 
-  return (
-    <div className="capture-hud" role="group" aria-label="Capture controls">
-      <span className="capture-hud-title">Capture</span>
+  return createPortal(
+    <div className="capture-hud" role="group" aria-label="Capture controls"
+         data-excluded={excluded ? '1' : undefined}>
+      <span className="capture-hud-title">{excluded ? 'Off-camera' : 'Capture'}</span>
 
       {CHIPS.map(c => (
         <button key={c.key} type="button"
@@ -268,6 +289,7 @@ export function CaptureHud() {
               aria-label="Hide capture controls">
         <Icon as={X} size={12} />
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 }
