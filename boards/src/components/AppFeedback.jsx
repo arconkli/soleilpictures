@@ -1,5 +1,6 @@
 import { createContext, Suspense, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
+import { isSilenced } from '../lib/captureState.js';
 
 // The visual layer (confirm/prompt dialogs + toast stack) is the only part of
 // this always-mounted provider that pulls in @phosphor-icons + react-dom's
@@ -91,6 +92,13 @@ export function FeedbackProvider({ children }) {
   }, [dismissToast]);
   const toast = useCallback(({ type = 'info', message, action = null, ttl = 4200, onDismiss = null }) => {
     if (!message) return;
+    // Capture Mode (admin-only) mutes toasts so a stray "Copied" or an undo
+    // strip can't land in the middle of a take. Read from the module rather
+    // than React state on purpose: `toast` sits in the useMemo'd context value
+    // below, so making it depend on a flag would re-render the entire app tree
+    // every time the flag flipped. confirm/prompt are deliberately NEVER muted
+    // — they block a flow, and silently resolving one would strand the caller.
+    if (isSilenced()) return;
     const id = nextId.current++;
     setToasts(current => [...current, { id, type, message, action, onDismiss, exiting: false }]);
     window.setTimeout(() => dismissToast(id), Math.max(1000, ttl));

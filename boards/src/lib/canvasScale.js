@@ -12,13 +12,24 @@
 // subscribers re-evaluate image tier promotion/demotion once per settle.
 
 let scale = 1;
+let captureBoost = 1;
 const listeners = new Set();
 
 export function setCanvasScale(z) {
   scale = (typeof z === 'number' && z > 0) ? z : 1;
 }
+
+// Capture Mode multiplier, applied on READ so it can never be clobbered by the
+// next settle (setCanvasScale writes `scale` alone, so the two never fight).
+// Reframing a board for a phone shrinks cards in BOARD units, which would
+// otherwise have pickInitialTier photograph preview-tier images — the failure
+// where a marketing shot looks subtly soft and nobody can say why. Boosting the
+// reported scale promotes every visible image a tier or two for the shot.
+export function setCaptureScaleBoost(k) {
+  captureBoost = (typeof k === 'number' && k > 0) ? k : 1;
+}
 export function getCanvasScale() {
-  return scale;
+  return scale * captureBoost;
 }
 
 export function onCanvasSettle(cb) {

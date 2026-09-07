@@ -22,9 +22,28 @@ export function loadBoardView(boardId) {
   } catch (_) { return null; }
 }
 
+// ── Suspension (Capture Mode) ───────────────────────────────────────────────
+// A capture camera move is a framing decision for one shot, not a viewing
+// position to resume. Without this the 400ms debounce in CanvasSurface catches
+// the capture pose and silently restores it the NEXT time you open that board
+// — weeks later, with nothing to connect it to. A module flag rather than a
+// prop because it needs no drilling through two panes and it covers the split
+// pane for free.
+let suspended = false;
+export function suspendViewPersistence(next) { suspended = !!next; }
+export function isViewPersistenceSuspended() { return suspended; }
+
+// Pure so it can be asserted without a localStorage stub.
+export function shouldPersistView(boardId, view, isSuspended) {
+  if (isSuspended) return false;
+  if (!boardId) return false;
+  if (!view || typeof view.zoom !== 'number') return false;
+  return true;
+}
+
 export function saveBoardView(boardId, view) {
-  if (!boardId || typeof localStorage === 'undefined') return;
-  if (!view || typeof view.zoom !== 'number') return;
+  if (typeof localStorage === 'undefined') return;
+  if (!shouldPersistView(boardId, view, suspended)) return;
   try {
     localStorage.setItem(KEY_PREFIX + boardId, JSON.stringify({
       zoom: view.zoom,
