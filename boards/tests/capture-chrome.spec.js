@@ -173,7 +173,17 @@ test('the HUD can leave the frame and be summoned back with no keyboard', async 
   const hud = page.locator('.capture-hud');
   await expect(hud).toBeVisible();
 
-  await page.locator('.capture-hud-icon[aria-label="Hide capture controls"]').click();
+  // ✕ closes to a dot — a shortcut you have to remember is a bad trade
+  // mid-take, when what you want is to get back to Stop.
+  await page.locator('.capture-hud-icon[aria-label^="Close capture controls"]').click();
+  await expect(hud).toHaveCount(0);
+  await expect(page.locator('.capture-hud-dot')).toBeVisible();
+  await page.locator('.capture-hud-dot').click();
+  await expect(hud).toBeVisible();
+
+  // ⌘⇧H / three fingers takes even the dot away, for an OS recording that
+  // would otherwise capture it.
+  await page.keyboard.press('Control+Shift+KeyH');
   await expect(hud).toHaveCount(0);
   await expect(page.locator('.capture-hud-dot')).toHaveCount(0);
 

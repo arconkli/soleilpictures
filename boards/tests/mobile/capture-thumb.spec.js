@@ -80,8 +80,12 @@ test('three fingers bring the HUD back — the only way home without a keyboard'
   const hud = page.locator('.capture-hud');
   await expect(hud).toBeVisible();
 
-  await page.locator('.capture-hud-icon[aria-label="Hide capture controls"]').tap();
+  // ✕ leaves a dot; the gesture is what removes even that.
+  await page.locator('.capture-hud-icon[aria-label^="Close capture controls"]').tap();
   await expect(hud).toHaveCount(0);
+  await expect(page.locator('.capture-hud-dot')).toBeVisible();
+  await threeFingerTap(page);
+  await expect(page.locator('.capture-hud-dot')).toHaveCount(0);
 
   // One and two fingers are the canvas's (draw/drag, pan/pinch) and must not
   // summon it — that would make the canvas unusable mid-take.

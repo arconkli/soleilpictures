@@ -16352,6 +16352,30 @@ body[data-capture-shutter='1'] .capture-spot {
   background: var(--soleil);
   box-shadow: 0 0 6px var(--soleil);
 }
+/* Closed, but rolling. The dot doubles as the tally light — findable at a
+   glance, and one tap from the Stop button. */
+.capture-hud-dot.is-live {
+  border-color: rgba(229,72,77,.55);
+  background: rgba(40,16,18,.92);
+}
+.capture-hud-dot.is-live .capture-hud-dot-pip {
+  background: #e5484d;
+  box-shadow: 0 0 6px #e5484d;
+  animation: capture-rec-pulse 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .capture-hud-dot.is-live .capture-hud-dot-pip { animation: none; }
+}
+
+/* Said in the strip rather than in a tooltip — there is no hover on the device
+   this message is for. */
+.capture-hud-note {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  font-size: 10px; letter-spacing: .02em;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
 
 /* ── Aspect mask ───────────────────────────────────────────────────────
    The frame is the largest rect of --cap-ratio that fits the viewport, solved

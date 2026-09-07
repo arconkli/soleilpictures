@@ -12,7 +12,7 @@
 // uses one (draw, drag) and two (pan, pinch) — nothing else listens above that.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Minus } from '../../lib/icons.js';
+import { X } from '../../lib/icons.js';
 import { Icon } from '../Icon.jsx';
 import { setCapture, resetCapture } from '../../lib/captureState.js';
 import { useCaptureState } from '../../hooks/useCaptureState.js';
@@ -40,8 +40,10 @@ const CAST_SIZES = [0, 2, 3, 5];
 
 export function CaptureHud() {
   const cap = useCaptureState();
-  const [hidden, setHidden] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  // Three states, not two: open → `closed` (a dot you can get back from) →
+  // `gone` (nothing at all, for an OS recording that would capture the dot).
+  const [closed, setClosed] = useState(false);
+  const [gone, setGone] = useState(false);
   // Which take is armed, and whether we are rolling. Local, not in captureState:
   // neither should survive a reload — coming back to a page that thinks it is
   // recording, with no MediaRecorder behind it, is a dead button.
@@ -70,11 +72,11 @@ export function CaptureHud() {
       if (!(e.metaKey || e.ctrlKey) || !e.shiftKey) return;
       if (e.key !== 'h' && e.key !== 'H') return;
       e.preventDefault();
-      setHidden(v => !v);
+      setGone(v => !v);
     };
     // Passive: this must never be able to swallow a canvas gesture. We only
     // read the touch count; we never cancel the event.
-    const onTouch = (e) => { if (e.touches && e.touches.length >= 3) setHidden(v => !v); };
+    const onTouch = (e) => { if (e.touches && e.touches.length >= 3) setGone(v => !v); };
     window.addEventListener('keydown', onKey);
     window.addEventListener('touchstart', onTouch, { passive: true });
     return () => {
@@ -84,19 +86,26 @@ export function CaptureHud() {
   }, []);
 
   // Rolling, and the recording is NOT excluding us: the only way to stay out of
-  // frame is to leave it. ⌘⇧H still summons the panel back, but that press will
-  // be in the video — which is the whole reason Element Capture is preferred.
+  // frame is to leave it entirely. ⌘⇧H still summons the panel back, but that
+  // press lands in the video — the whole reason Element Capture is preferred.
   const mustDuck = recording && !excluded;
-  if (hidden || mustDuck) return null;
+  if (gone || mustDuck) return null;
 
   // Everything below portals to <body>, OUTSIDE #root. That placement is what
   // makes restrictTo(#root) able to film the app and not these controls.
-  if (collapsed) {
+  //
+  // Closing leaves a DOT rather than nothing. Nothing meant the only way back
+  // was a shortcut you had to remember, which is a bad trade mid-take when what
+  // you actually want is to stop the recording. The dot goes red while rolling
+  // so it is both findable and a status light. To lose even the dot — an OS
+  // screen recording captures it, unlike an excluded one — use ⌘⇧H or a
+  // three-finger tap.
+  if (closed) {
     return createPortal(
-      <button type="button" className="capture-hud-dot"
-              onClick={() => setCollapsed(false)}
-              title="Capture mode — click to expand"
-              aria-label="Expand capture controls">
+      <button type="button"
+              className={`capture-hud-dot ${recording ? 'is-live' : ''}`}
+              onClick={() => setClosed(false)}
+              aria-label={recording ? 'Recording — open capture controls to stop' : 'Open capture controls'}>
         <span className="capture-hud-dot-pip" />
       </button>,
       document.body,
@@ -128,14 +137,18 @@ export function CaptureHud() {
     document.dispatchEvent(new CustomEvent('soleil-capture-camera', { detail: { take: id } }));
   };
 
-  const shotTitle = cap.aspect
+  // Accessible names only — NOT title attributes. A native tooltip trails the
+  // cursor, hangs around after the click that opened it, and on a recording
+  // that isn't excluded it ends up in the video. The buttons carry visible
+  // labels; anything longer belongs in Settings → Capture.
+  const shotLabel = cap.aspect
     ? `Save a PNG, cropped to ${cap.aspect}`
-    : 'Save a PNG of the whole frame. Set a framing guide to crop it.';
+    : 'Save a PNG of the whole frame';
 
-  const recordTitle = !support.ok ? support.reason
+  const recordLabel = !support.ok ? support.reason
     : recording ? 'Stop and save'
-    : take ? `Record ${take.label} — starts, plays it, saves the clip`
-    : 'Start recording. Pick a take to have it played for you.';
+    : take ? `Record the ${take.label} take`
+    : 'Start recording';
 
   // One press does the whole thing. Recording starts BEFORE the take so the
   // first move is in frame, and stops on the take's own duration rather than a
@@ -260,7 +273,7 @@ export function CaptureHud() {
           resolution, with no cursor and none of this panel in it. */}
       <button type="button" className="capture-hud-btn"
               disabled={!stills.ok || shooting}
-              title={stills.ok ? shotTitle : stills.reason}
+              aria-label={stills.ok ? shotLabel : stills.reason}
               onClick={onShot}>
         {shooting ? '…' : 'Shot'}
       </button>
@@ -269,24 +282,21 @@ export function CaptureHud() {
       <button type="button"
               className={`capture-hud-rec ${recording ? 'is-live' : ''}`}
               disabled={!canRecord}
-              title={recordTitle}
-              aria-label={recordTitle}
+              aria-label={recordLabel}
               onClick={onRecord}>
         <span className="capture-hud-rec-dot" />
         <span>{recording ? 'Stop' : take ? 'Record' : 'Rec'}</span>
       </button>
 
+      {!support.ok && (
+        <span className="capture-hud-note">Use the OS recorder</span>
+      )}
+
       <button type="button" className="capture-hud-btn" onClick={resetCapture}>Reset</button>
 
       <button type="button" className="capture-hud-icon"
-              onClick={() => setCollapsed(true)}
-              title="Collapse to a dot" aria-label="Collapse capture controls">
-        <Icon as={Minus} size={13} />
-      </button>
-      <button type="button" className="capture-hud-icon"
-              onClick={() => setHidden(true)}
-              title="Hide — ⌘⇧H or a three-finger tap brings it back"
-              aria-label="Hide capture controls">
+              onClick={() => setClosed(true)}
+              aria-label="Close capture controls — leaves a dot">
         <Icon as={X} size={12} />
       </button>
     </div>,
