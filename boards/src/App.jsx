@@ -17,6 +17,14 @@ import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission, computeBoardPermission } from './hooks/useBoardPermission.js';
 import { setBoardClipboard, getBoardClipboard } from './lib/boardClipboard.js';
 import { useMyTier } from './hooks/useMyTier.js';
+import { setCapture } from './lib/captureState.js';
+import { maskName, maskEmail } from './lib/captureIdentity.js';
+import { useCaptureState } from './hooks/useCaptureState.js';
+import { useCaptureMode } from './hooks/useCaptureMode.js';
+import { useCaptureFrame } from './hooks/useCaptureFrame.js';
+import { widthForFrame } from './lib/reframeLayout.js';
+import { aspectSpec } from './lib/captureAspect.js';
+import { guardCaptureMutators } from './lib/captureMutatorGuard.js';
 import { useBoardCapacity } from './hooks/useBoardCapacity.js';
 import { useAppTrace } from './hooks/useAppTrace.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
@@ -81,7 +89,7 @@ import { CommandPalette } from './components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen } from './lib/icons.js';
+import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 // Only the hook. The panel components came with BoardsSettingsPanel, which was
 // never rendered anywhere — a second theme control and a rival ⌘. binding, both
@@ -160,6 +168,12 @@ const HomeGraph = lazyWithReload(() => import('./components/HomeGraph.jsx').then
 // haul both toward AppShell for every signed-in user, when only the people who
 // actually dock a doc need it.
 const DockedDocPane = lazyWithReload(() => import('./components/DocCard.jsx').then(m => ({ default: m.DockedDocPane })));
+// Capture Mode's on-canvas surfaces. Lazy so the only person who ever
+// downloads them is an admin who has actually turned the mode on — this ships
+// to production, and nobody else should pay for it.
+const CaptureHud = lazyWithReload(() => import('./components/capture/CaptureHud.jsx').then(m => ({ default: m.CaptureHud })));
+const AspectMask = lazyWithReload(() => import('./components/capture/AspectMask.jsx').then(m => ({ default: m.AspectMask })));
+const Spotlight = lazyWithReload(() => import('./components/capture/Spotlight.jsx').then(m => ({ default: m.Spotlight })));
 import { useBreakpoint } from './hooks/useBreakpoint.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
 
@@ -653,14 +667,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // edit without a reload.
   }, [user?.id, settingsOpen]);
 
+  // Subscribed here rather than reading it off useCaptureMode below, because
+  // userInfo has to re-derive the moment the persona flips and it is computed
+  // long before the tier that arms capture is known. captureState's setters
+  // no-op until armed, so this can only be true for an admin.
+  const capState = useCaptureState();
+  const capturePersona = capState.on && capState.persona;
+
+  // NOTE the default: with no display_name set, your name IS your email's local
+  // part — and this object is published over awareness, so it becomes the flag
+  // on your cursor in every OTHER person's session too. Capture Mode's persona
+  // swap has to reach it here or a recording made by a collaborator still shows
+  // your address. maskName/maskEmail return their input by identity when
+  // capture is off, so the memo below is unaffected in normal operation.
   const userInfo = useMemo(() => ({
     id: user.id,
-    name: ownProfile?.display_name
+    name: maskName(ownProfile?.display_name
        || user.user_metadata?.full_name
-       || user.email?.split('@')[0],
-    email: user.email,
+       || user.email?.split('@')[0], user.id),
+    email: maskEmail(user.email, user.id),
     color: ownProfile?.color || undefined,
-  }), [user.id, user.email, user.user_metadata?.full_name, ownProfile?.display_name, ownProfile?.color]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [user.id, user.email, user.user_metadata?.full_name, ownProfile?.display_name, ownProfile?.color, capturePersona]);
 
   // Stable currentUser identity for downstream <CanvasSurface currentUser={...}>.
   // Without this useMemo the inline object literal at the mount site churned
@@ -3481,6 +3509,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Back-compat alias — older code still refers to `mutators`.
   const mutators = mainMutatorsFull;
 
+  // While the canvas is showing a reframed layout, geometry writes are refused
+  // at the mutator boundary. Every gesture that could commit a position — drag
+  // release, resize, multi-resize, align, distribute, tidy, paste — funnels
+  // through this object, so one wrapper covers all of them and no gesture
+  // handler has to know the mode exists. See captureMutatorGuard for why it
+  // fails closed.
+  const mainMutatorsGuarded = useMemo(
+    () => guardCaptureMutators(mainMutatorsFull), [mainMutatorsFull]);
+
   const [currentSurface, setCurrentSurface] = useState('board');
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph;
   //   'tag'   = TagDetailView keyed by activeTag
@@ -3906,6 +3943,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // tier/onboarding without re-creating on every tier refetch.
   const myTierRef = useRef(myTier);
   myTierRef.current = myTier;
+
+  // ── Capture Mode (admin) ─────────────────────────────────────────────────
+  // Staging for marketing screenshots and screen recordings. Ships to
+  // production because the phone footage gets made on a real phone against the
+  // real app — /admin is desktop-only, so this had to live in the app itself.
+  //
+  // captureState refuses every write until armed, so THIS is the gate. Arm on
+  // tier === 'admin' and disarm the moment it stops being true, which also
+  // resets and clears storage: losing admin can never leave a chromeless app.
+  const captureAllowed = myTier.tier === 'admin';
+  const { capture, active: captureActive } = useCaptureMode(captureAllowed);
+
+  // The ephemeral phone reframe. Solved against a width derived from the
+  // board's own median card size and how many cards should read across the
+  // chosen frame — the same reasoning as CanvasSurface's phone-rescue block,
+  // which found that what matters is cards-across, not pixels-wide.
+  const reframeOn = captureActive && capture.reframe;
+  const reframeWidth = useMemo(() => {
+    if (!reframeOn) return 0;
+    if (capture.width > 0) return capture.width;
+    return widthForFrame(yb.cards, aspectSpec(capture.aspect).cardsAcross ?? 2.4);
+  }, [reframeOn, capture.width, capture.aspect, yb.cards]);
+  const ybFramed = useCaptureFrame(yb, { active: reframeOn, width: reframeWidth });
   // Owner-pays (0187): capacity of the current/split board's OWNER, for boards
   // the user doesn't own. myTier covers owned boards; this covers shared ones
   // so the client cap gates agree with the server trigger's subject. The api
@@ -6166,6 +6226,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => { setCurrentSurface('board'); mainMutators.addNote?.(); } },
     { id: 'home', label: 'Go to Home', icon: Home, keywords: ['home', 'graph', 'overview'],
       run: () => setCurrentSurface('home') },
+    // Admin only, and deliberately NOT in the shortcuts modal: that modal's
+    // SECTIONS is a documented public surface, and this is internal staging.
+    // The palette is the discoverable door; Settings → Capture is the manual.
+    { id: 'capture', label: capture.on ? 'Turn off capture mode' : 'Capture mode',
+      icon: Camera, keywords: ['capture', 'screenshot', 'record', 'demo', 'marketing', 'clean'],
+      available: captureAllowed,
+      run: () => setCapture({ on: !capture.on, clean: true, silence: true, freeze: true }) },
     { id: 'link-board', label: 'Link a cluster onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'cluster', 'board'],
       available: canEditCurrent && currentSurface === 'board',
       run: () => openBoardLinkPicker() },
@@ -6209,6 +6276,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     { id: 'signout', label: 'Sign out', icon: LogOut, keywords: ['sign out', 'log out', 'logout', 'exit'],
       run: () => signOut?.() },
   ], [canEditCurrent, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, sidebarOpen,
+      captureAllowed, capture.on,
       setTheme, setWheelMode, setSidebarOpen, setTweak, mainMutators, openSettings, openInviteFriends, signOut]);
 
 
@@ -6395,7 +6463,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const groups = ready ? (yh.groups || []) : [];
     const gridTemplates = ready ? (yh.gridTemplates || {}) : {};
     const gridSequences = ready ? (yh.gridSequences || {}) : {};
-    const muts = isMain ? mainMutatorsFull : splitMutatorsFull;
+    // The reframe only ever reaches the main pane, so only the main pane's
+    // mutators need locking. The split pane is showing real geometry and its
+    // gestures should keep writing real positions.
+    const muts = isMain
+      ? (reframeOn ? mainMutatorsGuarded : mainMutatorsFull)
+      : splitMutatorsFull;
     const paneId = isMain ? 'main' : 'split';
     const openInPane = isMain ? openBoard : openSplitBoard;
     const paneCanEdit = isMain ? canEditCurrent : splitBoardPerm.canEdit;
@@ -6655,7 +6728,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               ? 'Personal'
               : isOwner
                 ? 'Yours'
-                : `Shared by ${ownerPeer?.user?.email || ownerPeer?.user?.name || 'someone'}`;
+                // A shared workspace names its owner by address, right under
+                // the workspace title — the most prominent leak on the screen.
+                : `Shared by ${maskEmail(ownerPeer?.user?.email, workspace.created_by)
+                             || maskName(ownerPeer?.user?.name, workspace.created_by)
+                             || 'someone'}`;
             const visibleMembers = workspaceMembers.slice(0, 6);
             const overflow = workspaceMembers.length - visibleMembers.length;
             return (
@@ -6788,7 +6865,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <button className="sb-foot-avatar" title="Account"
                         style={{ background: userInfo.color || pickPresenceColor(user.id) }}
                         onClick={() => openSettings('profile')}>
-                  {(user.email?.[0] || 'Y').toUpperCase()}
+                  {/* With no avatar set this is the first letter of your
+                      address, sitting in the corner of every screenshot. */}
+                  {(maskEmail(user.email, user.id)?.[0] || 'Y').toUpperCase()}
                 </button>
               );
             })()}
@@ -6811,7 +6890,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         refresh={refreshSettings}
         workspaceSettings={workspaceSettings}
         mySettings={mySettings}
+        isAdmin={captureAllowed}
         onOpenRecovery={() => { setSettingsOpen(false); setWorkspaceRecoveryOpen(true); }} />
+
+      {/* Capture Mode surfaces. Rendered outside .main so the mask can letterbox
+          the whole viewport and the HUD is not clipped by the canvas. Both are
+          off the DOM entirely unless an admin has the mode on, so there is
+          nothing to hide from a recording that isn't already gone. */}
+      {captureActive && (
+        <Suspense fallback={null}>
+          <AspectMask aspect={capture.aspect} />
+          {capture.spotlight && <Spotlight />}
+          <CaptureHud />
+        </Suspense>
+      )}
 
       <main className="main">
         <WorkspaceAlertBanner
@@ -6991,14 +7083,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ) : (
           /* Always render the same outer container so toggling split doesn't
              re-mount the main pane (and any open doc-card modals inside).
-             The right pane is only added/removed; the left pane stays put. */
+             The right pane is only added/removed; the left pane stays put.
+
+             `left` gets ybFramed, NOT yb, and ONLY here. splitYb aliases the
+             very same object when both panes show one board (see
+             splitNeedsOwnDoc above), so substituting the reframe onto the
+             variable rather than at this call site would silently reframe the
+             split pane too — and its mutators are not locked. */
           <SplitContainer
             ratio={splitId ? splitRatio : 1}
             onRatio={setSplitRatio}
             showSplit={!!splitId}
             activePane={focusedPane}
             onClose={() => setSplitId(null)}
-            left={renderSurface({ board: currentBoard, view, yb, isMain: true })}
+            left={renderSurface({ board: currentBoard, view, yb: ybFramed, isMain: true })}
             right={!splitId ? null : splitDoc ? renderSplitDoc() : renderSurface({
               board: splitBoard, view: splitView, yb: splitYb, isMain: false,
             })}

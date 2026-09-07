@@ -61,7 +61,22 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId, getCa
 
   useEffect(() => {
     const aw = getAwareness?.();
-    if (!aw) return;
+    if (!aw) {
+      // No awareness — not connected yet, the room went away, or Capture Mode
+      // just removed its synthetic-cast proxy. Bailing out without clearing
+      // leaves the LAST frame's cursors and selection rings frozen on the
+      // canvas indefinitely, because both live in state that nothing else
+      // touches. Clear them, but only if there is something to clear, so this
+      // doesn't queue a render on every dep change while offline.
+      if (peersFpRef.current !== '' || Object.keys(cursorStateRef.current).length) {
+        peersFpRef.current = '';
+        cursorTargetsRef.current = {};
+        cursorStateRef.current = {};
+        setPeers([]);
+        setCursorDisplay({});
+      }
+      return;
+    }
     const ALPHA = 0.35;
     const SNAP_PX = 0.5;
     const GRACE_MS = 700;

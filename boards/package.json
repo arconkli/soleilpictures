@@ -10,6 +10,8 @@
     "docs:build": "node scripts/gen-docs.mjs",
     "docs:check": "node scripts/gen-docs.mjs --check",
     "docs:accept": "node scripts/gen-docs.mjs --accept-surface",
+    "shots": "node scripts/shootProduct.mjs",
+    "shots:list": "node scripts/shootProduct.mjs --list",
     "dev": "vite",
     "dev:party": "partykit dev --port 1999",
     "build": "vite build",

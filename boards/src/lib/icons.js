@@ -26,6 +26,7 @@ export {
   ShareNetwork as Share2,
   Tray as Inbox,
   Envelope,
+  Camera,
   SquaresFour as LayoutGrid,
   GridFour,
   GridNine,

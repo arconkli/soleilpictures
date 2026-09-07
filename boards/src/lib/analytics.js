@@ -18,6 +18,7 @@ import { supabase } from './supabase.js';
 import { setErrorUser } from './errorReporting.js';
 import { getDeviceInfo } from './device.js';
 import { isAnyQaMode } from './localMode.js';
+import { isCaptureActive } from './captureState.js';
 import { touchAppSession, noteAuthChange, persistAppSession,
          getAppSession, setSessionRotateHandler } from './appSession.js';
 import { createSummary, noteEvent, summaryProps, worthEmitting } from './sessionSummary.js';
@@ -525,7 +526,12 @@ function buildRow(name, props) {
   // do reach the production table — see isAnyQaMode. Reads filter on this, so a
   // test run can never again be mistaken for demand. Always false in a
   // production build.
-  if (isAnyQaMode()) merged.synthetic = true;
+  // Capture Mode rides the same diversion. A marketing shoot — worse, a
+  // headless shot-list run against production — walks the real funnel while
+  // signed in as a real admin, and every step of it is theatre. Unlike the QA
+  // harnesses this one IS reachable in a production build, which is exactly
+  // why it has to be stamped rather than assumed away.
+  if (isAnyQaMode() || isCaptureActive()) merged.synthetic = true;
   // Ambient context: where they are, what they're paying, which build. Merged
   // last and never over caller props, so an explicit board_id at the call site
   // still wins over the one the app happens to have open.

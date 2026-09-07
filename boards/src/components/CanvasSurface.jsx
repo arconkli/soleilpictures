@@ -127,6 +127,11 @@ import {
   computeSnap as computeSnapPure, computeResizeSnap as computeResizeSnapPure,
 } from '../lib/snapGuides.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
+import { solveFit, sampleTween, easingFor, CAMERA_MS } from '../lib/captureCamera.js';
+import { normalizeMoves, resolveTake } from '../lib/captureTakes.js';
+import { useCaptureState } from '../hooks/useCaptureState.js';
+import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
+import { makeCastAwareness } from '../lib/castAwareness.js';
 import { classifyDropFile, sizeBucket, fitImageDims } from '../lib/fileIngest.js';
 import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
@@ -201,6 +206,10 @@ const CANVAS_PROMOTE_ON_ABOVE = 0.42;
 // screen) doesn't shrink the content to a tiny zoom. Keeps desktop/tablet framing
 // unchanged.
 const fitMargin = (r) => (r.width > 640 ? 80 : Math.max(16, Math.round(r.width * 0.05)));
+// Framing a SELECTION leaves more air than fitting the whole board: the point
+// is to single something out, and a selection pressed to the viewport edges
+// reads as "the board is this" rather than "look at this".
+const SELECTION_FIT_MARGIN = 120;
 // Below this canvas width a fit-everything open is a phone, not a desktop.
 const NARROW_FIT_MAX_W = 640;
 // How many cards a public board should span on a phone when fitting everything
@@ -1787,6 +1796,150 @@ export function CanvasSurface({
     return () => clearTimeout(tid);
   }, [board?.id, isPublic]);
 
+  // ── Camera ────────────────────────────────────────────────────────────────
+  // The three fit functions below used to carry three hand-copied versions of
+  // the same eight-line solve, which is three places for a margin or a clamp to
+  // drift apart. They share lib/captureCamera's solveFit now; the zoom bounds
+  // are passed IN so that module stays a leaf and this component keeps owning
+  // its own limits.
+
+  // Commit a solved camera to React state. The one place zoom and pan are set
+  // together, so they can never land on different frames.
+  const applyCamera = useCallback((cam) => {
+    if (!cam || !Number.isFinite(cam.zoom)) return;
+    setZoom(cam.zoom);
+    setPan({ x: cam.pan.x, y: cam.pan.y });
+  }, []);
+
+  // Animate to a solved camera instead of jumping. This is what makes a demo
+  // recording read as a camera move rather than as somebody operating software.
+  //
+  // Writes the refs and the DOM transform directly each frame and commits to
+  // React state ONCE at the end — the same idiom the pinch handler uses, and
+  // for the same reason: setZoom/setPan per frame would re-render every card on
+  // the board sixty times a second. Deliberately does NOT call
+  // enableSmoothTransform(); its CSS transition would fight the rAF.
+  const cameraRafRef = useRef(0);
+  // Bumped on every new run. A move checks it before committing, so starting a
+  // second take mid-flight abandons the first rather than the two fighting
+  // over the transform.
+  const cameraRunRef = useRef(0);
+
+  // `runToken` lets a SEQUENCE own the counter: a take bumps it once and passes
+  // it to every move, so its own second move doesn't read as an interruption of
+  // its first. Called on its own (the HUD's Fit / Push in), it claims a fresh
+  // token, which is what makes a manual press cancel a running take.
+  const tweenCameraTo = useCallback((cam, ms = CAMERA_MS, ease = 'smooth', runToken) => {
+    if (!cam || !Number.isFinite(cam.zoom)) return Promise.resolve();
+    cancelAnimationFrame(cameraRafRef.current);
+    const run = runToken ?? ++cameraRunRef.current;
+    const fn = easingFor(ease);
+    const from = { zoom: zoomRef.current, pan: { ...panRef.current } };
+    // A zero-duration move is a CUT, not a tween — used to set a starting pose
+    // before a take begins. Commit it and get out.
+    if (!(ms > 0)) {
+      applyCamera(cam);
+      scheduleVisibleRecompute?.();
+      return Promise.resolve();
+    }
+    const t0 = performance.now();
+    return new Promise((resolve) => {
+      const step = (now) => {
+        if (cameraRunRef.current !== run) return resolve();
+        const t = Math.min(1, (now - t0) / ms);
+        const s = sampleTween(from, cam, t, fn);
+        zoomRef.current = s.zoom;
+        panRef.current = s.pan;
+        applyCanvasTransform();
+        if (t < 1) {
+          cameraRafRef.current = requestAnimationFrame(step);
+        } else {
+          // One state commit at the end, so culling and image tiers re-evaluate
+          // against the settled pose rather than against every frame.
+          applyCamera(cam);
+          scheduleVisibleRecompute?.();
+          resolve();
+        }
+      };
+      cameraRafRef.current = requestAnimationFrame(step);
+    });
+  }, [applyCamera]);
+  useEffect(() => () => { cameraRunRef.current++; cancelAnimationFrame(cameraRafRef.current); }, []);
+
+  // Solve one move against the camera and content as they are AT THE MOMENT IT
+  // STARTS, not when the take was queued — a sweep after a zoom has to know
+  // about the zoom.
+  const solveMove = useCallback((move) => {
+    const wrap = wrapRef.current;
+    if (!wrap) return null;
+    const r = wrap.getBoundingClientRect();
+    if (r.width < 50 || r.height < 50) return null;
+    const vp = { w: r.width, h: r.height };
+    const z = zoomRef.current;
+    const pan = panRef.current;
+    const all = cardsRef.current || [];
+
+    const framed = (subject, margin) => {
+      const b = boundsOfCards(subject);
+      return b ? solveFit(b, vp, { margin, zoomMin: ZOOM_MIN, zoomMax: ZOOM_MAX }) : null;
+    };
+
+    switch (move.type) {
+      case 'fit':
+        return framed(all, fitMargin(r));
+      case 'selection': {
+        const ids = [...selectedRef.current];
+        const sel = ids.length ? all.filter(c => ids.includes(c.id)) : all;
+        return framed(sel, ids.length ? SELECTION_FIT_MARGIN : fitMargin(r));
+      }
+      case 'card': {
+        const one = all.filter(c => c.id === move.id);
+        return one.length ? framed(one, SELECTION_FIT_MARGIN) : null;
+      }
+      case 'zoom': {
+        // Around the viewport centre, mirroring zoomAroundCenter's math so a
+        // scripted zoom and a keyboard zoom feel like the same instrument.
+        const next = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z * (Number(move.by) || 1)));
+        const sx = vp.w / 2, sy = vp.h / 2;
+        const cx = (sx - pan.x) / z, cy = (sy - pan.y) / z;
+        return { zoom: next, pan: { x: sx - cx * next, y: sy - cy * next } };
+      }
+      case 'pan':
+        // dx/dy are BOARD units, so a pan covers the same amount of content at
+        // any zoom rather than the same number of screen pixels.
+        return { zoom: z, pan: { x: pan.x - (Number(move.dx) || 0) * z, y: pan.y - (Number(move.dy) || 0) * z } };
+      case 'sweep': {
+        const b = boundsOfCards(all);
+        if (!b) return null;
+        // Travel to the right edge at the CURRENT zoom, keeping the vertical
+        // centre — so a sweep reads as one continuous pass over the work.
+        const targetX = vp.w - (b.x + b.w) * z - fitMargin(r);
+        return { zoom: z, pan: { x: targetX, y: pan.y } };
+      }
+      case 'hold':
+      default:
+        return { zoom: z, pan: { ...pan } };
+    }
+  }, []);
+
+  // Play a sequence. Sequential by construction — each move resolves before the
+  // next is solved.
+  const runMoves = useCallback(async (moves) => {
+    const list = normalizeMoves(moves);
+    if (!list.length) return;
+    const run = ++cameraRunRef.current;
+    for (const move of list) {
+      if (cameraRunRef.current !== run) return;      // superseded
+      if (move.type === 'hold') {
+        await new Promise(res => setTimeout(res, move.ms));
+        continue;
+      }
+      const cam = solveMove(move);
+      if (!cam) continue;
+      await tweenCameraTo(cam, move.ms, move.ease, run);
+    }
+  }, [solveMove, tweenCameraTo]);
+
   // Fit the entire board content into the viewport. Wired to a
   // double-tap on the zoom % control (replaces what used to happen
   // automatically on every open).
@@ -1794,26 +1947,11 @@ export function CanvasSurface({
     if (!wrapRef.current || !cards || cards.length === 0) return;
     const r = wrapRef.current.getBoundingClientRect();
     if (r.width < 50 || r.height < 50) return;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const c of cards) {
-      minX = Math.min(minX, c.x);
-      minY = Math.min(minY, c.y);
-      maxX = Math.max(maxX, c.x + c.w);
-      maxY = Math.max(maxY, c.y + c.h);
-    }
-    const contentW = Math.max(1, maxX - minX);
-    const contentH = Math.max(1, maxY - minY);
-    const margin = fitMargin(r);
-    const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.min(
-      (r.width - margin * 2) / contentW,
-      (r.height - margin * 2) / contentH,
-    )));
-    setZoom(z);
-    setPan({
-      x: (r.width  - contentW * z) / 2 - minX * z,
-      y: (r.height - contentH * z) / 2 - minY * z,
-    });
-  }, [cards]);
+    const b = boundsOfCards(cards);
+    if (!b) return;
+    applyCamera(solveFit(b, { w: r.width, h: r.height },
+      { margin: fitMargin(r), zoomMin: ZOOM_MIN, zoomMax: ZOOM_MAX }));
+  }, [cards, applyCamera]);
 
   // Keyboard zoom that keeps the viewport CENTER fixed (mirrors the wheel
   // handler's cursor-anchored math), so Cmd +/- feels like wheel zoom instead
@@ -1840,25 +1978,12 @@ export function CanvasSurface({
     if (sel.length === 0) return;
     const r = wrapRef.current.getBoundingClientRect();
     if (r.width < 50 || r.height < 50) return;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const c of sel) {
-      minX = Math.min(minX, c.x); minY = Math.min(minY, c.y);
-      maxX = Math.max(maxX, c.x + c.w); maxY = Math.max(maxY, c.y + c.h);
-    }
-    const contentW = Math.max(1, maxX - minX);
-    const contentH = Math.max(1, maxY - minY);
-    const margin = 120;
-    const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.min(
-      (r.width - margin * 2) / contentW,
-      (r.height - margin * 2) / contentH,
-    )));
+    const b = boundsOfCards(sel);
+    if (!b) return;
     enableSmoothTransform();
-    setZoom(z);
-    setPan({
-      x: (r.width  - contentW * z) / 2 - minX * z,
-      y: (r.height - contentH * z) / 2 - minY * z,
-    });
-  }, [cards, selected, enableSmoothTransform]);
+    applyCamera(solveFit(b, { w: r.width, h: r.height },
+      { margin: SELECTION_FIT_MARGIN, zoomMin: ZOOM_MIN, zoomMax: ZOOM_MAX }));
+  }, [cards, selected, enableSmoothTransform, applyCamera]);
 
   // Fit-frame an EXPLICIT set of card ids (not the `selected` state, which
   // updates async). Same math as zoomToSelection. Returns false if the ids
@@ -1870,26 +1995,40 @@ export function CanvasSurface({
     if (!sel.length) return false;
     const r = wrapRef.current.getBoundingClientRect();
     if (r.width < 50 || r.height < 50) return false;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const c of sel) {
-      minX = Math.min(minX, c.x); minY = Math.min(minY, c.y);
-      maxX = Math.max(maxX, c.x + c.w); maxY = Math.max(maxY, c.y + c.h);
-    }
-    const contentW = Math.max(1, maxX - minX);
-    const contentH = Math.max(1, maxY - minY);
-    const margin = 120;
-    const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.min(
-      (r.width - margin * 2) / contentW,
-      (r.height - margin * 2) / contentH,
-    )));
+    const b = boundsOfCards(sel);
+    if (!b) return false;
     enableSmoothTransform();
-    setZoom(z);
-    setPan({
-      x: (r.width  - contentW * z) / 2 - minX * z,
-      y: (r.height - contentH * z) / 2 - minY * z,
-    });
+    applyCamera(solveFit(b, { w: r.width, h: r.height },
+      { margin: SELECTION_FIT_MARGIN, zoomMin: ZOOM_MIN, zoomMax: ZOOM_MAX }));
     return true;
-  }, [cards, enableSmoothTransform]);
+  }, [cards, enableSmoothTransform, applyCamera]);
+
+  // Capture Mode's cinematic camera. Driven by a CustomEvent rather than a
+  // prop: the HUD lives at the top of the tree and the camera lives at the
+  // bottom, and threading a ref through App → SplitContainer → renderSurface
+  // would put a capture-only concern into four components that have no other
+  // reason to know about it. Same idiom as `soleil-open-help`.
+  //
+  // Only the main pane answers. Two panes both tweening on one keypress is
+  // never what you want, and the split pane is not what is being filmed.
+  useEffect(() => {
+    if (isPublic || paneId !== 'main') return undefined;
+    const onMove = (e) => {
+      const d = e.detail || {};
+      // Three shapes, one event: a named take, an explicit list of moves (what
+      // the shot list sends), or a single target (what the HUD's two buttons
+      // send). All of them end up in the same player.
+      if (d.take) return void runMoves(resolveTake(d.take));
+      if (Array.isArray(d.moves)) return void runMoves(d.moves);
+      runMoves([{
+        type: d.target === 'selection' ? 'selection' : 'fit',
+        ms: Number.isFinite(d.ms) ? d.ms : CAMERA_MS,
+        ease: d.ease,
+      }]);
+    };
+    document.addEventListener('soleil-capture-camera', onMove);
+    return () => document.removeEventListener('soleil-capture-camera', onMove);
+  }, [isPublic, paneId, runMoves]);
 
   // After a list-view file drop, when the user switches to canvas: select the
   // freshly-arranged cards and frame them so the batch is impossible to miss.
@@ -2005,6 +2144,65 @@ export function CanvasSurface({
   const selectedRef = useRef(selected);
   useEffect(() => { cardsRef.current = cards; }, [cards]);
   useEffect(() => { selectedRef.current = selected; }, [selected]);
+
+  // ── Capture Mode: the synthetic cast ─────────────────────────────────────
+  // Collaboration is the hardest thing here to film, because it needs other
+  // people on other machines doing something plausible at the moment you press
+  // record. These are those people.
+  //
+  // The cast is generated over the board's OWN bounds and card ids, so it moves
+  // across the actual content rather than wandering empty canvas where nobody
+  // would ever be. Positions are a pure function of elapsed time, sampled by
+  // the proxy's ticker — so there is no React state churning at 10Hz and no
+  // timer of ours to leak.
+  // captureState's setters no-op until an admin tier arms them, so a non-zero
+  // `cast` already implies the gate passed. Never on a public share view, and
+  // never in the split pane — one board being filmed is enough.
+  const captureCast = useCaptureState();
+  const castSize = (!isPublic && paneId === 'main' && captureCast.on) ? captureCast.cast : 0;
+  const castSeedRef = useRef(1);
+  const cast = useMemo(() => {
+    if (!castSize) return [];
+    const b = boundsOfCards(cardsRef.current || []) || { x: 0, y: 0, w: 1200, h: 800 };
+    return makeCast(castSize, {
+      seed: castSeedRef.current,
+      bounds: b,
+      cardIds: (cardsRef.current || []).slice(0, 12).map(c => c.id),
+    });
+    // Rebuilt only when the cast size changes: re-deriving it on every card
+    // edit would teleport everyone the moment you typed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [castSize, board.id]);
+  const castRef = useRef(cast);
+  castRef.current = cast;
+  const castT0Ref = useRef(0);
+  useEffect(() => { castT0Ref.current = performance.now(); }, [castSize, board.id]);
+
+  const syntheticStates = useCallback(
+    () => advanceCast(castRef.current, performance.now() - castT0Ref.current, board.id),
+    [board.id],
+  );
+
+  // The awareness the two PRESENCE components read. Falls straight through to
+  // the real one whenever there is no cast, so the proxy is not in the path at
+  // all in normal operation.
+  const castProxyRef = useRef({ real: null, proxy: null });
+  const presenceAwareness = useCallback(() => {
+    const real = getAwareness?.();
+    if (!castSize) return real || null;
+    // Note `real` may be null — the room may not have connected, and the
+    // offline harness has none at all. The cast renders either way; a shot
+    // should not depend on a socket being up.
+    if (castProxyRef.current.real !== real) {
+      castProxyRef.current.proxy?.destroy?.();
+      castProxyRef.current = { real, proxy: makeCastAwareness(real, syntheticStates) };
+    }
+    return castProxyRef.current.proxy;
+  }, [getAwareness, castSize, syntheticStates]);
+  useEffect(() => () => {
+    castProxyRef.current.proxy?.destroy?.();
+    castProxyRef.current = { real: null, proxy: null };
+  }, []);
 
   // Tracks IDs that the user has explicitly dragged out of this canvas. The
   // deleteCards guard in App.jsx consults this (via a CustomEvent) so the
@@ -8909,8 +9107,15 @@ export function CanvasSurface({
           ))}
         </div>
       )}
+      {/* Capture Mode's synthetic cast is spliced in HERE and nowhere else.
+          These two components read presence; everything else that touches
+          awareness WRITES through it — the cursor broadcast, the selection
+          publish, and NoteCard handing the real object to TipTap's
+          CollaborationCursor, which needs far more of the Yjs surface than the
+          proxy implements. Swapping it globally would break collaborative
+          typing and could push a fake peer onto the wire. */}
       <CanvasPresence
-        getAwareness={getAwareness}
+        getAwareness={presenceAwareness}
         boardId={board.id}
         pan={pan}
         zoom={zoom}
@@ -8920,7 +9125,7 @@ export function CanvasSurface({
       {/* Who's-here facepile + hover roster. The authoritative presence list at
           scale (canvas cursors are culled/capped); floats top-right. */}
       <div className="canvas-presence-roster">
-        <PresenceStack getAwareness={getAwareness} />
+        <PresenceStack getAwareness={presenceAwareness} />
       </div>
       <div ref={canvasRef}
            className={`canvas ${smoothXform ? 'is-smooth' : ''}`}

@@ -82,6 +82,7 @@ export function StagingBanner() {
     return (
       <button
         type="button"
+        className="staging-banner"
         onClick={() => collapse(false)}
         title={`${title} — click to expand`}
         aria-label={`${preview ? 'Latest build' : 'Stable build'} — expand build switcher`}
@@ -99,7 +100,7 @@ export function StagingBanner() {
   }
 
   return (
-    <div style={wrap} title={title}>
+    <div className="staging-banner" style={wrap} title={title}>
       <span style={dot} />
       <span>{preview ? 'Latest build' : 'Stable'}</span>
       <span style={{ opacity: 0.5 }}>·</span>

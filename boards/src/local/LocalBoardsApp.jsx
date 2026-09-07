@@ -19,6 +19,14 @@ import {
 import { getViewAnchor as getSchedViewAnchor } from '../lib/schedViewRegistry.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
+import { useCaptureMode } from '../hooks/useCaptureMode.js';
+import { useCaptureFrame } from '../hooks/useCaptureFrame.js';
+import { widthForFrame } from '../lib/reframeLayout.js';
+import { aspectSpec } from '../lib/captureAspect.js';
+import { guardCaptureMutators } from '../lib/captureMutatorGuard.js';
+import { CaptureHud } from '../components/capture/CaptureHud.jsx';
+import { AspectMask } from '../components/capture/AspectMask.jsx';
+import { Spotlight } from '../components/capture/Spotlight.jsx';
 import { HomeGraph } from '../components/HomeGraph.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
@@ -254,6 +262,12 @@ function collectBoardTreeIds(boards, rootIds) {
 }
 
 export function LocalBoardsApp({ user, signOut }) {
+  // Capture Mode, on the same wiring the signed-in shell uses. Gated on DEV
+  // rather than on a tier because this harness only exists in DEV — which is
+  // what lets a Playwright spec drive the real chrome through
+  // ?local=1&capture=1 with no auth, no Supabase and no PartyKit, exercising
+  // the shipped code path rather than a stand-in for it.
+  const { capture: capState, active: captureActive } = useCaptureMode(import.meta.env.DEV);
   const [initialSession] = useState(() => ((ONBOARD_PREVIEW || SHOWCASE_PREVIEW) ? null : loadLocalSession()));
   const [{ boards, boardState }, setLocalState] = useState(() => (
     SHOWCASE_PREVIEW ? createShowcasePreviewState()
@@ -344,6 +358,16 @@ export function LocalBoardsApp({ user, signOut }) {
   const currentId = stack[stack.length - 1] || ROOT_ID;
   const currentBoard = boards[currentId] || boards[ROOT_ID];
   const currentState = boardState[currentId] || { cards: [], arrows: [], strokes: [] };
+  // Capture Mode's ephemeral reframe, on the same hook the signed-in shell
+  // uses. `yb`-shaped because useCaptureFrame reads .cards off whatever it is
+  // handed — which is what lets one spec cover both shells.
+  const reframeOn = captureActive && capState.reframe;
+  const captureWidth = reframeOn
+    ? (capState.width > 0
+        ? capState.width
+        : widthForFrame(currentState.cards, aspectSpec(capState.aspect).cardsAcross ?? 2.4))
+    : 0;
+  const framedState = useCaptureFrame(currentState, { active: reframeOn, width: captureWidth });
   const currentTemplates = gridTplState[currentId] || {};
   const currentSequences = gridSeqState[currentId] || {};
   const view = viewOverride[currentId] || currentBoard.view || 'canvas';
@@ -1167,6 +1191,11 @@ export function LocalBoardsApp({ user, signOut }) {
     },
   };
 
+  // Same geometry lock the signed-in shell applies: while the canvas is showing
+  // a reframed layout, a drag must not be able to commit a position taken from
+  // it. Declared here so the capture specs exercise the real wrapper.
+  const surfaceMutators = reframeOn ? guardCaptureMutators(mutators) : mutators;
+
   // ⌘K / Ctrl-K (and "/" when not typing) — open the global search palette.
   // App.jsx has its own; the local shell had no global keydown handler at all.
   useEffect(() => {
@@ -1205,6 +1234,11 @@ export function LocalBoardsApp({ user, signOut }) {
 
   return (
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`} data-screen-label={`Local Board - ${currentBoard.name}`}>
+      {captureActive && (<>
+        <AspectMask aspect={capState.aspect} />
+        {capState.spotlight && <Spotlight />}
+        <CaptureHud />
+      </>)}
       <ShortcutsHost />
       {mobileShell && mobileNavOpen && (
         <div className="sidebar-mobile-backdrop"
@@ -1365,7 +1399,7 @@ export function LocalBoardsApp({ user, signOut }) {
             isPublic={readOnlyQa}
             board={currentBoard}
             boards={boards}
-            cards={currentState.cards}
+            cards={framedState.cards}
             arrows={currentState.arrows}
             strokes={currentState.strokes}
             gridTemplates={currentTemplates}
@@ -1389,7 +1423,7 @@ export function LocalBoardsApp({ user, signOut }) {
             personalWorkspaceId="local-workspace"
             selectedTool={selectedTool}
             setSelectedTool={setSelectedTool}
-            mutators={mutators}
+            mutators={surfaceMutators}
             autoFocusId={autoFocusId}
             clearAutoFocus={() => setAutoFocusId(null)}
             showcaseArm={SHOWCASE_PREVIEW && currentId === ROOT_ID ? 'B' : 'A'}
@@ -1400,7 +1434,7 @@ export function LocalBoardsApp({ user, signOut }) {
           <ListSurface
             board={currentBoard}
             boards={boards}
-            cards={currentState.cards}
+            cards={framedState.cards}
             childBoards={childBoards}
             onOpenBoard={openBoard}
             onOpenPicker={() => openBoardLinkPicker()}
@@ -1408,7 +1442,7 @@ export function LocalBoardsApp({ user, signOut }) {
             gridTemplates={currentTemplates}
             getGridModel={(card) => readGridModel(card, null, currentTemplates)}
             onRevealOnCanvas={() => setView('canvas')}
-            mutators={mutators}
+            mutators={surfaceMutators}
           />
         )}
       </main>

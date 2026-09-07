@@ -1,0 +1,305 @@
+// CaptureHud — the controls you need while the camera is already rolling.
+//
+// Settings → Capture is where you set a shoot up. This is what you drive during
+// it: the handful of toggles worth changing between takes, close to the thumb,
+// without opening a modal that would itself be in the shot.
+//
+// The hard requirement is that it can get out of the way COMPLETELY and come
+// back with no keyboard. A screen recording captures the whole display, so a
+// control panel parked in a corner is in every frame; and on a phone there is
+// no ⌘ to summon it back with. So: Hide removes it from the DOM entirely, and a
+// three-finger tap anywhere brings it back. Three fingers because the canvas
+// uses one (draw, drag) and two (pan, pinch) — nothing else listens above that.
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { X } from '../../lib/icons.js';
+import { Icon } from '../Icon.jsx';
+import { setCapture, resetCapture } from '../../lib/captureState.js';
+import { useCaptureState } from '../../hooks/useCaptureState.js';
+import { ASPECTS, aspectSpec } from '../../lib/captureAspect.js';
+import { TAKES, takeFor, takeDuration } from '../../lib/captureTakes.js';
+import {
+  recordingSupport, stillSupport, startRecording, stopRecording,
+  grabStill, saveClip, saveFile, clipFilename, stillFilename, extForBlob,
+  elementCaptureSupported,
+} from '../../lib/captureRecorder.js';
+
+const CHIPS = [
+  // Reframe first: on a phone shoot it is the control you reach for between
+  // every take, and the HUD scrolls horizontally on a narrow screen.
+  { key: 'reframe',   label: 'Reframe',   on: 'Fitted',  off: 'As-is' },
+  { key: 'clean',     label: 'Chrome',    on: 'Hidden',  off: 'Shown' },
+  { key: 'silence',   label: 'Toasts',    on: 'Muted',   off: 'Live' },
+  { key: 'freeze',    label: 'Grain',     on: 'Off',     off: 'On' },
+  { key: 'spotlight', label: 'Cursor',    on: 'Lit',     off: 'Plain' },
+  { key: 'persona',   label: 'Identity',  on: 'Persona', off: 'Real' },
+];
+
+// How many stand-in collaborators the Cast button steps through.
+const CAST_SIZES = [0, 2, 3, 5];
+
+export function CaptureHud() {
+  const cap = useCaptureState();
+  // Three states, not two: open → `closed` (a dot you can get back from) →
+  // `gone` (nothing at all, for an OS recording that would capture the dot).
+  const [closed, setClosed] = useState(false);
+  const [gone, setGone] = useState(false);
+  // Which take is armed, and whether we are rolling. Local, not in captureState:
+  // neither should survive a reload — coming back to a page that thinks it is
+  // recording, with no MediaRecorder behind it, is a dead button.
+  const [takeId, setTakeId] = useState(null);
+  const [recording, setRecording] = useState(false);
+  const [shooting, setShooting] = useState(false);
+  // Whether the running recording is EXCLUDING this panel. When it is, the HUD
+  // stays on screen and stays usable mid-take; when it isn't, it has to get out
+  // of the frame the old-fashioned way.
+  const [excluded, setExcluded] = useState(false);
+  const stopTimerRef = useRef(null);
+  const support = useMemo(() => recordingSupport(), []);
+  const stills = useMemo(() => stillSupport(), []);
+  const canRecord = support.ok;
+
+  // A hidden HUD must not leave a recording running with no way to stop it.
+  useEffect(() => () => {
+    if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
+  }, []);
+
+  // Summon paths. ⌘⇧H for a desk, three fingers for a phone. Both are toggles,
+  // so the same gesture that dismissed the panel brings it back — there is no
+  // state to remember and nothing to get stuck in.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.metaKey || e.ctrlKey) || !e.shiftKey) return;
+      if (e.key !== 'h' && e.key !== 'H') return;
+      e.preventDefault();
+      setGone(v => !v);
+    };
+    // Passive: this must never be able to swallow a canvas gesture. We only
+    // read the touch count; we never cancel the event.
+    const onTouch = (e) => { if (e.touches && e.touches.length >= 3) setGone(v => !v); };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('touchstart', onTouch, { passive: true });
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('touchstart', onTouch);
+    };
+  }, []);
+
+  // Rolling, and the recording is NOT excluding us: the only way to stay out of
+  // frame is to leave it entirely. ⌘⇧H still summons the panel back, but that
+  // press lands in the video — the whole reason Element Capture is preferred.
+  const mustDuck = recording && !excluded;
+  if (gone || mustDuck) return null;
+
+  // Everything below portals to <body>, OUTSIDE #root. That placement is what
+  // makes restrictTo(#root) able to film the app and not these controls.
+  //
+  // Closing leaves a DOT rather than nothing. Nothing meant the only way back
+  // was a shortcut you had to remember, which is a bad trade mid-take when what
+  // you actually want is to stop the recording. The dot goes red while rolling
+  // so it is both findable and a status light. To lose even the dot — an OS
+  // screen recording captures it, unlike an excluded one — use ⌘⇧H or a
+  // three-finger tap.
+  if (closed) {
+    return createPortal(
+      <button type="button"
+              className={`capture-hud-dot ${recording ? 'is-live' : ''}`}
+              onClick={() => setClosed(false)}
+              aria-label={recording ? 'Recording — open capture controls to stop' : 'Open capture controls'}>
+        <span className="capture-hud-dot-pip" />
+      </button>,
+      document.body,
+    );
+  }
+
+  const toggle = (key) => setCapture({ [key]: !cap[key] });
+
+  // 'fit' frames the whole board; 'selection' pushes in on what's selected and
+  // falls back to the board when nothing is.
+  const moveCamera = (target) => {
+    document.dispatchEvent(new CustomEvent('soleil-capture-camera', { detail: { target } }));
+  };
+
+  const aspectIdx = Math.max(0, ASPECTS.findIndex(a => a.id === (cap.aspect ?? null)));
+  const aspectLabel = ASPECTS[aspectIdx].label;
+  const cycleAspect = () => setCapture({ aspect: ASPECTS[(aspectIdx + 1) % ASPECTS.length].id });
+
+  const castIdx = Math.max(0, CAST_SIZES.indexOf(cap.cast));
+  const cycleCast = () => setCapture({ cast: CAST_SIZES[(castIdx + 1) % CAST_SIZES.length] });
+
+  // ── Takes and recording ──────────────────────────────────────────────────
+  const take = takeFor(takeId);
+  const cycleTake = () => {
+    const ids = [null, ...TAKES.map(t => t.id)];
+    setTakeId(ids[(ids.indexOf(takeId) + 1) % ids.length]);
+  };
+  const playTake = (id) => {
+    document.dispatchEvent(new CustomEvent('soleil-capture-camera', { detail: { take: id } }));
+  };
+
+  // Accessible names only — NOT title attributes. A native tooltip trails the
+  // cursor, hangs around after the click that opened it, and on a recording
+  // that isn't excluded it ends up in the video. The buttons carry visible
+  // labels; anything longer belongs in Settings → Capture.
+  const shotLabel = cap.aspect
+    ? `Save a PNG, cropped to ${cap.aspect}`
+    : 'Save a PNG of the whole frame';
+
+  const recordLabel = !support.ok ? support.reason
+    : recording ? 'Stop and save'
+    : take ? `Record the ${take.label} take`
+    : 'Start recording';
+
+  // One press does the whole thing. Recording starts BEFORE the take so the
+  // first move is in frame, and stops on the take's own duration rather than a
+  // guess — takeDuration is derived from the moves.
+  // Take the tool out of its own picture, wait for paint, shoot, put it back.
+  // Without the two frames the shutter lands before the compositor has dropped
+  // the HUD and it appears in the still it was used to take.
+  const withShutter = async (fn) => {
+    document.body.setAttribute('data-capture-shutter', '1');
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    try { return await fn(); }
+    finally { document.body.removeAttribute('data-capture-shutter'); }
+  };
+
+  const onShot = async () => {
+    if (shooting) return;
+    setShooting(true);
+    try {
+      // Crop to the framing guide, so the file arrives at the ratio you were
+      // composing for rather than needing a marquee round it afterwards.
+      const blob = await withShutter(() => grabStill({ ratio: aspectSpec(cap.aspect).ratio }));
+      if (blob) saveFile(blob, stillFilename(cap.aspect ? `shot-${cap.aspect.replace(':', 'x')}` : 'shot'));
+    } catch (_) {
+      // Dismissing the surface picker is a cancellation, not a failure.
+    } finally {
+      setShooting(false);
+    }
+  };
+
+  const onRecord = async () => {
+    if (recording) {
+      setRecording(false);
+      setExcluded(false);
+      const blob = await stopRecording();
+      if (blob) saveClip(blob, clipFilename(takeId || 'clip', extForBlob(blob)));
+      return;
+    }
+    let restricted = false;
+    try {
+      // Film #root and nothing else, so this panel — which portals to <body>,
+      // outside that subtree — is absent from the video while staying usable.
+      const res = await startRecording({ restrictToElement: document.getElementById('root') });
+      restricted = !!res?.restricted;
+    } catch (_) {
+      // Dismissing the browser's surface picker is a cancellation, not a
+      // failure — say nothing and leave the button where it was.
+      return;
+    }
+    setExcluded(restricted);
+    setRecording(true);
+    if (!take) return;                       // free-running: stop by hand
+
+    playTake(take.id);
+    const ms = takeDuration(take.moves) + 400;   // a beat of tail
+    stopTimerRef.current = window.setTimeout(async () => {
+      setRecording(false);
+      setExcluded(false);
+      const blob = await stopRecording();
+      if (blob) saveClip(blob, clipFilename(take.id));
+    }, ms);
+  };
+
+  return createPortal(
+    <div className="capture-hud" role="group" aria-label="Capture controls"
+         data-excluded={excluded ? '1' : undefined}>
+      <span className="capture-hud-title">{excluded ? 'Off-camera' : 'Capture'}</span>
+
+      {CHIPS.map(c => (
+        <button key={c.key} type="button"
+                className={`capture-hud-chip ${cap[c.key] ? 'is-on' : ''}`}
+                aria-pressed={cap[c.key]}
+                onClick={() => toggle(c.key)}>
+          <span className="capture-hud-chip-label">{c.label}</span>
+          <span className="capture-hud-chip-val">{cap[c.key] ? c.on : c.off}</span>
+        </button>
+      ))}
+
+      <span className="capture-hud-sep" />
+
+      {/* A cycling button, not a <select>. WebKit refuses to size a native
+          select to a touch target — it came out 18px tall on an iPad — and a
+          dropdown that opens a system sheet over the canvas is the last thing
+          you want mid-take. Tap to step through the shapes. */}
+      <button type="button" className="capture-hud-chip"
+              aria-label={`Framing guide: ${aspectLabel}. Tap for the next shape.`}
+              onClick={cycleAspect}>
+        <span className="capture-hud-chip-label">Frame</span>
+        <span className="capture-hud-chip-val">{aspectLabel}</span>
+      </button>
+
+      <button type="button" className={`capture-hud-chip ${cap.cast ? 'is-on' : ''}`}
+              aria-label={`Stand-in collaborators: ${cap.cast || 'none'}. Tap to change.`}
+              onClick={cycleCast}>
+        <span className="capture-hud-chip-label">Cast</span>
+        <span className="capture-hud-chip-val">{cap.cast || 'None'}</span>
+      </button>
+
+      {/* The camera. A tweened move is what separates a product video from
+          somebody scroll-wheeling around; these are the two shots you actually
+          want. Dispatched as an event — the canvas that answers is four
+          components below this one. */}
+      <button type="button" className="capture-hud-btn" onClick={() => moveCamera('fit')}>
+        Fit
+      </button>
+      <button type="button" className="capture-hud-btn" onClick={() => moveCamera('selection')}>
+        Push in
+      </button>
+
+      {/* A take is a written-down sequence — establish, hold, go in, come back.
+          Doing that by hand means hitting two buttons at the right moments
+          while also recording, and getting it identical on the retake is luck. */}
+      <button type="button" className="capture-hud-chip"
+              aria-label={`Take: ${take ? take.label : 'none'}. Tap to change.`}
+              onClick={cycleTake}>
+        <span className="capture-hud-chip-label">Take</span>
+        <span className="capture-hud-chip-val">{take ? take.label : 'None'}</span>
+      </button>
+
+      <span className="capture-hud-sep" />
+
+      {/* A still, cropped to the framing guide, at the tab's real device
+          resolution, with no cursor and none of this panel in it. */}
+      <button type="button" className="capture-hud-btn"
+              disabled={!stills.ok || shooting}
+              aria-label={stills.ok ? shotLabel : stills.reason}
+              onClick={onShot}>
+        {shooting ? '…' : 'Shot'}
+      </button>
+
+      {/* One press: start recording, play the take, stop, save. */}
+      <button type="button"
+              className={`capture-hud-rec ${recording ? 'is-live' : ''}`}
+              disabled={!canRecord}
+              aria-label={recordLabel}
+              onClick={onRecord}>
+        <span className="capture-hud-rec-dot" />
+        <span>{recording ? 'Stop' : take ? 'Record' : 'Rec'}</span>
+      </button>
+
+      {!support.ok && (
+        <span className="capture-hud-note">Use the OS recorder</span>
+      )}
+
+      <button type="button" className="capture-hud-btn" onClick={resetCapture}>Reset</button>
+
+      <button type="button" className="capture-hud-icon"
+              onClick={() => setClosed(true)}
+              aria-label="Close capture controls — leaves a dot">
+        <Icon as={X} size={12} />
+      </button>
+    </div>,
+    document.body,
+  );
+}

@@ -37,6 +37,7 @@ import {
 } from '../lib/boardsApi.js';
 import { activeLinks, deriveAccessMode, linkForMode, linkKind, otherModeLinks } from '../lib/shareAccess.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
+import { maskName, maskEmail } from '../lib/captureIdentity.js';
 import { undoToast } from '../lib/undoToast.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { ExplorePublishSection } from './ExplorePublishSection.jsx';
@@ -395,14 +396,22 @@ export function ShareModal({
   // RPC) → "You" / "Member" fallback. The cache hydrates async; the
   // profilesTick subscription above re-renders us when names land.
   const peerById = new Map((wsPeers || []).map(p => [p?.user?.id, p]));
+  // The one place the collaborator list gets its display name and address, so
+  // it is also the one place Capture Mode's persona has to reach. userProfiles
+  // is already masked at its own choke point, but the live-peer values come
+  // straight off awareness and would otherwise put a real address on screen in
+  // the middle of a share demo. Both maskers are identity-returning no-ops
+  // while capture is off.
   const userMeta = (uid) => {
     const peer = peerById.get(uid);
     const profile = userProfiles.get(uid);
+    const peerName = maskName(peer?.user?.name, uid);
+    const peerEmail = maskEmail(peer?.user?.email, uid);
     return {
-      name: peer?.user?.name || profile?.name
-        || peer?.user?.email || profile?.email
+      name: peerName || profile?.name
+        || peerEmail || profile?.email
         || (uid === selfUserId ? 'You' : 'Member'),
-      email: peer?.user?.email || profile?.email || null,
+      email: peerEmail || profile?.email || null,
       online: !!peer,
     };
   };
@@ -923,10 +932,10 @@ export function ShareModal({
             {pendingWorkspaceInvites.map(row => (
               <div key={row.id} className="share-row">
                 <span className="share-avatar" style={{ background: 'var(--bg-3)', color: 'var(--ink-1)' }}>
-                  {(row.email || '?').charAt(0).toUpperCase()}
+                  {(maskEmail(row.email, row.id) || '?').charAt(0).toUpperCase()}
                 </span>
                 <div className="share-row-text">
-                  <div className="share-row-name">{row.email}</div>
+                  <div className="share-row-name">{maskEmail(row.email, row.id)}</div>
                   <div className="share-row-sub">
                     Workspace invite sent — gets access when they sign up · {new Date(row.created_at).toLocaleDateString()}
                   </div>
