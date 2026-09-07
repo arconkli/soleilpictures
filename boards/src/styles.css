@@ -16302,6 +16302,10 @@ body[data-capture-freeze='1'] { --grain-url: none; }
   color: rgba(255,255,255,.55);
 }
 
+.capture-width { display: flex; align-items: center; gap: 10px; }
+.capture-width input[type='range'] { flex: 1 1 auto; min-width: 120px; accent-color: var(--soleil); }
+.capture-width .settings-pill { flex: 0 0 auto; min-width: 64px; }
+
 /* Thumbs. The HUD is compact on a desk because it is in the shot, but on a
    phone it is the only control surface there is — and the phone is where the
    phone footage gets made, so every target goes to a real 44px. */

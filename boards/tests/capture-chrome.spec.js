@@ -143,8 +143,9 @@ test('the aspect guide frames the shape without resizing the app', async ({ page
   await bootCapture(page);
   const before = await page.locator('.canvas-wrap').boundingBox();
 
-  // The Frame control cycles Off → 9:16 → … ; one tap gets us to 9:16.
-  await page.locator('.capture-hud-chip', { hasText: 'Frame' }).click();
+  // Target the aria-label, not the text: hasText is a SUBSTRING match, so
+  // 'Frame' also matches the 'Reframe' chip sitting next to it.
+  await page.locator('[aria-label^="Framing guide"]').click();
   const frame = page.locator('.capture-mask-frame');
   await expect(frame).toBeVisible();
 

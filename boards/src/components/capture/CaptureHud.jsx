@@ -18,6 +18,9 @@ import { useCaptureState } from '../../hooks/useCaptureState.js';
 import { ASPECTS } from '../../lib/captureAspect.js';
 
 const CHIPS = [
+  // Reframe first: on a phone shoot it is the control you reach for between
+  // every take, and the HUD scrolls horizontally on a narrow screen.
+  { key: 'reframe',   label: 'Reframe',   on: 'Fitted',  off: 'As-is' },
   { key: 'clean',     label: 'Chrome',    on: 'Hidden',  off: 'Shown' },
   { key: 'silence',   label: 'Toasts',    on: 'Muted',   off: 'Live' },
   { key: 'freeze',    label: 'Grain',     on: 'Off',     off: 'On' },
@@ -65,6 +68,12 @@ export function CaptureHud() {
 
   const toggle = (key) => setCapture({ [key]: !cap[key] });
 
+  // 'fit' frames the whole board; 'selection' pushes in on what's selected and
+  // falls back to the board when nothing is.
+  const moveCamera = (target) => {
+    document.dispatchEvent(new CustomEvent('soleil-capture-camera', { detail: { target } }));
+  };
+
   const aspectIdx = Math.max(0, ASPECTS.findIndex(a => a.id === (cap.aspect ?? null)));
   const aspectLabel = ASPECTS[aspectIdx].label;
   const cycleAspect = () => setCapture({ aspect: ASPECTS[(aspectIdx + 1) % ASPECTS.length].id });
@@ -95,6 +104,19 @@ export function CaptureHud() {
         <span className="capture-hud-chip-label">Frame</span>
         <span className="capture-hud-chip-val">{aspectLabel}</span>
       </button>
+
+      {/* The camera. A tweened move is what separates a product video from
+          somebody scroll-wheeling around; these are the two shots you actually
+          want. Dispatched as an event — the canvas that answers is four
+          components below this one. */}
+      <button type="button" className="capture-hud-btn" onClick={() => moveCamera('fit')}>
+        Fit
+      </button>
+      <button type="button" className="capture-hud-btn" onClick={() => moveCamera('selection')}>
+        Push in
+      </button>
+
+      <span className="capture-hud-sep" />
 
       <button type="button" className="capture-hud-btn" onClick={resetCapture}>Reset</button>
 

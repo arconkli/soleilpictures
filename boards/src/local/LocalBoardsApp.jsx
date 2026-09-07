@@ -26,6 +26,10 @@ import { DEFAULT_DAY_TYPE as LOCAL_DEFAULT_DAY_TYPE } from '../lib/dayTypes.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { useCaptureMode } from '../hooks/useCaptureMode.js';
+import { useCaptureFrame } from '../hooks/useCaptureFrame.js';
+import { widthForFrame } from '../lib/reframeLayout.js';
+import { aspectSpec } from '../lib/captureAspect.js';
+import { guardCaptureMutators } from '../lib/captureMutatorGuard.js';
 import { CaptureHud } from '../components/capture/CaptureHud.jsx';
 import { AspectMask } from '../components/capture/AspectMask.jsx';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -388,6 +392,16 @@ export function LocalBoardsApp({ user, signOut }) {
   const currentId = stack[stack.length - 1] || ROOT_ID;
   const currentBoard = boards[currentId] || boards[ROOT_ID];
   const currentState = boardState[currentId] || { cards: [], arrows: [], strokes: [] };
+  // Capture Mode's ephemeral reframe, on the same hook the signed-in shell
+  // uses. `yb`-shaped because useCaptureFrame reads .cards off whatever it is
+  // handed — which is what lets one spec cover both shells.
+  const reframeOn = captureActive && capState.reframe;
+  const captureWidth = reframeOn
+    ? (capState.width > 0
+        ? capState.width
+        : widthForFrame(currentState.cards, aspectSpec(capState.aspect).cardsAcross ?? 2.4))
+    : 0;
+  const framedState = useCaptureFrame(currentState, { active: reframeOn, width: captureWidth });
   const currentTemplates = gridTplState[currentId] || {};
   const currentSequences = gridSeqState[currentId] || {};
   const view = viewOverride[currentId] || currentBoard.view || 'canvas';
@@ -1354,6 +1368,11 @@ export function LocalBoardsApp({ user, signOut }) {
     },
   };
 
+  // Same geometry lock the signed-in shell applies: while the canvas is showing
+  // a reframed layout, a drag must not be able to commit a position taken from
+  // it. Declared here so the capture specs exercise the real wrapper.
+  const surfaceMutators = reframeOn ? guardCaptureMutators(mutators) : mutators;
+
   // Dev-only bridge for the specs. The Templates panel is the only way to put
   // HINTS on a grid, and in local mode it lists built-ins only — none of which
   // carry any — so without this there is no way to reach the hinted-grid
@@ -1572,7 +1591,7 @@ export function LocalBoardsApp({ user, signOut }) {
             onDismissJustAdded={() => setQaTemplate(null)}
             board={currentBoard}
             boards={boards}
-            cards={currentState.cards}
+            cards={framedState.cards}
             arrows={currentState.arrows}
             strokes={currentState.strokes}
             gridTemplates={currentTemplates}
@@ -1600,7 +1619,7 @@ export function LocalBoardsApp({ user, signOut }) {
             personalWorkspaceId="local-workspace"
             selectedTool={selectedTool}
             setSelectedTool={setSelectedTool}
-            mutators={mutators}
+            mutators={surfaceMutators}
             autoFocusId={autoFocusId}
             clearAutoFocus={() => setAutoFocusId(null)}
             showcaseArm={SHOWCASE_PREVIEW && currentId === ROOT_ID ? 'B' : 'A'}
@@ -1611,7 +1630,7 @@ export function LocalBoardsApp({ user, signOut }) {
           <ListSurface
             board={currentBoard}
             boards={boards}
-            cards={currentState.cards}
+            cards={framedState.cards}
             childBoards={childBoards}
             onOpenBoard={openBoard}
             onOpenPicker={() => openBoardLinkPicker()}
@@ -1619,7 +1638,7 @@ export function LocalBoardsApp({ user, signOut }) {
             gridTemplates={currentTemplates}
             getGridModel={(card) => readGridModel(card, null, currentTemplates)}
             onRevealOnCanvas={() => setView('canvas')}
-            mutators={mutators}
+            mutators={surfaceMutators}
           />
         )}
       </main>

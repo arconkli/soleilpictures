@@ -19,6 +19,10 @@ import { setBoardClipboard, getBoardClipboard } from './lib/boardClipboard.js';
 import { useMyTier } from './hooks/useMyTier.js';
 import { setCapture } from './lib/captureState.js';
 import { useCaptureMode } from './hooks/useCaptureMode.js';
+import { useCaptureFrame } from './hooks/useCaptureFrame.js';
+import { widthForFrame } from './lib/reframeLayout.js';
+import { aspectSpec } from './lib/captureAspect.js';
+import { guardCaptureMutators } from './lib/captureMutatorGuard.js';
 import { useBoardCapacity } from './hooks/useBoardCapacity.js';
 import { useAppTrace } from './hooks/useAppTrace.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
@@ -3619,6 +3623,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Back-compat alias — older code still refers to `mutators`.
   const mutators = mainMutatorsFull;
 
+  // While the canvas is showing a reframed layout, geometry writes are refused
+  // at the mutator boundary. Every gesture that could commit a position — drag
+  // release, resize, multi-resize, align, distribute, tidy, paste — funnels
+  // through this object, so one wrapper covers all of them and no gesture
+  // handler has to know the mode exists. See captureMutatorGuard for why it
+  // fails closed.
+  const mainMutatorsGuarded = useMemo(
+    () => guardCaptureMutators(mainMutatorsFull), [mainMutatorsFull]);
+
   const [currentSurface, setCurrentSurface] = useState('board');
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph;
   //   'tag'   = TagDetailView keyed by activeTag
@@ -4055,6 +4068,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // resets and clears storage: losing admin can never leave a chromeless app.
   const captureAllowed = myTier.tier === 'admin';
   const { capture, active: captureActive } = useCaptureMode(captureAllowed);
+
+  // The ephemeral phone reframe. Solved against a width derived from the
+  // board's own median card size and how many cards should read across the
+  // chosen frame — the same reasoning as CanvasSurface's phone-rescue block,
+  // which found that what matters is cards-across, not pixels-wide.
+  const reframeOn = captureActive && capture.reframe;
+  const reframeWidth = useMemo(() => {
+    if (!reframeOn) return 0;
+    if (capture.width > 0) return capture.width;
+    return widthForFrame(yb.cards, aspectSpec(capture.aspect).cardsAcross ?? 2.4);
+  }, [reframeOn, capture.width, capture.aspect, yb.cards]);
+  const ybFramed = useCaptureFrame(yb, { active: reframeOn, width: reframeWidth });
   // Owner-pays (0187): capacity of the current/split board's OWNER, for boards
   // the user doesn't own. myTier covers owned boards; this covers shared ones
   // so the client cap gates agree with the server trigger's subject. The api
@@ -6614,7 +6639,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const groups = ready ? (yh.groups || []) : [];
     const gridTemplates = ready ? (yh.gridTemplates || {}) : {};
     const gridSequences = ready ? (yh.gridSequences || {}) : {};
-    const muts = isMain ? mainMutatorsFull : splitMutatorsFull;
+    // The reframe only ever reaches the main pane, so only the main pane's
+    // mutators need locking. The split pane is showing real geometry and its
+    // gestures should keep writing real positions.
+    const muts = isMain
+      ? (reframeOn ? mainMutatorsGuarded : mainMutatorsFull)
+      : splitMutatorsFull;
     const paneId = isMain ? 'main' : 'split';
     const openInPane = isMain ? openBoard : openSplitBoard;
     const paneCanEdit = isMain ? canEditCurrent : splitBoardPerm.canEdit;
@@ -7227,14 +7257,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ) : (
           /* Always render the same outer container so toggling split doesn't
              re-mount the main pane (and any open doc-card modals inside).
-             The right pane is only added/removed; the left pane stays put. */
+             The right pane is only added/removed; the left pane stays put.
+
+             `left` gets ybFramed, NOT yb, and ONLY here. splitYb aliases the
+             very same object when both panes show one board (see
+             splitNeedsOwnDoc above), so substituting the reframe onto the
+             variable rather than at this call site would silently reframe the
+             split pane too — and its mutators are not locked. */
           <SplitContainer
             ratio={splitId ? splitRatio : 1}
             onRatio={setSplitRatio}
             showSplit={!!splitId}
             activePane={focusedPane}
             onClose={() => setSplitId(null)}
-            left={renderSurface({ board: currentBoard, view, yb, isMain: true })}
+            left={renderSurface({ board: currentBoard, view, yb: ybFramed, isMain: true })}
             right={!splitId ? null : splitDoc ? renderSplitDoc() : renderSurface({
               board: splitBoard, view: splitView, yb: splitYb, isMain: false,
             })}

@@ -13,6 +13,7 @@
 import { useEffect } from 'react';
 import { armCapture, setCapture, isCaptureActive } from '../lib/captureState.js';
 import { setCaptureScaleBoost } from '../lib/canvasScale.js';
+import { suspendViewPersistence } from '../lib/boardViewState.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { useCaptureState } from './useCaptureState.js';
 
@@ -69,6 +70,13 @@ export function useCaptureMode(allowed) {
     // marketing shot is subtly soft and nobody can say why. One tier of
     // headroom. Applied on read, so the next settle can't clobber it.
     setCaptureScaleBoost(active ? 2 : 1);
+    // Framing a shot is a decision about that shot, not a viewing position to
+    // resume. Without this the canvas's 400ms debounce writes the capture pose
+    // to localStorage and silently restores it the next time the board is
+    // opened — possibly weeks later, with nothing left to connect it to. The
+    // real pre-capture view stays in storage untouched, so it comes back on its
+    // own; there is nothing to stash.
+    suspendViewPersistence(active);
     // What the shot CLI waits on. Keying off "the app applied my flags" beats
     // networkidle, which never settles on a live canvas.
     if (active) document.documentElement.setAttribute('data-capture-ready', '1');
@@ -81,6 +89,7 @@ export function useCaptureMode(allowed) {
     document.body.removeAttribute('data-capture-freeze');
     document.documentElement.removeAttribute('data-capture-ready');
     setCaptureScaleBoost(1);
+    suspendViewPersistence(false);
   }, []);
 
   return { capture, active };

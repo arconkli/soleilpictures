@@ -74,6 +74,43 @@ export function CaptureTab() {
           onChange={(v) => set({ spotlight: v })} />
       </SettingsCategory>
 
+      <SettingsCategory title="Fit" desc="Reshape the board for the frame">
+        <Toggle
+          label="Reframe for the frame"
+          desc="Reflows the cards into a column that suits the shape you’re shooting, instead of zooming out until nothing is readable."
+          value={cap.reframe}
+          onChange={(v) => set({ reframe: v })} />
+        {cap.reframe && (
+          <>
+            <p className="settings-section-hint">
+              Nothing is saved. The document never hears about it, so no collaborator
+              {' '}sees the board move, a refresh brings the real layout straight back, and
+              {' '}your desktop arrangement is untouched. Arrows follow the new positions.
+              {' '}Dragging and resizing are locked while this is on — a drag would write a
+              {' '}position taken from the temporary layout into the real board.
+            </p>
+            <Field label="Width">
+              <div className="capture-width">
+                <input
+                  type="range"
+                  min="320" max="2400" step="20"
+                  value={cap.width || 0}
+                  aria-label="Reframe width in board units"
+                  onChange={(e) => set({ width: Number(e.target.value) })} />
+                <button type="button" className="settings-pill" onClick={() => set({ width: 0 })}>
+                  {cap.width ? `${cap.width}` : 'Auto'}
+                </button>
+              </div>
+            </Field>
+            <p className="settings-section-hint">
+              Auto works it out from this board’s own median card size and the framing
+              {' '}guide below — what matters is how many cards read across, not how many
+              {' '}pixels wide the screen is.
+            </p>
+          </>
+        )}
+      </SettingsCategory>
+
       <SettingsCategory title="Framing" desc="The shape you’re shipping">
         <Field label="Guide">
           <div className="settings-pill-row">
