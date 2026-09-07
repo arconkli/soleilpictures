@@ -1,0 +1,73 @@
+{
+  "version": "v1",
+  "_comment": [
+    "The marketing asset set. `npm run shots` regenerates all of it.",
+    "",
+    "Paths default to the offline harness (?local=1), which mounts the real",
+    "shell, the real canvas and real cards with no auth and no backend — so a",
+    "shoot needs nothing but a dev server, and the same list runs against",
+    "production with --origin once you are signed in there.",
+    "",
+    "`capture` is written straight into sessionStorage before the app boots;",
+    "the keys are captureState's own. Adding a shot is adding an entry here."
+  ],
+  "defaults": {
+    "profiles": ["desktop"],
+    "dpr": 2,
+    "settle": 1600
+  },
+  "shots": [
+    {
+      "name": "canvas-hero",
+      "path": "/?local=1&reset=1",
+      "readySelector": ".canvas-wrap",
+      "capture": { "on": true, "clean": true, "silence": true, "freeze": true },
+      "profiles": ["desktop", "wide"],
+      "actions": [{ "key": "Shift+Digit1" }, { "wait": 900 }]
+    },
+    {
+      "name": "canvas-collab",
+      "path": "/?local=1&reset=1",
+      "readySelector": ".canvas-wrap",
+      "capture": { "on": true, "clean": true, "silence": true, "freeze": true, "cast": 3, "persona": true },
+      "profiles": ["desktop"],
+      "actions": [{ "key": "Shift+Digit1" }, { "wait": 1800 }]
+    },
+    {
+      "name": "phone-reframed",
+      "path": "/?local=1&reset=1",
+      "readySelector": ".canvas-wrap",
+      "capture": {
+        "on": true, "clean": true, "silence": true, "freeze": true,
+        "reframe": true, "aspect": "9:16"
+      },
+      "profiles": ["phone", "android"],
+      "actions": [{ "wait": 900 }, { "camera": "fit", "ms": 700 }],
+      "frame": true
+    },
+    {
+      "name": "phone-plain",
+      "path": "/?local=1&reset=1",
+      "readySelector": ".canvas-wrap",
+      "capture": { "on": true, "clean": true, "silence": true, "freeze": true },
+      "profiles": ["phone"],
+      "actions": [{ "wait": 900 }],
+      "frame": true
+    },
+    {
+      "name": "tour-fit-then-push",
+      "path": "/?local=1&reset=1",
+      "readySelector": ".canvas-wrap",
+      "capture": { "on": true, "clean": true, "silence": true, "freeze": true, "spotlight": true },
+      "profiles": ["desktop"],
+      "video": true,
+      "actions": [
+        { "wait": 800 },
+        { "camera": "fit", "ms": 1100 },
+        { "wait": 700 },
+        { "capture": { "cast": 3, "persona": true } },
+        { "wait": 2600 }
+      ]
+    }
+  ]
+}

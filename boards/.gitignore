@@ -10,3 +10,9 @@ playwright-report/
 .env.*.local
 .DS_Store
 *.log
+
+# Generated marketing assets (npm run shots). Deliverables you upload, not app
+# assets the site serves — regenerate them rather than committing them. Leading
+# slash: anchored to boards/, so it does NOT swallow scripts/shots/, which holds
+# the committed shot lists that produce them.
+/shots/

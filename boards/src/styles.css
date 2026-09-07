@@ -16177,13 +16177,30 @@ body[data-capture-clean='1']:not([data-capture-cast='1']) .canvas-presence-roste
 body[data-capture-clean='1'] .toast-stack,
 body[data-capture-clean='1'] .staging-banner,
 body[data-capture-clean='1'] .alt-session-banner,
+/* The offline harness's own banner. It is the top strip of every shot taken
+   against ?local=1, which is how the shot list runs. */
+body[data-capture-clean='1'] .dev-banner,
 body[data-capture-clean='1'] .twk-gear,
 body[data-capture-clean='1'] .board-loading-overlay,
 /* Empty-state and quick-add furniture: correct prompts for a person, noise in
    a product shot of a board that is deliberately sparse. */
 body[data-capture-clean='1'] .cnv-empty-tiles,
 body[data-capture-clean='1'] .cnv-depth-dock,
-body[data-capture-clean='1'] .cnv-quick-add {
+body[data-capture-clean='1'] .cnv-quick-add,
+/* Per-card EDIT affordances. Correct for somebody working — including in clean
+   mode, which is why these are capture-only — but they are controls, and a
+   product shot should show the work rather than the tooling around it. On a
+   touch device several of these have no hover state to hide behind, so they sit
+   in every phone shot: resize corners, an image card's edit/download/expand
+   row, a palette's per-swatch delete and add, a grid cell's clear button. */
+body[data-capture-clean='1'] .card-resize,
+body[data-capture-clean='1'] .ic-act,
+body[data-capture-clean='1'] .ic-add-caption,
+body[data-capture-clean='1'] .pc-cell-x,
+body[data-capture-clean='1'] .pc-add,
+body[data-capture-clean='1'] .pc-eye-float,
+body[data-capture-clean='1'] .gridc-cell-x,
+body[data-capture-clean='1'] .lc-open {
   display: none !important;
 }
 

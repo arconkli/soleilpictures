@@ -11,7 +11,7 @@
 // passing false here genuinely disables the feature rather than just hiding
 // its buttons.
 import { useEffect } from 'react';
-import { armCapture, setCapture, isCaptureActive } from '../lib/captureState.js';
+import { armCapture, setCapture, isCaptureActive, getCaptureState, resetCapture } from '../lib/captureState.js';
 import { setCaptureScaleBoost } from '../lib/canvasScale.js';
 import { suspendViewPersistence } from '../lib/boardViewState.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
@@ -29,7 +29,20 @@ export function useCaptureMode(allowed) {
   // Arm on the gate, disarm the instant it stops being true. Disarming resets
   // state AND clears sessionStorage, so a dropped tier can never strand
   // somebody in a chromeless app with no visible way out.
-  useEffect(() => { armCapture(!!allowed); }, [allowed]);
+  useEffect(() => {
+    armCapture(!!allowed);
+    if (typeof window === 'undefined') return undefined;
+    if (!allowed) { delete window.__soleilCapture; return undefined; }
+    // Console + headless control surface, present ONLY while armed — the
+    // window.perf precedent. This is how the shot CLI drives a run: the
+    // persona and the synthetic cast are deliberately never restored from
+    // sessionStorage (a fake identity must not survive a reload), so a
+    // scripted shoot cannot stage them by seeding storage and needs a real
+    // entry point. Every call still goes through setCapture, so the gate and
+    // the type coercion apply exactly as they do to the UI.
+    window.__soleilCapture = { set: setCapture, get: getCaptureState, reset: resetCapture };
+    return () => { delete window.__soleilCapture; };
+  }, [allowed]);
 
   // Two doors. ?capture=1 for a phone (bookmark it once) and for the headless
   // shot runner; ⌘⇧. for a desk. Mirrors the ?perf=1 + Ctrl+Shift+P block in
