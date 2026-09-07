@@ -211,14 +211,85 @@ test('the cast size is bounded and survives junk', () => {
   assert.ok(makeCast(500).length <= 8, 'an unbounded cast would flood the cursor cap');
 });
 
-test('cast members select cards from the board when there are any', () => {
-  const cast = makeCast(2, { seed: 17, cardIds: ['c1', 'c2', 'c3'] });
-  const states = advanceCast(cast, 0, BOARD);
-  for (const { state } of states) {
-    assert.equal(state.canvasSelection.cardIds.length, 1);
-    assert.ok(['c1', 'c2', 'c3'].includes(state.canvasSelection.cardIds[0]));
+test('cast members select real cards, and often nothing at all', () => {
+  const ids = ['c1', 'c2', 'c3'];
+  const cast = makeCast(3, { seed: 17, cardIds: ids });
+  let held = 0, empty = 0;
+  for (let t = 0; t < 60000; t += 500) {
+    for (const { state } of advanceCast(cast, t, BOARD)) {
+      const sel = state.canvasSelection.cardIds;
+      assert.ok(sel.length <= 1);
+      if (sel.length) { assert.ok(ids.includes(sel[0])); held++; } else empty++;
+    }
   }
-  // With no cards, nothing is selected rather than something undefined being.
-  const empty = advanceCast(makeCast(2, { seed: 17 }), 0, BOARD);
-  for (const { state } of empty) assert.deepEqual(state.canvasSelection.cardIds, []);
+  // People spend a lot of their time not having selected anything. A cast that
+  // ALWAYS has something ringed reads as staged.
+  assert.ok(held > 0, 'nobody ever selected anything');
+  assert.ok(empty > 0, 'somebody always had a selection — nothing alive does that');
+});
+
+test('with no cards on the board, nobody selects anything', () => {
+  for (const { state } of advanceCast(makeCast(2, { seed: 17 }), 0, BOARD)) {
+    assert.deepEqual(state.canvasSelection.cardIds, []);
+  }
+});
+
+// ── The realism properties ─────────────────────────────────────────────────
+// The first version shared one leg duration, one dwell duration and one GLOBAL
+// selection clock across the whole cast, so three cursors did the identical
+// dance a beat apart and all changed selection on the same tick. These are the
+// assertions that would have caught it.
+
+test('no two peers move on the same rhythm', () => {
+  const cast = makeCast(5, { seed: 23, bounds: { x: 0, y: 0, w: 1000, h: 800 } });
+  const cycles = cast.map(p => Math.round(p.cycleMs));
+  assert.equal(new Set(cycles).size, cycles.length,
+    `two peers share a route length: ${cycles.join(', ')}`);
+  const routes = cast.map(p => p.waypoints.length);
+  assert.ok(new Set(routes).size > 1, 'every peer walks the same number of stops');
+});
+
+test('dwell varies stop to stop, not just peer to peer', () => {
+  // A constant dwell is the tell — a person lingers on the thing they care
+  // about and glances past the rest.
+  for (const p of makeCast(4, { seed: 29 })) {
+    const dwells = p.segs.map(g => Math.round(g.dwell));
+    assert.ok(new Set(dwells).size > 1, `a peer dwells identically at every stop: ${dwells}`);
+  }
+});
+
+test('selections do not change in unison', () => {
+  const ids = ['a', 'b', 'c', 'd'];
+  const cast = makeCast(4, { seed: 31, cardIds: ids });
+  const key = () => advanceCast(cast, T, BOARD).map(s => s.state.canvasSelection.cardIds.join());
+  let T = 0;
+  let prev = key();
+  let simultaneous = 0, anyChange = 0;
+  for (T = 250; T < 90000; T += 250) {
+    const now = key();
+    const changed = now.filter((v, i) => v !== prev[i]).length;
+    if (changed > 0) anyChange++;
+    if (changed === now.length) simultaneous++;
+    prev = now;
+  }
+  assert.ok(anyChange > 10, 'selections never changed at all');
+  assert.equal(simultaneous, 0,
+    'the whole cast changed selection on the same tick — that is the global-clock bug');
+});
+
+test('a resting cursor still drifts, so it is never a frozen sprite', () => {
+  const cast = makeCast(1, { seed: 37, bounds: { x: 0, y: 0, w: 900, h: 700 } });
+  const xs = new Set();
+  // Sample densely over one cycle; even the stationary stretches must vary.
+  for (let t = 0; t < 4000; t += 60) {
+    xs.add(Math.round(advanceCast(cast, t, BOARD)[0].state.canvasCursor.x * 10));
+  }
+  assert.ok(xs.size > 20, `a cursor sat perfectly still (${xs.size} distinct positions)`);
+});
+
+test('peers are not at the same point in their routes at t=0', () => {
+  const cast = makeCast(4, { seed: 41, bounds: { x: 0, y: 0, w: 1000, h: 800 } });
+  const at0 = advanceCast(cast, 0, BOARD).map(s =>
+    `${Math.round(s.state.canvasCursor.x)},${Math.round(s.state.canvasCursor.y)}`);
+  assert.equal(new Set(at0).size, at0.length, 'two peers start in the same place');
 });

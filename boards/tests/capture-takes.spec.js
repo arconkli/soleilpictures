@@ -8,6 +8,7 @@
 // over the same transform.
 
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 const pose = (page) => page.evaluate(() => document.querySelector('.canvas')?.style.transform || '');
 
@@ -127,6 +128,52 @@ test('the HUD offers takes and a record button', async ({ page }) => {
   await expect(rec).toBeVisible();
   await expect(rec).toBeEnabled();
   await expect(rec).toHaveText(/Record/);
+});
+
+test('the Shot button saves a PNG, cropped to the framing guide', async ({ page, context }) => {
+  await boot(page);
+
+  // getDisplayMedia can't be granted headlessly, so stand in a stream from a
+  // canvas at a known size. Everything downstream of the stream — the shutter,
+  // the frame grab, the crop solve, the download — is the real path.
+  await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 1600; c.height = 1000;
+    const g = c.getContext('2d');
+    g.fillStyle = '#123456'; g.fillRect(0, 0, 1600, 1000);
+    // Keep it painting, or the captured stream has no frames.
+    setInterval(() => { g.fillStyle = '#123456'; g.fillRect(0, 0, 1600, 1000); }, 100);
+    navigator.mediaDevices.getDisplayMedia = async () => c.captureStream(30);
+  });
+
+  await page.locator('[aria-label^="Framing guide"]').click();     // Off → 9:16
+  const download = page.waitForEvent('download');
+  await page.locator('.capture-hud-btn', { hasText: 'Shot' }).click();
+  const file = await download;
+
+  expect(file.suggestedFilename()).toMatch(/^soleil-shot-9x16-\d{8}-\d{6}\.png$/);
+
+  // 1600×1000 cropped to 9:16 is height-limited: 1000 tall, 563 wide.
+  const buf = readFileSync(await file.path());
+  expect(buf.subarray(1, 4).toString()).toBe('PNG');
+  const w = buf.readUInt32BE(16);
+  const h = buf.readUInt32BE(20);
+  expect(h).toBe(1000);
+  expect(w).toBe(Math.round(1000 * 9 / 16));
+});
+
+test('the HUD takes itself out of the picture, and comes back', async ({ page }) => {
+  await boot(page);
+  await expect(page.locator('.capture-hud')).toBeVisible();
+
+  // The shutter attribute is what hides the tool during the grab. Assert the
+  // RULE, since the grab itself is over in two frames.
+  await page.evaluate(() => document.body.setAttribute('data-capture-shutter', '1'));
+  await expect(page.locator('.capture-hud:visible')).toHaveCount(0);
+  await expect(page.locator('.capture-mask:visible')).toHaveCount(0);
+
+  await page.evaluate(() => document.body.removeAttribute('data-capture-shutter'));
+  await expect(page.locator('.capture-hud')).toBeVisible();
 });
 
 test('an unknown take or a junk move is ignored rather than throwing', async ({ page }) => {

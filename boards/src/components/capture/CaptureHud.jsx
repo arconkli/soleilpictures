@@ -15,9 +15,12 @@ import { X, Minus } from '../../lib/icons.js';
 import { Icon } from '../Icon.jsx';
 import { setCapture, resetCapture } from '../../lib/captureState.js';
 import { useCaptureState } from '../../hooks/useCaptureState.js';
-import { ASPECTS } from '../../lib/captureAspect.js';
+import { ASPECTS, aspectSpec } from '../../lib/captureAspect.js';
 import { TAKES, takeFor, takeDuration } from '../../lib/captureTakes.js';
-import { recordingSupport, startRecording, stopRecording, saveClip, clipFilename } from '../../lib/captureRecorder.js';
+import {
+  recordingSupport, stillSupport, startRecording, stopRecording,
+  grabStill, saveClip, saveFile, clipFilename, stillFilename, extForBlob,
+} from '../../lib/captureRecorder.js';
 
 const CHIPS = [
   // Reframe first: on a phone shoot it is the control you reach for between
@@ -42,8 +45,10 @@ export function CaptureHud() {
   // recording, with no MediaRecorder behind it, is a dead button.
   const [takeId, setTakeId] = useState(null);
   const [recording, setRecording] = useState(false);
+  const [shooting, setShooting] = useState(false);
   const stopTimerRef = useRef(null);
   const support = useMemo(() => recordingSupport(), []);
+  const stills = useMemo(() => stillSupport(), []);
   const canRecord = support.ok;
 
   // A hidden HUD must not leave a recording running with no way to stop it.
@@ -110,6 +115,10 @@ export function CaptureHud() {
     document.dispatchEvent(new CustomEvent('soleil-capture-camera', { detail: { take: id } }));
   };
 
+  const shotTitle = cap.aspect
+    ? `Save a PNG, cropped to ${cap.aspect}`
+    : 'Save a PNG of the whole frame. Set a framing guide to crop it.';
+
   const recordTitle = !support.ok ? support.reason
     : recording ? 'Stop and save'
     : take ? `Record ${take.label} — starts, plays it, saves the clip`
@@ -118,11 +127,36 @@ export function CaptureHud() {
   // One press does the whole thing. Recording starts BEFORE the take so the
   // first move is in frame, and stops on the take's own duration rather than a
   // guess — takeDuration is derived from the moves.
+  // Take the tool out of its own picture, wait for paint, shoot, put it back.
+  // Without the two frames the shutter lands before the compositor has dropped
+  // the HUD and it appears in the still it was used to take.
+  const withShutter = async (fn) => {
+    document.body.setAttribute('data-capture-shutter', '1');
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    try { return await fn(); }
+    finally { document.body.removeAttribute('data-capture-shutter'); }
+  };
+
+  const onShot = async () => {
+    if (shooting) return;
+    setShooting(true);
+    try {
+      // Crop to the framing guide, so the file arrives at the ratio you were
+      // composing for rather than needing a marquee round it afterwards.
+      const blob = await withShutter(() => grabStill({ ratio: aspectSpec(cap.aspect).ratio }));
+      if (blob) saveFile(blob, stillFilename(cap.aspect ? `shot-${cap.aspect.replace(':', 'x')}` : 'shot'));
+    } catch (_) {
+      // Dismissing the surface picker is a cancellation, not a failure.
+    } finally {
+      setShooting(false);
+    }
+  };
+
   const onRecord = async () => {
     if (recording) {
       setRecording(false);
       const blob = await stopRecording();
-      if (blob) saveClip(blob, clipFilename(takeId || 'clip'));
+      if (blob) saveClip(blob, clipFilename(takeId || 'clip', extForBlob(blob)));
       return;
     }
     try {
@@ -200,6 +234,15 @@ export function CaptureHud() {
       </button>
 
       <span className="capture-hud-sep" />
+
+      {/* A still, cropped to the framing guide, at the tab's real device
+          resolution, with no cursor and none of this panel in it. */}
+      <button type="button" className="capture-hud-btn"
+              disabled={!stills.ok || shooting}
+              title={stills.ok ? shotTitle : stills.reason}
+              onClick={onShot}>
+        {shooting ? '…' : 'Shot'}
+      </button>
 
       {/* One press: start recording, play the take, stop, save. */}
       <button type="button"

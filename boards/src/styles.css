@@ -16277,6 +16277,17 @@ body[data-capture-freeze='1'] { --grain-url: none; }
   border: 1px solid rgba(255,255,255,.08); border-radius: 999px;
   font: inherit; cursor: pointer;
 }
+/* The shutter. For the two frames it takes to grab a still, the capture tool
+   removes itself from the picture — the HUD, the framing guide (a viewfinder,
+   not content) and the pointer spotlight. Without this the panel you pressed
+   the button on appears in the screenshot you took with it. */
+body[data-capture-shutter='1'] .capture-hud,
+body[data-capture-shutter='1'] .capture-hud-dot,
+body[data-capture-shutter='1'] .capture-mask,
+body[data-capture-shutter='1'] .capture-spot {
+  display: none !important;
+}
+
 /* Record. The one control here that is not gold, deliberately: gold is the
    house's active/selection colour and appears all over this strip, so a record
    button in it would read as one chip among many. Red is the only thing on

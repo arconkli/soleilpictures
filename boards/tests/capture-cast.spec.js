@@ -59,16 +59,27 @@ test('cursors move, and move smoothly rather than teleporting', async ({ page })
     [...document.querySelectorAll('.cursors-layer .cursor')]
       .map(el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y }; }));
 
+  // Sample across a realistic span. Peers dwell for up to six seconds now — a
+  // person reading something does — so a two-second window can legitimately
+  // catch the whole cast at rest.
   const samples = [];
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 14; i++) {
     samples.push(await positions());
-    await page.waitForTimeout(350);
+    await page.waitForTimeout(400);
   }
 
-  // Something moved over two seconds — a frozen cast is worse than none.
-  const moved = samples.some((s, i) =>
-    i > 0 && s.some((p, j) => Math.hypot(p.x - samples[i - 1][j].x, p.y - samples[i - 1][j].y) > 2));
-  expect(moved, 'the cast never moved').toBe(true);
+  // Somebody travelled. A frozen cast is worse than no cast.
+  const travelled = samples.some((s, i) =>
+    i > 0 && s.some((p, j) => Math.hypot(p.x - samples[i - 1][j].x, p.y - samples[i - 1][j].y) > 6));
+  expect(travelled, 'the cast never moved').toBe(true);
+
+  // And nobody is a frozen sprite even between legs: a resting hand drifts.
+  const totalPerPeer = samples[0].map((_, j) =>
+    samples.slice(1).reduce((sum, s, i) =>
+      sum + Math.hypot(s[j].x - samples[i][j].x, s[j].y - samples[i][j].y), 0));
+  for (const [j, d] of totalPerPeer.entries()) {
+    expect(d, `cursor ${j} never moved at all across ${samples.length} samples`).toBeGreaterThan(2);
+  }
 
   // And nothing jumped across the screen between samples. LiveCursor
   // interpolates, so a teleport here would read as a glitch on camera.
