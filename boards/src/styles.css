@@ -16163,6 +16163,18 @@ body:not([data-clean-mode='1']):not([data-focus-mode='1']) .clean-mode-exit { di
 
    Each of these was a real gap — clean mode has shipped for months and every
    one of them still rendered over it. */
+/* ── Admin-only surfaces, gone the moment Capture Mode is on ───────────
+   NOT under data-capture-clean, deliberately. Some shots deliberately keep the
+   chrome — the topbar is brand, and a shot of the real app with its real
+   toolbar is often the shot you want. But these two exist only for an admin
+   and can never be part of a marketing asset at all: the Admin button is a
+   door nobody in the audience has, and the build-switcher pill announces that
+   what you are watching is a preview deploy. */
+body[data-capture='1'] .tb-admin-btn,
+body[data-capture='1'] .staging-banner {
+  display: none !important;
+}
+
 /* Presence, hidden UNLESS a synthetic cast is running. Chrome-hiding exists to
    get real collaborators out of a marketing shot; the cast exists to put
    believable ones in. Hiding both with one rule meant turning the cast on while
@@ -16175,7 +16187,6 @@ body[data-capture-clean='1']:not([data-capture-cast='1']) .canvas-presence-roste
 /* Ephemera that would land mid-take. The toast stack is portaled to <body>,
    so it is not inside .app and would have survived any container-scoped rule. */
 body[data-capture-clean='1'] .toast-stack,
-body[data-capture-clean='1'] .staging-banner,
 body[data-capture-clean='1'] .alt-session-banner,
 /* The offline harness's own banner. It is the top strip of every shot taken
    against ?local=1, which is how the shot list runs. */

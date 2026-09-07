@@ -50,8 +50,23 @@ export function useCaptureMode(allowed) {
   useEffect(() => {
     if (!allowed) return undefined;
     try {
-      if (new URLSearchParams(window.location.search).get('capture') === '1') {
+      const q = new URLSearchParams(window.location.search);
+      if (q.get('capture') === '1') {
         setCapture(ARMED_PRESET);
+        // Take the switch back out of the address bar. A hand-held recording
+        // captures the browser's URL, and "?capture=1" hanging off it is the
+        // one thing in the shot that says this was staged.
+        //
+        // Safe to drop because the flags live in sessionStorage, so a reload
+        // still comes back armed — the param is the door, not the state. Only
+        // this param is stripped: ?local=1 and the QA params ARE the state for
+        // their harnesses, and removing one would break the next reload.
+        q.delete('capture');
+        const rest = q.toString();
+        window.history.replaceState(
+          window.history.state, '',
+          window.location.pathname + (rest ? `?${rest}` : '') + window.location.hash,
+        );
       }
     } catch (_) {}
     const onKey = (e) => {
@@ -74,6 +89,12 @@ export function useCaptureMode(allowed) {
   // its :is() was cheaper and more honest than threading a prop everywhere.
   useEffect(() => {
     const b = document.body;
+    // "Capture is on", independent of the chrome toggle. Some surfaces are
+    // admin-only and can NEVER belong in a marketing shot — the topbar's Admin
+    // button, the build-switcher pill — so they must go the moment the mode is
+    // on, even in a shot that deliberately keeps the rest of the chrome.
+    if (active) b.setAttribute('data-capture', '1');
+    else b.removeAttribute('data-capture');
     if (active && capture.clean) b.setAttribute('data-capture-clean', '1');
     else b.removeAttribute('data-capture-clean');
     if (active && capture.freeze) b.setAttribute('data-capture-freeze', '1');
@@ -103,6 +124,7 @@ export function useCaptureMode(allowed) {
 
   // Leaving the surface entirely (unmount) must not leave the DOM staged.
   useEffect(() => () => {
+    document.body.removeAttribute('data-capture');
     document.body.removeAttribute('data-capture-clean');
     document.body.removeAttribute('data-capture-freeze');
     document.body.removeAttribute('data-capture-cast');

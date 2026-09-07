@@ -31,7 +31,7 @@ const SHARED_WITH_CLEAN_MODE = [
 const CAPTURE_ONLY = [
   '.cursors-layer', '.peer-sel-layer', '.peer-marquees-layer', '.peer-sel-pill',
   '.canvas-presence-roster',
-  '.toast-stack', '.staging-banner', '.alt-session-banner', '.twk-gear',
+  '.toast-stack', '.alt-session-banner', '.twk-gear',
   '.board-loading-overlay',
   '.cnv-empty-tiles', '.cnv-depth-dock', '.cnv-quick-add',
 ];
@@ -86,6 +86,55 @@ for (const attr of ['data-clean-mode', 'data-focus-mode', 'data-capture-clean'])
     await expect(page.locator('.canvas-wrap')).toBeVisible();
   });
 }
+
+// Deliberately NOT part of the chrome-hiding list above. Some shots keep the
+// chrome on purpose — a real toolbar is often the shot you want — but these two
+// are admin-only and can never belong in a marketing asset at any setting: the
+// Admin button is a door the audience does not have, and the build-switcher
+// pill announces that what they are watching is a preview deploy.
+test('admin-only surfaces go the moment capture is on, chrome or no chrome', async ({ page }) => {
+  await bootCapture(page);
+  await expect(page.locator('body[data-capture="1"]')).toHaveCount(1);
+
+  // Turn the chrome back ON — the case this rule exists for.
+  await page.locator('.capture-hud-chip', { hasText: 'Chrome' }).click();
+  await expect(page.locator('body[data-capture-clean="1"]')).toHaveCount(0);
+  await expect(page.locator('.topbar')).toBeVisible();
+
+  // The offline harness renders neither of these — it is not the signed-in
+  // shell — so asserting they are absent would pass whether the rule existed or
+  // not. Plant them and check the RULE, which is the thing under test.
+  await page.evaluate(() => {
+    for (const cls of ['tb-admin-btn', 'staging-banner']) {
+      const el = document.createElement('div');
+      el.className = cls;
+      el.textContent = 'planted';
+      el.setAttribute('data-planted', '1');
+      document.body.appendChild(el);
+    }
+  });
+  await expect(page.locator('[data-planted]')).toHaveCount(2);
+  await expect(page.locator('.tb-admin-btn:visible')).toHaveCount(0);
+  await expect(page.locator('.staging-banner:visible')).toHaveCount(0);
+
+  // …and they come back when capture does not apply, so the assertion above is
+  // proving the rule rather than a selector that never matched anything.
+  await page.evaluate(() => document.body.removeAttribute('data-capture'));
+  await expect(page.locator('.tb-admin-btn:visible')).toHaveCount(1);
+  await expect(page.locator('.staging-banner:visible')).toHaveCount(1);
+});
+
+test('the capture switch is taken back out of the address bar', async ({ page }) => {
+  // A hand-held recording captures the browser's URL, and "?capture=1" hanging
+  // off it is the one thing in frame that says the shot was staged.
+  await bootCapture(page);
+  const url = new URL(page.url());
+  expect(url.searchParams.get('capture'), 'the staging param is still in the URL').toBe(null);
+  // The harness's own params ARE its state — dropping one would break a reload.
+  expect(url.searchParams.get('local')).toBe('1');
+  // And the mode survives, because the flags never lived in the URL.
+  await expect(page.locator('body[data-capture="1"]')).toHaveCount(1);
+});
 
 test('the grain token drops, so a capture is deterministic', async ({ page }) => {
   await bootCapture(page);
