@@ -468,6 +468,11 @@ export default {
       // Admin-only preview of a still-pending board's images (Approvals tab).
       const admPrevMatch = url.pathname.match(/^\/api\/admin\/preview-img\/([0-9a-f-]{36})$/i);
       if (admPrevMatch) return await handleAdminPreviewImg(env, admPrevMatch[1], url.searchParams, request);
+      // The board's own canvas render — what the Approvals tab shows as the
+      // preview hero. Published boards get this via /api/public-thumb/<slug>;
+      // a pending board has no slug, hence the board_id-keyed admin twin.
+      const admThumbMatch = url.pathname.match(/^\/api\/admin\/preview-thumb\/([0-9a-f-]{36})$/i);
+      if (admThumbMatch) return await handleAdminPreviewThumb(env, admThumbMatch[1], request);
       // Logged-out one-click unsubscribe for lifecycle email (migration 0173).
       if (url.pathname === '/api/unsubscribe') return await handleUnsubscribe(request, url, env);
     } catch (e) {
@@ -1833,6 +1838,44 @@ async function handleAdminPreviewImg(env, boardId, searchParams, request) {
   const headers = {
     'content-type': obj.httpMetadata?.contentType || imgContentType(key),
     // private: it's behind an admin gate — never let a shared cache hold it.
+    'cache-control': 'private, no-store',
+    'etag': obj.httpEtag,
+  };
+  if (request.headers.get('if-none-match') === obj.httpEtag) {
+    return new Response(null, { status: 304, headers });
+  }
+  return new Response(obj.body, { status: 200, headers });
+}
+
+// Admin-only canvas render of a still-PENDING board (the Approvals preview
+// hero). boards.thumb_key is a faithful 1200x675 screenshot of the canvas —
+// real card positions and sizes, the board background, note text, arrows —
+// which is the thing an admin actually needs to judge a submission; the card
+// grid beside it shows the parts, not the arrangement.
+//
+// Same gate as handleAdminPreviewImg, and deliberately the same RPC:
+// admin_public_board_preview re-checks is_admin() as the calling admin, so
+// there is one authorization path to reason about, not two. 404 (not a logo
+// redirect like handleShareThumb/handlePublicThumb) because this has no
+// unfurl to satisfy — the modal renders its own empty state, and a redirect
+// would read as "here is the board" when there is no render.
+async function handleAdminPreviewThumb(env, boardId, request) {
+  const token = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!token) return new Response('Unauthorized', { status: 401 });
+  let tier = null;
+  try { tier = await getTier(env, token); } catch { return new Response('tier check failed', { status: 502 }); }
+  if (tier !== 'admin') return new Response('Forbidden', { status: 403 });
+
+  let content = null;
+  try { content = await userRpc(env, 'admin_public_board_preview', { p_board_id: boardId }, token); }
+  catch { return new Response('Not found', { status: 404 }); }
+  const key = String(content?.thumb_key || '').replace(/^r2:/, '');
+  if (!key || !env.IMAGES) return new Response('Not found', { status: 404 });
+  const obj = await env.IMAGES.get(key);
+  if (!obj) return new Response('Not found', { status: 404 });
+  const headers = {
+    'content-type': obj.httpMetadata?.contentType || imgContentType(key),
+    // private: behind an admin gate, and it is another tenant's board.
     'cache-control': 'private, no-store',
     'etag': obj.httpEtag,
   };

@@ -3180,7 +3180,9 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 .admin-approval-actions .admin-action { text-decoration: none; }
 
 /* Admin board-preview modal — gallery of a (pending) board's content. */
-.admin-preview-modal { width: min(880px, 94vw); max-height: 88vh; display: flex; flex-direction: column; padding: 20px; }
+/* Wider than the old gallery-only modal: the canvas render is 16:9 and is the
+   thing being judged, so give it enough width to read note text in. */
+.admin-preview-modal { width: min(1100px, 94vw); max-height: 88vh; display: flex; flex-direction: column; padding: 20px; }
 
 .admin-preview-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
 
@@ -3189,6 +3191,31 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 .admin-preview-note { padding: 24px 0; text-align: center; }
 
 .admin-preview-body { overflow-y: auto; display: grid; gap: 16px; }
+
+/* The canvas render — the board as it actually looks. */
+.admin-preview-canvas { margin: 0; display: grid; gap: 6px; }
+
+.admin-preview-canvas-img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  display: block;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  /* The renderer letterboxes onto the board's own background, so the inline
+     bg-color from the RPC continues that colour to the element edge. Falls
+     back to the canvas ground, never to a light plate. */
+  background: var(--bg-0);
+}
+
+.admin-preview-canvas-cap { text-align: center; }
+
+.admin-preview-canvas-empty {
+  padding: 18px;
+  text-align: center;
+  border: 1px dashed var(--line-2);
+  border-radius: 8px;
+}
 
 .admin-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 
