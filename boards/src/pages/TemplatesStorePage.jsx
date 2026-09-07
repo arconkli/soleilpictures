@@ -329,10 +329,22 @@ export function TemplatesStorePage() {
                       keeps its own proportions. */}
                   <span className="tplstore-stage">
                     {tree && <GridLayoutThumb tree={tree} title={t.h1} size={size} labels={t.hints?.length ? t.hints : null} />}
-                    {/* ON the preview, bottom-right — the place a view count
-                        sits on a video thumbnail. In the meta row it was a
-                        glyph jammed into a line of tracked uppercase, fighting
-                        the box count for the same rhythm. */}
+                  </span>
+                  <span className="tplstore-title">{t.h1}</span>
+                  <span className="tplstore-blurb">{t.blurb}</span>
+                  <span className="tplstore-meta">
+                    {/* Wrapped as ONE flex item. A flex container turns each run
+                        of text into an anonymous item and drops the whitespace
+                        between them, so a bare "{cells} boxes" here renders as
+                        "7boxes". */}
+                    <span className="tplstore-meta-left">
+                      {isCommunity && <span className="tplstore-badge">Community</span>}
+                      {t.cells > 0 && <>{isCommunity ? ' · ' : ''}{t.cells} {t.cells === 1 ? 'box' : 'boxes'}</>}
+                    </span>
+                    {/* Bottom-right of the CARD: last item in the meta row,
+                        pushed over by margin-left:auto, in the same grey as the
+                        box count beside it. It is a quiet fact about the
+                        template, not a badge competing with the preview. */}
                     <span
                       className="tplstore-dl"
                       title={`${t.useCount || 0} ${(t.useCount || 0) === 1 ? 'person has' : 'people have'} added this template`}
@@ -340,12 +352,6 @@ export function TemplatesStorePage() {
                       <DownloadGlyph />
                       {t.useCount || 0}
                     </span>
-                  </span>
-                  <span className="tplstore-title">{t.h1}</span>
-                  <span className="tplstore-blurb">{t.blurb}</span>
-                  <span className="tplstore-meta">
-                    {isCommunity && <span className="tplstore-badge">Community</span>}
-                    {t.cells > 0 && <>{isCommunity ? ' · ' : ''}{t.cells} {t.cells === 1 ? 'box' : 'boxes'}</>}
                   </span>
                 </a>
               </li>

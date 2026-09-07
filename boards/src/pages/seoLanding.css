@@ -945,7 +945,6 @@
    The stage is --bg-2, the recessed field a real grid card sits in, so a preview
    looks like the thing it is a preview of. */
 .tplstore-stage {
-  position: relative;   /* anchors the download count overlay */
   display: grid;
   place-items: center;
   width: 100%;
@@ -963,8 +962,12 @@
 .tplstore-blurb { font: 400 13px/1.5 var(--font-sans); color: var(--ink-2); flex: none; }
 .tplstore-meta {
   /* Pinned to the bottom so box counts line up across a row even when one blurb
-     runs to two lines and its neighbour runs to one. */
+     runs to two lines and its neighbour runs to one. Full width and flex so the
+     download count can take the right-hand end of it. */
   margin-top: auto;
+  display: flex;
+  align-items: center;
+  width: 100%;
   font: 500 11px/1 var(--font-sans);
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -1049,35 +1052,25 @@
   letter-spacing: .08em;
   color: var(--ink-2);
 }
-/* The download count, sitting ON the preview at bottom-right — where a view
-   count sits on a video thumbnail. It was previously inline in .tplstore-meta,
-   where a 11px glyph had to share a line with tracked uppercase and lost: the
-   icon rode high, the gap read as a typo, and it competed with the box count for
-   the same rhythm. As an overlay it has its own shape and reads at a glance.
+/* The download count: last thing in the meta row, pushed to the bottom-right
+   corner of the card, in the SAME grey as the box count beside it.
 
-   A translucent plate rather than a solid one, so it belongs to the preview
-   instead of covering it. `color-mix` degrades to the plain colour where it is
-   unsupported, which is fine — the border still separates it from the stage. */
-.tplstore-stage .tplstore-dl {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
+   It has been three things. Inline mid-row it fought the box count for the same
+   rhythm; as a bordered pill over the preview it was a badge shouting at a
+   thumbnail. It is neither — it is a quiet fact, so it inherits the row's colour,
+   size and tracking and simply sits at the far end. */
+.tplstore-meta-left { min-width: 0; }
+.tplstore-dl {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 8px 3px 6px;
-  border: 1px solid var(--line-2);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-1) 82%, transparent);
-  backdrop-filter: blur(6px);
-  color: var(--ink-1);
-  font: 600 11.5px/1 var(--font-sans);
-  letter-spacing: 0;
+  margin-left: auto;   /* the corner */
+  padding-left: 10px;  /* never collides with a long left-hand side */
   font-variant-numeric: tabular-nums;
-  text-transform: none;
 }
-.tplstore-dl-i { flex: none; opacity: .7; }
-.tplstore-card:hover .tplstore-stage .tplstore-dl { border-color: var(--ink-3); }
+/* Optically matched to 11px uppercase rather than set to the same number: a
+   glyph at the text's own size reads as oversized next to tracked capitals. */
+.tplstore-dl-i { flex: none; width: 10px; height: 10px; opacity: .85; }
 
 /* On an item page the count is one fact in a spec line, not an overlay — there
    is no thumbnail for it to sit on. Just ink-1 against the ink-3 around it. */
