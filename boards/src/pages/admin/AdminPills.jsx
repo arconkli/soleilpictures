@@ -26,23 +26,33 @@ export function StatusPill({ kind }) {
   return <span className={`admin-status admin-status-${color}`}>{kind}</span>;
 }
 
-// Feedback kind — its own palette so bug/idea/praise/other are each
-// distinct (idea and other no longer collide on the same neutral).
+// Feedback kind — a coloured dot and a word, not a filled pill.
+//
+// It was a pill, and on a list where EVERY row has one the pill was the
+// brightest thing on screen while the message — the only part worth reading —
+// sat underneath it in a quieter grey. A return row carried two of them side by
+// side. The colour is the part that helps you scan; the chrome around it was
+// just weight. So the colour stays and the box goes.
 //
 // The fallback is silent by design (an unknown kind must still render), which
 // is why boards/src/lib/feedbackContract.test.mjs asserts this list against the
-// table's CHECK: a kind added to the database and not here would print its raw
-// slug in the styling reserved for 'other' and look like a bug report.
+// table's CHECK: a kind added to the database and not here would show up in the
+// colour reserved for 'other' and read as something it is not.
 const KIND_LABEL = { return_reason: 'return' };
 
 export function FeedbackKindPill({ kind }) {
   const k = ['bug', 'idea', 'praise', 'other', 'return_reason'].includes(kind) ? kind : 'other';
-  return <span className={`admin-status admin-kind-${k}`}>{KIND_LABEL[kind] || kind}</span>;
+  return (
+    <span className={`fbk-kind fbk-kind-${k}`}>
+      <span className="fbk-dot" aria-hidden="true" />
+      {KIND_LABEL[kind] || kind}
+    </span>
+  );
 }
 
-// Which answer was tapped on the return question. Neutral ink — gold is
-// reserved for active/selection/focus, and nothing on this page is selectable.
+// Which answer was tapped on the return question. Plain text in the meta line:
+// it qualifies the kind rather than standing beside it as a second label.
 export function FeedbackChoicePill({ choice }) {
   if (!choice) return null;
-  return <span className="admin-status admin-choice-pill">{choice}</span>;
+  return <span className="fbk-choice">{choice}</span>;
 }

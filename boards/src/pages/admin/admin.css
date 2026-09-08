@@ -2055,48 +2055,121 @@
 
 .admin-skeleton-list .admin-skeleton-line { width: 100%; }
 
-/* ── Feedback-kind pills (own palette so idea ≠ other) ─────────────── */
-.admin-kind-bug    { background: rgba(220,80,80,.14);  color: rgb(220,120,120); }
+/* ── The Feedback tab ───────────────────────────────────────────────────────
+ *
+ * Its own namespace. .admin-feedback-* looks like it belongs to this tab and
+ * does not — the Emails and Errors tabs both render their rows with it, so
+ * restyling those classes would have quietly redecorated two other tabs.
+ *
+ * The shape of the redesign: the MESSAGE is the only part of a row that carries
+ * information, so it goes first and largest, in a column narrow enough to read.
+ * Everything else — who, when, where, what kind — is filing, and drops to one
+ * quiet line beneath it. Before this the kind was a filled pill, which on a list
+ * where every row has one made the label the brightest thing on screen and the
+ * message the dimmest; a return row carried two pills side by side. The colour
+ * is what helps you scan. The box around it was only weight.
+ *
+ * Hairlines rather than eight bordered cards: at this density the cards were
+ * mostly empty space with a sentence in the corner.
+ */
+.fbk-list { display: flex; flex-direction: column; }
 
-.admin-kind-idea   { background: rgba(120,150,255,.14); color: rgb(155,175,255); }
+.fbk-row {
+  padding: 14px 12px 15px;
+  border-top: 1px solid var(--line-1);
+  border-radius: 8px;
+  transition: background var(--dur-fast, .12s) var(--ease, ease);
+}
+.fbk-list .fbk-row:first-child { border-top: 0; }
+.fbk-row.is-openable { cursor: pointer; }
+.fbk-row.is-openable:hover,
+.fbk-row.is-open { background: var(--bg-2); }
+.fbk-row:focus-visible {
+  outline: none;
+  background: var(--bg-2);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--soleil) 30%, transparent);
+}
 
-.admin-kind-praise { background: rgba(80,200,120,.14);  color: rgb(80,200,120); }
-
-.admin-kind-other  { background: var(--bg-4); color: var(--ink-3); }
-
-/* The return question. Neutral, and quieter than the four report kinds: these
-   arrive on their own schedule and must not read as something to triage. */
-.admin-kind-return_reason { background: rgba(150,150,170,.14); color: rgb(165,165,185); }
-
-.admin-choice-pill { background: transparent; color: var(--ink-2); border: 1px solid var(--line-2); }
+/* Capped at a readable measure. A one-line report set across 1100px is a worse
+   read than the same line set across 70 characters, and every row here is short. */
+.fbk-msg {
+  max-width: 74ch;
+  color: var(--ink-0);
+  font: 400 13.5px/1.55 var(--font-sans);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 /* A message the SERVER wrote — the label for a choice whose author skipped the
-   follow-up. Rendering it identically to prose would misattribute our own
-   filler to a person. */
-.admin-feedback-message.is-filler { color: var(--ink-3); font-style: italic; }
+   follow-up. Rendering it identically to prose would attribute our own filler
+   to a person, which the GDPR export would then repeat back to them. */
+.fbk-msg.is-filler { color: var(--ink-3); font-style: italic; }
+.fbk-nonote { color: var(--ink-4, var(--ink-3)); font-style: normal; }
 
-/* Counts by answer, above the list, so the shape of the return question is
-   readable at a glance instead of by counting rows. */
-.admin-feedback-tally {
-  display: flex; flex-wrap: wrap; gap: 6px;
-  margin: 0 0 10px;
+.fbk-meta {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 4px 10px;
+  margin-top: 7px;
+  font: 400 11.5px/1 var(--font-sans);
+  color: var(--ink-3);
 }
-.admin-feedback-tally-item {
-  display: inline-flex; align-items: baseline; gap: 6px;
-  padding: 4px 9px; border-radius: 999px;
-  background: var(--bg-2); border: 1px solid var(--line-1);
-  font: 500 11.5px/1 var(--font-sans); color: var(--ink-2);
+
+/* Dot and word. The dot carries the colour, so scanning for bugs works at a
+   glance; the word removes any doubt about which colour meant what. */
+.fbk-kind {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--ink-2);
+  font-weight: 600;
+  letter-spacing: .01em;
 }
-.admin-feedback-tally-n { font-weight: 700; color: var(--ink-0); }
+.fbk-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.fbk-kind-bug           { --k: rgb(220,120,120); }
+.fbk-kind-idea          { --k: rgb(140,165,255); }
+.fbk-kind-praise        { --k: rgb(80,200,120); }
+.fbk-kind-other         { --k: var(--ink-3); }
+.fbk-kind-return_reason { --k: rgb(165,165,185); }
+.fbk-kind .fbk-dot { background: var(--k); }
+
+.fbk-choice { color: var(--ink-2); }
+.fbk-who { color: var(--ink-2); }
+.fbk-anon { font-style: italic; }
+.fbk-path { color: var(--ink-3); text-decoration: none; }
+.fbk-path:hover { color: var(--ink-1); text-decoration: underline; }
+
+.fbk-shot-tag { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-3); }
+
+/* The only affordance the row needs — it replaces a line of instructions that
+   sat above the list telling you that rows were clickable. */
+/* Inline, not pushed to the right edge. The meta line is short and the panel is
+   wide, so `margin-left: auto` stranded the one word that says a row can be
+   opened about seven hundred pixels away from the row it belonged to. */
+.fbk-more { color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; }
+.fbk-row.is-openable:hover .fbk-more { color: var(--ink-0); }
 
 /* Screenshots have been stored since 0095 and were never returned by the list
-   RPC, so no surface in the product has ever shown one. */
-.admin-feedback-shot {
-  margin-top: 8px; max-width: 100%; max-height: 420px;
+   RPC, so no surface in the product had ever shown one. */
+.fbk-shot {
+  margin-top: 10px; max-width: min(100%, 620px); max-height: 420px;
   border-radius: 8px; border: 1px solid var(--line-1);
   display: block;
 }
-.admin-feedback-shot-loading { color: var(--ink-3); font: 400 12px/1.4 var(--font-sans); margin-top: 8px; }
+.fbk-shot-loading { color: var(--ink-3); font: 400 12px/1.4 var(--font-sans); margin-top: 10px; }
+
+/* Counts by answer, above the list, so the shape of the return question is
+   readable at a glance instead of by counting rows. */
+.fbk-tally { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 14px; }
+.fbk-tally-item {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 4px 10px; border-radius: 999px;
+  background: var(--bg-2); border: 1px solid var(--line-1);
+  font: 500 11.5px/1 var(--font-sans); color: var(--ink-2);
+}
+.fbk-tally-n { font-weight: 700; color: var(--ink-0); }
+
+@media (max-width: 640px) {
+  .fbk-row { padding: 12px 4px 13px; }
+
+}
 
 @media (prefers-reduced-motion: reduce) {
   .admin-skeleton { animation: none; }
