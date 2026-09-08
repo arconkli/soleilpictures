@@ -133,10 +133,11 @@ const GALAXY = {
   // galaxy itself now turns under its own differential rotation (see
   // universeSimWorker's rotate mode), which is a separate motion.
   rotationRate: 0.035,
-  // The elevation sweep: ±34° with a ~75s period, so the disk drifts
+  // The elevation sweep: ±45° on a ~66s period, so the disk drifts
   // between face-on and steeply inclined the way the reference does.
-  tiltAmp:  0.60,
-  tiltRate: 2 * Math.PI / 75,
+  // This is what shows the disk's thickness — face-on it is invisible.
+  tiltAmp:  0.78,
+  tiltRate: 2 * Math.PI / 66,
   // How tightly each board's cards orbit when the whole galaxy is in
   // frame. Below ~0.4 the solar systems stop being legible up close.
   systemScaleMin: 0.26,
@@ -159,7 +160,7 @@ const GALAXY = {
   // field into a haze; holding it high keeps the specks crisp and
   // lets only the rare bright stars and the core actually glow, which
   // is the contrast the reference frames live on.
-  bloomStrength:  0.58,
+  bloomStrength:  0.68,
   bloomRadius:    0.9,
   bloomThreshold: 0.28,
 };
@@ -296,8 +297,8 @@ function cachedColor(hex) {
 //
 // Kind identity is not lost, it is on demand: hovering a legend row
 // (or selecting a node) drops the blend back to the pure hue.
-const STARLIGHT_MIX = 0.82;
-const STAR_SATURATION = 1.9;
+const STARLIGHT_MIX = 0.90;
+const STAR_SATURATION = 2.5;
 
 // Tanner Helland's blackbody approximation, normalised so every star
 // is equally bright and only its HUE varies — luminance here is the

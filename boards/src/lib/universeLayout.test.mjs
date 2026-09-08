@@ -7,7 +7,7 @@ import {
   SYSTEM_RING0, SYSTEM_RING_GROWTH, SYSTEM_RING_COUNT, SYSTEM_BELT_R, SYSTEM_KUIPER_R,
   galaxyOrbit, orbitalRate, systemSpin, starTemp, starMagnitude,
   GALAXY_CORE_FRAC, GALAXY_PATTERN_RATE, STAR_TEMP_MIN, STAR_TEMP_MAX,
-  STAR_MAG_MIN, STAR_MAG_MAX, armAngle, GALAXY_PITCH,
+  STAR_MAG_MIN, STAR_MAG_MAX, armAngle, GALAXY_PITCH, GALAXY_RIM_MAX, softRim,
 } from './universeLayout.js';
 
 // Find board ids of each archetype so tests exercise the right path.
@@ -399,4 +399,29 @@ test('starMagnitude is heavy-tailed: most faint, a rare few huge', () => {
   assert.ok(at(0.999) > 2.2, `no bright tail: p99.9 = ${at(0.999)}`);
   assert.ok(at(0.9) < 1.6, `too many bright stars: p90 = ${at(0.9)}`);
   assert.equal(starMagnitude('card:m1'), starMagnitude('card:m1'));
+});
+// The exponential tail is unbounded and the camera fits to the 95th
+// percentile, so untamed outliers sit permanently off-frame as stray
+// clumps with edge threads running out to them. Compressed, not cut:
+// the halo past R has to survive (the disk test checks that).
+test('the rim is compressed, not cut: no node strands itself off-frame', () => {
+  const R = 1000;
+  let maxR = 0, beyondR = 0, n = 0;
+  for (let i = 0; i < 8000; i++) {
+    const o = galaxySeed(`ws:w${i}`, R);
+    const r = Math.hypot(o[0], o[2]);
+    maxR = Math.max(maxR, r); n++;
+    if (r > R) beyondR++;
+  }
+  assert.ok(maxR <= GALAXY_RIM_MAX * R * 1.02, `outlier at ${(maxR / R).toFixed(2)}R`);
+  assert.ok(beyondR / n > 0.02, 'the halo past R was cut, not compressed');
+  // Smooth and monotonic through the join — a kink would read as a ring.
+  assert.equal(softRim(1.0), 1.0);
+  let prev = -1;
+  for (let x = 0; x < 4; x += 0.01) {
+    const v = softRim(x);
+    assert.ok(v > prev, `softRim not monotonic at ${x}`);
+    prev = v;
+  }
+  assert.ok(Math.abs(softRim(1.5001) - softRim(1.4999)) < 1e-3, 'kink at the join');
 });

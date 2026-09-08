@@ -250,7 +250,25 @@ export const GALAXY_ARMS        = 2;     // grand-design two-armed
 export const GALAXY_PITCH       = 0.30;  // pitch angle (rad); real spirals ≈ 0.17–0.52
 export const GALAXY_ARM_SHARE   = 0.86;  // of DISK stars that hug a lane
 export const GALAXY_ARM_SCATTER = 0.13;  // angular slop about the lane (rad)
-export const GALAXY_THICKNESS   = 0.030; // scale height as a fraction of R
+export const GALAXY_THICKNESS   = 0.055; // scale height as a fraction of R
+
+// The exponential disk has an UNBOUNDED tail, and the camera auto-fits
+// to the 95th percentile. So a handful of workspaces land at 2-3x the
+// disk radius, permanently outside the frame — visible only as stray
+// clumps in the far dark with edge threads reaching out to them. (That
+// is what the "bands really far away that don't render" were.)
+//
+// Compressed, not cut: past RIM_SOFT the radius asymptotes toward
+// RIM_MAX. The join is C1 — the derivative is 1 on both sides — so
+// there is still a real halo past R and no hard edge, which the disk
+// test checks for.
+export const GALAXY_RIM_SOFT = 1.5;
+export const GALAXY_RIM_MAX  = 1.9;
+export function softRim(aOverR) {
+  if (aOverR <= GALAXY_RIM_SOFT) return aOverR;
+  const span = GALAXY_RIM_MAX - GALAXY_RIM_SOFT;
+  return GALAXY_RIM_SOFT + span * (1 - Math.exp(-(aOverR - GALAXY_RIM_SOFT) / span));
+}
 
 // Where a lane sits at radius a. Logarithmic: θ = ln(a/R)/tan(pitch).
 export function armAngle(a, R, arm) {
@@ -266,9 +284,10 @@ export function galaxyOrbit(id, R) {
   // the scale length instead of the center. A naive 1-D exponential
   // piles most stars into the core and leaves the disk empty.
   const bulge = hash01(id + ':gb') < 0.13;
-  const a = bulge
+  const aRaw = bulge
     ? -0.12 * R * Math.log(1 - 0.98 * hash01(id + ':ga'))
     : -0.3 * R * Math.log(Math.max(1e-9, hash01(id + ':ga') * hash01(id + ':ga2')));
+  const a = softRim(aRaw / R) * R;
 
   const inArm = !bulge && hash01(id + ':garm') < GALAXY_ARM_SHARE;
   const arm = inArm ? Math.floor(hash01(id + ':gak') * GALAXY_ARMS) % GALAXY_ARMS : -1;
@@ -356,12 +375,12 @@ export const STAR_TEMP_MIN = 2700;
 export const STAR_TEMP_MAX = 13000;
 export function starTemp(id, a, R) {
   const t = Math.min(1, Math.max(0, a / (R || 1)));
-  const coolShare = 0.34 - 0.19 * t;       // ~34% amber in the core, ~15% at the rim
+  const coolShare = 0.37 - 0.19 * t;       // ~37% amber in the core, ~18% at the rim
   const u = hash01(id + ':gt');
   const j = hash01(id + ':gt2');
   const k = u < coolShare
     ? 2900 + 1500 * j                      // the amber population
-    : 7000 + 5800 * j;                     // the blue-white majority
+    : 8200 + 4800 * j;                     // the blue-white majority
   return Math.min(STAR_TEMP_MAX, Math.max(STAR_TEMP_MIN, k));
 }
 
