@@ -815,9 +815,15 @@ async function runR2Sweep(env) {
         continue;
       }
       try {
-        if (row.storage_path) await env.IMAGES.delete(row.storage_path);
+        // An image owns up to THREE R2 objects: the original plus the two WebP
+        // previews written by generateAndUploadVariants. This used to delete
+        // only storage_path, so every swept orphan left its previews behind
+        // forever — a leak on the success path, not the failure path. R2's
+        // delete() takes an array, so all three go in one call.
+        const keys = [row.storage_path, row.preview_path, row.preview_sm_path].filter(Boolean);
+        if (keys.length) await env.IMAGES.delete(keys);
         deletedIds.push(row.id);
-        deleted++;
+        deleted += keys.length;
       } catch (e) {
         const msg = String(e?.message || e);
         if (msg.includes('NoSuchKey') || msg.includes('404')) {
@@ -841,6 +847,68 @@ async function runR2Sweep(env) {
     );
   } catch (e) {
     console.error('[r2-sweep] failed', e);
+  }
+
+  // Second pass: keys whose images row no longer exists at all.
+  //
+  // The sweep above selects `from images`, so it can only ever consider objects
+  // that still have a row pointing at them. Deleting a workspace or an account
+  // cascades those rows away, which used to make their R2 objects permanently
+  // invisible AND permanently unreclaimable — we kept paying to store data the
+  // user had asked us to erase. 0306 added a BEFORE DELETE trigger that records
+  // the keys before the row goes, and this drains that queue.
+  //
+  // Deliberately outside the try above so a failure in the main sweep does not
+  // skip it, and vice versa.
+  await runR2TombstoneSweep(env, dryRun, mode);
+}
+
+// Drain public.r2_orphaned_objects. Same safety posture as the main sweep:
+// gated on the same R2_SWEEP_MODE, and any decision that is not exactly
+// 'delete' is treated as keep.
+async function runR2TombstoneSweep(env, dryRun, mode) {
+  const startedAt = Date.now();
+  try {
+    const rows = await rpc(env, 'find_orphaned_r2_tombstones', { p_limit: 500, p_dryrun: dryRun });
+    if (!Array.isArray(rows) || rows.length === 0) return;
+
+    let kept = 0, wouldDelete = 0, deleted = 0;
+    const sweptPaths = [];
+    const errors = [];
+
+    for (const row of rows) {
+      if (row.decision !== 'delete') {
+        if (row.decision === 'skipped_dryrun') wouldDelete++; else kept++;
+        continue;
+      }
+      try {
+        await env.IMAGES.delete(row.storage_path);
+        sweptPaths.push(row.storage_path);
+        deleted++;
+      } catch (e) {
+        const msg = String(e?.message || e);
+        if (msg.includes('NoSuchKey') || msg.includes('404')) {
+          // Already gone from R2 — the queue entry should still be closed, or
+          // it is retried every night forever.
+          sweptPaths.push(row.storage_path);
+          deleted++;
+        } else {
+          errors.push({ storage_path: row.storage_path, error: msg });
+        }
+      }
+    }
+
+    if (sweptPaths.length > 0) {
+      try { await rpc(env, 'mark_r2_tombstones_swept', { p_paths: sweptPaths }); }
+      catch (e) { console.warn('[r2-tombstone] mark_swept rpc failed', e); }
+    }
+
+    console.log(
+      `[r2-tombstone] mode=${mode} candidates=${rows.length} kept=${kept} would-delete=${wouldDelete} deleted=${deleted} errors=${errors.length} took=${Date.now() - startedAt}ms`,
+      errors.length > 0 ? { firstError: errors[0] } : '',
+    );
+  } catch (e) {
+    console.error('[r2-tombstone] failed', e);
   }
 }
 
