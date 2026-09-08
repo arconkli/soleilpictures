@@ -16,19 +16,18 @@
 #   object-src 'none'       — no <object>/<embed> plugin surface.
 #   form-action             — where a form may submit. Stripe is listed because
 #                             checkout is an external destination.
-# script-src/style-src are NOT enforced here: index.html carries four inline
-# <script> blocks (JSON-LD, the pre-React theme bootstrap, Meta Pixel) and the
-# Worker injects more, so enforcing would require 'unsafe-inline' — which buys
-# nothing — or a nonce the static assets service cannot mint. The full policy
-# ships as Report-Only below so violations can be read from the console before
-# anything is enforced.
+# script-src is NOT enforced here: the static assets service cannot mint a
+# per-request nonce. The Worker does — withSecurityHeaders() in src/worker.js
+# stamps every <script> and modulepreload in the final HTML and sets the full
+# nonce + 'strict-dynamic' policy (Report-Only until the console is clean on
+# deployed routes, then enforced). This file keeps the subset that applies to
+# every response type.
 /*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self' https://checkout.stripe.com
-  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://checkout.stripe.com https://connect.facebook.net; style-src 'self' 'unsafe-inline' https://use.typekit.net; font-src 'self' data: https://use.typekit.net; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.partykit.dev wss://*.partykit.dev https://*.r2.cloudflarestorage.com https://api.stripe.com https://www.facebook.com; frame-src https:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; object-src 'none'
 
 # Hashed build assets (/assets/index-<hash>.js etc.) never change content for a
 # given URL, so cache them hard for a year. index.html is intentionally NOT

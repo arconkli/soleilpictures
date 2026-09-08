@@ -11,7 +11,7 @@
   <!-- Load Typekit non-render-blocking: preload as style, then swap to a real
        stylesheet on load so a slow remote CSS round-trip can't hold up first
        paint. <noscript> keeps it working without JS. -->
-  <link rel="preload" as="style" href="https://use.typekit.net/qtd2rwk.css" onload="this.onload=null;this.rel='stylesheet'" />
+  <link rel="preload" as="style" href="https://use.typekit.net/qtd2rwk.css" />
   <noscript><link rel="stylesheet" href="https://use.typekit.net/qtd2rwk.css" /></noscript>
 
   <!-- Warm the TLS connection to Stripe so the post-checkout redirect is
@@ -171,6 +171,18 @@
         if (ui.hideChrome) document.body.setAttribute('data-clean-mode', '1');
       } catch (_) {}
     });
+    // Typekit. The <link rel="preload" as="style"> in <head> warms the fetch
+    // without blocking first paint; the swap to a real stylesheet used to be an
+    // inline onload= handler on that link. Inline event handlers cannot carry a
+    // nonce, so under the nonce-based Content-Security-Policy the Worker sets
+    // they are blocked. A script-inserted stylesheet is equally non-blocking
+    // and this block runs under the document nonce.
+    try {
+      var tk = document.createElement('link');
+      tk.rel = 'stylesheet';
+      tk.href = 'https://use.typekit.net/qtd2rwk.css';
+      document.head.appendChild(tk);
+    } catch (_) {}
   </script>
 
   <!-- Meta Pixel Code -->
