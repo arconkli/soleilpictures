@@ -175,19 +175,82 @@ const SECURITY_HEADERS = {
     "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; " +
     "form-action 'self' https://checkout.stripe.com",
 };
-function withSecurityHeaders(res) {
+// ── Per-request CSP nonce ───────────────────────────────────────────────────
+// Every <script> a browser executes on this site is one of: the two inline
+// blocks in index.html (theme bootstrap, Meta Pixel loader), the three this
+// Worker injects (SHARE_EARLY_FETCH, PUBLIC_EARLY_FETCH, window.__publicPageModel),
+// the Vite module entry, or something one of those creates (fbevents.js, the
+// diagnostic in main.jsx). All ours. So script-src can be a per-request nonce
+// plus 'strict-dynamic', which extends trust from a nonced script to whatever
+// it loads — and stops trusting the host allowlist, which is the point: an
+// injected <script src="https://evil"> has no nonce and does not run.
+//
+// Stamping happens here, at the end of the response path, with one
+// HTMLRewriter pass over the FINAL HTML — so index.html's own scripts and the
+// ones the inject* paths appended earlier are all covered by the same rule,
+// and a route added later cannot forget. <link rel="modulepreload"> gets the
+// nonce too: under 'strict-dynamic' a parser-inserted preload is otherwise
+// refused, and Vite emits two for the vendor chunks.
+//
+// SHIPS REPORT-ONLY FIRST. A missed inline script under an enforced policy is
+// a silently blank page, and the e2e suite runs against the Vite dev server,
+// not this Worker, so the honest verification is the console on the deployed
+// preview and production routes. When that is clean, move this policy into
+// 'content-security-policy' below and drop the report-only header. The
+// trailing `https: 'unsafe-inline'` are ignored by CSP3 browsers once
+// 'strict-dynamic' is present; they are the fallback for old ones.
+function makeNonce() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let s = '';
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s);
+}
+function cspReportOnlyFor(nonce) {
+  return [
+    "default-src 'self'",
+    `script-src 'nonce-${nonce}' 'strict-dynamic' https: 'unsafe-inline'`,
+    "style-src 'self' 'unsafe-inline' https://use.typekit.net",
+    "font-src 'self' data: https://use.typekit.net",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' blob: https:",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.partykit.dev wss://*.partykit.dev https://*.r2.cloudflarestorage.com https://api.stripe.com https://www.facebook.com",
+    "frame-src https:",
+    "worker-src 'self' blob:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "object-src 'none'",
+  ].join('; ');
+}
+class NonceStamp {
+  constructor(nonce) { this.nonce = nonce; }
+  element(el) { el.setAttribute('nonce', this.nonce); }
+}
+
+function withSecurityHeaders(res, nonce) {
   // A 101 (WebSocket upgrade) has immutable headers and no body to rewrite.
   if (!res || res.status === 101) return res;
+  const isHtml = nonce && (res.headers.get('content-type') || '').includes('text/html');
   let missing = false;
   for (const k of Object.keys(SECURITY_HEADERS)) {
     if (!res.headers.has(k)) { missing = true; break; }
   }
-  if (!missing) return res;
+  if (!missing && !isHtml) return res;
   const headers = new Headers(res.headers);
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
     if (!headers.has(k)) headers.set(k, v);
   }
-  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+  if (isHtml) {
+    // Override, never fill: a static report-only policy with no nonce would
+    // keep reporting every inline script as a violation.
+    headers.set('content-security-policy-report-only', cspReportOnlyFor(nonce));
+  }
+  const rebuilt = new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+  if (!isHtml) return rebuilt;
+  return new HTMLRewriter()
+    .on('script', new NonceStamp(nonce))
+    .on('link[rel="modulepreload"]', new NonceStamp(nonce))
+    .transform(rebuilt);
 }
 
 // Copy a response, forcing HTML documents to revalidate on every load so new
@@ -380,7 +443,8 @@ const worker = {
   // Named reference, not `this`: the Workers runtime may invoke the exported
   // fetch detached from the module object, which would make `this` undefined.
   async fetch(request, env, ctx) {
-    return withSecurityHeaders(await worker.handleFetch(request, env, ctx));
+    const nonce = makeNonce();
+    return withSecurityHeaders(await worker.handleFetch(request, env, ctx), nonce);
   },
 
   async handleFetch(request, env, ctx) {

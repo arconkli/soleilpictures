@@ -57,8 +57,8 @@ test('every Worker response passes through withSecurityHeaders', () => {
   // The wrapper exists precisely so new routes cannot forget. If the exported
   // fetch stops delegating to handleFetch through it, that guarantee is gone.
   assert.ok(
-    /async fetch\([^)]*\)\s*\{\s*return withSecurityHeaders\(await worker\.handleFetch\(/.test(src),
-    'exported fetch must wrap handleFetch in withSecurityHeaders',
+    /async fetch\([^)]*\)\s*\{\s*const nonce = makeNonce\(\);\s*return withSecurityHeaders\(await worker\.handleFetch\(request, env, ctx\), nonce\)/.test(src),
+    'exported fetch must mint a nonce and wrap handleFetch in withSecurityHeaders with it',
   );
   assert.ok(/^export default worker;/m.test(src), 'worker.js must export the named worker object');
   // `this` would be undefined if the runtime invokes fetch detached.
@@ -76,4 +76,28 @@ test('admin tier checks never fall back to the service-role key', () => {
       `${f} reintroduced the anon-key -> service-role fallback`,
     );
   }
+});
+
+test('HTML responses get a per-request nonce policy with strict-dynamic', () => {
+  // The whole XSS -> session-theft defence rests on three things holding
+  // together: every <script> gets the nonce, modulepreloads get it too (a
+  // parser-inserted preload is refused under strict-dynamic otherwise), and
+  // the policy actually names the nonce.
+  const src = read('src/worker.js');
+  const block = src.slice(src.indexOf('function makeNonce'), src.indexOf('function withRevalidate'));
+  assert.ok(/'strict-dynamic'/.test(block), 'script-src must use strict-dynamic');
+  assert.ok(/script-src 'nonce-\$\{nonce\}'/.test(block), 'policy must carry the per-request nonce');
+  assert.ok(/\.on\('script', new NonceStamp\(nonce\)\)/.test(block), 'every <script> must be stamped');
+  assert.ok(/\.on\('link\[rel="modulepreload"\]', new NonceStamp\(nonce\)\)/.test(block), 'modulepreload links must be stamped');
+  assert.ok(/headers\.set\('content-security-policy-report-only', cspReportOnlyFor\(nonce\)\)/.test(block),
+    'the nonce policy must OVERRIDE the static header, not fill it');
+});
+
+test('index.html carries no inline event handlers', () => {
+  // A nonce covers <script> elements, never on*= attributes. The Typekit swap
+  // used to be an onload= handler; it now lives inside the nonced bootstrap
+  // script. Any new one would be silently blocked once the policy is enforced.
+  const html = read('index.html');
+  const handlers = html.match(/\son[a-z]+="[^"]*"/gi) || [];
+  assert.deepEqual(handlers, [], 'inline on*= handlers cannot run under the nonce CSP: ' + handlers.join(' '));
 });
