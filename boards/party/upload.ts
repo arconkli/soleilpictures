@@ -400,6 +400,29 @@ export default class UploadParty implements Party.Server {
     if (body.boardId) {
       const data = await supabaseRpc("can_write_board", { p_board_id: body.boardId }, accessToken);
       allowed = data === true;
+      // 0310: the key prefix below is this.room.id — a URL segment the CLIENT
+      // chose — while the check above only proves the caller can write the
+      // board. Nothing related the two, so an editor on a board in workspace A
+      // could mint keys under workspace B's prefix and file the images row
+      // against B (billing B's owner, visible to B's members). Require that
+      // the room is either the board's own workspace or one the caller
+      // belongs to; share editors filing under their own workspace keep
+      // working, a foreign prefix does not. mpu/* is already covered because
+      // authorize_upload(p_workspace_id = room.id) checks membership itself.
+      if (allowed) {
+        const rows = await supabaseGet(
+          `boards?id=eq.${encodeURIComponent(body.boardId)}&select=workspace_id`,
+          accessToken,
+        );
+        const boardWorkspace = rows?.[0]?.workspace_id;
+        if (boardWorkspace !== workspaceId) {
+          const member = await supabaseGet(
+            `workspace_members?workspace_id=eq.${encodeURIComponent(workspaceId)}&user_id=eq.${encodeURIComponent(userId)}&select=user_id`,
+            accessToken,
+          );
+          allowed = !!member && member.length > 0;
+        }
+      }
     } else {
       const rows = await supabaseGet(
         `workspace_members?workspace_id=eq.${encodeURIComponent(workspaceId)}&user_id=eq.${encodeURIComponent(userId)}&select=user_id`,
