@@ -1,0 +1,251 @@
+# Nightly encrypted logical backup of the Supabase database to R2.
+#
+# WHY THIS EXISTS
+# ---------------
+# Before this workflow, nothing in this repo backed anything up. The project has
+# 28 scheduled pg_cron jobs and every one that touches data is a *purge*:
+# purge_old_deleted_boards, prune_all_board_versions, purge_old_analytics_events,
+# purge_old_client_errors, purge_old_usage_sessions, and more. There was a
+# nightly data-destruction window and no nightly snapshot in front of it.
+#
+# Supabase Pro does take daily physical backups with 7-day retention, and that
+# remains the floor. It is not sufficient on its own for production work:
+#   * it lives inside the same vendor account that would be compromised or
+#     mis-billed,
+#   * it restores whole-project, so pulling back one workspace is not a thing it
+#     can do, and
+#   * it cannot be read without Supabase.
+# This produces a portable pg_dump we hold ourselves.
+#
+# TIMING: 02:30 UTC, deliberately ~30 minutes BEFORE the 03:00-04:00 purge
+# window. A backup taken after the purges cannot recover from a bad purge, which
+# is one of the failure modes most worth surviving.
+#
+# ── One-time setup ──────────────────────────────────────────────────────────
+#
+# 1. Generate an age keypair. The PRIVATE key never goes in this repo or in
+#    GitHub — put it in a password manager. Losing it means losing the backups.
+#
+#      age-keygen -o soleil-backup.key       # prints the public key
+#
+# 2. Repository -> Settings -> Secrets and variables -> Actions:
+#      Variables:  AGE_PUBLIC_KEY      age1... (public keys are not secret)
+#      Secrets:    SUPABASE_DB_URL     session-pooler URI, see note below
+#                  R2_ACCOUNT_ID
+#                  R2_ACCESS_KEY_ID
+#                  R2_SECRET_ACCESS_KEY
+#                  R2_BACKUP_BUCKET    a NEW bucket, not soleil-boards-images
+#
+#    Put them in an Environment named `production` with required reviewers if
+#    you want a second lock. This repo is public: secrets are never exposed to
+#    pull requests from forks, and this workflow has no PR trigger, so the only
+#    way to reach them is a push to the default branch by someone who already
+#    has write access.
+#
+# 3. SUPABASE_DB_URL must be the **session pooler** string (port 5432) from
+#    Supabase -> Project Settings -> Database -> Connection string -> Session.
+#    Not the direct `db.<ref>.supabase.co` host: that is IPv6-only and GitHub's
+#    hosted runners are IPv4-only, so a direct URI fails to connect. Not the
+#    transaction pooler (6543) either — pg_dump needs session mode.
+#
+# 4. Run it once by hand (Actions -> this workflow -> Run workflow) and confirm
+#    the verify step passes before trusting it.
+#
+# RESTORING: docs/runbooks/restore.md
+
+name: backup
+
+on:
+  schedule:
+    - cron: '30 2 * * *'      # 02:30 UTC, ahead of the 03:00 purge window
+  workflow_dispatch:           # manual runs for drills
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # R2 speaks the S3 API. aws-cli v2.23+ sends additional checksums that R2
+      # rejects, so both checksum behaviours must be pinned to when_required or
+      # every upload fails with an opaque 400.
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      BUCKET: ${{ secrets.R2_BACKUP_BUCKET }}
+
+    steps:
+      # Secrets are passed through `env`, never interpolated into the shell
+      # command itself: `${{ secrets.X }}` inline would place the connection
+      # string in the process arguments (visible to `ps`) and would break on any
+      # quote character in the value.
+      - name: Check required configuration
+        env:
+          PGURL: ${{ secrets.SUPABASE_DB_URL }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          AGE_PUBLIC_KEY: ${{ vars.AGE_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -n "${PGURL:-}" ]                 || missing="$missing SUPABASE_DB_URL"
+          [ -n "${R2_ACCOUNT_ID:-}" ]         || missing="$missing R2_ACCOUNT_ID"
+          [ -n "${AWS_ACCESS_KEY_ID:-}" ]     || missing="$missing R2_ACCESS_KEY_ID"
+          [ -n "${AWS_SECRET_ACCESS_KEY:-}" ] || missing="$missing R2_SECRET_ACCESS_KEY"
+          [ -n "${BUCKET:-}" ]                || missing="$missing R2_BACKUP_BUCKET"
+          [ -n "${AGE_PUBLIC_KEY:-}" ]        || missing="$missing AGE_PUBLIC_KEY(variable)"
+          if [ -n "$missing" ]; then
+            echo "::error::Backup is not configured. Missing:$missing"
+            echo "See the header of .github/workflows/backup.yml for setup."
+            exit 1
+          fi
+          case "$PGURL" in
+            *:6543*) echo "::error::SUPABASE_DB_URL is the transaction pooler (6543). pg_dump needs session mode (5432)."; exit 1 ;;
+            *db.*.supabase.co*) echo "::warning::SUPABASE_DB_URL looks like the direct host, which is IPv6-only; GitHub runners are IPv4-only. Use the session pooler if this fails to connect." ;;
+          esac
+
+      # Supabase runs PostgreSQL 17.6. pg_dump refuses to dump from a server
+      # newer than itself, and ubuntu-latest ships an older client, so take 17
+      # from PGDG rather than whatever is preinstalled.
+      - name: Install postgresql-client-17 and age
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+            https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17 age
+          pg_dump --version
+
+      - name: Dump
+        env:
+          PGCONNECT_TIMEOUT: '30'
+          PGURL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          STAMP="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+
+          # Explicit schema list. A bare pg_dump also drags in extension-owned
+          # schemas (cron, net, vault, extensions) whose objects fail on restore
+          # into a fresh project and add nothing recoverable.
+          COMMON=(--no-owner --no-privileges
+                  --schema=public --schema=auth --schema=storage)
+
+          # 1. Full dump, custom format: compressed, and pg_restore can filter
+          #    it per-table, which is what makes single-workspace recovery
+          #    possible at all.
+          pg_dump "$PGURL" "${COMMON[@]}" \
+            --format=custom --compress=9 --file="soleil-$STAMP.dump"
+
+          # 2. Schema only, plain SQL. This is the answer to a specific problem:
+          #    supabase/migrations/ has 22 sequence numbers used by two
+          #    different migrations, so replaying that directory has ambiguous
+          #    ordering and is NOT a reliable way to rebuild the schema. This
+          #    file is, and it is diffable.
+          pg_dump "$PGURL" "${COMMON[@]}" \
+            --schema-only --format=plain --file="soleil-$STAMP.schema.sql"
+
+          ls -lh soleil-$STAMP.dump soleil-$STAMP.schema.sql
+
+      - name: Encrypt
+        env:
+          AGE_PUBLIC_KEY: ${{ vars.AGE_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          # Encrypted to a public key, so the runner can write backups but
+          # cannot read any. Compromising R2 or this workflow does not disclose
+          # customer data; only the offline private key opens these.
+          age -r "$AGE_PUBLIC_KEY" -o "soleil-$STAMP.dump.age"       "soleil-$STAMP.dump"
+          age -r "$AGE_PUBLIC_KEY" -o "soleil-$STAMP.schema.sql.age" "soleil-$STAMP.schema.sql"
+          rm -f "soleil-$STAMP.dump" "soleil-$STAMP.schema.sql"
+
+      - name: Upload to R2
+        run: |
+          set -euo pipefail
+          DAY="$(date -u +%d)"
+          # The 1st of each month is additionally kept as a monthly.
+          PREFIXES="daily"
+          if [ "$DAY" = "01" ]; then PREFIXES="daily monthly"; fi
+          for p in $PREFIXES; do
+            aws s3 cp "soleil-$STAMP.dump.age"       "s3://$BUCKET/$p/soleil-$STAMP.dump.age"       --endpoint-url "$R2_ENDPOINT" --only-show-errors
+            aws s3 cp "soleil-$STAMP.schema.sql.age" "s3://$BUCKET/$p/soleil-$STAMP.schema.sql.age" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+            echo "uploaded to $p/"
+          done
+
+      # The step that makes this a backup rather than a hope. An artifact nobody
+      # has ever read is not known to be restorable, and the failure mode is
+      # discovering that during an incident.
+      - name: Verify the uploaded artifact is readable and complete
+        env:
+          # OPTIONAL. Leaving this unset is the safer default and is what the
+          # setup instructions assume: the runner can then write backups it can
+          # never read. Set it only if you want the table-of-contents check to
+          # run nightly, and accept that CI can decrypt backups if you do.
+          AGE_PRIVATE_KEY: ${{ secrets.AGE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "${AGE_PRIVATE_KEY:-}" > /tmp/verify.key
+          rm -f "soleil-$STAMP.dump.age"
+          aws s3 cp "s3://$BUCKET/daily/soleil-$STAMP.dump.age" ./roundtrip.dump.age \
+            --endpoint-url "$R2_ENDPOINT" --only-show-errors
+
+          if [ -s /tmp/verify.key ] && grep -q 'AGE-SECRET-KEY' /tmp/verify.key; then
+            # Full verification: decrypt and read the real table of contents.
+            age -d -i /tmp/verify.key -o roundtrip.dump roundtrip.dump.age
+            pg_restore --list roundtrip.dump > toc.txt
+            for t in boards board_state card_index images workspaces profiles; do
+              grep -q "TABLE DATA public $t" toc.txt \
+                || { echo "::error::$t missing from the dump table of contents"; exit 1; }
+            done
+            echo "verified: archive decrypts and contains $(grep -c 'TABLE DATA' toc.txt) tables"
+          else
+            # No private key available to CI (the safer default). Confirm the
+            # object round-trips and is a well-formed age file; a full restore
+            # drill is then run by hand per docs/runbooks/restore.md.
+            head -c 32 roundtrip.dump.age | grep -q 'age-encryption.org' \
+              || { echo "::error::uploaded object is not a valid age file"; exit 1; }
+            SIZE=$(stat -c%s roundtrip.dump.age)
+            [ "$SIZE" -gt 100000 ] \
+              || { echo "::error::backup is suspiciously small ($SIZE bytes)"; exit 1; }
+            echo "verified: object round-trips from R2, valid age header, $SIZE bytes"
+            echo "::notice::Set AGE_PRIVATE_KEY to also verify the dump's table of contents each night."
+          fi
+          rm -f /tmp/verify.key roundtrip.dump roundtrip.dump.age
+
+      - name: Prune old backups (keep 30 daily, 12 monthly)
+        run: |
+          set -euo pipefail
+          prune() {
+            local prefix="$1" keep="$2"
+            mapfile -t objs < <(aws s3 ls "s3://$BUCKET/$prefix/" --endpoint-url "$R2_ENDPOINT" \
+              | awk '{print $4}' | grep '\.dump\.age$' | sort)
+            local n=${#objs[@]}
+            if [ "$n" -le "$keep" ]; then echo "$prefix: $n kept, nothing to prune"; return; fi
+            for o in "${objs[@]:0:$((n-keep))}"; do
+              aws s3 rm "s3://$BUCKET/$prefix/$o" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+              aws s3 rm "s3://$BUCKET/$prefix/${o%.dump.age}.schema.sql.age" --endpoint-url "$R2_ENDPOINT" --only-show-errors || true
+              echo "$prefix: pruned $o"
+            done
+          }
+          prune daily 30
+          prune monthly 12
+
+      # Until there is real alerting, a failed run is the alert: GitHub emails
+      # the actor on a failed scheduled workflow. This makes the reason legible
+      # in the run list without opening the logs.
+      - name: Report
+        if: failure()
+        run: echo "::error::Nightly backup FAILED. The database is unprotected until this is fixed."
