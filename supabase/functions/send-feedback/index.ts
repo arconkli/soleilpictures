@@ -13,7 +13,12 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ANON_KEY     = Deno.env.get("SUPABASE_ANON_KEY") || SERVICE_KEY;
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+// Never fall back to the service-role key here: with no Authorization header
+// on the request, the apikey alone selects the role, and a missing anon key
+// would silently make this "user" client SERVICE ROLE. Supabase injects
+// SUPABASE_ANON_KEY into every edge function, so this only fires on a broken deploy.
+if (!ANON_KEY) throw new Error("SUPABASE_ANON_KEY is not set; refusing to fall back to the service-role key");
 
 const cors = {
   "access-control-allow-origin":  "*",
