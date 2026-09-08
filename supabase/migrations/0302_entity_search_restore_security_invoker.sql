@@ -1,0 +1,57 @@
+-- 0302_entity_search_restore_security_invoker.sql
+--
+-- CRITICAL: restore RLS enforcement on public.entity_search.
+--
+-- What happened
+-- -------------
+-- 0084_lock_down_views.sql (2026-05-27) created this view explicitly
+-- `with (security_invoker = on)`. Its header names the exact failure it was
+-- closing: "security_definer_view on all three views (default reloptions,
+-- owned by postgres -> underlying RLS bypassed and replaced with the owner's
+-- view-of-the-world for every caller)."
+--
+-- 0240_tags_soft_delete.sql (2026-08-15) needed one extra predicate on the tag
+-- branch (`status <> 'deleted'`). It did that by re-emitting the whole view
+-- body from `pg_get_viewdef` output -- which prints the SELECT and nothing
+-- else -- and running `create or replace view` on it. `create or replace view`
+-- resets reloptions that are not restated, so `security_invoker` was silently
+-- dropped and the 0084 bypass came straight back. Nothing failed; no test
+-- covered it; the advisor lint was the only signal.
+--
+-- Impact while regressed (2026-08-15 -> 2026-09-07)
+-- ------------------------------------------------
+-- entity_search is owned by postgres, postgres owns boards/card_index/
+-- group_index/tags, and none of those set FORCE ROW LEVEL SECURITY -- so a
+-- table owner bypasses RLS. `authenticated` holds SELECT on the view. Any
+-- signed-in user could therefore read board names, card titles and card
+-- bodies for every workspace in the product with a single request:
+--
+--   set local role authenticated;
+--   select set_config('request.jwt.claims',
+--     '{"sub":"<any-uuid>","role":"authenticated"}', true);
+--   select count(*), count(distinct workspace_id) from entity_search;
+--
+-- Run as a user who owns nothing, that returned the entire table across every
+-- workspace, while the same count against `boards` correctly returned 0.
+-- Re-run it after this migration and both return 0; run it as a real member
+-- and they see their own workspaces only.
+--
+-- Emails were NOT exposed: the user branch goes through
+-- workspace_user_directory(), which enforces is_workspace_member() inside the
+-- function, so 0084's other defence held independently of this option.
+--
+-- The app's own callers (useEntityNameTrie, CommandPalette, aiWarmup,
+-- EntityHoverPopover, tagVisuals) all pass `.eq('workspace_id', ...)`, so
+-- nothing leaked passively -- the filter was simply client-side only.
+--
+-- Fix
+-- ---
+-- Restore the option. entity_search is the only view in the schema missing it;
+-- board_tags, card_tags, conversation_summary and v_post_signup_events all
+-- have security_invoker on, which is what makes this unambiguously a
+-- regression rather than a design choice.
+--
+-- The durable half of this fix is boards/src/lib/securityInvokerContract.test.mjs,
+-- which fails the build if any view is ever created without the option again.
+
+alter view public.entity_search set (security_invoker = on);
