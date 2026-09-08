@@ -1,4 +1,4 @@
--- 0310_images_insert_workspace_binding.sql
+-- 0313_images_insert_workspace_binding.sql
 --
 -- An images row could name ANY workspace, as long as the caller could write
 -- the board it also named.
