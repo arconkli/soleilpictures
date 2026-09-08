@@ -17,9 +17,13 @@
 #   * it cannot be read without Supabase.
 # This produces a portable pg_dump we hold ourselves.
 #
-# TIMING: 02:30 UTC, deliberately ~30 minutes BEFORE the 03:00-04:00 purge
-# window. A backup taken after the purges cannot recover from a bad purge, which
-# is one of the failure modes most worth surviving.
+# TIMING: 01:15 UTC, deliberately ~1h45m BEFORE the 03:00 UTC purge window
+# (purge_deleted_boards fires at `0 3 * * *`, the first of ~14 nightly purges).
+# GitHub's scheduled dispatches slip routinely — 15 to 60+ minutes under load —
+# so the old 02:30 slot's 30 minutes of headroom could be eaten by a single
+# late dispatch and sample a mid-purge database. 1h45m cannot. A backup taken
+# after a bad purge cannot recover from it, which is the failure mode most
+# worth surviving.
 #
 # ── One-time setup ──────────────────────────────────────────────────────────
 #
@@ -57,7 +61,7 @@ name: backup
 
 on:
   schedule:
-    - cron: '30 2 * * *'      # 02:30 UTC, ahead of the 03:00 purge window
+    - cron: '15 1 * * *'      # 01:15 UTC — wide headroom before the 03:00 purge window (see header)
   workflow_dispatch:           # manual runs for drills
 
 concurrency:
@@ -84,6 +88,11 @@ jobs:
       BUCKET: ${{ secrets.R2_BACKUP_BUCKET }}
 
     steps:
+      # Checked out only so the migration-parity step can diff what is applied
+      # against supabase/migrations/. contents:read is the whole permission set.
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
       # Secrets are passed through `env`, never interpolated into the shell
       # command itself: `${{ secrets.X }}` inline would place the connection
       # string in the process arguments (visible to `ps`) and would break on any
@@ -150,14 +159,31 @@ jobs:
             --format=custom --compress=9 --file="soleil-$STAMP.dump"
 
           # 2. Schema only, plain SQL. This is the answer to a specific problem:
-          #    supabase/migrations/ has 22 sequence numbers used by two
-          #    different migrations, so replaying that directory has ambiguous
-          #    ordering and is NOT a reliable way to rebuild the schema. This
-          #    file is, and it is diffable.
+          #    ~53 migrations applied in production have NO file in
+          #    supabase/migrations/ at all (389 applied vs 336 on disk as of
+          #    2026-09-08), so that directory cannot rebuild the schema even in
+          #    principle. This dump is the authoritative, diffable rebuild
+          #    artifact. The parity step below flags the drift each night.
           pg_dump "$PGURL" "${COMMON[@]}" \
             --schema-only --format=plain --file="soleil-$STAMP.schema.sql"
 
           ls -lh soleil-$STAMP.dump soleil-$STAMP.schema.sql
+
+      # Verify restorability on the PLAINTEXT dump, before it is encrypted. This
+      # is what makes the archive a backup and not just a blob: pg_restore reads
+      # the real table of contents and the tables that matter are confirmed
+      # present with data. Crucially it needs no private key, so CI still cannot
+      # read customer data — the post-upload check below proves the encrypted
+      # object round-trips from R2, and the two together cover the whole path.
+      - name: Verify the dump is restorable before encrypting
+        run: |
+          set -euo pipefail
+          pg_restore --list "soleil-$STAMP.dump" > toc.txt
+          for t in boards board_state card_index images workspaces profiles; do
+            grep -q "TABLE DATA public $t" toc.txt \
+              || { echo "::error::$t missing from the dump table of contents — refusing to ship an incomplete backup"; exit 1; }
+          done
+          echo "restorable: $(grep -c 'TABLE DATA' toc.txt) tables in the table of contents"
 
       - name: Encrypt
         env:
@@ -224,6 +250,26 @@ jobs:
             echo "::notice::Set AGE_PRIVATE_KEY to also verify the dump's table of contents each night."
           fi
           rm -f /tmp/verify.key roundtrip.dump roundtrip.dump.age
+
+      # Non-failing: surface migration drift as a warning annotation. The repo's
+      # supabase/migrations/ is known to be behind what is applied (see the
+      # schema-only dump note above). This makes NEW drift visible on the next
+      # nightly run instead of only when someone tries to rebuild from files.
+      - name: Migration parity (warn only)
+        continue-on-error: true
+        env:
+          PGURL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -uo pipefail
+          if ! psql "$PGURL" -Atc "select count(*) from supabase_migrations.schema_migrations" > applied.txt; then
+            echo "::warning::could not read schema_migrations for the parity check"; exit 0
+          fi
+          applied="$(tr -d '[:space:]' < applied.txt)"
+          ondisk="$(ls supabase/migrations/*.sql 2>/dev/null | wc -l | tr -d '[:space:]')"
+          echo "applied migrations: ${applied:-?}; files on disk: ${ondisk:-?}"
+          if [ -n "${applied:-}" ] && [ -n "${ondisk:-}" ] && [ "$applied" -gt "$ondisk" ]; then
+            echo "::warning::$((applied - ondisk)) applied migrations have no file in supabase/migrations/. The schema-only dump is the rebuild artifact; see docs/runbooks/restore.md."
+          fi
 
       - name: Prune old backups (keep 30 daily, 12 monthly)
         run: |
