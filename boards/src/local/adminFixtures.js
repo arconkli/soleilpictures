@@ -360,7 +360,10 @@ const RPCS = {
     { id: 'f7', user_id: 'u-7', email: 'jonas@gmail.com', kind: 'return_reason', choice: 'resuming', message: 'Picking up where I left off', url: null, viewport: '390x844', user_agent: 'iPhone · Safari', created_at: tsISO(400), has_note: false, has_image: false },
     { id: 'f8', user_id: null, email: null, kind: 'return_reason', choice: 'reviewing', message: 'trying to find the lighting refs from the october shoot', url: null, viewport: '1728x1080', user_agent: 'Mac · Safari 17', created_at: tsISO(900), has_note: true, has_image: false },
   ],
-  admin_get_feedback_image: 'data:image/gif;base64,R0lGODlhAQABAIAAAO7u7v///yH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==',
+  // Real-sized, not a 1x1: a placeholder pixel renders at one pixel and the
+  // expanded row looks correct while proving nothing about how a 640x360
+  // screenshot actually sits in it.
+  admin_get_feedback_image: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iMzYwIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjM2MCIgZmlsbD0iIzFjMWMyMCIvPjxyZWN0IHg9IjI0IiB5PSIyNCIgd2lkdGg9IjU5MiIgaGVpZ2h0PSI1MiIgcng9IjgiIGZpbGw9IiMyNjI2MmEiLz48cmVjdCB4PSI0MCIgeT0iNDIiIHdpZHRoPSIxODAiIGhlaWdodD0iMTYiIHJ4PSI0IiBmaWxsPSIjNGE0YTUyIi8+PHJlY3QgeD0iMjQiIHk9IjEwMCIgd2lkdGg9IjM4MCIgaGVpZ2h0PSIyMzYiIHJ4PSI4IiBmaWxsPSIjMjMyMzI3Ii8+PHJlY3QgeD0iNDIwIiB5PSIxMDAiIHdpZHRoPSIxOTYiIGhlaWdodD0iMTEyIiByeD0iOCIgZmlsbD0iIzIzMjMyNyIvPjxyZWN0IHg9IjQyMCIgeT0iMjI0IiB3aWR0aD0iMTk2IiBoZWlnaHQ9IjExMiIgcng9IjgiIGZpbGw9IiMyMzIzMjciLz48dGV4dCB4PSI0NCIgeT0iMTQwIiBmaWxsPSIjNmE2YTcyIiBmb250LWZhbWlseT0ic3lzdGVtLXVpIiBmb250LXNpemU9IjE1Ij5maXh0dXJlIHNjcmVlbnNob3Q8L3RleHQ+PC9zdmc+',
   admin_error_summary: [
     { message: "TypeError: Cannot read properties of undefined (reading 'map')", kind: 'window', occurrences: 142, sessions: 38, users: 21, first_seen: tsISO(8000), last_seen: tsISO(45), sample_stack: "TypeError: Cannot read properties of undefined (reading 'map')\n    at CanvasSurface (CanvasSurface-AOAhM.js:1:21733)\n    at renderWithHooks (vendor-react.js:1:88012)" },
     { message: 'AbortError: The operation was aborted.', kind: 'unhandledrejection', occurrences: 88, sessions: 52, users: 33, first_seen: tsISO(9000), last_seen: tsISO(120), sample_stack: 'AbortError: The operation was aborted.\n    at loadBoardSnapshot (supabase.js:1:4021)' },

@@ -27,13 +27,16 @@ import { relativeTime, fmtDateTime, formatCount } from '../../lib/adminFormat.js
 import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { FeedbackKindPill, FeedbackChoicePill } from './AdminPills.jsx';
-import { MessageSquare } from '../../lib/icons.js';
+import { MessageSquare, Image as ImageIcon } from '../../lib/icons.js';
 
 // Asserted against the table's CHECK by src/lib/feedbackContract.test.mjs — a
 // kind the database can store and this array cannot ask for is a row written
 // and then hidden behind a filter.
 const KINDS = ['bug', 'idea', 'praise', 'other', 'return_reason'];
 const PAGE_SIZE = 50;
+// Long enough that most messages are shown whole — the reading column is
+// capped, so this is about how many LINES a row costs, not characters on one.
+const CLAMP = 260;
 
 export function AdminFeedbackTab() {
   const [kind, setKind] = useState('');
@@ -135,15 +138,11 @@ export function AdminFeedbackTab() {
             {kind ? ` · ${kind}` : ''}{debounced ? ` · “${debounced}”` : ''}
           </span>
         </header>
-        <div className="admin-section-sub">
-          Click an entry to read the full message or see its screenshot.
-        </div>
-
         {tally && Object.keys(tally).length > 0 && (
-          <div className="admin-feedback-tally">
+          <div className="fbk-tally">
             {Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([k, n]) => (
-              <span key={k} className="admin-feedback-tally-item">
-                <span className="admin-feedback-tally-n">{formatCount(n)}</span>{k}
+              <span key={k} className="fbk-tally-item">
+                <span className="fbk-tally-n">{formatCount(n)}</span>{k}
               </span>
             ))}
           </div>
@@ -163,12 +162,12 @@ export function AdminFeedbackTab() {
               : 'Feedback-widget submissions and return-question answers appear here.',
           }}
         >
-          <div className={`admin-feedback-list ${refreshing ? 'is-refreshing' : ''}`}>
+          <div className={`fbk-list ${refreshing ? 'is-refreshing' : ''}`}>
             {rows.map((r) => {
               const isExpanded = expanded.has(r.id);
               const message = r.message || '';
-              const isLong = message.length > 160;
-              const preview = message.slice(0, 160);
+              const isLong = message.length > CLAMP;
+              const preview = message.slice(0, CLAMP);
               // A row with only a screenshot has no long message, so gating the
               // expand affordance on message length alone left the image
               // unreachable even once the RPC started returning it.
@@ -177,7 +176,7 @@ export function AdminFeedbackTab() {
               return (
                 <div
                   key={r.id}
-                  className="admin-feedback-row"
+                  className={`fbk-row ${canOpen ? 'is-openable' : ''} ${isExpanded ? 'is-open' : ''}`}
                   role={canOpen ? 'button' : undefined}
                   tabIndex={canOpen ? 0 : undefined}
                   aria-expanded={canOpen ? isExpanded : undefined}
@@ -186,28 +185,33 @@ export function AdminFeedbackTab() {
                     if (canOpen && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(r); }
                   }}
                 >
-                  <div className="admin-feedback-meta">
+                  {/* The message first and largest. It is the only part of a
+                      row that carries information; everything else is filing. */}
+                  <div className={`fbk-msg ${isFiller ? 'is-filler' : ''}`}>
+                    {isExpanded ? message : preview}{!isExpanded && isLong ? '…' : ''}
+                    {isFiller && <span className="fbk-nonote"> — tapped an answer, wrote nothing</span>}
+                  </div>
+
+                  <div className="fbk-meta">
                     <FeedbackKindPill kind={r.kind} />
                     <FeedbackChoicePill choice={r.choice} />
                     {r.email
-                      ? <CopyableText value={r.email} className="admin-email" />
-                      : <span className="admin-email admin-muted">anonymous</span>}
-                    <span className="admin-muted" title={fmtDateTime(r.created_at)}>{relativeTime(r.created_at)}</span>
+                      ? <CopyableText value={r.email} className="fbk-who" />
+                      : <span className="fbk-who fbk-anon">anonymous</span>}
+                    <span title={fmtDateTime(r.created_at)}>{relativeTime(r.created_at)}</span>
                     {r.url && (
-                      <a className="admin-link admin-muted" href={r.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                      <a className="fbk-path" href={r.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
                         {(() => { try { return new URL(r.url).pathname; } catch { return r.url; } })()}
                       </a>
                     )}
-                    {r.has_image && <span className="admin-muted">screenshot</span>}
+                    {r.has_image && <span className="fbk-shot-tag"><ImageIcon size={11} /> screenshot</span>}
+                    {canOpen && <span className="fbk-more">{isExpanded ? 'less' : 'more'}</span>}
                   </div>
-                  <div className={`admin-feedback-message ${isFiller ? 'is-filler' : ''}`}>
-                    {isExpanded ? message : preview}{!isExpanded && isLong ? '…' : ''}
-                    {isFiller ? ' — no note written' : ''}
-                  </div>
+
                   {isExpanded && r.has_image && (
                     shots[r.id] && shots[r.id] !== 'loading' && shots[r.id] !== 'error'
-                      ? <img className="admin-feedback-shot" src={shots[r.id]} alt="Screenshot attached to this report" />
-                      : <div className="admin-feedback-shot-loading">
+                      ? <img className="fbk-shot" src={shots[r.id]} alt="Screenshot attached to this report" />
+                      : <div className="fbk-shot-loading">
                           {shots[r.id] === 'error' ? 'Could not load the screenshot.' : 'Loading screenshot…'}
                         </div>
                   )}
