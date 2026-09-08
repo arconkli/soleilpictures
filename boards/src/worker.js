@@ -881,6 +881,12 @@ const worker = {
       // would mostly sample answer-to-answer variance. No-ops without
       // OPENAI_API_KEY.
       ctx.waitUntil(runAeoRetrievalProbe(env));
+    } else if (which === '45 * * * *') {
+      // Hourly at :45 — copy new R2 objects into the locked backup bucket, so
+      // the images (which the database dump only holds POINTERS to) have a
+      // second, immutable copy. No-ops until env.IMAGES_BACKUP is bound; see the
+      // activation note in wrangler.toml.
+      ctx.waitUntil(runR2Mirror(env));
     } else {
       // An edited wrangler.toml schedule must never silently reroute into the
       // destructive sweep — unknown crons are a loud no-op.
@@ -2954,4 +2960,139 @@ async function runImageSizeBackfill(env, { cap = 5000 } = {}) {
     if (r.processed === 0) break;   // no recoverable rows left — avoid an infinite loop
   }
   console.log(`[size-backfill] processed=${totalProcessed} errors=${totalErrors} not_found=${totalNotFound} remaining=${remaining} rounds=${rounds}`);
+}
+
+// ── R2 off-site mirror ──────────────────────────────────────────────────────
+// Every uploaded image, preview, and compacted op batch lives in exactly ONE
+// bucket (soleil-boards-images). A bad lifecycle rule, a mis-scoped token, a
+// fat-fingered `R2_SWEEP_MODE=delete`, or a bucket delete loses it with no
+// second copy — and the nightly DATABASE dump only preserves the rows that
+// POINT AT these objects, never the bytes. This copies new objects into a
+// SEPARATE bucket (env.IMAGES_BACKUP) that carries a Bucket Lock, so nothing —
+// not even a compromised S3 token — can delete or overwrite them for the lock
+// window.
+//
+//   * COPY-ONLY. Deletions on the primary (the sweep) are NEVER propagated. A
+//     safety net that forgets on command is not one.
+//   * DB-DRIVEN, not bucket-listing: we ask Postgres which keys exist rather
+//     than paginating tens of thousands of R2 objects every run.
+//   * Its bookkeeping lives in the backup bucket at _state/mirror.json, so the
+//     mirror needs no table of its own and the watermark cannot drift from the
+//     bucket it describes.
+//   * IDEMPOTENT: each key is HEAD-checked in the backup before copy, so the
+//     overlap re-scan (which catches previews populated minutes AFTER a row's
+//     created_at) costs a HEAD, not a re-upload.
+//   * BOUNDED: at most ROW_LIMIT rows of each kind per run, so one invocation
+//     stays inside the cron budget. The first backfill of the existing corpus
+//     drains over roughly a day of hourly runs, then holds at near-zero.
+async function runR2Mirror(env) {
+  if (!env?.IMAGES || !env?.IMAGES_BACKUP) {
+    console.log('[r2-mirror] skipped: IMAGES or IMAGES_BACKUP binding not configured');
+    return;
+  }
+  if (!env?.SUPABASE_SERVICE_ROLE_KEY) {
+    console.log('[r2-mirror] skipped: SUPABASE_SERVICE_ROLE_KEY not set');
+    return;
+  }
+  const startedAt = Date.now();
+  const STATE_KEY = '_state/mirror.json';
+  const OVERLAP_MS = 2 * 60 * 60 * 1000;  // re-scan 2h behind each watermark for late-populated previews
+  const ROW_LIMIT = 500;                  // rows of each kind per run; head-dedup makes re-scan cheap
+
+  const sbGet = async (path) => {
+    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${path}`, {
+      headers: {
+        apikey:        env.SUPABASE_SERVICE_ROLE_KEY,
+        authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) throw new Error(`supabase list ${res.status}`);
+    return res.json();
+  };
+
+  // Copy one key into the backup if it is not already there. Returns one of
+  // 'copied' | 'exists' | 'missing' (pointer with no object) | 'error'.
+  const copyKey = async (key) => {
+    if (!key) return 'exists';
+    try {
+      if (await env.IMAGES_BACKUP.head(key)) return 'exists';
+      const src = await env.IMAGES.get(key);
+      if (!src) return 'missing';
+      await env.IMAGES_BACKUP.put(key, src.body, { httpMetadata: src.httpMetadata });
+      return 'copied';
+    } catch (e) {
+      console.warn('[r2-mirror] copy failed', key, String(e?.message || e));
+      return 'error';
+    }
+  };
+
+  // Independent watermarks: images previews fill in after insert, op batches are
+  // immutable, so they advance at different rates.
+  let imagesWM = '1970-01-01T00:00:00Z';
+  let batchesWM = '1970-01-01T00:00:00Z';
+  try {
+    const st = await env.IMAGES_BACKUP.get(STATE_KEY);
+    if (st) {
+      const j = await st.json();
+      if (j?.images_watermark)  imagesWM  = j.images_watermark;
+      if (j?.batches_watermark) batchesWM = j.batches_watermark;
+    }
+  } catch (_) { /* first run or unreadable — start from epoch */ }
+
+  const stats = { copied: 0, exists: 0, missing: 0, error: 0 };
+  const tally = (r) => { stats[r] = (stats[r] || 0) + 1; };
+
+  // 1. Images — original plus the two WebP previews.
+  let newImagesWM = imagesWM;
+  try {
+    const since = new Date(Date.parse(imagesWM) - OVERLAP_MS).toISOString();
+    const rows = await sbGet(
+      `images?select=created_at,storage_path,preview_path,preview_sm_path` +
+      `&created_at=gte.${encodeURIComponent(since)}&order=created_at.asc&limit=${ROW_LIMIT}`,
+    );
+    for (const row of rows) {
+      for (const k of [row.storage_path, row.preview_path, row.preview_sm_path]) {
+        tally(await copyKey(k));
+      }
+      if (row.created_at && row.created_at > newImagesWM) newImagesWM = row.created_at;
+    }
+  } catch (e) {
+    console.error('[r2-mirror] images pass failed', String(e?.message || e));
+  }
+
+  // 2. Compacted op batches — one immutable key each.
+  let newBatchesWM = batchesWM;
+  try {
+    const since = new Date(Date.parse(batchesWM) - OVERLAP_MS).toISOString();
+    const rows = await sbGet(
+      `board_op_batches?select=created_at,r2_key&r2_key=not.is.null` +
+      `&created_at=gte.${encodeURIComponent(since)}&order=created_at.asc&limit=${ROW_LIMIT}`,
+    );
+    for (const row of rows) {
+      tally(await copyKey(row.r2_key));
+      if (row.created_at && row.created_at > newBatchesWM) newBatchesWM = row.created_at;
+    }
+  } catch (e) {
+    console.error('[r2-mirror] batches pass failed', String(e?.message || e));
+  }
+
+  // Persist advanced watermarks (only ever moves forward). Because every row
+  // returned is fully processed before the watermark advances, and the next run
+  // re-scans OVERLAP_MS behind it with a HEAD-dedup, no object is ever skipped.
+  try {
+    await env.IMAGES_BACKUP.put(STATE_KEY, JSON.stringify({
+      images_watermark:  newImagesWM,
+      batches_watermark: newBatchesWM,
+      last_run_at: new Date().toISOString(),
+      last_stats: stats,
+    }), { httpMetadata: { contentType: 'application/json' } });
+  } catch (e) {
+    console.error('[r2-mirror] failed to persist watermark', String(e?.message || e));
+  }
+
+  console.log(
+    `[r2-mirror] copied=${stats.copied} existed=${stats.exists} missing=${stats.missing} errors=${stats.error} ` +
+    `images_wm=${newImagesWM} batches_wm=${newBatchesWM} took=${Date.now() - startedAt}ms`,
+  );
 }
