@@ -40,10 +40,7 @@ concurrency:
 jobs:
   unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: boards
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -51,14 +48,28 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: boards/package-lock.json
+          cache-dependency-path: |
+            boards/package-lock.json
+            scout/package-lock.json
 
-      - run: npm ci
+      - name: Install boards dependencies
+        working-directory: boards
+        run: npm ci
 
-      # node --test over src/lib/*.test.mjs plus scout's unit tests.
+      # `npm test` in boards is `node --test src/lib/*.test.mjs
+      # ../scout/src/*.test.mjs` — it reaches ACROSS into the scout package, and
+      # scout/src/media.test.mjs imports sharp. Installing only boards makes the
+      # suite fail on a missing module rather than on anything real, which is
+      # exactly how CI trains people to ignore it. Install what the command runs.
+      - name: Install scout dependencies
+        working-directory: scout
+        run: npm ci
+
       - name: Unit tests
+        working-directory: boards
         run: npm test
 
       # Regenerating the docs must produce no diff.
       - name: Docs are in sync with the code
+        working-directory: boards
         run: npm run docs:check
