@@ -1,0 +1,64 @@
+# Run the test suites that already exist.
+#
+# There was no CI. The repo carries ~1,200 unit assertions across 100 files and
+# roughly 150 Playwright specs, and not one of them gated a deploy — Cloudflare
+# Workers Builds runs `vite build` on push and nothing else. Two of those suites
+# are load-bearing repo guarantees rather than ordinary tests:
+#
+#   docsite.test.mjs        — extracts the public surface (the endpoints array,
+#                             registerTool calls, CARD_KINDS, TABS, router
+#                             branches) and diffs it against a snapshot, so
+#                             shipping a surface change with stale docs fails.
+#   seoProbeContract.test.mjs — mirrors the live seo_health_expectations rows so
+#                             a prose edit fails here instead of turning the
+#                             production prober red six hours later.
+#
+# Both only work if something runs them. This is that.
+#
+# `npm run docs:check` asserts that regenerating the docs is a no-op, which is
+# what catches "edited the markdown, forgot to run docs:build".
+#
+# Playwright is deliberately not here yet: those specs need a built app and a
+# dev server, and several are documented as flaky. Adding them badly would teach
+# everyone to ignore a red X, which is worse than not running them.
+
+name: test
+
+on:
+  push:
+    branches: [main, production]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: boards
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: boards/package-lock.json
+
+      - run: npm ci
+
+      # node --test over src/lib/*.test.mjs plus scout's unit tests.
+      - name: Unit tests
+        run: npm test
+
+      # Regenerating the docs must produce no diff.
+      - name: Docs are in sync with the code
+        run: npm run docs:check
