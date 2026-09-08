@@ -35,7 +35,12 @@ const CARD_KINDS = [
   ['file',     0.002],
 ];
 
-export function makeSyntheticUniverse({ nodeTarget = 20000, seed = 7 } = {}) {
+// wsTarget lets a caller pin the WORKSPACE count independently of the
+// node budget. The default ratio (one workspace per 80 nodes) is far
+// sparser in workspaces than production is, and the structure of the
+// galaxy lives entirely at the workspace layer — so judging the
+// render on the default ratio is judging the wrong corpus.
+export function makeSyntheticUniverse({ nodeTarget = 20000, seed = 7, wsTarget = 0 } = {}) {
   let s = (seed >>> 0) || 1;
   const rand = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
   const pick = (weighted) => {
@@ -58,7 +63,7 @@ export function makeSyntheticUniverse({ nodeTarget = 20000, seed = 7 } = {}) {
   const addEdge = (source_id, target_id, edge_kind) =>
     edges.push({ source_id, target_id, edge_kind, created_at: nextTs() });
 
-  const W = Math.max(3, Math.round(nodeTarget / 80));
+  const W = Math.max(3, Math.round(wsTarget > 0 ? wsTarget : nodeTarget / 80));
   const U = Math.max(3, Math.round(W * 1.1));
   const wsIds = [];
   for (let i = 0; i < W; i++) {
@@ -136,8 +141,8 @@ export function makeSyntheticUniverse({ nodeTarget = 20000, seed = 7 } = {}) {
 // Cursors are plain indices (they're opaque to the walker). Pages are
 // deliberately smaller than the requested limits so the multi-page
 // path actually runs.
-export function makeSyntheticDataSource({ nodeTarget = 20000, seed = 7 } = {}) {
-  const { nodes, edges } = makeSyntheticUniverse({ nodeTarget, seed });
+export function makeSyntheticDataSource({ nodeTarget = 20000, seed = 7, wsTarget = 0 } = {}) {
+  const { nodes, edges } = makeSyntheticUniverse({ nodeTarget, seed, wsTarget });
   const fetchPage = async ({ nodesCursor, edgesCursor, nodeLimit, edgeLimit }) => {
     const nFrom = nodesCursor ? parseInt(nodesCursor, 10) : 0;
     const eFrom = edgesCursor ? parseInt(edgesCursor, 10) : 0;

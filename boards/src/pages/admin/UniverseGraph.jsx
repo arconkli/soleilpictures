@@ -48,6 +48,8 @@ import { EffectComposer }    from 'three/examples/jsm/postprocessing/EffectCompo
 import { RenderPass }        from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass }   from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import SimWorker from './universeSimWorker.js?worker';
+import { galaxyOrbit, starTemp, starMagnitude } from '../../lib/universeLayout.js';
+import { hash01 } from '../../lib/hashJitter.js';
 import { fetchSnapshotPage, useUniverseDeltas } from './useUniverseStream.js';
 import { collectSnapshot } from '../../lib/universePaging.js';
 
@@ -126,9 +128,24 @@ function classifyEdge(rawKind) {
 
 // ── Universe tunables ─────────────────────────────────────────────
 const GALAXY = {
-  // Galactic spin around the disk normal — slow enough that the
-  // spiral reads as a turning galaxy, not a spinning logo.
+  // Idle camera azimuth rate — slow enough that the spiral reads as a
+  // turning galaxy, not a spinning logo. NOTE this is the CAMERA; the
+  // galaxy itself now turns under its own differential rotation (see
+  // universeSimWorker's rotate mode), which is a separate motion.
   rotationRate: 0.035,
+  // The elevation sweep: ±34° with a ~75s period, so the disk drifts
+  // between face-on and steeply inclined the way the reference does.
+  tiltAmp:  0.60,
+  tiltRate: 2 * Math.PI / 75,
+  // How tightly each board's cards orbit when the whole galaxy is in
+  // frame. Below ~0.4 the solar systems stop being legible up close.
+  systemScaleMin: 0.26,
+  // Resting edge opacity, before the distance fade. Was effectively 1.
+  edgeBase: 0.34,
+  // Not zero: a galaxy stopped dead reads as broken, and arrivals
+  // still have to land in the right place. Slow enough that it is not
+  // a motion source.
+  reducedMotionSpeed: 0.04,
   // Keep camera.far modest. Bigger ratios (we had 1e6) tank depth-
   // buffer precision. 20k is plenty: a typical universe radius is <5k.
   cameraFar:    20000,
@@ -136,9 +153,15 @@ const GALAXY = {
   zoomMax:      18000,
   // Bloom — bright pixels bleed energy into neighbors for the
   // pinprick-with-soft-glow look real stars have in long exposures.
-  bloomStrength:  0.45,
-  bloomRadius:    0.85,
-  bloomThreshold: 0.15,
+  //
+  // The threshold is deliberately well above the faint population.
+  // With heavy-tailed magnitudes, a low threshold blooms the entire
+  // field into a haze; holding it high keeps the specks crisp and
+  // lets only the rare bright stars and the core actually glow, which
+  // is the contrast the reference frames live on.
+  bloomStrength:  0.58,
+  bloomRadius:    0.9,
+  bloomThreshold: 0.28,
 };
 
 // The universe is a planetarium, not a themed panel: node halos use ADDITIVE
@@ -147,7 +170,15 @@ const GALAXY = {
 // no-op and bloom has no headroom, so the "light" universe was a near-blank
 // grey field. It stays dark in both themes; .universe-tab scopes dark ink
 // tokens over it so the surrounding HUD stays legible either way.
-const SPACE_BG = '#0a0908';
+// Cool near-black, not the warm one this used to be: the reference
+// sky is a very dark blue and the warm cast fought the blue-white
+// star population that carries the whole look.
+const SPACE_BG = '#05070b';
+
+// Backdrop starfield. Count and radius are decoration, not data — the
+// radius sits inside camera.far (20000) so they never clip.
+const SKY_STARS  = 700;
+const SKY_RADIUS = 14000;
 
 // Halo texture — radial gradient white sprite, same as HomeGraph.
 const HALO_TEXTURE = (() => {
@@ -248,6 +279,82 @@ function cachedColor(hex) {
   return c;
 }
 
+// ── Starlight ────────────────────────────────────────────────────
+//
+// The kind hues below are a legend, not a sky. Rendered raw they make
+// the galaxy read as a categorical scatter plot, which is exactly what
+// a real star field does not look like. So every node also gets a
+// STELLAR colour, and what actually reaches the GPU is a blend.
+//
+// The colour is blackbody radiation at the star's own temperature.
+// Crucially this is NOT a radial gradient: the reference art shows
+// amber and cyan particles interleaved along a single arm, because a
+// real arm carries hot young O/B stars and cool old giants side by
+// side. starTemp() gives each node a wide per-star scatter around a
+// mean that only drifts with radius, which reads as a population
+// instead of a ramp. See lib/universeLayout.js.
+//
+// Kind identity is not lost, it is on demand: hovering a legend row
+// (or selecting a node) drops the blend back to the pure hue.
+const STARLIGHT_MIX = 0.82;
+const STAR_SATURATION = 1.9;
+
+// Tanner Helland's blackbody approximation, normalised so every star
+// is equally bright and only its HUE varies — luminance here is the
+// job of the halo and the bloom, not the palette.
+const STAR_COLOR_CACHE = new Map();
+function starColorFor(kelvin) {
+  const q = Math.round(kelvin / 100) * 100;      // ~66 distinct colours
+  let c = STAR_COLOR_CACHE.get(q);
+  if (c) return c;
+  const t = q / 100;
+  let r, g, b;
+  if (t <= 66) { r = 255; g = 99.4708025861 * Math.log(t) - 161.1195681661; }
+  else { r = 329.698727446 * Math.pow(t - 60, -0.1332047592);
+         g = 288.1221695283 * Math.pow(t - 60, -0.0755148492); }
+  if (t >= 66) b = 255;
+  else if (t <= 19) b = 0;
+  else b = 138.5177312231 * Math.log(t - 10) - 305.0447927307;
+  const cl = (v) => Math.min(255, Math.max(0, v)) / 255;
+  r = cl(r); g = cl(g); b = cl(b);
+  const m = Math.max(r, g, b) || 1;
+  r /= m; g /= m; b /= m;
+  // Saturation lift. Physically-correct blackbody is washed out on an
+  // additive canvas — the halos stack toward white and bloom finishes
+  // the job, so a literal Planck colour renders as a grey star field.
+  // Push each colour away from its own grey to keep the amber/blue
+  // separation the reference reads on.
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const sat = (v) => Math.min(1, Math.max(0, lum + (v - lum) * STAR_SATURATION));
+  c = new THREE.Color(sat(r), sat(g), sat(b));
+  STAR_COLOR_CACHE.set(q, c);
+  return c;
+}
+
+// galaxyOrbit's shape is scale-invariant (a ∝ R exactly), so passing
+// R = 1 yields the node's normalised galactocentric radius directly —
+// no need to know the disk size, the workspace count, or anything the
+// worker has not told us yet.
+const BLEND_CACHE = new Map();
+function renderColorFor(hex, node) {
+  const carrier = node.workspace_id ? `ws:${node.workspace_id}` : node.id;
+  const aNorm = galaxyOrbit(carrier, 1).a;
+  const kelvin = starTemp(node.id, aNorm, 1);
+  const q = Math.round(kelvin / 100) * 100;
+  const key = `${hex}|${q}`;
+  let c = BLEND_CACHE.get(key);
+  if (c) return c;
+  const star = starColorFor(kelvin);
+  const kind = cachedColor(hex);
+  c = new THREE.Color(
+    kind.r + (star.r - kind.r) * STARLIGHT_MIX,
+    kind.g + (star.g - kind.g) * STARLIGHT_MIX,
+    kind.b + (star.b - kind.b) * STARLIGHT_MIX,
+  );
+  BLEND_CACHE.set(key, c);
+  return c;
+}
+
 // Map a snapshot row → render node. `val` is the body radius proxy;
 // bigger numbers for the higher-level anchors. isAnchor mirrors the
 // worker's classification: ws + board get true spheres; user is
@@ -269,17 +376,23 @@ function toNode(raw) {
   }
   const colorKey = cardKind || kind;
   const colorHex = COLOR[colorKey] || COLOR[kind] || COLOR.card;
-  return {
+  const node = {
     id: raw.node_id,
     kind,
     cardKind,
     color: colorHex,
+    // The pure kind hue — what the legend swatch shows, and what a
+    // node reverts to when it is hovered, selected, or its legend row
+    // is being pointed at.
     threeColor: cachedColor(colorHex),
     val,
     isAnchor: kind === 'ws' || kind === 'board',
     workspace_id: raw.workspace_id,
     created_at: raw.created_at,
   };
+  // What actually gets rendered at rest.
+  node.starColor = renderColorFor(colorHex, node);
+  return node;
 }
 
 // Identity of an edge as far as the renderer is concerned. The server's own
@@ -366,7 +479,7 @@ function makeBodyMaterial() {
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         vDepth = -mv.z;
         float px = size * (uPxPerUnit / max(-mv.z, 1.0));
-        gl_PointSize = size > 0.0 ? clamp(px, 1.25, 512.0) : 0.0;
+        gl_PointSize = size > 0.0 ? clamp(px, 2.0, 512.0) : 0.0;
         gl_Position = projectionMatrix * mv;
       }
     `,
@@ -516,11 +629,13 @@ function makeFxPoints(capacity) {
 //   minutes at a stretch, "nothing is happening" and "nothing is arriving
 //   because the stream died" are the same picture without this.
 // hiddenKinds — Set of render kinds to hide (legend filtering).
+// hueKind — one kind to render in its TRUE hue instead of starlight, while
+//   its legend row is under the pointer. Kind identity on demand.
 // isolateWorkspaceId — dim everything outside one workspace.
 export function UniverseGraph({
   onNodeClick, resetSignal, fitAll = false, dataSource = null, onStats = null,
   onStream = null,
-  hiddenKinds = null, isolateWorkspaceId = null, selectedId = null,
+  hiddenKinds = null, isolateWorkspaceId = null, selectedId = null, hueKind = null,
   activity = null,
 }) {
   const containerRef = useRef(null);
@@ -573,6 +688,11 @@ export function UniverseGraph({
     hotNodes: new Map(),            // idx → { until, color } — the 60s afterglow
     hiddenKinds: null,              // Set of legend keys the operator switched off
     isolateWs: null,                // workspace_id to keep lit; everything else dims
+    hueKind: null,                  // legend row under the pointer → that kind shows its TRUE hue
+    camPhase: 0,                    // idle-camera clock (elevation sweep)
+    reduceMotion: false,            // set from prefers-reduced-motion
+    rigidRate: 0,                   // non-zero when the worker handed rotation back to us
+    systemScale: 1,                 // last value posted to the worker
     selectionFx: null,              // the persistent ring on the selected node
     seenActivity: new Set(),        // analytics_events ids already sparked
     sparkCooldown: new Map(),       // node idx → next allowed spark (perf clock)
@@ -598,8 +718,9 @@ export function UniverseGraph({
   useEffect(() => {
     refs.hiddenKinds = hiddenKinds && hiddenKinds.size ? hiddenKinds : null;
     refs.isolateWs   = isolateWorkspaceId || null;
+    refs.hueKind     = hueKind || null;
     applyVisualFilters(refs);
-  }, [hiddenKinds, isolateWorkspaceId, refs]);
+  }, [hiddenKinds, isolateWorkspaceId, hueKind, refs]);
 
   // Selection: a persistent gold ring on the picked node. --soleil is reserved
   // for active/selection/focus, which is exactly what this is.
@@ -674,6 +795,47 @@ export function UniverseGraph({
     // Scene + camera + renderer.
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(SPACE_BG);
+
+    // Distant sky. The reference sits its galaxy in a field of faint
+    // scattered stars rather than on flat black, and without them a
+    // dark canvas reads as an empty panel instead of as space. These
+    // are pure decoration: far outside the corpus, never picked, never
+    // counted, and deliberately NOT rotated — they are the backdrop,
+    // not part of the galaxy.
+    const skyPos = new Float32Array(SKY_STARS * 3);
+    const skyCol = new Float32Array(SKY_STARS * 3);
+    for (let i = 0; i < SKY_STARS; i++) {
+      // Even over the sphere: z uniform, not the angle (which would
+      // bunch every star at the poles).
+      const z = 2 * hash01(`sky${i}:z`) - 1;
+      const t = 2 * Math.PI * hash01(`sky${i}:t`);
+      const r = Math.sqrt(Math.max(0, 1 - z * z)) * SKY_RADIUS;
+      skyPos[i * 3]     = r * Math.cos(t);
+      skyPos[i * 3 + 1] = z * SKY_RADIUS;
+      skyPos[i * 3 + 2] = r * Math.sin(t);
+      const c = starColorFor(starTemp(`sky${i}`, 0.9, 1));
+      const b = 0.25 + 0.75 * Math.pow(hash01(`sky${i}:b`), 3);
+      skyCol[i * 3] = c.r * b; skyCol[i * 3 + 1] = c.g * b; skyCol[i * 3 + 2] = c.b * b;
+    }
+    const skyGeom = new THREE.BufferGeometry();
+    skyGeom.setAttribute('position', new THREE.BufferAttribute(skyPos, 3));
+    skyGeom.setAttribute('color', new THREE.BufferAttribute(skyCol, 3));
+    // Its OWN material, not the node disc shader: that one fogs by depth
+    // against the universe radius, and the sky sits far beyond the fog's
+    // far plane, so it would be erased to the background exactly where it
+    // is supposed to be visible. Fixed pixel size (sizeAttenuation off)
+    // also keeps these reading as distant pinpricks at any zoom —
+    // brightness variation is carried in the colours above.
+    const skyPoints = new THREE.Points(skyGeom, new THREE.PointsMaterial({
+      size: 1.7,
+      sizeAttenuation: false,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+    }));
+    skyPoints.frustumCulled = false;
+    scene.add(skyPoints);
 
     const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, GALAXY.cameraFar);
     // Start ABOVE the disk plane, looking down at its face. Small Z
@@ -784,6 +946,27 @@ export function UniverseGraph({
     // Worker.
     const worker = new SimWorker();
     refs.worker = worker;
+
+    // prefers-reduced-motion. The app-wide `transform: none !important`
+    // blanket in styles.css cannot reach WebGL, and this file never
+    // checked the query — harmless while the scene was frozen, a real
+    // motion trap now that it turns on its own. Under reduce the idle
+    // camera stops entirely and the galaxy drops to a crawl rather
+    // than freezing, so arrivals still land somewhere sensible.
+    let motionMq = null;
+    const applyReduceMotion = () => {
+      refs.reduceMotion = !!motionMq?.matches;
+      worker.postMessage({
+        type: 'rotateSpeed',
+        value: refs.reduceMotion ? GALAXY.reducedMotionSpeed : 1,
+      });
+    };
+    try {
+      motionMq = window.matchMedia('(prefers-reduced-motion: reduce)');
+      motionMq.addEventListener('change', applyReduceMotion);
+      applyReduceMotion();
+    } catch (_) { /* no matchMedia — leave motion on */ }
+
     worker.onmessage = (ev) => {
       const msg = ev.data;
       if (!msg) return;
@@ -801,6 +984,14 @@ export function UniverseGraph({
           // very next message — not a perceptible delay.
           if (refs.pendingFx.length) drainArrivalFx(refs, msg.count);
         }
+      } else if (msg.type === 'rotate' && msg.mode === 'rigid') {
+        // Too many nodes to rebuild every frame, so the worker handed
+        // rotation back to us: spin the whole scene rigidly instead.
+        // No shear at this scale, but no per-frame cost either — and
+        // it is announced rather than silently dropped.
+        refs.rigidRate = msg.rate || 0;
+        // eslint-disable-next-line no-console
+        console.warn(`[universeSim] ${msg.count} nodes — rigid rotation, no shear`);
       } else if (msg.type === 'ready') {
         setCalibrating(false);
       } else if (msg.type === 'error') {
@@ -976,12 +1167,37 @@ export function UniverseGraph({
         camera.position.lerpVectors(refs.fitFromPos, refs.fitToPos, eased);
         controls.target.lerpVectors(refs.fitFromTarget, refs.fitToTarget, eased);
         if (t >= 1) refs.fitAnimating = false;
-      } else if (!refs.interacting && !refs.lookActive && keys.size === 0) {
-        // Idle drift = galactic rotation. Pauses during orbit drag,
-        // pointer-lock look mode, WASD movement, and fit animations
-        // so the various motions never fight.
+      } else if (!refs.interacting && !refs.lookActive && keys.size === 0
+                 && !refs.reduceMotion) {
+        // Cinematic idle camera. The old version orbited azimuth at a
+        // constant rate, which is a turntable: the galaxy never changed
+        // aspect, so it read as a static object being inspected. The
+        // reference frames are the same galaxy seen face-on, tilted and
+        // nearly edge-on — that ELEVATION sweep is most of why it feels
+        // alive, and it is what this adds.
+        //
+        // Both axes are advanced by a DELTA rather than set to an
+        // absolute pose. Setting absolutely would snap the camera back
+        // onto a rail the instant the operator let go of a drag; adding
+        // a delta means the drift simply resumes from wherever they
+        // left it, and their framing survives.
+        refs.camPhase += dt;
         const rel = camera.position.clone().sub(controls.target);
+        const rad = rel.length() || 1;
         rel.applyAxisAngle(rotationAxis, GALAXY.rotationRate * dt);
+
+        // Elevation: d/dt of A·sin(ωt), clamped short of the poles
+        // where the orbit basis degenerates.
+        const dEl = GALAXY.tiltAmp * GALAXY.tiltRate
+                  * Math.cos(GALAXY.tiltRate * refs.camPhase) * dt;
+        const el = Math.asin(THREE.MathUtils.clamp(rel.y / rad, -1, 1));
+        const want = THREE.MathUtils.clamp(el + dEl, -1.36, 1.36);
+        const horiz = Math.cos(want) * rad;
+        const hNow = Math.hypot(rel.x, rel.z) || 1;
+        rel.x *= horiz / hNow;
+        rel.z *= horiz / hNow;
+        rel.y = Math.sin(want) * rad;
+
         camera.position.copy(rel.add(controls.target));
       }
 
@@ -1021,6 +1237,27 @@ export function UniverseGraph({
       // the actual node dots; fade them so the nodes shine through.
       // Sharp at typical viewing distance, dims to ~25% at the rim.
       const focusDist = camera.position.distanceTo(controls.target);
+
+      // Rigid fallback: only ever set when the corpus outgrew the
+      // worker's per-frame rebuild (see the 'rotate' message).
+      if (refs.rigidRate && !refs.reduceMotion) {
+        refs.scene.rotation.y += refs.rigidRate * dt;
+      }
+
+      // Solar systems tighten with distance so the far view reads as a
+      // smooth star field and the per-board detail scales back in as
+      // you fly down. The worker folds this into its per-board matrix,
+      // so positions stay real and picking needs no special-casing.
+      // Only posted on a meaningful change — a value per frame would
+      // make the cards visibly breathe while you zoom.
+      const wantScale = THREE.MathUtils.lerp(
+        1, GALAXY.systemScaleMin,
+        THREE.MathUtils.smoothstep(focusDist, 600, 4000));
+      if (Math.abs(wantScale - refs.systemScale) > 0.03) {
+        refs.systemScale = wantScale;
+        refs.worker?.postMessage({ type: 'systemScale', value: wantScale });
+      }
+
       const edgeFade = THREE.MathUtils.smoothstep(focusDist, 600, 4000);
       // Density normalization — long-exposure style: the more sources
       // on screen, the less luminance each contributes. Without this,
@@ -1032,10 +1269,21 @@ export function UniverseGraph({
       // refs.edgeLines, NOT the mount-time const — ensureEdgeCapacity
       // swaps the object once the corpus outgrows the initial buffer,
       // and writing to the disposed one silently disables the fade.
-      refs.edgeLines.material.opacity = (1 - 0.75 * edgeFade) * edgeDensity;
+      // Edges dimmed hard. At galaxy scale the link web was competing
+      // with the stars for exactly the pixels the look depends on; it
+      // now sits near the floor when you are far out and comes back as
+      // you fly in, which is when you are actually reading structure
+      // rather than looking at the thing.
+      refs.edgeLines.material.opacity =
+        GALAXY.edgeBase * (1 - 0.92 * edgeFade) * edgeDensity;
       const haloDensity = Math.min(1, Math.max(0.05,
         Math.sqrt(30000 / Math.max(1, refs.nodes.length))));
-      refs.haloPoints.material.uniforms.uOpacity.value = 0.30 * haloDensity;
+      // 0.30 was tuned when every node was the same size and the palette
+  // was categorical. With heavy-tailed magnitudes the halos of a
+  // board's card swarm stack additively and saturate to white, which
+  // throws away the star colour the look depends on. Lower base, and
+  // the bright tail still blooms because size carries it.
+  refs.haloPoints.material.uniforms.uOpacity.value = 0.30 * haloDensity;
       composer.render();
       refs.rafId = requestAnimationFrame(loop);
     };
@@ -1079,6 +1327,7 @@ export function UniverseGraph({
       window.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('pointerlockchange', onPointerLockChange);
       document.removeEventListener('visibilitychange', onVis);
+      try { motionMq?.removeEventListener('change', applyReduceMotion); } catch (_) {}
       if (document.pointerLockElement === renderer.domElement) {
         try { document.exitPointerLock(); } catch (_) {}
       }
@@ -1578,7 +1827,14 @@ function writeNodeAppearance(refs, idx, node) {
   // User nodes are PHYSICS-ONLY — they exist in the simulation so
   // workspaces with shared people lean toward each other, but they
   // render nothing (no body, no halo). Radius 0 zeroes both sprites.
-  const r = node.kind === 'user' ? 0 : (node.val || 8) * 0.4;
+  // Anchors keep their kind size — they are what you navigate to, and
+  // that size is meaning. Leaves get a heavy-tailed stellar magnitude,
+  // which is where the star-field texture actually comes from: a few
+  // big bloomed blobs among hundreds of faint specks. Uniformly-sized
+  // dots read as a scatter plot no matter how they are coloured.
+  const r = node.kind === 'user' ? 0
+          : node.isAnchor ? (node.val || 8) * 0.4
+          : (node.val || 8) * 0.4 * starMagnitude(node.id);
   refs.baseScale[idx] = r;
 
   if (node.isAnchor) {
@@ -1616,7 +1872,13 @@ function writeNodeVisual(refs, idx, node) {
   const vis = refs.visMul[idx];
   const dim = refs.dimMul[idx];
   const r = refs.baseScale[idx];
-  const c = node.threeColor;
+  // Starlight at rest; the true kind hue the moment anyone asks for it
+  // — a legend row under the pointer, or this node being the selection.
+  const emph = refs.hueKind
+    ? (node.cardKind && COLOR[node.cardKind] ? node.cardKind : node.kind) === refs.hueKind
+    : false;
+  const sel = refs.selectionFx && refs.selectionFx.nodeIdx === idx;
+  const c = (emph || sel) ? node.threeColor : (node.starColor || node.threeColor);
   const cr = c.r * dim, cg = c.g * dim, cb = c.b * dim;
 
   const hc = refs.haloPoints.geometry.attributes.color;
@@ -1762,7 +2024,19 @@ function uploadPositions(refs, count) {
 // O(N) over a flat Float32Array: ~1-2ms per click at a million nodes,
 // and exact — no invisible user-node hits, no sphere-mesh raycasting.
 function pickNode(refs, ray) {
-  const ro = ray.origin, rd = ray.direction;
+  let ro = ray.origin, rd = ray.direction;
+  // In the rigid fallback the SCENE is rotated, but refs.positions
+  // still holds un-rotated world coordinates — so the ray has to be
+  // pulled back into that frame or every click lands on whatever
+  // happens to be sitting where the node used to be. (Below the
+  // fallback threshold the worker moves real positions and this is a
+  // no-op, which is the normal path.)
+  const spin = refs.rigidRate ? (refs.scene?.rotation.y || 0) : 0;
+  if (spin) {
+    const c = Math.cos(-spin), sn = Math.sin(-spin);
+    ro = { x: ro.x * c + ro.z * sn, y: ro.y, z: -ro.x * sn + ro.z * c };
+    rd = { x: rd.x * c + rd.z * sn, y: rd.y, z: -rd.x * sn + rd.z * c };
+  }
   const pos = refs.positions;
   const base = refs.baseScale;
   const nodes = refs.nodes;

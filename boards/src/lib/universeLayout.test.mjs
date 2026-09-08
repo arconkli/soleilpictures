@@ -5,6 +5,9 @@ import {
   moonOffset, systemArchetype, systemPlane,
   LEAF_BASE_RADIUS, LEAF_RADIAL_MIN, LEAF_RADIAL_MAX,
   SYSTEM_RING0, SYSTEM_RING_GROWTH, SYSTEM_RING_COUNT, SYSTEM_BELT_R, SYSTEM_KUIPER_R,
+  galaxyOrbit, orbitalRate, systemSpin, starTemp, starMagnitude,
+  GALAXY_CORE_FRAC, GALAXY_PATTERN_RATE, STAR_TEMP_MIN, STAR_TEMP_MAX,
+  STAR_MAG_MIN, STAR_MAG_MAX, armAngle, GALAXY_PITCH,
 } from './universeLayout.js';
 
 // Find board ids of each archetype so tests exercise the right path.
@@ -247,4 +250,153 @@ test('orbitOffset writes into a provided out array', () => {
   const ret = orbitOffset('card:b:x', 1, LEAF_BASE_RADIUS, out);
   assert.equal(ret, out);
   assert.notDeepEqual([...out], [0, 0, 0]);
+});
+
+// ── Galactic rotation ────────────────────────────────────────────
+
+// Measures angular over-density in a narrow annulus — the same
+// statistic the static density-wave test uses, at an arbitrary time.
+function armContrast(R, t) {
+  const bins = new Array(10).fill(0);
+  let n = 0;
+  for (let i = 0; i < 40000; i++) {
+    const id = `board:x${i}`;
+    const { a } = galaxyOrbit(id, R);
+    const o = galaxySeed(id, R, null, orbitalRate(a, R) * t, GALAXY_PATTERN_RATE * t);
+    const r = Math.hypot(o[0], o[2]);
+    if (r < 0.55 * R || r > 0.65 * R) continue;
+    n++;
+    let ang = Math.atan2(o[2], o[0]);
+    if (ang < 0) ang += Math.PI * 2;
+    bins[Math.min(9, Math.floor(((ang % Math.PI) / Math.PI) * 10))]++;
+  }
+  const mean = n / bins.length;
+  return { n, mean, max: Math.max(...bins), min: Math.min(...bins) };
+}
+
+// THE test for this feature. Differential rotation applied to fixed
+// positions shears them, and the spiral winds itself into mush within
+// minutes — which would be invisible in a screenshot taken at t=0 and
+// ruinous on the Command Center wall display that runs for hours.
+// Advancing each star along its OWN ellipse (phase) while the ellipse
+// ORIENTATIONS turn together (pattern) cannot wind up, because the
+// arms are an interference effect, not a material structure.
+test('density-wave arms SURVIVE rotation: still crowded after 10 minutes', () => {
+  const R = 1000;
+  for (const t of [0, 60, 600, 3600]) {
+    const { n, mean, max, min } = armContrast(R, t);
+    assert.ok(n > 500, `t=${t}s annulus too sparse: ${n}`);
+    assert.ok(max > mean * 1.4, `t=${t}s arms washed out: max ${max} vs mean ${mean}`);
+    assert.ok(min < mean * 0.55, `t=${t}s inter-arm filled in: min ${min} vs mean ${mean}`);
+  }
+});
+
+test('rotation is differential: inner orbits sweep faster than outer', () => {
+  const R = 1000;
+  assert.ok(orbitalRate(0.2 * R, R) > orbitalRate(0.5 * R, R));
+  assert.ok(orbitalRate(0.5 * R, R) > orbitalRate(1.5 * R, R));
+  // A real shear, not a token one: core should lap the rim many times.
+  assert.ok(orbitalRate(GALAXY_CORE_FRAC * R, R) / orbitalRate(1.5 * R, R) > 5);
+});
+
+test('rotation curve is solid-body in the core and finite at a=0', () => {
+  const R = 1000, core = GALAXY_CORE_FRAC * R;
+  assert.equal(orbitalRate(0, R), orbitalRate(core, R));
+  assert.equal(orbitalRate(core * 0.3, R), orbitalRate(core, R));
+  assert.ok(Number.isFinite(orbitalRate(0, R)));
+});
+
+test('galaxySeed with zero phase equals the static layout', () => {
+  const R = 900;
+  for (const id of ['ws:a', 'board:b', 'user:c']) {
+    assert.deepEqual([...galaxySeed(id, R)], [...galaxySeed(id, R, null, 0, 0)]);
+  }
+});
+
+test('galaxyOrbit agrees with the position galaxySeed builds from it', () => {
+  const R = 800, id = 'ws:orbit';
+  const { a, theta } = galaxyOrbit(id, R);
+  const o = galaxySeed(id, R);
+  // galaxySeed writes a Float32Array, so compare at float32 precision.
+  assert.ok(Math.abs(o[0] - a * Math.cos(theta)) < 1e-3);
+  assert.ok(Math.abs(o[2] - a * Math.sin(theta)) < 1e-3);
+});
+
+// Arm stars ride the pattern rigidly; everything else shears. That
+// split is what lets the spiral survive indefinitely while the disk
+// still visibly moves — verify both halves actually behave that way.
+test('arm stars ride the pattern; field stars shear', () => {
+  const R = 1000;
+  let armSeen = 0, fieldSeen = 0;
+  for (let i = 0; i < 400; i++) {
+    const id = `ws:p${i}`;
+    const { arm } = galaxyOrbit(id, R);
+    const at0 = galaxySeed(id, R, null, 0, 0);
+    // Advance the star's OWN orbit but hold the pattern still.
+    const spun = galaxySeed(id, R, null, 1.2, 0);
+    const moved = Math.hypot(spun[0] - at0[0], spun[2] - at0[2]) > 1;
+    if (arm >= 0) { armSeen++; assert.ok(!moved, 'an arm star drifted off the pattern'); }
+    else { fieldSeen++; assert.ok(moved, 'a field star failed to shear'); }
+  }
+  assert.ok(armSeen > 50 && fieldSeen > 50, `population split off: ${armSeen}/${fieldSeen}`);
+});
+
+test('arms are logarithmic: pitch angle stays constant with radius', () => {
+  const R = 1000;
+  // A log spiral has d(theta)/d(ln r) constant — that IS constant pitch.
+  const slope = (r1, r2) =>
+    (armAngle(r2, R, 0) - armAngle(r1, R, 0)) / (Math.log(r2) - Math.log(r1));
+  const inner = slope(0.2 * R, 0.4 * R);
+  const outer = slope(0.8 * R, 1.6 * R);
+  assert.ok(Math.abs(inner - outer) < 1e-9, `not logarithmic: ${inner} vs ${outer}`);
+  assert.ok(Math.abs(inner - 1 / Math.tan(GALAXY_PITCH)) < 1e-9);
+});
+test('systemSpin is deterministic, mostly prograde, occasionally retrograde', () => {
+  assert.equal(systemSpin('board:s'), systemSpin('board:s'));
+  let retro = 0;
+  for (let i = 0; i < 2000; i++) if (systemSpin(`board:s${i}`) < 0) retro++;
+  assert.ok(retro > 40 && retro < 300, `retrograde share off: ${retro}/2000`);
+});
+
+// The reference is dominated by blue-white stars with a distinct
+// amber minority and very few mid-tones — a BIMODAL population, not
+// a smear and not a radial ramp. Both halves matter: lose the
+// bimodality and it turns muddy, lose the radial trend and the core
+// stops reading as old.
+test('starTemp: bimodal population, amber-richer in the core', () => {
+  const R = 1000;
+  const sample = (a) => {
+    const v = [];
+    for (let i = 0; i < 6000; i++) v.push(starTemp(`card:t${i}`, a, R));
+    return v;
+  };
+  const inner = sample(0.05 * R), outer = sample(0.95 * R);
+  const share = (v, lo, hi) => v.filter((x) => x >= lo && x < hi).length / v.length;
+
+  // Amber minority, denser in the bulge than at the rim.
+  const amberIn = share(inner, 0, 5000), amberOut = share(outer, 0, 5000);
+  assert.ok(amberIn > amberOut + 0.1, `no radial trend: ${amberIn} vs ${amberOut}`);
+  assert.ok(amberIn > 0.2 && amberIn < 0.45, `core amber share off: ${amberIn}`);
+  assert.ok(amberOut > 0.05 && amberOut < 0.3, `rim amber share off: ${amberOut}`);
+
+  // The gap between the two populations is what keeps it from muddying.
+  assert.ok(share(inner, 4600, 6200) < 0.02, 'mid-tones present: not bimodal');
+  for (const v of [...inner, ...outer]) {
+    assert.ok(v >= STAR_TEMP_MIN && v <= STAR_TEMP_MAX, `out of range: ${v}`);
+  }
+});
+
+// A near-uniform size per node kind reads as a scatter plot. The
+// reference's texture is a few big bloomed blobs among hundreds of
+// specks, so the tail has to be genuinely rare.
+test('starMagnitude is heavy-tailed: most faint, a rare few huge', () => {
+  const v = [];
+  for (let i = 0; i < 20000; i++) v.push(starMagnitude(`card:m${i}`));
+  v.sort((a, b) => a - b);
+  const at = (q) => v[Math.floor(q * v.length)];
+  assert.ok(v[0] >= STAR_MAG_MIN && v[v.length - 1] <= STAR_MAG_MAX);
+  assert.ok(at(0.5) < STAR_MAG_MIN + 0.6, `median too bright: ${at(0.5)}`);
+  assert.ok(at(0.999) > 2.2, `no bright tail: p99.9 = ${at(0.999)}`);
+  assert.ok(at(0.9) < 1.6, `too many bright stars: p90 = ${at(0.9)}`);
+  assert.equal(starMagnitude('card:m1'), starMagnitude('card:m1'));
 });

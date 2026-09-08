@@ -42,6 +42,18 @@ function readQaNodeTarget() {
   return 20000;
 }
 
+// Optional ?w= pins the workspace count. The galaxy's whole structure
+// lives at the workspace layer, so the default one-per-80-nodes ratio
+// renders a corpus shaped nothing like production, where workspaces
+// are far denser relative to cards. Misleading to judge the look on.
+function readQaWsTarget() {
+  try {
+    const w = parseInt(new URLSearchParams(window.location.search).get('w'), 10);
+    if (Number.isFinite(w)) return Math.max(3, Math.min(w, 100_000));
+  } catch (_) { /* ignore */ }
+  return 0;
+}
+
 // Synthetic counters shaped like admin_universe_stats. The real numbers arrive
 // over SSE from PartyKit, which the harness has no server for — without this
 // the HUD would render zeros and the ticker couldn't be reviewed at all.
@@ -61,7 +73,7 @@ const FIXTURE_UNIVERSE_STATS = {
 // cannot drift.
 function UniverseQaTab() {
   const [ds] = useState(() => {
-    const source = makeSyntheticDataSource({ nodeTarget: readQaNodeTarget() });
+    const source = makeSyntheticDataSource({ nodeTarget: readQaNodeTarget(), wsTarget: readQaWsTarget() });
     window.__universeQaExpected = source.totals;
     return source;
   });
@@ -83,7 +95,7 @@ function UniverseQaTab() {
 // is a useful check of the null path — the renderer-fed Nodes/Connections
 // cells beside them still fill in.
 function CommandCenterQaTab() {
-  const [ds] = useState(() => makeSyntheticDataSource({ nodeTarget: readQaNodeTarget() }));
+  const [ds] = useState(() => makeSyntheticDataSource({ nodeTarget: readQaNodeTarget(), wsTarget: readQaWsTarget() }));
   return (
     <div className="universe-tab">
       <AdminCommandCenter dataSource={ds} />

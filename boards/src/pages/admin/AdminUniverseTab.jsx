@@ -118,6 +118,8 @@ export function UniverseView({ dataSource = null, statsOverride = null, onPick =
   // inside UniverseGraph.
   const [resetSignal, setResetSignal] = useState(0);
   const [hiddenKinds, setHiddenKinds] = useState(() => new Set());
+  // Legend row under the pointer — that kind renders its true hue.
+  const [hueKind, setHueKind] = useState(null);
   const [isolateWs, setIsolateWs] = useState(null);
   const [stream, setStream] = useState({ status: 'connecting', lastDeltaAt: null });
 
@@ -166,11 +168,12 @@ export function UniverseView({ dataSource = null, statsOverride = null, onPick =
         onStats={onStats}
         onStream={onStream}
         hiddenKinds={hiddenKinds}
+        hueKind={hueKind}
         isolateWorkspaceId={isolateWs}
         selectedId={active?.id || null}
         activity={pulse.recent}
       />
-      <UniverseLegend graph={graph} hiddenKinds={hiddenKinds}
+      <UniverseLegend graph={graph} hiddenKinds={hiddenKinds} onHoverKind={setHueKind}
                       onToggleKind={toggleKind} onShowAll={showAll} />
       <div className="universe-controls">
         {isolateWs && (
