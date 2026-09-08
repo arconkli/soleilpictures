@@ -3433,7 +3433,7 @@ A: Nothing is removed, but dense surfaces like long documents and the 3D home gr
 ========================================================================
 # Data and privacy
 URL: https://clusters.soleilpictures.com/docs/account/data-and-privacy
-Updated: 2026-08-26
+Updated: 2026-09-08
 
 Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 
@@ -3496,11 +3496,15 @@ Errors are recorded first-party, in Clusters' own infrastructure, to fix crashes
 
 When Clusters asks you a question
 
-Clusters may ask you one question, once: on a day you come back, it can ask what brought you back, with a short list of answers and an optional free-text box.
+Clusters may ask you one question, once: on a day you come back, it asks what brings you back today, offering a short list of answers. Tapping one is the whole answer. It then asks a single follow-up in your own words, which you can skip — the tap has already been recorded either way.
 
-It is asked once per account, ever — answering or dismissing it both close it permanently, and that is recorded on the server, so it will not return if you clear your browser storage.
-It never appears on your first session.
-Whatever you type in the optional box is stored as written text you chose to send, readable by Clusters staff. It is not analysed automatically and is not shared with anyone outside Clusters.
+The list is fixed and always in this order: picking up where you left off, adding material you have collected since, starting something new, looking back through what you have got, showing it to someone. Alongside them sit Nothing in particular, which is a real answer, and Not now, which is not.
+
+It is asked once per account, ever. Answering closes it permanently and that is recorded on the server, so it will not return if you clear your browser storage. Choosing Not now is remembered in this browser.
+It counts as asked only once it has actually been on your screen for a few seconds, so a question that appears as you are closing the tab does not use up your one time.
+It never appears on your first session, and it does not appear when you have arrived through someone else's share or invite link.
+Whatever you type in the optional free-text follow-up is stored as written text you chose to send, readable by Clusters staff. It is not analysed automatically and is not shared with anyone outside Clusters. If it cannot be sent straight away it waits in your browser's own storage until it can, for at most a week.
+The tap itself is recorded as one of the fixed answers above, together with the length of anything you wrote — never its content.
 Nothing you type into your own clusters — card contents, notes, documents, search terms — is ever collected this way. Search is measured by shape only (how many results, whether any were opened), never by content.
 
 If you would rather it had never been asked, deleting your account removes it along with everything else.

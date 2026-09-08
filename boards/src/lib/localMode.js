@@ -25,6 +25,20 @@ export function isDocQaMode() {
   return new URLSearchParams(window.location.search).get('docqa') === '1';
 }
 
+// Dev-only harness for the return question. Active ONLY in a DEV build with
+// ?returnqa=1 (same trust boundary as isDocQaMode), and it does exactly one
+// thing: skip the twenty-second visible-time clock and the settle gate so the
+// banner can be looked at. Everything downstream of the tap — the write, the
+// once-per-account marker, the follow-up — runs for real.
+//
+// It exists because this surface is otherwise unviewable without waiting out a
+// timer on a signed-in account on a second calendar day, which is precisely the
+// combination that let a completely broken version ship and stay broken.
+export function isReturnQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('returnqa') === '1';
+}
+
 // Dev-only collaborative-note QA harness. Active ONLY in a DEV build with
 // ?noteqa=1 (same trust boundary as isDocQaMode). Mounts the real NoteCard
 // against a fresh in-memory Y.Doc + note card Y.Map so Playwright can drive

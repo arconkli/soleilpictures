@@ -28,7 +28,21 @@ export function StatusPill({ kind }) {
 
 // Feedback kind — its own palette so bug/idea/praise/other are each
 // distinct (idea and other no longer collide on the same neutral).
+//
+// The fallback is silent by design (an unknown kind must still render), which
+// is why boards/src/lib/feedbackContract.test.mjs asserts this list against the
+// table's CHECK: a kind added to the database and not here would print its raw
+// slug in the styling reserved for 'other' and look like a bug report.
+const KIND_LABEL = { return_reason: 'return' };
+
 export function FeedbackKindPill({ kind }) {
-  const k = ['bug', 'idea', 'praise', 'other'].includes(kind) ? kind : 'other';
-  return <span className={`admin-status admin-kind-${k}`}>{kind}</span>;
+  const k = ['bug', 'idea', 'praise', 'other', 'return_reason'].includes(kind) ? kind : 'other';
+  return <span className={`admin-status admin-kind-${k}`}>{KIND_LABEL[kind] || kind}</span>;
+}
+
+// Which answer was tapped on the return question. Neutral ink — gold is
+// reserved for active/selection/focus, and nothing on this page is selectable.
+export function FeedbackChoicePill({ choice }) {
+  if (!choice) return null;
+  return <span className="admin-status admin-choice-pill">{choice}</span>;
 }

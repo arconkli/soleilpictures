@@ -14,6 +14,16 @@
 //
 // Asserted on code shape rather than on prose: a `not.toContain` guard matches
 // the comment explaining the code and forces the explanation to be deleted.
+//
+// WHAT THIS FILE NO LONGER DOES, and why. It used to assert that migration 0282
+// CONTAINS the string 'return_reason'. It did, all along — and every call still
+// raised 23514, because the table's CHECK had never permitted that kind. The
+// test read one side of a contract and reported it as coverage. Anything that
+// spans the client and the database now lives in
+// src/lib/feedbackContract.test.mjs, which resolves the constraint across ALL
+// migrations last-writer-wins and compares it against every writer — and which
+// `npm test` actually runs. This file is a Playwright spec and is not part of
+// that gate.
 
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -49,6 +59,24 @@ test('the ask is gated on returning, never on a first session', () => {
   expect(app).toMatch(/returnedAfter\s*=\s*last\s*&&\s*last\s*!==\s*today/);
 });
 
+test('the clock counts visible time, and a deferral never burns the one shot', () => {
+  const ask = read('src/components/ReturnReasonAsk.jsx');
+
+  // A plain wall-clock setTimeout ran while the tab was backgrounded, so the
+  // account's single lifetime exposure could be spent on a banner nobody was
+  // there to see.
+  expect(ask).toMatch(/document\.hidden/);
+
+  // upsellSlot.js's own header: a false claim must return BEFORE any stamp is
+  // written, because deferring is not declining. The marker therefore cannot
+  // appear inside the branch that handles a refused claim.
+  const claim = ask.indexOf("claimUpsellSlot('return-reason')");
+  expect(claim).toBeGreaterThan(0);
+  const refusal = ask.slice(claim, ask.indexOf('setOpen(true)', claim));
+  expect(refusal, 'the ask must not be marked handled on a mere deferral')
+    .not.toMatch(/writeKey\(ASKED_KEY/);
+});
+
 test('it competes for the shared slot like every other ambient ask', () => {
   const ask = read('src/components/ReturnReasonAsk.jsx');
   const slot = read('src/lib/upsellSlot.js');
@@ -58,28 +86,54 @@ test('it competes for the shared slot like every other ambient ask', () => {
   expect(slot).toMatch(/'return-reason'/);
 });
 
-test('the once-per-account rule is enforced on the server, not just locally', () => {
-  const mig = read('../supabase/migrations/0282_return_reason_feedback.sql');
-  expect(mig).toMatch(/where f\.user_id = v_uid and f\.kind = 'return_reason'/);
-  expect(mig).toMatch(/return false;/);
-  // The choice list is closed server-side too, so the column stays groupable.
-  expect(mig).toMatch(/not in \('unfinished', 'new_material', 'reminded', 'someone_asked', 'looking'\)/);
-  // Writes must not go through a permissive policy on a table whose grants
-  // still include DELETE for authenticated.
-  expect(mig).toMatch(/revoke insert, update, delete on public\.feedback from anon, authenticated/);
-  expect(mig).toMatch(/on delete cascade/);
+test('the error the RPC returns is READ, never wrapped and hoped over', () => {
+  const ask = read('src/components/ReturnReasonAsk.jsx');
+
+  // THE GUARD THAT WOULD HAVE CAUGHT IT. The first version's call was
+  //
+  //   try { await supabase.rpc('submit_return_reason', {...}) } catch (_) {}
+  //
+  // and the bug was not a MISSING try/catch — it was a present one. The
+  // supabase-js builder resolves with {data, error}; it does not throw, so the
+  // catch fired on nothing and the 23514 that destroyed every answer the
+  // product ever received was discarded twice over. The only shape that can
+  // see a failure is a destructure.
+  expect(ask, 'the rpc result must be destructured so `error` is visible')
+    .toMatch(/const\s*\{\s*data\s*,\s*error\s*\}\s*=\s*await\s+supabase\.rpc\(\s*'submit_return_reason'/);
+  expect(ask, 'a failure must be reportable, or total loss looks exactly like success')
+    .toMatch(/RETURN_REASON_WRITE_FAILED/);
+
+  // And a failed write must not retire the account. The first version wrote the
+  // permanent marker BEFORE the round trip, so every user was retired on a
+  // write that could never succeed.
+  expect(ask).toMatch(/PENDING_KEY/);
+  expect(ask, 'a check violation must never be retried forever').toMatch(/TERMINAL/);
 });
 
 test('a dismissal is remembered, and the answer text never rides an event', () => {
   const ask = read('src/components/ReturnReasonAsk.jsx');
-  expect(ask).toMatch(/markHandled\('dismissed'\)/);
-  expect(ask).toMatch(/markHandled\('answered'\)/);
+  expect(ask).toMatch(/writeKey\(ASKED_KEY, 'dismissed'\)/);
+  expect(ask).toMatch(/writeKey\(ASKED_KEY, 'answered'\)/);
+  // And an ask that was actually delivered counts as asked, so someone who
+  // ignores it is not asked again on their next return.
+  expect(ask).toMatch(/writeKey\(ASKED_KEY, 'shown'\)/);
 
-  // The analytics event may say WHETHER a note was written, never what it said.
-  const answered = ask.slice(ask.indexOf('RETURN_REASON_ANSWERED'));
-  const payload = answered.slice(0, answered.indexOf('}'));
-  expect(payload).toMatch(/has_note/);
-  expect(payload, 'the free text must go to feedback and nowhere else').not.toMatch(/note:\s*note/);
+  // The analytics event may say HOW LONG a note was, never what it said.
+  //
+  // Brace-balanced rather than sliced to the first '}': the payload now carries
+  // a spread of the session shape, so indexOf('}') stopped at a nested object
+  // and silently shrank the region being asserted on to nothing.
+  const at = ask.indexOf('EV.RETURN_REASON_NOTE');
+  expect(at, 'the note event must exist').toBeGreaterThan(0);
+  const open = ask.indexOf('{', at);
+  let depth = 0; let end = open;
+  for (let i = open; i < ask.length; i += 1) {
+    if (ask[i] === '{') depth += 1;
+    else if (ask[i] === '}') { depth -= 1; if (depth === 0) { end = i; break; } }
+  }
+  const payload = ask.slice(open, end + 1);
+  expect(payload).toMatch(/len:/);
+  expect(payload, 'the free text must go to feedback and nowhere else').not.toMatch(/note:\s*(note|text)\b/);
 });
 
 test('the privacy page documents it, since the surface test cannot', () => {

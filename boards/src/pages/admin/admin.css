@@ -2064,6 +2064,40 @@
 
 .admin-kind-other  { background: var(--bg-4); color: var(--ink-3); }
 
+/* The return question. Neutral, and quieter than the four report kinds: these
+   arrive on their own schedule and must not read as something to triage. */
+.admin-kind-return_reason { background: rgba(150,150,170,.14); color: rgb(165,165,185); }
+
+.admin-choice-pill { background: transparent; color: var(--ink-2); border: 1px solid var(--line-2); }
+
+/* A message the SERVER wrote — the label for a choice whose author skipped the
+   follow-up. Rendering it identically to prose would misattribute our own
+   filler to a person. */
+.admin-feedback-message.is-filler { color: var(--ink-3); font-style: italic; }
+
+/* Counts by answer, above the list, so the shape of the return question is
+   readable at a glance instead of by counting rows. */
+.admin-feedback-tally {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin: 0 0 10px;
+}
+.admin-feedback-tally-item {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 4px 9px; border-radius: 999px;
+  background: var(--bg-2); border: 1px solid var(--line-1);
+  font: 500 11.5px/1 var(--font-sans); color: var(--ink-2);
+}
+.admin-feedback-tally-n { font-weight: 700; color: var(--ink-0); }
+
+/* Screenshots have been stored since 0095 and were never returned by the list
+   RPC, so no surface in the product has ever shown one. */
+.admin-feedback-shot {
+  margin-top: 8px; max-width: 100%; max-height: 420px;
+  border-radius: 8px; border: 1px solid var(--line-1);
+  display: block;
+}
+.admin-feedback-shot-loading { color: var(--ink-3); font: 400 12px/1.4 var(--font-sans); margin-top: 8px; }
+
 @media (prefers-reduced-motion: reduce) {
   .admin-skeleton { animation: none; }
   .admin-spin { animation: none; }
