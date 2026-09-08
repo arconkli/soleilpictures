@@ -63,7 +63,15 @@ export function useSuggestedTags({ workspaceId, existingTagSlugs }) {
       try {
         const [b, ci, dp] = await Promise.all([
           supabase.from('boards').select('id, name').eq('workspace_id', workspaceId).is('deleted_at', null),
-          supabase.from('card_index').select('board_id, card_id, title, body').eq('workspace_id', workspaceId),
+          // Scale guard: card `body` is the full card text, so this is the one
+          // heavy fetch here. Bounded to the 2,000 most-recently-touched cards —
+          // a no-op below that size (the largest workspace today is ~531), and
+          // above it the suggestions are computed from recent content, which is
+          // what a user is likely to be tagging anyway. Do NOT drop `body`: the
+          // whole heuristic tokenises it.
+          supabase.from('card_index').select('board_id, card_id, title, body')
+            .eq('workspace_id', workspaceId)
+            .order('updated_at', { ascending: false }).limit(2000),
           // Doc pages — the column is page_text (not "text"). Earlier
           // bug returned an error and silently dropped doc content
           // from the suggestion corpus.

@@ -93,9 +93,14 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
     const reload = async () => {
       try {
         const [r1, r2, r3] = await Promise.all([
+          // Scale guard: bound the entity corpus to the 5,000 most-recently-
+          // touched entities. A no-op at today's sizes (largest workspace ~531
+          // entities); above it the @-mention / link trie is built from recent
+          // entities rather than a multi-MB whole-workspace fetch on every mount.
           supabase.from('entity_search')
             .select('id,kind,workspace_id,board_id,card_id,title,updated_at')
-            .eq('workspace_id', workspaceId),
+            .eq('workspace_id', workspaceId)
+            .order('updated_at', { ascending: false }).limit(5000),
           supabase.from('entity_aliases')
             .select('entity_kind,entity_id,alias')
             .eq('workspace_id', workspaceId),
