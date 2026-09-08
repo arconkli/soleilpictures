@@ -400,7 +400,7 @@ export default class UploadParty implements Party.Server {
     if (body.boardId) {
       const data = await supabaseRpc("can_write_board", { p_board_id: body.boardId }, accessToken);
       allowed = data === true;
-      // 0310: the key prefix below is this.room.id — a URL segment the CLIENT
+      // 0313: the key prefix below is this.room.id — a URL segment the CLIENT
       // chose — while the check above only proves the caller can write the
       // board. Nothing related the two, so an editor on a board in workspace A
       // could mint keys under workspace B's prefix and file the images row
