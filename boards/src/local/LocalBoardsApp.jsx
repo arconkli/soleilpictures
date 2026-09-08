@@ -31,6 +31,8 @@ import { widthForFrame } from '../lib/reframeLayout.js';
 import { aspectSpec } from '../lib/captureAspect.js';
 import { guardCaptureMutators } from '../lib/captureMutatorGuard.js';
 import { CaptureHud } from '../components/capture/CaptureHud.jsx';
+import { ReturnReasonAsk } from '../components/ReturnReasonAsk.jsx';
+import { isReturnQaMode } from '../lib/localMode.js';
 import { AspectMask } from '../components/capture/AspectMask.jsx';
 import { Spotlight } from '../components/capture/Spotlight.jsx';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -1434,6 +1436,12 @@ export function LocalBoardsApp({ user, signOut }) {
         <CaptureHud />
       </>)}
       <ShortcutsHost />
+      {/* Dev-only, ?returnqa=1. The return question is otherwise unviewable
+          without a signed-in account on a second calendar day plus a timer —
+          the exact combination that let a version of it ship storing nothing
+          at all and stay that way. The literal import.meta.env.DEV drops this
+          from production along with the component's own harness branch. */}
+      {import.meta.env.DEV && isReturnQaMode() && <ReturnReasonAsk />}
       {mobileShell && mobileNavOpen && (
         <div className="sidebar-mobile-backdrop"
              onClick={() => setMobileNavOpen(false)}

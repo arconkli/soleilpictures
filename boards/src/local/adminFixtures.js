@@ -347,12 +347,20 @@ const RPCS = {
     revoked_at: i === 7 ? tsISO(720) : null, note: i % 2 ? 'Beta partner' : 'Creator program',
   })),
   admin_list_feedback: [
-    { id: 'f1', user_id: 'u-2', email: 'priya@acme.io', kind: 'bug', message: 'The funnel chart tooltip flickers when I hover near the fork divider — looks like a re-render loop. Repro: 90d range, hover the email→otp band quickly.', url: '/admin?tab=analytics', viewport: '1512x982', user_agent: 'Mac · Chrome 128', created_at: tsISO(40) },
-    { id: 'f2', user_id: 'u-5', email: 'theo@gmail.com', kind: 'idea', message: 'Could the Users table let me bulk-grant paid access by pasting a column of emails?', url: '/admin?tab=users', viewport: '1728x1080', user_agent: 'Mac · Safari 17', created_at: tsISO(180) },
-    { id: 'f3', user_id: null, email: null, kind: 'praise', message: 'New analytics tab is gorgeous', url: '/admin', viewport: '1440x900', user_agent: 'Win · Edge 128', created_at: tsISO(520) },
-    { id: 'f4', user_id: 'u-9', email: 'ravi@proton.me', kind: 'other', message: 'Typo on the waitlist email: "you’re in in".', url: '/welcome', viewport: '390x844', user_agent: 'iPhone · Safari', created_at: tsISO(1300) },
-    { id: 'f5', user_id: 'u-1', email: 'devon@gmail.com', kind: 'bug', message: 'Storage tab showed "—" for a sec on load then filled in.', url: '/admin?tab=analytics&view=system', viewport: '2560x1440', user_agent: 'Mac · Chrome 128', created_at: tsISO(2600) },
+    { id: 'f1', user_id: 'u-2', email: 'priya@acme.io', kind: 'bug', message: 'The funnel chart tooltip flickers when I hover near the fork divider — looks like a re-render loop. Repro: 90d range, hover the email→otp band quickly.', url: '/admin?tab=analytics', viewport: '1512x982', user_agent: 'Mac · Chrome 128', created_at: tsISO(40), has_note: true, has_image: false },
+    { id: 'f2', user_id: 'u-5', email: 'theo@gmail.com', kind: 'idea', message: 'Could the Users table let me bulk-grant paid access by pasting a column of emails?', url: '/admin?tab=users', viewport: '1728x1080', user_agent: 'Mac · Safari 17', created_at: tsISO(180), has_note: true, has_image: false },
+    { id: 'f3', user_id: null, email: null, kind: 'praise', message: 'New analytics tab is gorgeous', url: '/admin', viewport: '1440x900', user_agent: 'Win · Edge 128', created_at: tsISO(520), has_note: true, has_image: false },
+    { id: 'f4', user_id: 'u-9', email: 'ravi@proton.me', kind: 'other', message: 'Typo on the waitlist email: "you’re in in".', url: '/welcome', viewport: '390x844', user_agent: 'iPhone · Safari', created_at: tsISO(1300), has_note: true, has_image: false },
+    { id: 'f5', user_id: 'u-1', email: 'devon@gmail.com', kind: 'bug', message: 'Storage tab showed "—" for a sec on load then filled in.', url: '/admin?tab=analytics&view=system', viewport: '2560x1440', user_agent: 'Mac · Chrome 128', created_at: tsISO(2600), has_note: true, has_image: true },
+    // Return-question answers. The first carries prose; the second is someone
+    // who tapped and skipped the follow-up, so its message is the label the
+    // SERVER wrote — has_note false is what tells the row to render it as
+    // filler rather than as something a person typed.
+    { id: 'f6', user_id: 'u-4', email: 'mara@studio.co', kind: 'return_reason', choice: 'adding', message: 'A pinterest board my producer sent over the weekend.', url: null, viewport: '1512x982', user_agent: 'Mac · Chrome 128', created_at: tsISO(90), has_note: true, has_image: false },
+    { id: 'f7', user_id: 'u-7', email: 'jonas@gmail.com', kind: 'return_reason', choice: 'resuming', message: 'Picking up where I left off', url: null, viewport: '390x844', user_agent: 'iPhone · Safari', created_at: tsISO(400), has_note: false, has_image: false },
+    { id: 'f8', user_id: null, email: null, kind: 'return_reason', choice: 'reviewing', message: 'trying to find the lighting refs from the october shoot', url: null, viewport: '1728x1080', user_agent: 'Mac · Safari 17', created_at: tsISO(900), has_note: true, has_image: false },
   ],
+  admin_get_feedback_image: 'data:image/gif;base64,R0lGODlhAQABAIAAAO7u7v///yH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==',
   admin_error_summary: [
     { message: "TypeError: Cannot read properties of undefined (reading 'map')", kind: 'window', occurrences: 142, sessions: 38, users: 21, first_seen: tsISO(8000), last_seen: tsISO(45), sample_stack: "TypeError: Cannot read properties of undefined (reading 'map')\n    at CanvasSurface (CanvasSurface-AOAhM.js:1:21733)\n    at renderWithHooks (vendor-react.js:1:88012)" },
     { message: 'AbortError: The operation was aborted.', kind: 'unhandledrejection', occurrences: 88, sessions: 52, users: 33, first_seen: tsISO(9000), last_seen: tsISO(120), sample_stack: 'AbortError: The operation was aborted.\n    at loadBoardSnapshot (supabase.js:1:4021)' },
@@ -977,6 +985,13 @@ function rpcResult(name, params) {
     const rows = params?.p_require_work ? RPCS.admin_habit_curve_work : RPCS.admin_habit_curve;
     const window = Number(params?.p_window_days) || 28;
     return window >= 28 ? rows : rows.slice(0, Math.max(1, Math.round(window / 2)));
+  }
+  // The Feedback tab's kind filter and its counts-by-answer strip only mean
+  // anything against a filtered set, so the harness has to honour p_kind or the
+  // one thing the strip exists to show would be computed over every row.
+  if (name === 'admin_list_feedback') {
+    const rows = RPCS.admin_list_feedback || [];
+    return params?.p_kind ? rows.filter((r) => r.kind === params.p_kind) : rows;
   }
   return Object.prototype.hasOwnProperty.call(RPCS, name) ? RPCS[name] : null;
 }

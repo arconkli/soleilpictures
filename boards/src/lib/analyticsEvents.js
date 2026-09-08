@@ -235,15 +235,21 @@ export const EV = Object.freeze({
   LIFECYCLE_RESUME:        'lifecycle_resume',            // a lifecycle click that landed signed-OUT subsequently got a session {email_type,content_version} — i.e. they hit the sign-in wall and made it through anyway, and the metric the /resume signed link is meant to move. Pair with lifecycle_land{signed_in:false} for the wall's kill count, but ONLY on rows from 2026-08-31 on — before that the denominator is a constant, not a measurement. Bot-filter either side: inbox scanners land within ~90s of a top-of-hour cron send and never press the button
 
   // ── The one question (see components/ReturnReasonAsk.jsx) ──
-  // public.feedback has RLS on with no policies, so until now there was no
-  // write path from the app at all and the table holds a single row for the
-  // product's entire history. Behaviour can say what someone did and never why
-  // they decided this was not for them. Asked only of people who RETURNED —
-  // the ones who left cannot be asked honestly — and answered once per account
-  // for good, enforced in submit_return_reason rather than in localStorage.
-  RETURN_REASON_SHOWN:     'return_reason_shown',         // the ask was displayed {days_since_last_seen} — the denominator
-  RETURN_REASON_ANSWERED:  'return_reason_answered',      // a choice was taken {choice,has_note,days_since_last_seen} (must-land). The answer TEXT never rides here; it goes to public.feedback and nowhere else
-  RETURN_REASON_DISMISSED: 'return_reason_dismissed',     // "No thanks" {days_since_last_seen} — a dismissal is remembered permanently, so a high rate here means the ask is wrong and should come out rather than be re-timed
+  // Behaviour can say what someone did and never why they decided this was not
+  // for them. Asked only of people who RETURNED — the ones who left cannot be
+  // asked honestly — and answered once per account for good, enforced by a
+  // partial unique index the RPC upserts against rather than by localStorage.
+  //
+  // READ THE DENOMINATOR CAREFULLY. From 0310 onward RETURN_REASON_SHOWN fires
+  // when the banner has been on a LIVE screen for several seconds, not when it
+  // renders. Before that it fired at render, and a large share of those renders
+  // were the last event in their session — a banner painted into a tab already
+  // closing. Rates across that boundary are not comparable.
+  RETURN_REASON_SHOWN:     'return_reason_shown',         // delivered to a live screen {days_since_last_seen} — the denominator
+  RETURN_REASON_ANSWERED:  'return_reason_answered',      // a choice was taken {choice,days_since_last_seen,boards_opened,cards_placed,wrote} (must-land). The session shape rides along so the self-report can be checked against behaviour. The answer TEXT never rides here; it goes to public.feedback and nowhere else
+  RETURN_REASON_NOTE:      'return_reason_note',          // the follow-up was written {choice,len} — LENGTH ONLY, same rule as search_run's q_len
+  RETURN_REASON_WRITE_FAILED: 'return_reason_write_failed', // the answer did not reach the table {code,terminal,stage}. Its absence is why 0282's total loss of every answer looked exactly like success — do not remove it
+  RETURN_REASON_DISMISSED: 'return_reason_dismissed',     // "Not now" {days_since_last_seen} — remembered permanently, so a high rate here means the ask is wrong and should come out rather than be re-timed a third time
 
   // ── The bell (previously COMPLETELY DARK) ──
   // public.notifications, the panel, the live bus and the browser-notification

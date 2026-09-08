@@ -29825,7 +29825,44 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Clusters may ask you one question, once: on a day you come back, it can ask what brought you back, with a short list of answers and an optional free-text box."
+     "v": "Clusters may ask you one question, once: on a day you come back, it asks what brings you back today, offering a short list of answers. Tapping one is the whole answer. It then asks a single follow-up in your own words, which you can skip — the tap has already been recorded either way."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The list is fixed and always in this order: picking up where you left off, adding material you have collected since, starting something new, looking back through what you have got, showing it to someone. Alongside them sit "
+    },
+    {
+     "t": "em",
+     "v": "Nothing in particular",
+     "children": [
+      {
+       "t": "text",
+       "v": "Nothing in particular"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which is a real answer, and "
+    },
+    {
+     "t": "em",
+     "v": "Not now",
+     "children": [
+      {
+       "t": "text",
+       "v": "Not now"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which is not."
     }
    ]
   },
@@ -29850,19 +29887,53 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — answering or dismissing it both close it permanently, and that is recorded on the server, so it will not return if you clear your browser storage."
+      "v": ". Answering closes it permanently and that is recorded on the server, so it will not return if you clear your browser storage. Choosing "
+     },
+     {
+      "t": "em",
+      "v": "Not now",
+      "children": [
+       {
+        "t": "text",
+        "v": "Not now"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is remembered in this browser."
      }
     ],
     [
      {
       "t": "text",
-      "v": "It never appears on your first session."
+      "v": "It counts as asked only once it has actually been on your screen for a few seconds, so a question that appears as you are closing the tab does not use up your one time."
      }
     ],
     [
      {
       "t": "text",
-      "v": "Whatever you type in the optional box is stored as "
+      "v": "It never appears on your first session, and it does not appear when you have arrived through someone else's share or invite link."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Whatever you type in the optional "
+     },
+     {
+      "t": "strong",
+      "v": "free-text",
+      "children": [
+       {
+        "t": "text",
+        "v": "free-text"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " follow-up is stored as "
      },
      {
       "t": "strong",
@@ -29876,7 +29947,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ", readable by Clusters staff. It is not analysed automatically and is not shared with anyone outside Clusters."
+      "v": ", readable by Clusters staff. It is not analysed automatically and is not shared with anyone outside Clusters. If it cannot be sent straight away it waits in your browser's own storage until it can, for at most a week."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The tap itself is recorded as one of the fixed answers above, together with the length of anything you wrote — never its content."
      }
     ],
     [

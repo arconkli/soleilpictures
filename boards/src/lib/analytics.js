@@ -712,6 +712,28 @@ function ensureSummary(now) {
   return summaryAcc;
 }
 
+/**
+ * The shape of the session so far — counts only, never content.
+ *
+ * Exists so a self-report can be cross-checked against behaviour: the return
+ * question asks what someone is here to do, and an answer of "adding material"
+ * from a session that placed nothing is the instrument telling you it is not
+ * measuring what it claims. Read at the moment of the answer, because the
+ * session summary row is emitted at teardown and is therefore too late.
+ *
+ * A reader of module state rather than an export of the accumulator itself, so
+ * a caller cannot mutate the row that describes their session.
+ */
+export function currentSessionShape() {
+  try {
+    const acc = summaryAcc;
+    if (!acc) return { boards_opened: 0, cards_placed: 0, wrote: false };
+    return { boards_opened: acc.boards.size, cards_placed: acc.cards, wrote: !!acc.wrote };
+  } catch (_) {
+    return { boards_opened: 0, cards_placed: 0, wrote: false };
+  }
+}
+
 function emitSessionSummary(ended) {
   try {
     const acc = summaryAcc;
