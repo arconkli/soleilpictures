@@ -38,6 +38,7 @@ import { AdminApprovalsTab } from './admin/AdminApprovalsTab.jsx';
 import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
 import { AdminFeedbackTab } from './admin/AdminFeedbackTab.jsx';
 import { AdminErrorsTab } from './admin/AdminErrorsTab.jsx';
+import { AdminAuditTab } from './admin/AdminAuditTab.jsx';
 import { AdminApiTab } from './admin/AdminApiTab.jsx';
 import { AdminScoutTab } from './admin/AdminScoutTab.jsx';
 import { AdminEmailsTab } from './admin/AdminEmailsTab.jsx';
@@ -63,6 +64,7 @@ const TABS = [
   { id: 'waitlist',  label: 'Waitlist' },
   { id: 'feedback',  label: 'Feedback' },
   { id: 'errors',    label: 'Errors' },
+  { id: 'audit',     label: 'Audit' },
   { id: 'api',       label: 'API' },
   { id: 'scout',     label: 'Scout' },
   { id: 'emails',    label: 'Emails' },
@@ -286,6 +288,7 @@ export function AdminPage() {
         {tab === 'feedback'  && <AdminFeedbackTab />}
         {tab === 'scout'     && <AdminScoutTab />}
         {tab === 'errors'    && <AdminErrorsTab />}
+        {tab === 'audit'     && <AdminAuditTab />}
         {tab === 'api'       && <AdminApiTab />}
         {tab === 'emails'    && <AdminEmailsTab />}
         {tab === 'tagging'   && <AdminTaggingTab />}
