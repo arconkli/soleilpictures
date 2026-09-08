@@ -91,11 +91,19 @@ async function sbUpsert(env, table, rows, onConflict) {
   if (!res.ok) throw new Error(`sbUpsert ${table} ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
 }
 
+// Returns the caller's tier, or null if it cannot be established. Every caller
+// treats null as "not an admin", so failing closed here is a denial.
 export async function getTier(env, userToken) {
+  // Previously `SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY`. The role comes
+  // from the user JWT below, so the fallback was not live escalation — but a
+  // missing binding would silently put the service-role secret on the wire for
+  // a plain tier lookup. Deny instead; a misconfigured deploy should fail the
+  // admin check, not quietly upgrade the credential it uses.
+  if (!env.SUPABASE_ANON_KEY || !userToken) return null;
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/get_my_tier`, {
     method: 'POST',
     headers: {
-      apikey: env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_ROLE_KEY,
+      apikey: env.SUPABASE_ANON_KEY,
       authorization: `Bearer ${userToken}`,
       'content-type': 'application/json',
     },

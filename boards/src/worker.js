@@ -166,6 +166,44 @@ function jsonLdSafe(obj) {
     .replace(/&/g, '\\u0026');
 }
 
+// Sitewide security headers.
+//
+// public/_headers covers everything the assets service serves, but the Worker
+// synthesizes plenty of responses itself — OG images, share/public JSON, the
+// /api/* surfaces, injected crawlable HTML — and those never touch that file.
+// This is the single place every Worker response passes through, so the two
+// together mean there is no path that answers without them.
+//
+// Only ever fills in a header that is absent, so a route with a deliberate
+// value (the CORS/ACAO on /api/v1, x-robots-tag on 404 shells, the
+// no-referrer on unsubscribe and scout) keeps it.
+//
+// The CSP here is the same enforced subset as _headers: the parts that cannot
+// break this app. See that file for why script-src is Report-Only instead.
+const SECURITY_HEADERS = {
+  'x-frame-options': 'DENY',
+  'x-content-type-options': 'nosniff',
+  'referrer-policy': 'strict-origin-when-cross-origin',
+  'strict-transport-security': 'max-age=31536000; includeSubDomains',
+  'content-security-policy':
+    "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; " +
+    "form-action 'self' https://checkout.stripe.com",
+};
+function withSecurityHeaders(res) {
+  // A 101 (WebSocket upgrade) has immutable headers and no body to rewrite.
+  if (!res || res.status === 101) return res;
+  let missing = false;
+  for (const k of Object.keys(SECURITY_HEADERS)) {
+    if (!res.headers.has(k)) { missing = true; break; }
+  }
+  if (!missing) return res;
+  const headers = new Headers(res.headers);
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
+    if (!headers.has(k)) headers.set(k, v);
+  }
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
 // Copy a response, forcing HTML documents to revalidate on every load so new
 // deploys' chunk hashes are picked up immediately. `no-cache` still lets the
 // browser/CDN cache the bytes — it just requires a conditional revalidation
@@ -357,11 +395,23 @@ function injectShareMeta(res, meta, token) {
   return rw.transform(res);
 }
 
-export default {
+const worker = {
   // `ctx` is here for /api/v1's audit log: api_log_request runs in
   // ctx.waitUntil so recording a write is never what makes a request slow, and
   // never what fails one.
+  //
+  // The real handler is handleFetch below. This wrapper exists so security
+  // headers are applied at ONE place: handleFetch has dozens of return points
+  // across the SPA shell, the crawlable-HTML injectors, OG images and every
+  // /api surface, and adding them per-return would guarantee that the next
+  // route added is the one that forgets.
+  // Named reference, not `this`: the Workers runtime may invoke the exported
+  // fetch detached from the module object, which would make `this` undefined.
   async fetch(request, env, ctx) {
+    return withSecurityHeaders(await worker.handleFetch(request, env, ctx));
+  },
+
+  async handleFetch(request, env, ctx) {
     const url = new URL(request.url);
 
     // ── Retired pages 301 to their replacement. This runs BEFORE normalization
@@ -774,6 +824,8 @@ export default {
     }
   },
 };
+
+export default worker;
 
 // History-aware R2 orphan sweep. Replaces the previous find_orphan_images
 // version (which only looked at card_index) with find_history_safe_orphan_images,
@@ -2617,12 +2669,23 @@ async function handleBackfillImageSizes(request, env) {
 
   // Validate caller is admin via the existing get_my_tier RPC. We use
   // the user's JWT so RLS / function gate runs as them.
+  //
+  // This used to read `SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY`. The
+  // user's JWT is what actually picks the role here, so the fallback was not
+  // live privilege escalation — but it meant a single missing binding would
+  // start sending the service-role secret as the apikey on a request that has
+  // no business carrying it, silently and with no signal. A missing key is a
+  // deploy fault, so say so instead of quietly reaching for the stronger one.
+  if (!env.SUPABASE_ANON_KEY) {
+    console.error('[admin] SUPABASE_ANON_KEY is not set; refusing to fall back to the service-role key');
+    return json({ error: 'server misconfigured' }, 500);
+  }
   let tierRes;
   try {
     tierRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/get_my_tier`, {
       method: 'POST',
       headers: {
-        apikey:        env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_ROLE_KEY,
+        apikey:        env.SUPABASE_ANON_KEY,
         authorization: `Bearer ${userToken}`,
         'content-type': 'application/json',
       },
