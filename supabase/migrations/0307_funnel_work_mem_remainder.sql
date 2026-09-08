@@ -1,0 +1,67 @@
+-- 0307_funnel_work_mem_remainder.sql
+--
+-- Finishes the temp-spill work that 0286 (+ its remainder) started, for the two
+-- functions that measurement says are still spilling. Nothing else.
+--
+-- READ THIS BEFORE TRUSTING ANY NUMBER IN 0286's HEADER
+-- -----------------------------------------------------
+-- pg_stat_statements on this project was last reset 2026-08-16. The funnel
+-- fixes landed 2026-09-05. So the cumulative temp figures in pgss today are
+-- roughly three weeks of PRE-fix behaviour plus three days of post-fix, and
+-- reading them as current state says admin_funnel_segments is still writing
+-- 10 GB when most of that is history. CLAUDE.md warns about exactly this
+-- (pg_stat_database.stats_reset is null while pgss WAS reset — read
+-- pg_stat_statements_info). Attribute by DELTA around a call, not by total.
+--
+-- Measured that way, one call each at p_days=30, today:
+--
+--   admin_funnel_segments            36 MB temp   ← still spilling
+--   admin_onboarding_error_coverage  39 MB temp   ← still spilling
+--   admin_checkout_reliability        0
+--   admin_device_breakdown            0
+--   admin_event_funnel                0
+--   admin_journey_transitions         0
+--
+-- So only two need anything, and the other four would have been busywork.
+--
+-- WHY admin_funnel_segments STILL SPILLS AFTER 0286 REWROTE IT
+-- 0286 did the right thing: it projects the three props keys it needs as
+-- columns instead of carrying the whole JSONB, and pushes a `?|` existence
+-- filter into the CTE. Its measurement (0 MB, 1,028 ms) was honest at the time.
+-- But `ev` is still referenced three times — once per UNION ALL branch — so
+-- Postgres still materialises it, and the materialised set has simply grown
+-- past work_mem since. A narrower projection buys headroom; it does not remove
+-- the tuplestore. Only not referencing the CTE more than once would, and that
+-- means three scans of analytics_events instead of one, which is a worse trade
+-- on an instance whose cache hit ratio is essentially 100%.
+--
+-- The fix is the one already applied to admin_signup_funnel and admin_fb_funnel
+-- in the 0286 remainder, and both of those now spill zero. This is only an
+-- ALTER FUNCTION ... SET, so no function body is rewritten and no behaviour
+-- changes — verified before/after on the same call:
+--
+--   admin_funnel_segments @ work_mem 2184kB → 36 MB temp
+--   admin_funnel_segments @ work_mem 16MB   →  0 bytes
+--
+-- Confirmed again after applying, via the plan rather than a counter delta —
+-- counters are easy to misattribute when more than one function runs in the
+-- probe transaction:
+--
+--   explain (analyze, buffers) select * from admin_funnel_segments(30, true);
+--   Function Scan  (actual rows=25)  Buffers: shared hit=20915
+--   Execution Time: 80.956 ms          -- no temp lines at all
+--
+-- Same 25 rows out. (81 ms is a warm-cache figure and not directly comparable
+-- to the historical 4,346 ms mean, which spans cold runs; the temp going to
+-- zero is the part that is measured like-for-like.)
+--
+-- COST: work_mem is per sort/hash node, not per query, so a function that runs
+-- several at once can use a multiple of this. That is acceptable here
+-- specifically because these are admin-only RPCs with single-digit concurrency;
+-- it would not be acceptable on a user-facing path.
+
+alter function public.admin_funnel_segments(integer, boolean)
+  set work_mem = '16MB';
+
+alter function public.admin_onboarding_error_coverage(integer, boolean)
+  set work_mem = '16MB';
