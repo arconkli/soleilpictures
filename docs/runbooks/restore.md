@@ -48,7 +48,7 @@ order by deleted_at desc;
 
 **If it is past 30 days**, the row is gone from the live database and you need
 [§4](#4-restore-from-the-nightly-backup). This is exactly the case the nightly
-dump exists for, and why it runs at 02:30 — half an hour ahead of the purge.
+dump exists for, and why it runs at 01:15 — well ahead of the 03:00 purge.
 
 ---
 
@@ -175,12 +175,52 @@ pg_restore -d "<new-project-session-pooler-uri>" --data-only --no-owner soleil.d
 Then repoint `SUPABASE_URL` and the keys in: `boards/wrangler.toml` + Worker
 secrets, PartyKit env, `scout/fly.toml` secrets, and the edge functions.
 
-**What our dump does NOT contain:** R2 objects. Every uploaded image, file and
-compacted op batch lives only in R2 and has no second copy. A database restore
-brings back the *rows that point at* those objects. If R2 itself is lost, the
-pointers resolve to nothing. That is a known, accepted gap — see the R2 note in
-the audit — and it is the reason a bad `R2_SWEEP_MODE=delete` run is the most
-dangerous single command in this system.
+### 5.1 What our dump does NOT contain — the rebuild checklist
+
+The dump is `--schema=public,auth,storage` only. A fresh project restored from
+it will have every table and row and still not be a working system until the
+state below is re-created. This is the list to work down; each item says where
+the source of truth lives.
+
+- **R2 objects (the biggest one).** Every uploaded image, file, and compacted
+  op batch lives only in R2 (`soleil-boards-images`) and, once the mirror is
+  live, its copy in `soleil-boards-images-backup`. The DB restore brings back
+  the *rows that point at* those objects; if R2 itself is lost, the pointers
+  resolve to nothing. Restoring images = copy keys back from the mirror bucket
+  (see `backup.yml` / the R2 mirror cron in `worker.js`). A bad
+  `R2_SWEEP_MODE=delete` run is the most dangerous single command in this system.
+- **pg_cron jobs.** All ~28 scheduled jobs (the nightly purges, compaction,
+  heartbeat purge). Defined in migrations — replay `0052`, `0107`, `0108`,
+  `0288` and later cron migrations, or re-`select cron.schedule(...)` from the
+  bodies. `select jobname, schedule from cron.job;` on the old project is the
+  reference if it is still reachable.
+- **The `supabase_realtime` publication.** Which tables broadcast changes
+  (migrations `0113`, `0289`, …). Without it, live collaboration and the admin
+  pulses are silent. `select * from pg_publication_tables where pubname =
+  'supabase_realtime';` is the reference.
+- **Vault secrets.** `vault.secrets` is not in the dumped schemas. Anything read
+  via `vault.decrypted_secrets` (service keys used inside SECURITY DEFINER cron
+  RPCs) must be re-inserted.
+- **GoTrue / Auth settings** (dashboard, not SQL): site URL, redirect
+  allowlist, OTP expiry, HIBP leaked-password protection, email templates, SMTP,
+  and any MFA enablement. `auth` schema *rows* (users) restore; these *settings*
+  do not.
+- **Edge-function secrets:** `STRIPE_*`, `RESEND_*`, `CRON_SECRET`,
+  `GSC_SERVICE_ACCOUNT_JSON`, `SUPABASE_SERVICE_ROLE_KEY`, and the rest. Set per
+  function in the dashboard / via MCP; none are in the dump. The functions
+  themselves have no version history — recover source from git and redeploy.
+- **Storage bucket definitions and policies.** The `storage.objects`/`buckets`
+  *rows* restore, but bucket config (public/private, CORS, size limits) and the
+  actual stored files do not. Buckets in play: `message-attachments` (public),
+  `board-images` (legacy).
+- **R2 CORS** — set manually per bucket, mirrored in `boards/r2-cors.json`.
+- **Worker secrets** (`wrangler secret`): `SUPABASE_SERVICE_ROLE_KEY`,
+  `OPENAI_API_KEY`, and any `*_MODE` flags. **PartyKit env** (`npx partykit
+  env`). **Fly secrets** for scout (`fly secrets list`).
+- **The migration files themselves are incomplete** — ~53 applied migrations
+  have no file on disk (see the parity warning in `backup.yml`). Rebuild the
+  schema from `soleil-<stamp>.schema.sql`, never by replaying
+  `supabase/migrations/`.
 
 ---
 
