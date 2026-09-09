@@ -573,13 +573,31 @@ export function CanvasSurface({
   // Whether the canvas layer is currently GPU-promoted. Hysteresis-gated by
   // zoom (see CANVAS_PROMOTE_* above) so it doesn't flap at the boundary.
   const canvasPromotedRef = useRef(true);
+  // While a scripted camera move is running, the decision above is made ONCE,
+  // for the whole move, and held here. Non-null means "do not re-evaluate".
+  //
+  // Not a different decision — the same one, taken at a better moment. A tween
+  // crosses a threshold somewhere in the middle of its travel, so a take
+  // containing a `fit` tore the compositing layer down around frame 40 of 66:
+  // a layerization change, and everything it evicts, landing mid-shot in a
+  // recording. Deciding at the top of each move puts that work where the camera
+  // is momentarily still — after a hold, or at the cut a take opens with —
+  // which is the one place in a take where a hitch does not show.
+  const cameraPromoteRef = useRef(null);
+  // The hysteresis on its own, so the camera can ask what a given zoom would
+  // decide without also committing to it.
+  const promotionFor = (z, from) => {
+    if (from && z <= CANVAS_PROMOTE_OFF_BELOW) return false;
+    if (!from && z >= CANVAS_PROMOTE_ON_ABOVE) return true;
+    return from;
+  };
   const applyCanvasTransform = () => {
     const el = canvasRef.current;
     if (!el) return;
     const z = zoomRef.current;
-    let promoted = canvasPromotedRef.current;
-    if (promoted && z <= CANVAS_PROMOTE_OFF_BELOW) promoted = false;
-    else if (!promoted && z >= CANVAS_PROMOTE_ON_ABOVE) promoted = true;
+    const promoted = cameraPromoteRef.current !== null
+      ? cameraPromoteRef.current
+      : promotionFor(z, canvasPromotedRef.current);
     canvasPromotedRef.current = promoted;
     if (promoted) {
       // GPU-promoted: translateZ(0) keeps the layer promoted across transform
@@ -1902,6 +1920,10 @@ export function CanvasSurface({
       emitCanvasSettle();
       return Promise.resolve();
     }
+    // Decide the layerization for this move against where it is GOING, and hold
+    // it. See cameraPromoteRef.
+    cameraPromoteRef.current = promotionFor(cam.zoom, canvasPromotedRef.current);
+    applyCanvasTransform();
     const t0 = performance.now();
     return new Promise((resolve) => {
       const step = (now) => {
@@ -2007,20 +2029,30 @@ export function CanvasSurface({
     const list = normalizeMoves(moves);
     if (!list.length) return;
     const run = ++cameraRunRef.current;
-    for (const move of list) {
-      if (cameraRunRef.current !== run) return;      // superseded
-      // Cover this move plus a beat, so a hold longer than the tween's own
-      // 200ms window does not drop the sequence out of gesture mode and let a
-      // strict prune run mid-take.
-      gestureUntilRef.current = performance.now() + (move.ms || 0) + 250;
-      markGestureActiveUntil(gestureUntilRef.current);
-      if (move.type === 'hold') {
-        await new Promise(res => setTimeout(res, move.ms));
-        continue;
+    try {
+      for (const move of list) {
+        if (cameraRunRef.current !== run) return;      // superseded
+        // Cover this move plus a beat, so a hold longer than the tween's own
+        // 200ms window does not drop the sequence out of gesture mode and let a
+        // strict prune run mid-take.
+        gestureUntilRef.current = performance.now() + (move.ms || 0) + 250;
+        markGestureActiveUntil(gestureUntilRef.current);
+        if (move.type === 'hold') {
+          await new Promise(res => setTimeout(res, move.ms));
+          continue;
+        }
+        const cam = solveMove(move);
+        if (!cam) continue;
+        await tweenCameraTo(cam, move.ms, move.ease, run);
       }
-      const cam = solveMove(move);
-      if (!cam) continue;
-      await tweenCameraTo(cam, move.ms, move.ease, run);
+    } finally {
+      // Hand layerization back to the ordinary hysteresis — but only if we
+      // still own the run. A superseding sequence has already pinned its own,
+      // and clearing it here would drop that on the floor.
+      if (cameraRunRef.current === run) {
+        cameraPromoteRef.current = null;
+        applyCanvasTransform();
+      }
     }
     if (cameraRunRef.current !== run) return;        // superseded on the last move
     // The sequence is over: drop the gesture flag, prune strictly against the

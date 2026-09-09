@@ -473,6 +473,34 @@ test('nothing unmounts while a take is travelling', async ({ page }) => {
   }
 });
 
+test('the compositing layer flips at the top of a move, not mid-shot', async ({ page }) => {
+  await boot(page);
+  const willChange = () => page.evaluate(() => document.querySelector('.canvas').style.willChange);
+
+  // Zoomed in, the canvas is GPU-promoted.
+  await play(page, { moves: [{ type: 'fit', ms: 0 }, { type: 'zoom', by: 4, ms: 0 }] });
+  await settled(page);
+  expect(await willChange()).toBe('transform');
+
+  // A slow pull-back that ends below the de-promote threshold. The hysteresis
+  // used to run every frame, so the layer was torn down wherever in the travel
+  // the zoom happened to cross 0.30 — around frame 40 of 66 for a take's
+  // opening `fit`, which is a layerization change landing mid-recording. It is
+  // the same decision; it just has to be taken while the camera is still.
+  await play(page, { moves: [{ type: 'zoom', by: 0.02, ms: 1500 }] });
+  await page.waitForTimeout(200);
+  expect(await willChange(), 'de-promoted late').toBe('auto');
+  await settled(page);
+  expect(await willChange()).toBe('auto');
+
+  // And back the other way.
+  await play(page, { moves: [{ type: 'zoom', by: 40, ms: 1500 }] });
+  await page.waitForTimeout(200);
+  expect(await willChange(), 'promoted late').toBe('transform');
+  await settled(page);
+  expect(await willChange()).toBe('transform');
+});
+
 test('an unknown take or a junk move is ignored rather than throwing', async ({ page }) => {
   await boot(page);
   const errors = [];
