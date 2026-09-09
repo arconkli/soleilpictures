@@ -173,6 +173,31 @@ export async function startRecording({ fps = 30, restrictToElement = null } = {}
   }
 
   chunks = [];
+
+  // ── videoBitsPerSecond: MEASURED, and deliberately not set ─────────────
+  //
+  // The obvious suspicion about this line is that the default bitrate is a flat
+  // ~2.5 Mbps that does not scale, and that a 2880x1800 tab is therefore being
+  // encoded into mush. Measured on Chromium, 30fps, five-second takes:
+  //
+  //     640x360    1.26 Mbps    0.183 bits per pixel per frame
+  //    1280x720    2.81 Mbps    0.102
+  //   2560x1440    5.93 Mbps    0.054
+  //
+  // So it does scale — sub-linearly. Sixteen times the pixels buys four and a
+  // half times the bits. That looked like a reason to name a budget, so one was
+  // tried at 0.1 bits/pixel/frame, and measured again:
+  //
+  //   • On high-entropy content (full-frame noise at 2560x1440) the setting
+  //     changed NOTHING: 76.41 Mbps with an 11 Mbps budget, 76.38 Mbps without.
+  //     It is not a ceiling and it does not lift a demanding encode.
+  //   • On easily-compressed content it RAISED the rate — 1.26 to 3.02 Mbps at
+  //     640x360 for identical frames. Bigger files, nothing to spend them on.
+  //
+  // Neither half is the effect we wanted, so there is no line here. If you come
+  // back to this, the thing that would actually settle it is a real recording of
+  // the app — these numbers are all canvas captureStream, which is the one
+  // source a display encoder never sees.
   recorder = new MediaRecorder(stream, { mimeType: pickMime() });
   recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
 

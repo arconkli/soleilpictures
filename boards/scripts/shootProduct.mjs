@@ -134,21 +134,39 @@ async function runActions(page, actions = []) {
       continue;
     }
     if (a.take) {
-      // A named sequence — the same ones the HUD offers. The app reports the
-      // duration back so the wait comes from the take's own arithmetic rather
-      // than a number copied into the shot list that then drifts.
+      // A named sequence — the same ones the HUD offers.
+      //
+      // Wait for the CAMERA to say it is done, not for arithmetic. takeMs() is
+      // the sum of the move list, but a hold is a setTimeout and a tween is
+      // rAF, so the real clock drifts a little per move — over the seven moves
+      // of `sweep`, enough to cut the last beat off a clip. The listener is
+      // installed before the take is dispatched, or a short take can finish
+      // first. takeMs is still read, as the ceiling.
       const ms = await page.evaluate((id) => {
+        window.__takeDone = new Promise((res) => {
+          document.addEventListener('soleil-capture-camera-done', res, { once: true });
+        });
         document.dispatchEvent(new CustomEvent('soleil-capture-camera', { detail: { take: id } }));
         return window.__soleilCapture?.takeMs?.(id) ?? 6000;
       }, a.take);
-      await page.waitForTimeout(ms + 400);
+      await page.evaluate((cap) => Promise.race([
+        window.__takeDone,
+        new Promise(res => setTimeout(res, cap)),
+      ]), ms + 1500);
       continue;
     }
     if (a.moves) {
       await page.evaluate((moves) => {
+        window.__takeDone = new Promise((res) => {
+          document.addEventListener('soleil-capture-camera-done', res, { once: true });
+        });
         document.dispatchEvent(new CustomEvent('soleil-capture-camera', { detail: { moves } }));
       }, a.moves);
-      await page.waitForTimeout(a.moves.reduce((s, m) => s + (m.ms ?? 900), 0) + 400);
+      const cap = a.moves.reduce((sum, m) => sum + (m.ms ?? 900), 0) + 1500;
+      await page.evaluate((c) => Promise.race([
+        window.__takeDone,
+        new Promise(res => setTimeout(res, c)),
+      ]), cap);
       continue;
     }
     if (a.capture) {
