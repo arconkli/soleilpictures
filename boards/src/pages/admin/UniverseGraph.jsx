@@ -49,7 +49,6 @@ import { RenderPass }        from 'three/examples/jsm/postprocessing/RenderPass.
 import { UnrealBloomPass }   from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import SimWorker from './universeSimWorker.js?worker';
 import { galaxyOrbit, starTemp, starMagnitude } from '../../lib/universeLayout.js';
-import { hash01 } from '../../lib/hashJitter.js';
 import { fetchSnapshotPage, useUniverseDeltas } from './useUniverseStream.js';
 import { collectSnapshot } from '../../lib/universePaging.js';
 
@@ -176,10 +175,6 @@ const GALAXY = {
 // star population that carries the whole look.
 const SPACE_BG = '#05070b';
 
-// Backdrop starfield. Count and radius are decoration, not data — the
-// radius sits inside camera.far (20000) so they never clip.
-const SKY_STARS  = 700;
-const SKY_RADIUS = 14000;
 
 // Halo texture — radial gradient white sprite, same as HomeGraph.
 const HALO_TEXTURE = (() => {
@@ -797,46 +792,6 @@ export function UniverseGraph({
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(SPACE_BG);
 
-    // Distant sky. The reference sits its galaxy in a field of faint
-    // scattered stars rather than on flat black, and without them a
-    // dark canvas reads as an empty panel instead of as space. These
-    // are pure decoration: far outside the corpus, never picked, never
-    // counted, and deliberately NOT rotated — they are the backdrop,
-    // not part of the galaxy.
-    const skyPos = new Float32Array(SKY_STARS * 3);
-    const skyCol = new Float32Array(SKY_STARS * 3);
-    for (let i = 0; i < SKY_STARS; i++) {
-      // Even over the sphere: z uniform, not the angle (which would
-      // bunch every star at the poles).
-      const z = 2 * hash01(`sky${i}:z`) - 1;
-      const t = 2 * Math.PI * hash01(`sky${i}:t`);
-      const r = Math.sqrt(Math.max(0, 1 - z * z)) * SKY_RADIUS;
-      skyPos[i * 3]     = r * Math.cos(t);
-      skyPos[i * 3 + 1] = z * SKY_RADIUS;
-      skyPos[i * 3 + 2] = r * Math.sin(t);
-      const c = starColorFor(starTemp(`sky${i}`, 0.9, 1));
-      const b = 0.25 + 0.75 * Math.pow(hash01(`sky${i}:b`), 3);
-      skyCol[i * 3] = c.r * b; skyCol[i * 3 + 1] = c.g * b; skyCol[i * 3 + 2] = c.b * b;
-    }
-    const skyGeom = new THREE.BufferGeometry();
-    skyGeom.setAttribute('position', new THREE.BufferAttribute(skyPos, 3));
-    skyGeom.setAttribute('color', new THREE.BufferAttribute(skyCol, 3));
-    // Its OWN material, not the node disc shader: that one fogs by depth
-    // against the universe radius, and the sky sits far beyond the fog's
-    // far plane, so it would be erased to the background exactly where it
-    // is supposed to be visible. Fixed pixel size (sizeAttenuation off)
-    // also keeps these reading as distant pinpricks at any zoom —
-    // brightness variation is carried in the colours above.
-    const skyPoints = new THREE.Points(skyGeom, new THREE.PointsMaterial({
-      size: 1.7,
-      sizeAttenuation: false,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.85,
-      depthWrite: false,
-    }));
-    skyPoints.frustumCulled = false;
-    scene.add(skyPoints);
 
     const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, GALAXY.cameraFar);
     // Start ABOVE the disk plane, looking down at its face. Small Z
