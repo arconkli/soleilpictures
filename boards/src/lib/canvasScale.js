@@ -28,7 +28,33 @@ export function setCanvasScale(z) {
 export function setCaptureScaleBoost(k) {
   captureBoost = (typeof k === 'number' && k > 0) ? k : 1;
 }
+
+/**
+ * The canvas's actual settled zoom. What anything reasoning about SCREEN
+ * GEOMETRY wants: how far a finger travelled, how big a hit target is, which
+ * level of detail a card should draw at.
+ */
 export function getCanvasScale() {
+  return scale;
+}
+
+/**
+ * The zoom to pick an IMAGE TIER against — the settled zoom times the Capture
+ * Mode boost.
+ *
+ * These were one function, with the boost folded into getCanvasScale(). The
+ * boost is about photographing images sharply and nothing else, but the getter
+ * had four callers and only two of them were about images: GridCard divides a
+ * pointer delta by it, so in Capture Mode a divider dragged at half finger
+ * speed and its snap window halved; ScheduleCard feeds it into a level-of-detail
+ * tier and a chrome multiplier, so a card that reads as a poster in the product
+ * photographed as a full calendar, with the 44pt touch floor collapsed.
+ *
+ * The BOOSTED read is the one with the special name, deliberately. A future
+ * caller reaching for the obvious getter gets the true zoom, and this class of
+ * bug cannot come back the same way.
+ */
+export function getImageTierScale() {
   return scale * captureBoost;
 }
 

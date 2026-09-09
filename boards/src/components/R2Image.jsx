@@ -24,7 +24,7 @@ import { requestImageBackfill } from '../lib/previewBackfill.js';
 import { thumbHashToDataURL } from 'thumbhash';
 import * as perf from '../lib/perf.js';
 import { bumpPerf, getGestureActiveUntil } from '../lib/perfReport.js';
-import { getCanvasScale } from '../lib/canvasScale.js';
+import { getImageTierScale } from '../lib/canvasScale.js';
 import { getImageTierScheduler } from '../lib/imageTierScheduler.js';
 import { lowMemoryDevice } from '../lib/device.js';
 
@@ -144,7 +144,7 @@ function pickInitialTier(src, originalKey, w) {
   if (!m || !m.previewKey) return src;
   const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
   const displayedPx = (typeof w === 'number' && w > 0)
-    ? Math.round(w) * getCanvasScale() * dpr : 0;
+    ? Math.round(w) * getImageTierScale() * dpr : 0;
   const smSrc = m.previewSmKey ? `r2:${m.previewSmKey}` : null;
   const wantSm = !!smSrc && !!m.previewSmW && displayedPx > 0 && displayedPx <= m.previewSmW;
   const floor = wantSm ? smSrc : `r2:${m.previewKey}`;
