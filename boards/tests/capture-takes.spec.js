@@ -501,6 +501,57 @@ test('the compositing layer flips at the top of a move, not mid-shot', async ({ 
   expect(await willChange()).toBe('transform');
 });
 
+// ── Reduce Motion ──────────────────────────────────────────────────────────
+//
+// styles.css has a global `@media (prefers-reduced-motion: reduce) { *,
+// *::before, *::after { transform: none !important } }`, and an author
+// !important outranks a normal inline style. So the canvas transform — which is
+// not motion, it is WHERE YOU ARE LOOKING — was written every frame and thrown
+// away, and the two overlays that centre themselves with a transform were
+// parked half off-screen.
+//
+// Note the emulateMedia call. `test.use({ reducedMotion })` did not take here,
+// and a test that silently runs without the media query matching would pass on
+// the broken code — so the first assertion is that the query matches at all.
+test.describe('with Reduce Motion on', () => {
+  test('the canvas still pans and zooms, and the tool is still centred', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await boot(page);
+    expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches),
+      'the media query never matched, so this test proves nothing').toBe(true);
+
+    const computed = (sel) => page.evaluate(
+      (s) => getComputedStyle(document.querySelector(s)).transform, sel);
+
+    // The camera moves for real, not just in the inline attribute.
+    await play(page, { moves: [{ type: 'fit', ms: 0 }] });
+    await page.waitForTimeout(300);
+    const fit = await computed('.canvas');
+    expect(fit).not.toBe('none');
+    await play(page, { moves: [{ type: 'zoom', by: 3, ms: 300 }] });
+    await settled(page);
+    expect(await computed('.canvas')).not.toBe(fit);
+
+    // And the strip is where you can reach it. Centring with auto margins
+    // rather than a transform means there is nothing here to exempt.
+    const vp = page.viewportSize();
+    const hud = await page.locator('.capture-hud').boundingBox();
+    expect(Math.abs((hud.x + hud.width / 2) - vp.width / 2)).toBeLessThan(2);
+  });
+
+  test('the framing guide is still over the middle of the frame', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await boot(page);
+    await page.locator('[aria-label^="Framing guide"]').click();     // Off → 9:16
+    const vp = page.viewportSize();
+    const box = await page.locator('.capture-mask-frame').boundingBox();
+    // Compose against a guide that is in the wrong quadrant and every shot is
+    // wrong — worse than not drawing one.
+    expect(Math.abs((box.x + box.width / 2) - vp.width / 2)).toBeLessThan(2);
+    expect(Math.abs((box.y + box.height / 2) - vp.height / 2)).toBeLessThan(2);
+  });
+});
+
 test('an unknown take or a junk move is ignored rather than throwing', async ({ page }) => {
   await boot(page);
   const errors = [];

@@ -16228,8 +16228,16 @@ body[data-capture-freeze='1'] { --grain-url: none; }
 .capture-hud {
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
-  left: 50%;
-  transform: translateX(-50%);
+  /* Centred by auto margins rather than translateX(-50%). The global
+     prefers-reduced-motion rule flattens `transform` on every element, and it
+     is right to — but a transform used purely to CENTRE something is not
+     motion, and losing it parked this strip with its left edge at the middle of
+     the screen, half of it off the side. Auto margins are not motion, so
+     nothing has to be exempted. */
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: fit-content;
   z-index: 2147483630;
   display: flex; align-items: center; gap: 6px;
   max-width: min(calc(100vw - 24px), 720px);
@@ -16348,7 +16356,7 @@ body[data-capture-hidden='1'] .capture-mask {
 .capture-hud-dot {
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
-  left: 50%; transform: translateX(-50%);
+  left: 0; right: 0; margin-inline: auto;    /* see .capture-hud */
   z-index: 2147483630;
   width: 22px; height: 22px; padding: 0; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
@@ -16398,8 +16406,11 @@ body[data-capture-hidden='1'] .capture-mask {
   pointer-events: none;
 }
 .capture-mask-frame {
-  position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
+  /* inset + auto margins, not a centring transform — see .capture-hud. Under
+     Reduce Motion the viewfinder used to sit in the bottom-right quadrant
+     instead of over the middle of the frame, which is worse than not drawing
+     it: you would compose against it and be wrong. */
+  position: absolute; inset: 0; margin: auto;
   /* dvh, like .app / .public-shell / .settings-modal / .auth-screen. This was
      the one viewport-filling overlay in the file that never got converted, so
      on iOS Safari with the URL bar up the guide was solved against the LARGE
@@ -16519,7 +16530,7 @@ body[data-capture-hidden='1'] .capture-mask {
      dead room either side. */
   .capture-hud {
     left: 8px; right: 8px;
-    transform: none;
+    width: auto;
     max-width: none;
   }
   /* Sixty pixels of scroll for one word you already know. */

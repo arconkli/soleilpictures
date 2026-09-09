@@ -569,6 +569,22 @@ export function CanvasSurface({
   // ~line 853 which already resets per-board state).
   const _zoomCountRef = useRef(0);
 
+  // The canvas transform IS the viewport — it is not decoration.
+  //
+  // styles.css carries a global `@media (prefers-reduced-motion: reduce) { *,
+  // *::before, *::after { transform: none !important } }`. An author !important
+  // outranks a normal inline style, so with Reduce Motion on this element's
+  // transform was written sixty times a second and thrown away: the canvas
+  // could not pan or zoom AT ALL, and a capture take played to a frame that
+  // never moved. An inline !important is the one thing that outranks it, and it
+  // is the narrow fix — nothing in CSS sets .canvas's transform (only
+  // transform-origin and a transition), so there is nothing here to override.
+  //
+  // The global rule is right about what it is for. This is a transform that
+  // encodes WHERE YOU ARE LOOKING rather than a movement, which is the
+  // distinction the blanket selector cannot draw.
+  const setTransform = (el, value) => el.style.setProperty('transform', value, 'important');
+
   const canvasRef = useRef(null);
   // Whether the canvas layer is currently GPU-promoted. Hysteresis-gated by
   // zoom (see CANVAS_PROMOTE_* above) so it doesn't flap at the boundary.
@@ -605,7 +621,7 @@ export function CanvasSurface({
       // layer would exceed the max raster size; this imperative hint survives).
       // will-change is also set here because this assignment overwrites the
       // CSS-side declaration.
-      el.style.transform = `translate3d(${panRef.current.x}px, ${panRef.current.y}px, 0) scale(${z})`;
+      setTransform(el, `translate3d(${panRef.current.x}px, ${panRef.current.y}px, 0) scale(${z})`);
       if (el.style.willChange !== 'transform') el.style.willChange = 'transform';
     } else {
       // De-promoted at fit-all: a plain 2D transform with NO will-change so the
@@ -613,7 +629,7 @@ export function CanvasSurface({
       // overlap-composited → the 100000² SVG + dozens of card layers collapse
       // into the root layer, rastered at the small displayed scale. Pan
       // re-paints on the CPU, but at ~0.1 scale that region is cheap.
-      el.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${z})`;
+      setTransform(el, `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${z})`);
       if (el.style.willChange !== 'auto') el.style.willChange = 'auto';
     }
   };

@@ -30,7 +30,12 @@ export function Spotlight() {
       const el = dotRef.current;
       if (!el) return;
       const { x, y } = posRef.current;
-      el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
+      // !important, for the same reason CanvasSurface's canvas transform is:
+      // the global prefers-reduced-motion rule flattens `transform` on every
+      // element, and a drawn cursor that cannot move is not a reduced-motion
+      // accommodation, it is a gold dot stuck in the corner of the shot.
+      el.style.setProperty('transform',
+        `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`, 'important');
     };
     const schedule = () => {
       if (!rafRef.current) rafRef.current = requestAnimationFrame(flush);
