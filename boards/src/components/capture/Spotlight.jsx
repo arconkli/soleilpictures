@@ -35,13 +35,43 @@ export function Spotlight() {
     const schedule = () => {
       if (!rafRef.current) rafRef.current = requestAnimationFrame(flush);
     };
+    // The off-screen start value, reused as "not in the picture right now". A
+    // fade-out would be capturable in its own right; this is instant and needs
+    // no CSS.
+    const park = () => { posRef.current = { x: -9999, y: -9999 }; schedule(); };
+
+    // Is this pointer event part of the SHOT?
+    //
+    // This layer is the one capture surface that deliberately does not portal
+    // to <body> — it renders inside #root so restrictTo(#root) films it, because
+    // the drawn cursor is content. But it listened to every window pointer
+    // event with no filter, so pressing a control on the capture panel painted
+    // a gold ripple into the video: the tool leaving a mark that says a person
+    // was operating the recorder. A class check on the HUD would not be enough
+    // — restricting to #root also excludes every modal and the command palette,
+    // so a press in one of those is equally not in the picture. Membership of
+    // the filmed subtree is the actual question, so ask it directly.
+    const inShot = (e) => {
+      const root = document.getElementById('root');
+      return !!(root && e.target instanceof Node && root.contains(e.target));
+    };
 
     const onMove = (e) => {
+      if (!inShot(e)) return park();
       posRef.current = { x: e.clientX, y: e.clientY };
       schedule();
     };
 
+    // A finger that lifts is a pointer that no longer exists. On touch,
+    // pointermove only fires while contact is down, so without this the dot
+    // stayed exactly where the last tap landed — for the rest of the shoot,
+    // burned into every OS screenshot and every frame of an OS recording. The
+    // mouse exclusion is required: a mouse fires pointerup after every click,
+    // and parking there would blink the cursor away on a desk.
+    const onUp = (e) => { if (e.pointerType !== 'mouse') park(); };
+
     const onDown = (e) => {
+      if (!inShot(e)) return;
       const host = rippleHostRef.current;
       if (!host) return;
       while (host.childElementCount >= MAX_RIPPLES) host.removeChild(host.firstChild);
@@ -57,11 +87,16 @@ export function Spotlight() {
     // being able to interfere with one. A capture-mode overlay that swallowed a
     // click would make the app unusable in exactly the moment it is being
     // filmed.
-    window.addEventListener('pointermove', onMove, { capture: true, passive: true });
-    window.addEventListener('pointerdown', onDown, { capture: true, passive: true });
+    const opts = { capture: true, passive: true };
+    window.addEventListener('pointermove', onMove, opts);
+    window.addEventListener('pointerdown', onDown, opts);
+    window.addEventListener('pointerup', onUp, opts);
+    window.addEventListener('pointercancel', onUp, opts);
     return () => {
       window.removeEventListener('pointermove', onMove, { capture: true });
       window.removeEventListener('pointerdown', onDown, { capture: true });
+      window.removeEventListener('pointerup', onUp, { capture: true });
+      window.removeEventListener('pointercancel', onUp, { capture: true });
       cancelAnimationFrame(rafRef.current);
     };
   }, []);

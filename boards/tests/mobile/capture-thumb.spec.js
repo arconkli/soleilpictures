@@ -154,6 +154,47 @@ test('the HUD stays inside the viewport and clear of the bottom nav', async ({ p
   }
 });
 
+test('the framing guide goes with the controls, not just the controls', async ({ page }) => {
+  await bootCapture(page);
+
+  // Compose against a guide first — that is what it is for.
+  const frame = page.locator('[data-cap="frame"]');
+  for (let i = 0; i < 6 && !(await frame.innerText()).includes('9:16'); i++) await frame.tap();
+  await expect(page.locator('.capture-mask')).toBeVisible();
+
+  // Then get everything out of the way to shoot. The mask is an independent
+  // sibling of the HUD, so hiding the panel used to leave the letterbox, the
+  // dashed safe rect and a literal "9:16" label over the canvas — and on a
+  // phone the OS recorder films exactly that.
+  // The HUD unmounts; the mask is hidden by a rule on body[data-capture-hidden]
+  // so AspectMask stays independent of the panel's local state. Either way it
+  // is not in the frame, which is the thing being asserted.
+  await threeFingerTap(page);
+  await expect(page.locator('.capture-hud')).toHaveCount(0);
+  await expect(page.locator('.capture-mask')).toBeHidden();
+
+  await threeFingerTap(page);
+  await expect(page.locator('.capture-hud')).toBeVisible();
+  await expect(page.locator('.capture-mask')).toBeVisible();
+});
+
+test('the drawn cursor does not stay where your finger left it', async ({ page }) => {
+  await bootCapture(page);
+  const cursorChip = page.locator('[data-cap="spotlight"]');
+  await cursorChip.tap();
+  const dot = page.locator('.capture-spot-dot');
+  await expect(dot).toBeVisible();
+
+  const transform = () => dot.evaluate(el => el.style.transform);
+
+  // On touch, pointermove only fires while contact is down. Without a lift
+  // handler the dot parked at the last tap for the rest of the shoot — a gold
+  // ring sitting in the middle of every OS screenshot and every recorded frame,
+  // pointing at nothing.
+  await page.touchscreen.tap(180, 320);
+  await expect.poll(transform).toContain('-9999px');
+});
+
 test('three fingers bring the HUD back — the only way home without a keyboard', async ({ page }) => {
   await bootCapture(page);
   const hud = page.locator('.capture-hud');

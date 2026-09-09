@@ -151,6 +151,30 @@ export function CaptureHud() {
     if (isRecording()) stopRecording().then((blob) => saveTake(blob, takeIdRef.current));
   }, []);
 
+  // Hiding the controls has to hide the VIEWFINDER too.
+  //
+  // AspectMask is an independent sibling of this component, so `gone` — a local
+  // early return — never reached it. Three fingers took the panel away and left
+  // the 55% letterbox, the outline, the dashed safe rect and a literal "9:16"
+  // label sitting over the canvas. On a phone, where the OS recorder is the
+  // only way to record at all, that is burned into the file. A guide for
+  // composing is not part of the picture.
+  //
+  // A body attribute rather than a captureState key, deliberately: everything
+  // in that store round-trips through sessionStorage except persona and cast,
+  // so a persisted `hidden` alongside the already-persisted `clean` would make
+  // a reload land in a chromeless app with no control surface at all.
+  //
+  // The spotlight is NOT hidden with it. The shutter hides that one because a
+  // screenshot should not contain a drawn cursor; a recording is the opposite
+  // case — the dot is there so the viewer can see what caused what.
+  useEffect(() => {
+    const b = document.body;
+    if (gone) b.setAttribute('data-capture-hidden', '1');
+    else b.removeAttribute('data-capture-hidden');
+    return () => b.removeAttribute('data-capture-hidden');
+  }, [gone]);
+
   // Summon paths. ⌘⇧H for a desk, three fingers for a phone.
   //
   // The rule is "hide everything / bring the controls all the way back", and

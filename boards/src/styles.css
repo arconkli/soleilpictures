@@ -16297,6 +16297,16 @@ body[data-capture-shutter='1'] .capture-spot {
   display: none !important;
 }
 
+/* Hiding the controls (⌘⇧H, three fingers, or a hands-off Play) takes the
+   framing guide with them. It is a viewfinder — you compose against it, you do
+   not ship it — and on a phone, where an OS screen recording is the only kind
+   there is, leaving it up burns the letterbox and the "9:16" label into the
+   file. The spotlight deliberately stays: unlike the shutter case above, a
+   recording WANTS the drawn cursor. */
+body[data-capture-hidden='1'] .capture-mask {
+  display: none !important;
+}
+
 /* Record. The one control here that is not gold, deliberately: gold is the
    house's active/selection colour and appears all over this strip, so a record
    button in it would read as one chip among many. Red is the only thing on
@@ -16390,8 +16400,17 @@ body[data-capture-shutter='1'] .capture-spot {
 .capture-mask-frame {
   position: absolute; top: 50%; left: 50%;
   transform: translate(-50%, -50%);
+  /* dvh, like .app / .public-shell / .settings-modal / .auth-screen. This was
+     the one viewport-filling overlay in the file that never got converted, so
+     on iOS Safari with the URL bar up the guide was solved against the LARGE
+     viewport while its fixed parent filled the small one — the frame you
+     composed against was a couple of percent off the frame you shot. The
+     duplicate declarations are the house fallback idiom: a browser without dvh
+     keeps the vh pair. */
   width:  min(100vw, calc(100vh * var(--cap-ratio)));
   height: min(100vh, calc(100vw / var(--cap-ratio)));
+  width:  min(100vw, calc(100dvh * var(--cap-ratio)));
+  height: min(100dvh, calc(100vw / var(--cap-ratio)));
   box-shadow: 0 0 0 100vmax rgba(0,0,0,.55);
   outline: 1px solid rgba(255,255,255,.28);
 }
@@ -16409,9 +16428,11 @@ body[data-capture-shutter='1'] .capture-spot {
 }
 
 /* ── Cursor spotlight ──────────────────────────────────────────────────
-   Above everything including the HUD, and pointer-events:none throughout —
-   an overlay that could swallow a click would break the app in the exact
-   moment it is being filmed. */
+   Paints above everything including the HUD, and pointer-events:none
+   throughout — an overlay that could swallow a click would break the app in the
+   exact moment it is being filmed. It only DRAWS for events that landed inside
+   #root, though: the panel it paints over is not part of the shot, and a ripple
+   on a control is the tool signing the recording. See Spotlight.jsx. */
 .capture-spot,
 .capture-spot-ripples {
   position: fixed; inset: 0;
