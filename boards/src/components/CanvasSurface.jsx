@@ -1883,10 +1883,23 @@ export function CanvasSurface({
     const fn = easingFor(ease);
     const from = { zoom: zoomRef.current, pan: { ...panRef.current } };
     // A zero-duration move is a CUT, not a tween — used to set a starting pose
-    // before a take begins. Commit it and get out.
+    // before a take begins.
+    //
+    // It has to write the REFS, not just React state. applyCamera is setZoom +
+    // setPan; the refs are updated by the layout effect that runs after the
+    // commit, and runMoves resumes on a microtask while React's commit is a
+    // macrotask — so the next move's solveMove() and `from` both read the
+    // pre-cut pose. Deterministically, not intermittently: a macrotask cannot
+    // interleave into a microtask chain. Both takes that chain a cut straight
+    // into a move with no hold — sweep and drift — were silently throwing away
+    // their opening fit.
     if (!(ms > 0)) {
+      zoomRef.current = cam.zoom;
+      panRef.current = { ...cam.pan };
+      applyCanvasTransform();
       applyCamera(cam);
       scheduleVisibleRecompute?.();
+      emitCanvasSettle();
       return Promise.resolve();
     }
     const t0 = performance.now();
@@ -1897,12 +1910,24 @@ export function CanvasSurface({
         const s = sampleTween(from, cam, t, fn);
         zoomRef.current = s.zoom;
         panRef.current = s.pan;
+        // The same two lines every live pan runs (see startPan's onMove). A
+        // camera move is a gesture that happens to have no finger on it, and
+        // the machinery that keeps a pan smooth — ADD-only culling, and the
+        // image-tier scheduler holding its drains — keys off exactly this.
+        // Without it the mount set was frozen at the pose the take STARTED
+        // from for the whole travel, so a pull-back revealed board area whose
+        // cards would not appear until the move had already finished.
+        gestureUntilRef.current = performance.now() + 200;
+        markGestureActiveUntil(gestureUntilRef.current);
         applyCanvasTransform();
+        scheduleVisibleRecompute?.();
         if (t < 1) {
           cameraRafRef.current = requestAnimationFrame(step);
         } else {
           // One state commit at the end, so culling and image tiers re-evaluate
-          // against the settled pose rather than against every frame.
+          // against the settled pose rather than against every frame. The
+          // settle itself is emitted once per SEQUENCE, in runMoves — a settle
+          // per move would fire texture swaps inside the next move's tween.
           applyCamera(cam);
           scheduleVisibleRecompute?.();
           resolve();
@@ -1971,12 +1996,24 @@ export function CanvasSurface({
 
   // Play a sequence. Sequential by construction — each move resolves before the
   // next is solved.
-  const runMoves = useCallback(async (moves) => {
+  //
+  // The whole sequence counts as ONE gesture. Holding the flag across the holds
+  // as well as the tweens is deliberate: the image-tier scheduler bails while a
+  // gesture is live, so the take gets exactly one promote drain — at the end,
+  // against the pose actually filmed — instead of texture swaps landing inside
+  // the next move. `take` is carried through only so the finished event can say
+  // which sequence ended.
+  const runMoves = useCallback(async (moves, take = null) => {
     const list = normalizeMoves(moves);
     if (!list.length) return;
     const run = ++cameraRunRef.current;
     for (const move of list) {
       if (cameraRunRef.current !== run) return;      // superseded
+      // Cover this move plus a beat, so a hold longer than the tween's own
+      // 200ms window does not drop the sequence out of gesture mode and let a
+      // strict prune run mid-take.
+      gestureUntilRef.current = performance.now() + (move.ms || 0) + 250;
+      markGestureActiveUntil(gestureUntilRef.current);
       if (move.type === 'hold') {
         await new Promise(res => setTimeout(res, move.ms));
         continue;
@@ -1985,7 +2022,22 @@ export function CanvasSurface({
       if (!cam) continue;
       await tweenCameraTo(cam, move.ms, move.ease, run);
     }
-  }, [solveMove, tweenCameraTo]);
+    if (cameraRunRef.current !== run) return;        // superseded on the last move
+    // The sequence is over: drop the gesture flag, prune strictly against the
+    // pose we landed on, and let the tier scheduler do its one pass.
+    gestureUntilRef.current = 0;
+    markGestureActiveUntil(0);
+    scheduleVisibleRecompute();
+    emitCanvasSettle();
+    // Say so out loud. takeDuration() is arithmetic over the move list, but a
+    // hold is a setTimeout and a tween is rAF, so the real wall clock drifts a
+    // little per move — and every caller that wants to know when a take is
+    // finished (the HUD's auto-stop, the shot CLI) was guessing that number and
+    // adding a fudge. This is the answer.
+    document.dispatchEvent(new CustomEvent('soleil-capture-camera-done', {
+      detail: { take },
+    }));
+  }, [solveMove, tweenCameraTo, scheduleVisibleRecompute]);
 
   // Fit the entire board content into the viewport. Wired to a
   // double-tap on the zoom % control (replaces what used to happen
@@ -2065,7 +2117,7 @@ export function CanvasSurface({
       // Three shapes, one event: a named take, an explicit list of moves (what
       // the shot list sends), or a single target (what the HUD's two buttons
       // send). All of them end up in the same player.
-      if (d.take) return void runMoves(resolveTake(d.take));
+      if (d.take) return void runMoves(resolveTake(d.take), d.take);
       if (Array.isArray(d.moves)) return void runMoves(d.moves);
       runMoves([{
         type: d.target === 'selection' ? 'selection' : 'fit',

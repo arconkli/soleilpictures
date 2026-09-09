@@ -19,7 +19,7 @@ import { useCaptureState } from '../../hooks/useCaptureState.js';
 import { ASPECTS, aspectSpec } from '../../lib/captureAspect.js';
 import { TAKES, takeFor, takeDuration } from '../../lib/captureTakes.js';
 import {
-  recordingSupport, stillSupport, startRecording, stopRecording,
+  recordingSupport, stillSupport, startRecording, stopRecording, isRecording,
   grabStill, saveClip, saveFile, clipFilename, stillFilename, extForBlob,
   elementCaptureSupported,
 } from '../../lib/captureRecorder.js';
@@ -54,14 +54,89 @@ export function CaptureHud() {
   // stays on screen and stays usable mid-take; when it isn't, it has to get out
   // of the frame the old-fashioned way.
   const [excluded, setExcluded] = useState(false);
+  // Rec spans the browser's surface picker, which is seconds of real time with
+  // no state change to show for it. Without a synchronous guard a second press
+  // in that window opens a SECOND getDisplayMedia, and the first stream's
+  // tracks are then never stopped — the browser's sharing indicator stays lit
+  // with nothing in the app able to turn it off. `shooting` already does this
+  // job for the Shot button; Rec never had it.
+  const busyRef = useRef(false);
+  const [busy, setBusy] = useState(false);
   const stopTimerRef = useRef(null);
   const support = useMemo(() => recordingSupport(), []);
   const stills = useMemo(() => stillSupport(), []);
   const canRecord = support.ok;
 
-  // A hidden HUD must not leave a recording running with no way to stop it.
+  // Read by handlers that outlive the render they were written in — the
+  // unmount cleanup and the ended subscriber both have [] deps, so closing over
+  // `takeId` directly would name every clip after whatever was armed on first
+  // render.
+  const takeIdRef = useRef(null);
+  takeIdRef.current = takeId;
+
+  const saveTake = (blob, id) => {
+    if (blob) saveClip(blob, clipFilename(id || 'clip', extForBlob(blob)));
+  };
+
+  // One timer, cancelled everywhere it can be superseded. It used to be
+  // cancelled only on unmount, so stopping a take early left its auto-stop
+  // armed: press Record again and the previous take's timer cut the new one
+  // short by exactly how early you were.
+  const clearStopTimer = () => {
+    if (stopTimerRef.current) { clearTimeout(stopTimerRef.current); stopTimerRef.current = null; }
+  };
+
+  // The browser ended the share from its own bar. That is a legitimate way to
+  // finish a take and it has to save the file, not drop it.
+  useEffect(() => {
+    const onEnded = (e) => {
+      clearStopTimer();
+      setRecording(false);
+      setExcluded(false);
+      saveTake(e.detail?.blob, takeIdRef.current);
+    };
+    document.addEventListener('soleil-capture-recording-ended', onEnded);
+    return () => document.removeEventListener('soleil-capture-recording-ended', onEnded);
+  }, []);
+
+  // The take says when it is finished, and that is what stops the recording.
+  //
+  // takeDuration() is arithmetic over the move list, but a hold is a setTimeout
+  // and a tween is rAF, so the real wall clock drifts a little per move — over
+  // sweep's seven moves, enough to clip the last beat off the file. The timer
+  // armed alongside this is a ceiling for the case where nothing answered the
+  // camera event at all; when the camera does answer, this is the truth.
+  useEffect(() => {
+    const onDone = async (e) => {
+      if (!stopTimerRef.current) return;      // not an auto-stopping take
+      // Only OUR take. Pressing Fit or Push in mid-take supersedes the sequence
+      // and finishes as a different (unnamed) run; that is a cancelled camera
+      // move, not a finished recording, and it must not stop the tape.
+      if ((e.detail?.take ?? null) !== (takeIdRef.current ?? null)) return;
+      clearStopTimer();
+      setRecording(false);
+      setExcluded(false);
+      saveTake(await stopRecording(), takeIdRef.current);
+    };
+    document.addEventListener('soleil-capture-camera-done', onDone);
+    return () => document.removeEventListener('soleil-capture-camera-done', onDone);
+  }, []);
+
+  // A hidden HUD must not leave a recording running with no way to stop it —
+  // which is what this effect claimed to do while only clearing a timeout.
+  //
+  // Five things unmount this component mid-take: the Reset button below, ⌘⇧.,
+  // the command-palette entry, the Settings master toggle, and losing admin.
+  // All five used to orphan the MediaRecorder and the display stream for the
+  // life of the tab, with the browser still showing you as sharing.
+  //
+  // Gated on the MODULE's isRecording(), not on component state, for the same
+  // stale-closure reason as takeIdRef. A cleanup cannot be async, so this is
+  // deliberately fire-and-forget: saving a take somebody abandoned is a
+  // judgement call, and the alternative is silently binning footage.
   useEffect(() => () => {
-    if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
+    clearStopTimer();
+    if (isRecording()) stopRecording().then((blob) => saveTake(blob, takeIdRef.current));
   }, []);
 
   // Summon paths. ⌘⇧H for a desk, three fingers for a phone. Both are toggles,
@@ -85,32 +160,11 @@ export function CaptureHud() {
     };
   }, []);
 
-  // Rolling, and the recording is NOT excluding us: the only way to stay out of
-  // frame is to leave it entirely. ⌘⇧H still summons the panel back, but that
-  // press lands in the video — the whole reason Element Capture is preferred.
+  // Rolling, and the recording is NOT excluding us: the panel cannot stay on
+  // screen, because an unrestricted capture films it. See the dot below for
+  // what it collapses to — it used to collapse to NOTHING, which left a
+  // free-running take with no on-screen way to stop it at all.
   const mustDuck = recording && !excluded;
-  if (gone || mustDuck) return null;
-
-  // Everything below portals to <body>, OUTSIDE #root. That placement is what
-  // makes restrictTo(#root) able to film the app and not these controls.
-  //
-  // Closing leaves a DOT rather than nothing. Nothing meant the only way back
-  // was a shortcut you had to remember, which is a bad trade mid-take when what
-  // you actually want is to stop the recording. The dot goes red while rolling
-  // so it is both findable and a status light. To lose even the dot — an OS
-  // screen recording captures it, unlike an excluded one — use ⌘⇧H or a
-  // three-finger tap.
-  if (closed) {
-    return createPortal(
-      <button type="button"
-              className={`capture-hud-dot ${recording ? 'is-live' : ''}`}
-              onClick={() => setClosed(false)}
-              aria-label={recording ? 'Recording — open capture controls to stop' : 'Open capture controls'}>
-        <span className="capture-hud-dot-pip" />
-      </button>,
-      document.body,
-    );
-  }
 
   const toggle = (key) => setCapture({ [key]: !cap[key] });
 
@@ -179,37 +233,80 @@ export function CaptureHud() {
   };
 
   const onRecord = async () => {
-    if (recording) {
-      setRecording(false);
-      setExcluded(false);
-      const blob = await stopRecording();
-      if (blob) saveClip(blob, clipFilename(takeId || 'clip', extForBlob(blob)));
-      return;
-    }
-    let restricted = false;
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     try {
-      // Film #root and nothing else, so this panel — which portals to <body>,
-      // outside that subtree — is absent from the video while staying usable.
-      const res = await startRecording({ restrictToElement: document.getElementById('root') });
-      restricted = !!res?.restricted;
-    } catch (_) {
-      // Dismissing the browser's surface picker is a cancellation, not a
-      // failure — say nothing and leave the button where it was.
-      return;
-    }
-    setExcluded(restricted);
-    setRecording(true);
-    if (!take) return;                       // free-running: stop by hand
+      if (recording) {
+        // Stopping by hand supersedes the take's own auto-stop. Leaving it
+        // armed is what cut the NEXT take short.
+        clearStopTimer();
+        setRecording(false);
+        setExcluded(false);
+        saveTake(await stopRecording(), takeId);
+        return;
+      }
+      let restricted = false;
+      try {
+        // Film #root and nothing else, so this panel — which portals to <body>,
+        // outside that subtree — is absent from the video while staying usable.
+        const res = await startRecording({ restrictToElement: document.getElementById('root') });
+        restricted = !!res?.restricted;
+      } catch (_) {
+        // Dismissing the browser's surface picker is a cancellation, not a
+        // failure — say nothing and leave the button where it was.
+        return;
+      }
+      clearStopTimer();
+      setExcluded(restricted);
+      setRecording(true);
+      if (!take) return;                       // free-running: stop by hand
 
-    playTake(take.id);
-    const ms = takeDuration(take.moves) + 400;   // a beat of tail
-    stopTimerRef.current = window.setTimeout(async () => {
-      setRecording(false);
-      setExcluded(false);
-      const blob = await stopRecording();
-      if (blob) saveClip(blob, clipFilename(take.id));
-    }, ms);
+      playTake(take.id);
+      // A ceiling, not the schedule. The take announces its own end (see the
+      // camera-done subscriber above), which is exact; this catches the case
+      // where nothing answered the camera event at all — a public view, or no
+      // canvas mounted — so a press of Record always terminates.
+      const ms = takeDuration(take.moves) + 1200;
+      stopTimerRef.current = window.setTimeout(async () => {
+        stopTimerRef.current = null;
+        setRecording(false);
+        setExcluded(false);
+        saveTake(await stopRecording(), take.id);
+      }, ms);
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
   };
+
+  // Everything below portals to <body>, OUTSIDE #root. That placement is what
+  // makes restrictTo(#root) able to film the app and not these controls.
+  //
+  // Three states, and the order of these two branches is the whole point.
+  // `gone` is genuinely nothing — that is the state an OS screen recording
+  // needs, because it films the dot too. Everything else collapses to the DOT,
+  // including a ducked take: a 22px pip in the corner of an unrestricted
+  // recording is a far better trade than a take you cannot stop, which is what
+  // `gone || mustDuck` produced. The dot goes red while rolling, so it is both
+  // findable and a tally light.
+  if (gone) return null;
+
+  if (closed || mustDuck) {
+    // Ducked, the dot IS the stop button — it must not reopen the panel into a
+    // frame that is being filmed.
+    return createPortal(
+      <button type="button"
+              className={`capture-hud-dot ${recording ? 'is-live' : ''}`}
+              onClick={mustDuck ? onRecord : () => setClosed(false)}
+              aria-label={mustDuck ? 'Stop recording and save'
+                        : recording ? 'Recording — open capture controls to stop'
+                        : 'Open capture controls'}>
+        <span className="capture-hud-dot-pip" />
+      </button>,
+      document.body,
+    );
+  }
 
   return createPortal(
     <div className="capture-hud" role="group" aria-label="Capture controls"
@@ -280,8 +377,9 @@ export function CaptureHud() {
 
       {/* One press: start recording, play the take, stop, save. */}
       <button type="button"
+              data-cap="rec"
               className={`capture-hud-rec ${recording ? 'is-live' : ''}`}
-              disabled={!canRecord}
+              disabled={!canRecord || busy}
               aria-label={recordLabel}
               onClick={onRecord}>
         <span className="capture-hud-rec-dot" />

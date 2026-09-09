@@ -70,6 +70,20 @@ export function recordingSupport() {
 let recorder = null;
 let chunks = [];
 let stream = null;
+// The finish, created WITH the recorder rather than when somebody asks to stop.
+//
+// A recording can end four ways: our Stop button, a take's auto-stop, the
+// browser's own "Stop sharing" bar, and the surface going away. Attaching the
+// 'stop' listener inside stopRecording() meant only the first of those ever
+// assembled a Blob — the others fired 'stop' with nobody listening, and the
+// button press that came afterwards threw InvalidStateError into a catch that
+// ran cleanup() and DELETED the chunks. The footage was already in memory; it
+// was thrown away on the way out.
+//
+// Hoisting the listener to construction makes the four endings converge: every
+// one of them resolves this same promise with the same Blob, and whoever asks
+// second just gets the same answer.
+let pendingStop = null;
 
 export function isRecording() {
   return !!recorder && recorder.state === 'recording';
@@ -80,6 +94,7 @@ function cleanup() {
   recorder = null;
   chunks = [];
   stream = null;
+  pendingStop = null;
 }
 
 /**
@@ -124,7 +139,13 @@ export function elementCaptureSupported() {
 export async function startRecording({ fps = 30, restrictToElement = null } = {}) {
   const support = recordingSupport();
   if (!support.ok) throw new Error(support.reason);
-  if (isRecording()) return { restricted: false };
+  // THROW rather than return quietly. The old early return handed back
+  // `{ restricted: false }` without opening a picker or starting anything, so a
+  // caller that had lost track of an existing take would set itself to
+  // "recording" against a stream it did not create — and then stop and save the
+  // PREVIOUS recording under the new take's name. A caller that double-starts
+  // has a bug; say so rather than producing a mislabelled file.
+  if (isRecording()) throw new Error('Already recording.');
 
   stream = await navigator.mediaDevices.getDisplayMedia({
     video: { frameRate: fps },
@@ -155,15 +176,40 @@ export async function startRecording({ fps = 30, restrictToElement = null } = {}
   recorder = new MediaRecorder(stream, { mimeType: pickMime() });
   recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
 
+  // The one place the Blob is assembled, wired before anything can stop us.
+  const r = recorder;
+  pendingStop = new Promise((resolve) => {
+    r.addEventListener('stop', () => {
+      const blob = chunks.length ? new Blob(chunks, { type: r.mimeType || 'video/webm' }) : null;
+      cleanup();
+      resolve(blob);
+    }, { once: true });
+  });
+
   // Stopping from the browser's own "Stop sharing" bar has to end the take the
   // same way our button does, or the recorder is left running against a dead
   // track and the file is never written.
+  //
+  // It also has to tell the app, or the UI sits there believing it is still
+  // rolling with a Stop button behind a dead recorder. An event rather than a
+  // callback for the same reason `soleil-capture-camera` is one: the thing that
+  // needs to know is a component this module has no reference to.
   const track = stream.getVideoTracks()[0];
-  if (track) track.addEventListener('ended', () => { try { recorder?.stop(); } catch (_) {} }, { once: true });
+  if (track) {
+    track.addEventListener('ended', () => {
+      const p = pendingStop;
+      try { recorder?.stop(); } catch (_) {}
+      if (p) p.then((blob) => document.dispatchEvent(
+        new CustomEvent('soleil-capture-recording-ended', { detail: { blob } })));
+    }, { once: true });
+  }
 
-  recorder.start();
+  // A timeslice, so `chunks` grows in bounded pieces rather than as one blob
+  // the encoder holds until stop. A five-minute take is then a list of seconds,
+  // and a tab that dies mid-shoot has left something behind rather than nothing.
+  recorder.start(1000);
   // One frame of headroom so the first move isn't clipped.
-  await new Promise(r => setTimeout(r, 120));
+  await new Promise(r2 => setTimeout(r2, 120));
   return { restricted };
 }
 
@@ -173,15 +219,14 @@ export async function startRecording({ fps = 30, restrictToElement = null } = {}
  */
 export function stopRecording() {
   if (!recorder) return Promise.resolve(null);
-  const r = recorder;
-  return new Promise((resolve) => {
-    r.addEventListener('stop', () => {
-      const blob = chunks.length ? new Blob(chunks, { type: r.mimeType || 'video/webm' }) : null;
-      cleanup();
-      resolve(blob);
-    }, { once: true });
-    try { r.stop(); } catch (_) { cleanup(); resolve(null); }
-  });
+  const p = pendingStop || Promise.resolve(null);
+  // May throw InvalidStateError when the browser's own Stop-sharing bar has
+  // already stopped us. That is not a failure and must NOT clean up: `p` is
+  // already resolving with the real footage, and the old catch ran cleanup() —
+  // which clears `chunks` — and resolved null, which is how a finished take
+  // became no file at all.
+  try { recorder.stop(); } catch (_) {}
+  return p;
 }
 
 // ── Stills ─────────────────────────────────────────────────────────────────
@@ -230,7 +275,7 @@ export function stillSupport() {
   if (!navigator.mediaDevices?.getDisplayMedia) {
     return {
       ok: false,
-      reason: 'This browser can’t read the screen. On iPhone and iPad take the OS screenshot — everything staged here applies to it, and the framing guide shows you the crop.',
+      reason: 'This browser can’t read the screen. On iPhone and iPad take the OS screenshot — everything staged here applies to it. The framing guide shows you the crop, so hide it with a three-finger tap before you shoot or it lands in the picture.',
     };
   }
   return { ok: true, reason: '' };
@@ -294,8 +339,12 @@ export function captureFilename(name, ext, now = new Date()) {
 }
 
 // The recording path passes the extension in, because only the finished blob
-// knows whether this browser gave us mp4 or webm.
-export const clipFilename = (takeId, ext = 'mp4', now) => captureFilename(takeId || 'clip', ext, now);
+// knows whether this browser gave us mp4 or webm. NO DEFAULT, deliberately: a
+// default of 'mp4' is exactly the assumption the header of this file argues
+// against, and it is how a Firefox webm shipped named .mp4. Making it required
+// means the next call site has to answer the question rather than inherit a
+// wrong answer.
+export const clipFilename = (takeId, ext, now) => captureFilename(takeId || 'clip', ext, now);
 export const stillFilename = (name, now) => captureFilename(name || 'shot', 'png', now);
 
 /** Save a blob to the user's downloads. */

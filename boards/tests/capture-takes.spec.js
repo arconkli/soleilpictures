@@ -231,18 +231,246 @@ test('with Element Capture, the panel stays up and says it is off-camera', async
 
 test('without Element Capture, the panel ducks out of frame instead', async ({ page }) => {
   await boot(page);
-  await page.evaluate(() => {
-    const c = document.createElement('canvas');
-    c.width = 800; c.height = 600;
-    setInterval(() => c.getContext('2d').fillRect(0, 0, 800, 600), 100);
-    delete window.RestrictionTarget;
-    delete MediaStreamTrack.prototype.restrictTo;
-    navigator.mediaDevices.getDisplayMedia = async () => c.captureStream(30);
-  });
+  await stubRecorder(page, { elementCapture: false });
 
   await page.locator('.capture-hud-rec').click();
-  // Nothing else can keep it out of the video, so it leaves.
+  // Nothing else can keep it out of the video, so it leaves. (An exact class
+  // token, so this does NOT match .capture-hud-dot.)
   await expect(page.locator('.capture-hud')).toHaveCount(0);
+
+  // …but it leaves a tally light, and that light is the stop button. It used to
+  // leave NOTHING: `gone || mustDuck` returned null above the dot branch, so a
+  // free-running take — which arms no auto-stop — had no way to end from inside
+  // the app at all. ⌘⇧H could not help either; it toggles `gone`, which
+  // mustDuck overrode.
+  const dot = page.locator('.capture-hud-dot.is-live');
+  await expect(dot).toBeVisible();
+  await expect(dot).toHaveAttribute('aria-label', /Stop recording/);
+
+  const download = page.waitForEvent('download');
+  await dot.click();
+  expect((await download).suggestedFilename()).toMatch(CLIP_NAME);
+  await expect(page.locator('.capture-hud')).toBeVisible();
+});
+
+// ── Finishing a recording ──────────────────────────────────────────────────
+//
+// A recording can end four ways — our Stop button, a take's auto-stop, the
+// browser's own "Stop sharing" bar, and the HUD unmounting — and until these
+// tests existed exactly one of them was checked, by not checking any of them:
+// no test here waited for a single recorded byte. Three of the four silently
+// destroyed the footage.
+
+const CLIP_NAME = /^soleil-[a-z-]+-\d{8}-\d{6}\.(mp4|webm)$/;
+
+// Which container the headless browser actually chose is not knowable in
+// advance, so assert the two agree rather than hard-coding one. That is the
+// real bug this guards: clipFilename used to default to 'mp4', so a Firefox
+// webm shipped named .mp4.
+function assertContainerMatchesExtension(name, buf) {
+  const ext = name.split('.').pop();
+  if (ext === 'mp4') expect(buf.subarray(4, 8).toString()).toBe('ftyp');
+  else expect([...buf.subarray(0, 4)]).toEqual([0x1a, 0x45, 0xdf, 0xa3]);
+}
+
+// A canvas stream stands in for the display capture. `window.__stubStream`
+// is kept so a test can end the share the way the browser's own bar does.
+async function stubRecorder(page, { elementCapture = true } = {}) {
+  await page.evaluate((withEC) => {
+    const c = document.createElement('canvas');
+    c.width = 800; c.height = 600;
+    const g = c.getContext('2d');
+    let i = 0;
+    // Keep painting something DIFFERENT each tick — a stream of identical
+    // frames can encode to nothing at all, and then there is no blob to save.
+    setInterval(() => { g.fillStyle = `hsl(${(i += 17) % 360} 70% 50%)`; g.fillRect(0, 0, 800, 600); }, 40);
+    if (withEC) {
+      window.RestrictionTarget = { fromElement: async (el) => ({ el }) };
+      MediaStreamTrack.prototype.restrictTo = async function () { return undefined; };
+    } else {
+      delete window.RestrictionTarget;
+      delete MediaStreamTrack.prototype.restrictTo;
+    }
+    navigator.mediaDevices.getDisplayMedia = async () => {
+      window.__stubStream = c.captureStream(30);
+      return window.__stubStream;
+    };
+  }, elementCapture);
+}
+
+test('Record then Stop saves a clip named for what it actually contains', async ({ page }) => {
+  await boot(page);
+  await stubRecorder(page);
+
+  await page.locator('.capture-hud-rec').click();
+  await expect(page.locator('.capture-hud-rec')).toHaveText(/Stop/);
+  await page.waitForTimeout(1400);            // past the first timeslice
+
+  const download = page.waitForEvent('download');
+  await page.locator('.capture-hud-rec').click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(CLIP_NAME);
+  assertContainerMatchesExtension(file.suggestedFilename(), readFileSync(await file.path()));
+});
+
+test('the browser\'s own Stop-sharing bar still saves the take', async ({ page }) => {
+  await boot(page);
+  await stubRecorder(page);
+
+  await page.locator('.capture-hud-rec').click();
+  await expect(page.locator('.capture-hud-rec')).toHaveText(/Stop/);
+  await page.waitForTimeout(1400);
+
+  // Ending the track is exactly what "Stop sharing" does. The recorder's own
+  // `ended` handler used to call recorder.stop() with no listener attached, so
+  // the chunks were assembled by nobody and then wiped by the catch in the
+  // stopRecording() that came afterwards.
+  //
+  // Note the dispatch. Calling track.stop() from script deliberately does NOT
+  // fire `ended` — per spec that event means the track ended for a reason
+  // OUTSIDE the page's control, which is exactly what the sharing bar is. So
+  // end the track and then raise the event the browser would have raised. The
+  // listener and everything downstream of it are the real ones.
+  const download = page.waitForEvent('download');
+  await page.evaluate(() => {
+    const t = window.__stubStream.getVideoTracks()[0];
+    t.stop();
+    t.dispatchEvent(new Event('ended'));
+  });
+  expect((await download).suggestedFilename()).toMatch(CLIP_NAME);
+
+  // And the UI knows it is over, rather than sitting on a Stop button with a
+  // dead recorder behind it.
+  await expect(page.locator('.capture-hud-rec')).toHaveText(/Rec/);
+});
+
+// The Take control is a cycling button (a native select renders 18px tall on an
+// iPad), so getting to a named take means stepping to it.
+async function setTake(page, label) {
+  const chip = page.locator('[aria-label^="Take:"]');
+  for (let i = 0; i < 8; i++) {
+    if ((await chip.innerText()).includes(label)) return;
+    await chip.click();
+  }
+  throw new Error(`never reached take "${label}"`);
+}
+
+test('a stopped take does not take the next one down with it', async ({ page }) => {
+  await boot(page);
+  await stubRecorder(page);
+
+  // Arming a take is what arms an auto-stop alongside the recording.
+  await setTake(page, 'Establish');
+
+  const first = page.waitForEvent('download');
+  await page.locator('.capture-hud-rec').click();
+  await page.waitForTimeout(900);
+  await page.locator('.capture-hud-rec').click();          // stop early
+  await first;
+
+  // Back to a free-running recording, which arms no timer of its own — so if
+  // anything stops it, it is the abandoned take's. That timer used to stay
+  // armed and fire into the NEXT recording, cutting it short by exactly how
+  // early you stopped this one.
+  await setTake(page, 'None');
+  await page.locator('.capture-hud-rec').click();
+  await page.waitForTimeout(7000);                         // past Establish's own length
+  await expect(page.locator('.capture-hud-rec')).toHaveText(/Stop/);
+
+  const second = page.waitForEvent('download');
+  await page.locator('.capture-hud-rec').click();
+  await second;
+});
+
+test('a take stops the recording when the camera says it is finished', async ({ page }) => {
+  await boot(page);
+  await stubRecorder(page);
+  // Punch in is the short one: fit(0) + hold(500) + selection(620) + hold(1400).
+  await setTake(page, 'Punch in');
+
+  const download = page.waitForEvent('download');
+  const t0 = Date.now();
+  await page.locator('.capture-hud-rec').click();
+  const file = await download;
+  const elapsed = Date.now() - t0;
+
+  expect(file.suggestedFilename()).toMatch(/^soleil-punch-\d{8}-\d{6}\.(mp4|webm)$/);
+  // Punch in is 2520ms of moves. The fallback timer would not fire until
+  // 2520 + 1200, so landing under 3200 is what proves the take's own completion
+  // event stopped the tape rather than the ceiling — which is the whole point,
+  // because that arithmetic drifts and the event does not.
+  expect(elapsed).toBeLessThan(3200);
+  await expect(page.locator('.capture-hud-rec')).toHaveText(/Record/);
+});
+
+// ── The camera as a gesture ────────────────────────────────────────────────
+
+test('a cut is the anchor for the move that follows it', async ({ page }) => {
+  await boot(page);
+
+  // What `fit` alone solves to, as the reference.
+  await play(page, { moves: [{ type: 'fit', ms: 0 }] });
+  await page.waitForTimeout(200);
+  const fitZoom = zoomOf(await pose(page));
+  expect(fitZoom).toBeGreaterThan(0);
+
+  // Now the same cut from somewhere else entirely, chained straight into a
+  // move with no hold between them — which is exactly the shape of `sweep` and
+  // `drift`. applyCamera is setZoom/setPan, and the refs the next move reads
+  // are written by the layout effect after React commits; runMoves resumes on a
+  // microtask and that commit is a macrotask, so the cut was invisible to the
+  // move that followed it. Both takes silently discarded their opening fit.
+  await play(page, { moves: [{ type: 'zoom', by: 0.25, ms: 0 }] });
+  await page.waitForTimeout(200);
+  await play(page, { moves: [{ type: 'fit', ms: 0 }, { type: 'zoom', by: 1.9, ms: 300 }] });
+  await settled(page);
+
+  expect(zoomOf(await pose(page))).toBeCloseTo(fitZoom * 1.9, 2);
+});
+
+test('the cull runs while the camera travels, not only when it lands', async ({ page }) => {
+  await boot(page);
+  // perf's counters are the only honest way to see this from outside: the
+  // ?local=1 fixture is far too small to leave the ADD band (which is three
+  // viewports wide), so counting mounted cards would pass whatever the code
+  // did. What is actually being asserted is that a camera move participates in
+  // the machinery that mounts cards at all.
+  await page.evaluate(() => window.perf.enable());
+
+  const cullRuns = () => page.evaluate(() => window.perf.snapshot().counters['cull.runs'] || 0);
+
+  const before = await cullRuns();
+  await play(page, { moves: [{ type: 'fit', ms: 0 }, { type: 'zoom', by: 3, ms: 1200 }] });
+  await page.waitForTimeout(700);
+  const midMove = await cullRuns();
+  await settled(page);
+  const after = await cullRuns();
+
+  // Many passes DURING the travel — the tween runs at frame rate and each frame
+  // schedules one. This used to be zero for the whole move: the cull ran when
+  // the move finished and not before, so a pull-back revealed board area whose
+  // cards did not appear until the camera had already stopped.
+  expect(midMove - before).toBeGreaterThan(5);
+  expect(after).toBeGreaterThan(midMove);
+});
+
+test('nothing unmounts while a take is travelling', async ({ page }) => {
+  await boot(page);
+  const mounted = () => page.locator('.canvas [data-card-id]').count();
+
+  await play(page, { moves: [{ type: 'fit', ms: 0 }] });
+  await settled(page);
+  const framed = await mounted();
+  expect(framed).toBeGreaterThan(0);
+
+  // The cull that now runs every frame must be ADD-only, or a take would churn
+  // R2ImageProgressive back to its blur tier mid-shot. The gesture flag is what
+  // guarantees that, and it is held across holds as well as tweens.
+  await play(page, { take: 'establish' });
+  for (let i = 0; i < 12; i++) {
+    expect(await mounted()).toBeGreaterThanOrEqual(framed);
+    await page.waitForTimeout(400);
+  }
 });
 
 test('an unknown take or a junk move is ignored rather than throwing', async ({ page }) => {
