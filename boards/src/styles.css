@@ -16479,6 +16479,47 @@ body[data-capture-shutter='1'] .capture-spot {
   .capture-hud-dot { width: 34px; height: 34px; }
 }
 
+/* ── What you reach for first, on the screen with the least room ───────
+   Fifteen controls at 44px in one horizontal scroller is nearly three
+   screen-widths on a 390pt phone, and the strip was ordered for a desk: the
+   camera and the take sat past the halfway mark. Ordered here rather than in
+   the component because the CHIPS array reasons about its own order in a
+   comment (Reframe first, for exactly this reason) and reordering the markup
+   would make that comment a lie. The `data-cap` hooks exist because all six
+   chips share one class.
+
+   Same two-clause query as `mobileShell` in App.jsx, verbatim — keyed off a
+   phone width alone this would miss the touch tablet, which shows the bottom
+   nav at 834px wide. */
+@media (max-width: 640px),
+       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  /* Edge to edge and scrolling under the thumb, the way .tob does it. The
+     centring transform is what forced the 720px cap to sit in the middle with
+     dead room either side. */
+  .capture-hud {
+    left: 8px; right: 8px;
+    transform: none;
+    max-width: none;
+  }
+  /* Sixty pixels of scroll for one word you already know. */
+  .capture-hud-title { display: none; }
+  /* Separators earn their space on a desk, where the whole strip is visible at
+     once. In a scroller they are two more things to swipe past. */
+  .capture-hud-sep { display: none; }
+
+  .capture-hud > *                  { order: 3; }
+  .capture-hud [data-cap='reframe'] { order: 0; }
+  .capture-hud [data-cap='take'],
+  .capture-hud [data-cap='play'],
+  .capture-hud [data-cap='fit'],
+  .capture-hud [data-cap='push']    { order: 1; }
+  .capture-hud [data-cap='frame'],
+  .capture-hud [data-cap='shot'],
+  .capture-hud [data-cap='rec']     { order: 2; }
+  .capture-hud [data-cap='reset']   { order: 4; }
+  .capture-hud [data-cap='close']   { order: 5; }
+}
+
 /* Chrome-hiding also removes .mb-nav, so the HUD can sit at the bottom edge.
    With chrome still up — framing a shot that deliberately includes the app's
    own UI — it would land on top of the bottom nav instead. */

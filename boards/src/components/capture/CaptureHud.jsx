@@ -63,6 +63,10 @@ export function CaptureHud() {
   const busyRef = useRef(false);
   const [busy, setBusy] = useState(false);
   const stopTimerRef = useRef(null);
+  // Playing a take with the tool out of its own picture — the only way to shoot
+  // one on a phone. See onPlay.
+  const [playing, setPlaying] = useState(false);
+  const playTimerRef = useRef(null);
   const support = useMemo(() => recordingSupport(), []);
   const stills = useMemo(() => stillSupport(), []);
   const canRecord = support.ok;
@@ -108,6 +112,13 @@ export function CaptureHud() {
   // camera event at all; when the camera does answer, this is the truth.
   useEffect(() => {
     const onDone = async (e) => {
+      // A hands-off play ends when the camera says so, and the panel comes back.
+      if (playTimerRef.current) {
+        clearTimeout(playTimerRef.current);
+        playTimerRef.current = null;
+        setPlaying(false);
+        setGone(false);
+      }
       if (!stopTimerRef.current) return;      // not an auto-stopping take
       // Only OUR take. Pressing Fit or Push in mid-take supersedes the sequence
       // and finishes as a different (unnamed) run; that is a cancelled camera
@@ -136,22 +147,35 @@ export function CaptureHud() {
   // judgement call, and the alternative is silently binning footage.
   useEffect(() => () => {
     clearStopTimer();
+    if (playTimerRef.current) clearTimeout(playTimerRef.current);
     if (isRecording()) stopRecording().then((blob) => saveTake(blob, takeIdRef.current));
   }, []);
 
-  // Summon paths. ⌘⇧H for a desk, three fingers for a phone. Both are toggles,
-  // so the same gesture that dismissed the panel brings it back — there is no
-  // state to remember and nothing to get stuck in.
+  // Summon paths. ⌘⇧H for a desk, three fingers for a phone.
+  //
+  // The rule is "hide everything / bring the controls all the way back", and
+  // the second half is the part that was missing. Toggling `gone` alone meant
+  // that if you had closed the panel to its dot first — which is the ordinary
+  // way to get it out of the way — the gesture put you back on the DOT, and you
+  // then had to find and tap a 22px pip to reach the controls. On a phone this
+  // gesture is the ONLY keyboard-free way home, so making it a two-step defeats
+  // it. Coming back clears both states.
+  const goneRef = useRef(false);
+  goneRef.current = gone;
   useEffect(() => {
+    const summon = () => {
+      if (goneRef.current) { setGone(false); setClosed(false); }
+      else setGone(true);
+    };
     const onKey = (e) => {
       if (!(e.metaKey || e.ctrlKey) || !e.shiftKey) return;
       if (e.key !== 'h' && e.key !== 'H') return;
       e.preventDefault();
-      setGone(v => !v);
+      summon();
     };
     // Passive: this must never be able to swallow a canvas gesture. We only
     // read the touch count; we never cancel the event.
-    const onTouch = (e) => { if (e.touches && e.touches.length >= 3) setGone(v => !v); };
+    const onTouch = (e) => { if (e.touches && e.touches.length >= 3) summon(); };
     window.addEventListener('keydown', onKey);
     window.addEventListener('touchstart', onTouch, { passive: true });
     return () => {
@@ -230,6 +254,41 @@ export function CaptureHud() {
     } finally {
       setShooting(false);
     }
+  };
+
+  // Play the take with nothing of the tool on screen.
+  //
+  // This is the control an iPhone never had. playTake() had exactly one caller
+  // — inside onRecord, behind a button disabled on any browser without
+  // getDisplayMedia — so on iOS you could cycle the Take chip through all five
+  // sequences and nothing could ever play them. The take vocabulary, which is
+  // the whole reason a clip reads as a product video rather than someone
+  // scroll-wheeling, had never worked on the device it was designed for.
+  //
+  // Playback needs no recorder. With the OS recorder already rolling, what
+  // lands in the file is: this panel, one tap, the panel gone, then the take
+  // over a clean canvas. Trim the head and you have the shot.
+  //
+  // With no take armed it is a self-timer for a still instead — hide
+  // everything, take the OS screenshot, and it comes back on its own rather
+  // than leaving you to remember a gesture.
+  const HIDE_MS = 6000;
+  const onPlay = async () => {
+    if (playing) return;
+    setPlaying(true);
+    setGone(true);
+    // Two frames, so the compositor has actually dropped the panel before the
+    // first move — the same beat withShutter takes for the same reason.
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    if (take) playTake(take.id);
+    // A ceiling. The take's own completion event is what normally restores the
+    // panel; this catches a take nothing answered, and is the whole timer for
+    // the no-take case.
+    playTimerRef.current = window.setTimeout(() => {
+      playTimerRef.current = null;
+      setPlaying(false);
+      setGone(false);
+    }, take ? takeDuration(take.moves) + 1200 : HIDE_MS);
   };
 
   const onRecord = async () => {
@@ -314,7 +373,7 @@ export function CaptureHud() {
       <span className="capture-hud-title">{excluded ? 'Off-camera' : 'Capture'}</span>
 
       {CHIPS.map(c => (
-        <button key={c.key} type="button"
+        <button key={c.key} type="button" data-cap={c.key}
                 className={`capture-hud-chip ${cap[c.key] ? 'is-on' : ''}`}
                 aria-pressed={cap[c.key]}
                 onClick={() => toggle(c.key)}>
@@ -329,14 +388,14 @@ export function CaptureHud() {
           select to a touch target — it came out 18px tall on an iPad — and a
           dropdown that opens a system sheet over the canvas is the last thing
           you want mid-take. Tap to step through the shapes. */}
-      <button type="button" className="capture-hud-chip"
+      <button type="button" className="capture-hud-chip" data-cap="frame"
               aria-label={`Framing guide: ${aspectLabel}. Tap for the next shape.`}
               onClick={cycleAspect}>
         <span className="capture-hud-chip-label">Frame</span>
         <span className="capture-hud-chip-val">{aspectLabel}</span>
       </button>
 
-      <button type="button" className={`capture-hud-chip ${cap.cast ? 'is-on' : ''}`}
+      <button type="button" data-cap="cast" className={`capture-hud-chip ${cap.cast ? 'is-on' : ''}`}
               aria-label={`Stand-in collaborators: ${cap.cast || 'none'}. Tap to change.`}
               onClick={cycleCast}>
         <span className="capture-hud-chip-label">Cast</span>
@@ -347,52 +406,73 @@ export function CaptureHud() {
           somebody scroll-wheeling around; these are the two shots you actually
           want. Dispatched as an event — the canvas that answers is four
           components below this one. */}
-      <button type="button" className="capture-hud-btn" onClick={() => moveCamera('fit')}>
+      <button type="button" className="capture-hud-btn" data-cap="fit"
+              onClick={() => moveCamera('fit')}>
         Fit
       </button>
-      <button type="button" className="capture-hud-btn" onClick={() => moveCamera('selection')}>
+      <button type="button" className="capture-hud-btn" data-cap="push"
+              onClick={() => moveCamera('selection')}>
         Push in
       </button>
 
       {/* A take is a written-down sequence — establish, hold, go in, come back.
           Doing that by hand means hitting two buttons at the right moments
           while also recording, and getting it identical on the retake is luck. */}
-      <button type="button" className="capture-hud-chip"
+      <button type="button" className="capture-hud-chip" data-cap="take"
               aria-label={`Take: ${take ? take.label : 'none'}. Tap to change.`}
               onClick={cycleTake}>
         <span className="capture-hud-chip-label">Take</span>
         <span className="capture-hud-chip-val">{take ? take.label : 'None'}</span>
       </button>
 
+      {/* Plain, not gold: gold is the house's active/selection/focus colour and
+          this is an action, not a state. */}
+      <button type="button" className="capture-hud-btn" data-cap="play"
+              onClick={onPlay}
+              aria-label={take
+                ? `Hide these controls and play the ${take.label} take. Start your screen recorder first.`
+                : 'Hide these controls for a few seconds, so an OS screenshot has none of this tool in it.'}>
+        {take ? 'Play' : 'Hide'}
+      </button>
+
       <span className="capture-hud-sep" />
 
       {/* A still, cropped to the framing guide, at the tab's real device
-          resolution, with no cursor and none of this panel in it. */}
-      <button type="button" className="capture-hud-btn"
-              disabled={!stills.ok || shooting}
-              aria-label={stills.ok ? shotLabel : stills.reason}
-              onClick={onShot}>
-        {shooting ? '…' : 'Shot'}
-      </button>
+          resolution, with no cursor and none of this panel in it.
 
-      {/* One press: start recording, play the take, stop, save. */}
-      <button type="button"
-              data-cap="rec"
-              className={`capture-hud-rec ${recording ? 'is-live' : ''}`}
-              disabled={!canRecord || busy}
-              aria-label={recordLabel}
-              onClick={onRecord}>
-        <span className="capture-hud-rec-dot" />
-        <span>{recording ? 'Stop' : take ? 'Record' : 'Rec'}</span>
-      </button>
-
-      {!support.ok && (
-        <span className="capture-hud-note">Use the OS recorder</span>
+          Absent rather than disabled where the browser cannot read the screen.
+          On an iPhone — the device this strip is the ENTIRE control surface for
+          — both this and Rec were permanently dead, and they sat at the far end
+          of a scroller nearly three screen-widths long, so the reward for
+          scrolling to the end was two buttons that do nothing. The sentence
+          that used to be pinned after them lives in Settings → Capture, in full
+          and better phrased. */}
+      {stills.ok && (
+        <button type="button" className="capture-hud-btn" data-cap="shot"
+                disabled={shooting}
+                aria-label={shotLabel}
+                onClick={onShot}>
+          {shooting ? '…' : 'Shot'}
+        </button>
       )}
 
-      <button type="button" className="capture-hud-btn" onClick={resetCapture}>Reset</button>
+      {/* One press: start recording, play the take, stop, save. */}
+      {canRecord && (
+        <button type="button"
+                data-cap="rec"
+                className={`capture-hud-rec ${recording ? 'is-live' : ''}`}
+                disabled={busy}
+                aria-label={recordLabel}
+                onClick={onRecord}>
+          <span className="capture-hud-rec-dot" />
+          <span>{recording ? 'Stop' : take ? 'Record' : 'Rec'}</span>
+        </button>
+      )}
 
-      <button type="button" className="capture-hud-icon"
+      <button type="button" className="capture-hud-btn" data-cap="reset"
+              onClick={resetCapture}>Reset</button>
+
+      <button type="button" className="capture-hud-icon" data-cap="close"
               onClick={() => setClosed(true)}
               aria-label="Close capture controls — leaves a dot">
         <Icon as={X} size={12} />

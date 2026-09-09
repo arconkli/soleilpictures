@@ -142,7 +142,7 @@ import {
   computeSnap as computeSnapPure, computeResizeSnap as computeResizeSnapPure,
 } from '../lib/snapGuides.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
-import { solveFit, sampleTween, easingFor, CAMERA_MS } from '../lib/captureCamera.js';
+import { solveFit, sampleTween, easingFor, fitMargin, selectionMargin, CAMERA_MS } from '../lib/captureCamera.js';
 import { normalizeMoves, resolveTake } from '../lib/captureTakes.js';
 import { useCaptureState } from '../hooks/useCaptureState.js';
 import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
@@ -216,14 +216,14 @@ function markLiftHintSeen() {
 // the layerization.
 const CANVAS_PROMOTE_OFF_BELOW = 0.30;
 const CANVAS_PROMOTE_ON_ABOVE = 0.42;
-// Viewport-px margin used when fitting content into the viewport. Full 80 on
-// >640px screens; smaller on phones so a desktop-sized margin (160px of a ~390px
-// screen) doesn't shrink the content to a tiny zoom. Keeps desktop/tablet framing
-// unchanged.
-const fitMargin = (r) => (r.width > 640 ? 80 : Math.max(16, Math.round(r.width * 0.05)));
-// Framing a SELECTION leaves more air than fitting the whole board: the point
-// is to single something out, and a selection pressed to the viewport edges
-// reads as "the board is this" rather than "look at this".
+// fitMargin and selectionMargin live in lib/captureCamera.js, next to the
+// solveFit they are arguments to — see the note there on why the selection one
+// is 8% and not 5%.
+//
+// SELECTION_FIT_MARGIN is the flat value the two NON-camera framing paths below
+// (zoomToSelection, frameCards) still use. They have the same phone bug, but
+// frameCards runs on every card creation and has no mobile coverage, so moving
+// them is its own change with its own test rather than a rider on this one.
 const SELECTION_FIT_MARGIN = 120;
 // Below this canvas width a fit-everything open is a phone, not a desktop.
 const NARROW_FIT_MAX_W = 640;
@@ -1962,11 +1962,11 @@ export function CanvasSurface({
       case 'selection': {
         const ids = [...selectedRef.current];
         const sel = ids.length ? all.filter(c => ids.includes(c.id)) : all;
-        return framed(sel, ids.length ? SELECTION_FIT_MARGIN : fitMargin(r));
+        return framed(sel, ids.length ? selectionMargin(r) : fitMargin(r));
       }
       case 'card': {
         const one = all.filter(c => c.id === move.id);
-        return one.length ? framed(one, SELECTION_FIT_MARGIN) : null;
+        return one.length ? framed(one, selectionMargin(r)) : null;
       }
       case 'zoom': {
         // Around the viewport centre, mirroring zoomAroundCenter's math so a

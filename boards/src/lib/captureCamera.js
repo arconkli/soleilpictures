@@ -46,6 +46,37 @@ export function solveFit(rect, viewport, { margin = 80, zoomMin = 0.1, zoomMax =
   };
 }
 
+// ── Margins ────────────────────────────────────────────────────────────────
+//
+// How much air to leave around what you are framing, in VIEWPORT pixels. They
+// live here with solveFit because they are arguments to it, and because a
+// margin that is a hand-written literal in one place and viewport-aware in
+// another is precisely how a phone ended up with a "push in" that zoomed out.
+
+/**
+ * Fitting the whole board. A flat 80 on a 390pt phone is 160px of a 390px
+ * screen — 41% of it — so the content it is framing shrinks to nothing.
+ */
+export const fitMargin = (r) => (r.width > 640 ? 80 : Math.max(16, Math.round(r.width * 0.05)));
+
+/**
+ * Framing a SELECTION, which leaves more air than fitting the whole board: the
+ * point is to single something out, and a selection pressed to the viewport
+ * edges reads as "the board is this" rather than "look at this".
+ *
+ * The flat 120 this replaces below 640 was worse than the fit case it was
+ * modelled on. It left 150px of usable width on a 390pt screen, so a push-in
+ * could never fill more than 38% of the frame — and once the selection was more
+ * than about 43% of the board, `selection` solved a LOWER zoom than the `fit` it
+ * came from. Both `punch` and `establish` are fit → hold → selection, so the
+ * flagship move of the flagship takes ran backwards on a phone.
+ *
+ * 8% rather than fitMargin's 5% so the "more air than a fit" property survives
+ * at every width — that is the whole reason this is a separate function and not
+ * a shared one, and it is why the number is not round.
+ */
+export const selectionMargin = (r) => (r.width > 640 ? 120 : Math.max(16, Math.round(r.width * 0.08)));
+
 /**
  * Ease-in-out cubic. Slow at both ends, quick through the middle — the shape a
  * physical camera move has, and the reason a tween reads as intent rather than

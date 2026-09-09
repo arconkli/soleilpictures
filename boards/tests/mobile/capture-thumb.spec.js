@@ -32,6 +32,25 @@ async function bootCapture(page) {
   await expect(page.locator('html[data-capture-ready="1"]')).toHaveCount(1);
 }
 
+// A browser with no screen capture at all — which is every browser on iOS,
+// since they are all WebKit. Playwright's WebKit does expose getDisplayMedia,
+// so a real iPhone cannot be reproduced by picking a project; it has to be
+// taken away. The property lives on the prototype, so `delete` on the instance
+// is a no-op and would make this whole test vacuous.
+//
+// In an init script, because it has to be gone before the app's first render:
+// recordingSupport() is read into a useMemo on mount.
+async function bootWithoutScreenCapture(page) {
+  await page.addInitScript(() => {
+    try { delete MediaDevices.prototype.getDisplayMedia; } catch (_) {}
+    try { Object.defineProperty(navigator.mediaDevices, 'getDisplayMedia',
+      { value: undefined, configurable: true }); } catch (_) {}
+  });
+  await bootCapture(page);
+  // Prove the simulation took, or everything below passes for the wrong reason.
+  expect(await page.evaluate(() => !!navigator.mediaDevices?.getDisplayMedia)).toBe(false);
+}
+
 test('every HUD control is a real touch target', async ({ page }) => {
   await bootCapture(page);
   const hud = page.locator('.capture-hud');
@@ -47,6 +66,66 @@ test('every HUD control is a real touch target', async ({ page }) => {
     const label = (await el.getAttribute('aria-label')) || (await el.innerText()).replace(/\n/g, ' ') || `#${i}`;
     expect(box.height, `"${label}" is ${box.height}px tall`).toBeGreaterThanOrEqual(MIN_TOUCH);
   }
+});
+
+test('the controls you actually reach for are on the first screen', async ({ page }) => {
+  await bootCapture(page);
+
+  // The strip scrolls, so "it fits" is not the assertion — a max-width-capped
+  // container always fits. What matters is what is reachable WITHOUT scrolling,
+  // because on a phone this is the entire control surface and the order it
+  // shipped with was a desk's: the camera and the take sat past the halfway
+  // mark of something nearly three screen-widths long.
+  const reachable = await page.evaluate(() => {
+    const hud = document.querySelector('.capture-hud');
+    hud.scrollLeft = 0;
+    return [...hud.querySelectorAll('[data-cap]')]
+      .filter(el => el.offsetLeft + el.offsetWidth <= hud.clientWidth + 1)
+      .map(el => el.getAttribute('data-cap'));
+  });
+
+  // Reframe is the one you touch between every take; Take and Play are the
+  // shot itself. Fit and Push in are the two single moves.
+  for (const key of ['reframe', 'take', 'play']) {
+    expect(reachable, `"${key}" needs a scroll to reach`).toContain(key);
+  }
+});
+
+test('nothing in the strip is a control this device cannot honour', async ({ page }) => {
+  // iOS has no getDisplayMedia at all, so Rec and Shot can never do anything
+  // there. They used to render disabled, at the far END of the scroller — the
+  // reward for swiping two screen-widths was two dead buttons.
+  await bootWithoutScreenCapture(page);
+
+  await expect(page.locator('.capture-hud')).toBeVisible();
+  await expect(page.locator('.capture-hud [data-cap="rec"]')).toHaveCount(0);
+  await expect(page.locator('.capture-hud [data-cap="shot"]')).toHaveCount(0);
+  // And nothing that IS rendered is dead.
+  await expect(page.locator('.capture-hud button:disabled')).toHaveCount(0);
+});
+
+test('a take can be played on a device that cannot record — the whole phone case', async ({ page }) => {
+  await bootWithoutScreenCapture(page);
+
+  // playTake() used to have exactly one caller, inside onRecord, behind a button
+  // that is permanently disabled on iOS. So the five written-down takes — the
+  // whole reason a clip reads as a product video — could be cycled through and
+  // never played, on the device they were designed for.
+  const chip = page.locator('[aria-label^="Take:"]');
+  for (let i = 0; i < 8 && !(await chip.innerText()).includes('Punch in'); i++) await chip.tap();
+  await expect(chip).toContainText('Punch in');
+
+  const before = await page.evaluate(() => document.querySelector('.canvas')?.style.transform || '');
+  await page.locator('[data-cap="play"]').tap();
+
+  // The tool takes itself out of the picture for the length of the take — that
+  // is what makes the OS recorder's output usable — and comes back on its own.
+  await expect(page.locator('.capture-hud')).toHaveCount(0);
+  await expect(page.locator('.capture-hud-dot')).toHaveCount(0);
+  await expect(page.locator('.capture-hud')).toBeVisible({ timeout: 15000 });
+
+  expect(await page.evaluate(() => document.querySelector('.canvas')?.style.transform || ''))
+    .not.toBe(before);
 });
 
 test('the HUD stays inside the viewport and clear of the bottom nav', async ({ page }) => {
@@ -80,7 +159,10 @@ test('three fingers bring the HUD back — the only way home without a keyboard'
   const hud = page.locator('.capture-hud');
   await expect(hud).toBeVisible();
 
-  // ✕ leaves a dot; the gesture is what removes even that.
+  // ✕ leaves a dot; the gesture is what removes even that — and the same
+  // gesture brings back the CONTROLS, not the dot. It used to toggle `gone`
+  // alone, so coming back from a panel you had closed first landed you on the
+  // pip again, and the one keyboard-free path home was two steps.
   await page.locator('.capture-hud-icon[aria-label^="Close capture controls"]').tap();
   await expect(hud).toHaveCount(0);
   await expect(page.locator('.capture-hud-dot')).toBeVisible();
