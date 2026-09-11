@@ -1,8 +1,8 @@
 # Settings
 
-> Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
+> Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 
-_Source: https://clusters.soleilpictures.com/docs/account/settings · Updated 2026-08-26_
+_Source: https://clusters.soleilpictures.com/docs/account/settings · Updated 2026-09-10_
 
 Open it from the sidebar — the **cog** or **your avatar**, bottom left — or with
 `⌘K` → "settings". Both buttons open the same panel; they differ only in which
@@ -86,8 +86,8 @@ friends joined, how many got started, cards earned, free months.
 ## This workspace
 
 Shared. Everyone in the workspace sees the same values. Editors and owners can
-change Card defaults; only the owner can change the name, the icon, or run a
-recovery. Viewers see everything read-only.
+change Card defaults; only the owner can change the name, the icon, the
+members, or run a recovery. Viewers see everything read-only.
 
 ### General
 
@@ -99,6 +99,15 @@ Owners also get **Recovery** here — a rewind of every cluster in the workspace
 at once, for after an accidental mass-delete. The pre-rewind state is kept, so
 the rewind itself is reversible. See
 [Trash and recovery](/docs/clusters/trash-and-recovery).
+
+### Members
+
+Everyone in the workspace, with their level: **Owner**, **Editor** (adds and
+changes content) or **Viewer** (opens, reads, comments and votes, but does not
+change anything). The owner can change an editor to a viewer and back, remove a
+member — which also removes any cluster shared to them directly in this
+workspace — hand the workspace to another member, and invite someone by email
+as an editor or a viewer. Everyone else sees the list.
 
 ### Card defaults
 

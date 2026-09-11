@@ -34,6 +34,7 @@ import { ConnectionsTab } from './settings/ConnectionsTab.jsx';
 import { BillingTab } from './settings/BillingTab.jsx';
 import { InviteTab } from './settings/InviteTab.jsx';
 import { WorkspaceGeneralTab, CardDefaultsTab } from './settings/WorkspaceTab.jsx';
+import { MembersTab } from './settings/MembersTab.jsx';
 import { DocsTab } from './settings/DocsTab.jsx';
 // Lazy so nobody but an admin who opens the tab ever downloads it — the same
 // reason AdminPage is lazy in TierRouter.
@@ -51,6 +52,7 @@ const TABS = [
   { id: 'billing',       label: 'Plan & billing', group: 'you' },
   { id: 'invite',        label: 'Invite & earn',  group: 'you' },
   { id: 'general',       label: 'General',        group: 'workspace' },
+  { id: 'members',       label: 'Members',        group: 'workspace' },
   { id: 'defaults',      label: 'Card defaults',  group: 'workspace' },
   { id: 'docs',          label: 'Documentation',  group: 'help' },
 ];
@@ -272,6 +274,13 @@ export function SettingsPanel({
                                      refresh={refresh}
                                      onWorkspacesChanged={onWorkspacesChanged}
                                      onOpenRecovery={onOpenRecovery} />
+              )}
+              {tab === 'members' && (
+                <MembersTab workspaceId={workspaceId}
+                            workspaceName={workspaceName}
+                            user={user}
+                            role={role}
+                            onWorkspacesChanged={onWorkspacesChanged} />
               )}
               {tab === 'defaults' && (
                 <CardDefaultsTab workspaceId={workspaceId}

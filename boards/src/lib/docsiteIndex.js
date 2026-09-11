@@ -2447,12 +2447,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/account/settings",
     "title": "Settings — Soleil Clusters",
-    "metaDescription": "Every setting in Soleil Clusters — Profile, Appearance, Notifications, Connections, Plan and billing, Invite and earn, General, Card defaults and Documentation.",
+    "metaDescription": "Every setting in Soleil Clusters — Profile, Appearance, Notifications, Connections, Billing, Invite and earn, General, Members, Card defaults and Documentation.",
     "h1": "Settings",
-    "answer": "Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.",
+    "answer": "Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.",
     "section": "account",
     "order": 0,
-    "updated": "2026-08-26",
+    "updated": "2026-09-10",
     "navLabel": "Settings",
     "headings": [
       {

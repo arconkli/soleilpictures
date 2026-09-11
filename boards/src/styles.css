@@ -19942,3 +19942,13 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 @media (max-width: 640px) {
   .rr-ask { max-width: calc(100vw - 24px); }
 }
+
+/* Settings → Members (Phase 0). Table-shaped, so it is a list, not a grid. */
+.settings-member-list { list-style: none; margin: 0; padding: 0; }
+.settings-member-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line, rgba(0,0,0,.08)); }
+.settings-member-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-member-role { color: var(--ink-2); font-size: 13px; }
+.settings-member-actions { display: flex; gap: 8px; }
+.settings-link-btn.is-danger { color: #ef4444; }
+.settings-invite-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.settings-invite-row input.settings-input { flex: 1; min-width: 180px; }

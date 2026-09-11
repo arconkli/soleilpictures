@@ -3180,9 +3180,9 @@ A: iMessage is the confirmed transport. SMS and RCS are not confirmed yet, and n
 ========================================================================
 # Settings
 URL: https://clusters.soleilpictures.com/docs/account/settings
-Updated: 2026-08-26
+Updated: 2026-09-10
 
-Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
+Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 
 Open it from the sidebar — the cog or your avatar, bottom left — or with ⌘K → "settings". Both buttons open the same panel; they differ only in which tab they land on, and every other tab is one click away in the same rail.
 
@@ -3229,13 +3229,17 @@ Your referral link, share targets, and the stats: friends joined, how many got s
 
 This workspace
 
-Shared. Everyone in the workspace sees the same values. Editors and owners can change Card defaults; only the owner can change the name, the icon, or run a recovery. Viewers see everything read-only.
+Shared. Everyone in the workspace sees the same values. Editors and owners can change Card defaults; only the owner can change the name, the icon, the members, or run a recovery. Viewers see everything read-only.
 
 General
 
 What the workspace is: its name and its icon, which are what the sidebar and the workspace switcher show. The switcher's ⋯ menu opens this tab too.
 
 Owners also get Recovery here — a rewind of every cluster in the workspace at once, for after an accidental mass-delete. The pre-rewind state is kept, so the rewind itself is reversible. See Trash and recovery.
+
+Members
+
+Everyone in the workspace, with their level: Owner, Editor (adds and changes content) or Viewer (opens, reads, comments and votes, but does not change anything). The owner can change an editor to a viewer and back, remove a member — which also removes any cluster shared to them directly in this workspace — hand the workspace to another member, and invite someone by email as an editor or a viewer. Everyone else sees the list.
 
 Card defaults
 

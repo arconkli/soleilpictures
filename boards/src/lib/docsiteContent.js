@@ -26479,7 +26479,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Shared. Everyone in the workspace sees the same values. Editors and owners can change Card defaults; only the owner can change the name, the icon, or run a recovery. Viewers see everything read-only."
+     "v": "Shared. Everyone in the workspace sees the same values. Editors and owners can change Card defaults; only the owner can change the name, the icon, the members, or run a recovery. Viewers see everything read-only."
     }
    ]
   },
@@ -26581,6 +26581,69 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Members",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Members"
+    }
+   ],
+   "id": "members"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Everyone in the workspace, with their level: "
+    },
+    {
+     "t": "strong",
+     "v": "Owner",
+     "children": [
+      {
+       "t": "text",
+       "v": "Owner"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Editor",
+     "children": [
+      {
+       "t": "text",
+       "v": "Editor"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (adds and changes content) or "
+    },
+    {
+     "t": "strong",
+     "v": "Viewer",
+     "children": [
+      {
+       "t": "text",
+       "v": "Viewer"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (opens, reads, comments and votes, but does not change anything). The owner can change an editor to a viewer and back, remove a member — which also removes any cluster shared to them directly in this workspace — hand the workspace to another member, and invite someone by email as an editor or a viewer. Everyone else sees the list."
     }
    ]
   },
