@@ -19,7 +19,8 @@
 //     Body: { fileExt, contentType, boardId? }
 //     Auth: caller must `can_write_board(boardId)` (covers workspace
 //           members AND editor-shared users). If no boardId, falls
-//           back to workspace-membership check.
+//           back to `can_write_workspace(<workspaceId>)` — since 0318 a
+//           membership row alone is not a write right.
 //     Returns: { uploadUrl, key }
 //
 //   POST /parties/upload/<workspaceId>/sign-reads
@@ -424,11 +425,13 @@ export default class UploadParty implements Party.Server {
         }
       }
     } else {
-      const rows = await supabaseGet(
-        `workspace_members?workspace_id=eq.${encodeURIComponent(workspaceId)}&user_id=eq.${encodeURIComponent(userId)}&select=user_id`,
-        accessToken,
-      );
-      allowed = !!rows && rows.length > 0;
+      // No boardId: the caller is minting a key under this workspace's prefix
+      // with nothing tying it to a board. Since 0318 a membership row is not a
+      // write right (a viewer reads; a banned member has nothing), so ask the
+      // same predicate the database uses. An RPC error is null → not allowed,
+      // the same fail-closed shape as the boardId branch above.
+      const data = await supabaseRpc("can_write_workspace", { ws: workspaceId }, accessToken);
+      allowed = data === true;
     }
     if (!allowed) {
       return new Response("Not allowed to upload to this board", { status: 403, headers: corsHeaders(origin) });
@@ -438,8 +441,8 @@ export default class UploadParty implements Party.Server {
     const contentType = body.contentType || "application/octet-stream";
     // Deterministic keys (thumbnail overwrite-in-place, or a per-image preview)
     // only when they match a prefix-locked, shape-validated shape — otherwise
-    // mint a random UUID key. The can_write_board(boardId) / membership check
-    // above already gated this request.
+    // mint a random UUID key. The can_write_board(boardId) /
+    // can_write_workspace(room) check above already gated this request.
     const canonicalThumbKey = body.boardId ? `${workspaceId}/thumbs/${body.boardId}.webp` : null;
     const thumbKeyPrefix = body.boardId ? `${workspaceId}/thumbs/${body.boardId}` : null;
     // Two accepted thumb shapes: the canonical overwrite-in-place key (auto
@@ -611,7 +614,7 @@ export default class UploadParty implements Party.Server {
       const lenHeader = head.headers.get("content-length");
       const len = lenHeader == null ? NaN : Number(lenHeader);
       if (head.ok && Number.isFinite(len) && len >= 0) bytes = len;
-    } catch (_) { /* size stays unknown; the nightly backfill fills NULLs */ }
+    } catch (_) { /* size stays unknown; the admin-triggered size backfill fills NULLs */ }
     return { ok: true, bytes };
   }
 
