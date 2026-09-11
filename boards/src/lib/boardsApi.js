@@ -273,6 +273,30 @@ export async function transferWorkspaceOwnership({ workspaceId, newOwnerId }) {
   if (error) throw error;
 }
 
+// Owner-only (0318): change an existing member's role between editor and
+// viewer. The owner's own row is ownership, not a role — use
+// transferWorkspaceOwnership for that.
+export async function setWorkspaceMemberRole({ workspaceId, userId, role }) {
+  const { error } = await supabase
+    .rpc('set_workspace_member_role', {
+      p_workspace_id: workspaceId,
+      p_user_id: userId,
+      p_role: role,
+    });
+  if (error) throw error;
+}
+
+// Names and emails for the members of one workspace. workspace_user_directory
+// (0084) returns every workspace the caller belongs to, gated server-side by
+// is_workspace_member, so filtering here leaks nothing the caller could not
+// already see.
+export async function listWorkspaceDirectory(workspaceId) {
+  if (!workspaceId) return [];
+  const { data, error } = await supabase.rpc('workspace_user_directory');
+  if (error) throw error;
+  return (data || []).filter(r => r.workspace_id === workspaceId);
+}
+
 // ── Per-board sharing ──────────────────────────────────────────────────
 // Workspace members keep full access; per-board shares grant view-only
 // or editor access to non-members for one board (and its descendants).
