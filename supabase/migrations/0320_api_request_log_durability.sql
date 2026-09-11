@@ -15,7 +15,11 @@
 -- Locking: the table is written on every API write on the shared production
 -- project. DROP CONSTRAINT is metadata-only; the expensive step is ADD, which
 -- is deferred with NOT VALID and then VALIDATE (a SHARE UPDATE EXCLUSIVE lock
--- that does not block writes). Run this in the 03:xx window regardless.
+-- that does not block writes). Note that ADD CONSTRAINT … NOT VALID also takes
+-- a brief SHARE ROW EXCLUSIVE lock on the REFERENCED table for the metadata
+-- step — public.api_tokens for the first FK and auth.users for the second —
+-- so GoTrue's last_sign_in_at writes queue for that instant too. Run this in
+-- the 03:xx window regardless; the window covers both tables.
 --
 -- api_log_request gains p_ip and p_ua. The 8-argument version is DROPPED, not
 -- overloaded: PostgREST resolves overloads by argument name, and the Worker

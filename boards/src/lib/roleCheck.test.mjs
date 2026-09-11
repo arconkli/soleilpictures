@@ -180,3 +180,71 @@ test('worker passes the client IP and user agent to api_log_request', () => {
   assert.match(call, /p_ip: request\.headers\.get\('cf-connecting-ip'\) \|\| null/);
   assert.match(call, /p_ua: \(request\.headers\.get\('user-agent'\) \|\| ''\)\.slice\(0, 200\) \|\| null/);
 });
+
+test('0318: both write predicates are re-granted explicitly, so the post-condition proves what the file did', () => {
+  const sql = textOf('0318');
+  for (const fn of ['can_write_board', 'can_write_workspace']) {
+    assert.match(sql, new RegExp(`revoke all on function public\\.${fn}\\(uuid\\) from public;`),
+      `${fn} must be revoked from public before the explicit re-grant`);
+    assert.match(sql, new RegExp(`grant execute on function public\\.${fn}\\(uuid\\) to anon, authenticated, service_role;`),
+      `${fn} must be granted to anon, authenticated, service_role in the migration text`);
+  }
+});
+
+const ANCILLARY_WRITE_POLICIES = [
+  ['doc backlinks write', 'doc_backlinks', 'source_workspace_id'],
+  ['doc_page_index write', 'doc_page_index', 'workspace_id'],
+  ['entity_aliases write', 'entity_aliases', 'workspace_id'],
+  ['entity_ignore_terms write', 'entity_ignore_terms', 'workspace_id'],
+  ['grid_layouts insert', 'grid_layouts', 'workspace_id'],
+];
+
+test('0321: exists exactly once', () => {
+  const f = fileNamed('0321');
+  assert.ok(f, 'a 0321 migration must exist');
+  assert.equal(f, '0321_ancillary_write_policies.sql');
+  assert.ok(!duplicatePrefixes().includes('0321'), 'the 0321 prefix is duplicated');
+});
+
+test('0321: the five ancillary write policies gate on can_write_workspace, reads and boards untouched', () => {
+  const sql = textOf('0321');
+  for (const [name, table, col] of ANCILLARY_WRITE_POLICIES) {
+    const p = latestPolicy(name);
+    assert.ok(p && p.file.startsWith('0321'), `${name} must be (re)defined in 0321, latest is ${p && p.file}`);
+    assert.match(p.body, new RegExp(`on public\\.${table}\\b`), `${name} must be on public.${table}`);
+    assert.match(p.body, new RegExp(`public\\.can_write_workspace\\(${col}\\)`), `${name} must gate on can_write_workspace(${col})`);
+    assert.doesNotMatch(p.body, /\bis_workspace_member\(/, `${name} must not gate on the role-blind is_workspace_member`);
+    assert.match(sql, new RegExp(`drop policy if exists "${name}" on public\\.${table};`), `${name} must be dropped before re-creation`);
+  }
+  for (const name of ['doc backlinks write', 'doc_page_index write', 'entity_aliases write', 'entity_ignore_terms write']) {
+    assert.match(latestPolicy(name).body, /for all/i, `${name} keeps FOR ALL so the separate read policy still admits viewers`);
+  }
+  assert.match(latestPolicy('grid_layouts insert').body, /for insert to authenticated/i);
+  assert.match(latestPolicy('grid_layouts insert').body, /created_by = auth\.uid\(\)\s+and \(\s+scope = 'user'/);
+  // the boards INSERT policy already gates on can_write_workspace (live, verified);
+  // 0321 must not restate it or touch any boards policy
+  assert.doesNotMatch(sql, /\bon (public\.)?boards\b/i, '0321 must not touch a boards policy');
+  assert.doesNotMatch(sql, /create (or replace )?function/i, '0321 must not change any function');
+  // the read policies are what keeps a viewer reading once the FOR ALL policies
+  // narrow; 0321 may name them in a comment but must neither drop nor re-create
+  // one, so their latest definition stays in the migration that wrote it
+  for (const [name, origin] of [
+    ['doc backlinks read', '0004'],
+    ['doc_page_index read', '0022'],
+    ['entity_aliases read', '0022'],
+    ['entity_ignore_terms read', '0022'],
+    ['grid_layouts select', '0265'],
+    ['grid_layouts update', '0265'],
+  ]) {
+    assert.doesNotMatch(sql, new RegExp(`(create|drop)\\s+policy[^\\n]*"${name}"`, 'i'),
+      `0321 must not drop or re-create the ${name} policy`);
+    assert.ok(latestPolicy(name).file.startsWith(origin),
+      `${name} must still be defined by ${origin}, latest is ${latestPolicy(name).file}`);
+  }
+});
+
+test('0321: latestPolicy resolves doc_page_index write to the 0321 file', () => {
+  const p = latestPolicy('doc_page_index write');
+  assert.ok(p, 'policy not found in any migration');
+  assert.equal(p.file, '0321_ancillary_write_policies.sql');
+});

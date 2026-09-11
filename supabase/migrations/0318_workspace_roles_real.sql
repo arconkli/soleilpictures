@@ -162,6 +162,17 @@ set search_path = public as $$
   end;
 $$;
 
+-- ── 3b. Say the grants, do not inherit them ─────────────────────────────────
+-- The post-condition below asserts anon EXECUTE on both write predicates, but
+-- no migration ever issued it: 0013:92-93, 0065:168-169 and 0083:65-66 grant
+-- authenticated only, and the anon grant that is live came from the schema
+-- default at creation, which `revoke … from public` does not touch. State it
+-- the 0319 way so this file proves what it asserts. Zero behavioural change.
+revoke all on function public.can_write_workspace(uuid) from public;
+grant execute on function public.can_write_workspace(uuid) to anon, authenticated, service_role;
+revoke all on function public.can_write_board(uuid) from public;
+grant execute on function public.can_write_board(uuid) to anon, authenticated, service_role;
+
 -- ── 4. authorize_upload — 0221:261-295 minus the membership OR ──────────────
 create or replace function public.authorize_upload(p_workspace_id uuid, p_bytes bigint)
 returns table(allow boolean, used bigint, quota bigint, remaining bigint, reason text)
