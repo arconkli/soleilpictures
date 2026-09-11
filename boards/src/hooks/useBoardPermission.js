@@ -6,8 +6,10 @@
 //     source:  'workspace' | 'share' | 'tier-blocked' | null }
 //
 // "owner" = workspace owner (workspaces.created_by === userId).
-// "editor" = workspace member (workspace_members) OR per-board editor share.
-// "viewer" = per-board viewer share (cascades to descendants).
+// "editor" = workspace member with a writing role (owner/admin/editor/service)
+//            OR per-board editor share.
+// "viewer" = workspace member with role 'viewer', or a per-board viewer share
+//            (cascades to descendants).
 //
 // Cascade: per-board shares apply to the board AND every descendant
 // (via boards.parent_board_id chain). A board has the HIGHEST role
@@ -54,9 +56,13 @@ export function computeBoardPermission({
   // Workspace member of THE BOARD'S workspace (not necessarily the
   // currently active one — board could be from a different workspace
   // when navigating via shared links).
-  const isWsMember = (workspaceMembers || []).some(m => m.user_id === userId)
-    && board.workspace_id === workspace?.id;
-  if (isWsMember) {
+  //
+  // 0318 made workspace_members.role real: a 'viewer' member reads but does
+  // not write, unless a per-board editor share (below) says otherwise. Any
+  // other role — owner, admin, editor, service — writes.
+  const membership = (workspaceMembers || []).find(m => m.user_id === userId);
+  const isWsMember = !!membership && board.workspace_id === workspace?.id;
+  if (isWsMember && membership.role !== 'viewer') {
     return { role: 'editor', canEdit: true, source: 'workspace' };
   }
 
@@ -76,6 +82,10 @@ export function computeBoardPermission({
   }
   if (bestRole) {
     return { role: bestRole, canEdit: bestRole === 'editor', source: 'share' };
+  }
+
+  if (isWsMember) {
+    return { role: 'viewer', canEdit: false, source: 'workspace' };
   }
 
   return { role: 'none', canEdit: false, source: null };
