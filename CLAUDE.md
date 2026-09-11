@@ -79,7 +79,7 @@ parity the whole registry design exists to protect — see the header of
 
 ## Tests
 
-Two tiers, neither wired to CI (there is no CI):
+Two tiers. The first runs in CI (`.github/workflows/test.yml`: `npm test` and `docs:check` on every push to main/production and every PR); Playwright does not:
 
 ```sh
 cd boards
@@ -202,3 +202,10 @@ behaviour, read the archive or `crawler_hits`, not the live table.
 - Dev-only QA harnesses (`?docqa=1`, `?gridqa`, …) are guarded by
   `import.meta.env.DEV` so the bundler drops them from production. Keep new ones
   behind the same literal guard.
+- **Function grants since 0311:** a new function is born with EXECUTE for
+  `authenticated` and `service_role` only. A `_`-prefixed internal helper must
+  `revoke execute … from public, anon, authenticated`; an RPC meant for
+  signed-out callers needs an explicit `grant … to anon`; every migration that
+  creates functions ends with a `do $$ … has_function_privilege … $$` block
+  that proves its own grants (the 0311 habit — a REVOKE reporting success
+  proves nothing).

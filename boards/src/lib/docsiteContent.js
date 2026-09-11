@@ -19030,7 +19030,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Everything, including deleting the cluster and managing shares"
+       "v": "Everything, including deleting the cluster and managing members and shares"
       }
      ]
     ],
@@ -19070,7 +19070,22 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Open, read, and "
+       "v": "Open, read, "
+      },
+      {
+       "t": "link",
+       "v": "comment",
+       "href": "/docs/collaborate/comments",
+       "children": [
+        {
+         "t": "text",
+         "v": "comment"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " and "
       },
       {
        "t": "link",
@@ -19085,7 +19100,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — nothing else"
+       "v": " — never change content"
       }
      ]
     ],
@@ -19105,7 +19120,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Access granted at the workspace level rather than per board"
+       "v": "The same two levels, editor or viewer, granted for every cluster in the workspace at once"
       }
      ]
     ]
@@ -21206,51 +21221,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Editors can. "
-    },
-    {
-     "t": "strong",
-     "v": "Viewers cannot",
-     "children": [
-      {
-       "t": "text",
-       "v": "Viewers cannot"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — a viewer can read the board and "
-    },
-    {
-     "t": "link",
-     "v": "vote",
-     "href": "/docs/canvas/vote-cards",
-     "children": [
-      {
-       "t": "text",
-       "v": "vote"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", but leaving comments requires edit access. If you want feedback from someone, invite them as an editor; it costs nothing on any plan. See "
-    },
-    {
-     "t": "link",
-     "v": "Collaborating",
-     "href": "/docs/collaborate",
-     "children": [
-      {
-       "t": "text",
-       "v": "Collaborating"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
+     "v": "Anyone who can open the board, including viewers. Editing a card is a different right from talking about it, and feedback is the point of sharing a board with someone. Public links are the exception: they are anonymous, and comments need an account."
     }
    ]
   },
