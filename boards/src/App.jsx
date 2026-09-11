@@ -3295,7 +3295,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       title: isDelete ? 'Delete workspace' : 'Leave workspace',
       message: isDelete
         ? `Deleting "${ws.name}" will permanently remove all of its boards, cards, and messages. This cannot be undone.`
-        : `Leave "${ws.name}"? You'll lose access until the owner re-invites you.`,
+        : `Leave "${ws.name}"? You'll lose access until the owner re-invites you. Clusters shared to you directly in this workspace are unshared as well.`,
       confirmLabel: isDelete ? 'Delete workspace' : 'Leave',
       danger: true,
       confirmText: isDelete ? (ws.name || '') : null,

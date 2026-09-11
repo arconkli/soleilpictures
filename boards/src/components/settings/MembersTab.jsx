@@ -55,7 +55,7 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
     const who = label(m);
     const ok = await feedback.confirm({
       title: `Remove ${who}?`,
-      message: `They'll lose access to "${workspaceName}" and all its clusters, including any cluster shared to them directly.`,
+      message: `They'll lose access to "${workspaceName}" and all its clusters. Clusters shared to them directly in this workspace are unshared as well.`,
       confirmLabel: 'Remove member',
       danger: true,
     });
