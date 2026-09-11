@@ -648,7 +648,7 @@ export function ShareModal({
     const label = meta.email || meta.name;
     const ok = await feedback.confirm({
       title: `Remove ${label}?`,
-      message: `They'll lose access to "${workspace.name}" and all its clusters.`,
+      message: `They'll lose access to "${workspace.name}" and all its clusters. Clusters shared to them directly in this workspace are unshared as well.`,
       confirmLabel: 'Remove member',
       danger: true,
     });
