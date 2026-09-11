@@ -149,3 +149,34 @@ test('0319: the read predicates keep their anon grants (RLS evaluates them for a
   assert.match(sql, /grant execute on function public\.my_readable_board_ids\(\) to anon, authenticated, service_role;/);
   assert.match(sql, /grant execute on function public\.my_workspace_ids\(\) to anon, authenticated, service_role;/);
 });
+
+test('0320: api_request_log rows outlive their token and user', () => {
+  const sql = textOf('0320');
+  assert.match(sql, /alter column token_id drop not null/i);
+  assert.match(sql, /alter column user_id drop not null/i);
+  assert.match(sql, /references public\.api_tokens\(id\) on delete set null not valid/i);
+  assert.match(sql, /references auth\.users\(id\)\s+on delete set null not valid/i);
+  assert.match(sql, /validate constraint api_request_log_token_id_fkey/i);
+  assert.match(sql, /validate constraint api_request_log_user_id_fkey/i);
+  assert.match(sql, /add column if not exists actor_label text/);
+  assert.match(sql, /add column if not exists ip inet/);
+  assert.match(sql, /add column if not exists user_agent text/);
+});
+
+test('0320: api_log_request is a single 10-argument function, service-role only', () => {
+  const sql = textOf('0320');
+  assert.match(sql, /drop function if exists public\.api_log_request\(uuid, uuid, text, text, integer, integer, uuid, text\);/);
+  const def = latestDefinition('api_log_request');
+  assert.ok(def.file.startsWith('0320'));
+  assert.match(def.body, /p_ip\s+inet default null/);
+  assert.match(def.body, /p_ua\s+text default null/);
+  assert.match(def.body, /actor_label/);
+  assert.match(sql, /revoke all on function public\.api_log_request\(uuid, uuid, text, text, integer, integer, uuid, text, inet, text\)\s+from public, anon, authenticated;/);
+});
+
+test('worker passes the client IP and user agent to api_log_request', () => {
+  const src = readFileSync(new URL('../worker-api.js', import.meta.url), 'utf8');
+  const call = src.slice(src.indexOf("scoutRpc(env, 'api_log_request'"), src.indexOf("scoutRpc(env, 'api_log_request'") + 600);
+  assert.match(call, /p_ip: request\.headers\.get\('cf-connecting-ip'\) \|\| null/);
+  assert.match(call, /p_ua: \(request\.headers\.get\('user-agent'\) \|\| ''\)\.slice\(0, 200\) \|\| null/);
+});
