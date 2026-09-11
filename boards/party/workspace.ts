@@ -54,7 +54,7 @@ export default class WorkspaceParty implements Party.Server {
   // tells a dead old socket from the live new one (connection.id can't: it's
   // stable across reconnects). tabId lets onClose fire a precise INSTANT leave
   // instead of waiting out STALE_MS.
-  private connInfo: WeakMap<Party.Connection, { tabId?: string; epoch: number }> = new WeakMap();
+  private connInfo: WeakMap<Party.Connection, { tabId?: string; epoch: number; userId?: string }> = new WeakMap();
   private epoch = 0;
 
   constructor(readonly room: Party.Room) {}
@@ -66,14 +66,19 @@ export default class WorkspaceParty implements Party.Server {
     const workspaceId = url.pathname.split("/").filter(Boolean).pop() ?? "";
     const auth = await authWorkspace(token, workspaceId);
     if (!auth.ok) return new Response(auth.reason ?? "Unauthorized", { status: 401 });
+    // The roster trusts what a client says its identity is; stamp the JWT's
+    // subject here so onMessage can refuse a `here` that claims to be someone
+    // else. Headers set on the upgrade request are visible in onConnect.
+    req.headers.set("x-user-id", auth.userId ?? "");
     return req;
   }
 
-  onConnect(conn: Party.Connection) {
+  onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
     // Stamp a fresh epoch for this connection object up front, so even a
     // reconnect that reuses connection.id is distinguishable from its dead
-    // predecessor.
-    this.connInfo.set(conn, { epoch: ++this.epoch });
+    // predecessor. Also remember whose JWT opened it.
+    const userId = ctx.request.headers.get("x-user-id") || undefined;
+    this.connInfo.set(conn, { epoch: ++this.epoch, userId });
     // Send the current roster (minus the joiner themselves — they don't
     // need to see their own row) so they see existing peers immediately.
     this.pruneStale();
@@ -85,6 +90,13 @@ export default class WorkspaceParty implements Party.Server {
     let msg: any;
     try { msg = JSON.parse(message); } catch { return; }
     if (msg?.type === "here" && msg?.tabId && msg?.user?.id) {
+      const owner = this.connInfo.get(sender)?.userId;
+      if (owner && String(msg.user.id) !== owner) {
+        // A member claiming to be another member. Drop it; the socket stays
+        // open because the rest of the protocol is fine.
+        console.warn(`[workspace ${this.room.id}] presence identity mismatch`);
+        return;
+      }
       const tabId = String(msg.tabId);
       const prev = this.peers.get(tabId);
       // Stamp this connection as the tab's current owner (fresh epoch per
