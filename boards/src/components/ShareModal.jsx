@@ -881,7 +881,7 @@ export function ShareModal({
             <div className="share-hint">
               They sign in to accept, and get the same access to this
               cluster&apos;s sub-clusters. Editors are free on every plan.
-              {isOwner && ' Workspace members can edit every cluster in this workspace, not just this one.'}
+              {isOwner && (isWorkspaceInvite && workspaceRole === 'viewer' ? ' Workspace viewers can open every cluster in this workspace, but change nothing.' : ' Workspace members can edit every cluster in this workspace, not just this one.')}
             </div>
           </div>
         )}
@@ -919,7 +919,7 @@ export function ShareModal({
                       {meta.online && <span className="share-online" title="Online" />}
                     </div>
                     <div className="share-row-sub">
-                      {isWsOwner ? 'Owner' : 'Member — can edit every cluster'}
+                      {isWsOwner ? 'Owner' : m.role === 'viewer' ? 'Member — view only' : 'Member — can edit every cluster'}
                       {meta.email && ` · ${meta.email}`}
                     </div>
                   </div>
