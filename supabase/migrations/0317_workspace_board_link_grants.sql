@@ -83,4 +83,16 @@ begin
      or has_table_privilege('authenticated', 'public.public_share_links', 'delete') then
     raise exception 'authenticated can still write public_share_links';
   end if;
+  -- the revokes above name anon too; prove that half as well
+  if has_column_privilege('anon', 'public.workspaces', 'created_by', 'update') then
+    raise exception 'anon can still update workspaces.created_by';
+  end if;
+  if has_table_privilege('anon', 'public.workspaces', 'update') then
+    raise exception 'anon still holds a table-level UPDATE on workspaces';
+  end if;
+  if has_table_privilege('anon', 'public.public_share_links', 'update')
+     or has_table_privilege('anon', 'public.public_share_links', 'insert')
+     or has_table_privilege('anon', 'public.public_share_links', 'delete') then
+    raise exception 'anon can still write public_share_links';
+  end if;
 end $$;
