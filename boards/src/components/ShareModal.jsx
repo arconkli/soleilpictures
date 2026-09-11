@@ -85,6 +85,12 @@ export function ShareModal({
   const [pendingWorkspaceInvites, setPendingWorkspaceInvites] = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('editor');
+  // Two select values map to a workspace invite: 'workspace' (can edit) and
+  // 'workspaceviewer' (read-only). Everything that used to test
+  // inviteRole === 'workspace' tests isWorkspaceInvite now; the role that is
+  // actually sent is workspaceRole.
+  const isWorkspaceInvite = inviteRole === 'workspace' || inviteRole === 'workspaceviewer';
+  const workspaceRole = inviteRole === 'workspaceviewer' ? 'viewer' : 'editor';
   const [inviting, setInviting] = useState(false);
   const [publicLinks, setPublicLinks] = useState([]);  // active links, both kinds
   const [busyLink, setBusyLink] = useState(false);
@@ -446,9 +452,9 @@ export function ShareModal({
     for (const email of emails) {
       try {
         let status;
-        if (inviteRole === 'workspace') {
+        if (isWorkspaceInvite) {
           status = await inviteWorkspaceMember({
-            workspaceId: workspace.id, email, role: 'editor',
+            workspaceId: workspace.id, email, role: workspaceRole,
           });
           if (status === 'already_member') {
             fail.push({ email, reason: 'already a member' });
@@ -466,8 +472,8 @@ export function ShareModal({
         if (status !== 'pending') {
           try {
             logEventNow(EV.ACCESS_GRANTED, {
-              how: inviteRole === 'workspace' ? 'workspace' : 'email',
-              role: inviteRole,
+              how: isWorkspaceInvite ? 'workspace' : 'email',
+              role: isWorkspaceInvite ? `workspace:${workspaceRole}` : inviteRole,
               board_id: board.id,
               surface: 'share_modal',
             });
@@ -490,13 +496,13 @@ export function ShareModal({
     } catch (_) { /* analytics must never break the invite flow */ }
 
     // Refresh derived state once after the loop.
-    if (inviteRole === 'workspace' && (granted.length > 0 || pending.length > 0)) {
+    if (isWorkspaceInvite && (granted.length > 0 || pending.length > 0)) {
       onMembersChanged?.();
       if (workspace?.id) {
         try { setPendingWorkspaceInvites(await listPendingInvitesForWorkspace(workspace.id)); } catch (_) {}
       }
     }
-    if (inviteRole !== 'workspace' && (granted.length > 0 || pending.length > 0)) {
+    if (!isWorkspaceInvite && (granted.length > 0 || pending.length > 0)) {
       try {
         const [shareRows, pendingRows] = await Promise.all([
           listBoardShares(board.id),
@@ -518,7 +524,7 @@ export function ShareModal({
           type: 'success',
           message: wasPending
             ? `Invite sent to ${only}. They'll get access when they sign up.`
-            : (inviteRole === 'workspace'
+            : (isWorkspaceInvite
                 ? `Added ${only} to "${workspace.name}".`
                 : `Shared "${board.name}" with ${only}.`),
         });
@@ -656,7 +662,7 @@ export function ShareModal({
     }
   };
 
-  const ROLE_LABEL = { viewer: 'Viewer', editor: 'Editor', workspace: 'Workspace member' };
+  const ROLE_LABEL = { viewer: 'Viewer', editor: 'Editor', workspace: 'Workspace member', workspaceviewer: 'Workspace viewer' };
 
   // What the general-access block says about itself. Built from rows, never
   // from the picker, so it can never claim a link that does not exist.
@@ -860,7 +866,10 @@ export function ShareModal({
                 {/* Workspace membership grants access to every board, so
                     only the owner may hand it out. */}
                 {isOwner && (
-                  <option value="workspace">Whole workspace</option>
+                  <option value="workspace">Whole workspace — can edit</option>
+                )}
+                {isOwner && (
+                  <option value="workspaceviewer">Whole workspace — view only</option>
                 )}
               </select>
               <button className="share-invite-btn"
