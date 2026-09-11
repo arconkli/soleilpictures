@@ -2,7 +2,7 @@
 
 > Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/collaborate · Updated 2026-09-10_
 
 Collaboration is deliberately not a paid feature. Inviting people is how boards
 become useful, and charging per seat would make the product worse at the thing
@@ -12,10 +12,10 @@ it is for.
 
 | Role | Can |
 |---|---|
-| **Owner** | Everything, including deleting the cluster and managing shares |
+| **Owner** | Everything, including deleting the cluster and managing members and shares |
 | **Editor** | Add, change and remove content; comment; invite if permitted |
-| **Viewer** | Open, read, and [vote](/docs/canvas/vote-cards) — nothing else |
-| **Workspace member** | Access granted at the workspace level rather than per board |
+| **Viewer** | Open, read, [comment](/docs/collaborate/comments) and [vote](/docs/canvas/vote-cards) — never change content |
+| **Workspace member** | The same two levels, editor or viewer, granted for every cluster in the workspace at once |
 
 Editors are **free on every plan**. A free-tier account can be an editor on any
 cluster it is invited to, with no restriction on what it can do there.

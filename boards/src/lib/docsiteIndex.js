@@ -1960,7 +1960,7 @@ export const DOCS_PAGES = [
     "answer": "Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.",
     "section": "collaborate",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-09-10",
     "navLabel": "Overview",
     "headings": [
       {
@@ -2004,7 +2004,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can a viewer comment?",
-        "a": "Viewers can read and vote. Commenting and editing require editor access."
+        "a": "Yes. Viewers can read, comment and vote; they cannot add, move or change cards."
       }
     ]
   },
@@ -2136,7 +2136,7 @@ export const DOCS_PAGES = [
     "answer": "A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. An eye toggle hides all of them when you want to see the board clean.",
     "section": "collaborate",
     "order": 3,
-    "updated": "2026-08-08",
+    "updated": "2026-09-10",
     "navLabel": "Comments",
     "headings": [
       {

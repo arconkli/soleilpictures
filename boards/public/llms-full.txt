@@ -2576,7 +2576,7 @@ A: Forward slash opens it too, when you are not typing into something.
 ========================================================================
 # Collaborating
 URL: https://clusters.soleilpictures.com/docs/collaborate
-Updated: 2026-08-08
+Updated: 2026-09-10
 
 Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
 
@@ -2585,10 +2585,10 @@ Collaboration is deliberately not a paid feature. Inviting people is how boards 
 Roles
 
 Role | Can
-Owner | Everything, including deleting the cluster and managing shares
+Owner | Everything, including deleting the cluster and managing members and shares
 Editor | Add, change and remove content; comment; invite if permitted
-Viewer | Open, read, and vote — nothing else
-Workspace member | Access granted at the workspace level rather than per board
+Viewer | Open, read, comment and vote — never change content
+Workspace member | The same two levels, editor or viewer, granted for every cluster in the workspace at once
 
 Editors are free on every plan. A free-tier account can be an editor on any cluster it is invited to, with no restriction on what it can do there.
 
@@ -2635,7 +2635,7 @@ Q: Whose card allowance do collaborator uploads use?
 A: The owner's. If you add cards to someone else's cluster, they count against their limit, not yours.
 
 Q: Can a viewer comment?
-A: Viewers can read and vote. Commenting and editing require editor access.
+A: Yes. Viewers can read, comment and vote; they cannot add, move or change cards.
 
 
 ========================================================================
@@ -2790,7 +2790,7 @@ A: Cursors are capped and culled so a busy board stays readable and fast rather 
 ========================================================================
 # Comments
 URL: https://clusters.soleilpictures.com/docs/collaborate/comments
-Updated: 2026-08-08
+Updated: 2026-09-10
 
 A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. An eye toggle hides all of them when you want to see the board clean.
 
@@ -2827,7 +2827,7 @@ Comment bubbles lay themselves out to avoid covering the content they refer to a
 
 Who can comment
 
-Editors can. Viewers cannot — a viewer can read the board and vote, but leaving comments requires edit access. If you want feedback from someone, invite them as an editor; it costs nothing on any plan. See Collaborating.
+Anyone who can open the board, including viewers. Editing a card is a different right from talking about it, and feedback is the point of sharing a board with someone. Public links are the exception: they are anonymous, and comments need an account.
 
 Comments versus votes
 

@@ -2,7 +2,7 @@
 
 > A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. An eye toggle hides all of them when you want to see the board clean.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/comments · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/comments · Updated 2026-09-10_
 
 Comments attach to the thing they are about. This is the whole design: feedback
 that lives in a sidebar, ordered by time, loses the connection to what it
@@ -47,10 +47,10 @@ and to avoid stacking on each other, so a heavily-reviewed board stays readable.
 
 ## Who can comment
 
-Editors can. **Viewers cannot** — a viewer can read the board and
-[vote](/docs/canvas/vote-cards), but leaving comments requires edit access. If
-you want feedback from someone, invite them as an editor; it costs nothing on
-any plan. See [Collaborating](/docs/collaborate).
+Anyone who can open the board, including viewers. Editing a card is a
+different right from talking about it, and feedback is the point of sharing
+a board with someone. Public links are the exception: they are anonymous, and
+comments need an account.
 
 ## Comments versus votes
 
