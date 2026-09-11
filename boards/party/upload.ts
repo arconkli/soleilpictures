@@ -608,7 +608,8 @@ export default class UploadParty implements Party.Server {
     let bytes: number | null = null;
     try {
       const head = await r2.fetch(this.r2ObjectUrl(env, key), { method: "HEAD" });
-      const len = Number(head.headers.get("content-length"));
+      const lenHeader = head.headers.get("content-length");
+      const len = lenHeader == null ? NaN : Number(lenHeader);
       if (head.ok && Number.isFinite(len) && len >= 0) bytes = len;
     } catch (_) { /* size stays unknown; the nightly backfill fills NULLs */ }
     return { ok: true, bytes };

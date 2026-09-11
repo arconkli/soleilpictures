@@ -1105,7 +1105,8 @@ export async function uploadFile({ file, workspaceId, boardId, cardId = null, us
       boardId, key, uploadId,
       parts: parts.map(p => ({ partNumber: p.partNumber, etag: completed[p.partNumber] })),
     });
-    serverBytes = Number.isFinite(Number(done?.bytes)) ? Number(done.bytes) : null;
+    const raw = done?.bytes;
+    serverBytes = (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) ? raw : null;
     clearMpuState(fp);
   } catch (err) {
     // Terminal (auth/quota/abort) → discard the server session + local state.
