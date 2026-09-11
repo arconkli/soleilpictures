@@ -60,3 +60,70 @@ test('no duplicate migration prefixes from 0317 on', () => {
   const dupes = duplicatePrefixes().filter(p => Number(p) >= 317);
   assert.deepEqual(dupes, [], `duplicated prefixes: ${dupes.join(', ')}`);
 });
+
+test('0318: workspace_members.role is constrained and the CHECK includes service', () => {
+  const sql = textOf('0318');
+  const m = /check \(role in \(([^)]*)\)\)/i.exec(sql);
+  assert.ok(m, '0318 must add a role CHECK');
+  const vals = m[1].split(',').map(s => s.trim().replace(/'/g, ''));
+  assert.deepEqual(vals.sort(), ['admin', 'editor', 'owner', 'service', 'viewer']);
+  assert.match(sql, /where role not in \(/i, '0318 must pre-assert live values before adding the CHECK');
+});
+
+test('0318: the allowed writer set is stated once and both write predicates use it', () => {
+  const canWrite = latestDefinition('_workspace_member_can_write');
+  assert.ok(canWrite && canWrite.file.startsWith('0318'));
+  assert.match(canWrite.body, /in \('owner',\s*'admin',\s*'editor',\s*'service'\)/);
+  for (const fn of ['can_write_workspace', 'can_write_board']) {
+    const def = latestDefinition(fn);
+    assert.ok(def.file >= '0318', `${fn} latest definition must be 0318 or later, got ${def.file}`);
+    assert.match(def.body, /_workspace_member_can_write\(/, `${fn} must route membership writes through _workspace_member_can_write`);
+    assert.doesNotMatch(def.body, /\bis_workspace_member\(/, `${fn} must not use the role-blind is_workspace_member`);
+    assert.match(def.body, /_actor_active\(\)/, `${fn} must carry the suspend gate`);
+  }
+});
+
+test('0318: authorize_upload no longer ORs is_workspace_member back in', () => {
+  const def = latestDefinition('authorize_upload');
+  assert.ok(def.file >= '0318');
+  assert.doesNotMatch(def.body, /or public\.is_workspace_member\(/);
+  assert.match(def.body, /if not public\.can_write_workspace\(p_workspace_id\) then/);
+});
+
+test('0318: removing or leaving a workspace also removes that user\'s board shares there', () => {
+  for (const fn of ['remove_workspace_member', 'leave_workspace']) {
+    const def = latestDefinition(fn);
+    assert.ok(def.file >= '0318', `${fn} must be re-emitted in 0318`);
+    assert.match(def.body, /delete from board_shares[\s\S]*board_id in \(\s*select id from boards where workspace_id = p_workspace_id\s*\)/i,
+      `${fn} must cascade to board_shares in that workspace`);
+  }
+});
+
+test('0318: set_workspace_member_role exists, is owner-gated and only allows editor|viewer', () => {
+  const def = latestDefinition('set_workspace_member_role');
+  assert.ok(def && def.file.startsWith('0318'));
+  assert.match(def.body, /p_role not in \('editor',\s*'viewer'\)/);
+  assert.match(def.body, /created_by/);
+  assert.match(textOf('0318'), /grant execute on function public\.set_workspace_member_role\(uuid, uuid, text\) to authenticated;/);
+});
+
+test('0318: invite_workspace_member keeps a viewer invite a viewer', () => {
+  const def = latestDefinition('invite_workspace_member');
+  assert.ok(def.file >= '0318');
+  assert.match(def.body, /case when p_role = 'viewer' then 'viewer' else 'workspace' end/);
+});
+
+test('0318: comments insert goes through can_comment_board, which is at least can_read_board', () => {
+  const p = latestPolicy('comments insert');
+  assert.ok(p.file >= '0318');
+  assert.match(p.body, /can_comment_board\(board_id\)/);
+  const def = latestDefinition('can_comment_board');
+  assert.match(def.body, /can_read_board\(p_board_id\)/);
+});
+
+test('0318: every _-prefixed helper is revoked from anon and authenticated', () => {
+  const sql = textOf('0318');
+  for (const fn of ['_actor_active()', '_workspace_member_role(uuid)', '_workspace_member_can_write(uuid)']) {
+    assert.match(sql, new RegExp(`revoke all on function public\\.${fn.replace(/[()]/g, m => '\\' + m)} from public, anon, authenticated;`));
+  }
+});
