@@ -134,3 +134,18 @@ test('0318: the pre-flight counts every population that loses access', () => {
   assert.match(sql, /p\.banned_at is not null/);
   assert.match(sql, /p\.tier = 'waitlist'/);
 });
+
+test('0319: every read predicate carries the suspend gate', () => {
+  for (const fn of ['can_read_board', 'my_readable_board_ids', 'my_workspace_ids']) {
+    const def = latestDefinition(fn);
+    assert.ok(def.file >= '0319', `${fn} must be re-emitted in 0319 or later, got ${def.file}`);
+    assert.match(def.body, /_actor_active\(\)/, `${fn} lacks _actor_active()`);
+  }
+});
+
+test('0319: the read predicates keep their anon grants (RLS evaluates them for anon SELECTs)', () => {
+  const sql = textOf('0319');
+  assert.match(sql, /grant execute on function public\.can_read_board\(uuid\) to anon, authenticated, service_role;/);
+  assert.match(sql, /grant execute on function public\.my_readable_board_ids\(\) to anon, authenticated, service_role;/);
+  assert.match(sql, /grant execute on function public\.my_workspace_ids\(\) to anon, authenticated, service_role;/);
+});
