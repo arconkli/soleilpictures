@@ -37,12 +37,16 @@
 --
 -- Behaviour change for real accounts: any existing workspace_members row with
 -- role = 'viewer' loses board_state / card_index writes, and an open PartyKit
--- socket flips to readOnly within the 10-second auth cache. The pre-flight
--- below counts them so the owners can be told before this applies.
+-- socket flips to readOnly within the 10-second auth cache; banned accounts
+-- (profiles.banned_at is not null) lose writes immediately at the RLS layer
+-- instead of at token expiry; and waitlist-tier members (profiles.tier =
+-- 'waitlist') lose multipart uploads, since authorize_upload no longer
+-- re-admits them through the removed is_workspace_member OR. The pre-flight
+-- below counts all three so the owners can be told before this applies.
 
 -- ── 0. Pre-flight: live values and the viewer count ─────────────────────────
 do $$
-declare v_bad int; v_viewers int;
+declare v_bad int; v_viewers int; v_banned int; v_waitlist int;
 begin
   select count(*) into v_bad from public.workspace_members
    where role not in ('owner','admin','editor','viewer','service');
@@ -51,6 +55,12 @@ begin
   end if;
   select count(*) into v_viewers from public.workspace_members where role = 'viewer';
   raise notice '0318: % workspace member rows currently hold role=viewer and will become read-only', v_viewers;
+  select count(*) into v_banned from public.workspace_members wm
+    join public.profiles p on p.user_id = wm.user_id where p.banned_at is not null;
+  raise notice '0318: % workspace member rows belong to banned accounts and lose writes immediately (was: until token expiry)', v_banned;
+  select count(*) into v_waitlist from public.workspace_members wm
+    join public.profiles p on p.user_id = wm.user_id where p.tier = 'waitlist';
+  raise notice '0318: % workspace member rows belong to waitlist-tier accounts and lose multipart uploads', v_waitlist;
 end $$;
 
 alter table public.workspace_members
