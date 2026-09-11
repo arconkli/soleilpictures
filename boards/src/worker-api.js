@@ -869,6 +869,11 @@ export async function handleApiRoute(url, request, env, ctx) {
       p_ms: Date.now() - t0,
       p_target: trace.target,
       p_tool: trace.tool || null,
+      // 0320: where from. cf-connecting-ip is set by Cloudflare on every
+      // request and cannot be forged by the client; the UA is bounded here so
+      // the column stays small.
+      p_ip: request.headers.get('cf-connecting-ip') || null,
+      p_ua: (request.headers.get('user-agent') || '').slice(0, 200) || null,
     }).catch(() => {});
     if (ctx?.waitUntil) ctx.waitUntil(write);
   }
