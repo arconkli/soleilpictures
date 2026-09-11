@@ -127,3 +127,10 @@ test('0318: every _-prefixed helper is revoked from anon and authenticated', () 
     assert.match(sql, new RegExp(`revoke all on function public\\.${fn.replace(/[()]/g, m => '\\' + m)} from public, anon, authenticated;`));
   }
 });
+
+test('0318: the pre-flight counts every population that loses access', () => {
+  const sql = textOf('0318');
+  assert.match(sql, /where role = 'viewer'/);
+  assert.match(sql, /p\.banned_at is not null/);
+  assert.match(sql, /p\.tier = 'waitlist'/);
+});
