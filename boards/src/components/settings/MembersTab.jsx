@@ -112,7 +112,7 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
       <SettingsCategory title="People in this workspace"
                         desc={isOwner ? 'Editors can add and change content. Viewers can open and read, comment, and vote.'
                                       : 'Only the owner can change roles or remove members.'}>
-        {loading && members.length === 0 && <div className="settings-muted">Loading…</div>}
+        {loading && members.length === 0 && <div className="settings-empty">Loading…</div>}
         <ul className="settings-member-list">
           {members.map(m => {
             const self = m.user_id === user?.id;
