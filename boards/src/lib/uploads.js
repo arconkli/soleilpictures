@@ -1019,7 +1019,7 @@ function clearMpuState(fp) { try { localStorage.removeItem(fp); } catch (_) {} }
 // already in R2, so retry hard — a missing row means a permanently unreadable
 // file (and, unlike a single-PUT orphan, a completed multipart object the sweep
 // can't see).
-async function insertFileImageRow({ workspaceId, boardId, cardId, key, file, userId }) {
+async function insertFileImageRow({ workspaceId, boardId, cardId, key, file, userId, sizeBytes = null }) {
   let lastErr;
   for (let i = 0; i < 3; i++) {
     const { error } = await supabase.from('images').insert({
@@ -1029,7 +1029,7 @@ async function insertFileImageRow({ workspaceId, boardId, cardId, key, file, use
       storage_path: key,
       width: null,
       height: null,
-      size_bytes: file.size || null,
+      size_bytes: sizeBytes ?? file.size ?? null,
       uploaded_by: userId,
     });
     if (!error) return;
@@ -1079,6 +1079,7 @@ export async function uploadFile({ file, workspaceId, boardId, cardId = null, us
 
   const todo = parts.filter(p => completed[p.partNumber] == null);
 
+  let serverBytes = null;
   try {
     for (let i = 0; i < todo.length; i += MPU_SIGN_BATCH) {
       if (signal?.aborted) throw new Error('aborted');
@@ -1100,10 +1101,11 @@ export async function uploadFile({ file, workspaceId, boardId, cardId = null, us
       });
     }
 
-    await mpuPost('complete', workspaceId, {
+    const done = await mpuPost('complete', workspaceId, {
       boardId, key, uploadId,
       parts: parts.map(p => ({ partNumber: p.partNumber, etag: completed[p.partNumber] })),
     });
+    serverBytes = Number.isFinite(Number(done?.bytes)) ? Number(done.bytes) : null;
     clearMpuState(fp);
   } catch (err) {
     // Terminal (auth/quota/abort) → discard the server session + local state.
@@ -1116,13 +1118,13 @@ export async function uploadFile({ file, workspaceId, boardId, cardId = null, us
     throw err;
   }
 
-  await insertFileImageRow({ workspaceId, boardId, cardId, key, file, userId });
+  await insertFileImageRow({ workspaceId, boardId, cardId, key, file, userId, sizeBytes: serverBytes });
 
   return {
     src: `r2:${key}`,
     storagePath: key,
     key,
-    sizeBytes: file.size,
+    sizeBytes: serverBytes ?? file.size,
     mime: file.type || 'application/octet-stream',
     ext,
     fileName: file.name,

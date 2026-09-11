@@ -589,11 +589,13 @@ export default class UploadParty implements Party.Server {
 
   // S3 CompleteMultipartUpload (server-side POST). Parts must be sorted ascending
   // with their exact (re-quoted) ETags. Guards against S3's "200 with <Error> in
-  // body" pattern.
+  // body" pattern. Returns { ok, bytes } where bytes is what R2 reports for the
+  // finished object — the number the quota should believe, rather than whatever
+  // the client said before uploading.
   async completeMultipart(
     r2: AwsClient, env: R2Env, key: string, uploadId: string,
     parts: Array<{ partNumber: number; etag: string }>,
-  ): Promise<{ ok: boolean; error?: string }> {
+  ): Promise<{ ok: boolean; bytes?: number | null; error?: string }> {
     const sorted = [...parts].sort((a, b) => a.partNumber - b.partNumber);
     const body = `<CompleteMultipartUpload>${sorted.map((p) => {
       const et = String(p.etag || "").replace(/^"+|"+$/g, "");
@@ -603,7 +605,13 @@ export default class UploadParty implements Party.Server {
     const res = await r2.fetch(url, { method: "POST", body, headers: { "Content-Type": "application/xml" } });
     const text = await res.text().catch(() => "");
     if (!res.ok || /<Error>/.test(text)) return { ok: false, error: text.slice(0, 500) };
-    return { ok: true };
+    let bytes: number | null = null;
+    try {
+      const head = await r2.fetch(this.r2ObjectUrl(env, key), { method: "HEAD" });
+      const len = Number(head.headers.get("content-length"));
+      if (head.ok && Number.isFinite(len) && len >= 0) bytes = len;
+    } catch (_) { /* size stays unknown; the nightly backfill fills NULLs */ }
+    return { ok: true, bytes };
   }
 
   // S3 AbortMultipartUpload (server-side DELETE). Best-effort.
@@ -704,7 +712,7 @@ export default class UploadParty implements Party.Server {
     const result = await this.completeMultipart(r2, env, key, uploadId, parts);
     if (!result.ok)
       return new Response(`Complete failed: ${result.error || ""}`, { status: 502, headers: corsHeaders(origin) });
-    return Response.json({ key }, { headers: corsHeaders(origin) });
+    return Response.json({ key, bytes: result.bytes ?? null }, { headers: corsHeaders(origin) });
   }
 
   // POST /mpu/abort — discard an in-flight session (user cancel / error).
