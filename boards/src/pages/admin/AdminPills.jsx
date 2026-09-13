@@ -38,10 +38,10 @@ export function StatusPill({ kind }) {
 // is why boards/src/lib/feedbackContract.test.mjs asserts this list against the
 // table's CHECK: a kind added to the database and not here would show up in the
 // colour reserved for 'other' and read as something it is not.
-const KIND_LABEL = { return_reason: 'return' };
+const KIND_LABEL = { return_reason: 'return', account_deleted: 'left' };
 
 export function FeedbackKindPill({ kind }) {
-  const k = ['bug', 'idea', 'praise', 'other', 'return_reason'].includes(kind) ? kind : 'other';
+  const k = ['bug', 'idea', 'praise', 'other', 'return_reason', 'account_deleted'].includes(kind) ? kind : 'other';
   return (
     <span className={`fbk-kind fbk-kind-${k}`}>
       <span className="fbk-dot" aria-hidden="true" />

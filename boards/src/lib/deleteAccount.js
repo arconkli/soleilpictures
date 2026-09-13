@@ -29,6 +29,17 @@ export async function getDeletionImpact() {
   return data || null;
 }
 
+// Optional and best-effort: a sentence about why, written before the account
+// goes so the caller can still be authenticated. Returns whether a row landed.
+// Never blocks deletion — the reason is a courtesy, the deletion is the request.
+export async function submitDeletionReason(reason) {
+  const text = String(reason || '').trim().slice(0, 500);
+  if (!text) return false;
+  const { data, error } = await supabase.rpc('submit_deletion_reason', { p_reason: text });
+  if (error) throw error;
+  return data === true;
+}
+
 export async function deleteOwnAccount({ confirmEmail }) {
   const token = await authedToken();
   const res = await fetch(DELETE_URL, {

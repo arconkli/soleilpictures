@@ -2128,6 +2128,7 @@
 .fbk-kind-praise        { --k: rgb(80,200,120); }
 .fbk-kind-other         { --k: var(--ink-3); }
 .fbk-kind-return_reason { --k: rgb(165,165,185); }
+.fbk-kind-account_deleted { --k: rgb(205,140,95); }
 .fbk-kind .fbk-dot { background: var(--k); }
 
 .fbk-choice { color: var(--ink-2); }

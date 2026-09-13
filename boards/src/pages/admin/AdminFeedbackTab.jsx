@@ -32,7 +32,7 @@ import { MessageSquare, Image as ImageIcon } from '../../lib/icons.js';
 // Asserted against the table's CHECK by src/lib/feedbackContract.test.mjs — a
 // kind the database can store and this array cannot ask for is a row written
 // and then hidden behind a filter.
-const KINDS = ['bug', 'idea', 'praise', 'other', 'return_reason'];
+const KINDS = ['bug', 'idea', 'praise', 'other', 'return_reason', 'account_deleted'];
 const PAGE_SIZE = 50;
 // Long enough that most messages are shown whole — the reading column is
 // capped, so this is about how many LINES a row costs, not characters on one.
