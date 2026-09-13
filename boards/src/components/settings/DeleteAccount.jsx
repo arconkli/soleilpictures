@@ -10,7 +10,7 @@
 // Collapsed until asked for. A permanently-open delete panel under your
 // profile picture is its own kind of hazard.
 import { useState } from 'react';
-import { getDeletionImpact, deleteOwnAccount, signOutAfterDeletion } from '../../lib/deleteAccount.js';
+import { getDeletionImpact, deleteOwnAccount, signOutAfterDeletion, submitDeletionReason } from '../../lib/deleteAccount.js';
 import { useFeedback } from '../AppFeedback.jsx';
 
 function Impact({ data }) {
@@ -57,6 +57,7 @@ export function DeleteAccount({ email }) {
   const [loading, setLoading] = useState(false);
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
+  const [reason, setReason] = useState('');
 
   // Fetched on expand rather than on mount: it is a round-trip that only
   // matters to someone who has asked this question.
@@ -86,6 +87,10 @@ export function DeleteAccount({ email }) {
     });
     if (!ok) return;
     setBusy(true);
+    // The reason first, while this account can still be authenticated. It is
+    // the one sentence a leaving person will type, and until now the product
+    // discarded it. Best-effort: a failure here never stops the deletion.
+    try { await submitDeletionReason(reason); } catch (_) { /* courtesy, not the request */ }
     try {
       await deleteOwnAccount({ confirmEmail: typed.trim() });
       await signOutAfterDeletion();
@@ -114,6 +119,15 @@ export function DeleteAccount({ email }) {
         <>
           <p>Here is what happens to this account, right now:</p>
           <Impact data={impact} />
+          <label className="settings-field" style={{ display: 'block', marginTop: 8 }}>
+            <span className="settings-field-label">
+              Anything you want us to know? <span style={{ opacity: 0.6 }}>(optional)</span>
+            </span>
+            <textarea className="auth-input" rows={2} maxLength={500}
+                      placeholder="Why you're leaving, what didn't work, what you use instead."
+                      value={reason} disabled={busy}
+                      onChange={(e) => setReason(e.target.value)} />
+          </label>
           <p>
             There is no undo and no grace period. To confirm, type
             {' '}<b>{email}</b> below.
