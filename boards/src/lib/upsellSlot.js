@@ -46,7 +46,10 @@ const ALWAYS_WINS = 'cap-hit';
 // always wait for another day. It is also the only one that arrives on a
 // TIMER rather than off a card count, so without a claim it would be the one
 // surface capable of landing on top of any of the others at random.
-const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason']);
+// 'power-reveal' is a toast that fires off a card count at the same moments
+// the others do; on a return visit it was the first thing on screen with two
+// more behind it.
+const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal']);
 
 // Module scope = page lifetime, like boardsApi's _capAnnounced. No auth reset
 // is wired for it on purpose: the claim self-expires in a minute, so the worst
