@@ -3081,6 +3081,11 @@ export function CanvasSurface({
         });
       }
     };
+    // The dialog closed with nothing chosen. Fires on the input's own `cancel`
+    // event; a browser that lacks it simply never emits this row.
+    input.oncancel = () => {
+      try { logEvent(EV.PHOTO_PICK_CANCEL, { source, board_id: board?.id }); } catch (_) {}
+    };
     input.click();
   }, [ingestFiles, board?.id, isPhone, canEdit, feedback]);
   pickPhotosAtRef.current = pickPhotosAt;
@@ -8296,6 +8301,9 @@ export function CanvasSurface({
       e.preventDefault();
       const url = e.dataTransfer.getData('text/uri-list').split('\n')[0]?.trim();
       if (!url) return;
+      // A drag from another tab is the one "bring material from elsewhere"
+      // gesture that had no intent row, so it was invisible next to paste.
+      noteCreateIntent('drag_in');
       // If the URL looks like an image (file extension or content-type
       // hint via the dragged element), drop as an image card so the
       // browser image-drag flow lands as a real image rather than a

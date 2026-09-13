@@ -4248,7 +4248,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // can correlate retention (app opens / unique user / week).
   useEffect(() => {
     if (!myTier.tier) return;
-    logEvent(EV.APP_OPEN, { tier: myTier.tier });
+    // Where did they land? The stack is restored from localStorage above, so on
+    // a returning open its top is the board they left; a fresh browser or a
+    // cleared one lands on the root. Read here, once, at mount.
+    const landedId = (Array.isArray(stack) && stack.length ? stack[stack.length - 1] : null) || rootBoard.id;
+    const restored = landedId !== rootBoard.id;
+    logEvent(EV.APP_OPEN, { tier: myTier.tier, board_id: landedId, restored, source: restored ? 'session' : 'root' });
     // Post-signup journey: open it (idempotent — TierRouter also opens it for the
     // AdWelcome/waitlist branches) and mark that the App workspace actually
     // mounted. Only for genuinely-new users (onboarding not done). Child effects
