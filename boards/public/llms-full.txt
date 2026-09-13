@@ -3360,11 +3360,11 @@ A: Settings, under Invite and earn — friends joined, how many got started, car
 ========================================================================
 # Mobile and tablet
 URL: https://clusters.soleilpictures.com/docs/account/mobile
-Updated: 2026-08-27
+Updated: 2026-09-13
 
-Clusters works in a mobile browser, installs as a PWA, and ships as iOS and Android apps. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection.
+Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 
-Three ways to run it on a phone or tablet: the mobile browser, an installed PWA, or the native iOS and Android apps. They are the same app.
+Two ways to run it on a phone or tablet: the mobile browser, or the same app added to your home screen. They are the same app.
 
 Touch on the canvas
 
@@ -3397,17 +3397,16 @@ The Home graph renders its 2D fallback on most tablets, which has the same nodes
 
 Installing
 
-As a PWA — "Add to Home Screen" from the browser. It runs standalone, without browser chrome.
-
-Native apps for iOS and Android handle the status bar, keyboard behaviour, the splash screen, deep links, the Android back button, and the system share sheet — so exports land in Files or another app rather than a downloads folder.
+Add to Home Screen from the browser's share or menu button. It runs standalone, without browser chrome, and keeps its own sign-in — so sign in once from the home-screen icon itself.
 
 Getting photos in from a phone
 
-Three routes:
+Two routes today:
 
-Upload from the add sheet — the camera roll picker.
-Share sheet from Photos.
+Upload from the add sheet — the camera roll picker, which takes several photos at once.
 Soleil Scout — text them, with no app at all. Note that Scout's phone line is not live yet.
+
+Saving into a cluster from another app's share sheet is not available yet.
 
 What is worse on a small screen
 
@@ -3418,7 +3417,7 @@ What is genuinely good on mobile is capture and review — getting photos in, an
 ## Frequently asked questions
 
 Q: Is there a real app?
-A: Yes, for iOS and Android, with native handling of the status bar, keyboard, splash screen, deep links and the Android back button. It can also be installed from the browser as a PWA.
+A: Not in the app stores yet. Clusters runs in the mobile browser and can be added to your home screen from the browser's share or menu button, where it opens full-screen without browser chrome. Native iOS and Android builds are in development and will be announced in the changelog when they ship.
 
 Q: Can I draw on a tablet?
 A: Yes, with a stylus or a finger. A stylus gets pressure-sensitive strokes, and once one has been used on the device your finger switches to panning so a resting palm cannot draw. A "Draw with finger" toggle in the draw options puts that back if you want it.

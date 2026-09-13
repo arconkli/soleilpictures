@@ -26742,7 +26742,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Three ways to run it on a phone or tablet: the mobile browser, an installed PWA, or the native iOS and Android apps. They are the same app."
+     "v": "Two ways to run it on a phone or tablet: the mobile browser, or the same app added to your home screen. They are the same app."
     }
    ]
   },
@@ -27070,51 +27070,17 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "As a PWA",
+     "v": "Add to Home Screen",
      "children": [
       {
        "t": "text",
-       "v": "As a PWA"
+       "v": "Add to Home Screen"
       }
      ]
     },
     {
      "t": "text",
-     "v": " — \"Add to Home Screen\" from the browser. It runs standalone, without browser chrome."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Native apps",
-     "children": [
-      {
-       "t": "text",
-       "v": "Native apps"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " for iOS and Android handle the status bar, keyboard behaviour, the splash screen, deep links, the Android back button, and the system share sheet — so "
-    },
-    {
-     "t": "link",
-     "v": "exports",
-     "href": "/docs/documents/export",
-     "children": [
-      {
-       "t": "text",
-       "v": "exports"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " land in Files or another app rather than a downloads folder."
+     "v": " from the browser's share or menu button. It runs standalone, without browser chrome, and keeps its own sign-in — so sign in once from the home-screen icon itself."
     }
    ]
   },
@@ -27135,7 +27101,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Three routes:"
+     "v": "Two routes today:"
     }
    ]
   },
@@ -27156,23 +27122,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " from the add sheet — the camera roll picker."
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Share sheet",
-      "children": [
-       {
-        "t": "text",
-        "v": "Share sheet"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " from Photos."
+      "v": " from the add sheet — the camera roll picker, which takes several photos at once."
      }
     ],
     [
@@ -27198,6 +27148,15 @@ export const DOCS_CONTENT = {
       "v": " — text them, with no app at all. Note that Scout's phone line is not live yet."
      }
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Saving into a cluster from another app's share sheet is not available yet."
+    }
    ]
   },
   {

@@ -1,11 +1,11 @@
 # Mobile and tablet
 
-> Clusters works in a mobile browser, installs as a PWA, and ships as iOS and Android apps. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection.
+> Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 
-_Source: https://clusters.soleilpictures.com/docs/account/mobile · Updated 2026-08-27_
+_Source: https://clusters.soleilpictures.com/docs/account/mobile · Updated 2026-09-13_
 
-Three ways to run it on a phone or tablet: the mobile browser, an installed PWA,
-or the native iOS and Android apps. They are the same app.
+Two ways to run it on a phone or tablet: the mobile browser, or the same app
+added to your home screen. They are the same app.
 
 ## Touch on the canvas
 
@@ -55,21 +55,19 @@ tablets, which has the same nodes and interactions.
 
 ## Installing
 
-**As a PWA** — "Add to Home Screen" from the browser. It runs standalone,
-without browser chrome.
-
-**Native apps** for iOS and Android handle the status bar, keyboard behaviour,
-the splash screen, deep links, the Android back button, and the system share
-sheet — so [exports](/docs/documents/export) land in Files or another app
-rather than a downloads folder.
+**Add to Home Screen** from the browser's share or menu button. It runs
+standalone, without browser chrome, and keeps its own sign-in — so sign in once
+from the home-screen icon itself.
 
 ## Getting photos in from a phone
 
-Three routes:
+Two routes today:
 
-1. **Upload** from the add sheet — the camera roll picker.
-2. **Share sheet** from Photos.
-3. **[Soleil Scout](/docs/scout)** — text them, with no app at all. Note that Scout's phone line is not live yet.
+1. **Upload** from the add sheet — the camera roll picker, which takes several
+   photos at once.
+2. **[Soleil Scout](/docs/scout)** — text them, with no app at all. Note that Scout's phone line is not live yet.
+
+Saving into a cluster from another app's share sheet is not available yet.
 
 ## What is worse on a small screen
 
