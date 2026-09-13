@@ -33,6 +33,7 @@ import { ActivationFunnel } from '../widgets/ActivationFunnel.jsx';
 import { ActivationByDevice } from '../widgets/ActivationByDevice.jsx';
 import { ReturnRate } from '../widgets/ReturnRate.jsx';
 import { SurvivalCurve, ReturnGap } from '../widgets/SurvivalCurve.jsx';
+import { FixedHorizonTable } from '../widgets/FixedHorizonTable.jsx';
 import { ReturnPredictors } from '../widgets/ReturnPredictors.jsx';
 import { FirstSessionCompare, SessionOutcomes } from '../widgets/FirstSessionCompare.jsx';
 import { RetentionBySource } from '../widgets/RetentionBySource.jsx';
@@ -175,7 +176,7 @@ export function RetentionView() {
   // One wave, not four. The old view's sequencing was incidental — no call
   // depended on another's result — so it was pure added latency.
   const q = useAdminData(async () => {
-    const [af, rc, rr, hp, hw, cm, sd, sc, rg, sb] = await Promise.allSettled([
+    const [af, rc, rr, hp, hw, cm, sd, sc, rg, fh, sb] = await Promise.allSettled([
       supabase.rpc('admin_activation_funnel', { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_retention_curve', { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // p_require_work: the old call omitted it, so this panel and the habit
@@ -200,6 +201,12 @@ export function RetentionView() {
       // the did_work epoch and reads as churn.
       supabase.rpc('admin_survival_curve', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_return_gap', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      // Fixed horizon (0322): did the second visit begin within seven days of
+      // the first, for every first visit at least seven days old. Split by
+      // device, first source, day-one depth and signup week. This is the read
+      // that can move within a fortnight of a deploy; the survival step above
+      // pools three months of exposure and cannot.
+      supabase.rpc('admin_return_fixed_horizon', { p_horizon_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // Only to size the intake for the power note — how long a change would
       // take to become readable depends on how fast people arrive.
       supabase.rpc('admin_signups_by_day', { p_days: 28, p_verified_only: f.verifiedOnly }),
@@ -219,6 +226,7 @@ export function RetentionView() {
       sessionDepth: val(sd) || [],
       survival: val(sc) || [],
       returnGap: val(rg) || [],
+      fixedHorizon: val(fh) || [],
       // Mean weekly intake over the last 28 days. A mean rather than the latest
       // week on purpose: one quiet week would otherwise double the estimate of
       // how long everything takes to measure.
@@ -248,10 +256,18 @@ export function RetentionView() {
             that pools the answer to this one away. */}
         <Deck>
           <Well
+            span={12}
+            title="Back within a week"
+            meta="fixed horizon — the number that can move"
+            foot="Grade a deploy here, by band and by week, two weeks after it lands. The pooled step below cannot show a change for months."
+          >
+            <FixedHorizonTable rows={q.data?.fixedHorizon || []} horizonDays={7} />
+          </Well>
+          <Well
             span={7}
             title="Chance of the next visit"
             meta="by visit, not by date"
-            foot="Bars are 95% Wilson intervals; hollow points rest on too few people to carry weight. Steps below the suppression floor are omitted rather than drawn as a confident 100%."
+            foot="Bars are 95% Wilson intervals; hollow points rest on too few people to carry weight. Steps below the suppression floor are omitted rather than drawn as a confident 100%. Visits merge across UTC midnight and a heartbeat-only day is not a visit (0322)."
           >
             <SurvivalCurve rows={q.data?.survival || []} weeklySignups={q.data?.weeklySignups} />
           </Well>
@@ -259,7 +275,7 @@ export function RetentionView() {
             span={5}
             title="How long until the second visit"
             meta="among those who made one"
-            foot="The window any timed intervention has to hit. Measured from the first active day to the second."
+            foot="The window any timed intervention has to hit. Hours from the end of the first visit to the start of the second."
           >
             <ReturnGap rows={q.data?.returnGap || []} />
           </Well>
