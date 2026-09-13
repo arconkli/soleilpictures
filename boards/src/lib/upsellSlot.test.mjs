@@ -108,3 +108,9 @@ assert(claimUpsellSlot('first-value', T), 'so the real claim still succeeds');
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
+
+test('the power reveal is an ambient surface and must take the slot like the others', () => {
+  __resetUpsellSlot();
+  assert.equal(claimUpsellSlot('power-reveal', 1000), true);
+  assert.equal(claimUpsellSlot('share-ask', 2000), false, 'stands down inside the window');
+});
