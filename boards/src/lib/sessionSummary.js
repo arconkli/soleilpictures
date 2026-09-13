@@ -48,6 +48,7 @@ export function createSummary(session, now = Date.now()) {
     lastAt: now,
     events: 0,
     cards: 0,
+    intents: 0,
     boards: new Set(),
     surfaces: new Set(),
     wrote: false,
@@ -72,6 +73,10 @@ export function noteEvent(acc, name, props, now = Date.now()) {
     const n = Number(props?.n);
     acc.cards += Number.isFinite(n) && n > 0 ? n : 1;
   }
+  // Intents per card is the one thing that tells a hand-built board from a
+  // folder dumped on it — the same twenty-six cards arrive as twenty gestures
+  // or as two. Counters that see only cards cannot tell them apart.
+  if (name === 'card_create_intent') acc.intents += 1;
   if (props?.board_id) acc.boards.add(String(props.board_id));
   if (props?.surface) acc.surfaces.add(String(props.surface));
   if (WROTE.has(name)) acc.wrote = true;
@@ -101,6 +106,7 @@ export function summaryProps(acc, ended, now = Date.now()) {
     ms_span: Math.max(0, (Number(acc.lastAt) || now) - (Number(acc.startedAt) || now)),
     events_n: acc.events,
     cards_placed: acc.cards,
+    intents_n: acc.intents,
     boards_opened: acc.boards.size,
     surfaces_n: acc.surfaces.size,
     wrote: !!acc.wrote,

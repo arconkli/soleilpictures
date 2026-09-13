@@ -94,3 +94,13 @@ test('ms_span cannot go negative on a backwards clock', () => {
   noteEvent(a, 'app_open', {}, 1000);
   assert.equal(summaryProps(a, 'hide').ms_span, 0);
 });
+
+test('create intents are counted, so intents per card is readable per session', () => {
+  const acc = createSummary({ id: 's', seq: 1, startedAt: 1000 }, 1000);
+  noteEvent(acc, 'card_create_intent', { method: 'paste' }, 1001);
+  noteEvent(acc, 'card_create_intent', { method: 'drag_in' }, 1002);
+  noteEvent(acc, 'card_placed', { n: 20 }, 1003);
+  const p = summaryProps(acc, 'hide', 2000);
+  assert.equal(p.intents_n, 2);
+  assert.equal(p.cards_placed, 20);
+});
