@@ -111,6 +111,17 @@ const RULES = [
     scoped: false,
     pattern: /no (hard )?(item|card) (cap|wall)|without (the )?item (caps?|wall)|no upload ceiling|no ceiling on (image )?uploads|does not meter uploads/i,
   },
+  {
+    // /docs/account/mobile told visitors and AI answer engines for months that
+    // Clusters "ships as iOS and Android apps" and takes photos from the system
+    // share sheet, while the native shells were never built for a store and no
+    // share target existed on any surface. A shipped app is a store listing you
+    // can link to; until there is one, the docs describe the browser and the
+    // home-screen web app only.
+    name: 'no native iOS/Android app is shipped — do not describe one as available',
+    scoped: false,
+    pattern: /ships as (native )?(iOS|Android)|native apps for iOS and Android|native (iOS|Android)( and Android)? apps? (for|handle|land|open)|(Yes|yes),? for iOS and Android|share sheet from photos|the (native )?iOS and Android apps/i,
+  },
 ];
 
 for (const rule of RULES) {

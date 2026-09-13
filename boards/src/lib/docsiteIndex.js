@@ -2675,12 +2675,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/account/mobile",
     "title": "Mobile and Tablet — Soleil Clusters",
-    "metaDescription": "Soleil Clusters on phones and tablets — touch gestures, focus view, the mobile add sheet, installing as a PWA, and the iOS and Android apps.",
+    "metaDescription": "Soleil Clusters on phones and tablets — touch gestures, focus view, the mobile add sheet, and adding it to your home screen as a web app.",
     "h1": "Mobile and tablet",
-    "answer": "Clusters works in a mobile browser, installs as a PWA, and ships as iOS and Android apps. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection.",
+    "answer": "Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.",
     "section": "account",
     "order": 4,
-    "updated": "2026-08-27",
+    "updated": "2026-09-13",
     "navLabel": "Mobile and tablet",
     "headings": [
       {
@@ -2716,7 +2716,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is there a real app?",
-        "a": "Yes, for iOS and Android, with native handling of the status bar, keyboard, splash screen, deep links and the Android back button. It can also be installed from the browser as a PWA."
+        "a": "Not in the app stores yet. Clusters runs in the mobile browser and can be added to your home screen from the browser's share or menu button, where it opens full-screen without browser chrome. Native iOS and Android builds are in development and will be announced in the changelog when they ship."
       },
       {
         "q": "Can I draw on a tablet?",
