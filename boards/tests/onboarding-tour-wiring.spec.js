@@ -184,12 +184,17 @@ test.describe('project_first wiring', () => {
     expect(app()).toMatch(/isPhone \? 'mobile_lite' : 'project_first'/);
   });
 
-  test('App answers pick_intent: engine event, analytics, then the named project cluster', () => {
+  test('App answers pick_intent: engine event and analytics — and no longer a seeded cluster', () => {
     const s = app();
     expect(s).toMatch(/type === 'pick_intent'/);
     expect(s).toMatch(/type: 'intent_picked'/);
     expect(s).toMatch(/EV\.ONBOARDING_INTENT/);
-    expect(s).toMatch(/addNewBoard\?\.\(null, \{ name/);
+    // RETIRED 2026-09-13. The pick used to seed an empty cluster named for the
+    // answer; an empty container was the most common first move and the
+    // worst-returning one. The answer now shapes the first board's panel and
+    // the content step's copy (firstBoardKind / copyFor) instead.
+    expect(s).not.toMatch(/addNewBoard\?\.\(null, \{ name/);
+    expect(s).toMatch(/firstBoardKindFrom\(/);
   });
 
   test('persistTour lifts a picked intent to onboarding.intent for lifecycle-email reads', () => {
@@ -221,16 +226,16 @@ test.describe('project_first wiring', () => {
 // manufacture activation, the content pill must not sit on the fitted seed,
 // and the completion tip must match the input device.
 test.describe('project_first review fixes', () => {
-  test('the intent seed is a SEED card — activation stays user-earned', () => {
+  test('the intent pick seeds nothing — activation stays user-earned by construction', () => {
+    // The seed:true plumbing on addNewBoard stays (the arm-A Ideas board and
+    // any future system placement still need it), but the intent pick no longer
+    // calls it: nothing is placed from a survey click, in App or in the harness.
     const s = app();
-    // handler passes seed:true; addNewBoard stamps it onto the canvas card so
-    // isSeedCard/_doSyncCardIndex treat it like the arm-A Ideas board (no
-    // card_placed, no first_card_at, no Meta conversion from a survey click).
-    expect(s).toMatch(/addNewBoard\?\.\(null, \{ name: choice\.boardName, seed: true \}\)/);
     expect(s).toMatch(/\.\.\.\(opts\.seed \? \{ seed: true \} : \{\}\)/);
+    expect(s).not.toMatch(/name: choice\.boardName/);
     const l = read('src/local/LocalBoardsApp.jsx');
-    expect(l).toMatch(/addNewBoard\(null, \{ name: choice\.boardName, seed: true \}\)/);
     expect(l).toMatch(/\.\.\.\(opts\.seed \? \{ seed: true \} : \{\}\)/);
+    expect(l).not.toMatch(/addNewBoard\(null, \{ name: choice\.boardName/);
   });
 
   test('the completion toast drops the keyboard tip on coarse pointers', () => {

@@ -32,7 +32,8 @@ import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
 import { OnboardingTour } from './components/OnboardingTour.jsx';
 import { useOnboardingTour } from './hooks/useOnboardingTour.js';
-import { mergeTourIntoOnboarding, PROJECT_INTENTS } from './lib/onboardingTour.js';
+import { mergeTourIntoOnboarding } from './lib/onboardingTour.js';
+import { firstBoardKindFrom } from './lib/firstBoardCopy.js';
 import { momentumHintSeen, markMomentumHintSeen } from './lib/momentumHint.js';
 import {
   pickReveal, revealSeen, markRevealSeen,
@@ -47,7 +48,7 @@ import { readRemix, clearRemix } from './lib/remix.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
-import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolledArm, setAnalyticsContext } from './lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolledArm, setAnalyticsContext, getFirstSource } from './lib/analytics.js';
 import { resolveSurface, surfaceBoardId } from './lib/surface.js';
 import { createCollabTracker } from './lib/collabSession.js';
 import { EV, JOURNEY_PHASE } from './lib/analyticsEvents.js';
@@ -4417,6 +4418,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // non-arm-B (or finished) user's card/nav actions would advance + persist +
   // emit tour state into their profile. Null ref → the mutators' `?.()` no-op.
   tourFireRef.current = tourActive ? tour.fire : null;
+  // What the first board should say. The intent the person picked (live tour
+  // state first, then the persisted copy), else the landing page / referrer
+  // stamped at sign-in. Only consulted while they have no cards anywhere.
+  const firstBoardKind = useMemo(() => {
+    let src = {};
+    try { src = getFirstSource() || {}; } catch (_) { src = {}; }
+    return firstBoardKindFrom({
+      intent: tour?.state?.intent || myTier.onboarding?.intent || null,
+      landingPath: src.landing_path, referrerHost: src.referrer_host, utmSource: src.utm_source,
+    });
+  }, [tour?.state?.intent, myTier.onboarding?.intent]);
   // Finishing the last step (or Skip) closes the onboarding UI. A genuine
   // completion (not Skip — Skip leaves `step` on the step it bailed from with
   // no terminal advance emitted; we key off the ref set by the emit below)
@@ -6505,6 +6517,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       return (
         <Profiler id={`canvas-${isMain ? 'main' : 'split'}`} onRender={onCanvasRender}>
           <CanvasSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards} arrows={arrows} strokes={strokes} groups={groups}
+                         /* The empty panel waits for the Y.Doc (boardReady) and takes its
+                            first-board shape from the server card count: no cards anywhere
+                            means this is the first board (lib/firstBoardCopy). */
+                         boardReady={ready}
+                         firstBoard={isMain && !myTier.loading && Number(myTier.demoCardCount) === 0 && !hasGenuineCard(cards)}
+                         firstBoardKind={firstBoardKind}
                          gridTemplates={gridTemplates} gridSequences={gridSequences}
                          ydoc={yd}
                          getAwareness={yh.getAwareness}
@@ -7328,14 +7346,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               const intent = typeof arg === 'string' ? arg : null;
               try { logEvent(EV.ONBOARDING_INTENT, { intent, variant: tourVariantRef.current, board_id: currentId }); } catch (_) {}
               tourFireRef.current?.({ type: 'intent_picked', intent });
-              const choice = PROJECT_INTENTS.find((c) => c.key === intent);
-              // seed:true — this cluster is SYSTEM-placed from a survey answer,
-              // so it must ride the arm-A Ideas-board convention: isSeedCard
-              // suppresses card_placed / the activation cascade / the Meta
-              // conversion, and _doSyncCardIndex never indexes it, so
-              // first_card_at stays user-earned (their real content, not our
-              // seed, is the activation signal this experiment is judged on).
-              if (choice?.boardName) mainMutators.addNewBoard?.(null, { name: choice.boardName, seed: true });
+              // The pick used to seed an empty cluster named for the answer.
+              // That empty box was where a slice of one-and-done sessions
+              // ended; the answer now shapes the first board's panel and the
+              // tour's content step instead (firstBoardKind / copyFor).
             }
           }}
         />
