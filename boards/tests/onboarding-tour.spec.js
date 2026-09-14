@@ -264,7 +264,7 @@ test.describe('project_first overlay', () => {
     await pill.getByRole('button', { name: 'A moodboard' }).click();
     const actions = await page.evaluate(() => window.__soleilTourTest.getActions());
     expect(actions).toContain('pick_intent:moodboard');
-    await expect(pill).toContainText('Now drop your stuff in');
+    await expect(pill).toContainText('Now drop your images in');
     expect(await page.evaluate(() => window.__soleilTourTest.getState().intent)).toBe('moodboard');
     // content lands -> tour completes
     await page.evaluate(() => window.__soleilTourTest.fire({ type: 'content_added', kind: 'image' }));
@@ -281,26 +281,26 @@ test.describe('project_first overlay', () => {
 });
 
 // Review fix: add_content must ANCHOR at the rail, not center — the fitted
-// seed cluster owns the canvas center right after the pick.
+// canvas center stays free for the material the person is about to drop in.
 test('project_first content step anchors to the rail instead of centering', async ({ page }) => {
   await page.goto('/?tourqa=1&variant=project');
   await expect(page.locator('#tourqa-ready')).toBeVisible({ timeout: 15000 });
   const pill = page.locator('.onboarding-tour');
   await pill.getByRole('button', { name: 'A storyboard' }).click();
-  await expect(pill).toContainText('Now drop your stuff in');
+  await expect(pill).toContainText('Now drop your frames in');
   await expect(pill).toHaveAttribute('data-tour-anchor', 'rail');
   await expect(pill).not.toHaveClass(/tour-centered/);
 });
 
 // A jittery double-click on a choice must hand off exactly ONE pick (one
-// seeded cluster, one analytics event) — the step re-render swaps the card
+// analytics event) — the step re-render swaps the card
 // away, and the overlay must not let a second dispatch race it.
 test('double-clicking an intent choice dispatches a single pick', async ({ page }) => {
   await page.goto('/?tourqa=1&variant=project');
   await expect(page.locator('#tourqa-ready')).toBeVisible({ timeout: 15000 });
   const pill = page.locator('.onboarding-tour');
   await pill.getByRole('button', { name: 'A moodboard' }).dblclick();
-  await expect(pill).toContainText('Now drop your stuff in');
+  await expect(pill).toContainText('Now drop your images in');
   const picks = await page.evaluate(() =>
     window.__soleilTourTest.getActions().filter((a) => a.startsWith('pick_intent:')));
   expect(picks).toEqual(['pick_intent:moodboard']);

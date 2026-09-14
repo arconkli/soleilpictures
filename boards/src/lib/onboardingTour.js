@@ -214,9 +214,24 @@ export const PROJECT_TOUR_STEPS = [
     variant: 'project',
     touchAction: { label: 'Add photos', type: 'pick_photos' },
     copy: {
-      title: 'Now drop your stuff in',
-      body: 'Images, notes, files — drag them straight onto the canvas, or paste. This is your workspace.',
+      title: 'Now drop your images in',
+      body: 'Paste or drag images from any tab, or drop a whole folder. This is your workspace.',
       touch: 'Add your first images — or anything else. This is your canvas.',
+    },
+    // The one step a new desktop user reads BEFORE the empty panel (a running
+    // tour hides the panel by CSS). Name the material they just said they were
+    // bringing, and ask for it from wherever it already is: the people who come
+    // back are the ones who paste or drop from another window.
+    copyFor: (state) => {
+      const k = state?.intent;
+      const title = k === 'references' ? 'Now drop your references in'
+        : k === 'storyboard' ? 'Now drop your frames in'
+        : 'Now drop your images in';
+      return {
+        title,
+        body: 'Paste or drag images from any tab, or drop a whole folder. This is your workspace.',
+        touch: 'Add your first images — or anything else. This is your canvas.',
+      };
     },
     accepts: (e) => e?.type === 'content_added',
   },
@@ -238,7 +253,11 @@ export function initialTourState(variant = 'full') {
 
 export function currentStep(state) {
   if (!state || state.done) return null;
-  return stepsFor(state.variant)[tourStepIndex(state.step, state.variant)] || null;
+  const step = stepsFor(state.variant)[tourStepIndex(state.step, state.variant)] || null;
+  // A step may shape its copy from the tour state (the picked intent). Resolved
+  // here so OnboardingTour keeps reading step.copy and knows nothing about state.
+  if (step && typeof step.copyFor === 'function') return { ...step, copy: step.copyFor(state) };
+  return step;
 }
 
 // Advance the tour in response to one event. Pure: returns a new state object

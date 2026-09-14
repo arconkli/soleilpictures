@@ -45,7 +45,7 @@ import { PROJECT_INTENTS } from '../lib/onboardingTour.js';
 import { supabase } from '../lib/supabase.js';
 import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
-import { isReadOnlyQaMode } from '../lib/localMode.js';
+import { isReadOnlyQaMode, isFirstBoardQaMode, qaFirstBoardKind } from '../lib/localMode.js';
 
 const TWEAK_DEFAULTS = {
   theme: 'dark',
@@ -1599,6 +1599,10 @@ export function LocalBoardsApp({ user, signOut }) {
             // predicate is import.meta.env.DEV-guarded), default false.
             canEdit={!readOnlyQa}
             isPublic={readOnlyQa}
+            /* ?firstboard=1|<kind> — the first-board panel variant. Dead code in production. */
+            boardReady={true}
+            firstBoard={isFirstBoardQaMode()}
+            firstBoardKind={qaFirstBoardKind()}
             /* ?tplqa=<slug> — see TPL_QA_ROW. Dead code in production. */
             justAddedTemplate={qaTemplate}
             onDismissJustAdded={() => setQaTemplate(null)}
@@ -1718,7 +1722,10 @@ export function LocalBoardsApp({ user, signOut }) {
             if (type === 'pick_intent') {
               tourFireRef.current?.({ type: 'intent_picked', intent: arg });
               const choice = PROJECT_INTENTS.find((c) => c.key === arg);
-              if (choice?.boardName) addNewBoard(null, { name: choice.boardName, seed: true });
+              // Mirrors App: the pick no longer seeds an empty named cluster —
+              // that cluster was where the session ended for a slice of
+              // one-and-dones. The answer shapes the first board instead.
+              void choice;
             }
           }}
         />

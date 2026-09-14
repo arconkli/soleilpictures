@@ -100,6 +100,7 @@ import { getWheelMode, resolveWheelIntent } from '../lib/wheelMode.js';
 import { wheelHintSeen, markWheelHintSeen, trackWheelFrustration, freshWheelState } from '../lib/wheelHint.js';
 import { genuineCards, hasGenuineCard } from '../lib/firstValueTrigger.js';
 import { shouldShowDepthDock } from '../lib/depthDock.js';
+import { firstBoardCopy, FIRST_BOARD_WORDS, FIRST_BOARD_TILE_IDS } from '../lib/firstBoardCopy.js';
 import { shouldPromptMix } from '../lib/mixPrompt.js';
 import { claimUpsellSlot, UPSELL_STACK_WINDOW_MS } from '../lib/upsellSlot.js';
 import { momentumHintSeen, markMomentumHintSeen } from '../lib/momentumHint.js';
@@ -442,6 +443,14 @@ export function CanvasSurface({
   firstCardPrompt = false, // onboarding_v2 arm B: surface the "Start your cluster"
                            // tiles even on a SEEDED (non-empty) root until the user
                            // places their own genuine card (the guided first-card flow).
+  boardReady = true,       // the Y.Doc has hydrated. Until it has, cards is []
+                           // on a board that may hold dozens — the empty panel
+                           // must not paint (or log) over a populated board.
+  firstBoard = false,      // this person has no cards anywhere yet: the panel is
+                           // one hero asking for material from elsewhere plus the
+                           // writing tiles, never a container (lib/firstBoardCopy).
+  firstBoardKind = null,   // 'references' | 'moodboard' | 'storyboard' | null —
+                           // shapes the first board's headline and hero verb.
   paneId = 'main',         // which pane this surface is ('main' | 'split') —
                            // arbitrates the window-level keyboard/paste
                            // listeners so a split view doesn't double-fire
@@ -1443,17 +1452,28 @@ export function CanvasSurface({
   // Deliberately NOT gated on selectedTool: the panel hides while a tool is
   // armed, and that's a transient render detail, not "they stopped seeing it".
   // The question is whether this board ever showed them the way in.
-  const emptyPanelVisible = canEdit && !isPublic
+  //
+  // Waits for the Y.Doc to hydrate (boardReady). Before this gate, a returning
+  // person's populated board painted the empty panel for the first frames of
+  // every visit — and logged empty_board_shown on boards holding dozens of cards.
+  const emptyPanelVisible = canEdit && !isPublic && boardReady
     && (firstCardPrompt || (cards.length === 0 && !(strokes?.length) && !(arrows?.length)));
+  const panelTiles = firstBoard ? EMPTY_TILES.filter((t) => FIRST_BOARD_TILE_IDS.includes(t.id)) : EMPTY_TILES;
+  const panelCopy = firstBoardCopy(firstBoard ? firstBoardKind : null, { coarse: isPhone });
   useEffect(() => {
     if (!emptyPanelVisible || !board?.id) return;
+    // A running tour hides the panel by CSS (body[data-tour-variant]); a row
+    // for a panel nobody could see is not a denominator for anything.
+    if (typeof document !== 'undefined' && document.body?.dataset?.tourVariant) return;
     logEventOnce(`empty_board_shown:${board.id}`, EV.EMPTY_BOARD_SHOWN, {
       board_id: board.id,
-      tiles_n: EMPTY_TILES.length + 1,      // the six-tile row plus the image hero
+      tiles_n: panelTiles.length + 1,        // rendered tiles plus the hero
+      variant: firstBoard ? 'first' : 'full',
+      kind: firstBoard ? (firstBoardKind || null) : null,
       is_prompt: !!firstCardPrompt,          // shown over a seeded board, not a bare one
       escalated: !!frictionStuck,            // they'd already tripped the stuck signal
     });
-  }, [emptyPanelVisible, board?.id, firstCardPrompt, frictionStuck]);
+  }, [emptyPanelVisible, board?.id, firstCardPrompt, frictionStuck, firstBoard, firstBoardKind, panelTiles.length]);
 
   // ── Depth dock ──
   // The panel above is the only place the product says "pick several at once",
@@ -10677,18 +10697,27 @@ export function CanvasSurface({
           switches / first-run seeding never flash it. The friction-stuck signal
           adds a soft emphasis ring (is-escalated) + a screen-reader announce. */}
       {canEdit && selectedTool === 'select' && (boardIsEmpty || firstCardPrompt) && (() => {
-        // IMAGE-FIRST, but show the RANGE: adding an image drives activation (14/14
-        // of activated users used an image), so Image stays the hero — while the
-        // rotating headline + the breadth line + the Script/Board/Note/Doc/Any-file
-        // row signal that this is also where you write scripts, organize, and drop
-        // any asset. ("Any file" is a deliberate upsell tease: an image uploads free,
-        // a generic file hits the existing paid-upgrade prompt in ingestFiles.)
+        // IMAGE-FIRST, but show the RANGE: adding an image drives activation, so
+        // Image stays the hero — while the rotating headline + the tile row signal
+        // that this is also where you write scripts, organize, and drop any asset.
+        // ("Any file" is a deliberate upsell tease: an image uploads free, a
+        // generic file hits the existing paid-upgrade prompt in ingestFiles.)
+        //
+        // FIRST BOARD (firstBoard): the hero asks for material from wherever it
+        // already is — the people who come back were working in another window
+        // and pasted or dropped into this one — and the tiles are Note and Doc
+        // only. An empty container was the most common first move and the
+        // worst-returning one; a first board does not offer it as a peer of an
+        // image. The headline names the job when the intent or landing page says
+        // what it is (lib/firstBoardCopy.js).
         const runTile = (id) => { markViewSettled(); return buildAddActions(emptyCenterPos(), 'empty_cta').find((a) => a.id === id)?.run(); };
         return (
-        <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}${firstCardPrompt ? ' is-prompt' : ''}`}
+        <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}${firstCardPrompt ? ' is-prompt' : ''}${firstBoard ? ' is-first' : ''}`}
              aria-label="Add your first images"
              role={frictionStuck ? 'status' : 'group'}>
-          <div className="cnv-empty-tiles-head">Start your <RotatingWord /></div>
+          <div className="cnv-empty-tiles-head">
+            {panelCopy.head ? panelCopy.head : <>Start your <RotatingWord words={firstBoard ? FIRST_BOARD_WORDS : BREADTH_WORDS} /></>}
+          </div>
           <div className="cnv-empty-tiles-breadth">Moodboards, scripts, shot lists — every asset, one canvas.</div>
           <button type="button" className="cnv-empty-tile cnv-empty-tile-hero"
                   onPointerDown={(e) => e.stopPropagation()}
@@ -10699,12 +10728,12 @@ export function CanvasSurface({
                   point: a board is worth returning to at roughly six cards, and
                   one gesture that selects ten gets there where ten gestures
                   mostly don't happen. */}
-              <span className="cnv-empty-tile-lbl">Add images</span>
-              <span className="cnv-empty-tile-hero-hint">Pick several at once, drag them in, or paste</span>
+              <span className="cnv-empty-tile-lbl">{panelCopy.heroLabel}</span>
+              <span className="cnv-empty-tile-hero-hint">{panelCopy.heroHint}</span>
             </span>
           </button>
           <div className="cnv-empty-tiles-grid">
-            {EMPTY_TILES.map((t) => (
+            {panelTiles.map((t) => (
               <button key={t.id} type="button" className="cnv-empty-tile"
                       data-tour={t.id === 'board' ? 'empty-cluster-tile' : undefined}
                       onPointerDown={(e) => e.stopPropagation()}

@@ -6985,6 +6985,8 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   width: 100%;
   justify-items: center;
 }
+/* First board: two writing tiles under the hero, not a 2×3 capability grid. */
+.cnv-empty-tiles.is-first .cnv-empty-tiles-grid { grid-template-columns: repeat(2, 1fr); max-width: 260px; }
 /* Image-first hero tile — the primary CTA, since adding an image is the single
    action that drives activation. Wider, filled, horizontal (icon + label + hint).
    Neutral at rest (gold stays reserved for active/selection); accent on hover. */

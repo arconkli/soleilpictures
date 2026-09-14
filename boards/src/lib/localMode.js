@@ -123,6 +123,20 @@ export function isTourQaMode() {
 // FeedbackProvider/FeedbackOverlay and fires the real POWER_REVEALS registry
 // toasts (copy + action labels) so the reveal surface can be eyeballed and
 // screenshotted without a signed-in session. See ../local/RevealQaHarness.jsx.
+// ?firstboard=1 | ?firstboard=<references|moodboard|storyboard> — render the
+// FIRST-BOARD variant of the empty panel in the local harness. The real gate is
+// App.jsx-only (no cards anywhere on the account, plus first source / picked
+// intent), which ?local=1 cannot reach. DEV-only, same trust boundary as tourqa.
+export function isFirstBoardQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).has('firstboard');
+}
+export function qaFirstBoardKind() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return null;
+  const v = new URLSearchParams(window.location.search).get('firstboard');
+  return ['references', 'moodboard', 'storyboard'].includes(v) ? v : null;
+}
+
 export function isRevealQaMode() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return false;
   return new URLSearchParams(window.location.search).get('revealqa') === '1';

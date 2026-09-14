@@ -1,7 +1,7 @@
 // Live-canvas walk of the desktop project_first tour via the DEV ?tour=project
 // preview (LocalBoardsApp mounts the REAL OnboardingTour + engine over the real
 // canvas — no Supabase). This is the mechanics-tour retirement: first-run asks
-// what the user is working on, seeds a cluster NAMED for their answer, then
+// what the user is working on, shapes the content step's copy from the answer, then
 // goes straight to content — nothing locked, everything skippable.
 import { expect, test } from '@playwright/test';
 
@@ -25,23 +25,24 @@ test('opens on the centered intent card: four choices, nothing locked, tiles hid
   await expect(page.locator('.cnv-empty-tiles')).toBeHidden();
 });
 
-test('picking an intent seeds a cluster named for it and advances to the content step', async ({ page }) => {
+test('picking an intent advances to the content step without seeding a cluster', async ({ page }) => {
   const pill = page.locator('.onboarding-tour');
   await pill.getByRole('button', { name: 'A moodboard' }).click();
 
-  // The named project cluster lands on the canvas — already named, so no
-  // rename-editing session opens (pre-named seeds skip the autofocus).
-  await expect(page.locator('.canvas-wrap')).toContainText('Moodboard');
+  // The pick used to seed an empty cluster named for the answer; that empty
+  // box was where a slice of one-and-done sessions ended. Nothing is placed —
+  // the answer shapes the copy instead.
+  await expect(page.locator('[data-tour="cluster-card"]')).toHaveCount(0);
 
   // And the tour moved on to the content-first close.
-  await expect(pill).toContainText('Now drop your stuff in');
+  await expect(pill).toContainText('Now drop your images in');
   await expect(page.locator('body')).toHaveAttribute('data-tour-variant', 'project');
 });
 
 test('dropping content after the pick completes the tour', async ({ page }) => {
   const pill = page.locator('.onboarding-tour');
   await pill.getByRole('button', { name: 'Collecting references' }).click();
-  await expect(pill).toContainText('Now drop your stuff in');
+  await expect(pill).toContainText('Now drop your references in');
 
   // Add a note through the live rail (unlocked during the tour) — any content
   // completes the project_first close.

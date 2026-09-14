@@ -40,4 +40,23 @@ test.describe('empty-board panel + add-menu', () => {
       .evaluate((el) => getComputedStyle(el).display);
     expect(display).toBe('none');
   });
+
+  // The FIRST-board variant (?firstboard= is the DEV harness seam; the real
+  // gate is App.jsx-only — no cards anywhere, plus first source / picked intent).
+  test('a first board offers the hero plus writing tiles only, and asks for material from elsewhere', async ({ page }) => {
+    await page.goto('/?local=1&reset=1&blank=1&firstboard=1');
+    const panel = page.locator('.cnv-empty-tiles');
+    await expect(panel).toBeVisible();
+    await expect(panel).toHaveClass(/is-first/);
+    await expect(panel.locator('.cnv-empty-tile-hero-hint')).toContainText(/paste or drag/i);
+    const labels = await panel.locator('.cnv-empty-tile:not(.cnv-empty-tile-hero) .cnv-empty-tile-lbl').allTextContents();
+    expect(labels).toEqual(['Note', 'Doc']);
+  });
+
+  test('a first board names the job when the source says what it is', async ({ page }) => {
+    await page.goto('/?local=1&reset=1&blank=1&firstboard=references');
+    const panel = page.locator('.cnv-empty-tiles');
+    await expect(panel.locator('.cnv-empty-tiles-head')).toHaveText('Start your reference wall');
+    await expect(panel.locator('.cnv-empty-tile-hero .cnv-empty-tile-lbl')).toHaveText('Drop your references here');
+  });
 });
