@@ -72,25 +72,22 @@ crons = ["0 4 * * *", "15 * * * *", "* * * * *", "0 6 * * 1", "45 * * * *"]
 binding     = "IMAGES"
 bucket_name = "soleil-boards-images"
 
-# ── R2 off-site mirror (runR2Mirror, cron "45 * * * *") — ACTIVATION ─────────
+# ── R2 off-site mirror (runR2Mirror, cron "45 * * * *") ──────────────────────
 # The mirror copies new objects into a SEPARATE, immutable bucket so the images
-# have a second copy the DB dump cannot provide. It is written and wired, but
-# DORMANT: with no IMAGES_BACKUP binding, runR2Mirror() returns immediately.
+# have a second copy the DB dump cannot provide. The bucket carries a 90-day
+# Bucket Lock (no delete, no overwrite — even for a compromised token) and a
+# lifecycle rule (Infrequent Access after 30 days, NO expiry), both set
+# 2026-09-14 via `wrangler r2 bucket lock|lifecycle add`. Copy-only: sweep
+# deletions on the primary are never propagated.
 #
-# Wrangler REFUSES TO DEPLOY a binding to a bucket that does not exist, so this
-# block stays commented until the bucket is created. To activate:
-#   1. In the Cloudflare dashboard, create bucket `soleil-boards-images-backup`.
-#   2. Add a Bucket Lock rule (default retention, e.g. 90 days) so objects
-#      cannot be deleted or overwritten for the window — this is the whole point.
-#   3. Add a lifecycle rule: transition to Infrequent Access after 30 days; NO
-#      expiration (the lock and no-expiry together make it a true archive).
-#   4. Scope the PartyKit/Scout S3 tokens to `soleil-boards-images` only, so no
-#      runtime credential can reach the mirror.
-#   5. Uncomment the two lines below and redeploy. The next :45 run begins the
-#      backfill; watch the `[r2-mirror]` logs.
-# [[r2_buckets]]
-# binding     = "IMAGES_BACKUP"
-# bucket_name = "soleil-boards-images-backup"
+# Wrangler REFUSES TO DEPLOY a binding to a bucket that does not exist, which is
+# why this block shipped commented until the bucket was created. If the mirror
+# ever has to be paused, comment these three lines again: runR2Mirror() returns
+# immediately when the binding is absent. Its watermark lives in the PRIMARY
+# bucket (_state/mirror.json) because the lock here forbids overwriting it.
+[[r2_buckets]]
+binding     = "IMAGES_BACKUP"
+bucket_name = "soleil-boards-images-backup"
 
 # Required secret (set via `wrangler secret put SUPABASE_SERVICE_ROLE_KEY`)
 # for the R2 sweep to call SECURITY DEFINER RPCs (find_orphan_images,
