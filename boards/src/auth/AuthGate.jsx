@@ -26,6 +26,7 @@ import { recordSeen } from '../lib/returnVisit.js';
 import { peekPendingInviteEmail, peekJoinBoardName, claimPendingInvite, claimCollabLink } from '../lib/inviteApi.js';
 import { parseRemixParam, stashRemix } from '../lib/remix.js';
 import { parseJoinParam, stashJoin, readJoin, clearJoin } from '../lib/joinLink.js';
+import { parseShareReturn, stashShareReturn, readShareReturn, clearShareReturn, shareReturnHref } from '../lib/shareReturn.js';
 import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
 import { getFbCookies } from '../lib/metaPixel.js';
 import { lpCtaClick } from '../hooks/useLandingEngagement.js';
@@ -167,6 +168,32 @@ function captureInviteToken() {
   url.searchParams.delete('invite');
   window.history.replaceState({}, document.title, url.pathname + url.search);
   return token;
+}
+
+// Capture ?back=share beside share_token (a /share page's sign-up or sign-in
+// CTA) and stash it across the OTP hop — the ?join= idiom. share_token itself
+// stays in the URL: the first-touch attribution reads it. Before this, every
+// share-page signup was dropped at the root of an empty workspace, and not one
+// ever first-opened the board they had been looking at.
+function captureShareReturn() {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  const token = parseShareReturn(url);
+  if (!token) return;
+  stashShareReturn(token);
+  url.searchParams.delete('back');
+  window.history.replaceState({}, document.title, url.pathname + url.search);
+}
+
+// Once a session exists, go back to the share page the person came from, signed
+// in. Returns true when it navigated — the caller must not render the app.
+function consumeShareReturn() {
+  const token = readShareReturn();
+  if (!token) return false;
+  clearShareReturn();
+  try { logEventNow(EV.SHARE_RETURN_LANDED, { share_token: token }); } catch (_) {}
+  window.location.replace(shareReturnHref(token));
+  return true;
 }
 
 // Capture ?remix=<t_token|s_slug> on landing (from the /share or /c "Make a
@@ -412,6 +439,7 @@ export function AuthGate({ children }) {
     captureInviteToken();
     captureJoinToken();
     captureRemixSource();
+    captureShareReturn();
     let cancelled = false;
     (async () => {
       try {
@@ -429,6 +457,7 @@ export function AuthGate({ children }) {
           await consumePendingInvite(data.session.user.id);
           await consumePendingJoin(data.session.user.id);
           await consumeScoutClaim(data.session.user.id);
+          if (consumeShareReturn()) return;
         }
         if (!cancelled) setSession(data.session);
       } catch (error) {
@@ -464,6 +493,7 @@ export function AuthGate({ children }) {
           await consumePendingInvite(sess.user.id);
           await consumePendingJoin(sess.user.id);
           await consumeScoutClaim(sess.user.id);
+          if (consumeShareReturn()) return;
         }
         if (!cancelled) setSession(sess);
       })();
