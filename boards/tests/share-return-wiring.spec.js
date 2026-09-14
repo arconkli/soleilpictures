@@ -36,7 +36,7 @@ test.describe('share return wiring', () => {
   test('a signed-in viewer gets Save a copy, no Sign in link, and no sign-up prompt', () => {
     const s = view();
     expect(s).toMatch(/signedIn/);
-    expect(s).toMatch(/auth\.getSession\(\)/);
+    expect(s).toMatch(/auth\?\.getSession\(\)/);
     expect(s).toMatch(/signedIn \? 'Save a copy' : remixLabel/);
     expect(s).toMatch(/\{!signedIn && \(\s*<a className="public-signin-quiet"/);
     expect(s).toMatch(/signedIn \? null : \(\s*<SharePrompt/);
