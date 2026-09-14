@@ -22,6 +22,7 @@ import { logEvent, logEventNow, logEventOnce, getFirstSource } from '../lib/anal
 import { EV, classifyAuthError } from '../lib/analyticsEvents.js';
 import { getWebviewInfo } from '../lib/webview.js';
 import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat.js';
+import { recordSeen } from '../lib/returnVisit.js';
 import { peekPendingInviteEmail, peekJoinBoardName, claimPendingInvite, claimCollabLink } from '../lib/inviteApi.js';
 import { parseRemixParam, stashRemix } from '../lib/remix.js';
 import { parseJoinParam, stashJoin, readJoin, clearJoin } from '../lib/joinLink.js';
@@ -516,6 +517,11 @@ export function AuthGate({ children }) {
 // triggers can skip notifications when the user is currently in-app.
 function PresenceTicker({ user }) {
   usePresenceHeartbeat(user);
+  // Stamp "seen today" from the first component that knows who this is, not
+  // from App: a day one that never reached App (tier splash, seed bounce) left
+  // no stamp, and the next day's visit went unrecognised as a return. App reads
+  // the parked answer via takeReturn (lib/returnVisit).
+  useEffect(() => { recordSeen(user?.id); }, [user?.id]);
   return null;
 }
 

@@ -55,8 +55,14 @@ test('the ask is gated on returning, never on a first session', () => {
   const before = app.slice(Math.max(0, idx - 260), idx);
   expect(before, 'the dispatch must be guarded by the returned-after check')
     .toMatch(/if\s*\(returnedAfter\s*!=\s*null\)/);
-  // And that variable is only ever non-null on a later calendar day.
-  expect(app).toMatch(/returnedAfter\s*=\s*last\s*&&\s*last\s*!==\s*today/);
+  // And that variable is only ever non-null on a later calendar day. The
+  // comparison moved into lib/returnVisit.js (2026-09-13) so the stamp can be
+  // written by AuthGate's presence ticker before App exists; App reads the
+  // parked answer. Guarded in both places.
+  expect(app).toMatch(/takeReturn\(user\?\.id\)/);
+  const visit = read('src/lib/returnVisit.js');
+  expect(visit).toMatch(/if\s*\(last\s*&&\s*last\s*!==\s*today\)/);
+  expect(visit).toMatch(/d\s*>=\s*1\s*\?\s*d\s*:\s*null/);
 });
 
 test('the clock counts visible time, and a deferral never burns the one shot', () => {
