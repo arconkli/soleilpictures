@@ -393,7 +393,7 @@ export function starTemp(id, a, R) {
 // a tenth of the field bright, because u^n stays near 1 for u near 1.
 // At 12: the median star sits on the floor, the top decile only
 // reaches ~1.3, and one in a thousand blooms.
-export const STAR_MAG_MIN = 0.55;
+export const STAR_MAG_MIN = 0.62;
 export const STAR_MAG_MAX = 3.6;
 export const STAR_MAG_EXP = 12;
 export function starMagnitude(id) {
