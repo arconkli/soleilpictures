@@ -135,6 +135,7 @@ import { planImport } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap } from './lib/upsellEligibility.js';
 import { ImportCapDialog } from './components/ImportCapDialog.jsx';
 import { claimUpsellSlot } from './lib/upsellSlot.js';
+import { recordSeen, takeReturn } from './lib/returnVisit.js';
 import { shouldAskToShare } from './lib/shareAsk.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
@@ -652,6 +653,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       return filtered.length ? filtered : [rootBoard.id];
     });
   }, [boards, boardsLoading, rootBoard.id]);
+
+  // A new device (or a cleared browser) has no persisted stack and lands on
+  // the root, where yesterday's cluster is one card among others. Once the
+  // boards are in, open the most recently updated populated cluster instead —
+  // once per boot, never over a deep link or a persisted position (both write
+  // the stack before App mounts, so initialSession carries them).
+  const landingFallbackRef = useRef(false);
+  useEffect(() => {
+    if (landingFallbackRef.current || boardsLoading || !boardsReady) return;
+    landingFallbackRef.current = true;
+    if (Array.isArray(initialSession?.stack) && initialSession.stack.length) return;
+    if (stack.length !== 1 || stack[0] !== rootBoard.id) return;
+    const pick = Object.values(ownedBoards || {})
+      .filter((b) => b && b.id !== rootBoard.id && !b.deleted_at && Number(b.card_count) > 0)
+      .sort((a, b) => String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || '')))[0];
+    if (!pick) return;
+    setStack([rootBoard.id, pick.id]);
+    try { logEvent(EV.LANDING_FALLBACK, { board_id: pick.id }); } catch (_) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardsLoading, boardsReady]);
 
   // Pull the user's saved profile so display name + color overrides the
   // email-derived defaults. Refetch when the AccountSettings modal closes
@@ -4271,32 +4292,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         journey(EV.PS_APP_ENTER, { tier: myTier.tier });
       } catch (_) {}
     }
-    // Return-session: app_open on a later calendar day than we last saw this
-    // browser — the literal re-engagement signal (complements server-side
-    // user_active_day, and survives even if the heartbeat misses).
-    try {
-      const key = `soleil_last_seen_day_${user?.id || 'anon'}`;
-      const today = new Date().toISOString().slice(0, 10);
-      const last = localStorage.getItem(key);
-      const returnedAfter = last && last !== today
-        ? Math.max(1, Math.round((Date.parse(today) - Date.parse(last)) / 86400000))
-        : null;
-      if (returnedAfter != null) {
-        logEvent(EV.RETURN_SESSION, { days_since_last_seen: returnedAfter, tier: myTier.tier });
-      }
-      localStorage.setItem(key, today);
-      // AFTER the stamp, and in its own try. dispatchEvent runs listeners
-      // synchronously, so one that throws would otherwise skip the setItem
-      // above and leave this browser re-announcing a return on every load.
-      // This is the only place the app knows somebody came BACK, which is the
-      // one population the return question can honestly be put to; dispatched
-      // rather than called so the ask owns its timing — see ReturnReasonAsk.jsx.
-      if (returnedAfter != null) {
-        try {
-          window.dispatchEvent(new CustomEvent('soleil:returned', { detail: { days: returnedAfter } }));
-        } catch (_) { /* a listener threw; the day is already stamped */ }
-      }
-    } catch { /* localStorage unavailable */ }
+    // Return-session: this browser last saw this account on an earlier day.
+    // The stamp itself is written by AuthGate's presence ticker (lib/returnVisit)
+    // before App exists — so a day one that never reached App still counts —
+    // and here we only read the answer it parked. The fallback covers the
+    // local harness, where the gate does not mount.
+    const returnedAfter = (() => {
+      const parked = takeReturn(user?.id);
+      return parked === undefined ? recordSeen(user?.id) : parked;
+    })();
+    // The dispatch below, in its own try: a listener that throws must not stop
+    // anything. This is the only place the app knows somebody came BACK, which
+    // is the one population the return question can honestly be put to;
+    // dispatched rather than called so the ask owns its timing — see
+    // ReturnReasonAsk.jsx. returnedAfter is only ever non-null on a later
+    // calendar day (lib/returnVisit.js).
+    if (returnedAfter != null) {
+      logEvent(EV.RETURN_SESSION, { days_since_last_seen: returnedAfter, tier: myTier.tier });
+      try {
+        window.dispatchEvent(new CustomEvent('soleil:returned', { detail: { days: returnedAfter } }));
+      } catch (_) { /* a listener threw */ }
+    }
   }, [myTier.tier]);
 
   // ── First-run onboarding ──────────────────────────────────────────────────
@@ -4497,11 +4513,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // Returning first-run user (seeded a prior session but never finished) →
   // re-show the coachmark. Brand-new users get it switched on by the seed effect.
+  // EXCEPT somebody who already has cards and is back on a later day: they are
+  // not a first-run user, and the tour re-appearing at the step they abandoned
+  // was the greeting a slice of returners got on every visit.
   useEffect(() => {
-    if (myTier.onboarding?.seeded === true && myTier.onboarding?.done !== true) {
-      setOnboardingUiActive(true);
+    const onb = myTier.onboarding;
+    if (!(onb?.seeded === true && onb?.done !== true)) return;
+    const back = takeReturn(user?.id);
+    if (Number(myTier.demoCardCount) > 0 && typeof back === 'number' && back >= 1) {
+      dismissOnboarding('returned_with_cards');
+      return;
     }
-  }, [myTier.onboarding?.seeded, myTier.onboarding?.done]);
+    setOnboardingUiActive(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myTier.onboarding?.seeded, myTier.onboarding?.done, myTier.demoCardCount]);
 
   // Seed once, into the empty Studio root, for a genuinely new user. Triple-
   // gated so an existing user is never seeded: durable `seeded` flag, on the
@@ -5126,6 +5151,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Quota-exhausted localStorage (writes throw, reads work) would otherwise
     // re-pitch the same reveal every session forever — verify the write took
     // and stay silent if it didn't.
+    // Take the moment BEFORE the one-shot below is spent: a deferral must not
+    // burn the reveal. On a return visit this toast used to be the first thing
+    // on screen with two more prompts stacked behind it.
+    if (!claimUpsellSlot('power-reveal')) return;
     if (!revealSeen(picked.key)) return;
     const firedBoardId = currentId;
     // Place created cards beside the user's content (they are looking at it),
@@ -7358,7 +7387,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       <ReferralNudge tier={myTier.tier} onCollaborate={openCollabInvite} />
       {/* Gates itself entirely on the soleil:returned signal above, so it is
           inert for every first session and costs a listener otherwise. */}
-      <ReturnReasonAsk />
+      <ReturnReasonAsk
+        askedOnServer={!!myTier.onboarding?.return_reason_asked_at}
+        onAsked={() => {
+          // merge_profile_settings replaces the whole onboarding key, so spread
+          // the current one; the flag makes "once per account" hold across devices.
+          updateOwnSettings({ onboarding: { ...(myTier.onboarding || {}), return_reason_asked_at: new Date().toISOString() } })
+            .then(() => myTier.refetch?.())
+            .catch(() => {});
+        }} />
 
       {mobileShell && (() => {
         // The "+" appears only when a board canvas is the active surface and

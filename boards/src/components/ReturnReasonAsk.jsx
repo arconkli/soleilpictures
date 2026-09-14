@@ -119,7 +119,11 @@ function readKey(k) { try { return localStorage.getItem(k); } catch (_) { return
 function writeKey(k, v) { try { localStorage.setItem(k, v); } catch (_) { /* private mode */ } }
 function dropKey(k) { try { localStorage.removeItem(k); } catch (_) {} }
 
-function alreadyHandled() { return !!readKey(ASKED_KEY); }
+// The server copy of "asked" (profiles.settings.onboarding.return_reason_asked_at),
+// set from props each render. ASKED_KEY is per device; this is per account, so a
+// second browser does not get the once-per-account question a second time.
+let serverAsked = false;
+function alreadyHandled() { return serverAsked || !!readKey(ASKED_KEY); }
 
 // The question changed shape, so the key advances and everyone gets asked once
 // in its new form — except anyone who already said no thanks to the old one.
@@ -212,7 +216,8 @@ function arrivedViaSomeoneElse() {
   } catch (_) { return false; }
 }
 
-export function ReturnReasonAsk() {
+export function ReturnReasonAsk({ askedOnServer = false, onAsked } = {}) {
+  serverAsked = !!askedOnServer;
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState(null);   // choice id once tapped
   const [note, setNote] = useState('');
@@ -369,6 +374,7 @@ export function ReturnReasonAsk() {
       if (!alreadyHandled()) {
         writeKey(ASKED_KEY, 'shown');
         try { logEvent(EV.RETURN_REASON_SHOWN, { days_since_last_seen: daysRef.current }); } catch (_) {}
+        try { onAsked?.(); } catch (_) {}
       }
     }, TICK_MS);
     return () => { if (deliveredRef.current) clearInterval(deliveredRef.current); deliveredRef.current = null; };
@@ -439,7 +445,7 @@ export function ReturnReasonAsk() {
 
   const dismiss = () => {
     writeKey(ASKED_KEY, 'dismissed');
-    try { logEvent(EV.RETURN_REASON_DISMISSED, { days_since_last_seen: daysRef.current }); } catch (_) {}
+    try { logEvent(EV.RETURN_REASON_DISMISSED, { days_since_last_seen: daysRef.current, via: 'x' }); } catch (_) {}
     setOpen(false);
   };
 
@@ -516,7 +522,14 @@ export function ReturnReasonAsk() {
       <div className="fv-banner-actions">
         {picked ? (
           <>
-            <button className="fv-banner-dismiss" onClick={() => setOpen(false)} disabled={busy}>Skip</button>
+            <button className="fv-banner-dismiss"
+                    onClick={() => {
+                      // Skip used to close silently, so every quiet no was missing
+                      // from the denominator.
+                      try { logEvent(EV.RETURN_REASON_DISMISSED, { days_since_last_seen: daysRef.current, via: 'skip' }); } catch (_) {}
+                      setOpen(false);
+                    }}
+                    disabled={busy}>Skip</button>
             <button className="rr-send" onClick={send} disabled={busy || !note.trim()}>Send</button>
           </>
         ) : (
