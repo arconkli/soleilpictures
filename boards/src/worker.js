@@ -2998,8 +2998,24 @@ async function runR2Mirror(env) {
   }
   const startedAt = Date.now();
   const STATE_KEY = '_state/mirror.json';
-  const OVERLAP_MS = 2 * 60 * 60 * 1000;  // re-scan 2h behind each watermark for late-populated previews
-  const ROW_LIMIT = 500;                  // rows of each kind per run; head-dedup makes re-scan cheap
+  const OVERLAP_MS = 30 * 60 * 1000;     // re-scan 30 min behind each watermark for late-populated previews
+  const ROW_LIMIT = 500;
+
+  // One invocation may make at most ~1,000 subrequests, and every R2 binding
+  // call is one. A key costs up to three (HEAD, GET, PUT), so a 500-row batch
+  // can need 2,500. The first version of this job hit that cap partway through
+  // EVERY run — which also meant it never reached the state write below, so the
+  // watermark never advanced and each hour restarted from the oldest rows.
+  // Budgets are checked at ROW boundaries so the watermark stays exact: when one
+  // is exhausted the run stops, persists its progress, and the next hour resumes.
+  const OPS_BUDGET     = 850;
+  const BYTES_BUDGET   = 250 * 1024 * 1024;
+  const TIME_BUDGET_MS = 9 * 60 * 1000;  // hourly crons get 15 min of wall clock
+  let ops = 0, bytes = 0, stoppedBy = null;
+  const budgetLeft = (needOps) =>
+    ops + needOps <= OPS_BUDGET && bytes < BYTES_BUDGET && (Date.now() - startedAt) < TIME_BUDGET_MS;
+  const whyStopped = () =>
+    bytes >= BYTES_BUDGET ? 'bytes' : (Date.now() - startedAt) >= TIME_BUDGET_MS ? 'time' : 'ops';
 
   const sbGet = async (path) => {
     const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${path}`, {
@@ -3018,10 +3034,11 @@ async function runR2Mirror(env) {
   const copyKey = async (key) => {
     if (!key) return 'exists';
     try {
-      if (await env.IMAGES_BACKUP.head(key)) return 'exists';
-      const src = await env.IMAGES.get(key);
+      ops++; if (await env.IMAGES_BACKUP.head(key)) return 'exists';
+      ops++; const src = await env.IMAGES.get(key);
       if (!src) return 'missing';
-      await env.IMAGES_BACKUP.put(key, src.body, { httpMetadata: src.httpMetadata });
+      ops++; await env.IMAGES_BACKUP.put(key, src.body, { httpMetadata: src.httpMetadata });
+      bytes += src.size || 0;
       return 'copied';
     } catch (e) {
       console.warn('[r2-mirror] copy failed', key, String(e?.message || e));
@@ -3034,7 +3051,7 @@ async function runR2Mirror(env) {
   let imagesWM = '1970-01-01T00:00:00Z';
   let batchesWM = '1970-01-01T00:00:00Z';
   try {
-    const st = await env.IMAGES.get(STATE_KEY);
+    ops++; const st = await env.IMAGES.get(STATE_KEY);
     if (st) {
       const j = await st.json();
       if (j?.images_watermark)  imagesWM  = j.images_watermark;
@@ -3042,7 +3059,7 @@ async function runR2Mirror(env) {
     }
   } catch (_) { /* first run or unreadable — start from epoch */ }
 
-  const stats = { copied: 0, exists: 0, missing: 0, error: 0 };
+  const stats = { rows: 0, copied: 0, exists: 0, missing: 0, error: 0 };
   const tally = (r) => { stats[r] = (stats[r] || 0) + 1; };
 
   // 1. Images — original plus the two WebP previews.
@@ -3054,48 +3071,55 @@ async function runR2Mirror(env) {
       `&created_at=gte.${encodeURIComponent(since)}&order=created_at.asc&limit=${ROW_LIMIT}`,
     );
     for (const row of rows) {
-      for (const k of [row.storage_path, row.preview_path, row.preview_sm_path]) {
-        tally(await copyKey(k));
-      }
+      const keys = [row.storage_path, row.preview_path, row.preview_sm_path].filter(Boolean);
+      if (!budgetLeft(keys.length * 3)) { stoppedBy = whyStopped(); break; }
+      for (const k of keys) tally(await copyKey(k));
+      stats.rows++;
       if (row.created_at && row.created_at > newImagesWM) newImagesWM = row.created_at;
     }
   } catch (e) {
     console.error('[r2-mirror] images pass failed', String(e?.message || e));
   }
 
-  // 2. Compacted op batches — one immutable key each.
+  // 2. Compacted op batches — one immutable key each. Skipped when the images
+  // pass already spent the run; they catch up once the image backfill is done.
   let newBatchesWM = batchesWM;
-  try {
-    const since = new Date(Date.parse(batchesWM) - OVERLAP_MS).toISOString();
-    const rows = await sbGet(
-      `board_op_batches?select=created_at,r2_key&r2_key=not.is.null` +
-      `&created_at=gte.${encodeURIComponent(since)}&order=created_at.asc&limit=${ROW_LIMIT}`,
-    );
-    for (const row of rows) {
-      tally(await copyKey(row.r2_key));
-      if (row.created_at && row.created_at > newBatchesWM) newBatchesWM = row.created_at;
+  if (!stoppedBy) {
+    try {
+      const since = new Date(Date.parse(batchesWM) - OVERLAP_MS).toISOString();
+      const rows = await sbGet(
+        `board_op_batches?select=created_at,r2_key&r2_key=not.is.null` +
+        `&created_at=gte.${encodeURIComponent(since)}&order=created_at.asc&limit=${ROW_LIMIT}`,
+      );
+      for (const row of rows) {
+        if (!budgetLeft(3)) { stoppedBy = whyStopped(); break; }
+        tally(await copyKey(row.r2_key));
+        stats.rows++;
+        if (row.created_at && row.created_at > newBatchesWM) newBatchesWM = row.created_at;
+      }
+    } catch (e) {
+      console.error('[r2-mirror] batches pass failed', String(e?.message || e));
     }
-  } catch (e) {
-    console.error('[r2-mirror] batches pass failed', String(e?.message || e));
   }
 
-  // Persist advanced watermarks (only ever moves forward). Because every row
-  // returned is fully processed before the watermark advances, and the next run
-  // re-scans OVERLAP_MS behind it with a HEAD-dedup, no object is ever skipped.
-  // Written to the PRIMARY bucket — see the header: the backup's lock forbids it.
+  // Persist progress — every run, partial or not. Only ever moves forward, and
+  // because a budget stop happens at a row boundary with an OVERLAP_MS re-scan
+  // behind it (HEAD-deduped), nothing is skipped. Written to the PRIMARY bucket:
+  // the backup's Bucket Lock forbids overwriting a key.
   try {
+    ops++;
     await env.IMAGES.put(STATE_KEY, JSON.stringify({
       images_watermark:  newImagesWM,
       batches_watermark: newBatchesWM,
       last_run_at: new Date().toISOString(),
-      last_stats: stats,
+      last_stats: { ...stats, ops, bytes, stopped_by: stoppedBy },
     }), { httpMetadata: { contentType: 'application/json' } });
   } catch (e) {
     console.error('[r2-mirror] failed to persist watermark', String(e?.message || e));
   }
 
   console.log(
-    `[r2-mirror] copied=${stats.copied} existed=${stats.exists} missing=${stats.missing} errors=${stats.error} ` +
-    `images_wm=${newImagesWM} batches_wm=${newBatchesWM} took=${Date.now() - startedAt}ms`,
+    `[r2-mirror] rows=${stats.rows} copied=${stats.copied} existed=${stats.exists} missing=${stats.missing} errors=${stats.error} ` +
+    `ops=${ops} bytes=${bytes} stopped_by=${stoppedBy || 'done'} images_wm=${newImagesWM} batches_wm=${newBatchesWM} took=${Date.now() - startedAt}ms`,
   );
 }
