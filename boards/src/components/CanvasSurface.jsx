@@ -8807,71 +8807,87 @@ export function CanvasSurface({
       // generic link tile. Same defensive idea as the inbox case above
       // but for cross-tab drags from outside the app.
       const isImage = /\.(png|jpe?g|gif|webp|svg|avif)(\?|#|$)/i.test(url);
-      if (isImage) {
-        // Optimistic 320x240 placeholder; patch to natural dims once the
-        // browser has loaded the image (cap at 1200 along longer axis).
-        const id = `image-${Date.now()}`;
-        const fallbackW = 320, fallbackH = 240;
-        mutators.addCard?.({
-          id,
-          kind: 'image', src: url,
-          x: Math.max(8, Math.round(cx - fallbackW / 2)),
-          y: Math.max(8, Math.round(cy - fallbackH / 2)),
-          w: fallbackW, h: fallbackH,
-        });
-        try {
-          const probe = new Image();
-          probe.onload = () => {
-            let w = probe.naturalWidth, h = probe.naturalHeight;
-            if (!w || !h) return;
-            const MAX_DIM = 1200;
-            const MIN_DIM = 80;
-            if (w > MAX_DIM || h > MAX_DIM) {
-              const k = MAX_DIM / Math.max(w, h);
-              w = Math.round(w * k);
-              h = Math.round(h * k);
-            }
-            if (w < MIN_DIM || h < MIN_DIM) {
-              const k = MIN_DIM / Math.min(w, h);
-              w = Math.round(w * k);
-              h = Math.round(h * k);
-            }
-            mutators.updateCard?.(id, {
-              w, h,
-              x: Math.max(8, Math.round(cx - w / 2)),
-              y: Math.max(8, Math.round(cy - h / 2)),
-            });
-          };
-          probe.src = url;
-        } catch (_) {}
-        return;
-      }
-      const embed = detectEmbed(url);
-      const w = embed ? embed.defaultW : 280;
-      const h = embed ? embed.defaultH : 130;
-      const newId = `link-${Date.now()}`;
-      let initialTitle = url;
-      try { initialTitle = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, ''); } catch (_) {}
-      const dropCard = {
-        id: newId,
-        kind: 'link', source: url, link: url, title: initialTitle,
-        x: Math.max(8, Math.round(cx - w / 2)),
-        y: Math.max(8, Math.round(cy - h / 2)),
-        w, h,
+      // Two outcomes, decided below: an image card with the remote src (same
+      // hotlink semantics as before), or the link tile with an OG preview.
+      const placeRemoteImage = () => {
+          // Optimistic 320x240 placeholder; patch to natural dims once the
+          // browser has loaded the image (cap at 1200 along longer axis).
+          const id = `image-${Date.now()}`;
+          const fallbackW = 320, fallbackH = 240;
+          mutators.addCard?.({
+            id,
+            kind: 'image', src: url,
+            x: Math.max(8, Math.round(cx - fallbackW / 2)),
+            y: Math.max(8, Math.round(cy - fallbackH / 2)),
+            w: fallbackW, h: fallbackH,
+          });
+          try {
+            const probe = new Image();
+            probe.onload = () => {
+              let w = probe.naturalWidth, h = probe.naturalHeight;
+              if (!w || !h) return;
+              const MAX_DIM = 1200;
+              const MIN_DIM = 80;
+              if (w > MAX_DIM || h > MAX_DIM) {
+                const k = MAX_DIM / Math.max(w, h);
+                w = Math.round(w * k);
+                h = Math.round(h * k);
+              }
+              if (w < MIN_DIM || h < MIN_DIM) {
+                const k = MIN_DIM / Math.min(w, h);
+                w = Math.round(w * k);
+                h = Math.round(h * k);
+              }
+              mutators.updateCard?.(id, {
+                w, h,
+                x: Math.max(8, Math.round(cx - w / 2)),
+                y: Math.max(8, Math.round(cy - h / 2)),
+              });
+            };
+            probe.src = url;
+          } catch (_) {}
       };
-      if (embed) dropCard.embed = embed;
-      mutators.addCard?.(dropCard);
-      if (embed) return;
-      fetchLinkPreview(url).then(p => {
-        if (!p) return;
-        const patch = {};
-        if (p.title) patch.title = p.title;
-        if (p.image) patch.image = p.image;
-        if (p.description) patch.description = p.description;
-        if (p.favicon) patch.favicon = p.favicon;
-        if (p.image) { patch.w = 280; patch.h = 290; }
-        if (Object.keys(patch).length) mutators.updateCardSilent?.(newId, patch);
-      });
+      const placeLinkCard = () => {
+        const embed = detectEmbed(url);
+        const w = embed ? embed.defaultW : 280;
+        const h = embed ? embed.defaultH : 130;
+        const newId = `link-${Date.now()}`;
+        let initialTitle = url;
+        try { initialTitle = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, ''); } catch (_) {}
+        const dropCard = {
+          id: newId,
+          kind: 'link', source: url, link: url, title: initialTitle,
+          x: Math.max(8, Math.round(cx - w / 2)),
+          y: Math.max(8, Math.round(cy - h / 2)),
+          w, h,
+        };
+        if (embed) dropCard.embed = embed;
+        mutators.addCard?.(dropCard);
+        if (embed) return;
+        fetchLinkPreview(url).then(p => {
+          if (!p) return;
+          const patch = {};
+          if (p.title) patch.title = p.title;
+          if (p.image) patch.image = p.image;
+          if (p.description) patch.description = p.description;
+          if (p.favicon) patch.favicon = p.favicon;
+          if (p.image) { patch.w = 280; patch.h = 290; }
+          if (Object.keys(patch).length) mutators.updateCardSilent?.(newId, patch);
+        });
+      };
+      if (isImage) { placeRemoteImage(); return; }
+      // Instagram, Pinterest and Google Images serve images from CDN URLs that
+      // carry no extension, so the test above called every one of them a link
+      // and the drag from another tab — the one gesture the people who come
+      // back actually use — landed as a grey tile. Ask the browser instead: if
+      // it decodes as an image, it is one. A decode that neither succeeds nor
+      // fails inside the window falls back to the link tile.
+      let settled = false;
+      const probe = new Image();
+      const timer = setTimeout(() => { if (settled) return; settled = true; placeLinkCard(); }, 2500);
+      probe.onload = () => { if (settled) return; settled = true; clearTimeout(timer); placeRemoteImage(); };
+      probe.onerror = () => { if (settled) return; settled = true; clearTimeout(timer); placeLinkCard(); };
+      probe.src = url;
       return;
     }
 
