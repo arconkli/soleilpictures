@@ -46,6 +46,8 @@ import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import { logEvent, logEventNow, logEventOnce, seedShareFirstSource, seedPublicBoardFirstSource } from '../lib/analytics.js';
 import { getRelatedPublicBoards } from '../lib/publicBoardsApi.js';
 import { encodeRemixParam } from '../lib/remix.js';
+import { withShareReturn } from '../lib/shareReturn.js';
+import { supabase } from '../lib/supabase.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { qaShareNoPrefetch } from '../lib/localMode.js';
 
@@ -86,13 +88,20 @@ function viewerUrl(ctx, boardId, rootId) {
 // links → share_link/<token>. The raw share_token / public_slug ride along too
 // (getFirstSource reads them off the URL) so the structured id survives the
 // new-tab hop, not just the utm approximation.
+//
+// The sign-up / sign-in surfaces also carry `back=share`: once a session exists
+// AuthGate sends the person straight back to this page, signed in, instead of
+// to the root of an empty workspace. The brand mark goes home on purpose, remix
+// needs the app to clone, and join lands inside the board on its own.
+const RETURN_SURFACES = new Set(['signin', 'topbar', 'prompt', 'article', 'empty_board']);
 function ctaHref(ctx, surface) {
   const src = ctx.slug ? 'public_board' : 'share_link';
   const campaign = encodeURIComponent(ctx.slug || ctx.token || '');
   const idParam = ctx.slug
     ? `&public_slug=${encodeURIComponent(ctx.slug)}`
     : (ctx.token ? `&share_token=${encodeURIComponent(ctx.token)}` : '');
-  return `/?utm_source=${src}&utm_medium=${encodeURIComponent(surface)}&utm_campaign=${campaign}${idParam}`;
+  const base = `/?utm_source=${src}&utm_medium=${encodeURIComponent(surface)}&utm_campaign=${campaign}${idParam}`;
+  return ctx.token && RETURN_SURFACES.has(surface) ? withShareReturn(base) : base;
 }
 
 // "Make a copy" CTA — carries the share/public attribution (utm + structured id,
@@ -119,7 +128,11 @@ function remixHref(ctx) {
 // "Make a copy" wins that slot whenever the board is remixable, because it
 // answers the visitor's actual question — how do I get one of these — and
 // hands them this board rather than an empty workspace.
-function PublicTopbar({ ctx, center, busy, onCta, remixUrl, remixLabel = 'Make a copy' }) {
+//
+// Signed in (the viewer arrived with a session, typically because AuthGate just
+// sent them back here): no Sign in link, and the copy CTA reads "Save a copy" —
+// the one-tap way to make this board theirs. No automatic cloning.
+function PublicTopbar({ ctx, center, busy, onCta, remixUrl, remixLabel = 'Make a copy', signedIn = false }) {
   return (
     <div className="public-topbar">
       <a className="public-brand" href={ctaHref(ctx, 'badge')} title="Clusters home" onClick={onCta('badge')}>
@@ -128,10 +141,14 @@ function PublicTopbar({ ctx, center, busy, onCta, remixUrl, remixLabel = 'Make a
       </a>
       {center}
       <div className="public-topbar-actions">
-        <a className="public-signin-quiet" href={ctaHref(ctx, 'signin')} onClick={onCta('signin')}>Sign in</a>
+        {!signedIn && (
+          <a className="public-signin-quiet" href={ctaHref(ctx, 'signin')} onClick={onCta('signin')}>Sign in</a>
+        )}
         {remixUrl
-          ? <a className="public-cta" href={remixUrl} onClick={onCta('remix')}>{remixLabel}</a>
-          : <a className="public-cta" href={ctaHref(ctx, 'topbar')} onClick={onCta('topbar')}>Try Clusters free</a>}
+          ? <a className="public-cta" href={remixUrl} onClick={onCta('remix')}>{signedIn ? 'Save a copy' : remixLabel}</a>
+          : (signedIn
+            ? <a className="public-cta" href="/">Open Clusters</a>
+            : <a className="public-cta" href={ctaHref(ctx, 'topbar')} onClick={onCta('topbar')}>Try Clusters free</a>)}
       </div>
       {busy && <div className="public-nav-progress" aria-hidden="true" />}
     </div>
@@ -148,6 +165,19 @@ export function PublicBoardView({ token, slug }) {
   const ctx = useMemo(() => ({ token, slug }), [token, slug]);
   const attrib = useMemo(() => (slug ? { public_slug: slug } : { share_token: token }), [slug, token]);
   const linkKey = slug || token;
+
+  // Does this viewer already have a session? /share bypasses AuthGate, so the
+  // page has to ask. Never blocks paint; a failed read simply means signed out.
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    try {
+      supabase?.auth?.getSession()
+        .then(({ data }) => { if (alive) setSignedIn(!!data?.session?.user?.id); })
+        .catch(() => {});
+    } catch (_) {}
+    return () => { alive = false; };
+  }, []);
 
   // Uniform lp_* engagement package. Each /c/<slug> is its own landing page;
   // /share is one aggregate page (NEVER the token). Canvas pans, so no scroll axis.
@@ -643,7 +673,7 @@ export function PublicBoardView({ token, slug }) {
   if (status === 'loading') {
     return (
       <div className="public-shell">
-        <PublicTopbar ctx={ctx} center={<div className="public-topbar-spacer" />} onCta={onCta} />
+        <PublicTopbar ctx={ctx} signedIn={signedIn} center={<div className="public-topbar-spacer" />} onCta={onCta} />
         <div className="public-loading">
           <SoleilMark size={42} color="var(--soleil)" glow />
           <div>Loading board…</div>
@@ -654,7 +684,7 @@ export function PublicBoardView({ token, slug }) {
   if (status === 'invalid') {
     return (
       <div className="public-shell">
-        <PublicTopbar ctx={ctx} center={<div className="public-topbar-spacer" />} onCta={onCta} />
+        <PublicTopbar ctx={ctx} signedIn={signedIn} center={<div className="public-topbar-spacer" />} onCta={onCta} />
         <div className="public-empty">
           <SoleilMark size={42} color="var(--soleil)" glow />
           <div className="public-empty-title">{slug ? 'This board isn’t available' : 'This link is no longer live'}</div>
@@ -689,6 +719,7 @@ export function PublicBoardView({ token, slug }) {
          style={{ background: board.bg_color || 'var(--bg-0)' }}>
       <PublicTopbar
         ctx={ctx}
+        signedIn={signedIn}
         busy={navBusy}
         onCta={onCta}
         // Contextual CTA: template boards keep the remix CTA with honest words;
@@ -842,7 +873,7 @@ export function PublicBoardView({ token, slug }) {
           href={`${ctaHref(ctx, 'join')}&join=${encodeURIComponent(token)}`}
           onJoinClick={() => { ctaClickedRef.current = true; }}
         />
-      ) : (
+      ) : signedIn ? null : (
         <SharePrompt
           href={ctaHref(ctx, 'prompt')}
           onCtaClick={onCta('prompt')}

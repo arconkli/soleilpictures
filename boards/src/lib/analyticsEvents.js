@@ -286,6 +286,7 @@ export const EV = Object.freeze({
   SHARE_VIEW:              'share_view',                  // public viewer mounted {share_token,board_id,root_id,include_subboards,valid}
   SHARE_SUBBOARD_OPEN:     'share_subboard_open',         // navigated into a sub-board {share_token,board_id,from_board_id,depth,cached}
   SHARE_CTA_CLICK:         'share_cta_click',             // signup CTA clicked {surface:'topbar'|'prompt'|'invalid_page'|'badge'|'signin'|'remix',share_token} (must-land)
+  SHARE_RETURN_LANDED:     'share_return_landed',         // {share_token} — a sign-up/sign-in that began on a /share page was sent back to that page once a session existed, instead of to the root of an empty workspace. Before this, no share-token signup ever first-opened the board they came for
   SHARE_DWELL:             'share_dwell',                 // time on the public viewer {ms,share_token,board_id,boards_opened}
   SHARE_PROMPT_VIEW:       'share_prompt_view',           // engagement prompt shown {trigger:'dwell'|'subboard'}
   SHARE_PROMPT_DISMISS:    'share_prompt_dismiss',        // prompt dismissed {trigger,visible_ms}
