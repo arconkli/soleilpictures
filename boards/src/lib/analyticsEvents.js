@@ -11,6 +11,8 @@ export const EV = Object.freeze({
   LANDING_INVITE_PREFILL:  'landing_invite_prefill_seen', // invite email pre-filled
   LANDING_JOIN_PREFILL:    'landing_join_prefill_seen',   // ?join= landing named the cluster {had_name}
   EMAIL_SUBMIT:            'email_submit',                // OTP send ok {resend}
+  EMAIL_TYPO_SUGGESTED:    'email_typo_suggested',        // the sign-in form offered a corrected address {from_domain,to_domain} — typo and bare-TLD domains are a large share of accounts that verify an address and are never seen again
+  EMAIL_TYPO_ACCEPTED:     'email_typo_accepted',         // the offer was taken {to_domain,stage:'email'|'code'}
   EMAIL_SUBMIT_ERROR:      'email_submit_error',          // OTP send failed {reason,resend}
   OTP_VERIFY:              'otp_verify',                  // code verified ok {is_webview,webview_app}
   // ── Did verification actually reach the product? ──
@@ -29,7 +31,7 @@ export const EV = Object.freeze({
   // whole measurement.
   AUTH_LANDED:             'auth_landed',                 // browser executed our JS on a callback URL {method:'code'|'hash',is_webview,webview_app,standalone} — beaconed immediately, so it survives a tab closed one second later
   AUTH_SESSION_READY:      'auth_session_ready',          // a session actually exists on this device {method,is_webview,webview_app,ms_since_landed}
-  OTP_VERIFY_ERROR:        'otp_verify_error',            // code verify failed {reason}
+  OTP_VERIFY_ERROR:        'otp_verify_error',            // code verify failed {reason:'code_rejected'|'expired'|'invalid'|'invalid_email'|'rate_limit'|'network'|'other'} — GoTrue answers a wrong digit and a dead token with ONE message ("expired or is invalid"), which is code_rejected; the bursts of 3-4 in a minute after a single send are typos, not expiry
   LANDING_EDIT_EMAIL:      'landing_edit_email',          // "edit" clicked on the code step
   LANDING_CALLBACK_ERROR:  'landing_callback_error',      // magic-link ?code= exchange failed {reason}
   LANDING_SCROLL:          'landing_scroll',              // reveal scroll depth crossed {depth}
@@ -449,6 +451,10 @@ export const JOURNEY_PHASE_ORDER = Object.freeze([
 export function classifyAuthError(e) {
   const m = (e?.message || String(e || '')).toLowerCase();
   if (m.includes('rate') || m.includes('too many'))   return 'rate_limit';
+  // GoTrue returns the single message "Token has expired or is invalid" for a
+  // wrong code AND for an expired one. Reading it as 'expired' told every
+  // mistyped digit to request a new code; it is one reason, not two.
+  if (m.includes('expired') && m.includes('invalid'))   return 'code_rejected';
   if (m.includes('expired'))                            return 'expired';
   if (m.includes('invalid') && m.includes('token'))    return 'invalid';
   if (m.includes('email') && m.includes('invalid'))    return 'invalid_email';

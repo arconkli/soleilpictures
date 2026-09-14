@@ -29,6 +29,7 @@ import { parseJoinParam, stashJoin, readJoin, clearJoin } from '../lib/joinLink.
 import { parseShareReturn, stashShareReturn, readShareReturn, clearShareReturn, shareReturnHref } from '../lib/shareReturn.js';
 import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
 import { getFbCookies } from '../lib/metaPixel.js';
+import { suggestEmail } from '../lib/emailTypo.js';
 import { lpCtaClick } from '../hooks/useLandingEngagement.js';
 import { SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
@@ -559,6 +560,18 @@ function PresenceTicker({ user }) {
 
 function SignIn() {
   const [email, setEmail]       = useState('');
+  // A mistyped consumer domain (gmail.como, gmasil.com, a bare "gmail") is
+  // offered a one-tap fix. Never blocks the send; logged once per domain.
+  const [typo, setTypo] = useState(null);
+  const typoLoggedRef = useRef(new Set());
+  const noteTypo = (value) => {
+    const t = suggestEmail(value);
+    setTypo(t);
+    if (t && !typoLoggedRef.current.has(t.toDomain)) {
+      typoLoggedRef.current.add(t.toDomain);
+      try { logEvent(EV.EMAIL_TYPO_SUGGESTED, { from_domain: t.fromDomain, to_domain: t.toDomain }); } catch (_) {}
+    }
+  };
   const [stage, setStage]       = useState('email'); // 'email' | 'code'
   const [busy,  setBusy]        = useState(false);
   const [code,  setCode]        = useState('');
@@ -739,6 +752,18 @@ function SignIn() {
     setCode('');
     setError(null);
   };
+  const applyTypo = (atStage) => () => {
+    if (!typo) return;
+    try { logEvent(EV.EMAIL_TYPO_ACCEPTED, { to_domain: typo.toDomain, stage: atStage }); } catch (_) {}
+    if (atStage === 'code') editEmail();
+    setEmail(typo.suggestion);
+    setTypo(null);
+  };
+  const typoOffer = (atStage) => (typo ? (
+    <button type="button" className="auth-link auth-typo" onClick={applyTypo(atStage)} disabled={busy}>
+      Did you mean <b>{typo.suggestion}</b>?
+    </button>
+  ) : null);
 
   return (
     <SignInBackdrop exploreHref="https://clusters.soleilpictures.com/share/bba68b4d-7562-4ca2-96fb-817455b85fdd">
@@ -784,9 +809,11 @@ function SignIn() {
               onChange={(e) => {
                 if (!emailEngagedRef.current) { emailEngagedRef.current = true; logEvent(EV.LANDING_FIELD_ENGAGE, { field: 'email' }); }
                 setEmail(e.target.value);
+                noteTypo(e.target.value);
               }}
               disabled={busy}
             />
+            {typoOffer('email')}
             <button className="auth-btn" type="submit" disabled={busy || !email.trim()}>
               {busy ? 'Sending…' : 'Continue with email →'}
             </button>
@@ -801,6 +828,9 @@ function SignIn() {
                 edit
               </button>
             </div>
+            {/* The two-and-a-half minutes people wait for a code that is never
+                coming: if the address looks mistyped, say so here too. */}
+            {typoOffer('code')}
             <input
               ref={codeRef}
               className="auth-input auth-code-input"
@@ -859,6 +889,9 @@ function SignIn() {
 function humanError(e) {
   const msg = (e?.message || String(e || '')).toLowerCase();
   if (msg.includes('rate') || msg.includes('too many')) return 'Hold on — too many attempts. Try again in a minute.';
+  // One GoTrue message covers a wrong digit and a dead token; do not tell a
+  // mistyped code it "expired" and send the person to the resend button.
+  if (msg.includes('expired') && msg.includes('invalid')) return "That code didn't match. Check the digits, or request a new one.";
   if (msg.includes('expired'))                          return "That code expired. Request a new one.";
   if (msg.includes('invalid') && msg.includes('token')) return "That code didn't match. Try again or request a new one.";
   if (msg.includes('email') && msg.includes('invalid')) return "That email doesn't look right.";
