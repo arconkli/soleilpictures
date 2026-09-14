@@ -2976,9 +2976,11 @@ async function runImageSizeBackfill(env, { cap = 5000 } = {}) {
 //     safety net that forgets on command is not one.
 //   * DB-DRIVEN, not bucket-listing: we ask Postgres which keys exist rather
 //     than paginating tens of thousands of R2 objects every run.
-//   * Its bookkeeping lives in the backup bucket at _state/mirror.json, so the
-//     mirror needs no table of its own and the watermark cannot drift from the
-//     bucket it describes.
+//   * Its bookkeeping lives in the PRIMARY bucket at _state/mirror.json — NOT
+//     in the backup. The backup carries a Bucket Lock, which forbids overwrites
+//     as well as deletes, so a watermark stored there could never be advanced
+//     and the mirror would re-scan the oldest ROW_LIMIT rows forever. The
+//     primary is unlocked, and nothing sweeps a key no images row points at.
 //   * IDEMPOTENT: each key is HEAD-checked in the backup before copy, so the
 //     overlap re-scan (which catches previews populated minutes AFTER a row's
 //     created_at) costs a HEAD, not a re-upload.
@@ -3032,7 +3034,7 @@ async function runR2Mirror(env) {
   let imagesWM = '1970-01-01T00:00:00Z';
   let batchesWM = '1970-01-01T00:00:00Z';
   try {
-    const st = await env.IMAGES_BACKUP.get(STATE_KEY);
+    const st = await env.IMAGES.get(STATE_KEY);
     if (st) {
       const j = await st.json();
       if (j?.images_watermark)  imagesWM  = j.images_watermark;
@@ -3080,8 +3082,9 @@ async function runR2Mirror(env) {
   // Persist advanced watermarks (only ever moves forward). Because every row
   // returned is fully processed before the watermark advances, and the next run
   // re-scans OVERLAP_MS behind it with a HEAD-dedup, no object is ever skipped.
+  // Written to the PRIMARY bucket — see the header: the backup's lock forbids it.
   try {
-    await env.IMAGES_BACKUP.put(STATE_KEY, JSON.stringify({
+    await env.IMAGES.put(STATE_KEY, JSON.stringify({
       images_watermark:  newImagesWM,
       batches_watermark: newBatchesWM,
       last_run_at: new Date().toISOString(),
