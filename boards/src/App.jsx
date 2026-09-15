@@ -21,6 +21,8 @@ import { setCapture } from './lib/captureState.js';
 import { maskName, maskEmail } from './lib/captureIdentity.js';
 import { useCaptureState } from './hooks/useCaptureState.js';
 import { useCaptureMode } from './hooks/useCaptureMode.js';
+import { useGalleryActive } from './hooks/useGalleryState.js';
+import { armGallery, openGallery } from './lib/galleryState.js';
 import { useCaptureFrame } from './hooks/useCaptureFrame.js';
 import { widthForFrame } from './lib/reframeLayout.js';
 import { aspectSpec } from './lib/captureAspect.js';
@@ -177,6 +179,7 @@ const DockedDocPane = lazyWithReload(() => import('./components/DocCard.jsx').th
 // downloads them is an admin who has actually turned the mode on — this ships
 // to production, and nobody else should pay for it.
 const CaptureHud = lazyWithReload(() => import('./components/capture/CaptureHud.jsx').then(m => ({ default: m.CaptureHud })));
+const SurfaceGallery = lazyWithReload(() => import('./components/gallery/SurfaceGallery.jsx'));
 const AspectMask = lazyWithReload(() => import('./components/capture/AspectMask.jsx').then(m => ({ default: m.AspectMask })));
 const Spotlight = lazyWithReload(() => import('./components/capture/Spotlight.jsx').then(m => ({ default: m.Spotlight })));
 import { useBreakpoint } from './hooks/useBreakpoint.js';
@@ -4006,6 +4009,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const captureAllowed = myTier.tier === 'admin';
   const { capture, active: captureActive } = useCaptureMode(captureAllowed);
 
+  // The admin Surface Gallery rides the same tier read and the same doctrine:
+  // pure client-side rendering with no server capability behind it, so this IS
+  // its gate. galleryState refuses every write until armed, and disarming on a
+  // tier change closes any preview that happens to be open.
+  const galleryActive = useGalleryActive();
+  useEffect(() => { armGallery(captureAllowed); }, [captureAllowed]);
+
   // The ephemeral phone reframe. Solved against a width derived from the
   // board's own median card size and how many cards should read across the
   // chosen frame — the same reasoning as CanvasSurface's phone-rescue block,
@@ -6361,6 +6371,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       icon: Camera, keywords: ['capture', 'screenshot', 'record', 'demo', 'marketing', 'clean'],
       available: captureAllowed,
       run: () => setCapture({ on: !capture.on, clean: true, silence: true, freeze: true }) },
+    // Same doctrine, same reason for being here and not in the shortcuts modal.
+    { id: 'gallery', label: 'Surface gallery', icon: LayoutGrid,
+      keywords: ['gallery', 'surface', 'preview', 'popup', 'modal', 'screen', 'browse', 'design'],
+      available: captureAllowed,
+      run: () => openGallery() },
     { id: 'link-board', label: 'Link a cluster onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'cluster', 'board'],
       available: canEditCurrent && currentSurface === 'board',
       run: () => openBoardLinkPicker() },
@@ -7025,6 +7040,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         workspaceSettings={workspaceSettings}
         mySettings={mySettings}
         isAdmin={captureAllowed}
+        onOpenGallery={openGallery}
         onOpenRecovery={() => { setSettingsOpen(false); setWorkspaceRecoveryOpen(true); }} />
 
       {/* Capture Mode surfaces. Rendered outside .main so the mask can letterbox
@@ -7037,6 +7053,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           {capture.spotlight && <Spotlight />}
           <CaptureHud />
         </Suspense>
+      )}
+
+      {/* The admin Surface Gallery. Mounted here, beside Capture and outside
+          .main, for the same reason: it draws over the whole viewport and must
+          not be clipped by the canvas. Lazy, so the registry and the fixtures
+          only download when an admin actually opens it. */}
+      {galleryActive && (
+        <Suspense fallback={null}><SurfaceGallery /></Suspense>
       )}
 
       <main className="main">

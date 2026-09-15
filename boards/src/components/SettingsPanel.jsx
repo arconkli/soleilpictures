@@ -38,6 +38,7 @@ import { DocsTab } from './settings/DocsTab.jsx';
 // Lazy so nobody but an admin who opens the tab ever downloads it — the same
 // reason AdminPage is lazy in TierRouter.
 const CaptureTab = lazyWithReload(() => import('./settings/CaptureTab.jsx').then(m => ({ default: m.CaptureTab })));
+const GalleryTab = lazyWithReload(() => import('./settings/GalleryTab.jsx').then(m => ({ default: m.GalleryTab })));
 
 // `group` decides which heading a tab sits under. Ids are load-bearing beyond
 // this file — `?settings=billing` is the Stripe Customer Portal's return_url
@@ -73,6 +74,7 @@ const TABS = [
 // needs a docs page. That is the whole distinction.
 const ADMIN_TABS = [
   { id: 'capture', label: 'Capture', group: 'admin' },
+  { id: 'gallery', label: 'Gallery', group: 'admin' },
 ];
 
 const GROUPS = [
@@ -121,6 +123,10 @@ export function SettingsPanel({
   // pure client-side staging, so this IS its gate, and captureState refuses to
   // do anything until App arms it from the same tier read.
   isAdmin = false,
+  // Opens the admin Surface Gallery. Closes this panel on the way out, because
+  // the gallery mounts at the app root — Settings' backdrop is one below the
+  // maximum z-index and most previewed overlays sit under it.
+  onOpenGallery,
 }) {
   const feedback = useFeedback();
   // `stacked` mirrors `mobileShell` in App.jsx, which is exactly what the media
@@ -286,6 +292,11 @@ export function SettingsPanel({
                   drops while the panel is open must not leave the pane rendering. */}
               {tab === 'capture' && isAdmin && (
                 <Suspense fallback={null}><CaptureTab /></Suspense>
+              )}
+              {tab === 'gallery' && isAdmin && (
+                <Suspense fallback={null}>
+                  <GalleryTab onOpen={() => { onClose?.(); onOpenGallery?.(); }} />
+                </Suspense>
               )}
             </SettingsSaveProvider>
           </div>

@@ -35,6 +35,8 @@ function store(storage) {
 // callers fire an analytics row and a profile write on each render pass. The
 // fallback keeps the latch honest for the life of the page; a reload legitimately
 // forgets, which is the same bargain the durable stamp already makes.
+import { isGalleryActive } from './galleryState.js';
+
 const memo = new Set();
 const memoWarn = new Map();
 
@@ -57,6 +59,10 @@ export function priceSeen(uid, storage) {
 // stamp the profile once without keeping its own bookkeeping.
 export function markPriceSeen(uid, surface, storage) {
   if (!uid) return false;
+  // The gallery previews the price surfaces by definition. Burning the
+  // once-per-account latch here would stop the real first sighting from ever
+  // being recorded, on the admin's own account, with no way to undo it.
+  if (isGalleryActive()) return false;
   if (priceSeen(uid, storage)) return false;
   const k = PRICE_SEEN_KEY(uid);
   // Claim in memory FIRST, so the latch holds even when the write below is
@@ -77,6 +83,7 @@ export function nearCapWarnedAt(uid, storage) {
 export function markNearCapWarned(uid, limit, storage) {
   const n = Number(limit);
   if (!uid || !Number.isFinite(n) || n <= 0) return;
+  if (isGalleryActive()) return;   // see markPriceSeen
   memoWarn.set(NEAR_CAP_KEY(uid), n);
   write(NEAR_CAP_KEY(uid), String(n), storage);
 }

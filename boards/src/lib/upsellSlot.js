@@ -15,10 +15,13 @@
 // card-index refusal — deferred to nothing and was deferred to by nobody.
 // This module is that guard, made symmetric and shared.
 //
-// Pure and dependency-free (mirrors upsellEligibility.js and depthDock.js) so
-// it is unit-testable under node with no React/DOM — see the sibling .test.mjs.
+// Pure and (but for the gallery flag, itself a zero-import leaf with no DOM)
+// dependency-free, mirroring upsellEligibility.js and depthDock.js, so it stays
+// unit-testable under node with no React/DOM — see the sibling .test.mjs.
 // A DOM query cannot answer "did something just show" for a surface that has
 // not painted yet, which is why the old guard needed a timestamp beside it.
+
+import { isGalleryActive } from './galleryState.js';
 
 // How long one upsell surface owns the moment. Matches the 60s stacking guard
 // this replaces in ReferralNudge — deliberately NOT that component's
@@ -90,6 +93,15 @@ export function upsellSlotBusy(now = Date.now()) {
 // deferral would retire the surface for that account forever.
 export function claimUpsellSlot(kind, now = Date.now()) {
   if (!KINDS.has(kind)) return false;            // fail closed on a typo'd kind
+
+  // The admin Surface Gallery bypasses the mutex entirely, and records nothing.
+  // Without this the gallery would work exactly once: the first upsell surface
+  // previewed takes the slot, and every other one for the next minute renders
+  // as null with no explanation. Claiming-but-not-recording would be worse —
+  // it would leave a real surface stood down behind a preview that has already
+  // been dismissed.
+  if (isGalleryActive()) return true;
+
   const t = resolveNow(now);
 
   // The wall always shows, and still claims — so the ambient surfaces stand

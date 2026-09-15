@@ -254,41 +254,22 @@ export function UpgradeChip() {
   return (
     <>
       {showChip && (
-      <button
-        ref={chipRef}
-        className={`upgrade-chip ${near ? 'upgrade-chip-near' : ''}`}
-        onClick={() => {
-          // Was dark: only the downstream modal pricing_view fired, so chip
-          // clicks were indistinguishable from every other modal entry.
-          logEvent(EV.UP_CHIP_CLICK, {
-            near, count: demoCardCount, limit: cardLimit,
-            pressure: elig.pressure, elig_reason: elig.reason, cap_pct: elig.capPct,
-          });
-          setOpen(true);
-        }}
-        aria-label="Upgrade to Creator"
-        title="Upgrade your demo to Creator"
-      >
-        {/* The chip earns its pressure. It used to read "Get Creator" forever
-            and only reveal the count within 10 of the wall, so the ceiling was
-            invisible right up until it stopped you. Now the count appears once
-            usage is genuinely underway, and the ask sharpens only near the end. */}
-        <span className="upgrade-chip-label">
-          {near ? `${Math.max(0, cardLimit - demoCardCount)} cards left` : 'Get Creator'}
-        </span>
-        {showCount && !near && (
-          <>
-            <span className="upgrade-chip-sep">·</span>
-            <span className="upgrade-chip-count">{demoCardCount}/{cardLimit}</span>
-          </>
-        )}
-        {showPrice && (
-          <>
-            <span className="upgrade-chip-sep">·</span>
-            <span className="upgrade-chip-price">{PRICE_FROM_LABEL}</span>
-          </>
-        )}
-      </button>
+        <UpgradePill
+          innerRef={chipRef}
+          near={near}
+          count={demoCardCount}
+          limit={cardLimit}
+          showCount={showCount}
+          showPrice={showPrice}
+          onClick={() => {
+            // Was dark: only the downstream modal pricing_view fired, so chip
+            // clicks were indistinguishable from every other modal entry.
+            logEvent(EV.UP_CHIP_CLICK, {
+              near, count: demoCardCount, limit: cardLimit,
+              pressure: elig.pressure, elig_reason: elig.reason, cap_pct: elig.capPct,
+            });
+            setOpen(true);
+          }} />
       )}
       {open && <PricingModal onClose={() => setOpen(false)} header={null} via="chip" />}
       {fvBanner && <FirstValueUpgradeBanner onSeeCreator={onSeeCreator} onDismiss={onDismiss} />}
@@ -324,5 +305,43 @@ export function UpgradeChip() {
         />
       )}
     </>
+  );
+}
+
+// The pill itself, split out from UpgradeChip so its three pressure states can
+// be rendered from fabricated numbers. UpgradeChip takes no props at all —
+// every label it shows is derived internally from live tier state — so without
+// this split the admin Surface Gallery could only ever show whichever state
+// the previewing account happened to be in, which for an admin is none of
+// them. Presentational: no hooks, no analytics, no tier reads.
+export function UpgradePill({ innerRef = null, near, count, limit, showCount, showPrice, onClick }) {
+  return (
+    <button
+      ref={innerRef}
+      className={`upgrade-chip ${near ? 'upgrade-chip-near' : ''}`}
+      onClick={onClick}
+      aria-label="Upgrade to Creator"
+      title="Upgrade your demo to Creator"
+    >
+      {/* The chip earns its pressure. It used to read "Get Creator" forever
+          and only reveal the count within 10 of the wall, so the ceiling was
+          invisible right up until it stopped you. Now the count appears once
+          usage is genuinely underway, and the ask sharpens only near the end. */}
+      <span className="upgrade-chip-label">
+        {near ? `${Math.max(0, limit - count)} cards left` : 'Get Creator'}
+      </span>
+      {showCount && !near && (
+        <>
+          <span className="upgrade-chip-sep">·</span>
+          <span className="upgrade-chip-count">{count}/{limit}</span>
+        </>
+      )}
+      {showPrice && (
+        <>
+          <span className="upgrade-chip-sep">·</span>
+          <span className="upgrade-chip-price">{PRICE_FROM_LABEL}</span>
+        </>
+      )}
+    </button>
   );
 }

@@ -19894,3 +19894,133 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 @media (max-width: 640px) {
   .rr-ask { max-width: calc(100vw - 24px); }
 }
+
+/* ─── Surface Gallery (admin) ───────────────────────────────────────────────
+   The admin-only browser for every popup and screen. Two states: a searchable
+   list, and a preview with a floating bar over it.
+
+   z-index: the list sits at 2147483646, level with .settings-bg — it never
+   coexists with Settings, because opening it closes Settings. The BAR sits at
+   2147483647, level with .upgrade-backdrop and .feedback-bg, and wins the tie
+   on DOM order (the convention .upgrade-backdrop already documents). Because
+   portals append to <body> in mount order, SurfaceGallery re-appends the bar
+   node whenever the previewed entry changes — see the component header. */
+
+.gal-bg {
+  position: fixed; inset: 0; z-index: 2147483646;
+  background: rgba(10, 11, 13, .62); backdrop-filter: blur(8px);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 7vh 16px 16px;
+}
+.gal-panel {
+  width: min(720px, 100%); max-height: 84vh;
+  display: flex; flex-direction: column;
+  background: var(--bg-1, #16181c); color: var(--ink-1, #e8eaed);
+  border: 1px solid var(--line-1, rgba(255, 255, 255, .1)); border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .5); overflow: hidden;
+}
+:root[data-theme="light"] .gal-panel,
+:root:not([data-theme="dark"]) .gal-panel { background: #fff; color: #16181c; }
+
+.gal-head {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  border-bottom: 1px solid var(--line-1, rgba(255, 255, 255, .08));
+}
+.gal-head-icon { color: var(--ink-3, #8b919c); flex: none; }
+.gal-input {
+  flex: 1; min-width: 0; background: none; border: 0; outline: none;
+  color: inherit; font-size: 15px; font-family: inherit;
+}
+.gal-input::placeholder { color: var(--ink-3, #8b919c); }
+.gal-x {
+  flex: none; background: none; border: 0; cursor: pointer; padding: 4px;
+  color: var(--ink-3, #8b919c); border-radius: 6px; display: grid; place-items: center;
+}
+.gal-x:hover { color: var(--ink-1, #e8eaed); background: var(--bg-2, rgba(255, 255, 255, .06)); }
+
+.gal-list { overflow-y: auto; padding: 8px 0 12px; flex: 1; }
+.gal-empty { padding: 28px 16px; text-align: center; color: var(--ink-3, #8b919c); font-size: 13px; }
+.gal-group { padding: 4px 0; }
+.gal-group-label {
+  padding: 10px 16px 4px; font-size: 11px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-3, #8b919c);
+}
+.gal-row { padding: 0 8px; }
+.gal-row-main {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 7px 8px; background: none; border: 0; border-radius: 8px;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.gal-row.is-active .gal-row-main { background: var(--bg-2, rgba(255, 255, 255, .07)); }
+/* Gold is reserved for active / selection / focus — this IS the selection. */
+.gal-row.is-active .gal-row-label { color: var(--soleil, #ffa500); }
+.gal-row-label { flex: 1; min-width: 0; font-size: 13.5px; }
+.gal-row-main:disabled { cursor: default; opacity: .72; }
+
+.gal-kind {
+  flex: none; display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10.5px; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--ink-3, #8b919c);
+  border: 1px solid var(--line-1, rgba(255, 255, 255, .12));
+  border-radius: 999px; padding: 2px 7px;
+}
+.gal-kind-insitu { opacity: .75; }
+.gal-row.is-insitu .gal-row-main { cursor: default; }
+.gal-row-note {
+  margin: 0 8px 8px 8px; padding: 7px 10px; font-size: 12px; line-height: 1.5;
+  color: var(--ink-3, #8b919c);
+  background: var(--bg-2, rgba(255, 255, 255, .04)); border-radius: 8px;
+}
+.gal-row-param {
+  margin: 0 8px 8px 8px; width: calc(100% - 16px);
+  background: var(--bg-2, rgba(255, 255, 255, .06));
+  border: 1px solid var(--line-1, rgba(255, 255, 255, .12));
+  border-radius: 7px; padding: 6px 9px; color: inherit; font: inherit; font-size: 12.5px;
+}
+.gal-row-param:focus { outline: none; border-color: var(--soleil, #ffa500); }
+
+.gal-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 9px 14px; border-top: 1px solid var(--line-1, rgba(255, 255, 255, .08));
+  font-size: 11.5px; color: var(--ink-3, #8b919c);
+}
+.gal-foot-keys { font-variant-numeric: tabular-nums; }
+
+/* The preview bar. Ties with the top overlay tier and wins on DOM order. */
+.gal-bar {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px;
+  z-index: 2147483647;
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  background: rgba(22, 24, 28, .96); color: #e8eaed;
+  border: 1px solid rgba(255, 255, 255, .14); border-radius: 999px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .5);
+  font-size: 12.5px; max-width: min(560px, calc(100vw - 24px));
+}
+.gal-bar-btn, .gal-bar-icon {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: 0; cursor: pointer; color: #cfd3da;
+  border-radius: 999px; padding: 5px 10px; font: inherit;
+}
+.gal-bar-icon { padding: 5px 6px; }
+.gal-bar-btn:hover, .gal-bar-icon:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+.gal-bar-name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--soleil, #ffa500);
+}
+.gal-bar-spacer { flex: 1; }
+
+/* Stages — frames for surfaces that normally sit inside something else. They
+   supply position and a readable ground, never the surface's own markup. */
+.gal-stage-pill, .gal-stage-page {
+  position: fixed; inset: 0; z-index: 2147483640;
+  background: var(--bg-0, #0d0f12); overflow: auto;
+}
+.gal-stage-pill { display: grid; place-items: center; }
+.gal-stage-page { padding: 48px 20px 92px; }
+.gal-missing { padding: 40px; text-align: center; color: var(--ink-3, #8b919c); }
+
+@media (max-width: 640px) {
+  .gal-bg { padding: 0; }
+  .gal-panel { width: 100%; max-height: 100%; height: 100%; border: 0; border-radius: 0; }
+  .gal-bar { bottom: 10px; }
+}
