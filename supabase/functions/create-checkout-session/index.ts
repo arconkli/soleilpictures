@@ -69,10 +69,17 @@ Deno.serve(async (req) => {
     let plan: string;
     let fbp = "", fbc = "", icEventId = "";
     let trial = false;
+    let surface = "", header = "", via = "";
     try {
       const body = await req.json();
       plan = body.plan;
       trial = body.trial === true;
+      // Attribution, carried through Stripe's metadata so the webhook can name
+      // the pitch that produced the sale. Free-text from the client, so it is
+      // length-clamped at the metadata write and never used for authorization.
+      if (typeof body.surface === "string") surface = body.surface;
+      if (typeof body.header === "string") header = body.header;
+      if (typeof body.via === "string") via = body.via;
       // Meta match params captured client-side so the webhook/verify Purchase
       // (fired later from Stripe's request, where we DON'T have the user's IP/UA)
       // can attribute the conversion to the right Meta user.
@@ -268,7 +275,17 @@ Deno.serve(async (req) => {
         ...(clientUa ? { client_ua: clientUa }  : {}),
       },
       subscription_data: {
-        metadata: { supabase_user_id: userId, plan, ...(trial ? { trial: "1" } : {}) },
+        // surface/header/via ride along so the webhook's subscription_started
+        // can name the pitch that produced the sale. No paid-side event has
+        // ever carried a surface, so the conversion deck's last column was
+        // structurally blank on every row.
+        metadata: {
+          supabase_user_id: userId, plan,
+          ...(trial ? { trial: "1" } : {}),
+          ...(surface ? { surface: String(surface).slice(0, 60) } : {}),
+          ...(header ? { header: String(header).slice(0, 60) } : {}),
+          ...(via ? { via: String(via).slice(0, 60) } : {}),
+        },
         ...(trial
           ? {
               trial_period_days: CREATOR_TRIAL_DAYS,

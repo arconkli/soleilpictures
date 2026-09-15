@@ -77,12 +77,18 @@ test('envelope carries the full schema and derives cap_pct/acct_days', () => {
     // Targeting state. Null here because this caller didn't supply it — the
     // envelope reports "not measured" rather than guessing a value.
     elig: null, elig_reason: null, pressure: null,
+    // The trial half. Null for the same reason: this caller supplied no trial
+    // decision, so the envelope reports "not measured" rather than false —
+    // recording a bare false here would make every pre-trial-era row look like
+    // an exposure where the trial was deliberately withheld.
+    trial: null, trial_reason: null, server_cards: null, trial_flipped: null,
   });
   const bare = exposure({ tier: null, userState: null });
   const benv = bare.envelope();
   assert.deepEqual(
-    [benv.tier, benv.cap_pct, benv.demo_cards, benv.acct_days, benv.elig, benv.elig_reason, benv.pressure],
-    [null, null, null, null, null, null, null],
+    [benv.tier, benv.cap_pct, benv.demo_cards, benv.acct_days, benv.elig, benv.elig_reason,
+     benv.pressure, benv.trial, benv.trial_reason, benv.server_cards],
+    [null, null, null, null, null, null, null, null, null, null],
     'missing state is null, never NaN/undefined',
   );
 });
@@ -294,4 +300,48 @@ test('StrictMode seam: an ended exposure reports ended so the hook can renew', (
   const fresh = exposure();
   assert.equal(fresh.__state().ended, false);
   assert.equal(fresh.__state().summaryFired, false);
+});
+
+// ── The trial dimension ────────────────────────────────────────────────────
+// The offer is decided on the SERVER card count while demo_cards carries the
+// optimistic one, so "was the trial on the button" is not reconstructible from
+// the row unless it is recorded. These pin the three ways that could go wrong.
+
+test('the trial offer is latched at the first RESOLVED observation', () => {
+  setup();
+  const x = exposure({ tier: null, userState: null });
+  // Before useMyTier settles there is no trial key at all. Recording false here
+  // would write a systematically false "trial withheld" on every fast exposure.
+  assert.equal(x.envelope().trial, null, 'unresolved is null, not false');
+
+  x.update({ tier: 'demo', userState: { demoCardCount: 20, cardLimit: 50, trial: true, trialReason: 'body_of_work', serverCards: 18 } });
+  const env = x.envelope();
+  assert.equal(env.trial, true);
+  assert.equal(env.trial_reason, 'body_of_work');
+  assert.equal(env.server_cards, 18, 'the count the offer was DECIDED on, not the optimistic one');
+  assert.notEqual(env.server_cards, env.demo_cards, 'the two counts are genuinely different fields');
+});
+
+test('a mid-exposure flip is recorded as a flip, not as the answer', () => {
+  setup();
+  const x = exposure({ tier: 'demo', userState: { trial: true, trialReason: 'body_of_work', serverCards: 14 } });
+  assert.equal(x.envelope().trial_flipped, null, 'no flip yet');
+  // useUpsellExposure re-runs update() on every render with no dependency
+  // array, so a focus-driven refetch can change the CTA while the summary
+  // still fires once. What the person was looking at when they decided must
+  // survive that.
+  x.update({ tier: 'demo', userState: { trial: false, trialReason: 'already_trialed', serverCards: 14 } });
+  const env = x.envelope();
+  assert.equal(env.trial, true, 'the latched offer wins');
+  assert.equal(env.trial_reason, 'body_of_work');
+  assert.equal(env.trial_flipped, true, 'and the flip is its own fact');
+});
+
+test('trial:false latches as false — a withheld offer is a measurement', () => {
+  setup();
+  const x = exposure({ tier: 'demo', userState: { trial: false, trialReason: 'too_early', serverCards: 4 } });
+  const env = x.envelope();
+  assert.equal(env.trial, false, 'false survives as false, never collapsing to null');
+  assert.equal(env.trial_reason, 'too_early');
+  assert.equal(env.server_cards, 4);
 });

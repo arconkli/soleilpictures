@@ -197,6 +197,21 @@ async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, sessi
           currency: (session.currency || "usd"),
           session_id: session.id,
           source: "stripe_webhook",
+          // Was this a $0 trial start or a sale? Without it the two are
+          // indistinguishable here forever: this handler runs for every
+          // checkout.session.completed including trials, activateCore treats
+          // `trialing` as live, and amount_total is 0 for a trial AND for a
+          // 100%-off promo, so the amount cannot stand in for the answer.
+          // create-checkout-session already writes trial into the session
+          // metadata and this function already reads m.plan from it.
+          trial: m.trial === "1",
+          status: subscription?.status ?? null,
+          // Which pitch produced the sale. No paid-side event has ever carried
+          // a surface, so revenue could not be attributed to any upgrade
+          // surface at all — the funnel's last column was structurally blank.
+          header: m.header ?? null,
+          via: m.via ?? null,
+          surface: m.surface ?? null,
         },
         path: "/stripe-webhook",
       });
