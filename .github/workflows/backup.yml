@@ -17,13 +17,20 @@
 #   * it cannot be read without Supabase.
 # This produces a portable pg_dump we hold ourselves.
 #
-# TIMING: 01:15 UTC, deliberately ~1h45m BEFORE the 03:00 UTC purge window
-# (purge_deleted_boards fires at `0 3 * * *`, the first of ~14 nightly purges).
-# GitHub's scheduled dispatches slip routinely — 15 to 60+ minutes under load —
-# so the old 02:30 slot's 30 minutes of headroom could be eaten by a single
-# late dispatch and sample a mid-purge database. 1h45m cannot. A backup taken
-# after a bad purge cannot recover from it, which is the failure mode most
-# worth surviving.
+# TIMING: 19:30 UTC — the evening BEFORE the purge window it protects against.
+# This looks absurdly early until you look at the dispatch record. The purges
+# begin at 03:00 UTC sharp (`purge_deleted_boards`, first of ~14). This job was
+# set to 01:15 to leave 1h45m of headroom, and GitHub then dispatched it at
+# 07:23, 05:59, 05:58, 06:00, 05:47, 06:10 and 06:17 on seven consecutive
+# nights — a consistent 4.5-6 HOUR delay, not the "15-60 minutes" the earlier
+# comment assumed. Every one of those would have run AFTER the purges.
+#
+# So the schedule is set so that even a six-hour slip still lands before 03:00.
+# The cost is that a backup is up to ~7h stale when the purges run, which is
+# the right trade: a bad purge is recoverable from a 7h-old dump, and NOT
+# recoverable from one taken after it — that one has already lost the rows.
+# If GitHub's delay ever grows past ~7h, move this earlier again rather than
+# accepting a post-purge backup.
 #
 # ── One-time setup ──────────────────────────────────────────────────────────
 #
@@ -61,7 +68,7 @@ name: backup
 
 on:
   schedule:
-    - cron: '15 1 * * *'      # 01:15 UTC — wide headroom before the 03:00 purge window (see header)
+    - cron: '30 19 * * *'     # 19:30 UTC — GitHub dispatches this HOURS late; see header
   workflow_dispatch:           # manual runs for drills
 
 concurrency:
