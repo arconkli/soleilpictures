@@ -235,12 +235,31 @@ export const PRICING_META_DESCRIPTION =
   `(${PRICING.monthly.billedLabel}, or ${PRICING.annual.perMonthLabel}/mo billed annually) ` +
   `for unlimited cards, any file type, and no size limits on a ${CREATOR_STORAGE_LABEL} drive.`;
 
-export function formatPeriodEnd(dateLike, { cancel } = {}) {
+// `trial` matters: during a trial this date is the FIRST CHARGE, not a renewal.
+// Calling it "Renews" is the word that turns a forgotten trial into a disputed
+// charge, because it implies something already paid for is continuing.
+export function formatPeriodEnd(dateLike, { cancel, trial } = {}) {
   if (!dateLike) return null;
   const d = new Date(dateLike);
   if (Number.isNaN(d.getTime())) return null;
   return {
-    label: cancel ? 'Ends' : 'Renews',
+    label: cancel ? 'Ends' : trial ? 'First charge' : 'Renews',
     value: d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }),
   };
+}
+
+// What a subscription status means to the person holding it, rather than to
+// Stripe. The billing screen printed the raw word.
+export function statusLabel(status) {
+  switch (status) {
+    case 'trialing':           return 'On trial';
+    case 'active':             return 'Active';
+    case 'past_due':           return 'Payment failed';
+    case 'unpaid':             return 'Unpaid';
+    case 'paused':             return 'Paused';
+    case 'canceled':           return 'Canceled';
+    case 'incomplete':         return 'Awaiting payment';
+    case 'incomplete_expired': return 'Expired';
+    default:                   return status || '—';
+  }
 }

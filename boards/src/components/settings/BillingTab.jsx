@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
-import { planLabel, formatPeriodEnd, grantCopy } from '../../lib/billingCopy.js';
+import { planLabel, formatPeriodEnd, grantCopy, statusLabel, PRICING } from '../../lib/billingCopy.js';
 import { startPortal } from '../../lib/checkout.js';
 import { checkoutErrorMessage } from '../../lib/checkoutErrors.js';
 import { useFeedback } from '../AppFeedback.jsx';
@@ -141,17 +141,24 @@ export function BillingSummary({
   const plan = planLabel({ tier, plan: sub?.plan, demoCardCount, grantBacked, cardLimit: effectiveCardLimit, subscriptionStatus: status });
   // Prefer the fresh RPC value; fall back to the subscriptions-row query.
   const cancelPending = cancelAtPeriodEnd ?? !!sub?.cancel_at_period_end;
+  const trialing = status === 'trialing';
   const period = formatPeriodEnd(currentPeriodEnd || sub?.current_period_end, {
     cancel: cancelPending,
+    trial: trialing,
   });
+  // Say the amount beside the date. A trial screen that shows a date and no
+  // figure is the one most likely to end in "I didn't know I'd be charged".
+  const priced = PRICING[sub?.plan] || PRICING.monthly;
   const grantLine = grantBacked ? grantCopy({ grantActive, grantExpiresAt }) : null;
 
   return (
     <>
       {tier === 'paid' && !grantBacked && cancelPending && period && (
         <div className="settings-billing-cancel-note">
-          Subscription canceled — Creator access stays on until <b>{period.value}</b>.
-          You can resubscribe anytime before then.
+          {trialing
+            ? <>Trial canceled — you will not be charged. Creator stays on until <b>{period.value}</b>, and anything over the free allowance stays where it is afterwards; you just cannot add more.</>
+            : <>Subscription canceled — Creator access stays on until <b>{period.value}</b>.
+               You can resubscribe anytime before then.</>}
         </div>
       )}
       <div className="settings-billing-grid">
@@ -161,11 +168,14 @@ export function BillingSummary({
         {tier === 'paid' && !grantBacked && (
           <>
             <span className="settings-billing-label">Status</span>
-            <span className="settings-billing-value">{status || '—'}</span>
+            <span className="settings-billing-value">{statusLabel(status)}</span>
             {period && (
               <>
                 <span className="settings-billing-label">{period.label}</span>
-                <span className="settings-billing-value">{period.value}</span>
+                <span className="settings-billing-value">
+                  {period.value}
+                  {trialing && !cancelPending && ` · ${priced.billedLabel}`}
+                </span>
               </>
             )}
           </>
