@@ -21,6 +21,8 @@
 // or AdminPage: they are the four heavy trees, and pulling one in would drag it
 // into a shared chunk and inflate the build for every signed-out visitor. The
 // surfaces that live inside them are listed as 'insitu' with a recipe instead.
+import { lazy } from 'react';
+
 import { Inbox, Image as ImageIcon, Search, Home, Plus } from '../../lib/icons.js';
 
 import { PricingModal } from '../PricingModal.jsx';
@@ -44,8 +46,6 @@ import { ShortcutsOverlay } from '../ShortcutsOverlay.jsx';
 import { CommandPalette } from '../CommandPalette.jsx';
 import { TrashModal } from '../TrashModal.jsx';
 import { CustomFontsModal } from '../CustomFontsModal.jsx';
-import { SaveTemplateDialog } from '../SaveTemplateDialog.jsx';
-import { TemplateAddedPrompt } from '../TemplateAddedPrompt.jsx';
 import { ThumbnailCropModal } from '../ThumbnailCropModal.jsx';
 import { ImageEditModal } from '../ImageEditModal.jsx';
 import { ImageLightbox } from '../ImageLightbox.jsx';
@@ -64,6 +64,30 @@ import { MobileDrawer } from '../shell/MobileDrawer.jsx';
 import { MobileBottomNav } from '../shell/MobileBottomNav.jsx';
 import { POWER_REVEALS } from '../../lib/powerReveals.js';
 import { PRICE_FROM_LABEL } from '../../lib/billingCopy.js';
+
+// ── Surfaces that are not on every branch ─────────────────────────────────
+// `main` carries stacks that `production` does not (the templates work, among
+// others), so a static import of one of those components is a hard build
+// failure the moment this file is cherry-picked — which is exactly how it was
+// found. import.meta.glob resolves against whatever the branch actually has:
+// present on main, simply absent on production, no divergence between the two
+// copies of this file. That matters because the promotion gate compares the
+// introduced diff of every hand-written file across branches; a hand-edited
+// "production version" of the registry would defeat it.
+//
+// Brace-expanded so it stays a short, explicit list rather than a wildcard over
+// the whole components directory — a bare '../*.jsx' would eagerly pull in
+// CanvasSurface and undo the chunk split. Lazy, so each stays its own chunk.
+const OPTIONAL = import.meta.glob('../{SaveTemplateDialog,TemplateAddedPrompt}.jsx');
+
+function optional(file, exportName) {
+  const loader = OPTIONAL[`../${file}.jsx`];
+  if (!loader) return null;
+  return lazy(() => loader().then((m) => ({ default: m[exportName] })));
+}
+
+const SaveTemplateDialog = optional('SaveTemplateDialog', 'SaveTemplateDialog');
+const TemplateAddedPrompt = optional('TemplateAddedPrompt', 'TemplateAddedPrompt');
 
 // ── Fixtures ───────────────────────────────────────────────────────────────
 
@@ -216,8 +240,12 @@ export const RENDERERS = {
   'command-palette-pick': ({ close }) => <CommandPalette open mode="pick" onClose={close} workspaceId={WORKSPACE.id} boards={[BOARD]} rootId={BOARD.id} onPickBoard={NOOP} placeholder="Pick a cluster…" />,
   'trash-modal': ({ close }) => <TrashModal open workspaceId={WORKSPACE.id} onClose={close} />,
   'custom-fonts': ({ close }) => <CustomFontsModal open onClose={close} />,
-  'save-template': ({ close }) => <SaveTemplateDialog open layout={{ cols: 3, rows: 2, cells: [] }} size={{ w: 3, h: 2 }} defaultName="Three up" onCancel={close} onSave={close} />,
-  'template-added': ({ close }) => <TemplateAddedPrompt template={{ name: 'Three up', tree: { cols: 3, rows: 2, cells: [] } }} armed onPlace={close} onDismiss={close} />,
+  'save-template': ({ close }) => (SaveTemplateDialog
+    ? <SaveTemplateDialog open layout={{ cols: 3, rows: 2, cells: [] }} size={{ w: 3, h: 2 }} defaultName="Three up" onCancel={close} onSave={close} />
+    : null),
+  'template-added': ({ close }) => (TemplateAddedPrompt
+    ? <TemplateAddedPrompt template={{ name: 'Three up', tree: { cols: 3, rows: 2, cells: [] } }} armed onPlace={close} onDismiss={close} />
+    : null),
   'thumbnail-crop': ({ close }) => <ThumbnailCropModal file={pngFile()} onCancel={close} onSave={close} />,
   'image-edit': ({ close }) => <ImageEditModal src={IMG} title="Reference" adjust={null} cardId="preview" onChange={NOOP} onReset={NOOP} onDownload={NOOP} onClose={close} />,
   'image-lightbox': ({ close }) => <ImageLightbox src={IMG} title="Reference" alt="Preview image" adjust={null} cardId="preview" onClose={close} />,
@@ -343,3 +371,14 @@ function SettingsStage({ tab, close }) {
       mySettings={{}} />
   );
 }
+
+// Ids this BUILD can render. Everything in RENDERERS except the optional
+// surfaces whose component is not on this branch — the list filters on it, so a
+// row is never offered that would open an empty stage.
+export const AVAILABLE = new Set(
+  Object.keys(RENDERERS).filter((id) => {
+    if (id === 'save-template') return !!SaveTemplateDialog;
+    if (id === 'template-added') return !!TemplateAddedPrompt;
+    return true;
+  }),
+);
