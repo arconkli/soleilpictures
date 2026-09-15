@@ -20,6 +20,7 @@
 // stamp costs one duplicate prompt, never a broken render.
 
 import { getOwnProfile, updateOwnSettings } from './boardsApi.js';
+import { isGalleryActive } from './galleryState.js';
 
 let chain = Promise.resolve();
 
@@ -28,6 +29,10 @@ let chain = Promise.resolve();
 // caller does not need to await it.
 export function stampUpgradePrompt(patch) {
   if (!patch || typeof patch !== 'object') return chain;
+  // A preview must not stamp the admin's own profile. price_seen_at is written
+  // once per account for the lifetime of the account, so one look at the
+  // pricing modal in the gallery would spend it permanently and silently.
+  if (isGalleryActive()) return chain;
   chain = chain.then(async () => {
     let prev = {};
     try {

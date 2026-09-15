@@ -19,6 +19,7 @@ import { setErrorUser } from './errorReporting.js';
 import { getDeviceInfo } from './device.js';
 import { isAnyQaMode } from './localMode.js';
 import { isCaptureActive } from './captureState.js';
+import { isGalleryActive } from './galleryState.js';
 import { touchAppSession, noteAuthChange, persistAppSession,
          getAppSession, setSessionRotateHandler } from './appSession.js';
 import { createSummary, noteEvent, summaryProps, worthEmitting } from './sessionSummary.js';
@@ -531,7 +532,12 @@ function buildRow(name, props) {
   // signed in as a real admin, and every step of it is theatre. Unlike the QA
   // harnesses this one IS reachable in a production build, which is exactly
   // why it has to be stamped rather than assumed away.
-  if (isAnyQaMode() || isCaptureActive()) merged.synthetic = true;
+  // The admin Surface Gallery rides it too, and this is the consequential one:
+  // previewing the pricing modal walks pricing_view, up_exposure_summary and
+  // the dwell timers as a signed-in admin. Those are the exact rows the
+  // monetization read grades on, and a handful of preview exposures against a
+  // funnel whose CTA count is zero would not be noise, it would be the finding.
+  if (isAnyQaMode() || isCaptureActive() || isGalleryActive()) merged.synthetic = true;
   // Ambient context: where they are, what they're paying, which build. Merged
   // last and never over caller props, so an explicit board_id at the call site
   // still wins over the one the app happens to have open.

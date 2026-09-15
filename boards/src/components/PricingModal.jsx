@@ -31,9 +31,18 @@ import { markPriceSeen } from '../lib/upsellLatches.js';
 import { stampUpgradePrompt } from '../lib/upgradePrompts.js';
 import { creatorTrialEligibility } from '../lib/creatorTrial.js';
 
-export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null }) {
+export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null, tierPreview = null }) {
   const { user } = useAuth();
-  const { tier, demoCardCount, serverCardCount, effectiveCardLimit, grantActive, creatorTrialStartedAt } = useMyTier({ userId: user?.id });
+  // `tierPreview` is the admin Surface Gallery's seam and nothing else's. Which
+  // of the four headers you get is a prop, but whether the TRIAL is offered is
+  // derived from live tier state — so an admin previewing "the trial screen"
+  // would otherwise always see the non-trial CTA, because an admin is never
+  // trial-eligible. Substituting the tier shape renders the real component,
+  // real copy rules and real eligibility function against fabricated inputs,
+  // which is the only honest way to show a state you cannot be in.
+  const live = useMyTier({ userId: user?.id });
+  const { tier, demoCardCount, serverCardCount, effectiveCardLimit, grantActive, creatorTrialStartedAt } =
+    tierPreview || live;
   // Set when the server declines a trial we offered. Creator itself is still
   // for sale, so the button falls back to the plain purchase rather than
   // re-sending a request that can only be refused again — without this, one

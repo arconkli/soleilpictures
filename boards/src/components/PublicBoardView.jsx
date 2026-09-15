@@ -47,6 +47,7 @@ import { logEvent, logEventNow, logEventOnce, seedShareFirstSource, seedPublicBo
 import { getRelatedPublicBoards } from '../lib/publicBoardsApi.js';
 import { encodeRemixParam } from '../lib/remix.js';
 import { withShareReturn } from '../lib/shareReturn.js';
+import { PublicTopbar } from './PublicTopbar.jsx';
 import { supabase } from '../lib/supabase.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { qaShareNoPrefetch } from '../lib/localMode.js';
@@ -94,6 +95,10 @@ function viewerUrl(ctx, boardId, rootId) {
 // to the root of an empty workspace. The brand mark goes home on purpose, remix
 // needs the app to clone, and join lands inside the board on its own.
 const RETURN_SURFACES = new Set(['signin', 'topbar', 'prompt', 'article', 'empty_board']);
+
+// Where every bar/prompt CTA points, with the attribution baked in. Stays here
+// rather than moving with PublicTopbar: the utm shape and the share-return
+// stash belong to the page that owns the token, and the bar takes an hrefFor.
 function ctaHref(ctx, surface) {
   const src = ctx.slug ? 'public_board' : 'share_link';
   const campaign = encodeURIComponent(ctx.slug || ctx.token || '');
@@ -111,48 +116,6 @@ function remixHref(ctx) {
   const base = ctaHref(ctx, 'remix');
   const param = encodeRemixParam(ctx.slug ? { kind: 'slug', value: ctx.slug } : { kind: 'token', value: ctx.token });
   return param ? `${base}&remix=${encodeURIComponent(param)}` : base;
-}
-
-// Branded top bar — rendered in every viewer state (loading / invalid / ok)
-// so the wordmark and signup CTA are visible from the first paint.
-//
-// EXACTLY ONE green-field call to action. This used to carry three: "Make a
-// copy", "Try free" and "Sign in". To someone who has never heard of Clusters
-// the first two are the same offer worded twice, and the third is for people
-// who already have an account — three choices to answer one question. The
-// most-clicked element on the page was neither of the buttons but the brand
-// mark, which is what "I don't understand what this is yet" looks like in
-// event data. So: brand (what is this) · title (what am I looking at) ·
-// Sign in, quiet (not for you) · one gold action.
-//
-// "Make a copy" wins that slot whenever the board is remixable, because it
-// answers the visitor's actual question — how do I get one of these — and
-// hands them this board rather than an empty workspace.
-//
-// Signed in (the viewer arrived with a session, typically because AuthGate just
-// sent them back here): no Sign in link, and the copy CTA reads "Save a copy" —
-// the one-tap way to make this board theirs. No automatic cloning.
-function PublicTopbar({ ctx, center, busy, onCta, remixUrl, remixLabel = 'Make a copy', signedIn = false }) {
-  return (
-    <div className="public-topbar">
-      <a className="public-brand" href={ctaHref(ctx, 'badge')} title="Clusters home" onClick={onCta('badge')}>
-        <ClustersMark size={20} />
-        <span className="public-brand-name">Clusters</span>
-      </a>
-      {center}
-      <div className="public-topbar-actions">
-        {!signedIn && (
-          <a className="public-signin-quiet" href={ctaHref(ctx, 'signin')} onClick={onCta('signin')}>Sign in</a>
-        )}
-        {remixUrl
-          ? <a className="public-cta" href={remixUrl} onClick={onCta('remix')}>{signedIn ? 'Save a copy' : remixLabel}</a>
-          : (signedIn
-            ? <a className="public-cta" href="/">Open Clusters</a>
-            : <a className="public-cta" href={ctaHref(ctx, 'topbar')} onClick={onCta('topbar')}>Try Clusters free</a>)}
-      </div>
-      {busy && <div className="public-nav-progress" aria-hidden="true" />}
-    </div>
-  );
 }
 
 // Renders both /share/<token> (token mode) and /c/<slug> (admin-curated public
@@ -673,7 +636,7 @@ export function PublicBoardView({ token, slug }) {
   if (status === 'loading') {
     return (
       <div className="public-shell">
-        <PublicTopbar ctx={ctx} signedIn={signedIn} center={<div className="public-topbar-spacer" />} onCta={onCta} />
+        <PublicTopbar hrefFor={(sfc) => ctaHref(ctx, sfc)} signedIn={signedIn} center={<div className="public-topbar-spacer" />} onCta={onCta} />
         <div className="public-loading">
           <SoleilMark size={42} color="var(--soleil)" glow />
           <div>Loading board…</div>
@@ -684,7 +647,7 @@ export function PublicBoardView({ token, slug }) {
   if (status === 'invalid') {
     return (
       <div className="public-shell">
-        <PublicTopbar ctx={ctx} signedIn={signedIn} center={<div className="public-topbar-spacer" />} onCta={onCta} />
+        <PublicTopbar hrefFor={(sfc) => ctaHref(ctx, sfc)} signedIn={signedIn} center={<div className="public-topbar-spacer" />} onCta={onCta} />
         <div className="public-empty">
           <SoleilMark size={42} color="var(--soleil)" glow />
           <div className="public-empty-title">{slug ? 'This board isn’t available' : 'This link is no longer live'}</div>
@@ -718,7 +681,7 @@ export function PublicBoardView({ token, slug }) {
     <div className={`public-shell public-dark${pageModel ? ' public-shell-doc' : ''}`}
          style={{ background: board.bg_color || 'var(--bg-0)' }}>
       <PublicTopbar
-        ctx={ctx}
+        hrefFor={(sfc) => ctaHref(ctx, sfc)}
         signedIn={signedIn}
         busy={navBusy}
         onCta={onCta}

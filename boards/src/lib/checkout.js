@@ -15,6 +15,7 @@ import { EV } from './analyticsEvents.js';
 import { getFbCookies, trackInitiateCheckout } from './metaPixel.js';
 import { PRICING } from './billingCopy.js';
 import { checkoutErrorKind } from './checkoutErrors.js';
+import { isGalleryActive } from './galleryState.js';
 
 const CHECKOUT_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-checkout-session';
 const PORTAL_URL   = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-portal-session';
@@ -36,6 +37,13 @@ async function authedToken() {
 // the caller's own tier row and Stripe's memory of the customer — so a client
 // that asks when it should not simply gets `trial_not_available` back.
 export async function startCheckout({ plan, surface, trial = false }) {
+  // The one previewable action with a real external consequence. Clicking
+  // "Try Creator" inside the admin Surface Gallery would otherwise create a
+  // live Stripe Checkout session against the admin's own customer record and
+  // — since the trial is one per account, swept by email — could spend the
+  // owner's single trial on a screenshot. Refuse, loudly enough that the
+  // caller's existing error path explains itself.
+  if (isGalleryActive()) throw new Error('gallery_preview');
   try {
     const token = await authedToken();
     logEventNow(EV.CHECKOUT_OPEN, { plan, surface, trial: Boolean(trial) });   // must-land: redirect follows
@@ -89,6 +97,7 @@ export async function adminAccountAction({ userId, action, reason } = {}) {
 
 // Open the Stripe Customer Portal for the signed-in user. Redirects on success.
 export async function startPortal({ surface } = {}) {
+  if (isGalleryActive()) throw new Error('gallery_preview');   // see startCheckout
   try {
     const token = await authedToken();
     logEventNow(EV.BILLING_PORTAL_OPEN, { surface });   // must-land: redirect follows

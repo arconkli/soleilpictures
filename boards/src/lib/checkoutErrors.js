@@ -39,6 +39,11 @@ const COPY = {
   // its own read). Creator itself is still for sale — say so, don't dead-end.
   trial_not_available: "The trial isn't available on this account, but Creator is — choose a plan above and it starts right away.",
 
+  // Not a failure at all: the admin Surface Gallery refused a real checkout
+  // from a preview. Says so plainly rather than borrowing the outage copy,
+  // because the button did exactly what it should have.
+  gallery_preview: 'Preview only — no checkout session was created. Open this surface outside the gallery to buy for real.',
+
   // Shouldn't reach a user (the client always sends a valid plan/JSON/method),
   // so keep them generic rather than exposing protocol detail.
   'POST only':    GENERIC,
@@ -58,8 +63,10 @@ const CONFIG = `Checkout isn't set up right on our side — that's ours to fix, 
 
 const NETWORK = "Couldn't reach the checkout server — check your connection and try again.";
 
-// checkoutErrorKind(err) -> 'auth' | 'already' | 'no_subscription' | 'config' | 'network' | 'generic'
+// checkoutErrorKind(err) -> 'auth' | 'already' | 'no_subscription' | 'trial'
+//                        | 'preview' | 'config' | 'network' | 'generic'
 //   The class of failure, for checkout_error analytics. Pure, no copy.
+//   'preview' is the gallery's refusal and never reaches a real buyer.
 export function checkoutErrorKind(err) {
   const raw = (err?.message ?? (typeof err === 'string' ? err : String(err ?? ''))).trim();
   if (!raw) return 'generic';
@@ -67,6 +74,7 @@ export function checkoutErrorKind(err) {
   if (raw === 'already_subscribed') return 'already';
   if (raw === 'no subscription found') return 'no_subscription';
   if (raw === 'trial_not_available') return 'trial';
+  if (raw === 'gallery_preview') return 'preview';
   if (CONFIG_RE.test(raw)) return 'config';
   if (/failed to fetch|networkerror|load failed/i.test(raw)) return 'network';
   return 'generic';
