@@ -64,4 +64,32 @@ test.describe('surface gallery fixtures', () => {
     }
     expect(errors, 'uncaught page errors').toEqual([]);
   });
+
+  test('the list paints, searches, and opens a preview', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.goto('/?local=1&reset=1&blank=1');
+    await page.waitForLoadState('domcontentloaded');
+
+    const r = await page.evaluate(async () => {
+      const { probeGalleryList } = await import('/src/local/galleryRenderProbe.js');
+      return probeGalleryList();
+    });
+
+    expect(r.all).toBeGreaterThanOrEqual(120);          // the whole inventory
+    expect(r.filtered).toBeGreaterThan(0);
+    expect(r.filtered).toBeLessThan(r.all);
+    // Searching the word that started this feature puts the trial offer first.
+    expect(r.firstLabel).toContain('trial offer');
+    expect(r.groupsShown).toBeGreaterThan(0);           // headings survive filtering
+    // An in-situ row is a recipe, not a button.
+    expect(r.insituDisabled).toBe(true);
+    expect(r.insituNote).toBeGreaterThan(40);
+    // Previewing swaps the list for the surface, with a bar naming it.
+    expect(r.listGoneWhilePreviewing).toBe(true);
+    expect(r.barName).toBe('First-value banner');
+    expect(r.stageText).toBeGreaterThan(0);
+    expect(r.backToList).toBe(true);
+    expect(errors, 'uncaught page errors').toEqual([]);
+  });
 });

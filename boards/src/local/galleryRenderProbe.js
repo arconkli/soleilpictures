@@ -14,6 +14,9 @@ import * as ReactDOM from 'react-dom/client';
 
 import { RENDERERS } from '../components/gallery/entries.jsx';
 import { GALLERY_ENTRIES } from '../lib/galleryIndex.js';
+import SurfaceGallery from '../components/gallery/SurfaceGallery.jsx';
+import { FeedbackProvider } from '../components/AppFeedback.jsx';
+import { armGallery, openGallery, closeGallery, previewSurface } from '../lib/galleryState.js';
 
 export async function probeGallery(mountable = []) {
   const out = { invoked: 0, toasts: 0, elements: 0, mounted: [], failures: [], missing: [] };
@@ -83,4 +86,61 @@ export async function probeGallery(mountable = []) {
     }
   }
   return out;
+}
+
+// The list UI itself — the one piece the fixture sweep above cannot reach,
+// because it is the thing doing the rendering rather than a thing rendered.
+// Mounts the real SurfaceGallery with the store armed, types into the real
+// search box, and opens a real preview.
+export async function probeGalleryList() {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const root = ReactDOM.createRoot(host);
+  const settle = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+
+  try {
+    armGallery(true);
+    openGallery();
+    root.render(React.createElement(FeedbackProvider, null, React.createElement(SurfaceGallery)));
+    for (let i = 0; i < 40 && !document.querySelector('.gal-panel'); i += 1) await settle();
+
+    const input = document.querySelector('.gal-input');
+    if (!input) throw new Error('the gallery list never painted');
+
+    const rows = () => document.querySelectorAll('.gal-row').length;
+    const all = rows();
+
+    // Type through the real onChange the way a person does.
+    const setValue = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    setValue.call(input, 'trial');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    for (let i = 0; i < 40 && rows() === all; i += 1) await settle();
+    const filtered = rows();
+    const firstLabel = document.querySelector('.gal-row-label')?.textContent || '';
+    const groupsShown = document.querySelectorAll('.gal-group-label').length;
+
+    // An 'insitu' row is a note, not a button — it must not be clickable.
+    setValue.call(input, 'empty board');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    for (let i = 0; i < 40 && !document.querySelector('.gal-row.is-insitu'); i += 1) await settle();
+    const insituDisabled = !!document.querySelector('.gal-row.is-insitu .gal-row-main[disabled]');
+    const insituNote = (document.querySelector('.gal-row-note')?.textContent || '').length;
+
+    // Open a preview and check the bar appears and can go back.
+    previewSurface('first-value-banner');
+    for (let i = 0; i < 40 && !document.querySelector('.gal-bar'); i += 1) await settle();
+    const barName = document.querySelector('.gal-bar-name')?.textContent || '';
+    const listGoneWhilePreviewing = !document.querySelector('.gal-panel');
+    const stageText = (document.querySelector('.gal-stage')?.textContent || '').trim().length;
+
+    previewSurface(null);
+    for (let i = 0; i < 40 && !document.querySelector('.gal-panel'); i += 1) await settle();
+    const backToList = !!document.querySelector('.gal-panel') && !document.querySelector('.gal-bar');
+
+    return { all, filtered, firstLabel, groupsShown, insituDisabled, insituNote,
+             barName, listGoneWhilePreviewing, stageText, backToList };
+  } finally {
+    try { closeGallery(); armGallery(false); root.unmount(); } catch (_) { /* nothing to undo */ }
+    host.remove();
+  }
 }
