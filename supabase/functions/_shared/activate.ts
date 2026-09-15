@@ -126,5 +126,20 @@ export async function activateUserFromSubscription(
     .neq("tier", "admin");
   if (tierUpdate.error) return { activated: false, reason: `tier flip failed: ${tierUpdate.error.message}` };
 
+  // The Creator trial is one per account, and the fact that it happened is
+  // stamped HERE — the first time a subscription for this user is seen in
+  // status 'trialing' — not when the checkout session was created. Bouncing
+  // at Stripe's card form must not burn the one offer; starting the trial
+  // must. `.is(null)` keeps the first timestamp; a failed stamp is logged and
+  // does not fail activation (create-checkout-session also asks Stripe whether
+  // the customer ever trialed, so a lost stamp is not a second trial).
+  if (status === "trialing") {
+    const stamp = await admin.from("profiles")
+      .update({ creator_trial_started_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .is("creator_trial_started_at", null);
+    if (stamp.error) console.warn("[activate] creator_trial_started_at stamp failed", stamp.error.message);
+  }
+
   return { activated: true, plan, currentPeriodEnd };
 }

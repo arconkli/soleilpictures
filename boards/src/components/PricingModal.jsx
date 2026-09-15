@@ -23,15 +23,24 @@ import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { FeatureList, PlanToggle, CreatorPriceRow } from './PricingBits.jsx';
-import { CTA, CREATOR_FEATURES, PRICING, COPY_REV, PRICE_FROM_LABEL, capHitSummary } from '../lib/billingCopy.js';
+import { CTA, CREATOR_FEATURES, PRICING, COPY_REV, PRICE_FROM_LABEL, capHitSummary, trialNote } from '../lib/billingCopy.js';
 import { useStorageUsage } from '../hooks/useStorageUsage.js';
 import { evaluateUpsell } from '../lib/upsellEligibility.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
+import { creatorTrialEligibility } from '../lib/creatorTrial.js';
 
 export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null }) {
   const { user } = useAuth();
-  const { tier, demoCardCount, effectiveCardLimit, grantActive } = useMyTier({ userId: user?.id });
+  const { tier, demoCardCount, effectiveCardLimit, grantActive, creatorTrialStartedAt } = useMyTier({ userId: user?.id });
+  // The Creator trial is offered HERE and only here: this modal mounts only
+  // in-product (chip, banner, wall, storage gate, Settings), never on the
+  // public pricing page, so an offer on it is an invitation to someone who has
+  // built something rather than a banner for anyone passing. The server
+  // re-decides on the same rule; this only chooses the button's words.
+  const trialOffer = creatorTrialEligibility({
+    tier, cards: demoCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,
+  }).eligible;
   // Only the wall gets personalized, so only the wall pays for the extra RPC.
   const storage = useStorageUsage({ enabled: header === 'cap-hit' });
   const capStats = header === 'cap-hit'
@@ -114,12 +123,12 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     // "Manage billing" must not inflate the scorecard's CTA rate.
     if (!alreadyPaid) up.outcome('cta', { plan });
     logEventNow(EV.PRICING_CREATOR_INTENT, {
-      plan, surface, already_paid: alreadyPaid, copy_rev: COPY_REV,
+      plan, surface, already_paid: alreadyPaid, copy_rev: COPY_REV, trial: trialOffer,
       header, via, exposure_n: up.envelope().exposure_n, ...up.timing(),
     });
     try {
       if (alreadyPaid) await startPortal({ surface });
-      else             await startCheckout({ plan, surface });
+      else             await startCheckout({ plan, surface, trial: trialOffer });
     } catch (err) {
       redirectingRef.current = false;
       up.noteError();
@@ -220,14 +229,17 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
 
           {error && <div className="auth-error t-meta">{error}</div>}
 
-          <button className="pricing-cta pricing-cta-primary" data-up-cta="creator" onClick={onCta} disabled={busy || grantBacked}>
+          <button className="pricing-cta pricing-cta-primary" data-up-cta="creator" data-trial={trialOffer ? '1' : undefined} onClick={onCta} disabled={busy || grantBacked}>
             {busy && <span className="cta-spinner" aria-hidden="true" />}
             {grantBacked
               ? 'Complimentary access — nothing to manage'
               : busy
                 ? (alreadyPaid ? CTA.manageBillingBusy : CTA.getCreatorBusy)
-                : (alreadyPaid ? CTA.manageBilling : CTA.getCreator)}
+                : (alreadyPaid ? CTA.manageBilling : (trialOffer ? CTA.tryCreator : CTA.getCreator))}
           </button>
+          {trialOffer && !alreadyPaid && (
+            <p className="upgrade-trial-note t-meta">{trialNote(plan)}</p>
+          )}
 
           {header === 'cap-hit' && <FeatureList features={CREATOR_FEATURES} className="pricing-features upgrade-features-after" />}
         </article>

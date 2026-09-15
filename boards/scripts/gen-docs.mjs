@@ -53,7 +53,7 @@ import { HINT_LIMITS } from '../src/lib/gridLayoutLibrary.js';
 import { SEO_LISTICLE_PAGES } from '../src/lib/seoListicles.js';
 
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
-import { PLAN_NAME, PRICING, CREATOR_FEATURES, CREATOR_STORAGE_LABEL } from '../src/lib/billingCopy.js';
+import { PLAN_NAME, PRICING, CREATOR_FEATURES, CREATOR_STORAGE_LABEL, CREATOR_TRIAL_DAYS } from '../src/lib/billingCopy.js';
 import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP } from '../src/lib/fileIngest.js';
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
 
@@ -112,6 +112,9 @@ export const FACTS = {
   priceAnnualPerMonth: PRICING.annual.perMonthLabel,
   annualSavings: PRICING.annual.savings,
   creatorStorage: CREATOR_STORAGE_LABEL,
+  // The Creator trial length. Sourced from billingCopy, which trialCore.test.mjs
+  // pins to the number the edge function puts on the Stripe session.
+  creatorTrialDays: String(CREATOR_TRIAL_DAYS),
   freeVideoCap: `${FREE_VIDEO_CAP / MB} MB`,
   freeAudioCap: `${FREE_AUDIO_CAP / MB} MB`,
   freePdfCap: `${FREE_PDF_CAP / MB} MB`,

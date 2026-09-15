@@ -1,4 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { routeAnalytics } from './helpers/share-fixture.js';
+
+const byName = (rows, name) => rows.filter((r) => r.event === name);
 import { DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
 
 // Pricing / upgrade / billing flow specs.
@@ -90,7 +93,9 @@ test('an already-paid user is routed to manage billing, not a second checkout', 
   await expect(creator).toContainText('already on Creator');
 });
 
-test('the in-app upgrade modal matches the pricing page copy', async ({ page }) => {
+test('the in-app upgrade modal matches the pricing page copy, and offers the trial to a real body of work', async ({ page }) => {
+  const rows = [];
+  await routeAnalytics(page, rows);
   await page.goto('/?local=1&reset=1&tier=demo&cards=60&limit=100');
 
   const chip = page.locator('.upgrade-chip');
@@ -104,8 +109,54 @@ test('the in-app upgrade modal matches the pricing page copy', async ({ page }) 
   await expect(modal.getByText('Any file type')).toBeVisible();
   await expect(modal.getByText('No size limits')).toBeVisible();
   await expect(modal.getByText('All Virtual + Social events')).toHaveCount(0);
-  await expect(modal.getByRole('button', { name: 'Get Creator' })).toBeVisible();
   await expect(modal.getByText(/high.?res/i)).toHaveCount(0);
+
+  // Sixty cards is a real body of work, so the in-product button is the trial
+  // — with the terms under it — and the request carries the flag for the
+  // server to re-decide.
+  const cta = modal.getByRole('button', { name: /Try Creator free for \d+ days/ });
+  await expect(cta).toBeVisible();
+  await expect(modal.getByRole('button', { name: 'Get Creator' })).toHaveCount(0);
+  await expect(modal.locator('.upgrade-trial-note')).toContainText(/Card required/);
+  await cta.click();
+  // The harness has no session, so startCheckout stops before any fetch; the
+  // must-land intent and the classified error are what prove the flag rode
+  // along (checkout.js sends the same `trial` in the request body).
+  await expect.poll(() => byName(rows, 'pricing_creator_intent').length, { timeout: 8000 }).toBeGreaterThan(0);
+  const intent = byName(rows, 'pricing_creator_intent')[0];
+  expect(intent.props.trial).toBe(true);
+  expect(intent.props.plan).toBe('monthly');
+  await expect.poll(() => byName(rows, 'checkout_error').length, { timeout: 8000 }).toBeGreaterThan(0);
+  const err = byName(rows, 'checkout_error')[0];
+  expect(err.props.trial).toBe(true);
+  expect(err.props.kind).toBe('auth');
+});
+
+test('an account that already had its trial is offered Creator, not a second trial', async ({ page }) => {
+  await page.goto('/?local=1&reset=1&tier=demo&cards=60&limit=100&trialed=1');
+  await page.locator('.upgrade-chip').click();
+  const modal = page.locator('.upgrade-modal');
+  await expect(modal).toBeVisible();
+  await expect(modal.getByRole('button', { name: 'Get Creator' })).toBeVisible();
+  await expect(modal.getByRole('button', { name: /Try Creator/ })).toHaveCount(0);
+  await expect(modal.locator('.upgrade-trial-note')).toHaveCount(0);
+});
+
+test('a first-day account with a handful of cards is not offered the trial', async ({ page }) => {
+  // The chip is suppressed at this depth; the first-value banner is the way in.
+  await page.goto('/?local=1&reset=1&tier=demo&cards=5&limit=50&onboarded=1&firstvalue=1');
+  await page.locator('.fv-banner').getByRole('button', { name: 'See Creator' }).click();
+  const modal = page.locator('.upgrade-modal');
+  await expect(modal).toBeVisible();
+  await expect(modal.getByRole('button', { name: 'Get Creator' })).toBeVisible();
+  await expect(modal.getByRole('button', { name: /Try Creator/ })).toHaveCount(0);
+});
+
+test('the signed-in /pricing route never offers the trial', async ({ page }) => {
+  await page.goto('/pricing?local=1&tier=demo&cards=60&limit=100');
+  const creator = page.locator('.pricing-card-creator');
+  await expect(creator.getByRole('button', { name: 'Get Creator' })).toBeVisible();
+  await expect(creator.getByRole('button', { name: /Try Creator/ })).toHaveCount(0);
 });
 
 test('checkout success without a session_id shows a recovery card (no dead-end)', async ({ page }) => {

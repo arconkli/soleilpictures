@@ -119,16 +119,33 @@ export const DEMO_FEATURES = [
   'Free collaboration — invite editors to any cluster',
 ];
 
+// The Creator trial. Fourteen days, card required, offered ONLY in-product to
+// accounts with a real body of work — see supabase/functions/_shared/trialCore.mjs
+// for the rule the server enforces and lib/creatorTrial.js for the client twin.
+// The number is a fact the docs inject ({{fact:creatorTrialDays}}) and the
+// edge function puts on the Stripe session; trialCore.test.mjs asserts all
+// three agree. Never type "14" anywhere else.
+export const CREATOR_TRIAL_DAYS = 14;
+
 // CTA labels — one place so "Get Creator" / "Manage billing" stay consistent.
 // `subscribeShort` is the compact contextual label used in tight spots (the
 // WaitlistConfirm skip row), composed with the live per-month price.
 export const CTA = {
   getCreator: `Get ${PLAN_NAME}`,
   getCreatorBusy: 'Opening checkout…',
+  tryCreator: `Try ${PLAN_NAME} free for ${CREATOR_TRIAL_DAYS} days`,
   manageBilling: 'Manage billing →',
   manageBillingBusy: 'Opening…',
   subscribeShort: (plan) => `Subscribe — $${planPerMonth(plan)}/mo`,
 };
+
+// The one line under the trial button: what happens to the card, and when.
+// Honest about the card (it is required — that is the model that protects the
+// brand from tire-kickers and the one that converts) and about the charge.
+export function trialNote(plan) {
+  const p = PRICING[plan] || PRICING.monthly;
+  return `Card required, nothing charged for ${CREATOR_TRIAL_DAYS} days. Then ${p.billedLabel} — cancel before the trial ends and you pay nothing.`;
+}
 
 // Compact byte label for the cap-hit summary ("233 MB", "1.4 GB"). Local to
 // billingCopy so this module stays pure and node-testable; SettingsPanel's
@@ -174,11 +191,14 @@ export function capHitSummary({ cards, clusters, storageBytes } = {}) {
 // every grandfathered account — which is every account that existed before the
 // change — that its limit is the new-account one. It also silently under-reported
 // referral bonuses before that.
-export function planLabel({ tier, plan, demoCardCount, grantBacked, cardLimit } = {}) {
+export function planLabel({ tier, plan, demoCardCount, grantBacked, cardLimit, subscriptionStatus } = {}) {
   if (tier === 'admin') return 'Admin · Unlimited';
   if (tier === 'paid') {
     // Comped via an admin grant (no paying Stripe sub) — say so honestly.
     if (grantBacked) return `${PLAN_NAME} · Complimentary`;
+    // On the trial: paid access, nothing charged yet. The renew/ends date the
+    // Billing tab prints beside this is the trial end.
+    if (subscriptionStatus === 'trialing') return `${PLAN_NAME} · Trial`;
     return plan === 'annual'
       ? `${PLAN_NAME} · Annual (${ANNUAL_PRICE})`
       : `${PLAN_NAME} · Monthly (${MONTHLY_PRICE})`;

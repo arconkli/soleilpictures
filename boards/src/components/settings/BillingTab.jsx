@@ -138,7 +138,7 @@ export function BillingSummary({
   // Paid access via an admin grant (no paying Stripe sub) — there's no portal to
   // manage, so we show the complimentary note instead of Stripe status/renewal.
   const grantBacked = tier === 'paid' && grantActive && !['active', 'trialing'].includes(status || '');
-  const plan = planLabel({ tier, plan: sub?.plan, demoCardCount, grantBacked, cardLimit: effectiveCardLimit });
+  const plan = planLabel({ tier, plan: sub?.plan, demoCardCount, grantBacked, cardLimit: effectiveCardLimit, subscriptionStatus: status });
   // Prefer the fresh RPC value; fall back to the subscriptions-row query.
   const cancelPending = cancelAtPeriodEnd ?? !!sub?.cancel_at_period_end;
   const period = formatPeriodEnd(currentPeriodEnd || sub?.current_period_end, {

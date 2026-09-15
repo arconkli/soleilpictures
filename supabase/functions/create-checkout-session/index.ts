@@ -1,9 +1,16 @@
-// create-checkout-session — POST { plan: 'monthly'|'annual' }
+// create-checkout-session — POST { plan: 'monthly'|'annual', trial?: boolean }
 //
 // Requires Bearer auth (the user OTP-verified at signup). Returns a
 // Stripe-hosted Checkout URL for the requested plan, billed in
 // subscription mode. The Stripe customer is auto-created on first
 // checkout if one doesn't exist yet for this email.
+//
+// `trial: true` asks for the Creator trial (_shared/trialCore.mjs): the
+// caller's OWN tier row (get_my_tier, as the caller) and Stripe's memory of the
+// customer both have to agree they are eligible, or the request is refused
+// with `trial_not_available` — the client's offer is a suggestion, this is the
+// decision. A trial session collects a card up front and charges nothing until
+// the trial ends.
 //
 // Success URL → APP_URL/pricing/success?session_id={CHECKOUT_SESSION_ID}
 // Cancel URL  → APP_URL/pricing
@@ -13,6 +20,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@17";
 import { clientIpFromHeaders, emitCapi } from "../_shared/meta-capi.ts";
 import { decideCheckoutRoute, filterLiveSubscriptions, pickReusableCustomer, promoCodesAllowedForPlan } from "../_shared/activateCore.mjs";
+import { CREATOR_TRIAL_DAYS, creatorTrialEligibility, customerHasTrialed } from "../_shared/trialCore.mjs";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -60,9 +68,11 @@ Deno.serve(async (req) => {
 
     let plan: string;
     let fbp = "", fbc = "", icEventId = "";
+    let trial = false;
     try {
       const body = await req.json();
       plan = body.plan;
+      trial = body.trial === true;
       // Meta match params captured client-side so the webhook/verify Purchase
       // (fired later from Stripe's request, where we DON'T have the user's IP/UA)
       // can attribute the conversion to the right Meta user.
@@ -126,9 +136,11 @@ Deno.serve(async (req) => {
     // any live-ish subscription on the (ownership-verified) customer routes to
     // the Customer Portal instead of a second checkout.
     let liveSubCount = 0;
+    let everTrialed = false;
     if (customerId) {
       const subs = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 10 });
       liveSubCount = filterLiveSubscriptions(subs.data).length;
+      everTrialed = customerHasTrialed(subs.data);
     }
     const route = decideCheckoutRoute({
       liveSubCount,
@@ -143,6 +155,29 @@ Deno.serve(async (req) => {
         return_url: `${APP_URL}/?settings=billing`,
       });
       return json({ ok: true, mode: "portal", url: portal.url }, 200);
+    }
+
+    // The trial decision, server-side. The caller's own tier row (as the
+    // caller, so RLS and auth.uid() apply) says whether they have a real body
+    // of work and whether a trial has ever started for this account; Stripe
+    // says whether this customer has ever held a trialing subscription. Either
+    // "no" is final. A refusal is 403 with a stable code the client maps to
+    // honest copy — Creator itself is still for sale on the same screen.
+    if (trial) {
+      const t = await userClient.rpc("get_my_tier");
+      const row = Array.isArray(t.data) ? t.data[0] : t.data;
+      const elig = creatorTrialEligibility({
+        tier: row?.tier ?? null,
+        cards: row?.demo_card_count,
+        cardLimit: row?.effective_card_limit,
+        trialStartedAt: row?.creator_trial_started_at ?? null,
+      });
+      if (t.error || !elig.eligible || everTrialed) {
+        return json({
+          error: "trial_not_available",
+          reason: t.error ? "tier_unreadable" : everTrialed ? "already_trialed" : elig.reason,
+        }, 403);
+      }
     }
 
     if (!customerId) {
@@ -180,8 +215,11 @@ Deno.serve(async (req) => {
       expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
       // Don't force a card on free checkouts: when a 100%-off promo makes the
       // subscription $0 (now and on renewal), Stripe collects no payment method.
-      // Paid checkouts still collect a card because an amount is due.
-      payment_method_collection: "if_required",
+      // Paid checkouts still collect a card because an amount is due. A TRIAL
+      // is the one case where nothing is due today and a card is still
+      // required — card-required is the trial model that converts and the one
+      // that keeps a premium offer from being a free fortnight for anybody.
+      payment_method_collection: trial ? "always" : "if_required",
       client_reference_id: userId,
       // Match params ride along in session metadata; stripe-webhook +
       // verify-checkout-session read them back into the CAPI Purchase. Omit
@@ -189,13 +227,23 @@ Deno.serve(async (req) => {
       metadata: {
         supabase_user_id: userId,
         plan,
+        ...(trial    ? { trial: "1" }           : {}),
         ...(fbp      ? { fbp }                  : {}),
         ...(fbc      ? { fbc }                  : {}),
         ...(clientIp ? { client_ip: clientIp }  : {}),
         ...(clientUa ? { client_ua: clientUa }  : {}),
       },
       subscription_data: {
-        metadata: { supabase_user_id: userId, plan },
+        metadata: { supabase_user_id: userId, plan, ...(trial ? { trial: "1" } : {}) },
+        ...(trial
+          ? {
+              trial_period_days: CREATOR_TRIAL_DAYS,
+              // Belt and braces: a card is collected above, but if Stripe ever
+              // ends a trial with no payment method on file the subscription
+              // must cancel, never limp into past_due with paid tier intact.
+              trial_settings: { end_behavior: { missing_payment_method: "cancel" } },
+            }
+          : {}),
       },
     });
 

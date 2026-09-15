@@ -62,6 +62,14 @@ already made is removed, locked, or hidden.
 You can also raise your own cap without paying: [referrals](/docs/account/referrals)
 grant bonus cards when someone you invited actually gets started.
 
+## Trying Creator first
+
+Once there is a real cluster on your account, the upgrade screen inside the app
+offers **14 days of Creator** before you pay.
+A card is required; nothing is charged until the trial ends, and cancelling
+before then costs nothing. It is one trial per account, and it is offered in
+the app rather than on this page — it is for people who have built something.
+
 ## Billing
 
 **Settings → Plan & billing** shows your plan, the storage meter, and a link to the
@@ -81,7 +89,8 @@ against paying monthly, so its checkout does not offer a code field.
 
 The Demo plan is not a trial. It does not expire and it does not degrade. If
 50 cards is enough for what you do, that is a complete
-account.
+account. The Creator trial above is separate: it is a taste of the
+paid plan, and when it ends you are back on exactly this one.
 
 ---
 

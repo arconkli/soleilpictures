@@ -35,6 +35,10 @@ const COPY = {
   // Portal-specific: no Stripe customer exists to manage.
   'no subscription found': "There's no Stripe subscription on this account to manage. If you have complimentary access, there's no billing to change.",
 
+  // The server declined the trial (already had one, or not yet eligible by
+  // its own read). Creator itself is still for sale — say so, don't dead-end.
+  trial_not_available: "The trial isn't available on this account, but Creator is — choose a plan above and it starts right away.",
+
   // Shouldn't reach a user (the client always sends a valid plan/JSON/method),
   // so keep them generic rather than exposing protocol detail.
   'POST only':    GENERIC,
@@ -62,6 +66,7 @@ export function checkoutErrorKind(err) {
   if (raw === 'Not signed in.' || raw === 'auth required' || raw === 'invalid token') return 'auth';
   if (raw === 'already_subscribed') return 'already';
   if (raw === 'no subscription found') return 'no_subscription';
+  if (raw === 'trial_not_available') return 'trial';
   if (CONFIG_RE.test(raw)) return 'config';
   if (/failed to fetch|networkerror|load failed/i.test(raw)) return 'network';
   return 'generic';

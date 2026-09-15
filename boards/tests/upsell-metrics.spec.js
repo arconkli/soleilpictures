@@ -121,7 +121,8 @@ test('CTA click: enriched must-land intent fires, and the summary keeps outcome 
 
   // No real session → startCheckout throws before any fetch; the intent beacon
   // has already fired and the modal shows the inline error.
-  await modal.getByRole('button', { name: 'Get Creator' }).click();
+  // At this depth the in-product button is the trial offer; either label is the CTA.
+  await modal.getByRole('button', { name: /Get Creator|Try Creator/ }).click();
   await expect(modal.locator('.auth-error')).toBeVisible();
 
   await expect.poll(() => byName(rows, 'pricing_creator_intent').length, { timeout: 8000 }).toBeGreaterThan(0);
