@@ -179,6 +179,13 @@ export function TodayView() {
   // sparkline uses, so the badge and the line can never disagree.
   const mrrCents = num(f.stats?.mrr_cents);
   const payingUsers = num(f.stats?.tier_counts?.paid) || 0;
+  // The free tier, from the same admin_stats the shell already fetched. A bare
+  // count of demo accounts would be a vanity number — it only rises — so the
+  // tile leads with the population and qualifies it with how much of that
+  // population is actually near the moment the free tier converts.
+  const demoUsers = num(f.stats?.demo_users) ?? 0;
+  const demosNearCap = num(f.stats?.demos_near_cap) ?? 0;
+  const demosTrialEligible = num(f.stats?.demos_trial_eligible) ?? 0;
   const arpu = mrrCents != null && payingUsers > 0 ? mrrCents / payingUsers : null;
   const mrrPrev = (() => {
     const h = d?.history || [];
@@ -265,6 +272,23 @@ export function TodayView() {
               : null}
             sparkColor={VAR.cat[1]}
             title="Counts days containing a work event, not days the app was merely open — user_active_day over-counts presence by roughly 2x."
+          />
+          <Metric
+            hero
+            label="Demos"
+            value={formatCount(demoUsers)}
+            sub={demosNearCap > 0
+              ? `${formatCount(demosNearCap)} at or near the cap`
+              : 'nobody near the cap'}
+            muted={demosNearCap === 0}
+            total={demosTrialEligible > 0
+              ? { value: formatCount(demosTrialEligible), label: 'trial-eligible' } : null}
+            ratio={demoUsers > 0
+              ? { pct: demosNearCap / demoUsers,
+                  title: `${formatCount(demosNearCap)} of ${formatCount(demoUsers)} free accounts are holding at least 80% of their own cap` }
+              : null}
+            sparkColor={VAR.cat[0]}
+            title="Free accounts, and the pressure behind the paywall. Near-cap counts anyone holding at least 80% of THEIR cap, which is per-user (50 for new accounts, 100 grandfathered, plus referral credits), so a fixed card number would mean something different for each cohort. Card counts use the enforcer's own weighted, workspace-owner-keyed sum, not the profile counter, which drifts high."
           />
           <Metric
             hero
