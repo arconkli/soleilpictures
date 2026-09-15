@@ -89,6 +89,36 @@ export function createUpsellExposure({
   let exposureN = null;
   let curTier = tier;
   let curUserState = userState || {};
+  // The trial offer as it stood when this exposure BEGAN, latched on the first
+  // observation where tier had resolved. It cannot be read off curUserState at
+  // summary time: useUpsellExposure re-runs update() on every render with no
+  // dependency array, so curUserState is always the latest value, and a focus
+  // -driven refetch can flip the CTA mid-exposure while the summary fires once.
+  // What we need to know is which button the person was actually looking at
+  // when they decided, so it is latched, and a flip is recorded as its own fact
+  // rather than silently overwriting the answer.
+  let trialAtView = null;
+  let trialReasonAtView = null;
+  let serverCardsAtView = null;
+  let trialFlipped = false;
+
+  // Latch on the first observation that carries a RESOLVED trial decision.
+  // Before useMyTier settles, creatorTrialEligibility returns
+  // {eligible:false, reason:'not_demo'} — recording that would write a
+  // systematically false trial:false on every fast exposure. Called from the
+  // constructor as well as update(), because an exposure built with a userState
+  // that already has the decision must latch it without waiting for a render.
+  function noteTrial(st) {
+    if (!st || typeof st.trial !== 'boolean') return;
+    if (trialAtView === null) {
+      trialAtView = st.trial;
+      trialReasonAtView = st.trialReason ?? null;
+      serverCardsAtView = Number.isFinite(st.serverCards) ? st.serverCards : null;
+    } else if (st.trial !== trialAtView) {
+      trialFlipped = true;
+    }
+  }
+  noteTrial(curUserState);
 
   let ttfi = null;            // ms to first pointer/key interaction
   let outcome = null;         // {kind, method} — first wins
@@ -138,6 +168,17 @@ export function createUpsellExposure({
       elig: typeof st.elig === 'boolean' ? st.elig : null,
       elig_reason: st.eligReason ?? null,
       pressure: st.pressure ?? null,
+      // Was the CREATOR TRIAL on the button, and why. Without this, an exposure
+      // that ended in a dismiss is byte-identical whether the CTA read "Try
+      // Creator free for 14 days" or "Get Creator", and the trial has no
+      // exposure denominator at all. It cannot be reconstructed from
+      // demo_cards either: the offer is decided on the SERVER count and
+      // demo_cards is the optimistic one, which diverges for the whole span
+      // between fetches and runs backwards on delete — hence server_cards.
+      trial: trialAtView,
+      trial_reason: trialReasonAtView,
+      server_cards: serverCardsAtView,
+      trial_flipped: trialFlipped || null,
     };
   }
 
@@ -174,6 +215,7 @@ export function createUpsellExposure({
     update({ tier: t, userState: st } = {}) {
       if (t != null) curTier = t;
       if (st) curUserState = st;
+      noteTrial(st);
     },
 
     envelope,

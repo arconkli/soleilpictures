@@ -58,9 +58,10 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   // exact boundary: a card placed two seconds ago is in useMyTier's delta and
   // not yet in the server's count, so using the optimistic number offers a
   // trial that is then refused.
-  const trialOffer = !trialRefused && creatorTrialEligibility({
+  const trialDecision = creatorTrialEligibility({
     tier, cards: serverCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,
-  }).eligible;
+  });
+  const trialOffer = !trialRefused && trialDecision.eligible;
   // Only the wall gets personalized, so only the wall pays for the extra RPC.
   const storage = useStorageUsage({ enabled: header === 'cap-hit' });
   const capStats = header === 'cap-hit'
@@ -96,6 +97,11 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
       ? {
           demoCardCount, cardLimit: effectiveCardLimit, signupAt: user?.created_at,
           elig: elig.eligible, eligReason: elig.reason, pressure: elig.pressure,
+          // The trial half of the exposure. `trial` is what the button actually
+          // said; serverCards is the count it was decided on, which is NOT
+          // demoCardCount — see the comment on trialOffer above.
+          trial: trialOffer, trialReason: trialDecision.reason,
+          serverCards: Number.isFinite(serverCardCount) ? serverCardCount : null,
         }
       : { signupAt: user?.created_at },
     getRootEl: () => modalRef.current,
@@ -152,7 +158,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     });
     try {
       if (alreadyPaid) await startPortal({ surface });
-      else             await startCheckout({ plan, surface, trial: trialOffer });
+      else             await startCheckout({ plan, surface, header, via, trial: trialOffer });
     } catch (err) {
       redirectingRef.current = false;
       up.noteError();

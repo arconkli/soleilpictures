@@ -36,7 +36,7 @@ async function authedToken() {
 // `trial: true` asks for the Creator trial. The server decides — it re-checks
 // the caller's own tier row and Stripe's memory of the customer — so a client
 // that asks when it should not simply gets `trial_not_available` back.
-export async function startCheckout({ plan, surface, trial = false }) {
+export async function startCheckout({ plan, surface, header = null, via = null, trial = false }) {
   // The one previewable action with a real external consequence. Clicking
   // "Try Creator" inside the admin Surface Gallery would otherwise create a
   // live Stripe Checkout session against the admin's own customer record and
@@ -46,7 +46,7 @@ export async function startCheckout({ plan, surface, trial = false }) {
   if (isGalleryActive()) throw new Error('gallery_preview');
   try {
     const token = await authedToken();
-    logEventNow(EV.CHECKOUT_OPEN, { plan, surface, trial: Boolean(trial) });   // must-land: redirect follows
+    logEventNow(EV.CHECKOUT_OPEN, { plan, surface, header, via, trial: Boolean(trial) });   // must-land: redirect follows
     // Thread Meta match cookies through to create-checkout-session, which stashes
     // them in the Stripe session metadata for the server-side Purchase (CAPI).
     const { fbp, fbc } = getFbCookies();
@@ -62,10 +62,20 @@ export async function startCheckout({ plan, surface, trial = false }) {
     const res = await fetch(CHECKOUT_URL, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ plan, fbp, fbc, ic_event_id: icEventId, trial: Boolean(trial) }),
+      body: JSON.stringify({ plan, fbp, fbc, ic_event_id: icEventId, trial: Boolean(trial), surface, header, via }),
     });
     const body = await res.json().catch(() => ({}));
-    if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);
+    if (!res.ok || !body.url) {
+      // Carry the server's REASON, not just its error code. A trial refusal is
+      // either `already_trialed` (the anti-abuse sweep working as designed) or
+      // `too_early`/`cards_unknown` (our cached count was stale and we offered
+      // something we should not have) — opposite problems that were previously
+      // byte-identical in telemetry. This is the drift detector the twin-file
+      // trialCore design exists to provide, disabled by one missing read.
+      const err = new Error(body.error || `HTTP ${res.status}`);
+      if (body.reason) err.reason = body.reason;
+      throw err;
+    }
     if (body.mode === 'portal') logEventNow(EV.BILLING_PORTAL_OPEN, { surface, via: 'checkout_guard' });
     window.location.assign(body.url);
   } catch (e) {
@@ -74,7 +84,7 @@ export async function startCheckout({ plan, surface, trial = false }) {
     // `kind` separates a misconfigured price/URL (ours, permanent, needs a
     // human) from an outage or a dead session, which the raw message alone
     // did not: every unmapped failure rendered as "try again in a moment".
-    logEvent(EV.CHECKOUT_ERROR, { plan, surface, trial: Boolean(trial), kind: checkoutErrorKind(e), message: (e?.message || String(e)).slice(0, 200) });
+    logEvent(EV.CHECKOUT_ERROR, { plan, surface, header, via, trial: Boolean(trial), kind: checkoutErrorKind(e), reason: e?.reason ?? null, message: (e?.message || String(e)).slice(0, 200) });
     throw e;
   }
 }
