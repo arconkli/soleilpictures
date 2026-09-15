@@ -18,6 +18,8 @@ faq:
     a: Accounts created before the free plan changed keep the {{fact:legacyDemoCardLimit}}-card allowance they signed up under, permanently. Nobody's cap was lowered.
   - q: Where do I enter a discount code?
     a: On the payment page, under Add promotion code. Codes apply to the monthly plan only and come off your first month.
+  - q: Is there a free trial of {{fact:planName}}?
+    a: Yes, once you have built something. Accounts with a real cluster on them are offered {{fact:creatorTrialDays}} days of {{fact:planName}} from the upgrade screen inside the app. A card is required and nothing is charged until the trial ends; cancel before then and you pay nothing. One trial per account.
 related:
   - /docs/canvas/cards
   - /docs/files
@@ -82,6 +84,14 @@ already made is removed, locked, or hidden.
 You can also raise your own cap without paying: [referrals](/docs/account/referrals)
 grant bonus cards when someone you invited actually gets started.
 
+## Trying {{fact:planName}} first
+
+Once there is a real cluster on your account, the upgrade screen inside the app
+offers **{{fact:creatorTrialDays}} days of {{fact:planName}}** before you pay.
+A card is required; nothing is charged until the trial ends, and cancelling
+before then costs nothing. It is one trial per account, and it is offered in
+the app rather than on this page — it is for people who have built something.
+
 ## Billing
 
 **Settings → Plan & billing** shows your plan, the storage meter, and a link to the
@@ -101,7 +111,8 @@ against paying monthly, so its checkout does not offer a code field.
 
 The Demo plan is not a trial. It does not expire and it does not degrade. If
 {{fact:demoCardLimit}} cards is enough for what you do, that is a complete
-account.
+account. The {{fact:planName}} trial above is separate: it is a taste of the
+paid plan, and when it ends you are back on exactly this one.
 
 ---
 

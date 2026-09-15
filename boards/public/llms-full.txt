@@ -3195,6 +3195,10 @@ You are told when you reach it, and offered the upgrade. Nothing you have alread
 
 You can also raise your own cap without paying: referrals grant bonus cards when someone you invited actually gets started.
 
+Trying Creator first
+
+Once there is a real cluster on your account, the upgrade screen inside the app offers 14 days of Creator before you pay. A card is required; nothing is charged until the trial ends, and cancelling before then costs nothing. It is one trial per account, and it is offered in the app rather than on this page — it is for people who have built something.
+
 Billing
 
 Settings → Plan & billing shows your plan, the storage meter, and a link to the Stripe customer portal for payment details, invoices and cancellation.
@@ -3209,7 +3213,7 @@ Codes apply to the monthly plan only. The annual plan is already discounted agai
 
 Free forever
 
-The Demo plan is not a trial. It does not expire and it does not degrade. If 50 cards is enough for what you do, that is a complete account.
+The Demo plan is not a trial. It does not expire and it does not degrade. If 50 cards is enough for what you do, that is a complete account. The Creator trial above is separate: it is a taste of the paid plan, and when it ends you are back on exactly this one.
 
 More on the free tier specifically: free mood board maker.
 
@@ -3229,6 +3233,9 @@ A: Accounts created before the free plan changed keep the 100-card allowance the
 
 Q: Where do I enter a discount code?
 A: On the payment page, under Add promotion code. Codes apply to the monthly plan only and come off your first month.
+
+Q: Is there a free trial of Creator?
+A: Yes, once you have built something. Accounts with a real cluster on them are offered 14 days of Creator from the upgrade screen inside the app. A card is required and nothing is charged until the trial ends; cancel before then and you pay nothing. One trial per account.
 
 
 ========================================================================

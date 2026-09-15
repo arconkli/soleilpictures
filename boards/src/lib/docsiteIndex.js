@@ -2524,6 +2524,10 @@ export const DOCS_PAGES = [
         "text": "Hitting the cap"
       },
       {
+        "id": "trying-creator-first",
+        "text": "Trying Creator first"
+      },
+      {
         "id": "billing",
         "text": "Billing"
       },
@@ -2561,6 +2565,10 @@ export const DOCS_PAGES = [
       {
         "q": "Where do I enter a discount code?",
         "a": "On the payment page, under Add promotion code. Codes apply to the monthly plan only and come off your first month."
+      },
+      {
+        "q": "Is there a free trial of Creator?",
+        "a": "Yes, once you have built something. Accounts with a real cluster on them are offered 14 days of Creator from the upgrade screen inside the app. A card is required and nothing is charged until the trial ends; cancel before then and you pay nothing. One trial per account."
       }
     ]
   },

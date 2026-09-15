@@ -264,6 +264,8 @@ export function qaTierOverride() {
     subscriptionStatus: q.get('substatus') || (tier === 'paid' ? 'active' : null),
     currentPeriodEnd:   q.get('periodend') || null,
     cancelAtPeriodEnd:  q.get('cancel') === '1',
+    // &trialed=1 exercises the "already had the trial" branch of the offer.
+    creatorTrialStartedAt: q.get('trialed') === '1' ? '2026-01-01T00:00:00.000Z' : null,
     // ?adoffer=1 marks the one-time ad-offer flag (AdWelcome itself is gone —
     // instant_entry arm B skips the gate — so this now only exercises the
     // arm-B dismiss/skip effect in TierRouter).

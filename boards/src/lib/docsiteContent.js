@@ -25614,6 +25614,41 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Trying Creator first",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Trying Creator first"
+    }
+   ],
+   "id": "trying-creator-first"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Once there is a real cluster on your account, the upgrade screen inside the app offers "
+    },
+    {
+     "t": "strong",
+     "v": "14 days of Creator",
+     "children": [
+      {
+       "t": "text",
+       "v": "14 days of Creator"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " before you pay. A card is required; nothing is charged until the trial ends, and cancelling before then costs nothing. It is one trial per account, and it is offered in the app rather than on this page — it is for people who have built something."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Billing",
    "inline": [
     {
@@ -25726,7 +25761,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The Demo plan is not a trial. It does not expire and it does not degrade. If 50 cards is enough for what you do, that is a complete account."
+     "v": "The Demo plan is not a trial. It does not expire and it does not degrade. If 50 cards is enough for what you do, that is a complete account. The Creator trial above is separate: it is a taste of the paid plan, and when it ends you are back on exactly this one."
     }
    ]
   },

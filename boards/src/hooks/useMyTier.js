@@ -59,6 +59,9 @@ const EMPTY = Object.freeze({
   // the new-account number.
   bonusCardCredits: 0,
   effectiveCardLimit: DEMO_CARD_LIMIT,
+  // When this account's Creator trial actually started (0325), or null. Read
+  // by the trial offer: non-null means it is not offered again.
+  creatorTrialStartedAt: null,
 });
 
 const _store = {
@@ -121,6 +124,7 @@ async function _fetchTier() {
         onboarding:         row?.onboarding || {},
         bonusCardCredits:   Number(row?.bonus_card_credits ?? 0),
         effectiveCardLimit: Number(row?.effective_card_limit ?? DEMO_CARD_LIMIT),
+        creatorTrialStartedAt: row?.creator_trial_started_at || null,
       };
       _store.placedDelta -= settled;
       _store.error = null;

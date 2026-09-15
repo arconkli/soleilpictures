@@ -6043,6 +6043,9 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   transition: color var(--dur-fast) var(--ease);
 }
 .upgrade-later:hover { color: var(--ink-0); }
+/* The trial terms under the button: quiet, one line, no accent. The button
+   already says "free"; this says what happens to the card, and when. */
+.upgrade-trial-note { margin: 8px 0 0; color: var(--ink-2); text-align: center; line-height: 1.45; }
 
 /* Narrow phones: the Creator card's name + plan toggle compete for one row and
    the modal padding eats the content width. Let the head wrap and the toggle

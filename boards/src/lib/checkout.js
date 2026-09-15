@@ -31,10 +31,14 @@ async function authedToken() {
 // browser to the returned URL (Checkout, or the Customer Portal if the server
 // detected an existing subscription). Throws on failure so callers can show
 // an inline error and re-enable their button.
-export async function startCheckout({ plan, surface }) {
+//
+// `trial: true` asks for the Creator trial. The server decides — it re-checks
+// the caller's own tier row and Stripe's memory of the customer — so a client
+// that asks when it should not simply gets `trial_not_available` back.
+export async function startCheckout({ plan, surface, trial = false }) {
   try {
     const token = await authedToken();
-    logEventNow(EV.CHECKOUT_OPEN, { plan, surface });   // must-land: redirect follows
+    logEventNow(EV.CHECKOUT_OPEN, { plan, surface, trial: Boolean(trial) });   // must-land: redirect follows
     // Thread Meta match cookies through to create-checkout-session, which stashes
     // them in the Stripe session metadata for the server-side Purchase (CAPI).
     const { fbp, fbc } = getFbCookies();
@@ -50,7 +54,7 @@ export async function startCheckout({ plan, surface }) {
     const res = await fetch(CHECKOUT_URL, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ plan, fbp, fbc, ic_event_id: icEventId }),
+      body: JSON.stringify({ plan, fbp, fbc, ic_event_id: icEventId, trial: Boolean(trial) }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);
@@ -62,7 +66,7 @@ export async function startCheckout({ plan, surface }) {
     // `kind` separates a misconfigured price/URL (ours, permanent, needs a
     // human) from an outage or a dead session, which the raw message alone
     // did not: every unmapped failure rendered as "try again in a moment".
-    logEvent(EV.CHECKOUT_ERROR, { plan, surface, kind: checkoutErrorKind(e), message: (e?.message || String(e)).slice(0, 200) });
+    logEvent(EV.CHECKOUT_ERROR, { plan, surface, trial: Boolean(trial), kind: checkoutErrorKind(e), message: (e?.message || String(e)).slice(0, 200) });
     throw e;
   }
 }
