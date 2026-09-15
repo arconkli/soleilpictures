@@ -15,7 +15,7 @@ import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { PricingModal } from './PricingModal.jsx';
 import { FirstValueUpgradeBanner } from './FirstValueUpgradeBanner.jsx';
-import { getOwnProfile, updateOwnSettings } from '../lib/boardsApi.js';
+import { stampUpgradePrompt, readUpgradePrompts } from '../lib/upgradePrompts.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { qaForceFirstValue, qaForceCapWall, qaForceImportAsk } from '../lib/localMode.js';
@@ -45,24 +45,18 @@ export function UpgradeChip() {
   // Once-per-account flag (settings.upgrade_prompts.first_value_shown_at):
   // undefined while loading, null = never shown, string = shown a prior session.
   const fvShownAtRef = useRef(undefined);
-  // The whole upgrade_prompts object as last read, so a later stamp can spread
-  // it: merge_profile_settings merges at the top level, and writing
-  // { upgrade_prompts: { price_seen_at } } alone would erase the first-value
-  // once-flag and re-arm the banner for everyone who had seen it.
-  const promptsRef = useRef({});
   const firedRef = useRef(false);
   const chipRef = useRef(null);
 
   // Read the once-flag for demo users (no migration: profiles.settings is jsonb).
+  // Writes never reuse what this read returned: stampUpgradePrompt re-reads and
+  // serialises, because a locally-held copy is `{}` until this resolves and the
+  // chip's own impression effect can fire in the same commit that starts it.
   useEffect(() => {
     if (tier !== 'demo') return;
     let cancelled = false;
-    getOwnProfile()
-      .then((p) => {
-        if (cancelled) return;
-        promptsRef.current = (p?.settings?.upgrade_prompts && typeof p.settings.upgrade_prompts === 'object') ? p.settings.upgrade_prompts : {};
-        fvShownAtRef.current = promptsRef.current.first_value_shown_at || null;
-      })
+    readUpgradePrompts()
+      .then((prompts) => { if (!cancelled) fvShownAtRef.current = prompts.first_value_shown_at || null; })
       .catch(() => { if (!cancelled) fvShownAtRef.current = null; });
     return () => { cancelled = true; };
   }, [tier]);
@@ -81,8 +75,7 @@ export function UpgradeChip() {
       surface, count: demoCardCount, limit: cardLimit, cap_pct: elig.capPct, acct_days: accountAgeDays,
       elig_rev: ELIGIBILITY_REV, copy_rev: COPY_REV,
     });
-    promptsRef.current = { ...promptsRef.current, price_seen_at: at, price_seen_surface: surface };
-    updateOwnSettings({ upgrade_prompts: promptsRef.current }).catch(() => {});
+    stampUpgradePrompt({ price_seen_at: at, price_seen_surface: surface });
   };
 
   // Show the banner on the first-value signal (or the dev/test force-flag), once.
@@ -146,10 +139,9 @@ export function UpgradeChip() {
       fvShownAtRef.current = at;
       setFvBanner(true);
       logEvent(EV.FIRST_VALUE_UPGRADE_VIEW, { copy_rev: COPY_REV, elig_reason: elig.reason, cap_pct: elig.capPct });
-      // Persist on show so it's truly once-per-account. Best-effort. Spread the
-      // object as read so this write cannot erase a sibling stamp.
-      promptsRef.current = { ...promptsRef.current, first_value_shown_at: at };
-      updateOwnSettings({ upgrade_prompts: promptsRef.current }).catch(() => {});
+      // Persist on show so it's truly once-per-account. Best-effort, and
+      // through the shared writer so it cannot erase a sibling stamp.
+      stampUpgradePrompt({ first_value_shown_at: at });
       // The banner carries the price now.
       notePriceSeen('first_value');
       // Local mirror of the same fact. App.jsx's activation effect reads this

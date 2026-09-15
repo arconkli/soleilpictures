@@ -19,7 +19,7 @@ import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { useUpsellExposure } from '../hooks/useUpsellExposure.js';
 import { startCheckout, startPortal } from '../lib/checkout.js';
-import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
+import { checkoutErrorMessage, checkoutErrorKind } from '../lib/checkoutErrors.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { FeatureList, PlanToggle, CreatorPriceRow } from './PricingBits.jsx';
@@ -28,18 +28,29 @@ import { useStorageUsage } from '../hooks/useStorageUsage.js';
 import { evaluateUpsell } from '../lib/upsellEligibility.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
+import { stampUpgradePrompt } from '../lib/upgradePrompts.js';
 import { creatorTrialEligibility } from '../lib/creatorTrial.js';
 
 export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null }) {
   const { user } = useAuth();
-  const { tier, demoCardCount, effectiveCardLimit, grantActive, creatorTrialStartedAt } = useMyTier({ userId: user?.id });
+  const { tier, demoCardCount, serverCardCount, effectiveCardLimit, grantActive, creatorTrialStartedAt } = useMyTier({ userId: user?.id });
+  // Set when the server declines a trial we offered. Creator itself is still
+  // for sale, so the button falls back to the plain purchase rather than
+  // re-sending a request that can only be refused again — without this, one
+  // 403 left the only in-product buy button permanently unable to buy.
+  const [trialRefused, setTrialRefused] = useState(false);
   // The Creator trial is offered HERE and only here: this modal mounts only
   // in-product (chip, banner, wall, storage gate, Settings), never on the
   // public pricing page, so an offer on it is an invitation to someone who has
-  // built something rather than a banner for anyone passing. The server
-  // re-decides on the same rule; this only chooses the button's words.
-  const trialOffer = creatorTrialEligibility({
-    tier, cards: demoCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,
+  // built something rather than a banner for anyone passing.
+  //
+  // Decided on the SERVER's card count, not the optimistic one. The server
+  // re-decides this exact rule against card_index, and the threshold is an
+  // exact boundary: a card placed two seconds ago is in useMyTier's delta and
+  // not yet in the server's count, so using the optimistic number offers a
+  // trial that is then refused.
+  const trialOffer = !trialRefused && creatorTrialEligibility({
+    tier, cards: serverCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,
   }).eligible;
   // Only the wall gets personalized, so only the wall pays for the extra RPC.
   const storage = useStorageUsage({ enabled: header === 'cap-hit' });
@@ -98,6 +109,10 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     if (!user?.id || tier !== 'demo') return;
     if (markPriceSeen(user.id, 'modal')) {
       logEvent(EV.PRICE_SEEN, { surface: 'modal', header, via, count: demoCardCount, limit: effectiveCardLimit, cap_pct: elig.capPct });
+      // The device latch is shared by all four price surfaces, so whichever
+      // gets there first has to write the durable stamp as well — otherwise it
+      // silently prevents every other surface from ever writing it.
+      stampUpgradePrompt({ price_seen_at: new Date().toISOString(), price_seen_surface: 'modal' });
     }
     // Once per mount is the intent; the latch makes repeats no-ops anyway.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -132,6 +147,9 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     } catch (err) {
       redirectingRef.current = false;
       up.noteError();
+      // A declined trial is not a dead end. Drop back to the plain purchase so
+      // the next click can actually create a checkout, and say so.
+      if (checkoutErrorKind(err) === 'trial') setTrialRefused(true);
       setError(checkoutErrorMessage(err));
       setBusy(false);
     }

@@ -1,10 +1,14 @@
 // upsellLatches.test.mjs — node --test
-import { test } from 'node:test';
+import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   priceSeen, markPriceSeen, nearCapWarnedAt, markNearCapWarned,
-  PRICE_SEEN_KEY, NEAR_CAP_KEY,
+  PRICE_SEEN_KEY, NEAR_CAP_KEY, __resetUpsellLatches,
 } from './upsellLatches.js';
+
+// The in-memory fallback is module state, so each case starts from a fresh
+// device or it inherits the previous one's claims.
+beforeEach(() => __resetUpsellLatches());
 
 function mem() {
   const m = new Map();
@@ -60,14 +64,17 @@ test('junk never writes and never throws', () => {
   assert.equal(nearCapWarnedAt(undefined, s), 0);
 });
 
-test('a throwing storage reads as "not yet" and swallows writes', () => {
+test('a throwing storage never throws, and the latch still holds for the page', () => {
   assert.equal(priceSeen('u1', throwing), false);
   assert.equal(nearCapWarnedAt('u1', throwing), 0);
-  assert.doesNotThrow(() => markPriceSeen('u1', 'chip', throwing));
   assert.doesNotThrow(() => markNearCapWarned('u1', 50, throwing));
-  // With no working storage the first-mark signal still fires (the caller may
-  // log once per pageload); it must not fire a throw into a render path.
-  assert.equal(markPriceSeen('u1', 'chip', throwing), true);
+  // The durable write is swallowed, but the in-memory claim survives: without
+  // it every call reports a first impression, so the caller fires an analytics
+  // row and a profile write on each render pass.
+  assert.equal(markPriceSeen('u1', 'chip', throwing), true, 'first call claims it');
+  assert.equal(markPriceSeen('u1', 'chip', throwing), false, 'and the claim holds');
+  assert.equal(priceSeen('u1', throwing), true);
+  assert.equal(nearCapWarnedAt('u1', throwing), 50, 'the ceiling is remembered in memory too');
 });
 
 test('a corrupt latch value reads as never', () => {

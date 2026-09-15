@@ -134,6 +134,7 @@ import { evaluateDemoCap, rejectedNoun, DEMO_CARD_LIMIT } from './lib/demoCardCa
 import { planImport } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap, shouldWarnNearCapNow } from './lib/upsellEligibility.js';
 import { nearCapWarnedAt, markNearCapWarned, markPriceSeen } from './lib/upsellLatches.js';
+import { stampUpgradePrompt } from './lib/upgradePrompts.js';
 import { PRICE_FROM_LABEL } from './lib/billingCopy.js';
 import { ImportCapDialog } from './components/ImportCapDialog.jsx';
 import { claimUpsellSlot } from './lib/upsellSlot.js';
@@ -2291,6 +2292,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         accepted.push({ file, ...c }); // { file, route, kind, w, h }
       }
 
+      // What classification produced, captured BEFORE the cap can trim it.
+      // n_accepted has always meant "passed the file-type gate"; reading it off
+      // the post-preflight array would silently redefine it as "survived the
+      // cap" on this path only, and the canvas path would still mean the other
+      // thing.
+      const classifiedKinds = {};
+      for (const it of accepted) classifiedKinds[it.kind] = (classifiedKinds[it.kind] || 0) + 1;
+      const nClassified = accepted.length;
+
       // 1b) Cap preflight, BEFORE anything is measured, uploaded or placed —
       //     the same question the canvas drop asks. This path used to rely on
       //     addCards trimming the batch against the live cap, which is a
@@ -2299,15 +2309,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       //     that fit / see Creator / cancel" dialog, and the same
       //     import_preflight row, so a folder dropped on the drive view is as
       //     legible in the data as one dropped on the canvas.
+      let over = 0;
       if (accepted.length) {
-        const kinds = {};
-        for (const it of accepted) kinds[it.kind] = (kinds[it.kind] || 0) + 1;
-        const { take } = await preflightImport({ n: accepted.length, kinds, source: 'list_drop' }) || {};
-        const keep = Math.max(0, Math.min(accepted.length, Number(take) || 0));
-        if (keep < accepted.length) accepted = accepted.slice(0, keep);
+        const { take } = await preflightImport({ n: nClassified, kinds: classifiedKinds, source: 'list_drop' }) || {};
+        const keep = Math.max(0, Math.min(nClassified, Number(take) || 0));
+        over = nClassified - keep;
+        if (keep < nClassified) accepted = accepted.slice(0, keep);
       }
       if (blocked.length) {
-        if (csFiles.own) setUpgradeReason('storage');
+        // The cap outranks the file-type pitch. When the preflight has already
+        // claimed the upgrade modal for this gesture, opening the storage one
+        // on top would replace the wall the user was just shown AND spend the
+        // wall's once-per-ceiling latch on a modal that never rendered — so
+        // the blocked files are reported in the toast alone.
+        if (csFiles.own && over === 0) setUpgradeReason('storage');
         const biggest = blocked.reduce((m, f) => Math.max(m, f?.size || 0), 0);
         logEvent(EV.UPLOAD_BLOCKED, {
           reason: 'owner_not_paid', surface: 'list', n: blocked.length,
@@ -2326,26 +2341,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // user actually chose rather than what survived. The canvas path emits
       // the same row; between them every file-ingest surface is covered once.
       try {
-        const kinds = {};
-        for (const it of accepted) kinds[it.kind] = (kinds[it.kind] || 0) + 1;
         logEvent(EV.IMPORT_BATCH, {
           n_files: files.length,
-          n_accepted: accepted.length,
+          n_accepted: nClassified,
           n_blocked: blocked.length,
+          n_over: over,
           source: 'list_drop',
-          kinds,
+          kinds: classifiedKinds,
           board_id: currentId || null,
         });
       } catch (_) {}
 
       if (!accepted.length) return;
 
-      // 2) Owner-pays cap FIRST — slice to what will actually be accepted so we
-      //    never place cards the cap would silently drop (leaving grid gaps).
+      // 2) A silent belt-and-braces slice. The preflight above OWNS the cap
+      //    decision and everything the user sees about it; this only covers the
+      //    case where the cap could not be resolved at all (the RPC was down,
+      //    so preflightImport returned "take everything" rather than swallow
+      //    the drop). Surfacing the wall a second time here would show it twice
+      //    for one gesture, so it does not.
       if (csFiles.capped) {
         const evald = evaluateDemoCap({ tier: 'demo', demoCardCount: csFiles.count, requested: accepted.length, limit: csFiles.limit });
-        if (evald.capHit && evald.accepted === 0) { surfaceCapHit(csFiles); return; }
-        if (evald.capHit) { accepted = accepted.slice(0, evald.accepted); surfaceCapHit(csFiles); }
+        if (evald.capHit) accepted = accepted.slice(0, evald.accepted);
+        if (!accepted.length) return;
       }
 
       // 3) Pre-measure real dims for images + videos so the uniform grid cell
@@ -4066,10 +4084,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!limit) return;
     nearCapWarnedAtRef.current = limit;
     markNearCapWarned(user?.id, limit);
-    logEventOnce('up_cap_toast:near', EV.UP_CAP_TOAST_VIEW, { count, limit, at });
+    // Keyed on the LIMIT, like the latch it reports. A cap that moves (referral
+    // credits) re-arms the toast, and a fixed key would have shown that second,
+    // genuinely-owed warning with no row behind it.
+    logEventOnce(`up_cap_toast:near:${limit}`, EV.UP_CAP_TOAST_VIEW, { count, limit, at });
     // The toast carries the price now — see PRICE_FROM_LABEL.
     if (user?.id && markPriceSeen(user.id, 'cap_toast')) {
       logEvent(EV.PRICE_SEEN, { surface: 'cap_toast', count, limit, cap_pct: Math.round((count / limit) * 100) });
+      stampUpgradePrompt({ price_seen_at: new Date().toISOString(), price_seen_surface: 'cap_toast' });
     }
     feedback.toast({
       type: 'warning',
@@ -4096,6 +4118,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!limit) return;
     const warnedAt = (nearCapWarnedAtRef.current === limit || nearCapWarnedAt(user?.id) === limit) ? limit : 0;
     if (!shouldWarnNearCapNow({ count, limit, warnedAtLimit: warnedAt })) return;
+    // This one fires on arrival, on the same beat as every other load-time
+    // upsell, so it is ambient and must queue with them. The add-path toast is
+    // a consequence of an action the user just took and keeps its own timing.
+    if (!claimUpsellSlot('cap-toast')) return;
     showNearCapToastRef.current?.({ count, limit }, 'arrival');
     // showNearCapToastRef is rebound every render; the effect only needs to
     // re-run when the reconciled numbers move.
