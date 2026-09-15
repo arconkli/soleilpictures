@@ -5919,6 +5919,10 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .upgrade-chip-label  { letter-spacing: .08em; text-transform: uppercase; }
 .upgrade-chip-sep    { color: var(--ink-3); }
 .upgrade-chip-count  { font-variant-numeric: tabular-nums; }
+/* The price, once the pill is a meter. Quiet ink: the pill is information at
+   this point, and the number should read as a fact next to the count, not as a
+   second call to action. */
+.upgrade-chip-price  { color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ── Read-only banner (demo tier viewing someone else's board) ─────────
    Lives inside .tb-center (the topbar's centered column) so it sits

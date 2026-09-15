@@ -21,6 +21,7 @@ import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { FeatureList, PlanToggle, CreatorPriceRow } from '../components/PricingBits.jsx';
 import { CTA, CREATOR_FEATURES, DEMO_FEATURES, grantCopy, PRICING, COPY_REV } from '../lib/billingCopy.js';
 import { trackViewContent } from '../lib/metaPixel.js';
+import { markPriceSeen } from '../lib/upsellLatches.js';
 
 export function PricingPage() {
   const { user, signOut } = useAuth();
@@ -50,6 +51,14 @@ export function PricingPage() {
     // identical view).
     trackViewContent({ content_name: 'Creator', value: PRICING.monthly.billed, currency: 'USD' });
   }, [up]);
+  // First price impression for this account on this device (see PricingModal).
+  useEffect(() => {
+    if (!user?.id || tier !== 'demo') return;
+    if (markPriceSeen(user.id, 'page')) {
+      logEvent(EV.PRICE_SEEN, { surface: 'page', count: demoCardCount, limit: effectiveCardLimit });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, tier]);
   useDwellTime(EV.PRICING_DWELL, () => ({ surface: 'page' }));
 
   const alreadyPaid = tier === 'paid' || tier === 'admin';

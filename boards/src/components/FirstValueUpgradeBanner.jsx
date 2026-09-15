@@ -9,6 +9,7 @@
 // owner). This component is purely presentational + fires nothing on its own.
 
 import { useEffect, useRef, useState } from 'react';
+import { PRICE_FROM_LABEL } from '../lib/billingCopy.js';
 
 export function FirstValueUpgradeBanner({ onSeeCreator, onDismiss }) {
   // "Not now" animates out before App.jsx unmounts us. "See Creator" stays
@@ -26,8 +27,11 @@ export function FirstValueUpgradeBanner({ onSeeCreator, onDismiss }) {
       <div className="fv-banner-spark" aria-hidden="true">✦</div>
       <div className="fv-banner-copy">
         <div className="fv-banner-title">You're building something.</div>
+        {/* The price is on the banner itself. This is the surface people read
+            longest (several times the wall's dwell), and it used to send them
+            to a modal for the one number that decides anything. */}
         <div className="fv-banner-body">
-          Creator is the complete studio — unlimited cards, any file type, any size. Everything your work deserves.
+          Creator is the complete studio — unlimited cards, any file type, any size. Everything your work deserves, {PRICE_FROM_LABEL}.
         </div>
       </div>
       <div className="fv-banner-actions">

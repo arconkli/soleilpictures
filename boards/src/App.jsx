@@ -132,7 +132,9 @@ import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, rejectedNoun, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { planImport } from './lib/importPreflight.js';
-import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap } from './lib/upsellEligibility.js';
+import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap, shouldWarnNearCapNow } from './lib/upsellEligibility.js';
+import { nearCapWarnedAt, markNearCapWarned, markPriceSeen } from './lib/upsellLatches.js';
+import { PRICE_FROM_LABEL } from './lib/billingCopy.js';
 import { ImportCapDialog } from './components/ImportCapDialog.jsx';
 import { claimUpsellSlot } from './lib/upsellSlot.js';
 import { recordSeen, takeReturn } from './lib/returnVisit.js';
@@ -1347,23 +1349,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // the line still warns, and warns only once.
     const nearCapToast = (cs, adding = 1) => {
       if (!cs.own) return;
+      // Two latches, one question: has this account been warned at THIS
+      // ceiling? The ref covers this pageload; the device latch covers the
+      // returning user, so the reconcile path below (which fires on arrival)
+      // and this add path never double up across a reload.
+      const warnedAt = (nearCapWarnedAtRef.current === cs.limit || nearCapWarnedAt(user?.id) === cs.limit) ? cs.limit : 0;
       if (!shouldWarnNearCap({
         count: cs.count, limit: cs.limit, adding,
-        warnedAtLimit: nearCapWarnedAtRef.current,
+        warnedAtLimit: warnedAt,
       })) return;
-      nearCapWarnedAtRef.current = cs.limit;
-      logEventOnce('up_cap_toast:near', EV.UP_CAP_TOAST_VIEW, { count: cs.count, limit: cs.limit, at: 'near' });
-      feedback.toast({
-        type: 'warning',
-        message: `You're at ${cs.count}/${cs.limit} cards. Creator lifts the cap — or invite friends to earn more free ones.`,
-        action: {
-          label: 'See Creator',
-          onClick: () => {
-            logEventNow(EV.UP_CAP_TOAST_CTA, { count: cs.count, limit: cs.limit, at: 'near' });
-            setUpgradeReason('cap-hit');
-          },
-        },
-      });
+      showNearCapToastRef.current?.(cs, 'near');
     };
 
     // Bulk-import preflight — the ONE cap decision that happens before any byte
@@ -2294,6 +2289,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const c = classifyDropFile(file, { canAttemptFiles });
         if (c.route === 'blocked') { blocked.push(file); continue; }
         accepted.push({ file, ...c }); // { file, route, kind, w, h }
+      }
+
+      // 1b) Cap preflight, BEFORE anything is measured, uploaded or placed —
+      //     the same question the canvas drop asks. This path used to rely on
+      //     addCards trimming the batch against the live cap, which is a
+      //     silent slice: the files that did not fit were simply never
+      //     mentioned. Now the over-cap list drop gets the same "take the N
+      //     that fit / see Creator / cancel" dialog, and the same
+      //     import_preflight row, so a folder dropped on the drive view is as
+      //     legible in the data as one dropped on the canvas.
+      if (accepted.length) {
+        const kinds = {};
+        for (const it of accepted) kinds[it.kind] = (kinds[it.kind] || 0) + 1;
+        const { take } = await preflightImport({ n: accepted.length, kinds, source: 'list_drop' }) || {};
+        const keep = Math.max(0, Math.min(accepted.length, Number(take) || 0));
+        if (keep < accepted.length) accepted = accepted.slice(0, keep);
       }
       if (blocked.length) {
         if (csFiles.own) setUpgradeReason('storage');
@@ -4045,6 +4056,51 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Same idea, one beat earlier: the limit we last showed the approaching-cap
   // warning for. Keyed on the limit so raising the cap re-arms the warning.
   const nearCapWarnedAtRef = useRef(0);
+  // The warning itself, shared by the add path (inside the mutators memo, which
+  // reads it through this ref because the memo is built before this line) and
+  // the reconcile path below. One body, one latch write, one price stamp.
+  const showNearCapToastRef = useRef(null);
+  showNearCapToastRef.current = (cs, at = 'near') => {
+    const limit = Number(cs?.limit) || 0;
+    const count = Number(cs?.count) || 0;
+    if (!limit) return;
+    nearCapWarnedAtRef.current = limit;
+    markNearCapWarned(user?.id, limit);
+    logEventOnce('up_cap_toast:near', EV.UP_CAP_TOAST_VIEW, { count, limit, at });
+    // The toast carries the price now — see PRICE_FROM_LABEL.
+    if (user?.id && markPriceSeen(user.id, 'cap_toast')) {
+      logEvent(EV.PRICE_SEEN, { surface: 'cap_toast', count, limit, cap_pct: Math.round((count / limit) * 100) });
+    }
+    feedback.toast({
+      type: 'warning',
+      message: `You're at ${count}/${limit} cards. Creator lifts the cap, ${PRICE_FROM_LABEL} — or invite friends to earn more free ones.`,
+      action: {
+        label: 'See Creator',
+        onClick: () => {
+          logEventNow(EV.UP_CAP_TOAST_CTA, { count, limit, at });
+          setUpgradeReason('cap-hit');
+        },
+      },
+    });
+  };
+  // The reconcile path. The add-path warning only fires while a card is being
+  // placed, so a returning user already parked past the line — four of the
+  // most committed accounts sat at 92–99% of their cap for weeks — was never
+  // warned: nothing they did on those visits was an add. When the server's
+  // count lands, ask the pure rule whether the warning is owed right now; the
+  // device latch makes it once per account per ceiling, not once per visit.
+  useEffect(() => {
+    if (myTier.loading || myTier.tier !== 'demo') return;
+    const limit = Number(myTier.effectiveCardLimit) || 0;
+    const count = Number(myTier.demoCardCount) || 0;
+    if (!limit) return;
+    const warnedAt = (nearCapWarnedAtRef.current === limit || nearCapWarnedAt(user?.id) === limit) ? limit : 0;
+    if (!shouldWarnNearCapNow({ count, limit, warnedAtLimit: warnedAt })) return;
+    showNearCapToastRef.current?.({ count, limit }, 'arrival');
+    // showNearCapToastRef is rebound every render; the effect only needs to
+    // re-run when the reconciled numbers move.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myTier.loading, myTier.tier, myTier.demoCardCount, myTier.effectiveCardLimit, user?.id]);
   // {n, noun} for the cards the server most recently refused, or null. Rendered
   // by the cap-hit modal. Kept BESIDE upgradeReason rather than folded into it:
   // that value is string-compared at five sites and widening it would touch all

@@ -21,9 +21,10 @@ import { EV } from '../lib/analyticsEvents.js';
 import { qaForceFirstValue, qaForceCapWall, qaForceImportAsk } from '../lib/localMode.js';
 import { ImportCapDialog } from './ImportCapDialog.jsx';
 import { DEMO_CARD_LIMIT, rejectedNoun } from '../lib/demoCardCap.js';
-import { COPY_REV } from '../lib/billingCopy.js';
+import { COPY_REV, PRICE_FROM_LABEL } from '../lib/billingCopy.js';
 import { evaluateUpsell, atCapWall, ELIGIBILITY_REV } from '../lib/upsellEligibility.js';
 import { claimUpsellSlot } from '../lib/upsellSlot.js';
+import { markPriceSeen } from '../lib/upsellLatches.js';
 
 export function UpgradeChip() {
   const { user } = useAuth();
@@ -44,6 +45,11 @@ export function UpgradeChip() {
   // Once-per-account flag (settings.upgrade_prompts.first_value_shown_at):
   // undefined while loading, null = never shown, string = shown a prior session.
   const fvShownAtRef = useRef(undefined);
+  // The whole upgrade_prompts object as last read, so a later stamp can spread
+  // it: merge_profile_settings merges at the top level, and writing
+  // { upgrade_prompts: { price_seen_at } } alone would erase the first-value
+  // once-flag and re-arm the banner for everyone who had seen it.
+  const promptsRef = useRef({});
   const firedRef = useRef(false);
   const chipRef = useRef(null);
 
@@ -52,10 +58,32 @@ export function UpgradeChip() {
     if (tier !== 'demo') return;
     let cancelled = false;
     getOwnProfile()
-      .then((p) => { if (!cancelled) fvShownAtRef.current = p?.settings?.upgrade_prompts?.first_value_shown_at || null; })
+      .then((p) => {
+        if (cancelled) return;
+        promptsRef.current = (p?.settings?.upgrade_prompts && typeof p.settings.upgrade_prompts === 'object') ? p.settings.upgrade_prompts : {};
+        fvShownAtRef.current = promptsRef.current.first_value_shown_at || null;
+      })
       .catch(() => { if (!cancelled) fvShownAtRef.current = null; });
     return () => { cancelled = true; };
   }, [tier]);
+
+  // The first time THIS account is shown a price on this device: one event row
+  // and one profile stamp, then silence. Until now the only price impression
+  // in the data was the modal's pricing_view, and most of the people who
+  // filled a board never opened the modal — so "how many people near the limit
+  // have seen the price" had no honest answer. The pill, the banner and the
+  // near-cap toast now carry the number, and each calls this when it does.
+  const notePriceSeen = (surface) => {
+    if (!user?.id || tier !== 'demo') return;
+    if (!markPriceSeen(user.id, surface)) return;
+    const at = new Date().toISOString();
+    logEvent(EV.PRICE_SEEN, {
+      surface, count: demoCardCount, limit: cardLimit, cap_pct: elig.capPct, acct_days: accountAgeDays,
+      elig_rev: ELIGIBILITY_REV, copy_rev: COPY_REV,
+    });
+    promptsRef.current = { ...promptsRef.current, price_seen_at: at, price_seen_surface: surface };
+    updateOwnSettings({ upgrade_prompts: promptsRef.current }).catch(() => {});
+  };
 
   // Show the banner on the first-value signal (or the dev/test force-flag), once.
   useEffect(() => {
@@ -118,8 +146,12 @@ export function UpgradeChip() {
       fvShownAtRef.current = at;
       setFvBanner(true);
       logEvent(EV.FIRST_VALUE_UPGRADE_VIEW, { copy_rev: COPY_REV, elig_reason: elig.reason, cap_pct: elig.capPct });
-      // Persist on show so it's truly once-per-account. Best-effort.
-      updateOwnSettings({ upgrade_prompts: { first_value_shown_at: at } }).catch(() => {});
+      // Persist on show so it's truly once-per-account. Best-effort. Spread the
+      // object as read so this write cannot erase a sibling stamp.
+      promptsRef.current = { ...promptsRef.current, first_value_shown_at: at };
+      updateOwnSettings({ upgrade_prompts: promptsRef.current }).catch(() => {});
+      // The banner carries the price now.
+      notePriceSeen('first_value');
       // Local mirror of the same fact. App.jsx's activation effect reads this
       // key to stop re-dispatching once the banner has actually been shown —
       // the stamp lives here, at the point of showing, rather than at the
@@ -179,8 +211,6 @@ export function UpgradeChip() {
     });
   }, [tier, elig.eligible, elig.reason, elig.capPct, demoCardCount, cardLimit, accountAgeDays]);
 
-  if (tier !== 'demo') return null;
-
   // The CHIP is what eligibility gates: below the bar, the persistent ask
   // disappears. The pitch is a finite resource, and spending it on someone with
   // three cards on their first day is what taught this audience to dismiss it
@@ -191,10 +221,34 @@ export function UpgradeChip() {
   // burns the once-per-account stamp; the modals only exist once something
   // opened them). Returning null for the whole component would silently break
   // both, since a suppressed chip would also unmount an already-open modal.
-  const showChip = elig.eligible;
+  const showChip = tier === 'demo' && elig.eligible;
 
   const near = elig.pressure === 'urgent';
   const showCount = elig.pressure === 'urgent' || elig.pressure === 'count';
+  // Once the pill is a meter it also says what lifting the ceiling costs. A
+  // label that just reads "Get Creator" sends the one number that decides
+  // anything behind a click most people never take.
+  const showPrice = showCount || near;
+
+  // Record the IMPRESSION. The chip had no view row, so whether an eligible
+  // user actually had the pill in front of them could only be inferred from
+  // the absence of a suppression row on that pageload — an inference that was
+  // read wrong at least once. Once per pageload per state (label vs priced),
+  // never per render.
+  useEffect(() => {
+    if (!showChip) return;
+    logEventOnce(`up_chip_view:${showPrice ? 'price' : 'label'}`, EV.UP_CHIP_VIEW, {
+      near, count: demoCardCount, limit: cardLimit, pressure: elig.pressure,
+      elig_reason: elig.reason, cap_pct: elig.capPct, price_shown: showPrice,
+      elig_rev: ELIGIBILITY_REV, copy_rev: COPY_REV,
+    });
+    if (showPrice) notePriceSeen('chip');
+    // notePriceSeen is a plain closure over render state; the latch makes it
+    // idempotent, so re-running on a count change is harmless.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showChip, showPrice, near, elig.pressure]);
+
+  if (tier !== 'demo') return null;
   const onSeeCreator = () => {
     logEventNow(EV.FIRST_VALUE_UPGRADE_CTA, { copy_rev: COPY_REV }); // must-land: a redirect may follow from the modal
     setFvBanner(false);
@@ -234,6 +288,12 @@ export function UpgradeChip() {
           <>
             <span className="upgrade-chip-sep">·</span>
             <span className="upgrade-chip-count">{demoCardCount}/{cardLimit}</span>
+          </>
+        )}
+        {showPrice && (
+          <>
+            <span className="upgrade-chip-sep">·</span>
+            <span className="upgrade-chip-price">{PRICE_FROM_LABEL}</span>
           </>
         )}
       </button>

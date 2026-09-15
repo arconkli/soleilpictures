@@ -55,42 +55,76 @@ test('a barely-started user is not pitched either', async ({ page }) => {
   await expect(chipOf(page)).toHaveCount(0);
 });
 
-test('an invested user gets the chip, with no count and no price pressure yet', async ({ page }) => {
+test('an invested user gets the chip, with no count and no price yet', async ({ page }) => {
+  const rows = [];
+  await routeAnalytics(page, rows);
   await page.goto('/?local=1&reset=1&tier=demo&cards=45&limit=100');
 
   const chip = chipOf(page);
   await expect(chip).toBeVisible();
   await expect(chip).toContainText('Get Creator');
-  // Below the halfway mark the chip is a label, not a meter.
+  // Below the halfway mark the chip is a label, not a meter — and carries no
+  // number of either kind.
   await expect(chip.locator('.upgrade-chip-count')).toHaveCount(0);
+  await expect(chip.locator('.upgrade-chip-price')).toHaveCount(0);
   await expect(chip).not.toHaveClass(/upgrade-chip-near/);
+
+  // The impression is recorded. The chip used to have no view row at all, so
+  // "eligible and visible" could only be inferred from the absence of a
+  // suppression row — which is how a user parked at 92% of cap was misread as
+  // never having been asked.
+  await expect.poll(() => byName(rows, 'up_chip_view').length, { timeout: 8000 }).toBeGreaterThan(0);
+  const v = byName(rows, 'up_chip_view')[0];
+  expect(v.props.price_shown).toBe(false);
+  expect(v.props.pressure).toBe('neutral');
+  expect(byName(rows, 'price_seen')).toHaveLength(0);
 });
 
-test('past halfway the chip becomes a meter', async ({ page }) => {
+test('past halfway the chip becomes a meter and says what the ceiling costs', async ({ page }) => {
+  const rows = [];
+  await routeAnalytics(page, rows);
   await page.goto('/?local=1&reset=1&tier=demo&cards=70&limit=100');
 
   const chip = chipOf(page);
   await expect(chip).toBeVisible();
   await expect(chip.locator('.upgrade-chip-count')).toHaveText('70/100');
+  // The price is ON the pill. It used to live behind a click that most people
+  // who filled a board never took; more empty accounts had seen a price than
+  // everyone with a real body of work combined.
+  await expect(chip.locator('.upgrade-chip-price')).toHaveText(/from \$\d+\/mo/);
   await expect(chip).not.toHaveClass(/upgrade-chip-near/);
+
+  await expect.poll(() => byName(rows, 'up_chip_view').length, { timeout: 8000 }).toBeGreaterThan(0);
+  expect(byName(rows, 'up_chip_view')[0].props.price_shown).toBe(true);
+  // …and the first price impression for this account is stamped, once.
+  await expect.poll(() => byName(rows, 'price_seen').length, { timeout: 8000 }).toBe(1);
+  expect(byName(rows, 'price_seen')[0].props.surface).toBe('chip');
 });
 
-test('near the wall the chip goes urgent and counts down', async ({ page }) => {
+test('near the wall the chip goes urgent, counts down, and still shows the price', async ({ page }) => {
   await page.goto('/?local=1&reset=1&tier=demo&cards=95&limit=100');
 
   const chip = chipOf(page);
   await expect(chip).toBeVisible();
   await expect(chip).toHaveClass(/upgrade-chip-near/);
   await expect(chip).toContainText('5 cards left');
+  await expect(chip.locator('.upgrade-chip-price')).toHaveText(/from \$\d+\/mo/);
 });
 
-test('thresholds are relative to the live cap, not absolute card counts', async ({ page }) => {
-  // 45 cards is "invested" against a cap of 100 but only 22% of a cap of 200.
-  // This is what lets the cap move without silently re-timing the whole pitch.
-  await page.goto('/?local=1&reset=1&tier=demo&cards=45&limit=200');
+test('the fraction line is relative to the live cap, and a real body of work qualifies under any cap', async ({ page }) => {
+  // 12 cards is 6% of a cap of 200 and one short of the absolute floor: not
+  // yet. The fraction is what lets the cap move without silently re-timing
+  // the whole pitch…
+  await page.goto('/?local=1&reset=1&tier=demo&cards=12&limit=200');
   await expect(chipOf(page)).toHaveCount(0);
 
-  await page.goto('/?local=1&reset=1&tier=demo&cards=90&limit=200');
+  // …and the absolute floor is what stops a bigger cap from hiding a real
+  // board: thirteen cards is thirteen cards whether the ceiling is 50 or 200.
+  await page.goto('/?local=1&reset=1&tier=demo&cards=13&limit=200');
+  await expect(chipOf(page)).toBeVisible();
+
+  // Under a small cap the fraction still qualifies below the absolute floor.
+  await page.goto('/?local=1&reset=1&tier=demo&cards=10&limit=40');
   await expect(chipOf(page)).toBeVisible();
 });
 

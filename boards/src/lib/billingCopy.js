@@ -49,6 +49,14 @@ export const SAVINGS_PCT_LABEL =
 const MONTHLY_PRICE = PRICING.monthly.billedLabel;  // '$25/mo'
 const ANNUAL_PRICE  = PRICING.annual.billedLabel;   // '$240/yr'
 
+// The one-line price that ambient surfaces carry — the chip pill, the
+// first-value banner, the approaching-limit toast. Those surfaces used to show
+// no number at all: the price lived behind a click, and most of the people who
+// filled a board never took it. "from" because the annual plan's per-month
+// figure is the lower of the two; the modal that opens from any of these
+// surfaces shows both plans. Derived, never typed, like every other label here.
+export const PRICE_FROM_LABEL = `from ${PRICING.annual.perMonthLabel}/mo`;
+
 // The dollar amount shown as "$N/mo" on the pricing cards for a given plan.
 export function planPerMonth(plan) {
   return (PRICING[plan] || PRICING.annual).perMonth;

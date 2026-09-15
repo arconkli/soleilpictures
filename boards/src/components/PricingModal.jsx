@@ -23,10 +23,11 @@ import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { FeatureList, PlanToggle, CreatorPriceRow } from './PricingBits.jsx';
-import { CTA, CREATOR_FEATURES, PRICING, COPY_REV, capHitSummary } from '../lib/billingCopy.js';
+import { CTA, CREATOR_FEATURES, PRICING, COPY_REV, PRICE_FROM_LABEL, capHitSummary } from '../lib/billingCopy.js';
 import { useStorageUsage } from '../hooks/useStorageUsage.js';
 import { evaluateUpsell } from '../lib/upsellEligibility.js';
 import { trackViewContent } from '../lib/metaPixel.js';
+import { markPriceSeen } from '../lib/upsellLatches.js';
 
 export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null }) {
   const { user } = useAuth();
@@ -80,6 +81,18 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     // monthly-first default plan.
     trackViewContent({ content_name: 'Creator', value: PRICING.monthly.billed, currency: 'USD' });
   }, [header, up]);
+  // First price impression for this account on this device, whichever surface
+  // got there first. The modal was the ONLY place a number appeared until the
+  // pill, banner and toast learned to carry one; the stamp is what lets the
+  // reach read ("has this person ever seen the price?") stop depending on it.
+  useEffect(() => {
+    if (!user?.id || tier !== 'demo') return;
+    if (markPriceSeen(user.id, 'modal')) {
+      logEvent(EV.PRICE_SEEN, { surface: 'modal', header, via, count: demoCardCount, limit: effectiveCardLimit, cap_pct: elig.capPct });
+    }
+    // Once per mount is the intent; the latch makes repeats no-ops anyway.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, tier]);
   useDwellTime(EV.PRICING_DWELL, () => ({ surface: 'modal', header }));
 
   const alreadyPaid = tier === 'paid' || tier === 'admin';
@@ -167,7 +180,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
                   {rejected.n} {rejected.noun} couldn't be added.
                 </p>
               )}
-              <p className="upgrade-sub t-body">Creator lifts the cap — and every card you've already made stays exactly where it is.</p>
+              <p className="upgrade-sub t-body">Creator lifts the cap, {PRICE_FROM_LABEL} — and every card you've already made stays exactly where it is.</p>
             </>
           ) : header === 'first-value' ? (
             <>

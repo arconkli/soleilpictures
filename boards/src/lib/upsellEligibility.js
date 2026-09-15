@@ -23,15 +23,27 @@
 
 // Bump when the thresholds move; rides along in the telemetry so a change in
 // suppression can be attributed to the rule rather than to user behavior.
-export const ELIGIBILITY_REV = 'e1';
+//   e1 — invested at 40% of the cap; warning line shared with the chip's 90%.
+//   e2 — invested at 25% OR an absolute body of work (investedMin), and the
+//        approaching-limit warning moved to its own 80% line. The e1 rules
+//        held the pitch back from most of the people who went on to build a
+//        real board: under e1 more than half of the accounts that reached
+//        thirteen cards had never been shown a price, and the warning had
+//        reached a handful of people in the product's history.
+export const ELIGIBILITY_REV = 'e2';
 
 export const THRESHOLDS = Object.freeze({
-  investedFrac: 0.40,  // used ≥40% of the cap → they've committed real work
+  investedFrac: 0.25,  // used ≥25% of the cap → they've committed real work…
+  investedMin:  13,    // …or an absolute body of work, whatever the cap (the
+                       // depth at which people go on to keep a board; a
+                       // grandfathered 100-cap account at 13 cards is as
+                       // committed as a 50-cap account at 13)
   retainedDays: 7,     // account this old, with a real body of work, counts too
   floorFrac:    0.10,  // "a real body of work" = 10% of the cap…
   floorMin:     5,     // …but never fewer than 5 cards
   habitDays:    3,     // distinct active days (optional signal; see below)
   countFrac:    0.50,  // at/above this the chip shows the count
+  warnFrac:     0.80,  // at/above this the approaching-limit warning fires
   urgentFrac:   0.90,  // at/above this the chip goes urgent
 });
 
@@ -40,7 +52,7 @@ export function workFloor(cardLimit) {
   return Math.max(THRESHOLDS.floorMin, Math.round(cardLimit * THRESHOLDS.floorFrac));
 }
 
-// The count at which the approaching-limit toast fires.
+// The count at which the chip goes urgent ("N cards left").
 //
 // This was a hardcoded `cap - 10` in App.jsx — which, against the 100-card cap it
 // was written for, is exactly the 90% urgentFrac line the chip already used. The
@@ -51,6 +63,17 @@ export function nearCapAt(cardLimit) {
   const n = Number(cardLimit);
   if (!Number.isFinite(n) || n <= 0) return Infinity;   // unknown cap → never fire
   return Math.max(1, Math.round(n * THRESHOLDS.urgentFrac));
+}
+
+// The count at which the approaching-limit warning fires — one beat BEFORE
+// the chip goes urgent. Under e1 the warning shared the chip's 90% line, and
+// most people who reached it did so inside a single drop that carried them
+// straight past the wall; 80% leaves a real gap between "you are close" and
+// "you are stopped".
+export function warnCapAt(cardLimit) {
+  const n = Number(cardLimit);
+  if (!Number.isFinite(n) || n <= 0) return Infinity;   // unknown cap → never fire
+  return Math.max(1, Math.round(n * THRESHOLDS.warnFrac));
 }
 
 // Should this add fire the approaching-limit warning?
@@ -80,11 +103,33 @@ export function shouldWarnNearCap(opts) {
   if (!Number.isFinite(cap) || cap <= 0) return false;
   if (!Number.isFinite(have) || have < 0) return false;
   if (!Number.isFinite(add) || add <= 0) return false;
-  const near = nearCapAt(cap);
+  const near = warnCapAt(cap);
   if (!Number.isFinite(near)) return false;
   if (have >= cap) return false;             // at the wall already — that's a block, not a warning
   if (have + add < near) return false;       // not there yet
   return Number(warnedAtLimit) !== cap;      // already said it for this ceiling
+}
+
+// Is this user ALREADY standing past the warning line, with no add in flight?
+//
+// The add-path rule above only fires while a card is being placed, so someone
+// who filled a board in one sitting and came back the next day at 41/50 —
+// four of the most committed accounts in the product sat at 92–99% of their
+// cap for weeks — is never warned: nothing they do on that visit is an add.
+// This is the reconcile-path rule: evaluated when the server's count lands,
+// it says whether the warning is owed right now. Same latch, same silence at
+// the wall (a block owns that moment), same junk tolerance.
+export function shouldWarnNearCapNow(opts) {
+  const { count, limit, warnedAtLimit = 0 } = opts || {};
+  const cap  = Number(limit);
+  const have = Number(count);
+  if (!Number.isFinite(cap) || cap <= 0) return false;
+  if (!Number.isFinite(have) || have < 0) return false;
+  const near = warnCapAt(cap);
+  if (!Number.isFinite(near)) return false;
+  if (have >= cap) return false;
+  if (have < near) return false;
+  return Number(warnedAtLimit) !== cap;
 }
 
 // Is this user standing AT the wall right now (their next card gets refused)?
@@ -144,7 +189,11 @@ export function evaluateUpsell({
   const capPct  = Math.round(capFrac * 100);
   const floor   = workFloor(limit);
 
-  const invested = capFrac >= THRESHOLDS.investedFrac;
+  // Invested by fraction OR by an absolute body of work: the cap is per-user
+  // (50 new, 100 grandfathered, plus referral credits), and a fraction alone
+  // made the same thirteen cards "committed" under one cap and "not yet"
+  // under another. Thirteen is where people go on to keep the board.
+  const invested = capFrac >= THRESHOLDS.investedFrac || cards >= THRESHOLDS.investedMin;
   const retained = age >= THRESHOLDS.retainedDays && cards >= floor;
   const habit    = days >= THRESHOLDS.habitDays && cards >= floor;
 
