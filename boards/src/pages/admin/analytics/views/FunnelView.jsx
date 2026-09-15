@@ -33,6 +33,8 @@ import { GeoBreakdown } from '../widgets/GeoBreakdown.jsx';
 import { DeviceBreakdown } from '../widgets/DeviceBreakdown.jsx';
 import { UpsellBehaviorPanel } from '../widgets/UpsellBehaviorPanel.jsx';
 import { PaidReachTable } from '../widgets/PaidReachTable.jsx';
+import { ConversionFunnel } from '../widgets/ConversionFunnel.jsx';
+import { TrialFunnel } from '../widgets/TrialFunnel.jsx';
 import { AdminEventBreakdown } from '../../AdminEventBreakdown.jsx';
 import { AdminTopUsersList } from '../../AdminTopUsersList.jsx';
 
@@ -247,7 +249,7 @@ function LazyAudience({ days, f }) {
 
 function LazyMoney({ days, f }) {
   const q = useAdminData(async () => {
-    const [cr, eb, td, tp, us, ux, pr] = await Promise.allSettled([
+    const [cr, eb, td, tp, us, ux, pr, cf, tf] = await Promise.allSettled([
       supabase.rpc('admin_checkout_reliability', { p_days: days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_event_breakdown', { p_days: days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_top_users', { p_tier: 'demo', p_limit: 20, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
@@ -257,13 +259,19 @@ function LazyMoney({ days, f }) {
       // A cohort, not a window: everyone who signed up since the waitlist came
       // off, so the read is "has this person EVER seen a price".
       supabase.rpc('admin_paid_reach', { p_exclude_internal: f.excludeInternal }),
+      // Both of these read the CLEAN epoch only. The price-first ad screen, the
+      // waitlist routing and the pre-launch billing tests are archived out of
+      // analytics_events by 0326, so nothing below counts a price nobody chose
+      // to look at.
+      supabase.rpc('admin_conversion_funnel', { p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_trial_funnel', { p_exclude_internal: f.excludeInternal }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     return {
       reliability: val(cr), eventBreakdown: val(eb) || [],
       topDemo: val(td) || [], topPaid: val(tp) || [],
       upsell: val(us), upsellExposures: val(ux) || [],
-      reach: val(pr) || [],
+      reach: val(pr) || [], conversion: val(cf) || [], trial: val(tf) || [],
     };
   }, [days, f.excludeInternal, f.verifiedOnly]);
 
@@ -281,6 +289,14 @@ function LazyMoney({ days, f }) {
           `steps` array as the funnel at the top of this view, filtered to the
           branch that funnel already draws. Two charts, one dataset, one of them
           redundant. */}
+      {/* The money funnel, per surface, on the clean epoch. First, because it
+          is the question this whole view exists to answer. */}
+      <h3 className="admin-panel-title" style={{ marginTop: 18 }}>Does the offer convert</h3>
+      <ConversionFunnel rows={q.data?.conversion || []} />
+
+      <h3 className="admin-panel-title" style={{ marginTop: 18 }}>The Creator trial</h3>
+      <TrialFunnel rows={q.data?.trial || []} />
+
       {/* Who has been shown a price, by what they built. The panel the
           price-visibility change is graded on — see PaidReachTable. */}
       <h3 className="admin-panel-title" style={{ marginTop: 18 }}>Who has seen the price</h3>
