@@ -178,7 +178,12 @@ export function TodayView() {
   // no extra call. The prior value comes off the same metrics_daily series the
   // sparkline uses, so the badge and the line can never disagree.
   const mrrCents = num(f.stats?.mrr_cents);
-  const payingUsers = num(f.stats?.tier_counts?.paid) || 0;
+  // ACTIVE SUBSCRIPTIONS, not tier='paid'. The paid tier also holds comped
+  // accounts, so reading tier_counts here printed "4 paying accounts" beside
+  // $0 of revenue — four people who have never paid anything. Anything that
+  // claims to count payers has to count the thing that charges.
+  const payingUsers = num(f.stats?.sub_counts?.active) || 0;
+  const compedUsers = num(f.stats?.comped_paid) || 0;
   // The free tier, from the same admin_stats the shell already fetched. A bare
   // count of demo accounts would be a vanity number — it only rises — so the
   // tile leads with the population and qualifies it with how much of that
@@ -186,6 +191,12 @@ export function TodayView() {
   const demoUsers = num(f.stats?.demo_users) ?? 0;
   const demosNearCap = num(f.stats?.demos_near_cap) ?? 0;
   const demosTrialEligible = num(f.stats?.demos_trial_eligible) ?? 0;
+  // The paid funnel in one box: who is eligible, who is inside a trial right
+  // now, who is actually paying. All of it reads zero until the first trial
+  // starts, which is the honest state and not a broken panel.
+  const trialingNow = num(f.stats?.trialing_subs) ?? 0;
+  const trialsStarted = num(f.stats?.trials_started) ?? 0;
+  const trialsConverted = num(f.stats?.trials_converted) ?? 0;
   const arpu = mrrCents != null && payingUsers > 0 ? mrrCents / payingUsers : null;
   const mrrPrev = (() => {
     const h = d?.history || [];
@@ -275,20 +286,17 @@ export function TodayView() {
           />
           <Metric
             hero
-            label="Demos"
-            value={formatCount(demoUsers)}
-            sub={demosNearCap > 0
-              ? `${formatCount(demosNearCap)} at or near the cap`
-              : 'nobody near the cap'}
-            muted={demosNearCap === 0}
-            total={demosTrialEligible > 0
-              ? { value: formatCount(demosTrialEligible), label: 'trial-eligible' } : null}
-            ratio={demoUsers > 0
-              ? { pct: demosNearCap / demoUsers,
-                  title: `${formatCount(demosNearCap)} of ${formatCount(demoUsers)} free accounts are holding at least 80% of their own cap` }
+            label="Trials"
+            value={formatCount(trialingNow)}
+            sub={`${formatCount(payingUsers)} paying · ${formatCount(demosTrialEligible)} eligible`}
+            muted={trialingNow === 0}
+            total={{ value: formatCount(demosNearCap), label: 'near the cap' }}
+            ratio={trialsStarted > 0
+              ? { pct: trialsConverted / trialsStarted,
+                  title: `${formatCount(trialsConverted)} of ${formatCount(trialsStarted)} trials went on to pay` }
               : null}
-            sparkColor={VAR.cat[0]}
-            title="Free accounts, and the pressure behind the paywall. Near-cap counts anyone holding at least 80% of THEIR cap, which is per-user (50 for new accounts, 100 grandfathered, plus referral credits), so a fixed card number would mean something different for each cohort. Card counts use the enforcer's own weighted, workspace-owner-keyed sum, not the profile counter, which drifts high."
+            sparkColor={VAR.cat[1]}
+            title={`People inside a Creator trial right now${trialsStarted > 0 ? ` · ${formatCount(trialsStarted)} started, ${formatCount(trialsConverted)} converted` : ''}. "Paying" counts subscriptions that are actually charging, so a trial in flight and a complimentary grant are both excluded${compedUsers > 0 ? ` (${formatCount(compedUsers)} comped)` : ''}. "Eligible" is the free accounts the server would offer a trial to on their next visit; "near the cap" is anyone holding at least 80% of THEIR cap, which is per-user, out of ${formatCount(demoUsers)} free accounts.`}
           />
           <Metric
             hero
@@ -304,8 +312,8 @@ export function TodayView() {
             spark={mrrCents > 0 ? (d?.history || []).map((r) => num(r.mrr_cents) || 0) : null}
             sparkColor={VAR.cat[1]}
             title={mrrCents > 0
-              ? 'Live monthly recurring revenue from active + trialing subscriptions.'
-              : 'No subscription has ever existed, so this is zero by absence rather than by measurement. It gets a trend line and a change badge as soon as there is something to trend.'}
+              ? 'Live monthly recurring revenue from ACTIVE subscriptions only. A trial carries the full list price and has collected nothing, so it is counted in Trials and never here.'
+              : 'No subscription has ever charged, so this is zero by absence rather than by measurement. It gets a trend line and a change badge as soon as there is something to trend.'}
           />
           <Metric
             hero
