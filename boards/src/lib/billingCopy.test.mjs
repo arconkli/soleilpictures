@@ -91,6 +91,29 @@ assert(
   'demo tier is not described as view-only (0188 made editing free)',
 );
 
+// --- the workspace-scope line says SCOPE, not access or seats ---------------
+// One subscription raising the ceiling for everyone in the workspace is real
+// (0187 keys every gate to workspaces.created_by) and is the only line here a
+// per-seat competitor cannot match. But it sits one word away from the claim
+// this file already had to delete: editing is free for every tier (0188), and
+// so are unlimited collaborators (collab_free_editor_cap is null). Selling
+// either of those back as a Creator feature is the exact mistake 'edit access'
+// was, so pin the shape of the line rather than trusting a future editor.
+const scopeLine = CREATOR_FEATURES.find((f) => /workspace/i.test(f));
+assert(scopeLine, 'a Creator bullet states the workspace-wide scope of the limits');
+assert(
+  /limits/i.test(scopeLine),
+  'the workspace bullet sells the LIMITS carrying over, which is what is paid-only',
+);
+assert(
+  !/\bfree\b|\bseats?\b|\binvite (?:them|people) free\b/i.test(scopeLine),
+  'the workspace bullet does not sell free collaboration or seat count — both are free on every tier',
+);
+assert(
+  CREATOR_FEATURE_KEYS[CREATOR_FEATURES.indexOf(scopeLine)] === 'workspace',
+  'the workspace bullet keeps the stable up_feature_hover key "workspace"',
+);
+
 // --- the SERP description states only live, tested figures ------------------
 assert(
   PRICING_META_DESCRIPTION.includes(PRICING.monthly.billedLabel),

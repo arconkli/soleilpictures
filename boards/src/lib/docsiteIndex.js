@@ -2509,7 +2509,7 @@ export const DOCS_PAGES = [
     "title": "Plans and Pricing — Soleil Clusters",
     "metaDescription": "Soleil Clusters is free with 50 cards, unlimited clusters and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.",
     "h1": "Plans and pricing",
-    "answer": "The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a 100GB drive.",
+    "answer": "The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
     "section": "account",
     "order": 1,
     "updated": "2026-08-08",
@@ -2526,6 +2526,10 @@ export const DOCS_PAGES = [
       {
         "id": "what-is-genuinely-limited",
         "text": "What is genuinely limited"
+      },
+      {
+        "id": "one-plan-covers-the-workspace",
+        "text": "One plan covers the workspace"
       },
       {
         "id": "whose-allowance",
@@ -2564,7 +2568,11 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Do collaborators need to pay?",
-        "a": "No. Editors are free on every plan. Whatever they add counts against the cluster owner's allowance, not theirs."
+        "a": "No, and they never did — editors are free on every plan. What Creator adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges."
+      },
+      {
+        "q": "If someone on my team upgrades, does my workspace get the higher limits?",
+        "a": "Only if that person owns the workspace. Every limit is charged to the workspace owner, so the plan that counts is the owner's. A collaborator's own plan applies to the workspaces they own, not to yours."
       },
       {
         "q": "What happens when I hit the card cap?",

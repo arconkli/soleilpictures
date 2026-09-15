@@ -27180,6 +27180,26 @@ export const DOCS_CONTENT = {
       "t": "text",
       "v": " drive"
      }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Covers your "
+     },
+     {
+      "t": "strong",
+      "v": "whole workspace",
+      "children": [
+       {
+        "t": "text",
+        "v": "whole workspace"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — everyone you invite builds at your limits"
+     }
     ]
    ]
   },
@@ -27331,6 +27351,50 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Everything else is the same on both plans."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "One plan covers the workspace",
+   "inline": [
+    {
+     "t": "text",
+     "v": "One plan covers the workspace"
+    }
+   ],
+   "id": "one-plan-covers-the-workspace"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Those three limits are charged to "
+    },
+    {
+     "t": "strong",
+     "v": "whoever owns the workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "whoever owns the workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", never to the person doing the work. So a single Creator plan lifts them for everyone in that workspace: invite whoever you like, and they build at your limits without a plan of their own. There are no per-seat charges on any plan."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The same rule is why a free workspace stays limited no matter who is working in it — a collaborator's own plan never applies to someone else's workspace. If you work across several, the one that matters is the workspace the cluster lives in."
     }
    ]
   },

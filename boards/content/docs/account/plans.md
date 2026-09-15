@@ -6,12 +6,14 @@ navLabel: Plans and pricing
 section: account
 order: 1
 updated: 2026-08-08
-answer: The free Demo plan gives you {{fact:demoCardLimit}} cards, unlimited clusters and unlimited free collaborators. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a {{fact:creatorStorage}} drive.
+answer: The free Demo plan gives you {{fact:demoCardLimit}} cards, unlimited clusters and unlimited free collaborators. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a {{fact:creatorStorage}} drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 faq:
   - q: What is actually limited on the free plan?
     a: Three things and only three — total cards, which file types you can upload, and per-file size caps on video, audio and PDF. Clusters, collaborators and editing are not limited.
   - q: Do collaborators need to pay?
-    a: No. Editors are free on every plan. Whatever they add counts against the cluster owner's allowance, not theirs.
+    a: No, and they never did — editors are free on every plan. What {{fact:planName}} adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.
+  - q: If someone on my team upgrades, does my workspace get the higher limits?
+    a: Only if that person owns the workspace. Every limit is charged to the workspace owner, so the plan that counts is the owner's. A collaborator's own plan applies to the workspaces they own, not to yours.
   - q: What happens when I hit the card cap?
     a: You are told, and asked to upgrade. Nothing already made is taken away or locked.
   - q: My card limit is {{fact:legacyDemoCardLimit}}, not {{fact:demoCardLimit}}. Why?
@@ -44,6 +46,7 @@ honest — three enforced limits, listed below, and nothing else.
 - Unlimited cards — build without a ceiling
 - Any file type — `.psd`, `.fig`, `.zip`, video, audio, docs
 - No size limits, on your own **{{fact:creatorStorage}}** drive
+- Covers your **whole workspace** — everyone you invite builds at your limits
 
 ## What is genuinely limited
 
@@ -56,6 +59,17 @@ Exactly three things:
 | **Per-file size** | Video {{fact:freeVideoCap}} · audio {{fact:freeAudioCap}} · PDF {{fact:freePdfCap}} | No limit |
 
 Everything else is the same on both plans.
+
+## One plan covers the workspace
+
+Those three limits are charged to **whoever owns the workspace**, never to the
+person doing the work. So a single {{fact:planName}} plan lifts them for
+everyone in that workspace: invite whoever you like, and they build at your
+limits without a plan of their own. There are no per-seat charges on any plan.
+
+The same rule is why a free workspace stays limited no matter who is working in
+it — a collaborator's own plan never applies to someone else's workspace. If you
+work across several, the one that matters is the workspace the cluster lives in.
 
 > **Older accounts keep a higher cap.** The free allowance used to be
 > {{fact:legacyDemoCardLimit}} cards. Every account created while that was the
