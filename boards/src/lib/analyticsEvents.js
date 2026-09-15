@@ -65,12 +65,12 @@ export const EV = Object.freeze({
   PRICING_VIEW:            'pricing_view',                // {surface:'page'|'modal',header?}
   PRICING_PLAN_TOGGLE:     'pricing_plan_toggle',         // {plan,surface}
   PRICING_DEMO_CTA:        'pricing_demo_cta',            // {surface,tier}
-  PRICING_CREATOR_INTENT:  'pricing_creator_intent',      // {plan,surface,already_paid} (must-land)
+  PRICING_CREATOR_INTENT:  'pricing_creator_intent',      // {plan,surface,already_paid,trial} (must-land) — trial:true = the button read "Try Creator free for N days" (in-product offer to a real body of work; 0325)
   PRICING_SIGNOUT:         'pricing_signout',
   PRICING_ABANDON:         'pricing_abandon',             // modal closed w/o checkout {header,plan,surface}
   PRICING_DWELL:           'pricing_dwell',               // {ms,surface}
-  CHECKOUT_OPEN:           'checkout_open',               // {plan,surface} (must-land)
-  CHECKOUT_ERROR:          'checkout_error',              // {plan,surface,message}
+  CHECKOUT_OPEN:           'checkout_open',               // {plan,surface,trial} (must-land)
+  CHECKOUT_ERROR:          'checkout_error',              // {plan,surface,trial,kind:'auth'|'already'|'no_subscription'|'trial'|'config'|'network'|'generic',message} — kind separates a misconfigured price/URL (ours, permanent) from an outage or a dead session; before it every unmapped failure read as "try again"
   BILLING_PORTAL_OPEN:     'billing_portal_open',         // {surface,via?} (must-land)
   BILLING_PORTAL_ERROR:    'billing_portal_error',        // {surface,message}
   CHECKOUT_SUCCESS:        'checkout_success',            // success page mounted {has_session_id}
