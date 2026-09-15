@@ -29,6 +29,15 @@ function store(storage) {
   try { return globalThis.localStorage || null; } catch { return null; }
 }
 
+// In-memory fallback for browsers where localStorage throws (private mode,
+// blocked site data). Without it markPriceSeen reads "not yet" and writes
+// nothing on EVERY call, so it reports a first impression every time and its
+// callers fire an analytics row and a profile write on each render pass. The
+// fallback keeps the latch honest for the life of the page; a reload legitimately
+// forgets, which is the same bargain the durable stamp already makes.
+const memo = new Set();
+const memoWarn = new Map();
+
 function read(key, storage) {
   try { return store(storage)?.getItem(key) ?? null; } catch { return null; }
 }
@@ -39,7 +48,8 @@ function write(key, value, storage) {
 // Has this account been shown a price on this device?
 export function priceSeen(uid, storage) {
   if (!uid) return false;
-  return read(PRICE_SEEN_KEY(uid), storage) != null;
+  const k = PRICE_SEEN_KEY(uid);
+  return read(k, storage) != null || memo.has(k);
 }
 
 // Stamp the first time a price is shown. Returns true ONLY on the first call
@@ -48,19 +58,29 @@ export function priceSeen(uid, storage) {
 export function markPriceSeen(uid, surface, storage) {
   if (!uid) return false;
   if (priceSeen(uid, storage)) return false;
-  write(PRICE_SEEN_KEY(uid), JSON.stringify({ at: new Date().toISOString(), surface: String(surface || '') }), storage);
+  const k = PRICE_SEEN_KEY(uid);
+  // Claim in memory FIRST, so the latch holds even when the write below is
+  // swallowed by a storage that throws.
+  memo.add(k);
+  write(k, JSON.stringify({ at: new Date().toISOString(), surface: String(surface || '') }), storage);
   return true;
 }
 
 // The limit this account was last warned about approaching, or 0 for never.
 export function nearCapWarnedAt(uid, storage) {
   if (!uid) return 0;
-  const n = Number(read(NEAR_CAP_KEY(uid), storage));
+  const raw = read(NEAR_CAP_KEY(uid), storage);
+  const n = Number(raw ?? memoWarn.get(NEAR_CAP_KEY(uid)));
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 export function markNearCapWarned(uid, limit, storage) {
   const n = Number(limit);
   if (!uid || !Number.isFinite(n) || n <= 0) return;
+  memoWarn.set(NEAR_CAP_KEY(uid), n);
   write(NEAR_CAP_KEY(uid), String(n), storage);
 }
+
+// Test seam: the in-memory fallbacks are module state, so a test that wants a
+// fresh device has to say so.
+export function __resetUpsellLatches() { memo.clear(); memoWarn.clear(); }

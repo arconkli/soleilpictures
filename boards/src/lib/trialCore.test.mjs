@@ -14,6 +14,7 @@ import * as core from '../../../supabase/functions/_shared/trialCore.mjs';
 import * as twin from './creatorTrial.js';
 import { CREATOR_TRIAL_DAYS, CTA, trialNote } from './billingCopy.js';
 import { THRESHOLDS } from './upsellEligibility.js';
+import { latestDefinition } from './migrationText.mjs';
 
 const here = new URL('.', import.meta.url);
 const read = (rel) => readFileSync(new URL(rel, here), 'utf8');
@@ -97,4 +98,94 @@ test('customerHasTrialed reads Stripe subscriptions, any status', () => {
   assert.equal(core.customerHasTrialed([{ status: 'canceled', trial_end: 1_700_000_000 }]), true);
   assert.equal(core.customerHasTrialed([{ status: 'trialing', trial_start: 1_700_000_000 }]), true);
   assert.equal(core.customerHasTrialed([null, { status: 'active' }]), false);
+});
+
+test('the admin trial funnel computes eligibility from the same constants', () => {
+  // The deck's "eligible today" number is SQL, not JS, so it cannot import the
+  // rule. If these two drift, the dashboard quietly reports a different
+  // population than the one the server will actually let start a trial, and
+  // nothing else would catch it.
+  const fn = latestDefinition('admin_trial_funnel');
+  assert.ok(fn, 'admin_trial_funnel must exist in a migration');
+  const minCards = /v_min_cards\s+constant\s+int\s*:=\s*(\d+)/.exec(fn.body);
+  const capFrac = /v_cap_frac\s+constant\s+numeric\s*:=\s*([0-9.]+)/.exec(fn.body);
+  assert.ok(minCards, 'the SQL must declare v_min_cards');
+  assert.ok(capFrac, 'the SQL must declare v_cap_frac');
+  assert.equal(Number(minCards[1]), core.TRIAL_MIN_CARDS,
+    'admin_trial_funnel v_min_cards has drifted from trialCore.TRIAL_MIN_CARDS');
+  assert.equal(Number(capFrac[1]), core.TRIAL_CAP_FRAC,
+    'admin_trial_funnel v_cap_frac has drifted from trialCore.TRIAL_CAP_FRAC');
+  // A trial in flight must never be folded into revenue.
+  assert.match(fn.body, /'On trial right now'/);
+  assert.match(fn.body, /never counted as revenue/i);
+});
+
+test('the conversion funnel counts exposures, not the latched pricing_view', () => {
+  // pricing_view is logEventOnce per pageload, so a modal that re-mounts forty
+  // times logs one view. Any rate built on it overstates itself. The RPC must
+  // use up_exposure_summary as the denominator.
+  const fn = latestDefinition('admin_conversion_funnel');
+  assert.ok(fn, 'admin_conversion_funnel must exist in a migration');
+  assert.match(fn.body, /count\(\*\) filter \(where event = 'up_exposure_summary'\)\s+as exposures/);
+  assert.doesNotMatch(fn.body, /as exposures[\s\S]{0,40}pricing_view/);
+  // Admin-only, and the guard runs before any data is touched.
+  const guardAt = fn.body.indexOf('_require_admin');
+  const queryAt = fn.body.indexOf('analytics_events');
+  assert.ok(guardAt > 0 && guardAt < queryAt, 'the admin guard must precede the query');
+});
+
+test('a trial is one per PERSON: the address is swept, not just the reusable customer', () => {
+  // Deleting the account cascades the profile away (taking
+  // creator_trial_started_at) and leaves the old Stripe customer stamped with
+  // the dead uuid, which pickReusableCustomer then correctly refuses to reuse —
+  // so the customer-scoped backstop never even looked at it. Both guards were
+  // keyed to state one delete destroys together.
+  const src = read('../../../supabase/functions/create-checkout-session/index.ts');
+  assert.match(src, /emailCustomers = found\.data\.filter/, 'the address lookup is kept, not discarded');
+  assert.match(src, /if \(!customerId \|\| trial\)/, 'and it runs for a trial even when a customer is already known');
+  assert.match(src, /for \(const c of emailCustomers\)/, 'every customer on the address is asked');
+  assert.match(src, /reason: t\.error \? "tier_unreadable" : everTrialed \? "already_trialed"/);
+});
+
+test('the outage fallback can activate a trial, which settles with nothing due', () => {
+  // A trial checkout settles payment_status 'no_payment_required', not 'paid'.
+  // Rejecting that made verify-checkout-session inert for exactly the checkout
+  // that collects no money: with the webhook lost, a trialing customer would
+  // sit on the free tier until Stripe charged them a fortnight later.
+  const src = read('../../../supabase/functions/verify-checkout-session/index.ts');
+  assert.match(src, /session\.payment_status === "no_payment_required"/);
+  assert.match(src, /const settled = session\.payment_status === "paid"/);
+  assert.match(src, /if \(!settled \|\| session\.status !== "complete"\)/);
+});
+
+test('money is money: a trialing subscription is not revenue', () => {
+  // admin_stats and capture_metrics_daily both summed ('active','trialing'),
+  // and metrics_daily is a snapshot table that is never backfilled — a wrong
+  // row is wrong forever.
+  const stats = latestDefinition('admin_stats');
+  assert.ok(stats, 'admin_stats must exist in a migration');
+  const mrr = /'mrr_cents',[\s\S]*?from public\.subscriptions\s+where status ([^\n]*)/.exec(stats.body);
+  assert.ok(mrr, 'admin_stats must compute mrr_cents from subscriptions');
+  assert.match(mrr[1], /= 'active'/, "admin_stats MRR must be 'active' only");
+  assert.doesNotMatch(mrr[1], /trialing/, 'a trial is not revenue');
+  assert.match(stats.body, /'trialing_subs'/, 'but a live trial stays visible beside it');
+
+  const daily = latestDefinition('capture_metrics_daily');
+  assert.ok(daily, 'capture_metrics_daily must exist in a migration');
+  assert.match(daily.body, /from public\.subscriptions where status = 'active'/);
+  assert.doesNotMatch(daily.body, /status in \('active', 'trialing'\)/);
+});
+
+test('first_paid_at means money, and the referral reward survives a trial', () => {
+  // The reward chokepoint was AFTER INSERT gated on status 'active'. A trial
+  // INSERTs as 'trialing' and converts by UPDATE, so a referred friend who came
+  // through the trial paid their referrer nothing.
+  const fn = latestDefinition('_stamp_first_paid');
+  assert.ok(fn, '_stamp_first_paid must exist in a migration');
+  assert.match(fn.body, /new\.status = 'active'/, 'the stamp requires a cleared charge');
+  assert.match(fn.body, /tg_op = 'INSERT' or old\.status is distinct from 'active'/,
+    'and the reward is edge-triggered on the transition into active');
+  const mig = read('../../../supabase/migrations/0327_trial_aware_money.sql');
+  assert.match(mig, /after insert or update of status on public\.subscriptions/,
+    'the trigger has to see the trial -> active UPDATE');
 });

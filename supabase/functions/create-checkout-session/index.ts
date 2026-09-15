@@ -113,18 +113,26 @@ Deno.serve(async (req) => {
       const c = await stripe.customers.retrieve(customerId).catch(() => null);
       if (!c || (c as Stripe.DeletedCustomer).deleted) customerId = null;
     }
-    if (!customerId) {
-      // Check Stripe by email so we don't mint dupe customers — but only
-      // reuse one that is provably this user's (metadata match) or unclaimed
-      // (stamped on reuse so future matches are by user id, not email).
+    // Customers on this address. Needed to avoid minting duplicates, and — when
+    // a trial is being asked for — to answer "has this ADDRESS had its
+    // fortnight", which is a different question from "may this caller reuse
+    // this customer".
+    let emailCustomers: Stripe.Customer[] = [];
+    if (!customerId || trial) {
       const found = await stripe.customers.list({ email, limit: 10 });
-      const pick = pickReusableCustomer(found.data, userId);
-      if (pick) {
-        customerId = pick.customer.id;
-        if (pick.needsStamp) {
-          await stripe.customers
-            .update(customerId, { metadata: { supabase_user_id: userId } })
-            .catch(() => {}); // best-effort: a failed stamp only delays the claim
+      emailCustomers = found.data.filter((c) => !(c as unknown as Stripe.DeletedCustomer).deleted);
+      if (!customerId) {
+        // Reuse only one that is provably this user's (metadata match) or
+        // unclaimed (stamped on reuse so future matches are by user id, not
+        // email).
+        const pick = pickReusableCustomer(found.data, userId);
+        if (pick) {
+          customerId = pick.customer.id;
+          if (pick.needsStamp) {
+            await stripe.customers
+              .update(customerId, { metadata: { supabase_user_id: userId } })
+              .catch(() => {}); // best-effort: a failed stamp only delays the claim
+          }
         }
       }
     }
@@ -164,6 +172,32 @@ Deno.serve(async (req) => {
     // "no" is final. A refusal is 403 with a stable code the client maps to
     // honest copy — Creator itself is still for sale on the same screen.
     if (trial) {
+      // A trial is one per PERSON, and both of our own guards are keyed to
+      // state that self-service account deletion destroys together: deleting
+      // the account cascades the profile (taking creator_trial_started_at with
+      // it) and leaves the old Stripe customer behind stamped with the dead
+      // uuid — which pickReusableCustomer then refuses to reuse, correctly, so
+      // `everTrialed` above never even looks at it. Same address, same person,
+      // a fresh fortnight, repeatable.
+      //
+      // So ask every customer on this address, not only the one we are willing
+      // to bill. Reading trial history leaks nothing back to the caller: the
+      // only outcome is a 403 with a stable code. The cost is one false
+      // negative — an address that genuinely changed hands denies its new owner
+      // a trial — which is the right way round for a give-away.
+      //
+      // This closes the same-address loop only. A brand new address is still a
+      // brand new person as far as any server can tell, and no amount of
+      // bookkeeping changes that; the trial is deliberately cheap to give and
+      // expensive to exploit (deleting the account destroys every workspace the
+      // person was alone in).
+      if (!everTrialed) {
+        for (const c of emailCustomers) {
+          if (c.id === customerId) continue;
+          const prior = await stripe.subscriptions.list({ customer: c.id, status: "all", limit: 10 });
+          if (customerHasTrialed(prior.data)) { everTrialed = true; break; }
+        }
+      }
       const t = await userClient.rpc("get_my_tier");
       const row = Array.isArray(t.data) ? t.data[0] : t.data;
       const elig = creatorTrialEligibility({

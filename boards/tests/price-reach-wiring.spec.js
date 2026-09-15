@@ -70,10 +70,12 @@ test.describe('price reach wiring', () => {
     expect(c).toMatch(/up_chip_view:\$\{showPrice \? 'price' : 'label'\}/);
     expect(c).toMatch(/notePriceSeen\('chip'\)/);
     expect(c).toMatch(/notePriceSeen\('first_value'\)/);
-    // The stamp spreads the object as read: a bare { upgrade_prompts: {…} }
-    // write would erase the first-value once-flag (top-level merge).
-    expect(c).toMatch(/upgrade_prompts: promptsRef\.current/);
-    expect(c).not.toMatch(/upgrade_prompts: \{ first_value_shown_at: at \}/);
+    // The stamp goes through the shared, re-reading, serialised writer: a bare
+    // { upgrade_prompts: {…} } write replaces the object wholesale (the SQL
+    // merges at the top level only) and a locally-held copy loses the race.
+    expect(c).toMatch(/stampUpgradePrompt\(\{ price_seen_at: at/);
+    expect(c).toMatch(/stampUpgradePrompt\(\{ first_value_shown_at: at \}\)/);
+    expect(c).not.toMatch(/updateOwnSettings\(/);
     expect(modal()).toMatch(/markPriceSeen\(user\.id, 'modal'\)/);
     expect(page()).toMatch(/markPriceSeen\(user\.id, 'page'\)/);
     expect(catalog()).toMatch(/PRICE_SEEN:\s*'price_seen'/);
@@ -86,5 +88,64 @@ test.describe('price reach wiring', () => {
     const e = read('src/lib/checkoutErrors.js');
     expect(e).toMatch(/export function checkoutErrorKind/);
     expect(e).toMatch(/no such price/i);
+  });
+});
+
+test.describe('review fixes', () => {
+  const app = () => readFileSync(new URL('src/App.jsx', new URL('../', import.meta.url)), 'utf8');
+
+  test('a declined trial falls back to buying Creator instead of dead-ending', () => {
+    const s = readFileSync(new URL('src/components/PricingModal.jsx', new URL('../', import.meta.url)), 'utf8');
+    // trialOffer is render state the 403 could not change, so every retry
+    // re-sent trial:true and was refused identically — leaving the only
+    // in-product buy button permanently unable to buy.
+    expect(s).toMatch(/const \[trialRefused, setTrialRefused\] = useState\(false\)/);
+    expect(s).toMatch(/const trialOffer = !trialRefused &&/);
+    expect(s).toMatch(/if \(checkoutErrorKind\(err\) === 'trial'\) setTrialRefused\(true\)/);
+  });
+
+  test('the trial is decided on the SERVER card count, not the optimistic one', () => {
+    // useMyTier.demoCardCount is the server count plus an optimistic delta.
+    // The server re-decides this exact rule against card_index, and the
+    // threshold is an exact boundary, so the delta offers a trial that is then
+    // refused.
+    expect(readFileSync(new URL('src/hooks/useMyTier.js', new URL('../', import.meta.url)), 'utf8'))
+      .toMatch(/serverCardCount/);
+    expect(readFileSync(new URL('src/components/PricingModal.jsx', new URL('../', import.meta.url)), 'utf8'))
+      .toMatch(/cards: serverCardCount/);
+  });
+
+  test('every price surface writes the durable stamp through one serialised writer', () => {
+    // merge_profile_settings merges at the TOP level, so a bare write replaces
+    // upgrade_prompts wholesale. The chip's local copy is {} until an async
+    // read resolves, and its own impression effect can fire in the same commit.
+    const w = readFileSync(new URL('src/lib/upgradePrompts.js', new URL('../', import.meta.url)), 'utf8');
+    expect(w).toMatch(/let chain = Promise\.resolve\(\)/);
+    expect(w).toMatch(/await getOwnProfile\(\)/);
+    for (const rel of ['src/components/UpgradeChip.jsx', 'src/components/PricingModal.jsx', 'src/auth/PricingPage.jsx', 'src/App.jsx']) {
+      const src = readFileSync(new URL(rel, new URL('../', import.meta.url)), 'utf8');
+      expect(src, rel).toMatch(/stampUpgradePrompt\(/);
+      expect(src, rel).not.toMatch(/updateOwnSettings\(\{ upgrade_prompts/);
+    }
+  });
+
+  test('the cap wall is not clobbered by the file-type pitch on a list drop', () => {
+    const s = app();
+    // preflightImport can surface the wall AND spend its once-per-ceiling
+    // latch; an unconditional storage modal after it replaced a wall that had
+    // already been paid for.
+    expect(s).toMatch(/if \(csFiles\.own && over === 0\) setUpgradeReason\('storage'\)/);
+    // n_accepted has always meant "passed the file-type gate" — reading it off
+    // the post-preflight array redefined it as "survived the cap".
+    expect(s).toMatch(/n_accepted: nClassified/);
+    expect(s).toMatch(/n_over: over/);
+  });
+
+  test('the near-cap toast queues with the other load-time upsells and reports every ceiling', () => {
+    const s = app();
+    expect(s).toMatch(/claimUpsellSlot\('cap-toast'\)/);
+    expect(s).toMatch(/up_cap_toast:near:\$\{limit\}/);
+    expect(readFileSync(new URL('src/lib/upsellSlot.js', new URL('../', import.meta.url)), 'utf8'))
+      .toMatch(/'cap-toast'/);
   });
 });

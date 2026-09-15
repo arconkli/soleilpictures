@@ -22,6 +22,7 @@ import { FeatureList, PlanToggle, CreatorPriceRow } from '../components/PricingB
 import { CTA, CREATOR_FEATURES, DEMO_FEATURES, grantCopy, PRICING, COPY_REV } from '../lib/billingCopy.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
+import { stampUpgradePrompt } from '../lib/upgradePrompts.js';
 
 export function PricingPage() {
   const { user, signOut } = useAuth();
@@ -56,6 +57,7 @@ export function PricingPage() {
     if (!user?.id || tier !== 'demo') return;
     if (markPriceSeen(user.id, 'page')) {
       logEvent(EV.PRICE_SEEN, { surface: 'page', count: demoCardCount, limit: effectiveCardLimit });
+      stampUpgradePrompt({ price_seen_at: new Date().toISOString(), price_seen_surface: 'page' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, tier]);

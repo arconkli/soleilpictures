@@ -84,7 +84,20 @@ Deno.serve(async (req) => {
       return json({ activated: false, reason: "session does not belong to caller" }, 403);
     }
 
-    if (session.payment_status !== "paid" || session.status !== "complete") {
+    // "Settled", not "paid". A TRIAL checkout collects a card and charges
+    // nothing, so Stripe settles it with amount_total 0 and payment_status
+    // 'no_payment_required' — and this gate used to reject exactly that, which
+    // made the whole webhook-outage fallback inert for the one kind of checkout
+    // that collects no money. If the webhook were lost, a trialing customer
+    // would sit on the free tier until Stripe charged them a fortnight later.
+    // The 100%-off promo checkout settles the same way.
+    //
+    // Nothing is loosened by this: activateUserFromSubscription still refuses
+    // anything whose subscription is not active or trialing, so a replayed old
+    // session and an unfunded ACH checkout are rejected exactly as before.
+    const settled = session.payment_status === "paid"
+                 || session.payment_status === "no_payment_required";
+    if (!settled || session.status !== "complete") {
       return json({
         activated: false,
         reason: "not_paid_yet",
@@ -111,8 +124,9 @@ Deno.serve(async (req) => {
     // Meta CAPI Purchase — same event_id (session.id) as the stripe-webhook
     // Purchase and the browser pixel Purchase below, so Meta collapses all three
     // into one conversion. Match params were stashed in session.metadata at
-    // checkout-start. We reach here only for genuinely-paid sessions; $0-promo
-    // checkouts (no_payment_required) are emitted by the webhook instead.
+    // checkout-start. $0 sessions (a trial, or a 100%-off promo) reach here too
+    // now; the emit is harmless because it shares eventId: session.id with the
+    // webhook's Purchase and the browser pixel, so Meta collapses all three.
     if (result.activated) {
       const m = session.metadata ?? {};
       emitCapi({

@@ -22,8 +22,11 @@ test.describe('import preflight wiring', () => {
   test('the list-view drop path preflights too, instead of slicing silently', () => {
     const s = app();
     const fn = s.slice(s.indexOf('const ingestFilesArranged = async'), s.indexOf('// 2)', s.indexOf('const ingestFilesArranged = async')));
-    expect(fn).toMatch(/await preflightImport\(\{ n: accepted\.length, kinds, source: 'list_drop' \}\)/);
+    expect(fn).toMatch(/await preflightImport\(\{ n: nClassified, kinds: classifiedKinds, source: 'list_drop' \}\)/);
     expect(fn).toMatch(/accepted = accepted\.slice\(0, keep\)/);
+    // The classification totals are captured BEFORE the cap can trim them, so
+    // n_accepted keeps meaning "passed the file-type gate" on both paths.
+    expect(fn).toMatch(/const nClassified = accepted\.length/);
   });
 
   test('every outcome of the question is a row: view, blocked, and the chosen action', () => {

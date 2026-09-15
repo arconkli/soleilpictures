@@ -199,6 +199,11 @@ export function useMyTier({ userId } = {}) {
   // floor, never below it. Deletes that the server has already reflected would
   // otherwise subtract twice and hand back cap room that doesn't exist.
   const demoCardCount = Math.max(0, Number(base.demoCardCount || 0) + _store.placedDelta);
+  // The server's own number, WITHOUT the optimistic delta. Anything the server
+  // will re-decide has to be decided on this, or the client offers something
+  // the server then refuses: the trial threshold is an exact boundary, and a
+  // card placed a second ago is in the delta but not yet in card_index.
+  const serverCardCount = Math.max(0, Number(base.demoCardCount || 0));
 
-  return { ...base, demoCardCount, loading, error, refetch, notePlaced: _notePlaced };
+  return { ...base, demoCardCount, serverCardCount, loading, error, refetch, notePlaced: _notePlaced };
 }

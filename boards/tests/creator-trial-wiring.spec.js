@@ -13,7 +13,7 @@ const read = (rel) => readFileSync(new URL(rel, new URL('../', import.meta.url))
 test.describe('creator trial wiring', () => {
   test('the modal offers the trial from the shared rule and sends the flag to checkout', () => {
     const s = read('src/components/PricingModal.jsx');
-    expect(s).toMatch(/creatorTrialEligibility\(\{\s*tier, cards: demoCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,?\s*\}\)\.eligible/);
+    expect(s).toMatch(/creatorTrialEligibility\(\{\s*tier, cards: serverCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,?\s*\}\)\.eligible/);
     expect(s).toMatch(/startCheckout\(\{ plan, surface, trial: trialOffer \}\)/);
     expect(s).toMatch(/trial: trialOffer,/);                       // on pricing_creator_intent
     expect(s).toMatch(/trialOffer \? CTA\.tryCreator : CTA\.getCreator/);
