@@ -24,7 +24,7 @@
 // effects, so the preview's portal always exists by the time the re-append
 // runs. A capture-phase Escape listener is the backstop, so a covered bar can
 // never trap anyone.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X, ChevronLeft, ChevronUp, ChevronDown, Info } from '../../lib/icons.js';
 
@@ -35,7 +35,7 @@ import { closeGallery, previewSurface } from '../../lib/galleryState.js';
 import { useGalleryState } from '../../hooks/useGalleryState.js';
 import { useListboxNav } from '../../hooks/useListboxNav.js';
 import { useFeedback } from '../AppFeedback.jsx';
-import { RENDERERS } from './entries.jsx';
+import { AVAILABLE, RENDERERS } from './entries.jsx';
 
 const KIND_LABEL = {
   overlay: 'Overlay',
@@ -60,7 +60,14 @@ function GalleryList() {
   const [params, setParams] = useState({});      // route id -> typed param
   const inputRef = useRef(null);
 
-  const results = useMemo(() => searchGallery(GALLERY_ENTRIES, q), [q]);
+  // Branches carry different stacks, so the registry is a superset of what any
+  // one build can render. Offering a row that opens an empty stage is worse
+  // than not listing it — see AVAILABLE in entries.jsx.
+  const inventory = useMemo(
+    () => GALLERY_ENTRIES.filter((e) => e.kind !== 'overlay' && e.kind !== 'toast' ? true : AVAILABLE.has(e.id)),
+    [],
+  );
+  const results = useMemo(() => searchGallery(inventory, q), [q, inventory]);
   const groups = useMemo(() => groupGallery(results), [results]);
   // The flat order the keyboard walks — must match render order exactly, which
   // is why it is derived from `groups` rather than from `results`.
@@ -138,7 +145,7 @@ function GalleryList() {
         </div>
 
         <div className="gal-foot">
-          <span>{flat.length} of {GALLERY_ENTRIES.length}</span>
+          <span>{flat.length} of {inventory.length}</span>
           <span className="gal-foot-keys">↑↓ move · ↵ open · esc close</span>
         </div>
       </div>
@@ -188,7 +195,7 @@ function GalleryPreview({ entryId }) {
   // Ordered the way the list shows them, so prev/next walks the group you were
   // looking at rather than the raw registry.
   const flat = useMemo(() => groupGallery(GALLERY_ENTRIES).flatMap((g) => g.entries)
-    .filter((e) => e.kind === 'overlay'), []);
+    .filter((e) => e.kind === 'overlay' && AVAILABLE.has(e.id)), []);
   const idx = flat.findIndex((e) => e.id === entryId);
   const step = useCallback((d) => {
     if (idx < 0 || flat.length === 0) return;
@@ -222,7 +229,7 @@ function GalleryPreview({ entryId }) {
     <>
       <div className="gal-stage" key={entryId}>
         {typeof render === 'function'
-          ? render({ close: back })
+          ? <Suspense fallback={null}>{render({ close: back })}</Suspense>
           : <p className="gal-missing">No renderer for “{entryId}”.</p>}
       </div>
       {createPortal(

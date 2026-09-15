@@ -166,6 +166,22 @@ test('every rendered entry has a renderer, and every renderer has an entry', () 
   assert.deepEqual(shouldNotRender, []);
 });
 
+test('branch-optional surfaces use a narrow glob, never a wildcard', () => {
+  // main carries stacks production does not, so a static import of one of those
+  // components is a hard build failure the moment this file is cherry-picked.
+  // import.meta.glob resolves against whatever the branch has — but a bare
+  // '../*.jsx' would eagerly pull in CanvasSurface and undo the chunk split.
+  const src = entriesSrc();
+  const globs = [...src.matchAll(/import\.meta\.glob\(\s*'([^']+)'/g)].map((m) => m[1]);
+  for (const g of globs) {
+    assert.ok(!/\/\*/.test(g), `glob "${g}" is a wildcard over a directory`);
+    assert.match(g, /\{[A-Za-z,]+\}/, `glob "${g}" should brace-list its modules explicitly`);
+  }
+  // Every optional surface is still a listed entry, and still declares a
+  // renderer — it is availability that varies by branch, not the registry.
+  assert.ok(src.includes('export const AVAILABLE'), 'entries.jsx tells the list what this build can show');
+});
+
 test('the gallery never imports one of the four heavy trees', () => {
   // Pulling CanvasSurface, PublicBoardView, LocalBoardsApp or AdminPage into
   // the gallery chunk would drag them into a shared chunk and inflate the
