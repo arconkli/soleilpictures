@@ -142,7 +142,26 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-17 age
+
+          # The runner image ALREADY ships postgresql-client-16, and /usr/bin/pg_dump
+          # is Debian's pg_wrapper, which dispatches to the DEFAULT cluster version —
+          # NOT the newest installed. So the apt install above succeeds while
+          # `pg_dump` stays 16.x, which then refuses a 17.x server with "aborting
+          # because of server version mismatch" and the backup dies at its first
+          # real step. Put the versioned bin dir first, for this step and — via
+          # GITHUB_PATH — every later one: pg_restore in the verify step has exactly
+          # the same problem, and would fail to read a v17 custom-format dump.
+          export PATH="/usr/lib/postgresql/17/bin:$PATH"
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+          # Assert it rather than trust it, so a silent regression fails HERE with a
+          # legible reason instead of deep inside pg_dump.
           pg_dump --version
+          pg_restore --version
+          case "$(pg_dump --version)" in
+            *"(PostgreSQL) 17."*) ;;
+            *) echo "::error::pg_dump is $(pg_dump --version), not 17.x — it cannot dump this 17.x server"; exit 1 ;;
+          esac
 
       - name: Dump
         env:
