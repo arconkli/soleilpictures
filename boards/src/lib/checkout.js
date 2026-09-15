@@ -14,6 +14,7 @@ import { logEvent, logEventNow } from './analytics.js';
 import { EV } from './analyticsEvents.js';
 import { getFbCookies, trackInitiateCheckout } from './metaPixel.js';
 import { PRICING } from './billingCopy.js';
+import { checkoutErrorKind } from './checkoutErrors.js';
 
 const CHECKOUT_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-checkout-session';
 const PORTAL_URL   = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-portal-session';
@@ -58,7 +59,10 @@ export async function startCheckout({ plan, surface }) {
   } catch (e) {
     // Surfaces paid drop-off between checkout_open and checkout_success — the
     // failed/abandoned attempts that were previously invisible in the funnel.
-    logEvent(EV.CHECKOUT_ERROR, { plan, surface, message: (e?.message || String(e)).slice(0, 200) });
+    // `kind` separates a misconfigured price/URL (ours, permanent, needs a
+    // human) from an outage or a dead session, which the raw message alone
+    // did not: every unmapped failure rendered as "try again in a moment".
+    logEvent(EV.CHECKOUT_ERROR, { plan, surface, kind: checkoutErrorKind(e), message: (e?.message || String(e)).slice(0, 200) });
     throw e;
   }
 }

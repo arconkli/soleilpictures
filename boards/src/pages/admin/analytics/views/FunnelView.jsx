@@ -32,6 +32,7 @@ import { AdminMultiplayerSection } from '../widgets/AdminMultiplayerSection.jsx'
 import { GeoBreakdown } from '../widgets/GeoBreakdown.jsx';
 import { DeviceBreakdown } from '../widgets/DeviceBreakdown.jsx';
 import { UpsellBehaviorPanel } from '../widgets/UpsellBehaviorPanel.jsx';
+import { PaidReachTable } from '../widgets/PaidReachTable.jsx';
 import { AdminEventBreakdown } from '../../AdminEventBreakdown.jsx';
 import { AdminTopUsersList } from '../../AdminTopUsersList.jsx';
 
@@ -246,19 +247,23 @@ function LazyAudience({ days, f }) {
 
 function LazyMoney({ days, f }) {
   const q = useAdminData(async () => {
-    const [cr, eb, td, tp, us, ux] = await Promise.allSettled([
+    const [cr, eb, td, tp, us, ux, pr] = await Promise.allSettled([
       supabase.rpc('admin_checkout_reliability', { p_days: days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_event_breakdown', { p_days: days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_top_users', { p_tier: 'demo', p_limit: 20, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_top_users', { p_tier: 'paid', p_limit: 20, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_upsell_scorecard', { p_days: days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_upsell_exposures', { p_days: days, p_limit: 40, p_exclude_internal: f.excludeInternal }),
+      // A cohort, not a window: everyone who signed up since the waitlist came
+      // off, so the read is "has this person EVER seen a price".
+      supabase.rpc('admin_paid_reach', { p_exclude_internal: f.excludeInternal }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     return {
       reliability: val(cr), eventBreakdown: val(eb) || [],
       topDemo: val(td) || [], topPaid: val(tp) || [],
       upsell: val(us), upsellExposures: val(ux) || [],
+      reach: val(pr) || [],
     };
   }, [days, f.excludeInternal, f.verifiedOnly]);
 
@@ -276,6 +281,10 @@ function LazyMoney({ days, f }) {
           `steps` array as the funnel at the top of this view, filtered to the
           branch that funnel already draws. Two charts, one dataset, one of them
           redundant. */}
+      {/* Who has been shown a price, by what they built. The panel the
+          price-visibility change is graded on — see PaidReachTable. */}
+      <h3 className="admin-panel-title" style={{ marginTop: 18 }}>Who has seen the price</h3>
+      <PaidReachTable rows={q.data?.reach || []} />
       <UpsellBehaviorPanel scorecard={q.data?.upsell} exposures={q.data?.upsellExposures || []} days={days} />
       <AdminEventBreakdown rows={q.data?.eventBreakdown || []} reliability={q.data?.reliability} days={days} />
       <AdminTopUsersList topDemo={q.data?.topDemo || []} topPaid={q.data?.topPaid || []} />

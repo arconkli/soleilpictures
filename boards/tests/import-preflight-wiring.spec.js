@@ -1,0 +1,45 @@
+// import-preflight-wiring.spec.js — every bulk drop path asks the cap question
+// BEFORE bytes move, and the answer is recorded.
+//
+// The dialog itself renders in the harness (?local=1&importask=…, see
+// ImportCapDialog specs); the ROUTING is App.jsx-only, which ?local=1 never
+// mounts, so it is asserted on code shape.
+import { expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+
+const read = (rel) => readFileSync(new URL(rel, new URL('../', import.meta.url)), 'utf8');
+const app = () => read('src/App.jsx');
+const canvas = () => read('src/components/CanvasSurface.jsx');
+
+test.describe('import preflight wiring', () => {
+  test('the canvas drop and picker path preflight through the mutator', () => {
+    const s = canvas();
+    expect(s).toMatch(/await mutators\.preflightImport\(\{ n: classified, kinds, source \}\)/);
+    // The answer is authoritative: the accepted list is trimmed to `take`.
+    expect(s).toMatch(/if \(keep < classified\) accepted\.splice\(keep\)/);
+  });
+
+  test('the list-view drop path preflights too, instead of slicing silently', () => {
+    const s = app();
+    const fn = s.slice(s.indexOf('const ingestFilesArranged = async'), s.indexOf('// 2)', s.indexOf('const ingestFilesArranged = async')));
+    expect(fn).toMatch(/await preflightImport\(\{ n: accepted\.length, kinds, source: 'list_drop' \}\)/);
+    expect(fn).toMatch(/accepted = accepted\.slice\(0, keep\)/);
+  });
+
+  test('every outcome of the question is a row: view, blocked, and the chosen action', () => {
+    const s = app();
+    const pre = s.slice(s.indexOf('const preflightImport = async'), s.indexOf('const addCard = ('));
+    expect(pre).toMatch(/action: 'blocked'/);
+    expect(pre).toMatch(/action: 'view'/);
+    // The three buttons resolve through ONE path that logs the action.
+    const ans = s.slice(s.indexOf('const answerImportAsk = useCallback'), s.indexOf('const capPitchedAtRef'));
+    expect(ans).toMatch(/logEventNow\(EV\.IMPORT_PREFLIGHT, \{\s*action, n_files: ask\.n, take/);
+    expect(ans).toMatch(/if \(action === 'upgrade'\) setUpgradeReason\('cap-hit'\)/);
+  });
+
+  test('an unresolved cap pays for one round trip rather than gambling the folder', () => {
+    const s = app();
+    const pre = s.slice(s.indexOf('const preflightImport = async'), s.indexOf('const addCard = ('));
+    expect(pre).toMatch(/if \(plan\.outcome === 'unresolved'\)[\s\S]*refetch/);
+  });
+});

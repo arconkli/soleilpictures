@@ -77,6 +77,10 @@ test('a demo user sees the soft banner, and "See Creator" opens the first-value 
   await expect(banner).toBeVisible();
   await expect(banner.getByRole('button', { name: 'See Creator' })).toBeVisible();
   await expect(banner.getByRole('button', { name: 'Not now' })).toBeVisible();
+  // The banner carries the price itself — this is the surface people read
+  // longest, and it used to send them to a modal for the one number that
+  // decides anything.
+  await expect(banner).toContainText(/from \$\d+\/mo/);
 
   await banner.getByRole('button', { name: 'See Creator' }).click();
 

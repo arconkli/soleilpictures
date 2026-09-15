@@ -42,6 +42,31 @@ const COPY = {
   "plan must be 'monthly' or 'annual'": GENERIC,
 };
 
+// A misconfiguration, as Stripe or the edge function would word it: a price ID
+// from the wrong mode (live key, test price), a missing or malformed APP_URL
+// behind success_url, a bad API key. These are not transient and "try again in
+// a moment" is a lie for them. They get their own copy AND their own `kind` in
+// checkout_error, so that a broken configuration can never read as an outage —
+// on screen or in the funnel. No non-zero live charge has ever cleared this
+// account, so this class is unproven rather than ruled out.
+const CONFIG_RE = /no such price|no such plan|resource_missing|price .{0,40}(not found|does not exist|is not)|invalid price|success_url|cancel_url|not a valid url|invalid url|app_url|invalid api key|api key provided|provide an api key|no api key/i;
+const CONFIG = `Checkout isn't set up right on our side — that's ours to fix, and it needs a human. Email ${SUPPORT_EMAIL} and we'll sort it out.`;
+
+const NETWORK = "Couldn't reach the checkout server — check your connection and try again.";
+
+// checkoutErrorKind(err) -> 'auth' | 'already' | 'no_subscription' | 'config' | 'network' | 'generic'
+//   The class of failure, for checkout_error analytics. Pure, no copy.
+export function checkoutErrorKind(err) {
+  const raw = (err?.message ?? (typeof err === 'string' ? err : String(err ?? ''))).trim();
+  if (!raw) return 'generic';
+  if (raw === 'Not signed in.' || raw === 'auth required' || raw === 'invalid token') return 'auth';
+  if (raw === 'already_subscribed') return 'already';
+  if (raw === 'no subscription found') return 'no_subscription';
+  if (CONFIG_RE.test(raw)) return 'config';
+  if (/failed to fetch|networkerror|load failed/i.test(raw)) return 'network';
+  return 'generic';
+}
+
 // checkoutErrorMessage(err) -> string
 //   err: an Error, a string, or anything stringifiable.
 // Always returns copy that tells the user what to do next; never returns the
@@ -52,15 +77,16 @@ export function checkoutErrorMessage(err) {
 
   if (Object.prototype.hasOwnProperty.call(COPY, raw)) return COPY[raw];
 
+  // Not transient: say so, and say it needs us.
+  if (CONFIG_RE.test(raw)) return CONFIG;
+
   // `HTTP 500` / `HTTP 404` — checkout.js's fallback when the body carried no
   // `error` field. A 5xx is ours; a 4xx here means a malformed request we sent.
   const http = /^HTTP (\d{3})$/.exec(raw);
   if (http) return GENERIC;
 
   // Network-layer failures (fetch rejects before any status).
-  if (/failed to fetch|networkerror|load failed/i.test(raw)) {
-    return "Couldn't reach the checkout server — check your connection and try again.";
-  }
+  if (/failed to fetch|networkerror|load failed/i.test(raw)) return NETWORK;
 
   // Anything else is an unmapped Stripe SDK message off the 500 branch.
   return GENERIC;
