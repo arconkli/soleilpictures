@@ -88,6 +88,21 @@ Backups live in the R2 backup bucket under `daily/` and `monthly/`, named
 `soleil-<ISO-timestamp>.dump.age`. You need the **age private key** — the one
 generated during setup and kept out of this repo and out of GitHub.
 
+> **Never `open` the key file.** On 2026-09-15 the key was opened in TextEdit to
+> copy it into a password manager and came back **0 bytes**, silently, with the
+> backup already encrypted to it. Read it with `cat`, and check it before
+> trusting it: a healthy key is ~189 bytes and holds exactly three lines —
+> `# created:`, `# public key:`, and one `AGE-SECRET-KEY-1…`.
+>
+> ```sh
+> wc -c < ~/soleil-clusters-backup-age.key        # ~189
+> grep -c '^AGE-SECRET-KEY-1' ~/soleil-clusters-backup-age.key   # must be 1
+> grep '^# public key:' ~/soleil-clusters-backup-age.key         # must equal the AGE_PUBLIC_KEY repo variable
+> ```
+>
+> The public key in the file **must** match the `AGE_PUBLIC_KEY` GitHub
+> variable, or it cannot open the archives that variable encrypted.
+
 ```sh
 export AWS_ACCESS_KEY_ID=...        # R2 token with read on the backup bucket
 export AWS_SECRET_ACCESS_KEY=...
@@ -290,4 +305,12 @@ after any change to `backup.yml`:
 
 | Date | Artifact | Outcome | By |
 |---|---|---|---|
-| _(not yet run — do this before relying on it)_ | | | |
+| 2026-09-15 | `daily/soleil-2026-09-15T05-40-51Z.dump.age` | **PASS** — 101,701,598 B downloaded, decrypted to 101,676,582 B, `pg_restore --list` = **154** TABLE DATA entries (matching CI), all six core tables present, auth 23 / storage 8. Schema artifact also decrypted: 123+23+8 tables, 531 functions, 157 policies. | first real drill |
+
+> **The first run of this drill failed, and that is why it exists.** CI had
+> reported five green checkmarks over that same archive. The workflow
+> deliberately has no private key, so the most it can say is *"valid age
+> header, 101701598 bytes"* — which is a statement about the file's shape, not
+> about whether anyone can open it. The local key file had been truncated to
+> **0 bytes**, so the archive was, at that moment, permanently unreadable.
+> Nothing but decrypting a real artifact with the real key detects this.
