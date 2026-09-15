@@ -18,7 +18,7 @@ export const PLAN_NAME = 'Creator';
 // pricing funnel events (pricing_view, pricing_creator_intent, first_value_*)
 // so conversion can be attributed before/after a copy change without an A/B
 // test (traffic is far too low for one). Bump on every material copy revision.
-export const COPY_REV = 'studio_v2';
+export const COPY_REV = 'studio_v3';
 
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 
@@ -86,6 +86,24 @@ export function planBilling(plan) {
 //                   free owners; authorize_upload() rejects owner_not_paid
 //   3. size/length— free caps video 30MB/60s, audio 50MB, PDF 50MB (uploads.js)
 //
+// The fourth line is not a fourth LIMIT — it is the SCOPE of those three, and
+// it is the one genuinely competitive thing on this list. Migration 0187
+// ("owner-pays capacity, keyed consistently to the WORKSPACE owner") re-keyed
+// every gate to workspaces.created_by: enforce_demo_card_cap_trg counts across
+// the owner's workspaces via board_workspace_owner(), authorize_upload() reads
+// the owner's tier, authorize_image_upload() bills the owner's quota, and
+// CanvasSurface's canAttemptFiles = !(ownsWorkspace && !isPaidPlan) lets a
+// collaborator in someone else's workspace attempt optimistically and let the
+// server decide. So one subscription raises the ceiling for everyone working in
+// that workspace. Every individual competitor in this category charges per
+// seat; we do not, and never said so.
+//
+// Say it as SCOPE, never as access or seats. "Full edit access, everywhere
+// you're invited" was the line 0188 made free and this file had to delete, and
+// unlimited free collaborators are free too (collab_free_editor_cap is null) —
+// so the claim is that your LIMITS carry to the people you invite, not that
+// inviting them is free. Both are true; only one of them is Creator's.
+//
 // NOTE: clusters/boards are NOT a paid difference — they were never capped.
 //
 // The storage figure mirrors the enforced default quota: app_config
@@ -97,13 +115,14 @@ export const CREATOR_FEATURES = [
   'Unlimited cards — build without a ceiling',
   'Any file type — .psd, .fig, .zip, video, audio, docs',
   `No size limits, on your own **${CREATOR_STORAGE_LABEL}** drive`,
+  'Covers your **whole workspace** — everyone you invite builds at your limits',
 ];
 
 // Stable analytics keys, parallel to CREATOR_FEATURES by index. The up_* hover
 // telemetry records WHICH pitch line a prospect read (up_feature_hover {row,key});
 // keying by these instead of the copy text means the data survives copy edits.
 // Keep this array in lockstep with CREATOR_FEATURES (billingCopy.test.mjs asserts it).
-export const CREATOR_FEATURE_KEYS = ['cards', 'filetypes', 'storage'];
+export const CREATOR_FEATURE_KEYS = ['cards', 'filetypes', 'storage', 'workspace'];
 
 // Retired keys, kept so historical up_feature_hover rows stay readable in the
 // admin scorecard. 'studio'/'edit_access' described lines that are gone;

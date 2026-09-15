@@ -1,6 +1,6 @@
 # Plans and pricing
 
-> The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a 100GB drive.
+> The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 
 _Source: https://clusters.soleilpictures.com/docs/account/plans · Updated 2026-08-08_
 
@@ -22,6 +22,7 @@ honest — three enforced limits, listed below, and nothing else.
 - Unlimited cards — build without a ceiling
 - Any file type — `.psd`, `.fig`, `.zip`, video, audio, docs
 - No size limits, on your own **100GB** drive
+- Covers your **whole workspace** — everyone you invite builds at your limits
 
 ## What is genuinely limited
 
@@ -34,6 +35,17 @@ Exactly three things:
 | **Per-file size** | Video 30 MB · audio 50 MB · PDF 50 MB | No limit |
 
 Everything else is the same on both plans.
+
+## One plan covers the workspace
+
+Those three limits are charged to **whoever owns the workspace**, never to the
+person doing the work. So a single Creator plan lifts them for
+everyone in that workspace: invite whoever you like, and they build at your
+limits without a plan of their own. There are no per-seat charges on any plan.
+
+The same rule is why a free workspace stays limited no matter who is working in
+it — a collaborator's own plan never applies to someone else's workspace. If you
+work across several, the one that matters is the workspace the cluster lives in.
 
 > **Older accounts keep a higher cap.** The free allowance used to be
 > 100 cards. Every account created while that was the
