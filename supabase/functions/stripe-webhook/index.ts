@@ -353,6 +353,21 @@ async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub
   if (full.status === "active" || full.status === "trialing") {
     const flip = await admin.from("profiles").update({ tier: "paid" }).eq("user_id", userId).neq("tier", "admin");
     if (flip.error) throw new Error(`tier flip failed: ${flip.error.message}`);
+
+    // A trial start has exactly ONE write path — activate.ts — and this branch
+    // is the other way a user reaches paid tier on `trialing`. If
+    // checkout.session.completed is delayed, retried past its window, or
+    // arrives AFTER this event, the user would sit on paid tier with a live
+    // Stripe trial and no row anywhere saying a trial happened. Every trial
+    // counter reads that column, and so does the never-twice guard.
+    // Idempotent via .is(null), exactly as in activate.ts.
+    if (full.status === "trialing") {
+      const stamp = await admin.from("profiles")
+        .update({ creator_trial_started_at: new Date().toISOString() })
+        .eq("user_id", userId)
+        .is("creator_trial_started_at", null);
+      if (stamp.error) console.warn("[stripe] creator_trial_started_at stamp failed", stamp.error.message);
+    }
   }
   // Past-due / unpaid → leave tier as-is, the cancel event will drop them.
 }
