@@ -79,10 +79,29 @@ test.describe('creator trial wiring', () => {
     expect(w).toMatch(/status: subscription\?\.status \?\? null,/);
     expect(w).toMatch(/header: m\.header \?\? null,/);
 
-    // ...which requires the attribution to reach Stripe's metadata at all.
+    // A trial start has exactly ONE write path (activate.ts), but
+    // onSubscriptionUpdated is the OTHER way a user reaches paid tier on
+    // 'trialing'. If checkout.session.completed is delayed or arrives second,
+    // the user would hold paid tier with a live Stripe trial and no row
+    // anywhere saying a trial happened — and every trial counter, plus the
+    // never-twice guard, reads that one column.
+    const updated = w.slice(w.indexOf('async function onSubscriptionUpdated'),
+                            w.indexOf('// charge.refunded / charge.dispute.created'));
+    expect(updated).toMatch(/if \(full\.status === "trialing"\) \{/);
+    expect(updated).toMatch(/\.is\("creator_trial_started_at", null\)/);
+
+    // ...which requires the attribution to reach Stripe's metadata at all, and
+    // specifically the SESSION metadata: the webhook reads `session.metadata`,
+    // so the same keys on subscription_data.metadata would read back as null
+    // and "fixed" attribution would be blank on every row.
     const c = read('../supabase/functions/create-checkout-session/index.ts');
-    expect(c).toMatch(/\.\.\.\(surface \? \{ surface: String\(surface\)\.slice\(0, 60\) \} : \{\}\),/);
     expect(c).toMatch(/if \(typeof body\.surface === "string"\) surface = body\.surface;/);
+    const sessionMeta = c.slice(c.indexOf('      metadata: {'), c.indexOf('      subscription_data: {'));
+    expect(sessionMeta).toMatch(/surface: surface\.slice\(0, 60\)/);
+    expect(sessionMeta).toMatch(/header:  header\.slice\(0, 60\)/);
+    expect(sessionMeta).toMatch(/via:     via\.slice\(0, 60\)/);
+    // And the webhook must still be reading the session's, not the subscription's.
+    expect(w).toMatch(/const m = session\.metadata \?\? \{\};/);
   });
 
   test('a refused trial records WHY the server refused', () => {

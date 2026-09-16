@@ -273,19 +273,18 @@ Deno.serve(async (req) => {
         ...(fbc      ? { fbc }                  : {}),
         ...(clientIp ? { client_ip: clientIp }  : {}),
         ...(clientUa ? { client_ua: clientUa }  : {}),
+        // Which pitch produced this. Read back by stripe-webhook onto
+        // subscription_started, which is the only paid-side event and has never
+        // carried a surface — so the conversion deck's last column was
+        // structurally blank on every row. These MUST live on the session,
+        // not on subscription_data: the webhook reads `session.metadata`.
+        // Free text from the client, clamped here, never used for authorization.
+        ...(surface  ? { surface: surface.slice(0, 60) } : {}),
+        ...(header   ? { header:  header.slice(0, 60) }  : {}),
+        ...(via      ? { via:     via.slice(0, 60) }     : {}),
       },
       subscription_data: {
-        // surface/header/via ride along so the webhook's subscription_started
-        // can name the pitch that produced the sale. No paid-side event has
-        // ever carried a surface, so the conversion deck's last column was
-        // structurally blank on every row.
-        metadata: {
-          supabase_user_id: userId, plan,
-          ...(trial ? { trial: "1" } : {}),
-          ...(surface ? { surface: String(surface).slice(0, 60) } : {}),
-          ...(header ? { header: String(header).slice(0, 60) } : {}),
-          ...(via ? { via: String(via).slice(0, 60) } : {}),
-        },
+        metadata: { supabase_user_id: userId, plan, ...(trial ? { trial: "1" } : {}) },
         ...(trial
           ? {
               trial_period_days: CREATOR_TRIAL_DAYS,
