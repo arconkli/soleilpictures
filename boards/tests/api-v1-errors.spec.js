@@ -36,6 +36,26 @@ test('the card cap is a 402 a caller can act on', () => {
   expect(out.message).toBe('Demo accounts are limited to 50 cards. Invite friends or upgrade to add more.');
 });
 
+test('a restore refused by the cap is a 402, not a 403', () => {
+  // Since 0333 a deleted cluster stops consuming the cap, so restoring one can
+  // legitimately fail. restore_board raises 42501 — the same code an RLS denial
+  // uses — and without an explicit clause the mapper called it `forbidden`,
+  // which sends the caller to debug access that is perfectly fine.
+  const out = describeUpstreamError(403,
+    pg('42501', 'Restoring this cluster would take you to 53 cards, past your limit of 50. Delete some cards first, or upgrade to Creator.'));
+  expect(out.status).toBe(402);
+  expect(out.code).toBe('limit_reached');
+  expect(out.message).toMatch(/past your limit of 50/);
+});
+
+test('a genuine permission denial is still a 403', () => {
+  // The other side of the same branch: 42501 without limit language must NOT
+  // be reclassified as a billing problem.
+  const out = describeUpstreamError(403, pg('42501', 'not authorized to restore board abc'));
+  expect(out.status).toBe(403);
+  expect(out.code).toBe('forbidden');
+});
+
 test('the storage quota is also a 402', () => {
   const out = describeUpstreamError(403, pg('42501', 'this workspace is over_quota'));
   expect(out.status).toBe(402);

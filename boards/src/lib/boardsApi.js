@@ -936,16 +936,21 @@ export async function deleteBoard(boardId) {
 
 // Reverse a soft-delete. Used by the time-travel restore path so an
 // undone delete fully comes back, and by the Trash UI.
+//
+// NO FALLBACK. This used to drop to a direct
+// `update boards set deleted_at = null` whenever the RPC errored — and the RLS
+// UPDATE policy on boards permits exactly that for any workspace member, so
+// the fallback could complete a restore the server had just refused.
+//
+// Since 0333 a deleted cluster no longer consumes the owner's card cap, which
+// means restoring one can now legitimately fail: it would carry the account
+// past its limit, and restore_board raises 42501 to say so. A catch that
+// routed around that would hand back the cards the cap exists to meter — the
+// same shape as every other bug in this repo where a rule was enforced and
+// then silently overridden by the caller's error handling.
 export async function restoreBoard(boardId) {
   const { error } = await supabase.rpc('restore_board', { p_board_id: boardId });
-  if (error) {
-    console.warn('[restoreBoard] RPC failed, falling back to UPDATE', error);
-    const upd = await supabase
-      .from('boards')
-      .update({ deleted_at: null, updated_at: new Date().toISOString() })
-      .eq('id', boardId);
-    if (upd.error) throw upd.error;
-  }
+  if (error) throw error;
 }
 
 // Hard-delete a board (admin-only path; not wired into the UI yet). Use

@@ -261,6 +261,32 @@ function readImageDims(file) {
 // fire 100 concurrent PUTs. Module-scope so it's shared across panes/boards.
 const listUploadLimiter = makeLimiter(4);
 
+// Restore soft-deleted clusters, and SAY SO when the server refuses.
+//
+// Since 0333 a deleted cluster stops consuming the owner's card cap, which
+// means a restore can legitimately fail: bringing it back would carry the
+// account past its ceiling, and restore_board raises 42501 saying exactly
+// that. Both undo paths used to swallow any failure in a console.error, which
+// after that change would leave the Y.Doc holding a board card with no live
+// board behind it, and the person with no idea why their undo did nothing.
+//
+// The cap refusal gets a warning toast carrying the server's own sentence — it
+// already names the numbers and the way out — and anything else a plain error.
+async function restoreBoardsAnnouncing(ids, feedback) {
+  const refused = [];
+  for (const id of ids) {
+    try { await restoreBoard(id); }
+    catch (e) { console.error('[undo] restoreBoard failed', id, e); refused.push(e); }
+  }
+  if (refused.length) {
+    const capHit = refused.find((e) => /past your limit/i.test(e?.message || ''));
+    feedback?.toast(capHit
+      ? { type: 'warning', message: capHit.message }
+      : { type: 'error', message: 'Could not restore that cluster: ' + (refused[0]?.message || 'unknown error') });
+  }
+  return refused.length === 0;
+}
+
 export function App() {
   perf.usePerfRenderTime('App');
   // Perf toggle: ?perf=1 enables (one-shot at mount); Ctrl+Shift+P toggles
@@ -2520,7 +2546,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // toast Undo, the toolbar button, AND Cmd+Z all funnel through these two
     // functions, fixing them here fixes every entry point at once.
     const restoreBoardsForUndo = async (ids) => {
-      for (const id of ids) { try { await restoreBoard(id); } catch (e) { console.error('[undo] restoreBoard failed', id, e); } }
+      await restoreBoardsAnnouncing(ids, feedback);
       await refreshBoards();
     };
     const reSoftDeleteBoardsForRedo = async (ids) => {
@@ -3132,7 +3158,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     undoToast(feedback, {
       message: ids.length === 1 ? 'Cluster deleted' : `${ids.length} clusters deleted`,
       onUndo: async () => {
-        for (const id of ids) { try { await restoreBoard(id); } catch (e) { console.error('[undo] restoreBoard failed', id, e); } }
+        await restoreBoardsAnnouncing(ids, feedback);
         await refreshBoards();
       },
     });

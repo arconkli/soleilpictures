@@ -489,7 +489,12 @@ export function describeUpstreamError(httpStatus, rawBody) {
   // table and tells the caller nothing they can act on.
   if (RAISED_BY_US.has(pgCode) && pgMessage && !/row-level security/i.test(pgMessage)) {
     message = pgMessage;
-    if (/limited to \d+ cards|over[_ ]quota|quota|storage|\bcap\b/i.test(pgMessage)) {
+    // 'past your limit' is restore_board's refusal (0333): restoring a cluster
+    // that would carry the account over its ceiling. It is a limit, not a
+    // permission problem, and without this clause it answered 403 forbidden —
+    // sending a caller to debug access that is fine, which is the exact failure
+    // this function was written to stop.
+    if (/limited to \d+ cards|past your limit|over[_ ]quota|quota|storage|\bcap\b/i.test(pgMessage)) {
       status = 402; code = 'limit_reached';
     } else if (pgCode === '42501') {
       status = 403; code = 'forbidden';

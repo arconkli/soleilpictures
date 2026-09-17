@@ -65,7 +65,14 @@ export function TrashModal({ open, workspaceId = null, onClose, onBoardRestored 
       onBoardRestored?.();
       feedback.toast({ type: 'success', message: `Restored "${b.name || 'Untitled cluster'}"` });
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Restore failed: ' + (e?.message || e) });
+      // A cap refusal (0333: restoring would carry the account past its
+      // ceiling) already arrives as a full sentence naming the numbers and the
+      // way out, so it is shown verbatim rather than prefixed with a second
+      // explanation. It is a warning, not an error — nothing went wrong.
+      const capHit = /past your limit/i.test(e?.message || '');
+      feedback.toast(capHit
+        ? { type: 'warning', message: e.message }
+        : { type: 'error', message: 'Restore failed: ' + (e?.message || e) });
     } finally {
       setBusyId(null);
     }
