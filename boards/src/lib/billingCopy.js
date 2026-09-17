@@ -18,7 +18,7 @@ export const PLAN_NAME = 'Creator';
 // pricing funnel events (pricing_view, pricing_creator_intent, first_value_*)
 // so conversion can be attributed before/after a copy change without an A/B
 // test (traffic is far too low for one). Bump on every material copy revision.
-export const COPY_REV = 'studio_v3';
+export const COPY_REV = 'studio_v4';
 
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 
@@ -146,6 +146,63 @@ export const DEMO_FEATURES = [
 // three agree. Never type "14" anywhere else.
 export const CREATOR_TRIAL_DAYS = 14;
 
+// ── The ambient offer ───────────────────────────────────────────────────────
+//
+// What the three ambient surfaces — the chip pill, the first-value banner and
+// the approaching-limit toast — LEAD with.
+//
+// Putting the price on those surfaces (prod 2026-09-15) multiplied their reach
+// several times over and inverted the targeting: nearly everyone reached now
+// has a real body of work, where historically more empty accounts had seen a
+// price than every committed user combined. What those surfaces did not carry
+// is the trial. `creatorTrial` was referenced in exactly one rendering
+// component — PricingModal — so the offer was only discoverable by clicking
+// through, and a small fraction of the people who saw a price ever saw it.
+//
+// A price is a request; a trial is an invitation. At a price that is 2–3.6×
+// every individual competitor, leading with the request and hiding the
+// invitation is the worst available ordering. So when the viewer is eligible,
+// the invitation goes first.
+//
+// IN-PRODUCT ONLY. Both /pricing pages keep leading with the price — that is
+// what makes this an invitation extended to someone who has built something
+// rather than a "START FREE TRIAL" banner, and it is the standing decision
+// recorded in supabase/functions/_shared/trialCore.mjs.
+//
+// MEASUREMENT NOTE, because this WILL be misread: on a trial-eligible viewer
+// the trial label REPLACES the price on the pill, so that impression stamps no
+// `price_seen` row. A dip in "share of committed users who have seen a price"
+// after this ships is the trial working, not reach regressing. The honest
+// exposure denominator is `up_chip_view`, which carries both `price_shown` and
+// `trial_shown` so the two offers stay separable.
+export const TRIAL_FROM_LABEL = `${CREATOR_TRIAL_DAYS} days free`;
+
+// The pill renders TRIAL_FROM_LABEL or PRICE_FROM_LABEL into its own span
+// rather than taking a single composed string, because the two carry different
+// classes — a fact reads as quiet ink beside the count, an offer does not.
+// Eligibility is the CALLER's decision (creatorTrial.js); this module stays
+// pure copy and must never grow a second opinion about who qualifies.
+
+// The first-value banner's body. Highest-dwell surface in the product (9.2 s
+// median, several times the wall's), which is why it carries a full sentence
+// rather than a label.
+export function firstValueSentence(trialOffer) {
+  const lead = 'Creator is the complete studio — unlimited cards, any file type, any size.';
+  return trialOffer
+    ? `${lead} Yours free for ${CREATOR_TRIAL_DAYS} days.`
+    : `${lead} Everything your work deserves, ${PRICE_FROM_LABEL}.`;
+}
+
+// The approaching-limit toast. Keeps the referral alternative on both variants:
+// earning free cards is a real route to the same outcome and costs nothing to
+// offer beside the paid one.
+export function nearCapSentence({ count, limit, trialOffer } = {}) {
+  const head = `You're at ${count}/${limit} cards.`;
+  return trialOffer
+    ? `${head} Creator lifts the cap — free for ${CREATOR_TRIAL_DAYS} days, or invite friends to earn more free ones.`
+    : `${head} Creator lifts the cap, ${PRICE_FROM_LABEL} — or invite friends to earn more free ones.`;
+}
+
 // CTA labels — one place so "Get Creator" / "Manage billing" stay consistent.
 // `subscribeShort` is the compact contextual label used in tight spots (the
 // WaitlistConfirm skip row), composed with the live per-month price.
@@ -153,6 +210,10 @@ export const CTA = {
   getCreator: `Get ${PLAN_NAME}`,
   getCreatorBusy: 'Opening checkout…',
   tryCreator: `Try ${PLAN_NAME} free for ${CREATOR_TRIAL_DAYS} days`,
+  // The compact form, for the banner button and the toast action — spots
+  // where the full sentence wraps. The day count is already in the copy
+  // beside both of them, so it is not lost.
+  tryCreatorShort: `Try ${PLAN_NAME} free`,
   manageBilling: 'Manage billing →',
   manageBillingBusy: 'Opening…',
   subscribeShort: (plan) => `Subscribe — $${planPerMonth(plan)}/mo`,

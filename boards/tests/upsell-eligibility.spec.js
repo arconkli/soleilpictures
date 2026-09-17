@@ -55,10 +55,14 @@ test('a barely-started user is not pitched either', async ({ page }) => {
   await expect(chipOf(page)).toHaveCount(0);
 });
 
+// NOTE since studio_v4: `&trialed=1`. Thirteen cards is trial-eligible, and an
+// eligible viewer now gets the invitation instead of the price. These three
+// tests are about the PRICE ladder, so they name a viewer who has already had
+// their trial; the trial path has its own coverage in creator-trial-wiring.
 test('an invested user gets the chip, with no count and no price yet', async ({ page }) => {
   const rows = [];
   await routeAnalytics(page, rows);
-  await page.goto('/?local=1&reset=1&tier=demo&cards=45&limit=100');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=45&limit=100&trialed=1');
 
   const chip = chipOf(page);
   await expect(chip).toBeVisible();
@@ -67,6 +71,7 @@ test('an invested user gets the chip, with no count and no price yet', async ({ 
   // number of either kind.
   await expect(chip.locator('.upgrade-chip-count')).toHaveCount(0);
   await expect(chip.locator('.upgrade-chip-price')).toHaveCount(0);
+  await expect(chip.locator('.upgrade-chip-trial')).toHaveCount(0);
   await expect(chip).not.toHaveClass(/upgrade-chip-near/);
 
   // The impression is recorded. The chip used to have no view row at all, so
@@ -83,7 +88,7 @@ test('an invested user gets the chip, with no count and no price yet', async ({ 
 test('past halfway the chip becomes a meter and says what the ceiling costs', async ({ page }) => {
   const rows = [];
   await routeAnalytics(page, rows);
-  await page.goto('/?local=1&reset=1&tier=demo&cards=70&limit=100');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=70&limit=100&trialed=1');
 
   const chip = chipOf(page);
   await expect(chip).toBeVisible();
@@ -102,7 +107,7 @@ test('past halfway the chip becomes a meter and says what the ceiling costs', as
 });
 
 test('near the wall the chip goes urgent, counts down, and still shows the price', async ({ page }) => {
-  await page.goto('/?local=1&reset=1&tier=demo&cards=95&limit=100');
+  await page.goto('/?local=1&reset=1&tier=demo&cards=95&limit=100&trialed=1');
 
   const chip = chipOf(page);
   await expect(chip).toBeVisible();

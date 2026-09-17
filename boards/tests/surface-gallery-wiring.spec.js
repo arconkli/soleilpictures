@@ -80,10 +80,12 @@ test.describe('surface gallery wiring', () => {
     expect(pm).toMatch(/tierPreview = null \}\) \{/);
     expect(pm).toMatch(/const live = useMyTier\(\{ userId: user\?\.id \}\);/);
     expect(pm).toMatch(/tierPreview \|\| live;/);
-    // The pill takes no props in the real chip, so its three pressure states
-    // were unreachable until it was split out presentationally.
+    // The pill takes no props in the real chip, so its four presentational
+    // states — plain, count, urgent, and (since studio_v4) the trial offer —
+    // were unreachable until it was split out. showTrial defaults to false so
+    // the split stays additive: an existing caller keeps the price ladder.
     const chip = read('src/components/UpgradeChip.jsx');
-    expect(chip).toMatch(/export function UpgradePill\(\{ innerRef = null, near, count, limit, showCount, showPrice, onClick \}\)/);
+    expect(chip).toMatch(/export function UpgradePill\(\{ innerRef = null, near, count, limit, showCount, showPrice, showTrial = false, onClick \}\)/);
     expect(chip).toMatch(/<UpgradePill\s/);
     // The share bar moved to its own module so previewing it does not drag the
     // Y.js decode path and CanvasSurface along.

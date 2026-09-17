@@ -9,9 +9,9 @@
 // owner). This component is purely presentational + fires nothing on its own.
 
 import { useEffect, useRef, useState } from 'react';
-import { PRICE_FROM_LABEL } from '../lib/billingCopy.js';
+import { CTA, firstValueSentence } from '../lib/billingCopy.js';
 
-export function FirstValueUpgradeBanner({ onSeeCreator, onDismiss }) {
+export function FirstValueUpgradeBanner({ trialOffer = false, onSeeCreator, onDismiss }) {
   // "Not now" animates out before App.jsx unmounts us. "See Creator" stays
   // immediate — the pricing modal covers the banner anyway.
   const [leaving, setLeaving] = useState(false);
@@ -27,15 +27,16 @@ export function FirstValueUpgradeBanner({ onSeeCreator, onDismiss }) {
       <div className="fv-banner-spark" aria-hidden="true">✦</div>
       <div className="fv-banner-copy">
         <div className="fv-banner-title">You're building something.</div>
-        {/* The price is on the banner itself. This is the surface people read
+        {/* The offer is on the banner itself. This is the surface people read
             longest (several times the wall's dwell), and it used to send them
-            to a modal for the one number that decides anything. */}
-        <div className="fv-banner-body">
-          Creator is the complete studio — unlimited cards, any file type, any size. Everything your work deserves, {PRICE_FROM_LABEL}.
-        </div>
+            to a modal for the one thing that decides anything — first for the
+            price, and then, until this change, for the trial. */}
+        <div className="fv-banner-body">{firstValueSentence(trialOffer)}</div>
       </div>
       <div className="fv-banner-actions">
-        <button className="fv-banner-cta" onClick={onSeeCreator}>See Creator</button>
+        <button className="fv-banner-cta" onClick={onSeeCreator}>
+          {trialOffer ? CTA.tryCreatorShort : 'See Creator'}
+        </button>
         <button className="fv-banner-dismiss" onClick={dismiss}>Not now</button>
       </div>
     </div>

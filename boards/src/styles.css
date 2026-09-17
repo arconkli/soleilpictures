@@ -5923,6 +5923,12 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
    this point, and the number should read as a fact next to the count, not as a
    second call to action. */
 .upgrade-chip-price  { color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* The trial, when it replaces the price. Reads a shade stronger than the price
+   because it is an offer rather than a fact, but deliberately NOT gold: the
+   gold accent is reserved for active/selection/focus states, and the pill's
+   own hover and near-cap states already own it. Medium weight is the whole
+   emphasis budget here. */
+.upgrade-chip-trial  { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
 
 /* ── Read-only banner (demo tier viewing someone else's board) ─────────
    Lives inside .tb-center (the topbar's centered column) so it sits

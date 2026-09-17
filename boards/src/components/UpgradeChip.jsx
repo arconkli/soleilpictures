@@ -21,14 +21,16 @@ import { EV } from '../lib/analyticsEvents.js';
 import { qaForceFirstValue, qaForceCapWall, qaForceImportAsk } from '../lib/localMode.js';
 import { ImportCapDialog } from './ImportCapDialog.jsx';
 import { DEMO_CARD_LIMIT, rejectedNoun } from '../lib/demoCardCap.js';
-import { COPY_REV, PRICE_FROM_LABEL } from '../lib/billingCopy.js';
+import { COPY_REV, PRICE_FROM_LABEL, TRIAL_FROM_LABEL } from '../lib/billingCopy.js';
+import { creatorTrialEligibility } from '../lib/creatorTrial.js';
 import { evaluateUpsell, atCapWall, ELIGIBILITY_REV } from '../lib/upsellEligibility.js';
 import { claimUpsellSlot } from '../lib/upsellSlot.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
 
 export function UpgradeChip() {
   const { user } = useAuth();
-  const { tier, demoCardCount, effectiveCardLimit } = useMyTier({ userId: user?.id });
+  const { tier, demoCardCount, serverCardCount, effectiveCardLimit, creatorTrialStartedAt } =
+    useMyTier({ userId: user?.id });
   const cardLimit = effectiveCardLimit || DEMO_CARD_LIMIT;
   // Days since signup — the one retention signal available without a server
   // round-trip, and enough (with cap fraction) to qualify everyone the richer
@@ -37,6 +39,19 @@ export function UpgradeChip() {
     ? Math.max(0, Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86400000))
     : 0;
   const elig = evaluateUpsell({ tier, demoCardCount, cardLimit, accountAgeDays });
+  // Is this viewer owed the invitation rather than the request?
+  //
+  // Decided on serverCardCount, NOT demoCardCount. The optimistic count is
+  // what the canvas believes mid-session: it goes stale for a whole session
+  // after a bulk drop and runs BACKWARDS on delete, so a chip keyed on it
+  // would offer a trial the server then refuses — a broken button. PricingModal
+  // decides the same way, which is what keeps the two in agreement when the
+  // modal opens from this pill. Null until the tier resolves → not eligible,
+  // which fails closed to the price.
+  const trialDecision = creatorTrialEligibility({
+    tier, cards: serverCardCount, cardLimit, trialStartedAt: creatorTrialStartedAt,
+  });
+  const trialOffer = trialDecision.eligible;
   const capWallQa = qaForceCapWall();             // dev-only render seam, 0 in prod
   const importAskQa = qaForceImportAsk();         // dev-only render seam, null in prod
   const [open, setOpen] = useState(false);       // chip-opened modal
@@ -142,8 +157,10 @@ export function UpgradeChip() {
       // Persist on show so it's truly once-per-account. Best-effort, and
       // through the shared writer so it cannot erase a sibling stamp.
       stampUpgradePrompt({ first_value_shown_at: at });
-      // The banner carries the price now.
-      notePriceSeen('first_value');
+      // The banner carries the price — unless it is carrying the trial
+      // instead, in which case no number was shown and stamping price_seen
+      // would be a lie the reach metric then repeats back to us.
+      if (!trialOffer) notePriceSeen('first_value');
       // Local mirror of the same fact. App.jsx's activation effect reads this
       // key to stop re-dispatching once the banner has actually been shown —
       // the stamp lives here, at the point of showing, rather than at the
@@ -157,7 +174,7 @@ export function UpgradeChip() {
     // crosses the threshold mid-session. firedRef keeps the re-registration
     // idempotent, and qaForceFirstValue stays a render seam that bypasses the
     // gate so the banner spec doesn't need to construct an eligible user.
-  }, [tier, elig.eligible, elig.reason, elig.capPct, demoCardCount, cardLimit, accountAgeDays, user?.id]);
+  }, [tier, elig.eligible, elig.reason, elig.capPct, demoCardCount, cardLimit, accountAgeDays, user?.id, trialOffer]);
 
   // Publish the chip's measured width to --upgrade-chip-gutter so the topbar's
   // right cluster (.tb-right) can reserve exactly enough room and never sit
@@ -220,7 +237,22 @@ export function UpgradeChip() {
   // Once the pill is a meter it also says what lifting the ceiling costs. A
   // label that just reads "Get Creator" sends the one number that decides
   // anything behind a click most people never take.
-  const showPrice = showCount || near;
+  const showPrice = (showCount || near) && !trialOffer;
+
+  // The trial shows from the moment the chip does, at ANY pressure — and that
+  // is deliberate, not an oversight of the pressure ladder.
+  //
+  // The ladder exists because "a meter is information; a price is a request.
+  // Don't send the request early." A trial is neither: it is a gift, and the
+  // objection to asking early does not apply to giving early. It is also the
+  // only way this reaches the band it is aimed at — trial eligibility starts at
+  // the absolute body-of-work floor, which on the current cap is about a
+  // quarter of the way up, well below the halfway line where `count` pressure
+  // begins. Gating the trial behind pressure would show it only to people
+  // already most of the way to the wall, which is the exact mistiming this
+  // pass exists to fix: most committed boards are built in a single sitting
+  // and finished within a day or two, long before any ceiling is in view.
+  const showTrial = trialOffer;
 
   // Record the IMPRESSION. The chip had no view row, so whether an eligible
   // user actually had the pill in front of them could only be inferred from
@@ -229,16 +261,21 @@ export function UpgradeChip() {
   // never per render.
   useEffect(() => {
     if (!showChip) return;
-    logEventOnce(`up_chip_view:${showPrice ? 'price' : 'label'}`, EV.UP_CHIP_VIEW, {
+    // `trial_shown` is the field that keeps the two offers separable once the
+    // trial starts replacing the price here. Without it, a fall in price_seen
+    // reads as lost reach when it is actually the trial landing.
+    logEventOnce(`up_chip_view:${showTrial ? 'trial' : showPrice ? 'price' : 'label'}`, EV.UP_CHIP_VIEW, {
       near, count: demoCardCount, limit: cardLimit, pressure: elig.pressure,
-      elig_reason: elig.reason, cap_pct: elig.capPct, price_shown: showPrice,
+      elig_reason: elig.reason, cap_pct: elig.capPct,
+      price_shown: showPrice, trial_shown: showTrial, trial_reason: trialDecision.reason,
+      server_cards: Number.isFinite(serverCardCount) ? serverCardCount : null,
       elig_rev: ELIGIBILITY_REV, copy_rev: COPY_REV,
     });
     if (showPrice) notePriceSeen('chip');
     // notePriceSeen is a plain closure over render state; the latch makes it
     // idempotent, so re-running on a count change is harmless.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showChip, showPrice, near, elig.pressure]);
+  }, [showChip, showPrice, showTrial, near, elig.pressure]);
 
   if (tier !== 'demo') return null;
   const onSeeCreator = () => {
@@ -261,18 +298,20 @@ export function UpgradeChip() {
           limit={cardLimit}
           showCount={showCount}
           showPrice={showPrice}
+          showTrial={showTrial}
           onClick={() => {
             // Was dark: only the downstream modal pricing_view fired, so chip
             // clicks were indistinguishable from every other modal entry.
             logEvent(EV.UP_CHIP_CLICK, {
               near, count: demoCardCount, limit: cardLimit,
               pressure: elig.pressure, elig_reason: elig.reason, cap_pct: elig.capPct,
+              trial_shown: showTrial, price_shown: showPrice,
             });
             setOpen(true);
           }} />
       )}
       {open && <PricingModal onClose={() => setOpen(false)} header={null} via="chip" />}
-      {fvBanner && <FirstValueUpgradeBanner onSeeCreator={onSeeCreator} onDismiss={onDismiss} />}
+      {fvBanner && <FirstValueUpgradeBanner trialOffer={trialOffer} onSeeCreator={onSeeCreator} onDismiss={onDismiss} />}
       {fvModal && <PricingModal onClose={() => setFvModal(false)} header="first-value" surface="first_value" via="first_value_banner" />}
       {/* Dev-only render seam for the cap-hit wall (?local=1&capwall=28). The
           real mount is App.jsx's UpgradeModal, which the QA harness never
@@ -314,7 +353,7 @@ export function UpgradeChip() {
 // this split the admin Surface Gallery could only ever show whichever state
 // the previewing account happened to be in, which for an admin is none of
 // them. Presentational: no hooks, no analytics, no tier reads.
-export function UpgradePill({ innerRef = null, near, count, limit, showCount, showPrice, onClick }) {
+export function UpgradePill({ innerRef = null, near, count, limit, showCount, showPrice, showTrial = false, onClick }) {
   return (
     <button
       ref={innerRef}
@@ -336,7 +375,16 @@ export function UpgradePill({ innerRef = null, near, count, limit, showCount, sh
           <span className="upgrade-chip-count">{count}/{limit}</span>
         </>
       )}
-      {showPrice && (
+      {/* The trial and the price are mutually exclusive by construction
+          (UpgradeChip clears showPrice whenever the trial is on offer): the
+          pill has room for one of them, and an invitation beside a request
+          reads as a discount rather than a gift. */}
+      {showTrial ? (
+        <>
+          <span className="upgrade-chip-sep">·</span>
+          <span className="upgrade-chip-trial">{TRIAL_FROM_LABEL}</span>
+        </>
+      ) : showPrice && (
         <>
           <span className="upgrade-chip-sep">·</span>
           <span className="upgrade-chip-price">{PRICE_FROM_LABEL}</span>

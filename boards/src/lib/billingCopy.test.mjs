@@ -24,6 +24,12 @@ import {
   planLabel,
   planBilling,
   capHitSummary,
+  CTA,
+  CREATOR_TRIAL_DAYS,
+  PRICE_FROM_LABEL,
+  TRIAL_FROM_LABEL,
+  firstValueSentence,
+  nearCapSentence,
 } from './billingCopy.js';
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from './demoCardCap.js';
 
@@ -203,6 +209,76 @@ assertEq(capHitSummary(), null, 'no argument at all → null');
 assertEq(capHitSummary({ cards: NaN, storageBytes: 'abc' }), null, 'junk input → null');
 assert(/1\.4 GB/.test(capHitSummary({ cards: 5, storageBytes: 1503238553 })), 'GB rounds to one decimal');
 assert(/12 GB/.test(capHitSummary({ cards: 5, storageBytes: 12884901888 })), 'double-digit GB drops the decimal');
+
+// --- the ambient offer -----------------------------------------------------
+//
+// The three ambient surfaces (chip pill, first-value banner, approaching-limit
+// toast) lead with the TRIAL when the viewer is eligible and the PRICE when
+// they are not. Before studio_v4 the trial existed in exactly one rendering
+// component — PricingModal — so it was only discoverable by clicking through,
+// and only a small fraction of the people who saw a price ever saw it.
+//
+// These guards exist because the failure is silent in both directions: a trial
+// variant that leaks a price reads as a discount, and a price variant that
+// leaks trial wording promises something the server will refuse.
+// The day count is a FACT, injected into the docs and put on the Stripe session
+// by the edge function. A typed "14" here is how those three drift apart.
+assert(
+  TRIAL_FROM_LABEL.includes(String(CREATOR_TRIAL_DAYS)),
+  'the trial label is built from CREATOR_TRIAL_DAYS, not a typed number',
+);
+assert(
+  CTA.tryCreatorShort.includes('free') && !/\d/.test(CTA.tryCreatorShort),
+  'the compact trial CTA says free and carries no number (the copy beside it does)',
+);
+
+// No price may appear in a trial variant. `$` is the tell: PRICE_FROM_LABEL is
+// built from PRICING and always carries one.
+for (const [name, text] of [
+  ['chip label', TRIAL_FROM_LABEL],
+  ['first-value banner', firstValueSentence(true)],
+  ['near-cap toast', nearCapSentence({ count: 45, limit: 50, trialOffer: true })],
+]) {
+  assert(!text.includes('$'), `${name}: the trial variant names no price`);
+  assert(
+    text.toLowerCase().includes('free'),
+    `${name}: the trial variant actually says free`,
+  );
+}
+
+// …and the non-trial variants must still carry the number. This is the half
+// that regressed silently before the price landed on these surfaces at all.
+for (const [name, text] of [
+  ['chip label', PRICE_FROM_LABEL],
+  ['first-value banner', firstValueSentence(false)],
+  ['near-cap toast', nearCapSentence({ count: 45, limit: 50, trialOffer: false })],
+]) {
+  assert(text.includes('$'), `${name}: the non-trial variant carries the price`);
+}
+
+// The toast states the user's own position on both variants — it is the one
+// ambient surface that is genuinely about the ceiling.
+for (const trialOffer of [true, false]) {
+  assert(
+    nearCapSentence({ count: 45, limit: 50, trialOffer }).includes('45/50'),
+    `near-cap toast names the live count (trial=${trialOffer})`,
+  );
+  // The free route to the same outcome stays on offer beside the paid one.
+  assert(
+    nearCapSentence({ count: 45, limit: 50, trialOffer }).includes('invite'),
+    `near-cap toast keeps the referral alternative (trial=${trialOffer})`,
+  );
+}
+
+// The two variants must actually differ, in every case. A helper that returned
+// the same sentence either way would pass every assertion above.
+assert(TRIAL_FROM_LABEL !== PRICE_FROM_LABEL, 'chip variants differ');
+assert(firstValueSentence(true) !== firstValueSentence(false), 'banner variants differ');
+assert(
+  nearCapSentence({ count: 1, limit: 2, trialOffer: true })
+    !== nearCapSentence({ count: 1, limit: 2, trialOffer: false }),
+  'toast variants differ',
+);
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

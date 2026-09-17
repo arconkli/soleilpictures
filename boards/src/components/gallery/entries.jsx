@@ -63,7 +63,7 @@ import { Sheet } from '../shell/Sheet.jsx';
 import { MobileDrawer } from '../shell/MobileDrawer.jsx';
 import { MobileBottomNav } from '../shell/MobileBottomNav.jsx';
 import { POWER_REVEALS } from '../../lib/powerReveals.js';
-import { PRICE_FROM_LABEL } from '../../lib/billingCopy.js';
+import { CTA, nearCapSentence } from '../../lib/billingCopy.js';
 
 // ── Surfaces that are not on every branch ─────────────────────────────────
 // `main` carries stacks that `production` does not (the templates work, among
@@ -152,9 +152,13 @@ export const RENDERERS = {
   'pricing-modal-first-value': ({ close }) => <PricingModal onClose={close} header="first-value" surface="first_value" via="first_value_banner" tierPreview={tierShape({ demoCardCount: 13, serverCardCount: 13 })} />,
   'pricing-modal-storage': ({ close }) => <PricingModal onClose={close} header="storage" surface="storage" via="upload_blocked" tierPreview={tierShape()} />,
   'first-value-banner': () => <FirstValueUpgradeBanner onSeeCreator={NOOP} onDismiss={NOOP} />,
+  'first-value-banner-trial': () => <FirstValueUpgradeBanner trialOffer onSeeCreator={NOOP} onDismiss={NOOP} />,
   'upgrade-pill-plain': () => <PillStage><UpgradePill near={false} count={4} limit={50} showCount={false} showPrice={false} onClick={NOOP} /></PillStage>,
   'upgrade-pill-count': () => <PillStage><UpgradePill near={false} count={28} limit={50} showCount showPrice onClick={NOOP} /></PillStage>,
   'upgrade-pill-urgent': () => <PillStage><UpgradePill near count={46} limit={50} showCount showPrice onClick={NOOP} /></PillStage>,
+  // The trial replaces the price, and shows at ANY pressure — eligibility
+  // starts at thirteen cards, below the line where the meter appears.
+  'upgrade-pill-trial': () => <PillStage><UpgradePill near={false} count={20} limit={50} showCount={false} showPrice={false} showTrial onClick={NOOP} /></PillStage>,
   'import-cap-dialog': ({ close }) => <ImportCapDialog open n={64} take={9} over={55} count={41} limit={50} kinds={{ image: 64 }} onTakePartial={close} onUpgrade={close} onCancel={close} />,
   'import-cap-dialog-full': ({ close }) => <ImportCapDialog open n={64} take={0} over={64} count={50} limit={50} kinds={{ image: 60, video: 4 }} onTakePartial={close} onUpgrade={close} onCancel={close} />,
   'billing-demo': () => <BillingStage><BillingSummary tier="demo" demoCardCount={41} effectiveCardLimit={50} onUpgrade={NOOP} /></BillingStage>,
@@ -194,8 +198,13 @@ export const RENDERERS = {
   // Toasts & dialogs
   'toast-near-cap': (f) => f.toast({
     type: 'warning', ttl: 60000,
-    message: `You're at 46/50 cards. Creator lifts the cap, ${PRICE_FROM_LABEL} — or invite friends to earn more free ones.`,
+    message: nearCapSentence({ count: 46, limit: 50, trialOffer: false }),
     action: { label: 'See Creator', onClick: NOOP },
+  }),
+  'toast-near-cap-trial': (f) => f.toast({
+    type: 'warning', ttl: 60000,
+    message: nearCapSentence({ count: 46, limit: 50, trialOffer: true }),
+    action: { label: CTA.tryCreatorShort, onClick: NOOP },
   }),
   'toast-cap-rehit': (f) => f.toast({
     type: 'warning', ttl: 60000,
