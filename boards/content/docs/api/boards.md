@@ -13,7 +13,7 @@ faq:
   - q: How do I create a board at the top level?
     a: Omit parent_board_id. Omit workspace_id too and it goes in your personal workspace, which is created if it does not exist.
   - q: Can I undo a delete?
-    a: Yes. DELETE is a soft delete and POST /boards/:id/restore puts it back.
+    a: Usually. DELETE is a soft delete and POST /boards/:id/restore puts it back, within the 30-day trash window. One case is refused: a deleted cluster stops counting against the card limit, so if the free space has been used since, restoring would take the account over its cap and the call answers 402 limit_reached saying by how much.
 related:
   - /docs/api/cards
   - /docs/api/search
@@ -278,6 +278,16 @@ JSON body on `DELETE` so a destructive call stays a `DELETE`.
 ## `POST /boards/:id/restore`
 
 Puts a soft-deleted board back. Find deleted boards with `GET /boards?deleted=`.
+
+Restoring a board that is already live is a no-op, so a retry is safe.
+
+**This call can be refused.** A deleted cluster stops counting against the card
+limit the moment it is deleted, so the room it held is immediately usable. The
+other side of that is that a restore has to fit: if the space has been used
+since, putting the cluster back would take the account over its limit, and the
+call answers `402 limit_reached` with a message naming the number it would
+reach. Free some room or upgrade, then retry. Nothing is lost in the meantime —
+the 30-day trash window is the only clock running.
 
 ## Worked example
 
