@@ -16696,6 +16696,34 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "A cluster in the trash does not count against your card limit.",
+     "children": [
+      {
+       "t": "text",
+       "v": "A cluster in the trash does not count against your card limit."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Deleting one frees its cards the moment you delete it, so if you cleared a cluster to make room, the room is there immediately."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "That cuts both ways, and deliberately: a restore has to fit. If you used the space in the meantime, putting the cluster back would take you over your limit, so it is refused and says by how much. Delete some cards, or upgrade, and it will go back. Nothing in the trash is lost while you decide — the 30-day clock is the only thing running."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Version history",

@@ -2,7 +2,7 @@
 
 > Deleting a cluster is a soft delete — it sits in the trash for 30 days and can be restored. Individual boards keep version snapshots you can look through and roll back to. If something goes badly wrong, workspace recovery rewinds every board in the workspace to a chosen moment, with a preview of exactly what would change before anything happens.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters/trash-and-recovery · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/clusters/trash-and-recovery · Updated 2026-09-17_
 
 Four layers, from smallest mistake to worst day.
 
@@ -30,6 +30,16 @@ stays restorable for **30 days**, then is purged.
 The trash is workspace-wide — open it from the sidebar or `⌘K` → "trash". From
 there, **restore** puts a cluster back where it was, or **remove permanently**
 if you are sure.
+
+**A cluster in the trash does not count against your card limit.** Deleting one
+frees its cards the moment you delete it, so if you cleared a cluster to make
+room, the room is there immediately.
+
+That cuts both ways, and deliberately: a restore has to fit. If you used the
+space in the meantime, putting the cluster back would take you over your limit,
+so it is refused and says by how much. Delete some cards, or upgrade, and it
+will go back. Nothing in the trash is lost while you decide — the 30-day clock
+is the only thing running.
 
 ## Version history
 

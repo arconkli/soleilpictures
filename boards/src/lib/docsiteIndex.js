@@ -1496,7 +1496,7 @@ export const DOCS_PAGES = [
     "answer": "Deleting a cluster is a soft delete — it sits in the trash for 30 days and can be restored. Individual boards keep version snapshots you can look through and roll back to. If something goes badly wrong, workspace recovery rewinds every board in the workspace to a chosen moment, with a preview of exactly what would change before anything happens.",
     "section": "clusters",
     "order": 3,
-    "updated": "2026-08-08",
+    "updated": "2026-09-17",
     "navLabel": "Trash and recovery",
     "headings": [
       {
@@ -1533,6 +1533,10 @@ export const DOCS_PAGES = [
       {
         "q": "How long do I have to restore a deleted cluster?",
         "a": "30 days. After that it is purged permanently."
+      },
+      {
+        "q": "Does a cluster in the trash still use up my card limit?",
+        "a": "No. Deleting a cluster releases its cards immediately, so the room is yours to use straight away. The trade-off is that restoring it has to fit: if you have filled the space in the meantime, the restore is refused until you make room or upgrade."
       },
       {
         "q": "Can I undo a collaborator's changes?",
