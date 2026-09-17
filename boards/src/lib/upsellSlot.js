@@ -52,7 +52,13 @@ const ALWAYS_WINS = 'cap-hit';
 // 'power-reveal' is a toast that fires off a card count at the same moments
 // the others do; on a return visit it was the first thing on screen with two
 // more behind it.
-const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal', 'cap-toast']);
+// 'storage-gate' is the file-type / size / quota refusal. It is an
+// interruption rather than an offer, so it does not defer for the ambient
+// kinds' sake — but it is emphatically NOT ALWAYS_WINS: the cap wall outranks
+// it, because a refused CARD is a bigger fact than a refused FILE and the two
+// arrive together on an over-cap folder drop. It is here mainly because it
+// arrives once per refused FILE: a folder of six opened six modals in a row.
+const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal', 'cap-toast', 'storage-gate']);
 
 // Module scope = page lifetime, like boardsApi's _capAnnounced. No auth reset
 // is wired for it on purpose: the claim self-expires in a minute, so the worst

@@ -2376,7 +2376,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // on top would replace the wall the user was just shown AND spend the
         // wall's once-per-ceiling latch on a modal that never rendered — so
         // the blocked files are reported in the toast alone.
-        if (csFiles.own && over === 0) setUpgradeReason('storage');
+        if (csFiles.own && over === 0) pitchStorageGate();
         const biggest = blocked.reduce((m, f) => Math.max(m, f?.size || 0), 0);
         logEvent(EV.UPLOAD_BLOCKED, {
           reason: 'owner_not_paid', surface: 'list', n: blocked.length,
@@ -2506,7 +2506,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             // Owner-pays: the server gate keyed on the OWNER's plan. Pitch the
             // upgrade only at the owner — a collaborator's own plan is
             // irrelevant and upgrading it cannot unblock the board.
-            if (csFiles.own) setUpgradeReason('storage');
+            if (csFiles.own) pitchStorageGate();
             else feedback.toast({
               type: 'warning',
               message: err.code === 402
@@ -4364,6 +4364,38 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     capPitchedAtRef.current = limit;
     setUpgradeReason('cap-hit');
   }, [feedback]);
+
+  // Has the storage / file-type gate already explained itself this session?
+  //
+  // The twin of capPitchedAtRef, and it exists for the same reason. The gate
+  // fires once per REFUSED FILE, and several of its call sites sit inside a
+  // per-file loop — so a folder of six non-standard files opened this modal six
+  // times in a row. Measured in production on 2026-09-17: one session took five
+  // of them, dismissing each in under four seconds, and never read a line of
+  // the offer. A pitch shown that often is not a pitch, it is an obstacle.
+  //
+  // Latched for the page lifetime rather than per ceiling, because unlike the
+  // cap there is no ceiling here to move past: a second refusal says exactly
+  // what the first one said. Every caller already shows a toast beside this,
+  // so standing down loses no information — it only stops re-interrupting.
+  const storagePitchedRef = useRef(false);
+
+  // The interruption path: an upload the server (or the client pre-block)
+  // refused. Returns true if the modal actually opened, so a caller can tell
+  // "explained" from "already explained" if it ever needs to.
+  //
+  // Deliberately NOT ALWAYS_WINS. The cap wall outranks the file-type pitch —
+  // a refused CARD is a bigger fact than a refused FILE, and on an over-cap
+  // folder drop of non-standard files both fire in the same gesture. Standing
+  // down here also must not latch: deferring is not declining, and the next
+  // refusal is owed the explanation this one gave up.
+  const pitchStorageGate = useCallback(() => {
+    if (storagePitchedRef.current) return false;
+    if (!claimUpsellSlot('storage-gate')) return false;
+    storagePitchedRef.current = true;
+    setUpgradeReason('storage');
+    return true;
+  }, []);
 
   // Should this demo user be pitched at all? Shared by every always-on upsell
   // surface so the chip, the first-value banner and the list-toolbar chip agree
@@ -6886,6 +6918,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      getGridModel={(card) => readGridModel(card, yd, gridTemplates)}
                      onRevealOnCanvas={(ids) => { setView('canvas', 'reveal', board.id); setFocusRequest({ boardId: board.id, ids, token: Date.now() }); }}
                      showStorageUpsell={myTier.tier === 'demo' && workspace?.created_by === user?.id && upsellElig.eligible}
+                     // Deliberate: a toolbar button the user chose to press, not a
+                     // refusal that interrupted them. It never latches — the same
+                     // distinction the chip and the cap wall already make.
                      onStorageUpsell={() => setUpgradeReason('storage')}
                      paneId={paneId}
                      hasSplit={!!splitId}
@@ -6911,7 +6946,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          onJumpToPeer={jumpToPeer}
                          canEdit={paneCanEdit}
                          boardPermission={isMain ? currentBoardPerm : splitBoardPerm}
-                         onRequestStorageUpgrade={() => setUpgradeReason('storage')}
+                         onRequestStorageUpgrade={pitchStorageGate}
                          isPaidPlan={myTier.tier === 'paid' || myTier.tier === 'admin'}
                          ownsWorkspace={workspace?.created_by === user?.id}
                          currentUser={currentUser}
