@@ -23,7 +23,8 @@ const secs = (ms) => {
 };
 
 export function ConversionFunnel({ rows = [], since }) {
-  const data = (rows || []).filter((r) => Number(r.exposures) > 0 || Number(r.checkouts) > 0);
+  const data = (rows || []).filter((r) =>
+    Number(r.exposures) > 0 || Number(r.checkouts) > 0 || Number(r.trials) > 0);
   if (!data.length) return <ChartPlaceholder title="No upgrade pitches recorded in this window" />;
 
   const sum = (k) => data.reduce((a, r) => a + (Number(r[k]) || 0), 0);
@@ -31,6 +32,7 @@ export function ConversionFunnel({ rows = [], since }) {
   const evaluated = sum('evaluated');
   const cta = sum('cta');
   const checkouts = sum('checkouts');
+  const trials = sum('trials');
   const paid = sum('paid');
   const configErrors = sum('config_errors');
 
@@ -41,7 +43,7 @@ export function ConversionFunnel({ rows = [], since }) {
       <p className="admin-section-sub">
         {formatCount(shown)} pitches shown · {formatCount(evaluated)} evaluated ·{' '}
         {formatCount(cta)} clicked · {formatCount(checkouts)} reached Stripe ·{' '}
-        {formatCount(paid)} paid
+        {formatCount(trials)} started a trial · {formatCount(paid)} paid
         {configErrors > 0 && (
           <strong> · {formatCount(configErrors)} checkout failures were CONFIGURATION, not the user</strong>
         )}
@@ -61,7 +63,12 @@ export function ConversionFunnel({ rows = [], since }) {
               <th className="num">Intent</th>
               <th className="num">Stripe</th>
               <th className="num">Errors</th>
-              <th className="num">Paid</th>
+              {/* A trial start is not a sale and never shares a column with one.
+                  Both come from subscription_started; the flag on it is the only
+                  thing that tells them apart, because amount_total is 0 for a
+                  trial AND for a 100%-off promo. */}
+              <th className="num" title="$0 trial starts — paid access, no revenue">Trials</th>
+              <th className="num" title="a real first charge">Paid</th>
             </tr>
           </thead>
           <tbody>
@@ -81,6 +88,7 @@ export function ConversionFunnel({ rows = [], since }) {
                     ? <strong title="misconfigured price or URL — ours to fix">{formatCount(r.checkout_errors)}</strong>
                     : formatCount(r.checkout_errors)}
                 </td>
+                <td className="num">{formatCount(r.trials)}</td>
                 <td className="num">{formatCount(r.paid)}</td>
               </tr>
             ))}
