@@ -137,7 +137,8 @@ import { planImport } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap, shouldWarnNearCapNow } from './lib/upsellEligibility.js';
 import { nearCapWarnedAt, markNearCapWarned, markPriceSeen } from './lib/upsellLatches.js';
 import { stampUpgradePrompt } from './lib/upgradePrompts.js';
-import { PRICE_FROM_LABEL } from './lib/billingCopy.js';
+import { CTA, nearCapSentence } from './lib/billingCopy.js';
+import { creatorTrialEligibility } from './lib/creatorTrial.js';
 import { ImportCapDialog } from './components/ImportCapDialog.jsx';
 import { claimUpsellSlot } from './lib/upsellSlot.js';
 import { recordSeen, takeReturn } from './lib/returnVisit.js';
@@ -4092,24 +4093,39 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const limit = Number(cs?.limit) || 0;
     const count = Number(cs?.count) || 0;
     if (!limit) return;
+    // Which offer does this person get? Decided on the SERVER count, like every
+    // other trial decision — `cs.count` is the canvas's optimistic number and
+    // runs backwards on delete, so keying the trial on it would offer one the
+    // server refuses. Someone standing at 80% of their cap is trial-eligible by
+    // the near_cap arm of the rule, so this is usually the invitation.
+    const trialOffer = creatorTrialEligibility({
+      tier: myTier.tier,
+      cards: myTier.serverCardCount,
+      cardLimit: limit,
+      trialStartedAt: myTier.creatorTrialStartedAt,
+    }).eligible;
     nearCapWarnedAtRef.current = limit;
     markNearCapWarned(user?.id, limit);
     // Keyed on the LIMIT, like the latch it reports. A cap that moves (referral
     // credits) re-arms the toast, and a fixed key would have shown that second,
     // genuinely-owed warning with no row behind it.
-    logEventOnce(`up_cap_toast:near:${limit}`, EV.UP_CAP_TOAST_VIEW, { count, limit, at });
-    // The toast carries the price now — see PRICE_FROM_LABEL.
-    if (user?.id && markPriceSeen(user.id, 'cap_toast')) {
+    logEventOnce(`up_cap_toast:near:${limit}`, EV.UP_CAP_TOAST_VIEW, {
+      count, limit, at, trial_shown: trialOffer,
+    });
+    // The toast carries the price — unless it is carrying the trial instead,
+    // in which case no number was shown and stamping price_seen would put a
+    // row behind an impression that never happened.
+    if (!trialOffer && user?.id && markPriceSeen(user.id, 'cap_toast')) {
       logEvent(EV.PRICE_SEEN, { surface: 'cap_toast', count, limit, cap_pct: Math.round((count / limit) * 100) });
       stampUpgradePrompt({ price_seen_at: new Date().toISOString(), price_seen_surface: 'cap_toast' });
     }
     feedback.toast({
       type: 'warning',
-      message: `You're at ${count}/${limit} cards. Creator lifts the cap, ${PRICE_FROM_LABEL} — or invite friends to earn more free ones.`,
+      message: nearCapSentence({ count, limit, trialOffer }),
       action: {
-        label: 'See Creator',
+        label: trialOffer ? CTA.tryCreatorShort : 'See Creator',
         onClick: () => {
-          logEventNow(EV.UP_CAP_TOAST_CTA, { count, limit, at });
+          logEventNow(EV.UP_CAP_TOAST_CTA, { count, limit, at, trial_shown: trialOffer });
           setUpgradeReason('cap-hit');
         },
       },

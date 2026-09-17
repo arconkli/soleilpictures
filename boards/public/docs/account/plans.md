@@ -76,8 +76,11 @@ grant bonus cards when someone you invited actually gets started.
 
 ## Trying Creator first
 
-Once there is a real cluster on your account, the upgrade screen inside the app
-offers **14 days of Creator** before you pay.
+Once there is a real cluster on your account, Clusters offers you
+**14 days of Creator** before you pay. The
+offer appears where you are already working: on the upgrade pill in the corner,
+on the prompts that show up as a cluster fills, and on the upgrade screen.
+
 A card is required; nothing is charged until the trial ends, and cancelling
 before then costs nothing. It is one trial per account, and it is offered in
 the app rather than on this page — it is for people who have built something.

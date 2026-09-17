@@ -22,10 +22,17 @@ test.describe('creator trial wiring', () => {
   });
 
   test('the public pricing page and the signed-in /pricing route never offer it', () => {
-    for (const rel of ['src/auth/PricingPage.jsx', 'src/pages/PublicPricingPage.jsx']) {
-      let src = '';
-      try { src = read(rel); } catch { continue; }
+    // Both paths are read STRICTLY. The previous version named
+    // src/pages/PublicPricingPage.jsx — which has never existed, the file is
+    // under src/auth/ — inside a `try { … } catch { continue; }`, so the public
+    // page silently opted out of the one guard that protects the
+    // invitation-only rule. A missing file is now a failure, not a skip.
+    for (const rel of ['src/auth/PricingPage.jsx', 'src/auth/PublicPricingPage.jsx']) {
+      const src = read(rel);
+      expect(src.length, `${rel} is readable`).toBeGreaterThan(0);
       expect(src, rel).not.toMatch(/tryCreator|creatorTrialEligibility|trial: true/);
+      // …and none of the ambient trial copy may leak onto a price list either.
+      expect(src, rel).not.toMatch(/TRIAL_FROM_LABEL|firstValueSentence|nearCapSentence/);
     }
   });
 
@@ -102,6 +109,92 @@ test.describe('creator trial wiring', () => {
     expect(sessionMeta).toMatch(/via:     via\.slice\(0, 60\)/);
     // And the webhook must still be reading the session's, not the subscription's.
     expect(w).toMatch(/const m = session\.metadata \?\? \{\};/);
+  });
+
+
+  // ── The trial on the AMBIENT surfaces (studio_v4) ────────────────────────
+  //
+  // Until studio_v4 `creatorTrial` was referenced in exactly one rendering
+  // component — PricingModal — so the trial was only discoverable by clicking
+  // through, and only a small fraction of the people who saw a price ever saw
+  // it. The chip, the first-value banner and the approaching-limit toast now
+  // lead with the invitation when the viewer is eligible, and the price when
+  // not.
+
+  test('the chip offers the trial, decided on the SERVER count', () => {
+    const c = read('src/components/UpgradeChip.jsx');
+    // Same rule, same input as the modal. demoCardCount is optimistic and runs
+    // BACKWARDS on delete, so a chip keyed on it would offer a trial the
+    // server then refuses — a broken button.
+    expect(c).toMatch(/const trialDecision = creatorTrialEligibility\(\{\s*tier, cards: serverCardCount, cardLimit, trialStartedAt: creatorTrialStartedAt,?\s*\}\);/);
+    expect(c).toMatch(/const trialOffer = trialDecision\.eligible;/);
+    // The two offers are mutually exclusive by construction — an invitation
+    // beside a request reads as a discount rather than a gift.
+    expect(c).toMatch(/const showPrice = \(showCount \|\| near\) && !trialOffer;/);
+    // …and the trial ignores the pressure ladder on purpose: eligibility starts
+    // at thirteen cards, which is below the 50% line where `count` begins.
+    expect(c).toMatch(/const showTrial = trialOffer;/);
+  });
+
+  test('a trial impression does not stamp price_seen', () => {
+    // price_seen means A NUMBER WAS SHOWN. Stamping it on a trial impression
+    // would put a row behind an impression that never happened, and the reach
+    // metric would then repeat the lie back to us.
+    const c = read('src/components/UpgradeChip.jsx');
+    expect(c).toMatch(/if \(!trialOffer\) notePriceSeen\('first_value'\);/);
+    expect(c).toMatch(/if \(showPrice\) notePriceSeen\('chip'\);/);
+    const a = read('src/App.jsx');
+    expect(a).toMatch(/if \(!trialOffer && user\?\.id && markPriceSeen\(user\.id, 'cap_toast'\)\)/);
+  });
+
+  test('the impression row keeps the two offers separable', () => {
+    // Without trial_shown, a fall in price_seen after this ships reads as lost
+    // reach when it is actually the trial landing.
+    const c = read('src/components/UpgradeChip.jsx');
+    expect(c).toMatch(/price_shown: showPrice, trial_shown: showTrial, trial_reason: trialDecision\.reason,/);
+    expect(c).toMatch(/up_chip_view:\$\{showTrial \? 'trial' : showPrice \? 'price' : 'label'\}/);
+    const a = read('src/App.jsx');
+    expect(a).toMatch(/count, limit, at, trial_shown: trialOffer,/);
+  });
+
+  test('the banner and the toast take the offer from the same rule', () => {
+    const c = read('src/components/UpgradeChip.jsx');
+    expect(c).toMatch(/<FirstValueUpgradeBanner trialOffer=\{trialOffer\}/);
+    const b = read('src/components/FirstValueUpgradeBanner.jsx');
+    expect(b).toMatch(/firstValueSentence\(trialOffer\)/);
+    expect(b).toMatch(/trialOffer \? CTA\.tryCreatorShort : 'See Creator'/);
+    const a = read('src/App.jsx');
+    expect(a).toMatch(/const trialOffer = creatorTrialEligibility\(\{/);
+    expect(a).toMatch(/cards: myTier\.serverCardCount,/);
+    expect(a).toMatch(/message: nearCapSentence\(\{ count, limit, trialOffer \}\)/);
+  });
+
+  test('a body of work sees the trial on the pill; someone who already had one sees the price', async ({ page }) => {
+    // Twenty cards on a 50-card cap: trial-eligible (13+), but only 40% of the
+    // way up — below the `count` pressure line. This is exactly the band the
+    // change is aimed at, and the band the price ladder alone never reached.
+    await page.goto('/?local=1&reset=1&tier=demo&cards=20&limit=50');
+    const chip = page.locator('.upgrade-chip');
+    await expect(chip).toBeVisible();
+    await expect(chip.locator('.upgrade-chip-trial')).toHaveText(/\d+ days free/);
+    await expect(chip.locator('.upgrade-chip-price')).toHaveCount(0);
+
+    // The one-per-account rule is what flips it back to the price.
+    await page.goto('/?local=1&reset=1&tier=demo&cards=20&limit=50&trialed=1');
+    await expect(page.locator('.upgrade-chip')).toBeVisible();
+    await expect(page.locator('.upgrade-chip-trial')).toHaveCount(0);
+  });
+
+  test('the trial never reaches a surface that is not an in-product invitation', async ({ page }) => {
+    // What protects a premium position is WHO is offered the trial and WHERE.
+    // A "START FREE TRIAL" banner on the public price list is the thing this
+    // deliberately is not.
+    await page.goto('/pricing');
+    // Prove the page actually rendered first — a blank page passes a bare
+    // "does not contain" assertion trivially.
+    await expect(page.getByText('Creator').first()).toBeVisible();
+    await expect(page.locator('body')).not.toContainText(/days free/i);
+    await expect(page.locator('body')).not.toContainText(/free for \d+ days/i);
   });
 
   test('a refused trial records WHY the server refused', () => {

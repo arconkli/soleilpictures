@@ -25692,7 +25692,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Once there is a real cluster on your account, the upgrade screen inside the app offers "
+     "v": "Once there is a real cluster on your account, Clusters offers you "
     },
     {
      "t": "strong",
@@ -25706,7 +25706,16 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " before you pay. A card is required; nothing is charged until the trial ends, and cancelling before then costs nothing. It is one trial per account, and it is offered in the app rather than on this page — it is for people who have built something."
+     "v": " before you pay. The offer appears where you are already working: on the upgrade pill in the corner, on the prompts that show up as a cluster fills, and on the upgrade screen."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A card is required; nothing is charged until the trial ends, and cancelling before then costs nothing. It is one trial per account, and it is offered in the app rather than on this page — it is for people who have built something."
     }
    ]
   },
