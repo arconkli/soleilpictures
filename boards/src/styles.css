@@ -85,6 +85,7 @@
   --msg-ok:             #2faf78;
   --msg-err:            var(--ink-error);
   --msg-info:           #8ab4f8;
+  --msg-warn:           #e0a33c;
 
   /* Selection accent — single knob for the whole selected-card system
      (ring, halo, handles, multi-select box). Brand gold by choice. */
@@ -154,6 +155,7 @@
   --msg-border:         rgba(10,10,12,.06);
   --msg-ok:             #1c9e6e;
   --msg-info:           #3b6fd4;   /* --msg-err rides --ink-error; --msg-blur/-avatar inherit from :root */
+  --msg-warn:           #b3781a;   /* darker than the dark-mode amber so it holds contrast on a light ground */
 
   --grid-line: rgba(10,10,12,.04);
   --grid-dot:  rgba(10,10,12,.07);
@@ -10507,6 +10509,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .toast-success .toast-icon { color: var(--msg-ok); }
 .toast-error   .toast-icon { color: var(--msg-err); }
 .toast-info    .toast-icon { color: var(--msg-info); }
+.toast-warning .toast-icon { color: var(--msg-warn); }
 
 .toast-dismiss {
   flex: 0 0 auto;
@@ -10532,6 +10535,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 
 .toast-success { box-shadow: var(--shadow-2), inset 2px 0 0 var(--msg-ok); }
 .toast-error   { box-shadow: var(--shadow-2), inset 2px 0 0 var(--msg-err); }
+/* Amber, deliberately not --soleil: gold is reserved for active/selection/focus
+   and a toast is neither. Info keeps no rail — it is the quiet class. */
+.toast-warning { box-shadow: var(--shadow-2), inset 2px 0 0 var(--msg-warn); }
 
 
 /* ──────────────────────────── Phase 4.14: thumbnails + list-mode ───────── */
