@@ -5,11 +5,15 @@
 // or toast, so the signed-out landing never downloads Phosphor.
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle, WarningCircle, Info, X } from '@phosphor-icons/react';
+import { CheckCircle, WarningCircle, Warning, Info, X } from '@phosphor-icons/react';
 import { Icon } from './Icon.jsx';
 import { registerModalOpen } from '../lib/modalGuard.js';
 
-const TOAST_ICON = { success: CheckCircle, error: WarningCircle, info: Info };
+// `warning` was missing here and had no CSS either, so both cap toasts — the
+// approaching-limit warning and the cards-did-not-fit one — fell through to the
+// Info icon and rendered as ordinary information. The one toast whose whole job
+// is to say "you are running out of room" looked exactly like a status update.
+const TOAST_ICON = { success: CheckCircle, error: WarningCircle, warning: Warning, info: Info };
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
