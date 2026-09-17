@@ -106,11 +106,40 @@ assertEq(upsellSlotBusy(T), false, 'peek on an empty slot');
 assertEq(upsellSlotBusy(T), false, 'peeking twice still empty — asking is not taking');
 assert(claimUpsellSlot('first-value', T), 'so the real claim still succeeds');
 
+// --- the ambient kinds all queue behind each other -------------------------
+// This block used to sit BELOW the process.exit() call, written in node:test
+// style in a file that has no test framework — so it never registered, never
+// ran, and would have thrown on `assert.equal` (assert here is a bare function)
+// if it ever had. Anything appended after the exit is dead; keep new cases
+// above it.
+__resetUpsellSlot();
+assertEq(claimUpsellSlot('power-reveal', T), true, 'the power reveal takes a free slot');
+assertEq(claimUpsellSlot('share-ask', T + 1000), false, 'and the share ask stands down inside the window');
+
+// --- the storage gate ------------------------------------------------------
+// The file-type / size / quota refusal. It arrives once per REFUSED FILE from
+// call sites inside per-file loops, so without a claim a folder of six opened
+// six modals in a row.
+__resetUpsellSlot();
+assertEq(claimUpsellSlot('storage-gate', T), true, 'the storage gate takes a free slot');
+assertEq(claimUpsellSlot('storage-gate', T + 1000), false,
+  'and the second refused file in the same batch stands down');
+
+// The cap wall outranks it. Both fire on one over-cap drop of non-standard
+// files; a refused CARD is the bigger fact and must not be replaced by a
+// refused FILE.
+__resetUpsellSlot();
+assertEq(claimUpsellSlot('cap-hit', T), true, 'the wall always shows');
+assertEq(claimUpsellSlot('storage-gate', T + 1000), false, 'and the storage gate defers to it');
+
+// …but it is not itself ALWAYS_WINS: it must never displace the wall.
+__resetUpsellSlot();
+assertEq(claimUpsellSlot('storage-gate', T), true, 'the storage gate takes the moment');
+assertEq(claimUpsellSlot('cap-hit', T + 1000), true, 'and the wall still overrides it');
+
+// It is a real kind; the bare word 'storage' is deliberately NOT one, so a
+// caller that passes the upgradeReason string straight through fails closed.
+assertEq(claimUpsellSlot('storage', T), false, "'storage' is not a slot kind — 'storage-gate' is");
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
-
-test('the power reveal is an ambient surface and must take the slot like the others', () => {
-  __resetUpsellSlot();
-  assert.equal(claimUpsellSlot('power-reveal', 1000), true);
-  assert.equal(claimUpsellSlot('share-ask', 2000), false, 'stands down inside the window');
-});
