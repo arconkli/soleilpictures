@@ -3105,7 +3105,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I undo a delete?",
-        "a": "Yes. DELETE is a soft delete and POST /boards/:id/restore puts it back."
+        "a": "Usually. DELETE is a soft delete and POST /boards/:id/restore puts it back, within the 30-day trash window. One case is refused: a deleted cluster stops counting against the card limit, so if the free space has been used since, restoring would take the account over its cap and the call answers 402 limit_reached saying by how much."
       }
     ]
   },

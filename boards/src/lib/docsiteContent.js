@@ -34897,6 +34897,42 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Restoring a board that is already live is a no-op, so a retry is safe."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "This call can be refused.",
+     "children": [
+      {
+       "t": "text",
+       "v": "This call can be refused."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " A deleted cluster stops counting against the card limit the moment it is deleted, so the room it held is immediately usable. The other side of that is that a restore has to fit: if the space has been used since, putting the cluster back would take the account over its limit, and the call answers "
+    },
+    {
+     "t": "code",
+     "v": "402 limit_reached"
+    },
+    {
+     "t": "text",
+     "v": " with a message naming the number it would reach. Free some room or upgrade, then retry. Nothing is lost in the meantime — the 30-day trash window is the only clock running."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Worked example",

@@ -714,8 +714,10 @@ export const TOOLS = [
     name: 'delete_board',
     title: 'Delete a board',
     description: 'DELETES a whole board and everything on it — confirm with the user before '
-      + 'calling it. The delete is recoverable: restore_board puts it back, and '
-      + 'list_deleted_boards finds it again.',
+      + 'calling it. The delete is recoverable: restore_board puts it back within the '
+      + '30-day window, and list_deleted_boards finds it again. One caveat worth '
+      + 'telling the user: a deleted cluster stops using the card limit immediately, '
+      + 'so if that freed room gets used the restore is refused until space is made.',
     annotations: DESTROYS,
     inputSchema: schema({ board_id: uuid('The board') }, ['board_id']),
     call: (a, { api }) => api(`/boards/${a.board_id}`, { method: 'DELETE' }),

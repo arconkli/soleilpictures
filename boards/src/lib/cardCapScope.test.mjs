@@ -34,6 +34,7 @@ const COUNTERS = [
   'get_my_tier',
   'get_board_capacity',
   'scout_board_capacity',
+  'admin_paid_reach',
   '_live_card_counts',
 ];
 
@@ -56,6 +57,15 @@ test('every counter defers to it rather than carrying its own copy', () => {
   for (const fn of COUNTERS) {
     const def = latestDefinition(fn);
     assert.ok(def, `${fn} must exist in a migration`);
+    if (fn === 'admin_paid_reach') {
+      // Whole-population read, so it defers through the set-returning twin
+      // rather than the scalar. Either is fine; carrying its own copy is not.
+      assert.match(def.body, /_live_card_counts\(\)|_owner_card_count\(/,
+        'admin_paid_reach must defer to the shared definition');
+      assert.doesNotMatch(def.body, /sum\(c\.weight\)[\s\S]*?join public\.workspaces/,
+        'admin_paid_reach still carries its own counting expression');
+      continue;
+    }
     if (fn === '_live_card_counts') {
       // The population-scan twin cannot call the scalar per row without turning
       // one query into one aggregate per profile, so it repeats the rule — and
@@ -93,6 +103,18 @@ test('restoring a cluster asks the cap before it un-deletes', () => {
   // Only the capped tier is checked, exactly as the trigger decides it.
   assert.match(def.body, /v_tier is not distinct from 'demo'/,
     'only demo accounts are capped');
+
+  // 0334. The cap arithmetic assumes the board's cards are NOT currently
+  // counted against the owner, which is true only while it is soft-deleted.
+  // Without this guard, restoring an already-live board counts its cards twice
+  // and refuses with a number the account is not at — reachable by any retry,
+  // and retries are routine on the API and from an agent.
+  assert.match(def.body, /deleted_at is not null\) into v_deleted/,
+    'the cap check must be guarded on the board actually being soft-deleted');
+  const guardAt = def.body.indexOf('into v_deleted');
+  const countAt = def.body.indexOf('_owner_card_count(v_owner)');
+  assert.ok(guardAt > 0 && countAt > 0 && guardAt < countAt,
+    'the soft-delete guard must precede the cap arithmetic');
 });
 
 test('the client cannot route around a refused restore', () => {

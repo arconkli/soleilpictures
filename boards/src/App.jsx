@@ -1756,6 +1756,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (boardIdsToCascade.length) {
         console.log('[delete] refreshBoards after cascade');
         await refreshBoards();
+        // Same reason as deleteBoardsById: notePlaced above refunded only the
+        // cards in THIS document — one per board card — while the cascade
+        // freed every card inside each cluster. The server's count is the only
+        // one that knows the difference.
+        myTier.refetch?.();
         // The awaits above held the door open: any local edit made while the
         // network calls ran would otherwise MERGE with the delete transact
         // below (500ms captureTimeout) — and the BOARD_DELETE_META stamp on
@@ -3271,6 +3276,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       try { await deleteBoard(id); } catch (e) { console.error(e); }
     }
     await refreshBoards();
+    // Since 0333 a soft-deleted cluster stops counting against the cap, so the
+    // room is free the moment this returns — but only on the server. The
+    // client gate reads capSource(), which is the last fetched count plus an
+    // optimistic delta, and neither moves here: the cards freed live on the
+    // cascade-deleted cluster, not in this document. Without the refetch the
+    // wall keeps refusing for the rest of the session and "delete a cluster to
+    // make room" visibly does not work — which is the exact complaint 0333 was
+    // written to fix, and what the docs now promise. Refetch rather than
+    // refund locally: the server already knows the number and counting a
+    // cascade by hand is how the two drift.
+    myTier.refetch?.();
     // Also strip any stale 'board' canvas cards in the current Y.Doc.
     // Origin 'board-delete' (NOT 'local'): the toast below is the single
     // undo engine for this path. With 'local' the card strip also landed on

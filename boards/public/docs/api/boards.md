@@ -263,6 +263,16 @@ JSON body on `DELETE` so a destructive call stays a `DELETE`.
 
 Puts a soft-deleted board back. Find deleted boards with `GET /boards?deleted=`.
 
+Restoring a board that is already live is a no-op, so a retry is safe.
+
+**This call can be refused.** A deleted cluster stops counting against the card
+limit the moment it is deleted, so the room it held is immediately usable. The
+other side of that is that a restore has to fit: if the space has been used
+since, putting the cluster back would take the account over its limit, and the
+call answers `402 limit_reached` with a message naming the number it would
+reach. Free some room or upgrade, then retry. Nothing is lost in the meantime —
+the 30-day trash window is the only clock running.
+
 ## Worked example
 
 ```sh
