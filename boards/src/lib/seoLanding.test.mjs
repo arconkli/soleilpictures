@@ -185,10 +185,13 @@ test('the homepage crawlable nav links every public marketing page', async () =>
   assert.ok(start > -1, 'index.html has no <main id="seo-fallback">');
   const nav = html.slice(start, html.indexOf('</main>', start));
   const hrefs = new Set([...nav.matchAll(/href="([^"]+)"/g)].map((m) => m[1]));
+  // /templates is a landing spec (kind 'hub'), so it arrives via
+  // SEO_LANDING_PATHS on any tree that has the template store — and is not
+  // demanded on one that does not. Only the four fixed spokes are literal.
   const required = [
     ...SEO_LANDING_PATHS,
     ...SEO_LISTICLE_PAGES.map((p) => p.path),
-    '/docs', '/changelog', '/templates', '/explore', '/pricing',
+    '/docs', '/changelog', '/explore', '/pricing',
   ];
   const missing = required.filter((p) => !hrefs.has(p));
   assert.deepEqual(missing, [], `index.html crawlable nav is missing: ${missing.join(', ')}`);
