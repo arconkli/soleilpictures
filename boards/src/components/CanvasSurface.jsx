@@ -3059,21 +3059,33 @@ export function CanvasSurface({
     // a collaborator's own plan is irrelevant and upgrading it cannot
     // unblock the board (the client-side pre-block one branch up already
     // makes this distinction; the server-rejection path must match).
+    // This runs once per REFUSED FILE — every optimistic drop handler funnels
+    // here — so a folder of six used to open six upgrade modals in a row. The
+    // owner-side pitch is latched now (App's pitchStorageGate), and `upsell`
+    // returns false when it stands down. That makes the toast load-bearing: on
+    // the second and later refusals it is the ONLY route to the offer, so it
+    // carries the action. Quieter must not mean unreachable.
     if (err?.code === 402) {
-      if (ownsWorkspace) upsell?.();
+      const explained = ownsWorkspace ? upsell?.() : false;
       feedback.toast({
         type: 'warning',
         message: ownsWorkspace
           ? "You're out of storage. Upgrade for more space."
           : "This cluster's owner is out of storage — they'll need to upgrade for more space.",
+        ...(ownsWorkspace && !explained
+          ? { action: { label: 'See Creator', onClick: () => upsell?.({ force: true }) } }
+          : {}),
       });
     } else if (err?.code === 403) {
-      if (ownsWorkspace) upsell?.();
+      const explained = ownsWorkspace ? upsell?.() : false;
       feedback.toast({
         type: 'warning',
         message: ownsWorkspace
           ? 'Uploading files needs a paid plan — upgrade to add any file type.'
           : "Uploading that file needs the cluster's owner to be on a paid plan.",
+        ...(ownsWorkspace && !explained
+          ? { action: { label: 'See Creator', onClick: () => upsell?.({ force: true }) } }
+          : {}),
       });
     } else if (String(err?.message) !== 'aborted') {
       feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
@@ -3496,7 +3508,10 @@ export function CanvasSurface({
     }
 
     if (blockedForUpgrade.length) {
-      (onRequestStorageUpgrade || onRequestUpgrade)?.();
+      // Once per gesture, but it can still stand down behind the cap wall when
+      // an over-cap drop also contains non-standard files — which is exactly
+      // the collision that gave the wall a recorded 16ms of life once.
+      const explained = (onRequestStorageUpgrade || onRequestUpgrade)?.();
       try {
         const biggest = blockedForUpgrade.reduce((m, f) => Math.max(m, f?.size || 0), 0);
         logEvent(EV.UPLOAD_BLOCKED, {
@@ -3509,6 +3524,7 @@ export function CanvasSurface({
         type: 'warning',
         message: `Uploading ${blockedForUpgrade.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`,
         ttl: 6000,
+        ...(explained ? {} : { action: { label: 'See Creator', onClick: () => (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }) } }),
       });
     }
   }, [ownsWorkspace, isPaidPlan, optimisticDropImage, dropVideoFile, dropAudioFile,
@@ -4342,8 +4358,12 @@ export function CanvasSurface({
             if (file) {
               e.preventDefault();
               if (ownsWorkspace && !isPaidPlan) {
-                (onRequestStorageUpgrade || onRequestUpgrade)?.();
-                feedback.toast({ type: 'warning', message: 'Uploading files needs a paid plan — upgrade to add any file type.' });
+                const explained = (onRequestStorageUpgrade || onRequestUpgrade)?.();
+                feedback.toast({
+                  type: 'warning',
+                  message: 'Uploading files needs a paid plan — upgrade to add any file type.',
+                  ...(explained ? {} : { action: { label: 'See Creator', onClick: () => (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }) } }),
+                });
               } else {
                 const { pos, clamped } = resolvePastePos();
                 notePasteCreate(clamped);

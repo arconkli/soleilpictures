@@ -2389,7 +2389,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // on top would replace the wall the user was just shown AND spend the
         // wall's once-per-ceiling latch on a modal that never rendered — so
         // the blocked files are reported in the toast alone.
-        if (csFiles.own && over === 0) pitchStorageGate();
+        const explained = csFiles.own && over === 0 ? pitchStorageGate() : false;
         const biggest = blocked.reduce((m, f) => Math.max(m, f?.size || 0), 0);
         logEvent(EV.UPLOAD_BLOCKED, {
           reason: 'owner_not_paid', surface: 'list', n: blocked.length,
@@ -2402,6 +2402,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             ? `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`
             : `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs the cluster's owner to be on a paid plan.`,
           ttl: 6000,
+          // Only when the modal did NOT open — otherwise the toast offers a
+          // second route to the screen already in front of them. When it did
+          // stand down, this is the whole route, which is the half of the latch
+          // that is easy to forget: quieter must not mean unreachable.
+          ...(csFiles.own && !explained
+            ? { action: { label: 'See Creator', onClick: () => pitchStorageGate({ force: true }) } }
+            : {}),
         });
       }
       // Log the gesture before the cap can trim it, so n_files stays what the
@@ -2519,13 +2526,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             // Owner-pays: the server gate keyed on the OWNER's plan. Pitch the
             // upgrade only at the owner — a collaborator's own plan is
             // irrelevant and upgrading it cannot unblock the board.
-            if (csFiles.own) pitchStorageGate();
-            else feedback.toast({
+            if (!csFiles.own) feedback.toast({
               type: 'warning',
               message: err.code === 402
                 ? "This cluster's owner is out of storage — they'll need to upgrade for more space."
                 : "Uploading that file needs the cluster's owner to be on a paid plan.",
               ttl: 6000,
+            });
+            else if (!pitchStorageGate()) feedback.toast({
+              // Already explained this session (this branch runs once per
+              // refused FILE, so a folder lands here repeatedly). Say what
+              // happened and keep a route open; do not re-interrupt.
+              type: 'warning',
+              message: err.code === 402
+                ? "You're out of storage. Creator lifts the limit."
+                : 'That file needs a paid plan — Creator takes any file type.',
+              ttl: 6000,
+              action: { label: 'See Creator', onClick: () => pitchStorageGate({ force: true }) },
             });
             logEvent(EV.UPLOAD_BLOCKED, {
               reason: err.code === 402 ? 'server_quota' : 'server_403', surface: 'list', n: 1,
@@ -4248,7 +4265,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // so there is no honest way to hold a FileList across it. The folder is
       // untouched on disk and the dialog says so — which is the whole point of
       // asking before the upload rather than after the withdrawal.
-      if (action === 'upgrade') setUpgradeReason('cap-hit');
+      //
+      // Claim the slot, exactly as pitchCapWall does, and for a reason the
+      // production trace spells out. On 2026-09-17 someone chose Upgrade here
+      // on a 65-file drop; the cap-hit modal opened, and in the SAME SECOND
+      // the drop's non-standard files reached the storage gate and replaced
+      // it. Recorded dwell on the screen they had just asked for: 16 ms,
+      // dismissed by 'nav'. It is the only time anyone has ever pressed this
+      // button. The ambient guard cannot help unless the wall takes the moment
+      // it is owed, and this path set the reason without ever claiming it.
+      if (action === 'upgrade') {
+        claimUpsellSlot('cap-hit');
+        setUpgradeReason('cap-hit');
+      }
       try { ask.resolve?.({ take }); } catch (_) {}
       return null;
     });
@@ -4393,19 +4422,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // so standing down loses no information — it only stops re-interrupting.
   const storagePitchedRef = useRef(false);
 
-  // The interruption path: an upload the server (or the client pre-block)
-  // refused. Returns true if the modal actually opened, so a caller can tell
-  // "explained" from "already explained" if it ever needs to.
+  // The storage / file-type gate. Returns true if the modal actually opened, so
+  // a caller can tell "explained" from "already explained".
   //
-  // Deliberately NOT ALWAYS_WINS. The cap wall outranks the file-type pitch —
-  // a refused CARD is a bigger fact than a refused FILE, and on an over-cap
-  // folder drop of non-standard files both fire in the same gesture. Standing
-  // down here also must not latch: deferring is not declining, and the next
-  // refusal is owed the explanation this one gave up.
-  const pitchStorageGate = useCallback(() => {
-    if (storagePitchedRef.current) return false;
-    if (!claimUpsellSlot('storage-gate')) return false;
-    storagePitchedRef.current = true;
+  // `force` is the difference between an interruption and a request, and every
+  // caller has to say which it is. Without it, an ASK — the list toolbar's
+  // Upgrade button, or the action on the toast a stood-down refusal leaves
+  // behind — would be silently swallowed by a latch meant for the refusal that
+  // interrupted someone.
+  //
+  // The unforced path is deliberately NOT ALWAYS_WINS. The cap wall outranks
+  // the file-type pitch — a refused CARD is a bigger fact than a refused FILE,
+  // and on an over-cap drop of non-standard files both fire in one gesture.
+  // Standing down must not latch either: deferring is not declining, and the
+  // next refusal is owed the explanation this one gave up.
+  const pitchStorageGate = useCallback(({ force = false } = {}) => {
+    if (!force) {
+      if (storagePitchedRef.current) return false;
+      if (!claimUpsellSlot('storage-gate')) return false;
+      storagePitchedRef.current = true;
+    }
     setUpgradeReason('storage');
     return true;
   }, []);
@@ -6932,9 +6968,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      onRevealOnCanvas={(ids) => { setView('canvas', 'reveal', board.id); setFocusRequest({ boardId: board.id, ids, token: Date.now() }); }}
                      showStorageUpsell={myTier.tier === 'demo' && workspace?.created_by === user?.id && upsellElig.eligible}
                      // Deliberate: a toolbar button the user chose to press, not a
-                     // refusal that interrupted them. It never latches — the same
-                     // distinction the chip and the cap wall already make.
-                     onStorageUpsell={() => setUpgradeReason('storage')}
+                     // refusal that interrupted them, so it forces past the latch —
+                     // the same distinction the chip and the cap wall already make.
+                     onStorageUpsell={() => pitchStorageGate({ force: true })}
                      paneId={paneId}
                      hasSplit={!!splitId}
                      mutators={muts} />

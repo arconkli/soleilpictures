@@ -43,19 +43,45 @@ function stripComments(text) {
     .join('\n');
 }
 
-test('the storage gate opens the modal from exactly one deliberate place', () => {
+test('nothing opens the storage gate except the one helper', () => {
   const app = stripComments(src('App.jsx'));
   // pitchStorageGate's own body legitimately contains one, so cut it out
   // before counting: what is being pinned is how many OTHER places open it.
   const helperAt = app.indexOf('const pitchStorageGate');
   assert.ok(helperAt > 0, 'pitchStorageGate must exist');
-  const outside = app.slice(0, helperAt) + app.slice(helperAt + 700);
+  const outside = app.slice(0, helperAt) + app.slice(helperAt + 900);
   const direct = outside.match(/setUpgradeReason\('storage'\)/g) || [];
-  assert.equal(direct.length, 1,
-    `every refusal path must go through pitchStorageGate; found ${direct.length} direct opens`);
-  // …and the one that remains is the toolbar button the user pressed.
-  assert.match(app, /onStorageUpsell=\{\(\) => setUpgradeReason\('storage'\)\}/,
-    'the one direct open must be the list toolbar Upgrade button — a deliberate ask, never latched');
+  assert.equal(direct.length, 0,
+    `every path must go through pitchStorageGate; found ${direct.length} direct opens`);
+  // The deliberate ask goes through it too, forcing past the latch — the
+  // distinction is a parameter every caller must state, not a second door.
+  assert.match(app, /onStorageUpsell=\{\(\) => pitchStorageGate\(\{ force: true \}\)\}/,
+    'the list toolbar Upgrade button is a request, so it forces past the latch');
+});
+
+test('a refusal that stands down still leaves a route to the offer', () => {
+  // The half of a latch that is easy to forget. Before it, every refused file
+  // opened the modal — annoying, but reachable. A latch that only removes the
+  // modal makes the second and later refusals a dead end, which is a worse
+  // failure than the one being fixed: quieter must not mean unreachable.
+  //
+  // So every owner-facing refusal branches on whether the pitch actually
+  // opened, and attaches the action only when it did not.
+  for (const rel of ['App.jsx', 'components/CanvasSurface.jsx']) {
+    const text = stripComments(src(rel));
+    const forced = text.match(/force: true/g) || [];
+    assert.ok(forced.length >= 2,
+      `${rel}: a stood-down refusal must offer a forced route back; found ${forced.length}`);
+    assert.match(text, /label: 'See Creator'/,
+      `${rel}: the route has to be visible on the toast, not implied`);
+  }
+  // And the flag is read, not just accepted — a `force` the helper ignores
+  // would pass every assertion above while changing nothing.
+  const app = stripComments(src('App.jsx'));
+  const at = app.indexOf('const pitchStorageGate');
+  const body = app.slice(at, at + 900);
+  assert.match(body, /\(\{ force = false \} = \{\}\)/, 'force is a real parameter with a safe default');
+  assert.match(body, /if \(!force\) \{/, 'and the latch and the claim are both inside it');
 });
 
 test('pitchStorageGate latches, then claims, then opens — in that order', () => {
@@ -90,6 +116,30 @@ test('the interrupting upload paths are wired to the latched helper', () => {
   const viaHelper = app.match(/pitchStorageGate\(\)/g) || [];
   assert.ok(viaHelper.length >= 2,
     `both list-drop refusal paths must call pitchStorageGate; found ${viaHelper.length}`);
+});
+
+test('choosing Upgrade in the import dialog takes the moment it asks for', () => {
+  // The most expensive ordering bug in this family, and the only one with a
+  // production trace behind it. A 65-file over-cap drop: the user presses
+  // "Upgrade — keep all 65", the cap-hit modal opens, and in the same second
+  // the same drop's non-standard files reach the storage gate and replace it.
+  // Recorded dwell on the screen they asked for: 16 ms, dismiss_method 'nav'.
+  //
+  // claimUpsellSlot('cap-hit') is what stops it: the wall always shows AND
+  // records, so every ambient surface — the storage gate included — stands
+  // down around it for the window instead of landing on top. Setting the
+  // reason without claiming leaves the slot free for whatever fires next.
+  const app = stripComments(src('App.jsx'));
+  const at = app.indexOf('const answerImportAsk');
+  assert.ok(at > 0, 'answerImportAsk must exist');
+  const body = app.slice(at, at + 1400);
+
+  assert.match(body, /claimUpsellSlot\('cap-hit'\)/,
+    'the import dialog\'s Upgrade must claim the moment, not just set the reason');
+  const claimAt = body.indexOf("claimUpsellSlot('cap-hit')");
+  const setAt = body.indexOf("setUpgradeReason('cap-hit')");
+  assert.ok(claimAt > 0 && setAt > 0 && claimAt < setAt,
+    'claim before opening — a claim after the render has already lost the race it exists to win');
 });
 
 test("'storage-gate' is a real slot kind and 'storage' deliberately is not", () => {
