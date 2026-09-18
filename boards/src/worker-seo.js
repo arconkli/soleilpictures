@@ -15,6 +15,15 @@
 // API key/credits). Both gate on tier='admin' (get_my_tier with the caller's
 // JWT), then use the service-role key for privileged reads/writes — same admin
 // pattern as handleBackfillImageSizes in worker.js.
+//
+//   POST /api/seo/indexnow  { slug } | { paths: [...] } | { all: true }
+//     Tell IndexNow (Bing/Yandex) a public URL changed. Admin-only like the
+//     others, but it needs neither Workers AI nor the service-role key and its
+//     body is not a board_id — see handleSeoRoute for why that mattered.
+
+import { SEO_LANDING_PATHS } from './lib/seoLanding.js';
+import { SEO_LISTICLE_INDEX } from './lib/seoListicleIndex.js';
+import { DOCS_PATHS } from './lib/docsiteIndex.js';
 
 // Cloudflare Workers AI (free in-worker tier — no API key/credits). The vision
 // model captions images for alt text; the text model drafts SEO copy. Both run
@@ -137,18 +146,27 @@ export async function handleSeoRoute(url, request, env) {
   let tier;
   try { tier = await getTier(env, userToken); } catch { return json({ error: 'tier check failed' }, 502); }
   if (tier !== 'admin') return json({ error: 'admin only' }, 403);
-  if (!env.AI) return json({ error: 'Workers AI (env.AI) binding not configured on the Worker' }, 500);
-  if (!env.SUPABASE_SERVICE_ROLE_KEY) return json({ error: 'SUPABASE_SERVICE_ROLE_KEY not set on the Worker' }, 500);
 
   let body = {};
   try { body = await request.json(); } catch (_) {}
+
+  // IndexNow first. It needs neither Workers AI nor the service-role key, and
+  // its body is { slug } / { paths } — never a board_id. It sat BELOW the
+  // draft/alt preconditions from the day it shipped, so every ping the admin
+  // client ever sent was answered 400 'valid board_id required' and swallowed
+  // by the best-effort caller: the route had never once reached its handler.
+  if (url.pathname === '/api/seo/indexnow') {
+    try { return await handleIndexNow(env, body); } catch (e) { return json({ error: e?.message || String(e) }, 500); }
+  }
+
+  if (!env.AI) return json({ error: 'Workers AI (env.AI) binding not configured on the Worker' }, 500);
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) return json({ error: 'SUPABASE_SERVICE_ROLE_KEY not set on the Worker' }, 500);
   const boardId = (body.board_id || '').trim();
   if (!UUID_RE.test(boardId)) return json({ error: 'valid board_id required' }, 400);
 
   try {
     if (url.pathname === '/api/seo/draft') return await handleSeoDraft(env, boardId);
     if (url.pathname === '/api/seo/alt') return await handleSeoAlt(env, boardId);
-    if (url.pathname === '/api/seo/indexnow') return await handleIndexNow(env, body);
   } catch (e) {
     return json({ error: e?.message || String(e) }, 500);
   }
@@ -156,12 +174,47 @@ export async function handleSeoRoute(url, request, env) {
 }
 
 // ── /api/seo/indexnow ───────────────────────────────────────────────────────
-// Submit a published board URL to IndexNow (Bing/Yandex). Called by the admin
-// client after publishing. Body: { slug }. Best-effort — never throws upward.
+// Submit public URLs to IndexNow (Bing/Yandex). Called by the admin client
+// after publishing a board ({ slug }) and from the Discover tab for the
+// marketing/docs pages ({ paths } or { all: true }). Best-effort — never
+// throws upward. Bing's index is what ChatGPT search reads, which is why the
+// marketing pages go through this door at all.
+const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,79}$/;
+
+// Every public URL IndexNow may be told about, derived from the registries so
+// a new landing/listicle/docs page is submittable the moment it exists and
+// nothing tokened or private ever is — the allow-list IS the set of pages a
+// crawler is meant to index.
+function indexNowAllowedPaths() {
+  return [
+    '/', '/pricing', '/explore', '/changelog',
+    ...SEO_LANDING_PATHS,
+    ...SEO_LISTICLE_INDEX.map((p) => p.path),
+    ...DOCS_PATHS,
+  ];
+}
+
+// Pure: body → ordered, de-duplicated absolute URLs. Unknown paths, tokened
+// URLs and non-strings are dropped rather than rejected, so one bad entry in a
+// batch never blocks the rest. Exported for src/lib/workerSeo.test.mjs.
+export function resolveIndexNowUrls(body) {
+  const out = [];
+  const seen = new Set();
+  const push = (u) => { if (!seen.has(u)) { seen.add(u); out.push(u); } };
+  const slug = typeof body?.slug === 'string' ? body.slug.trim() : '';
+  if (SLUG_RE.test(slug)) push(`${SITE_ORIGIN}/c/${slug}`);
+  const allowed = indexNowAllowedPaths();
+  const wanted = body?.all === true
+    ? allowed
+    : (Array.isArray(body?.paths) ? body.paths : []).filter((p) => typeof p === 'string').map((p) => p.trim());
+  const allowedSet = new Set(allowed);
+  for (const p of wanted) if (allowedSet.has(p)) push(`${SITE_ORIGIN}${p}`);
+  return out;
+}
+
 async function handleIndexNow(env, body) {
-  const slug = (body?.slug || '').trim();
-  if (!/^[a-z0-9][a-z0-9-]{0,79}$/.test(slug)) return json({ error: 'valid slug required' }, 400);
-  const target = `${SITE_ORIGIN}/c/${slug}`;
+  const urlList = resolveIndexNowUrls(body);
+  if (!urlList.length) return json({ error: 'a valid slug, known public paths, or all:true required' }, 400);
   try {
     const res = await fetch('https://api.indexnow.org/indexnow', {
       method: 'POST',
@@ -170,13 +223,13 @@ async function handleIndexNow(env, body) {
         host: 'clusters.soleilpictures.com',
         key: INDEXNOW_KEY,
         keyLocation: `${SITE_ORIGIN}/${INDEXNOW_KEY}.txt`,
-        urlList: [target],
+        urlList,
       }),
       signal: AbortSignal.timeout(8_000),
     });
-    return json({ submitted: target, status: res.status, note: 'Bing/Yandex only — Google ignores IndexNow.' });
+    return json({ submitted: urlList, count: urlList.length, status: res.status, note: 'Bing/Yandex only — Google ignores IndexNow.' });
   } catch (e) {
-    return json({ submitted: target, error: String(e?.message || e).slice(0, 120) });
+    return json({ submitted: urlList, count: urlList.length, error: String(e?.message || e).slice(0, 120) });
   }
 }
 

@@ -158,3 +158,38 @@ test('the assistant page tells the truth about not generating images', () => {
   const generates = /\b(we|clusters) (generates?|creates?) (the )?images\b/i;
   assert.ok(!generates.test(prose), 'the page must not claim to generate images');
 });
+
+test('siblingListicle is a {path,label} object pointing at a real listicle', () => {
+  // Both renderers read .path and .label (worker.js injectLanding,
+  // SeoLandingPage.jsx). A bare string passes every other test here and ships
+  // `<a href=""></a>` in the crawlable HTML — escapeHtml turns undefined into
+  // '' so even the 'undefined' leak check stays green.
+  const listicles = new Set(SEO_LISTICLE_PAGES.map((p) => p.path));
+  for (const p of SEO_LANDING_PAGES) {
+    if (p.siblingListicle === undefined) continue;
+    assert.equal(typeof p.siblingListicle, 'object', `${p.path}: siblingListicle must be an object`);
+    assert.ok(listicles.has(p.siblingListicle.path), `${p.path}: siblingListicle.path '${p.siblingListicle.path}' is not a listicle`);
+    assert.ok(typeof p.siblingListicle.label === 'string' && p.siblingListicle.label.length >= 8, `${p.path}: siblingListicle.label`);
+  }
+});
+
+test('the homepage crawlable nav links every public marketing page', async () => {
+  // boards/index.html carries a hand-maintained <nav> inside <main id="seo-fallback">
+  // — the only internal links the homepage gives a crawler. Nothing else guarded
+  // it, and it had drifted: four indexable pages were reachable only from the
+  // sitemap and each other. Anything a crawler should reach at depth 1 must be
+  // listed here; the registries are the source of truth for what that is.
+  const { readFile } = await import('node:fs/promises');
+  const html = await readFile(new URL('../../index.html', import.meta.url), 'utf8');
+  const start = html.indexOf('<main id="seo-fallback"');
+  assert.ok(start > -1, 'index.html has no <main id="seo-fallback">');
+  const nav = html.slice(start, html.indexOf('</main>', start));
+  const hrefs = new Set([...nav.matchAll(/href="([^"]+)"/g)].map((m) => m[1]));
+  const required = [
+    ...SEO_LANDING_PATHS,
+    ...SEO_LISTICLE_PAGES.map((p) => p.path),
+    '/docs', '/changelog', '/templates', '/explore', '/pricing',
+  ];
+  const missing = required.filter((p) => !hrefs.has(p));
+  assert.deepEqual(missing, [], `index.html crawlable nav is missing: ${missing.join(', ')}`);
+});

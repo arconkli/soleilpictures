@@ -111,7 +111,10 @@ test('renders the full listicle: hero, answer, disclosure, TOC, table, reviews, 
   // changelog is here because the question underneath a comparison page is
   // whether the thing is maintained, and an uninstrumented spoke is a click
   // the landing scorecard cannot see.
-  await expect(page.locator('[data-lp-cta^="related:"]')).toHaveCount(SPEC.related.length + 3);
+  // + the four fixed spokes every listicle footer carries (/explore, /pricing,
+  // /docs, /changelog). This read +3 from before /changelog joined the footer
+  // and had been red on main since.
+  await expect(page.locator('[data-lp-cta^="related:"]')).toHaveCount(SPEC.related.length + 4);
 
   // lp_view fired with the listicle page identity.
   await expect.poll(() =>

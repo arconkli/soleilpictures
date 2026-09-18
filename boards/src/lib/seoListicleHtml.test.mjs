@@ -90,3 +90,24 @@ function escapeLite(s) {
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
 }
+
+test('related nav anchor text is the target page h1 — the same label React renders', async () => {
+  // SeoListiclePage.jsx labels each related spoke with the target's h1
+  // (relatedLabel). The crawlable HTML rendered the raw path instead, so the
+  // two documents disagreed on 16 internal links across the four highest-
+  // impression pages — and the crawler's copy carried zero keyword anchor text.
+  const { getLandingSpec } = await import('./seoLanding.js');
+  const { SEO_LISTICLE_INDEX } = await import('./seoListicleIndex.js');
+  const label = (p) => getLandingSpec(p)?.h1 || SEO_LISTICLE_INDEX.find((x) => x.path === p)?.h1 || p;
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/'/g, '&#39;');
+  for (const spec of SEO_LISTICLE_PAGES) {
+    const html = buildListicleCrawlableHtml(spec);
+    for (const p of spec.related || []) {
+      const want = `href="${p}"`;
+      const i = html.indexOf(want);
+      assert.ok(i > -1, `${spec.path}: related link ${p} missing`);
+      const anchor = html.slice(i, html.indexOf('</a>', i));
+      assert.ok(anchor.endsWith(`>${esc(label(p))}`), `${spec.path}: related ${p} anchor text should be "${label(p)}", got: ${anchor.slice(-120)}`);
+    }
+  }
+});

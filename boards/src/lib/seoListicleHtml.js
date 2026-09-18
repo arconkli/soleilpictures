@@ -14,6 +14,17 @@
 // copy only.
 
 import { listicleToc, listicleTrustChips, formatRating } from './seoListicles.js';
+import { SEO_LISTICLE_INDEX } from './seoListicleIndex.js';
+import { getLandingSpec } from './seoLanding.js';
+
+// Related-spoke label: landing h1, listicle h1 (via the light index), or path —
+// the SAME chain SeoListiclePage.jsx uses. Until 2026-09-18 this file rendered
+// the raw path as anchor text while React rendered the h1: two documents on the
+// four highest-impression pages, and the crawler's copy carried no keyword
+// anchor text on any of its 16 related links.
+const relatedLabel = (p) => getLandingSpec(p)?.h1
+  || SEO_LISTICLE_INDEX.find((x) => x.path === p)?.h1
+  || p;
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => (
@@ -197,7 +208,7 @@ export function buildListicleCrawlableHtml(spec) {
   // ── Related nav ──
   if (spec.related?.length) {
     parts.push(`<nav aria-label="Related pages" style="margin-top:1.6em;"><h2 style="font-size:1.1rem;">Keep exploring</h2><ul>`);
-    for (const p of spec.related) parts.push(`<li><a href="${escapeHtml(p)}" style="${GOLD}">${escapeHtml(p)}</a></li>`);
+    for (const p of spec.related) parts.push(`<li><a href="${escapeHtml(p)}" style="${GOLD}">${escapeHtml(relatedLabel(p))}</a></li>`);
     parts.push(`<li><a href="/explore" style="${GOLD}">Explore example boards</a></li>`);
     parts.push(`<li><a href="/pricing" style="${GOLD}">Pricing</a></li>`);
     // These two were in SeoListiclePage.jsx's footer and not here — the two
