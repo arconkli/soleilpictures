@@ -142,6 +142,7 @@ import { CTA, nearCapSentence } from './lib/billingCopy.js';
 import { creatorTrialEligibility } from './lib/creatorTrial.js';
 import { ImportCapDialog } from './components/ImportCapDialog.jsx';
 import { claimUpsellSlot } from './lib/upsellSlot.js';
+import { publishOwnWork } from './lib/ownWork.js';
 import { recordSeen, takeReturn } from './lib/returnVisit.js';
 import { shouldAskToShare } from './lib/shareAsk.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
@@ -497,6 +498,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const sharedRoots = useMemo(
     () => (sharedBoards || []).filter((s) => s.is_shared_root !== false),
     [sharedBoards]);
+
+  // Publish the viewer's own clusters for the upgrade surfaces to show back to
+  // them. App is the only place that holds the board list, and the upgrade
+  // modal mounts from three trees — here, UpgradeChip (in TierRouter, outside
+  // this component entirely) and Settings → Billing — so there is no common
+  // ancestor to pass it through. See lib/ownWork.js.
+  //
+  // Gated on owning the workspace: a collaborator's board map contains someone
+  // else's boards, and "what you've built" must never mean "what they built".
+  useEffect(() => {
+    publishOwnWork(boards, { ownsWorkspace: workspace?.created_by === user?.id });
+  }, [boards, workspace?.created_by, user?.id]);
   // True only once the workspace board list has actually arrived over the
   // network. The canvas snapshot (yb.cards) paints instantly from the
   // IndexedDB instant-reopen cache, so board-reference cards can render a

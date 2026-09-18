@@ -38,12 +38,53 @@ function walk(dir, match, out = []) {
   return out;
 }
 
+// Whole-line comments out, for CODE files only.
+//
+// The pricing components had to join this corpus (see below) and their comment
+// blocks are where the rationale lives — which means they quote, at length, the
+// exact false claims these rules ban. Scanning them unstripped fails the lint
+// on its own explanation of why the lint exists.
+//
+// Line-based, and never applied to Markdown: in a .md file `*` opens a list
+// item and `//` appears in URLs, so a code stripper would silently delete real
+// public copy and quietly pass a lint that scans nothing.
+function stripCodeComments(text) {
+  return text
+    .split('\n')
+    .filter((l) => !/^\s*(\/\/|\*\/|\*|\/\*)/.test(l))
+    .join('\n');
+}
+
+// Code files carrying public plan claims. The two pricing COMPONENTS are here
+// because they were the hole: every rule below is a rule about what we tell the
+// public, and until now the lint could not see the two screens that tell the
+// public the most. billingCopy.test.mjs covers the strings that live in
+// billingCopy; anything typed straight into the JSX escaped both.
+// `ours: true` means EVERY sentence in the file is a claim about our own plan,
+// so the scoped rules below apply without needing the span to name Creator.
+// The SEO registries and the Worker legitimately describe competitors' plans
+// (which do cap boards, and do gate editing), which is what the scoping exists
+// for — but a pricing screen has no competitors on it. Without this flag the
+// scoped rules almost never fire on the components, because their four header
+// branches each state the offer without repeating the word "Creator", and a
+// lint that can only catch the claims that name themselves is not much of one.
+const CODE = [
+  { path: resolve(BOARDS, 'src/lib/seoLanding.js'), ours: false },
+  { path: resolve(BOARDS, 'src/lib/seoListicles.js'), ours: false },
+  { path: resolve(BOARDS, 'src/worker.js'), ours: false },
+  { path: resolve(BOARDS, 'src/lib/billingCopy.js'), ours: true },
+  { path: resolve(BOARDS, 'src/components/PricingModal.jsx'), ours: true },
+  { path: resolve(BOARDS, 'src/auth/PublicPricingPage.jsx'), ours: true },
+  { path: resolve(BOARDS, 'src/auth/PricingPage.jsx'), ours: true },
+];
+
 const FILES = [
-  resolve(BOARDS, 'src/lib/seoLanding.js'),
-  resolve(BOARDS, 'src/lib/seoListicles.js'),
-  resolve(BOARDS, 'src/worker.js'),
-  ...walk(resolve(BOARDS, 'content/docs'), /\.md$/),
-].map((p) => ({ path: p, rel: relative(BOARDS, p), text: readFileSync(p, 'utf8') }));
+  ...CODE.map((c) => ({ ...c, code: true })),
+  ...walk(resolve(BOARDS, 'content/docs'), /\.md$/).map((p) => ({ path: p, code: false, ours: false })),
+].map(({ path: p, code, ours }) => {
+  const raw = readFileSync(p, 'utf8');
+  return { path: p, rel: relative(BOARDS, p), ours, text: code ? stripCodeComments(raw) : raw };
+});
 
 // Split into sentence-ish spans so a rule can require two terms to co-occur in
 // ONE claim. Newlines end a span too: adjacent bullets are separate claims.
@@ -88,6 +129,14 @@ const RULES = [
     pattern: /unlimited (boards|clusters)/i,
     // ...but only when sold AS the upgrade. "The free tier covers N cards
     // across unlimited boards" is true and must keep passing.
+    //
+    // This clause survives the `ours` flag, deliberately. `ours` says the FILE
+    // describes only our product; it does not say which TIER a given line is
+    // about, and billingCopy plus both pricing pages carry the free tier's
+    // list too — where "unlimited clusters" is simply true. Dropping the
+    // clause on those files flagged DEMO_FEATURES and the /pricing meta
+    // description as false advertising, which is how a lint earns the reflex
+    // that deletes it.
     unless: (s) => !/\bCreator\b/.test(s),
   },
   {
@@ -131,7 +180,7 @@ for (const rule of RULES) {
       sentences(f.text).forEach((s) => {
         if (!rule.pattern.test(s)) return;
         if (isFaqQuestion(s)) return;
-        if (rule.scoped && !aboutOurPlan(s)) return;
+        if (rule.scoped && !f.ours && !aboutOurPlan(s)) return;
         if (rule.unless && rule.unless(s)) return;
         hits.push(`${f.rel}: ${s.trim().slice(0, 160)}`);
       });
@@ -147,4 +196,19 @@ test('the public copy corpus is actually being scanned', () => {
   assert.ok(FILES.length > 20, `expected the docs + SEO registries, found ${FILES.length} files`);
   const creatorClaims = FILES.filter((f) => /\bCreator\b/.test(f.text)).length;
   assert.ok(creatorClaims >= 4, `only ${creatorClaims} files mention Creator — the scan is looking in the wrong place`);
+
+  // The pricing screens are in the corpus and are treated as wholly ours.
+  const ours = FILES.filter((f) => f.ours);
+  assert.ok(ours.length >= 4, `expected the pricing surfaces to be scanned as our own claims, found ${ours.length}`);
+  for (const rel of ['src/components/PricingModal.jsx', 'src/auth/PublicPricingPage.jsx']) {
+    assert.ok(FILES.some((f) => f.rel === rel && f.ours),
+      `${rel} must be in the corpus — copy typed into the JSX escaped every lint until it was`);
+  }
+
+  // Stripping must remove comments and nothing else. A stripper that ate the
+  // file would make every rule above pass vacuously; an earlier version of this
+  // idiom in a sibling test swallowed 40% of a source file without saying so.
+  const modal = FILES.find((f) => f.rel === 'src/components/PricingModal.jsx');
+  assert.ok(/upgrade-title/.test(modal.text), 'the stripper must leave the markup intact');
+  assert.ok(!/^\s*\/\/ PricingModal —/m.test(modal.text), 'and must remove the comment header');
 });

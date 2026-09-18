@@ -23,7 +23,9 @@ import { checkoutErrorMessage, checkoutErrorKind } from '../lib/checkoutErrors.j
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { FeatureList, PlanToggle, CreatorPriceRow } from './PricingBits.jsx';
-import { CTA, CREATOR_FEATURES, PRICING, COPY_REV, PRICE_FROM_LABEL, capHitSummary, trialNote } from '../lib/billingCopy.js';
+import { CTA, CREATOR_FEATURES, CREATOR_STORAGE_LABEL, PRICING, COPY_REV, PRICE_FROM_LABEL, ownWorkSummary, trialNote } from '../lib/billingCopy.js';
+import { OwnWorkStrip } from './OwnWorkStrip.jsx';
+import { readOwnWork } from '../lib/ownWork.js';
 import { useStorageUsage } from '../hooks/useStorageUsage.js';
 import { evaluateUpsell } from '../lib/upsellEligibility.js';
 import { trackViewContent } from '../lib/metaPixel.js';
@@ -31,7 +33,7 @@ import { markPriceSeen } from '../lib/upsellLatches.js';
 import { stampUpgradePrompt } from '../lib/upgradePrompts.js';
 import { creatorTrialEligibility } from '../lib/creatorTrial.js';
 
-export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null, tierPreview = null }) {
+export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null, tierPreview = null, ownWorkPreview = null }) {
   const { user } = useAuth();
   // `tierPreview` is the admin Surface Gallery's seam and nothing else's. Which
   // of the four headers you get is a prop, but whether the TRIAL is offered is
@@ -62,11 +64,26 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     tier, cards: serverCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,
   });
   const trialOffer = !trialRefused && trialDecision.eligible;
-  // Only the wall gets personalized, so only the wall pays for the extra RPC.
-  const storage = useStorageUsage({ enabled: header === 'cap-hit' });
-  const capStats = header === 'cap-hit'
-    ? capHitSummary({ cards: demoCardCount, clusters: clusterCount, storageBytes: storage.used })
-    : null;
+  // Storage bytes cost an RPC, so only the two headers that are ABOUT capacity
+  // pay for it. The ambient headers still name what the reader has built; they
+  // just do it in cards and clusters, which are already in hand.
+  const storage = useStorageUsage({ enabled: header === 'cap-hit' || header === 'storage' });
+  // What this person has actually made, on every header rather than only at the
+  // wall. The finding that put it on the wall — that the abstract feature list
+  // goes unread by a reader who has spent real time building — was never
+  // specific to the wall; the wall was just the one place we had bothered to be
+  // specific. See ownWorkSummary in billingCopy.js.
+  const ownStats = ownWorkSummary({
+    cards: demoCardCount,
+    clusters: clusterCount,
+    storageBytes: storage.used,
+  });
+  // The pictures, taken once at mount. A snapshot rather than a subscription:
+  // re-rendering the offer because a thumbnail regenerated behind it would be
+  // motion nobody asked for. `ownWorkPreview` is the Surface Gallery's seam,
+  // the same role tierPreview plays one field up — an admin has no demo boards,
+  // so without it the strip could only ever be previewed empty.
+  const [ownWork] = useState(() => ownWorkPreview || readOwnWork());
   // Recomputed here rather than passed in: PricingModal is mounted from five
   // places, and every exposure should carry the same targeting state whether or
   // not its caller happened to thread it through.
@@ -202,47 +219,50 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
       <div className="upgrade-modal" ref={modalRef}>
         <button className="upgrade-close" onClick={() => handleClose('x')} aria-label="Close">×</button>
 
+        {/* Four headers, one shape. They were four near-identical JSX branches
+            that each re-declared the same eyebrow; the only things that ever
+            differed are the title and the closing sentence, so those are the
+            only things that vary now. Copy is unchanged, byte for byte. */}
         <div className="upgrade-intro">
-          {header === 'cap-hit' ? (
-            <>
-              <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
-              <h2 className="upgrade-title">Your work outgrew the demo.</h2>
-              {/* Their numbers, not ours. This is the one screen where the
-                  reader is provably motivated — and provably not reading the
-                  feature list — so it leads with what they've actually built. */}
-              {capStats && <p className="upgrade-caphit-stats t-body">You've built {capStats}.</p>}
-              {/* What the cap just cost them, in the units they were working in.
-                  A large photo drop that silently lands only part of itself is
-                  the most common way this screen is reached, and until now the
-                  screen said nothing about it — users were left to notice the
-                  gap themselves, and the traces show them re-dropping the same
-                  folder and then deleting their own cards to make room. */}
-              {rejected?.n > 0 && (
-                <p className="upgrade-caphit-lost t-body">
-                  {rejected.n} {rejected.noun} couldn't be added.
-                </p>
-              )}
-              <p className="upgrade-sub t-body">Creator lifts the cap, {PRICE_FROM_LABEL} — and every card you've already made stays exactly where it is.</p>
-            </>
-          ) : header === 'first-value' ? (
-            <>
-              <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
-              <h2 className="upgrade-title">You're building something.</h2>
-              <p className="upgrade-sub t-body">Your first cluster is taking shape. Creator is the complete studio — unlimited cards, any file type, any size. Everything your work deserves.</p>
-            </>
-          ) : header === 'storage' ? (
-            <>
-              <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
-              <h2 className="upgrade-title">Room for everything you make.</h2>
-              <p className="upgrade-sub t-body">Drop any file, any size — video, design files, docs — straight onto your clusters, backed by your own 100GB drive.</p>
-            </>
-          ) : (
-            <>
-              <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
-              <h2 className="upgrade-title">Everything your work deserves.</h2>
-              <p className="upgrade-sub t-body">The complete studio — unlimited cards, and any file you make, any type, any size.</p>
-            </>
+          <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
+          <h2 className="upgrade-title">
+            {header === 'cap-hit'     ? 'Your work outgrew the demo.'
+             : header === 'first-value' ? "You're building something."
+             : header === 'storage'   ? 'Room for everything you make.'
+             : 'Everything your work deserves.'}
+          </h2>
+
+          {/* Their work, then their numbers — before a word about ours. This
+              used to run on the wall alone, where the reader is provably
+              motivated and provably not reading the feature list. That was
+              never a fact about the wall. The strip renders nothing when there
+              is nothing to show, so a brand-new account is not told it has
+              built nothing on the screen asking it to pay for more room. */}
+          <OwnWorkStrip items={ownWork} summary={ownStats} />
+
+          {/* What the cap just cost them, in the units they were working in.
+              A large photo drop that silently lands only part of itself is
+              the most common way this screen is reached, and until now the
+              screen said nothing about it — users were left to notice the
+              gap themselves, and the traces show them re-dropping the same
+              folder and then deleting their own cards to make room. */}
+          {header === 'cap-hit' && rejected?.n > 0 && (
+            <p className="upgrade-caphit-lost t-body">
+              {rejected.n} {rejected.noun} couldn't be added.
+            </p>
           )}
+
+          <p className="upgrade-sub t-body">
+            {header === 'cap-hit' ? (
+              <>Creator lifts the cap, {PRICE_FROM_LABEL} — and every card you've already made stays exactly where it is.</>
+            ) : header === 'first-value' ? (
+              <>Your first cluster is taking shape. Creator is the complete studio — unlimited cards, any file type, any size. Everything your work deserves.</>
+            ) : header === 'storage' ? (
+              <>Drop any file, any size — video, design files, docs — straight onto your clusters, backed by your own {CREATOR_STORAGE_LABEL} drive.</>
+            ) : (
+              <>The complete studio — unlimited cards, and any file you make, any type, any size.</>
+            )}
+          </p>
         </div>
 
         <article className="pricing-card pricing-card-creator upgrade-card">

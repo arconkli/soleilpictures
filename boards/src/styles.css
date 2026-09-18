@@ -5503,7 +5503,9 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   background: var(--bg-2);
   border: 1px solid var(--line-2);
   border-radius: var(--radius-lg, 14px);
-  box-shadow: var(--shadow-soft, 0 8px 32px rgba(0,0,0,.18));
+  /* --shadow-soft is not defined anywhere in this file; this always rendered
+     the inline fallback. --shadow-3 is the intended weight for a raised card. */
+  box-shadow: var(--shadow-3);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -5990,6 +5992,14 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   display: grid;
   place-items: center;
   padding: 24px;
+  /* This modal had no entrance of any kind — the backdrop simply appeared,
+     which is the single loudest "template, not product" tell in the build.
+     Same two keyframes every other dialog in the app uses (.modal-shell-bg /
+     .modal-shell); nothing new is being invented here. `place-items: center`
+     is also what keeps it correct under prefers-reduced-motion, where the
+     global rule flattens transform on every element — see styles.css:369 and
+     the .capture-hud scar at :16251. Do not centre this with translate. */
+  animation: pickerFade var(--dur-fast) var(--ease);
 }
 .upgrade-modal {
   position: relative;
@@ -5998,12 +6008,20 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   background: var(--bg-2);
   border: 1px solid var(--line-2);
   border-radius: var(--radius-lg, 14px);
-  box-shadow: var(--shadow-soft, 0 8px 32px rgba(0,0,0,.18));
+  /* Was var(--shadow-soft, …), and --shadow-soft is defined NOWHERE in this
+     file — so both users of it (here and .welcome-card) have always silently
+     rendered the inline fallback, a shadow nobody chose. --shadow-3 is the
+     token for a panel floating over the app, which is what this is. */
+  box-shadow: var(--shadow-3);
   padding: 34px 32px 26px;
   display: flex;
   flex-direction: column;
   gap: 22px;
   text-align: left;
+  animation: modalRise var(--dur-base) var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .upgrade-backdrop, .upgrade-modal { animation: none; }
 }
 .upgrade-close {
   position: absolute;
@@ -6029,7 +6047,6 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .upgrade-sub { color: var(--ink-1); margin: 0; line-height: 1.55; max-width: 42ch; }
 /* Cap-hit only: the user's own totals, set above the supporting line. Reads as
    a statement of what they've made, so it carries more weight than the sub. */
-.upgrade-caphit-stats { color: var(--ink-0); margin: 0 0 6px; line-height: 1.5; max-width: 42ch; font-weight: 600; }
 /* Cap-hit only: what the refusal actually cost ("28 photos couldn't be added").
    Deliberately the same weight as the totals line above it — the two read as a
    pair, one thing gained and one thing lost. NOT --ink-error: nothing
@@ -6054,6 +6071,75 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 /* The trial terms under the button: quiet, one line, no accent. The button
    already says "free"; this says what happens to the card, and when. */
 .upgrade-trial-note { margin: 8px 0 0; color: var(--ink-2); text-align: center; line-height: 1.45; }
+
+/* ── The viewer's own work, at the top of the offer ──────────────────────
+   The product is made of pictures and the offer showed none of them. These
+   are the board thumbnails the cluster browser already renders (boards.
+   thumb_key, a real canvas render), so nothing new is fetched and R2's signed
+   URL is usually warm. Decorative by design — aria-hidden in the component,
+   because the summary line beneath says the same thing in words and a screen
+   reader listing five cluster names before the offer would bury it. */
+.own-work { display: flex; flex-direction: column; gap: 10px; margin: 2px 0 0; }
+.own-work-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;   /* equal columns however many landed, 1–5 */
+  gap: 6px;
+}
+.own-work-thumb {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-3);
+  /* Neutral hairline. Gold is reserved for the CTA and for active/selection/
+     focus; a gold frame around the reader's own work would compete with the
+     one button on the screen. */
+  border: 1px solid var(--line-2);
+  opacity: 0;
+  animation: own-work-in var(--dur-base) var(--ease) forwards;
+}
+/* A short stagger, left to right — the house entrance (opacity + a few px of
+   rise) spread over the row so the strip reads as arriving rather than being
+   pasted in. Five selectors because there are at most five. */
+.own-work-thumb:nth-child(1) { animation-delay: 0ms; }
+.own-work-thumb:nth-child(2) { animation-delay: 40ms; }
+.own-work-thumb:nth-child(3) { animation-delay: 80ms; }
+.own-work-thumb:nth-child(4) { animation-delay: 120ms; }
+.own-work-thumb:nth-child(5) { animation-delay: 160ms; }
+@keyframes own-work-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* The global reduced-motion rule clamps animation-duration rather than
+   stopping it, so an entrance still has to opt out by name. Opacity must land
+   at 1 regardless — `forwards` on an animation that never runs leaves the
+   element at opacity 0, i.e. invisible. */
+@media (prefers-reduced-motion: reduce) {
+  .own-work-thumb { animation: none; opacity: 1; }
+}
+/* R2Image renders an <img> once presigned and a shimmer <div> until then. */
+.own-work-thumb > * { width: 100%; height: 100%; object-fit: cover; display: block; }
+.own-work-line { color: var(--ink-0); margin: 0; line-height: 1.5; max-width: 42ch; font-weight: 600; }
+
+/* The free alternative under the CTA. Was an inline style object on the
+   element; neutral ink, because the gold accent is reserved for the primary
+   button this sits beneath and an accent-coloured alternative competes with
+   the thing it is an alternative to. */
+.upgrade-invite-alt {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--ink-2);
+  font: 600 13px/1.4 var(--font-sans);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color var(--dur-fast) var(--ease);
+}
+.upgrade-invite-alt:hover { color: var(--ink-0); }
 
 /* Narrow phones: the Creator card's name + plan toggle compete for one row and
    the modal padding eats the content width. Let the head wrap and the toggle
@@ -18489,6 +18575,42 @@ button, [role="button"], a {
     height: calc(100dvh - 56px - var(--safe-bottom));
     border-left: 0;
     border-top: 1px solid var(--line-1);
+  }
+
+  /* ── The paywall becomes a bottom sheet ──────────────────────────
+     Every other dialog in the app adapts at phone width — .modal,
+     .picker, .cmdk and .share-modal all full-bleed above — and the
+     upgrade modal was the one that did not. Its only phone handling
+     was a 400px block that shrank the title, so on a 390px screen the
+     one surface asking for money stayed a floating desktop card.
+     Bottom sheet rather than full-bleed, because the content is short
+     and a full-height panel holding four lines reads as broken. This
+     reuses the sheet-up keyframe the real Sheet primitive uses, so the
+     gesture matches the rest of the phone UI; it is CSS-only because
+     re-mounting a different component here would mean rebuilding the
+     swipe-dismiss, focus and telemetry wiring this modal already has. */
+  .upgrade-backdrop {
+    place-items: end center;
+    padding: 0;
+  }
+  .upgrade-modal {
+    max-width: 100vw;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    padding: 26px 20px calc(18px + var(--safe-bottom));
+    gap: 16px;
+    max-height: 92dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    animation: sheet-up 260ms var(--ease);
+  }
+  .upgrade-title { font-size: 22px; }
+  /* 44px tap target, the phone floor this file sets for every close button. */
+  .upgrade-close { width: 44px; height: 44px; top: 4px; right: 4px; }
+  @media (prefers-reduced-motion: reduce) {
+    .upgrade-modal { animation: none; }
   }
 
   /* ── Topbar slim ──────────────────────────────────────────────────

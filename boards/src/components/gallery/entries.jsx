@@ -136,18 +136,32 @@ const reveal = (key) => (feedback) => {
   feedback.toast({ message: r.message, ttl: 60000, action: { label: r.actionLabel, onClick: NOOP } });
 };
 
+// The own-work strip needs pictures, and an admin previewing a demo paywall has
+// no demo boards — a fabricated R2 key cannot presign, so the strip would only
+// ever be previewable in its empty state. These are the seven board renders
+// that already ship in public/landing/ for the SEO pages: real Clusters boards,
+// already the right shape, and served without a signed URL.
+const OWN_WORK_FIXTURE = [
+  { id: 'f1', url: '/landing/film-noir-look-book.webp' },
+  { id: 'f2', url: '/landing/neon-noir-look-book.webp' },
+  { id: 'f3', url: '/landing/short-film-shot-list.webp' },
+  { id: 'f4', url: '/landing/japandi-living-room.webp' },
+  { id: 'f5', url: '/landing/world-cup-2026-moodboard.webp' },
+];
+
 // ── Renderers ──────────────────────────────────────────────────────────────
 
 export const RENDERERS = {
   // Upgrade & billing
   'pricing-modal': ({ close }) => <PricingModal onClose={close} tierPreview={tierShape({ demoCardCount: 8, serverCardCount: 8 })} />,
-  'pricing-modal-trial': ({ close }) => <PricingModal onClose={close} tierPreview={tierShape()} />,
+  'pricing-modal-trial': ({ close }) => <PricingModal onClose={close} tierPreview={tierShape()} ownWorkPreview={OWN_WORK_FIXTURE} clusterCount={5} />,
   'pricing-modal-trialed': ({ close }) => <PricingModal onClose={close} tierPreview={tierShape({ creatorTrialStartedAt: '2026-08-20T00:00:00Z' })} />,
   'pricing-modal-trial-refused': ({ close }) => <PricingModal onClose={close} tierPreview={tierShape()} />,
   'pricing-modal-cap-hit': ({ close }) => (
     <PricingModal onClose={close} header="cap-hit" surface="cap_hit" via="cap_wall"
                   clusterCount={6} rejected={{ n: 12, noun: 'images' }}
-                  tierPreview={tierShape({ demoCardCount: 50, serverCardCount: 50 })} />
+                  tierPreview={tierShape({ demoCardCount: 50, serverCardCount: 50 })}
+                  ownWorkPreview={OWN_WORK_FIXTURE} />
   ),
   'pricing-modal-first-value': ({ close }) => <PricingModal onClose={close} header="first-value" surface="first_value" via="first_value_banner" tierPreview={tierShape({ demoCardCount: 13, serverCardCount: 13 })} />,
   'pricing-modal-storage': ({ close }) => <PricingModal onClose={close} header="storage" surface="storage" via="upload_blocked" tierPreview={tierShape()} />,

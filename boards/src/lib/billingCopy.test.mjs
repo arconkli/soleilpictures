@@ -23,7 +23,7 @@ import {
   PRICING_META_DESCRIPTION,
   planLabel,
   planBilling,
-  capHitSummary,
+  ownWorkSummary,
   CTA,
   CREATOR_TRIAL_DAYS,
   PRICE_FROM_LABEL,
@@ -193,22 +193,22 @@ assertEq(
 assertEq(planBilling('annual').save, 'Save $60/yr', 'annual savings line');
 assertEq(planBilling('monthly').save, null, 'monthly has no savings line');
 
-// --- capHitSummary ---------------------------------------------------------
+// --- ownWorkSummary ---------------------------------------------------------
 // Degrades a clause at a time. The failure mode to avoid is telling someone
 // who has uploaded nothing that they've built "0 B of files" at the exact
 // moment we're asking them for money.
-assertEq(capHitSummary({ cards: 100, clusters: 2, storageBytes: 244318208 }),
+assertEq(ownWorkSummary({ cards: 100, clusters: 2, storageBytes: 244318208 }),
   '100 cards, 2 clusters · 233 MB of files', 'full summary');
-assertEq(capHitSummary({ cards: 1, clusters: 1, storageBytes: 0 }),
+assertEq(ownWorkSummary({ cards: 1, clusters: 1, storageBytes: 0 }),
   '1 card · 1 cluster', 'singulars, and zero bytes is omitted entirely');
-assertEq(capHitSummary({ cards: 40 }), '40 cards', 'cards alone');
-assertEq(capHitSummary({ cards: 40, clusters: 0, storageBytes: null }), '40 cards',
+assertEq(ownWorkSummary({ cards: 40 }), '40 cards', 'cards alone');
+assertEq(ownWorkSummary({ cards: 40, clusters: 0, storageBytes: null }), '40 cards',
   'zero clusters is omitted rather than printed');
-assertEq(capHitSummary({}), null, 'nothing to say → null, so the caller renders no line');
-assertEq(capHitSummary(), null, 'no argument at all → null');
-assertEq(capHitSummary({ cards: NaN, storageBytes: 'abc' }), null, 'junk input → null');
-assert(/1\.4 GB/.test(capHitSummary({ cards: 5, storageBytes: 1503238553 })), 'GB rounds to one decimal');
-assert(/12 GB/.test(capHitSummary({ cards: 5, storageBytes: 12884901888 })), 'double-digit GB drops the decimal');
+assertEq(ownWorkSummary({}), null, 'nothing to say → null, so the caller renders no line');
+assertEq(ownWorkSummary(), null, 'no argument at all → null');
+assertEq(ownWorkSummary({ cards: NaN, storageBytes: 'abc' }), null, 'junk input → null');
+assert(/1\.4 GB/.test(ownWorkSummary({ cards: 5, storageBytes: 1503238553 })), 'GB rounds to one decimal');
+assert(/12 GB/.test(ownWorkSummary({ cards: 5, storageBytes: 12884901888 })), 'double-digit GB drops the decimal');
 
 // --- the ambient offer -----------------------------------------------------
 //
