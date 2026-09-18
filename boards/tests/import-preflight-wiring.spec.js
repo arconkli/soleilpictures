@@ -43,7 +43,10 @@ test.describe('import preflight wiring', () => {
     // second, because the same 65-file drop also carried non-standard files
     // and an unclaimed slot had nothing to defer to. Recorded dwell on the
     // screen the person had just asked for: 16 ms.
-    expect(ans).toMatch(/if \(action === 'upgrade'\) \{\s*claimUpsellSlot\('cap-hit'\);\s*setUpgradeReason\('cap-hit'\);/);
+    // openCapWall is the one helper every deliberate cap-wall open goes
+    // through; it claims the slot before setting the reason. upsellPacing.test
+    // .mjs pins that ordering — here we only pin that this button uses it.
+    expect(ans).toMatch(/if \(action === 'upgrade'\) openCapWall\(\);/);
   });
 
   test('an unresolved cap pays for one round trip rather than gambling the folder', () => {

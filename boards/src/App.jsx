@@ -4274,10 +4274,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // dismissed by 'nav'. It is the only time anyone has ever pressed this
       // button. The ambient guard cannot help unless the wall takes the moment
       // it is owed, and this path set the reason without ever claiming it.
-      if (action === 'upgrade') {
-        claimUpsellSlot('cap-hit');
-        setUpgradeReason('cap-hit');
-      }
+      if (action === 'upgrade') openCapWall();
       try { ask.resolve?.({ take }); } catch (_) {}
       return null;
     });
@@ -4341,7 +4338,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         label: trialOffer ? CTA.tryCreatorShort : 'See Creator',
         onClick: () => {
           logEventNow(EV.UP_CAP_TOAST_CTA, { count, limit, at, trial_shown: trialOffer });
-          setUpgradeReason('cap-hit');
+          openCapWall();
         },
       },
     });
@@ -4397,7 +4394,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           label: 'See Creator',
           onClick: () => {
             logEventNow(EV.UP_CAP_TOAST_CTA, { count: cs?.count ?? null, limit, at: 'hit', rejected });
-            setUpgradeReason('cap-hit');
+            openCapWall();
           },
         },
       });
@@ -4436,6 +4433,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // and on an over-cap drop of non-standard files both fire in one gesture.
   // Standing down must not latch either: deferring is not declining, and the
   // next refusal is owed the explanation this one gave up.
+  // Every DELIBERATE open of the cap wall — the import dialog's Upgrade, and
+  // the action on either cap toast. A press is a request, so it always opens;
+  // the claim is what stops something ambient replacing the screen the person
+  // just asked for, which is not hypothetical: on 2026-09-17 the import
+  // dialog's Upgrade produced a cap-hit modal with 16 ms of recorded dwell,
+  // dismissed by 'nav', because the same drop's blocked files reached the
+  // storage gate and an unclaimed slot had nothing to defer to.
+  //
+  // pitchCapWall is the INVOLUNTARY twin — a refused card rather than a press —
+  // and claims for itself at the top, where it also owns the once-per-ceiling
+  // latch and the degraded toast some of this helper's callers sit inside.
+  const openCapWall = useCallback(() => {
+    claimUpsellSlot('cap-hit');
+    setUpgradeReason('cap-hit');
+  }, []);
+
   const pitchStorageGate = useCallback(({ force = false } = {}) => {
     if (!force) {
       if (storagePitchedRef.current) return false;
