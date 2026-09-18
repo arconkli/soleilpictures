@@ -12,11 +12,13 @@
 // so a crawler sees this pre-rendered and React hydrates over it. That parity is
 // the point of the registry design — see the header of scripts/lib/markdown.mjs.
 //
-// Code-split (loaded only on /changelog) and dependency-light: the brand mark,
-// the two registries, the shared block renderers, and nothing else.
+// Code-split (loaded only on /changelog). Dependencies: the brand mark, the two
+// registries, the shared block renderers, and the uniform lp_* engagement hook
+// (this page emitted no analytics at all until 2026-09-18).
 
 import { useEffect, useRef, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
+import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import { CHANGELOG_ENTRIES, CHANGELOG_META } from '../lib/changelogIndex.js';
 import { CHANGELOG_CONTENT } from '../lib/changelogContent.js';
 import { Block } from './docsBlocks.jsx';
@@ -26,10 +28,16 @@ const prettyDate = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-
   year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
 });
 
+const CHANGELOG_CTA_HREF = '/?utm_source=changelog&utm_medium=nav&utm_campaign=changelog_header';
+
 export function ChangelogPage() {
   const [navOpen, setNavOpen] = useState(false);
   const [activeId, setActiveId] = useState(CHANGELOG_ENTRIES[0]?.date || null);
   const scrollRef = useRef(null);
+  const lp = useLandingEngagement({
+    page: '/changelog', pageKind: 'changelog',
+    getScrollEl: () => scrollRef.current,
+  });
 
   useEffect(() => { document.title = CHANGELOG_META.title; }, []);
 
@@ -90,7 +98,7 @@ export function ChangelogPage() {
           onClick={() => setNavOpen((v) => !v)}
           aria-expanded={navOpen}
         >{navOpen ? 'Close' : 'Menu'}</button>
-        <a className="docs-cta" href="/?utm_source=changelog&utm_medium=nav&utm_campaign=changelog_header">
+        <a className="docs-cta" href={CHANGELOG_CTA_HREF} {...lp.ctaProps('nav', CHANGELOG_CTA_HREF)}>
           Open Clusters
         </a>
       </header>

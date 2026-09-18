@@ -342,13 +342,20 @@ export const EV = Object.freeze({
   EXPLORE_SEARCH:          'explore_search',              // /explore search used (once/session) {q}
   EXPLORE_CARD_CLICK:      'explore_card_click',          // /explore card → /c/<slug> {slug,pos,sort,topic,has_query}
 
-  // ── Public landing pages (uniform lp_* engagement family — lib/landingMetrics.js
-  //    + hooks/useLandingEngagement.js). EVERY public page (the 9 SEO pages, /,
-  //    /pricing, /explore, /c/<slug>, /share aggregate) fires the same schema so
-  //    the admin_landing_scorecard RPC GROUP BYs one event set. Every lp_* row
-  //    carries the base {page,page_kind} — page = canonical spec path ('/tools/…',
-  //    '/', '/pricing', '/explore', '/c/<slug>', '/share' — NEVER a share token);
-  //    page_kind = tool|compare|hub|home|pricing|explore|public_board|share.
+  // ── Public pages (uniform lp_* engagement family — lib/landingMetrics.js +
+  //    hooks/useLandingEngagement.js). EVERY public page fires the same schema so
+  //    the admin_landing_scorecard RPC GROUP BYs one event set: the 13 landing
+  //    specs (/tools/*, /vs/*, /use-cases, /scout, /templates), the /best/*
+  //    listicles, /, /pricing, /explore, /c/<slug>, /share aggregate, every
+  //    /docs/** page, /changelog, /legal/*, the template item pages, and the 404
+  //    shell. Every lp_* row carries the base {page,page_kind} — page = canonical
+  //    path ('/tools/…', '/', '/docs/api', '/changelog', '/c/<slug>', '/share' —
+  //    NEVER a share token; the 404 shell reports the constant '/404' and leaves
+  //    the real URL on the row's `path` column). page_kind = tool|compare|hub|
+  //    listicle|home|pricing|explore|public_board|share|docs|changelog|legal|
+  //    template|template_community|not_found. The docs/changelog/legal/template
+  //    kinds arrived 2026-09-18 — before that those pages emitted nothing, so
+  //    any series on them starts there.
   //    Page-specific legacy events (landing_*, pricing_*, share_*, explore_*,
   //    seo_landing_view) keep firing unchanged — funnels in 0110/0180 read them. ──
   SEO_LANDING_VIEW:        'seo_landing_view',            // SEO landing mounted {path,kind} (pre-dated the lp_* family; kept for the 0180 RPCs)

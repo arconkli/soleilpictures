@@ -8,11 +8,15 @@
 // the header of scripts/lib/markdown.mjs for why this renders a block AST
 // rather than an HTML string.
 //
-// Code-split (loaded only on a /docs path) and dependency-light: the brand
-// mark, the two registries, and nothing else.
+// Code-split (loaded only on a /docs path). Dependencies: the brand mark, the
+// two registries, and the uniform lp_* engagement hook — the docs corpus is the
+// surface AI crawlers fetch hardest, and until 2026-09-18 not one human visit to
+// it was measured (analytics.js is in the entry chunk already, so the hook adds
+// only landingMetrics/journey to this one).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
+import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import { DOCS_PAGES, DOCS_SECTIONS, getDocsPage } from '../lib/docsiteIndex.js';
 import { DOCS_CONTENT } from '../lib/docsiteContent.js';
 import { Block, Inline } from './docsBlocks.jsx';
@@ -77,12 +81,20 @@ function Nav({ current, currentSection, query, onNavigate }) {
   });
 }
 
+const DOCS_CTA_HREF = '/?utm_source=docs&utm_medium=nav&utm_campaign=docs_header';
+
 export function DocsPage({ path }) {
   const page = getDocsPage(path || (typeof window !== 'undefined' ? window.location.pathname : ''));
   const [query, setQuery] = useState('');
   const [navOpen, setNavOpen] = useState(false);
   const [activeId, setActiveId] = useState(null);
   const scrollRef = useRef(null);
+  // Every docs URL is its own document load (main.jsx routes at module scope),
+  // so one hook mount per page identity is exactly one lp_view per page.
+  const lp = useLandingEngagement({
+    page: page?.path, pageKind: 'docs',
+    getScrollEl: () => scrollRef.current,
+  });
 
   useEffect(() => { if (page) document.title = page.title; }, [page]);
 
@@ -169,7 +181,7 @@ export function DocsPage({ path }) {
           onClick={() => setNavOpen((v) => !v)}
           aria-expanded={navOpen}
         >{navOpen ? 'Close' : 'Menu'}</button>
-        <a className="docs-cta" href="/?utm_source=docs&utm_medium=nav&utm_campaign=docs_header">
+        <a className="docs-cta" href={DOCS_CTA_HREF} {...lp.ctaProps('nav', DOCS_CTA_HREF)}>
           Open Clusters
         </a>
       </header>

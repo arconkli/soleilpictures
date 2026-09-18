@@ -7,8 +7,9 @@
 // re-runs main.jsx, which reads window.location.pathname and renders the
 // right page. No router state needed.
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
+import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import {
   LEGAL_DOCS,
   DOC_ORDER,
@@ -57,6 +58,14 @@ function Block({ block, k }) {
 export function LegalPage({ doc = 'privacy' }) {
   const slug = LEGAL_DOCS[doc] ? doc : 'privacy';
   const data = LEGAL_DOCS[slug];
+  // .legal-screen is the scroll container (legal.css: position:fixed +
+  // overflow-y:auto); html/body/#root never scroll, so without the ref the hook
+  // would read the window and report every visit as a full read.
+  const scrollRef = useRef(null);
+  const lp = useLandingEngagement({
+    page: `/legal/${slug}`, pageKind: 'legal',
+    getScrollEl: () => scrollRef.current,
+  });
 
   useEffect(() => {
     const prev = document.title;
@@ -65,14 +74,14 @@ export function LegalPage({ doc = 'privacy' }) {
   }, [data.title]);
 
   return (
-    <div className="legal-screen">
+    <div className="legal-screen" ref={scrollRef}>
       <div className="auth-glow" aria-hidden="true" />
 
       <header className="legal-topbar">
         <a className="legal-brand" href="/" aria-label="Back to Soleil Clusters">
           <SoleilWordmark size="block" />
         </a>
-        <a className="legal-back" href="/">Back to app</a>
+        <a className="legal-back" href="/" {...lp.ctaProps('nav', '/', { intent: 'nav' })}>Back to app</a>
       </header>
 
       <main className="legal-doc">

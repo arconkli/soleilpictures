@@ -1032,6 +1032,12 @@
 
 .admin-src-badge.src-referral .admin-src-dot { color: var(--adm-cat-3); }
 
+/* AI assistants share one neutral variant: the assistant name is the label,
+   the badge is not a brand. Not gold — gold is the focused thing. */
+.admin-src-badge.src-ai       { color: var(--adm-cat-2, var(--ink-1)); border-color: var(--adm-line-strong); }
+
+.admin-src-badge.src-ai       .admin-src-dot { color: var(--adm-cat-2, var(--ink-1)); }
+
 .admin-src-badge.src-direct   { color: var(--ink-3); border-color: var(--line-2); }
 
 .admin-src-badge.src-direct   .admin-src-dot { box-shadow: none; opacity: .5; }

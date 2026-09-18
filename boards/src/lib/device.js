@@ -21,7 +21,7 @@ let cached = null;
 // browser carries the app's name and belongs to a person, not a crawler.
 // One literal, no imports: device.js stays dependency-free for the
 // size-sensitive landing chunk.
-const BOT_RE = /bot\b|bot[/_-]|crawler|spider|crawling|headless|phantomjs|puppeteer|playwright|selenium|webdriver|scrapy|curl\/|wget\/|python-requests|node-fetch|axios\/|go-http-client|okhttp|libwww|httrack|feedfetcher|facebookexternalhit|whatsapp\/|lighthouse|pagespeed|gtmetrix|pingdom|ahrefs|semrush|mj12|dotbot|petalbot|dataforseo|screaming frog|google-extended|gptbot|oai-searchbot|chatgpt-user|claude-web|anthropic-ai|perplexity|cohere-ai|bytespider|amazonbot|meta-externalagent|applebot|duckduckbot|yandex(bot|images)|baiduspider|slurp|sogou|exabot|ia_archiver/;
+const BOT_RE = /bot\b|bot[/_-]|crawler|spider|crawling|headless|phantomjs|puppeteer|playwright|selenium|webdriver|scrapy|curl\/|wget\/|python-requests|node-fetch|axios\/|go-http-client|okhttp|libwww|httrack|feedfetcher|facebookexternalhit|whatsapp\/|lighthouse|pagespeed|gtmetrix|pingdom|ahrefs|semrush|mj12|dotbot|petalbot|dataforseo|screaming frog|google-extended|gptbot|oai-searchbot|chatgpt-user|claude-user|anthropic-ai|perplexity|mistralai-user|meta-externalfetcher|cohere-ai|bytespider|amazonbot|meta-externalagent|applebot|duckduckbot|yandex(bot|images)|baiduspider|slurp|sogou|exabot|ia_archiver/;
 
 // Pure classifier — exported so it can be unit-tested with fixed UA strings
 // (see the DEV bridge in main.jsx). nativePlatform is 'ios' | 'android' | null.
