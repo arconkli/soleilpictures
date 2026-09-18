@@ -37,7 +37,13 @@ test.describe('import preflight wiring', () => {
     // The three buttons resolve through ONE path that logs the action.
     const ans = s.slice(s.indexOf('const answerImportAsk = useCallback'), s.indexOf('const capPitchedAtRef'));
     expect(ans).toMatch(/logEventNow\(EV\.IMPORT_PREFLIGHT, \{\s*action, n_files: ask\.n, take/);
-    expect(ans).toMatch(/if \(action === 'upgrade'\) setUpgradeReason\('cap-hit'\)/);
+    // Upgrade must CLAIM the moment, not merely set the reason. On 2026-09-17
+    // — the first and so far only time anyone has pressed this button — the
+    // cap-hit modal opened and was replaced by the storage gate in the same
+    // second, because the same 65-file drop also carried non-standard files
+    // and an unclaimed slot had nothing to defer to. Recorded dwell on the
+    // screen the person had just asked for: 16 ms.
+    expect(ans).toMatch(/if \(action === 'upgrade'\) \{\s*claimUpsellSlot\('cap-hit'\);\s*setUpgradeReason\('cap-hit'\);/);
   });
 
   test('an unresolved cap pays for one round trip rather than gambling the folder', () => {
