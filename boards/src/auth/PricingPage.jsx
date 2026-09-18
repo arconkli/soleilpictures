@@ -1,12 +1,15 @@
-// PricingPage — two cards, Demo (free) + Creator (combined Monthly/Annual
-// with a toggle). Mirrors screenshot 2 of the launch spec.
+// PricingPage — the account-aware /pricing, for anyone signed in.
 //
-// Demo CTA  → /waitlist (back to the socials form)
-// Creator CTA → startCheckout() → Stripe Checkout
+// Renders the SAME page as the signed-out route (PricingPageView); everything
+// that differs is behaviour, not layout. Creator CTA → startCheckout(), or
+// startPortal() for an account that already has a plan. tier='waitlist' uses
+// this page to skip the wait; tier='demo' uses it to upgrade; paid/admin see
+// "Manage billing" → the Stripe Customer Portal rather than a second checkout.
 //
-// Available signed-in to anyone; tier='waitlist' uses it to skip the
-// wait, tier='demo' uses it to upgrade. Already-paid users (paid/admin)
-// see "Manage billing" → Stripe Customer Portal instead of a second checkout.
+// It had ZERO views in the thirty days before this rewrite — nothing in the
+// signed-in app links here, and BillingTab owns manage-billing. The route
+// stays because WelcomePage, WaitlistConfirm and PricingSuccess all still
+// assign('/pricing'), and because a third design is how two surfaces drift.
 
 import { useEffect, useRef, useState } from 'react';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
@@ -17,9 +20,8 @@ import { startCheckout, startPortal } from '../lib/checkout.js';
 import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
 import { useAuth } from './AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
-import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
-import { FeatureList, PlanToggle, CreatorPriceRow } from '../components/PricingBits.jsx';
-import { CTA, CREATOR_FEATURES, DEMO_FEATURES, grantCopy, PRICING, COPY_REV } from '../lib/billingCopy.js';
+import { PricingPageView } from './PricingPageView.jsx';
+import { CTA, grantCopy, PRICING, COPY_REV } from '../lib/billingCopy.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
 import { stampUpgradePrompt } from '../lib/upgradePrompts.js';
@@ -98,91 +100,55 @@ export function PricingPage() {
   };
 
   return (
-    <div className="pricing-screen" ref={rootRef}>
-      <div className="auth-glow" aria-hidden="true" />
-
-      <header className="pricing-header">
-        <SoleilWordmark size="display" />
-      </header>
-
-      <div className="pricing-grid">
-        {/* DEMO */}
-        <article className="pricing-card pricing-card-demo">
-          <div className="pricing-card-head">
-            <div className="pricing-card-name">Demo</div>
-            <div className="pricing-card-price">$0</div>
-          </div>
-          <FeatureList features={DEMO_FEATURES} />
-          {isDemo ? (
-            // Already a demo user — this is their current plan, not a waitlist
-            // step. Show a non-actionable indicator so they don't think they
-            // have to re-join the waitlist; the Creator card is the upgrade.
-            <button className="pricing-cta pricing-cta-secondary" disabled>
-              Your current plan
-            </button>
-          ) : (
-            <button
-              className="pricing-cta pricing-cta-secondary"
-              onClick={() => {
-                up.outcome('demo_cta');
-                logEventNow(EV.PRICING_DEMO_CTA, { surface: 'page', tier });
-                window.location.assign('/waitlist');
-              }}
-              disabled={busy}
-            >
-              Go to Waitlist
-            </button>
-          )}
-        </article>
-
-        {/* CREATOR (combined monthly/annual) */}
-        <article className="pricing-card pricing-card-creator">
-          <div className="pricing-card-head">
-            <div className="pricing-card-name">Creator</div>
-            {!alreadyPaid && <PlanToggle plan={plan} setPlan={onPlanToggle} disabled={busy} />}
-          </div>
-
-          {!alreadyPaid && <CreatorPriceRow plan={plan} />}
-
-          {alreadyPaid && (
-            <p className="pricing-card-price-sub t-meta" style={{ marginTop: 4 }}>
-              {grantLine
-                ? grantLine
-                : tier === 'admin'
-                  ? 'You have unlimited admin access — no subscription needed.'
-                  : "You're already on Creator. Manage your plan, payment method, or cancellation below."}
-            </p>
-          )}
-
-          <FeatureList features={CREATOR_FEATURES} />
-
-          {error && <div className="auth-error t-meta">{error}</div>}
-
-          {noPortal ? (
-            // Comped grant / admin — no Stripe customer to manage.
-            <button className="pricing-cta pricing-cta-secondary" disabled>
-              {grantBacked ? 'Complimentary access' : 'Your current plan'}
-            </button>
-          ) : (
-            <button
-              className="pricing-cta pricing-cta-primary"
-              data-up-cta="creator"
-              onClick={onCreatorCta}
-              disabled={busy}
-            >
-              {busy
-                ? (alreadyPaid ? CTA.manageBillingBusy : CTA.getCreatorBusy)
-                : (alreadyPaid ? CTA.manageBilling : CTA.getCreator)}
-            </button>
-          )}
-        </article>
-      </div>
-
-      <footer className="pricing-foot t-meta">
-        Signed in as <b>{user?.email}</b>
-        <span className="welcome-foot-sep">·</span>
-        <button className="auth-link" onClick={() => { logEvent(EV.PRICING_SIGNOUT); signOut(); }}>Use a different email</button>
-      </footer>
-    </div>
+    <PricingPageView
+      scrollRef={rootRef}
+      plan={plan}
+      onPlanToggle={onPlanToggle}
+      onFaqOpen={null}
+      // A signed-in demo account is ALREADY on the free plan, so there is no
+      // free action to offer and the hero/closing bands drop away with it. A
+      // waitlist account still has somewhere to go.
+      freeCta={isDemo || alreadyPaid ? null : {
+        label: 'Go to Waitlist',
+        onClick: () => {
+          up.outcome('demo_cta');
+          logEvent(EV.PRICING_DEMO_CTA, { surface: 'page', tier });
+          window.location.assign('/waitlist');
+        },
+      }}
+      showPlanToggle={!alreadyPaid}
+      showPrice={!alreadyPaid}
+      stateLine={alreadyPaid ? (
+        <p className="pricing-card-price-sub t-meta" style={{ marginTop: 4 }}>
+          {grantLine
+            || (tier === 'admin'
+              ? 'You have unlimited admin access — no subscription needed.'
+              : "You're already on Creator. Manage your plan, payment method, or cancellation below.")}
+        </p>
+      ) : null}
+      error={error}
+      creatorCta={{
+        label: noPortal
+          ? (grantBacked ? 'Complimentary access' : 'Your current plan')
+          : busy
+            ? (alreadyPaid ? CTA.manageBillingBusy : CTA.getCreatorBusy)
+            : (alreadyPaid ? CTA.manageBilling : CTA.getCreator),
+        onClick: noPortal ? undefined : onCreatorCta,
+        disabled: busy || noPortal,
+        busy,
+      }}
+      footer={
+        <div className="pp-foot t-meta">
+          Signed in as <b>{user?.email}</b>
+          <span className="welcome-foot-sep">·</span>
+          <button
+            className="auth-link"
+            onClick={() => { logEvent(EV.PRICING_SIGNOUT, { surface: 'page' }); signOut(); }}
+          >
+            Use a different email
+          </button>
+        </div>
+      }
+    />
   );
 }

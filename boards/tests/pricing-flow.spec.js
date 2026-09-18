@@ -37,60 +37,88 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('pricing page shows the canonical Creator list and the trimmed Demo list', async ({ page }) => {
+test('pricing page states the price high, leads with the free action, and shows the three real limits', async ({ page }) => {
   await page.goto('/pricing?local=1&tier=demo');
 
-  const creator = page.locator('.pricing-card-creator');
-  await expect(creator).toBeVisible();
+  // The page is a scrolling public page now, on the same shell as the
+  // comparison pages almost all of its traffic arrives from — not the fixed,
+  // centred .pricing-screen it shared with .welcome-screen and the error panel.
+  await expect(page.locator('.public-shell.seo-shell')).toBeVisible();
+  await expect(page.locator('.pricing-screen')).toHaveCount(0);
 
-  // Canonical Creator features (the public list, mirrored everywhere). Every
-  // line names a difference that is actually enforced in code: the card cap
-  // trigger, the file-type gate, and the free size/length ceilings.
-  await expect(creator.getByText('Unlimited cards')).toBeVisible();
-  await expect(creator.getByText('Any file type')).toBeVisible();
-  await expect(creator.getByText('No size limits')).toBeVisible();
+  // The PRICE is above the fold even though the ACTION is the free start.
+  // People who open a pricing page came for the number.
+  await expect(page.locator('.seo-subhead')).toContainText('$25/mo');
+  await expect(page.locator('.seo-subhead')).toContainText(`${DEMO_CARD_LIMIT} cards`);
+
+  // Real product, not a feature list: a published board in a browser frame.
+  const frame = page.locator('.seo-frame');
+  await expect(frame).toBeVisible();
+  await expect(frame.locator('img')).toHaveAttribute('src', /^\/landing\/.+\.webp$/);
+  await expect(frame.locator('a.seo-frame-shot')).toHaveAttribute('href', /^\/c\//);
+
+  // The three differences that are actually enforced in code — the card cap
+  // trigger, the file-type gate, and the free per-file ceilings — as a
+  // comparison rather than four abstract bullets.
+  const table = page.locator('.seo-compare');
+  await expect(table.locator('tbody tr')).toHaveCount(3);
+  await expect(table).toContainText('Unlimited');
+  await expect(table).toContainText('Any file');
+  await expect(table).toContainText('No limit');
+
   // High-res exports was removed from the offering — must not reappear.
   await expect(page.getByText(/high.?res/i)).toHaveCount(0);
   // These three shipped and were false: 'edit access' became free for every
   // tier in migration 0188, and the other two never had an implementation.
   // They must never come back.
-  await expect(creator.getByText(/edit access/i)).toHaveCount(0);
-  await expect(creator.getByText('Every creative tool')).toHaveCount(0);
-  await expect(creator.getByText('All Virtual + Social events')).toHaveCount(0);
+  await expect(page.getByText(/edit access/i)).toHaveCount(0);
+  await expect(page.getByText('Every creative tool')).toHaveCount(0);
+  await expect(page.getByText('All Virtual + Social events')).toHaveCount(0);
 
   // Monthly-first default: $25/mo (annual-default drove pricing abandons).
   // Toggle to annual → $20/mo with the savings badge.
-  await expect(creator.locator('.pricing-card-price')).toContainText('$25');
-  await creator.getByRole('tab', { name: 'Annual' }).click();
-  await expect(creator.locator('.pricing-card-price')).toContainText('$20');
-  await expect(creator.getByText('Save 20%')).toBeVisible();
+  const buy = page.locator('.pp-buy');
+  await expect(buy.locator('.pricing-card-price')).toContainText('$25');
+  await buy.getByRole('tab', { name: 'Annual' }).click();
+  await expect(buy.locator('.pricing-card-price')).toContainText('$20');
+  await expect(buy.getByText('Save 20%')).toBeVisible();
 
-  // CTA wording is centralized.
-  await expect(creator.getByRole('button', { name: 'Get Creator' })).toBeVisible();
+  // CTA wording is centralized. Creator sits under the comparison it refers to.
+  await expect(buy.getByRole('button', { name: 'Get Creator' })).toBeVisible();
+  // This route is the SIGNED-IN one (the suite seeds an auth marker), and a
+  // signed-in demo account is already on the free plan — so there is no free
+  // action to offer it, only the jump to what Creator changes.
+  await expect(page.locator('.seo-hero').getByRole('button', { name: 'Start free' })).toHaveCount(0);
+  await expect(page.locator('.seo-hero').getByRole('link', { name: /What Creator changes/ })).toBeVisible();
 
-  // Demo card: the card cap is the only real limit. It is NOT view-only —
+  // The free plan: the card cap is the only real limit. It is NOT view-only —
   // 0188 made editor collaboration free for every tier — and clusters/boards
-  // were never capped, so the free tier says so plainly.
-  const demo = page.locator('.pricing-card-demo');
-  // The public pricing page describes the plan a NEW account gets, so this is
-  // DEMO_CARD_LIMIT and not whatever cap the viewer's own account carries.
-  await expect(demo).toContainText(`${DEMO_CARD_LIMIT} cards`);
-  await expect(demo).toContainText('Unlimited clusters');
-  await expect(demo).toContainText('Free collaboration');
-  await expect(demo).not.toContainText('View Mode only');
-  await expect(demo).not.toContainText('audio');
+  // were never capped, so the free tier says so plainly. This describes the
+  // plan a NEW account gets, so it is DEMO_CARD_LIMIT and not whatever cap the
+  // viewer's own account carries.
+  const free = page.locator('.pp-free-list');
+  await expect(free).toContainText(`${DEMO_CARD_LIMIT} cards`);
+  await expect(free).toContainText('Unlimited clusters');
+  await expect(free).toContainText('Free collaboration');
+  await expect(free).not.toContainText('View Mode only');
+  // Audio appears in the comparison as a free SIZE cap, which is honest; it
+  // must not appear in the free plan's feature list as something sold.
+  await expect(free).not.toContainText('audio');
+
+  // The trial is never offered here, signed in or out. Standing decision.
+  await expect(page.getByText(/days free|free for 14 days/i)).toHaveCount(0);
 });
 
 test('an already-paid user is routed to manage billing, not a second checkout', async ({ page }) => {
   await page.goto('/pricing?local=1&tier=paid');
 
-  const creator = page.locator('.pricing-card-creator');
-  await expect(creator).toBeVisible();
-  await expect(creator.getByRole('button', { name: /Manage billing/ })).toBeVisible();
-  await expect(creator.getByRole('button', { name: 'Get Creator' })).toHaveCount(0);
+  const buy = page.locator('.pp-buy');
+  await expect(buy).toBeVisible();
+  await expect(buy.getByRole('button', { name: /Manage billing/ })).toBeVisible();
+  await expect(buy.getByRole('button', { name: 'Get Creator' })).toHaveCount(0);
   // No plan toggle / price for someone who already subscribed.
-  await expect(creator.locator('.pricing-card-toggle')).toHaveCount(0);
-  await expect(creator).toContainText('already on Creator');
+  await expect(buy.locator('.pricing-card-toggle')).toHaveCount(0);
+  await expect(buy).toContainText('already on Creator');
 });
 
 test('the in-app upgrade modal matches the pricing page copy, and offers the trial to a real body of work', async ({ page }) => {
@@ -154,9 +182,35 @@ test('a first-day account with a handful of cards is not offered the trial', asy
 
 test('the signed-in /pricing route never offers the trial', async ({ page }) => {
   await page.goto('/pricing?local=1&tier=demo&cards=60&limit=100');
-  const creator = page.locator('.pricing-card-creator');
-  await expect(creator.getByRole('button', { name: 'Get Creator' })).toBeVisible();
-  await expect(creator.getByRole('button', { name: /Try Creator/ })).toHaveCount(0);
+  const buy = page.locator('.pp-buy');
+  await expect(buy.getByRole('button', { name: 'Get Creator' })).toBeVisible();
+  await expect(buy.getByRole('button', { name: /Try Creator/ })).toHaveCount(0);
+});
+
+test('the signed-OUT page leads with the free action, because it cannot sell', async ({ page }) => {
+  // main.jsx routes PublicPricingPage only when there is NO cached Supabase
+  // session. The suite's beforeEach seeds one via addInitScript, which re-runs
+  // on every navigation and survives clearCookies — so undo it with a later
+  // init script, which runs after it.
+  await page.addInitScript(() => {
+    try { localStorage.removeItem('sb-local-auth-token'); } catch (_) {}
+  });
+  await page.goto('/pricing');
+
+  // The primary action is free-to-start. Not a softening of the offer — the
+  // price is in the subhead above it — but a correction: a signed-out visitor
+  // has no session to bill, so "Get Creator" here has only ever been able to
+  // send them to sign in.
+  const hero = page.locator('.seo-hero');
+  await expect(hero.getByRole('button', { name: 'Start free' })).toBeVisible();
+  await expect(page.locator('.seo-subhead')).toContainText('$25/mo');
+
+  // And the closing band repeats the free action, not the paid one.
+  await expect(page.locator('.seo-cta-band').getByRole('button', { name: 'Start free' })).toBeVisible();
+
+  // The trial is in-product only. A signed-out visitor has built nothing and
+  // could not be eligible anyway, but the page must not imply otherwise.
+  await expect(page.getByText(/days free|free for 14 days|free trial/i)).toHaveCount(0);
 });
 
 test('checkout success without a session_id shows a recovery card (no dead-end)', async ({ page }) => {

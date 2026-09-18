@@ -6088,7 +6088,9 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 .own-work-thumb {
   position: relative;
-  aspect-ratio: 4 / 3;
+  /* 16:9, matching FRAME_W/FRAME_H in renderThumbnail.js (1200x675), so a real
+     board render is shown whole rather than cropped to fit a frame we chose. */
+  aspect-ratio: 16 / 9;
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--bg-3);
@@ -6155,6 +6157,71 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   .pricing-card-price  { font-size: 30px; }
   .waitlist-skip-row   { flex-direction: column; align-items: stretch; }
   .waitlist-skip-cta   { width: 100%; }
+}
+
+/* ── /pricing, the page ─────────────────────────────────────────────────
+   The route is built on the public shell and seoLanding.css now (see
+   PricingPageView.jsx for why). Everything here is additive: no .seo-* or
+   .public-* rule is overridden, so the two stylesheets' injection order
+   cannot matter. .pricing-screen and .pricing-grid stay where they are —
+   /welcome, /waitlist and /pricing/success still use that shell. */
+
+/* Both CTA classes were written for <a>. On this page the free action is a
+   real <button> (it runs telemetry and then navigates), which arrives with a
+   UA border, a UA font and no pointer. */
+button.seo-cta-primary,
+button.public-cta {
+  border: 0;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  -webkit-appearance: none;
+  appearance: none;
+}
+button.seo-cta-primary:disabled,
+button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }
+
+/* The buy block, under the comparison it refers to. A quiet panel rather than
+   a second glowing card: the page's primary action is the free start, and two
+   gold buttons competing above the fold is how a pricing page stops being read
+   as an answer to a question and starts being read as a sales page. */
+.pp-buy {
+  margin-top: 1.4em;
+  padding: 20px 22px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg, 12px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 460px;
+}
+.pp-buy-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+/* .pricing-cta sets `margin-top: auto`, which is right inside a stretched card
+   and wrong inside this flex column — it would push the button to the bottom
+   of a box it already ends. */
+.pp-buy-cta { margin-top: 4px; }
+.pp-free-list { margin-top: 1.1em; }
+.pp-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--ink-3);
+  margin-bottom: 18px;
+}
+.pp-foot b { color: var(--ink-2); font-weight: 600; }
+
+@media (max-width: 640px) {
+  .pp-buy { padding: 16px; max-width: none; }
+  .pp-buy-head { flex-direction: column; align-items: stretch; gap: 8px; }
+  .pp-buy-head .pricing-card-toggle { width: 100%; justify-content: center; }
 }
 
 /* ── Billing summary (shared by Settings modal + /settings/billing) ────── */

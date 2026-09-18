@@ -12,7 +12,15 @@
 // through to the account-aware PricingPage instead.
 //
 // All copy/prices/markup are shared with the in-app PricingPage via billingCopy
-// + PricingBits, so the two surfaces can never drift.
+// + PricingBits + PricingPageView, so the two surfaces can never drift.
+//
+// Note on the primary action. It is "Start free", and the Creator button is
+// beneath the comparison rather than beside it. That is not a softening of the
+// offer: the price is stated in the subhead, above the fold. It is a correction
+// of a mismatch — a signed-out visitor CANNOT check out from here (goSignIn is
+// all the Creator button has ever done, because there is no session to bill),
+// and essentially all of this page's traffic arrives from comparison pages
+// whose own CTA promises a free tier with no card and no trial clock.
 
 import { useEffect, useRef, useState } from 'react';
 import { logEvent, logEventOnce } from '../lib/analytics.js';
@@ -20,9 +28,8 @@ import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import { useUpsellExposure } from '../hooks/useUpsellExposure.js';
-import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
-import { FeatureList, PlanToggle, CreatorPriceRow } from '../components/PricingBits.jsx';
-import { CTA, CREATOR_FEATURES, DEMO_FEATURES, PRICING } from '../lib/billingCopy.js';
+import { PricingPageView } from './PricingPageView.jsx';
+import { CTA, PRICING, PRICING_PAGE } from '../lib/billingCopy.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 
 const SURFACE = 'public_page';
@@ -30,7 +37,9 @@ const SURFACE = 'public_page';
 export function PublicPricingPage() {
   const [plan, setPlan] = useState('monthly'); // monthly-first: annual-default drove pricing abandons
 
-  // Uniform lp_* engagement package; .pricing-screen is the overflow scroller.
+  // Uniform lp_* engagement package. The scroller is .seo-scroll now, not
+  // .pricing-screen — the page scrolls rather than being centred in a fixed
+  // viewport, which is the whole change.
   const scrollRef = useRef(null);
   const lp = useLandingEngagement({
     page: '/pricing', pageKind: 'pricing',
@@ -78,65 +87,29 @@ export function PublicPricingPage() {
   };
 
   return (
-    <div className="pricing-screen" ref={scrollRef}>
-      <div className="auth-glow" aria-hidden="true" />
-
-      <header className="pricing-header">
-        <a
-          href="/"
-          aria-label="Soleil Clusters home"
-          style={{ display: 'inline-flex', textDecoration: 'none', color: 'inherit' }}
-        >
-          <SoleilWordmark size="display" />
-        </a>
-      </header>
-
-      <div className="pricing-grid">
-        {/* DEMO */}
-        <article className="pricing-card pricing-card-demo">
-          <div className="pricing-card-head">
-            <div className="pricing-card-name">Demo</div>
-            <div className="pricing-card-price">$0</div>
-          </div>
-          <FeatureList features={DEMO_FEATURES} />
-          <button
-            className="pricing-cta pricing-cta-secondary"
-            data-lp-cta="demo"
-            onClick={() => goSignIn(EV.PRICING_DEMO_CTA, 'demo', { tier: 'signed_out' })}
-          >
-            Get started free
-          </button>
-        </article>
-
-        {/* CREATOR (combined monthly/annual) */}
-        <article className="pricing-card pricing-card-creator">
-          <div className="pricing-card-head">
-            <div className="pricing-card-name">Creator</div>
-            <PlanToggle plan={plan} setPlan={onPlanToggle} />
-          </div>
-
-          <CreatorPriceRow plan={plan} />
-
-          <FeatureList features={CREATOR_FEATURES} />
-
-          <button
-            className="pricing-cta pricing-cta-primary"
-            data-lp-cta="creator"
-            data-up-cta="creator"
-            onClick={() => goSignIn(EV.PRICING_CREATOR_INTENT, 'creator', { plan, already_paid: false })}
-          >
-            {CTA.getCreator}
-          </button>
-        </article>
-      </div>
-
-      <footer className="pricing-foot t-meta">
-        Already have an account? <a className="auth-link" href="/">Sign in</a>
-        <span className="welcome-foot-sep">·</span>
-        <a className="auth-link" href="/legal/privacy">Privacy</a>
-        <span className="welcome-foot-sep">·</span>
-        <a className="auth-link" href="/legal/terms">Terms</a>
-      </footer>
-    </div>
+    <PricingPageView
+      scrollRef={scrollRef}
+      plan={plan}
+      onPlanToggle={onPlanToggle}
+      ctaProps={lp.ctaProps}
+      onFaqOpen={(i, q) => lp.faqOpen(i, q)}
+      freeCta={{
+        label: PRICING_PAGE.startFree,
+        onClick: () => goSignIn(EV.PRICING_DEMO_CTA, 'demo', { tier: 'signed_out' }),
+      }}
+      creatorCta={{
+        label: CTA.getCreator,
+        onClick: () => goSignIn(EV.PRICING_CREATOR_INTENT, 'creator', { plan, already_paid: false }),
+      }}
+      footer={
+        <div className="pp-foot t-meta">
+          Already have an account? <a className="auth-link" href="/">Sign in</a>
+          <span className="welcome-foot-sep">·</span>
+          <a className="auth-link" href="/legal/privacy">Privacy</a>
+          <span className="welcome-foot-sep">·</span>
+          <a className="auth-link" href="/legal/terms">Terms</a>
+        </div>
+      }
+    />
   );
 }
