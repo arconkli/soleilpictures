@@ -18,7 +18,7 @@ export const PLAN_NAME = 'Creator';
 // pricing funnel events (pricing_view, pricing_creator_intent, first_value_*)
 // so conversion can be attributed before/after a copy change without an A/B
 // test (traffic is far too low for one). Bump on every material copy revision.
-export const COPY_REV = 'studio_v4';
+export const COPY_REV = 'studio_v5';
 
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 
@@ -227,7 +227,7 @@ export function trialNote(plan) {
   return `Card required, nothing charged for ${CREATOR_TRIAL_DAYS} days. Then ${p.billedLabel} — cancel before the trial ends and you pay nothing.`;
 }
 
-// Compact byte label for the cap-hit summary ("233 MB", "1.4 GB"). Local to
+// Compact byte label for the own-work summary ("233 MB", "1.4 GB"). Local to
 // billingCopy so this module stays pure and node-testable; SettingsPanel's
 // meter has its own equivalent tied to its own layout.
 function capBytes(n) {
@@ -243,16 +243,23 @@ function capBytes(n) {
   return `${Math.round(b)} B`;
 }
 
-// capHitSummary — the cap-hit modal's opening line, in the user's own numbers.
+// ownWorkSummary — what this person has actually built, in their own numbers.
 //
-// The exposure telemetry is unambiguous that the abstract feature list goes
-// unread at this moment: zero feature rows were read on any of the real
-// cap-hitter's exposures. Someone who has just been stopped already knows what
-// they want; naming what they've built beats describing the product.
+// Written for the cap-hit modal, where the exposure telemetry was unambiguous
+// that the abstract feature list goes unread: zero feature rows were read on
+// any real cap-hitter's exposure. Someone who has just been stopped already
+// knows what they want; naming what they've built beats describing the product.
+//
+// It now runs on every header, because that finding was never specific to the
+// wall. Across every upgrade surface the feature rows go almost entirely
+// unread, and the offer is the only screen in a product made of images that
+// shows the reader nothing of their own. The wall was simply the one place we
+// had already bothered to be specific.
 //
 // Every field is optional and every clause degrades away rather than printing a
-// zero — a user with no uploads should not be told "0 B of your files".
-export function capHitSummary({ cards, clusters, storageBytes } = {}) {
+// zero — a user with no uploads should not be told "0 B of your files", and the
+// ambient headers pass no bytes at all rather than pay for the storage RPC.
+export function ownWorkSummary({ cards, clusters, storageBytes } = {}) {
   const parts = [];
   const n = Number(cards);
   if (Number.isFinite(n) && n > 0) parts.push(`${n} card${n === 1 ? '' : 's'}`);

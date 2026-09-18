@@ -73,13 +73,23 @@ test.describe('surface gallery wiring', () => {
     expect(read('src/lib/checkoutErrors.js')).toMatch(/gallery_preview: 'Preview only/);
   });
 
-  test('the two preview seams are narrow and default to off', () => {
-    // A state you cannot be in has to be fed in. Both seams default null/absent
-    // so no live path can reach them by accident.
+  test('the preview seams are narrow and default to off', () => {
+    // A state you cannot be in has to be fed in. Every seam defaults
+    // null/absent so no live path can reach one by accident.
     const pm = read('src/components/PricingModal.jsx');
-    expect(pm).toMatch(/tierPreview = null \}\) \{/);
+    expect(pm).toMatch(/tierPreview = null, ownWorkPreview = null \}\) \{/);
     expect(pm).toMatch(/const live = useMyTier\(\{ userId: user\?\.id \}\);/);
     expect(pm).toMatch(/tierPreview \|\| live;/);
+    // The own-work strip is the same problem one level along: an admin has no
+    // demo boards, and a fabricated R2 key cannot presign, so the strip would
+    // only ever be previewable in the one state not worth looking at. The live
+    // read comes second so the fixture wins only when explicitly passed.
+    expect(pm).toMatch(/ownWorkPreview \|\| readOwnWork\(\)/);
+    // And the strip itself stays presentational — items in, nothing else — so
+    // it can be rendered from fixtures at all.
+    const strip = read('src/components/OwnWorkStrip.jsx');
+    expect(strip).toMatch(/export function OwnWorkStrip\(\{ items = \[\], summary = null \}\)/);
+    expect(strip).not.toMatch(/useMyTier|useAuth|logEvent|supabase/);
     // The pill takes no props in the real chip, so its four presentational
     // states — plain, count, urgent, and (since studio_v4) the trial offer —
     // were unreachable until it was split out. showTrial defaults to false so
