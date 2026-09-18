@@ -180,10 +180,12 @@ test('/pricing page: summary beacons on pagehide with surface page + a PII-safe 
   });
   await page.goto('/pricing?local=1&tier=demo');
 
-  const creator = page.locator('.pricing-card-creator');
-  await expect(creator).toBeVisible();
-  await creator.getByRole('tab', { name: 'Annual' }).click();
-  await creator.getByRole('tab', { name: 'Monthly' }).click();
+  // The page is the public-shell scroll now, not two centred cards; the plan
+  // toggle lives in the buy block under the comparison it refers to.
+  const buy = page.locator('.pp-buy');
+  await expect(buy).toBeVisible();
+  await buy.getByRole('tab', { name: 'Annual' }).click();
+  await buy.getByRole('tab', { name: 'Monthly' }).click();
 
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
   await expect.poll(
@@ -215,15 +217,18 @@ test('public /pricing: envelope on pricing_view, Creator-only data attributes, a
   await routeAnalytics(page, rows);
   await page.goto('/pricing');   // no session marker → the signed-out public page
 
-  const creator = page.locator('.pricing-card-creator');
-  await expect(creator).toBeVisible();
+  const buy = page.locator('.pp-buy');
+  await expect(buy).toBeVisible();
 
-  // The shared FeatureList stamps hover keys on the Creator list ONLY.
-  await expect(creator.locator('[data-up-feat]')).toHaveCount(CREATOR_FEATURE_KEYS.length);
-  await expect(page.locator('.pricing-card-demo [data-up-feat]')).toHaveCount(0);
+  // The hover keys moved off a bullet list and onto the comparison rows — the
+  // three enforced limits, plus the workspace line, which is a claim rather
+  // than a limit and so has no row. Still exactly CREATOR_FEATURE_KEYS, still
+  // Creator-side only, so a hover here stays comparable with one in the modal.
+  await expect(page.locator('[data-up-feat]')).toHaveCount(CREATOR_FEATURE_KEYS.length);
+  await expect(page.locator('.pp-free-list [data-up-feat]')).toHaveCount(0);
 
   // Interact, then leave — anon interaction belongs to lp_trace, not up_trace.
-  await creator.getByRole('tab', { name: 'Annual' }).click();
+  await buy.getByRole('tab', { name: 'Annual' }).click();
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
 
   // Poll for the REAL exposure's summary (the StrictMode throwaway fires one

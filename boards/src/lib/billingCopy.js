@@ -21,6 +21,13 @@ export const PLAN_NAME = 'Creator';
 export const COPY_REV = 'studio_v5';
 
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
+// The free-tier per-file byte caps, from the module that enforces them on the
+// ingest path. gen-docs.mjs reads the same three constants for {{fact:…}}, so
+// the pricing page and the docs cannot disagree about a number.
+import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP } from './fileIngest.js';
+
+const MB = 1024 * 1024;
+const mb = (bytes) => `${Math.round(bytes / MB)} MB`;
 
 // Root pricing object — both "per month" (shown on the cards) and "billed"
 // (shown on the Billing tab) figures derive from these so they can't drift.
@@ -202,6 +209,130 @@ export function nearCapSentence({ count, limit, trialOffer } = {}) {
     ? `${head} Creator lifts the cap — free for ${CREATOR_TRIAL_DAYS} days, or invite friends to earn more free ones.`
     : `${head} Creator lifts the cap, ${PRICE_FROM_LABEL} — or invite friends to earn more free ones.`;
 }
+
+// ── The /pricing page ───────────────────────────────────────────────────────
+//
+// The page was built on .pricing-screen — `position: fixed; inset: 0;
+// justify-content: center`, a declaration block it shares with .welcome-screen
+// and .app-error-panel. It was, structurally, the error screen with two plan
+// cards in it. Its visitors arrive almost entirely from /vs/pureref and the
+// other comparison pages, which are built on the public shell with a real
+// published board in a browser frame, a comparison and an FAQ — so the second
+// page of the journey looked like a login box, and the number they came for
+// was sitting in it.
+//
+// The copy lives here rather than in the JSX for the reason the header of this
+// file gives, and for one more: publicClaims.test.mjs now scans the pricing
+// surfaces, and prose typed into a component used to escape every lint we have.
+//
+// WHAT THIS PAGE LEADS WITH, and why it is not the price. The number is stated
+// plainly and high — people arriving at a pricing page came for it, and hiding
+// it is the worse read. But the ACTION is free-to-start. The page has never
+// produced a purchase; its visitors arrive from pages promising "Free Demo
+// tier — no credit card, no trial clock"; and its "Get Creator" button already
+// only sent a signed-out visitor to sign-in, because there is no way to check
+// out without an account. Leading with the free start makes an existing
+// behaviour honest rather than changing one.
+//
+// The trial is NOT on this page, unchanged from the standing decision above —
+// and it is moot here besides: eligibility needs a real body of work, which a
+// signed-out visitor does not have.
+export const PRICING_PAGE = {
+  h1: 'Start free. Pay when you outgrow it.',
+  // Every number in this sentence is injected, none typed.
+  subhead:
+    `${DEMO_CARD_LIMIT} cards, unlimited clusters and free collaborators, with no card and no trial clock. ` +
+    `${PLAN_NAME} lifts the limits for ${PRICING.monthly.billedLabel}, or ${PRICING.annual.perMonthLabel}/mo billed annually.`,
+  startFree: 'Start free',
+  startFreeSub: 'No credit card. Nothing to install.',
+  // The frame beneath the hero. `slug` must be a board published under /c/ AND
+  // have its render shipped in public/landing/ — gen-docs does not check this,
+  // so pricingPage.test.mjs does.
+  shot: {
+    slug: 'film-noir-look-book',
+    caption: 'A real board published from Clusters — open it live, pan around, and copy its palettes.',
+  },
+  freeHeading: 'What the free plan is',
+  freeBody:
+    'Not a demo that expires and not a view-only tier. You get the whole canvas, ' +
+    'as many clusters as you want, and as many people in them as you want — ' +
+    `the only ceiling is ${DEMO_CARD_LIMIT} cards.`,
+  paidHeading: `What ${PLAN_NAME} changes`,
+  // Three rows, because three is the number of enforced differences. If a
+  // fourth ever appears here it has to name the code that enforces it, exactly
+  // as CREATOR_FEATURES does.
+  paidBody:
+    'Three things, and nothing else. Everything not in this table is on both plans — ' +
+    'clusters, collaborators, editing, sharing, exports, version history, the API.',
+  // The fourth CREATOR_FEATURES line. It is NOT a limit, so it has no row in
+  // the table above — but it is the one genuinely competitive thing on the
+  // list (migration 0187 keyed every gate to the workspace OWNER, and every
+  // individual plan in this category charges per seat), so it gets said out
+  // loud rather than left to the FAQ. Keyed 'workspace' to match.
+  workspaceNote: `One ${PLAN_NAME} plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.`,
+  closing: 'Start with the free plan.',
+  closingSub: `Upgrade when the ${DEMO_CARD_LIMIT}th card is in your way, not before.`,
+};
+
+// The comparison, built from the three gates that actually exist:
+// enforce_demo_card_cap_trg (0187), fileIngest's route:'blocked' for a free
+// owner, and the per-file byte caps in fileIngest.js. Sizes are imported, not
+// typed, so a cap change cannot leave a stale promise on the pricing page.
+export const PLAN_COMPARISON = [
+  {
+    key: 'cards',
+    label: 'Cards',
+    demo: `${DEMO_CARD_LIMIT}`,
+    creator: 'Unlimited',
+  },
+  {
+    key: 'filetypes',
+    label: 'File types',
+    demo: 'Images, video, audio, PDFs',
+    creator: 'Any file — .psd, .fig, .zip, anything',
+  },
+  {
+    // Keyed 'storage' rather than 'size' so up_feature_hover's key space stays
+    // continuous with CREATOR_FEATURE_KEYS across every surface — this row IS
+    // the storage line, stated as the limit it actually is.
+    key: 'storage',
+    label: 'Per-file size',
+    demo: `Video ${mb(FREE_VIDEO_CAP)} · audio ${mb(FREE_AUDIO_CAP)} · PDF ${mb(FREE_PDF_CAP)}`,
+    creator: `No limit, on a ${CREATOR_STORAGE_LABEL} drive`,
+  },
+];
+
+// The questions people actually arrive with, given where they arrive from.
+// Answers are the same ones content/docs/account/plans.md gives — that page is
+// the canonical version and both are linted by publicClaims.
+export const PRICING_FAQ = [
+  {
+    q: 'What is actually limited on the free plan?',
+    a: 'Three things and only three — how many cards you can have, which file types you can upload, ' +
+       'and how big a single video, audio file or PDF can be. Clusters, collaborators and editing are not limited.',
+  },
+  {
+    q: 'Do the people I invite need to pay?',
+    a: 'No. Editors are free on every plan, and always were. ' +
+       `What ${PLAN_NAME} does is carry YOUR limits to them: everything they add counts against the ` +
+       'workspace owner, so one plan raises the ceiling for everyone working in that workspace. There are no per-seat charges.',
+  },
+  {
+    q: `What happens when I reach ${DEMO_CARD_LIMIT} cards?`,
+    a: 'You are told, and asked to upgrade. Nothing you have already made is removed, hidden or locked — ' +
+       'you simply cannot add more until you free some room or upgrade.',
+  },
+  {
+    q: 'Can I cancel?',
+    a: 'Any time, from Settings → Billing, and you keep access until the end of the period you have paid for. ' +
+       'Afterwards everything over the free allowance stays exactly where it is; you just cannot add more.',
+  },
+  {
+    q: 'Do I need to install anything?',
+    a: 'No. Clusters runs in the browser on desktop, laptop and tablet, and the same board opens on all of them. ' +
+       'You can add it to a phone home screen as a web app.',
+  },
+];
 
 // CTA labels — one place so "Get Creator" / "Manage billing" stay consistent.
 // `subscribeShort` is the compact contextual label used in tight spots (the
