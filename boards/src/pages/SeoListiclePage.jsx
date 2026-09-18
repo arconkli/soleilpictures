@@ -159,7 +159,10 @@ export function SeoListiclePage({ path }) {
   // renumbered by hand so a page without them keeps its existing numbering
   // exactly — only /best/pureref-alternatives shifts, and it shifts because its
   // page order genuinely changed.
-  const nHead = (spec.headToHead ? 1 : 0) + (spec.platforms ? 1 : 0);
+  // Spotlights (2026-09-18) shift the ordinals the same way; /best/mood-board-apps
+  // is the first page to carry one, so its lp_section rows before that date are
+  // not comparable to the ones after.
+  const nHead = (spec.headToHead ? 1 : 0) + (spec.platforms ? 1 : 0) + (spec.spotlights?.length || 0);
   const tailBase = 6 + nHead + nItems;   // lp_section idx base for post-review sections
 
   return (
@@ -352,6 +355,27 @@ export function SeoListiclePage({ path }) {
               ))}
             </section>
           )}
+
+          {/* Spotlights (optional) — one named <h2> per buyer question, inside
+              the page that already ranks. The heading IS the question; a reader
+              who arrived on it should find the answer above the reviews. */}
+          {(spec.spotlights || []).map((s, i) => (
+            <section className="seo-section" id={s.id} key={s.id}
+                     ref={lp.sectionRef(`spotlight-${s.id}`, 4 + (spec.headToHead ? 1 : 0) + (spec.platforms ? 1 : 0) + i)}>
+              <h2 className="seo-h2">{s.heading}</h2>
+              {s.intro && <p className="seo-body seo-li-spotlight-intro">{s.intro}</p>}
+              {s.paras.map((p, j) => <p className="seo-body" key={j}>{p}</p>)}
+              {s.links?.length > 0 && (
+                <ul className="seo-li-spotlight-links">
+                  {s.links.map((l) => (
+                    <li key={l.path}>
+                      <a href={l.path} {...lp.ctaProps(`spotlight:${s.id}:${l.path}`, l.path, { intent: 'nav' })}>{l.label}</a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          ))}
 
           {/* Thesis — the framework the whole ranking argues */}
           <section className="seo-section" id="thesis" ref={lp.sectionRef('thesis', 4 + nHead)}>

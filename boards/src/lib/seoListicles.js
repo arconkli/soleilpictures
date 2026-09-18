@@ -54,6 +54,12 @@
 //                                    // Never emitted in JSON-LD: self-serving
 //                                    // review markup = manual-action risk.
 //     }],
+//     headToHead?:     { heading, intro?, matchups: [{ slug, heading, left, right, verdict, paras, rows? }] },
+//     platforms?:      { heading, intro?, columns, rows: [{ name, anchor?, cells }], notes? },
+//     spotlights?:     [{ id, heading, intro?, paras: [], links?: [{ path, label }] }],
+//                      // one named <h2> per buyer question, INSIDE the page
+//                      // that already ranks (the 08-26 lesson: sections beat
+//                      // new pages). The heading IS the question; id = anchor.
 //     tableIntro?,     columns: ['Best for', 'Price', …],   // after the Tool col
 //     tableCells:      { [anchor]: ['…', …] },  // one row per item, col-aligned
 //     personas:        [{ who, pick, why }],    // "which fits which person"
@@ -2964,6 +2970,11 @@ export function listicleToc(spec) {
     // not have to scroll past ten product reviews to reach their answer.
     ...(spec.headToHead ? [{ id: 'head-to-head', label: spec.headToHead.heading }] : []),
     ...(spec.platforms ? [{ id: 'platforms', label: spec.platforms.heading }] : []),
+    // Spotlights: a named answer to one buyer question ("best mood board app
+    // for film production teams"), placed with the other query-shaped
+    // sections so a reader who arrived on that question finds it above the
+    // ten reviews, not below them.
+    ...(spec.spotlights || []).map((s) => ({ id: s.id, label: s.heading })),
     { id: 'thesis', label: spec.thesis.heading },
     { id: 'method', label: spec.methodology.heading },
     { id: 'picks', label: spec.itemsHeading },

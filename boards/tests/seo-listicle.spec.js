@@ -163,6 +163,30 @@ test('unknown /best/ path renders the branded NotFound client-side', async ({ pa
   await expect(page.locator('.public-empty-title')).toHaveText('Page not found');
 });
 
+// Every page that carries the optional spotlights shape: the section exists,
+// its h2 IS the question, and a deep link lands on it.
+for (const spec of SEO_LISTICLE_PAGES.filter((p) => p.spotlights?.length)) {
+  test(`${spec.path}: spotlight sections are reachable and deep-linkable`, async ({ page }) => {
+    await routeAnalytics(page, []);
+    await routeMedia(page);
+    await page.goto(spec.path);
+    for (const s of spec.spotlights) {
+      const sec = page.locator(`#${s.id}`);
+      await expect(sec).toHaveCount(1);
+      await expect(sec.locator('h2')).toHaveText(s.heading);
+      await expect(sec.locator('.seo-body')).toHaveCount(s.paras.length + (s.intro ? 1 : 0));
+      if (s.links?.length) await expect(sec.locator('.seo-li-spotlight-links a')).toHaveCount(s.links.length);
+    }
+    const last = spec.spotlights[spec.spotlights.length - 1];
+    await page.goto(`${spec.path}#${last.id}`);
+    await expect(page.locator(`#${last.id}`)).toBeVisible();
+    await expect.poll(async () => {
+      const top = await page.locator(`#${last.id}`).evaluate((el) => el.getBoundingClientRect().top);
+      return Math.abs(top);
+    }).toBeLessThan(200);
+  });
+}
+
 // Every page that carries the optional head-to-head shape, not just SPEC.
 // SPEC is SEO_LISTICLE_PAGES[0] and the heavy test above would quadruple in
 // runtime if it were parameterised, but these sections are the reason the

@@ -631,3 +631,12 @@
   color: var(--ink-0);
   margin-bottom: 1em;
 }
+
+/* ── Spotlights — a named answer inside the page; the links are a short
+   "see also", ink at rest and gold only under the pointer. ── */
+.seo-li-spotlight-links {
+  list-style: none; padding: 0; margin: 12px 0 0;
+  display: flex; flex-wrap: wrap; gap: 8px 18px;
+}
+.seo-li-spotlight-links a { color: var(--ink-1); text-decoration: underline; text-underline-offset: 3px; }
+.seo-li-spotlight-links a:hover { color: var(--soleil); }
