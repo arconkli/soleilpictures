@@ -11,7 +11,7 @@
 // signups, referrer classes (ai/search/social/referral/direct), trend spark.
 
 import { useCallback, useEffect, useState } from 'react';
-import { adminLandingScorecard, adminSeoReferrers, adminSeoHealthLatest } from '../../lib/boardsApi.js';
+import { adminLandingScorecard, adminSeoReferrers, adminSeoHealthLatest, pingIndexNowAll } from '../../lib/boardsApi.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminLandingScorecard } from './AdminLandingScorecard.jsx';
 import { AdminTimeRange } from './AdminTimeRange.jsx';
@@ -37,6 +37,20 @@ export function AdminSeoSection() {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+  // IndexNow: Bing/Yandex (and therefore ChatGPT search, which reads Bing's
+  // index). One click submits every registry page; the result line shows what
+  // Bing answered so a silent 4xx can never again pass as coverage.
+  const [indexNow, setIndexNow] = useState({ busy: false, msg: null, err: null });
+  const submitIndexNow = useCallback(async () => {
+    setIndexNow({ busy: true, msg: null, err: null });
+    try {
+      const r = await pingIndexNowAll();
+      setIndexNow({ busy: false, err: r?.error || null,
+        msg: r?.error ? null : `${r.count} URLs submitted · IndexNow ${r.status}` });
+    } catch (e) {
+      setIndexNow({ busy: false, msg: null, err: e?.message || String(e) });
+    }
+  }, []);
 
   const load = useCallback(async (d = days) => {
     setRefreshing(true);
@@ -75,6 +89,12 @@ export function AdminSeoSection() {
 
       <AdminToolbar onRefresh={() => load(days)} refreshing={refreshing} lastUpdated={lastUpdated}>
         <AdminTimeRange value={days} onChange={setDays} />
+        <button type="button" className="admin-action" onClick={submitIndexNow} disabled={indexNow.busy}
+                title="Submit every public landing, guide, docs and changelog URL to IndexNow (Bing/Yandex)">
+          {indexNow.busy ? 'Submitting…' : 'Submit public pages to IndexNow'}
+        </button>
+        {indexNow.msg && <span className="admin-muted t-meta">{indexNow.msg}</span>}
+        {indexNow.err && <span className="t-meta" style={{ color: 'var(--danger, #e5484d)' }}>IndexNow: {indexNow.err}</span>}
       </AdminToolbar>
 
       <AdminAsync loading={loading} error={error} onRetry={() => load(days)}

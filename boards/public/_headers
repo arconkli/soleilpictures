@@ -58,3 +58,31 @@
   Content-Type: text/plain; charset=utf-8
   Cache-Control: public, max-age=300, s-maxage=3600
   Access-Control-Allow-Origin: *
+# The marketing mirrors (/vs/*.md, /best/*.md, /tools/*.md, /templates/*.md and
+# the top-level ones) are the pages assistants cite most and were the only .md
+# files WITHOUT this block — a browser-side agent could fetch the docs but not
+# the buying guides. Cache + CORS only; never Content-Type (see above).
+/vs/*.md
+  Cache-Control: public, max-age=300, s-maxage=3600
+  Access-Control-Allow-Origin: *
+/best/*.md
+  Cache-Control: public, max-age=300, s-maxage=3600
+  Access-Control-Allow-Origin: *
+/tools/*.md
+  Cache-Control: public, max-age=300, s-maxage=3600
+  Access-Control-Allow-Origin: *
+/templates/*.md
+  Cache-Control: public, max-age=300, s-maxage=3600
+  Access-Control-Allow-Origin: *
+/templates.md
+  Cache-Control: public, max-age=300, s-maxage=3600
+  Access-Control-Allow-Origin: *
+/use-cases.md
+  Cache-Control: public, max-age=300, s-maxage=3600
+  Access-Control-Allow-Origin: *
+/scout.md
+  Cache-Control: public, max-age=300, s-maxage=3600
+  Access-Control-Allow-Origin: *
+/changelog.md
+  Cache-Control: public, max-age=300, s-maxage=3600
+  Access-Control-Allow-Origin: *

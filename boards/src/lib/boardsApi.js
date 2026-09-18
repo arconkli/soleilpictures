@@ -629,6 +629,24 @@ export async function pingIndexNow(slug) {
   } catch (_) { /* non-fatal */ }
 }
 
+// Submit the public marketing/docs pages to IndexNow (admin). Unlike
+// pingIndexNow this one reports: the Discover tab shows the count and the
+// status Bing returned. { all: true } lets the Worker enumerate the registries
+// so the admin chunk never imports them.
+export async function pingIndexNowAll() {
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data?.session?.access_token || '';
+  if (!accessToken) throw new Error('admin session required');
+  const res = await fetch('/api/seo/indexnow', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ all: true }),
+  });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out?.error || `indexnow ${res.status}`);
+  return out; // { submitted, count, status } or { submitted, count, error }
+}
+
 // ── Self-serve "Publish to Explore" + admin approve-queue (migration 0169) ──
 // Any board owner can SUBMIT their board to the public /c/ + /explore SEO
 // surface; it sits in a moderation queue (invisible publicly) until an admin
