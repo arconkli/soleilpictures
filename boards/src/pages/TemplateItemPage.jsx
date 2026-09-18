@@ -19,8 +19,9 @@
 // crawler cannot read SVG text, and the SVG's aria-label carries them for
 // assistive tech — three renderings, one source, all from the same preset id.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
+import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import { getTemplateSpec } from '../lib/templateIndex.js';
 import { TEMPLATE_CARDS, TEMPLATE_CATEGORIES } from '../lib/templateCards.js';
 import { GridLayoutThumb } from '../components/GridLayoutThumb.jsx';
@@ -65,6 +66,17 @@ export function TemplateItemPage({ path }) {
     logEventOnce(`tpl_item_${item.slug}`, EV.SEO_LANDING_VIEW, { path: item.path, kind: 'template' });
   }, [item]);
 
+  // Uniform lp_* engagement, mounted HERE and not in SeoLandingPage: that
+  // component returns this one before its own scroll container renders, so a
+  // tracker attached there reads the (never-scrolling) window and reports every
+  // visit as a full read. The legacy seo_landing_view above keeps firing; the
+  // scorecard dedupes the two per session.
+  const scrollRef = useRef(null);
+  const lp = useLandingEngagement({
+    page: item?.path, pageKind: 'template',
+    getScrollEl: () => scrollRef.current,
+  });
+
   // The Worker already served this URL with a real 404, so rendering content
   // here would be a soft-404 — content at a URL whose status says gone.
   if (!item) return <NotFoundPage />;
@@ -82,11 +94,11 @@ export function TemplateItemPage({ path }) {
           <span>Soleil Clusters</span>
         </a>
         <div className="public-topbar-right">
-          <a className="public-cta" href={addHref(item.slug)}>Use this template</a>
+          <a className="public-cta" href={addHref(item.slug)} {...lp.ctaProps('topbar', addHref(item.slug))}>Use this template</a>
         </div>
       </div>
 
-      <div className="seo-scroll">
+      <div className="seo-scroll" ref={scrollRef}>
         <article className="seo-main tplitem">
           <nav className="tplitem-crumbs" aria-label="Breadcrumb">
             <a href="/templates">Grid templates</a> <span aria-hidden="true">›</span> {item.h1}

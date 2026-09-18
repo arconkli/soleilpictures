@@ -147,6 +147,16 @@ export function getFirstSource() {
 // REFRESHED on every page-load that carries a campaign/referral signal, and
 // persisted in localStorage so it survives across sessions. Rides every event as
 // lt_* (below) and feeds the per-user "Latest click" detail next to first-touch.
+//
+// A same-host navigation is not a click from outside. Every CTA on our own
+// public pages carries utm_* (seo/docs/changelog/templates), and once
+// readReferrer() started emitting referrer_kind:'internal' EVERY internal page
+// load counted as a fresh signal — so "Latest click" reported one of our pages,
+// or an empty internal bag, on most sessions. An internal load refreshes
+// last-touch only when it carries a deep-link the page cannot have inherited
+// (share/public/referral/lifecycle params, a click id) — the open-in-new-tab
+// cases those params exist for.
+const DEEP_LINK_KEYS = ['share_token', 'public_slug', 'ref', 'lc', 'fbclid', ...CLICK_ID_KEYS];
 let cachedLastSource = null;
 function getLastSource() {
   if (cachedLastSource !== null) return cachedLastSource;
@@ -166,12 +176,15 @@ function getLastSource() {
       } catch (_) {}
     }
     if (fbclid) fresh.fbclid = String(fbclid).slice(0, 200);
-    if (Object.keys(fresh).length > 0) {
+    const hasSignal = Object.keys(fresh).some((k) => k !== 'referrer_kind');
+    const internalNav = fresh.referrer_kind === 'internal' && !DEEP_LINK_KEYS.some((k) => fresh[k]);
+    if (hasSignal && !internalNav) {
       fresh.last_touch_at = new Date().toISOString();
       try { localStorage.setItem(LAST_SOURCE_KEY, JSON.stringify(fresh)); } catch (_) {}
       cachedLastSource = fresh;
     } else {
-      // No fresh signal this load — keep the previously stored last-touch.
+      // No fresh signal this load (or only our own internal navigation) — keep
+      // the previously stored last-touch.
       try { const raw = localStorage.getItem(LAST_SOURCE_KEY); cachedLastSource = raw ? JSON.parse(raw) : {}; }
       catch (_) { cachedLastSource = {}; }
     }
@@ -362,9 +375,19 @@ if (supabase) {
   } catch (_) {}
 }
 
-// Refresh last-touch acquisition on every page-load (persists to localStorage),
-// independent of auth so anon landings still record their latest click.
-if (typeof window !== 'undefined') { try { getLastSource(); } catch (_) {} }
+// Seal first-touch and refresh last-touch on every page-load, independent of
+// auth and independent of whether the page ever emits an event.
+//
+// First-touch used to be sealed lazily by the first buildRow() call. Pages that
+// emit nothing — /docs/**, /changelog, /legal/*, /t/* — never called it, so the
+// bag was sealed by the NEXT page in the session, usually the one their header
+// CTA links to (`/?utm_source=docs…`): a ChatGPT or Google arrival on a docs page
+// was recorded as channel 'docs', referrer 'internal', landing '/'. Sealing here
+// captures the URL and referrer of the page the visitor actually arrived on.
+if (typeof window !== 'undefined') {
+  try { getFirstSource(); } catch (_) {}
+  try { getLastSource(); } catch (_) {}
+}
 
 // ── Ambient context ────────────────────────────────────────────────────
 // Where the user is and who they are, merged into every event the same way

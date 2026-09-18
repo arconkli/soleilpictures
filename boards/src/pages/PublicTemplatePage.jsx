@@ -19,8 +19,9 @@
 // `anon`, which is what lets this render signed out — the whole point is that a
 // tile in the store goes somewhere real rather than to a signup wall).
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
+import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import { GridLayoutThumb } from '../components/GridLayoutThumb.jsx';
 import { NotFoundPage } from './NotFoundPage.jsx';
 import { encodeRemixParam } from '../lib/remix.js';
@@ -84,6 +85,15 @@ export function PublicTemplatePage({ slug }) {
     logEventOnce(`tpl_pub_${item.slug}`, EV.SEO_LANDING_VIEW, { path: `/templates/g/${item.slug}`, kind: 'community' });
   }, [item]);
 
+  // Uniform lp_* engagement (see TemplateItemPage for why it lives here and
+  // not in SeoLandingPage). The page id resolves with the RPC, so the tracker
+  // mounts once the template is known.
+  const scrollRef = useRef(null);
+  const lp = useLandingEngagement({
+    page: item ? `/templates/g/${item.slug}` : undefined, pageKind: 'template_community',
+    getScrollEl: () => scrollRef.current,
+  });
+
   // The Worker already 404s an unresolvable slug, so rendering content here
   // would be a soft-404 — content at a URL whose status says gone.
   if (state.status === 'missing') return <NotFoundPage />;
@@ -96,11 +106,11 @@ export function PublicTemplatePage({ slug }) {
           <span>Soleil Clusters</span>
         </a>
         <div className="public-topbar-right">
-          {item && <a className="public-cta" href={addHref(item.slug)}>Use this template</a>}
+          {item && <a className="public-cta" href={addHref(item.slug)} {...lp.ctaProps('topbar', addHref(item.slug))}>Use this template</a>}
         </div>
       </div>
 
-      <div className="seo-scroll">
+      <div className="seo-scroll" ref={scrollRef}>
         <article className="seo-main tplitem">
           <nav className="tplitem-crumbs" aria-label="Breadcrumb">
             <a href="/templates">Grid templates</a> <span aria-hidden="true">›</span>{' '}

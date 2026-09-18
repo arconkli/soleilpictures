@@ -74,6 +74,12 @@ const BOTS = {
   headlessChrome:      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.0.0 Safari/537.36',
   facebookPreview:     'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
   ahrefs:              'Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)',
+  // Named in lib/crawlerUa.js (the Worker's crawler table) but carrying no
+  // 'bot' token, so BOT_RE never saw them. If any of these ever executes JS its
+  // rows enter analytics_events as a person.
+  claudeUser:          'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-User/1.0; +Claude-User@anthropic.com)',
+  mistralUser:         'Mozilla/5.0 (compatible; MistralAI-User/1.0; +https://docs.mistral.ai/robots)',
+  metaFetcher:         'meta-externalfetcher/1.1 (+https://developers.facebook.com/docs/sharing/webmasters/crawler)',
 };
 
 for (const [name, ua] of Object.entries(BOTS)) {

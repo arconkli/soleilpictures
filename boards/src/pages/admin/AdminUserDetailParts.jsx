@@ -81,6 +81,16 @@ const CHANNEL_META = {
   // up was a side effect of wiring us into something they already use. Worth
   // its own label rather than title-cased to "Mcp Connect" by the fallback.
   mcp_connect:   { variant: 'referral',  display: 'MCP connect',   dot: true },
+  // AI assistants (0335). ChatGPT strips its referrer on about half its clicks
+  // and appends utm_source=chatgpt.com instead; derive_acquisition_channel now
+  // folds both forms into one token per assistant, and 'ai' for the long tail.
+  chatgpt:       { variant: 'ai',        display: 'ChatGPT',       dot: true },
+  perplexity:    { variant: 'ai',        display: 'Perplexity',    dot: true },
+  gemini:        { variant: 'ai',        display: 'Gemini',        dot: true },
+  claude:        { variant: 'ai',        display: 'Claude',        dot: true },
+  copilot:       { variant: 'ai',        display: 'Copilot',       dot: true },
+  grok:          { variant: 'ai',        display: 'Grok',          dot: true },
+  ai:            { variant: 'ai',        display: 'AI assistant',  dot: true },
   direct:        { variant: 'direct',    display: 'Direct',        dot: true },
 };
 
