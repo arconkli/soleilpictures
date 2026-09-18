@@ -118,7 +118,7 @@ test('the interrupting upload paths are wired to the latched helper', () => {
     `both list-drop refusal paths must call pitchStorageGate; found ${viaHelper.length}`);
 });
 
-test('choosing Upgrade in the import dialog takes the moment it asks for', () => {
+test('every deliberate cap-wall open takes the moment it asks for', () => {
   // The most expensive ordering bug in this family, and the only one with a
   // production trace behind it. A 65-file over-cap drop: the user presses
   // "Upgrade — keep all 65", the cap-hit modal opens, and in the same second
@@ -130,16 +130,38 @@ test('choosing Upgrade in the import dialog takes the moment it asks for', () =>
   // down around it for the window instead of landing on top. Setting the
   // reason without claiming leaves the slot free for whatever fires next.
   const app = stripComments(src('App.jsx'));
-  const at = app.indexOf('const answerImportAsk');
-  assert.ok(at > 0, 'answerImportAsk must exist');
-  const body = app.slice(at, at + 1400);
 
-  assert.match(body, /claimUpsellSlot\('cap-hit'\)/,
-    'the import dialog\'s Upgrade must claim the moment, not just set the reason');
+  // One helper for every deliberate open, so the claim cannot be forgotten at
+  // a fourth call site the way it was at these three.
+  const at = app.indexOf('const openCapWall');
+  assert.ok(at > 0, 'openCapWall must exist');
+  const body = app.slice(at, at + 300);
   const claimAt = body.indexOf("claimUpsellSlot('cap-hit')");
   const setAt = body.indexOf("setUpgradeReason('cap-hit')");
   assert.ok(claimAt > 0 && setAt > 0 && claimAt < setAt,
     'claim before opening — a claim after the render has already lost the race it exists to win');
+
+  // Every PRESS goes through it: the import dialog's Upgrade, and the action on
+  // both cap toasts (the 80% warning and the at-the-wall repeat).
+  const presses = app.match(/openCapWall\(\)/g) || [];
+  assert.ok(presses.length >= 3,
+    `all three deliberate cap-wall opens must go through the helper; found ${presses.length}`);
+  assert.match(app, /if \(action === 'upgrade'\) openCapWall\(\);/,
+    "the import dialog's Upgrade");
+
+  // The only remaining bare open is pitchCapWall's own — the INVOLUNTARY path,
+  // which claims at the top of the function because it also owns the
+  // once-per-ceiling latch and the degraded toast.
+  const helperAt = app.indexOf('const openCapWall');
+  const outside = app.slice(0, helperAt) + app.slice(helperAt + 300);
+  const bare = outside.match(/setUpgradeReason\('cap-hit'\)/g) || [];
+  assert.equal(bare.length, 1,
+    `only pitchCapWall may open the wall without the helper; found ${bare.length}`);
+  const wallAt = app.indexOf('const pitchCapWall');
+  const wall = app.slice(wallAt, wallAt + 1800);
+  assert.ok(wall.indexOf("claimUpsellSlot('cap-hit')") > 0
+    && wall.indexOf("claimUpsellSlot('cap-hit')") < wall.indexOf("setUpgradeReason('cap-hit')"),
+    'and it claims first, before anything it might open');
 });
 
 test("'storage-gate' is a real slot kind and 'storage' deliberately is not", () => {
