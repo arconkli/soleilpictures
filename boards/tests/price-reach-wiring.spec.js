@@ -32,10 +32,17 @@ test.describe('price reach wiring', () => {
   });
 
   test('the near-cap toast carries the price and stamps the first impression', () => {
-    const s = app();
-    const toast = s.indexOf('Creator lifts the cap, ${PRICE_FROM_LABEL}');
-    expect(toast).toBeGreaterThan(0);
-    expect(s).toMatch(/markPriceSeen\(user\.id, 'cap_toast'\)/);
+    // The sentence moved into billingCopy (nearCapSentence) when the trial
+    // shipped, so App no longer holds the literal — which quietly broke this
+    // guard rather than the behaviour. Assert where it lives now: App calls the
+    // shared builder, and the builder's non-trial branch carries the price.
+    expect(app()).toMatch(/nearCapSentence\(\{ count, limit, trialOffer \}\)/);
+    const copy = read('src/lib/billingCopy.js');
+    const fn = copy.slice(copy.indexOf('export function nearCapSentence('));
+    expect(fn.slice(0, 500)).toMatch(/Creator lifts the cap, \$\{PRICE_FROM_LABEL\}/);
+    expect(app()).toMatch(/markPriceSeen\(user\.id, 'cap_toast'\)/);
+    // …and a TRIAL impression must not stamp price_seen: no number was shown.
+    expect(app()).toMatch(/if \(!trialOffer && user\?\.id && markPriceSeen\(user\.id, 'cap_toast'\)\)/);
   });
 
   test('the warning line sits below the urgent line', () => {
@@ -56,10 +63,20 @@ test.describe('price reach wiring', () => {
   });
 
   test('every ambient surface carries the derived price label, never a typed number', () => {
-    for (const src of [chip(), banner(), modal()]) {
-      expect(src).toMatch(/PRICE_FROM_LABEL/);
+    // The real invariant is the second line: no surface may type a price. The
+    // FIRST line has to follow the label, and the banner stopped holding it
+    // directly when firstValueSentence() took over its body — so it is checked
+    // against the builder it now renders instead.
+    for (const src of [chip(), banner(), modal(), page()]) {
       expect(src).not.toMatch(/\$2[05]\/mo/);
     }
+    for (const src of [chip(), modal()]) {
+      expect(src).toMatch(/PRICE_FROM_LABEL/);
+    }
+    expect(banner()).toMatch(/firstValueSentence\(trialOffer\)/);
+    const copy = read('src/lib/billingCopy.js');
+    const fv = copy.slice(copy.indexOf('export function firstValueSentence('));
+    expect(fv.slice(0, 400)).toMatch(/\$\{PRICE_FROM_LABEL\}/);
     expect(chip()).toMatch(/upgrade-chip-price/);
     expect(modal()).toMatch(/Creator lifts the cap, \{PRICE_FROM_LABEL\}/);
   });
@@ -67,7 +84,9 @@ test.describe('price reach wiring', () => {
   test('the chip records its impression, and every priced surface stamps price_seen once', () => {
     const c = chip();
     expect(c).toMatch(/EV\.UP_CHIP_VIEW/);
-    expect(c).toMatch(/up_chip_view:\$\{showPrice \? 'price' : 'label'\}/);
+    // Three-way since the trial: a trial impression is not a priced one, and
+    // collapsing them would make the offer-reach denominator unreadable.
+    expect(c).toMatch(/up_chip_view:\$\{showTrial \? 'trial' : showPrice \? 'price' : 'label'\}/);
     expect(c).toMatch(/notePriceSeen\('chip'\)/);
     expect(c).toMatch(/notePriceSeen\('first_value'\)/);
     // The stamp goes through the shared, re-reading, serialised writer: a bare
@@ -134,7 +153,15 @@ test.describe('review fixes', () => {
     // preflightImport can surface the wall AND spend its once-per-ceiling
     // latch; an unconditional storage modal after it replaced a wall that had
     // already been paid for.
-    expect(s).toMatch(/if \(csFiles\.own && over === 0\) setUpgradeReason\('storage'\)/);
+    //
+    // The `over === 0` condition is still the local guard, but it is no longer
+    // the only one — and it never covered the canvas path, where the same
+    // collision cost a real cap-hit modal 16ms of life on 2026-09-17. The
+    // durable fix is the shared slot: the wall claims, so the storage gate
+    // stands down wherever it fires from.
+    expect(s).toMatch(/const explained = csFiles\.own && over === 0 \? pitchStorageGate\(\) : false/);
+    expect(s).toMatch(/claimUpsellSlot\('storage-gate'\)/);
+    expect(s).toMatch(/const openCapWall = useCallback/);
     // n_accepted has always meant "passed the file-type gate" — reading it off
     // the post-preflight array redefined it as "survived the cap".
     expect(s).toMatch(/n_accepted: nClassified/);
