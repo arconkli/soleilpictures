@@ -111,3 +111,29 @@ test('related nav anchor text is the target page h1 — the same label React ren
     }
   }
 });
+
+test('spotlights render in the crawlable HTML: section id, h2 = heading, every para and link', () => {
+  const base = SEO_LISTICLE_PAGES[0];
+  const spot = {
+    id: 'film-production-teams',
+    heading: 'Best mood board app for film production teams',
+    intro: 'The intro names the picks.',
+    paras: ['Body paragraph one.', 'Body paragraph two.'],
+    links: [{ path: '/tools/shot-list-maker', label: 'Shot list maker' }, { path: '/best/storyboard-software', label: 'Storyboard software' }],
+  };
+  const html = buildListicleCrawlableHtml({ ...base, spotlights: [spot] });
+  const i = html.indexOf('<section id="film-production-teams">');
+  assert.ok(i > -1, 'spotlight section id');
+  const section = html.slice(i, html.indexOf('</section>', i));
+  assert.ok(section.includes(`<h2 style=`) && section.includes(`>${spot.heading}</h2>`), 'h2 is the heading');
+  assert.ok(section.includes(spot.intro), 'intro');
+  for (const p of spot.paras) assert.ok(section.includes(p), `para: ${p}`);
+  for (const l of spot.links) assert.ok(section.includes(`href="${l.path}"`) && section.includes(`>${l.label}</a>`), `link ${l.path}`);
+  // Ordered after platforms/head-to-head and before thesis, like the TOC says.
+  assert.ok(i < html.indexOf('<section id="thesis">'), 'before thesis');
+  assert.ok(i > html.indexOf('<section id="table">'), 'after the comparison table');
+  // The TOC nav links it.
+  assert.ok(html.includes(`href="#film-production-teams"`), 'TOC link');
+  // A page without the field is byte-identical to before.
+  assert.equal(buildListicleCrawlableHtml({ ...base, spotlights: undefined }), buildListicleCrawlableHtml(base));
+});

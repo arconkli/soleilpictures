@@ -908,6 +908,20 @@ function listicleMarkdown(spec) {
       out.push(`**${req(n.lead, spec.path, 'platforms.note.lead')}.** ${req(n.body, spec.path, 'platforms.note.body')}`, '');
     }
   }
+  // Spotlights (optional): one named h2 per buyer question, inside the page
+  // that already ranks. The .md twin is the copy an assistant quotes, so the
+  // question-shaped heading has to reach it verbatim.
+  for (const s of spec.spotlights || []) {
+    out.push(`## ${req(s.heading, spec.path, 'spotlight.heading')}`, '');
+    if (s.intro) out.push(s.intro, '');
+    for (const p of s.paras || []) out.push(p, '');
+    if (s.links?.length) {
+      for (const l of s.links) {
+        out.push(`- [${req(l.label, spec.path, 'spotlight.link.label')}](${req(l.path, spec.path, 'spotlight.link.path')})`);
+      }
+      out.push('');
+    }
+  }
   out.push(`## ${req(spec.itemsHeading, spec.path, 'itemsHeading')}`, '');
   for (const it of spec.items || []) {
     out.push(`### ${it.rank}. ${req(it.name, spec.path, 'item.name')}${it.isUs ? ' (that’s us)' : ''}`, '');

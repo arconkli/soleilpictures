@@ -126,6 +126,19 @@ export function buildListicleCrawlableHtml(spec) {
     parts.push(`</section>`);
   }
 
+  // ── Spotlights (optional) — one named h2 per buyer question ──
+  for (const s of spec.spotlights || []) {
+    parts.push(`<section id="${escapeHtml(s.id)}"><h2 style="${H2}">${escapeHtml(s.heading)}</h2>`);
+    if (s.intro) parts.push(`<p>${escapeHtml(s.intro)}</p>`);
+    for (const p of s.paras || []) parts.push(`<p>${escapeHtml(p)}</p>`);
+    if (s.links?.length) {
+      parts.push(`<ul>`);
+      for (const l of s.links) parts.push(`<li><a href="${escapeHtml(l.path)}" style="${GOLD}">${escapeHtml(l.label)}</a></li>`);
+      parts.push(`</ul>`);
+    }
+    parts.push(`</section>`);
+  }
+
   // ── Thesis (the branded framework) ──
   parts.push(`<section id="thesis"><h2 style="${H2}">${escapeHtml(spec.thesis.heading)}</h2>`);
   for (const p of spec.thesis.paras) parts.push(`<p>${escapeHtml(p)}</p>`);

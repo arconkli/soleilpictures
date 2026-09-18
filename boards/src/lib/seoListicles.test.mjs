@@ -207,3 +207,56 @@ test('headline counts match items.length', () => {
     }
   }
 });
+
+// ── spotlights (optional): a named <h2> answering one buyer question inside a
+// page that already ranks, rather than a new page that will not (the 08-26
+// lesson). Shape: [{ id, heading, intro?, paras[], links?: [{path,label}] }].
+// The first consumer is /best/mood-board-apps answering "best mood board app
+// for film production teams" — the AEO probe question we were absent from.
+const SPOTLIGHT_FIXTURE = {
+  id: 'film-production-teams',
+  heading: 'Best mood board app for film production teams',
+  intro: 'One paragraph that names the picks.',
+  paras: ['Body paragraph one.', 'Body paragraph two.'],
+  links: [{ path: '/tools/shot-list-maker', label: 'Shot list maker' }],
+};
+
+test('spotlights: valid shape, ids unique, links resolve, and the TOC carries them between platforms and thesis', () => {
+  const base = SEO_LISTICLE_PAGES[0];
+  const spec = { ...base, spotlights: [SPOTLIGHT_FIXTURE] };
+  const toc = listicleToc(spec);
+  const ids = toc.map((t) => t.id);
+  const at = ids.indexOf('film-production-teams');
+  assert.ok(at > -1, 'spotlight id missing from the derived TOC');
+  assert.equal(toc[at].label, SPOTLIGHT_FIXTURE.heading, 'TOC label is the heading');
+  assert.equal(ids[at + 1], 'thesis', 'spotlights sit immediately before thesis');
+  const before = ids.slice(0, at);
+  assert.ok(before.includes('table'), 'spotlights come after the comparison table');
+  if (base.platforms) assert.ok(before.includes('platforms'), 'spotlights come after platforms');
+  if (base.headToHead) assert.ok(before.includes('head-to-head'), 'spotlights come after head-to-head');
+  // A page without the field derives exactly the TOC it always did.
+  assert.deepEqual(listicleToc({ ...base, spotlights: undefined }).map((t) => t.id), listicleToc(base).map((t) => t.id));
+});
+
+test('spotlights: every page that carries them is well-formed', () => {
+  const known = new Set([...SEO_LISTICLE_PAGES.map((p) => p.path), ...SEO_LANDING_PATHS]);
+  for (const p of SEO_LISTICLE_PAGES) {
+    if (!p.spotlights) continue;
+    assert.ok(Array.isArray(p.spotlights) && p.spotlights.length >= 1, `${p.path}: spotlights must be a non-empty array`);
+    const ids = p.spotlights.map((s) => s.id);
+    assert.equal(new Set(ids).size, ids.length, `${p.path}: duplicate spotlight id`);
+    const taken = new Set([...p.items.map((it) => it.anchor), ...(p.headToHead?.matchups || []).map((m) => m.slug),
+      ...listicleToc({ ...p, spotlights: undefined }).map((t) => t.id)]);
+    for (const s of p.spotlights) {
+      assert.match(s.id, /^[a-z0-9-]+$/, `${p.path}/${s.id}: id shape`);
+      assert.ok(!taken.has(s.id), `${p.path}: spotlight id ${s.id} collides with an existing anchor`);
+      assert.ok(s.heading && s.heading.length >= 12, `${p.path}/${s.id}: heading`);
+      assert.ok(Array.isArray(s.paras) && s.paras.length >= 1 && s.paras.every((x) => typeof x === 'string' && x.length > 40), `${p.path}/${s.id}: paras`);
+      for (const l of s.links || []) {
+        assert.ok(known.has(l.path), `${p.path}/${s.id}: link ${l.path} resolves to nothing`);
+        assert.notEqual(l.path, p.path, `${p.path}/${s.id}: links to itself`);
+        assert.ok(l.label, `${p.path}/${s.id}: link ${l.path} needs a label`);
+      }
+    }
+  }
+});
