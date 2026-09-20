@@ -109,6 +109,41 @@ test('pricing page states the price high, leads with the free action, and shows 
   await expect(page.getByText(/days free|free for 14 days/i)).toHaveCount(0);
 });
 
+test('on a short laptop the whole offer is reachable, top and bottom', async ({ page }) => {
+  // The modal grew when the benefits gained explanations, and a centred grid
+  // item taller than the viewport overflows in BOTH directions with no way to
+  // scroll back to it. Measured before the fix at 660px of viewport: a 697px
+  // modal, `overflow-y: visible`, and the primary CTA below the fold with no
+  // way to reach it. flex + `margin: auto` on the panel is what makes the top
+  // reachable; place-items: center is what did not.
+  await page.setViewportSize({ width: 1440, height: 660 });
+  await page.goto('/?local=1&reset=1&tier=demo&cards=42&limit=50');
+  await page.locator('.upgrade-chip').click();
+
+  const modal = page.locator('.upgrade-modal');
+  await expect(modal).toBeVisible();
+  const backdrop = page.locator('.upgrade-backdrop');
+
+  // It really is taller than the viewport here — otherwise this test proves
+  // nothing and would keep passing after a regression.
+  const { scrollH, clientH, overflowY } = await backdrop.evaluate((el) => ({
+    scrollH: el.scrollHeight, clientH: el.clientHeight, overflowY: getComputedStyle(el).overflowY,
+  }));
+  expect(scrollH, 'the offer must exceed this viewport for the test to mean anything').toBeGreaterThan(clientH);
+  expect(overflowY, 'the backdrop must be able to scroll').toBe('auto');
+
+  // The top is reachable: scroll to 0 and the eyebrow is on screen.
+  await backdrop.evaluate((el) => { el.scrollTop = 0; });
+  const topBox = await modal.boundingBox();
+  expect(topBox.y, 'the top of the modal must not sit above the viewport').toBeGreaterThanOrEqual(0);
+  await expect(page.locator('.upgrade-eyebrow')).toBeInViewport();
+
+  // And the bottom is reachable: the primary CTA can be scrolled to and clicked.
+  const cta = page.locator('.pricing-cta-primary');
+  await cta.scrollIntoViewIfNeeded();
+  await expect(cta).toBeInViewport();
+});
+
 test('an already-paid user is routed to manage billing, not a second checkout', async ({ page }) => {
   await page.goto('/pricing?local=1&tier=paid');
 

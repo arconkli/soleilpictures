@@ -79,8 +79,9 @@ export function planBilling(plan) {
   return { lead: 'billed monthly', save: null };
 }
 
-// Canonical Creator feature list — the public PricingPage wording, used on
-// EVERY Creator surface. `**text**` marks bold spans (rendered by FeatureList).
+// Canonical Creator benefits — the public wording, used on EVERY Creator
+// surface. See CREATOR_BENEFITS below for the shape; this block is the rule
+// the shape exists to enforce.
 //
 // EVERY LINE HERE MUST BE TRUE AND ENFORCED IN CODE. The previous list sold
 // three things it should not have: two features that were never built, and
@@ -118,18 +119,75 @@ export function planBilling(plan) {
 // read by _storage_quota_bytes(). gen-docs.mjs cross-checks this label against
 // that migration literal at build time.
 export const CREATOR_STORAGE_LABEL = '100GB';
-export const CREATOR_FEATURES = [
-  'Unlimited cards — build without a ceiling',
-  'Any file type — .psd, .fig, .zip, video, audio, docs',
-  `No size limits, on your own **${CREATOR_STORAGE_LABEL}** drive`,
-  'Covers your **whole workspace** — everyone you invite builds at your limits',
+
+// ── Each claim, and what it actually means ─────────────────────────────────
+//
+// This was four bare claims for most of the product's life, and across every
+// upgrade surface almost nobody ever read one — at the wall, where the reader
+// is provably motivated, not a single feature row has ever been read.
+//
+// The reason is visible the moment you put the old list beside a competitor's.
+// "Any file type — .psd, .fig, .zip, video, audio, docs" is a list of
+// extensions, not a benefit; it tells someone who just watched a file bounce
+// off the canvas nothing about what would change. So every claim now carries
+// one plain sentence saying what it does for you, which also gives the list
+// two reading levels instead of one: the titles are SHORTER than the old
+// bullets and carry the scan, the bodies are there for whoever wants them.
+//
+// `title` is the scan line. `body` is the explanation. `key` is the stable
+// up_feature_hover key — NEVER renamed, or the scorecard loses its history.
+// `**text**` marks bold spans (rendered by renderEmphasis in PricingBits).
+//
+// EVERY LINE, TITLE AND BODY, MUST BE TRUE AND ENFORCED IN CODE. The bodies
+// are the easier place to overclaim, because they read like prose rather than
+// like a specification. Before editing one, name the gate.
+export const CREATOR_BENEFITS = [
+  {
+    key: 'cards',
+    title: 'Unlimited cards',
+    // enforce_demo_card_cap_trg (0187). Upgrading removes the ceiling; it
+    // does not touch what is already there, which is the thing people at the
+    // wall most often assume and most need told.
+    body: `The ${DEMO_CARD_LIMIT}-card ceiling comes off, and every card you have already made stays exactly where it is.`,
+  },
+  {
+    key: 'filetypes',
+    title: 'Any file type',
+    // fileIngest.js routes non-standard files to route:'blocked' for a free
+    // owner; authorize_upload() rejects owner_not_paid on the server.
+    body: 'Drop a .psd, a .fig, a .zip — anything at all — straight onto the canvas instead of watching it bounce.',
+  },
+  {
+    key: 'storage',
+    title: 'No size limits',
+    // The free per-file ceilings live in fileIngest.js and are injected here,
+    // never typed: the honest way to say what this unlocks is to name the
+    // walls it removes. The drive figure mirrors the enforced default quota
+    // (app_config 'storage_quota_bytes', migration 0154).
+    body: `Video past ${mb(FREE_VIDEO_CAP)}, audio past ${mb(FREE_AUDIO_CAP)}, a PDF past ${mb(FREE_PDF_CAP)} — all fine, on your own **${CREATOR_STORAGE_LABEL}** drive.`,
+  },
+  {
+    key: 'workspace',
+    title: 'Covers your whole workspace',
+    // Migration 0187 keyed every gate to workspaces.created_by, so one
+    // subscription raises the ceiling for everyone working in that workspace.
+    // Say it as SCOPE — the LIMITS carrying over — never as access or seats:
+    // editing is free on every tier (0188) and so are unlimited collaborators
+    // (collab_free_editor_cap is null). Both are true; only one is Creator's.
+    body: 'Everyone you invite builds at your limits, and there are no per-seat charges.',
+  },
 ];
 
-// Stable analytics keys, parallel to CREATOR_FEATURES by index. The up_* hover
+// The scan layer on its own, for the surfaces and tests that want flat text.
+// Derived, so a fifth benefit cannot appear in one place and not the other.
+export const CREATOR_FEATURES = CREATOR_BENEFITS.map((b) => b.title);
+
+// Stable analytics keys, parallel to CREATOR_BENEFITS by index. The up_* hover
 // telemetry records WHICH pitch line a prospect read (up_feature_hover {row,key});
 // keying by these instead of the copy text means the data survives copy edits.
-// Keep this array in lockstep with CREATOR_FEATURES (billingCopy.test.mjs asserts it).
-export const CREATOR_FEATURE_KEYS = ['cards', 'filetypes', 'storage', 'workspace'];
+// Derived now — they used to be a hand-maintained parallel array, which is the
+// shape billingCopy.test.mjs had to grow an assertion to police.
+export const CREATOR_FEATURE_KEYS = CREATOR_BENEFITS.map((b) => b.key);
 
 // Retired keys, kept so historical up_feature_hover rows stay readable in the
 // admin scorecard. 'studio'/'edit_access' described lines that are gone;

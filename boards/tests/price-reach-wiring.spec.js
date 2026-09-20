@@ -70,15 +70,31 @@ test.describe('price reach wiring', () => {
     for (const src of [chip(), banner(), modal(), page()]) {
       expect(src).not.toMatch(/\$2[05]\/mo/);
     }
-    for (const src of [chip(), modal()]) {
-      expect(src).toMatch(/PRICE_FROM_LABEL/);
-    }
+    // The AMBIENT surfaces — the pill, the banner, the toast — carry the
+    // compact "from $N/mo" label, because they have room for a label and not a
+    // price row.
+    expect(chip()).toMatch(/PRICE_FROM_LABEL/);
+    expect(chip()).toMatch(/upgrade-chip-price/);
     expect(banner()).toMatch(/firstValueSentence\(trialOffer\)/);
     const copy = read('src/lib/billingCopy.js');
     const fv = copy.slice(copy.indexOf('export function firstValueSentence('));
     expect(fv.slice(0, 400)).toMatch(/\$\{PRICE_FROM_LABEL\}/);
-    expect(chip()).toMatch(/upgrade-chip-price/);
-    expect(modal()).toMatch(/Creator lifts the cap, \{PRICE_FROM_LABEL\}/);
+
+    // The MODAL shows the real price row instead. It used to repeat the label
+    // inside a sentence describing the product, and once every benefit grew an
+    // explanation that sentence was the same claim twice — so it went, and the
+    // price is now where a price belongs. Still derived, never typed:
+    // CreatorPriceRow reads planPerMonth(), and the struck monthly rate beside
+    // the annual one reads PRICING.monthly.perMonth.
+    expect(modal()).toMatch(/<CreatorPriceRow plan=\{plan\} \/>/);
+    const bits = read('src/components/PricingBits.jsx');
+    expect(bits).toMatch(/\$\{planPerMonth\(plan\)\}/);
+    expect(bits).toMatch(/PRICING\.monthly\.perMonth/);
+    // With the "/mo" suffix, as in the loop above: that is what makes a string
+    // a price CLAIM rather than a mention. Without it this tripped on the
+    // comment in PricingBits explaining why the struck rate is honest — the
+    // guard failing on its own rationale, for the third time in this repo.
+    expect(bits).not.toMatch(/\$2[05]\/mo/);
   });
 
   test('the chip records its impression, and every priced surface stamps price_seen once', () => {
