@@ -2,7 +2,7 @@
 
 > Soleil Clusters is the best Milanote alternative for production teams in 2026: a free tier with no separate upload budget — files just count as cards — where Milanote stops at 10 file uploads ever, plus flat $25/mo pricing instead of per-person seats and real-time boards that carry a project from mood board to shot list. Miro is the runner-up for team whiteboarding, Obsidian Canvas for free offline work, Canva for polished deliverables.
 
-_Source: https://clusters.soleilpictures.com/best/milanote-alternatives · Published 2026-08-04 · Updated 2026-08-26_
+_Source: https://clusters.soleilpictures.com/best/milanote-alternatives · Published 2026-08-04 · Updated 2026-09-19_
 
 Twelve tools, ranked by the only question that matters: what does your board have to become next?
 
@@ -268,24 +268,24 @@ The tradeoff is collaboration, or rather its absence. There is no real-time mult
 
 **Rating:** 7.8/10
 
-**Pricing:** Free (20 uploads total); Plus $9.99/mo ($7.99 annual); Pro $19/mo ($14 annual); Max $49/mo ($39 annual) _(as of August 2026)_
+**Pricing:** Paid-only during early access: Plus $9.99/mo ($7.99 annual); Pro $19/mo ($14 annual); Max $49/mo ($39 annual). A Free plan (20 uploads) is announced for before the end of 2026 _(as of September 2026)_
 
 The most interesting new idea on this list, from the smallest and riskiest vendor on it — both facts matter.
 
 Storyflow's thesis is that the canvas is the AI's context. The assistant reads everything on the active board, remembers the project across sessions on paid plans, and can be pointed at any element with an @-mention. One prompt can stage a complete working board — a storyboard, shot list, kanban, or mood board — as a proposal you accept or discard, and a library of 200+ 'Tactics' frameworks drops half-built structures onto the canvas. It courts filmmakers directly with AI storyboard and shot-list generators and script breakdowns, and the changelog shows near-daily shipping through late July 2026. A real product, moving fast.
 
-Now the other side. The free tier's wall is harder than Milanote's in the dimension that matters: 20 file uploads, lifetime — boards freeze at the cap. The AI allowance on Free and even on Plus ($7.99/mo annual) is an unquantified 'trial'; meaningful AI use effectively starts at Pro, $14/mo annual. And the vendor is a 2-to-10-person operation, web-only, in a category that has buried several small tools in the last two years. We would happily sketch a pitch in it; we would not make it the system of record for a production's assets. Buy the vision, budget for the risk.
+Now the other side. There is no free plan yet: Storyflow is paid-only during early access, and its Free plan is announced for before the end of 2026 — capped at 20 file uploads for life and a one-time AI allowance, though anyone invited by a paid member can join free today. Meaningful AI use effectively starts at Pro, $14/mo annual. And the vendor is a 2-to-10-person operation, web-only, in a category that has buried several small tools in the last two years. We would happily sketch a pitch in it; we would not make it the system of record for a production's assets. Buy the vision, budget for the risk.
 
 - Whole-board AI context with cross-session project memory on paid plans
 - Prompt-to-board generation: storyboards, shot lists, moodboards, trackers
 - 200+ 'Tactics' creative frameworks (3 available on the free plan)
 - AI image generation on Pro and Max, with background removal and upscaling
-- Unlimited boards, objects, and collaborators even on free; comment-enabled share links
+- No object or board limit on paid plans; comment-enabled share links; invited collaborators join free
 - Web only — no desktop or mobile apps
 
-**Pros:** AI-reads-the-board is a genuine differentiator, not a bolted-on chat sidebar; Unlimited boards and collaborators on free, with no time limit; Visibly fast development: near-daily changelog entries through July 2026
+**Pros:** AI-reads-the-board is a genuine differentiator, not a bolted-on chat sidebar; No object or board limit on any plan, and invited collaborators join free; Visibly fast development: near-daily changelog entries through July 2026
 
-**Cons:** Free plan allows only 20 file uploads, ever — boards freeze at the cap; AI allowances on Free and Plus are never quantified; real AI use starts at Pro; Tiny vendor (2-10 people), web-only — real longevity risk for a system of record
+**Cons:** No free plan during early access; the one announced for late 2026 caps uploads at 20, lifetime; AI allowances on Free and Plus are never quantified; real AI use starts at Pro; Tiny vendor (2-10 people), web-only — real longevity risk for a system of record
 
 ### 8. Mural
 

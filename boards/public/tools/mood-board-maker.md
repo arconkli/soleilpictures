@@ -50,7 +50,7 @@ Yes. Every board can be shared with a single public link that opens a clean, int
 
 ### Do I need to install anything?
 
-No. Clusters runs in your browser, with native iOS and Android apps if you want them. There is nothing to download to get started.
+No. Clusters runs in your browser; on a phone or tablet it can be added to the home screen as a web app. There is nothing to download to get started, and no store app yet.
 
 ### Can an AI assistant make the board for me?
 

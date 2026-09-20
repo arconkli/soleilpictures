@@ -101,7 +101,12 @@ test('related nav anchor text is the target page h1 — the same label React ren
   const label = (p) => getLandingSpec(p)?.h1 || SEO_LISTICLE_INDEX.find((x) => x.path === p)?.h1 || p;
   const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/'/g, '&#39;');
   for (const spec of SEO_LISTICLE_PAGES) {
-    const html = buildListicleCrawlableHtml(spec);
+    const full = buildListicleCrawlableHtml(spec);
+    // Scope to the footer nav: a spotlight or a matchup may link the same path
+    // earlier with its own label, and that is not the link under test.
+    const navStart = full.indexOf('<nav aria-label="Related pages"');
+    assert.ok(navStart > -1, `${spec.path}: related nav missing`);
+    const html = full.slice(navStart);
     for (const p of spec.related || []) {
       const want = `href="${p}"`;
       const i = html.indexOf(want);

@@ -3227,6 +3227,47 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
+     "v": "[Storyflow](/vs/storyflow)",
+     "children": [
+      {
+       "t": "link",
+       "v": "Storyflow",
+       "href": "/vs/storyflow",
+       "children": [
+        {
+         "t": "text",
+         "v": "Storyflow"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — boards map to clusters and the references come across as files. What does not come across is the AI drafting: Clusters does not generate boards, and connects to "
+    },
+    {
+     "t": "link",
+     "v": "your own assistant",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "your own assistant"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " instead."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
      "v": "[Boords, Storyboarder and the other storyboard tools](/best/storyboard-software)",
      "children": [
       {

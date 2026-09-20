@@ -22,7 +22,7 @@ The best way to understand Clusters is to look at boards people have actually bu
 
 ## Switching from another tool?
 
-If you are coming from Milanote, PureRef, Miro, Wonder Unit Storyboarder, Boords, or StudioBinder, here is how Clusters compares and where it fits your workflow — with an honest look at what each tool does best.
+If you are coming from Milanote, PureRef, Miro, Storyflow, Wonder Unit Storyboarder, Boords, or StudioBinder, here is how Clusters compares and where it fits your workflow — with an honest look at what each tool does best.
 
 ## Frequently asked questions
 

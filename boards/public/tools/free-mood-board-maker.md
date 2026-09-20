@@ -38,7 +38,7 @@ Yes. The free Demo tier covers 50 cards across unlimited boards, with no credit 
 
 ### Do I have to download anything?
 
-No. It runs in your browser. Native iOS and Android apps are available if you prefer, but nothing is required to start.
+No. It runs in your browser, and on a phone or tablet it can be added to the home screen as a web app. There is no store app to install, and nothing is required to start.
 
 ### What is the catch with the free tier?
 
