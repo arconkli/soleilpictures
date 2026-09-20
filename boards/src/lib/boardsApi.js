@@ -569,6 +569,26 @@ export async function adminLandingScorecard(days = 30, excludeInternal = true) {
   return Array.isArray(data) ? data : [];
 }
 
+// AI channel readers (migrations 0256 / 0295 / 0296; admin_ai_referrals was
+// re-pointed in 0335 so referrer-stripped `utm_source=chatgpt.com` arrivals
+// count). All three raise 'admin only' for non-admins — let that propagate so
+// the panel shows the error rather than an empty state.
+export async function adminAiReferrals(days = 90) {
+  const { data, error } = await supabase.rpc('admin_ai_referrals', { p_days: days });
+  if (error) throw error;
+  return Array.isArray(data) ? data : []; // [{ ref_host, landing_path, signups, activated }]
+}
+export async function adminAeoRetrieval(days = 60) {
+  const { data, error } = await supabase.rpc('admin_aeo_retrieval', { p_days: days });
+  if (error) throw error;
+  return data || null; // { from, latest, by_question, runs } or null
+}
+export async function adminCrawlerHits(days = 30) {
+  const { data, error } = await supabase.rpc('admin_crawler_hits', { p_days: days });
+  if (error) throw error;
+  return data || null; // { from, by_bot, by_day, top_ai_paths } or null
+}
+
 // Upsell behavior scorecard (migration 0197): what users DO on the Creator
 // pitch surfaces before leaving, aggregated per surface × trigger over the
 // up_* event family, plus the classic per-surface pricing_* funnel counters.

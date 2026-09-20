@@ -31,14 +31,14 @@ function watchConsole(page) {
   return errors;
 }
 
-async function openAdmin(page, { view, theme }) {
+async function openAdmin(page, { view, tab = 'overview', theme }) {
   await page.addInitScript((t) => {
     try {
       window.localStorage.setItem('soleil.ui', JSON.stringify({ theme: t }));
       document.documentElement.setAttribute('data-theme', t);
     } catch { /* ignore */ }
   }, theme);
-  await page.goto(`/?adminpreview=1&tab=overview&view=${view}`);
+  await page.goto(`/?adminpreview=1&tab=${tab}${view ? `&view=${view}` : ''}`);
 }
 
 for (const theme of ['dark', 'light']) {
@@ -57,6 +57,38 @@ for (const theme of ['dark', 'light']) {
     }
   });
 }
+
+test.describe('admin Discover tab', () => {
+  // The AI channel panel exists because three readers (admin_ai_referrals,
+  // admin_aeo_retrieval, admin_crawler_hits) had no UI, and the AEO probe had
+  // failed every question it ever asked with nothing on the dashboard saying
+  // so. The harness fixture IS that state — a newest run where every question
+  // failed and the provider's error was stored — so the banner is asserted
+  // here rather than hoped for.
+  for (const theme of ['dark', 'light']) {
+    test(`the AI channel panel mounts and shows the probe failing (${theme})`, async ({ page }) => {
+      const errors = watchConsole(page);
+      await openAdmin(page, { tab: 'discover', theme });
+
+      await expect(page.getByRole('tab', { name: /^discover$/i })).toHaveAttribute('aria-selected', 'true');
+      await expect(page.getByRole('heading', { name: /^AI channel$/ })).toBeVisible({ timeout: 15000 });
+
+      const banner = page.locator('.admin-ai-banner');
+      await expect(banner).toBeVisible();
+      await expect(banner).toContainText(/8 of 8 questions failed/);
+      // The stored provider error is quoted — this is the whole point of the
+      // banner: "no credits" read on the dashboard, not discovered in SQL.
+      await expect(banner).toContainText(/insufficient_quota/);
+
+      // A referrer-stripped ChatGPT arrival is labelled with a marker, never
+      // rendered as the raw `utm:` string the RPC uses.
+      await expect(page.locator('.admin-ai-utm').first()).toBeVisible();
+      await expect(page.getByText('utm:chatgpt.com')).toHaveCount(0);
+
+      expect(errors, `console errors on discover:\n${errors.join('\n')}`).toEqual([]);
+    });
+  }
+});
 
 test.describe('admin dashboard structure', () => {
   test('MRR is on Today before there is any, and says why it is zero', async ({ page }) => {
