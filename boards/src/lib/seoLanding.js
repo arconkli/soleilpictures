@@ -196,7 +196,7 @@ const PAGES = [
       { q: 'Can I make a mood board with my team?', a: 'Yes — Clusters is a real-time collaborative canvas. Multiple people can edit the same board at once with live cursors, comments, and presence, so your whole team can build the board together.' },
       { q: 'What can I put on a mood board?', a: 'Images, screenshots, links, video, audio, PDFs, rich-text notes, color palettes, and any other file type on Creator. Everything lives on one infinite canvas you can pan and zoom.' },
       { q: 'Can I share a mood board without making people sign up?', a: 'Yes. Every board can be shared with a single public link that opens a clean, interactive read-only preview — no account required for viewers.' },
-      { q: 'Do I need to install anything?', a: 'No. Clusters runs in your browser, with native iOS and Android apps if you want them. There is nothing to download to get started.' },
+      { q: 'Do I need to install anything?', a: 'No. Clusters runs in your browser; on a phone or tablet it can be added to the home screen as a web app. There is nothing to download to get started, and no store app yet.' },
           { q: 'Can an AI assistant make the board for me?', a: 'Yes. Connect Claude or any MCP client with one URL and ask. It creates the cluster, brings in references from links you give it, and arranges them as justified rows or masonry. It works with your own images rather than generating them — see the AI mood board maker page.' },
 ],
     related: ['/tools/storyboard-maker', '/tools/look-book-maker', '/best/mood-board-apps', '/vs/milanote', '/vs/pureref', '/use-cases', '/tools/ai-mood-board-maker'],
@@ -286,7 +286,7 @@ const PAGES = [
       { q: 'Can it see all of my boards?', a: 'It sees exactly what your account sees — no more. It runs as you, under the same database permissions as your browser session, so a cluster you cannot open is one it cannot open either.' },
       { q: 'Is it free?', a: `Yes. Connecting an assistant costs nothing and works on the free plan. The usual plan limits apply to what it creates, exactly as they would if you made those cards yourself — the free Demo tier covers ${DEMO_CARD_LIMIT} cards across unlimited boards.` },
     ],
-    related: ['/tools/mood-board-maker', '/tools/shot-list-maker', '/tools/reference-board-maker', '/best/mood-board-apps', '/vs/pureref', '/use-cases'],
+    related: ['/tools/mood-board-maker', '/tools/shot-list-maker', '/tools/reference-board-maker', '/best/mood-board-apps', '/vs/pureref', '/use-cases', '/vs/storyflow'],
   },
   {
     path: '/tools/storyboard-maker',
@@ -495,7 +495,7 @@ const PAGES = [
     ],
     faq: [
       { q: 'Is it really free?', a: `Yes. The free Demo tier covers ${DEMO_CARD_LIMIT} cards across unlimited boards, with no credit card and no trial clock. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type.` },
-      { q: 'Do I have to download anything?', a: 'No. It runs in your browser. Native iOS and Android apps are available if you prefer, but nothing is required to start.' },
+      { q: 'Do I have to download anything?', a: 'No. It runs in your browser, and on a phone or tablet it can be added to the home screen as a web app. There is no store app to install, and nothing is required to start.' },
       { q: 'What is the catch with the free tier?', a: 'The Demo tier is a generous sandbox capped at a set number of cards — collaboration is free, and invited editors edit on any tier. Upgrading to Creator removes the cap and adds any file type and 100GB storage.' },
       { q: 'Can I share my free mood board?', a: 'Yes. Every board can be shared with a public link that opens a clean, interactive preview with no sign-up needed.' },
       { q: 'Will my boards stay mine?', a: 'Yes. You own your references and control who can see each board and whether it is discoverable by search engines.' },
@@ -567,8 +567,8 @@ const PAGES = [
       { q: 'What is a reference board?', a: 'A reference board is a collection of images an artist keeps in view while working — anatomy studies, lighting setups, material close-ups, frames from films. Unlike a presentation deck, it’s built for the artist’s own eyes: the point is fast glancing and zooming while you paint, model, or shoot.' },
       { q: 'What’s the difference between a reference board and a mood board?', a: 'A mood board communicates a direction to other people; a reference board supports the work itself. Mood boards get presented once, while reference boards stay open for the whole life of the piece. Clusters handles both, but this page is about the working kind.' },
       { q: 'Is there a free online reference board maker?', a: `Yes — Soleil Clusters’ Demo tier is free with no credit card and no trial clock, and covers ${DEMO_CARD_LIMIT} cards across unlimited boards. It runs in the browser with nothing to install.` },
-      { q: 'Do I need to install anything to make a reference board?', a: 'No. Clusters runs entirely in the browser on any machine, which matters on studio workstations where you can’t install software. Native iOS and Android apps are also available if you prefer one on mobile.' },
-      { q: 'Can I use a reference board on an iPad?', a: 'Yes. Boards open in the tablet’s browser, and there’s a native iOS app as well — the same board you arranged on your workstation is waiting when you pick up the iPad.' },
+      { q: 'Do I need to install anything to make a reference board?', a: 'No. Clusters runs entirely in the browser on any machine, which matters on studio workstations where you can’t install software. On a phone or tablet it can be added to the home screen as a web app; there is no store app yet.' },
+      { q: 'Can I use a reference board on an iPad?', a: 'Yes. Boards open in the tablet’s browser, and it can be added to the home screen as a web app — the same board you arranged on your workstation is waiting when you pick up the iPad.' },
       { q: 'Can my team or art director see my reference board?', a: 'Yes — one public link opens a clean, read-only view in any browser, with no account required. Invited collaborators can also edit the board live on any plan, with real-time cursors and comments pinned to specific images.' },
       { q: 'Can a reference board include video or other files?', a: 'Yes. Cards can be images, screenshots, links, video, audio, PDFs, notes, and color palettes — and on Creator, any file type. Motion reference sits on the board right next to your stills.' },
       { q: 'How does an online reference board compare to PureRef?', a: 'PureRef is a beloved offline desktop app — free to use personally, and excellent when the board never leaves your machine. Clusters trades offline for a board that follows you across devices and shares with a link. Our full PureRef comparison breaks it down feature by feature.' },
@@ -664,7 +664,124 @@ const PAGES = [
           { q: 'Can I drive it from an AI assistant?', a: 'Clusters connects to Claude and any other MCP client with a single URL, so you can ask an assistant to build a board, import references and arrange them. No Milanote server is listed in the official Model Context Protocol registry at the time of writing. Clusters works with the images you already have — it does not generate them.' },
 ],
     siblingListicle: { path: '/best/milanote-alternatives', label: 'See all 12 Milanote alternatives, ranked by a film studio.' },
-    related: ['/best/milanote-alternatives', '/tools/mood-board-maker', '/tools/storyboard-maker', '/tools/shot-list-maker', '/vs/pureref', '/vs/miro', '/use-cases', '/tools/ai-mood-board-maker'],
+    related: ['/best/milanote-alternatives', '/tools/mood-board-maker', '/tools/storyboard-maker', '/tools/shot-list-maker', '/vs/pureref', '/vs/miro', '/use-cases', '/tools/ai-mood-board-maker', '/vs/storyflow'],
+  },
+
+  // ────────────────────────────────────────────────────────────────────────
+  // /vs/storyflow — PRE-REGISTERED 2026-09-19 (the CLAUDE.md ritual).
+  //
+  // Storyflow (storyflow.so) is the competitor whose roundups assistants READ
+  // — a twelve-tool listicle for every query we care about, none of which name
+  // us — not a brand people search alternatives for: Search Console shows one
+  // query on this whole site that mentions it. This page is an AEO flank on an
+  // uncontested SERP. Do not grade it as a Google failure.
+  //   Google predicate: query ~* 'storyflow', search_type = 'web', 60 days
+  //     from promotion, floor 200 impressions before any title/meta edit.
+  //   AEO predicate: the probe questions "best Storyflow alternative for
+  //     filmmakers" and "Storyflow vs Soleil Clusters" (aeo_probe_questions)
+  //     cite this domain within 8 weekly runs of promotion.
+  //   Fold rule: under 50 impressions at day 60 → 301 into /best/mood-board-apps
+  //     via RETIRED_PAGES (worker.js), retiring the health expectations by url
+  //     AND by expected (0262 / 0263).
+  // Facts re-verified on storyflow.so/pricing, 2026-09-19, verbatim: "Not yet.
+  // Storyflow is currently in paid early access, and the Free plan launches
+  // before the end of 2026." Invitees of a paid member can join free today.
+  // Plus $9.99/mo ($7.99 annual) · Pro $19 ($14) · Max $49 ($39); AI usage is
+  // metered per tier; the coming free plan caps uploads at 20 and AI at a
+  // one-time allowance. Live cursors shipped 2026-07-27, so real-time is NOT a
+  // wedge here and this page never claims it. The MCP registry was queried the
+  // same day (registry.modelcontextprotocol.io) and lists no Storyflow server;
+  // the claim below is scoped to that, never a world-wide negative.
+  // ────────────────────────────────────────────────────────────────────────
+  {
+    path: '/vs/storyflow',
+    kind: 'compare',
+    title: 'Storyflow Alternative — Free Today, Flat Price, No AI Meter',
+    metaDescription:
+      'A Storyflow alternative you can use free today: a live production canvas at a flat price, with no AI meter. Honest about where Storyflow still wins.',
+    h1: 'A Storyflow Alternative for Crews That Work Live',
+    subhead:
+      'Storyflow drafts the board for you. Clusters is where a crew builds the real one together — free to start, flat-priced, on one canvas.',
+    answer:
+      'Soleil Clusters is a Storyflow alternative for production teams: a free real-time canvas where mood boards, storyboards, shot lists, schedules and the screenplay live in one nested project, at a flat $25/mo with no AI allowance to run out. Storyflow is in paid early access and drafts boards from a prompt; Clusters is for building them with your crew.',
+    updated: '2026-09-19',
+    cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
+    stepsHeading: 'How to move a Storyflow project to Clusters',
+    steps: [
+      { t: 'Export what you made', d: 'Storyflow exports boards as PNG, SVG or PDF and documents as files. Keep the original images you gathered as well — those are the references, and they are yours.' },
+      { t: 'Drop them on a new board', d: 'Drag the set onto a fresh cluster. Auto-tagging files each reference as it lands, so the sorting you did by hand happens on arrival.' },
+      { t: 'Rebuild the structure as nested boards', d: 'A mood board, a storyboard grid, a shot list and a schedule become linked boards in one project rather than one long canvas.' },
+      { t: 'Share one link', d: 'Send it to the crew or the client. It opens in the browser, no account is needed to view, and everyone you invite edits free.' },
+    ],
+    sections: [
+      {
+        heading: 'What Storyflow is, and what it is not',
+        body: 'Storyflow is an AI visual workspace. You describe a board and its assistant drafts it — a storyboard laid out frame by frame, a shot list, a mood board of collected references — staged as a proposal you accept or discard, with two hundred-odd “Tactics” frameworks to drop in half-built. That is a real idea, done well. It is also the whole product: the AI is what you pay for, metered per plan, and during early access every plan is paid. Clusters starts from the other end. The board is something a crew builds and argues over, live. Nothing is generated for you, and nothing on the canvas sits behind an allowance.',
+        bullets: [
+          'Storyflow: an assistant drafts the board; AI usage is metered per plan',
+          'Clusters: the crew builds the board live; no in-app AI allowance',
+          'Both run in the browser and both are small vendors — weigh that either way',
+        ],
+      },
+      {
+        heading: 'Where Clusters is different',
+        body: 'A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list, the schedule and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Auto-tagging files every dropped reference. Any file type up to 100GB rides on Creator. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.',
+        bullets: [
+          'Mood board, storyboard, shot list, schedule and screenplay as nested boards',
+          'Auto-tagging and a relationship graph across the whole project',
+          'Connect Claude or any MCP client with one URL — no in-app allowance',
+        ],
+      },
+      {
+        heading: 'A free plan you can use today, and a flat price after it',
+        body: `Storyflow’s pricing page says it plainly: it is paid-only during early access, and its Free plan launches before the end of 2026 — unless a paid member invites you, in which case you can join their boards free now. Its paid tiers run from $7.99 to $39 a month billed annually, each with its own AI allowance, and the coming free plan will cap uploads at 20 for life. Clusters’ Demo tier is free today with no credit card, covers ${DEMO_CARD_LIMIT} cards across unlimited boards, and never meters uploads. Creator is a flat $25 a month for unlimited cards, 100GB and any file type, and everyone you invite edits free.`,
+        bullets: [
+          `Free today: ${DEMO_CARD_LIMIT} cards, unlimited boards, uploads never metered`,
+          'Creator is $25/mo flat — not per seat, not per AI call',
+          'Storyflow: paid early access; its Free plan is due before the end of 2026',
+        ],
+      },
+      {
+        heading: 'Where Storyflow is still the right call',
+        body: 'If what you want is a first pass you did not have to make — type the premise, get a storyboard, a shot list and a board of references staged for you — Storyflow does that and Clusters does not. Its frameworks are a genuine head start on a pitch, and an assistant that reads the whole canvas is the most interesting idea in this category. A solo writer or director sketching a pitch, happy to pay for the drafting, should look at it seriously. Clusters earns its place once the board has to be built by a crew, shared with a client, and carried into the shoot.',
+      },
+      {
+        heading: 'Two small vendors, one honest comparison',
+        body: 'Both of these tools come from small teams, and you should weigh that either way. What stands behind Clusters is a working film studio: it is built by Soleil Pictures and used on our own productions, which is why the schedule, the screenplay mode and the shot list exist at all. It runs in the browser on any machine; on a phone or tablet it can be added to the home screen as a web app. There is no store app yet, and we say so.',
+      },
+    ],
+    compare: {
+      competitor: 'Storyflow',
+      intro: 'How the two compare on the things production teams care about. Storyflow figures are from its own pricing page, September 2026:',
+      rows: [
+        { feature: 'Free plan available today', us: 'Yes — no credit card', them: 'Not yet; announced for before the end of 2026' },
+        { feature: 'Pricing model', us: 'Flat $25/mo Creator', them: '$7.99–$39/mo billed annually, AI metered per tier' },
+        { feature: 'AI usage allowance', us: 'None — connect your own assistant', them: 'Per plan; a one-time allowance on the coming free plan' },
+        { feature: 'Drafts a board from a prompt', us: 'No', them: 'Yes' },
+        { feature: 'Real-time multiplayer canvas', us: 'Yes', them: 'Yes' },
+        { feature: 'Nested boards with a relationship graph', us: 'Yes', them: 'No' },
+        { feature: 'Schedule and screenplay on the canvas', us: 'Yes', them: 'No' },
+        { feature: 'Auto-tagging of dropped files', us: 'Yes', them: 'No' },
+        { feature: 'Any file type, up to 100GB', us: 'Yes (Creator)', them: 'Unlimited uploads on paid plans; 20 on the coming free plan' },
+        // Our own number, stated plainly, the same way /vs/milanote states it.
+        { feature: 'Free-plan card cap', us: `${DEMO_CARD_LIMIT} cards, uploads never metered`, them: 'No object limit; uploads and AI are capped' },
+        { feature: 'Template library', us: 'Growing (grid templates)', them: '200+ frameworks on paid plans' },
+        { feature: 'Works with Claude and other MCP clients', us: 'Yes, one URL', them: 'No server listed in the MCP registry' },
+      ],
+    },
+    faq: [
+      { q: 'Is Storyflow free?', a: 'Not yet. Storyflow’s own pricing page says it is paid-only during early access and that its Free plan launches before the end of 2026; collaborators invited by a paid member can join free in the meantime. Soleil Clusters is free to start today, with no credit card.' },
+      { q: 'Is Soleil Clusters a good Storyflow alternative?', a: 'For a crew, yes: a free real-time canvas where mood boards, storyboards, shot lists, schedules and the screenplay are nested boards in one project, at a flat price with no AI allowance. If you want boards drafted from a prompt, Storyflow is the tool that does that.' },
+      { q: 'Storyflow vs Soleil Clusters — which is better for a film crew?', a: 'Storyflow drafts a first pass for one person; Clusters is where the crew builds the real one. Choose Storyflow for a solo pitch you want generated. Choose Clusters when the DP, the AD and the producer need to edit the same boards live and carry them into the shoot.' },
+      { q: 'Does Clusters generate boards with AI like Storyflow does?', a: 'No. Clusters does not generate boards or images. It connects to Claude and any other MCP client with one URL, so your own assistant can create a board, bring in references from links and arrange them — working with images you already have. No Storyflow server is listed in the official Model Context Protocol registry at the time of writing.' },
+      { q: 'How much does Storyflow cost?', a: 'As of September 2026: Plus is $9.99 a month or $7.99 billed annually, Pro $19 or $14 annually, Max $49 or $39 annually, each with a different AI usage allowance. Clusters’ Creator plan is a flat $25 a month.' },
+      { q: 'Can I move my Storyflow boards to Clusters?', a: 'Storyflow exports boards as PNG, SVG or PDF. Bring the original images and files you gathered, drop them onto a new cluster, and rebuild the structure as nested boards. There is no importer and no migration to run first.' },
+      { q: 'Does Clusters have a limit like Storyflow’s upload cap?', a: `Clusters’ free Demo tier caps cards at ${DEMO_CARD_LIMIT} across unlimited boards and never meters uploads; Creator ($25/mo) removes the cap. Storyflow’s coming free plan caps file uploads at 20 and AI at a one-time allowance, with no object limit.` },
+      { q: 'Can I use Clusters on an iPad or a phone?', a: 'Yes. Clusters runs in the mobile browser and can be added to the home screen as a web app, where it opens without browser chrome. There is no App Store or Play Store listing yet.' },
+    ],
+    siblingListicle: { path: '/best/mood-board-apps', label: 'See all 12 mood board apps, ranked by a film studio.' },
+    related: ['/vs/milanote', '/best/mood-board-apps', '/best/milanote-alternatives', '/tools/ai-mood-board-maker', '/tools/storyboard-maker', '/tools/shot-list-maker', '/use-cases'],
+    docsLinks: [{ path: '/docs/migrating', label: 'Coming from another tool' }],
   },
   {
     path: '/vs/pureref',
@@ -908,7 +1025,7 @@ const PAGES = [
       },
       {
         heading: 'Switching from another tool?',
-        body: 'If you are coming from Milanote, PureRef, Miro, Wonder Unit Storyboarder, Boords, or StudioBinder, here is how Clusters compares and where it fits your workflow — with an honest look at what each tool does best.',
+        body: 'If you are coming from Milanote, PureRef, Miro, Storyflow, Wonder Unit Storyboarder, Boords, or StudioBinder, here is how Clusters compares and where it fits your workflow — with an honest look at what each tool does best.',
       },
     ],
     faq: [
@@ -930,6 +1047,7 @@ const PAGES = [
       '/vs/milanote',
       '/vs/pureref',
       '/vs/miro',
+      '/vs/storyflow',
       '/tools/ai-mood-board-maker',
     ],
   },
@@ -949,6 +1067,7 @@ const EXAMPLES_BY_PATH = {
   '/vs/milanote':                 ['japandi-living-room', 'neon-noir-look-book', 'screenplay-beat-sheet'],
   '/vs/pureref':                  ['film-noir-look-book', 'neon-noir-look-book', 'japandi-living-room'],
   '/vs/miro':                     ['screenplay-beat-sheet', 'short-film-shot-list', 'world-cup-2026-moodboard'],
+  '/vs/storyflow':                ['screenplay-beat-sheet', 'short-film-shot-list', 'neon-noir-look-book'],
   '/use-cases':                   ['world-cup-2026-moodboard', 'neon-noir-look-book', 'sage-terracotta-wedding'],
 };
 
@@ -963,6 +1082,7 @@ const EYEBROW_BY_PATH = {
   '/vs/milanote':                 'Milanote alternative',
   '/vs/pureref':                  'PureRef alternative',
   '/vs/miro':                     'Miro alternative',
+  '/vs/storyflow':                'Storyflow alternative',
   '/use-cases':                   'What you can make',
 };
 

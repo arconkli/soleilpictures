@@ -66,11 +66,11 @@ Yes — Soleil Clusters’ Demo tier is free with no credit card and no trial cl
 
 ### Do I need to install anything to make a reference board?
 
-No. Clusters runs entirely in the browser on any machine, which matters on studio workstations where you can’t install software. Native iOS and Android apps are also available if you prefer one on mobile.
+No. Clusters runs entirely in the browser on any machine, which matters on studio workstations where you can’t install software. On a phone or tablet it can be added to the home screen as a web app; there is no store app yet.
 
 ### Can I use a reference board on an iPad?
 
-Yes. Boards open in the tablet’s browser, and there’s a native iOS app as well — the same board you arranged on your workstation is waiting when you pick up the iPad.
+Yes. Boards open in the tablet’s browser, and it can be added to the home screen as a web app — the same board you arranged on your workstation is waiting when you pick up the iPad.
 
 ### Can my team or art director see my reference board?
 

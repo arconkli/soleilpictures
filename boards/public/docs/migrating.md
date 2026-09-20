@@ -44,6 +44,10 @@ nesting maps directly, and the card model is comparable.
 **[Miro](/vs/miro)** — the whiteboard-to-canvas mapping is direct. Clusters is
 built around media and reference rather than diagramming and facilitation.
 
+**[Storyflow](/vs/storyflow)** — boards map to clusters and the references come
+across as files. What does not come across is the AI drafting: Clusters does not
+generate boards, and connects to [your own assistant](/docs/mcp) instead.
+
 **[Boords, Storyboarder and the other storyboard
 tools](/best/storyboard-software)** — panels become
 [grid](/docs/canvas/grids) cells, and the script side becomes a

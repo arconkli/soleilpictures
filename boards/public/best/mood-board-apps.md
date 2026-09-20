@@ -2,7 +2,7 @@
 
 > Soleil Clusters is the best mood board app for film and photo production in 2026: a free real-time canvas where the board is argued over live, approved with one link, and carried into look books and shot lists. Milanote is best for structured solo boards, Canva when the board itself is the deliverable, and Pinterest for pure discovery.
 
-_Source: https://clusters.soleilpictures.com/best/mood-board-apps · Published 2026-08-04 · Updated 2026-08-04_
+_Source: https://clusters.soleilpictures.com/best/mood-board-apps · Published 2026-08-04 · Updated 2026-09-19_
 
 Ranked by a working film studio, tested on real productions — with the dead apps other roundups still recommend culled from the list.
 
@@ -20,7 +20,7 @@ This list, written in August 2026, judges twelve living apps on what the board d
 
 ## How we tested 12 mood board apps
 
-We are a working film studio, and these are tools we have used, evaluated, or been pitched on our own productions from 2024 through 2026 — real mood boards for real shoots, look books that went to clients, shot lists that went to set. For this update we re-verified every price, cap, and platform claim against each vendor's own pages, and cut every product that no longer exists.
+We are a working film studio, and these are tools we have used, evaluated, or been pitched on our own productions from 2024 through 2026 — real mood boards for real shoots, look books that went to clients, shot lists that went to set. For this update we re-verified every price, cap, and platform claim against each vendor's own pages in August 2026, and Storyflow's plans again in September 2026, and cut every product that no longer exists.
 
 - **Survives an argument** — A board only one person can edit is a presentation, not a decision. We tested live co-editing and comments with a real crew disagreeing in real time.
 - **One-link approval** — Clients do not make accounts. If sign-off cannot happen from a single link, the tool adds friction exactly where it is most expensive.
@@ -28,6 +28,21 @@ We are a working film studio, and these are tools we have used, evaluated, or be
 - **The free tier tells the truth** — A free plan that dies at 20 uploads or 100 items is a trial with better marketing. We measured whether each survives one real project.
 - **Handles real media** — Production reference is not just JPEGs. Video, PDFs, palettes, and big files either belong on the board or the board is incomplete.
 - **Alive in August 2026** — Four well-known mood board tools have shut down since December 2023. Every app here has verifiable 2026 activity, checked against its own changelog or store listing.
+
+## Best mood board app for film production teams
+
+For a film production team the best mood board app is Soleil Clusters, for one specific reason: the board does not end when the look is approved. It is a nested board inside the same project as the storyboard, the shot list and the schedule, so the reference the director signed off on is the reference the DP and the AD are still looking at on the day. Milanote is the better standalone board, Miro is the right call when the crew already lives in it, and Storyflow is the pick if you want an AI to draft the first pass.
+
+What a crew needs from a mood board is different from what a designer needs. A crew needs the board to be argued over live by people in three departments, opened from one link by a producer or a client who will never create an account, and then carried forward: into the look book, the shot list, the schedule. Every app on this list can hold thirty images. Very few can hold the decision.
+
+Clusters is built by a working film studio for exactly that hand-off, and it is free to start with no credit card. The honest limits: it does not generate imagery or draft boards for you, and its template library is younger than Milanote’s. If a single writer-director wants a first pass staged from a prompt, Storyflow does that — during paid early access, with its Free plan announced for later in 2026. If the whole production runs in Miro already, stay there and use Clusters for the reference-heavy boards it handles better.
+
+Where to start: open the storyboard and shot list pages for how the mood board connects to them, the Storyflow comparison for the AI-drafting trade-off, and the storyboard software roundup if panels rather than references are the real job.
+
+- [Shot list maker](/tools/shot-list-maker)
+- [Storyboard maker](/tools/storyboard-maker)
+- [Storyflow alternative, compared honestly](/vs/storyflow)
+- [The best storyboard software, ranked](/best/storyboard-software)
 
 ## The 12 best mood board apps, ranked
 
@@ -315,13 +330,13 @@ The trade-off mirrors PureRef's: desktop-only (Windows and macOS), no mobile app
 
 **Rating:** 7.6/10
 
-**Pricing:** Free (20 uploads total); Plus $9.99/mo ($7.99/mo billed annually); Pro $19/mo ($14 annually); Max $49/mo ($39 annually) _(as of August 2026)_
+**Pricing:** Paid-only during early access: Plus $9.99/mo ($7.99/mo billed annually); Pro $19/mo ($14 annually); Max $49/mo ($39 annually). A Free plan (20 uploads) is announced for before the end of 2026 _(as of September 2026)_
 
 The most interesting AI thesis in the category, from the smallest and riskiest vendor on the list.
 
 Storyflow's idea is real: the AI has the whole board as context. It reads everything on the canvas, remembers the project across sessions on paid tiers, lets you @-mention any canvas element, and generates working boards — moodboards, storyboards, shot lists, script breakdowns — from a prompt, staged as a proposal you accept or discard. For filmmakers who want a first pass generated rather than gathered, nothing else here attempts as much.
 
-Development is visibly rapid — real-time cursors shipped July 27, 2026, atop a near-daily changelog — and free-tier collaboration is structurally generous: unlimited boards, objects, shared boards, and collaborators, no time limit, no card. But the free plan's 20-file lifetime upload cap dies in the first hour of real reference work, and the AI allowance on Free and Plus is an unquantified trial — meaningful AI use effectively starts at Pro, $14 a month billed annually.
+Development is visibly rapid — real-time cursors shipped July 27, 2026, atop a near-daily changelog — and paid plans put no limit on boards or objects. But there is no free plan yet: Storyflow is paid-only during early access, with a Free plan announced for before the end of 2026 that will cap uploads at 20 for life and AI at a one-time allowance (anyone invited by a paid member can join free today). Meaningful AI use effectively starts at Pro, $14 a month billed annually.
 
 Then there is the vendor itself: a 2-to-10-person operation, web-only, in a category that buried four tools in three years. For a decision document a production depends on, that scale is a real risk. Promising, worth watching, not yet a system of record.
 
@@ -331,9 +346,9 @@ Then there is the vendor itself: a 2-to-10-person operation, web-only, in a cate
 - AI image generation with background removal and upscaling (Pro and up)
 - Real-time cursors; read-only share links with comments — web-only, no apps
 
-**Pros:** Deepest AI-on-the-canvas integration in the category, aimed at filmmakers; Unlimited boards, collaborators, and shared boards even on free; Shipping near-daily through late July 2026
+**Pros:** Deepest AI-on-the-canvas integration in the category, aimed at filmmakers; No object or board limit on paid plans; invited collaborators join free; Shipping near-daily through late July 2026
 
-**Cons:** 20-upload lifetime cap makes the free tier a demo for image-heavy work; AI allowances on Free and Plus are unquantified 'trial' amounts — real usage starts at Pro; Tiny vendor (2-10 people), web-only — longevity risk in a category with a body count
+**Cons:** No free plan during early access; the announced one caps uploads at 20 for life; AI allowances on Free and Plus are unquantified 'trial' amounts — real usage starts at Pro; Tiny vendor (2-10 people), web-only — longevity risk in a category with a body count
 
 ## Which one is for you
 
@@ -344,7 +359,7 @@ Then there is the vendor itself: a 2-to-10-person operation, web-only, in a cate
 - **A concept artist who wants references floating over the painting app** → PureRef: The always-on-top overlay is purpose-built and pay-what-you-want.
 - **A visual researcher building taste over years, not deadlines** → Are.na: Human-curated, ad-free, and run by a small profitable team.
 - **A product or agency team where the board is one workshop exercise among many** → Miro: Unlimited free members and the deepest integration ecosystem.
-- **A filmmaker who wants AI to draft the first pass of boards and shot lists** → Storyflow: Whole-canvas AI and prompt-to-board generation — accept the small-vendor risk knowingly.
+- **A filmmaker who wants AI to draft the first pass of boards and shot lists** → Storyflow: Whole-canvas AI and prompt-to-board generation — accept the small-vendor risk knowingly, and note there is no free plan until late 2026.
 
 ## Also considered
 
