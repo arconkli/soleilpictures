@@ -83,10 +83,14 @@ const BANNED = [
   /edit access/i, /edit mode/i, /unlimited boards/i,
   /virtual \+ social/i, /creative tool, unlocked/i,
 ];
+// Scan title AND body. CREATOR_FEATURES is derived from the titles alone now,
+// so checking it would leave every new sentence — the longer, pushier half of
+// the copy, and the half most able to overclaim — unlinted by anything.
+const CREATOR_TEXT = CREATOR_BENEFITS.map((b) => `${b.title} ${b.body}`);
 for (const pattern of BANNED) {
   assert(
-    !CREATOR_FEATURES.some((f) => pattern.test(f)),
-    `no Creator bullet matches ${pattern} (unimplemented or free-tier claim)`,
+    !CREATOR_TEXT.some((f) => pattern.test(f)),
+    `no Creator claim matches ${pattern} (unimplemented or free-tier claim)`,
   );
   assert(
     !pattern.test(PRICING_META_DESCRIPTION),

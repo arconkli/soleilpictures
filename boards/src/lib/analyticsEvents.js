@@ -275,6 +275,7 @@ export const EV = Object.freeze({
   LIST_ADD_FILES:          'list_add_files',              // files handed to the list-mode ingest {board_id,n,via:'toolbar'|'drop'}
   LIST_UPSELL_CTA:         'list_upsell_cta',             // "Any file, any size — Creator" clicked in the list toolbar {board_id} (must-land)
   UPLOAD_BLOCKED:          'upload_blocked',              // an upload was refused {reason:'owner_not_paid'|'server_403'|'server_quota',surface:'canvas'|'list',ext,size_bucket,n} — owner_not_paid = client hard-block (free owner, non-standard file); server_* = party /mpu 403/402
+  UP_STORAGE_TOAST_CTA:    'up_storage_toast_cta',        // "See Creator" on a refusal toast was clicked {surface:'canvas'|'list',reason} (must-land). Only reachable when the storage gate STOOD DOWN — the modal is latched once per session, so on the second and later refusals this toast is the ONLY route to the offer, and without this event that route is dark exactly where the pacing change is being judged
 
   // ── Export + download (previously COMPLETELY DARK) ──
   // Everything the product can turn a board INTO — board PNG/PDF, screenplay

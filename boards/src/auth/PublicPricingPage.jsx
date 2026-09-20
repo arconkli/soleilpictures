@@ -80,8 +80,10 @@ export function PublicPricingPage() {
   // The lp CTA click beacons (logEventNow) so it survives the navigation; the
   // up_* summary beacons from the pagehide the navigation causes.
   const goSignIn = (ev, pos, extra) => {
+    // `pos` is the lp_cta_click position and also decides the up_* outcome.
+    // Every free button is a demo_cta whichever position it sits in.
     up.outcome(pos === 'creator' ? 'cta' : 'demo_cta', { plan: extra?.plan });
-    logEvent(ev, { surface: SURFACE, ...extra });
+    logEvent(ev, { surface: SURFACE, pos, ...extra });
     lp.tracker.ctaClick(pos, '/');
     window.location.assign('/');
   };
@@ -95,7 +97,7 @@ export function PublicPricingPage() {
       onFaqOpen={(i, q) => lp.faqOpen(i, q)}
       freeCta={{
         label: PRICING_PAGE.startFree,
-        onClick: () => goSignIn(EV.PRICING_DEMO_CTA, 'demo', { tier: 'signed_out' }),
+        onClick: (pos = 'demo') => goSignIn(EV.PRICING_DEMO_CTA, pos, { tier: 'signed_out' }),
       }}
       creatorCta={{
         label: CTA.getCreator,

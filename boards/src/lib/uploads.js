@@ -12,6 +12,7 @@
 // on demand. Cards never persist a leakable URL.
 
 import { supabase } from './supabase.js';
+import { FREE_VIDEO_CAP, FREE_VIDEO_SECONDS } from './fileIngest.js';
 import { setMetaLocal } from './imageMeta.js';
 import { getSignedUrl } from './r2.js';
 import { rgbaToThumbHash } from 'thumbhash';
@@ -838,8 +839,8 @@ export async function uploadPdf({ file, workspaceId, boardId, cardId = null, use
 // a backstop. Returns the same shape as uploadImage so callers can
 // switch on `kind` rather than the URL.
 export async function uploadVideo({ file, workspaceId, boardId, userId, onProgress = null,
-                                    maxBytes = 30 * 1024 * 1024,
-                                    maxDurationSec = 60 }) {
+                                    maxBytes = FREE_VIDEO_CAP,
+                                    maxDurationSec = FREE_VIDEO_SECONDS }) {
   if (!workspaceId) throw new Error('workspaceId required');
   if (file.size > maxBytes) {
     throw new Error(`Video too large (${Math.round(file.size / 1024 / 1024)} MB; max ${Math.round(maxBytes / 1024 / 1024)} MB)`);

@@ -3306,7 +3306,7 @@ A: Under Connections, alongside Soleil Scout and any apps you have approved. Tok
 URL: https://clusters.soleilpictures.com/docs/account/plans
 Updated: 2026-08-08
 
-The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 
 Two plans. The difference between them is deliberately small and deliberately honest — three enforced limits, listed below, and nothing else.
 
@@ -3322,7 +3322,7 @@ $25/mo billed monthly, or $20/mo billed annually ($240/yr, saving $60/yr).
 
 Unlimited cards — the 50-card ceiling comes off, and every card you have already made stays exactly where it is.
 Any file type — drop a .psd, a .fig, a .zip, anything at all, straight onto the canvas instead of watching it bounce.
-No size limits — video past 30 MB, audio past 50 MB, a PDF past 50 MB, all fine, on your own 100GB drive.
+No size limits — video past 30 MB or 60 seconds, audio past 50 MB, a PDF past 50 MB, all fine, on your own 100GB drive.
 Covers your whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 
 What is genuinely limited
@@ -3332,7 +3332,7 @@ Exactly three things:
  | Demo | Creator
 Total cards | 50 | Unlimited
 File types | Standard media | Anything
-Per-file size | Video 30 MB · audio 50 MB · PDF 50 MB | No limit
+Per-file size and length | Video 30 MB or 60 seconds · audio 50 MB · PDF 50 MB | No limit
 
 Everything else is the same on both plans.
 
@@ -3385,7 +3385,7 @@ More on the free tier specifically: free mood board maker.
 ## Frequently asked questions
 
 Q: What is actually limited on the free plan?
-A: Three things and only three — total cards, which file types you can upload, and per-file size caps on video, audio and PDF. Clusters, collaborators and editing are not limited.
+A: Three things and only three — total cards, which file types you can upload, and how big or long a single file can be (video stops at 30 MB or 60 seconds, audio at 50 MB, PDFs at 50 MB). Clusters, collaborators and editing are not limited.
 
 Q: Do collaborators need to pay?
 A: No, and they never did — editors are free on every plan. What Creator adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.

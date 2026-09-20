@@ -6,10 +6,10 @@ navLabel: Plans and pricing
 section: account
 order: 1
 updated: 2026-08-08
-answer: The free Demo plan gives you {{fact:demoCardLimit}} cards, unlimited clusters and unlimited free collaborators. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a {{fact:creatorStorage}} drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+answer: The free Demo plan gives you {{fact:demoCardLimit}} cards, unlimited clusters and unlimited free collaborators. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a {{fact:creatorStorage}} drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 faq:
   - q: What is actually limited on the free plan?
-    a: Three things and only three — total cards, which file types you can upload, and per-file size caps on video, audio and PDF. Clusters, collaborators and editing are not limited.
+    a: Three things and only three — total cards, which file types you can upload, and how big or long a single file can be (video stops at {{fact:freeVideoCap}} or {{fact:freeVideoSec}}, audio at {{fact:freeAudioCap}}, PDFs at {{fact:freePdfCap}}). Clusters, collaborators and editing are not limited.
   - q: Do collaborators need to pay?
     a: No, and they never did — editors are free on every plan. What {{fact:planName}} adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.
   - q: If someone on my team upgrades, does my workspace get the higher limits?
@@ -47,7 +47,7 @@ honest — three enforced limits, listed below, and nothing else.
   card you have already made stays exactly where it is.
 - **Any file type** — drop a `.psd`, a `.fig`, a `.zip`, anything at all, straight
   onto the canvas instead of watching it bounce.
-- **No size limits** — video past {{fact:freeVideoCap}}, audio past
+- **No size limits** — video past {{fact:freeVideoCap}} or {{fact:freeVideoSec}}, audio past
   {{fact:freeAudioCap}}, a PDF past {{fact:freePdfCap}}, all fine, on your own
   **{{fact:creatorStorage}}** drive.
 - **Covers your whole workspace** — everyone you invite builds at your limits,
@@ -61,7 +61,7 @@ Exactly three things:
 |---|---|---|
 | **Total [cards](/docs/canvas/cards)** | {{fact:demoCardLimit}} | Unlimited |
 | **[File types](/docs/files)** | Standard media | Anything |
-| **Per-file size** | Video {{fact:freeVideoCap}} · audio {{fact:freeAudioCap}} · PDF {{fact:freePdfCap}} | No limit |
+| **Per-file size and length** | Video {{fact:freeVideoCap}} or {{fact:freeVideoSec}} · audio {{fact:freeAudioCap}} · PDF {{fact:freePdfCap}} | No limit |
 
 Everything else is the same on both plans.
 

@@ -2407,7 +2407,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           // stand down, this is the whole route, which is the half of the latch
           // that is easy to forget: quieter must not mean unreachable.
           ...(csFiles.own && !explained
-            ? { action: { label: 'See Creator', onClick: () => pitchStorageGate({ force: true }) } }
+            ? { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'list', reason: 'owner_not_paid' }); pitchStorageGate({ force: true }); } } }
             : {}),
         });
       }
@@ -2542,7 +2542,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 ? "You're out of storage. Creator lifts the limit."
                 : 'That file needs a paid plan — Creator takes any file type.',
               ttl: 6000,
-              action: { label: 'See Creator', onClick: () => pitchStorageGate({ force: true }) },
+              action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'list', reason: err.code === 402 ? 'server_quota' : 'server_403' }); pitchStorageGate({ force: true }); } },
             });
             logEvent(EV.UPLOAD_BLOCKED, {
               reason: err.code === 402 ? 'server_quota' : 'server_403', surface: 'list', n: 1,
@@ -4404,6 +4404,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     setUpgradeReason('cap-hit');
   }, [feedback]);
 
+  // Every DELIBERATE open of the cap wall — the import dialog's Upgrade, and
+  // the action on either cap toast. A press is a request, so it always opens;
+  // the claim is what stops something ambient replacing the screen the person
+  // just asked for, which is not hypothetical: on 2026-09-17 the import
+  // dialog's Upgrade produced a cap-hit modal with 16 ms of recorded dwell,
+  // dismissed by 'nav', because the same drop's blocked files reached the
+  // storage gate and an unclaimed slot had nothing to defer to.
+  //
+  // pitchCapWall is the INVOLUNTARY twin — a refused card rather than a press —
+  // and claims for itself at the top, where it also owns the once-per-ceiling
+  // latch and the degraded toast some of this helper's callers sit inside.
+  const openCapWall = useCallback(() => {
+    claimUpsellSlot('cap-hit');
+    setUpgradeReason('cap-hit');
+  }, []);
+
   // Has the storage / file-type gate already explained itself this session?
   //
   // The twin of capPitchedAtRef, and it exists for the same reason. The gate
@@ -4433,22 +4449,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // and on an over-cap drop of non-standard files both fire in one gesture.
   // Standing down must not latch either: deferring is not declining, and the
   // next refusal is owed the explanation this one gave up.
-  // Every DELIBERATE open of the cap wall — the import dialog's Upgrade, and
-  // the action on either cap toast. A press is a request, so it always opens;
-  // the claim is what stops something ambient replacing the screen the person
-  // just asked for, which is not hypothetical: on 2026-09-17 the import
-  // dialog's Upgrade produced a cap-hit modal with 16 ms of recorded dwell,
-  // dismissed by 'nav', because the same drop's blocked files reached the
-  // storage gate and an unclaimed slot had nothing to defer to.
-  //
-  // pitchCapWall is the INVOLUNTARY twin — a refused card rather than a press —
-  // and claims for itself at the top, where it also owns the once-per-ceiling
-  // latch and the degraded toast some of this helper's callers sit inside.
-  const openCapWall = useCallback(() => {
-    claimUpsellSlot('cap-hit');
-    setUpgradeReason('cap-hit');
-  }, []);
-
   const pitchStorageGate = useCallback(({ force = false } = {}) => {
     if (!force) {
       if (storagePitchedRef.current) return false;

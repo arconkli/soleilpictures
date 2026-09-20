@@ -54,7 +54,7 @@ import { SEO_LISTICLE_PAGES } from '../src/lib/seoListicles.js';
 
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
 import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, CREATOR_TRIAL_DAYS } from '../src/lib/billingCopy.js';
-import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP } from '../src/lib/fileIngest.js';
+import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS } from '../src/lib/fileIngest.js';
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -122,6 +122,11 @@ export const FACTS = {
   // pins to the number the edge function puts on the Stripe session.
   creatorTrialDays: String(CREATOR_TRIAL_DAYS),
   freeVideoCap: `${FREE_VIDEO_CAP / MB} MB`,
+  // The free tier caps video LENGTH as well as weight (uploads.js, lifted only
+  // for a paid owner). It was enforced for the product's life and stated on no
+  // public page, so a free owner's 20 MB, 90-second clip was refused by a rule
+  // the docs said nothing about while the same docs named 30 MB as the wall.
+  freeVideoSec: `${FREE_VIDEO_SECONDS} seconds`,
   freeAudioCap: `${FREE_AUDIO_CAP / MB} MB`,
   freePdfCap: `${FREE_PDF_CAP / MB} MB`,
   maxCardsPerCall: String(api.maxCardsPerCall),

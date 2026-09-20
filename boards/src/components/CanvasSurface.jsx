@@ -3041,6 +3041,14 @@ export function CanvasSurface({
   // Defined above the optimistic drop handlers so all of them can list it as a
   // dependency — every upload path must funnel through here, or a rejection
   // silently loses both the upgrade prompt and the upload_blocked event.
+  // Owner-pays: you may ATTEMPT a non-standard or oversize file unless you own
+  // this workspace and are not paid. A shared workspace attempts optimistically
+  // and lets the server's 402/403 decide. Component scope because three upload
+  // routes need it — the canvas drop, the clipboard paste and the grid-cell
+  // fill — and the third used to compute nothing at all, so it applied the FREE
+  // ceilings to paid owners.
+  const canAttemptFiles = !(ownsWorkspace && !isPaidPlan);
+
   const handleUploadReject = useCallback((err, id, dropBoardId) => {
     // Silent (off-stack) rollback: the failed upload is not a user action,
     // so Cmd+Z must not resurrect the dead card.
@@ -3073,7 +3081,7 @@ export function CanvasSurface({
           ? "You're out of storage. Upgrade for more space."
           : "This cluster's owner is out of storage — they'll need to upgrade for more space.",
         ...(ownsWorkspace && !explained
-          ? { action: { label: 'See Creator', onClick: () => upsell?.({ force: true }) } }
+          ? { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: err.code === 402 ? 'server_quota' : 'server_403' }); upsell?.({ force: true }); } } }
           : {}),
       });
     } else if (err?.code === 403) {
@@ -3084,7 +3092,7 @@ export function CanvasSurface({
           ? 'Uploading files needs a paid plan — upgrade to add any file type.'
           : "Uploading that file needs the cluster's owner to be on a paid plan.",
         ...(ownsWorkspace && !explained
-          ? { action: { label: 'See Creator', onClick: () => upsell?.({ force: true }) } }
+          ? { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: err.code === 402 ? 'server_quota' : 'server_403' }); upsell?.({ force: true }); } } }
           : {}),
       });
     } else if (String(err?.message) !== 'aborted') {
@@ -3378,7 +3386,6 @@ export function CanvasSurface({
   const ingestFiles = useCallback(async (fileList, cx, cy, source = 'drop') => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
-    const canAttemptFiles = !(ownsWorkspace && !isPaidPlan);
     const blockedForUpgrade = [];
 
     // Classify everything FIRST, then lay the whole drop out as one block.
@@ -3524,10 +3531,10 @@ export function CanvasSurface({
         type: 'warning',
         message: `Uploading ${blockedForUpgrade.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`,
         ttl: 6000,
-        ...(explained ? {} : { action: { label: 'See Creator', onClick: () => (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }) } }),
+        ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
       });
     }
-  }, [ownsWorkspace, isPaidPlan, optimisticDropImage, dropVideoFile, dropAudioFile,
+  }, [ownsWorkspace, isPaidPlan, canAttemptFiles, optimisticDropImage, dropVideoFile, dropAudioFile,
       optimisticDropPdf, dropLargeMedia, optimisticDropFile, onRequestStorageUpgrade,
       onRequestUpgrade, feedback, board?.id, mutators]);
 
@@ -4362,7 +4369,7 @@ export function CanvasSurface({
                 feedback.toast({
                   type: 'warning',
                   message: 'Uploading files needs a paid plan — upgrade to add any file type.',
-                  ...(explained ? {} : { action: { label: 'See Creator', onClick: () => (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }) } }),
+                  ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
                 });
               } else {
                 const { pos, clamped } = resolvePastePos();
@@ -8212,7 +8219,13 @@ export function CanvasSurface({
         const up = await uploadImage({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'image', src: up.src, fit: 'cover' });
       } else if (mime.startsWith('video/')) {
-        const up = await uploadVideo({ file: f, workspaceId, boardId: board?.id, userId, onProgress });
+        // canAttemptFiles, exactly as the canvas and list drop paths do it.
+        // Without it this path applied the FREE 30 MB / 60 s caps to paid
+        // owners too — the one upload route that never learned about the
+        // plan — so a Creator account was refused a long clip by the ceiling
+        // its own offer says it removed.
+        const up = await uploadVideo({ file: f, workspaceId, boardId: board?.id, userId, onProgress,
+                                       ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY, maxBytes: Number.POSITIVE_INFINITY } : {}) });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'video', src: up.src });
       } else {
         const up = await uploadFile({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress });
@@ -8220,7 +8233,7 @@ export function CanvasSurface({
       }
     } catch (e) { feedback.toast({ type: 'error', message: 'Upload failed: ' + (e.message || e) }); }
     finally { setCellUploads((p) => { const n = { ...p }; delete n[key]; return n; }); }
-  }, [mutators, workspaceId, board?.id, userId, feedback, guardCellFill, resolveCellWriteKey]);
+  }, [mutators, workspaceId, board?.id, userId, feedback, guardCellFill, resolveCellWriteKey, canAttemptFiles]);
   // Decode a clipboard/drag payload INTO a cell: files/images → upload; a bare URL
   // → link (with async preview); any other text → a text cell. Shared by paste +
   // external drop so a cell auto-formats whatever you give it.

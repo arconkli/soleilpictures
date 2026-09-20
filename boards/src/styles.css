@@ -5670,16 +5670,6 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   justify-content: center;
   margin-bottom: 32px;
 }
-.pricing-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 18px;
-  width: 100%;
-  max-width: 780px;
-}
-@media (max-width: 720px) {
-  .pricing-grid { grid-template-columns: 1fr; max-width: 420px; }
-}
 .pricing-card {
   background: var(--bg-2);
   border: 1px solid var(--line-2);
@@ -6115,8 +6105,6 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   margin: 0;
 }
 .upgrade-sub { color: var(--ink-1); margin: 0; line-height: 1.55; max-width: 42ch; }
-/* Cap-hit only: the user's own totals, set above the supporting line. Reads as
-   a statement of what they've made, so it carries more weight than the sub. */
 /* Cap-hit only: what the refusal actually cost ("28 photos couldn't be added").
    Deliberately the same weight as the totals line above it — the two read as a
    pair, one thing gained and one thing lost. NOT --ink-error: nothing
@@ -6233,8 +6221,10 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
    The route is built on the public shell and seoLanding.css now (see
    PricingPageView.jsx for why). Everything here is additive: no .seo-* or
    .public-* rule is overridden, so the two stylesheets' injection order
-   cannot matter. .pricing-screen and .pricing-grid stay where they are —
-   /welcome, /waitlist and /pricing/success still use that shell. */
+   cannot matter. .pricing-screen stays — /welcome and /waitlist still render
+   it (/pricing/success is on .welcome-screen). .pricing-grid and
+   .pricing-card-demo are gone: nothing rendered either one once the two-plan
+   grid became a comparison table. */
 
 /* Both CTA classes were written for <a>. On this page the free action is a
    real <button> (it runs telemetry and then navigates), which arrives with a
@@ -18745,8 +18735,28 @@ button, [role="button"], a {
     animation: sheet-up 260ms var(--ease);
   }
   .upgrade-title { font-size: 22px; }
-  /* 44px tap target, the phone floor this file sets for every close button. */
-  .upgrade-close { width: 44px; height: 44px; top: 4px; right: 4px; }
+  /* 44px tap target, the phone floor this file sets for every close button.
+     STICKY, not absolute: the sheet itself is the scroll container here, and an
+     absolutely-positioned close scrolls away with the content — measured at
+     390x700 it ended up at y:-56, entirely off screen, leaving only the
+     backdrop tap and the "Maybe later" at the very bottom. The negative
+     margin keeps it out of the flex column's flow so pinning it does not push
+     the eyebrow down; they do not collide because one is left and one right. */
+  .upgrade-close {
+    position: sticky;
+    top: 0;
+    align-self: flex-end;
+    margin-bottom: -44px;
+    z-index: 1;
+    width: 44px;
+    /* flex: none, or the 44px does not survive. This is a flex item in a COLUMN
+       container, so height is the MAIN axis and the default flex-shrink: 1
+       lets it collapse under an overflowing sheet — measured 22px, exactly its
+       line-height, which is half the tap-target floor this file sets. A
+       shrunken tap target is invisible in a screenshot. */
+    flex: none;
+    height: 44px;
+  }
   @media (prefers-reduced-motion: reduce) {
     .upgrade-modal { animation: none; }
   }

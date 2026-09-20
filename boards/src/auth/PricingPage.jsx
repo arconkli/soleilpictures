@@ -110,9 +110,9 @@ export function PricingPage() {
       // waitlist account still has somewhere to go.
       freeCta={isDemo || alreadyPaid ? null : {
         label: 'Go to Waitlist',
-        onClick: () => {
+        onClick: (pos = 'demo') => {
           up.outcome('demo_cta');
-          logEvent(EV.PRICING_DEMO_CTA, { surface: 'page', tier });
+          logEvent(EV.PRICING_DEMO_CTA, { surface: 'page', pos, tier });
           window.location.assign('/waitlist');
         },
       }}

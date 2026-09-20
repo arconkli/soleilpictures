@@ -76,6 +76,13 @@ const CODE = [
   { path: resolve(BOARDS, 'src/components/PricingModal.jsx'), ours: true },
   { path: resolve(BOARDS, 'src/auth/PublicPricingPage.jsx'), ours: true },
   { path: resolve(BOARDS, 'src/auth/PricingPage.jsx'), ours: true },
+  // The /pricing SCREEN moved here; the two files above are now thin route
+  // shells that pass props. Without this the corpus named the doors and not
+  // the room — every line of prose a visitor actually reads on that page was
+  // unlinted from the moment the view was extracted.
+  { path: resolve(BOARDS, 'src/auth/PricingPageView.jsx'), ours: true },
+  // And the shared card internals, which render the benefit titles and bodies.
+  { path: resolve(BOARDS, 'src/components/PricingBits.jsx'), ours: true },
 ];
 
 const FILES = [
@@ -205,7 +212,7 @@ test('the public copy corpus is actually being scanned', () => {
   // The pricing screens are in the corpus and are treated as wholly ours.
   const ours = FILES.filter((f) => f.ours);
   assert.ok(ours.length >= 4, `expected the pricing surfaces to be scanned as our own claims, found ${ours.length}`);
-  for (const rel of ['src/components/PricingModal.jsx', 'src/auth/PublicPricingPage.jsx']) {
+  for (const rel of ['src/components/PricingModal.jsx', 'src/auth/PublicPricingPage.jsx', 'src/auth/PricingPageView.jsx']) {
     assert.ok(FILES.some((f) => f.rel === rel && f.ours),
       `${rel} must be in the corpus — copy typed into the JSX escaped every lint until it was`);
   }
