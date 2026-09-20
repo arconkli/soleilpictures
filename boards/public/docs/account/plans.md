@@ -1,6 +1,6 @@
 # Plans and pricing
 
-> The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+> The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 
 _Source: https://clusters.soleilpictures.com/docs/account/plans · Updated 2026-08-08_
 
@@ -23,7 +23,7 @@ honest — three enforced limits, listed below, and nothing else.
   card you have already made stays exactly where it is.
 - **Any file type** — drop a `.psd`, a `.fig`, a `.zip`, anything at all, straight
   onto the canvas instead of watching it bounce.
-- **No size limits** — video past 30 MB, audio past
+- **No size limits** — video past 30 MB or 60 seconds, audio past
   50 MB, a PDF past 50 MB, all fine, on your own
   **100GB** drive.
 - **Covers your whole workspace** — everyone you invite builds at your limits,
@@ -37,7 +37,7 @@ Exactly three things:
 |---|---|---|
 | **Total [cards](/docs/canvas/cards)** | 50 | Unlimited |
 | **[File types](/docs/files)** | Standard media | Anything |
-| **Per-file size** | Video 30 MB · audio 50 MB · PDF 50 MB | No limit |
+| **Per-file size and length** | Video 30 MB or 60 seconds · audio 50 MB · PDF 50 MB | No limit |
 
 Everything else is the same on both plans.
 

@@ -24,7 +24,7 @@ import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 // The free-tier per-file byte caps, from the module that enforces them on the
 // ingest path. gen-docs.mjs reads the same three constants for {{fact:…}}, so
 // the pricing page and the docs cannot disagree about a number.
-import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP } from './fileIngest.js';
+import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS } from './fileIngest.js';
 
 const MB = 1024 * 1024;
 const mb = (bytes) => `${Math.round(bytes / MB)} MB`;
@@ -148,6 +148,14 @@ export const CREATOR_BENEFITS = [
     // enforce_demo_card_cap_trg (0187). Upgrading removes the ceiling; it
     // does not touch what is already there, which is the thing people at the
     // wall most often assume and most need told.
+    // DEMO_CARD_LIMIT is what a NEW account gets, which is the right number for
+    // a signed-out visitor reading /pricing and the WRONG one for a signed-in
+    // reader. demoCardCap.js says so in its own header: the cap is per-user
+    // since 0229, accounts predating it are grandfathered at 100, and a
+    // referred signup starts at 50 + REFERRAL_BONUS_CARDS. In-app callers must
+    // use creatorBenefits({ cardLimit }) below and pass the viewer's real one —
+    // a paywall whose single checkable number is wrong about the reader is
+    // worse than one that stays general.
     body: `The ${DEMO_CARD_LIMIT}-card ceiling comes off, and every card you have already made stays exactly where it is.`,
   },
   {
@@ -164,7 +172,11 @@ export const CREATOR_BENEFITS = [
     // never typed: the honest way to say what this unlocks is to name the
     // walls it removes. The drive figure mirrors the enforced default quota
     // (app_config 'storage_quota_bytes', migration 0154).
-    body: `Video past ${mb(FREE_VIDEO_CAP)}, audio past ${mb(FREE_AUDIO_CAP)}, a PDF past ${mb(FREE_PDF_CAP)} — all fine, on your own **${CREATOR_STORAGE_LABEL}** drive.`,
+    // LENGTH as well as weight. The free tier caps video duration at
+    // FREE_VIDEO_SECONDS (uploads.js, lifted only for a paid owner) and that
+    // half of the gate was public nowhere — so this sentence used to imply
+    // size was the only video wall while a 20 MB, 90-second clip was refused.
+    body: `Video past ${mb(FREE_VIDEO_CAP)} or ${FREE_VIDEO_SECONDS} seconds, audio past ${mb(FREE_AUDIO_CAP)}, a PDF past ${mb(FREE_PDF_CAP)} — all fine, on your own **${CREATOR_STORAGE_LABEL}** drive.`,
   },
   {
     key: 'workspace',
@@ -177,6 +189,23 @@ export const CREATOR_BENEFITS = [
     body: 'Everyone you invite builds at your limits, and there are no per-seat charges.',
   },
 ];
+
+// The same benefits, with the cap stated as THIS viewer's rather than a new
+// account's. Falls back to the generic list when the caller has no resolved
+// limit — a pre-resolution useMyTier placeholder must never be rendered as a
+// number, so "the 50-card ceiling" is the honest default and a wrong 100 is not.
+//
+// Returns the SAME array identity when there is nothing to substitute, so
+// callers can keep passing it straight to BenefitGrid without re-rendering.
+export function creatorBenefits({ cardLimit } = {}) {
+  const n = Number(cardLimit);
+  if (!Number.isFinite(n) || n <= 0 || n === DEMO_CARD_LIMIT) return CREATOR_BENEFITS;
+  return CREATOR_BENEFITS.map((b) => (
+    b.key === 'cards'
+      ? { ...b, body: b.body.replace(`${DEMO_CARD_LIMIT}-card`, `${n}-card`) }
+      : b
+  ));
+}
 
 // The scan layer on its own, for the surfaces and tests that want flat text.
 // Derived, so a fifth benefit cannot appear in one place and not the other.
@@ -322,6 +351,9 @@ export const PRICING_PAGE = {
   paidBody:
     'Three things, and nothing else. Everything not in this table is on both plans — ' +
     'clusters, collaborators, editing, sharing, exports, version history, the API.',
+  // The third row covers size AND length; "three" stays true only because that
+  // row says both. If a fourth gate is ever added in code, this sentence and
+  // the table are the two places that have to change with it.
   // The fourth CREATOR_FEATURES line. It is NOT a limit, so it has no row in
   // the table above — but it is the one genuinely competitive thing on the
   // list (migration 0187 keyed every gate to the workspace OWNER, and every
@@ -354,8 +386,11 @@ export const PLAN_COMPARISON = [
     // continuous with CREATOR_FEATURE_KEYS across every surface — this row IS
     // the storage line, stated as the limit it actually is.
     key: 'storage',
-    label: 'Per-file size',
-    demo: `Video ${mb(FREE_VIDEO_CAP)} · audio ${mb(FREE_AUDIO_CAP)} · PDF ${mb(FREE_PDF_CAP)}`,
+    // "and length", because video is capped on BOTH and only one was ever
+    // stated. A free owner refused a 20 MB, 90-second clip had been told by
+    // this very table that 30 MB was the wall.
+    label: 'Per-file size and length',
+    demo: `Video ${mb(FREE_VIDEO_CAP)} or ${FREE_VIDEO_SECONDS}s · audio ${mb(FREE_AUDIO_CAP)} · PDF ${mb(FREE_PDF_CAP)}`,
     creator: `No limit, on a ${CREATOR_STORAGE_LABEL} drive`,
   },
 ];
@@ -367,7 +402,8 @@ export const PRICING_FAQ = [
   {
     q: 'What is actually limited on the free plan?',
     a: 'Three things and only three — how many cards you can have, which file types you can upload, ' +
-       'and how big a single video, audio file or PDF can be. Clusters, collaborators and editing are not limited.',
+       `and how big or long a single file can be (video stops at ${mb(FREE_VIDEO_CAP)} or ${FREE_VIDEO_SECONDS} seconds, ` +
+       `audio at ${mb(FREE_AUDIO_CAP)}, PDFs at ${mb(FREE_PDF_CAP)}). Clusters, collaborators and editing are not limited.`,
   },
   {
     q: 'Do the people I invite need to pay?',

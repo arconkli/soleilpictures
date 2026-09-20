@@ -144,6 +144,34 @@ test('on a short laptop the whole offer is reachable, top and bottom', async ({ 
   await expect(cta).toBeInViewport();
 });
 
+test('on a phone the sheet keeps a real close button in reach', async ({ page }) => {
+  // The paywall becomes a bottom sheet at phone width and the SHEET is the
+  // scroll container, so an absolutely-positioned close scrolls away with the
+  // content — measured at 390x700 it ended at y:-56, entirely off screen. It
+  // is sticky now, and `flex: none` is load-bearing: height is the MAIN axis
+  // in a column flex container, so the default shrink collapsed the 44px tap
+  // target to its 22px line-height under an overflowing sheet.
+  await page.setViewportSize({ width: 390, height: 700 });
+  await page.goto('/?local=1&reset=1&tier=demo&cards=42&limit=50');
+  await page.locator('.upgrade-chip').click();
+
+  const modal = page.locator('.upgrade-modal');
+  await expect(modal).toBeVisible();
+  const { scrollH, clientH } = await modal.evaluate((el) => ({ scrollH: el.scrollHeight, clientH: el.clientHeight }));
+  expect(scrollH, 'the sheet must overflow here or this proves nothing').toBeGreaterThan(clientH);
+
+  const close = page.locator('.upgrade-close');
+  const box = await close.boundingBox();
+  expect(box.height, 'the phone tap-target floor').toBeGreaterThanOrEqual(44);
+  expect(box.width).toBeGreaterThanOrEqual(44);
+
+  // Scroll the sheet to the bottom; the close must still be on screen.
+  await modal.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  const after = await close.boundingBox();
+  expect(after.y, 'the close must not scroll out of the sheet').toBeGreaterThanOrEqual(0);
+  await expect(close).toBeInViewport();
+});
+
 test('an already-paid user is routed to manage billing, not a second checkout', async ({ page }) => {
   await page.goto('/pricing?local=1&tier=paid');
 

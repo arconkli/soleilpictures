@@ -40,6 +40,11 @@ export function PricingPageView({
   onFaqOpen = null,
   // { label, onClick, disabled } — the free action. Null hides it, which is
   // what a signed-in demo user gets: they are already on it.
+  //
+  // onClick receives the POSITION of the button that was pressed. All three —
+  // topbar, hero, closing band — used to report the same lp_cta_click pos, so
+  // the page could say how many people started free and never which invitation
+  // did it, which is the only thing that would tell us where the page works.
   freeCta = null,
   // { label, onClick, disabled, busy }
   creatorCta,
@@ -64,7 +69,7 @@ export function PricingPageView({
           <a className="public-signin-quiet" href="/explore" {...ctaProps('topbar_explore', '/explore', { intent: 'nav' })}>Explore</a>
           <a className="public-signin-quiet" href="/docs" {...ctaProps('topbar_docs', '/docs', { intent: 'nav' })}>Docs</a>
           {freeCta && (
-            <button type="button" className="public-cta" onClick={freeCta.onClick}>{freeCta.label}</button>
+            <button type="button" className="public-cta" onClick={() => freeCta.onClick('topbar_demo')}>{freeCta.label}</button>
           )}
         </div>
       </div>
@@ -86,7 +91,7 @@ export function PricingPageView({
                 thing this page is for, which is down the page. */}
             <div className="seo-hero-cta">
               {freeCta && (
-                <button type="button" className="seo-cta-primary" onClick={freeCta.onClick} disabled={freeCta.disabled}>
+                <button type="button" className="seo-cta-primary" onClick={() => freeCta.onClick('hero_demo')} disabled={freeCta.disabled}>
                   {freeCta.label}
                 </button>
               )}
@@ -199,7 +204,7 @@ export function PricingPageView({
           {freeCta && (
             <section className="seo-cta-band">
               <h2 className="seo-cta-headline">{PRICING_PAGE.closing}</h2>
-              <button type="button" className="seo-cta-primary" onClick={freeCta.onClick} disabled={freeCta.disabled}>
+              <button type="button" className="seo-cta-primary" onClick={() => freeCta.onClick('closing_demo')} disabled={freeCta.disabled}>
                 {freeCta.label}
               </button>
               <span className="seo-cta-sub2">{PRICING_PAGE.closingSub}</span>

@@ -19,11 +19,11 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  PRICING_PAGE, PLAN_COMPARISON, PRICING_FAQ, PRICING,
-  CREATOR_FEATURE_KEYS, CREATOR_STORAGE_LABEL, PLAN_NAME,
+  PRICING_PAGE, PLAN_COMPARISON, PRICING_FAQ, PRICING, CREATOR_BENEFITS,
+  CREATOR_FEATURE_KEYS, CREATOR_STORAGE_LABEL, PLAN_NAME, creatorBenefits,
 } from './billingCopy.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
-import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP } from './fileIngest.js';
+import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS } from './fileIngest.js';
 
 const HERE = new URL('.', import.meta.url).pathname;
 const PUBLIC = join(HERE, '..', '..', 'public');
@@ -77,6 +77,62 @@ test('the comparison is the three enforced gates, and nothing else', () => {
   const keys = [...PLAN_COMPARISON.map((r) => r.key), 'workspace'];
   assert.deepEqual(keys, CREATOR_FEATURE_KEYS,
     'the comparison rows plus the workspace note carry the modal’s feature keys, in order');
+});
+
+test('every gate the code enforces is disclosed, including video LENGTH', () => {
+  // The rule in this repo is that every public CLAIM is true. This is its
+  // mirror, and the half that was missing: every enforced LIMIT must be stated.
+  // uploads.js has capped free video duration at FREE_VIDEO_SECONDS for the
+  // product's life, lifted only for a paid owner (CanvasSurface's allowLong),
+  // and no page said so — so a free owner's 20 MB, 90-second clip was refused
+  // by a rule the pricing page contradicted, since the same page named 30 MB as
+  // the wall. An undisclosed limit is a false claim told by omission.
+  const publicText = [
+    ...CREATOR_BENEFITS.map((b) => `${b.title} ${b.body}`),
+    ...PLAN_COMPARISON.map((r) => `${r.label} ${r.demo} ${r.creator}`),
+    ...PRICING_FAQ.map((f) => `${f.q} ${f.a}`),
+    PRICING_PAGE.paidBody,
+  ].join(' ');
+
+  assert.match(publicText, new RegExp(`${FREE_VIDEO_SECONDS}\\s*(seconds|s\\b)`),
+    'the free video DURATION cap must be stated somewhere a buyer reads');
+  // And in the row that is about per-file limits, whose label has to admit it
+  // covers length — "Per-file size" alone is what made the omission readable
+  // as a complete statement.
+  const sizeRow = PLAN_COMPARISON.find((r) => r.key === 'storage');
+  assert.match(sizeRow.label, /length/i, 'the per-file row covers size AND length');
+  assert.ok(sizeRow.demo.includes(String(FREE_VIDEO_SECONDS)),
+    'the free column names the duration cap beside the byte caps');
+
+  // The byte caps too, so this test covers the whole gate rather than the one
+  // clause that happened to be wrong.
+  for (const bytes of [FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP]) {
+    assert.ok(publicText.includes(String(Math.round(bytes / (1024 * 1024)))),
+      `the free ceiling ${bytes} must be disclosed`);
+  }
+});
+
+test('the in-app benefits can state the READER\'s cap, not a new account\'s', () => {
+  // demoCardCap.js: "THE CAP IS PER-USER ... Never render it as a user's actual
+  // limit — accounts created before 0229 are grandfathered at
+  // LEGACY_DEMO_CARD_LIMIT and would see the wrong number." A referred signup
+  // starts higher too. The modal knows effectiveCardLimit; /pricing, which
+  // describes what a NEW account gets, correctly does not.
+  const generic = creatorBenefits().find((b) => b.key === 'cards').body;
+  assert.match(generic, new RegExp(`${DEMO_CARD_LIMIT}-card`), 'the default is the new-account cap');
+
+  for (const cap of [75, 100]) {
+    const body = creatorBenefits({ cardLimit: cap }).find((b) => b.key === 'cards').body;
+    assert.match(body, new RegExp(`${cap}-card`), `a ${cap}-card account is told ${cap}`);
+    assert.doesNotMatch(body, new RegExp(`${DEMO_CARD_LIMIT}-card`),
+      'and is never also told the new-account number');
+  }
+
+  // A pre-resolution useMyTier placeholder must fall back, never be rendered.
+  for (const junk of [undefined, null, 0, -1, NaN, 'x']) {
+    const body = creatorBenefits({ cardLimit: junk }).find((b) => b.key === 'cards').body;
+    assert.match(body, new RegExp(`${DEMO_CARD_LIMIT}-card`), `junk cap ${junk} falls back`);
+  }
 });
 
 test('the page never offers the trial', () => {

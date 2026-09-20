@@ -25352,7 +25352,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — video past 30 MB, audio past 50 MB, a PDF past 50 MB, all fine, on your own "
+      "v": " — video past 30 MB or 60 seconds, audio past 50 MB, a PDF past 50 MB, all fine, on your own "
      },
      {
       "t": "strong",
@@ -25505,11 +25505,11 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Per-file size",
+       "v": "Per-file size and length",
        "children": [
         {
          "t": "text",
-         "v": "Per-file size"
+         "v": "Per-file size and length"
         }
        ]
       }
@@ -25517,7 +25517,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Video 30 MB · audio 50 MB · PDF 50 MB"
+       "v": "Video 30 MB or 60 seconds · audio 50 MB · PDF 50 MB"
       }
      ],
      [

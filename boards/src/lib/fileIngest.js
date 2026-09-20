@@ -19,6 +19,17 @@ export const FREE_VIDEO_CAP = 30 * 1024 * 1024;
 export const FREE_AUDIO_CAP = 50 * 1024 * 1024;
 export const FREE_PDF_CAP   = 50 * 1024 * 1024;
 
+// The free tier also caps video LENGTH, not just weight, and that half of the
+// gate was enforced for the product's life while being stated nowhere public —
+// so a free owner's 90-second, 20 MB clip was refused by a rule no page
+// mentioned, with a red "Upload failed" and no route to the offer.
+//
+// It lives here beside the byte caps, rather than as a bare default on
+// uploads.js's uploadVideo, so the public copy can inject it the way it injects
+// the others and cannot state a stale number. uploads.js imports it; this
+// module imports nothing, so there is no cycle.
+export const FREE_VIDEO_SECONDS = 60;
+
 // Intrinsic fallback sizes (canvas units) used before real dims are known.
 // Mirror the per-type defaults in CanvasSurface's optimistic drop handlers.
 export const FALLBACK_DIMS = {

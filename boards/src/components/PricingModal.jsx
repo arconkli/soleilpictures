@@ -23,7 +23,7 @@ import { checkoutErrorMessage, checkoutErrorKind } from '../lib/checkoutErrors.j
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { BenefitGrid, PlanToggle, CreatorPriceRow } from './PricingBits.jsx';
-import { CTA, PRICING, COPY_REV, ownWorkSummary, trialNote } from '../lib/billingCopy.js';
+import { CTA, PRICING, COPY_REV, creatorBenefits, ownWorkSummary, trialNote } from '../lib/billingCopy.js';
 import { OwnWorkStrip } from './OwnWorkStrip.jsx';
 import { readOwnWork } from '../lib/ownWork.js';
 import { useStorageUsage } from '../hooks/useStorageUsage.js';
@@ -78,6 +78,12 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     clusters: clusterCount,
     storageBytes: storage.used,
   });
+  // The cards benefit names a ceiling, and in-app we know which one. A demo
+  // account grandfathered at 100 (or started at 75 by a referral) reads its own
+  // chip saying "84/100" and would otherwise open a modal asserting its ceiling
+  // is 50 — the one number on that screen it can check, wrong.
+  const benefits = creatorBenefits({ cardLimit: effectiveCardLimit });
+
   // The pictures, taken once at mount. A snapshot rather than a subscription:
   // re-rendering the offer because a thumbnail regenerated behind it would be
   // motion nobody asked for. `ownWorkPreview` is the Surface Gallery's seam,
@@ -285,7 +291,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
               Demoted rather than deleted: the rows keep their data-up-feat
               markers, so up_feature_hover can still say whether the demotion
               changed what gets read. Row indices are unaffected by the move. */}
-          {header !== 'cap-hit' && <BenefitGrid />}
+          {header !== 'cap-hit' && <BenefitGrid benefits={benefits} />}
 
           {error && <div className="auth-error t-meta">{error}</div>}
 
@@ -301,7 +307,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
             <p className="upgrade-trial-note t-meta">{trialNote(plan)}</p>
           )}
 
-          {header === 'cap-hit' && <BenefitGrid className="pricing-benefits upgrade-features-after" />}
+          {header === 'cap-hit' && <BenefitGrid benefits={benefits} className="pricing-benefits upgrade-features-after" />}
         </article>
 
         {/* Card-count contexts, EXCEPT the wall itself: bonus cards from inviting
@@ -314,15 +320,10 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
         {!alreadyPaid && tier === 'demo' && (header === 'first-value' || header === null) && (
           <button
             type="button"
+            /* Styled by .upgrade-invite-alt in styles.css. It used to carry an
+               inline style object that said the same things, which meant the
+               rule added for it was dead on arrival — inline wins. */
             className="upgrade-invite-alt"
-            style={{
-              // Neutral ink, not --soleil: the gold accent is reserved for the
-              // CTA / active / focus states, and an accent-colored alternative
-              // competes with the primary button it sits beneath.
-              background: 'none', border: 'none', cursor: 'pointer', marginTop: 2,
-              color: 'var(--ink-2)', fontSize: 13, fontWeight: 600,
-              textDecoration: 'underline', textUnderlineOffset: 3,
-            }}
             onClick={() => {
               logEvent(EV.UP_INVITE_ALT_CLICK, { ...up.envelope(), plan, dwell_ms: up.timing().dwell_ms });
               up.outcome('invite_alt');
