@@ -18,6 +18,7 @@ import { adminListPublicBoards, adminSetPublicBoard, adminUnpublishBoard,
   aiDraftBoardSeo, aiGenerateBoardAlts, pingIndexNow,
   adminPublicBoardStats, adminImportGscCsv } from '../../lib/boardsApi.js';
 import { AdminSeoSection } from './AdminSeoSection.jsx';
+import { AdminAiChannelSection } from './AdminAiChannelSection.jsx';
 
 const SITE_ORIGIN = 'https://clusters.soleilpictures.com';
 // Mirror of the DB CHECK (migration 0136) so the UI flags problems before the
@@ -309,6 +310,8 @@ export function AdminDiscoverTab() {
     <div className="admin-section">
       {/* SEO health strip + landing-page performance (migration 0180). */}
       <AdminSeoSection />
+      {/* AI channel: assistant referrals, the AEO probe, crawler hits (0256/0295/0296). */}
+      <AdminAiChannelSection />
 
       <section className="admin-chart-panel admin-chart-panel-wide">
         <header className="admin-chart-head">

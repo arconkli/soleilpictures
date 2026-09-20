@@ -30,9 +30,106 @@ import { AdminFeedbackTab } from '../pages/admin/AdminFeedbackTab.jsx';
 import { AdminErrorsTab } from '../pages/admin/AdminErrorsTab.jsx';
 import { AdminApiTab } from '../pages/admin/AdminApiTab.jsx';
 import { AdminTaggingTab } from '../pages/admin/AdminTaggingTab.jsx';
+import { AdminDiscoverTab } from '../pages/admin/AdminDiscoverTab.jsx';
+import { FeedbackProvider } from '../components/AppFeedback.jsx';
 
 // Install the fixture shim before any tab mounts + fetches.
 const MOCKS_OK = installAdminPreviewMocks(supabase);
+
+// ── AI channel fixtures (Discover tab) ───────────────────────────────
+// Layered over the shared shim rather than added to adminFixtures.js, so the
+// per-RPC call tally it keeps still counts these. Timestamps are RELATIVE to
+// now on purpose: the probe banner judges the newest run's age (past 8 days =
+// the weekly probe is not running), so a fixed date would silently flip this
+// fixture from "every question failed" to "stale" a week after it was written.
+// The state modelled is the one the panel exists to expose — a newest run
+// where the provider refused every question and stored why.
+const daysAgo = (d) => new Date(Date.now() - d * 86400000).toISOString();
+const dayStr = (d) => daysAgo(d).slice(0, 10);
+const AEO_QUESTIONS = [
+  'best free moodboard app for filmmakers',
+  'pureref alternative that works in the browser',
+  'how to organise a shot list with a moodboard',
+  'milanote vs pureref for film pre-production',
+  'shared moodboard for a film crew',
+  'moodboard tool with a script editor',
+  'lookbook maker for a short film pitch',
+  'visual references board for a director',
+];
+const AEO_CITED = [2, 1, 1, 1, 0, 0, 0, 0]; // over three runs; the newest cited nothing
+const AEO_ERROR = 'insufficient_quota: You exceeded your current quota, please check your plan and billing details.';
+const AEO_RUNS = [
+  { run_at: daysAgo(2),  provider: 'openai', model: 'gpt-4o-search-preview', asked: 8, cited: 0, failed: 8 },
+  { run_at: daysAgo(9),  provider: 'openai', model: 'gpt-4o-search-preview', asked: 8, cited: 3, failed: 0 },
+  { run_at: daysAgo(16), provider: 'openai', model: 'gpt-4o-search-preview', asked: 8, cited: 2, failed: 0 },
+];
+const CRAWLER_BOTS = [
+  { bot: 'GPTBot',        kind: 'ai',     hits: 212, paths: 38, last_seen: daysAgo(0.3) },
+  { bot: 'Googlebot',     kind: 'search', hits: 184, paths: 61, last_seen: daysAgo(0.1) },
+  { bot: 'ClaudeBot',     kind: 'ai',     hits: 97,  paths: 24, last_seen: daysAgo(1.2) },
+  { bot: 'PerplexityBot', kind: 'ai',     hits: 41,  paths: 12, last_seen: daysAgo(2.5) },
+  { bot: 'bingbot',       kind: 'search', hits: 36,  paths: 29, last_seen: daysAgo(0.8) },
+  { bot: 'AhrefsBot',     kind: 'other',  hits: 19,  paths: 19, last_seen: daysAgo(4) },
+];
+const AI_CHANNEL_FIXTURES = {
+  admin_ai_referrals: () => [
+    { ref_host: 'chatgpt.com',           landing_path: '/',                       signups: 9, activated: 5 },
+    { ref_host: 'utm:chatgpt.com',       landing_path: '/',                       signups: 7, activated: 3 },
+    { ref_host: 'www.perplexity.ai',     landing_path: '/vs/pureref',             signups: 4, activated: 2 },
+    { ref_host: 'gemini.google.com',     landing_path: '/best/mood-board-apps',    signups: 3, activated: 1 },
+    { ref_host: 'chatgpt.com',           landing_path: '/vs/milanote',            signups: 2, activated: 1 },
+    { ref_host: 'copilot.microsoft.com', landing_path: '/',                       signups: 1, activated: 0 },
+  ],
+  admin_aeo_retrieval: (params) => {
+    const days = Number(params?.p_days) || 60;
+    const from = daysAgo(days);
+    const runs = AEO_RUNS.filter((r) => r.run_at >= from);
+    const asked = runs.length;
+    return {
+      from,
+      latest: AEO_QUESTIONS.map((question) => ({
+        question, cited: false, position: null, sources: [], excerpt: null,
+        error: AEO_ERROR, provider: 'openai', run_at: AEO_RUNS[0].run_at,
+      })),
+      by_question: AEO_QUESTIONS.map((question, i) => {
+        // Only runs inside the window count, and the newest one cited nothing.
+        const cited = Math.min(AEO_CITED[i], Math.max(0, asked - 1));
+        return { question, provider: 'openai', asked, cited, cite_rate: asked ? Math.round((1000 * cited) / asked) / 10 : null };
+      }),
+      runs,
+    };
+  },
+  admin_crawler_hits: (params) => {
+    const days = Math.max(1, Math.min(Number(params?.p_days) || 30, 90));
+    return {
+      from: dayStr(days),
+      by_bot: CRAWLER_BOTS,
+      by_day: Array.from({ length: days }, (_, i) => {
+        const back = days - 1 - i;
+        return { day: dayStr(back), ai: 6 + ((i * 7) % 11), search: 4 + ((i * 5) % 7), other: i % 3 };
+      }),
+      top_ai_paths: [
+        { path: '/vs/pureref',              hits: 64, bots: 3 },
+        { path: '/',                        hits: 51, bots: 3 },
+        { path: '/best/mood-board-apps',     hits: 38, bots: 2 },
+        { path: '/docs/api',                hits: 27, bots: 2 },
+        { path: '/vs/milanote',             hits: 22, bots: 3 },
+        { path: '/llms.txt',                hits: 19, bots: 3 },
+        { path: '/docs/cards',              hits: 14, bots: 1 },
+        { path: '/changelog',               hits: 9,  bots: 2 },
+      ],
+    };
+  },
+};
+function installAiChannelFixtures(client) {
+  const base = client.rpc;
+  client.rpc = (name, params) => {
+    const r = base(name, params); // keeps the tally; answers null for these names
+    if (!Object.prototype.hasOwnProperty.call(AI_CHANNEL_FIXTURES, name)) return r;
+    return r.then(() => ({ data: AI_CHANNEL_FIXTURES[name](params), error: null }));
+  };
+}
+if (MOCKS_OK) installAiChannelFixtures(supabase);
 
 function readQaNodeTarget() {
   try {
@@ -91,6 +188,18 @@ function CommandCenterQaTab() {
   );
 }
 
+// The REAL Discover tab — SEO section, AI channel panel, discoverable boards —
+// over the fixtures above (its other RPCs answer null and render empty). It
+// calls useFeedback() for its publish toasts; AdminPage gets that provider
+// from the app shell, so the harness supplies one here.
+function DiscoverQaTab() {
+  return (
+    <FeedbackProvider>
+      <AdminDiscoverTab />
+    </FeedbackProvider>
+  );
+}
+
 const TABS = [
   // One dashboard tab now — its four views live behind ?view= inside it.
   { id: 'overview',  label: 'Overview',  Component: AdminAnalyticsTab },
@@ -101,6 +210,7 @@ const TABS = [
   { id: 'errors',    label: 'Errors',    Component: AdminErrorsTab },
   { id: 'api',       label: 'API',       Component: AdminApiTab },
   { id: 'tagging',   label: 'Tagging',   Component: AdminTaggingTab },
+  { id: 'discover',  label: 'Discover',  Component: DiscoverQaTab },
   { id: 'universe',  label: 'Universe',  Component: UniverseQaTab },
   { id: 'command',   label: 'Command',   Component: CommandCenterQaTab },
 ];
