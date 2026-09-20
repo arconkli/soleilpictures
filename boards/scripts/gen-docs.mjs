@@ -53,7 +53,7 @@ import { HINT_LIMITS } from '../src/lib/gridLayoutLibrary.js';
 import { SEO_LISTICLE_PAGES } from '../src/lib/seoListicles.js';
 
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
-import { PLAN_NAME, PRICING, CREATOR_FEATURES, CREATOR_STORAGE_LABEL, CREATOR_TRIAL_DAYS } from '../src/lib/billingCopy.js';
+import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, CREATOR_TRIAL_DAYS } from '../src/lib/billingCopy.js';
 import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP } from '../src/lib/fileIngest.js';
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
 
@@ -77,9 +77,15 @@ const changed = [];
 // already carries the rule that every pricing claim name its enforcing code;
 // this is that rule made mechanical.
 const MB = 1024 * 1024;
-const storageMatch = CREATOR_FEATURES.join(' ').match(/\*\*(\d+\s*GB)\*\*/i);
+// Scans the benefit BODIES, which is where the figure moved when every claim
+// grew an explanation. It stays a scan of the rendered marketing text rather
+// than a read of CREATOR_STORAGE_LABEL, deliberately: the point of the check
+// below is that the text a visitor sees cannot diverge from the enforced
+// quota, and reading the constant twice would only prove it equals itself.
+const storageText = CREATOR_BENEFITS.map((b) => `${b.title} ${b.body}`).join(' ');
+const storageMatch = storageText.match(/\*\*(\d+\s*GB)\*\*/i);
 if (!storageMatch) {
-  throw new Error('gen-docs: storage figure not found in CREATOR_FEATURES — update the extractor in gen-docs.mjs');
+  throw new Error('gen-docs: storage figure not found in CREATOR_BENEFITS — update the extractor in gen-docs.mjs');
 }
 // The storage label must equal the ENFORCED default quota — app_config
 // 'storage_quota_bytes' seeded in migration 0154 and read by
@@ -95,7 +101,7 @@ const quotaGb = Number(quotaMatch[1]) / (1024 ** 3);
 if (`${quotaGb}GB` !== CREATOR_STORAGE_LABEL || storageMatch[1].replace(/\s+/g, '') !== CREATOR_STORAGE_LABEL) {
   throw new Error(
     `gen-docs: storage figures disagree — CREATOR_STORAGE_LABEL '${CREATOR_STORAGE_LABEL}', ` +
-    `CREATOR_FEATURES '${storageMatch[1]}', migration default ${quotaGb}GB`,
+    `CREATOR_BENEFITS '${storageMatch[1]}', migration default ${quotaGb}GB`,
   );
 }
 const api = apiFacts();

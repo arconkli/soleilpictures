@@ -43,10 +43,15 @@ honest — three enforced limits, listed below, and nothing else.
 **{{fact:priceAnnualPerMonth}}/mo** billed annually
 ({{fact:priceAnnual}}, saving {{fact:annualSavings}}).
 
-- Unlimited cards — build without a ceiling
-- Any file type — `.psd`, `.fig`, `.zip`, video, audio, docs
-- No size limits, on your own **{{fact:creatorStorage}}** drive
-- Covers your **whole workspace** — everyone you invite builds at your limits
+- **Unlimited cards** — the {{fact:demoCardLimit}}-card ceiling comes off, and every
+  card you have already made stays exactly where it is.
+- **Any file type** — drop a `.psd`, a `.fig`, a `.zip`, anything at all, straight
+  onto the canvas instead of watching it bounce.
+- **No size limits** — video past {{fact:freeVideoCap}}, audio past
+  {{fact:freeAudioCap}}, a PDF past {{fact:freePdfCap}}, all fine, on your own
+  **{{fact:creatorStorage}}** drive.
+- **Covers your whole workspace** — everyone you invite builds at your limits,
+  and there are no per-seat charges.
 
 ## What is genuinely limited
 

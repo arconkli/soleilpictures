@@ -19,10 +19,15 @@ honest — three enforced limits, listed below, and nothing else.
 **$20/mo** billed annually
 ($240/yr, saving $60/yr).
 
-- Unlimited cards — build without a ceiling
-- Any file type — `.psd`, `.fig`, `.zip`, video, audio, docs
-- No size limits, on your own **100GB** drive
-- Covers your **whole workspace** — everyone you invite builds at your limits
+- **Unlimited cards** — the 50-card ceiling comes off, and every
+  card you have already made stays exactly where it is.
+- **Any file type** — drop a `.psd`, a `.fig`, a `.zip`, anything at all, straight
+  onto the canvas instead of watching it bounce.
+- **No size limits** — video past 30 MB, audio past
+  50 MB, a PDF past 50 MB, all fine, on your own
+  **100GB** drive.
+- **Covers your whole workspace** — everyone you invite builds at your limits,
+  and there are no per-seat charges.
 
 ## What is genuinely limited
 

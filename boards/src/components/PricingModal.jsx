@@ -22,8 +22,8 @@ import { startCheckout, startPortal } from '../lib/checkout.js';
 import { checkoutErrorMessage, checkoutErrorKind } from '../lib/checkoutErrors.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
-import { FeatureList, PlanToggle, CreatorPriceRow } from './PricingBits.jsx';
-import { CTA, CREATOR_FEATURES, CREATOR_STORAGE_LABEL, PRICING, COPY_REV, PRICE_FROM_LABEL, ownWorkSummary, trialNote } from '../lib/billingCopy.js';
+import { BenefitGrid, PlanToggle, CreatorPriceRow } from './PricingBits.jsx';
+import { CTA, PRICING, COPY_REV, ownWorkSummary, trialNote } from '../lib/billingCopy.js';
 import { OwnWorkStrip } from './OwnWorkStrip.jsx';
 import { readOwnWork } from '../lib/ownWork.js';
 import { useStorageUsage } from '../hooks/useStorageUsage.js';
@@ -252,17 +252,24 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
             </p>
           )}
 
-          <p className="upgrade-sub t-body">
-            {header === 'cap-hit' ? (
-              <>Creator lifts the cap, {PRICE_FROM_LABEL} — and every card you've already made stays exactly where it is.</>
-            ) : header === 'first-value' ? (
-              <>Your first cluster is taking shape. Creator is the complete studio — unlimited cards, any file type, any size. Everything your work deserves.</>
-            ) : header === 'storage' ? (
-              <>Drop any file, any size — video, design files, docs — straight onto your clusters, backed by your own {CREATOR_STORAGE_LABEL} drive.</>
-            ) : (
-              <>The complete studio — unlimited cards, and any file you make, any type, any size.</>
-            )}
-          </p>
+          {/* The sub says what just HAPPENED. It used to describe the product,
+              and once every benefit grew a body that description was the same
+              claim twice in different words — "unlimited cards, any file type,
+              any size" three lines above a grid that says exactly that, with
+              the cap-hit version even repeating the cards body verbatim. The
+              grid is better at describing the product than a sentence is, so
+              the sentence does the one thing the grid cannot: name the moment
+              this person is in. Where nothing happened — the pill, the
+              first-value nudge — there is nothing to say, and the offer starts
+              immediately instead of clearing its throat. */}
+          {header === 'storage' && (
+            <p className="upgrade-sub t-body">
+              That file needs a paid plan — free accounts take standard media, under the size caps below.
+            </p>
+          )}
+          {header === 'first-value' && (
+            <p className="upgrade-sub t-body">Your first cluster is taking shape.</p>
+          )}
         </div>
 
         <article className="pricing-card pricing-card-creator upgrade-card">
@@ -273,12 +280,12 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
 
           {!alreadyPaid && <CreatorPriceRow plan={plan} />}
 
-          {/* At the wall the feature list moves BELOW the CTA so the price, the
+          {/* At the wall the benefits move BELOW the CTA so the price, the
               user's own totals and the button are the whole of the first read.
-              It is demoted rather than deleted: the rows keep their data-up-feat
+              Demoted rather than deleted: the rows keep their data-up-feat
               markers, so up_feature_hover can still say whether the demotion
               changed what gets read. Row indices are unaffected by the move. */}
-          {header !== 'cap-hit' && <FeatureList features={CREATOR_FEATURES} />}
+          {header !== 'cap-hit' && <BenefitGrid />}
 
           {error && <div className="auth-error t-meta">{error}</div>}
 
@@ -294,7 +301,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
             <p className="upgrade-trial-note t-meta">{trialNote(plan)}</p>
           )}
 
-          {header === 'cap-hit' && <FeatureList features={CREATOR_FEATURES} className="pricing-features upgrade-features-after" />}
+          {header === 'cap-hit' && <BenefitGrid className="pricing-benefits upgrade-features-after" />}
         </article>
 
         {/* Card-count contexts, EXCEPT the wall itself: bonus cards from inviting

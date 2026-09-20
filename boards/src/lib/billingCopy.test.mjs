@@ -12,6 +12,7 @@
 // up_feature_hover and quietly corrupts the upsell scorecard.
 
 import {
+  CREATOR_BENEFITS,
   CREATOR_FEATURES,
   CREATOR_FEATURE_KEYS,
   LEGACY_FEATURE_KEYS,
@@ -105,20 +106,42 @@ assert(
 // so are unlimited collaborators (collab_free_editor_cap is null). Selling
 // either of those back as a Creator feature is the exact mistake 'edit access'
 // was, so pin the shape of the line rather than trusting a future editor.
-const scopeLine = CREATOR_FEATURES.find((f) => /workspace/i.test(f));
-assert(scopeLine, 'a Creator bullet states the workspace-wide scope of the limits');
+// Read title AND body: the claim used to live entirely in the bullet, and now
+// the title names it while the body carries the substance — so a check that
+// only reads the title would stop seeing the sentence most able to go wrong.
+const scope = CREATOR_BENEFITS.find((b) => /workspace/i.test(`${b.title} ${b.body}`));
+assert(scope, 'a Creator benefit states the workspace-wide scope of the limits');
+const scopeLine = `${scope.title} ${scope.body}`;
 assert(
   /limits/i.test(scopeLine),
-  'the workspace bullet sells the LIMITS carrying over, which is what is paid-only',
+  'the workspace benefit sells the LIMITS carrying over, which is what is paid-only',
 );
+// "there are no per-seat charges" is a DENIAL, not a sale, and it is the one
+// genuinely competitive thing on this list — every individual plan in the
+// category charges per seat and we do not. Strip that clause before checking,
+// so the rule keeps banning what it is for (selling seats, or selling free
+// collaboration) without banning the sentence that says we charge for neither.
+const scopeSold = scopeLine.replace(/,?\s*and there are no per-seat charges\.?/i, '');
 assert(
-  !/\bfree\b|\bseats?\b|\binvite (?:them|people) free\b/i.test(scopeLine),
-  'the workspace bullet does not sell free collaboration or seat count — both are free on every tier',
+  !/\bfree\b|\bseats?\b|\binvite (?:them|people) free\b/i.test(scopeSold),
+  'the workspace benefit does not sell free collaboration or seat count — both are free on every tier',
 );
-assert(
-  CREATOR_FEATURE_KEYS[CREATOR_FEATURES.indexOf(scopeLine)] === 'workspace',
-  'the workspace bullet keeps the stable up_feature_hover key "workspace"',
-);
+assert(scopeSold !== scopeLine || !/per-seat/i.test(scopeLine),
+  'if the per-seat clause is reworded, re-check it is still a denial rather than a sale');
+assert(scope.key === 'workspace', 'the workspace benefit keeps the stable up_feature_hover key');
+
+// --- every benefit is a claim AND an explanation ----------------------------
+// The shape is the point. Four bare claims went unread on every surface for
+// the product's life; a title that scans plus a sentence that explains is what
+// replaced them, and a body quietly deleted would put us back where we were.
+for (const b of CREATOR_BENEFITS) {
+  assert(b.key && b.title && b.body, `benefit ${b.key || '?'} is missing a field`);
+  assert(b.title.length <= 34, `"${b.title}" is a scan line, not a sentence — keep it short`);
+  assert(b.body.length >= 40, `"${b.title}" has no real explanation under it`);
+  // The title is the scan layer; putting the explanation back inside it with
+  // an em dash is how this regresses to the old one-level list.
+  assert(!b.title.includes('—'), `"${b.title}" folds its explanation back into the title`);
+}
 
 // --- the SERP description states only live, tested figures ------------------
 assert(

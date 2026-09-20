@@ -5759,6 +5759,64 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   font-weight: 600;
   margin-right: 9px;
 }
+/* ── Creator benefits: claim + what it means, two columns ────────────────
+   The four bullets this replaces were all one weight, so there was nothing to
+   scan and nothing to skip, and the measured result was that essentially
+   nobody read one. Titles carry the scan in ink-0; bodies explain in ink-2,
+   which is what makes skipping them free. Two columns halve the vertical run
+   so the whole offer is on screen without the reader choosing to read it. */
+.pricing-benefits {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+.pricing-benefits li {
+  display: grid;
+  /* The check sits in its own column so a wrapped body aligns under the
+     title, not under the tick. */
+  grid-template-columns: auto 1fr;
+  grid-template-areas: 'tick title' '. body';
+  column-gap: 8px;
+  row-gap: 2px;
+  min-width: 0;
+}
+/* Neutral hairline check, matching .pricing-features — gold is the CTA's. */
+.pricing-benefits li::before {
+  content: "✓";
+  grid-area: tick;
+  color: var(--ink-2);
+  font: 600 12px/1.5 var(--font-sans);
+}
+.pricing-benefit-t {
+  grid-area: title;
+  font: 600 13px/1.4 var(--font-sans);
+  color: var(--ink-0);
+}
+.pricing-benefit-b {
+  grid-area: body;
+  font: 400 12px/1.45 var(--font-sans);
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+.pricing-benefit-b b { color: var(--ink-1); font-weight: 600; }
+
+/* One column below the width where two would each be too narrow to read. */
+@media (max-width: 560px) {
+  .pricing-benefits { grid-template-columns: 1fr; gap: 12px; }
+}
+
+/* The struck monthly rate beside the annual one. */
+.pricing-card-price-was {
+  margin-right: 10px;
+  color: var(--ink-3);
+  font-weight: 600;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
 .pricing-cta {
   margin-top: auto;
   height: 42px;
@@ -5989,22 +6047,34 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   z-index: 2147483647;
   background: rgba(0,0,0,.65);
   backdrop-filter: blur(6px);
-  display: grid;
-  place-items: center;
+  /* flex + `margin: auto` on the panel, NOT grid + place-items: center.
+     Both centre it, but a centred grid item that is TALLER than the viewport
+     overflows in both directions and cannot be scrolled back to — measured at
+     a 660px-high laptop viewport the modal was 697px and its CTA sat below the
+     fold with `overflow-y: visible` and no way to reach it. This is the same
+     idiom .modal-shell-bg has always used, and it is equally immune to the
+     global prefers-reduced-motion rule that flattens transform on every
+     element (styles.css:369, and the .capture-hud scar at :16251) — margins
+     are not motion, so nothing has to be exempted. Do not centre with
+     translate, and do not "simplify" this back to place-items. */
+  display: flex;
+  justify-content: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 24px;
   /* This modal had no entrance of any kind — the backdrop simply appeared,
      which is the single loudest "template, not product" tell in the build.
-     Same two keyframes every other dialog in the app uses (.modal-shell-bg /
-     .modal-shell); nothing new is being invented here. `place-items: center`
-     is also what keeps it correct under prefers-reduced-motion, where the
-     global rule flattens transform on every element — see styles.css:369 and
-     the .capture-hud scar at :16251. Do not centre this with translate. */
+     Same two keyframes every other dialog in the app uses. */
   animation: pickerFade var(--dur-fast) var(--ease);
 }
 .upgrade-modal {
   position: relative;
+  /* Centres when it fits, and leaves the top reachable when it does not. */
+  margin: auto;
   width: 100%;
-  max-width: 460px;
+  /* 460 held one column of bullets. The benefit grid needs two, and the whole
+     point of the grid is that the offer fits on screen without scrolling. */
+  max-width: 600px;
   background: var(--bg-2);
   border: 1px solid var(--line-2);
   border-radius: var(--radius-lg, 14px);
@@ -18657,10 +18727,11 @@ button, [role="button"], a {
      re-mounting a different component here would mean rebuilding the
      swipe-dismiss, focus and telemetry wiring this modal already has. */
   .upgrade-backdrop {
-    place-items: end center;
+    align-items: flex-end;
     padding: 0;
   }
   .upgrade-modal {
+    margin: 0;
     max-width: 100vw;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     border-left: 0;

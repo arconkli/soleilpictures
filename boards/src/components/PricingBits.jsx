@@ -10,12 +10,36 @@
 
 import {
   PRICING, planPerMonth, planBilling, CREATOR_FEATURES, CREATOR_FEATURE_KEYS,
-  SAVINGS_PCT_LABEL,
+  CREATOR_BENEFITS, SAVINGS_PCT_LABEL,
 } from '../lib/billingCopy.js';
 
 // Render a feature string, turning `**text**` spans into <b>.
 function renderEmphasis(text) {
   return text.split('**').map((seg, i) => (i % 2 === 1 ? <b key={i}>{seg}</b> : seg));
+}
+
+// The Creator benefits as a two-column grid: bold claim, plain sentence under
+// it. Replaces the four bare bullets on the in-app offer.
+//
+// Why a grid and not a list, on a surface people leave in a few seconds: the
+// old four lines were all one weight, so there was nothing to scan and nothing
+// to skip. Titles carry the scan, bodies carry the detail, and two columns
+// halve the vertical run — the modal shows the whole offer without the reader
+// deciding to read it first.
+//
+// data-up-feat / data-up-featkey are unchanged and still index-parallel, so
+// up_feature_hover history survives this rewrite.
+export function BenefitGrid({ benefits = CREATOR_BENEFITS, className = 'pricing-benefits' }) {
+  return (
+    <ul className={className}>
+      {benefits.map((b, i) => (
+        <li key={b.key} data-up-feat={i} data-up-featkey={b.key}>
+          <span className="pricing-benefit-t">{b.title}</span>
+          <span className="pricing-benefit-b">{renderEmphasis(b.body)}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 export function FeatureList({ features = CREATOR_FEATURES, className = 'pricing-features' }) {
@@ -66,9 +90,18 @@ export function PlanToggle({ plan, setPlan, disabled }) {
 
 export function CreatorPriceRow({ plan }) {
   const billing = planBilling(plan);
+  // On annual, show the monthly rate struck through beside the annual one. It
+  // is not a fake anchor — $25 is what this plan actually costs month to
+  // month — and it makes the saving legible at the price rather than only as
+  // a badge on a toggle the reader may never touch. Same move as every
+  // competitor's annual card, and the one place a strike-through is honest.
+  const was = plan === 'annual' ? PRICING.monthly.perMonth : null;
   return (
     <div className="pricing-card-price-row" data-up-price="">
       <div className="pricing-card-price">
+        {was != null && (
+          <span className="pricing-card-price-was" aria-hidden="true">${was}</span>
+        )}
         ${planPerMonth(plan)}<span className="pricing-card-price-unit">/mo</span>
       </div>
       <div className="pricing-card-price-sub t-meta">

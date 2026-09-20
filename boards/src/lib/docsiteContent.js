@@ -27182,14 +27182,34 @@ export const DOCS_CONTENT = {
    "items": [
     [
      {
+      "t": "strong",
+      "v": "Unlimited cards",
+      "children": [
+       {
+        "t": "text",
+        "v": "Unlimited cards"
+       }
+      ]
+     },
+     {
       "t": "text",
-      "v": "Unlimited cards — build without a ceiling"
+      "v": " — the 50-card ceiling comes off, and every card you have already made stays exactly where it is."
      }
     ],
     [
      {
+      "t": "strong",
+      "v": "Any file type",
+      "children": [
+       {
+        "t": "text",
+        "v": "Any file type"
+       }
+      ]
+     },
+     {
       "t": "text",
-      "v": "Any file type — "
+      "v": " — drop a "
      },
      {
       "t": "code",
@@ -27197,7 +27217,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ", "
+      "v": ", a "
      },
      {
       "t": "code",
@@ -27205,7 +27225,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ", "
+      "v": ", a "
      },
      {
       "t": "code",
@@ -27213,13 +27233,23 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ", video, audio, docs"
+      "v": ", anything at all, straight onto the canvas instead of watching it bounce."
      }
     ],
     [
      {
+      "t": "strong",
+      "v": "No size limits",
+      "children": [
+       {
+        "t": "text",
+        "v": "No size limits"
+       }
+      ]
+     },
+     {
       "t": "text",
-      "v": "No size limits, on your own "
+      "v": " — video past 30 MB, audio past 50 MB, a PDF past 50 MB, all fine, on your own "
      },
      {
       "t": "strong",
@@ -27233,27 +27263,23 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " drive"
+      "v": " drive."
      }
     ],
     [
      {
-      "t": "text",
-      "v": "Covers your "
-     },
-     {
       "t": "strong",
-      "v": "whole workspace",
+      "v": "Covers your whole workspace",
       "children": [
        {
         "t": "text",
-        "v": "whole workspace"
+        "v": "Covers your whole workspace"
        }
       ]
      },
      {
       "t": "text",
-      "v": " — everyone you invite builds at your limits"
+      "v": " — everyone you invite builds at your limits, and there are no per-seat charges."
      }
     ]
    ]
