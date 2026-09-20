@@ -129,6 +129,16 @@ export const SEO_PROBE_CONTRACT = [
   // ── The docs corpus links the changelog ───────────────────────────────────
   { id: 70, path: '/docs/canvas/cards', check: 'deep docs pages link the changelog',
     expected: 'href="/changelog"', source: { kind: 'docs', path: '/docs/canvas/cards' } },
+
+  // ── /vs/storyflow (0336, 2026-09-19) ──────────────────────────────────────
+  // The mirror row asserts the h1 the .md carries (never the <title>); the
+  // sitemap row is a route path. Title/canonical rows (76, 77) need no mirror —
+  // they are not prose. Pre-registered as an AEO flank: see the comment above
+  // the spec in seoLanding.js before touching its title.
+  { id: 74, path: '/vs/storyflow.md', check: 'storyflow md mirror',
+    expected: 'A Storyflow Alternative for Crews That Work Live', source: { kind: 'file', path: 'public/vs/storyflow.md' } },
+  { id: 75, path: '/sitemap.xml', check: 'sitemap has storyflow',
+    expected: '/vs/storyflow', source: { kind: 'route' } },
 ];
 
 // Deliberately NOT pinned: their `expected` is live database content, not
