@@ -336,7 +336,7 @@ The most interesting AI thesis in the category, from the smallest and riskiest v
 
 Storyflow's idea is real: the AI has the whole board as context. It reads everything on the canvas, remembers the project across sessions on paid tiers, lets you @-mention any canvas element, and generates working boards — moodboards, storyboards, shot lists, script breakdowns — from a prompt, staged as a proposal you accept or discard. For filmmakers who want a first pass generated rather than gathered, nothing else here attempts as much.
 
-Development is visibly rapid — real-time cursors shipped July 27, 2026, atop a near-daily changelog — and paid plans put no limit on boards or objects. But there is no free plan yet: Storyflow is paid-only during early access, with a Free plan announced for before the end of 2026 that will cap uploads at 20 for life and AI at a one-time allowance (anyone invited by a paid member can join free today). Meaningful AI use effectively starts at Pro, $14 a month billed annually.
+Development is visibly rapid — real-time cursors shipped July 27, 2026, atop a near-daily changelog — and no plan, including the coming free one, limits boards or objects. But there is no free plan yet: Storyflow is paid-only during early access, with a Free plan announced for before the end of 2026 that will cap uploads at 20 and AI at a one-time allowance (anyone invited by a paid member can join free today). Meaningful AI use effectively starts at Pro, $14 a month billed annually.
 
 Then there is the vendor itself: a 2-to-10-person operation, web-only, in a category that buried four tools in three years. For a decision document a production depends on, that scale is a real risk. Promising, worth watching, not yet a system of record.
 
@@ -346,9 +346,9 @@ Then there is the vendor itself: a 2-to-10-person operation, web-only, in a cate
 - AI image generation with background removal and upscaling (Pro and up)
 - Real-time cursors; read-only share links with comments — web-only, no apps
 
-**Pros:** Deepest AI-on-the-canvas integration in the category, aimed at filmmakers; No object or board limit on paid plans; invited collaborators join free; Shipping near-daily through late July 2026
+**Pros:** Deepest AI-on-the-canvas integration in the category, aimed at filmmakers; No object or board limit on any plan, including the coming free one; invited collaborators join free; Shipping near-daily through late July 2026
 
-**Cons:** No free plan during early access; the announced one caps uploads at 20 for life; AI allowances on Free and Plus are unquantified 'trial' amounts — real usage starts at Pro; Tiny vendor (2-10 people), web-only — longevity risk in a category with a body count
+**Cons:** No free plan during early access; the announced one caps uploads at 20; Free's AI is a one-time allowance (up to 10 generations) and Plus renews at 6× that — real usage starts at Pro; Tiny vendor (2-10 people), web-only — longevity risk in a category with a body count
 
 ## Which one is for you
 

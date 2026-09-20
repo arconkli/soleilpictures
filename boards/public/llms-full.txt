@@ -143,7 +143,7 @@ The API — read and write all of this from your own code
 ## Frequently asked questions
 
 Q: Do I need to install anything?
-A: No. Clusters runs in the browser. There are also iOS and Android builds and it installs as a PWA, but nothing is required to start.
+A: No. Clusters runs in the browser and can be added to your home screen as a web app. There is no App Store or Play Store listing yet, and nothing is required to start.
 
 Q: Is there a password?
 A: No. Sign-in is a one-time code sent to your email address. There is no password to lose or rotate.
@@ -1353,9 +1353,9 @@ Send a link when the recipient may need to see the board again later, or when yo
 
 A public share link is view-only and needs no account to open. It is usually a better answer than emailing a PDF, and it does not go stale.
 
-On mobile and in the native apps
+On a phone or tablet
 
-Exports are delivered through the platform's own share sheet on iOS and Android rather than a browser download, so they land in Files, Photos, or whichever app you send them to.
+Clusters runs in the mobile browser (and from the home screen as a web app), so an export arrives as a browser download; the device's own share sheet then sends it to Files, Photos, or whichever app you choose. There is no store app yet.
 
 ## Frequently asked questions
 
@@ -2107,7 +2107,7 @@ A: Yes. The scene navigator lists every scene heading with its number, and click
 URL: https://clusters.soleilpictures.com/docs/documents/export
 Updated: 2026-08-08
 
-Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On iOS and Android, exports go through the system share sheet rather than a browser download.
+Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.
 
 The export menu is in the document toolbar.
 
@@ -2138,9 +2138,9 @@ HTML
 
 Standalone HTML with inline styling, for publishing or pasting into a CMS.
 
-On mobile and in the native apps
+On a phone or tablet
 
-On iOS and Android the export goes through the system share sheet rather than a browser download, so it can go straight to Files, Mail, or another app.
+Clusters runs in the mobile browser (and from the home screen as a web app), so an export arrives as a browser download; from there the device's own share sheet sends it to Files, Mail, or another app. There is no store app yet.
 
 Exporting the board instead
 
@@ -6601,7 +6601,7 @@ A production is not one board. In Clusters the mood board, the storyboard grid, 
 
 ## A free plan you can use today, and a flat price after it
 
-Storyflow’s pricing page says it plainly: it is paid-only during early access, and its Free plan launches before the end of 2026 — unless a paid member invites you, in which case you can join their boards free now. Its paid tiers run from $7.99 to $39 a month billed annually, each with its own AI allowance, and the coming free plan will cap uploads at 20 for life. Clusters’ Demo tier is free today with no credit card, covers 50 cards across unlimited boards, and never meters uploads. Creator is a flat $25 a month for unlimited cards, 100GB and any file type, and everyone you invite edits free.
+Storyflow’s pricing page says it plainly: it is paid-only during early access, and its Free plan launches before the end of 2026 — unless a paid member invites you, in which case you can join their boards free now. Its paid tiers run from $7.99 to $39 a month billed annually, each with its own AI allowance, and the coming free plan will cap file uploads at 20. Clusters’ Demo tier is free today with no credit card, covers 50 cards across unlimited boards, and never meters uploads. Creator is a flat $25 a month for unlimited cards, 100GB and any file type, and everyone you invite edits free.
 
 - Free today: 50 cards, unlimited boards, uploads never metered
 - Creator is $25/mo flat — not per seat, not per AI call
@@ -6633,11 +6633,11 @@ How the two compare on the things production teams care about. Storyflow figures
 | AI usage allowance | None — connect your own assistant | Per plan; a one-time allowance on the coming free plan |
 | Drafts a board from a prompt | No | Yes |
 | Real-time multiplayer canvas | Yes | Yes |
-| Nested boards with a relationship graph | Yes | No |
-| Schedule and screenplay on the canvas | Yes | No |
-| Auto-tagging of dropped files | Yes | No |
+| Nested boards with a relationship graph | Yes | Not on its pricing page (September 2026) |
+| Production schedule and screenplay mode | Yes | Calendars and trackers; no production schedule or screenplay mode |
+| Auto-tagging of dropped files | Yes | Not on its pricing page (September 2026) |
 | Any file type, up to 100GB | Yes (Creator) | Unlimited uploads on paid plans; 20 on the coming free plan |
-| Free-plan card cap | 50 cards, uploads never metered | No object limit; uploads and AI are capped |
+| Free-plan card cap | 50 cards, uploads never metered | No object or board limit on any plan; uploads and AI are capped |
 | Template library | Growing (grid templates) | 200+ frameworks on paid plans |
 | Works with Claude and other MCP clients | Yes, one URL | No server listed in the MCP registry |
 
@@ -6661,7 +6661,7 @@ No. Clusters does not generate boards or images. It connects to Claude and any o
 
 ### How much does Storyflow cost?
 
-As of September 2026: Plus is $9.99 a month or $7.99 billed annually, Pro $19 or $14 annually, Max $49 or $39 annually, each with a different AI usage allowance. Clusters’ Creator plan is a flat $25 a month.
+As of September 2026: Plus is $9.99/mo, or $7.99/mo billed annually ($95.88 once a year); Pro $19/mo, or $14/mo annually ($168); Max $49/mo, or $39/mo annually ($468). Each tier carries a different AI usage allowance. Clusters’ Creator plan is a flat $25 a month.
 
 ### Can I move my Storyflow boards to Clusters?
 
@@ -7462,11 +7462,11 @@ Milanote's limits show up exactly at that handoff. The free plan is a hard wall:
 
 So choose by naming what your board must become. A live team workspace: a real-time canvas whose limits are not an upload budget you spend in an afternoon. A polished client deliverable: templates and export. A private research archive that works on a plane: local files and no account. And if it only ever needs to be a beautiful collection under 100 cards, you may not need an alternative at all — we say so below.
 
-One more thing most listicles on this SERP skip: we checked whether the tools still exist. Kosmik, still recommended by several rival roundups, shut down May 31, 2026. InVision shut down at the end of 2024. Products die, and a roundup that still recommends them was not tested. Everything here was verified against primary sources in August 2026.
+One more thing most listicles on this SERP skip: we checked whether the tools still exist. Kosmik, still recommended by several rival roundups, shut down May 31, 2026. InVision shut down at the end of 2024. Products die, and a roundup that still recommends them was not tested. Everything here was verified against primary sources in August 2026 (Storyflow re-verified in September 2026).
 
 ## How we tested these Milanote alternatives
 
-We are a film studio, and this list comes from tools we have run real productions through between 2024 and 2026 — mood boards, look books, shot lists, and pre-production for actual film and photo projects, not demo boards built for screenshots. Where we have not used a tool in anger, its review says so. Every price, cap, and platform claim was verified against the vendor's own pages in August 2026, because the aggregator data in this category is reliably wrong.
+We are a film studio, and this list comes from tools we have run real productions through between 2024 and 2026 — mood boards, look books, shot lists, and pre-production for actual film and photo projects, not demo boards built for screenshots. Where we have not used a tool in anger, its review says so. Every price, cap, and platform claim was verified against the vendor's own pages in August 2026, and Storyflow's plans again in September 2026, because the aggregator data in this category is reliably wrong.
 
 - **How far the board travels** — A board that cannot become a shot list, a schedule, or a deliverable forces an export-and-rebuild at the worst moment. We rank by how much of the pipeline a tool covers.
 - **Where the wall is** — Milanote's 100-card, 10-upload wall is why most people search this query. We report every tool's real caps from primary sources, and how hitting them mid-project feels.
@@ -7720,18 +7720,18 @@ The most interesting new idea on this list, from the smallest and riskiest vendo
 
 Storyflow's thesis is that the canvas is the AI's context. The assistant reads everything on the active board, remembers the project across sessions on paid plans, and can be pointed at any element with an @-mention. One prompt can stage a complete working board — a storyboard, shot list, kanban, or mood board — as a proposal you accept or discard, and a library of 200+ 'Tactics' frameworks drops half-built structures onto the canvas. It courts filmmakers directly with AI storyboard and shot-list generators and script breakdowns, and the changelog shows near-daily shipping through late July 2026. A real product, moving fast.
 
-Now the other side. There is no free plan yet: Storyflow is paid-only during early access, and its Free plan is announced for before the end of 2026 — capped at 20 file uploads for life and a one-time AI allowance, though anyone invited by a paid member can join free today. Meaningful AI use effectively starts at Pro, $14/mo annual. And the vendor is a 2-to-10-person operation, web-only, in a category that has buried several small tools in the last two years. We would happily sketch a pitch in it; we would not make it the system of record for a production's assets. Buy the vision, budget for the risk.
+Now the other side. There is no free plan yet: Storyflow is paid-only during early access, and its Free plan is announced for before the end of 2026 — capped at 20 file uploads and a one-time AI allowance, though anyone invited by a paid member can join free today. Meaningful AI use effectively starts at Pro, $14/mo annual. And the vendor is a 2-to-10-person operation, web-only, in a category that has buried several small tools in the last two years. We would happily sketch a pitch in it; we would not make it the system of record for a production's assets. Buy the vision, budget for the risk.
 
 - Whole-board AI context with cross-session project memory on paid plans
 - Prompt-to-board generation: storyboards, shot lists, moodboards, trackers
 - 200+ 'Tactics' creative frameworks (3 available on the free plan)
 - AI image generation on Pro and Max, with background removal and upscaling
-- No object or board limit on paid plans; comment-enabled share links; invited collaborators join free
+- No object or board limit on any plan, including the coming free one; comment-enabled share links; invited collaborators join free
 - Web only — no desktop or mobile apps
 
 **Pros:** AI-reads-the-board is a genuine differentiator, not a bolted-on chat sidebar; No object or board limit on any plan, and invited collaborators join free; Visibly fast development: near-daily changelog entries through July 2026
 
-**Cons:** No free plan during early access; the one announced for late 2026 caps uploads at 20, lifetime; AI allowances on Free and Plus are never quantified; real AI use starts at Pro; Tiny vendor (2-10 people), web-only — real longevity risk for a system of record
+**Cons:** No free plan during early access; the one announced for late 2026 caps uploads at 20; Free's AI is a one-time allowance (up to 10 generations) and Plus renews at 6× that; real AI use starts at Pro; Tiny vendor (2-10 people), web-only — real longevity risk for a system of record
 
 ### 8. Mural
 
@@ -8271,7 +8271,7 @@ The most interesting AI thesis in the category, from the smallest and riskiest v
 
 Storyflow's idea is real: the AI has the whole board as context. It reads everything on the canvas, remembers the project across sessions on paid tiers, lets you @-mention any canvas element, and generates working boards — moodboards, storyboards, shot lists, script breakdowns — from a prompt, staged as a proposal you accept or discard. For filmmakers who want a first pass generated rather than gathered, nothing else here attempts as much.
 
-Development is visibly rapid — real-time cursors shipped July 27, 2026, atop a near-daily changelog — and paid plans put no limit on boards or objects. But there is no free plan yet: Storyflow is paid-only during early access, with a Free plan announced for before the end of 2026 that will cap uploads at 20 for life and AI at a one-time allowance (anyone invited by a paid member can join free today). Meaningful AI use effectively starts at Pro, $14 a month billed annually.
+Development is visibly rapid — real-time cursors shipped July 27, 2026, atop a near-daily changelog — and no plan, including the coming free one, limits boards or objects. But there is no free plan yet: Storyflow is paid-only during early access, with a Free plan announced for before the end of 2026 that will cap uploads at 20 and AI at a one-time allowance (anyone invited by a paid member can join free today). Meaningful AI use effectively starts at Pro, $14 a month billed annually.
 
 Then there is the vendor itself: a 2-to-10-person operation, web-only, in a category that buried four tools in three years. For a decision document a production depends on, that scale is a real risk. Promising, worth watching, not yet a system of record.
 
@@ -8281,9 +8281,9 @@ Then there is the vendor itself: a 2-to-10-person operation, web-only, in a cate
 - AI image generation with background removal and upscaling (Pro and up)
 - Real-time cursors; read-only share links with comments — web-only, no apps
 
-**Pros:** Deepest AI-on-the-canvas integration in the category, aimed at filmmakers; No object or board limit on paid plans; invited collaborators join free; Shipping near-daily through late July 2026
+**Pros:** Deepest AI-on-the-canvas integration in the category, aimed at filmmakers; No object or board limit on any plan, including the coming free one; invited collaborators join free; Shipping near-daily through late July 2026
 
-**Cons:** No free plan during early access; the announced one caps uploads at 20 for life; AI allowances on Free and Plus are unquantified 'trial' amounts — real usage starts at Pro; Tiny vendor (2-10 people), web-only — longevity risk in a category with a body count
+**Cons:** No free plan during early access; the announced one caps uploads at 20; Free's AI is a one-time allowance (up to 10 generations) and Plus renews at 6× that — real usage starts at Pro; Tiny vendor (2-10 people), web-only — longevity risk in a category with a body count
 
 ## Which one is for you
 

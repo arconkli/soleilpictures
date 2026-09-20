@@ -11305,21 +11305,21 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "On mobile and in the native apps",
+   "text": "On a phone or tablet",
    "inline": [
     {
      "t": "text",
-     "v": "On mobile and in the native apps"
+     "v": "On a phone or tablet"
     }
    ],
-   "id": "on-mobile-and-in-the-native-apps"
+   "id": "on-a-phone-or-tablet"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Exports are delivered through the platform's own share sheet on iOS and Android rather than a browser download, so they land in Files, Photos, or whichever app you send them to."
+     "v": "Clusters runs in the mobile browser (and from the home screen as a web app), so an export arrives as a browser download; the device's own share sheet then sends it to Files, Photos, or whichever app you choose. There is no store app yet."
     }
    ]
   }
@@ -16823,35 +16823,21 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "On mobile and in the native apps",
+   "text": "On a phone or tablet",
    "inline": [
     {
      "t": "text",
-     "v": "On mobile and in the native apps"
+     "v": "On a phone or tablet"
     }
    ],
-   "id": "on-mobile-and-in-the-native-apps"
+   "id": "on-a-phone-or-tablet"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "On iOS and Android the export goes through the "
-    },
-    {
-     "t": "strong",
-     "v": "system share sheet",
-     "children": [
-      {
-       "t": "text",
-       "v": "system share sheet"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " rather than a browser download, so it can go straight to Files, Mail, or another app."
+     "v": "Clusters runs in the mobile browser (and from the home screen as a web app), so an export arrives as a browser download; from there the device's own share sheet sends it to Files, Mail, or another app. There is no store app yet."
     }
    ]
   },

@@ -167,17 +167,22 @@ function getLastSource() {
   try {
     const params = new URLSearchParams(window.location.search);
     const fresh = { ...readUrlCampaignSignals(params), ...readReferrer() };
-    // Last-touch fbclid: URL first, else the freshest persisted _fbc.
-    let fbclid = params.get('fbclid');
-    if (!fbclid) {
-      try {
-        const fbc = localStorage.getItem('soleil.meta.fbc');
-        if (fbc) { const parts = fbc.split('.'); if (parts.length >= 4) fbclid = parts.slice(3).join('.'); }
-      } catch (_) {}
-    }
-    if (fbclid) fresh.fbclid = String(fbclid).slice(0, 200);
+    const urlFbclid = params.get('fbclid');
+    if (urlFbclid) fresh.fbclid = String(urlFbclid).slice(0, 200);
+    // Decide from what THIS load carried — URL params and the referrer — before
+    // the persisted _fbc is merged below. That fallback is memory of an old ad
+    // click, not a click on this load; counting it as a deep-link signal would
+    // let every internal page load rewrite last-touch for anyone who ever
+    // arrived from a Meta ad, which is the exact leak this guard exists to stop.
     const hasSignal = Object.keys(fresh).some((k) => k !== 'referrer_kind');
     const internalNav = fresh.referrer_kind === 'internal' && !DEEP_LINK_KEYS.some((k) => fresh[k]);
+    // Last-touch fbclid: URL first, else the freshest persisted _fbc.
+    if (!fresh.fbclid) {
+      try {
+        const fbc = localStorage.getItem('soleil.meta.fbc');
+        if (fbc) { const parts = fbc.split('.'); if (parts.length >= 4) fresh.fbclid = parts.slice(3).join('.').slice(0, 200); }
+      } catch (_) {}
+    }
     if (hasSignal && !internalNav) {
       fresh.last_touch_at = new Date().toISOString();
       try { localStorage.setItem(LAST_SOURCE_KEY, JSON.stringify(fresh)); } catch (_) {}

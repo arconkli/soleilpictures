@@ -1,6 +1,6 @@
 # Exporting documents
 
-> Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On iOS and Android, exports go through the system share sheet rather than a browser download.
+> Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.
 
 _Source: https://clusters.soleilpictures.com/docs/documents/export · Updated 2026-08-08_
 
@@ -40,10 +40,11 @@ hand.
 
 Standalone HTML with inline styling, for publishing or pasting into a CMS.
 
-## On mobile and in the native apps
+## On a phone or tablet
 
-On iOS and Android the export goes through the **system share sheet** rather
-than a browser download, so it can go straight to Files, Mail, or another app.
+Clusters runs in the mobile browser (and from the home screen as a web app), so
+an export arrives as a browser download; from there the device's own share
+sheet sends it to Files, Mail, or another app. There is no store app yet.
 
 ## Exporting the board instead
 

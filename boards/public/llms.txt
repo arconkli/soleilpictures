@@ -55,7 +55,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 - [Documents](https://clusters.soleilpictures.com/docs/documents): Write long-form documents inside Soleil Clusters. Multi-page editor with a page tree, formatting, tables, board embeds, comments, find and replace.
 - [Screenplay mode](https://clusters.soleilpictures.com/docs/documents/screenplay): Write screenplays in Soleil Clusters with industry formatting, accurate pagination, a scene navigator, title page, and Final Draft and Fountain support.
-- [Exporting documents](https://clusters.soleilpictures.com/docs/documents/export): Export a Soleil Clusters document as PDF, Markdown or HTML, and screenplays as Final Draft .fdx or Fountain. Exports work in the mobile apps too.
+- [Exporting documents](https://clusters.soleilpictures.com/docs/documents/export): Export a Soleil Clusters document as PDF, Markdown or HTML, and screenplays as Final Draft .fdx or Fountain. Exports work from a phone or tablet browser too.
 - [Comments, tags and backlinks in documents](https://clusters.soleilpictures.com/docs/documents/comments-and-tags): Comment on a text range in a Soleil Clusters document, tag passages, confirm suggested entities from the margin, and see everywhere a document is referenced.
 
 ## Organize and find

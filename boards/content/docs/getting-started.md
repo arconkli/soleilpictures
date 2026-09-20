@@ -9,7 +9,7 @@ updated: 2026-08-08
 answer: Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes {{fact:demoCardLimit}} cards and unlimited collaborators.
 faq:
   - q: Do I need to install anything?
-    a: No. Clusters runs in the browser. There are also iOS and Android builds and it installs as a PWA, but nothing is required to start.
+    a: No. Clusters runs in the browser and can be added to your home screen as a web app. There is no App Store or Play Store listing yet, and nothing is required to start.
   - q: Is there a password?
     a: No. Sign-in is a one-time code sent to your email address. There is no password to lose or rotate.
   - q: Can people I share with edit my board?

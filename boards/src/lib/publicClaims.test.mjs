@@ -120,7 +120,12 @@ const RULES = [
     // home-screen web app only.
     name: 'no native iOS/Android app is shipped — do not describe one as available',
     scoped: false,
-    pattern: /ships as (native )?(iOS|Android)|native apps for iOS and Android|native (iOS|Android)( and Android)? apps? (for|handle|land|open)|(Yes|yes),? for iOS and Android|share sheet from photos|the (native )?iOS and Android apps/i,
+    // Widened 2026-09-19 after four landing FAQs and three docs pages slipped
+    // the original: "apps are available", "also iOS and Android builds", "in
+    // the native apps", "a native iOS app as well", and exports "through the
+    // system share sheet". "Builds are in development" (mobile.md) is TRUE and
+    // must keep passing — the alternations name the false shapes, not the noun.
+    pattern: /ships as (native )?(iOS|Android)|native apps for iOS and Android|native (iOS|Android)( and Android)? apps? (for|handle|land|open)|native (iOS|Android)( and Android)? apps? (are|is) (also )?available|(Yes|yes),? for iOS and Android|share sheet from photos|the (native )?iOS and Android apps|also iOS and Android builds|in the native apps|native iOS app as well|(export|exports) (goes?|are delivered) through the (platform's own |system )?share sheet/i,
   },
 ];
 

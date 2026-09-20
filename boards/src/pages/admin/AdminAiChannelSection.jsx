@@ -167,9 +167,13 @@ export function AdminAiChannelSection() {
   const byQuestion = (Array.isArray(probe?.by_question) ? [...probe.by_question] : [])
     .sort((a, b) => (num(b.cite_rate) - num(a.cite_rate)) || String(a.question).localeCompare(String(b.question)));
 
-  const byBot = Array.isArray(crawlers?.by_bot) ? crawlers.by_bot : [];
+  // admin_crawler_hits (0295) orders by_bot and top_ai_paths by hits as TEXT
+  // too ('9' sorts above '700'), so a slice of the RPC order would drop the
+  // real top path. Sort numerically here, as for by_question above.
+  const byHits = (a, b) => num(b.hits) - num(a.hits);
+  const byBot = (Array.isArray(crawlers?.by_bot) ? [...crawlers.by_bot] : []).sort(byHits);
   const byDay = Array.isArray(crawlers?.by_day) ? crawlers.by_day : [];
-  const topPaths = (Array.isArray(crawlers?.top_ai_paths) ? crawlers.top_ai_paths : []).slice(0, TOP_AI_PATHS);
+  const topPaths = (Array.isArray(crawlers?.top_ai_paths) ? [...crawlers.top_ai_paths] : []).sort(byHits).slice(0, TOP_AI_PATHS);
 
   return (
     <section className="admin-chart-panel admin-chart-panel-wide">

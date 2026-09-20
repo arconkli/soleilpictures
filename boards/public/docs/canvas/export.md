@@ -50,8 +50,8 @@ print, or to hand to a system that only takes files.
 > **Note:** A public share link is view-only and needs no account to open. It is
 > usually a better answer than emailing a PDF, and it does not go stale.
 
-## On mobile and in the native apps
+## On a phone or tablet
 
-Exports are delivered through the platform's own share sheet on iOS and Android
-rather than a browser download, so they land in Files, Photos, or whichever app
-you send them to.
+Clusters runs in the mobile browser (and from the home screen as a web app), so
+an export arrives as a browser download; the device's own share sheet then sends
+it to Files, Photos, or whichever app you choose. There is no store app yet.
