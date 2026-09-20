@@ -16,11 +16,11 @@ Milanote's limits show up exactly at that handoff. The free plan is a hard wall:
 
 So choose by naming what your board must become. A live team workspace: a real-time canvas whose limits are not an upload budget you spend in an afternoon. A polished client deliverable: templates and export. A private research archive that works on a plane: local files and no account. And if it only ever needs to be a beautiful collection under 100 cards, you may not need an alternative at all — we say so below.
 
-One more thing most listicles on this SERP skip: we checked whether the tools still exist. Kosmik, still recommended by several rival roundups, shut down May 31, 2026. InVision shut down at the end of 2024. Products die, and a roundup that still recommends them was not tested. Everything here was verified against primary sources in August 2026.
+One more thing most listicles on this SERP skip: we checked whether the tools still exist. Kosmik, still recommended by several rival roundups, shut down May 31, 2026. InVision shut down at the end of 2024. Products die, and a roundup that still recommends them was not tested. Everything here was verified against primary sources in August 2026 (Storyflow re-verified in September 2026).
 
 ## How we tested these Milanote alternatives
 
-We are a film studio, and this list comes from tools we have run real productions through between 2024 and 2026 — mood boards, look books, shot lists, and pre-production for actual film and photo projects, not demo boards built for screenshots. Where we have not used a tool in anger, its review says so. Every price, cap, and platform claim was verified against the vendor's own pages in August 2026, because the aggregator data in this category is reliably wrong.
+We are a film studio, and this list comes from tools we have run real productions through between 2024 and 2026 — mood boards, look books, shot lists, and pre-production for actual film and photo projects, not demo boards built for screenshots. Where we have not used a tool in anger, its review says so. Every price, cap, and platform claim was verified against the vendor's own pages in August 2026, and Storyflow's plans again in September 2026, because the aggregator data in this category is reliably wrong.
 
 - **How far the board travels** — A board that cannot become a shot list, a schedule, or a deliverable forces an export-and-rebuild at the worst moment. We rank by how much of the pipeline a tool covers.
 - **Where the wall is** — Milanote's 100-card, 10-upload wall is why most people search this query. We report every tool's real caps from primary sources, and how hitting them mid-project feels.
@@ -274,18 +274,18 @@ The most interesting new idea on this list, from the smallest and riskiest vendo
 
 Storyflow's thesis is that the canvas is the AI's context. The assistant reads everything on the active board, remembers the project across sessions on paid plans, and can be pointed at any element with an @-mention. One prompt can stage a complete working board — a storyboard, shot list, kanban, or mood board — as a proposal you accept or discard, and a library of 200+ 'Tactics' frameworks drops half-built structures onto the canvas. It courts filmmakers directly with AI storyboard and shot-list generators and script breakdowns, and the changelog shows near-daily shipping through late July 2026. A real product, moving fast.
 
-Now the other side. There is no free plan yet: Storyflow is paid-only during early access, and its Free plan is announced for before the end of 2026 — capped at 20 file uploads for life and a one-time AI allowance, though anyone invited by a paid member can join free today. Meaningful AI use effectively starts at Pro, $14/mo annual. And the vendor is a 2-to-10-person operation, web-only, in a category that has buried several small tools in the last two years. We would happily sketch a pitch in it; we would not make it the system of record for a production's assets. Buy the vision, budget for the risk.
+Now the other side. There is no free plan yet: Storyflow is paid-only during early access, and its Free plan is announced for before the end of 2026 — capped at 20 file uploads and a one-time AI allowance, though anyone invited by a paid member can join free today. Meaningful AI use effectively starts at Pro, $14/mo annual. And the vendor is a 2-to-10-person operation, web-only, in a category that has buried several small tools in the last two years. We would happily sketch a pitch in it; we would not make it the system of record for a production's assets. Buy the vision, budget for the risk.
 
 - Whole-board AI context with cross-session project memory on paid plans
 - Prompt-to-board generation: storyboards, shot lists, moodboards, trackers
 - 200+ 'Tactics' creative frameworks (3 available on the free plan)
 - AI image generation on Pro and Max, with background removal and upscaling
-- No object or board limit on paid plans; comment-enabled share links; invited collaborators join free
+- No object or board limit on any plan, including the coming free one; comment-enabled share links; invited collaborators join free
 - Web only — no desktop or mobile apps
 
 **Pros:** AI-reads-the-board is a genuine differentiator, not a bolted-on chat sidebar; No object or board limit on any plan, and invited collaborators join free; Visibly fast development: near-daily changelog entries through July 2026
 
-**Cons:** No free plan during early access; the one announced for late 2026 caps uploads at 20, lifetime; AI allowances on Free and Plus are never quantified; real AI use starts at Pro; Tiny vendor (2-10 people), web-only — real longevity risk for a system of record
+**Cons:** No free plan during early access; the one announced for late 2026 caps uploads at 20; Free's AI is a one-time allowance (up to 10 generations) and Plus renews at 6× that; real AI use starts at Pro; Tiny vendor (2-10 people), web-only — real longevity risk for a system of record
 
 ### 8. Mural
 

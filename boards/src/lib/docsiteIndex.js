@@ -161,7 +161,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Do I need to install anything?",
-        "a": "No. Clusters runs in the browser. There are also iOS and Android builds and it installs as a PWA, but nothing is required to start."
+        "a": "No. Clusters runs in the browser and can be added to your home screen as a web app. There is no App Store or Play Store listing yet, and nothing is required to start."
       },
       {
         "q": "Is there a password?",
@@ -1068,8 +1068,8 @@ export const DOCS_PAGES = [
         "text": "Export or share a link?"
       },
       {
-        "id": "on-mobile-and-in-the-native-apps",
-        "text": "On mobile and in the native apps"
+        "id": "on-a-phone-or-tablet",
+        "text": "On a phone or tablet"
       }
     ],
     "related": [
@@ -1679,9 +1679,9 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/documents/export",
     "title": "Exporting Documents — Soleil Clusters",
-    "metaDescription": "Export a Soleil Clusters document as PDF, Markdown or HTML, and screenplays as Final Draft .fdx or Fountain. Exports work in the mobile apps too.",
+    "metaDescription": "Export a Soleil Clusters document as PDF, Markdown or HTML, and screenplays as Final Draft .fdx or Fountain. Exports work from a phone or tablet browser too.",
     "h1": "Exporting documents",
-    "answer": "Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On iOS and Android, exports go through the system share sheet rather than a browser download.",
+    "answer": "Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.",
     "section": "documents",
     "order": 2,
     "updated": "2026-08-08",
@@ -1704,8 +1704,8 @@ export const DOCS_PAGES = [
         "text": "HTML"
       },
       {
-        "id": "on-mobile-and-in-the-native-apps",
-        "text": "On mobile and in the native apps"
+        "id": "on-a-phone-or-tablet",
+        "text": "On a phone or tablet"
       },
       {
         "id": "exporting-the-board-instead",

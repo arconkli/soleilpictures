@@ -345,8 +345,9 @@ export const EV = Object.freeze({
 
   // ── Public pages (uniform lp_* engagement family — lib/landingMetrics.js +
   //    hooks/useLandingEngagement.js). EVERY public page fires the same schema so
-  //    the admin_landing_scorecard RPC GROUP BYs one event set: the 13 landing
-  //    specs (/tools/*, /vs/*, /use-cases, /scout, /templates), the /best/*
+  //    the admin_landing_scorecard RPC GROUP BYs one event set: every landing
+  //    spec in SEO_LANDING_PATHS (/tools/*, /vs/*, /use-cases, /scout, and
+  //    /templates where the template store ships), the /best/*
   //    listicles, /, /pricing, /explore, /c/<slug>, /share aggregate, every
   //    /docs/** page, /changelog, /legal/*, the template item pages, and the 404
   //    shell. Every lp_* row carries the base {page,page_kind} — page = canonical

@@ -12,8 +12,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveIndexNowUrls } from '../worker-seo.js';
+import { SEO_LANDING_PATHS } from './seoLanding.js';
 
 const ORIGIN = 'https://clusters.soleilpictures.com';
+// /templates is a landing spec only on trees that carry the template store;
+// production does not yet. Demand it where the registry has it, never literally.
+const TEMPLATES = SEO_LANDING_PATHS.includes('/templates') ? ['/templates'] : [];
 
 test('a published board slug resolves to its /c/ URL', () => {
   assert.deepEqual(resolveIndexNowUrls({ slug: 'film-noir-look-book' }), [`${ORIGIN}/c/film-noir-look-book`]);
@@ -26,10 +30,10 @@ test('a malformed slug resolves to nothing', () => {
 });
 
 test('marketing paths resolve only when the registries know them', () => {
-  const urls = resolveIndexNowUrls({ paths: ['/vs/pureref', '/best/pureref-alternatives', '/docs/api', '/changelog', '/templates', '/explore', '/pricing'] });
+  const urls = resolveIndexNowUrls({ paths: ['/vs/pureref', '/best/pureref-alternatives', '/docs/api', '/changelog', ...TEMPLATES, '/explore', '/pricing'] });
   assert.deepEqual(urls, [
     `${ORIGIN}/vs/pureref`, `${ORIGIN}/best/pureref-alternatives`, `${ORIGIN}/docs/api`,
-    `${ORIGIN}/changelog`, `${ORIGIN}/templates`, `${ORIGIN}/explore`, `${ORIGIN}/pricing`,
+    `${ORIGIN}/changelog`, ...TEMPLATES.map((p) => `${ORIGIN}${p}`), `${ORIGIN}/explore`, `${ORIGIN}/pricing`,
   ]);
 });
 

@@ -3,8 +3,7 @@
 --
 -- WHY (2026-09-17 audit, live data):
 --
---   ChatGPT became the second-largest signup source over one month, and about
---   half of those arrivals carry NO referrer: ChatGPT strips it and appends
+--   ChatGPT arrivals strip their referrer on about half of clicks and append
 --   `utm_source=chatgpt.com` instead. Every reader keyed on referrer_host alone
 --   (admin_ai_referrals, the scorecard's referrer classes, admin_seo_referrers,
 --   admin_seo_page_stats), so the AI channel read roughly two thirds of its
