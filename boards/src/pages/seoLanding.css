@@ -1099,28 +1099,6 @@
    pause before a pitch. Above a shelf it is just distance between someone and
    the product, so the storefront takes a third of it and the first row of tiles
    comes up ~140px sooner. */
-/* ── /pricing's hero ──────────────────────────────────────────────────────
-   The comparison pages' hero is ceremonial on purpose: a 77px display line
-   over a wide subhead, with the gold aura and dot grid behind it, because
-   those pages are someone's FIRST screen and have to make an impression
-   before they make an argument.
-
-   /pricing is someone's second or third screen and has one job — show two
-   plans so they can be compared. At the shared size the headline plus the
-   old subhead ran 850px before the first price, which on a page whose median
-   visit is a few seconds is most of the visit spent on a title. Everything
-   here is a dial-down of the same hero; no .seo-* rule is overridden for the
-   landing pages, so they are untouched. */
-.seo-main:has(.seo-hero.is-pricing) { padding-top: clamp(40px, 6vh, 76px); }
-.seo-hero.is-pricing { margin-bottom: clamp(26px, 4vh, 44px); }
-.seo-hero.is-pricing .seo-h1 {
-  font-size: clamp(2.2rem, 4.6vw, 3.2rem);
-  max-width: 22ch;
-}
-.seo-hero.is-pricing .seo-subhead { margin-bottom: 0; max-width: 46ch; }
-/* The aura is sized for the big headline and would sit well below this one. */
-.seo-hero.is-pricing::before { width: 520px; height: 300px; }
-
 .seo-hero.is-storefront { margin-bottom: clamp(20px, 3vh, 32px); text-align: left; }
 .seo-hero.is-storefront .seo-h1 { margin-left: 0; max-width: none; font-size: clamp(2.1rem, 4.4vw, 3rem); }
 .seo-main:has(.seo-hero.is-storefront) { padding-top: clamp(32px, 4vh, 52px); }

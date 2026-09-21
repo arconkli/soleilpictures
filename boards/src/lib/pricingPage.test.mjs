@@ -20,7 +20,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   PRICING_PAGE, PLAN_COMPARISON, PRICING_FAQ, PRICING, CREATOR_BENEFITS,
-  CREATOR_FEATURE_KEYS, CREATOR_STORAGE_LABEL, PLAN_NAME, creatorBenefits, DEMO_FEATURES,
+  CREATOR_FEATURE_KEYS, CREATOR_STORAGE_LABEL, PLAN_NAME, creatorBenefits,
 } from './billingCopy.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS } from './fileIngest.js';
@@ -42,20 +42,14 @@ test('the hero shot exists as a file and names a real board', () => {
 
 test('every number on the page is injected from the code that enforces it', () => {
   // The cap, from demoCardCap.
-  // The cap. It is on the FREE PLAN CARD, which is the surface that makes the
-  // claim — it used to be in the subhead, back when the subhead carried the
-  // whole offer in one sentence because there were no plan cards to carry it.
-  assert.ok(DEMO_FEATURES.some((f) => f.includes(`${DEMO_CARD_LIMIT} cards`)),
-    'the free plan card states the real cap');
+  assert.ok(PRICING_PAGE.subhead.includes(`${DEMO_CARD_LIMIT} cards`),
+    'the subhead states the real cap');
+  assert.ok(PRICING_PAGE.freeBody.includes(String(DEMO_CARD_LIMIT)));
   assert.equal(PLAN_COMPARISON.find((r) => r.key === 'cards').demo, String(DEMO_CARD_LIMIT));
 
-  // The price, from PRICING. Stated twice on purpose and injected both times:
-  // once in the subhead so it is above the fold in prose, and once as the
-  // Creator card's price row, which is rendered from PRICING directly.
+  // Both prices, from PRICING.
   assert.ok(PRICING_PAGE.subhead.includes(PRICING.monthly.billedLabel));
-  // And $0 is NOT from PRICING — there is no free SKU — so it is checked as
-  // the literal it has to be, in the one place it is allowed to be one.
-  assert.equal(PRICING_PAGE.freeCardPrice, '$0');
+  assert.ok(PRICING_PAGE.subhead.includes(PRICING.annual.perMonthLabel));
 
   // The per-file ceilings, from fileIngest — the module the ingest path routes
   // on. A literal here would be a promise nothing keeps.
@@ -149,12 +143,9 @@ test('the page never offers the trial', () => {
   // would be a promise the server refuses.
   const all = [
     PRICING_PAGE.h1, PRICING_PAGE.subhead, PRICING_PAGE.startFree, PRICING_PAGE.startFreeSub,
-    PRICING_PAGE.freeCardName, PRICING_PAGE.freeCardPrice, PRICING_PAGE.freeCardUnit,
-    PRICING_PAGE.freeCardSub, PRICING_PAGE.paidCardSub,
-    PRICING_PAGE.paidHeading,
+    PRICING_PAGE.freeHeading, PRICING_PAGE.freeBody, PRICING_PAGE.paidHeading,
     PRICING_PAGE.paidBody, PRICING_PAGE.workspaceNote, PRICING_PAGE.closing,
     PRICING_PAGE.closingSub, PRICING_PAGE.shot.caption,
-    ...DEMO_FEATURES,
     ...PLAN_COMPARISON.flatMap((r) => [r.label, r.demo, r.creator]),
     ...PRICING_FAQ.flatMap((f) => [f.q, f.a]),
   ].join(' ');

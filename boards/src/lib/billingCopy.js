@@ -156,14 +156,14 @@ export const CREATOR_BENEFITS = [
     // use creatorBenefits({ cardLimit }) below and pass the viewer's real one —
     // a paywall whose single checkable number is wrong about the reader is
     // worse than one that stays general.
-    body: `The ${DEMO_CARD_LIMIT}-card ceiling comes off. Everything you have already made stays exactly where it is.`,
+    body: `The ${DEMO_CARD_LIMIT}-card ceiling comes off, and every card you have already made stays exactly where it is.`,
   },
   {
     key: 'filetypes',
     title: 'Any file type',
     // fileIngest.js routes non-standard files to route:'blocked' for a free
     // owner; authorize_upload() rejects owner_not_paid on the server.
-    body: 'A .psd, a .fig, a .zip — anything at all — lands on the canvas instead of bouncing off it.',
+    body: 'Drop a .psd, a .fig, a .zip — anything at all — straight onto the canvas instead of watching it bounce.',
   },
   {
     key: 'storage',
@@ -176,7 +176,7 @@ export const CREATOR_BENEFITS = [
     // FREE_VIDEO_SECONDS (uploads.js, lifted only for a paid owner) and that
     // half of the gate was public nowhere — so this sentence used to imply
     // size was the only video wall while a 20 MB, 90-second clip was refused.
-    body: `Video past ${mb(FREE_VIDEO_CAP)} or ${FREE_VIDEO_SECONDS} seconds, audio past ${mb(FREE_AUDIO_CAP)}, a PDF past ${mb(FREE_PDF_CAP)} — all fine, on a **${CREATOR_STORAGE_LABEL}** drive.`,
+    body: `Video past ${mb(FREE_VIDEO_CAP)} or ${FREE_VIDEO_SECONDS} seconds, audio past ${mb(FREE_AUDIO_CAP)}, a PDF past ${mb(FREE_PDF_CAP)} — all fine, on your own **${CREATOR_STORAGE_LABEL}** drive.`,
   },
   {
     key: 'workspace',
@@ -186,7 +186,7 @@ export const CREATOR_BENEFITS = [
     // Say it as SCOPE — the LIMITS carrying over — never as access or seats:
     // editing is free on every tier (0188) and so are unlimited collaborators
     // (collab_free_editor_cap is null). Both are true; only one is Creator's.
-    body: 'Everyone you invite builds at your limits. There are no per-seat charges.',
+    body: 'Everyone you invite builds at your limits, and there are no per-seat charges.',
   },
 ];
 
@@ -327,13 +327,9 @@ export function nearCapSentence({ count, limit, trialOffer } = {}) {
 export const PRICING_PAGE = {
   h1: 'Start free. Pay when you outgrow it.',
   // Every number in this sentence is injected, none typed.
-  // ONE line, because the two plan cards are directly beneath it and they say
-  // the rest better than a sentence can. This used to carry the whole offer —
-  // both prices, the cap, the collaborator rule and two promises about what
-  // free is not — which made the first thing on a pricing page a paragraph to
-  // work through rather than a number to compare.
   subhead:
-    `The free plan is a real plan, not a countdown. ${PLAN_NAME} lifts its three limits for ${PRICING.monthly.billedLabel}.`,
+    `${DEMO_CARD_LIMIT} cards, unlimited clusters and free collaborators, with no card and no trial clock. ` +
+    `${PLAN_NAME} lifts the limits for ${PRICING.monthly.billedLabel}, or ${PRICING.annual.perMonthLabel}/mo billed annually.`,
   startFree: 'Start free',
   startFreeSub: 'No credit card. Nothing to install.',
   // The frame beneath the hero. `slug` must be a board published under /c/ AND
@@ -343,20 +339,18 @@ export const PRICING_PAGE = {
     slug: 'film-noir-look-book',
     caption: 'A real board published from Clusters — open it live, pan around, and copy its palettes.',
   },
-  // The comparison BELOW the two plan cards, which is a different job from the
-  // cards and has to say so in its title. It used to be headed "What Creator
-  // changes" — the same promise the Creator card now makes 800px above it, in
-  // more detail — and the only thing it uniquely carries is the FREE column:
-  // the actual per-file ceilings a free account runs into, which no card
-  // states. That is what it is for and what it is now called.
-  paidHeading: 'Both plans, line by line',
+  freeHeading: 'What the free plan is',
+  freeBody:
+    'Not a demo that expires and not a view-only tier. You get the whole canvas, ' +
+    'as many clusters as you want, and as many people in them as you want — ' +
+    `the only ceiling is ${DEMO_CARD_LIMIT} cards.`,
+  paidHeading: `What ${PLAN_NAME} changes`,
   // Three rows, because three is the number of enforced differences. If a
   // fourth ever appears here it has to name the code that enforces it, exactly
   // as CREATOR_FEATURES does.
   paidBody:
-    'Three differences, and nothing else. Everything absent from this table is on ' +
-    'both plans — clusters, collaborators, editing, sharing, exports, version ' +
-    'history, the API.',
+    'Three things, and nothing else. Everything not in this table is on both plans — ' +
+    'clusters, collaborators, editing, sharing, exports, version history, the API.',
   // The third row covers size AND length; "three" stays true only because that
   // row says both. If a fourth gate is ever added in code, this sentence and
   // the table are the two places that have to change with it.
@@ -366,17 +360,6 @@ export const PRICING_PAGE = {
   // individual plan in this category charges per seat), so it gets said out
   // loud rather than left to the FAQ. Keyed 'workspace' to match.
   workspaceNote: `One ${PLAN_NAME} plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.`,
-  // The free plan as a card, so the page can put the two side by side and let
-  // someone compare them in one look. `price` is not a number from PRICING —
-  // there is no free SKU and never will be — so it is stated here and the
-  // publicClaims lint reads it like any other public price claim.
-  freeCardName: 'Free',
-  freeCardPrice: '$0',
-  freeCardUnit: 'forever',
-  freeCardSub: 'No card, no clock, no expiry.',
-  // The Creator card's one-liner, beneath the price. The four benefits say
-  // what it unlocks; this says what it costs you to stop.
-  paidCardSub: 'Cancel any time — your cards stay yours.',
   closing: 'Start with the free plan.',
   closingSub: `Upgrade when the ${DEMO_CARD_LIMIT}th card is in your way, not before.`,
 };
