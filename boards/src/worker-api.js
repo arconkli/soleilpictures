@@ -88,8 +88,15 @@ const MAX_BOARDS_PER_CALL = 500;
 const EXTRA_TYPES = {
   'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/x-matroska': 'mkv',
   'video/webm': 'webm', 'video/mpeg': 'mpg',
-  'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav',
-  'audio/aiff': 'aiff', 'audio/x-aiff': 'aiff', 'audio/mp4': 'm4a', 'audio/aac': 'aac',
+  'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav',
+  'audio/vnd.wave': 'wav', 'audio/wave': 'wav',
+  'audio/aiff': 'aiff', 'audio/x-aiff': 'aiff', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a',
+  'audio/aac': 'aac', 'audio/x-aac': 'aac',
+  // Sample and loop libraries are full of these, and without a mapping they
+  // land in R2 as `.bin` — the file downloads with no extension and no DAW
+  // will open it.
+  'audio/flac': 'flac', 'audio/x-flac': 'flac',
+  'audio/ogg': 'ogg', 'audio/opus': 'opus', 'audio/webm': 'weba',
   'application/pdf': 'pdf', 'application/zip': 'zip',
   'image/tiff': 'tif', 'image/x-adobe-dng': 'dng', 'image/x-exr': 'exr',
   'application/mxf': 'mxf', 'application/x-dpx': 'dpx',

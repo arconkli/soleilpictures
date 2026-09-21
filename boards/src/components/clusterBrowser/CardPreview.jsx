@@ -17,7 +17,6 @@ import { ImagePlaceholder } from '../primitives.jsx';
 import { KindIcon } from '../cards.jsx';
 import { Icon } from '../Icon.jsx';
 import { iconForFile } from '../cards/FileCard.jsx';
-import { Headphones, Clapperboard } from '../../lib/icons.js';
 import { GridMark, DocMark, ScheduleMark, ShapeMark, NoteMark, LinkMark } from './marks.jsx';
 import { GridContentPreview } from './GridContentPreview.jsx';
 
@@ -71,8 +70,7 @@ export function CardPreview({ item, size = 'row' }) {
   if (p.mode === 'placeholder') {
     return <ImagePlaceholder tone={p.tone} aspect="1/1" />;
   }
-  // icon fallback — video/audio get their own glyphs; everything else KindIcon.
-  if (p.kind === 'video') return <div className="cbp-glyph"><Icon as={Clapperboard} size={glyphSize} /></div>;
-  if (p.kind === 'audio') return <div className="cbp-glyph"><Icon as={Headphones} size={glyphSize} /></div>;
-  return <div className="cbp-glyph"><KindIcon kind={p.kind} /></div>;
+  // icon fallback. audio/video used to be special-cased here because KindIcon
+  // had no case for them; it does now, so there is one glyph table again.
+  return <div className="cbp-glyph"><KindIcon kind={p.kind} size={glyphSize} /></div>;
 }

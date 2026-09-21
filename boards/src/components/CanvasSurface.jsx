@@ -148,7 +148,7 @@ import { normalizeMoves, resolveTake } from '../lib/captureTakes.js';
 import { useCaptureState } from '../hooks/useCaptureState.js';
 import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
 import { makeCastAwareness } from '../lib/castAwareness.js';
-import { classifyDropFile, sizeBucket, fitImageDims } from '../lib/fileIngest.js';
+import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS } from '../lib/fileIngest.js';
 import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
@@ -3307,7 +3307,14 @@ export function CanvasSurface({
       h = Math.max(160, Math.round(w * aspect));
     } else {
       const meta = await readAudioMeta(file);
-      w = 380; h = 130; extra = { title: file.name || 'Audio', duration: meta.duration || null };
+      ({ w, h } = FALLBACK_DIMS.audio);
+      // Same fileName/ext/mime/sizeBytes contract as dropAudioFile — `title` is
+      // the editable display name, `fileName` is what downloads are named from.
+      extra = {
+        title: file.name || 'Audio', duration: meta.duration || null,
+        fileName: file.name || null, mime: file.type || null, sizeBytes: file.size || null,
+        ext: (file.name?.split('.').pop() || '').toLowerCase(),
+      };
     }
     const id = `${kind === 'video' ? 'vid' : 'aud'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const placed = placeDropRect(cx, cy, w, h, rect);
@@ -3356,24 +3363,72 @@ export function CanvasSurface({
     });
   }, [workspaceId, board?.id, userId, mutators]);
 
-  // Audio file → audio card centered on (cx, cy). Default size matches
-  // a compact waveform; the card carries the duration for instant later
-  // renders. 50 MB cap enforced inside uploadAudio.
+  // Audio file → audio card centered on (cx, cy). Default size matches a
+  // compact waveform; the card carries the duration for instant later renders.
+  // FREE_AUDIO_CAP enforced inside uploadAudio.
+  //
+  // Optimistic, like image/pdf/file — it used to await the upload before adding
+  // anything, so dropping a folder of fifty loops showed an empty canvas until
+  // each one finished. Mirrors optimisticDropPdf's add → patch → roll back.
+  //
+  // fileName/ext/mime/sizeBytes are stamped alongside `title` because `title`
+  // is user-EDITABLE: it seeds from the filename, but the moment someone
+  // renames the card to "Kick 1" the original extension is gone, and every
+  // download path downstream produces an extensionless file. `title` is the
+  // display name; `fileName` is the download authority.
   const dropAudioFile = useCallback(async (file, cx, cy, rect = null) => {
     if (!workspaceId) throw new Error('workspaceId required');
-    const up = await uploadAudio({ file, workspaceId, boardId: board?.id, userId });
-    const w = 380, h = 130;
+    const dropBoardId = board?.id;
+    const id = `aud-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    const { w, h } = FALLBACK_DIMS.audio;
+    const placed = placeDropRect(cx, cy, w, h, rect);
+    const ext = (file.name?.split('.').pop() || '').toLowerCase();
+
     mutators.addCard?.({
-      id: `aud-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
-      kind: 'audio',
-      src: up.src,
-      title: file.name || 'Audio',
-      duration: up.duration || null,
-      x: rect && Number.isFinite(rect.x) ? Math.round(rect.x) : Math.round(cx - w / 2),
-      y: rect && Number.isFinite(rect.y) ? Math.round(rect.y) : Math.round(cy - h / 2),
-      w, h,
+      id, kind: 'audio', title: file.name || 'Audio',
+      fileName: file.name || null, mime: file.type || null, sizeBytes: file.size || null, ext,
+      x: placed.x, y: placed.y, w, h, pending: true,
     });
-  }, [workspaceId, board?.id, userId, mutators]);
+    try {
+      const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
+      const up = await uploadAudio({ file, workspaceId, boardId: dropBoardId, userId, onProgress });
+      if (boardIdRef.current === dropBoardId) {
+        mutators.updateCardSilent?.(id, { src: up.src, duration: up.duration || null, pending: false });
+      }
+    } catch (err) {
+      console.error('audio upload failed', err);
+      handleUploadReject(err, id, dropBoardId);
+    } finally {
+      setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+    }
+  }, [workspaceId, board?.id, userId, mutators, placeDropRect, handleUploadReject]);
+
+  // Send ONE classified file down its route. Extracted from ingestFiles so the
+  // PASTE handler can reach the same dispatch: paste used to send everything
+  // that wasn't an image or a PDF to optimisticDropFile, so a pasted mp3 became
+  // a generic file card — paid-gated for a free owner — while the identical
+  // file dropped two inches away became a free audio card. Drop, the picker and
+  // paste now all agree because they all end up here.
+  const dispatchIngestOne = useCallback(async ({ file, route, kind }, cx, cy, rect = null) => {
+    if (route === 'image') {
+      // Optimistic — adds the card and uploads in the background so
+      // multi-file drops aren't blocked one at a time.
+      optimisticDropImage(file, cx, cy, rect);
+    } else if (route === 'video') {
+      await dropVideoFile(file, cx, cy, canAttemptFiles, rect);
+    } else if (route === 'audio') {
+      dropAudioFile(file, cx, cy, rect);
+    } else if (route === 'pdf') {
+      optimisticDropPdf(file, cx, cy, rect);
+    } else if (route === 'largeMedia') {
+      // Over-cap clip — still an inline media card, uploaded via multipart.
+      dropLargeMedia(file, kind, cx, cy, rect);
+    } else {
+      // PDFs over the inline cap + every other type → downloadable file card.
+      optimisticDropFile(file, cx, cy, rect);
+    }
+  }, [canAttemptFiles, optimisticDropImage, dropVideoFile, dropAudioFile,
+      optimisticDropPdf, dropLargeMedia, optimisticDropFile]);
 
   // Route a FileList onto the canvas, centered at (cx, cy). Shared by drag-drop,
   // the right-click "Add → File" entry, and the toolbar "+" menu so all three
@@ -3485,28 +3540,9 @@ export function CanvasSurface({
       });
 
       for (let i = 0; i < accepted.length; i++) {
-        const { file: f, route, kind } = accepted[i];
         const rect = rects[i];
-        const rcx = rect.x + rect.w / 2;
-        const rcy = rect.y + rect.h / 2;
         try {
-          if (route === 'image') {
-            // Optimistic — adds the card and uploads in the background so
-            // multi-file drops aren't blocked one at a time.
-            optimisticDropImage(f, rcx, rcy, rect);
-          } else if (route === 'video') {
-            await dropVideoFile(f, rcx, rcy, canAttemptFiles, rect);
-          } else if (route === 'audio') {
-            await dropAudioFile(f, rcx, rcy, rect);
-          } else if (route === 'pdf') {
-            optimisticDropPdf(f, rcx, rcy, rect);
-          } else if (route === 'largeMedia') {
-            // Over-cap clip — still an inline media card, uploaded via multipart.
-            dropLargeMedia(f, kind, rcx, rcy, rect);
-          } else {
-            // PDFs over the inline cap + every other type → downloadable file card.
-            optimisticDropFile(f, rcx, rcy, rect);
-          }
+          await dispatchIngestOne(accepted[i], rect.x + rect.w / 2, rect.y + rect.h / 2, rect);
         } catch (err) {
           console.error(err);
           feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
@@ -3534,8 +3570,7 @@ export function CanvasSurface({
         ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
       });
     }
-  }, [ownsWorkspace, isPaidPlan, canAttemptFiles, optimisticDropImage, dropVideoFile, dropAudioFile,
-      optimisticDropPdf, dropLargeMedia, optimisticDropFile, onRequestStorageUpgrade,
+  }, [ownsWorkspace, isPaidPlan, canAttemptFiles, dispatchIngestOne, onRequestStorageUpgrade,
       onRequestUpgrade, feedback, board?.id, mutators]);
 
   // Unified "Add → File" picker: opens a native file chooser with NO accept
@@ -4335,50 +4370,40 @@ export function CanvasSurface({
 
       if (isEditorTarget(e)) return;
 
-      // 1) Image in OS clipboard wins outright.
+      // 1) A file in the OS clipboard wins outright, routed through the SAME
+      // classifier drag-drop and the picker use (lib/fileIngest.js). This used
+      // to be three hand-rolled branches — pdf, image, then "anything else →
+      // file card" — which meant a pasted mp3 became a generic file card and
+      // was refused outright on a free plan, while the identical file DROPPED
+      // on the canvas became a free audio card. One dispatch, one answer.
       const items = e.clipboardData?.items;
       if (items) {
         for (const item of items) {
-          if (item.type === 'application/pdf') {
-            e.preventDefault();
-            const file = item.getAsFile();
-            if (file) {
-              const { pos, clamped } = resolvePastePos();
-              notePasteCreate(clamped);
-              optimisticDropPdf(file, pos.x, pos.y);
-            }
+          if (item.kind !== 'file') continue;
+          const file = item.getAsFile();
+          if (!file) continue;
+          e.preventDefault();
+          const c = classifyDropFile(file, { canAttemptFiles });
+          if (c.route === 'blocked') {
+            const explained = (onRequestStorageUpgrade || onRequestUpgrade)?.();
+            try {
+              logEvent(EV.UPLOAD_BLOCKED, {
+                reason: 'owner_not_paid', surface: 'canvas', n: 1,
+                ext: (file.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
+                size_bucket: sizeBucket(file.size || 0),
+              });
+            } catch (_) {}
+            feedback.toast({
+              type: 'warning',
+              message: 'Uploading files needs a paid plan — upgrade to add any file type.',
+              ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
+            });
             return;
           }
-          if (item.type.startsWith('image/')) {
-            e.preventDefault();
-            const file = item.getAsFile();
-            if (file) {
-              const { pos, clamped } = resolvePastePos();
-              notePasteCreate(clamped);
-              optimisticDropImage(file, pos.x, pos.y);
-            }
-            return;
-          }
-          // Any other file type pasted from the OS clipboard (zip, etc.) → file card.
-          if (item.kind === 'file') {
-            const file = item.getAsFile();
-            if (file) {
-              e.preventDefault();
-              if (ownsWorkspace && !isPaidPlan) {
-                const explained = (onRequestStorageUpgrade || onRequestUpgrade)?.();
-                feedback.toast({
-                  type: 'warning',
-                  message: 'Uploading files needs a paid plan — upgrade to add any file type.',
-                  ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
-                });
-              } else {
-                const { pos, clamped } = resolvePastePos();
-                notePasteCreate(clamped);
-                optimisticDropFile(file, pos.x, pos.y);
-              }
-              return;
-            }
-          }
+          const { pos, clamped } = resolvePastePos();
+          notePasteCreate(clamped);
+          dispatchIngestOne({ file, route: c.route, kind: c.kind }, pos.x, pos.y);
+          return;
         }
       }
 
@@ -4425,7 +4450,7 @@ export function CanvasSurface({
     };
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
-  }, [feedback, optimisticDropImage, optimisticDropPdf, optimisticDropFile, doPaste, mutators,
+  }, [feedback, dispatchIngestOne, canAttemptFiles, doPaste, mutators,
       ownsWorkspace, isPaidPlan, onRequestUpgrade, onRequestStorageUpgrade, hasSplit, paneId]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────

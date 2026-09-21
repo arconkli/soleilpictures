@@ -162,7 +162,7 @@ import {
   reslotItemKey, moveSlotSubtree as schedMoveSlotSubtree,
 } from './lib/schedLayout.js';
 import { getViewAnchor as getSchedViewAnchor } from './lib/schedViewRegistry.js';
-import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio, uploadFile, readVideoMeta } from './lib/uploads.js';
+import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio, uploadFile, readVideoMeta, readAudioMeta } from './lib/uploads.js';
 import { arrangeInFreeSpace } from './lib/canvasGeom.js';
 import { classifyDropFile, fitImageDims, sizeBucket } from './lib/fileIngest.js';
 import { makeLimiter } from './lib/asyncPool.js';
@@ -2472,7 +2472,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const id = `${prefixFor(it.kind)}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`;
         const card = { id, kind: it.kind, x: it.x, y: it.y, w: it.w, h: it.h, pending: true };
         if (it.kind === 'pdf') card.name = it.file.name || 'PDF';
-        else if (it.kind === 'audio') card.title = it.file.name || 'Audio';
+        else if (it.kind === 'audio') {
+          // `title` is the editable display name; fileName/ext/mime/sizeBytes
+          // are the download authority, so renaming the card can never strip
+          // the extension off the file someone downloads. Same contract as the
+          // canvas path (CanvasSurface.dropAudioFile).
+          card.title = it.file.name || 'Audio';
+          card.fileName = it.file.name; card.mime = it.file.type; card.sizeBytes = it.file.size;
+          card.ext = (it.file.name?.split('.').pop() || '').toLowerCase();
+        }
         else if (it.kind === 'file') {
           card.fileName = it.file.name; card.mime = it.file.type; card.sizeBytes = it.file.size;
           card.ext = (it.file.name?.split('.').pop() || '').toLowerCase();
@@ -2517,7 +2525,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           } else {
             // 'largeMedia' (over-cap video/audio) + 'file' → multipart upload.
             const up = await uploadFile({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id });
-            if (it.kind === 'video' || it.kind === 'audio') updateCardSilent(id, { src: up.src, pending: false });
+            if (it.kind === 'audio') {
+              // The canvas path reads audio duration before uploading; this one
+              // patched only { src, pending } and silently dropped it, so an
+              // over-cap loop arrived with no runtime on the card or in the list.
+              const meta = await readAudioMeta(it.file).catch(() => ({ duration: null }));
+              updateCardSilent(id, { src: up.src, duration: meta?.duration || null, pending: false });
+            }
+            else if (it.kind === 'video') updateCardSilent(id, { src: up.src, pending: false });
             else updateCardSilent(id, { fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false });
           }
         } catch (err) {

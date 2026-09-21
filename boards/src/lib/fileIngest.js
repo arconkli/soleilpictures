@@ -56,7 +56,13 @@ export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
   // paid-gated for free owners). Browsers that DO report a type say image/heic.
   const isImage = type.startsWith('image/') || (!type && /\.(heic|heif)$/i.test(name));
   const isVideo = type.startsWith('video/');
-  const isAudio = type.startsWith('audio/');
+  // Same empty-mime problem as HEIC, and it bites hardest on the formats
+  // producers actually ship: Safari reports NO type for .flac and .aiff, and
+  // some pickers do the same for .wav. Without an extension fallback those
+  // become generic file cards — which are PAID-GATED for a free owner, so a
+  // dropped sample pack half-uploads and half-refuses for no visible reason.
+  const isAudio = type.startsWith('audio/')
+    || (!type && /\.(wav|aiff?|flac|m4a|aac|ogg|opus|mp3|caf)$/i.test(name));
   // Some browsers report an empty type for .pdf picks/drops — match the ext too.
   const isPdf = type === 'application/pdf' || /\.pdf$/i.test(name);
 

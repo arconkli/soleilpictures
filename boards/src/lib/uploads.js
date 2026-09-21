@@ -12,7 +12,7 @@
 // on demand. Cards never persist a leakable URL.
 
 import { supabase } from './supabase.js';
-import { FREE_VIDEO_CAP, FREE_VIDEO_SECONDS } from './fileIngest.js';
+import { FREE_VIDEO_CAP, FREE_VIDEO_SECONDS, FREE_AUDIO_CAP } from './fileIngest.js';
 import { setMetaLocal } from './imageMeta.js';
 import { getSignedUrl } from './r2.js';
 import { rgbaToThumbHash } from 'thumbhash';
@@ -713,7 +713,7 @@ export function readAudioMeta(file) {
 // missing row means no signed read URL gets issued and `<audio>`
 // silently fails to load.
 export async function uploadAudio({ file, workspaceId, boardId, userId, onProgress = null,
-                                    maxBytes = 50 * 1024 * 1024 }) {
+                                    maxBytes = FREE_AUDIO_CAP }) {
   if (!workspaceId) throw new Error('workspaceId required');
   if (file.size > maxBytes) {
     throw new Error(`Audio too large (${Math.round(file.size / 1024 / 1024)} MB; max ${Math.round(maxBytes / 1024 / 1024)} MB)`);
