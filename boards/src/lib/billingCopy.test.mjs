@@ -125,7 +125,13 @@ assert(
 // category charges per seat and we do not. Strip that clause before checking,
 // so the rule keeps banning what it is for (selling seats, or selling free
 // collaboration) without banning the sentence that says we charge for neither.
-const scopeSold = scopeLine.replace(/,?\s*and there are no per-seat charges\.?/i, '');
+// Matched loosely on purpose. Pinned to the one conjunction it was written
+// against ("…, and there are no per-seat charges"), splitting the body into
+// two sentences made the strip miss, "per-seat" survived into scopeSold, and
+// the SALE rule below fired on the word "seat" in a denial. The pairing works:
+// the strip going stale is exactly what the second assertion is here to make
+// noisy rather than silent — so widen the match, never delete the rule.
+const scopeSold = scopeLine.replace(/[,.]?\s*(?:and\s+)?there are no per-seat charges\.?/i, '');
 assert(
   !/\bfree\b|\bseats?\b|\binvite (?:them|people) free\b/i.test(scopeSold),
   'the workspace benefit does not sell free collaboration or seat count — both are free on every tier',
