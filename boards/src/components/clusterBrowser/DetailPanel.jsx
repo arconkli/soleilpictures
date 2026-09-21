@@ -11,7 +11,8 @@ import { X, Download, Trash2 as TrashIcon, Maximize2, Link as LinkIcon } from '.
 import { humanSize } from '../cards/FileCard.jsx';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
 import { getMeta } from '../../lib/imageMeta.js';
-import { DOWNLOADABLE, downloadCardAsset } from '../../lib/cardDownload.js';
+import { DOWNLOADABLE, downloadCardAsset, isPublicSurface } from '../../lib/cardDownload.js';
+import { formatDuration, formatKey } from '../../lib/loopMeta.js';
 
 
 
@@ -106,6 +107,13 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
       <div className="cbd-body">
         <div className="cbd-preview"><CardPreview item={item} size="tile" /></div>
         <MetaRow label="Type" value={item.typeLabel} />
+        {/* For a loop these four ARE the metadata. Without them the panel a
+            producer taps on a published pack reported type, size and two
+            dates, and not one of the things they opened it to find out. */}
+        {item.kind === 'audio' && <MetaRow label="Length" value={formatDuration(item.durationSec) || null} />}
+        {item.kind === 'audio' && <MetaRow label="Tempo" value={item.bpm != null ? `${item.bpm} BPM` : null} />}
+        {item.kind === 'audio' && <MetaRow label="Key" value={formatKey(item.musicalKey) || null} />}
+        {item.kind === 'audio' && <MetaRow label="Format" value={item.format || null} />}
         <MetaRow label="Size" value={item.sizeBytes != null ? humanSize(item.sizeBytes) : null} />
         <MetaRow label="Dimensions" value={dims} />
         {item.kind === 'pdf' && <MetaRow label="Pages" value={item.sub} />}
@@ -114,17 +122,26 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
         <MetaRow label="Location" value={location} />
       </div>
       <div className="cbd-actions">
-        <button className="cbd-act" onClick={() => onReveal?.(item.id)}>
-          <Icon as={Maximize2} size={15} /><span>Open on canvas</span>
-        </button>
+        {/* Both of these used to render unconditionally, and both are dead on a
+            published pack: the public viewer passes no reveal handler, and the
+            ?board=&card= link copyLink builds is only read by the signed-in
+            app. The first action a visitor tried was the one that did
+            nothing. */}
+        {onReveal && (
+          <button className="cbd-act" onClick={() => onReveal(item.id)}>
+            <Icon as={Maximize2} size={15} /><span>Open on canvas</span>
+          </button>
+        )}
         {downloadable && (
           <button className="cbd-act" onClick={() => doDownload()}>
             <Icon as={Download} size={15} /><span>Download</span>
           </button>
         )}
-        <button className="cbd-act" onClick={() => copyLink(item.id, item.boardId)}>
-          <Icon as={LinkIcon} size={15} /><span>Copy link</span>
-        </button>
+        {!isPublicSurface() && (
+          <button className="cbd-act" onClick={() => copyLink(item.id, item.boardId)}>
+            <Icon as={LinkIcon} size={15} /><span>Copy link</span>
+          </button>
+        )}
         {canEdit && (
           <button className="cbd-act cbd-act-danger" onClick={() => onDelete?.([item.id])}>
             <Icon as={TrashIcon} size={15} /><span>Delete</span>

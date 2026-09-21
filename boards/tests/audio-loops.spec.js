@@ -138,7 +138,7 @@ test('list view swaps to loop-browser columns and sorts by them', async ({ page 
   await expect(page.locator('.ct-cell.ct-c-fmt').first()).toContainText('WAV');
 
   // The audio-only sort keys are offered.
-  await page.getByRole('button', { name: 'Sort' }).click();
+  await page.getByRole('button', { name: 'Sort', exact: true }).click();
   await expect(page.locator('.cbt-menu')).toContainText('Tempo');
   await expect(page.locator('.cbt-menu')).toContainText('Key');
   await page.keyboard.press('Escape');

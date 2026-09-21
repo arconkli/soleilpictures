@@ -3800,8 +3800,53 @@ body {
 /* (.view-switch superseded by .view-pill in the topbar block) */
 
 /* List surface */
-.list-wrap { flex: 1; overflow: auto; background: var(--bg-2); padding: 32px 40px; }
-.list-inner { max-width: 1100px; margin: 0 auto; }
+/* The list is its own scroll container, which is why the film grain is painted
+   HERE rather than through the shared `::after` tier near the bottom of this
+   file. An absolutely-positioned ::after inside an `overflow: auto` element is
+   sized to the PADDING BOX — one viewport tall — and scrolls away with the
+   content, so everything past the first screenful was ungrained.
+   `background-attachment: local` tiles across the full scrollHeight instead:
+   the same fix .doc-paper already carries, for the same reason.
+
+   The 97.5% wash over the grain reproduces tier 1's `opacity: 0.025` dial
+   exactly, and rides --bg-2 so it follows the theme.
+
+   Lifting it out of the tier also fixes the drag-over state, which was never
+   reported because it reads as "the drop zone looks odd":
+   `.list-wrap.is-drop-target::after` raised the SAME pseudo-element to
+   opacity .6 / z-index 30 without clearing its background-image, so dragging
+   files over the list washed it in 60%-opacity noise. */
+.list-wrap {
+  flex: 1;
+  overflow: auto;
+  /* Anchors .list-wrap.is-drop-target::after and the sticky children. */
+  position: relative;
+  isolation: isolate;
+  background-color: var(--bg-2);
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--bg-2) 97.5%, transparent),
+      color-mix(in srgb, var(--bg-2) 97.5%, transparent)
+    ),
+    var(--grain-url);
+  background-repeat: repeat, repeat;
+  background-size: auto, 320px 240px;
+  background-attachment: local, local;
+  /* Gutters scale with the viewport. A flat 40px each side spent a fifth of a
+     phone screen on nothing, on the one surface whose whole job is a list.
+
+     The VERTICAL padding deliberately lives on .list-inner instead. A scroll
+     container's padding insets the rectangle its sticky children are held in,
+     so 32px here parked the sticky column header 32px down the scrollport with
+     a strip of rows sliding along above it — and floated the action bar 32px
+     higher than its own offset asked for. */
+  padding: 0 clamp(14px, 4vw, 40px);
+}
+.list-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-block: clamp(20px, 3vw, 32px);
+}
 .list-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -3813,6 +3858,9 @@ body {
   color: var(--ink-3);
   margin: 32px 0 12px;
 }
+/* The scroll padding already provides the space above the first one. */
+.list-inner > .list-section:first-child,
+.list-inner > * > .list-section:first-child { margin-top: 0; }
 .list-foot {
   margin-top: 28px;
   font: 400 11px/1.4 var(--font-sans);
@@ -4538,9 +4586,16 @@ body {
   color: var(--ink-3);
 }
 
-/* Drop-target highlight on canvas + list */
-.canvas-wrap.is-drop-target::after,
-.list-wrap.is-drop-target::after {
+/* Drop-target highlight on the canvas. The LIST cannot use a pseudo-element
+   for this: it is a scroll container, so an inset:0 ::after scrolls away with
+   the rows and leaves a drag with no feedback the moment you are past the
+   first screenful — the same trap the grain was in. An `outline` with a
+   negative offset is painted on the border box and never scrolls. */
+.list-wrap.is-drop-target {
+  outline: 2px dashed color-mix(in srgb, var(--ink-2) 65%, transparent);
+  outline-offset: -8px;
+}
+.canvas-wrap.is-drop-target::after {
   content: '';
   position: absolute;
   inset: 6px;
@@ -4550,7 +4605,6 @@ body {
   z-index: 30;
   opacity: .6;
 }
-.list-wrap { position: relative; }
 
 /* ──────────────────────────── Cards ─────────────────────────────────────── */
 
@@ -8362,7 +8416,39 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
    (search + sort + filter + view toggle + Add-files + facepile). Built on the
    existing tokens + .ctx-menu / .view-pill so it lands visually cohesive. */
 .cluster-browser { display: flex; flex-direction: column; min-width: 0; }
-.list-section-files { margin-bottom: 6px; }
+.list-section-files {
+  margin-bottom: 6px;
+  display: flex; align-items: baseline; gap: 8px; min-width: 0;
+}
+/* The pack read-out: how many, what tempo range, how long. Set in mono at
+   sentence case so it reads as data hanging off the label rather than as a
+   second label. */
+.list-section-meta {
+  font: 400 10.5px/1.3 var(--font-mono);
+  letter-spacing: .03em; text-transform: none;
+  color: var(--ink-3);
+  min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.list-section-meta::before { content: '·'; margin-right: 8px; color: var(--ink-4); }
+/* Take-the-pack. Sits on the section row rather than in the toolbar so it
+   reads as an action on the thing named to its left, and so it is not one
+   more control competing with Search / Sort / Filter. */
+.list-section-act {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--bg-3);
+  color: var(--ink-1);
+  font: 500 11.5px/1 var(--font-sans);
+  letter-spacing: 0; text-transform: none;
+  cursor: pointer; white-space: nowrap;
+  transition: background var(--dur-quick) var(--ease), border-color var(--dur-quick) var(--ease), color var(--dur-quick) var(--ease);
+}
+.list-section-act:hover:not(:disabled) { background: var(--bg-act); border-color: var(--line-3); color: var(--ink-0); }
+.list-section-act:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.list-section-act:disabled { opacity: .55; cursor: default; }
 
 /* Toolbar */
 .cbt { display: flex; align-items: center; gap: 8px; padding: 0 0 12px; flex-wrap: wrap; }
@@ -8389,6 +8475,10 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .cbt-btn.is-open, .cbt-btn.has-active { border-color: var(--soleil); color: var(--ink-0); }
 .cbt-add { background: var(--soleil-soft); border-color: transparent; color: var(--soleil); }
 .cbt-add:hover { color: var(--soleil); filter: brightness(1.12); }
+/* #ffa500 on a 10%-gold wash over #ededf0 is about 1.8:1. Same gold, darkened
+   until it reads, so the button keeps its identity in both themes. */
+[data-theme='light'] .cbt-add { color: #8a5600; }
+[data-theme='light'] .cbt-add:hover { color: #6e4400; filter: none; background: rgba(255,165,0,.18); }
 /* Quiet storage upsell next to Add files (free workspace owners only) —
    muted ink, not gold: gold stays reserved for active/selection. */
 .cbt-upsell {
@@ -8417,7 +8507,12 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .cbt-face-more { margin-left: 5px; color: var(--ink-3); font-size: 11px; }
 
 /* Table */
-.ct-table { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; background: var(--bg-3); }
+/* `overflow: clip`, not `hidden`. Both round the head and the last row off at
+   the corners, but `hidden` makes the table a scroll container, which would
+   anchor the sticky header below to the TABLE instead of to .list-wrap and so
+   stop it sticking at all. An engine without `clip` drops the declaration and
+   loses only the corner clipping. */
+.ct-table { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: 10px; overflow: clip; background: var(--bg-3); }
 .ct-head, .ct-row { display: grid; grid-template-columns: minmax(0,1fr) 92px 80px 116px 60px; align-items: center; }
 /* Loop-browser mode: Time / BPM / Key / Format instead of Type + Size. Swapped
    here rather than in a second component so the two can never drift. */
@@ -8425,11 +8520,17 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-table[data-cols="audio"] .ct-row {
   grid-template-columns: minmax(0,1fr) 64px 56px 72px 72px 116px 60px;
 }
-.ct-c-dur, .ct-c-bpm, .ct-c-key, .ct-c-fmt {
+/* Scoped to .ct-cell on purpose. Unscoped, these also matched the header
+   BUTTONS — and for Type/Size/Date the cell rule sits after .ct-th in the
+   cascade at equal specificity, so three of the column labels rendered at
+   11px/--ink-3 while the rest rendered at 10.5px/--ink-2. The header row was
+   quietly set in two typographies. */
+.ct-cell.ct-c-dur, .ct-cell.ct-c-bpm, .ct-cell.ct-c-key, .ct-cell.ct-c-fmt {
   font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
-.ct-c-key { color: var(--ink-2); }
+.ct-cell.ct-c-bpm, .ct-cell.ct-c-key { color: var(--ink-1); }
+.ct-cell.ct-c-dur { color: var(--ink-2); }
 /* Skip layout and paint for rows and tiles that are off screen. Two
    declarations buy most of what a virtualizer would, and unlike a virtualizer
    they do not break scrollIntoView on the keyboard cursor, grid-family
@@ -8441,27 +8542,110 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-row {
   content-visibility: auto;
   contain-intrinsic-size: auto 48px;
+  /* Room for the sticky header above and the floating action bar below, so the
+     keyboard cursor's scrollIntoView never parks a row underneath either.
+     scroll-MARGIN, not the scroll-padding it would be tempting to put on
+     .list-wrap: scroll-padding also insets the sticky view rectangle, which
+     would push the header itself down the scrollport. */
+  scroll-margin-top: 40px;
+  scroll-margin-bottom: 64px;
 }
 .ct-tile {
   content-visibility: auto;
   contain-intrinsic-size: auto 180px;
 }
-.ct-head { border-bottom: 1px solid var(--line-2); background: var(--bg-2); }
-.ct-th { text-align: left; background: none; border: none; cursor: pointer; color: var(--ink-2); font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; padding: 8px 12px; }
+/* The header stays put. Scrolling a three-hundred-loop pack past its column
+   labels leaves four columns of bare numbers — which of 120 and 0:04 is the
+   tempo is not guessable. */
+.ct-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-bottom: 1px solid var(--line-2);
+  background: var(--bg-2);
+}
+.ct-th {
+  display: flex; align-items: center; gap: 4px;
+  text-align: left; background: none; border: none; cursor: pointer;
+  color: var(--ink-2);
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: .06em;
+  padding: 8px 12px;
+  transition: color var(--dur-quick) var(--ease);
+}
 .ct-th:hover { color: var(--ink-0); }
+.ct-th:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; border-radius: 3px; }
+.ct-head .ct-th { gap: 4px; }
+.ct-th.is-sorted { color: var(--ink-0); }
+/* The caret is always in the layout, so sorting a column does not shove the
+   next one sideways; only its opacity changes. */
+.ct-th-caret { opacity: 0; font-size: 9px; line-height: 1; transition: opacity var(--dur-quick) var(--ease); }
+.ct-th.is-sorted .ct-th-caret { opacity: 1; }
 .ct-body { display: flex; flex-direction: column; }
-.ct-row { border-bottom: 1px solid var(--line-1); cursor: default; }
+.ct-row, .ct-tile { -webkit-user-select: none; user-select: none; }
+.ct-row { position: relative; border-bottom: 1px solid var(--line-1); cursor: default; }
 .ct-row:last-child { border-bottom: 0; }
-.ct-row:hover { background: var(--bg-hov); }
-.ct-row.is-selected { background: var(--bg-act); box-shadow: inset 0 0 0 1px var(--line-3); }
+/* --bg-hov is DARKER than the table's --bg-3 in the dark theme, so the old
+   hover dimmed the row instead of lifting it. A wash of --ink-0 moves the
+   right way in both themes without a second token. */
+.ct-row:hover { background: color-mix(in srgb, var(--ink-0) 4%, transparent); }
+.ct-table { --ct-sel-line: color-mix(in srgb, var(--soleil) 34%, transparent); }
+.ct-row.is-selected {
+  background: var(--soleil-soft);
+  box-shadow: inset 0 0 0 1px var(--ct-sel-line);
+  border-bottom-color: var(--ct-sel-line);
+}
+/* A run of selected rows reads as one block, not as a stack of separately
+   ringed rows: drop the top edge whenever the row above is selected too. */
+.ct-row.is-selected + .ct-row.is-selected {
+  box-shadow: inset 1px 0 0 var(--ct-sel-line),
+              inset -1px 0 0 var(--ct-sel-line),
+              inset 0 -1px 0 var(--ct-sel-line);
+}
+
+/* One left rail carries every "this row, right now" state — keyboard cursor,
+   sounding, a peer's cursor. They used to be three competing `box-shadow`
+   declarations on the same property, so whichever lost the cascade simply
+   vanished: a selected row could not also show the keyboard cursor. */
+.ct-row::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: transparent;
+  transition: background var(--dur-quick) var(--ease);
+}
+.ct-row.is-active::before, .ct-row.is-playing::before { background: var(--soleil); }
+
+/* The sounding row fills with gold as it plays. Driven by a custom property
+   written straight onto the row's DOM node from `timeupdate`, so the four
+   ticks a second never re-render four hundred rows — and so the one thing a
+   visitor most wants to see while auditioning (how far through am I) survives
+   on a phone, where the waveform has no room. */
+.ct-row.is-playing::after {
+  content: '';
+  position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+  transform-origin: left;
+  transform: scaleX(var(--ct-progress, 0));
+  background: var(--soleil);
+  opacity: .85;
+  pointer-events: none;
+}
+/* The global reduced-motion rule is `transform: none !important`, which would
+   pin the bar at full width. Fall back to a static, honest full-width tint. */
+@media (prefers-reduced-motion: reduce) {
+  .ct-row.is-playing::after { opacity: .35; }
+}
+.ct-row.is-peer::before { width: 3px; background: var(--peer-color, var(--soleil)); }
 .ct-cell { padding: 7px 12px; min-width: 0; font-size: 12.5px; color: var(--ink-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ct-c-name { display: flex; align-items: center; gap: 10px; }
-.ct-c-type, .ct-c-size, .ct-c-date { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+.ct-cell.ct-c-type, .ct-cell.ct-c-size, .ct-cell.ct-c-date { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .ct-c-presence { display: flex; align-items: center; gap: 2px; overflow: visible; }
 .ct-thumb { position: relative; width: 34px; height: 34px; flex-shrink: 0; border-radius: 5px; overflow: hidden; background: var(--bg-2); border: 1px solid var(--line-1); display: grid; place-items: center; color: var(--ink-2); }
 .ct-name-wrap { min-width: 0; }
 .ct-name { color: var(--ink-0); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ct-sub { color: var(--ink-3); font-family: var(--font-mono); font-size: 10px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Folded away while the loop-browser columns are carrying the same values. */
+.ct-sub-folded { display: none; }
 
 /* ── Auditioning ──────────────────────────────────────────────────────────
    The 34px thumbnail doubles as the play button on an audio row: cover art or
@@ -8482,25 +8666,51 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-row.is-active .ct-play,
 .ct-row.is-playing .ct-play { opacity: 1; }
 .ct-play:focus-visible { opacity: 1; outline: 2px solid var(--soleil); outline-offset: -2px; }
-@media (hover: none) { .ct-play { opacity: 1; } }
+/* On touch there is no hover to reveal the transport, so it is simply always
+   on — but the scrim that reads as "hovering" on a mouse reads as a permanent
+   black veil over every piece of cover art on a phone. The tap target stays
+   the whole 34px thumbnail; only the scrim shrinks to a disc behind the
+   glyph. */
+@media (hover: none) {
+  .ct-play { opacity: 1; background: transparent; }
+  .ct-play::before {
+    content: '';
+    position: absolute; width: 22px; height: 22px; border-radius: 50%;
+    background: rgba(10, 10, 12, .72);
+  }
+  .ct-play > svg { position: relative; }
+}
+/* 34px is small for a thumb on the surface built for phone visitors. */
+@media (pointer: coarse) { .ct-thumb { width: 40px; height: 40px; } }
 
 /* Gold is the active/selection/focus colour, so it marks the row the keyboard
-   is on and the row that is sounding — and nothing at rest. */
-.ct-row.is-active { box-shadow: inset 2px 0 0 0 var(--soleil); }
-.ct-row.is-playing .ct-thumb { border-color: var(--soleil); }
+   is on and the row that is sounding — and nothing at rest. The left rail
+   itself is set up beside the other row states above. */
+.ct-row.is-playing .ct-thumb { border-color: var(--soleil); box-shadow: 0 0 0 3px var(--soleil-soft); }
 .ct-row.is-playing .ct-name { color: var(--ink-0); }
+.ct-row.is-playing .ct-c-dur { color: var(--soleil); }
 
 /* Mini waveform, from the same stored peaks the card draws. Pushed to the far
    right of the name cell and dropped entirely when the column gets tight —
    it is an aid to scanning, not information the row depends on. */
 .ct-wave {
   flex: 0 0 auto;
-  width: 64px; height: 18px;
+  /* Right-aligned inside the name cell, so across a pack the waveforms line up
+     into a column of their own without costing one. Wide enough to read as a
+     waveform rather than as a smudge — the path is drawn once and stretched
+     (preserveAspectRatio="none"), so the width is free. */
+  width: clamp(88px, 12vw, 150px); height: 22px;
   margin-left: auto;
-  opacity: .55;
-  fill: var(--ink-3);
+  /* --ink-3 at .55 is all but invisible against --bg-3 in the dark theme, and
+     this is the one mark on the row that says "this is audio". */
+  opacity: .6;
+  fill: var(--ink-2);
+  transition: opacity var(--dur-fast) var(--ease), fill var(--dur-fast) var(--ease);
 }
-.ct-row:hover .ct-wave { opacity: .8; }
+.ct-row:hover .ct-wave { opacity: .95; }
+/* --ink-2 over white composites far lighter than --ink-2 over --bg-3 does. */
+[data-theme='light'] .ct-wave { opacity: .8; }
+[data-theme='light'] .ct-row:hover .ct-wave { opacity: 1; }
 .ct-row.is-playing .ct-wave { fill: var(--soleil); opacity: 1; }
 @media (max-width: 720px) { .ct-wave { display: none; } }
 
@@ -8554,13 +8764,21 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-thumb .cbp-link-favicon { width: 20px; }
 .cbp-link-domain { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); max-width: 90%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* Live presence highlight */
-.ct-row.is-peer { box-shadow: inset 3px 0 0 var(--peer-color, var(--soleil)); }
+/* Live presence highlight (the row's rail is set with the other row states) */
 .ct-tile.is-peer { border-color: var(--peer-color, var(--soleil)); box-shadow: 0 0 0 1px var(--peer-color, var(--soleil)); }
 
 /* Upload spinner + just-added flash (reuse keyframes from the list-drop block) */
 .ct-thumb-spin { position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--line-3); border-top-color: var(--soleil); animation: lf-spin 700ms linear infinite; }
 .ct-row.is-new, .ct-tile.is-new { animation: lf-row-flash 1400ms var(--ease); }
+/* The global reduced-motion rule is `transform: none !important`, which
+   outranks the keyframes and leaves the spinner frozen mid-rotation — reading
+   as a stalled upload rather than a running one. Swapping in a different
+   animation is no good either: the same block forces every duration to
+   --dur-fast, so any pulse becomes an 8Hz strobe. A static ring, beside the
+   "Uploading…" the row already carries, is the honest answer. */
+@media (prefers-reduced-motion: reduce) {
+  .ct-thumb-spin { animation: none; border-color: var(--soleil); opacity: .85; }
+}
 .ct-row.is-pending, .ct-tile.is-pending { opacity: .85; }
 
 /* Gallery */
@@ -8603,7 +8821,17 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-tile:hover .ct-tile-dl { opacity: 1; }
 .ct-tile-dl:hover { background: rgba(10, 10, 12, 0.85); }
 .ct-tile-dl:focus-visible { opacity: 1; outline: 2px solid var(--soleil); outline-offset: 1px; }
-@media (hover: none) { .ct-tile-play, .ct-tile-dl { opacity: 1; } }
+/* Same trade on the gallery tile: the transport stays on, but as a glyph over
+   a bottom gradient rather than a flat 45% wash across the artwork — which, in
+   a gallery of a producer's cover art, is the whole picture. */
+@media (hover: none) {
+  .ct-tile-play, .ct-tile-dl { opacity: 1; }
+  .ct-tile-play {
+    background: linear-gradient(to top, rgba(10, 10, 12, .66), rgba(10, 10, 12, 0) 55%);
+    place-items: end start;
+    padding: 9px;
+  }
+}
 .ct-tile-peers { position: absolute; bottom: 6px; right: 6px; display: flex; gap: 2px; }
 .ct-tile-meta { padding: 8px 10px; }
 .ct-tile-name { font-size: 12.5px; font-weight: 500; color: var(--ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -8621,8 +8849,33 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 
 /* ── Split layout: the list + a right-side detail popout ──────────────────── */
 .cb-split { display: flex; gap: 16px; align-items: flex-start; }
-.cb-main { flex: 1; min-width: 0; }
-.cb-detail { width: 320px; flex-shrink: 0; position: sticky; top: 8px; align-self: flex-start; max-height: calc(100vh - 130px); display: flex; flex-direction: column; overflow: hidden; }
+/* The table's width is set by THIS element, never by the viewport: open the
+   detail popout in a 1280px window and it drops to ~624px with the viewport
+   untouched, and a split pane halves it again. Everything that decides how
+   many columns fit is therefore a @container query on `cbmain` — see the
+   ladder at the end of this section — and the viewport media queries that
+   used to do it were measuring the wrong thing. */
+.cb-main {
+  flex: 1; min-width: 0;
+  /* .cb-split is `align-items: flex-start`, and on a phone it also turns
+     `flex-direction: column` — which makes this a shrink-to-fit box in the
+     inline axis. That was invisible while its own content decided the width,
+     but inline-size containment forbids exactly that, so the pane measured
+     0 and every column collapsed. Stretch is what it always meant. */
+  align-self: stretch;
+  container-type: inline-size; container-name: cbmain;
+}
+.cb-detail {
+  width: 320px;
+  /* Was flex-shrink: 0, which gave .cb-split a hard 336px minimum and pushed
+     the table into overflow in a narrow pane. */
+  flex: 0 1 320px; min-width: 210px;
+  position: sticky; top: 8px; align-self: flex-start;
+  /* The panel's top edge is at 56px once stuck (48px topbar + top: 8px), so
+     reserving 130 stopped it 74px short of the window. */
+  max-height: calc(100vh - 72px);
+  display: flex; flex-direction: column; overflow: hidden;
+}
 .cbd-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line-2); flex-shrink: 0; }
 .cbd-title { flex: 1; min-width: 0; font-weight: 600; font-size: 13.5px; color: var(--ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cbd-close { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; background: none; border: none; color: var(--ink-2); cursor: pointer; flex-shrink: 0; }
@@ -8645,6 +8898,49 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .cbd-member-thumb { width: 30px; height: 30px; flex-shrink: 0; border-radius: 4px; overflow: hidden; background: var(--bg-2); border: 1px solid var(--line-1); position: relative; }
 .cbd-member-name { flex: 1; min-width: 0; font-size: 12px; color: var(--ink-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cbd-member-open { color: var(--ink-3); flex-shrink: 0; display: grid; place-items: center; }
+
+/* ── How many columns fit — measured on the PANE, not the window ──────────
+   Each step is the pane width at which the name track stops affording a
+   readable filename once the fixed columns, the cell padding, the 34px
+   thumbnail and (above 820) the waveform are taken out of it. The name is the
+   only thing on the row that identifies the file, so it is the last thing to
+   yield: the waveform goes first, then Format and the date, and at the bottom
+   the remaining values fold onto a second line under the name.
+
+   The @media (max-width: 640px) block above says the same thing in viewport
+   terms. It is kept deliberately as the fallback for an engine without
+   @container, and the two agree at phone widths. */
+@container cbmain (max-width: 820px) {
+  .ct-wave { display: none; }
+}
+/* Loop-browser mode runs out of name first — it carries 440px of fixed track
+   against the default's 348 — so it sheds a step earlier. */
+@container cbmain (max-width: 700px) {
+  .ct-table[data-cols="audio"] .ct-head,
+  .ct-table[data-cols="audio"] .ct-row {
+    grid-template-columns: minmax(0,1fr) 52px 44px 62px 34px;
+  }
+  .ct-table[data-cols="audio"] .ct-c-fmt,
+  .ct-table[data-cols="audio"] .ct-c-date { display: none; }
+}
+@container cbmain (max-width: 620px) {
+  .ct-head, .ct-row { grid-template-columns: minmax(0,1fr) 70px 56px 34px; }
+  .ct-c-date, .ct-th.ct-c-date { display: none; }
+  .ct-cell, .ct-th { padding-left: 10px; padding-right: 10px; }
+  .ct-c-name { gap: 9px; }
+}
+@container cbmain (max-width: 400px) {
+  .ct-head, .ct-row,
+  .ct-table[data-cols="audio"] .ct-head,
+  .ct-table[data-cols="audio"] .ct-row { grid-template-columns: minmax(0,1fr) 34px; }
+  .ct-c-type, .ct-th.ct-c-type, .ct-c-size, .ct-th.ct-c-size,
+  .ct-table[data-cols="audio"] .ct-c-dur,
+  .ct-table[data-cols="audio"] .ct-c-bpm,
+  .ct-table[data-cols="audio"] .ct-c-key { display: none; }
+  /* …and every value that just lost its column comes back folded under the
+     name, which is the one place there is still room for it. */
+  .ct-sub-folded { display: block; }
+}
 
 /* ── Real grid mini-preview (actual cell content) ─────────────────────────── */
 .cbg { position: relative; width: 100%; height: 100%; background: var(--bg-2); }
@@ -8672,12 +8968,53 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-tile.ct-member { box-shadow: inset 2px 0 0 var(--line-3); }
 
 @media (max-width: 640px) {
-  .ct-head, .ct-row { grid-template-columns: minmax(0,1fr) 70px 56px; }
-  .ct-c-date, .ct-th.ct-c-date, .ct-c-presence, .ct-th.ct-c-presence { display: none; }
+  /* Date is the column that goes. The presence cell STAYS, narrowed: it is
+     where the per-row download button lives, and on a touch device that button
+     has no hover to be revealed by, so it is simply always there. Hiding the
+     cell — which this block used to do — left a visitor on a published pack
+     with no way to take a single file on the device most of them arrive on. */
+  .ct-head, .ct-row { grid-template-columns: minmax(0,1fr) 70px 56px 34px; }
+  .ct-c-date, .ct-th.ct-c-date { display: none; }
+  /* Loop-browser mode needs its own phone template. The audio rule is written
+     `.ct-table[data-cols="audio"] .ct-row` — specificity (0,3,0) — and so beat
+     the (0,1,0) rule above it at every width: a published pack laid seven
+     columns totalling 440px of fixed track across a 375px screen and the name
+     was crushed to nothing. Format goes with Date; Time, BPM and Key are the
+     three a producer is actually scanning. */
+  .ct-table[data-cols="audio"] .ct-head,
+  .ct-table[data-cols="audio"] .ct-row {
+    grid-template-columns: minmax(0,1fr) 34px;
+  }
+  .ct-table[data-cols="audio"] .ct-c-dur,
+  .ct-table[data-cols="audio"] .ct-c-bpm,
+  .ct-table[data-cols="audio"] .ct-c-key,
+  .ct-table[data-cols="audio"] .ct-c-fmt { display: none; }
+  /* …and the same values come back folded under the name instead. */
+  .ct-sub-folded { display: block; }
+  .ct-cell, .ct-th { padding-left: 10px; padding-right: 10px; }
+  .ct-c-name { gap: 9px; }
+
+  /* The toolbar wrapped into three ragged lines on a phone: the flex spacer
+     broke immediately after the search field and stranded Sort by itself.
+     Search owns the first line, the controls flow onto the second. */
+  .cbt { gap: 6px; padding-bottom: 10px; }
+  .cbt-spacer { display: none; }
+  .cbt-search { flex: 1 1 100%; max-width: none; }
   .ct-gallery { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   /* Detail popout → bottom sheet on phones. */
   .cb-split { flex-direction: column; }
-  .cb-detail { position: fixed; left: 0; right: 0; bottom: 0; top: auto; width: auto; max-height: 72vh; border-radius: 16px 16px 0 0; z-index: 60; }
+  .cb-detail {
+    position: fixed; left: 0; right: 0; bottom: 0; top: auto;
+    width: auto; min-width: 0; max-height: 72vh;
+    border-radius: 16px 16px 0 0; z-index: 60;
+    /* .mb-nav is fixed to the same edge at z-index 90 and is 56px tall plus
+       the home indicator, so the sheet's action row — Download among them —
+       rendered underneath it and could not be tapped at all. */
+    padding-bottom: calc(56px + var(--safe-bottom, 0px));
+  }
+  /* The sheet is out of flow, so nothing reserves its space: without this the
+     last rows of a pack can never be scrolled clear of it. */
+  .cb-split.has-detail .cb-main { padding-bottom: 60vh; }
 }
 
 /* Bigger zoom range allowance */
@@ -9531,37 +9868,62 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .lf-row.is-selected { background: var(--bg-act); box-shadow: inset 0 0 0 1px var(--line-3); }
 
+/* The selection bar is an ACTION bar, so it has to still be there after you
+   have scrolled — selecting forty loops and then losing the Download button off
+   the top of the page was the old behaviour. It renders as the LAST child of
+   .list-inner and sticks to the bottom of the scrollport: it floats over the
+   list while you are anywhere in it, and settles at the end of the content.
+   Shaped as a centred pill on the shared message-language tokens, so it reads
+   as the same family as a toast rather than as a second table header. */
 .list-selbar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 6px 12px;
-  margin-bottom: 12px;
-  background: var(--bg-3);
-  border: 1px solid var(--line-2);
-  border-radius: 6px;
+  position: sticky;
+  bottom: clamp(10px, 2vw, 18px);
+  z-index: 8;
+  width: fit-content;
+  max-width: 100%;
+  margin: 18px auto 0;
+  display: flex; align-items: center; gap: 4px;
+  padding: 6px 7px 6px 15px;
+  background: var(--msg-surface);
+  -webkit-backdrop-filter: var(--msg-blur);
+  backdrop-filter: var(--msg-blur);
+  border: 1px solid var(--msg-border);
+  border-radius: 999px;
+  box-shadow: var(--shadow-3);
   font-size: 12px;
   color: var(--ink-1);
+  animation: list-selbar-in var(--dur-base) var(--ease);
 }
+@keyframes list-selbar-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .list-selbar { animation: none; } }
+.list-selbar-count { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .list-selbar-hint {
   font-family: var(--font-mono); font-size: 10px;
   color: var(--ink-3);
   letter-spacing: .04em;
-  margin-left: auto;
+  margin-left: 8px; padding-right: 8px;
+  white-space: nowrap;
 }
-/* The selection bar is now an action bar. Download sits next to the count,
-   the keyboard hint pushes to the far right. */
+/* The hint is the first thing to go when there is no room for it — the count
+   and the action are what the bar is for. */
+@media (max-width: 820px) { .list-selbar-hint { display: none; } }
 .list-selbar-act {
   display: inline-flex; align-items: center; gap: 6px;
-  margin-left: 14px;
-  padding: 3px 10px;
+  margin-left: 10px;
+  padding: 4px 13px;
   border: 1px solid var(--line-2);
-  border-radius: 5px;
+  border-radius: 999px;
   background: var(--bg-2);
   color: var(--ink-1);
   font-size: 11.5px;
   cursor: pointer;
-  transition: background var(--dur-quick) var(--ease), border-color var(--dur-quick) var(--ease);
+  white-space: nowrap;
+  transition: background var(--dur-quick) var(--ease), border-color var(--dur-quick) var(--ease), color var(--dur-quick) var(--ease);
 }
-.list-selbar-act:hover:not(:disabled) { background: var(--bg-act); border-color: var(--line-3); }
+.list-selbar-act:hover:not(:disabled) { background: var(--bg-act); border-color: var(--line-3); color: var(--ink-0); }
 .list-selbar-act:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 .list-selbar-act:disabled { opacity: .55; cursor: default; }
 
@@ -9582,7 +9944,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .ct-row:hover .ct-dl { opacity: 1; }
 .ct-dl:hover { color: var(--ink-1); background: var(--bg-act); }
 .ct-dl:focus-visible { opacity: 1; outline: 2px solid var(--soleil); outline-offset: 1px; }
+/* No hover to reveal it on a touch device, and 22px is not a finger target. */
 @media (hover: none) { .ct-dl { opacity: 1; } }
+@media (pointer: coarse) { .ct-dl { width: 32px; height: 32px; margin-right: -4px; } }
 
 /* Segmented control in tool options bar */
 .tob-segmented {
@@ -17753,8 +18117,11 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .doc-tb,
 .doc-foot,
 .doc-center,
+/* .list-wrap is NOT in this tier — it is a scroll container, so an inset:0
+   ::after only ever covers its first screenful. It paints the grain on its own
+   background with `background-attachment: local` instead; see the .list-wrap
+   block near the top of this file. */
 .inbox,
-.list-wrap,
 .list-files {
   position: relative;
   isolation: isolate;
@@ -17766,7 +18133,7 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .surface-wrap::after, .doc-card-modal::after, .doc-card-modal-head::after,
 .doc-card-foot::after, .doc-surface::after, .doc-rail::after,
 .doc-tb::after, .doc-foot::after, .doc-center::after,
-.inbox::after, .list-wrap::after, .list-files::after {
+.inbox::after, .list-files::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -17892,7 +18259,10 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .entity-picker, .link-popover, .emoji-palette,
 .doc-ctx, .ent-backlinks-panel, .lightbox { position: fixed; }
 
-.doc-tb, .ws-menu-section { position: sticky; }
+/* .list-selbar is stuck to the BOTTOM of the list scrollport (see its own
+   block) — without it here the tier's `position: relative` above wins on
+   source order at equal specificity and the action bar scrolls away again. */
+.doc-tb, .ws-menu-section, .list-selbar { position: sticky; }
 
 .modal::after, .upgrade-modal::after, .share-modal::after, .twk-panel::after, .tweaks-panel::after,
 .bc::after, .bc-child::after, .bc-list-cover::after, .bc-list-slot::after, .blc::after,

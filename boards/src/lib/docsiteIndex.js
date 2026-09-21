@@ -1328,7 +1328,7 @@ export const DOCS_PAGES = [
     "answer": "Every cluster has a list view as well as a canvas — the same contents as a sortable, searchable file browser. It has table and gallery modes, sorting by name, type, size or date, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.",
     "section": "clusters",
     "order": 1,
-    "updated": "2026-08-08",
+    "updated": "2026-09-21",
     "navLabel": "List view",
     "headings": [
       {

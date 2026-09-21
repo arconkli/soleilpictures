@@ -2,7 +2,7 @@
 
 > Every cluster has a list view as well as a canvas — the same contents as a sortable, searchable file browser. It has table and gallery modes, sorting by name, type, size or date, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters/list-view · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/clusters/list-view · Updated 2026-09-21_
 
 The canvas is for arranging. List view is for finding.
 
@@ -33,6 +33,16 @@ other rather than A, B, C.
 Tempo and key come from the filename as the file uploads, and are editable on
 the card — see [video and audio](/docs/files/video-and-audio).
 
+Above the table you get the pack in one line: **how many audio files, the tempo
+range they span, and how much material there is in total**. It follows the
+search and the filters, so narrowing to `128` re-reads the selection you are
+actually looking at.
+
+On a narrow window, in a split pane, or with the detail panel open, columns
+drop in order of how much they matter — the waveform first, then Format and the
+date — and on a phone the remaining values fold onto a second line under the
+filename. The name is the last thing to give up room.
+
 ## Sorting and filtering
 
 Sort by **name**, **type**, **size**, **date modified** or **date added** — plus
@@ -50,7 +60,8 @@ hunting expedition.
 ## Auditioning audio
 
 An audio row's thumbnail is a play button. Press it and the clip plays in
-place, with a small waveform in the row showing what you are listening to.
+place, with a small waveform in the row showing what you are listening to and a
+line filling along the bottom of the row as it goes.
 
 For going through a lot of them, use the keyboard: `↑` and `↓` move a highlight
 down the rows, `Space` plays whatever is highlighted, `Enter` selects it. **When
@@ -68,8 +79,12 @@ Hover any row holding a file — an image, PDF, video, audio clip or attachment 
 and a download button appears at the end of it. The file keeps its **original
 name**, so renaming a card for readability never costs you the extension.
 
-Select several and the selection bar offers **Download** for all of them at
-once, as a single zip with the cluster's name. Zips are capped at
+**Download all** sits above the table whenever there is more than one file to
+take. It follows the search and the filters, so it reads *Download 14* once you
+have narrowed to fourteen. Select particular rows instead and the selection bar
+offers **Download** for just those.
+
+Either way you get a single zip named after the cluster. Zips are capped at
 **500 files** or **500 MB**, whichever comes
 first; past either, take it in batches. In the phone and tablet apps files come
 down one at a time, through the system share sheet.
@@ -97,7 +112,12 @@ dates, and where it lives. From there:
 | **Delete** | Removes it, with undo |
 
 **Open on canvas** is the important one: it connects the two views, so finding
-something in list view puts you in front of it in context.
+something in list view puts you in front of it in context. It and **Copy link**
+are app actions, so they are not offered to a signed-out visitor on a shared
+link — there is no canvas for them to open, and the deep link would not resolve.
+
+For an audio clip the panel also reports its **length, tempo, key and format**,
+which is most of the reason to open it at all.
 
 ## Adding files here
 

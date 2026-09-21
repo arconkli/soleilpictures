@@ -51,10 +51,11 @@ export const ClusterRow = memo(function ClusterRow({
       ref={rowRef}
       className={`ct-row${member ? ' ct-member' : ''}${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}${active ? ' is-active' : ''}${playing ? ' is-playing' : ''}`}
       style={peer ? { '--peer-color': peer.user.color } : undefined}
+      role="row"
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
-      <div className="ct-cell ct-c-name">
+      <div role="cell" className="ct-cell ct-c-name">
         <div className={`ct-thumb${canAudition ? ' is-audio' : ''}`}>
           <CardPreview item={item} size="row" />
           {item.pending && <span className="ct-thumb-spin" aria-hidden="true" />}
@@ -78,25 +79,30 @@ export const ClusterRow = memo(function ClusterRow({
         </div>
         <div className="ct-name-wrap">
           <div className="ct-name" title={item.name}>{item.name}</div>
-          {item.sub && !audioMode && <div className="ct-sub">{item.sub}</div>}
+          {/* In loop-browser mode these same values have their own columns, so
+              the folded line is hidden on a wide screen — and it is the only
+              way to show them on a phone, where four mono columns truncate
+              "F♯ min" to "F♯ m…". CSS decides which of the two survives at a
+              given width; the markup carries both. */}
+          {item.sub && <div className={`ct-sub${audioMode ? ' ct-sub-folded' : ''}`}>{item.sub}</div>}
         </div>
         {item.kind === 'audio' && <RowWave peaks={item.card?.peaks} />}
       </div>
       {audioMode ? (
         <>
-          <div className="ct-cell ct-c-dur">{formatDuration(item.durationSec)}</div>
-          <div className="ct-cell ct-c-bpm">{item.bpm != null ? item.bpm : ''}</div>
-          <div className="ct-cell ct-c-key">{formatKey(item.musicalKey)}</div>
-          <div className="ct-cell ct-c-fmt">{item.format || item.typeLabel}</div>
+          <div role="cell" className="ct-cell ct-c-dur">{formatDuration(item.durationSec)}</div>
+          <div role="cell" className="ct-cell ct-c-bpm">{item.bpm != null ? item.bpm : ''}</div>
+          <div role="cell" className="ct-cell ct-c-key">{formatKey(item.musicalKey)}</div>
+          <div role="cell" className="ct-cell ct-c-fmt">{item.format || item.typeLabel}</div>
         </>
       ) : (
         <>
-          <div className="ct-cell ct-c-type">{item.typeLabel}</div>
-          <div className="ct-cell ct-c-size">{item.sizeBytes != null ? humanSize(item.sizeBytes) : ''}</div>
+          <div role="cell" className="ct-cell ct-c-type">{item.typeLabel}</div>
+          <div role="cell" className="ct-cell ct-c-size">{item.sizeBytes != null ? humanSize(item.sizeBytes) : ''}</div>
         </>
       )}
-      <div className="ct-cell ct-c-date">{item.pending ? 'Uploading…' : (dateVal ? relativeTimeShort(dateVal) : '')}</div>
-      <div className="ct-cell ct-c-presence">
+      <div role="cell" className="ct-cell ct-c-date">{item.pending ? 'Uploading…' : (dateVal ? relativeTimeShort(dateVal) : '')}</div>
+      <div role="cell" className="ct-cell ct-c-presence">
         {peers && peers.slice(0, 2).map((pp, i) => (
           <Avatar key={pp.user.id || i} name={pp.user.name} color={pp.user.color} size={18} ring />
         ))}

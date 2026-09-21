@@ -15931,6 +15931,46 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Above the table you get the pack in one line: "
+    },
+    {
+     "t": "strong",
+     "v": "how many audio files, the tempo range they span, and how much material there is in total",
+     "children": [
+      {
+       "t": "text",
+       "v": "how many audio files, the tempo range they span, and how much material there is in total"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". It follows the search and the filters, so narrowing to "
+    },
+    {
+     "t": "code",
+     "v": "128"
+    },
+    {
+     "t": "text",
+     "v": " re-reads the selection you are actually looking at."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a narrow window, in a split pane, or with the detail panel open, columns drop in order of how much they matter — the waveform first, then Format and the date — and on a phone the remaining values fold onto a second line under the filename. The name is the last thing to give up room."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Sorting and filtering",
@@ -16131,7 +16171,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "An audio row's thumbnail is a play button. Press it and the clip plays in place, with a small waveform in the row showing what you are listening to."
+     "v": "An audio row's thumbnail is a play button. Press it and the clip plays in place, with a small waveform in the row showing what you are listening to and a line filling along the bottom of the row as it goes."
     }
    ]
   },
@@ -16246,8 +16286,32 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "strong",
+     "v": "Download all",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download all"
+      }
+     ]
+    },
+    {
      "t": "text",
-     "v": "Select several and the selection bar offers "
+     "v": " sits above the table whenever there is more than one file to take. It follows the search and the filters, so it reads "
+    },
+    {
+     "t": "em",
+     "v": "Download 14",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download 14"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " once you have narrowed to fourteen. Select particular rows instead and the selection bar offers "
     },
     {
      "t": "strong",
@@ -16261,7 +16325,16 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " for all of them at once, as a single zip with the cluster's name. Zips are capped at "
+     "v": " for just those."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Either way you get a single zip named after the cluster. Zips are capped at "
     },
     {
      "t": "strong",
@@ -16503,7 +16576,44 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " is the important one: it connects the two views, so finding something in list view puts you in front of it in context."
+     "v": " is the important one: it connects the two views, so finding something in list view puts you in front of it in context. It and "
+    },
+    {
+     "t": "strong",
+     "v": "Copy link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " are app actions, so they are not offered to a signed-out visitor on a shared link — there is no canvas for them to open, and the deep link would not resolve."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "For an audio clip the panel also reports its "
+    },
+    {
+     "t": "strong",
+     "v": "length, tempo, key and format",
+     "children": [
+      {
+       "t": "text",
+       "v": "length, tempo, key and format"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which is most of the reason to open it at all."
     }
    ]
   },

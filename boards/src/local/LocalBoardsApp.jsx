@@ -844,13 +844,17 @@ export function LocalBoardsApp({ user, signOut }) {
   // through, decodeAudioData reads the fixture, and the filename carries a
   // tempo and key for the loop-meta parser. The waveform it draws is four
   // decaying hits, which is obvious at a glance when it is right.
-  const addAudioAt = (clickPos = null) => {
+  // `overrides` lets a spec build a pack that looks like a pack — varied
+  // names, tempos and keys — instead of forty copies of one row. Everything
+  // still points at the one real fixture file, so the waveform and the
+  // transport behave exactly as they do for a genuine upload.
+  const addAudioAt = (clickPos = null, overrides = null) => {
     const { w, h } = { w: 380, h: 130 };
-    const fileName = 'sample-loop_120_Amin.wav';
+    const fileName = overrides?.fileName || 'sample-loop_120_Amin.wav';
     addCard({
       id: createId('aud'),
       kind: 'audio',
-      src: `/${fileName}`,
+      src: '/sample-loop_120_Amin.wav',
       title: fileName,
       fileName,
       mime: 'audio/wav',
@@ -860,6 +864,7 @@ export function LocalBoardsApp({ user, signOut }) {
       bpm: 120,
       musicalKey: 'Amin',
       metaSource: 'name',
+      ...(overrides || {}),
       x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
       y: Math.max(8, Math.round((clickPos?.y ?? 180) - h / 2)),
       w,
@@ -1428,7 +1433,7 @@ export function LocalBoardsApp({ user, signOut }) {
   // production, matching ?gridqa / ?alignqa / ?docqa.
   useEffect(() => {
     if (!import.meta.env.DEV) return undefined;
-    window.__soleilAudioLive = { addAudio: (pos) => addAudioAt(pos) };
+    window.__soleilAudioLive = { addAudio: (pos, overrides) => addAudioAt(pos, overrides) };
     return () => { delete window.__soleilAudioLive; };
   }, []);
 

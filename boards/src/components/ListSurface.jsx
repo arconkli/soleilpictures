@@ -10,6 +10,7 @@ import { undoToast } from '../lib/undoToast.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { toListItem, sortItems, filterItems, matchItems } from '../lib/listItem.js';
+import { formatDuration } from '../lib/loopMeta.js';
 import { searchEntities } from '../lib/entitySearch.js';
 import { getMeta, primeImageMetaForBoard } from '../lib/imageMeta.js';
 import { usePeerSelections } from '../hooks/usePeerSelections.js';
@@ -181,6 +182,28 @@ export function ListSurface({
     }
   }, [audioMode, sortKey]);
 
+  // A one-line read on the pack, assembled from the rows already on screen:
+  // how many, what tempo range, how much material. It follows the search and
+  // the filters, so narrowing to 128 BPM re-reads the selection you are looking
+  // at rather than the whole cluster. Only in loop-browser mode — it is what a
+  // producer opens a pack wanting to know, and it is noise on a cluster of
+  // notes.
+  const packSummary = useMemo(() => {
+    if (!audioMode) return null;
+    const audio = visibleItems.filter(it => it.kind === 'audio');
+    if (!audio.length) return null;
+    const parts = [`${audio.length} audio ${audio.length === 1 ? 'file' : 'files'}`];
+    const bpms = audio.map(it => it.bpm).filter(n => Number.isFinite(n));
+    if (bpms.length) {
+      const lo = Math.min(...bpms);
+      const hi = Math.max(...bpms);
+      parts.push(lo === hi ? `${lo} BPM` : `${lo}–${hi} BPM`);
+    }
+    const secs = audio.reduce((a, it) => a + (Number.isFinite(it.durationSec) ? it.durationSec : 0), 0);
+    if (secs > 0) parts.push(formatDuration(secs));
+    return parts.join(' · ');
+  }, [audioMode, visibleItems]);
+
   // ── Auditioning ───────────────────────────────────────────────────────────
   //
   // The rows a keyboard cursor can land on, in the order they are on screen:
@@ -237,11 +260,22 @@ export function ListSurface({
 
   // Handed to the bus so a canvas card starting up can stop us. Declared
   // BEFORE auditionCard, which closes over it.
+  // The playhead is written straight onto the row's DOM node as a custom
+  // property rather than through state: `timeupdate` fires about four times a
+  // second, and a four-hundred-row pack must not re-render on every tick.
+  const setRowProgress = useCallback((id, value) => {
+    const node = id && rowRefs.current.get(id);
+    if (!node) return;
+    if (value == null) node.style.removeProperty('--ct-progress');
+    else node.style.setProperty('--ct-progress', String(value));
+  }, []);
+
   const stopAudition = useCallback(() => {
+    setRowProgress(playingIdRef.current, null);
     playingIdRef.current = null;
     try { audioElRef.current?.pause(); } catch (_) {}
     setPlayingId(null);
-  }, []);
+  }, [setRowProgress]);
 
   const auditionCard = useCallback(async (id) => {
     const it = items.find(x => x.id === id);
@@ -259,8 +293,15 @@ export function ListSurface({
       el.style.display = 'none';
       document.body.appendChild(el);
       audioElRef.current = el;
+      el.addEventListener('timeupdate', () => {
+        const id = playingIdRef.current;
+        if (!id) return;
+        const d = el.duration;
+        setRowProgress(id, Number.isFinite(d) && d > 0 ? Math.min(1, el.currentTime / d) : 0);
+      });
       el.addEventListener('ended', () => {
         const ended = playingIdRef.current;
+        setRowProgress(ended, null);
         playingIdRef.current = null;
         setPlayingId(null);
         audioBus.release(stopAudition);
@@ -487,6 +528,13 @@ export function ListSurface({
       if (anyModalOpen()) return; // dialogs own the keyboard (lib/modalGuard)
       if (hasSplit && getActivePane() !== paneId) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+      // A focused control owns Enter and Space. Without this the window
+      // handler preventDefault()s them out from under every button in the
+      // list — and `activeId` is set by clicking any row's own Play button,
+      // so that was the ordinary case rather than an edge one. Arrows are not
+      // gated: a button does nothing with them and moving the cursor is the
+      // useful reading.
+      const onControl = !!e.target.closest?.('button, a[href], [role="button"], select');
 
       // ↑/↓ move the cursor; Space auditions it; Enter selects it.
       if (navItems.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
@@ -504,14 +552,14 @@ export function ListSurface({
         // otherwise leave the page's own scroll behaviour alone.
         const target = activeId || (selectedCards.size === 1 ? [...selectedCards][0] : null);
         const it = target && navItems.find(n => n.id === target);
-        if (it && it.kind === 'audio') {
+        if (it && it.kind === 'audio' && !onControl) {
           e.preventDefault();
           setActiveId(it.id);
           auditionCard(it.id);
         }
         return;
       }
-      if (e.key === 'Enter' && activeId) {
+      if (e.key === 'Enter' && activeId && !onControl) {
         e.preventDefault();
         setSelectedCards(new Set([activeId]));
         setSelectedBoards(new Set());
@@ -658,8 +706,7 @@ export function ListSurface({
     }
   }, [feedback]);
 
-  const downloadSelected = useCallback(async () => {
-    const chosen = items.filter(it => selectedCards.has(it.id) && DOWNLOADABLE.has(it.kind));
+  const downloadMany = useCallback(async (chosen) => {
     if (!chosen.length) return;
     if (chosen.length === 1) { await downloadOne(chosen[0]); return; }
     if (!bulkDownloadSupported()) {
@@ -674,7 +721,7 @@ export function ListSurface({
         chosen.map(it => ({ card: it.card, kind: it.kind })),
         { zipName: zipNameFor(board?.name || 'cluster'), surface: 'list' });
       if (!count) {
-        feedback?.toast?.({ type: 'warning', message: 'Nothing in that selection could be downloaded.' });
+        feedback?.toast?.({ type: 'warning', message: 'Nothing there could be downloaded.' });
       } else if (skipped) {
         // Say what was left out rather than quietly shipping a smaller archive
         // than the one that was asked for.
@@ -685,11 +732,26 @@ export function ListSurface({
     } finally {
       setZipping(false);
     }
-  }, [items, selectedCards, downloadOne, feedback, board?.name]);
+  }, [downloadOne, feedback, board?.name]);
 
   const downloadableSelected = useMemo(
-    () => items.filter(it => selectedCards.has(it.id) && DOWNLOADABLE.has(it.kind)).length,
+    () => items.filter(it => selectedCards.has(it.id) && DOWNLOADABLE.has(it.kind)),
     [items, selectedCards]);
+  const downloadSelected = useCallback(
+    () => downloadMany(downloadableSelected), [downloadMany, downloadableSelected]);
+
+  // Take the pack. Selecting every row first and then pressing Download is a
+  // path a producer knows and a visitor does not — and on a phone there is no
+  // ⌘-click to build the selection with at all, so without this the only way
+  // off a published pack was one loop at a time. Follows the search and the
+  // filters, so "Download 14" after typing 128 means those fourteen.
+  const downloadableVisible = useMemo(
+    () => visibleItems.filter(it => DOWNLOADABLE.has(it.kind)),
+    [visibleItems]);
+  const narrowed = !!query || filters.size > 0;
+  const canDownloadAll = downloadableVisible.length > 1 && bulkDownloadSupported();
+  const downloadAll = useCallback(
+    () => downloadMany(downloadableVisible), [downloadMany, downloadableVisible]);
 
   return (
     <div className={`list-wrap ${dragOver ? 'is-drop-target' : ''}`}
@@ -698,26 +760,6 @@ export function ListSurface({
          onPointerEnter={() => setActivePane(paneId)}
          onClick={() => { setSelectedBoards(new Set()); setSelectedCards(new Set()); }}>
       <div className="list-inner" onClick={(e) => e.stopPropagation()}>
-        {totalSel > 0 && (
-          <div className="list-selbar">
-            <span>{totalSel} selected</span>
-            {downloadableSelected > 0 && (
-              <button type="button" className="list-selbar-act" onClick={downloadSelected} disabled={zipping}>
-                <Icon as={Download} size={13} />
-                <span>{zipping ? 'Preparing…'
-                     : downloadableSelected === 1 ? 'Download'
-                     : `Download ${downloadableSelected}`}</span>
-              </button>
-            )}
-            {/* A visitor on a shared link cannot delete — the key is gated on
-                canEdit — so do not offer them a shortcut that does nothing. */}
-            <span className="list-selbar-hint">
-              {canEdit ? `⌫ to delete · ${cmdKey}-click to multi-select`
-                       : `${cmdKey}-click to multi-select · ⇧-click for a range`}
-            </span>
-          </div>
-        )}
-
         {subBoards.length === 0 && linkedCards.length === 0 && otherCards.length === 0 && (
           <div className="list-empty">
             <div className="list-empty-title">Empty cluster</div>
@@ -773,7 +815,13 @@ export function ListSurface({
                              peersHereByBoard={peersHereByBoard}
                              peersBelowByBoard={peersBelowByBoard}
                              onJumpToPeer={onJumpToPeer}
-                             onRename={(name) => mutators.renameBoardById?.(b.id, name)} />
+                             onRename={canEdit
+                               // Passing this unconditionally is what made
+                               // BoardCard render an EditableText for a
+                               // signed-out visitor on a published page —
+                               // it only checks that the prop is truthy.
+                               ? ((name) => mutators.renameBoardById?.(b.id, name))
+                               : undefined} />
                 </div>
               ))}
             </div>
@@ -801,7 +849,18 @@ export function ListSurface({
         )}
         {otherCards.length > 0 && (
           <div className="cluster-browser">
-            <div className="list-section list-section-files">Files</div>
+            <div className="list-section list-section-files">
+              <span>Files</span>
+              {packSummary && <span className="list-section-meta">{packSummary}</span>}
+              {canDownloadAll && (
+                <button type="button" className="list-section-act" onClick={downloadAll} disabled={zipping}>
+                  <Icon as={Download} size={12} />
+                  <span>{zipping ? 'Preparing…'
+                       : narrowed ? `Download ${downloadableVisible.length}`
+                       : 'Download all'}</span>
+                </button>
+              )}
+            </div>
             <ClusterBrowserToolbar
               query={query} onQueryChange={setQuery}
               sortKey={sortKey} sortDir={sortDir} onSort={onSort}
@@ -864,7 +923,7 @@ export function ListSurface({
                 <DetailPanel
                   target={detailTarget} boards={boards} canEdit={canEdit}
                   onClose={() => { setSelectedCards(new Set()); setSelectedGroupId(null); }}
-                  onReveal={(id) => onRevealOnCanvas?.([id])}
+                  onReveal={onRevealOnCanvas ? ((id) => onRevealOnCanvas([id])) : null}
                   onDelete={onDeleteItems} />
               )}
             </div>
@@ -879,6 +938,28 @@ export function ListSurface({
                  }
                  e.target.value = '';
                }} />
+        {/* Rendered LAST inside .list-inner and stuck to the bottom of the
+            scrollport, so the actions for a selection are still on screen once
+            you have scrolled past the rows you made it from. */}
+        {totalSel > 0 && (
+          <div className="list-selbar">
+            <span className="list-selbar-count" aria-live="polite">{totalSel} selected</span>
+            {downloadableSelected.length > 0 && (
+              <button type="button" className="list-selbar-act" onClick={downloadSelected} disabled={zipping}>
+                <Icon as={Download} size={13} />
+                <span>{zipping ? 'Preparing…'
+                     : downloadableSelected.length === 1 ? 'Download'
+                     : `Download ${downloadableSelected.length}`}</span>
+              </button>
+            )}
+            {/* A visitor on a shared link cannot delete — the key is gated on
+                canEdit — so do not offer them a shortcut that does nothing. */}
+            <span className="list-selbar-hint">
+              {canEdit ? `⌫ to delete · ${cmdKey}-click to multi-select`
+                       : `${cmdKey}-click to multi-select · ⇧-click for a range`}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
