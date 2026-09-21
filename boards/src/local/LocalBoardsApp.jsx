@@ -839,6 +839,34 @@ export function LocalBoardsApp({ user, signOut }) {
     });
   };
 
+  // Local QA — a real 2.000s WAV served statically, so the audio card can be
+  // exercised end to end with no backend: resolveSrc passes a plain URL
+  // through, decodeAudioData reads the fixture, and the filename carries a
+  // tempo and key for the loop-meta parser. The waveform it draws is four
+  // decaying hits, which is obvious at a glance when it is right.
+  const addAudioAt = (clickPos = null) => {
+    const { w, h } = { w: 380, h: 130 };
+    const fileName = 'sample-loop_120_Amin.wav';
+    addCard({
+      id: createId('aud'),
+      kind: 'audio',
+      src: `/${fileName}`,
+      title: fileName,
+      fileName,
+      mime: 'audio/wav',
+      ext: 'wav',
+      sizeBytes: 176444,
+      duration: 2,
+      bpm: 120,
+      musicalKey: 'Amin',
+      metaSource: 'name',
+      x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
+      y: Math.max(8, Math.round((clickPos?.y ?? 180) - h / 2)),
+      w,
+      h,
+    });
+  };
+
   const addLink = (targetBoard, clickPos = null) => {
     const w = 220, h = 160;
     addCard({
@@ -1332,6 +1360,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addTextLink,
     addImageAt,
     addPdfAt,
+    addAudioAt,
     addNewBoard,
     addPalette,
     addSchedule,
@@ -1391,6 +1420,17 @@ export function LocalBoardsApp({ user, signOut }) {
     };
     return () => { delete window.__soleilGridLive; };
   }, [addGrid]);
+
+  // Dev-only bridge for the audio specs, same shape and same guard as
+  // __soleilGridLive above. There is no way to put an audio card on a local
+  // board otherwise — the only other route is a real upload, and local mode
+  // has no backend. import.meta.env.DEV so the bundler drops it from
+  // production, matching ?gridqa / ?alignqa / ?docqa.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return undefined;
+    window.__soleilAudioLive = { addAudio: (pos) => addAudioAt(pos) };
+    return () => { delete window.__soleilAudioLive; };
+  }, []);
 
   // ⌘K / Ctrl-K (and "/" when not typing) — open the global search palette.
   // App.jsx has its own; the local shell had no global keydown handler at all.
