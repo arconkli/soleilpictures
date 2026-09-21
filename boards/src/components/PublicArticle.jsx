@@ -9,6 +9,7 @@
 // that card — the page itself demonstrates what the product does.
 
 import { Fragment, useCallback, useEffect, useState } from 'react';
+import { formatKey } from '../lib/loopMeta.js';
 
 function flashCard(boardId, cardId, heroSelector = '.public-canvas-host') {
   const hero = document.querySelector(heroSelector);
@@ -135,7 +136,7 @@ function Item({ item, slug, boardId }) {
         bits.push(`${Math.floor(d / 60)}:${String(Math.floor(d % 60)).padStart(2, '0')}`);
       }
       if (Number.isFinite(Number(a.bpm))) bits.push(`${Number(a.bpm)} BPM`);
-      if (a.key) bits.push(String(a.key));
+      if (a.key) bits.push(formatKey(a.key) || String(a.key));
       if (a.format) bits.push(String(a.format));
       return (
         <p className="pa-audio">

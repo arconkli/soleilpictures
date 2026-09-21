@@ -8,6 +8,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { buildPageModel, renderArticleHtml, formatDate } from './publicPageModel.js';
 
 const model = (cards, meta = {}) =>
@@ -25,7 +26,7 @@ test('an audio card renders its metadata line, not nothing', () => {
   assert.match(out, /Orchid Kick/);
   assert.match(out, /0:02/);
   assert.match(out, /140 BPM/);
-  assert.match(out, /Amin/);
+  assert.match(out, /A min/, 'the page must say what the card says, not the canonical form');
   assert.match(out, /WAV/);
   assert.match(out, /class="pa-audio"/);
 });
@@ -87,6 +88,24 @@ test('the other kinds still render what they rendered', () => {
     /class="pa-palette"/);
   // A note with no body renders nothing — the behaviour audio was inheriting.
   assert.doesNotMatch(html([{ card_id: 'n2', kind: 'note', body: '' }]), /pa-note/);
+});
+
+// The Worker injects itemHtml's output into #seo-fallback; PublicArticle
+// renders the same model in React. They must say the SAME WORDS — that parity
+// IS the anti-cloaking rule, and nothing else enforces it for the audio case.
+// This compares the two implementations' metadata line by reading the JSX.
+test('the React article and the crawlable HTML build the same audio line', async () => {
+  const src = await readFile(new URL('../components/PublicArticle.jsx', import.meta.url), 'utf8');
+  const start = src.indexOf("case 'audio'");
+  assert.ok(start > 0, 'PublicArticle must have an audio case');
+  const jsx = src.slice(start, start + 1400);
+  // Every field the crawlable version pushes must be pushed here too, the
+  // same way — including formatKey, which is what makes both say "A min"
+  // rather than one saying "A min" and the other "Amin".
+  for (const bit of ['a.duration', 'a.bpm', 'a.key', 'a.format', 'formatKey(a.key)']) {
+    assert.ok(jsx.includes(bit), `PublicArticle's audio case is missing ${bit}`);
+  }
+  assert.ok(jsx.includes('BPM'), 'the BPM unit must match the crawlable version');
 });
 
 test('formatDate', () => {

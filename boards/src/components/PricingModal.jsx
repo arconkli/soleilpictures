@@ -278,13 +278,21 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
           )}
         </div>
 
-        <article className="pricing-card pricing-card-creator upgrade-card">
-          <div className="pricing-card-head">
-            <div className="pricing-card-name">Creator</div>
+        {/* NOT .pricing-card. The modal IS the card — wrapping the offer in a
+            second bordered, gold-ringed panel inside it put a box in a box,
+            spent 48px of a 600px width on nested padding, and printed the word
+            CREATOR twice within 200px: once as the eyebrow above and once as
+            this panel's own name row. The ring was the worse half. Gold is
+            reserved for active / selection / focus, and .pricing-card-creator
+            earns it on /pricing where it marks WHICH of two plans is selected
+            — here there is only one plan, so the same ring marked nothing and
+            was simply the largest gold object on the screen, louder than the
+            button it was competing with. */}
+        <article className="upgrade-card">
+          <div className="upgrade-price-row">
+            {!alreadyPaid && <CreatorPriceRow plan={plan} />}
             {!alreadyPaid && <PlanToggle plan={plan} setPlan={onPlanToggle} disabled={busy} />}
           </div>
-
-          {!alreadyPaid && <CreatorPriceRow plan={plan} />}
 
           {/* At the wall the benefits move BELOW the CTA so the price, the
               user's own totals and the button are the whole of the first read.
@@ -317,25 +325,33 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
             sale, and it is where a blocked user is most likely to take the free
             exit instead of deciding. Not shown for storage, which is genuinely
             paid-only. Decoupled via a window event so it works from every mount. */}
-        {!alreadyPaid && tier === 'demo' && (header === 'first-value' || header === null) && (
-          <button
-            type="button"
-            /* Styled by .upgrade-invite-alt in styles.css. It used to carry an
-               inline style object that said the same things, which meant the
-               rule added for it was dead on arrival — inline wins. */
-            className="upgrade-invite-alt"
-            onClick={() => {
-              logEvent(EV.UP_INVITE_ALT_CLICK, { ...up.envelope(), plan, dwell_ms: up.timing().dwell_ms });
-              up.outcome('invite_alt');
-              try { window.dispatchEvent(new CustomEvent('soleil:open-invite', { detail: { surface: 'cap_modal' } })); } catch (_) {}
-              onClose?.();
-            }}
-          >
-            Or invite friends to earn more free cards →
-          </button>
-        )}
+        {/* One footer ROW, not three stacked ones. The X, the invite link and
+            "Maybe later" were three separate full-width rows under the offer,
+            so the last thing on the screen was a column of ways out — the
+            invite link, which is an alternative ACTION, read as the middle of
+            three exits. Side by side the alternative sits beside the dismissal
+            and neither is the widest thing on screen. */}
+        <div className="upgrade-foot-row">
+          {!alreadyPaid && tier === 'demo' && (header === 'first-value' || header === null) && (
+            <button
+              type="button"
+              /* Styled by .upgrade-invite-alt in styles.css. It used to carry an
+                 inline style object that said the same things, which meant the
+                 rule added for it was dead on arrival — inline wins. */
+              className="upgrade-invite-alt"
+              onClick={() => {
+                logEvent(EV.UP_INVITE_ALT_CLICK, { ...up.envelope(), plan, dwell_ms: up.timing().dwell_ms });
+                up.outcome('invite_alt');
+                try { window.dispatchEvent(new CustomEvent('soleil:open-invite', { detail: { surface: 'cap_modal' } })); } catch (_) {}
+                onClose?.();
+              }}
+            >
+              Invite friends for more free cards →
+            </button>
+          )}
 
-        <button className="upgrade-later" onClick={() => handleClose('maybe_later')}>Maybe later</button>
+          <button className="upgrade-later" onClick={() => handleClose('maybe_later')}>Maybe later</button>
+        </div>
       </div>
     </div>,
     document.body,

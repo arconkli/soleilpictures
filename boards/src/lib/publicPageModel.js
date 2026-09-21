@@ -11,6 +11,7 @@
 // starts and `legacy_i` giving image cards their frozen /api/public-img index.
 
 import { matchToolPath } from './seoLanding.js';
+import { formatKey } from './loopMeta.js';
 
 const esc = (s) => String(s ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -133,7 +134,10 @@ function itemHtml(item, slug) {
         bits.push(`${Math.floor(d / 60)}:${String(Math.floor(d % 60)).padStart(2, '0')}`);
       }
       if (Number.isFinite(Number(a.bpm))) bits.push(`${Number(a.bpm)} BPM`);
-      if (a.key) bits.push(String(a.key));
+      // Display form, so the page says what the card and the list column say.
+      // The projection stores the canonical 'Amin'; formatKey turns that into
+      // 'A min' (and 'F#min' into 'F♯ min').
+      if (a.key) bits.push(formatKey(a.key) || String(a.key));
       if (a.format) bits.push(String(a.format));
       const meta = bits.length ? ` — ${esc(bits.join(' · '))}` : '';
       const body = item.body ? `<span class="pa-audio-body">${esc(item.body)}</span>` : '';
