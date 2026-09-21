@@ -8,36 +8,63 @@
 // prospect read, the price row and primary CTAs report hesitation. Stamped
 // only on the Creator list — DEMO_FEATURES rows carry no Creator keys.
 
+import { Stack, Files, ArrowsOutSimple, UsersThree } from '@phosphor-icons/react';
 import {
   PRICING, planPerMonth, planBilling, CREATOR_FEATURES, CREATOR_FEATURE_KEYS,
   CREATOR_BENEFITS, SAVINGS_PCT_LABEL,
 } from '../lib/billingCopy.js';
+
+// One glyph per benefit, keyed by the STABLE up_feature_hover key rather than
+// by index — so a reordered list cannot silently hand the cards icon to the
+// workspace line. A key with no entry renders no icon and the row still lays
+// out, which is the right failure for a fifth benefit someone adds in a hurry.
+//
+// Icons and not the old shared "✓": four identical ticks told the reader
+// nothing except that there were four of something, and a benefit list whose
+// whole measured problem is that nobody reads it cannot afford a column of
+// decoration. These are thin, neutral ink, and at 17px they sit on the title's
+// cap height. Gold stays on the button.
+const BENEFIT_ICON = {
+  cards:     Stack,
+  filetypes: Files,
+  storage:   ArrowsOutSimple,
+  workspace: UsersThree,
+};
 
 // Render a feature string, turning `**text**` spans into <b>.
 function renderEmphasis(text) {
   return text.split('**').map((seg, i) => (i % 2 === 1 ? <b key={i}>{seg}</b> : seg));
 }
 
-// The Creator benefits as a two-column grid: bold claim, plain sentence under
-// it. Replaces the four bare bullets on the in-app offer.
+// The Creator benefits: icon, bold claim, one plain line under it.
 //
-// Why a grid and not a list, on a surface people leave in a few seconds: the
-// old four lines were all one weight, so there was nothing to scan and nothing
-// to skip. Titles carry the scan, bodies carry the detail, and two columns
-// halve the vertical run — the modal shows the whole offer without the reader
-// deciding to read it first.
+// Why a single column and not the two it was: at 600px the two-column version
+// gave each body ~28 characters of line, so every one of them ran to three
+// lines of 12px grey — four paragraphs of fine print in a 2x2, which is what a
+// reader skips rather than scans. Full width the same bodies are one line
+// each, the four rows cost the same height as the two rows of paragraphs did,
+// and there is an actual hierarchy to move down.
 //
-// data-up-feat / data-up-featkey are unchanged and still index-parallel, so
-// up_feature_hover history survives this rewrite.
-export function BenefitGrid({ benefits = CREATOR_BENEFITS, className = 'pricing-benefits' }) {
+// `marked` exists because /pricing now renders this list AND a comparison
+// table of the same three gates. Only one of them may carry data-up-feat or a
+// single read counts twice; the page marks the card and leaves the table bare.
+// data-up-feat / data-up-featkey are otherwise unchanged and still
+// index-parallel, so up_feature_hover history survives this rewrite.
+export function BenefitGrid({ benefits = CREATOR_BENEFITS, className = 'pricing-benefits', marked = true }) {
   return (
     <ul className={className}>
-      {benefits.map((b, i) => (
-        <li key={b.key} data-up-feat={i} data-up-featkey={b.key}>
-          <span className="pricing-benefit-t">{b.title}</span>
-          <span className="pricing-benefit-b">{renderEmphasis(b.body)}</span>
-        </li>
-      ))}
+      {benefits.map((b, i) => {
+        const Glyph = BENEFIT_ICON[b.key];
+        return (
+          <li key={b.key} {...(marked ? { 'data-up-feat': i, 'data-up-featkey': b.key } : {})}>
+            <span className="pricing-benefit-i" aria-hidden="true">
+              {Glyph && <Glyph size={17} weight="thin" />}
+            </span>
+            <span className="pricing-benefit-t">{b.title}</span>
+            <span className="pricing-benefit-b">{renderEmphasis(b.body)}</span>
+          </li>
+        );
+      })}
     </ul>
   );
 }

@@ -49,7 +49,21 @@ test('pricing page states the price high, leads with the free action, and shows 
   // The PRICE is above the fold even though the ACTION is the free start.
   // People who open a pricing page came for the number.
   await expect(page.locator('.seo-subhead')).toContainText('$25/mo');
-  await expect(page.locator('.seo-subhead')).toContainText(`${DEMO_CARD_LIMIT} cards`);
+  // And the CAP is on the free plan CARD. It used to be in this same subhead,
+  // because there were no plan cards and the subhead was carrying the entire
+  // offer in one sentence — both prices, the cap, the collaborator rule and
+  // two promises about what free is not. The claim did not move surfaces by
+  // accident; it moved onto the card that makes it.
+  await expect(page.locator('.pp-plan-free')).toContainText(`${DEMO_CARD_LIMIT} cards`);
+
+  // Both plans, side by side, without scrolling. This is what a pricing page
+  // is and what this one did not have: free was a prose section, Creator was a
+  // table, and the only buy surface was a 460px box alone on an empty screen
+  // 2,300px down. If a future edit puts either plan below the fold at a
+  // laptop viewport, that regression is this assertion's whole subject.
+  await expect(page.locator('.pp-plan')).toHaveCount(2);
+  await expect(page.locator('.pp-plan-free')).toBeInViewport();
+  await expect(page.locator('.pp-plan-creator')).toBeInViewport();
 
   // Real product, not a feature list: a published board in a browser frame.
   const frame = page.locator('.seo-frame');
@@ -83,13 +97,17 @@ test('pricing page states the price high, leads with the free action, and shows 
   await expect(buy.locator('.pricing-card-price')).toContainText('$20');
   await expect(buy.getByText('Save 20%')).toBeVisible();
 
-  // CTA wording is centralized. Creator sits under the comparison it refers to.
+  // CTA wording is centralized, and it is on the Creator card itself.
   await expect(buy.getByRole('button', { name: 'Get Creator' })).toBeVisible();
   // This route is the SIGNED-IN one (the suite seeds an auth marker), and a
-  // signed-in demo account is already on the free plan — so there is no free
-  // action to offer it, only the jump to what Creator changes.
-  await expect(page.locator('.seo-hero').getByRole('button', { name: 'Start free' })).toHaveCount(0);
-  await expect(page.locator('.seo-hero').getByRole('link', { name: /What Creator changes/ })).toBeVisible();
+  // signed-in demo account is already on the free plan — so it is offered no
+  // free action anywhere on the page. It used to be offered a jump link down
+  // to what Creator changes instead; that link is gone because the thing it
+  // jumped to is now on screen beside the free card. What must NOT happen is
+  // the free card's slot collapsing: the two cards' feet would go ragged and
+  // the reader would be left unsure which plan they are on.
+  await expect(page.getByRole('button', { name: 'Start free' })).toHaveCount(0);
+  await expect(page.locator('.pp-plan-free')).toContainText('Your current plan');
 
   // The free plan: the card cap is the only real limit. It is NOT view-only —
   // 0188 made editor collaboration free for every tier — and clusters/boards
@@ -107,6 +125,49 @@ test('pricing page states the price high, leads with the free action, and shows 
 
   // The trial is never offered here, signed in or out. Standing decision.
   await expect(page.getByText(/days free|free for 14 days/i)).toHaveCount(0);
+});
+
+test('both plans AND both buttons are on the first screen of a small laptop', async ({ page }) => {
+  // 1280x720 is the smallest laptop this page is read on, and it is the one
+  // that catches a hero creeping back up in size — a pricing page whose BUY
+  // BUTTON needs a scroll has lost the argument before making it.
+  //
+  // Measured before this layout, at exactly this viewport: the only buy
+  // surface on the page sat at y=2300 of a 3,116px document, below a prose
+  // section about the free plan and a comparison table. Measured during it,
+  // with the plan cards in but the hero still two lines tall: y=773 of 720.
+  //
+  // This is a fold BUDGET, not a pixel assertion. Anything may be spent
+  // differently — headline size, card padding, benefit leading — as long as
+  // the four things a person came here for still land on the first screen.
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/pricing?local=1&tier=demo&cards=0');
+  await page.locator('.pp-plan-creator').waitFor();
+  // Fonts decide the headline's line count, and the line count is most of the
+  // budget. Measuring before they settle reports a page that does not exist —
+  // an earlier version of this check did exactly that and passed on a layout
+  // that was, once loaded, 100px over.
+  await page.evaluate(() => document.fonts.ready);
+
+  // The free card's action slot is a BUTTON when there is a free action to
+  // offer and a "Your current plan" panel when there is not — this suite seeds
+  // an auth marker, so it is the latter here. Either way it is the row that
+  // has to clear the fold, which is why the check takes whichever is there
+  // rather than assuming the signed-out shape.
+  for (const sel of [
+    '.pp-plan-free', '.pp-plan-creator',
+    '.pp-plan-free :is(.pp-plan-cta, .pp-plan-current)', '.pp-buy-cta',
+  ]) {
+    await expect(page.locator(sel), `${sel} must be on the first screen`).toBeInViewport({ ratio: 0.9 });
+  }
+
+  // And the headline is the one line it was cut down to be. Two lines here is
+  // ~60px, which is most of the margin the buttons are clearing the fold by.
+  const h1 = await page.locator('.seo-h1').evaluate((el) => ({
+    h: el.getBoundingClientRect().height,
+    lh: parseFloat(getComputedStyle(el).lineHeight),
+  }));
+  expect(Math.round(h1.h / h1.lh), 'the /pricing headline sets on one line').toBe(1);
 });
 
 test('on a short laptop the whole offer is reachable, top and bottom', async ({ page }) => {
@@ -264,8 +325,12 @@ test('the signed-OUT page leads with the free action, because it cannot sell', a
   // price is in the subhead above it — but a correction: a signed-out visitor
   // has no session to bill, so "Get Creator" here has only ever been able to
   // send them to sign in.
-  const hero = page.locator('.seo-hero');
-  await expect(hero.getByRole('button', { name: 'Start free' })).toBeVisible();
+  // On the free plan CARD, beside the priced one, so the two are compared
+  // rather than read in sequence. The hero carries no button at all now — it
+  // is a headline and one line, because the cards are directly beneath it.
+  const free = page.locator('.pp-plan-free');
+  await expect(free.getByRole('button', { name: 'Start free' })).toBeVisible();
+  await expect(free).toBeInViewport();
   await expect(page.locator('.seo-subhead')).toContainText('$25/mo');
 
   // And the closing band repeats the free action, not the paid one.

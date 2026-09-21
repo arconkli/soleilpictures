@@ -5758,48 +5758,51 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
    nobody read one. Titles carry the scan in ink-0; bodies explain in ink-2,
    which is what makes skipping them free. Two columns halve the vertical run
    so the whole offer is on screen without the reader choosing to read it. */
+/* ONE column. It was two, and at the modal's 600px that left each body about
+   28 characters of line — so all four ran to three lines of 12px grey and the
+   offer read as a 2x2 of fine print. Full width the same bodies are one line
+   each and the four rows cost the same height the two rows of paragraphs did. */
 .pricing-benefits {
   list-style: none;
   padding: 0;
   margin: 4px 0 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
 }
 .pricing-benefits li {
   display: grid;
-  /* The check sits in its own column so a wrapped body aligns under the
-     title, not under the tick. */
+  /* The glyph sits in its own column so a wrapped body aligns under the
+     title, not under the icon. */
   grid-template-columns: auto 1fr;
-  grid-template-areas: 'tick title' '. body';
-  column-gap: 8px;
-  row-gap: 2px;
+  grid-template-areas: 'icon title' '. body';
+  column-gap: 11px;
+  row-gap: 1px;
   min-width: 0;
 }
-/* Neutral hairline check, matching .pricing-features — gold is the CTA's. */
-.pricing-benefits li::before {
-  content: "✓";
-  grid-area: tick;
+/* Neutral ink, thin weight. Gold is the button's — a column of gold glyphs
+   beside a gold CTA is the accent spent on decoration, which is the rule this
+   file states at .pricing-card-name and again at .upgrade-eyebrow. */
+.pricing-benefit-i {
+  grid-area: icon;
   color: var(--ink-2);
-  font: 600 12px/1.5 var(--font-sans);
+  /* Optical: the glyph box is 17px and the title's cap height sits ~2px down
+     from its line box top, so nudge rather than align-items: center — which
+     would centre the icon against a body that may or may not have wrapped. */
+  margin-top: 2px;
 }
 .pricing-benefit-t {
   grid-area: title;
-  font: 600 13px/1.4 var(--font-sans);
+  font: 600 13.5px/1.4 var(--font-sans);
   color: var(--ink-0);
 }
 .pricing-benefit-b {
   grid-area: body;
-  font: 400 12px/1.45 var(--font-sans);
+  font: 400 12.5px/1.5 var(--font-sans);
   color: var(--ink-2);
   text-wrap: pretty;
 }
 .pricing-benefit-b b { color: var(--ink-1); font-weight: 600; }
-
-/* One column below the width where two would each be too narrow to read. */
-@media (max-width: 560px) {
-  .pricing-benefits { grid-template-columns: 1fr; gap: 12px; }
-}
 
 /* The struck monthly rate beside the annual one. */
 .pricing-card-price-was {
@@ -6117,9 +6120,43 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 /* The same feature list, sitting under the CTA on the cap-hit variant. Quieter
    than the default placement — it's supporting detail there, not the pitch. */
 .upgrade-features-after { margin-top: 14px; }
-.upgrade-card { box-shadow: none; }
+/* The offer, unwrapped. It used to be `.pricing-card .pricing-card-creator`:
+   a second bordered panel inside the modal, ringed in --soleil and glowing.
+   Two problems. The ring was the biggest gold object on a screen whose only
+   gold should be the button — .pricing-card-creator earns it on /pricing,
+   where it marks which of two plans is selected, and there is only one plan
+   here. And the nesting spent 48px of a 600px width on padding inside
+   padding, which is what forced the benefit bodies into 28-character lines. */
+.upgrade-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+}
+/* Price on the left, interval toggle on the right, on one baseline. They were
+   stacked — name row, then toggle, then price — so the number a reader opened
+   the modal for was the third thing down inside the second box. */
+.upgrade-price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.upgrade-price-row .pricing-card-price { font-size: 40px; }
+/* The alternative action and the dismissal share a row. Stacked they were two
+   of three consecutive full-width ways out of the screen. */
+.upgrade-foot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+/* Holds the dismissal on the right when there is no invite link beside it
+   (storage, cap-hit, and every already-paid state). */
+.upgrade-foot-row > :only-child { margin-left: auto; }
 .upgrade-later {
-  align-self: center;
   background: transparent;
   border: 0;
   color: var(--ink-2);
@@ -6247,29 +6284,98 @@ button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allow
    a second glowing card: the page's primary action is the free start, and two
    gold buttons competing above the fold is how a pricing page stops being read
    as an answer to a question and starts being read as a sales page. */
-.pp-buy {
-  margin-top: 1.4em;
-  padding: 20px 22px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius-lg, 12px);
+/* ── The two plans, side by side ──────────────────────────────────────────
+   The page did not have this. Free was a prose section with a bullet list,
+   Creator was a comparison table, and the only buy surface was a 460px box
+   alone in the left two-thirds of the screen — so a pricing page's one job,
+   putting two plans next to each other to be compared, was the thing it could
+   not do. Both cards are the same shell; Creator is the raised one. */
+.pp-plans {
+  display: grid;
+  grid-template-columns: 1fr 1.12fr;   /* Creator carries four benefit rows */
+  gap: 18px;
+  align-items: start;
+  margin: 0 0 20px;
+}
+.pp-plan {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-width: 460px;
+  gap: 8px;
+  /* Measured against the fold rather than chosen: the buy button has to be
+     reachable without a scroll at 1280x720, the smallest laptop this page is
+     read on. Every value below is part of that budget. */
+  padding: 22px 24px 20px;
+  border-radius: var(--radius-lg, 14px);
+  border: 1px solid var(--line-2);
+  background: var(--bg-1);
+  text-align: left;
 }
-.pp-buy-head {
+/* The one selected-looking surface on the page, which is what the gold is
+   for. It is a 1px edge plus a lift, NOT the full --soleil-glow ring the old
+   .pricing-card-creator wore: on a page where only one card can be gold, the
+   ring competes with the gold button inside it. */
+.pp-plan-creator {
+  background: var(--bg-2);
+  border-color: color-mix(in srgb, var(--soleil) 26%, var(--line-2));
+  box-shadow: var(--shadow-2);
+}
+.pp-plan-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
 }
+.pp-plan-name {
+  font: 700 12px/1 var(--font-sans);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.pp-plan-creator .pp-plan-name { color: var(--ink-0); }
+.pp-plan-price {
+  font: 700 40px/1 var(--font-display, var(--font-sans));
+  letter-spacing: -.02em;
+  color: var(--ink-0);
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.pp-plan-unit {
+  font: 500 13px/1 var(--font-sans);
+  letter-spacing: 0;
+  color: var(--ink-2);
+}
+.pp-plan-sub { color: var(--ink-2); margin: -2px 0 0; }
+.pp-plan-benefits { margin-top: 2px; }
+.pp-plan .pricing-benefits { gap: 10px; }
+.pp-plan .pricing-benefits li { row-gap: 0; }
 /* .pricing-cta sets `margin-top: auto`, which is right inside a stretched card
-   and wrong inside this flex column — it would push the button to the bottom
-   of a box it already ends. */
-.pp-buy-cta { margin-top: 4px; }
-.pp-free-list { margin-top: 1.1em; }
+   and wrong here: the two cards are `align-items: start` so they are different
+   heights on purpose, and `auto` would shove the free card's button to the
+   bottom of a box it already ends. */
+.pp-plan-cta { margin-top: 12px; width: 100%; }
+.pp-plan-free .pp-plan-cta {
+  background: var(--bg-3);
+  color: var(--ink-0);
+  border: 1px solid var(--line-2);
+}
+.pp-plan-free .pp-plan-cta:hover { border-color: var(--line-1); }
+/* The signed-in demo account's slot: it is already on this plan, so the card
+   says so and holds the row rather than leaving the two cards' feet ragged. */
+.pp-plan-current {
+  margin-top: 14px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  border: 1px dashed var(--line-2);
+  color: var(--ink-2);
+  font: 600 13px/1 var(--font-sans);
+}
+.pp-trust { margin: 0 0 clamp(48px, 8vh, 80px); }
+.pp-free-list { margin-top: 2px; }
 .pp-foot {
   display: flex;
   align-items: center;
@@ -6281,10 +6387,16 @@ button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allow
 }
 .pp-foot b { color: var(--ink-2); font-weight: 600; }
 
-@media (max-width: 640px) {
-  .pp-buy { padding: 16px; max-width: none; }
-  .pp-buy-head { flex-direction: column; align-items: stretch; gap: 8px; }
-  .pp-buy-head .pricing-card-toggle { width: 100%; justify-content: center; }
+/* Creator FIRST on a phone. Source order puts Free first because that is the
+   reading order of a comparison and the order the free action should win in;
+   stacked, though, "the one with the benefits on it" has to be the card you
+   land on, not the one 400px below the fold. */
+@media (max-width: 760px) {
+  .pp-plans { grid-template-columns: 1fr; gap: 14px; }
+  .pp-plan { padding: 20px 18px; }
+  .pp-plan-creator { order: -1; }
+  .pp-plan-head { flex-direction: column; align-items: stretch; gap: 10px; }
+  .pp-plan-head .pricing-card-toggle { width: 100%; justify-content: center; }
 }
 
 /* ── Billing summary (shared by Settings modal + /settings/billing) ────── */
