@@ -25,6 +25,7 @@ import { Icon } from './Icon.jsx';
 import { Download } from '../lib/icons.js';
 import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
+  AssetFetchError,
 } from '../lib/cardDownload.js';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
@@ -739,18 +740,40 @@ export function ListSurface({
     }
     setZipping(true);
     try {
-      const { count, skipped } = await downloadCardAssets(
+      const { count, skipped, failed } = await downloadCardAssets(
         chosen.map(it => ({ card: it.card, kind: it.kind })),
         { zipName: zipNameFor(board?.name || 'cluster'), surface: 'list' });
+      // Say what was left out rather than quietly shipping a smaller archive
+      // than the one that was asked for — and distinguish "there was nothing
+      // behind it" (a note, an empty card) from "storage would not give it
+      // back", which is the one worth telling someone about.
+      const left = [];
+      if (skipped) left.push(`${skipped} had no file`);
+      if (failed) left.push(`${failed} could not be read from storage`);
       if (!count) {
         feedback?.toast?.({ type: 'warning', message: 'Nothing there could be downloaded.' });
-      } else if (skipped) {
-        // Say what was left out rather than quietly shipping a smaller archive
-        // than the one that was asked for.
-        feedback?.toast?.({ type: 'success', message: `Downloaded ${count} files — ${skipped} had no file to download.` });
+      } else if (left.length) {
+        feedback?.toast?.({
+          type: 'warning',
+          message: `Downloaded ${count} file${count === 1 ? '' : 's'} — ${left.join(', ')}.`,
+        });
       }
     } catch (err) {
-      feedback?.toast?.({ type: 'error', message: err?.code === 'zip_too_large' ? err.message : 'Download failed: ' + (err?.message || err) });
+      if (err?.code === 'zip_too_large') {
+        feedback?.toast?.({ type: 'error', message: err.message });
+      } else if (err instanceof AssetFetchError && err.unreachable) {
+        // R2 returns no CORS header on an error response, so the browser
+        // cannot tell us whether the signature died or this origin is simply
+        // not on the bucket's allowlist. Naming the origin is what makes the
+        // difference checkable by whoever reads the message.
+        const origin = (typeof window !== 'undefined' && window.location?.origin) || 'this address';
+        feedback?.toast?.({
+          type: 'error',
+          message: `Storage would not hand those files back to ${origin}. Downloading one at a time still works.`,
+        });
+      } else {
+        feedback?.toast?.({ type: 'error', message: 'Download failed: ' + (err?.message || err) });
+      }
     } finally {
       setZipping(false);
     }

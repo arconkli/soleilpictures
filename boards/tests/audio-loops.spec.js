@@ -228,3 +228,67 @@ test('every row carries a download button', async ({ page }) => {
   await goList(page);
   await expect(page.locator('.ct-dl')).toHaveCount(2);
 });
+
+test('one unreadable file does not take the whole archive down with it', async ({ page }) => {
+  // The bug this covers: the bulk path fetched every asset inside a single
+  // Promise.all, which rejects on the FIRST throw — so one dead R2 key turned
+  // "download these two" into "Download failed: Failed to fetch" and no
+  // archive, discarding the file that had already come back fine.
+  //
+  // R2 also sends no access-control-allow-origin on an ERROR response, so a
+  // dead signature reaches the browser as a bare TypeError and is
+  // indistinguishable from a blocked origin. That is why the surviving error
+  // names the origin instead of guessing between the two.
+  await boot(page);
+  // Aborted at the network layer rather than pointed at a missing path: the
+  // dev server answers an unknown path with the SPA's index.html, so a 404
+  // fixture would have come back 200 and proved nothing.
+  await page.route('**/gone-loop.wav', (route) => route.abort());
+  await page.evaluate(() => {
+    window.__soleilAudioLive.addAudio({ x: 200, y: 160 }, { fileName: 'good-loop.wav' });
+    window.__soleilAudioLive.addAudio({ x: 260, y: 220 },
+      { fileName: 'gone-loop.wav', src: '/gone-loop.wav' });
+  });
+  await expect(page.locator('.ac')).toHaveCount(2);
+  await goList(page);
+
+  await page.locator('.ct-row').nth(0).click();
+  await page.locator('.ct-row').nth(1).click({ modifiers: ['ControlOrMeta'] });
+  await expect(page.locator('.ct-row.is-selected')).toHaveCount(2);
+
+  const download = page.waitForEvent('download');
+  await page.locator('.list-selbar-act').click();
+
+  // The archive still arrives, holding the one file that could be read…
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(/\.zip$/);
+  // …and the shortfall is reported rather than silently shipped.
+  await expect(page.locator('.toast')).toContainText('Downloaded 1 file');
+  await expect(page.locator('.toast')).toContainText('could not be read from storage');
+});
+
+test('when storage hands back nothing, the error names the origin', async ({ page }) => {
+  // R2 sends no access-control-allow-origin on an ERROR response — verified
+  // against the live bucket — so an expired signature, a deleted object and an
+  // origin the bucket refuses all reach the browser as the same bare
+  // `TypeError: Failed to fetch`. The message cannot attribute the cause, so it
+  // names the origin instead and leaves the check to whoever reads it.
+  await boot(page);
+  await page.route('**/*.wav', (route) => route.abort());
+  await page.evaluate(() => {
+    window.__soleilAudioLive.addAudio({ x: 200, y: 160 }, { fileName: 'a.wav' });
+    window.__soleilAudioLive.addAudio({ x: 260, y: 220 }, { fileName: 'b.wav' });
+  });
+  await expect(page.locator('.ac')).toHaveCount(2);
+  await goList(page);
+
+  await page.locator('.ct-row').nth(0).click();
+  await page.locator('.ct-row').nth(1).click({ modifiers: ['ControlOrMeta'] });
+  await page.locator('.list-selbar-act').click();
+
+  const toast = page.locator('.toast');
+  await expect(toast).toContainText('Storage would not hand those files back');
+  await expect(toast).toContainText('http://127.0.0.1');
+  // Not the raw "Failed to fetch", which said nothing anyone could act on.
+  await expect(toast).not.toContainText('Failed to fetch');
+});

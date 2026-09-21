@@ -97,7 +97,9 @@ first; past either, take it in batches. In the phone and tablet apps files come
 down one at a time, through the system share sheet.
 
 Anything in the selection with no file behind it — a note, a link — is skipped,
-and the count of what was skipped is reported rather than quietly dropped.
+and the count of what was skipped is reported rather than quietly dropped. The
+same is true of a file storage cannot hand back: the archive still contains
+everything that could be read, and says how many could not.
 
 ## Previews
 
