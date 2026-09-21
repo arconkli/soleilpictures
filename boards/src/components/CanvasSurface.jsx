@@ -3415,6 +3415,10 @@ export function CanvasSurface({
           src: up.src, duration: up.duration || null, pending: false,
           peaks: up.peaks || null, sampleRate: up.sampleRate || null,
           channels: up.channels || null, analyzed: up.analyzed || null,
+          // Only when the file carried one. Never overwrites a cover the user
+          // chose by hand — an audio card added here has none yet, but the
+          // same rule holds for the backfill path.
+          ...(up.cover ? { cover: up.cover } : {}),
         });
       }
     } catch (err) {

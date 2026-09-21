@@ -2532,6 +2532,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               src: up.src, duration: up.duration || null, pending: false,
               peaks: up.peaks || null, sampleRate: up.sampleRate || null,
               channels: up.channels || null, analyzed: up.analyzed || null,
+              ...(up.cover ? { cover: up.cover } : {}),
             });
           } else {
             // 'largeMedia' (over-cap video/audio) + 'file' → multipart upload.
@@ -6956,6 +6957,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the real one. Bounded harder (2/pass) because it moves whole audio files.
   useAudioPeaksBackfill({
     cards: currentCards, canEdit: canEditCurrent,
+    workspaceId: workspace?.id, boardId: currentId, userId: user?.id,
     updateCardSilent: mainMutators.updateCardSilent,
   });
 

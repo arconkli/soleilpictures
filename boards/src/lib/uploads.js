@@ -14,6 +14,7 @@
 import { supabase } from './supabase.js';
 import { FREE_VIDEO_CAP, FREE_VIDEO_SECONDS, FREE_AUDIO_CAP } from './fileIngest.js';
 import { analyzeAudioFile, analyzable } from './audioAnalysis.js';
+import { readEmbeddedCover } from './audioTags.js';
 import { lowMemoryDevice } from './device.js';
 import { setMetaLocal } from './imageMeta.js';
 import { getSignedUrl } from './r2.js';
@@ -689,6 +690,26 @@ export function captureVideoPoster(source, { seekTo = 0.12, maxWidth = 1024, tim
   });
 }
 
+// Lift embedded cover art out of an audio File and store it as a normal image
+// object, so it renders through R2Image everywhere the manual cover does.
+//
+// Exactly captureAndUploadPoster's shape: derive from the local File, upload
+// through uploadImage so it gets its own `images` row plus the progressive
+// variants, and return null on any failure so the card simply has no cover.
+export async function extractAndUploadCover({ file, workspaceId, boardId, userId }) {
+  try {
+    const cover = await readEmbeddedCover(file);
+    if (!cover) return null;
+    const base = (file.name || 'cover').replace(/\.[a-z0-9]+$/i, '').replace(/[^a-z0-9-_ ]/gi, '_').slice(0, 60) || 'cover';
+    const coverFile = new File([cover.bytes], `${base}.${cover.ext}`, { type: cover.mime });
+    const up = await uploadImage({ file: coverFile, workspaceId, boardId, userId });
+    return up?.src || null;
+  } catch (err) {
+    console.warn('[uploads] embedded cover extraction failed (audio still plays)', err);
+    return null;
+  }
+}
+
 // Read duration from an audio File. Returns null if metadata fails.
 export function readAudioMeta(file) {
   return new Promise((res) => {
@@ -734,6 +755,8 @@ export async function uploadAudio({ file, workspaceId, boardId, userId, onProgre
     durationHint: meta.duration,
     lowMemory: lowMemoryDevice(),
   });
+  // Cover art too, from the same File. Head reads only — see audioTags.js.
+  const coverP = extractAndUploadCover({ file, workspaceId, boardId, userId });
 
   const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
   await putWithProgress(uploadUrl, file, { onProgress });
@@ -756,7 +779,9 @@ export async function uploadAudio({ file, workspaceId, boardId, userId, onProgre
   }
 
   const analysis = await analysisP;
+  const cover = await coverP;
   return {
+    cover,
     src: `r2:${key}`,
     storagePath: key,
     key,

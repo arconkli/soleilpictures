@@ -14478,7 +14478,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ", set by hand on any audio card"
+      "v": ", lifted from the file's own tag when it has one — or set by hand on any audio card"
      }
     ],
     [
@@ -14528,6 +14528,50 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Cover art",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Cover art"
+    }
+   ],
+   "id": "cover-art"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "MP3, M4A and FLAC files can carry artwork inside them, and Clusters reads it as the file uploads — a released track arrives on the canvas looking like itself."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "WAV and AIFF have no standard way to carry a picture, so a loop exported to either will not have one. Right-click any audio card for "
+    },
+    {
+     "t": "strong",
+     "v": "Set cover image",
+     "children": [
+      {
+       "t": "text",
+       "v": "Set cover image"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to add one by hand; a cover you set that way is never overwritten."
     }
    ]
   },

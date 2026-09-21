@@ -1686,12 +1686,18 @@ Audio
 Audio cards do more than provide a play button:
 
 A real waveform, drawn from the file — so you can see where the loud part is before playing it
-Cover art, set by hand on any audio card
+Cover art, lifted from the file's own tag when it has one — or set by hand on any audio card
 Standard transport controls
 
 Only one audio card plays at a time across the whole board. Starting a second stops the first. On a board holding a dozen takes of the same cue, this is the only behaviour that makes sense.
 
 Free accounts cap audio at 50 MB.
+
+Cover art
+
+MP3, M4A and FLAC files can carry artwork inside them, and Clusters reads it as the file uploads — a released track arrives on the canvas looking like itself.
+
+WAV and AIFF have no standard way to carry a picture, so a loop exported to either will not have one. Right-click any audio card for Set cover image to add one by hand; a cover you set that way is never overwritten.
 
 Downloading audio
 
