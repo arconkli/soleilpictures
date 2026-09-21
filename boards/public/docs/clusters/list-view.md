@@ -29,6 +29,21 @@ The combination is the answer to "where is that PDF someone dropped in here last
 week" — filter to PDFs, sort by date added, done. On the canvas that is a
 hunting expedition.
 
+## Auditioning audio
+
+An audio row's thumbnail is a play button. Press it and the clip plays in
+place, with a small waveform in the row showing what you are listening to.
+
+For going through a lot of them, use the keyboard: `↑` and `↓` move a highlight
+down the rows, `Space` plays whatever is highlighted, `Enter` selects it. **When
+a clip finishes, the next audio row starts on its own** and the highlight
+follows — so a pack of loops plays through while you keep your hands still. It
+stops at the end rather than wrapping.
+
+Only one thing plays at a time, everywhere: starting a row stops a clip playing
+on the canvas, and vice versa. Sorting by tempo or key and then holding `↓` is
+the fastest way through a folder of samples.
+
 ## Downloading
 
 Hover any row holding a file — an image, PDF, video, audio clip or attachment —

@@ -8321,6 +8321,47 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-name { color: var(--ink-0); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ct-sub { color: var(--ink-3); font-family: var(--font-mono); font-size: 10px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* ── Auditioning ──────────────────────────────────────────────────────────
+   The 34px thumbnail doubles as the play button on an audio row: cover art or
+   the headphones glyph underneath, a scrim + transport over it on hover. Zero
+   layout change — the row is the same row. */
+.ct-play {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  border: 0; padding: 0;
+  background: rgba(10, 10, 12, 0.55);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-quick) var(--ease);
+}
+.ct-thumb.is-audio:hover .ct-play,
+.ct-row:hover .ct-play,
+.ct-row.is-active .ct-play,
+.ct-row.is-playing .ct-play { opacity: 1; }
+.ct-play:focus-visible { opacity: 1; outline: 2px solid var(--soleil); outline-offset: -2px; }
+@media (hover: none) { .ct-play { opacity: 1; } }
+
+/* Gold is the active/selection/focus colour, so it marks the row the keyboard
+   is on and the row that is sounding — and nothing at rest. */
+.ct-row.is-active { box-shadow: inset 2px 0 0 0 var(--soleil); }
+.ct-row.is-playing .ct-thumb { border-color: var(--soleil); }
+.ct-row.is-playing .ct-name { color: var(--ink-0); }
+
+/* Mini waveform, from the same stored peaks the card draws. Pushed to the far
+   right of the name cell and dropped entirely when the column gets tight —
+   it is an aid to scanning, not information the row depends on. */
+.ct-wave {
+  flex: 0 0 auto;
+  width: 64px; height: 18px;
+  margin-left: auto;
+  opacity: .55;
+  fill: var(--ink-3);
+}
+.ct-row:hover .ct-wave { opacity: .8; }
+.ct-row.is-playing .ct-wave { fill: var(--soleil); opacity: 1; }
+@media (max-width: 720px) { .ct-wave { display: none; } }
+
 /* CardPreview inner (shared by row thumb + gallery tile) */
 .cbp-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cbp-glyph, .cbp-file, .cbp-note { width: 100%; height: 100%; display: grid; place-items: center; color: var(--ink-2); }

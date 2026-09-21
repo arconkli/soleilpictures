@@ -59,6 +59,15 @@ const SECTIONS = [
     ],
   },
   {
+    title: 'Audio',
+    rows: [
+      [['Enter'], 'Play · pause the selected clip'],
+      [['L'], 'Loop the selected clip'],
+      [['Space'], 'Audition the highlighted row (list view)'],
+      [['↑', '↓'], 'Move through rows (list view)'],
+    ],
+  },
+  {
     title: 'Notes',
     rows: [
       [['Double-click'], 'Edit a note or title'],

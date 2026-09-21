@@ -2233,6 +2233,170 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Audio",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Audio"
+    }
+   ],
+   "id": "audio"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Key"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Action"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "Enter"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Play · pause the selected clip"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "L"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Loop the selected clip"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Space"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Audition the highlighted row (list view)"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "↑"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "↓"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Move through rows (list view)"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " rather than "
+    },
+    {
+     "t": "code",
+     "v": "Space"
+    },
+    {
+     "t": "text",
+     "v": " on the canvas, because "
+    },
+    {
+     "t": "code",
+     "v": "Space"
+    },
+    {
+     "t": "text",
+     "v": " is already the pan modifier there and arrows already move cards. In "
+    },
+    {
+     "t": "link",
+     "v": "list view",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "list view"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " neither is taken, so auditioning a pack is "
+    },
+    {
+     "t": "code",
+     "v": "↓"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "Space"
+    },
+    {
+     "t": "text",
+     "v": " — and when a clip finishes, the next one starts on its own."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Both canvas keys only fire when exactly one audio card is selected; otherwise they fall through to whatever else is listening."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Notes",
    "inline": [
     {
@@ -15690,6 +15854,99 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "The combination is the answer to \"where is that PDF someone dropped in here last week\" — filter to PDFs, sort by date added, done. On the canvas that is a hunting expedition."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Auditioning audio",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Auditioning audio"
+    }
+   ],
+   "id": "auditioning-audio"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An audio row's thumbnail is a play button. Press it and the clip plays in place, with a small waveform in the row showing what you are listening to."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "For going through a lot of them, use the keyboard: "
+    },
+    {
+     "t": "code",
+     "v": "↑"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "↓"
+    },
+    {
+     "t": "text",
+     "v": " move a highlight down the rows, "
+    },
+    {
+     "t": "code",
+     "v": "Space"
+    },
+    {
+     "t": "text",
+     "v": " plays whatever is highlighted, "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " selects it. "
+    },
+    {
+     "t": "strong",
+     "v": "When a clip finishes, the next audio row starts on its own",
+     "children": [
+      {
+       "t": "text",
+       "v": "When a clip finishes, the next audio row starts on its own"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and the highlight follows — so a pack of loops plays through while you keep your hands still. It stops at the end rather than wrapping."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Only one thing plays at a time, everywhere: starting a row stops a clip playing on the canvas, and vice versa. Sorting by tempo or key and then holding "
+    },
+    {
+     "t": "code",
+     "v": "↓"
+    },
+    {
+     "t": "text",
+     "v": " is the fastest way through a folder of samples."
     }
    ]
   },

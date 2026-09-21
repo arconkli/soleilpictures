@@ -76,6 +76,7 @@ import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideoMeta, readAudioMeta, makeBoundedPreview, captureAndUploadPoster } from '../lib/uploads.js';
 import { analyzeAudioFile, analyzable } from '../lib/audioAnalysis.js';
 import { downloadCardAsset, DOWNLOADABLE } from '../lib/cardDownload.js';
+import * as audioBus from '../lib/audioBus.js';
 import { parseLoopMeta, canonicalKey } from '../lib/loopMeta.js';
 import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
@@ -4551,6 +4552,33 @@ export function CanvasSurface({
         if (e.key === 'a' || e.key === 'A') { e.preventDefault(); setSelectedTool('arrow'); return; }
         if (e.key === '[') { e.preventDefault(); if (!canEdit) { showEditBlockedToast(); return; } arrangeSelected('backward'); return; }
         if (e.key === ']') { e.preventDefault(); if (!canEdit) { showEditBlockedToast(); return; } arrangeSelected('forward'); return; }
+
+        // Audition the selected audio card.
+        //
+        // NOT Space — Space is the pan modifier on this surface (and is
+        // documented as such in the shortcuts overlay), and arrows move cards.
+        // Enter is free here, and L matches video's existing `loop` field.
+        // Both fall through when the selection is anything other than exactly
+        // one audio card, so they never shadow a future binding.
+        if (e.key === 'Enter' || (e.key === 'l' || e.key === 'L')) {
+          // Read through the refs: this effect's dep array intentionally
+          // watches selected.SIZE rather than the Set, so the closure's copy
+          // is stale whenever the selection changed without changing length.
+          const sel = selectedRef.current;
+          const one = sel.size === 1
+            ? (cardsRef.current || []).find(c => c.id === [...sel][0])
+            : null;
+          if (one && one.kind === 'audio') {
+            e.preventDefault();
+            if (e.key === 'Enter') {
+              audioBus.controls(one.id)?.toggle();
+            } else {
+              if (!canEdit) { showEditBlockedToast(); return; }
+              mutators.updateCard?.(one.id, { loop: one.loop ? null : true });
+            }
+            return;
+          }
+        }
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {

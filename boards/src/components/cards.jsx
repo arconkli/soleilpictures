@@ -1694,7 +1694,7 @@ const FLAT_PEAKS = new Uint8Array(PEAK_COUNT).fill(26);
 // or click to file-pick.
 function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
                             bpm = null, musicalKey = null, ext = null, mime = null,
-                            loop = false, cardId = null,
+                            loop = false, cardId = null, audioSource = 'canvas',
                             onUpdate, autoFocus = false,
                             coverPickAt = 0, editTitleAt = 0,
                             onPickCover = null, onDownload = null }) {
@@ -1774,14 +1774,26 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
   }, [cover]);
 
   // Wire the native audio element to React state.
+  //
+  // `audioSource` records WHERE the audition started ('canvas' or 'list'), which
+  // is what keeps auto-advance honest: a card started by clicking it on the
+  // canvas must not make the list jump to its next row.
   useEffect(() => {
     const audio = audioElRef.current;
     if (!audio) return;
     const stop = () => { try { audio.pause(); } catch (_) {} };
     stopFnRef.current = stop;
-    const onPlay = () => { setIsPlaying(true); audioBus.claim(stop); };
+    const onPlay = () => { setIsPlaying(true); audioBus.claim(stop, { cardId, source: audioSource }); };
     const onPause = () => { setIsPlaying(false); audioBus.release(stop); };
-    const onEnded = () => { setIsPlaying(false); setPosition(0); audioBus.release(stop); };
+    const onEnded = () => {
+      setIsPlaying(false);
+      setPosition(0);
+      // A zero-length or unreadable file fires `ended` immediately; letting
+      // that drive auto-advance would run through a whole pack in a blink.
+      const played = audio.currentTime || audio.duration || 0;
+      audioBus.release(stop);
+      if (played >= 0.05) audioBus.notifyEnded(cardId);
+    };
     const onTime = () => setPosition(audio.currentTime || 0);
     const onMeta = () => setDecodedDuration(audio.duration || decodedDuration || 0);
     audio.addEventListener('play', onPlay);
@@ -1797,7 +1809,27 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
       audio.removeEventListener('timeupdate', onTime);
       audio.removeEventListener('loadedmetadata', onMeta);
     };
-  }, []);
+  }, [cardId, audioSource]);
+
+  // Publish this card's transport so it can be driven from outside — the
+  // canvas keyboard shortcut, a list row's play button, and auto-advance.
+  useEffect(() => {
+    if (!cardId) return undefined;
+    audioBus.register(cardId, {
+      toggle: () => {
+        const a = audioElRef.current;
+        if (!a) return;
+        if (a.paused) a.play()?.catch?.(() => {}); else a.pause();
+      },
+      play: () => { audioElRef.current?.play?.()?.catch?.(() => {}); },
+      pause: () => { try { audioElRef.current?.pause?.(); } catch (_) {} },
+      seek: (frac) => seekByFraction(frac),
+      isPlaying: () => !!audioElRef.current && !audioElRef.current.paused,
+    });
+    return () => audioBus.unregister(cardId);
+    // seekByFraction closes over decodedDuration, which changes on load; the
+    // registry entry is replaced when it does.
+  }, [cardId, decodedDuration]);
 
   const togglePlay = (e) => {
     e.stopPropagation();

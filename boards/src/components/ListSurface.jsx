@@ -18,6 +18,8 @@ import { ClusterTable } from './clusterBrowser/ClusterTable.jsx';
 import { ClusterGallery } from './clusterBrowser/ClusterGallery.jsx';
 import { DetailPanel } from './clusterBrowser/DetailPanel.jsx';
 import { groupGridFamilies } from '../lib/gridFamilies.js';
+import * as audioBus from '../lib/audioBus.js';
+import { resolveSrc } from '../lib/r2.js';
 import { Icon } from './Icon.jsx';
 import { Download } from '../lib/icons.js';
 import {
@@ -157,6 +159,112 @@ export function ListSurface({
     });
   }, []);
 
+  // ── Auditioning ───────────────────────────────────────────────────────────
+  //
+  // The rows a keyboard cursor can land on, in the order they are on screen:
+  // group headers plus the members of EXPANDED families, inlined, so index ↔
+  // row is 1:1 and a cursor never points at a row that isn't rendered.
+  const navItems = useMemo(() => {
+    const out = [];
+    for (const it of displayItems) {
+      out.push(it);
+      if (it.isGroup && expandedGroups.has(it.id)) out.push(...(it.members || []));
+    }
+    return out;
+  }, [displayItems, expandedGroups]);
+
+  // Cursor for ↑/↓ and Space. Separate from SELECTION: moving through a pack
+  // auditioning it should not be building a forty-item selection you then have
+  // to clear.
+  const [activeId, setActiveId] = useState(null);
+  const [playingId, setPlayingId] = useState(null);
+
+  // Re-sorting or filtering strands the cursor on a row that has moved or gone.
+  useEffect(() => {
+    if (activeId && !navItems.some(it => it.id === activeId)) setActiveId(null);
+  }, [navItems, activeId]);
+  useEffect(() => { setActiveId(null); setPlayingId(null); }, [board.id]);
+
+  // Keep the keyboard cursor on screen. A ref per row rather than a query
+  // selector so this survives the rows re-ordering under a sort.
+  const rowRefs = useRef(new Map());
+  const registerRow = useCallback((id) => (el) => {
+    if (el) rowRefs.current.set(id, el); else rowRefs.current.delete(id);
+  }, []);
+  useEffect(() => {
+    if (!activeId) return;
+    rowRefs.current.get(activeId)?.scrollIntoView?.({ block: 'nearest' });
+  }, [activeId]);
+
+  // ONE <audio> element for the whole list, re-pointed as you move through the
+  // pack — not a mounted AudioCard per row. A row renders a CardPreview, not a
+  // card, so there is no transport to drive; and mounting 400 media elements to
+  // give every row a play button would be absurd. This is also how auditioning
+  // actually works: you are listening to one thing at a time.
+  //
+  // It still goes through audioBus.claim, so the one-at-a-time rule holds
+  // ACROSS surfaces — starting a row stops a canvas card in the other pane.
+  const audioElRef = useRef(null);
+  const playingIdRef = useRef(null);
+  useEffect(() => { playingIdRef.current = playingId; }, [playingId]);
+
+  // Handed to the bus so a canvas card starting up can stop us. Declared
+  // BEFORE auditionCard, which closes over it.
+  const stopAudition = useCallback(() => {
+    try { audioElRef.current?.pause(); } catch (_) {}
+    setPlayingId(null);
+  }, []);
+
+  const auditionCard = useCallback(async (id) => {
+    const it = items.find(x => x.id === id);
+    const src = it?.card?.src;
+    if (!src) return false;
+    let el = audioElRef.current;
+    if (!el) {
+      el = new Audio();
+      el.preload = 'metadata';
+      audioElRef.current = el;
+      el.addEventListener('ended', () => {
+        const ended = playingIdRef.current;
+        setPlayingId(null);
+        audioBus.release(stopAudition);
+        // Guard the zero-length case: a file that fires `ended` instantly
+        // would otherwise run auto-advance through a whole pack in a blink.
+        if (ended && (el.currentTime || el.duration || 0) >= 0.05) audioBus.notifyEnded(ended);
+      });
+      el.addEventListener('pause', () => setPlayingId(null));
+    }
+    if (playingIdRef.current === id && !el.paused) { el.pause(); return true; }
+    const url = await resolveSrc(src);
+    if (!url) return false;
+    if (el.src !== url) { el.src = url; }
+    audioBus.claim(stopAudition, { cardId: id, source: 'list' });
+    try { await el.play(); setPlayingId(id); } catch (_) { setPlayingId(null); return false; }
+    return true;
+  }, [items, stopAudition]);
+
+
+  // Leaving list view must not leave a loop playing from nowhere.
+  useEffect(() => () => {
+    try { audioElRef.current?.pause(); } catch (_) {}
+    audioBus.release(stopAudition);
+  }, [stopAudition]);
+
+  // Auto-advance. This is the thing that turns the list into a loop browser:
+  // start one and the pack plays through, cursor following, until you stop it.
+  //
+  // Gated on source === 'list' so a clip started by clicking a card on the
+  // canvas never makes the list jump — the person is not looking at the list.
+  useEffect(() => audioBus.onEnded(({ cardId, source }) => {
+    if (source !== 'list') return;
+    const order = navItems.filter(it => it.kind === 'audio');
+    const i = order.findIndex(it => it.id === cardId);
+    const next = i >= 0 ? order[i + 1] : null;
+    if (!next) return;   // stop at the end; no wrap
+    setActiveId(next.id);
+    auditionCard(next.id);
+  }), [navItems, auditionCard]);
+
   // Live per-row presence (which cards peers currently have open), scoped to
   // this cluster + descendants.
   const descendantIds = useMemo(() => collectDescendantIds(boards, board.id), [boards, board.id]);
@@ -232,18 +340,46 @@ export function ListSurface({
     });
   }, []);
 
+  // Shift-click anchor. Shift used to be lumped in with Cmd/Ctrl and simply
+  // TOGGLED one item, which made "select these forty loops" forty clicks.
+  const anchorRef = useRef({ kind: null, id: null });
+
+  // Select every item between the anchor and `id` in the order currently on
+  // screen — which is the sorted, filtered order, not the underlying one.
+  const selectRange = useCallback((orderedIds, fromId, toId) => {
+    const a = orderedIds.indexOf(fromId);
+    const b = orderedIds.indexOf(toId);
+    if (a < 0 || b < 0) return new Set([toId]);
+    const [lo, hi] = a <= b ? [a, b] : [b, a];
+    return new Set(orderedIds.slice(lo, hi + 1));
+  }, []);
+
   const onTileClick = (e, kind, id) => {
     if (e.target.closest && e.target.closest('.editable')) return;
     e.stopPropagation();
     setSelectedGroupId(null); // selecting an item exits any family view
-    const multi = e.metaKey || e.ctrlKey || e.shiftKey;
+    const additive = e.metaKey || e.ctrlKey;
+    const ranged = e.shiftKey && anchorRef.current.kind === kind && anchorRef.current.id;
     if (kind === 'board') {
-      if (multi) toggle(selectedBoards, setSelectedBoards, id, true);
+      if (ranged) {
+        setSelectedBoards(prev => new Set([...prev, ...selectRange(subBoards.map(b => b.id), anchorRef.current.id, id)]));
+        setSelectedCards(new Set());
+        return;
+      }
+      if (additive) toggle(selectedBoards, setSelectedBoards, id, true);
       else { setSelectedBoards(new Set([id])); setSelectedCards(new Set()); }
     } else {
-      if (multi) toggle(selectedCards, setSelectedCards, id, true);
+      if (ranged) {
+        setSelectedCards(prev => new Set([...prev, ...selectRange(visibleItems.map(it => it.id), anchorRef.current.id, id)]));
+        setSelectedBoards(new Set());
+        return;
+      }
+      if (additive) toggle(selectedCards, setSelectedCards, id, true);
       else { setSelectedCards(new Set([id])); setSelectedBoards(new Set()); }
     }
+    // A plain or additive click moves the anchor; a range-select does not, so
+    // you can keep widening the same range.
+    anchorRef.current = { kind, id };
   };
 
   const onTileDoubleClick = (e, kind, id) => {
@@ -290,12 +426,49 @@ export function ListSurface({
     });
   }, [feedback, mutators]);
 
-  // Delete selected via Backspace/Delete.
+  // Keyboard: move through rows, audition, delete.
+  //
+  // Extends the existing Delete handler rather than adding a second window
+  // listener, so the new keys inherit BOTH guards it already has — a modal
+  // owning the keyboard, and split-view's active-pane arbitration. A second
+  // listener would have fired in both panes on every arrow press.
   useEffect(() => {
     const onKey = async (e) => {
       if (anyModalOpen()) return; // dialogs own the keyboard (lib/modalGuard)
       if (hasSplit && getActivePane() !== paneId) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+
+      // ↑/↓ move the cursor; Space auditions it; Enter selects it.
+      if (navItems.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+        e.preventDefault();
+        const i = activeId ? navItems.findIndex(it => it.id === activeId) : -1;
+        const step = e.key === 'ArrowDown' ? 1 : -1;
+        const next = i < 0
+          ? (step > 0 ? 0 : navItems.length - 1)
+          : Math.max(0, Math.min(navItems.length - 1, i + step));
+        setActiveId(navItems[next].id);
+        return;
+      }
+      if (e.key === ' ' || e.code === 'Space') {
+        // Only claim Space when there is actually something to audition —
+        // otherwise leave the page's own scroll behaviour alone.
+        const target = activeId || (selectedCards.size === 1 ? [...selectedCards][0] : null);
+        const it = target && navItems.find(n => n.id === target);
+        if (it && it.kind === 'audio') {
+          e.preventDefault();
+          setActiveId(it.id);
+          auditionCard(it.id);
+        }
+        return;
+      }
+      if (e.key === 'Enter' && activeId) {
+        e.preventDefault();
+        setSelectedCards(new Set([activeId]));
+        setSelectedBoards(new Set());
+        setSelectedGroupId(null);
+        return;
+      }
+
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       const total = selectedBoards.size + selectedCards.size;
       if (total === 0) return;
@@ -335,7 +508,8 @@ export function ListSurface({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [feedback, selectedBoards, selectedCards, boards, mutators, hasSplit, paneId]);
+  }, [feedback, selectedBoards, selectedCards, boards, mutators, hasSplit, paneId,
+      navItems, activeId, auditionCard]);
 
   const [dragOver, setDragOver] = useState(false);
   // Board tile currently highlighted as a reparent drop target.
@@ -605,6 +779,8 @@ export function ListSurface({
                     expandedGroups={expandedGroups} selectedGroupId={selectedGroupId}
                     onGroupClick={onGroupClick}
                     onDownload={downloadOne}
+                    onAudition={(it) => { setActiveId(it.id); auditionCard(it.id); }}
+                    activeId={activeId} playingId={playingId} registerRow={registerRow}
                     onRowClick={(e, id) => onTileClick(e, 'file', id)}
                     onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
                 )}
