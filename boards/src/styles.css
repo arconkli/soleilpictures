@@ -9865,6 +9865,54 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
    No fill transition: nothing changes colour any more, the clip moves. */
 .ac-bar-on  { fill: var(--soleil); }
 .ac-bar-off { fill: var(--ink-4); }
+/* Tempo · key · format, under the transport. The two editable fields carry no
+   gold until they are focused — gold is the active/selection/focus colour, and
+   a resting value is neither. */
+.ac-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+.ac-meta-field {
+  min-width: 18px;
+  white-space: nowrap;
+}
+.ac-meta-field.editable:hover { color: var(--ink-2); }
+.ac-meta-field.is-placeholder { color: var(--ink-4); }
+.ac-meta-field.is-editing { color: var(--ink-1); outline: none; }
+.ac-meta-fmt {
+  color: var(--ink-4);
+  letter-spacing: 0.04em;
+}
+/* Download sits at the far right of the transport, revealed on hover. On a
+   touch device there is no hover, so it is always there. */
+.ac-download {
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-quick) var(--ease), color var(--dur-quick) var(--ease);
+}
+.ac:hover .ac-download,
+.ac:focus-within .ac-download { opacity: 1; }
+.ac-download:hover { color: var(--ink-1); background: var(--surface-2); }
+.ac-download:focus-visible { opacity: 1; outline: 2px solid var(--soleil); outline-offset: 1px; }
+@media (hover: none) {
+  .ac-download { opacity: 1; }
+}
 .ac-controls {
   display: flex;
   align-items: center;

@@ -75,6 +75,7 @@ import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideoMeta, readAudioMeta, makeBoundedPreview, captureAndUploadPoster } from '../lib/uploads.js';
 import { analyzeAudioFile, analyzable } from '../lib/audioAnalysis.js';
+import { parseLoopMeta, canonicalKey } from '../lib/loopMeta.js';
 import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
 import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
@@ -3315,6 +3316,7 @@ export function CanvasSurface({
         title: file.name || 'Audio', duration: meta.duration || null,
         fileName: file.name || null, mime: file.type || null, sizeBytes: file.size || null,
         ext: (file.name?.split('.').pop() || '').toLowerCase(),
+        ...parseLoopMeta(file.name),
       };
     }
     const id = `${kind === 'video' ? 'vid' : 'aud'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
@@ -3399,6 +3401,9 @@ export function CanvasSurface({
     mutators.addCard?.({
       id, kind: 'audio', title: file.name || 'Audio',
       fileName: file.name || null, mime: file.type || null, sizeBytes: file.size || null, ext,
+      // Packs are named by machine — SFL_120_Gmin_Loop.wav — so the tempo and
+      // key are usually already written down. Parsed here, editable after.
+      ...parseLoopMeta(file.name),
       x: placed.x, y: placed.y, w, h, pending: true,
     });
     try {
@@ -8547,6 +8552,7 @@ export function CanvasSurface({
                                                         autoplay={!!c.autoplay} loop={!!c.loop} onUpdate={onUpdate} autoFocus={af}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'audio')     inner = <AudioCard src={c.src} title={c.title} duration={c.duration} cover={c.cover} peaks={c.peaks}
+                                                        bpm={c.bpm} musicalKey={c.musicalKey} ext={c.ext} mime={c.mime}
                                                         onUpdate={onUpdate} autoFocus={af}
                                                         coverPickAt={editFieldSignal.id === c.id && editFieldSignal.field === 'audioCover' ? editFieldSignal.n : 0}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}

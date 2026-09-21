@@ -165,6 +165,7 @@ import {
 import { getViewAnchor as getSchedViewAnchor } from './lib/schedViewRegistry.js';
 import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio, uploadFile, readVideoMeta, readAudioMeta } from './lib/uploads.js';
 import { analyzeAudioFile, analyzable } from './lib/audioAnalysis.js';
+import { parseLoopMeta } from './lib/loopMeta.js';
 import { lowMemoryDevice } from './lib/device.js';
 import { arrangeInFreeSpace } from './lib/canvasGeom.js';
 import { classifyDropFile, fitImageDims, sizeBucket } from './lib/fileIngest.js';
@@ -2483,6 +2484,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           card.title = it.file.name || 'Audio';
           card.fileName = it.file.name; card.mime = it.file.type; card.sizeBytes = it.file.size;
           card.ext = (it.file.name?.split('.').pop() || '').toLowerCase();
+          // Packs are named by machine — parse the tempo and key out of the
+          // filename here, same as the canvas path. Editable on the card after.
+          Object.assign(card, parseLoopMeta(it.file.name));
         }
         else if (it.kind === 'file') {
           card.fileName = it.file.name; card.mime = it.file.type; card.sizeBytes = it.file.size;

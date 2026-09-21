@@ -10,6 +10,7 @@ import { buildImgStyle } from '../lib/imageAdjust.js';
 import * as audioBus from '../lib/audioBus.js';
 import { EditableText } from './EditableText.jsx';
 import { peaksFromBase64, peaksToPath, peaksPathWidth, PEAK_COUNT } from '../lib/audioAnalysis.js';
+import { formatKey, canonicalKey, formatLabel } from '../lib/loopMeta.js';
 import { RichNoteEditor, useNoteOverflow } from './RichNoteEditor.jsx';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import './noteChecklist.css';
@@ -50,7 +51,7 @@ import { EntityLink } from './EntityLink.jsx';
 import {
   Folder as FolderIcon, Image as ImagePh, StickyNote, Link as LinkPh,
   Palette as PalettePh, FileText, Calendar as CalendarPh, Square as SquarePh,
-  Circle as CirclePh, FilePdf, Paperclip, Headphones, Clapperboard,
+  Circle as CirclePh, FilePdf, Paperclip, Headphones, Clapperboard, Download,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { PdfCard } from './cards/PdfCard.jsx';
@@ -1680,9 +1681,10 @@ const FLAT_PEAKS = new Uint8Array(PEAK_COUNT).fill(26);
 // the card into drop-zone mode so the user can drag an image onto it
 // or click to file-pick.
 function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
+                            bpm = null, musicalKey = null, ext = null, mime = null,
                             onUpdate, autoFocus = false,
                             coverPickAt = 0, editTitleAt = 0,
-                            onPickCover = null }) {
+                            onPickCover = null, onDownload = null }) {
   const audioElRef = useRef(null);
   const rootRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -1870,6 +1872,41 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
     <span className="ac-time">{formatTime(position)} <span className="ac-time-sep">/</span> {formatTime(dur)}</span>
   );
 
+  // Tempo · key · format. Seeded from the filename at upload (loopMeta.js) and
+  // editable in place, because a pack whose names carry nothing still has to
+  // be sortable — and because a parser that guessed would be worse than a
+  // blank a producer can fill in. Writing either by hand stamps
+  // metaSource:'manual', which is what stops any later pass overwriting it.
+  const fmt = formatLabel({ ext, mime, src });
+  const keyText = formatKey(musicalKey);
+  const commitBpm = (v) => {
+    const n = parseInt(String(v).replace(/[^\d]/g, ''), 10);
+    onUpdate?.({ bpm: Number.isFinite(n) && n > 0 ? n : null, metaSource: 'manual' });
+  };
+  const commitKey = (v) => onUpdate?.({ musicalKey: canonicalKey(v), metaSource: 'manual' });
+  const metaRow = (onUpdate || bpm != null || keyText || fmt) ? (
+    <div className="ac-meta" onPointerDown={(e) => e.stopPropagation()}>
+      {onUpdate ? (
+        <EditableText className="ac-meta-field" value={bpm != null ? String(bpm) : ''}
+                      placeholder="BPM" onChange={commitBpm} singleClickEdit />
+      ) : (bpm != null && <span className="ac-meta-field">{bpm}</span>)}
+      {onUpdate ? (
+        <EditableText className="ac-meta-field" value={keyText}
+                      placeholder="Key" onChange={commitKey} singleClickEdit />
+      ) : (keyText && <span className="ac-meta-field">{keyText}</span>)}
+      {fmt && <span className="ac-meta-fmt">{fmt}</span>}
+    </div>
+  ) : null;
+
+  const downloadButton = onDownload ? (
+    <button type="button" className="ac-download"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onDownload(); }}
+            aria-label="Download audio" title="Download">
+      <Icon as={Download} size={14} />
+    </button>
+  ) : null;
+
   const titleEl = onUpdate ? (
     <EditableText
       className="ac-title editable"
@@ -1944,6 +1981,8 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
           <div className="ac-controls">
             {playButton}
             {timeDisplay}
+            {metaRow}
+            {downloadButton}
           </div>
         </div>
       </div>
@@ -1961,6 +2000,8 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
       <div className="ac-controls">
         {playButton}
         {timeDisplay}
+        {metaRow}
+        {downloadButton}
       </div>
     </div>
   );

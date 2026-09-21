@@ -47,6 +47,23 @@ is the only behaviour that makes sense.
 
 Free accounts cap audio at **50 MB**.
 
+### Tempo and key
+
+Sample and loop packs are named by machine — `SFL_120_Gmin_Loop_Piano.wav`,
+`Cymatics - Orchid Kick 3 - 140 BPM.wav` — so the tempo and key are usually
+already written down. Clusters reads them out of the filename as the file
+uploads and puts them on the card, where you can sort and filter by them in
+[list view](/docs/clusters/list-view).
+
+Both fields are editable: click the tempo or the key under the waveform and
+type. What you type wins permanently and is never overwritten.
+
+Clusters does **not** listen to the audio to work either one out. Key detection
+on a single-instrument loop is guesswork — a kick loop has no key, and a hi-hat
+loop will report one anyway — and a wrong key is worse than an empty one,
+because you will trust it and your track will clash. If the name carries
+nothing, the field stays blank until you fill it in.
+
 ### When a card has no waveform
 
 The waveform is decoded from the file as it uploads. Decoding holds the whole
