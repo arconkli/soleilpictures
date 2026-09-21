@@ -709,7 +709,12 @@ export function ListSurface({
                      : `Download ${downloadableSelected}`}</span>
               </button>
             )}
-            <span className="list-selbar-hint">⌫ to delete · {cmdKey}-click to multi-select</span>
+            {/* A visitor on a shared link cannot delete — the key is gated on
+                canEdit — so do not offer them a shortcut that does nothing. */}
+            <span className="list-selbar-hint">
+              {canEdit ? `⌫ to delete · ${cmdKey}-click to multi-select`
+                       : `${cmdKey}-click to multi-select · ⇧-click for a range`}
+            </span>
           </div>
         )}
 

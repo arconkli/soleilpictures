@@ -604,7 +604,13 @@ export function PublicBoardView({ token, slug }) {
   // A cluster the owner set to LIST opens as a list here too — the same
   // `board.view` the signed-in app reads. Canvas stays the default, including
   // for every cluster that has never had the setting touched.
-  const isListView = (cur?.board?.view || board?.view) === 'list';
+  // Reads `cur.board` directly and NOT the `board` const below, which is the
+  // same object (`cur?.board || EMPTY_OBJ`) — so the fallback bought nothing
+  // and was a live landmine: `board` is declared further down, so any bundle
+  // arriving without a `view` would short-circuit into a temporal-dead-zone
+  // ReferenceError and white-screen the whole public page. `boards.view` is
+  // NOT NULL DEFAULT 'canvas' today, which is the only reason it never fired.
+  const isListView = cur?.board?.view === 'list';
 
   // ListSurface renders sub-clusters as tiles from childBoards, which the
   // public bundle expresses as the flat navBoards map plus board cards.

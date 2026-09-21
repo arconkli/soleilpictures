@@ -129,14 +129,25 @@ function matchKeyToken(tok, { typed = false } = {}) {
 export function parseKey(name) {
   const toks = tokenize(name);
   for (let i = 0; i < toks.length; i++) {
+    // Look ahead BEFORE trying the token on its own.
+    //
+    // "F# min" is F sharp MINOR — but `F#` satisfies the single-token rule by
+    // itself, because it carries an accidental. Trying the direct match first
+    // therefore returned 'F#' and silently dropped the mode, for every key
+    // with an accidental: "Bb maj", "Ab major", "Eb min". Only the BARE tonic
+    // case ("A min") ever reached this join, because a lone "A" fails the
+    // single-token rule — which is exactly why it looked like it worked.
+    const bare = /^([A-Ga-g])([#b♯♭]?)$/.exec(toks[i]);
+    if (bare && /^(maj|major|min|minor)$/i.test(toks[i + 1] || '')) {
+      const accidental = normalizeAccidental(bare[2]);
+      // Same anti-prose rule as matchKeyToken: a lowercase bare letter with no
+      // accidental is a word, not a tonic.
+      if (bare[1] === bare[1].toUpperCase() || accidental) {
+        return `${bare[1].toUpperCase()}${accidental}${normalizeMode(toks[i + 1])}`;
+      }
+    }
     const direct = matchKeyToken(toks[i]);
     if (direct) return direct;
-    // "A min" / "F# major" — the separator split them apart.
-    const bare = /^([A-G])([#b♯♭]?)$/.exec(toks[i]);
-    const next = normalizeMode(toks[i + 1]);
-    if (bare && next && /^(maj|major|min|minor)$/i.test(toks[i + 1] || '')) {
-      return `${bare[1]}${normalizeAccidental(bare[2])}${next}`;
-    }
   }
   return null;
 }

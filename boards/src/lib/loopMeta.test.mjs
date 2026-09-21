@@ -65,6 +65,27 @@ test('musical key from the filename', () => {
   assert.equal(parseKey('Piano D major.wav'), 'Dmaj');
 });
 
+test('an accidental with the mode in the NEXT token keeps the mode', () => {
+  // The bug this file missed: `F#` satisfies the single-token rule on its own
+  // (it carries an accidental), so trying the direct match first returned
+  // 'F#' and silently dropped the 'min' beside it. Every key with an
+  // accidental was affected. "A min" worked — and hid it — only because a
+  // lone "A" fails the single-token rule and fell through to the join.
+  assert.equal(parseKey('Loop F# min 120.wav'), 'F#min');
+  assert.equal(parseKey('Pad F# minor.wav'), 'F#min');
+  assert.equal(parseKey('Stab Bb maj 90.wav'), 'Bbmaj');
+  assert.equal(parseKey('Keys C# min.wav'), 'C#min');
+  assert.equal(parseKey('Arp Ab major.wav'), 'Abmaj');
+  assert.equal(parseKey('Bass Eb min.aiff'), 'Ebmin');
+  assert.equal(parseKey('120_F#_min.wav'), 'F#min');
+  assert.equal(parseKey('Pad F♯ min.wav'), 'F#min');
+  // The tonic alone, with nothing after it, still stores just the tonic.
+  assert.equal(parseKey('Riser F#.wav'), 'F#');
+  // A mode word that is not next to a tonic must not be grabbed.
+  assert.equal(parseKey('Minor Details.wav'), null);
+  assert.equal(parseKey('Major Lazer Vox.wav'), null);
+});
+
 test('a bare note letter is REFUSED', () => {
   // These are the false positives that would fill a Key column with noise.
   assert.equal(parseKey('Drum A.wav'), null);
