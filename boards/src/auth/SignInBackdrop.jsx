@@ -102,9 +102,13 @@ const CURSORS = [
 ];
 const ARROW = '<svg width="17" height="21" viewBox="0 0 16 20" fill="none"><path d="M2 2 L2 15 L5.5 12 L8 17.5 L10 16.5 L7.5 11 L13 11 Z" fill="COLOR" stroke="#0a0a0c" stroke-width="1" stroke-linejoin="round"/></svg>';
 
-// deterministic "waveform" peaks from a string seed (ported from the app's
-// AudioCard.generatePeaks — R2 audio isn't CORS-decodable, so this is faked but
-// reads as music). Returns count values in ~[0.3,1].
+// Deterministic "waveform" peaks from a string seed. Synthesized on purpose
+// and legitimately so: these two cards are DECORATION on the sign-in backdrop
+// and there is no audio file behind them to draw. The real AudioCard used to
+// share this trick on actual uploads, which made the product's promise of "a
+// real waveform, drawn from the file" untrue — it now decodes the file
+// (lib/audioAnalysis.js). Do not re-export this into the app.
+// Returns count values in ~[0.3,1].
 function peaks(seed, count){
   const s = String(seed || 'a'); let h = 0;
   for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;

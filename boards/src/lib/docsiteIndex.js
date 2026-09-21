@@ -1203,9 +1203,9 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/files/video-and-audio",
     "title": "Video and Audio — Soleil Clusters",
-    "metaDescription": "Video and audio cards in Soleil Clusters play inline on the canvas. Waveform audio players with cover art, one-at-a-time playback, and free-plan size caps.",
+    "metaDescription": "Video and audio cards in Soleil Clusters play inline on the canvas. Audio draws a real waveform decoded from the file, with cover art and one-at-a-time play.",
     "h1": "Video and audio",
-    "answer": "Video and audio files become playable cards on the canvas. Audio cards draw a real waveform and show cover art, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.",
+    "answer": "Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.",
     "section": "files",
     "order": 2,
     "updated": "2026-08-08",

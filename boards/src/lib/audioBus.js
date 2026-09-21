@@ -1,7 +1,8 @@
 // Module-level singleton so only one audio card plays at a time across
 // the board. Each AudioCard calls claim(stopFn) on play and release(stopFn)
 // on pause/end/unmount. Starting a new card invokes the previous owner's
-// stopFn, which pauses its wavesurfer instance.
+// stopFn, which pauses its <audio> element. (The comment here used to say
+// "wavesurfer instance" — there has never been a wavesurfer in this repo.)
 
 let active = null;
 

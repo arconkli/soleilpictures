@@ -1,6 +1,6 @@
 // All card kinds. Most accept onUpdate(patch) so they can self-edit inline.
 
-import { memo, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { ImagePlaceholder, Avatar, COVER_TINTS } from './primitives.jsx';
 import { R2Image } from './R2Image.jsx';
@@ -9,6 +9,7 @@ import { resolveSrc } from '../lib/r2.js';
 import { buildImgStyle } from '../lib/imageAdjust.js';
 import * as audioBus from '../lib/audioBus.js';
 import { EditableText } from './EditableText.jsx';
+import { peaksFromBase64, peaksToPath, peaksPathWidth, PEAK_COUNT } from '../lib/audioAnalysis.js';
 import { RichNoteEditor, useNoteOverflow } from './RichNoteEditor.jsx';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import './noteChecklist.css';
@@ -1662,32 +1663,23 @@ function formatTime(t) {
   return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
-// Deterministic-but-musical-looking peaks seeded from a string so each
-// track gets a stable, unique-ish waveform without needing the audio
-// bytes (R2 signed URLs aren't CORS-readable, so real decoding is out).
-function generatePeaks(seed, count = 56) {
-  const s = String(seed || 'audio');
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  const peaks = [];
-  for (let i = 0; i < count; i++) {
-    h = (h * 1664525 + 1013904223) | 0;
-    const r = ((h >>> 0) / 4294967296);
-    // Mix random + sinusoid so it reads as music, not noise.
-    const sine = Math.sin(i * 0.42 + (h >>> 24) * 0.01) * 0.5 + 0.5;
-    const env = Math.sin((i / (count - 1)) * Math.PI) * 0.4 + 0.6; // soft envelope
-    const p = (0.35 + 0.65 * (0.55 * r + 0.45 * sine)) * env;
-    peaks.push(p);
-  }
-  return peaks;
-}
+// A card with no stored waveform draws an even, low strip rather than a
+// fabricated one. It still fills to the playhead and still seeks, so it is a
+// working transport that simply doesn't claim to know the shape of the audio.
+//
+// This replaced generatePeaks(), which hashed the FILENAME into a
+// musical-looking waveform that had nothing to do with the file — while the
+// public docs promised "a real waveform, drawn from the file". Real peaks are
+// decoded from the local File at upload time (lib/audioAnalysis.js) and
+// backfilled for older cards by useAudioPeaksBackfill.
+const FLAT_PEAKS = new Uint8Array(PEAK_COUNT).fill(26);
 
 // Audio card — native <audio> for playback (no crossOrigin so it works
 // regardless of R2 CORS), decorative waveform rendered as SVG bars that
 // fill as playback progresses. Right-click → "Set cover image" puts
 // the card into drop-zone mode so the user can drag an image onto it
 // or click to file-pick.
-function AudioCard({ src, title, duration, cover,
+function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
                             onUpdate, autoFocus = false,
                             coverPickAt = 0, editTitleAt = 0,
                             onPickCover = null }) {
@@ -1702,8 +1694,13 @@ function AudioCard({ src, title, duration, cover,
   const [coverDragOver, setCoverDragOver] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const stopFnRef = useRef(null);
+  // clipPath ids are document-global; two audio cards sharing one would make
+  // the second card's progress follow the first's.
+  const clipId = useId().replace(/:/g, '');
 
-  const peaks = useMemo(() => generatePeaks(src || title || 'audio'), [src, title]);
+  const peaks = useMemo(() => peaksFromBase64(peaksB64) || FLAT_PEAKS, [peaksB64]);
+  const wavePath = useMemo(() => peaksToPath(peaks, { height: 40 }), [peaks]);
+  const waveWidth = useMemo(() => peaksPathWidth(peaks.length), [peaks.length]);
 
   // Right-click signal from canvas → open cover drop-zone.
   useEffect(() => {
@@ -1895,24 +1892,23 @@ function AudioCard({ src, title, duration, cover,
            style={{ display: 'none' }} />
   );
 
-  // SVG bar waveform. Bars left of the playhead fill with the accent
-  // color; bars to the right stay muted. Click anywhere on the strip
-  // to seek to that point.
-  const barCount = peaks.length;
-  const filledIdx = Math.round(fillPct / 100 * barCount);
+  // SVG bar waveform. Bars left of the playhead fill with the accent color;
+  // bars to the right stay muted. Click anywhere on the strip to seek.
+  //
+  // ONE <path> per layer, clipped, rather than one <rect> per bar: at 96 bars
+  // that was 96 nodes per card and 96 className flips per timeupdate. The clip
+  // rect makes progress a single attribute change, which is what lets the list
+  // view render a mini-wave on every row.
   const waveBox = (
     <div className="ac-wave-wrap" onPointerDown={(e) => e.stopPropagation()} onClick={onWaveClick}>
-      <svg className="ac-wave" viewBox={`0 0 ${barCount * 4} 40`} preserveAspectRatio="none">
-        {peaks.map((p, i) => {
-          const h = Math.max(2, p * 36);
-          const x = i * 4 + 0.5;
-          const y = (40 - h) / 2;
-          const isFilled = i < filledIdx;
-          return (
-            <rect key={i} x={x} y={y} width={3} height={h} rx={1.2}
-                  className={isFilled ? 'ac-bar ac-bar-on' : 'ac-bar ac-bar-off'} />
-          );
-        })}
+      <svg className="ac-wave" viewBox={`0 0 ${waveWidth} 40`} preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <clipPath id={`acclip-${clipId}`}>
+            <rect x="0" y="0" width={(waveWidth * fillPct) / 100} height="40" />
+          </clipPath>
+        </defs>
+        <path className="ac-bar ac-bar-off" d={wavePath} />
+        <path className="ac-bar ac-bar-on" d={wavePath} clipPath={`url(#acclip-${clipId})`} />
       </svg>
     </div>
   );

@@ -54,7 +54,8 @@ import { SEO_LISTICLE_PAGES } from '../src/lib/seoListicles.js';
 
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
 import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, CREATOR_TRIAL_DAYS } from '../src/lib/billingCopy.js';
-import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS } from '../src/lib/fileIngest.js';
+import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS,
+         AUDIO_ANALYZE_MAX_BYTES, AUDIO_ANALYZE_MAX_SECONDS } from '../src/lib/fileIngest.js';
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -128,6 +129,12 @@ export const FACTS = {
   // the docs said nothing about while the same docs named 30 MB as the wall.
   freeVideoSec: `${FREE_VIDEO_SECONDS} seconds`,
   freeAudioCap: `${FREE_AUDIO_CAP / MB} MB`,
+  // Ceilings on WAVEFORM ANALYSIS, not on upload — over these an audio file
+  // still uploads and still plays, it just arrives without a drawn waveform.
+  // Stated publicly because "why does this one have no waveform" is otherwise
+  // a silent, unexplainable difference between two cards on the same board.
+  audioWaveformCap: `${AUDIO_ANALYZE_MAX_BYTES / MB} MB`,
+  audioWaveformMinutes: `${AUDIO_ANALYZE_MAX_SECONDS / 60} minutes`,
   freePdfCap: `${FREE_PDF_CAP / MB} MB`,
   maxCardsPerCall: String(api.maxCardsPerCall),
   maxBoardsPerCall: String(api.maxBoardsPerCall),

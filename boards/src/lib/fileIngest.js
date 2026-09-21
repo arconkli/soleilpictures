@@ -30,6 +30,20 @@ export const FREE_PDF_CAP   = 50 * 1024 * 1024;
 // module imports nothing, so there is no cycle.
 export const FREE_VIDEO_SECONDS = 60;
 
+// Ceilings on WAVEFORM ANALYSIS — not on upload. Over these the file still
+// uploads and still plays; it just arrives without a drawn waveform.
+//
+// decodeAudioData materializes the entire file as Float32 PCM, so a 50 MB WAV
+// becomes ~180 MB of samples and takes mobile Safari out. Loops and one-shots
+// are seconds long and nowhere near either gate; what these refuse is a DJ set
+// or a stem master, where a waveform 340 pixels wide tells you nothing anyway.
+//
+// They live here with the other caps for the same reason FREE_VIDEO_SECONDS
+// does: the public copy injects them via {{fact:}} and so cannot state a stale
+// number. audioAnalysis.js imports them; this module imports nothing.
+export const AUDIO_ANALYZE_MAX_BYTES = 25 * 1024 * 1024;
+export const AUDIO_ANALYZE_MAX_SECONDS = 600;
+
 // Intrinsic fallback sizes (canvas units) used before real dims are known.
 // Mirror the per-type defaults in CanvasSurface's optimistic drop handlers.
 export const FALLBACK_DIMS = {

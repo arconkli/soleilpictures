@@ -1,6 +1,6 @@
 # Video and audio
 
-> Video and audio files become playable cards on the canvas. Audio cards draw a real waveform and show cover art, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.
+> Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.
 
 _Source: https://clusters.soleilpictures.com/docs/files/video-and-audio · Updated 2026-08-08_
 
@@ -38,7 +38,7 @@ in parts.
 Audio cards do more than provide a play button:
 
 - A **real waveform**, drawn from the file — so you can see where the loud part is before playing it
-- **Cover art**, when the file carries it
+- **Cover art**, set by hand on any audio card
 - Standard transport controls
 
 **Only one audio card plays at a time** across the whole board. Starting a
@@ -46,6 +46,21 @@ second stops the first. On a board holding a dozen takes of the same cue, this
 is the only behaviour that makes sense.
 
 Free accounts cap audio at **50 MB**.
+
+### When a card has no waveform
+
+The waveform is decoded from the file as it uploads. Decoding holds the whole
+track in memory, so files over **25 MB** or longer than
+**10 minutes** are skipped — as is anything in a format your
+browser cannot decode.
+
+Those cards show an even, flat strip instead. The file still uploads, still
+plays, and still seeks; there is simply no shape to draw. A flat strip means
+"we don't know what this looks like", and it is deliberately not a
+guessed-looking waveform.
+
+Cards that were uploaded before waveforms existed get theirs filled in quietly
+in the background, a couple at a time, while you have the cluster open.
 
 ## Formats
 

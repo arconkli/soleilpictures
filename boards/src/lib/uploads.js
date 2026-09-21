@@ -13,6 +13,8 @@
 
 import { supabase } from './supabase.js';
 import { FREE_VIDEO_CAP, FREE_VIDEO_SECONDS, FREE_AUDIO_CAP } from './fileIngest.js';
+import { analyzeAudioFile, analyzable } from './audioAnalysis.js';
+import { lowMemoryDevice } from './device.js';
 import { setMetaLocal } from './imageMeta.js';
 import { getSignedUrl } from './r2.js';
 import { rgbaToThumbHash } from 'thumbhash';
@@ -719,6 +721,20 @@ export async function uploadAudio({ file, workspaceId, boardId, userId, onProgre
     throw new Error(`Audio too large (${Math.round(file.size / 1024 / 1024)} MB; max ${Math.round(maxBytes / 1024 / 1024)} MB)`);
   }
   const meta = await readAudioMeta(file);
+
+  // Waveform analysis runs CONCURRENTLY with the upload, not before it.
+  // decodeAudioData on a 25 MB file is 1-3 seconds, and gating the PUT on it
+  // would mean the card sits pending while we draw a picture. Kicked off here,
+  // awaited after the bytes are safe.
+  //
+  // Deliberately not awaited inside a try: analyzeAudioFile already resolves
+  // null on every failure path, so the upload can never fail because a
+  // waveform didn't decode.
+  const analysisP = analyzeAudioFile(file, {
+    durationHint: meta.duration,
+    lowMemory: lowMemoryDevice(),
+  });
+
   const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
   await putWithProgress(uploadUrl, file, { onProgress });
 
@@ -739,12 +755,30 @@ export async function uploadAudio({ file, workspaceId, boardId, userId, onProgre
     throw new Error('Could not finish saving the audio — please try again.');
   }
 
+  const analysis = await analysisP;
   return {
     src: `r2:${key}`,
     storagePath: key,
     key,
-    duration: meta.duration,
+    // The decoded duration is exact; the <audio> metadata one is a rounded
+    // estimate and is wrong often enough to matter when the list sorts on it.
+    duration: analysis?.duration ?? meta.duration,
+    peaks: analysis?.peaks || null,
+    sampleRate: analysis?.sampleRate || null,
+    channels: analysis?.channels || null,
+    // Set only when a decode ATTEMPT completed — success, or a hard codec
+    // rejection. A file refused by the size/duration cap leaves this unset so
+    // the same card gets another go in a desktop session where it might fit.
+    analyzed: analysis ? 1 : (analyzableFile(file, meta.duration) ? 1 : 0),
   };
+}
+
+// Did we genuinely try? Mirrors the gate inside analyzeAudioFile so `analyzed`
+// distinguishes "decoded or failed decoding" from "never attempted".
+function analyzableFile(file, durationSec) {
+  return analyzable({
+    sizeBytes: file?.size || 0, durationSec, lowMemory: lowMemoryDevice(),
+  });
 }
 
 // Encode a canvas to a WebP Blob (used for the PDF page-1 thumbnail).

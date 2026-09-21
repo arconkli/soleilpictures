@@ -14314,7 +14314,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ", when the file carries it"
+      "v": ", set by hand on any audio card"
      }
     ],
     [
@@ -14364,6 +14364,73 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "When a card has no waveform",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When a card has no waveform"
+    }
+   ],
+   "id": "when-a-card-has-no-waveform"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The waveform is decoded from the file as it uploads. Decoding holds the whole track in memory, so files over "
+    },
+    {
+     "t": "strong",
+     "v": "25 MB",
+     "children": [
+      {
+       "t": "text",
+       "v": "25 MB"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or longer than "
+    },
+    {
+     "t": "strong",
+     "v": "10 minutes",
+     "children": [
+      {
+       "t": "text",
+       "v": "10 minutes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " are skipped — as is anything in a format your browser cannot decode."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Those cards show an even, flat strip instead. The file still uploads, still plays, and still seeks; there is simply no shape to draw. A flat strip means \"we don't know what this looks like\", and it is deliberately not a guessed-looking waveform."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Cards that were uploaded before waveforms existed get theirs filled in quietly in the background, a couple at a time, while you have the cluster open."
     }
    ]
   },

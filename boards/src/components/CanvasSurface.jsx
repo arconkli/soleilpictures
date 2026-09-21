@@ -74,6 +74,7 @@ import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, EN
 import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideoMeta, readAudioMeta, makeBoundedPreview, captureAndUploadPoster } from '../lib/uploads.js';
+import { analyzeAudioFile, analyzable } from '../lib/audioAnalysis.js';
 import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
 import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
@@ -3330,6 +3331,17 @@ export function CanvasSurface({
       if (kind === 'video') {
         const poster = await captureAndUploadPoster({ file, workspaceId, boardId: dropBoardId, userId });
         if (poster && boardIdRef.current === dropBoardId) mutators.updateCardSilent?.(id, { poster });
+      } else if (kind === 'audio') {
+        // Same reason as the poster above: the File is already in hand, and
+        // this route exists for the files you'd least want to re-download.
+        // Most land over AUDIO_ANALYZE_MAX_BYTES and come back null — that is
+        // the flat strip, which is honest.
+        const a = await analyzeAudioFile(file, { lowMemory: lowMemoryDevice() });
+        if (boardIdRef.current === dropBoardId) {
+          mutators.updateCardSilent?.(id, a
+            ? { peaks: a.peaks, duration: a.duration, sampleRate: a.sampleRate, channels: a.channels, analyzed: 1 }
+            : { analyzed: analyzable({ sizeBytes: file.size || 0, lowMemory: lowMemoryDevice() }) ? 1 : null });
+        }
       }
     } catch (err) {
       console.error('large media upload failed', err);
@@ -3393,7 +3405,11 @@ export function CanvasSurface({
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
       const up = await uploadAudio({ file, workspaceId, boardId: dropBoardId, userId, onProgress });
       if (boardIdRef.current === dropBoardId) {
-        mutators.updateCardSilent?.(id, { src: up.src, duration: up.duration || null, pending: false });
+        mutators.updateCardSilent?.(id, {
+          src: up.src, duration: up.duration || null, pending: false,
+          peaks: up.peaks || null, sampleRate: up.sampleRate || null,
+          channels: up.channels || null, analyzed: up.analyzed || null,
+        });
       }
     } catch (err) {
       console.error('audio upload failed', err);
@@ -8530,7 +8546,7 @@ export function CanvasSurface({
     else if (c.kind === 'video')     inner = <VideoCard src={c.src} poster={c.poster} title={c.title}
                                                         autoplay={!!c.autoplay} loop={!!c.loop} onUpdate={onUpdate} autoFocus={af}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
-    else if (c.kind === 'audio')     inner = <AudioCard src={c.src} title={c.title} duration={c.duration} cover={c.cover}
+    else if (c.kind === 'audio')     inner = <AudioCard src={c.src} title={c.title} duration={c.duration} cover={c.cover} peaks={c.peaks}
                                                         onUpdate={onUpdate} autoFocus={af}
                                                         coverPickAt={editFieldSignal.id === c.id && editFieldSignal.field === 'audioCover' ? editFieldSignal.n : 0}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}

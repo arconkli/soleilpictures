@@ -108,6 +108,7 @@ import { useYBoard } from './hooks/useYBoard.js';
 import { RENDER_VERSION as THUMB_VERSION } from './lib/renderThumbnail.js';
 import { forgetThumbnailAttempt } from './hooks/useThumbnailBackfill.js';
 import { useVideoPosterBackfill } from './hooks/useVideoPosterBackfill.js';
+import { useAudioPeaksBackfill } from './hooks/useAudioPeaksBackfill.js';
 import { useConversationList } from './hooks/useConversationList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
@@ -163,6 +164,8 @@ import {
 } from './lib/schedLayout.js';
 import { getViewAnchor as getSchedViewAnchor } from './lib/schedViewRegistry.js';
 import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio, uploadFile, readVideoMeta, readAudioMeta } from './lib/uploads.js';
+import { analyzeAudioFile, analyzable } from './lib/audioAnalysis.js';
+import { lowMemoryDevice } from './lib/device.js';
 import { arrangeInFreeSpace } from './lib/canvasGeom.js';
 import { classifyDropFile, fitImageDims, sizeBucket } from './lib/fileIngest.js';
 import { makeLimiter } from './lib/asyncPool.js';
@@ -2521,7 +2524,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             updateCardSilent(id, { src: up.src, ...(up.poster ? { poster: up.poster } : {}), pending: false });
           } else if (it.route === 'audio') {
             const up = await uploadAudio({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id });
-            updateCardSilent(id, { src: up.src, duration: up.duration || null, pending: false });
+            updateCardSilent(id, {
+              src: up.src, duration: up.duration || null, pending: false,
+              peaks: up.peaks || null, sampleRate: up.sampleRate || null,
+              channels: up.channels || null, analyzed: up.analyzed || null,
+            });
           } else {
             // 'largeMedia' (over-cap video/audio) + 'file' → multipart upload.
             const up = await uploadFile({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id });
@@ -2531,6 +2538,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               // over-cap loop arrived with no runtime on the card or in the list.
               const meta = await readAudioMeta(it.file).catch(() => ({ duration: null }));
               updateCardSilent(id, { src: up.src, duration: meta?.duration || null, pending: false });
+              // Waveform from the local File, after the bytes are safe — same
+              // reason the canvas captures a video poster here rather than
+              // re-downloading a file this route exists to avoid moving twice.
+              const a = await analyzeAudioFile(it.file, { durationHint: meta?.duration, lowMemory: lowMemoryDevice() });
+              if (a) updateCardSilent(id, { peaks: a.peaks, duration: a.duration, sampleRate: a.sampleRate, channels: a.channels, analyzed: 1 });
+              else if (analyzable({ sizeBytes: it.file.size || 0, durationSec: meta?.duration, lowMemory: lowMemoryDevice() })) updateCardSilent(id, { analyzed: 1 });
             }
             else if (it.kind === 'video') updateCardSilent(id, { src: up.src, pending: false });
             else updateCardSilent(id, { fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false });
@@ -6931,6 +6944,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useVideoPosterBackfill({
     cards: currentCards, canEdit: canEditCurrent,
     workspaceId: workspace?.id, boardId: currentId, userId: user?.id,
+    updateCardSilent: mainMutators.updateCardSilent,
+  });
+
+  // Same idea for audio: every card from before the analysis pipeline is
+  // showing a waveform that was synthesized from its filename. This decodes
+  // the real one. Bounded harder (2/pass) because it moves whole audio files.
+  useAudioPeaksBackfill({
+    cards: currentCards, canEdit: canEditCurrent,
     updateCardSilent: mainMutators.updateCardSilent,
   });
 

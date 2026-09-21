@@ -9860,7 +9860,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   height: 36px;
   display: block;
 }
-.ac-bar { transition: fill var(--dur-quick) var(--ease); }
+/* Two layered <path>s, the gold one clipped to the playhead — not one <rect>
+   per bar, so progress is a single clip-rect change instead of 96 class flips.
+   No fill transition: nothing changes colour any more, the clip moves. */
 .ac-bar-on  { fill: var(--soleil); }
 .ac-bar-off { fill: var(--ink-4); }
 .ac-controls {

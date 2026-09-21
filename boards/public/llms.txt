@@ -41,7 +41,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 - [Files and uploads](https://clusters.soleilpictures.com/docs/files): Upload any file type to Soleil Clusters. What is supported free, where the size caps are, how large uploads work, and where storage is counted.
 - [PDFs](https://clusters.soleilpictures.com/docs/files/pdf): PDF cards in Soleil Clusters show page one and a page count, and open into a full-screen scrolling viewer with download. Free accounts cap PDFs at 50 MB.
-- [Video and audio](https://clusters.soleilpictures.com/docs/files/video-and-audio): Video and audio cards in Soleil Clusters play inline on the canvas. Waveform audio players with cover art, one-at-a-time playback, and free-plan size caps.
+- [Video and audio](https://clusters.soleilpictures.com/docs/files/video-and-audio): Video and audio cards in Soleil Clusters play inline on the canvas. Audio draws a real waveform decoded from the file, with cover art and one-at-a-time play.
 
 ## Clusters
 
