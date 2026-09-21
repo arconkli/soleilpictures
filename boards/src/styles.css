@@ -8459,6 +8459,39 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-tile-preview { position: relative; aspect-ratio: 4 / 3; background: var(--bg-2); display: grid; place-items: center; overflow: hidden; }
 .ct-tile-preview .cbp-glyph, .ct-tile-preview .cbp-file, .ct-tile-preview .cbp-note { color: var(--ink-3); }
 .ct-tile-spin { right: 6px; bottom: 6px; }
+/* Gallery transport. Centred over the preview rather than beside the name —
+   with cover art being read off the files, the tile IS the artwork and the
+   play button belongs on it. */
+.ct-tile-play {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  border: 0; padding: 0;
+  background: rgba(10, 10, 12, 0.45);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-quick) var(--ease);
+}
+.ct-tile:hover .ct-tile-play,
+.ct-tile.is-playing .ct-tile-play { opacity: 1; }
+.ct-tile-play:focus-visible { opacity: 1; outline: 2px solid var(--soleil); outline-offset: -2px; }
+.ct-tile.is-playing { border-color: var(--soleil); }
+.ct-tile-dl {
+  position: absolute; top: 6px; right: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px;
+  border: 0; border-radius: 6px;
+  background: rgba(10, 10, 12, 0.62);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-quick) var(--ease), background var(--dur-quick) var(--ease);
+}
+.ct-tile:hover .ct-tile-dl { opacity: 1; }
+.ct-tile-dl:hover { background: rgba(10, 10, 12, 0.85); }
+.ct-tile-dl:focus-visible { opacity: 1; outline: 2px solid var(--soleil); outline-offset: 1px; }
+@media (hover: none) { .ct-tile-play, .ct-tile-dl { opacity: 1; } }
 .ct-tile-peers { position: absolute; bottom: 6px; right: 6px; display: flex; gap: 2px; }
 .ct-tile-meta { padding: 8px 10px; }
 .ct-tile-name { font-size: 12.5px; font-weight: 500; color: var(--ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

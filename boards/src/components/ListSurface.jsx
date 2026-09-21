@@ -824,6 +824,9 @@ export function ListSurface({
                     recentlyAddedIds={recentlyAddedIds}
                     expandedGroups={expandedGroups} selectedGroupId={selectedGroupId}
                     onGroupClick={onGroupClick}
+                    onDownload={downloadOne}
+                    onAudition={(it) => { setActiveId(it.id); auditionCard(it.id); }}
+                    playingId={playingId}
                     onRowClick={(e, id) => onTileClick(e, 'file', id)}
                     onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
                 ) : (

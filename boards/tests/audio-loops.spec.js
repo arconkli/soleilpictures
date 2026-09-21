@@ -209,6 +209,19 @@ test('shift-click selects a range, and the bar offers a download', async ({ page
   await expect(bar.getByRole('button', { name: /Download 3/ })).toBeVisible();
 });
 
+test('gallery tiles audition and download too', async ({ page }) => {
+  await boot(page);
+  await addAudio(page, 2);
+  await goList(page);
+  await page.getByRole('button', { name: 'Gallery view' }).click();
+  await expect(page.locator('.ct-gallery')).toBeVisible();
+  await expect(page.locator('.ct-tile-dl')).toHaveCount(2);
+  await page.locator('.ct-tile-play').first().click();
+  await expect(page.locator('.ct-tile.is-playing')).toHaveCount(1);
+  // The meta line stands in for the type badge once a card has one.
+  await expect(page.locator('.ct-tile-type').first()).toContainText('120');
+});
+
 test('every row carries a download button', async ({ page }) => {
   await boot(page);
   await addAudio(page, 2);
