@@ -235,6 +235,12 @@ quietly failing.
 
 Card `kind` is {{fact:apiCardKinds}}, defaulting to `note`.
 
+`add_cards` accepted six of those eight for as long as the other two have
+existed — **audio** and **pdf** were missing from its schema while the REST API
+took both, so an agent could not create the two kinds Soleil Scout makes from a
+text message. Both work now, and a `file_key` from `upload_file` is what any of
+**video**, **audio**, **pdf** or **file** is built from.
+
 Every tool carries **annotations** — `readOnlyHint`, `destructiveHint`,
 `idempotentHint` — which is what a client reads when deciding whether a call
 needs confirming. They are structured, so unlike a warning in a description they

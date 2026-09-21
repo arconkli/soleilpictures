@@ -500,13 +500,16 @@ export const TOOLS = [
         minItems: 1,
         maxItems: 1000,
         items: schema({
-          kind: str('Defaults to note', { enum: ['note', 'image', 'link', 'doc', 'video', 'file'] }),
+          // audio and pdf were missing while the REST API accepted both
+          // (worker-api CARD_KINDS), so an agent could not create the two
+          // kinds Scout creates from a text message.
+          kind: str('Defaults to note', { enum: ['note', 'image', 'link', 'doc', 'video', 'audio', 'pdf', 'file'] }),
           title: str('A heading'),
           body: str('The text of the card, whatever kind it is'),
           html: str('Rich text, for kind=note or doc'),
           url: str('For kind=link'),
           image_key: str('From upload_image. For kind=image'),
-          file_key: str('For kind=video or file'),
+          file_key: str('From upload_file. For kind=video, audio, pdf or file'),
           file_name: str('For kind=file'),
           mime: str('For kind=file'),
           alt: str('Alt text, for kind=image'),

@@ -45856,6 +45856,119 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "code",
+     "v": "add_cards"
+    },
+    {
+     "t": "text",
+     "v": " accepted six of those eight for as long as the other two have existed — "
+    },
+    {
+     "t": "strong",
+     "v": "audio",
+     "children": [
+      {
+       "t": "text",
+       "v": "audio"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "pdf",
+     "children": [
+      {
+       "t": "text",
+       "v": "pdf"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " were missing from its schema while the REST API took both, so an agent could not create the two kinds Soleil Scout makes from a text message. Both work now, and a "
+    },
+    {
+     "t": "code",
+     "v": "file_key"
+    },
+    {
+     "t": "text",
+     "v": " from "
+    },
+    {
+     "t": "code",
+     "v": "upload_file"
+    },
+    {
+     "t": "text",
+     "v": " is what any of "
+    },
+    {
+     "t": "strong",
+     "v": "video",
+     "children": [
+      {
+       "t": "text",
+       "v": "video"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "audio",
+     "children": [
+      {
+       "t": "text",
+       "v": "audio"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "pdf",
+     "children": [
+      {
+       "t": "text",
+       "v": "pdf"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "file",
+     "children": [
+      {
+       "t": "text",
+       "v": "file"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is built from."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
      "t": "text",
      "v": "Every tool carries "
     },

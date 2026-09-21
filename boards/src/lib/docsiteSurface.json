@@ -54,7 +54,7 @@
   "mcpTools": [
     {
       "name": "add_cards",
-      "schema": "0b44b939820c"
+      "schema": "2658926dedbd"
     },
     {
       "name": "arrange_board",

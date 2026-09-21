@@ -18,7 +18,10 @@ const card = {
   type: 'object',
   properties: {
     id: { type: 'string' },
-    kind: { type: 'string', enum: ['note', 'image', 'link', 'doc'] },
+    // Mirrors CARD_KINDS in worker-api.js. It listed four of the eight for as
+    // long as the other four have existed, and nothing enforces the match — so
+    // a client generated from this schema refused kinds the API accepts.
+    kind: { type: 'string', enum: ['note', 'image', 'link', 'doc', 'video', 'audio', 'pdf', 'file'] },
     x: { type: 'number' }, y: { type: 'number' },
     w: { type: 'number' }, h: { type: 'number' }, z: { type: 'number' },
     title: { type: ['string', 'null'] },
