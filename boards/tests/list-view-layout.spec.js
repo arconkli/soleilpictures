@@ -243,3 +243,71 @@ test('a focused control keeps Enter and Space', async ({ page }) => {
   // into "select the cursor row".
   await expect(page.locator('.ct-row.is-playing')).toHaveCount(0);
 });
+
+test('the waveform scrubs the row that is sounding, and only that one', async ({ page }) => {
+  await boot(page);
+  const row = page.locator('.ct-row').first();
+  const at = (b, f) => page.mouse.click(b.x + b.width * f, b.y + b.height / 2);
+  const state = () => row.evaluate(r => ({
+    playing: r.classList.contains('is-playing'),
+    p: parseFloat(r.style.getPropertyValue('--ct-progress') || '0'),
+  }));
+
+  // At rest the waveform is inert. It covers most of the row's width, so a
+  // click there has to select the row exactly like any other click would.
+  let box = await row.locator('.ct-wave').boundingBox();
+  await at(box, 0.66);
+  await expect(row).toHaveClass(/is-selected/);
+  await expect(page.locator('.ct-row.is-playing')).toHaveCount(0);
+
+  // Selecting opens the 320px popout, which takes the pane to ~784px. The
+  // waveform has to survive that, or a pack loses every waveform on the first
+  // click anyone makes.
+  await expect(page.locator('.cb-detail')).toBeVisible();
+  await expect(row.locator('.ct-wave')).toBeVisible();
+
+  // Playing, it is the transport. Let it run a while, then seek BACKWARDS:
+  // playback only ever moves forward, so a drop cannot come from elapsed time.
+  // (Seeking forward would pass on elapsed time alone, and asserting a drop
+  // without also asserting it is STILL playing would pass on the clip simply
+  // having ended and cleared the property.)
+  await row.locator('.ct-play').click();
+  await expect(row).toHaveClass(/is-playing/);
+  await expect.poll(async () => (await state()).p).toBeGreaterThan(0.3);
+  box = await row.locator('.ct-wave').boundingBox();
+  await at(box, 0.08);
+  const after = await state();
+  expect(after.playing).toBe(true);
+  expect(after.p).toBeLessThan(0.3);
+
+  // The fill layer is clipped to the position rather than painting the whole
+  // waveform gold.
+  const clip = await row.locator('.ct-wave-fill').evaluate(el => getComputedStyle(el).clipPath);
+  expect(clip).toMatch(/inset\(/);
+
+  // Stop, so auto-advance is not walking the pack underneath the next part.
+  await row.locator('.ct-play').click();
+  await expect(page.locator('.ct-row.is-playing')).toHaveCount(0);
+
+  // A modified click still reaches the row, or a range selection breaks
+  // wherever it happens to cross a waveform. NOTE: page.mouse.click has no
+  // `modifiers` option — it silently ignores one — so the key is held by hand.
+  const b2 = await page.locator('.ct-row').nth(4).locator('.ct-wave').boundingBox();
+  await page.keyboard.down('Shift');
+  await page.mouse.click(b2.x + b2.width / 2, b2.y + b2.height / 2);
+  await page.keyboard.up('Shift');
+  await expect(page.locator('.ct-row.is-selected')).toHaveCount(5);
+});
+
+test('a gallery of a loop pack shows the sound, not a wall of one icon', async ({ page }) => {
+  await boot(page);
+  await page.getByRole('button', { name: 'Gallery view' }).click();
+  await expect(page.locator('.ct-tile').first()).toBeVisible();
+  await expect(page.locator('.cbp-audio-wave')).toHaveCount(12);
+  await expect(page.locator('.ct-tile .cbp-glyph')).toHaveCount(0);
+
+  // Every tile the same height, or the grid goes ragged on one long meta line.
+  const heights = await page.locator('.ct-tile').evaluateAll(
+    els => [...new Set(els.map(e => Math.round(e.getBoundingClientRect().height)))]);
+  expect(heights).toHaveLength(1);
+});

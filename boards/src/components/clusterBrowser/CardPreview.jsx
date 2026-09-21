@@ -17,7 +17,7 @@ import { ImagePlaceholder } from '../primitives.jsx';
 import { KindIcon } from '../cards.jsx';
 import { Icon } from '../Icon.jsx';
 import { iconForFile } from '../cards/FileCard.jsx';
-import { GridMark, DocMark, ScheduleMark, ShapeMark, NoteMark, LinkMark } from './marks.jsx';
+import { GridMark, DocMark, ScheduleMark, ShapeMark, NoteMark, LinkMark, AudioMark } from './marks.jsx';
 import { GridContentPreview } from './GridContentPreview.jsx';
 
 // `size`: 'row' (40px thumb) or 'tile' (large gallery preview). Controls the
@@ -69,6 +69,12 @@ export function CardPreview({ item, size = 'row' }) {
   if (p.mode === 'link') return <LinkMark favicon={p.favicon} source={p.source} size={size} />;
   if (p.mode === 'placeholder') {
     return <ImagePlaceholder tone={p.tone} aspect="1/1" />;
+  }
+  // A loop with no cover art, at tile size: draw the sound. Not at row size —
+  // 96 buckets in a 34px box is a smudge, and the row already carries a proper
+  // waveform of its own further along the name cell.
+  if (size === 'tile' && p.kind === 'audio' && item?.card?.peaks) {
+    return <AudioMark peaks={item.card.peaks} />;
   }
   // icon fallback. audio/video used to be special-cased here because KindIcon
   // had no case for them; it does now, so there is one glyph table again.

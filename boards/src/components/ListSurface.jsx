@@ -200,7 +200,7 @@ export function ListSurface({
       parts.push(lo === hi ? `${lo} BPM` : `${lo}–${hi} BPM`);
     }
     const secs = audio.reduce((a, it) => a + (Number.isFinite(it.durationSec) ? it.durationSec : 0), 0);
-    if (secs > 0) parts.push(formatDuration(secs));
+    if (secs > 0) parts.push(`${formatDuration(secs)} total`);
     return parts.join(' · ');
   }, [audioMode, visibleItems]);
 
@@ -332,6 +332,28 @@ export function ListSurface({
     return true;
   }, [items, stopAudition]);
 
+
+  // Scrub the sounding row by clicking along its waveform. A waveform a
+  // producer can see but not aim at is a picture; the whole reason it is drawn
+  // from the real file is so the transient you are looking for is somewhere
+  // you can point at.
+  //
+  // ClusterRow only wires this up for the row that is actually playing (see
+  // the note there), but the not-playing branch is kept honest anyway: a seek
+  // that arrives for a stopped row starts it at that point, which is what the
+  // gesture means.
+  const seekCard = useCallback(async (it, fraction) => {
+    const el = audioElRef.current;
+    const at = (media) => {
+      const d = media?.duration;
+      if (!Number.isFinite(d) || d <= 0) return;
+      try { media.currentTime = Math.min(d - 0.01, Math.max(0, d * fraction)); } catch (_) {}
+      setRowProgress(it.id, fraction);
+    };
+    if (playingIdRef.current === it.id && el) { at(el); return; }
+    setActiveId(it.id);
+    if (await auditionCard(it.id)) at(audioElRef.current);
+  }, [auditionCard, setRowProgress]);
 
   // Leaving list view must not leave a loop playing from nowhere.
   useEffect(() => () => {
@@ -902,6 +924,7 @@ export function ListSurface({
                     onGroupClick={onGroupClick}
                     onDownload={downloadOne}
                     onAudition={(it) => { setActiveId(it.id); auditionCard(it.id); }}
+                    onSeek={seekCard}
                     activeId={activeId} playingId={playingId} registerRow={registerRow}
                     audioMode={audioMode}
                     onRowClick={(e, id) => onTileClick(e, 'file', id)}

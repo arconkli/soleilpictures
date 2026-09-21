@@ -14,7 +14,8 @@ view control in the cluster header.
 **Table** — a row per item, with type, size and dates. Dense, scannable, sortable.
 
 **Gallery** — a tile per item with a real preview. Better when you are looking
-for something you would recognise by sight.
+for something you would recognise by sight; for audio the preview is the
+waveform, so no two loops look the same.
 
 ## When a cluster is mostly audio
 
@@ -60,8 +61,14 @@ hunting expedition.
 ## Auditioning audio
 
 An audio row's thumbnail is a play button. Press it and the clip plays in
-place, with a small waveform in the row showing what you are listening to and a
-line filling along the bottom of the row as it goes.
+place. The waveform beside it is drawn from the file itself, and it **fills as
+the clip plays**. While it is playing, click anywhere along that waveform to
+jump there — the fastest way to the part of a long sample you actually want. A
+line fills along the bottom of the row as well, for when the waveform has no
+room.
+
+In **gallery** mode a loop's tile *is* its waveform, so a pack reads as a wall
+of shapes rather than a wall of identical icons.
 
 For going through a lot of them, use the keyboard: `↑` and `↓` move a highlight
 down the rows, `Space` plays whatever is highlighted, `Enter` selects it. **When

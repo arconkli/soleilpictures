@@ -18,7 +18,7 @@ export function ClusterTable({
   items, selectedCards, peerMap, sortKey, sortDir, onSort,
   onRowClick, onRowDoubleClick, recentlyAddedIds,
   expandedGroups, selectedGroupId, onGroupClick, onDownload = null,
-  onAudition = null, activeId = null, playingId = null, registerRow = null,
+  onAudition = null, onSeek = null, activeId = null, playingId = null, registerRow = null,
   audioMode = false,
 }) {
   const dateKey = sortKey === 'created' ? 'created' : 'updated';
@@ -55,7 +55,7 @@ export function ClusterTable({
             selectedCards={selectedCards} peerMap={peerMap} dateKey={dateKey}
             recentlyAddedIds={recentlyAddedIds}
             onRowClick={onRowClick} onRowDoubleClick={onRowDoubleClick}
-            onDownload={onDownload} onAudition={onAudition}
+            onDownload={onDownload} onAudition={onAudition} onSeek={onSeek}
             activeId={activeId} playingId={playingId} registerRow={registerRow}
             audioMode={audioMode}
           />
@@ -67,7 +67,7 @@ export function ClusterTable({
             isNew={recentlyAddedIds?.has?.(it.id)}
             peers={peerMap?.get(it.id)}
             dateKey={dateKey}
-            onDownload={onDownload} onAudition={onAudition}
+            onDownload={onDownload} onAudition={onAudition} onSeek={onSeek}
             active={activeId === it.id} playing={playingId === it.id}
             rowRef={registerRow ? registerRow(it.id) : null}
             audioMode={audioMode}
@@ -112,7 +112,7 @@ function SortTh({ cls, col, label, sortKey, sortDir, onSort }) {
 function GroupBlock({
   group, expanded, selected, onGroupClick,
   selectedCards, peerMap, dateKey, recentlyAddedIds, onRowClick, onRowDoubleClick,
-  onDownload = null, onAudition = null, activeId = null, playingId = null, registerRow = null,
+  onDownload = null, onAudition = null, onSeek = null, activeId = null, playingId = null, registerRow = null,
   audioMode = false,
 }) {
   return (
@@ -152,7 +152,7 @@ function GroupBlock({
           isNew={recentlyAddedIds?.has?.(m.id)}
           peers={peerMap?.get(m.id)}
           dateKey={dateKey}
-          onDownload={onDownload} onAudition={onAudition}
+          onDownload={onDownload} onAudition={onAudition} onSeek={onSeek}
           active={activeId === m.id} playing={playingId === m.id}
           rowRef={registerRow ? registerRow(m.id) : null}
           audioMode={audioMode}

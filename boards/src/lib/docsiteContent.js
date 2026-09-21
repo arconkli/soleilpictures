@@ -15769,7 +15769,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — a tile per item with a real preview. Better when you are looking for something you would recognise by sight."
+     "v": " — a tile per item with a real preview. Better when you are looking for something you would recognise by sight; for audio the preview is the waveform, so no two loops look the same."
     }
    ]
   },
@@ -16171,7 +16171,58 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "An audio row's thumbnail is a play button. Press it and the clip plays in place, with a small waveform in the row showing what you are listening to and a line filling along the bottom of the row as it goes."
+     "v": "An audio row's thumbnail is a play button. Press it and the clip plays in place. The waveform beside it is drawn from the file itself, and it "
+    },
+    {
+     "t": "strong",
+     "v": "fills as the clip plays",
+     "children": [
+      {
+       "t": "text",
+       "v": "fills as the clip plays"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". While it is playing, click anywhere along that waveform to jump there — the fastest way to the part of a long sample you actually want. A line fills along the bottom of the row as well, for when the waveform has no room."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In "
+    },
+    {
+     "t": "strong",
+     "v": "gallery",
+     "children": [
+      {
+       "t": "text",
+       "v": "gallery"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " mode a loop's tile "
+    },
+    {
+     "t": "em",
+     "v": "is",
+     "children": [
+      {
+       "t": "text",
+       "v": "is"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " its waveform, so a pack reads as a wall of shapes rather than a wall of identical icons."
     }
    ]
   },
