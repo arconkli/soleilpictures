@@ -7,6 +7,7 @@ import { Icon } from '../Icon.jsx';
 import { Download } from '../../lib/icons.js';
 import { DOWNLOADABLE } from '../../lib/cardAssetName.js';
 import { peaksFromBase64, peaksToPath, peaksPathWidth } from '../../lib/audioAnalysis.js';
+import { formatDuration, formatKey } from '../../lib/loopMeta.js';
 
 // A 64×18 waveform for the row, from the SAME stored peaks the card draws.
 // Every other bucket, because at this width 96 bars is a smear.
@@ -39,6 +40,7 @@ function RowWave({ peaks: peaksB64 }) {
 export const ClusterRow = memo(function ClusterRow({
   item, selected, isNew, peers, dateKey = 'updated', onClick, onDoubleClick, member = false,
   onDownload = null, onAudition = null, active = false, playing = false, rowRef = null,
+  audioMode = false,
 }) {
   const peer = peers && peers[0];
   const dateVal = dateKey === 'created' ? item.createdAt : item.updatedAt;
@@ -76,12 +78,23 @@ export const ClusterRow = memo(function ClusterRow({
         </div>
         <div className="ct-name-wrap">
           <div className="ct-name" title={item.name}>{item.name}</div>
-          {item.sub && <div className="ct-sub">{item.sub}</div>}
+          {item.sub && !audioMode && <div className="ct-sub">{item.sub}</div>}
         </div>
         {item.kind === 'audio' && <RowWave peaks={item.card?.peaks} />}
       </div>
-      <div className="ct-cell ct-c-type">{item.typeLabel}</div>
-      <div className="ct-cell ct-c-size">{item.sizeBytes != null ? humanSize(item.sizeBytes) : ''}</div>
+      {audioMode ? (
+        <>
+          <div className="ct-cell ct-c-dur">{formatDuration(item.durationSec)}</div>
+          <div className="ct-cell ct-c-bpm">{item.bpm != null ? item.bpm : ''}</div>
+          <div className="ct-cell ct-c-key">{formatKey(item.musicalKey)}</div>
+          <div className="ct-cell ct-c-fmt">{item.format || item.typeLabel}</div>
+        </>
+      ) : (
+        <>
+          <div className="ct-cell ct-c-type">{item.typeLabel}</div>
+          <div className="ct-cell ct-c-size">{item.sizeBytes != null ? humanSize(item.sizeBytes) : ''}</div>
+        </>
+      )}
       <div className="ct-cell ct-c-date">{item.pending ? 'Uploading…' : (dateVal ? relativeTimeShort(dateVal) : '')}</div>
       <div className="ct-cell ct-c-presence">
         {peers && peers.slice(0, 2).map((pp, i) => (

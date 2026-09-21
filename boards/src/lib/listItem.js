@@ -11,6 +11,7 @@
 import { computeCellRects } from './gridLayout.js';
 import { schedItems, schedLegacyRows } from './schedLayout.js';
 import { monthTitle } from './schedDates.js';
+import { formatLabel, audioMetaLine, keyOrder } from './loopMeta.js';
 
 // Cap the grid schematic: past this many cells the subdivision is unreadable at
 // thumb size and re-tiling wastes work, so we draw the raw box instead.
@@ -113,11 +114,30 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
       item.preview = card.poster ? { mode: 'r2', src: card.poster, kind } : { mode: 'icon', kind };
       item.sizeBytes = mediaSizeFrom(getMeta, card.src);
       break;
-    case 'audio':
+    case 'audio': {
       item.name = card.title || card.fileName || 'Audio';
       item.preview = card.cover ? { mode: 'r2', src: card.cover, kind } : { mode: 'icon', kind };
-      item.sizeBytes = mediaSizeFrom(getMeta, card.src);
+      // Audio cards now carry sizeBytes from the File itself; the images-table
+      // lookup stays as the fallback for cards that predate that.
+      item.sizeBytes = card.sizeBytes ?? mediaSizeFrom(getMeta, card.src);
+      // The columns a loop browser sorts on. `format` falls back through
+      // ext → mime → the R2 key's own suffix so a card from before those
+      // fields existed still shows WAV.
+      item.durationSec = Number.isFinite(card.duration) ? card.duration : null;
+      item.bpm = Number.isFinite(card.bpm) ? card.bpm : null;
+      item.musicalKey = card.musicalKey || null;
+      item.format = formatLabel({ ext: card.ext, mime: card.mime, src: card.src });
+      item.sampleRate = card.sampleRate || null;
+      item.channels = card.channels || null;
+      // One assembled line — "0:02 · 128 · A♯ min · WAV". This is what makes
+      // the DEFAULT table and the gallery tiles useful for a pack with no
+      // layout change at all.
+      item.sub = audioMetaLine({
+        duration: item.durationSec, bpm: item.bpm,
+        musicalKey: item.musicalKey, format: item.format,
+      });
       break;
+    }
     case 'file':
       item.name = card.fileName || card.title || 'File';
       item.sub = card.ext ? String(card.ext).toUpperCase() : (card.mime || '');
@@ -195,8 +215,9 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
 // ── sort / filter / search (pure) ──────────────────────────────────────────
 const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
 
-// key ∈ 'name'|'type'|'size'|'created'|'updated'. dir ∈ 'asc'|'desc'.
-// Missing size/date always sort LAST (regardless of dir), then fall back to
+// key ∈ 'name'|'type'|'size'|'created'|'updated'|'duration'|'bpm'|'key'|'format'.
+// dir ∈ 'asc'|'desc'.
+// Missing values always sort LAST (regardless of dir), then fall back to
 // z-order so undated legacy cards keep a stable place. Returns a NEW array.
 export function sortItems(items, key = 'updated', dir = 'desc') {
   const arr = [...(items || [])];
@@ -215,6 +236,17 @@ export function sortItems(items, key = 'updated', dir = 'desc') {
     if (key === 'name') c = collator.compare(a.name || '', b.name || '') * sign;
     else if (key === 'type') c = (collator.compare(a.typeLabel || '', b.typeLabel || '') || zcmp(a, b)) * sign;
     else if (key === 'size') c = missLast(a.sizeBytes, b.sizeBytes, () => ((a.sizeBytes - b.sizeBytes) * sign));
+    else if (key === 'duration') c = missLast(a.durationSec, b.durationSec, () => ((a.durationSec - b.durationSec) * sign));
+    else if (key === 'bpm') c = missLast(a.bpm, b.bpm, () => ((a.bpm - b.bpm) * sign));
+    else if (key === 'format') c = missLast(a.format, b.format, () => collator.compare(a.format || '', b.format || '') * sign);
+    else if (key === 'key') {
+      // Circle of fifths, not the alphabet. Someone sorting a pack by key is
+      // asking what stacks with what, and that question's axis puts A, E and D
+      // together — alphabetical puts A next to B flat and calls it a day.
+      const ao = keyOrder(a.musicalKey);
+      const bo = keyOrder(b.musicalKey);
+      c = missLast(ao, bo, () => ((ao - bo) * sign));
+    }
     else if (key === 'created') c = missLast(a.createdAt, b.createdAt, () => (String(a.createdAt) < String(b.createdAt) ? -1 : 1) * sign);
     else c = missLast(a.updatedAt, b.updatedAt, () => (String(a.updatedAt) < String(b.updatedAt) ? -1 : 1) * sign);
     return c || zcmp(a, b);
@@ -234,6 +266,8 @@ export function matchItems(items, query) {
   const q = String(query || '').trim().toLowerCase();
   if (!q) return items || [];
   return (items || []).filter(it => {
+    // `sub` already carries the assembled tempo/key/format line for audio, so
+    // typing "128", "amin" or "wav" filters a pack without a query syntax.
     const hay = `${it.name || ''} ${it.sub || ''} ${it.typeLabel || ''} ${it.preview?.ext || ''}`.toLowerCase();
     return hay.includes(q);
   });

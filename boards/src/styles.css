@@ -8304,6 +8304,33 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 /* Table */
 .ct-table { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; background: var(--bg-3); }
 .ct-head, .ct-row { display: grid; grid-template-columns: minmax(0,1fr) 92px 80px 116px 60px; align-items: center; }
+/* Loop-browser mode: Time / BPM / Key / Format instead of Type + Size. Swapped
+   here rather than in a second component so the two can never drift. */
+.ct-table[data-cols="audio"] .ct-head,
+.ct-table[data-cols="audio"] .ct-row {
+  grid-template-columns: minmax(0,1fr) 64px 56px 72px 72px 116px 60px;
+}
+.ct-c-dur, .ct-c-bpm, .ct-c-key, .ct-c-fmt {
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.ct-c-key { color: var(--ink-2); }
+/* Skip layout and paint for rows and tiles that are off screen. Two
+   declarations buy most of what a virtualizer would, and unlike a virtualizer
+   they do not break scrollIntoView on the keyboard cursor, grid-family
+   expansion, or Cmd+A. Degrades silently on engines without support.
+
+   `auto` in contain-intrinsic-size makes the browser remember each element's
+   LAST REAL size, so the placeholder height is only a guess the first time —
+   without it, a wrong fixed guess makes the scrollbar jump as you scroll. */
+.ct-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 48px;
+}
+.ct-tile {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 180px;
+}
 .ct-head { border-bottom: 1px solid var(--line-2); background: var(--bg-2); }
 .ct-th { text-align: left; background: none; border: none; cursor: pointer; color: var(--ink-2); font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; padding: 8px 12px; }
 .ct-th:hover { color: var(--ink-0); }

@@ -16,9 +16,27 @@ view control in the cluster header.
 **Gallery** — a tile per item with a real preview. Better when you are looking
 for something you would recognise by sight.
 
+## When a cluster is mostly audio
+
+The table swaps its columns. **Type** and **Size** give way to **Time**,
+**BPM**, **Key** and **Format**, and each one sorts — so a folder of samples
+becomes something you can order by tempo or by key.
+
+It switches on its own once half of what you are looking at is audio, which is
+also true the moment you filter to Audio. Nothing to turn on, and a cluster of
+notes and images never grows four empty columns.
+
+**Key sorts by the circle of fifths, not the alphabet.** Sorting a pack by key
+is really asking what stacks with what, so C, G, D, A and E land next to each
+other rather than A, B, C.
+
+Tempo and key come from the filename as the file uploads, and are editable on
+the card — see [video and audio](/docs/files/video-and-audio).
+
 ## Sorting and filtering
 
-Sort by **name**, **type**, **size**, **date modified** or **date added**.
+Sort by **name**, **type**, **size**, **date modified** or **date added** — plus
+**length**, **tempo**, **key** and **format** when the cluster is mostly audio.
 
 Filter to a single content type: Images, PDFs, Video, Audio, Files, Notes,
 Links, Docs, Palettes, Other.

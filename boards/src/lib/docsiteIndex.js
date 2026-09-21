@@ -1336,6 +1336,10 @@ export const DOCS_PAGES = [
         "text": "Table and gallery"
       },
       {
+        "id": "when-a-cluster-is-mostly-audio",
+        "text": "When a cluster is mostly audio"
+      },
+      {
         "id": "sorting-and-filtering",
         "text": "Sorting and filtering"
       },

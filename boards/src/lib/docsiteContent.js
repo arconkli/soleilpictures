@@ -15732,6 +15732,163 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "When a cluster is mostly audio",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When a cluster is mostly audio"
+    }
+   ],
+   "id": "when-a-cluster-is-mostly-audio"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The table swaps its columns. "
+    },
+    {
+     "t": "strong",
+     "v": "Type",
+     "children": [
+      {
+       "t": "text",
+       "v": "Type"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Size",
+     "children": [
+      {
+       "t": "text",
+       "v": "Size"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " give way to "
+    },
+    {
+     "t": "strong",
+     "v": "Time",
+     "children": [
+      {
+       "t": "text",
+       "v": "Time"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "BPM",
+     "children": [
+      {
+       "t": "text",
+       "v": "BPM"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Key",
+     "children": [
+      {
+       "t": "text",
+       "v": "Key"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Format",
+     "children": [
+      {
+       "t": "text",
+       "v": "Format"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and each one sorts — so a folder of samples becomes something you can order by tempo or by key."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It switches on its own once half of what you are looking at is audio, which is also true the moment you filter to Audio. Nothing to turn on, and a cluster of notes and images never grows four empty columns."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Key sorts by the circle of fifths, not the alphabet.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Key sorts by the circle of fifths, not the alphabet."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Sorting a pack by key is really asking what stacks with what, so C, G, D, A and E land next to each other rather than A, B, C."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tempo and key come from the filename as the file uploads, and are editable on the card — see "
+    },
+    {
+     "t": "link",
+     "v": "video and audio",
+     "href": "/docs/files/video-and-audio",
+     "children": [
+      {
+       "t": "text",
+       "v": "video and audio"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Sorting and filtering",
    "inline": [
     {
@@ -15816,7 +15973,63 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": " — plus "
+    },
+    {
+     "t": "strong",
+     "v": "length",
+     "children": [
+      {
+       "t": "text",
+       "v": "length"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "tempo",
+     "children": [
+      {
+       "t": "text",
+       "v": "tempo"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "key",
+     "children": [
+      {
+       "t": "text",
+       "v": "key"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "format",
+     "children": [
+      {
+       "t": "text",
+       "v": "format"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " when the cluster is mostly audio."
     }
    ]
   },

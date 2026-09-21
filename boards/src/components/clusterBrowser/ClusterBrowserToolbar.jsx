@@ -12,6 +12,15 @@ const SORT_OPTIONS = [
   { key: 'created', label: 'Date added' },
 ];
 
+// Offered only when the table is in loop-browser mode — sorting by a column
+// that isn't on screen is a menu entry that appears to do nothing.
+const AUDIO_SORT_OPTIONS = [
+  { key: 'duration', label: 'Length' },
+  { key: 'bpm', label: 'Tempo' },
+  { key: 'key', label: 'Key' },
+  { key: 'format', label: 'Format' },
+];
+
 // Small frosted popover anchored under its trigger. Closes on outside tap/esc.
 function Menu({ open, onClose, children }) {
   const ref = useRef(null);
@@ -34,6 +43,7 @@ export function ClusterBrowserToolbar({
   showUpsell = false, onUpsell = null,
   facePeers = [],
   onSearchKeyDown, searchRef,
+  audioMode = false,
 }) {
   const [sortOpen, setSortOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -77,7 +87,7 @@ export function ClusterBrowserToolbar({
           Sort<Icon as={ChevronDown} size={12} />
         </button>
         <Menu open={sortOpen} onClose={() => setSortOpen(false)}>
-          {SORT_OPTIONS.map(o => (
+          {[...SORT_OPTIONS, ...(audioMode ? AUDIO_SORT_OPTIONS : [])].map(o => (
             <button key={o.key} className={`ctx-item${sortKey === o.key ? ' is-active' : ''}`}
                     onClick={() => { onSort(o.key); setSortOpen(false); }}>
               <span>{o.label}</span>

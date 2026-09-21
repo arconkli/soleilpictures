@@ -159,6 +159,28 @@ export function ListSurface({
     });
   }, []);
 
+  // Loop-browser columns: Time / BPM / Key / Format in place of Type + Size.
+  //
+  // A MODE rather than four permanent columns, because a cluster of notes and
+  // images must not grow four empty ones. Majority-audio is the trigger, which
+  // is automatically true when the Audio type filter is on and true by default
+  // for an actual sample pack.
+  const audioMode = useMemo(() => {
+    if (!visibleItems.length) return false;
+    const n = visibleItems.reduce((acc, it) => acc + (it.kind === 'audio' ? 1 : 0), 0);
+    return n / visibleItems.length >= 0.5;
+  }, [visibleItems]);
+
+  // A sort key that only exists in audio mode must not survive leaving it, or
+  // the table sorts by a column nobody can see.
+  useEffect(() => {
+    if (!audioMode && ['duration', 'bpm', 'key', 'format'].includes(sortKey)) {
+      setSortKey('updated');
+      setSortDir('desc');
+      writeBrowserPrefs({ sortKey: 'updated', sortDir: 'desc' });
+    }
+  }, [audioMode, sortKey]);
+
   // ── Auditioning ───────────────────────────────────────────────────────────
   //
   // The rows a keyboard cursor can land on, in the order they are on screen:
@@ -746,6 +768,7 @@ export function ListSurface({
             <ClusterBrowserToolbar
               query={query} onQueryChange={setQuery}
               sortKey={sortKey} sortDir={sortDir} onSort={onSort}
+              audioMode={audioMode}
               filters={filters} availableBuckets={availableBuckets}
               onToggleFilter={onToggleFilter} onClearFilters={onClearFilters}
               viewMode={viewMode} onViewMode={onViewMode}
@@ -781,6 +804,7 @@ export function ListSurface({
                     onDownload={downloadOne}
                     onAudition={(it) => { setActiveId(it.id); auditionCard(it.id); }}
                     activeId={activeId} playingId={playingId} registerRow={registerRow}
+                    audioMode={audioMode}
                     onRowClick={(e, id) => onTileClick(e, 'file', id)}
                     onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
                 )}
