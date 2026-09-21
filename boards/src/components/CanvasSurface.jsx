@@ -4440,7 +4440,14 @@ export function CanvasSurface({
           }
           const { pos, clamped } = resolvePastePos();
           notePasteCreate(clamped);
-          dispatchIngestOne({ file, route: c.route, kind: c.kind }, pos.x, pos.y);
+          // Caught here rather than awaited: this is a window event handler, so
+          // a rejection would be unhandled. The drop path already surfaces the
+          // same failure through ingestFiles' try/catch.
+          dispatchIngestOne({ file, route: c.route, kind: c.kind }, pos.x, pos.y)
+            .catch((err) => {
+              console.error(err);
+              feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
+            });
           return;
         }
       }

@@ -1792,7 +1792,7 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
       // that drive auto-advance would run through a whole pack in a blink.
       const played = audio.currentTime || audio.duration || 0;
       audioBus.release(stop);
-      if (played >= 0.05) audioBus.notifyEnded(cardId);
+      if (played >= 0.05) audioBus.notifyEnded(cardId, audioSource);
     };
     const onTime = () => setPosition(audio.currentTime || 0);
     const onMeta = () => setDecodedDuration(audio.duration || decodedDuration || 0);

@@ -227,12 +227,18 @@ export function ListSurface({
   // It still goes through audioBus.claim, so the one-at-a-time rule holds
   // ACROSS surfaces — starting a row stops a canvas card in the other pane.
   const audioElRef = useRef(null);
+  // Written SYNCHRONOUSLY when playback starts, not derived from `playingId`.
+  //
+  // At natural end the spec fires `pause` BEFORE `ended`. A ref synced from
+  // state through an effect was therefore already null by the time `ended`
+  // ran — so auto-advance had no card id to advance FROM and silently did
+  // nothing. `playingId` stays the render signal; this is the record.
   const playingIdRef = useRef(null);
-  useEffect(() => { playingIdRef.current = playingId; }, [playingId]);
 
   // Handed to the bus so a canvas card starting up can stop us. Declared
   // BEFORE auditionCard, which closes over it.
   const stopAudition = useCallback(() => {
+    playingIdRef.current = null;
     try { audioElRef.current?.pause(); } catch (_) {}
     setPlayingId(null);
   }, []);
@@ -245,23 +251,43 @@ export function ListSurface({
     if (!el) {
       el = new Audio();
       el.preload = 'metadata';
+      el.setAttribute('data-list-audio', '');
+      // In the document rather than floating: a detached media element is
+      // invisible to the browser's media session (so hardware play/pause keys
+      // do nothing), and it is unreachable from a test that needs to drive it
+      // to the end rather than wait out a real file in real time.
+      el.style.display = 'none';
+      document.body.appendChild(el);
       audioElRef.current = el;
       el.addEventListener('ended', () => {
         const ended = playingIdRef.current;
+        playingIdRef.current = null;
         setPlayingId(null);
         audioBus.release(stopAudition);
         // Guard the zero-length case: a file that fires `ended` instantly
         // would otherwise run auto-advance through a whole pack in a blink.
-        if (ended && (el.currentTime || el.duration || 0) >= 0.05) audioBus.notifyEnded(ended);
+        if (ended && (el.currentTime || el.duration || 0) >= 0.05) audioBus.notifyEnded(ended, 'list');
       });
+      // Render signal only. The ref is cleared by `ended` and by stopAudition,
+      // never here — `pause` arrives first at a natural end.
       el.addEventListener('pause', () => setPlayingId(null));
     }
-    if (playingIdRef.current === id && !el.paused) { el.pause(); return true; }
+    if (playingIdRef.current === id && !el.paused) { playingIdRef.current = null; el.pause(); return true; }
     const url = await resolveSrc(src);
     if (!url) return false;
-    if (el.src !== url) { el.src = url; }
+    if (el.src !== url) el.src = url;
+    // Rewind explicitly. Reusing the element means the playhead is wherever the
+    // last clip left it, and on auto-advance that is the END — so a second row
+    // pointing at the same file would start at its own ending and fire `ended`
+    // again immediately, running through a whole pack in a blink. Setting src
+    // does this implicitly; a repeat src does not.
+    try { el.currentTime = 0; } catch (_) {}
     audioBus.claim(stopAudition, { cardId: id, source: 'list' });
-    try { await el.play(); setPlayingId(id); } catch (_) { setPlayingId(null); return false; }
+    try {
+      await el.play();
+      playingIdRef.current = id;
+      setPlayingId(id);
+    } catch (_) { playingIdRef.current = null; setPlayingId(null); return false; }
     return true;
   }, [items, stopAudition]);
 
@@ -269,6 +295,8 @@ export function ListSurface({
   // Leaving list view must not leave a loop playing from nowhere.
   useEffect(() => () => {
     try { audioElRef.current?.pause(); } catch (_) {}
+    try { audioElRef.current?.remove(); } catch (_) {}
+    audioElRef.current = null;
     audioBus.release(stopAudition);
   }, [stopAudition]);
 

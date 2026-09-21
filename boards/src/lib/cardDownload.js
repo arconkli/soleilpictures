@@ -121,6 +121,12 @@ export async function downloadCardAssets(cards, { zipName = 'download.zip', onPr
       { entries: items.length });
   }
 
+  // Note: images in a bulk zip are the ORIGINAL bytes, not the adjusted bake
+  // that downloadCardAsset produces for a single image. Baking N images on the
+  // main thread to build one archive is not a trade worth making, and the
+  // single-image path — which is where someone downloads a photo they edited —
+  // still bakes.
+  //
   // Fetch into a fixed-size slot array so entry order matches selection order
   // regardless of which request finishes first.
   const slots = new Array(items.length).fill(null);

@@ -164,6 +164,35 @@ test('list rows audition, and the keyboard moves through them', async ({ page })
   await expect(page.locator('.ct-row.is-active')).toHaveCount(1);
 });
 
+test('when a clip ends the next row starts on its own', async ({ page }) => {
+  // The feature that turns the list into a loop browser — and the one that was
+  // silently dead, because notifyEnded read the source off the bus AFTER
+  // release had cleared it, so auto-advance always saw null and bailed.
+  await boot(page);
+  await addAudio(page, 3);
+  await goList(page);
+
+  const rows = page.locator('.ct-row');
+  await page.locator('.ct-play').nth(0).click();
+  await expect(rows.nth(0)).toHaveClass(/is-playing/);
+
+  // Drive the clip to its end rather than waiting it out in real time. The
+  // list's element is in the document precisely so this is reachable.
+  await page.waitForFunction(() => {
+    const el = document.querySelector('audio[data-list-audio]');
+    return el && Number.isFinite(el.duration) && el.duration > 0;
+  });
+  await page.evaluate(() => {
+    const el = document.querySelector('audio[data-list-audio]');
+    el.currentTime = Math.max(0, el.duration - 0.05);
+  });
+
+  // The SECOND row takes over — the cursor moves with it, and the first stops.
+  await expect(rows.nth(1)).toHaveClass(/is-playing/, { timeout: 10000 });
+  await expect(rows.nth(1)).toHaveClass(/is-active/);
+  await expect(rows.nth(0)).not.toHaveClass(/is-playing/);
+});
+
 test('shift-click selects a range, and the bar offers a download', async ({ page }) => {
   await boot(page);
   await addAudio(page, 3);

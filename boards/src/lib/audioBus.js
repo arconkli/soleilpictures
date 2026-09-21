@@ -59,8 +59,13 @@ export function playingCardId() {
 // Auto-advance subscribes here. The `source` is what keeps it correct: a card
 // started by clicking it on the CANVAS must not make the list jump to its next
 // row, because the person is not looking at the list.
-export function notifyEnded(cardId) {
-  const payload = { cardId, source: activeSource };
+//
+// The source is passed IN rather than read off `activeSource`. Every caller
+// releases the bus as playback ends — that is what release is for — and
+// release clears activeSource, so reading it here returned null every time and
+// auto-advance could never fire. The caller knows its own surface; ask it.
+export function notifyEnded(cardId, source = null) {
+  const payload = { cardId, source: source ?? activeSource };
   for (const fn of Array.from(endedListeners)) {
     try { fn(payload); } catch (_) {}
   }
