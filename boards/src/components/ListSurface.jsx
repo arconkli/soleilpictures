@@ -491,7 +491,11 @@ export function ListSurface({
         return;
       }
 
+      // Read-only surfaces (the public viewer) reach this component too.
+      // canEdit already hides every delete affordance; the KEY has to be
+      // gated separately or Backspace on a shared link would try to delete.
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      if (!canEdit) return;
       const total = selectedBoards.size + selectedCards.size;
       if (total === 0) return;
       e.preventDefault();
@@ -531,7 +535,7 @@ export function ListSurface({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [feedback, selectedBoards, selectedCards, boards, mutators, hasSplit, paneId,
-      navItems, activeId, auditionCard]);
+      navItems, activeId, auditionCard, canEdit]);
 
   const [dragOver, setDragOver] = useState(false);
   // Board tile currently highlighted as a reparent drop target.

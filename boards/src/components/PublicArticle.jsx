@@ -123,6 +123,31 @@ function Item({ item, slug, boardId }) {
           </button>
         </p>
       );
+    case 'audio': {
+      // Mirrors publicPageModel.itemHtml's audio case exactly — same fields,
+      // same order, same words. That parity IS the anti-cloaking rule: the
+      // Worker and React render the same model, and a crawler must not be
+      // shown something a person isn't.
+      const a = item.audio || {};
+      const bits = [];
+      const d = Number(a.duration);
+      if (Number.isFinite(d) && d > 0) {
+        bits.push(`${Math.floor(d / 60)}:${String(Math.floor(d % 60)).padStart(2, '0')}`);
+      }
+      if (Number.isFinite(Number(a.bpm))) bits.push(`${Number(a.bpm)} BPM`);
+      if (a.key) bits.push(String(a.key));
+      if (a.format) bits.push(String(a.format));
+      return (
+        <p className="pa-audio">
+          ♪ {item.title ? <b>{item.title}</b> : 'Audio'}
+          {bits.length ? <> — {bits.join(' · ')}</> : null}{' '}
+          <button type="button" className="pa-jump" onClick={() => flashCard(boardId, item.card_id)}>
+            plays on the board
+          </button>
+          {item.body ? <span className="pa-audio-body"> {item.body}</span> : null}
+        </p>
+      );
+    }
     case 'shape':
       return item.label ? <p className="pa-shape">{item.label}</p> : null;
     case 'board':

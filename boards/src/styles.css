@@ -2598,6 +2598,9 @@ body {
   min-width: 0;
   text-align: center;
 }
+/* Holds the hero's height while the list-view chunk loads, so a list-mode
+   published cluster does not collapse and reflow the page under it. */
+.public-board-listwait { min-height: 320px; }
 .public-board-eyebrow {
   font: 600 9px/1.2 var(--font-sans);
   letter-spacing: 0.1em;
@@ -20111,7 +20114,8 @@ button, [role="button"], a {
 .pa-link a:hover { text-decoration: underline; }
 .pa-link p { margin: 6px 0 0; font-size: .92rem; color: var(--pats); }
 .pa-grid-note ul { margin: 10px 0 0; padding-left: 20px; color: var(--pats); }
-.pa-video, .pa-shape, .pa-board { color: var(--pats); margin: 0; }
+.pa-video, .pa-audio, .pa-shape, .pa-board { color: var(--pats); margin: 0; }
+.pa-audio-body { color: var(--pats); opacity: .85; }
 
 .pa-jump {
   appearance: none; background: none; border: 0; padding: 0; cursor: pointer;

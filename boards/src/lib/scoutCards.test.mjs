@@ -77,7 +77,11 @@ test('a voice note carries its transcript where search will find it', () => {
   assert.equal(card.src, 'r2:ws/a.m4a');
   assert.equal(card.duration, 12.5);
   assert.equal(cardIndexBody('audio', get(card)), 'the diner on third has a good back booth');
-  assert.deepEqual(buildCardMeta('audio', get(card)), { src: 'r2:ws/a.m4a', duration: 12.5 });
+  // A voice memo carries no tempo or key, and the projection says so with
+  // nulls rather than omitting the fields — same shape for every audio card,
+  // so a consumer never has to distinguish "absent" from "unknown".
+  assert.deepEqual(buildCardMeta('audio', get(card)),
+    { src: 'r2:ws/a.m4a', duration: 12.5, bpm: null, musicalKey: null, ext: null, mime: null });
 });
 
 test('a video keeps its aspect and its poster', () => {

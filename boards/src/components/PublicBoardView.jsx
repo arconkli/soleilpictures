@@ -26,12 +26,19 @@
 // fully instrumented (EV.SHARE_*), and shows a dismissible signup prompt
 // after real engagement (SharePrompt).
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Y from 'yjs';
 import { b64ToBytes, readCards, readArrows, readStrokes, readGroups } from '../lib/yhelpers.js';
 import { SoleilMark } from './primitives.jsx';
 import { ClustersMark } from './SoleilWordmark.jsx';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { CanvasSurface } from './CanvasSurface.jsx';
+// Lazy: only a cluster whose owner set it to LIST needs the browser, and this
+// is the SEO surface — a canvas pack must not pay for list-view code it will
+// never render. lazyWithReload rather than bare React.lazy so a stale deploy
+// recovers instead of white-screening (see lib/lazyWithReload.js).
+const ListSurface = lazyWithReload(() =>
+  import('./ListSurface.jsx').then(m => ({ default: m.ListSurface })));
 import { SharePrompt } from './SharePrompt.jsx';
 import { JoinBoardCard } from './JoinBoardCard.jsx';
 import PublicArticle from './PublicArticle.jsx';
@@ -594,6 +601,18 @@ export function PublicBoardView({ token, slug }) {
     return filtered.length === cards.length ? cards : filtered;
   }, [cur, boardsMap]);
 
+  // A cluster the owner set to LIST opens as a list here too — the same
+  // `board.view` the signed-in app reads. Canvas stays the default, including
+  // for every cluster that has never had the setting touched.
+  const isListView = (cur?.board?.view || board?.view) === 'list';
+
+  // ListSurface renders sub-clusters as tiles from childBoards, which the
+  // public bundle expresses as the flat navBoards map plus board cards.
+  const publicChildBoards = useMemo(
+    () => visibleCards.filter(c => c.kind === 'board' && boardsMap[c.id])
+                      .map(c => boardsMap[c.id]),
+    [visibleCards, boardsMap]);
+
   // Editorial article under the canvas (slug mode): the worker injected the
   // exact page model it rendered as crawlable HTML — same structure, same
   // order (anti-cloaking parity), zero extra fetch. Hidden while navigated
@@ -753,6 +772,36 @@ export function PublicBoardView({ token, slug }) {
                 This board is live — drag to explore
               </div>
             )}
+            {/* A cluster whose owner set it to LIST opens as a list here too.
+                Two hundred near-identical audio cards on a canvas is not a
+                browsable thing — a sample pack shared as a link wants the
+                table, with its search, its tempo/key columns and its
+                audition-through. Opt-in per cluster by the owner, so the
+                blast radius is this one branch.
+
+                Everything that writes is stubbed out rather than trusted to
+                canEdit alone: no mutators, no presence, no file drop. */}
+            {isListView ? (
+              <Suspense fallback={<div className="public-board-listwait" />}>
+              <ListSurface
+                board={board}
+                boards={boardsMap}
+                boardsReady
+                cards={visibleCards}
+                childBoards={publicChildBoards}
+                onOpenBoard={openBoard}
+                onOpenPicker={NOOP}
+                canEdit={false}
+                mutators={EMPTY_OBJ}
+                getAwareness={undefined}
+                workspaceId={null}
+                selfId={null}
+                onDropFilesToCluster={null}
+                onRevealOnCanvas={null}
+                showStorageUpsell={false}
+              />
+              </Suspense>
+            ) : (
             <CanvasSurface
               key={`cv-${imgEpoch}`}
               initialFrame={initialFrame}
@@ -778,6 +827,7 @@ export function PublicBoardView({ token, slug }) {
               workspaceId={null}
               userId={null}
             />
+            )}
           </div>
         </OpenDmContext.Provider>
       </EntityNavigateContext.Provider>

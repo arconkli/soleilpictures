@@ -132,7 +132,17 @@ export function buildCardMeta(kind, get) {
     // since the "upload anything" work; only this projection never learned about
     // them. Scout now creates them too, which is what surfaced it.
     case 'audio':
-      return { src: get('src') || null, duration: get('duration') || null };
+      return {
+        src: get('src') || null,
+        duration: get('duration') || null,
+        // Tempo, key and format are what a sample pack is ABOUT. Projected so
+        // a published pack has something worth indexing beyond a filename, and
+        // so a search hit can render the line a producer actually reads.
+        bpm: get('bpm') || null,
+        musicalKey: get('musicalKey') || null,
+        ext: get('ext') || null,
+        mime: get('mime') || null,
+      };
     case 'pdf':
       return {
         // The bytes and the page-1 raster are different objects, and a viewer

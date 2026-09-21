@@ -25144,7 +25144,28 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The board renders in a real canvas — visitors pan, zoom and open images at full size — with no account required."
+     "v": "The board renders in a real canvas — visitors pan, zoom and open images at full size — with no account required. A cluster you have set to "
+    },
+    {
+     "t": "strong",
+     "v": "[list view](/docs/clusters/list-view)",
+     "children": [
+      {
+       "t": "link",
+       "v": "list view",
+       "href": "/docs/clusters/list-view",
+       "children": [
+        {
+         "t": "text",
+         "v": "list view"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens as a list here too, which is what you want for anything that is a collection rather than an arrangement: a sample pack, a stills selects, a reference library. Visitors get the search, the sorting and the audition-through, and can download what is on it."
     }
    ]
   },
