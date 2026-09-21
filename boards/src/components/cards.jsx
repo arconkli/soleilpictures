@@ -746,7 +746,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 // playback uses a <video> element with a presigned read URL fetched
 // the same way images are. For brevity, this component plays whatever
 // `src` was stamped on the card (works for r2: and external https).
-function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdate, autoFocus = false, editTitleAt = 0, onDownload = null }) {
   // Same fix as ImageCard: don't auto-open the title row on paste; it
   // silently eats vertical layout and makes object-fit:cover crop the
   // video. Double-click to edit instead.
@@ -812,6 +812,18 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
   const onDbl = (e) => { e.stopPropagation(); setEditingTitle(true); };
   return (
     <div className="vc">
+      {/* Video had no download affordance ANYWHERE — not on the card, not in
+          the context menu — so the only way to get a clip back out was to find
+          it in the cluster browser's detail panel. On a public board, where the
+          context menu is disabled entirely, there was no way at all. */}
+      {onDownload && (
+        <button type="button" className="vc-download"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); onDownload(); }}
+                aria-label="Download video" title="Download">
+          <Icon as={Download} size={14} />
+        </button>
+      )}
       <div className="vc-vidwrap" onDoubleClick={onDbl}>
         {resolvedUrl
           ? <video ref={videoRef} className="vc-video" src={resolvedUrl}
@@ -1682,6 +1694,7 @@ const FLAT_PEAKS = new Uint8Array(PEAK_COUNT).fill(26);
 // or click to file-pick.
 function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
                             bpm = null, musicalKey = null, ext = null, mime = null,
+                            loop = false, cardId = null,
                             onUpdate, autoFocus = false,
                             coverPickAt = 0, editTitleAt = 0,
                             onPickCover = null, onDownload = null }) {
@@ -1926,6 +1939,7 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
     <audio ref={audioElRef}
            src={resolvedUrl || undefined}
            preload="metadata"
+           {...(loop ? { loop: true } : {})}
            style={{ display: 'none' }} />
   );
 

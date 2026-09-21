@@ -1681,6 +1681,14 @@ Only one audio card plays at a time across the whole board. Starting a second st
 
 Free accounts cap audio at 50 MB.
 
+Downloading audio
+
+Hover an audio card and a download button appears next to the transport. It is there for anyone who can see the card, including a signed-out visitor on a shared or published link — the same rule images have always followed.
+
+The file comes back under its original name, not the card's title. Renaming a card to something readable never costs you the extension, which is what makes the file openable.
+
+To take several at once, switch to list view, select the ones you want and press Download — one zip, original names intact. Zips are capped at 500 files or 500 MB, whichever comes first; past either, download in batches. In the phone and tablet apps, files download one at a time.
+
 Tempo and key
 
 Sample and loop packs are named by machine — SFL_120_Gmin_Loop_Piano.wav, Cymatics - Orchid Kick 3 - 140 BPM.wav — so the tempo and key are usually already written down. Clusters reads them out of the filename as the file uploads and puts them on the card, where you can sort and filter by them in list view.
@@ -1846,6 +1854,14 @@ Filter to a single content type: Images, PDFs, Video, Audio, Files, Notes, Links
 Search filters as you type, against names and content.
 
 The combination is the answer to "where is that PDF someone dropped in here last week" — filter to PDFs, sort by date added, done. On the canvas that is a hunting expedition.
+
+Downloading
+
+Hover any row holding a file — an image, PDF, video, audio clip or attachment — and a download button appears at the end of it. The file keeps its original name, so renaming a card for readability never costs you the extension.
+
+Select several and the selection bar offers Download for all of them at once, as a single zip with the cluster's name. Zips are capped at 500 files or 500 MB, whichever comes first; past either, take it in batches. In the phone and tablet apps files come down one at a time, through the system share sheet.
+
+Anything in the selection with no file behind it — a note, a link — is skipped, and the count of what was skipped is reported rather than quietly dropped.
 
 Previews
 
@@ -2686,6 +2702,12 @@ Only invited people | Revokes every link on the cluster | —
 Choosing one hands you the link straight away; the button beside the picker copies it again any time. Switching between can view and can edit never revokes anything — a link you have already sent someone keeps working, and the panel tells you it is still live. Only Only invited people revokes, and it asks first.
 
 An edit link is not an editable public link. It grants nothing on its own: the person who opens it sees a preview and an explicit Join step, and access is created when they sign in and take it.
+
+What "view" includes
+
+Read-only means nobody can change the cluster. It does not mean the files stay behind glass: anyone who opens the link can download the images, audio, video, PDFs and attachments on it, at full quality and under their original names. That is what makes a link worth sending — a sample pack or a stills selects is only useful if the other person can take it away.
+
+Treat the link itself as the access control. If the contents should not leave, do not put them behind a public link.
 
 Link settings
 

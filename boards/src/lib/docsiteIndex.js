@@ -1336,6 +1336,10 @@ export const DOCS_PAGES = [
         "text": "Sorting and filtering"
       },
       {
+        "id": "downloading",
+        "text": "Downloading"
+      },
+      {
         "id": "previews",
         "text": "Previews"
       },

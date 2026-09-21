@@ -8,6 +8,7 @@
 // vibrance (exact) → clarity (exact, mid-tone-weighted) → sharpen.
 
 import { resolveSrc } from './r2.js';
+import { deliverFile } from './exportDelivery.js';
 import { logEvent } from './analytics.js';
 import { EV } from './analyticsEvents.js';
 
@@ -46,15 +47,16 @@ export function filenameFor(s, t, forceExt) {
   return base;
 }
 
+// Hands the finished blob to the user. Routed through deliverFile rather than
+// a bare <a download> because <a download> does NOT save a file inside the
+// native iOS/Android WebView — it silently does nothing, which is what image
+// downloads did in the Capacitor app for as long as it has existed. deliverFile
+// writes to the cache directory and presents the OS share sheet there, and
+// falls back to exactly the old <a download> on the web.
 function triggerDownload(blob, name) {
-  const objUrl = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = objUrl;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => { try { URL.revokeObjectURL(objUrl); } catch (_) {} }, 1000);
+  // Fire-and-forget: callers are click handlers and there is nothing useful to
+  // do with a rejection beyond the console.
+  deliverFile(blob, name).catch((err) => console.warn('[imageExport] delivery failed', err));
 }
 
 // 3×3 convolution with edge-clamping; alpha is copied through. Kernels sum to 1.

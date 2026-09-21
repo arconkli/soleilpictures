@@ -75,6 +75,7 @@ import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideoMeta, readAudioMeta, makeBoundedPreview, captureAndUploadPoster } from '../lib/uploads.js';
 import { analyzeAudioFile, analyzable } from '../lib/audioAnalysis.js';
+import { downloadCardAsset, DOWNLOADABLE } from '../lib/cardDownload.js';
 import { parseLoopMeta, canonicalKey } from '../lib/loopMeta.js';
 import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
@@ -88,7 +89,6 @@ import { resolveSrc } from '../lib/r2.js';
 import { scheduleBoardPreviewBackfill, drainVariantQueue } from '../lib/previewBackfill.js';
 import { loadCorsCleanImage } from '../lib/corsImage.js';
 import { R2Image } from './R2Image.jsx';
-import { downloadImage } from '../lib/imageExport.js';
 import { ImageAdjustFilters } from './ImageAdjustFilters.jsx';
 import { ImageEditPopover } from './ImageEditPopover.jsx';
 import { ImageEditModal } from './ImageEditModal.jsx';
@@ -3672,6 +3672,18 @@ export function CanvasSurface({
     }
   }, [workspaceId, board?.id, userId, mutators, cards, feedback]);
 
+  // Every download on this surface — the hover buttons and every context-menu
+  // item — goes through here so there is ONE filename rule, one delivery path
+  // (which works inside the native app, where <a download> silently does
+  // nothing), and one error message.
+  const runDownload = useCallback(async (card, kind) => {
+    try {
+      await downloadCardAsset(card, kind, { surface: isPublic ? 'public_canvas' : 'canvas' });
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Download failed: ' + (err?.message || err) });
+    }
+  }, [feedback, isPublic]);
+
   useEffect(() => {
     const onMove = (e) => {
       if (!wrapRef.current) return;
@@ -6288,53 +6300,18 @@ export function CanvasSurface({
         }
         if (c.src) {
           items.push({ id: 'image-download', label: 'Download',
-            run: () => downloadImage({ src: c.src, title: c.title || c.label || '', adjust: c.adjust }) });
+            run: () => runDownload(c, 'image') });
         }
       } else if (c.kind === 'pdf') {
         openItems.push({ id: 'pdf-open', label: 'Open',
           run: () => { if (c.pdfSrc) setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' }); } });
         items.push({ id: 'pdf-title', label: c.title ? 'Edit title' : 'Add title',
           run: () => triggerInlineEdit(c.id, 'title') });
-        items.push({ id: 'pdf-download', label: 'Download', run: async () => {
-          if (!c.pdfSrc) return;
-          try {
-            const url = await resolveSrc(c.pdfSrc);
-            if (!url) return;
-            const res = await fetch(url);
-            const blob = await res.blob();
-            const objUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            let fn = (c.name || c.title || 'document').toString().replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
-            if (!/\.pdf$/i.test(fn)) fn += '.pdf';
-            a.href = objUrl; a.download = fn;
-            document.body.appendChild(a); a.click(); a.remove();
-            setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
-          } catch (_) {
-            const url = await resolveSrc(c.pdfSrc).catch(() => null);
-            if (url) window.open(url, '_blank', 'noopener,noreferrer');
-          }
-        }});
+        items.push({ id: 'pdf-download', label: 'Download', run: () => runDownload(c, 'pdf') });
       } else if (c.kind === 'file') {
         items.push({ id: 'file-title', label: c.title ? 'Edit title' : 'Add title',
           run: () => triggerInlineEdit(c.id, 'title') });
-        items.push({ id: 'file-download', label: 'Download', run: async () => {
-          if (!c.fileSrc) return;
-          let url = null;
-          try {
-            url = await resolveSrc(c.fileSrc);
-            if (!url) return;
-            const res = await fetch(url);
-            const blob = await res.blob();
-            const objUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = objUrl;
-            a.download = c.fileName || (c.title || 'file').toString().replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
-            document.body.appendChild(a); a.click(); a.remove();
-            setTimeout(() => URL.revokeObjectURL(objUrl), 10000);
-          } catch (_) {
-            if (url) window.open(url, '_blank', 'noopener,noreferrer');
-          }
-        }});
+        items.push({ id: 'file-download', label: 'Download', run: () => runDownload(c, 'file') });
       } else if (c.kind === 'shape') {
         items.push({ id: 'shape-kind', label: 'Shape', submenu: [
           { id: 'sk-rect', label: 'Rectangle', run: () => mutators.updateCard?.(c.id, { shape: 'rect' }) },
@@ -6510,6 +6487,14 @@ export function CanvasSurface({
           items.push({ id: 'audio-cover-set', label: 'Set cover image…',
                        run: () => triggerInlineEdit(c.id, 'audioCover') });
         }
+        // Looping a bar of audio is how you decide whether it fits, so it is
+        // the one transport option worth a menu entry. Label states the action,
+        // matching the video branch below — these menus have no checkmarks.
+        items.push({ id: 'audio-loop', label: c.loop ? 'Turn off looping' : 'Loop',
+                     run: () => mutators.updateCard?.(c.id, { loop: c.loop ? null : true }) });
+        if (c.src) {
+          items.push({ id: 'audio-download', label: 'Download', run: () => runDownload(c, 'audio') });
+        }
       } else if (c.kind === 'video') {
         items.push({ id: 'video-title', label: c.title ? 'Edit title' : 'Add title',
                      run: () => triggerInlineEdit(c.id, 'title') });
@@ -6521,6 +6506,9 @@ export function CanvasSurface({
                      run: () => mutators.updateCard?.(c.id, { autoplay: c.autoplay ? null : true }) });
         items.push({ id: 'video-loop', label: c.loop ? 'Turn off looping' : 'Loop',
                      run: () => mutators.updateCard?.(c.id, { loop: c.loop ? null : true }) });
+        if (c.src) {
+          items.push({ id: 'video-download', label: 'Download', run: () => runDownload(c, 'video') });
+        }
       } else if (c.kind === 'schedule') {
         items.push({ id: 'schedule-title', label: c.title ? 'Edit title' : 'Add title',
                      run: () => triggerInlineEdit(c.id, 'title') });
@@ -8530,7 +8518,7 @@ export function CanvasSurface({
                                                      uploadProgress={uploadProgressById[c.id] ?? null}
                                                      onExpand={() => openImageLightbox(c)}
                                                      onEdit={onUpdate && c.src ? (rect) => setImageEdit({ cardId: c.id, anchorRect: rect }) : null}
-                                                     onDownload={c.src ? () => downloadImage({ src: c.src, title: c.title || c.label || '', adjust: c.adjust }) : null}
+                                                     onDownload={c.src ? () => runDownload(c, 'image') : null}
                                                      onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
     else if (c.kind === 'note')      inner = <NoteCard body={c.body} html={c.html} bgColor={c.bgColor} textColor={c.textColor} fontFamily={c.fontFamily} fontSize={c.fontSize} vAlign={c.vAlign} onUpdate={onUpdate} autoFocus={af}
                                                 manuallyResized={!!c.manuallyResized}
@@ -8550,13 +8538,17 @@ export function CanvasSurface({
                                                           editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'video')     inner = <VideoCard src={c.src} poster={c.poster} title={c.title}
                                                         autoplay={!!c.autoplay} loop={!!c.loop} onUpdate={onUpdate} autoFocus={af}
-                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
+                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
+                                                        onDownload={c.src ? () => runDownload(c, 'video') : null} />;
     else if (c.kind === 'audio')     inner = <AudioCard src={c.src} title={c.title} duration={c.duration} cover={c.cover} peaks={c.peaks}
                                                         bpm={c.bpm} musicalKey={c.musicalKey} ext={c.ext} mime={c.mime}
                                                         onUpdate={onUpdate} autoFocus={af}
                                                         coverPickAt={editFieldSignal.id === c.id && editFieldSignal.field === 'audioCover' ? editFieldSignal.n : 0}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
-                                                        onPickCover={(file) => pickAudioCover(c.id, file)} />;
+                                                        onPickCover={(file) => pickAudioCover(c.id, file)}
+                                                        loop={!!c.loop}
+                                                        cardId={c.id}
+                                                        onDownload={c.src ? () => runDownload(c, 'audio') : null} />;
     else if (c.kind === 'pdf')       inner = <PdfCard src={c.src || null} pdfSrc={c.pdfSrc} name={c.name} pageCount={c.pageCount}
                                                       title={c.title} w={Math.round(c.w)} h={Math.round(c.h)}
                                                       onUpdate={onUpdate} autoFocus={af}
@@ -11324,7 +11316,7 @@ export function CanvasSurface({
             src={card.src} title={card.title || card.label || ''} adjust={card.adjust} cardId={card.id}
             onChange={(next) => mutators.updateCard?.(card.id, { adjust: next })}
             onReset={() => mutators.updateCard?.(card.id, { adjust: null })}
-            onDownload={() => downloadImage({ src: card.src, title: card.title || card.label || '', adjust: card.adjust })}
+            onDownload={() => runDownload(card, 'image')}
             onClose={() => setImageEditFull(null)} />
         );
       })()}

@@ -57,6 +57,7 @@ import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, CREATOR_TR
 import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS,
          AUDIO_ANALYZE_MAX_BYTES, AUDIO_ANALYZE_MAX_SECONDS } from '../src/lib/fileIngest.js';
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
+import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '..');
@@ -135,6 +136,11 @@ export const FACTS = {
   // a silent, unexplainable difference between two cards on the same board.
   audioWaveformCap: `${AUDIO_ANALYZE_MAX_BYTES / MB} MB`,
   audioWaveformMinutes: `${AUDIO_ANALYZE_MAX_SECONDS / 60} minutes`,
+  // Ceilings on a BULK (zip) download. Not a plan limit — a browser one: the
+  // archive is assembled in the tab, and past these the tab is the thing that
+  // fails. Stated so "why did my 600-file selection refuse" has an answer.
+  zipMaxSize: `${ZIP_MAX_BYTES / MB} MB`,
+  zipMaxFiles: String(ZIP_MAX_ENTRIES),
   freePdfCap: `${FREE_PDF_CAP / MB} MB`,
   maxCardsPerCall: String(api.maxCardsPerCall),
   maxBoardsPerCall: String(api.maxBoardsPerCall),

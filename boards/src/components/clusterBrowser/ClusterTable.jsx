@@ -11,7 +11,7 @@ import { ChevronRight } from '../../lib/icons.js';
 export function ClusterTable({
   items, selectedCards, peerMap, sortKey, sortDir, onSort,
   onRowClick, onRowDoubleClick, recentlyAddedIds,
-  expandedGroups, selectedGroupId, onGroupClick,
+  expandedGroups, selectedGroupId, onGroupClick, onDownload = null,
 }) {
   const caret = (k) => (sortKey === k ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '');
   const dateKey = sortKey === 'created' ? 'created' : 'updated';
@@ -36,6 +36,7 @@ export function ClusterTable({
             selectedCards={selectedCards} peerMap={peerMap} dateKey={dateKey}
             recentlyAddedIds={recentlyAddedIds}
             onRowClick={onRowClick} onRowDoubleClick={onRowDoubleClick}
+            onDownload={onDownload}
           />
         ) : (
           <ClusterRow
@@ -45,6 +46,7 @@ export function ClusterTable({
             isNew={recentlyAddedIds?.has?.(it.id)}
             peers={peerMap?.get(it.id)}
             dateKey={dateKey}
+            onDownload={onDownload}
             onClick={(e) => onRowClick(e, it.id)}
             onDoubleClick={(e) => onRowDoubleClick(e, it.id)}
           />
@@ -59,6 +61,7 @@ export function ClusterTable({
 function GroupBlock({
   group, expanded, selected, onGroupClick,
   selectedCards, peerMap, dateKey, recentlyAddedIds, onRowClick, onRowDoubleClick,
+  onDownload = null,
 }) {
   return (
     <>
@@ -84,6 +87,7 @@ function GroupBlock({
           isNew={recentlyAddedIds?.has?.(m.id)}
           peers={peerMap?.get(m.id)}
           dateKey={dateKey}
+          onDownload={onDownload}
           onClick={(e) => onRowClick(e, m.id)}
           onDoubleClick={(e) => onRowDoubleClick(e, m.id)}
         />

@@ -18,6 +18,11 @@ import { ClusterTable } from './clusterBrowser/ClusterTable.jsx';
 import { ClusterGallery } from './clusterBrowser/ClusterGallery.jsx';
 import { DetailPanel } from './clusterBrowser/DetailPanel.jsx';
 import { groupGridFamilies } from '../lib/gridFamilies.js';
+import { Icon } from './Icon.jsx';
+import { Download } from '../lib/icons.js';
+import {
+  DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
+} from '../lib/cardDownload.js';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 
@@ -411,6 +416,53 @@ export function ListSurface({
     return null;
   }, [selectedGroupId, selectedCards, displayItems, items]);
 
+  // Download one row, or the whole selection as a zip.
+  //
+  // This is what makes a published pack usable: scrolling and auditioning are
+  // only half of it, and before this the only way to take a file out of a
+  // cluster was one at a time through the detail popout.
+  const [zipping, setZipping] = useState(false);
+  const downloadOne = useCallback(async (it) => {
+    try {
+      await downloadCardAsset(it.card, it.kind, { surface: 'list' });
+    } catch (err) {
+      feedback?.toast?.({ type: 'error', message: 'Download failed: ' + (err?.message || err) });
+    }
+  }, [feedback]);
+
+  const downloadSelected = useCallback(async () => {
+    const chosen = items.filter(it => selectedCards.has(it.id) && DOWNLOADABLE.has(it.kind));
+    if (!chosen.length) return;
+    if (chosen.length === 1) { await downloadOne(chosen[0]); return; }
+    if (!bulkDownloadSupported()) {
+      // deliverFile writes through a FileReader as base64 on native; a
+      // half-gigabyte zip becomes ~667 MB of string and takes the app out.
+      feedback?.toast?.({ type: 'warning', message: 'Download files one at a time in the app.' });
+      return;
+    }
+    setZipping(true);
+    try {
+      const { count, skipped } = await downloadCardAssets(
+        chosen.map(it => ({ card: it.card, kind: it.kind })),
+        { zipName: zipNameFor(board?.name || 'cluster'), surface: 'list' });
+      if (!count) {
+        feedback?.toast?.({ type: 'warning', message: 'Nothing in that selection could be downloaded.' });
+      } else if (skipped) {
+        // Say what was left out rather than quietly shipping a smaller archive
+        // than the one that was asked for.
+        feedback?.toast?.({ type: 'success', message: `Downloaded ${count} files — ${skipped} had no file to download.` });
+      }
+    } catch (err) {
+      feedback?.toast?.({ type: 'error', message: err?.code === 'zip_too_large' ? err.message : 'Download failed: ' + (err?.message || err) });
+    } finally {
+      setZipping(false);
+    }
+  }, [items, selectedCards, downloadOne, feedback, board?.name]);
+
+  const downloadableSelected = useMemo(
+    () => items.filter(it => selectedCards.has(it.id) && DOWNLOADABLE.has(it.kind)).length,
+    [items, selectedCards]);
+
   return (
     <div className={`list-wrap ${dragOver ? 'is-drop-target' : ''}`}
          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
@@ -421,6 +473,14 @@ export function ListSurface({
         {totalSel > 0 && (
           <div className="list-selbar">
             <span>{totalSel} selected</span>
+            {downloadableSelected > 0 && (
+              <button type="button" className="list-selbar-act" onClick={downloadSelected} disabled={zipping}>
+                <Icon as={Download} size={13} />
+                <span>{zipping ? 'Preparing…'
+                     : downloadableSelected === 1 ? 'Download'
+                     : `Download ${downloadableSelected}`}</span>
+              </button>
+            )}
             <span className="list-selbar-hint">⌫ to delete · {cmdKey}-click to multi-select</span>
           </div>
         )}
@@ -544,6 +604,7 @@ export function ListSurface({
                     recentlyAddedIds={recentlyAddedIds}
                     expandedGroups={expandedGroups} selectedGroupId={selectedGroupId}
                     onGroupClick={onGroupClick}
+                    onDownload={downloadOne}
                     onRowClick={(e, id) => onTileClick(e, 'file', id)}
                     onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
                 )}

@@ -29,6 +29,21 @@ The combination is the answer to "where is that PDF someone dropped in here last
 week" — filter to PDFs, sort by date added, done. On the canvas that is a
 hunting expedition.
 
+## Downloading
+
+Hover any row holding a file — an image, PDF, video, audio clip or attachment —
+and a download button appears at the end of it. The file keeps its **original
+name**, so renaming a card for readability never costs you the extension.
+
+Select several and the selection bar offers **Download** for all of them at
+once, as a single zip with the cluster's name. Zips are capped at
+**500 files** or **500 MB**, whichever comes
+first; past either, take it in batches. In the phone and tablet apps files come
+down one at a time, through the system share sheet.
+
+Anything in the selection with no file behind it — a note, a link — is skipped,
+and the count of what was skipped is reported rather than quietly dropped.
+
 ## Previews
 
 Everything gets a real preview, not a generic icon. Images and video show

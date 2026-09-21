@@ -3,14 +3,23 @@ import { CardPreview } from './CardPreview.jsx';
 import { Avatar } from '../primitives.jsx';
 import { humanSize } from '../cards/FileCard.jsx';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
+import { Icon } from '../Icon.jsx';
+import { Download } from '../../lib/icons.js';
+import { DOWNLOADABLE } from '../../lib/cardAssetName.js';
 
 // One dense table row: preview thumbnail + name/sub, type, size, date, and a
 // live presence tag (a peer's color bar + avatar when they have this card open).
+//
+// The download button shares the presence cell, which is empty for all but the
+// handful of cards a collaborator has open — so a per-row download costs no
+// layout. Hidden until hover (always visible on touch, which has no hover).
 export const ClusterRow = memo(function ClusterRow({
   item, selected, isNew, peers, dateKey = 'updated', onClick, onDoubleClick, member = false,
+  onDownload = null,
 }) {
   const peer = peers && peers[0];
   const dateVal = dateKey === 'created' ? item.createdAt : item.updatedAt;
+  const canDownload = !!onDownload && !item.pending && DOWNLOADABLE.has(item.kind);
   return (
     <div
       className={`ct-row${member ? ' ct-member' : ''}${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}`}
@@ -35,6 +44,13 @@ export const ClusterRow = memo(function ClusterRow({
         {peers && peers.slice(0, 2).map((pp, i) => (
           <Avatar key={pp.user.id || i} name={pp.user.name} color={pp.user.color} size={18} ring />
         ))}
+        {canDownload && !peer && (
+          <button type="button" className="ct-dl" title={`Download ${item.name}`}
+                  aria-label={`Download ${item.name}`}
+                  onClick={(e) => { e.stopPropagation(); onDownload(item); }}>
+            <Icon as={Download} size={13} />
+          </button>
+        )}
       </div>
     </div>
   );

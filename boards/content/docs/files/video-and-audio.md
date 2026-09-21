@@ -65,6 +65,23 @@ is the only behaviour that makes sense.
 
 Free accounts cap audio at **{{fact:freeAudioCap}}**.
 
+### Downloading audio
+
+Hover an audio card and a download button appears next to the transport. It is
+there for anyone who can see the card, including a signed-out visitor on a
+[shared or published link](/docs/collaborate/sharing) — the same rule images
+have always followed.
+
+The file comes back under its **original name**, not the card's title. Renaming
+a card to something readable never costs you the extension, which is what makes
+the file openable.
+
+To take several at once, switch to [list view](/docs/clusters/list-view),
+select the ones you want and press **Download** — one zip, original names
+intact. Zips are capped at **{{fact:zipMaxFiles}} files** or
+**{{fact:zipMaxSize}}**, whichever comes first; past either, download in
+batches. In the phone and tablet apps, files download one at a time.
+
 ### Tempo and key
 
 Sample and loop packs are named by machine — `SFL_120_Gmin_Loop_Piano.wav`,

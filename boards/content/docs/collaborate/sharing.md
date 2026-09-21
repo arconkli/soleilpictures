@@ -49,6 +49,17 @@ An edit link is not an editable public link. It grants nothing on its own: the
 person who opens it sees a preview and an explicit **Join** step, and access is
 created when they sign in and take it.
 
+### What "view" includes
+
+Read-only means nobody can change the cluster. It does **not** mean the files
+stay behind glass: anyone who opens the link can download the images, audio,
+video, PDFs and attachments on it, at full quality and under their original
+names. That is what makes a link worth sending — a sample pack or a stills
+selects is only useful if the other person can take it away.
+
+Treat the link itself as the access control. If the contents should not leave,
+do not put them behind a public link.
+
 ## Link settings
 
 Everything that qualifies a link lives in one disclosure under the picker.

@@ -14370,6 +14370,131 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 3,
+   "text": "Downloading audio",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Downloading audio"
+    }
+   ],
+   "id": "downloading-audio"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Hover an audio card and a download button appears next to the transport. It is there for anyone who can see the card, including a signed-out visitor on a "
+    },
+    {
+     "t": "link",
+     "v": "shared or published link",
+     "href": "/docs/collaborate/sharing",
+     "children": [
+      {
+       "t": "text",
+       "v": "shared or published link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — the same rule images have always followed."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The file comes back under its "
+    },
+    {
+     "t": "strong",
+     "v": "original name",
+     "children": [
+      {
+       "t": "text",
+       "v": "original name"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", not the card's title. Renaming a card to something readable never costs you the extension, which is what makes the file openable."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "To take several at once, switch to "
+    },
+    {
+     "t": "link",
+     "v": "list view",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "list view"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", select the ones you want and press "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — one zip, original names intact. Zips are capped at "
+    },
+    {
+     "t": "strong",
+     "v": "500 files",
+     "children": [
+      {
+       "t": "text",
+       "v": "500 files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "500 MB",
+     "children": [
+      {
+       "t": "text",
+       "v": "500 MB"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", whichever comes first; past either, download in batches. In the phone and tablet apps, files download one at a time."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
    "text": "Tempo and key",
    "inline": [
     {
@@ -15565,6 +15690,101 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "The combination is the answer to \"where is that PDF someone dropped in here last week\" — filter to PDFs, sort by date added, done. On the canvas that is a hunting expedition."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Downloading",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Downloading"
+    }
+   ],
+   "id": "downloading"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Hover any row holding a file — an image, PDF, video, audio clip or attachment — and a download button appears at the end of it. The file keeps its "
+    },
+    {
+     "t": "strong",
+     "v": "original name",
+     "children": [
+      {
+       "t": "text",
+       "v": "original name"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so renaming a card for readability never costs you the extension."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Select several and the selection bar offers "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for all of them at once, as a single zip with the cluster's name. Zips are capped at "
+    },
+    {
+     "t": "strong",
+     "v": "500 files",
+     "children": [
+      {
+       "t": "text",
+       "v": "500 files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "500 MB",
+     "children": [
+      {
+       "t": "text",
+       "v": "500 MB"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", whichever comes first; past either, take it in batches. In the phone and tablet apps files come down one at a time, through the system share sheet."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Anything in the selection with no file behind it — a note, a link — is skipped, and the count of what was skipped is reported rather than quietly dropped."
     }
    ]
   },
@@ -21865,6 +22085,50 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " step, and access is created when they sign in and take it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "What \"view\" includes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What \"view\" includes"
+    }
+   ],
+   "id": "what-view-includes"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Read-only means nobody can change the cluster. It does "
+    },
+    {
+     "t": "strong",
+     "v": "not",
+     "children": [
+      {
+       "t": "text",
+       "v": "not"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " mean the files stay behind glass: anyone who opens the link can download the images, audio, video, PDFs and attachments on it, at full quality and under their original names. That is what makes a link worth sending — a sample pack or a stills selects is only useful if the other person can take it away."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Treat the link itself as the access control. If the contents should not leave, do not put them behind a public link."
     }
    ]
   },
