@@ -56,7 +56,7 @@ function UserListRow({ row, selected, isSelf, onSelect }) {
   // card cap. Show whichever matters for the tier.
   const paid = row.tier === 'paid' || row.tier === 'admin';
   const usageText = paid ? formatBytes(row.storage_bytes || 0) : `${formatCount(row.card_count || 0)} cards`;
-  const usageTitle = paid ? 'Storage used' : 'Cards created';
+  const usageTitle = paid ? 'Storage used' : 'Cards held now (what the cap counts)';
   return (
     <li
       id={`admin-user-${row.user_id}`}

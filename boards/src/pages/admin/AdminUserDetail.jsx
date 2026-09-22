@@ -130,8 +130,53 @@ function EngagementSection({ eng, tier, lastSignInAt, lastWorkedAt, device, geo 
   return (
     <DetailSection title="Engagement" icon={Clock}>
       <dl className="admin-detail-kv">
-        <Row label="Cards"><span className="is-strong">{formatCount(eng.card_count)}</span></Row>
+        {/* One card number, and it is the one the cap enforces:
+            _owner_card_counts.live_cards (0338/0339). What used to sit here
+            counted every card_index row in any cluster this user created,
+            deleted ones included, and a second row below printed
+            profiles.demo_card_count — a counter the 30-day purge never
+            decremented. Both could show a figure above the cap for an account
+            that had never once been refused a card. */}
+        <Row label="Cards">
+          <span className="is-strong">{formatCount(eng.card_count)}</span>
+          {tier === 'demo' && (
+            <>
+              <span className="is-muted"> / {eng.effective_card_limit || eng.demo_card_cap || DEMO_CARD_LIMIT}</span>
+              {eng.bonus_card_credits > 0 && (
+                <span className="is-muted" style={{ marginLeft: 6 }}>(+{formatCount(eng.bonus_card_credits)} from referrals)</span>
+              )}
+              {/* Which cap cohort this account is in. Accounts predating migration
+                  0229 keep the base cap they signed up under, so a support answer
+                  about "why can they add more than I can" is one glance away. */}
+              {eng.card_cap_base > DEMO_CARD_LIMIT && (
+                <span className="is-muted" style={{ marginLeft: 6 }}>(grandfathered at {eng.card_cap_base})</span>
+              )}
+            </>
+          )}
+        </Row>
         <Row label="Boards">{formatCount(eng.board_count)}</Row>
+        {/* Cards sitting on soft-deleted clusters. They count against nobody's
+            cap, and purge_old_deleted_boards() hard-deletes them 30 days after
+            deletion. Hidden at zero, which is nearly every account. */}
+        {eng.discarded_cards > 0 && (
+          <Row label="Discarded">
+            {formatCount(eng.discarded_cards)} in {formatCount(eng.discarded_clusters)}
+            {eng.discarded_clusters === 1 ? ' deleted cluster' : ' deleted clusters'}
+            <span className="is-muted" style={{ marginLeft: 6 }}>· restorable for 30 days</span>
+          </Row>
+        )}
+        {/* Cards in clusters this person created inside someone else's
+            workspace. The plan covers the workspace (owner-keyed since 0187),
+            so these are charged to that owner's cap, not to this account. */}
+        {eng.guest_cards > 0 && (
+          <Row label="Guest work">
+            {formatCount(eng.guest_cards)} cards in {formatCount(eng.guest_clusters)}
+            {eng.guest_clusters === 1 ? ' cluster in ' : ' clusters in '}
+            {formatCount(eng.guest_workspaces)}
+            {eng.guest_workspaces === 1 ? ' other workspace' : ' other workspaces'}
+            <span className="is-muted" style={{ marginLeft: 6 }}>{"· counts against those owners' caps"}</span>
+          </Row>
+        )}
         <Row label="Time in app">{formatDuration(Number(eng.seconds_in_app || 0))}</Row>
         {/* Was one row labelled "Last active" showing user_presence.last_seen_at,
             which only means the app was open. Split, because the two answer
@@ -139,20 +184,6 @@ function EngagementSection({ eng, tier, lastSignInAt, lastWorkedAt, device, geo 
         <Row label="Last made something"><LastWorked at={lastWorkedAt} /></Row>
         <Row label="Last seen (app open)"><PresenceDot lastSeenAt={eng.last_seen_at} /></Row>
         {lastSignInAt && <Row label="Last sign-in">{relativeTime(lastSignInAt)}</Row>}
-        {tier === 'demo' && (
-          <Row label="Demo cards">
-            {formatCount(eng.demo_card_count)} / {eng.effective_card_limit || eng.demo_card_cap || DEMO_CARD_LIMIT}
-            {eng.bonus_card_credits > 0 && (
-              <span className="is-muted" style={{ marginLeft: 6 }}>(+{formatCount(eng.bonus_card_credits)} from referrals)</span>
-            )}
-            {/* Which cap cohort this account is in. Accounts predating migration
-                0229 keep the base cap they signed up under, so a support answer
-                about "why can they add more than I can" is one glance away. */}
-            {eng.card_cap_base > DEMO_CARD_LIMIT && (
-              <span className="is-muted" style={{ marginLeft: 6 }}>(grandfathered at {eng.card_cap_base})</span>
-            )}
-          </Row>
-        )}
         {(tier === 'paid' || tier === 'admin') && eng.storage && (
           <Row label="Storage">
             <span className="is-strong">{formatBytes(eng.storage.used_bytes)}</span>
