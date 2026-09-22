@@ -218,7 +218,16 @@ Create `supabase/migrations/0338_owner_card_counts_view.sql`:
 -- exists to end — so the block at the bottom asserts they agree for every
 -- user, and this migration refuses to apply if they ever do not.
 
-create or replace view public._owner_card_counts as
+-- security_invoker = on is stated in the CREATE itself, not bolted on after.
+-- create or replace view resets every reloption it does not restate, which is
+-- how entity_search silently lost RLS for three weeks (0084 -> 0240 -> 0302);
+-- securityInvokerContract.test.mjs enforces this for every view in the repo.
+-- It costs nothing here: postgres owns boards/workspaces/card_index and a
+-- table owner bypasses RLS anyway (no FORCE ROW LEVEL SECURITY), so the admin
+-- RPCs that read this view still see every row -- while a future accidental
+-- grant to authenticated fails closed instead of leaking the whole corpus.
+create or replace view public._owner_card_counts
+with (security_invoker = on) as
 with per_board as (
   select w.created_by as ws_owner,
          b.created_by as board_creator,
@@ -262,13 +271,6 @@ select coalesce(o.uid, g.uid)              as user_id,
   from owners o
   full outer join guests g on g.uid = o.uid;
 
--- Runs as owner, NOT as the caller. Stated explicitly because create or
--- replace view resets unstated reloptions, and because every consumer is a
--- SECURITY DEFINER admin RPC already gated on _require_admin() — the same
--- posture those RPCs have when they query these tables directly today. The
--- view is never client-readable; the grants below are what enforces that.
-alter view public._owner_card_counts set (security_invoker = false);
-
 comment on view public._owner_card_counts is
   'Per-user card holdings, set-wise. live_cards is identical to '
   '_owner_card_count(uuid) and the two are asserted equal at migration time. '
@@ -284,12 +286,23 @@ do $$
 declare
   v_leak text;
   v_bad  integer;
+  v_inv  text;
 begin
   select string_agg(r, ', ') into v_leak
     from unnest(array['public', 'anon', 'authenticated']) r
    where has_table_privilege(r, 'public._owner_card_counts', 'SELECT');
   if v_leak is not null then
     raise exception '_owner_card_counts is SELECT-able by: %', v_leak;
+  end if;
+
+  -- Prove the reloption actually landed. A create or replace that forgets to
+  -- restate it reports success and silently reinstates the owner's view.
+  select array_to_string(c.reloptions, ',') into v_inv
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relname = '_owner_card_counts';
+  if coalesce(v_inv, '') not ilike '%security_invoker=%on%'
+     and coalesce(v_inv, '') not ilike '%security_invoker=true%' then
+    raise exception '_owner_card_counts is not security_invoker=on (reloptions: %)', coalesce(v_inv, '<none>');
   end if;
 
   select count(*) into v_bad

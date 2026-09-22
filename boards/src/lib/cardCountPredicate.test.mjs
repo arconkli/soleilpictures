@@ -25,8 +25,30 @@ const MIGRATIONS = join(dirname(fileURLToPath(import.meta.url)), '../../../supab
 // the hit and forces whoever writes it to say so out loud.
 const SUPPRESS = /card-count-lint:\s*activity/i;
 
+// Migration headers in this repo explain the SQL in prose, and that prose says
+// things like "sum(card_index.weight) over live boards". A guard that reads its
+// own comments flags the explanation instead of the code — 0338's header did
+// exactly that on the first run. Strip comments LINE-wise, never with a block
+// regex spanning the file, and keep the line count intact so reported line
+// numbers still point at the real source.
+export function stripSqlComments(sql) {
+  return sql.split('\n').map((line) => {
+    let quoted = false;
+    for (let i = 0; i < line.length; i += 1) {
+      if (line[i] === "'") quoted = !quoted;
+      else if (!quoted && line[i] === '-' && line[i + 1] === '-') return line.slice(0, i);
+    }
+    return line;
+  }).join('\n');
+}
+
 export function findUnfilteredCardCounts(sql, windowLines = 6) {
-  const lines = sql.split('\n');
+  // Suppressions live in comments, so they have to be read before stripping.
+  const suppressed = new Set();
+  sql.split('\n').forEach((line, i) => {
+    if (SUPPRESS.test(line)) suppressed.add(i);
+  });
+  const lines = stripSqlComments(sql).split('\n');
   const hits = [];
   lines.forEach((line, i) => {
     if (!/card_index/i.test(line)) return;
@@ -34,7 +56,9 @@ export function findUnfilteredCardCounts(sql, windowLines = 6) {
     if (!/\bboards\b/i.test(win)) return;
     if (!/\b(count|sum)\s*\(/i.test(win)) return;
     if (/deleted_at/i.test(win)) return;
-    if (SUPPRESS.test(win)) return;
+    for (let j = Math.max(0, i - windowLines); j <= i + windowLines; j += 1) {
+      if (suppressed.has(j)) return;
+    }
     hits.push({ line: i + 1, text: line.trim() });
   });
   return hits;
@@ -82,6 +106,18 @@ test('an explicit activity suppression silences the lint', () => {
   `;
   assert.deepEqual(findUnfilteredCardCounts(spanning), []);
   assert.equal(findUnfilteredCardCounts(spanning.replace(/-- card-count-lint.*\n/, '')).length, 1);
+});
+
+test('prose in a comment is not code', () => {
+  // 0338's own header tripped the first version of this lint.
+  const header = `
+-- This view is sum(card_index.weight) over LIVE boards in workspaces the
+-- user created, counted per owner. It replaces four inline copies.
+select 1;
+  `;
+  assert.deepEqual(findUnfilteredCardCounts(header), []);
+  // A -- inside a string literal must not swallow the rest of the line.
+  assert.equal(stripSqlComments("select '--not a comment', x -- real"), "select '--not a comment', x ");
 });
 
 test('no guarded migration counts cards without filtering deleted clusters', () => {
