@@ -11,7 +11,7 @@
 import { Stack, Files, ArrowsOutSimple, UsersThree } from '@phosphor-icons/react';
 import {
   PRICING, planPerMonth, planBilling, CREATOR_FEATURES, CREATOR_FEATURE_KEYS,
-  CREATOR_BENEFITS, SAVINGS_PCT_LABEL,
+  CREATOR_BENEFITS, SAVINGS_PCT_LABEL, trialPrice,
 } from '../lib/billingCopy.js';
 
 // One glyph per benefit, keyed by the STABLE up_feature_hover key rather than
@@ -111,6 +111,22 @@ export function PlanToggle({ plan, setPlan, disabled }) {
         Annual
         <span className="pricing-card-save">{SAVINGS_PCT_LABEL}</span>
       </button>
+    </div>
+  );
+}
+
+// The price when a trial is on the table: what it costs TODAY, large, with
+// what it costs afterwards beside it. Same slot and same class as
+// CreatorPriceRow so the two are interchangeable and the layout does not move
+// between an eligible reader and an ineligible one.
+export function TrialPriceRow({ plan }) {
+  const p = trialPrice(plan);
+  return (
+    <div className="pricing-card-price-row" data-up-price="">
+      <div className="pricing-card-price">
+        {p.now}<span className="pricing-card-price-unit">{p.nowUnit}</span>
+      </div>
+      <div className="pricing-card-price-sub t-meta">{p.then}</div>
     </div>
   );
 }

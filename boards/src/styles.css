@@ -5836,7 +5836,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 /* Neutral ink, thin weight. Gold is the button's — a column of gold glyphs
    beside a gold CTA is the accent spent on decoration, which is the rule this
-   file states at .pricing-card-name and again at .upgrade-eyebrow. */
+   file states at .pricing-card-name and again at .upgrade-trial-badge. */
 .pricing-benefit-i {
   grid-area: icon;
   color: var(--ink-2);
@@ -6155,9 +6155,6 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 .upgrade-close:hover { color: var(--ink-0); }
 .upgrade-intro { display: flex; flex-direction: column; gap: 9px; }
-/* Eyebrow is a resting label, so it stays neutral ink — the reserved gold is
-   spent on the primary CTA, not on decorative chrome. */
-.upgrade-eyebrow { color: var(--ink-2); letter-spacing: .24em; }
 .upgrade-title {
   font: 600 27px/1.22 var(--font-display, var(--font-sans));
   letter-spacing: -.012em;
@@ -6174,6 +6171,61 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 /* The same feature list, sitting under the CTA on the cap-hit variant. Quieter
    than the default placement — it's supporting detail there, not the pitch. */
 .upgrade-features-after { margin-top: 14px; }
+/* ── The modal's comparison ───────────────────────────────────────────────
+   /pricing converts (or fails to) on two plans beside each other; the modal
+   asked for a decision while showing one side of it. This is the other side,
+   and in-app it can be the reader's ACTUAL plan rather than a specimen.
+   Deliberately quiet — it is the thing being left, not the thing being sold. */
+.upgrade-compare { margin-bottom: -6px; }
+.upgrade-now {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-2);
+  background: var(--bg-1);
+}
+.upgrade-now-name {
+  font: 700 11px/1 var(--font-sans);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.upgrade-now-label { font: 400 12.5px/1.3 var(--font-sans); color: var(--ink-2); }
+.upgrade-now-detail {
+  margin-left: auto;
+  font: 600 12.5px/1.3 var(--font-sans);
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.upgrade-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+/* The trial, said out loud. It lived only inside the CTA's label, so every
+   ambient surface that routes here led with $25 and left the free fortnight
+   to be discovered by reading a button. Gold-tinted rather than gold-filled:
+   the button is still the one saturated object on the screen. */
+.upgrade-trial-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--soleil) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--soleil) 38%, transparent);
+  color: var(--soleil);
+  font: 700 11px/1 var(--font-sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+/* The trial price row's unit is a phrase ("for 14 days"), not "/mo", so it
+   needs room the one-glyph version never did. */
+.upgrade-card .pricing-card-price-unit { margin-left: 6px; }
+
 /* The offer, unwrapped. It used to be `.pricing-card .pricing-card-creator`:
    a second bordered panel inside the modal, ringed in --soleil and glowing.
    Two problems. The ring was the biggest gold object on a screen whose only
@@ -6184,8 +6236,17 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .upgrade-card {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   text-align: left;
+  /* Wearing .pp-plan-creator's treatment from /pricing, on purpose: the two
+     surfaces should read as the same offer. The gold hairline came off when
+     this modal showed a single plan — an accent marking nothing — and comes
+     back now that the free row sits above it and there are two plans to
+     choose between. It is an edge, not the old --soleil-glow ring. */
+  padding: 18px 20px 20px;
+  border-radius: var(--radius-lg, 14px);
+  border: 1px solid color-mix(in srgb, var(--soleil) 26%, var(--line-2));
+  background: var(--bg-1);
 }
 /* Price on the left, interval toggle on the right, on one baseline. They were
    stacked — name row, then toggle, then price — so the number a reader opened

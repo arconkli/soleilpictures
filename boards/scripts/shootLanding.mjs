@@ -30,7 +30,26 @@ const ALL = [
   'film-noir-look-book',
   'screenplay-beat-sheet',
   'short-film-shot-list',
+  'clusters-logo',
 ];
+// Most showcase boards are published at /c/<slug>. Our own brand board is not
+// — it is SHARED, via a live view-only /share/<token> link — and the /pricing
+// hero points at it because the one board on that page ought to be ours. The
+// share page renders the same PublicBoardView and the same .public-canvas-host,
+// so the only thing that differs is the URL. Anything absent here is a /c/ slug.
+const SOURCE = {
+  'clusters-logo': '/share/3b2d89f2-9c1d-48af-8b89-2517b1b49712',
+};
+// Per-board framing. The defaults are tuned for photo-mosaic moodboards, whose
+// top row is always full-bleed images; a brand board is laid out as labelled
+// sections from the top, so panning past them throws away the whole subject.
+const FRAMING = {
+  // Zoom IN (negative delta), and pan the board DOWN rather than up. Both
+  // defaults are wrong for this board: they exist to escape a moodboard's
+  // full-bleed top row of photos, and a brand book's top row IS the subject —
+  // the approved marks, the palette with its hex codes, the wordmark.
+  'clusters-logo': { zoom: -38, panY: -120 },
+};
 const slugs = process.argv.slice(2).length ? process.argv.slice(2) : ALL;
 
 const W = 2048, H = 1000; // output size; CSS aspect-ratio in seoLanding.css matches
@@ -46,7 +65,10 @@ const page = await browser.newPage({
 });
 
 for (const slug of slugs) {
-  const url = `${ORIGIN}/c/${slug}`;
+  const url = `${ORIGIN}${SOURCE[slug] || `/c/${slug}`}`;
+  const framing = FRAMING[slug] || {};
+  const zoomDelta = framing.zoom ?? ZOOM_DELTA;
+  const panY = framing.panY ?? PAN_Y;
   process.stdout.write(`shooting ${slug} … `);
   await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 }).catch(() => {});
   // Progressive images (blur → preview → full) need a beat past networkidle.
@@ -67,16 +89,16 @@ for (const slug of slugs) {
       clientX: r.left + r.width / 2, clientY: r.top + r.height * 0.42,
       deltaY, deltaMode: 0, ctrlKey: true, bubbles: true, cancelable: true,
     }));
-  }, ZOOM_DELTA);
+  }, zoomDelta);
   // Drag-pan down into the board's mixed-content middle (notes, arrows,
   // palettes) — the top row is always a full-bleed image mosaic that reads as
   // a photo collage rather than an app canvas.
-  if (PAN_Y) {
+  if (panY) {
     const b = await hero.boundingBox();
     const cx = b.x + b.width / 2, cy = b.y + b.height * 0.6;
     await page.mouse.move(cx, cy);
     await page.mouse.down();
-    await page.mouse.move(cx, cy - PAN_Y, { steps: 12 });
+    await page.mouse.move(cx, cy - panY, { steps: 12 });
     await page.mouse.up();
   }
   await page.waitForTimeout(2500); // let tiles finish decoding

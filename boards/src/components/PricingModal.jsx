@@ -22,8 +22,11 @@ import { startCheckout, startPortal } from '../lib/checkout.js';
 import { checkoutErrorMessage, checkoutErrorKind } from '../lib/checkoutErrors.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
-import { BenefitGrid, PlanToggle, CreatorPriceRow } from './PricingBits.jsx';
-import { CTA, PRICING, COPY_REV, creatorBenefits, ownWorkSummary, trialNote } from '../lib/billingCopy.js';
+import { BenefitGrid, PlanToggle, CreatorPriceRow, TrialPriceRow } from './PricingBits.jsx';
+import {
+  CTA, PRICING, COPY_REV, PLAN_NAME, TRIAL_FROM_LABEL,
+  creatorBenefits, ownWorkSummary, trialNote, currentPlanRow,
+} from '../lib/billingCopy.js';
 import { OwnWorkStrip } from './OwnWorkStrip.jsx';
 import { readOwnWork } from '../lib/ownWork.js';
 import { useStorageUsage } from '../hooks/useStorageUsage.js';
@@ -83,6 +86,9 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   // chip saying "84/100" and would otherwise open a modal asserting its ceiling
   // is 50 — the one number on that screen it can check, wrong.
   const benefits = creatorBenefits({ cardLimit: effectiveCardLimit });
+  // The plan they are leaving, in their own numbers. Same rule as the cards
+  // benefit above: the viewer's effective cap, never the new-account one.
+  const nowRow = currentPlanRow({ cards: demoCardCount, limit: effectiveCardLimit });
 
   // The pictures, taken once at mount. A snapshot rather than a subscription:
   // re-rendering the offer because a thumbnail regenerated behind it would be
@@ -230,7 +236,13 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
             differed are the title and the closing sentence, so those are the
             only things that vary now. Copy is unchanged, byte for byte. */}
         <div className="upgrade-intro">
-          <div className="upgrade-eyebrow t-eyebrow">CREATOR</div>
+          {/* No CREATOR eyebrow here any more. It was a label for a screen
+              that offered one thing; the screen now offers a CHOICE, and both
+              sides of it are named where the choice is made — FREE on the row
+              above, CREATOR on the card. An eyebrow saying the same word 200px
+              higher just printed it twice, which is the exact duplication this
+              modal already had once when the offer was wrapped in a card of
+              its own. */}
           <h2 className="upgrade-title">
             {header === 'cap-hit'     ? 'Your work outgrew the demo.'
              : header === 'first-value' ? "You're building something."
@@ -278,19 +290,52 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
           )}
         </div>
 
-        {/* NOT .pricing-card. The modal IS the card — wrapping the offer in a
-            second bordered, gold-ringed panel inside it put a box in a box,
-            spent 48px of a 600px width on nested padding, and printed the word
-            CREATOR twice within 200px: once as the eyebrow above and once as
-            this panel's own name row. The ring was the worse half. Gold is
-            reserved for active / selection / focus, and .pricing-card-creator
-            earns it on /pricing where it marks WHICH of two plans is selected
-            — here there is only one plan, so the same ring marked nothing and
-            was simply the largest gold object on the screen, louder than the
-            button it was competing with. */}
+        {/* What they are on now, so the offer is a COMPARISON and not an
+            isolated request. This is the one thing /pricing had and the modal
+            did not: two plans beside each other. In-app it can be better than
+            the page, because the free column is not a specimen — it is theirs,
+            with the count they are actually carrying.
+
+            Not shown to someone already paying, who is not choosing between
+            two plans, and not on the storage gate, where the refusal was about
+            a file type rather than a card count and a cards fraction would be
+            answering a question nobody asked. */}
+        {/* Not aria-hidden. The cap fraction is the one fact on this screen
+            that is about the READER, and the summary line above carries the
+            count without the ceiling — so hiding this row would hide the only
+            statement of what the limit actually IS from exactly the people who
+            cannot see it laid out. (A {/* */} comment cannot sit inside a JSX
+            expression container beside the element it documents — it is a
+            child, not a sibling — so it goes above the whole conditional.) */}
+        {!alreadyPaid && tier === 'demo' && header !== 'storage' && (
+          <div className="upgrade-compare">
+            <div className="upgrade-now">
+              <span className="upgrade-now-name">{nowRow.name}</span>
+              <span className="upgrade-now-label">{nowRow.label}</span>
+              {nowRow.detail && <span className="upgrade-now-detail">{nowRow.detail}</span>}
+            </div>
+          </div>
+        )}
+
+        {/* The Creator card, wearing the same treatment as .pp-plan-creator on
+            /pricing — raised surface, one gold hairline. The ring came OFF
+            this panel when the modal showed a single plan and the gold was
+            therefore marking nothing; with the free row above it there are two
+            plans again and the edge marks which one you would move to, which
+            is what the accent is for. Same rule, opposite answer, because the
+            content changed. */}
         <article className="upgrade-card">
+          <div className="upgrade-card-head">
+            <span className="pp-plan-name">{PLAN_NAME}</span>
+            {/* The trial, as the OFFER rather than a word on the button. It
+                was discoverable only by reading the CTA label — so the
+                surfaces that lead people here led with $25 and hid the free
+                fortnight behind a click. */}
+            {trialOffer && !alreadyPaid && <span className="upgrade-trial-badge">{TRIAL_FROM_LABEL}</span>}
+          </div>
+
           <div className="upgrade-price-row">
-            {!alreadyPaid && <CreatorPriceRow plan={plan} />}
+            {!alreadyPaid && (trialOffer ? <TrialPriceRow plan={plan} /> : <CreatorPriceRow plan={plan} />)}
             {!alreadyPaid && <PlanToggle plan={plan} setPlan={onPlanToggle} disabled={busy} />}
           </div>
 
