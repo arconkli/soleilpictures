@@ -69,7 +69,12 @@ test('pricing page states the price high, leads with the free action, and shows 
   const frame = page.locator('.seo-frame');
   await expect(frame).toBeVisible();
   await expect(frame.locator('img')).toHaveAttribute('src', /^\/landing\/.+\.webp$/);
-  await expect(frame.locator('a.seo-frame-shot')).toHaveAttribute('href', /^\/c\//);
+  // A live board, but not necessarily a published one. The board here is OUR
+  // brand book, which is SHARED rather than published — so the frame opens a
+  // /share/<token>. Both shapes stay allowed: the assertion is that the frame
+  // goes somewhere a reader can actually open, which is what the caption
+  // promises, not that it goes to a /c/ slug.
+  await expect(frame.locator('a.seo-frame-shot')).toHaveAttribute('href', /^\/(share|c)\//);
 
   // The three differences that are actually enforced in code — the card cap
   // trigger, the file-type gate, and the free per-file ceilings — as a
@@ -193,11 +198,14 @@ test('on a short laptop the whole offer is reachable, top and bottom', async ({ 
   expect(scrollH, 'the offer must exceed this viewport for the test to mean anything').toBeGreaterThan(clientH);
   expect(overflowY, 'the backdrop must be able to scroll').toBe('auto');
 
-  // The top is reachable: scroll to 0 and the eyebrow is on screen.
+  // The top is reachable: scroll to 0 and the first line is on screen. That
+  // used to be the CREATOR eyebrow, which is gone — the modal offers a choice
+  // now and names both sides of it where the choice is made, so a third
+  // printing of the word at the top was chrome. The title is the top.
   await backdrop.evaluate((el) => { el.scrollTop = 0; });
   const topBox = await modal.boundingBox();
   expect(topBox.y, 'the top of the modal must not sit above the viewport').toBeGreaterThanOrEqual(0);
-  await expect(page.locator('.upgrade-eyebrow')).toBeInViewport();
+  await expect(page.locator('.upgrade-title')).toBeInViewport();
 
   // And the bottom is reachable: the primary CTA can be scrolled to and clicked.
   const cta = page.locator('.pricing-cta-primary');
@@ -223,8 +231,14 @@ test('on a phone the sheet keeps a real close button in reach', async ({ page })
 
   const close = page.locator('.upgrade-close');
   const box = await close.boundingBox();
-  expect(box.height, 'the phone tap-target floor').toBeGreaterThanOrEqual(44);
-  expect(box.width).toBeGreaterThanOrEqual(44);
+  // Rounded before comparing. The rule is a 44 CSS-pixel tap target and the
+  // element declares exactly that, but boundingBox returns the composited
+  // float — which came back 43.999969 and failed a >= 44 written against an
+  // integer. Rounding keeps the guard's teeth (a real regression to 40 still
+  // rounds to 40 and still fails) and drops a sub-pixel artifact that says
+  // nothing about whether a thumb can hit the button.
+  expect(Math.round(box.height), 'the phone tap-target floor').toBeGreaterThanOrEqual(44);
+  expect(Math.round(box.width)).toBeGreaterThanOrEqual(44);
 
   // Scroll the sheet to the bottom; the close must still be on screen.
   await modal.evaluate((el) => { el.scrollTop = el.scrollHeight; });

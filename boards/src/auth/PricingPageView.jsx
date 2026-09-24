@@ -167,12 +167,17 @@ export function PricingPageView({
           <figure className="seo-frame">
             <div className="seo-frame-bar" aria-hidden="true">
               <span className="seo-frame-dots"><i /><i /><i /></span>
-              <span className="seo-frame-url">clusters.soleilpictures.com/c/{shot.slug}</span>
+              <span className="seo-frame-url">{shot.bar}</span>
             </div>
-            <a className="seo-frame-shot" href={`/c/${shot.slug}`}
-               {...ctaProps('frame', `/c/${shot.slug}`, { intent: 'nav' })}>
+            {/* The href comes from the copy module, not from the slug: this
+                board is SHARED rather than published, so the live link is a
+                /share/<token> and not a /c/<slug>. The slug still names the
+                render. Keeping them separate is what lets the one board on
+                this page be ours without also putting it in the sitemap. */}
+            <a className="seo-frame-shot" href={shot.href}
+               {...ctaProps('frame', shot.href, { intent: 'nav' })}>
               <img src={`/landing/${shot.slug}.webp`}
-                   alt="A real board made with Clusters, open in the app"
+                   alt="The Clusters brand book, built in Clusters"
                    width="2048" height="1000" fetchPriority="high" />
             </a>
             <figcaption className="seo-frame-cap">{shot.caption}</figcaption>

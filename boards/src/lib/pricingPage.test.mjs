@@ -28,16 +28,25 @@ import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS } from
 const HERE = new URL('.', import.meta.url).pathname;
 const PUBLIC = join(HERE, '..', '..', 'public');
 
-test('the hero shot exists as a file and names a real board', () => {
-  const { slug } = PRICING_PAGE.shot;
-  assert.match(slug, /^[a-z0-9-]+$/, 'the slug goes into both a URL and a filename');
+test('the hero shot exists as a file and its live link is openable', () => {
+  const { slug, href, bar, caption } = PRICING_PAGE.shot;
+  assert.match(slug, /^[a-z0-9-]+$/, 'the slug is a filename');
   assert.ok(existsSync(join(PUBLIC, 'landing', `${slug}.webp`)),
     `public/landing/${slug}.webp is missing — the pricing hero would render a broken image`);
-  // The same slug is the href on the frame (/c/<slug>), so the caption's
-  // invitation to open it live has to be true. Nothing here can check the
-  // board is still published — that is the seo-health prober's job — but the
-  // shot must at least be one of the boards we ship a render for.
-  assert.ok(PRICING_PAGE.shot.caption.length > 20, 'the frame caption carries the invitation');
+
+  // The href is a SEPARATE field from the slug, and that is the whole point.
+  // Every other showcase board on this site is published at /c/<slug>, so the
+  // render and the link could share one string. The board on THIS page is our
+  // own brand book: shared, not published — no sitemap entry, nothing to
+  // crawl, just a live view-only link. Two fields, two failure modes, and the
+  // caption promises the second one works.
+  assert.match(href, /^\/(share\/[0-9a-f-]{36}|c\/[a-z0-9-]+)$/,
+    'the frame opens a live board — a /share/<token> or a /c/<slug>, nothing else');
+  assert.ok(bar && !bar.includes('://'), 'the fake address bar is a bare host + path');
+  // A token in the address bar is noise a real browser would show and a reader
+  // cannot use; if the bar ever grows one, someone pasted the href into it.
+  assert.ok(!/[0-9a-f]{8}-[0-9a-f]{4}/.test(bar), 'the address bar shows no share token');
+  assert.ok(caption.length > 20, 'the frame caption carries the invitation');
 });
 
 test('every number on the page is injected from the code that enforces it', () => {

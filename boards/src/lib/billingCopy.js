@@ -336,12 +336,29 @@ export const PRICING_PAGE = {
     `The free plan is a real plan, not a countdown. ${PLAN_NAME} lifts its three limits for ${PRICING.monthly.billedLabel}.`,
   startFree: 'Start free',
   startFreeSub: 'No credit card. Nothing to install.',
-  // The frame beneath the hero. `slug` must be a board published under /c/ AND
-  // have its render shipped in public/landing/ — gen-docs does not check this,
-  // so pricingPage.test.mjs does.
+  // The frame beneath the hero.
+  //
+  // It shows OUR board: the Clusters brand book — approved marks, the palette
+  // with its hex codes, the wordmark spec, a DO'S and a DON'TS grid, the
+  // annotations we drew on it while arguing about the dotted line. Every other
+  // page on this site frames a customer-shaped showcase moodboard. On the one
+  // page asking someone to pay us, the board on screen should be the one we
+  // actually run the company on.
+  //
+  // `slug` names the render shipped in public/landing/. `href` is where the
+  // frame goes when clicked, and it is a SHARE link rather than a /c/ slug
+  // because this board is shared, not published — it has no place in the
+  // sitemap and no business being crawled; it just has to be openable. Both
+  // halves are checked by pricingPage.test.mjs, which is the only thing
+  // standing between a rename and a broken image or a dead frame.
   shot: {
-    slug: 'film-noir-look-book',
-    caption: 'A real board published from Clusters — open it live, pan around, and copy its palettes.',
+    slug: 'clusters-logo',
+    href: '/share/3b2d89f2-9c1d-48af-8b89-2517b1b49712',
+    // What the frame's fake address bar reads. A share URL's token is noise in
+    // a browser chrome, so the bar shows the board, which is what a real one
+    // would show a person who had it open.
+    bar: 'clusters.soleilpictures.com/share/clusters-logo',
+    caption: 'Our own brand book, built in Clusters — open it live and pan around.',
   },
   // The comparison BELOW the two plan cards, which is a different job from the
   // cards and has to say so in its title. It used to be headed "What Creator
@@ -464,6 +481,46 @@ export const CTA = {
 // The one line under the trial button: what happens to the card, and when.
 // Honest about the card (it is required — that is the model that protects the
 // brand from tire-kickers and the one that converts) and about the charge.
+// ── The in-app offer's "what you're on now" row ────────────────────────────
+//
+// /pricing works because it puts two plans beside each other and lets someone
+// compare. The modal could never do that — it showed one card, priced, with no
+// statement of the thing being left behind — so it asked for a decision while
+// showing only one side of it.
+//
+// It can do better than the page, in fact: in-app we know the reader's REAL
+// numbers, so the free column is not a specimen plan but theirs, with the
+// count they are actually carrying. `limit` is the viewer's own effective cap,
+// never DEMO_CARD_LIMIT — see creatorBenefits for why that distinction has
+// already bitten once.
+export function currentPlanRow({ cards, limit } = {}) {
+  const n = Number(cards);
+  const cap = Number(limit);
+  const known = Number.isFinite(n) && n >= 0 && Number.isFinite(cap) && cap > 0;
+  return {
+    name: 'Free',
+    label: 'Your plan today',
+    // Null rather than a guess: useMyTier's pre-fetch placeholders would
+    // otherwise render "0/100" at a reader holding 42 cards, and the fraction
+    // is the one number on this row they can check.
+    detail: known ? `${n} of ${cap} cards` : null,
+  };
+}
+
+// The price when the trial is on offer. The number people are deciding about
+// today is zero, and the modal used to state $25 and mention the trial only on
+// the button — leading with the request and hiding the offer. Both halves are
+// here because stating one without the other is how a trial becomes a
+// surprise charge, which is the worst available outcome for this product.
+export function trialPrice(plan) {
+  const p = PRICING[plan] || PRICING.monthly;
+  return {
+    now: '$0',
+    nowUnit: `for ${CREATOR_TRIAL_DAYS} days`,
+    then: `then ${p.billedLabel}`,
+  };
+}
+
 export function trialNote(plan) {
   const p = PRICING[plan] || PRICING.monthly;
   return `Card required, nothing charged for ${CREATOR_TRIAL_DAYS} days. Then ${p.billedLabel} — cancel before the trial ends and you pay nothing.`;
