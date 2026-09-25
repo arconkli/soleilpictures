@@ -58,7 +58,12 @@ export function PricingPageView({
   const shot = PRICING_PAGE.shot;
 
   return (
-    <div className="public-shell seo-shell public-dark">
+    /* pp-shell scopes this page's atmosphere and its quieter topbar. Both are
+       wrong for the pages that share this shell: a share page is chrome around
+       somebody's board and wants the bar to read as chrome, and a comparison
+       landing page wants its gold CTA loud because it is the only one on the
+       screen. Here it is the second one. */
+    <div className="public-shell seo-shell public-dark pp-shell">
       <div className="public-topbar">
         <a className="public-brand" href="/" title="Clusters home">
           <ClustersMark size={20} />

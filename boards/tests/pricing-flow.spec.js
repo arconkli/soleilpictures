@@ -247,6 +247,40 @@ test('on a phone the sheet keeps a real close button in reach', async ({ page })
   await expect(close).toBeInViewport();
 });
 
+test('no source code leaks into what a reader sees', async ({ page }) => {
+  // A JSX comment is a block comment, so writing either delimiter INSIDE one
+  // ends it early and everything after it becomes rendered text. That shipped:
+  // a comment explaining where JSX comments may sit spelled the delimiters
+  // out, closed itself on the first one, and put a paragraph of source code
+  // between "You've built 60 cards." and the offer. The same class of bug is
+  // already on the record in this repo for CSS comments.
+  //
+  // The mechanism is not worth policing — a scanner that decides what is and
+  // is not inside a comment needs a real lexer, and the last naive one written
+  // here silently ate 169KB of App.jsx. The SYMPTOM is trivial to police and
+  // cannot be fooled, whatever the cause: no screen may render the shape of
+  // source code.
+  const SOURCE_SHAPED = [
+    '*/', '/*', '{/', 'className', 'aria-hidden', '=>', '&&', '</div>', 'props.',
+  ];
+
+  const check = async (locator, where) => {
+    const text = await locator.innerText();
+    for (const needle of SOURCE_SHAPED) {
+      expect(text, `${where} is rendering source code: "${needle}"`).not.toContain(needle);
+    }
+  };
+
+  await page.goto('/pricing?local=1&tier=demo');
+  await page.locator('.pp-plan-creator').waitFor();
+  await check(page.locator('.seo-main'), '/pricing');
+
+  await page.goto('/?local=1&reset=1&tier=demo&cards=60&limit=100');
+  await page.locator('.upgrade-chip').click();
+  await page.locator('.upgrade-modal').waitFor();
+  await check(page.locator('.upgrade-modal'), 'the upgrade modal');
+});
+
 test('an already-paid user is routed to manage billing, not a second checkout', async ({ page }) => {
   await page.goto('/pricing?local=1&tier=paid');
 

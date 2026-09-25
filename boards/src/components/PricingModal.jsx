@@ -304,9 +304,15 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
             that is about the READER, and the summary line above carries the
             count without the ceiling — so hiding this row would hide the only
             statement of what the limit actually IS from exactly the people who
-            cannot see it laid out. (A {/* */} comment cannot sit inside a JSX
-            expression container beside the element it documents — it is a
-            child, not a sibling — so it goes above the whole conditional.) */}
+            cannot see it laid out.
+
+            This comment sits ABOVE the conditional rather than inside it: a
+            JSX comment is a child, not a sibling, so it cannot share an
+            expression container with the element it documents. Saying that
+            here once cost a shipped bug — the sentence originally spelled the
+            delimiters out, the closing one ended this comment early, and the
+            remainder rendered as a paragraph of source code in the middle of
+            the offer. Never write either delimiter inside a comment. */}
         {!alreadyPaid && tier === 'demo' && header !== 'storage' && (
           <div className="upgrade-compare">
             <div className="upgrade-now">

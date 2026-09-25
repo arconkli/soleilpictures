@@ -795,7 +795,7 @@
 }
 
 /* ── /pricing's hero ──────────────────────────────────────────────────────
-   The comparison pages' hero is ceremonial on purpose: a 77px display line
+   The comparison pages' hero is ceremonial on purpose: a large display line
    over a wide subhead, with the gold aura and dot grid behind it, because
    those pages are someone's FIRST screen and have to make an impression
    before they make an argument.
@@ -819,3 +819,15 @@
   max-width: 40ch;
 }
 .seo-hero.is-pricing .seo-subhead { margin-bottom: 0; max-width: 46ch; }
+/* No hero aura and no dot grid on /pricing — .pp-shell lights the whole page
+   instead, and these two were actively making it worse.
+
+   The aura is 760x520 at top:-160px, sized and placed for the ceremonial
+   headline. Shrinking it for this hero left the offset alone, so most of it
+   sat ABOVE the hero box and behind the topbar: what survived was the
+   gradient's dim bottom edge, which reads as a brown smudge under the bar
+   rather than as light. The dot grid, at 0.55 opacity of
+   rgba(255,255,255,.13), is invisible at this scale and contributes noise
+   and nothing else. */
+.seo-hero.is-pricing::before,
+.seo-hero.is-pricing::after { display: none; }
