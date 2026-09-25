@@ -6399,12 +6399,75 @@ button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allow
    a second glowing card: the page's primary action is the free start, and two
    gold buttons competing above the fold is how a pricing page stops being read
    as an answer to a question and starts being read as a sales page. */
+/* ── /pricing's atmosphere ────────────────────────────────────────────────
+   The page used to be flat #0a0a0c with one clipped gold smudge under the
+   topbar (see .seo-hero.is-pricing in seoLanding.css for what that was and
+   why it looked like a lens smear). Light belongs on the thing being decided,
+   so it lives here, at page scale, and there is no hotspot with a visible
+   edge anywhere.
+
+   Three layers, all extremely low contrast — at these alphas each is felt
+   rather than seen, which is the difference between atmosphere and a gradient:
+     1. a wide warm wash from above, wider than the viewport so it never
+        shows an edge and never has to be clipped;
+     2. a cool lift at the very top, so the topbar has something to sit in
+        now that it is transparent;
+     3. the base, so nothing shows through if the gradients fail to paint. */
+.pp-shell.public-dark {
+  background:
+    radial-gradient(150% 62% at 50% -14%, rgba(255, 165, 0, 0.075), rgba(255, 165, 0, 0) 62%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0) 38%),
+    var(--bg-0);
+  background-attachment: fixed;
+}
+/* The topbar stops being a strip stuck on the page. It had its own fill and a
+   hairline, which on a marketing page reads as app chrome — correct on a share
+   page, where it IS chrome around someone's board, and wrong here. */
+.pp-shell .public-topbar {
+  background: transparent;
+  border-bottom: 0;
+}
+/* And its CTA stops being the second gold button above the fold. There were
+   two — this one and the Creator card's — and gold is reserved for the primary
+   action, which on a pricing page is in the plan, not in the corner. The free
+   action is not lost: it is the free CARD's own button, 300px below and much
+   larger. */
+.pp-shell .public-cta {
+  background: transparent;
+  color: var(--ink-1);
+  border: 1px solid var(--line-1);
+}
+.pp-shell .public-cta:hover {
+  color: var(--ink-0);
+  border-color: var(--line-3);
+  box-shadow: none;
+}
+
 /* ── The two plans, side by side ──────────────────────────────────────────
    The page did not have this. Free was a prose section with a bullet list,
    Creator was a comparison table, and the only buy surface was a 460px box
    alone in the left two-thirds of the screen — so a pricing page's one job,
    putting two plans next to each other to be compared, was the thing it could
    not do. Both cards are the same shell; Creator is the raised one. */
+/* The one piece of light with a job: it sits behind the Creator card, so the
+   thing the page wants read is the thing that is lit. Inset well inside the
+   card's own bounds and blurred past them, so what shows is a halo and never
+   the shape of the gradient. */
+.pp-plans { position: relative; }
+.pp-plans::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  right: -6%;
+  top: 4%;
+  width: 62%;
+  height: 92%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 165, 0, 0.11), rgba(255, 165, 0, 0));
+  filter: blur(34px);
+  pointer-events: none;
+}
+.pp-plan { position: relative; z-index: 1; }
 .pp-plans {
   display: grid;
   grid-template-columns: 1fr 1.12fr;   /* Creator carries four benefit rows */
@@ -6429,9 +6492,14 @@ button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allow
    for. It is a 1px edge plus a lift, NOT the full --soleil-glow ring the old
    .pricing-card-creator wore: on a page where only one card can be gold, the
    ring competes with the gold button inside it. */
+/* Dialled back from 26% now that .pp-plans::before puts real light behind this
+   card. With both at full strength the emphasis was said twice — a hard orange
+   rectangle AND a halo — and the rectangle is the cheaper of the two. The edge
+   stays because the glow alone cannot survive a light theme or a screenshot
+   with the gradient stripped; it just stops being the loudest thing. */
 .pp-plan-creator {
   background: var(--bg-2);
-  border-color: color-mix(in srgb, var(--soleil) 26%, var(--line-2));
+  border-color: color-mix(in srgb, var(--soleil) 17%, var(--line-2));
   box-shadow: var(--shadow-2);
 }
 .pp-plan-head {

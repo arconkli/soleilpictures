@@ -1124,8 +1124,17 @@
   max-width: 40ch;
 }
 .seo-hero.is-pricing .seo-subhead { margin-bottom: 0; max-width: 46ch; }
-/* The aura is sized for the big headline and would sit well below this one. */
-.seo-hero.is-pricing::before { width: 520px; height: 300px; }
+/* No hero aura and no dot grid on /pricing — .pp-shell lights the whole page
+   instead, and these two were actively making it worse.
+
+   The aura is 760x520 at top:-160px, sized and placed for the ceremonial
+   headline. Shrinking it to 520x300 for this hero left the offset alone, so
+   most of it sat ABOVE the hero box and behind the topbar: what survived was
+   the gradient's dim bottom edge, which reads as a brown smudge under the bar
+   rather than as light. The dot grid, at 0.55 opacity of rgba(255,255,255,.13),
+   is invisible at this scale and contributes noise and nothing else. */
+.seo-hero.is-pricing::before,
+.seo-hero.is-pricing::after { display: none; }
 
 .seo-hero.is-storefront { margin-bottom: clamp(20px, 3vh, 32px); text-align: left; }
 .seo-hero.is-storefront .seo-h1 { margin-left: 0; max-width: none; font-size: clamp(2.1rem, 4.4vw, 3rem); }
