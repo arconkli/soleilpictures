@@ -6122,11 +6122,27 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   /* Centres when it fits, and leaves the top reachable when it does not. */
   margin: auto;
   width: 100%;
-  /* 460 held one column of bullets. The benefit grid needs two, and the whole
-     point of the grid is that the offer fits on screen without scrolling. */
+  /* 460 held one column of bullets; 600 holds a benefit row's title and its
+     explanation on one line each, which is what keeps the whole offer on
+     screen without scrolling. (It was widened for a two-column grid, and the
+     grid went back to one column — the width still earns its keep, for the
+     other reason.) */
   max-width: 600px;
-  background: var(--bg-2);
-  border: 1px solid var(--line-2);
+  /* The house dialog material: translucent near-black glass, not a fill.
+     Twelve surfaces already use these exact values — .modal and .picker among
+     them, the two dialogs anyone sees most — and this was the only floating
+     dialog in the app painted a flat --bg-2. At #16161a that token is the
+     LIGHTEST step of the dark ramp, so the offer read as a grey slab over a
+     blurred app while every other dialog read as glass over it.
+
+     The strongest evidence it was wrong is already in this stylesheet:
+     .waitlist-modal-card reuses .upgrade-modal and overrides exactly this fill
+     back to glass, with a comment saying it should read "as glass, not a flat
+     card". The variant got fixed; the thing it is a variant OF did not. */
+  background-color: rgba(16,16,20,.78);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
+  border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-lg, 14px);
   /* Was var(--shadow-soft, …), and --shadow-soft is defined NOWHERE in this
      file — so both users of it (here and .welcome-card) have always silently
@@ -6139,6 +6155,14 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   gap: 22px;
   text-align: left;
   animation: modalRise var(--dur-base) var(--ease);
+}
+/* Glass needs a light-theme twin or it stays a dark slab on a light app. Every
+   other dialog here has one; .upgrade-modal never did, because a solid --bg-2
+   happens to be a light grey in that palette and so never looked broken enough
+   to notice. Same values as .modal's pair. */
+[data-theme='light'] .upgrade-modal {
+  background-color: rgba(250,250,252,.82);
+  border-color: rgba(10,10,12,.06);
 }
 @media (prefers-reduced-motion: reduce) {
   .upgrade-backdrop, .upgrade-modal { animation: none; }
@@ -6176,16 +6200,25 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
    asked for a decision while showing one side of it. This is the other side,
    and in-app it can be the reader's ACTUAL plan rather than a specimen.
    Deliberately quiet — it is the thing being left, not the thing being sold. */
-.upgrade-compare { margin-bottom: -6px; }
+.upgrade-compare { margin-bottom: -4px; }
+/* No box. Two attempts at one both failed for the same reason, worth writing
+   down: THE --bg-* RAMP ENCODES ELEVATION, NOT LIGHTNESS, AND IT REVERSES
+   BETWEEN THEMES. Dark: bg-0 #0a0a0c → bg-2 #16161a, so higher = lighter =
+   raised. Light: bg-0 #f5f5f7, bg-1 #fafafc, bg-2 #ededf0 — bg-1 is the
+   LIGHTEST and bg-2 is DARKER than the page. So --bg-1 here read as "the same
+   surface as the Creator card" in dark, and --bg-0 read as RAISED in light,
+   which is the exact opposite of what a recess means.
+
+   A fill cannot say "quieter" in both themes without being written twice. A
+   rule and muted type can, in any theme, at no cost — and it takes a box off a
+   screen that already had too many. */
 .upgrade-now {
   display: flex;
   align-items: baseline;
   gap: 10px;
   min-width: 0;
-  padding: 10px 14px;
-  border-radius: var(--radius);
-  border: 1px solid var(--line-2);
-  background: var(--bg-1);
+  padding: 0 2px 11px;
+  border-bottom: 1px solid var(--line-1);
 }
 .upgrade-now-name {
   font: 700 11px/1 var(--font-sans);
@@ -6233,21 +6266,39 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
    where it marks which of two plans is selected, and there is only one plan
    here. And the nesting spent 48px of a 600px width on padding inside
    padding, which is what forced the benefit bodies into 28-character lines. */
+/* No chrome. The modal IS the offer — which is what it was after round 2, and
+   what round 3 undid by giving this a border and a fill to mark it as the
+   second of two plans. That put a bordered box inside a bordered box again,
+   and worse, filled it --bg-1 INSIDE a --bg-2 modal: the thing being sold was
+   DARKER than its own container, and identical in colour to the row above it.
+
+   The marking is light instead — the same answer /pricing arrived at with
+   .pp-plans::before, and it does not cost a rectangle. Recessed row above, lit
+   body below; nothing has to be outlined for the hierarchy to read. */
 .upgrade-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 14px;
   text-align: left;
-  /* Wearing .pp-plan-creator's treatment from /pricing, on purpose: the two
-     surfaces should read as the same offer. The gold hairline came off when
-     this modal showed a single plan — an accent marking nothing — and comes
-     back now that the free row sits above it and there are two plans to
-     choose between. It is an edge, not the old --soleil-glow ring. */
-  padding: 18px 20px 20px;
-  border-radius: var(--radius-lg, 14px);
-  border: 1px solid color-mix(in srgb, var(--soleil) 26%, var(--line-2));
-  background: var(--bg-1);
 }
+/* The halo, behind the price and the button — the two things the eye should
+   land on. Under the content (z-index 0 vs 1) and blurred well past its own
+   bounds, so what shows is light and never a shape. */
+.upgrade-card::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: -9%;
+  right: -9%;
+  top: -14%;
+  height: 62%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 165, 0, 0.1), rgba(255, 165, 0, 0));
+  filter: blur(40px);
+  pointer-events: none;
+}
+.upgrade-card > * { position: relative; z-index: 1; }
 /* Price on the left, interval toggle on the right, on one baseline. They were
    stacked — name row, then toggle, then price — so the number a reader opened
    the modal for was the third thing down inside the second box. */
@@ -6942,7 +6993,9 @@ button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allow
   gap: 18px;
   /* Frosted glass — same surface language as .surface-frosted (topbar / menus)
      and the /welcome box, so the socials popup reads as glass, not a flat card.
-     Overrides .upgrade-modal's solid --bg-2 fill (this rule is declared later).
+     A WARMER glass than .upgrade-modal's, deliberately — this rule is declared
+     later and overrides it. (It used to override a solid --bg-2 fill; that
+     fill is gone and the base is glass now too.)
      The inset top hairline gives the panel a lit glass edge. */
   background: rgba(20, 18, 15, 0.72);
   backdrop-filter: blur(16px) saturate(1.05);
