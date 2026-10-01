@@ -7,7 +7,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
-import { planLabel, formatPeriodEnd, grantCopy, statusLabel, PRICING } from '../../lib/billingCopy.js';
+import { planLabel, formatPeriodEnd, grantCopy, statusLabel, PRICING, CTA } from '../../lib/billingCopy.js';
+import { creatorTrialEligibility } from '../../lib/creatorTrial.js';
 import { startPortal } from '../../lib/checkout.js';
 import { checkoutErrorMessage } from '../../lib/checkoutErrors.js';
 import { useFeedback } from '../AppFeedback.jsx';
@@ -17,9 +18,14 @@ import { PricingModal } from '../PricingModal.jsx';
 
 export function BillingTab({ user }) {
   const feedback = useFeedback();
-  const { tier, demoCardCount, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd,
-          grantActive, grantExpiresAt, effectiveCardLimit, loading } =
+  const { tier, demoCardCount, serverCardCount, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd,
+          grantActive, grantExpiresAt, effectiveCardLimit, creatorTrialStartedAt, loading } =
     useMyTier({ userId: user?.id });
+  // Settings was the one upgrade entry that never named the trial to someone
+  // owed it. Decided on the server's count, like every other trial surface.
+  const trialOffer = creatorTrialEligibility({
+    tier, cards: serverCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,
+  }).eligible;
   const [sub, setSub] = useState(null);
   const [busy, setBusy] = useState(false);
   const [pricingOpen, setPricingOpen] = useState(false);
@@ -67,6 +73,7 @@ export function BillingTab({ user }) {
         grantExpiresAt={grantExpiresAt}
         demoCardCount={demoCardCount}
         effectiveCardLimit={effectiveCardLimit}
+        trialOffer={trialOffer}
         busy={busy}
         onManage={openPortal}
         onUpgrade={() => {
@@ -132,7 +139,7 @@ export function StorageMeter() {
 export function BillingSummary({
   tier, sub, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd,
   grantActive, grantExpiresAt, demoCardCount, effectiveCardLimit,
-  busy, onManage, onUpgrade,
+  trialOffer = false, busy, onManage, onUpgrade,
 }) {
   const status = subscriptionStatus || sub?.status || null;
   // Paid access via an admin grant (no paying Stripe sub) — there's no portal to
@@ -220,7 +227,7 @@ export function BillingSummary({
           <button type="button"
                   className="settings-btn settings-btn-primary"
                   onClick={onUpgrade}>
-            Upgrade to Creator →
+            {trialOffer ? `${CTA.tryCreator} →` : 'Upgrade to Creator →'}
           </button>
         )}
       </div>

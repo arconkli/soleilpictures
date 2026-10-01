@@ -911,7 +911,14 @@ export async function uploadVideo({ file, workspaceId, boardId, userId, onProgre
     throw new Error('Could not read the video length — re-export and try again.');
   }
   if (meta.duration > maxDurationSec) {
-    throw new Error(`Video too long (${Math.round(meta.duration)}s; max ${maxDurationSec}s)`);
+    // Coded so the caller can record the refusal. This one never reached
+    // telemetry at all: it threw into a toast, so how many free accounts are
+    // turned away for a clip past the length cap could not be counted.
+    const e = new Error(`Video too long (${Math.round(meta.duration)}s; max ${maxDurationSec}s)`);
+    e.code = 'video_too_long';
+    e.durationSec = Math.round(meta.duration);
+    e.maxSec = maxDurationSec;
+    throw e;
   }
   const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
   await putWithProgress(uploadUrl, file, { onProgress });

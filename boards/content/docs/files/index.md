@@ -5,7 +5,7 @@ h1: Files and uploads
 navLabel: Overview
 section: files
 order: 0
-updated: 2026-08-08
+updated: 2026-10-01
 answer: Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else becomes a file card with a type icon and a download. Free accounts can upload standard media within size caps, and Creator adds any file type at all — .psd, .fig, .zip — with no size limit on a {{fact:creatorStorage}} drive.
 faq:
   - q: What file types can I upload on the free plan?
@@ -14,6 +14,10 @@ faq:
     a: On Creator there is no per-file limit; very large files upload in parts automatically. On the free plan video is capped at {{fact:freeVideoCap}}, audio at {{fact:freeAudioCap}} and PDF at {{fact:freePdfCap}}.
   - q: Where do my files actually live?
     a: In private object storage. Files are served through signed URLs that expire, so a file cannot be reached by guessing a URL.
+  - q: Can I bring in my PureRef boards?
+    a: Not as .pur files yet — Clusters cannot open a PureRef scene, on any plan. Export the images from PureRef and drop those onto a canvas; they become image cards, which have no size cap on any plan.
+  - q: What happens if I drop a screenplay file?
+    a: A .fountain or .fdx file becomes a new script document, formatted and ready to edit, with its title page filled in. That is free on every plan.
 related:
   - /docs/files/pdf
   - /docs/files/video-and-audio
@@ -31,6 +35,9 @@ created — you never pick "upload as image" from a menu.
 | Video | An inline [player](/docs/files/video-and-audio) |
 | Audio | A [waveform player](/docs/files/video-and-audio) with cover art |
 | PDF | A [page-one thumbnail](/docs/files/pdf) opening into a full viewer |
+| Screenplay (`.fountain`, `.fdx`) | A new [script document](/docs/documents/screenplay), title page included — free on every plan |
+| PureRef scene (`.pur`) | Nothing yet — Clusters cannot open PureRef boards. Export the images from PureRef and drop those |
+| An unfinished download (`.crdownload`, `.part`) | Skipped, with a note to drop it again once it has finished |
 | Anything else | A file card — type icon, name, size, download |
 
 Small text files get an inline preview on the card rather than only a download.

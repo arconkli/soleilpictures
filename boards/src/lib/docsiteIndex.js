@@ -1104,7 +1104,7 @@ export const DOCS_PAGES = [
     "answer": "Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else becomes a file card with a type icon and a download. Free accounts can upload standard media within size caps, and Creator adds any file type at all — .psd, .fig, .zip — with no size limit on a 100GB drive.",
     "section": "files",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-10-01",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1149,6 +1149,14 @@ export const DOCS_PAGES = [
       {
         "q": "Where do my files actually live?",
         "a": "In private object storage. Files are served through signed URLs that expire, so a file cannot be reached by guessing a URL."
+      },
+      {
+        "q": "Can I bring in my PureRef boards?",
+        "a": "Not as .pur files yet — Clusters cannot open a PureRef scene, on any plan. Export the images from PureRef and drop those onto a canvas; they become image cards, which have no size cap on any plan."
+      },
+      {
+        "q": "What happens if I drop a screenplay file?",
+        "a": "A .fountain or .fdx file becomes a new script document, formatted and ready to edit, with its title page filled in. That is free on every plan."
       }
     ]
   },
@@ -1644,7 +1652,7 @@ export const DOCS_PAGES = [
     "answer": "Screenplay mode turns a document into a properly formatted script — Courier, correct margins, scene headings, action, character, dialogue and parenthetical elements, with Tab and Enter moving between them the way script software does. Pagination is line-accurate, so the pages you see are the pages that print, and you can import and export Final Draft and Fountain files.",
     "section": "documents",
     "order": 1,
-    "updated": "2026-08-08",
+    "updated": "2026-10-01",
     "navLabel": "Screenplays",
     "headings": [
       {
@@ -2532,7 +2540,7 @@ export const DOCS_PAGES = [
     "answer": "The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
     "section": "account",
     "order": 1,
-    "updated": "2026-08-08",
+    "updated": "2026-10-01",
     "navLabel": "Plans and pricing",
     "headings": [
       {
@@ -2608,7 +2616,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Is there a free trial of Creator?",
-        "a": "Yes, once you have built something. Accounts with a real cluster on them are offered 14 days of Creator inside the app — on the upgrade pill, on the prompts that appear as you build, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; cancel before then and you pay nothing. One trial per account."
+        "a": "Yes, once you have built something. Accounts with a real cluster on them are offered 14 days of Creator inside the app — on the upgrade pill, on the prompts that appear as you build, when a drop will not fit, in Settings → Plan & billing, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; cancel before then and you pay nothing. One trial per account."
       }
     ]
   },

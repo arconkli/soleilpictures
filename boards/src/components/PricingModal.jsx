@@ -5,6 +5,7 @@
 // Presentations by `header` (all in the confident "Studio" voice):
 //   • null          → generic ("Everything your work deserves")
 //   • "cap-hit"     → demo card cap reached
+//   • "near-cap"    → opened from the 80% warning toast (nothing refused yet)
 //   • "first-value" → first genuine card placed (warm nudge)
 //   • "storage"     → paid-only file/upload gate
 //
@@ -67,6 +68,19 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     tier, cards: serverCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,
   });
   const trialOffer = !trialRefused && trialDecision.eligible;
+  // Re-read the server's count the moment the offer opens. It used to be as
+  // old as the last page load or window focus, so a modal opened mid-build —
+  // from the banner at the thirteenth card, or from the wall after a bulk drop —
+  // decided the trial on a number from before the build and priced people the
+  // server would have invited. The summary latches `trial_flipped` if the
+  // answer changes while the modal is up, so a mid-exposure flip stays legible.
+  const refetchTier = live.refetch;
+  useEffect(() => {
+    if (tierPreview) return;
+    try { refetchTier?.(); } catch (_) { /* best-effort: the cached count still decides */ }
+    // Once per open. refetch is stable for the lifetime of the store.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Storage bytes cost an RPC, so only the two headers that are ABOUT capacity
   // pay for it. The ambient headers still name what the reader has built; they
   // just do it in cards and clusters, which are already in hand.
@@ -245,6 +259,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
               its own. */}
           <h2 className="upgrade-title">
             {header === 'cap-hit'     ? 'Your work outgrew the demo.'
+             : header === 'near-cap'  ? "You're close to the free limit."
              : header === 'first-value' ? "You're building something."
              : header === 'storage'   ? 'Room for everything you make.'
              : 'Everything your work deserves.'}

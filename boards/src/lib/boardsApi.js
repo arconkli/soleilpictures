@@ -1245,6 +1245,15 @@ export async function syncCardIndex({ boardId, ydoc }) {
 }
 
 
+// Tell the tier store that card_index just moved. get_my_tier counts
+// card_index, so this is the earliest moment the server's card count can
+// agree with the canvas; without it the count was re-read only on mount and
+// window focus, and every surface that decides the trial on it showed the
+// price in the meantime. useMyTier decides whether a refetch is actually owed.
+function _announceIndexSynced(boardId) {
+  try { window.dispatchEvent(new CustomEvent('soleil:card-index-synced', { detail: { boardId } })); } catch (_) {}
+}
+
 async function _doSyncCardIndex(boardId, ydoc) {
   if (!supabase || !boardId || !ydoc) return;
   let workspaceId = _boardWsCache.get(boardId);
@@ -1396,6 +1405,9 @@ async function _doSyncCardIndex(boardId, ydoc) {
           }));
         } catch (_) {}
       }
+      // Some of the batch may have landed (the retry, and landUpToCap's fit),
+      // and the count the server reports has moved either way.
+      _announceIndexSynced(boardId);
       return;
     }
     if (ups.error) { console.warn('syncCardIndex upsert', ups.error); return; }
@@ -1407,17 +1419,20 @@ async function _doSyncCardIndex(boardId, ydoc) {
   // was added or removed there can be no orphans, so we skip the extra
   // round-trip entirely.
   const idsChanged = liveIds.size !== cache.ids.size || [...liveIds].some(id => !cache.ids.has(id));
+  let removed = false;
   if (idsChanged) {
     const existing = await supabase.from('card_index').select('card_id').eq('board_id', boardId);
     if (existing.error) return;
     const orphanIds = (existing.data || []).map(r => r.card_id).filter(id => !liveIds.has(id));
     if (orphanIds.length > 0) {
-      await supabase.from('card_index').delete().eq('board_id', boardId).in('card_id', orphanIds);
+      const del = await supabase.from('card_index').delete().eq('board_id', boardId).in('card_id', orphanIds);
+      removed = !del?.error;
     }
     for (const id of [...cache.sigs.keys()]) if (!liveIds.has(id)) cache.sigs.delete(id);
   }
   cache.ids = liveIds;
   _cardIndexCache.set(boardId, cache);
+  if (changed.length > 0 || removed) _announceIndexSynced(boardId);
 }
 
 // Per-kind preview data baked into card_index.meta. Kept compact —

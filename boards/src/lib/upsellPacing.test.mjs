@@ -141,12 +141,25 @@ test('every deliberate cap-wall open takes the moment it asks for', () => {
   assert.ok(claimAt > 0 && setAt > 0 && claimAt < setAt,
     'claim before opening — a claim after the render has already lost the race it exists to win');
 
-  // Every PRESS goes through it: the import dialog's Upgrade, and the action on
-  // both cap toasts (the 80% warning and the at-the-wall repeat).
-  const presses = app.match(/openCapWall\(\)/g) || [];
-  assert.ok(presses.length >= 3,
-    `all three deliberate cap-wall opens must go through the helper; found ${presses.length}`);
-  assert.match(app, /if \(action === 'upgrade'\) openCapWall\(\);/,
+  // The 80% warning's press has its own helper since it stopped opening the
+  // WALL for someone who had been refused nothing — and it must claim exactly
+  // the way the wall's does, or it reopens the 16 ms race for its own screen.
+  const nearAt = app.indexOf('const openNearCapOffer');
+  assert.ok(nearAt > 0, 'openNearCapOffer must exist');
+  const nearBody = app.slice(nearAt, nearAt + 300);
+  const nearClaim = nearBody.indexOf("claimUpsellSlot('cap-hit')");
+  const nearSet = nearBody.indexOf("setUpgradeReason('near-cap')");
+  assert.ok(nearClaim > 0 && nearSet > 0 && nearClaim < nearSet,
+    'the near-cap press claims before it opens, like the wall');
+
+  // Every PRESS goes through one of the two: the import dialog's Upgrade and
+  // the at-the-wall repeat toast (openCapWall), and the 80% warning
+  // (openNearCapOffer).
+  const presses = (app.match(/openCapWall\(\)/g) || []).length
+    + (app.match(/openNearCapOffer\(\)/g) || []).length;
+  assert.ok(presses >= 3,
+    `all three deliberate cap-wall opens must go through a claiming helper; found ${presses}`);
+  assert.match(app, /if \(action === 'upgrade'\) \{[\s\S]{0,400}?openCapWall\(\);/,
     "the import dialog's Upgrade");
 
   // The only remaining bare open is pitchCapWall's own — the INVOLUNTARY path,

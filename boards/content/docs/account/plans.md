@@ -5,7 +5,7 @@ h1: Plans and pricing
 navLabel: Plans and pricing
 section: account
 order: 1
-updated: 2026-08-08
+updated: 2026-10-01
 answer: The free Demo plan gives you {{fact:demoCardLimit}} cards, unlimited clusters and unlimited free collaborators. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a {{fact:creatorStorage}} drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 faq:
   - q: What is actually limited on the free plan?
@@ -21,7 +21,7 @@ faq:
   - q: Where do I enter a discount code?
     a: On the payment page, under Add promotion code. Codes apply to the monthly plan only and come off your first month.
   - q: Is there a free trial of {{fact:planName}}?
-    a: Yes, once you have built something. Accounts with a real cluster on them are offered {{fact:creatorTrialDays}} days of {{fact:planName}} inside the app — on the upgrade pill, on the prompts that appear as you build, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; cancel before then and you pay nothing. One trial per account.
+    a: Yes, once you have built something. Accounts with a real cluster on them are offered {{fact:creatorTrialDays}} days of {{fact:planName}} inside the app — on the upgrade pill, on the prompts that appear as you build, when a drop will not fit, in Settings → Plan & billing, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; cancel before then and you pay nothing. One trial per account.
 related:
   - /docs/canvas/cards
   - /docs/files
@@ -108,7 +108,8 @@ grant bonus cards when someone you invited actually gets started.
 Once there is a real cluster on your account, Clusters offers you
 **{{fact:creatorTrialDays}} days of {{fact:planName}}** before you pay. The
 offer appears where you are already working: on the upgrade pill in the corner,
-on the prompts that show up as a cluster fills, and on the upgrade screen.
+on the prompts that show up as a cluster fills, when a folder you drop will not
+fit, in **Settings → Plan & billing**, and on the upgrade screen.
 
 A card is required; nothing is charged until the trial ends, and cancelling
 before then costs nothing. It is one trial per account, and it is offered in

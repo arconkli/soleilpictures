@@ -153,12 +153,40 @@ function _notePlaced(n = 1) {
 // One focus listener for the whole app (attached while anyone subscribes) —
 // re-fetch on focus so a tier flip from the Stripe webhook or waitlist cron
 // is picked up without a manual reload.
+//
+// And one card_index listener. `serverCardCount` is the number the trial is
+// decided on, and it used to move only on mount and focus — so in the session
+// where someone crossed the trial line (which is nearly always the session they
+// crossed it in) every surface kept deciding on a stale count and showed the
+// price. boardsApi announces each sync that actually changed card_index; if
+// this client has placed or removed cards the server hasn't seen yet
+// (placedDelta ≠ 0), that is the moment the server's number can catch up, so
+// re-read it then. Debounced so a multi-board flush costs one RPC, and skipped
+// for tiers the cap doesn't apply to.
+const INDEX_SYNC_REFETCH_MS = 600;
 let _focusAttached = false;
+let _indexSyncTimer = null;
 function _onFocus() { if (_store.userId) _fetchTier(); }
+function _onIndexSynced() {
+  if (!_store.userId || _store.placedDelta === 0) return;
+  const tier = _store.data.tier;
+  if (tier && tier !== 'demo') return;
+  if (_indexSyncTimer) clearTimeout(_indexSyncTimer);
+  _indexSyncTimer = setTimeout(() => { _indexSyncTimer = null; _fetchTier(); }, INDEX_SYNC_REFETCH_MS);
+}
 function _syncFocusListener() {
   const want = _store.subs.size > 0;
-  if (want && !_focusAttached) { window.addEventListener('focus', _onFocus); _focusAttached = true; }
-  if (!want && _focusAttached) { window.removeEventListener('focus', _onFocus); _focusAttached = false; }
+  if (want && !_focusAttached) {
+    window.addEventListener('focus', _onFocus);
+    window.addEventListener('soleil:card-index-synced', _onIndexSynced);
+    _focusAttached = true;
+  }
+  if (!want && _focusAttached) {
+    window.removeEventListener('focus', _onFocus);
+    window.removeEventListener('soleil:card-index-synced', _onIndexSynced);
+    if (_indexSyncTimer) { clearTimeout(_indexSyncTimer); _indexSyncTimer = null; }
+    _focusAttached = false;
+  }
 }
 
 export function useMyTier({ userId } = {}) {

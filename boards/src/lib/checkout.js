@@ -16,6 +16,7 @@ import { getFbCookies, trackInitiateCheckout } from './metaPixel.js';
 import { PRICING } from './billingCopy.js';
 import { checkoutErrorKind } from './checkoutErrors.js';
 import { isGalleryActive } from './galleryState.js';
+import { noteCheckoutStart } from './checkoutReturn.js';
 
 const CHECKOUT_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-checkout-session';
 const PORTAL_URL   = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-portal-session';
@@ -77,6 +78,9 @@ export async function startCheckout({ plan, surface, header = null, via = null, 
       throw err;
     }
     if (body.mode === 'portal') logEventNow(EV.BILLING_PORTAL_OPEN, { surface, via: 'checkout_guard' });
+    // The success page cannot tell a trial from a purchase — verify answers
+    // "activated", not "charged" — so say which this was before the tab leaves.
+    else noteCheckoutStart({ trial: Boolean(trial), plan });
     window.location.assign(body.url);
   } catch (e) {
     // Surfaces paid drop-off between checkout_open and checkout_success — the

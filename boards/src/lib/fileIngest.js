@@ -54,17 +54,40 @@ export const FALLBACK_DIMS = {
   file:  { w: 240, h: 150 },
 };
 
+// A download that has not finished: Chrome's .crdownload, Firefox's .part,
+// Safari's .download bundle, Opera's .opdownload, and the generic temp file.
+// One of these rode along in the only over-cap drop where anyone pressed
+// Upgrade, and it was the file that replaced the upgrade screen with a storage
+// pitch — for a file nobody meant to upload.
+export const PARTIAL_DOWNLOAD_RE = /\.(crdownload|part|partial|download|opdownload|tmp)$/i;
+// Screenplays the doc editor already imports, free on every tier.
+export const SCREENPLAY_FILE_RE = /\.(fountain|fdx)$/i;
+// A PureRef scene. Our best-read comparison page is /vs/pureref, so its
+// readers drop these on their first visit; uploading one only ever produced an
+// opaque file card (paid) or a storage pitch (free). Neither opens the board.
+export const PUREREF_FILE_RE = /\.pur$/i;
+
 // Decide the upload route + card kind + fallback size for a File.
 //   canAttemptFiles — false when the user OWNS this workspace and is NOT on a
 //                     paid plan, so the "upload anything" feature is hard-blocked
 //                     client-side (shared workspaces attempt optimistically and
 //                     let the server's 402/403 decide).
 // Returns { route, kind, w, h } where route ∈
-//   'image' | 'video' | 'audio' | 'pdf' | 'largeMedia' | 'file' | 'blocked'.
+//   'image' | 'video' | 'audio' | 'pdf' | 'largeMedia' | 'file' | 'blocked'
+//   | 'partial'    — an unfinished download: skipped, never pitched
+//   | 'screenplay' — becomes a script document (scriptImport.js), every tier
+//   | 'pureref'    — a free owner's .pur: an honest note, never pitched.
 export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
   const type = file?.type || '';
   const name = file?.name || '';
   const size = file?.size || 0;
+  // Checked before any mime test: a half-downloaded "photo.jpg.crdownload"
+  // can carry no type at all, and must never reach an upload or a pitch.
+  if (PARTIAL_DOWNLOAD_RE.test(name)) return { route: 'partial', kind: null, w: 0, h: 0 };
+  if (SCREENPLAY_FILE_RE.test(name)) return { route: 'screenplay', kind: 'doc', w: 0, h: 0 };
+  // A paying owner keeps "any file type" exactly as sold (a downloadable file
+  // card); a free owner is told the truth instead of being sold storage.
+  if (!canAttemptFiles && PUREREF_FILE_RE.test(name)) return { route: 'pureref', kind: null, w: 0, h: 0 };
   // Some pickers surface iPhone HEIC/HEIF with an EMPTY mime type — match the
   // extension too, or a camera-roll photo becomes a generic file card (which is
   // paid-gated for free owners). Browsers that DO report a type say image/heic.
@@ -92,6 +115,22 @@ export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
   }
   // PDFs over the inline cap + every other type → downloadable file card.
   return { route: 'file', kind: 'file', ...FALLBACK_DIMS.file };
+}
+
+// The one sentence for files a drop skipped on purpose, shared by the canvas
+// drop, the canvas paste and the list drop so the three cannot say different
+// things. Null when nothing was skipped.
+export function skippedFilesNotice({ partial = 0, pureref = 0 } = {}) {
+  const parts = [];
+  if (partial > 0) {
+    parts.push(partial === 1
+      ? 'Skipped an unfinished download — let it finish, then drop it again.'
+      : `Skipped ${partial} unfinished downloads — let them finish, then drop them again.`);
+  }
+  if (pureref > 0) {
+    parts.push("PureRef boards can't be opened here yet — export the images from PureRef, then drop those in.");
+  }
+  return parts.length ? parts.join(' ') : null;
 }
 
 // Coarse size bucket for upload analytics (EV.UPLOAD_BLOCKED etc.) — buckets,

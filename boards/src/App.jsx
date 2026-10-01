@@ -139,8 +139,10 @@ import { planImport } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap, shouldWarnNearCapNow } from './lib/upsellEligibility.js';
 import { nearCapWarnedAt, markNearCapWarned, markPriceSeen } from './lib/upsellLatches.js';
 import { stampUpgradePrompt } from './lib/upgradePrompts.js';
-import { CTA, nearCapSentence } from './lib/billingCopy.js';
-import { creatorTrialEligibility } from './lib/creatorTrial.js';
+import { CTA, nearCapSentence, PLAN_NAME, CREATOR_TRIAL_DAYS } from './lib/billingCopy.js';
+import { creatorTrialEligibility, trialAwaitingServer } from './lib/creatorTrial.js';
+import { notePendingImport, readCheckoutReturn, clearCheckoutReturn } from './lib/checkoutReturn.js';
+import { importDroppedScripts, reportSkippedFiles } from './lib/dropOutcomes.js';
 import { ImportCapDialog } from './components/ImportCapDialog.jsx';
 import { claimUpsellSlot } from './lib/upsellSlot.js';
 import { publishOwnWork } from './lib/ownWork.js';
@@ -2177,14 +2179,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // surfaces the app's screenwriting depth as a one-click starting point. The
     // mode lives in the per-card docMeta map, so we flip it in the same afterInsert
     // (right after the store exists) via setDocMode on the card's own scope.
-    const addScriptCard = (clickPos = null) => {
+    // `opts.title` names a script that arrived as a file (scriptImport.js);
+    // the id is returned so that caller can hand the parsed script to this
+    // card's editor when it opens.
+    const addScriptCard = (clickPos = null, opts = {}) => {
       const d = defaultsRef.current?.doc || {};
       const w = d.w || 320, h = d.h || 240;
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       const id = `doc-${Date.now()}`;
       addCard({
-        id, kind: 'doc', title: 'Untitled script',
+        id, kind: 'doc', title: (opts && typeof opts.title === 'string' && opts.title.trim()) || 'Untitled script',
         ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       }, {
@@ -2195,6 +2200,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         },
       });
       setAutoFocusId(id);
+      return id;
     };
 
     const setBoardBgColor = async (color) => {
@@ -2354,13 +2360,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ? (myTier.tier === 'paid' || myTier.tier === 'admin')
         : !csFiles.capped;
 
-      // 1) Classify — split blocked (paid-only) from accepted.
+      // 1) Classify — split blocked (paid-only) from accepted, and set aside
+      //    what the drop handles on purpose (lib/dropOutcomes.js): unfinished
+      //    downloads and a free owner's PureRef scene are skipped with the
+      //    truth, never pitched; a screenplay becomes a script document.
       const blocked = [];
       let accepted = [];
+      const skipped = { partial: [], pureref: [] };
+      const scripts = [];
       for (const file of files) {
         const c = classifyDropFile(file, { canAttemptFiles });
+        if (c.route === 'partial') { skipped.partial.push(file); continue; }
+        if (c.route === 'pureref') { skipped.pureref.push(file); continue; }
+        if (c.route === 'screenplay') { scripts.push(file); continue; }
         if (c.route === 'blocked') { blocked.push(file); continue; }
         accepted.push({ file, ...c }); // { file, route, kind, w, h }
+      }
+      reportSkippedFiles(skipped, { surface: 'list', toast: feedback.toast });
+      if (scripts.length) {
+        await importDroppedScripts(scripts, {
+          addScriptCard,
+          pos: null, source: 'list_drop', toast: feedback.toast,
+        });
       }
 
       // What classification produced, captured BEFORE the cap can trim it.
@@ -2424,6 +2445,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           n_accepted: nClassified,
           n_blocked: blocked.length,
           n_over: over,
+          n_skipped: skipped.partial.length + skipped.pureref.length,
+          n_scripts: scripts.length,
           source: 'list_drop',
           kinds: classifiedKinds,
           board_id: currentId || null,
@@ -4307,7 +4330,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // dismissed by 'nav'. It is the only time anyone has ever pressed this
       // button. The ambient guard cannot help unless the wall takes the moment
       // it is owed, and this path set the reason without ever claiming it.
-      if (action === 'upgrade') openCapWall();
+      if (action === 'upgrade') {
+        // Remember the folder: checkout can't carry it, and the return should
+        // say so (checkoutReturn.js).
+        notePendingImport({ n: ask.n });
+        openCapWall();
+      }
       try { ask.resolve?.({ take }); } catch (_) {}
       return null;
     });
@@ -4327,6 +4355,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // bookkeeping. The block itself is unchanged — every card over the line is
   // still refused, and still logged.
   const capPitchedAtRef = useRef(0);
+  // The trial decision as of THIS render, for callbacks memoized long before
+  // it (pitchCapWall closes over [feedback] only). Decided like every other
+  // trial surface: on the server's count.
+  const trialOfferRef = useRef(false);
+  trialOfferRef.current = creatorTrialEligibility({
+    tier: myTier.tier, cards: myTier.serverCardCount,
+    cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt,
+  }).eligible;
   // Same idea, one beat earlier: the limit we last showed the approaching-cap
   // warning for. Keyed on the limit so raising the cap re-arms the warning.
   const nearCapWarnedAtRef = useRef(0);
@@ -4349,6 +4385,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       cardLimit: limit,
       trialStartedAt: myTier.creatorTrialStartedAt,
     }).eligible;
+    // A bulk drop crosses 80% while the server still counts the board as it
+    // was before the drop, so the toast went out PRICED to people the server
+    // was about to invite. Stand down WITHOUT latching: the arrival path below
+    // re-runs when the server's count lands and owes the warning then, with
+    // the trial on it.
+    if (trialAwaitingServer({
+      tier: myTier.tier, cards: count, serverCards: myTier.serverCardCount,
+      cardLimit: limit, trialStartedAt: myTier.creatorTrialStartedAt,
+    })) return;
     nearCapWarnedAtRef.current = limit;
     markNearCapWarned(user?.id, limit);
     // Keyed on the LIMIT, like the latch it reports. A cap that moves (referral
@@ -4371,7 +4416,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         label: trialOffer ? CTA.tryCreatorShort : 'See Creator',
         onClick: () => {
           logEventNow(EV.UP_CAP_TOAST_CTA, { count, limit, at, trial_shown: trialOffer });
-          openCapWall();
+          openNearCapOffer();
         },
       },
     });
@@ -4389,15 +4434,43 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!limit) return;
     const warnedAt = (nearCapWarnedAtRef.current === limit || nearCapWarnedAt(user?.id) === limit) ? limit : 0;
     if (!shouldWarnNearCapNow({ count, limit, warnedAtLimit: warnedAt })) return;
+    // Waiting on the server's count after a bulk drop: the toast would go out
+    // priced to someone about to be invited. Checked BEFORE the slot claim so
+    // a wait never holds the shared slot for nothing; this effect re-runs when
+    // the count lands (serverCardCount is a dependency for exactly that).
+    if (trialAwaitingServer({
+      tier: myTier.tier, cards: count, serverCards: myTier.serverCardCount,
+      cardLimit: limit, trialStartedAt: myTier.creatorTrialStartedAt,
+    })) return;
     // This one fires on arrival, on the same beat as every other load-time
     // upsell, so it is ambient and must queue with them. The add-path toast is
     // a consequence of an action the user just took and keeps its own timing.
     if (!claimUpsellSlot('cap-toast')) return;
     showNearCapToastRef.current?.({ count, limit }, 'arrival');
     // showNearCapToastRef is rebound every render; the effect only needs to
-    // re-run when the reconciled numbers move.
+    // re-run when the reconciled numbers move — or when the server's count
+    // lands after a bulk drop without the optimistic total moving at all.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [myTier.loading, myTier.tier, myTier.demoCardCount, myTier.effectiveCardLimit, user?.id]);
+  }, [myTier.loading, myTier.tier, myTier.demoCardCount, myTier.serverCardCount, myTier.effectiveCardLimit, user?.id]);
+
+  // Back from checkout with a folder still waiting. The over-cap import
+  // dialog's Upgrade cannot carry its files across the redirect, so the person
+  // lands on the canvas with the folder on disk and nothing new in front of
+  // them; the success page said so in passing, and this says it where the drop
+  // actually happens. Once, then the note is cleared (checkoutReturn.js).
+  useEffect(() => {
+    if (myTier.loading || (myTier.tier !== 'paid' && myTier.tier !== 'admin')) return;
+    const ret = readCheckoutReturn();
+    if (!ret?.importN) return;
+    clearCheckoutReturn();
+    feedback.toast({
+      type: 'success',
+      message: `${PLAN_NAME} is on. Drop your folder again — all ${ret.importN} will fit.`,
+      ttl: 9000,
+    });
+    // feedback is the stable provider value; the tier is what we wait for.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myTier.loading, myTier.tier]);
   // {n, noun} for the cards the server most recently refused, or null. Rendered
   // by the cap-hit modal. Kept BESIDE upgradeReason rather than folded into it:
   // that value is string-compared at five sites and widening it would touch all
@@ -4420,11 +4493,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const lost = rejected > 0
         ? `${rejected} more ${rejectedNoun(cs?.kinds, rejected)} didn't fit. `
         : '';
+      // The second and later refusals used to say "See Creator" even to
+      // someone the trial was waiting for; it was the one cap surface that
+      // never named it.
+      const trial = trialOfferRef.current;
       feedback.toast({
         type: 'warning',
-        message: `${lost}You're at your ${limit}-card limit. Creator lifts it — or invite friends to earn more free ones.`,
+        message: trial
+          ? `${lost}You're at your ${limit}-card limit. Creator lifts it — free for ${CREATOR_TRIAL_DAYS} days, or invite friends to earn more free ones.`
+          : `${lost}You're at your ${limit}-card limit. Creator lifts it — or invite friends to earn more free ones.`,
         action: {
-          label: 'See Creator',
+          label: trial ? CTA.tryCreatorShort : 'See Creator',
           onClick: () => {
             logEventNow(EV.UP_CAP_TOAST_CTA, { count: cs?.count ?? null, limit, at: 'hit', rejected });
             openCapWall();
@@ -4451,6 +4530,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const openCapWall = useCallback(() => {
     claimUpsellSlot('cap-hit');
     setUpgradeReason('cap-hit');
+  }, []);
+
+  // The near-cap toast's button. It used to open the WALL ("Your work
+  // outgrew the demo.") for someone at 80% of the limit who had been refused
+  // nothing, and its exposures were logged as cap hits. Same claim as the
+  // wall — a press is a request and nothing ambient may replace the screen it
+  // asked for — but its own reason, headline and `via`.
+  const openNearCapOffer = useCallback(() => {
+    claimUpsellSlot('cap-hit');
+    setUpgradeReason('near-cap');
   }, []);
 
   // Has the storage / file-type gate already explained itself this session?
@@ -7831,6 +7920,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           count={importAsk.count}
           limit={importAsk.limit}
           kinds={importAsk.kinds}
+          trialOffer={creatorTrialEligibility({
+            tier: myTier.tier, cards: myTier.serverCardCount,
+            cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt,
+          }).eligible}
           onTakePartial={() => answerImportAsk('partial', importAsk.take)}
           onUpgrade={() => answerImportAsk('upgrade', 0)}
           onCancel={() => answerImportAsk('cancel', 0)}

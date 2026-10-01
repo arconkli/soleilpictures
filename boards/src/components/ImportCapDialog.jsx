@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { Modal } from './Modal.jsx';
 import { rejectedNoun } from '../lib/demoCardCap.js';
+import { CTA, CREATOR_TRIAL_DAYS } from '../lib/billingCopy.js';
 import './importCapDialog.css';
 
 // The over-cap folder drop, asked BEFORE anything uploads.
@@ -26,7 +27,12 @@ import './importCapDialog.css';
 // planImport() (importPreflight.js), which is the same evaluateDemoCap
 // arithmetic the server trigger enforces.
 
-export function ImportCapDialog({ open, n, take, over, count, limit, kinds, onTakePartial, onUpgrade, onCancel }) {
+// `trialOffer`: this person is owed the Creator trial (decided by the caller on
+// the server's count, like every other trial surface). The dialog was the one
+// place an eligible person met the limit and was never told the first two
+// weeks are free — the only purchase intent the product has ever recorded was
+// a press of this button, and it read "Upgrade".
+export function ImportCapDialog({ open, n, take, over, count, limit, kinds, trialOffer = false, onTakePartial, onUpgrade, onCancel }) {
   const primaryRef = useRef(null);
   if (!open) return null;
 
@@ -66,7 +72,7 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, onTa
           </div>
         )}
         <p className="impcap-note">
-          Nothing has been uploaded yet. Creator removes the limit entirely.
+          Nothing has been uploaded yet. Creator removes the limit entirely{trialOffer ? `, and it's free for ${CREATOR_TRIAL_DAYS} days` : ''}.
         </p>
       </div>
 
@@ -83,7 +89,7 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, onTa
           className="impcap-btn impcap-btn-primary"
           onClick={onUpgrade}
         >
-          Upgrade — keep all {n}
+          {trialOffer ? `${CTA.tryCreatorShort} — keep all ${n}` : `Upgrade — keep all ${n}`}
         </button>
       </div>
     </Modal>

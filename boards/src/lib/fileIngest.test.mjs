@@ -103,3 +103,34 @@ test('fitImageDims preserves aspect while clamping', () => {
   const small = fitImageDims(10, 5);
   assert.equal(Math.min(small.w, small.h), 80);
 });
+
+// The three routes a drop takes on purpose rather than by accident: a partial
+// download is skipped, a screenplay becomes a script on every tier, and a free
+// owner's PureRef scene gets the truth instead of a storage pitch.
+test('unfinished downloads are skipped before any mime test', () => {
+  for (const name of ['photo.jpg.crdownload', 'clip.mp4.part', 'x.download', 'a.opdownload', 'b.tmp']) {
+    assert.equal(classifyDropFile(f(name, '')).route, 'partial', name);
+    assert.equal(classifyDropFile(f(name, 'image/jpeg'), { canAttemptFiles: false }).route, 'partial', `${name} typed`);
+  }
+});
+
+test('screenplays become scripts on every tier, never the paid file route', () => {
+  for (const can of [true, false]) {
+    assert.equal(classifyDropFile(f('draft.fountain', ''), { canAttemptFiles: can }).route, 'screenplay');
+    assert.equal(classifyDropFile(f('draft.FDX', 'application/xml'), { canAttemptFiles: can }).route, 'screenplay');
+  }
+});
+
+test("a free owner's PureRef scene is not pitched; a paying owner keeps any-file-type", () => {
+  assert.equal(classifyDropFile(f('refs.pur', ''), { canAttemptFiles: false }).route, 'pureref');
+  assert.equal(classifyDropFile(f('refs.pur', ''), { canAttemptFiles: true }).route, 'file');
+});
+
+test('the skipped-files sentence covers both kinds and is silent when nothing was skipped', async () => {
+  const { skippedFilesNotice } = await import('./fileIngest.js');
+  assert.equal(skippedFilesNotice({}), null);
+  assert.match(skippedFilesNotice({ partial: 1 }), /an unfinished download/);
+  assert.match(skippedFilesNotice({ partial: 3 }), /3 unfinished downloads/);
+  assert.match(skippedFilesNotice({ pureref: 1 }), /PureRef/);
+  assert.doesNotMatch(skippedFilesNotice({ partial: 1, pureref: 2 }), /paid|upgrade|Creator/i);
+});

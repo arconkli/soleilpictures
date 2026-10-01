@@ -152,6 +152,7 @@ import { useCaptureState } from '../hooks/useCaptureState.js';
 import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
 import { makeCastAwareness } from '../lib/castAwareness.js';
 import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS } from '../lib/fileIngest.js';
+import { importDroppedScripts, reportSkippedFiles } from '../lib/dropOutcomes.js';
 import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
@@ -3362,8 +3363,25 @@ export function CanvasSurface({
     // Paid uploads (allowLong) drop the free-tier 60s clip cap; the byte cap is
     // moot here (this path only handles ≤ the free byte cap — larger goes
     // through dropLargeMedia/multipart).
-    const up = await uploadVideo({ file, workspaceId, boardId: board?.id, userId,
-                                   ...(allowLong ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
+    let up;
+    try {
+      up = await uploadVideo({ file, workspaceId, boardId: board?.id, userId,
+                               ...(allowLong ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
+    } catch (e) {
+      // The free-tier length cap is a paid limit like the others, and the only
+      // one that never wrote a row: record it beside the rest of upload_blocked.
+      if (e?.code === 'video_too_long') {
+        try {
+          logEvent(EV.UPLOAD_BLOCKED, {
+            reason: 'video_too_long', surface: 'canvas', n: 1,
+            ext: (String(file?.name || '').split('.').pop() || '').toLowerCase().slice(0, 12) || null,
+            size_bucket: sizeBucket(file?.size || 0),
+            duration_s: e.durationSec ?? null, max_s: e.maxSec ?? null,
+          });
+        } catch (_) {}
+      }
+      throw e;
+    }
     const w = Math.max(240, Math.min(560, up.width || 360));
     const aspect = up.height && up.width ? (up.height / up.width) : 9 / 16;
     const h = Math.max(160, Math.round(w * aspect));
@@ -3477,9 +3495,16 @@ export function CanvasSurface({
     // pile on top of itself. The list-view drop has always used a real packer;
     // the canvas simply never did.
     const accepted = [];
+    // Files the drop sets aside on purpose — never uploaded, never pitched
+    // (lib/dropOutcomes.js). A screenplay becomes a script document instead.
+    const skipped = { partial: [], pureref: [] };
+    const scripts = [];
     for (const f of files) {
       // Shared routing/caps (lib/fileIngest.js) so canvas + list agree.
       const c = classifyDropFile(f, { canAttemptFiles });
+      if (c.route === 'partial') { skipped.partial.push(f); continue; }
+      if (c.route === 'pureref') { skipped.pureref.push(f); continue; }
+      if (c.route === 'screenplay') { scripts.push(f); continue; }
       if (c.route === 'blocked') { blockedForUpgrade.push(f); continue; }
       accepted.push({ file: f, ...c });
     }
@@ -3531,6 +3556,8 @@ export function CanvasSurface({
         n_accepted: classified,
         n_over: over,
         n_blocked: blockedForUpgrade.length,
+        n_skipped: skipped.partial.length + skipped.pureref.length,
+        n_scripts: scripts.length,
         source,
         kinds,
         board_id: board?.id || null,
@@ -3596,6 +3623,14 @@ export function CanvasSurface({
         ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
       });
     }
+
+    // After the media, so the script card that opens lands on top of them.
+    if (scripts.length) {
+      await importDroppedScripts(scripts, {
+        addScriptCard: mutators.addScriptCard, pos: { x: cx, y: cy }, source, toast: feedback.toast,
+      });
+    }
+    reportSkippedFiles(skipped, { surface: 'canvas', toast: feedback.toast });
   }, [ownsWorkspace, isPaidPlan, canAttemptFiles, dispatchIngestOne, onRequestStorageUpgrade,
       onRequestUpgrade, feedback, board?.id, mutators]);
 
@@ -4422,6 +4457,17 @@ export function CanvasSurface({
           if (!file) continue;
           e.preventDefault();
           const c = classifyDropFile(file, { canAttemptFiles });
+          if (c.route === 'partial' || c.route === 'pureref') {
+            reportSkippedFiles({ [c.route]: [file] }, { surface: 'canvas', toast: feedback.toast });
+            return;
+          }
+          if (c.route === 'screenplay') {
+            const { pos } = resolvePastePos();
+            importDroppedScripts([file], {
+              addScriptCard: mutators.addScriptCard, pos, source: 'paste', toast: feedback.toast,
+            }).catch((err) => console.error(err));
+            return;
+          }
           if (c.route === 'blocked') {
             const explained = (onRequestStorageUpgrade || onRequestUpgrade)?.();
             try {

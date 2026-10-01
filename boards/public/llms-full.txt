@@ -1532,7 +1532,7 @@ A: Share a link if the recipient might need to see updates. An export is a snaps
 ========================================================================
 # Files and uploads
 URL: https://clusters.soleilpictures.com/docs/files
-Updated: 2026-08-08
+Updated: 2026-10-01
 
 Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else becomes a file card with a type icon and a download. Free accounts can upload standard media within size caps, and Creator adds any file type at all — .psd, .fig, .zip — with no size limit on a 100GB drive.
 
@@ -1545,6 +1545,9 @@ Image (incl. HEIC/HEIF) | An image card with adjustments
 Video | An inline player
 Audio | A waveform player with cover art
 PDF | A page-one thumbnail opening into a full viewer
+Screenplay (.fountain, .fdx) | A new script document, title page included — free on every plan
+PureRef scene (.pur) | Nothing yet — Clusters cannot open PureRef boards. Export the images from PureRef and drop those
+An unfinished download (.crdownload, .part) | Skipped, with a note to drop it again once it has finished
 Anything else | A file card — type icon, name, size, download
 
 Small text files get an inline preview on the card rather than only a download.
@@ -1599,6 +1602,12 @@ A: On Creator there is no per-file limit; very large files upload in parts autom
 
 Q: Where do my files actually live?
 A: In private object storage. Files are served through signed URLs that expire, so a file cannot be reached by guessing a URL.
+
+Q: Can I bring in my PureRef boards?
+A: Not as .pur files yet — Clusters cannot open a PureRef scene, on any plan. Export the images from PureRef and drop those onto a canvas; they become image cards, which have no size cap on any plan.
+
+Q: What happens if I drop a screenplay file?
+A: A .fountain or .fdx file becomes a new script document, formatted and ready to edit, with its title page filled in. That is free on every plan.
 
 
 ========================================================================
@@ -2261,7 +2270,7 @@ A: Yes. Insert a board embed and the cluster renders inside the document.
 ========================================================================
 # Screenplay mode
 URL: https://clusters.soleilpictures.com/docs/documents/screenplay
-Updated: 2026-08-08
+Updated: 2026-10-01
 
 Screenplay mode turns a document into a properly formatted script — Courier, correct margins, scene headings, action, character, dialogue and parenthetical elements, with Tab and Enter moving between them the way script software does. Pagination is line-accurate, so the pages you see are the pages that print, and you can import and export Final Draft and Fountain files.
 
@@ -2299,6 +2308,8 @@ Fountain .fountain | ✓ | ✓
 PDF |  | ✓
 
 Bring in a script from Final Draft, work on it here, take it back out. Nothing is trapped in the format.
+
+Two ways in. From an open script, Import in the export menu replaces its content. Or drop a .fountain or .fdx file straight onto a canvas — or paste one — and it becomes a new script document, opened and ready, with its title page filled in. Importing is free on every plan.
 
 PDF export is real vector output in Courier — selectable, searchable text at the correct metrics, not a screenshot of the editor.
 
@@ -3388,7 +3399,7 @@ A: Under Connections, alongside Soleil Scout and any apps you have approved. Tok
 ========================================================================
 # Plans and pricing
 URL: https://clusters.soleilpictures.com/docs/account/plans
-Updated: 2026-08-08
+Updated: 2026-10-01
 
 The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 
@@ -3444,7 +3455,7 @@ You can also raise your own cap without paying: referrals grant bonus cards when
 
 Trying Creator first
 
-Once there is a real cluster on your account, Clusters offers you 14 days of Creator before you pay. The offer appears where you are already working: on the upgrade pill in the corner, on the prompts that show up as a cluster fills, and on the upgrade screen.
+Once there is a real cluster on your account, Clusters offers you 14 days of Creator before you pay. The offer appears where you are already working: on the upgrade pill in the corner, on the prompts that show up as a cluster fills, when a folder you drop will not fit, in Settings → Plan & billing, and on the upgrade screen.
 
 A card is required; nothing is charged until the trial ends, and cancelling before then costs nothing. It is one trial per account, and it is offered in the app rather than on this page — it is for people who have built something.
 
@@ -3487,7 +3498,7 @@ Q: Where do I enter a discount code?
 A: On the payment page, under Add promotion code. Codes apply to the monthly plan only and come off your first month.
 
 Q: Is there a free trial of Creator?
-A: Yes, once you have built something. Accounts with a real cluster on them are offered 14 days of Creator inside the app — on the upgrade pill, on the prompts that appear as you build, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; cancel before then and you pay nothing. One trial per account.
+A: Yes, once you have built something. Accounts with a real cluster on them are offered 14 days of Creator inside the app — on the upgrade pill, on the prompts that appear as you build, when a drop will not fit, in Settings → Plan & billing, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; cancel before then and you pay nothing. One trial per account.
 
 
 ========================================================================

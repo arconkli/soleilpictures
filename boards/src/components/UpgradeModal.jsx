@@ -17,6 +17,7 @@ import { PricingModal } from './PricingModal.jsx';
 
 export function UpgradeModal({ onClose, reason = null, clusterCount = null, rejected = null }) {
   const header = reason === 'cap-hit' ? 'cap-hit'
+               : reason === 'near-cap' ? 'near-cap'
                : reason === 'first-value' ? 'first-value'
                : reason === 'storage' ? 'storage'
                : null;
@@ -24,6 +25,7 @@ export function UpgradeModal({ onClose, reason = null, clusterCount = null, reje
   // `via` = the entry point, for the up_* exposure envelope (which trigger put
   // this pitch in front of the user).
   const via = reason === 'cap-hit' ? 'cap_hit'
+            : reason === 'near-cap' ? 'near_cap_toast'
             : reason === 'storage' ? 'storage_gate'
             : reason === 'first-value' ? 'first_value_banner'
             : null;

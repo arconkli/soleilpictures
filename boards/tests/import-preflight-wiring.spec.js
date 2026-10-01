@@ -46,7 +46,14 @@ test.describe('import preflight wiring', () => {
     // openCapWall is the one helper every deliberate cap-wall open goes
     // through; it claims the slot before setting the reason. upsellPacing.test
     // .mjs pins that ordering — here we only pin that this button uses it.
-    expect(ans).toMatch(/if \(action === 'upgrade'\) openCapWall\(\);/);
+    expect(ans).toMatch(/if \(action === 'upgrade'\) \{[\s\S]{0,400}?openCapWall\(\);/);
+    // …and the folder is remembered first. Checkout cannot carry a FileList
+    // across the redirect, so the return has to say "drop it again — all N
+    // will fit" (lib/checkoutReturn.js), and it can only say what was noted
+    // before the tab left.
+    const up = ans.slice(ans.indexOf("if (action === 'upgrade')"));
+    expect(up.indexOf('notePendingImport({ n: ask.n })')).toBeGreaterThan(-1);
+    expect(up.indexOf('notePendingImport({ n: ask.n })')).toBeLessThan(up.indexOf('openCapWall()'));
   });
 
   test('an unresolved cap pays for one round trip rather than gambling the folder', () => {

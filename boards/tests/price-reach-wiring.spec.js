@@ -22,7 +22,15 @@ test.describe('price reach wiring', () => {
     // The reconcile rule runs when the server count lands…
     expect(s).toMatch(/shouldWarnNearCapNow\(\{ count, limit, warnedAtLimit: warnedAt \}\)/);
     // …keyed on the reconciled numbers…
-    expect(s).toMatch(/\[myTier\.loading, myTier\.tier, myTier\.demoCardCount, myTier\.effectiveCardLimit, user\?\.id\]/);
+    // (serverCardCount too: after a bulk drop the add path stands down while the
+    // server's count lags, and this is the run that owes the warning once it
+    // lands — the optimistic total may not move at all when it does.)
+    expect(s).toMatch(/\[myTier\.loading, myTier\.tier, myTier\.demoCardCount, myTier\.serverCardCount, myTier\.effectiveCardLimit, user\?\.id\]/);
+    // …and the wait is checked BEFORE the shared slot is claimed, so waiting
+    // never holds the slot for nothing.
+    const arrival = s.slice(s.indexOf('if (!shouldWarnNearCapNow({ count, limit, warnedAtLimit: warnedAt })) return;'));
+    expect(arrival.indexOf('trialAwaitingServer(')).toBeGreaterThan(-1);
+    expect(arrival.indexOf('trialAwaitingServer(')).toBeLessThan(arrival.indexOf("claimUpsellSlot('cap-toast')"));
     // …and both paths share ONE toast body through the ref, so a returning
     // user cannot be warned twice across a reload.
     expect(s).toMatch(/showNearCapToastRef\.current\?\.\(cs, 'near'\)/);
@@ -109,7 +117,9 @@ test.describe('price reach wiring', () => {
     // { upgrade_prompts: {…} } write replaces the object wholesale (the SQL
     // merges at the top level only) and a locally-held copy loses the race.
     expect(c).toMatch(/stampUpgradePrompt\(\{ price_seen_at: at/);
-    expect(c).toMatch(/stampUpgradePrompt\(\{ first_value_shown_at: at \}\)/);
+    // (A re-armed showing stamps its OWN key — the original first_value_shown_at
+    // is history and must stay untouched.)
+    expect(c).toMatch(/stampUpgradePrompt\(rearmed \? \{ first_value_trial_rearm_at: at \} : \{ first_value_shown_at: at \}\)/);
     expect(c).not.toMatch(/updateOwnSettings\(/);
     expect(modal()).toMatch(/markPriceSeen\(user\.id, 'modal'\)/);
     expect(page()).toMatch(/markPriceSeen\(user\.id, 'page'\)/);

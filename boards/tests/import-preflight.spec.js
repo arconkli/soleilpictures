@@ -83,8 +83,15 @@ test.describe('nothing moves until the question is answered (CanvasSurface path)
     // The measure step reads every file off disk; the placement loop uploads.
     // Both must be downstream of the question, or the bytes are spent before
     // anyone checks the balance — which is precisely the old bug.
-    expect(preflight).toBeLessThan(s.indexOf('const d = await readImageDims(it.file)'));
-    expect(preflight).toBeLessThan(s.indexOf('optimisticDropImage(f, rcx, rcy, rect)'));
+    // Each anchor is asserted to EXIST first: this guard used to compare
+    // against a placement call a refactor renamed away, so indexOf returned -1
+    // and the check could only ever fail for the wrong reason.
+    const measure = s.indexOf('const d = await readImageDims(it.file)');
+    const place = s.indexOf('await dispatchIngestOne(accepted[i]');
+    expect(measure).toBeGreaterThan(-1);
+    expect(place).toBeGreaterThan(-1);
+    expect(preflight).toBeLessThan(measure);
+    expect(preflight).toBeLessThan(place);
   });
 
   test('the answer is honoured — the batch is actually truncated', () => {

@@ -13502,6 +13502,103 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
+       "v": "Screenplay ("
+      },
+      {
+       "t": "code",
+       "v": ".fountain"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": ".fdx"
+      },
+      {
+       "t": "text",
+       "v": ")"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A new "
+      },
+      {
+       "t": "link",
+       "v": "script document",
+       "href": "/docs/documents/screenplay",
+       "children": [
+        {
+         "t": "text",
+         "v": "script document"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", title page included — free on every plan"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "PureRef scene ("
+      },
+      {
+       "t": "code",
+       "v": ".pur"
+      },
+      {
+       "t": "text",
+       "v": ")"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Nothing yet — Clusters cannot open PureRef boards. Export the images from PureRef and drop those"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "An unfinished download ("
+      },
+      {
+       "t": "code",
+       "v": ".crdownload"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": ".part"
+      },
+      {
+       "t": "text",
+       "v": ")"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Skipped, with a note to drop it again once it has finished"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
        "v": "Anything else"
       }
      ],
@@ -19252,6 +19349,45 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Bring in a script from Final Draft, work on it here, take it back out. Nothing is trapped in the format."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Two ways in. From an open script, "
+    },
+    {
+     "t": "strong",
+     "v": "Import",
+     "children": [
+      {
+       "t": "text",
+       "v": "Import"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the export menu replaces its content. Or drop a "
+    },
+    {
+     "t": "code",
+     "v": ".fountain"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": ".fdx"
+    },
+    {
+     "t": "text",
+     "v": " file straight onto a canvas — or paste one — and it becomes a new script document, opened and ready, with its title page filled in. Importing is free on every plan."
     }
    ]
   },
@@ -28829,7 +28965,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " before you pay. The offer appears where you are already working: on the upgrade pill in the corner, on the prompts that show up as a cluster fills, and on the upgrade screen."
+     "v": " before you pay. The offer appears where you are already working: on the upgrade pill in the corner, on the prompts that show up as a cluster fills, when a folder you drop will not fit, in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Plan & billing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Plan & billing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and on the upgrade screen."
     }
    ]
   },

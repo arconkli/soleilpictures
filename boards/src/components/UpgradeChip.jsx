@@ -22,10 +22,28 @@ import { qaForceFirstValue, qaForceCapWall, qaForceImportAsk } from '../lib/loca
 import { ImportCapDialog } from './ImportCapDialog.jsx';
 import { DEMO_CARD_LIMIT, rejectedNoun } from '../lib/demoCardCap.js';
 import { COPY_REV, PRICE_FROM_LABEL, TRIAL_FROM_LABEL } from '../lib/billingCopy.js';
-import { creatorTrialEligibility } from '../lib/creatorTrial.js';
+import { creatorTrialEligibility, trialAwaitingServer } from '../lib/creatorTrial.js';
 import { evaluateUpsell, atCapWall, ELIGIBILITY_REV } from '../lib/upsellEligibility.js';
 import { claimUpsellSlot } from '../lib/upsellSlot.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
+
+// How long the first-value banner may wait for the server's card count to
+// catch up with the canvas before it shows whatever the server says. The sync
+// that moves it runs every ten seconds, so this is a backstop for the case it
+// can never catch up — a collaborator placing cards in someone else's
+// workspace grows their own optimistic count without growing their own cap.
+const FV_PENDING_MAX_MS = 30_000;
+
+// When the first-value banner first carried the trial on production (the
+// 45c07909 deploy). An account whose one-shot was spent before this saw the
+// banner's PRICED sentence and can never be shown the invitation there, so it
+// is re-armed exactly once — see the rearm notes in the reader below.
+const FV_TRIAL_SINCE = Date.parse('2026-09-17T06:34:00Z');
+// Visible-time delay before a re-armed returner's banner is offered. The
+// activation effect that normally dispatches the first-value signal has
+// retired itself for anyone who already saw the banner once, so a returner
+// who never places a card would otherwise never be asked.
+const FV_REARM_DELAY_MS = 20_000;
 
 export function UpgradeChip() {
   const { user } = useAuth();
@@ -52,6 +70,13 @@ export function UpgradeChip() {
     tier, cards: serverCardCount, cardLimit, trialStartedAt: creatorTrialStartedAt,
   });
   const trialOffer = trialDecision.eligible;
+  // The canvas already qualifies and the server hasn't caught up yet. Nothing
+  // priced is shown while this holds (see trialAwaitingServer) — the honest
+  // answer for those few seconds is the plain label, not $25 to somebody the
+  // server is about to invite.
+  const trialPending = trialAwaitingServer({
+    tier, cards: demoCardCount, serverCards: serverCardCount, cardLimit, trialStartedAt: creatorTrialStartedAt,
+  });
   const capWallQa = qaForceCapWall();             // dev-only render seam, 0 in prod
   const importAskQa = qaForceImportAsk();         // dev-only render seam, null in prod
   const [open, setOpen] = useState(false);       // chip-opened modal
@@ -62,16 +87,39 @@ export function UpgradeChip() {
   const fvShownAtRef = useRef(undefined);
   const firedRef = useRef(false);
   const chipRef = useRef(null);
+  // True when this account's one-shot went on the PRICED banner before the
+  // banner could carry the trial. It may be shown exactly once more, and only
+  // carrying the invitation — see the reader below and the trigger.
+  const fvRearmRef = useRef(false);
+  const [fvRearmReady, setFvRearmReady] = useState(false);
+  // When the banner first stood down to wait for the server's count, or 0.
+  const fvPendingSinceRef = useRef(0);
+  const fvBackstopRef = useRef(null);
 
   // Read the once-flag for demo users (no migration: profiles.settings is jsonb).
   // Writes never reuse what this read returned: stampUpgradePrompt re-reads and
   // serialises, because a locally-held copy is `{}` until this resolves and the
   // chip's own impression effect can fire in the same commit that starts it.
+  //
+  // The re-arm. Most of the accounts that are trial-eligible today spent their
+  // one-shot on the priced banner before the trial existed, so the surface
+  // people read longest could never invite them. They get it once more:
+  // `first_value_trial_rearm_at` is its own stamp (the original
+  // first_value_shown_at is history and stays untouched), and a re-armed
+  // showing that cannot carry the trial is not spent — the trigger checks.
   useEffect(() => {
     if (tier !== 'demo') return;
     let cancelled = false;
     readUpgradePrompts()
-      .then((prompts) => { if (!cancelled) fvShownAtRef.current = prompts.first_value_shown_at || null; })
+      .then((prompts) => {
+        if (cancelled) return;
+        const shown = prompts.first_value_shown_at || null;
+        const shownAt = shown ? Date.parse(shown) : NaN;
+        const rearm = Number.isFinite(shownAt) && shownAt < FV_TRIAL_SINCE && !prompts.first_value_trial_rearm_at;
+        fvRearmRef.current = rearm;
+        fvShownAtRef.current = rearm ? null : shown;
+        if (rearm) setFvRearmReady(true);
+      })
       .catch(() => { if (!cancelled) fvShownAtRef.current = null; });
     return () => { cancelled = true; };
   }, [tier]);
@@ -98,6 +146,11 @@ export function UpgradeChip() {
     if (tier !== 'demo') return;
     const trigger = () => {
       if (firedRef.current || fvShownAtRef.current) return; // this session / prior session
+      // The once-flag hasn't been read yet (undefined, not null). Firing now
+      // would treat an account that already saw the banner — or one owed the
+      // re-arm — as brand new. Nothing is lost by waiting: the next card
+      // change, the count landing or the re-arm timer all re-ask.
+      if (fvShownAtRef.current === undefined && !qaForceFirstValue()) return;
       // Eligibility is checked HERE, before the once-per-account stamp is
       // burned. App.jsx now re-dispatches on every card change, so a user who
       // isn't ready at card #2 simply gets the banner later, at the first card
@@ -143,6 +196,35 @@ export function UpgradeChip() {
         return;
       }
 
+      // The canvas qualifies for the trial and the server's count hasn't caught
+      // up. Showing now spends the one-shot on the PRICED sentence for somebody
+      // the server is about to invite — which is what happened to most
+      // trial-eligible banners in the trial's first fortnight. Wait (unspent);
+      // the effect below re-fires the moment the count lands, and a backstop
+      // fires anyway if it never does.
+      if (trialPending && !qaForceFirstValue()) {
+        const now = Date.now();
+        if (!fvPendingSinceRef.current) {
+          fvPendingSinceRef.current = now;
+          if (!fvBackstopRef.current) {
+            fvBackstopRef.current = setTimeout(() => {
+              fvBackstopRef.current = null;
+              window.dispatchEvent(new CustomEvent('soleil:first-value'));
+            }, FV_PENDING_MAX_MS + 250);
+          }
+        }
+        if (now - fvPendingSinceRef.current < FV_PENDING_MAX_MS) { standDown('server_count_pending'); return; }
+      }
+      fvPendingSinceRef.current = 0;
+
+      // A re-armed showing exists only to carry the invitation the first one
+      // never could. Without the trial there is nothing new to say, and the
+      // re-arm stays unspent for a visit where there is.
+      if (fvRearmRef.current && !trialOffer && !qaForceFirstValue()) {
+        standDown('rearm_without_trial');
+        return;
+      }
+
       // Somebody else (the invite nudge, or the wall) already has this moment.
       if (!claimUpsellSlot('first-value') && !qaForceFirstValue()) {
         standDown('slot_busy');
@@ -152,11 +234,22 @@ export function UpgradeChip() {
       firedRef.current = true;
       const at = new Date().toISOString();
       fvShownAtRef.current = at;
+      const rearmed = fvRearmRef.current;
+      fvRearmRef.current = false;
       setFvBanner(true);
-      logEvent(EV.FIRST_VALUE_UPGRADE_VIEW, { copy_rev: COPY_REV, elig_reason: elig.reason, cap_pct: elig.capPct });
+      // `trial` records which sentence was on screen. The view row used to
+      // carry neither flag, so whether a banner had invited or priced could
+      // only be guessed from a neighbouring pill impression.
+      logEvent(EV.FIRST_VALUE_UPGRADE_VIEW, {
+        copy_rev: COPY_REV, elig_reason: elig.reason, cap_pct: elig.capPct,
+        trial: trialOffer, price_shown: !trialOffer,
+        server_cards: Number.isFinite(serverCardCount) ? serverCardCount : null,
+        rearmed,
+      });
       // Persist on show so it's truly once-per-account. Best-effort, and
-      // through the shared writer so it cannot erase a sibling stamp.
-      stampUpgradePrompt({ first_value_shown_at: at });
+      // through the shared writer so it cannot erase a sibling stamp. A
+      // re-armed showing stamps its OWN key: the original timestamp is history.
+      stampUpgradePrompt(rearmed ? { first_value_trial_rearm_at: at } : { first_value_shown_at: at });
       // The banner carries the price — unless it is carrying the trial
       // instead, in which case no number was shown and stamping price_seen
       // would be a lie the reach metric then repeats back to us.
@@ -174,7 +267,43 @@ export function UpgradeChip() {
     // crosses the threshold mid-session. firedRef keeps the re-registration
     // idempotent, and qaForceFirstValue stays a render seam that bypasses the
     // gate so the banner spec doesn't need to construct an eligible user.
-  }, [tier, elig.eligible, elig.reason, elig.capPct, demoCardCount, cardLimit, accountAgeDays, user?.id, trialOffer]);
+    // trialPending and serverCardCount are dependencies for the same reason:
+    // the re-fire effect below dispatches in the commit where the server's
+    // count lands, and the listener it reaches must already close over it.
+  }, [tier, elig.eligible, elig.reason, elig.capPct, demoCardCount, cardLimit, accountAgeDays, user?.id, trialOffer, trialPending, serverCardCount]);
+
+  // The server's count caught up while the banner was waiting for it: hand the
+  // banner its moment now rather than at the next card, which may never come.
+  // Declared AFTER the listener effect on purpose — effects set up in order, so
+  // the listener this reaches is the one closing over the fresh count.
+  useEffect(() => {
+    if (trialPending || !fvPendingSinceRef.current) return;
+    if (fvBackstopRef.current) { clearTimeout(fvBackstopRef.current); fvBackstopRef.current = null; }
+    window.dispatchEvent(new CustomEvent('soleil:first-value'));
+  }, [trialPending]);
+
+  // A re-armed returner. App.jsx's activation effect retires itself once a
+  // user has seen the banner, so for these accounts nothing will dispatch the
+  // first-value signal unless they place a card — and the ones who come back
+  // mostly come back to look. Offer it after a stretch of visible time instead;
+  // the trigger still decides (eligibility, the wall, the trial, the slot).
+  useEffect(() => {
+    if (!fvRearmReady || tier !== 'demo') return undefined;
+    let visibleFor = 0;
+    const TICK = 1000;
+    const id = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      visibleFor += TICK;
+      if (visibleFor < FV_REARM_DELAY_MS) return;
+      clearInterval(id);
+      window.dispatchEvent(new CustomEvent('soleil:first-value'));
+    }, TICK);
+    return () => clearInterval(id);
+  }, [fvRearmReady, tier]);
+
+  useEffect(() => () => {
+    if (fvBackstopRef.current) { clearTimeout(fvBackstopRef.current); fvBackstopRef.current = null; }
+  }, []);
 
   // Publish the chip's measured width to --upgrade-chip-gutter so the topbar's
   // right cluster (.tb-right) can reserve exactly enough room and never sit
@@ -237,7 +366,7 @@ export function UpgradeChip() {
   // Once the pill is a meter it also says what lifting the ceiling costs. A
   // label that just reads "Get Creator" sends the one number that decides
   // anything behind a click most people never take.
-  const showPrice = (showCount || near) && !trialOffer;
+  const showPrice = (showCount || near) && !trialOffer && !trialPending;
 
   // The trial shows from the moment the chip does, at ANY pressure — and that
   // is deliberate, not an oversight of the pressure ladder.
@@ -268,6 +397,7 @@ export function UpgradeChip() {
       near, count: demoCardCount, limit: cardLimit, pressure: elig.pressure,
       elig_reason: elig.reason, cap_pct: elig.capPct,
       price_shown: showPrice, trial_shown: showTrial, trial_reason: trialDecision.reason,
+      trial_pending: trialPending,
       server_cards: Number.isFinite(serverCardCount) ? serverCardCount : null,
       elig_rev: ELIGIBILITY_REV, copy_rev: COPY_REV,
     });
