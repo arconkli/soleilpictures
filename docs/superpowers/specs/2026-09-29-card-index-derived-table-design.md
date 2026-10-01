@@ -205,6 +205,19 @@ today except centrally visible — `attempts` and `last_error` are queryable, an
 queue depth is alertable. The existing `check_discovery_pipelines` daily-alert
 pattern is the model.
 
+**`did_work` rides on this table, and 0343 takes its attribution away.** Since
+0347, `_stamp_active_day_work` (AFTER INSERT OR UPDATE on `card_index`) marks a
+day as work only when a card row is inserted or its content changes, and stamps
+the person who made the write (`auth.uid()`), falling back to the board's
+creator only when there is no session. Once the reconciler is the only writer,
+every write runs as `service_role` with no `auth.uid()`: every stamp falls back
+to the creator, a collaborator's edit credits the owner again, and the day
+follows the queue's drain rather than the person. Before 0343 lands, move
+`did_work` to a user-attributed source — the WORK_EVENTS the client already
+emits (the list `_admin_engaged_visits` reads, pinned by
+`engagedVisitsMigration.test.mjs`), or the `board_state` write, which is still
+the person's own — and drop the trigger in the same migration.
+
 ## Phase D — reconcile the backlog (migration 0344)
 
 Depends on C, because C is the first trustworthy decoder. Enqueue every board,
