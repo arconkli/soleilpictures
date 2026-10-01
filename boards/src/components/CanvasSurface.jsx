@@ -143,6 +143,7 @@ import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
 import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion } from '../lib/tagsApi.js';
 import { syncCardIndex, saveBoardVersion, loadBoardVersionDoc, bulletproofRestore } from '../lib/boardsApi.js';
+import { isAbandonedUpload, planAbandonedSweep, abandonedNotice } from '../lib/abandonedUploads.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
   arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals, uprightLabelAngle,
@@ -1109,6 +1110,14 @@ export function CanvasSurface({
   // lives here and is passed to ImageCard as a fallback src until the
   // upload finishes and the real R2 url lands in the doc.
   const [localImagePreview, setLocalImagePreview] = useState({});
+  // Read by the abandoned-upload sweep: a card with a live preview here is an
+  // upload this tab is still running, however old it is.
+  const localImagePreviewRef = useRef(localImagePreview);
+  localImagePreviewRef.current = localImagePreview;
+  // The sweep debounces on card changes; reading these through refs keeps a
+  // re-render that hands it a new object from resetting its timer for ever.
+  const sweepMutatorsRef = useRef(mutators);
+  sweepMutatorsRef.current = mutators;
 
   // Listen for the EntityLink hover broadcast and translate the refs into
   // a set of card/board ids on this board, so we can ring-highlight them.
@@ -3283,7 +3292,9 @@ export function CanvasSurface({
       const up = await uploadImage({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
       // If the user navigated to a different board mid-upload, the active
       // mutators no longer target the board this card lives on — skip the
-      // patch (the abandoned-pending sweep cleans the card on next open).
+      // patch. The upload has landed with the card id on its images row, so
+      // the abandoned-upload sweep below recovers the src on the board's next
+      // open (lib/abandonedUploads.js).
       if (boardIdRef.current === dropBoardId) {
         // Silent (origin 'upload'): the async src patch must not be its own
         // undo step, or Cmd+Z first "peels" the image back to pending
@@ -3305,6 +3316,50 @@ export function CanvasSurface({
       if (blobUrl) { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }
     }
   }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, onDropFileImage, handleUploadReject]);
+
+  // Abandoned uploads (lib/abandonedUploads.js): photo cards saved without
+  // their file by a page that went away mid-upload. Writers only, a few seconds
+  // after the board settles. Recover each one whose original reached the images
+  // table (only the src patch was lost); remove the rest and say so once. This
+  // is a cleanup of placeholders that never held anything, not a delete of
+  // someone's work, so it carries a plain notice rather than an undo — undoing
+  // would restore cards that can never load.
+  useEffect(() => {
+    if (!canEdit || isPublic || useLocalImages || !board?.id) return undefined;
+    const now = Date.now();
+    const stale = cards.filter((c) => isAbandonedUpload((k) => c[k], now) && !localImagePreviewRef.current?.[c.id]);
+    if (!stale.length) return undefined;
+    const sweepBoardId = board.id;
+    const t = setTimeout(async () => {
+      const ids = stale.map((c) => c.id);
+      const found = new Map();
+      try {
+        const { data, error } = await supabase.from('images')
+          .select('card_id, storage_path')
+          .eq('board_id', sweepBoardId)
+          .in('card_id', ids)
+          .is('deleted_at', null);
+        // Never remove on a read that failed: "we could not look" is not "the
+        // file is not there".
+        if (error) return;
+        for (const r of data || []) if (r.card_id && r.storage_path) found.set(r.card_id, r.storage_path);
+      } catch (_) { return; }
+      if (boardIdRef.current !== sweepBoardId) return;
+      const plan = planAbandonedSweep(ids, found);
+      const m = sweepMutatorsRef.current;
+      for (const r of plan.recover) m?.updateCardSilent?.(r.id, { src: r.src, pending: false });
+      if (plan.remove.length) {
+        m?.deleteCardsSilent?.(plan.remove, { refund: false });
+        feedbackRef.current?.toast?.({ type: 'info', message: abandonedNotice(plan.remove.length), ttl: 9000 });
+      }
+      try {
+        logEvent(EV.UPLOAD_ABANDONED, {
+          board_id: sweepBoardId, n: ids.length, recovered: plan.recover.length, removed: plan.remove.length,
+        });
+      } catch (_) {}
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [board?.id, cards, canEdit, isPublic, useLocalImages]);
 
   // Drop a PDF: add a pending card immediately, then upload + render the
   // page-1 thumbnail in the background (same optimistic pattern as images).

@@ -7,6 +7,7 @@ import { bytesToB64, b64ToBytes } from './yhelpers.js';
 import * as perf from './perf.js';
 import { buildCardIndexRow } from './cardIndexRow.js';
 import { createPlacementLedger } from './capRefusal.js';
+import { isAbandonedUpload } from './abandonedUploads.js';
 
 const PARTYKIT_HOST = import.meta.env?.VITE_PARTYKIT_HOST || 'localhost:1999';
 
@@ -1303,9 +1304,15 @@ async function _doSyncCardIndex(boardId, ydoc) {
   // We patch their meta.src from the `images` table after the walk.
   const imageCardsNeedingSrc = [];
   const _t0 = perf.isEnabled() ? performance.now() : 0;
+  const nowMs = Date.now();
   cardsMap.forEach((v, id) => {
     if (!v) return;
     const get = (k) => v?.get?.(k) ?? v?.[k];
+    // A photo saved without its file, long after its upload could still be
+    // running, is not a card yet (abandonedUploads.js). Skipped before it joins
+    // liveIds, so a row it got while young is released by the orphan cleanup
+    // below and it never costs a card; the board sweep recovers or removes it.
+    if (isAbandonedUpload(get, nowMs)) return;
     // ONE projection, shared with the server writer — see cardIndexRow.js.
     // These used to be two hand-kept copies and they had drifted in four
     // places, so the same card got a different row depending on who wrote it.

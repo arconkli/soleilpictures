@@ -1851,17 +1851,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // undoing would resurrect a card whose bytes never landed. Origin
     // 'upload' is untracked but still replicates + persists (matching
     // updateCardSilent).
-    const deleteCardsSilent = (ids) => {
+    const deleteCardsSilent = (ids, { refund = true } = {}) => {
       if (!ids?.length) return;
       const m = cardsMap(); if (!m) return;
       const idSet = new Set(ids);
       // Same refund as deleteCards. This path carries the failed-upload cleanup
       // AND the withdrawal of cards the server's cap trigger refused — in both
       // cases addCard already counted them locally, so not refunding here would
-      // leave the user permanently short of the room they actually have.
+      // leave the user permanently short of the room they actually have. The
+      // abandoned-upload sweep passes refund:false: those cards were placed in a
+      // page that no longer exists and were never counted in this one.
       const freed = ids.filter(id => m.has(id) && !isSeedCard({ id, seed: m.get(id)?.get('seed') })).length;
       ydoc.transact(() => removeCardsFromDoc(idSet), 'upload');
-      if (freed) myTier.notePlaced?.(-freed);
+      if (refund && freed) myTier.notePlaced?.(-freed);
     };
 
     // Source-side delete for a cross-board MOVE (drag into a board card /

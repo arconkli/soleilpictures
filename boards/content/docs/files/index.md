@@ -18,6 +18,8 @@ faq:
     a: Not as .pur files yet — Clusters cannot open a PureRef scene, on any plan. Export the images from PureRef and drop those onto a canvas; they become image cards, which have no size cap on any plan.
   - q: What happens if I drop a screenplay file?
     a: A .fountain or .fdx file becomes a new script document, formatted and ready to edit, with its title page filled in. That is free on every plan.
+  - q: What happens if the page closes while photos are still uploading?
+    a: Photos upload from your device while the page is open. If it closes first — on a phone, switching to another app can do that — a photo that had not finished cannot be completed. Once enough time has passed that it cannot still be uploading, it stops counting toward your card limit and is removed the next time that cluster is opened, with a note saying how many, so you can add them again. Photos that did finish uploading are kept.
 related:
   - /docs/files/pdf
   - /docs/files/video-and-audio
