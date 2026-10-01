@@ -1657,7 +1657,7 @@ export function CanvasSurface({
     // refresh, the local harness sets React state — and a caller that opened it
     // itself would silently no-op against a stale map. Asking for it by option
     // lets each host do the part it actually knows about.
-    const newId = await mutators.addNewBoard?.(pos, { openAfter: wasFirst });
+    const newId = await mutators.addNewBoard?.(pos, { openAfter: wasFirst, via: method });
     if (!wasFirst || !newId || !onOpenBoard) return;
     const parentId = board?.id || null;
     try { logEvent(EV.CLUSTER_AUTO_OPEN, { board_id: parentId, new_board_id: newId, method }); } catch (_) {}

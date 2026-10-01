@@ -31,6 +31,26 @@ export function isDescendantOf(boards, nodeId, ancestorId) {
   return false;
 }
 
+// How many parents a board has: the root is 0, its children 1. Null for an id
+// that is not in the map, and for a chain that loops (the visited guard again),
+// so a caller reading depth for analytics never reports a number it made up.
+export function boardDepth(boards, id) {
+  if (id == null) return null;
+  const visited = new Set();
+  let depth = 0;
+  let cur = getBoard(boards, id);
+  if (!cur) return null;
+  while (cur.parent_board_id != null) {
+    if (visited.has(cur.id)) return null;
+    visited.add(cur.id);
+    const parent = getBoard(boards, cur.parent_board_id);
+    if (!parent) return null;
+    depth += 1;
+    cur = parent;
+  }
+  return depth;
+}
+
 // Collect every board id in the subtree rooted at `rootId` (EXCLUDING the root
 // itself). Used to scope the cluster-browser's "search / presence includes
 // descendants" pass. BFS over parent_board_id with a visited guard against

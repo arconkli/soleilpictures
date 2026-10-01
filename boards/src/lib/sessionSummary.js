@@ -39,8 +39,19 @@ const WROTE = new Set([
 const isError = (name) => typeof name === 'string'
   && (name.endsWith('_error') || name.endsWith('_failed') || name.endsWith('_blocked'));
 
-/** A fresh accumulator for one session. */
-export function createSummary(session, now = Date.now()) {
+/**
+ * A fresh accumulator for one session.
+ *
+ * `view` is the page's state at the moment the session starts — whether the tab
+ * is visible and whether it holds focus. Time is then banked per span by
+ * noteVisibility/noteFocus. Most late visits are tabs left open for hours with no
+ * input at all, and input-gated active time cannot tell a reference wall on a
+ * second screen (visible, unfocused, looked at) from a forgotten background tab
+ * (hidden). These two numbers can.
+ */
+export function createSummary(session, now = Date.now(), view = null) {
+  const visible = !!view?.visible;
+  const focused = !!view?.focused;
   return {
     id: session?.id || null,
     seq: Number(session?.seq) || 0,
@@ -53,7 +64,42 @@ export function createSummary(session, now = Date.now()) {
     surfaces: new Set(),
     wrote: false,
     errors: 0,
+    visibleMs: 0,
+    visibleSince: visible ? now : null,
+    focusedMs: 0,
+    focusedSince: focused ? now : null,
   };
+}
+
+// Bank an open span up to `now` and close it, or open one. A clock that runs
+// backwards banks nothing rather than a negative span.
+function bank(acc, msKey, sinceKey, on, now) {
+  if (!acc) return acc;
+  const since = acc[sinceKey];
+  if (since != null) {
+    const d = Number(now) - Number(since);
+    if (Number.isFinite(d) && d > 0) acc[msKey] += d;
+    acc[sinceKey] = null;
+  }
+  if (on) acc[sinceKey] = now;
+  return acc;
+}
+
+/** The tab became visible (true) or hidden (false). */
+export function noteVisibility(acc, visible, now = Date.now()) {
+  return bank(acc, 'visibleMs', 'visibleSince', !!visible, now);
+}
+
+/** The window gained (true) or lost (false) focus. */
+export function noteFocus(acc, focused, now = Date.now()) {
+  return bank(acc, 'focusedMs', 'focusedSince', !!focused, now);
+}
+
+// Banked time plus the span still open, without mutating the accumulator — a
+// summary can be emitted mid-span (a rotation) and the span must keep running.
+function spanTotal(ms, since, now) {
+  const open = since != null ? Number(now) - Number(since) : 0;
+  return Math.max(0, Math.round((Number(ms) || 0) + (Number.isFinite(open) && open > 0 ? open : 0)));
 }
 
 /**
@@ -97,6 +143,10 @@ export function noteEvent(acc, name, props, now = Date.now()) {
  * `ms_span` is wall time from first to last event, not active time. usage_session
  * owns active seconds and this does not duplicate it; the span is bounded by the
  * 30-minute idle rotation, so it cannot run away with a tab left open for days.
+ *
+ * `visible_ms` / `focused_ms` run to `now`, not to the last event: a reference
+ * wall someone looks at without touching produces no events, and that silence is
+ * exactly the case these exist to measure.
  */
 export function summaryProps(acc, ended, now = Date.now()) {
   if (!acc) return null;
@@ -111,6 +161,8 @@ export function summaryProps(acc, ended, now = Date.now()) {
     surfaces_n: acc.surfaces.size,
     wrote: !!acc.wrote,
     errors_n: acc.errors,
+    visible_ms: spanTotal(acc.visibleMs, acc.visibleSince, now),
+    focused_ms: spanTotal(acc.focusedMs, acc.focusedSince, now),
     ended: ended || 'unknown',
   };
 }

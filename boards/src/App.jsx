@@ -130,7 +130,7 @@ import { trackRegistration } from './lib/metaPixel.js';
 import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced } from './lib/boardsApi.js';
 import { undoToast } from './lib/undoToast.js';
 import { forceBoardThumbnail, boardDoc } from './lib/yboard.js';
-import { planReparent } from './lib/boardTree.js';
+import { boardDepth, planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
@@ -2631,6 +2631,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const x = clickPos ? Math.round(clickPos.x - w/2) : 60 + Math.floor(Math.random() * 600);
         const y = clickPos ? Math.round(clickPos.y - h/2) : 60 + Math.floor(Math.random() * 200);
         addCard({ id: b.id, kind: 'board', x: Math.max(8, x), y: Math.max(8, y), w, h, ...(opts.seed ? { seed: true } : {}) });
+        // Which door this came through. card_placed already says a cluster was
+        // made; nothing said whether it was the sidebar, cmd-K or the canvas.
+        if (!opts.seed) {
+          try {
+            logEvent(EV.CLUSTER_CREATE, {
+              via: opts.via || 'unknown', parent_depth: boardDepth(boards, boardId),
+              opened: !!opts.openAfter, board_id: b.id,
+            });
+          } catch (_) {}
+        }
         await refreshBoards();
         if (!opts.name) setAutoFocusId(b.id);
         tourFireRef.current?.({ type: 'cluster_created', boardId: b.id });
@@ -3544,6 +3554,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         view: sourceBoard.view, cover: sourceBoard.cover, meta: sourceBoard.meta,
         userId: user.id,
       });
+      try {
+        logEvent(EV.CLUSTER_CREATE, { via: 'copy_to_personal', parent_depth: 0, opened: false, board_id: newBoard?.id || null });
+      } catch (_) {}
       // Clone the Y.Doc snapshot
       const snap = await loadBoardSnapshot(sourceBoardId);
       if (snap) {
@@ -3571,13 +3584,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const d = defaultsRef.current?.board || {};
     const view = d.view || 'canvas';
     try {
-      await createBoard({
+      const b = await createBoard({
         workspaceId: parent.workspace_id,
         parentBoardId: parentId,
         name: view === 'list' ? 'Untitled list' : 'Untitled cluster',
         view, userId: user.id,
         cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
       });
+      try {
+        logEvent(EV.CLUSTER_CREATE, {
+          via: 'sidebar_inside', parent_depth: boardDepth(boards, parentId), opened: false, board_id: b?.id || null,
+        });
+      } catch (_) {}
       await refreshBoards();
     } catch (e) {
       console.error('createBoardInside failed', e);
@@ -3737,6 +3755,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         view: clip.view, cover: clip.cover, meta: clip.meta,
         userId: user.id,
       });
+      try {
+        logEvent(EV.CLUSTER_CREATE, {
+          via: 'paste_copy', parent_depth: boardDepth(boards, targetId), opened: false, board_id: newBoard?.id || null,
+        });
+      } catch (_) {}
       const snap = await loadBoardSnapshot(clip.boardId);
       if (snap) {
         const tmp = boardDoc(clip.boardId);
@@ -4772,7 +4795,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // cleared one lands on the root. Read here, once, at mount.
     const landedId = (Array.isArray(stack) && stack.length ? stack[stack.length - 1] : null) || rootBoard.id;
     const restored = landedId !== rootBoard.id;
-    logEvent(EV.APP_OPEN, { tier: myTier.tier, board_id: landedId, restored, source: restored ? 'session' : 'root' });
+    // Was anybody there? Most late "visits" are loads nobody touched — a tab the
+    // browser restored at startup, or one opened in the background — and an
+    // app_open alone cannot tell those from a person arriving. These say which
+    // kind of load it was. landed_cards is null until the board list is in.
+    const view = (() => {
+      try {
+        const nav = performance.getEntriesByType?.('navigation')?.[0]?.type || null;
+        return {
+          visibility: document.visibilityState || null,
+          focused: typeof document.hasFocus === 'function' ? document.hasFocus() : null,
+          nav_type: nav,
+          display_mode: window.matchMedia?.('(display-mode: standalone)')?.matches ? 'standalone' : 'browser',
+        };
+      } catch (_) { return {}; }
+    })();
+    const landedCards = Number(boards?.[landedId]?.card_count);
+    logEvent(EV.APP_OPEN, {
+      tier: myTier.tier, board_id: landedId, restored, source: restored ? 'session' : 'root',
+      ...view, landed_cards: Number.isFinite(landedCards) ? landedCards : null,
+    });
     // Post-signup journey: open it (idempotent — TierRouter also opens it for the
     // AdWelcome/waitlist branches) and mark that the App workspace actually
     // mounted. Only for genuinely-new users (onboarding not done). Child effects
@@ -5734,7 +5776,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
     const actions = {
       grids: engage(() => mainMutatorsRef.current?.addGrid?.(nearContent(), {})),
-      group: engage(() => mainMutatorsRef.current?.addNewBoard?.(nearContent())),
+      group: engage(() => mainMutatorsRef.current?.addNewBoard?.(nearContent(), { via: 'power_reveal' })),
       list_drive: engage(() => setView('list', 'power_reveal')),
       docs: engage(() => mainMutatorsRef.current?.addDocCard?.(nearContent())),
       palette: engage(() => setPaletteOpen(true)),
@@ -6825,7 +6867,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const appCommands = useMemo(() => [
     { id: 'new-board', label: 'Create cluster', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'cluster', 'board'],
       available: canEditCurrent,
-      run: () => { setCurrentSurface('board'); mainMutators.addNewBoard?.(); } },
+      run: () => { setCurrentSurface('board'); mainMutators.addNewBoard?.(null, { via: 'palette' }); } },
     { id: 'new-note', label: 'New note', icon: StickyNote, keywords: ['note', 'text', 'add', 'sticky'],
       available: canEditCurrent && view !== 'list' && currentSurface === 'board',
       run: () => { setCurrentSurface('board'); mainMutators.addNote?.(); } },
@@ -7450,7 +7492,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
             onShareBoard={openShareForBoard}
             onRenameBoard={renameBoardById}
-            onCreateBoard={canEditCurrent ? () => { setCurrentSurface('board'); mainMutators.addNewBoard?.(); } : null}
+            onCreateBoard={canEditCurrent ? () => { setCurrentSurface('board'); mainMutators.addNewBoard?.(null, { via: 'sidebar' }); } : null}
             onCreateBoardInside={createBoardInside}
             onSetBoardCover={mainMutators.setBoardCover}
             onSetBoardBgColor={setBoardBgColorById}

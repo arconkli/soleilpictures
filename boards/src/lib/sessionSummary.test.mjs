@@ -2,7 +2,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSummary, noteEvent, summaryProps, worthEmitting } from './sessionSummary.js';
+import { createSummary, noteEvent, noteFocus, noteVisibility, summaryProps, worthEmitting } from './sessionSummary.js';
 import { WORK_EVENTS } from './analyticsEvents.js';
 
 const S = { id: 'sess-1', seq: 3, startedAt: 1000 };
@@ -103,4 +103,40 @@ test('create intents are counted, so intents per card is readable per session', 
   const p = summaryProps(acc, 'hide', 2000);
   assert.equal(p.intents_n, 2);
   assert.equal(p.cards_placed, 20);
+});
+
+test('visible and focused time bank per span, and a hidden tab banks none', () => {
+  const a = createSummary(S, 1000, { visible: true, focused: true });
+  noteFocus(a, false, 1500);                    // focus left after 500ms; still on screen
+  noteVisibility(a, false, 4000);               // hidden after 3000ms on screen
+  noteVisibility(a, true, 10000);               // back on screen, not focused
+  noteVisibility(a, false, 12000);              // 2000ms more on screen
+  const p = summaryProps(a, 'hide', 20000);
+  assert.equal(p.visible_ms, 5000, '3000 + 2000 on screen; the 6000ms hidden gap is not counted');
+  assert.equal(p.focused_ms, 500);
+});
+
+test('an open span counts up to now without being closed', () => {
+  // A reference wall looked at for an hour emits nothing; a rotation summary in
+  // the middle of that hour must report it, and the span must keep running.
+  const a = createSummary(S, 0, { visible: true, focused: false });
+  assert.equal(summaryProps(a, 'rotate', 3_600_000).visible_ms, 3_600_000);
+  assert.equal(summaryProps(a, 'hide', 7_200_000).visible_ms, 7_200_000, 'still open, still counting');
+  assert.equal(summaryProps(a, 'hide', 7_200_000).focused_ms, 0, 'visible is not attended');
+});
+
+test('a session created with no view state banks nothing until told', () => {
+  const a = createSummary(S, 0);
+  assert.equal(summaryProps(a, 'hide', 50_000).visible_ms, 0);
+  noteVisibility(a, true, 60_000);
+  assert.equal(summaryProps(a, 'hide', 61_000).visible_ms, 1000);
+});
+
+test('a backwards clock or a repeated state never banks a negative span', () => {
+  const a = createSummary(S, 5000, { visible: true, focused: true });
+  noteVisibility(a, false, 4000);               // clock went backwards
+  noteFocus(a, true, 4000);                     // repeated "focused" closes and reopens
+  const p = summaryProps(a, 'hide', 3000);
+  assert.ok(p.visible_ms >= 0 && p.focused_ms >= 0);
+  assert.equal(p.visible_ms, 0);
 });

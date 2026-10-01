@@ -22,7 +22,7 @@ import { isCaptureActive } from './captureState.js';
 import { isGalleryActive } from './galleryState.js';
 import { touchAppSession, noteAuthChange, persistAppSession,
          getAppSession, setSessionRotateHandler } from './appSession.js';
-import { createSummary, noteEvent, summaryProps, worthEmitting } from './sessionSummary.js';
+import { createSummary, noteEvent, noteFocus, noteVisibility, summaryProps, worthEmitting } from './sessionSummary.js';
 import { BUILD_SHA } from './buildInfo.js';
 // Safe to import: analyticsEvents.js is a leaf module with no imports of its
 // own, so there is no cycle back into this file. (An older comment here claimed
@@ -740,9 +740,22 @@ export function flushNow() { try { flushBeacon(); } catch (_) {} }
 // the sharpest thing separating the two populations.
 let summaryAcc = null;
 
+// Whether the page is on screen and holding focus right now. Read when an
+// accumulator is created, so a session that starts in a visible tab banks that
+// time from its first moment rather than from the first visibility change.
+function currentView() {
+  try {
+    if (typeof document === 'undefined') return null;
+    return {
+      visible: document.visibilityState === 'visible',
+      focused: typeof document.hasFocus === 'function' ? document.hasFocus() : false,
+    };
+  } catch (_) { return null; }
+}
+
 function ensureSummary(now) {
   const sess = getAppSession();
-  if (!summaryAcc || summaryAcc.id !== sess.id) summaryAcc = createSummary(sess, now);
+  if (!summaryAcc || summaryAcc.id !== sess.id) summaryAcc = createSummary(sess, now, currentView());
   return summaryAcc;
 }
 
@@ -787,7 +800,7 @@ try {
     // `next` is the session that just STARTED; summaryAcc still describes the
     // one that ended, which is why of_session rides in props.
     emitSessionSummary('rotate');
-    summaryAcc = createSummary(next);
+    summaryAcc = createSummary(next, undefined, currentView());
   });
 } catch (_) { /* non-browser import */ }
 
@@ -795,8 +808,15 @@ try {
 // is the reliable mobile signal; pagehide/beforeunload back it up on desktop.
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
+    // Bank the span BEFORE the summary goes out, so the row a hide emits already
+    // carries the time the tab was just on screen.
+    try { noteVisibility(ensureSummary(), document.visibilityState === 'visible'); } catch (_) {}
     if (document.visibilityState === 'hidden') { emitSessionSummary('hide'); flushBeacon(); }
   });
+  // Visible is not attended: a reference wall on a second screen is visible and
+  // unfocused for hours. Focus is what tells the two apart.
+  window.addEventListener('focus', () => { try { noteFocus(ensureSummary(), true); } catch (_) {} });
+  window.addEventListener('blur', () => { try { noteFocus(ensureSummary(), false); } catch (_) {} });
   window.addEventListener('pagehide', () => { emitSessionSummary('pagehide'); flushBeacon(); });
   window.addEventListener('beforeunload', flushBeacon);
 }

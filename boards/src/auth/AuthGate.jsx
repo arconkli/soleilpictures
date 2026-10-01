@@ -564,12 +564,16 @@ function SignIn() {
   // offered a one-tap fix. Never blocks the send; logged once per domain.
   const [typo, setTypo] = useState(null);
   const typoLoggedRef = useRef(new Set());
-  const noteTypo = (value) => {
+  // The offer follows every keystroke, but the EVENT is only logged once the
+  // person has stopped typing (blur) or sent it (submit). Logged per keystroke,
+  // "gmail" on the way to "gmail.com" and ".co" on the way to ".com" counted as
+  // typos, and the counter mostly measured people mid-word.
+  const noteTypo = (value) => { setTypo(suggestEmail(value)); };
+  const logTypoSeen = (value, at) => {
     const t = suggestEmail(value);
-    setTypo(t);
     if (t && !typoLoggedRef.current.has(t.toDomain)) {
       typoLoggedRef.current.add(t.toDomain);
-      try { logEvent(EV.EMAIL_TYPO_SUGGESTED, { from_domain: t.fromDomain, to_domain: t.toDomain }); } catch (_) {}
+      try { logEvent(EV.EMAIL_TYPO_SUGGESTED, { from_domain: t.fromDomain, to_domain: t.toDomain, at }); } catch (_) {}
     }
   };
   const [stage, setStage]       = useState('email'); // 'email' | 'code'
@@ -791,7 +795,7 @@ function SignIn() {
 
       <div className="sb-frost">
         {stage === 'email' ? (
-          <form className="auth-form" onSubmit={(e) => { e.preventDefault(); if (email.trim()) sendCode(false); }}>
+          <form className="auth-form" onSubmit={(e) => { e.preventDefault(); if (email.trim()) { logTypoSeen(email, 'submit'); sendCode(false); } }}>
             <input
               className="auth-input"
               type="email"
@@ -811,6 +815,7 @@ function SignIn() {
                 setEmail(e.target.value);
                 noteTypo(e.target.value);
               }}
+              onBlur={(e) => logTypoSeen(e.target.value, 'blur')}
               disabled={busy}
             />
             {typoOffer('email')}
