@@ -139,7 +139,7 @@ const PAGES = [
       { q: 'Does it work on Android?', a: 'Scout is invite-only right now — leave your number and it texts you when your line is ready. iPhone works over iMessage; Android follows as soon as SMS delivery is confirmed.' },
       { q: 'What happens to my photos?', a: 'They upload at full resolution to your own private board. Nobody else sees them unless you share it.' },
       { q: 'How does it know where to put things?', a: 'It reads what you wrote. Text "Scene 4 diner" with five photos and it titles the group. Everything collects in your Scout Bin until you file it — and Scout shows you exactly what will move first.' },
-      { q: 'Is it free?', a: `Yes, to start. The free tier covers ${DEMO_CARD_LIMIT} cards — every cluster you make is one of them — with collaborators free and uploads never metered. Creator ($25/mo) lifts the cap and adds 100GB and any file type.` },
+      { q: 'Is it free?', a: `Yes, to start. The free tier covers ${DEMO_CARD_LIMIT} cards — each cluster is one — with free collaborators and uploads never metered. Creator ($25/mo) lifts the cap and adds 100GB and any file type.` },
       // Honest about what is actually live: linking Scout to an account you
       // already have needs the Settings → Scout tab, which is deliberately not
       // shipped yet (the bot has no line to answer on). Restore the "connect
