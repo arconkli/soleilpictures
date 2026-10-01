@@ -5249,11 +5249,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // EXCEPT somebody who already has cards and is back on a later day: they are
   // not a first-run user, and the tour re-appearing at the step they abandoned
   // was the greeting a slice of returners got on every visit.
+  //
+  // "Back" is a later day on THIS browser, or an account old enough that this
+  // cannot be its first sitting. The browser stamp alone missed every new
+  // device — and a same-day reload hours later — so people who had already
+  // built something were shown the tour again. The age floor is what keeps a
+  // first sitting (cards arriving mid-tour) from dismissing its own tour.
   useEffect(() => {
     const onb = myTier.onboarding;
     if (!(onb?.seeded === true && onb?.done !== true)) return;
     const back = takeReturn(user?.id);
-    if (Number(myTier.demoCardCount) > 0 && typeof back === 'number' && back >= 1) {
+    const ageHours = (Date.now() - Date.parse(user?.created_at || '')) / 3.6e6;
+    const notFirstSitting = (typeof back === 'number' && back >= 1)
+      || (Number.isFinite(ageHours) && ageHours >= 12);
+    if (Number(myTier.demoCardCount) > 0 && notFirstSitting) {
       dismissOnboarding('returned_with_cards');
       return;
     }
@@ -5939,6 +5948,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       totalGenuine: genuine.length,
     }, revealSeen);
     if (!picked) return;
+    // Take the moment BEFORE the one-shot is spent: a deferral must not burn
+    // the reveal. On a return visit this toast used to be the first thing on
+    // screen with two more prompts stacked behind it. The claim sat BELOW the
+    // marks until 2026-10-01, so whenever another prompt held the slot the
+    // reveal was marked seen and never shown — the opposite of this comment.
+    if (!claimUpsellSlot('power-reveal')) return;
     // Mark BEFORE showing (momentumHint discipline) — a re-render mid-toast
     // must never double-fire.
     markRevealSeen(picked.key);
@@ -5946,10 +5961,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Quota-exhausted localStorage (writes throw, reads work) would otherwise
     // re-pitch the same reveal every session forever — verify the write took
     // and stay silent if it didn't.
-    // Take the moment BEFORE the one-shot below is spent: a deferral must not
-    // burn the reveal. On a return visit this toast used to be the first thing
-    // on screen with two more prompts stacked behind it.
-    if (!claimUpsellSlot('power-reveal')) return;
     if (!revealSeen(picked.key)) return;
     const firedBoardId = currentId;
     // Place created cards beside the user's content (they are looking at it),
@@ -7649,6 +7660,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
             )}
           </div>
+          {/* The bell only when it has something to show. Its one producer is the
+              schedule, so for nearly everyone it was an empty panel labelled
+              "Schedule" in every sidebar — and people opened it and found nothing. */}
+          {((notifications.items?.length || 0) > 0 || (notifications.schedule?.length || 0) > 0 || notifOpen) && (
           <div className={`sb-row ${notifOpen ? 'active' : ''}`}
                onClick={() => {
                  // Only the open is worth a row; the close tells us nothing.
@@ -7667,6 +7682,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <span className="sb-row-count t-meta has-unread">{notifications.unread}</span>
             )}
           </div>
+          )}
           </div>{/* /.sb-top */}
 
           {/* Scrollable middle — the ONLY scroll region: shared boards, the

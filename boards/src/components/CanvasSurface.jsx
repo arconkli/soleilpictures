@@ -106,6 +106,11 @@ import { shouldShowDepthDock } from '../lib/depthDock.js';
 import { firstBoardCopy, FIRST_BOARD_WORDS, FIRST_BOARD_TILE_IDS } from '../lib/firstBoardCopy.js';
 import { shouldPromptMix } from '../lib/mixPrompt.js';
 import { claimUpsellSlot, UPSELL_STACK_WINDOW_MS } from '../lib/upsellSlot.js';
+import { getAppSessionId } from '../lib/appSession.js';
+import {
+  dockVisitsKey, dockDismissCountKey, parseVisits, dockVisitAllowed, noteDockVisit,
+  dockRetired, rootHoldsClusters,
+} from '../lib/dockFatigue.js';
 import { momentumHintSeen, markMomentumHintSeen } from '../lib/momentumHint.js';
 import { setJourneyState } from '../lib/journey.js';
 import { ShowcaseBanner } from './ShowcaseBanner.jsx';
@@ -1566,7 +1571,45 @@ export function CanvasSurface({
   // actually load-bearing for return — they are different questions asked at
   // different times, and sharing a key would let the cheap one silence the
   // valuable one before it was ever eligible.
-  const mixPromptEligible = shouldPromptMix({
+  // Fatigue (lib/dockFatigue.js): each dock asks on at most two visits to a
+  // board, never on a root that has become a home for projects, and never again
+  // anywhere once this person has waved it away twice. People who come back
+  // mostly come back to look; asking them to add more on every visit was the
+  // most repeated prompt in the product.
+  const [dockVisits, setDockVisits] = useState({ mix: [], depth: [] });
+  const [dockRetiredKinds, setDockRetiredKinds] = useState({ mix: false, depth: false });
+  useEffect(() => {
+    const read = (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
+    setDockVisits(board?.id ? {
+      mix: parseVisits(read(dockVisitsKey('mix', board.id))),
+      depth: parseVisits(read(dockVisitsKey('depth', board.id))),
+    } : { mix: [], depth: [] });
+    setDockRetiredKinds({
+      mix: dockRetired(read(dockDismissCountKey('mix'))),
+      depth: dockRetired(read(dockDismissCountKey('depth'))),
+    });
+  }, [board?.id]);
+  const dockSession = (() => { try { return getAppSessionId() || null; } catch (_) { return null; } })();
+  const dockHomeRoot = rootHoldsClusters(board, depthGenuine);
+  const dockAllowed = (kind) => !dockHomeRoot && !dockRetiredKinds[kind]
+    && dockVisitAllowed({ visits: dockVisits[kind], session: dockSession });
+  const recordDockVisit = (kind) => {
+    if (!board?.id || !dockSession) return;
+    const next = noteDockVisit(dockVisits[kind], dockSession);
+    if (next === dockVisits[kind]) return;
+    try { localStorage.setItem(dockVisitsKey(kind, board.id), JSON.stringify(next)); } catch (_) {}
+    setDockVisits((prev) => ({ ...prev, [kind]: next }));
+  };
+  const noteDockDismissed = (kind) => {
+    try {
+      const k = dockDismissCountKey(kind);
+      const n = (Number(localStorage.getItem(k)) || 0) + 1;
+      localStorage.setItem(k, String(n));
+      if (dockRetired(n)) setDockRetiredKinds((prev) => ({ ...prev, [kind]: true }));
+    } catch (_) {}
+  };
+
+  const mixPromptEligible = dockAllowed('mix') && shouldPromptMix({
     images: mixImageCount,
     text: mixTextCount,
     dismissed: mixPromptDismissed,
@@ -1614,7 +1657,7 @@ export function CanvasSurface({
   // Mix wins the dock outright where the two bands overlap: at 3-5 images with
   // no writing both are true, and "add more of the thing that doesn't predict
   // return" is the offer being corrected.
-  const depthDockVisible = !mixPromptVisible && shouldShowDepthDock({
+  const depthDockVisible = !mixPromptVisible && dockAllowed('depth') && shouldShowDepthDock({
     genuine: depthGenuineCount,
     dismissed: depthDockDismissed,
     canEdit,
@@ -1622,24 +1665,29 @@ export function CanvasSurface({
   });
   useEffect(() => {
     if (!depthDockVisible || !board?.id) return;
+    recordDockVisit('depth');
     logEventOnce(`depth_dock_shown:${board.id}`, EV.DEPTH_DOCK_SHOWN, {
       board_id: board.id,
       cards: depthGenuineCount,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [depthDockVisible, board?.id, depthGenuineCount]);
 
   useEffect(() => {
     if (!mixPromptVisible || !board?.id) return;
+    recordDockVisit('mix');
     logEventOnce(`mix_prompt_shown:${board.id}`, EV.MIX_PROMPT_SHOWN, {
       board_id: board.id,
       images: mixImageCount,
       text: mixTextCount,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mixPromptVisible, board?.id, mixImageCount, mixTextCount]);
 
   const dismissDepthDock = () => {
     setDepthDockDismissed(true);
     try { if (depthDockKey) localStorage.setItem(depthDockKey, '1'); } catch (_) {}
+    noteDockDismissed('depth');
     try {
       logEvent(EV.DEPTH_DOCK_DISMISSED, { board_id: board?.id || null, cards: depthGenuineCount });
     } catch (_) {}
@@ -1648,6 +1696,7 @@ export function CanvasSurface({
   const dismissMixPrompt = () => {
     setMixPromptDismissed(true);
     try { if (mixPromptKey) localStorage.setItem(mixPromptKey, '1'); } catch (_) {}
+    noteDockDismissed('mix');
     try {
       logEvent(EV.MIX_PROMPT_DISMISSED, { board_id: board?.id || null, images: mixImageCount });
     } catch (_) {}
