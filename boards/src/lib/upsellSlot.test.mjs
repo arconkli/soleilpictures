@@ -170,7 +170,7 @@ __resetUpsellSlot();
 assert(claimUpsellSlot('share-ask', T, 'v1'), 'the first ambient ask of the visit shows');
 assertEq(claimUpsellSlot('power-reveal', W, 'v1'), false,
   'a different ambient kind waits for the next visit, even after the window');
-assertEq(claimUpsellSlot('return-reason', W + 60_000, 'v1'), false, 'and so does every other one');
+assertEq(claimUpsellSlot('invite-nudge', W + 60_000, 'v1'), false, 'and so does every other one');
 assert(claimUpsellSlot('power-reveal', W + 120_000, 'v2'), 'the next visit gets its own ask');
 assertEq(claimUpsellSlot('share-ask', W + 240_000, 'v2'), false, 'which is then that visit\'s only one');
 
@@ -203,6 +203,24 @@ __resetUpsellSlot();
 assert(claimUpsellSlot('cap-toast', T, 'v1'), 'an offer in a visit with no ask yet');
 assert(claimUpsellSlot('upgrade-reason', T + 5_000, 'v1'), 'the reason ask follows it');
 assertEq(claimUpsellSlot('share-ask', W + 5_000, 'v1'), false, 'and is that visit\'s one ask');
+
+// The return question is asked once per account, ever, and its answers are the
+// read on why people come back — it is let through the budget (owner, 10-01),
+// and it does not spend it. The window still keeps it off another surface.
+__resetUpsellSlot();
+assert(claimUpsellSlot('mix-prompt', T, 'v1'), 'a dock owns the visit');
+assert(claimUpsellSlot('return-reason', W, 'v1'), 'the return question is still asked on it');
+assert(claimUpsellSlot('mix-prompt', W + 120_000, 'v1'), 'and the dock still owns the visit after it');
+
+__resetUpsellSlot();
+assert(claimUpsellSlot('return-reason', T, 'v1'), 'the return question shows first');
+assert(claimUpsellSlot('share-ask', W, 'v1'), 'and did not spend the visit\'s one ambient ask');
+assertEq(claimUpsellSlot('power-reveal', W + 120_000, 'v1'), false, 'which the share ask now owns');
+
+__resetUpsellSlot();
+assert(claimUpsellSlot('share-ask', T, 'v1'), 'a share ask takes the moment');
+assertEq(claimUpsellSlot('return-reason', T + 5_000, 'v1'), false,
+  'and the window still keeps the return question off it');
 
 // No visit id never refuses: suppressing a surface is the expensive mistake.
 __resetUpsellSlot();

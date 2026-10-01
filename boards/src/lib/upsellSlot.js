@@ -91,7 +91,14 @@ const FOLLOWS = Object.freeze({
 // consequence or an offer, and its pacing lives beside it. "What's holding you
 // back?" IS ambient: FOLLOWS lets it follow an offer inside the window, but it
 // is still one more question, so it waits behind an ask this visit already had.
-const AMBIENT = new Set(['invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal', 'upgrade-reason']);
+//
+// The return question ("What brought you back?") is NOT in the budget, by the
+// owner's call (2026-10-01): it is asked once per account, ever, and its answers
+// are the read on why people come back. Made to wait behind a dock, it would
+// lose exactly the visits it exists for — the second, the uncertain one — and
+// its answers would drift toward the stickiest people. It neither waits on the
+// budget nor spends it; the window above still keeps it off any other surface.
+const AMBIENT = new Set(['invite-nudge', 'share-ask', 'mix-prompt', 'power-reveal', 'upgrade-reason']);
 
 let visitAsk = { visit: null, kind: null };
 
