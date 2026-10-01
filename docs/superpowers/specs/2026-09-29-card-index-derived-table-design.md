@@ -116,6 +116,15 @@ as defence in depth afterwards.
    existing row violates it (weights currently run from 1 to 8, the values above
    1 being grid cells), so it needs no data remediation and can be added
    `NOT VALID`-free in one statement.
+
+   **Amended 2026-10-01: the bound is `>= 0`, and it has shipped (0346).** An
+   empty grid now legitimately weighs 0 (owner decision: empty grids stop
+   counting, so Generate matrix no longer spends a card per empty copy). Zero is
+   therefore a real weight for exactly one shape, a grid with nothing in it, and
+   `cardIndexRow.test.mjs` pins that nothing else can reach it. 0346 also makes
+   the trigger's INSERT delta the row's own weight. The reconciler's pure
+   function must reproduce the same rule; it already will if it calls
+   `cardIndexWeight`.
 2. **The cap trigger fires on `UPDATE OF board_id` too.** It is currently
    `BEFORE INSERT OR UPDATE OF weight`, so repointing a row at another board
    moves cards between owners' meters without any check.

@@ -205,6 +205,15 @@ takes it back down.
 **Generate matrix** builds an empty N×M grid at whatever size you name — the
 fast path to a contact sheet larger than any template.
 
+## How grids count toward your card limit
+
+Every filled box counts as one card: a grid holding 25 photos counts as 25.
+An **empty grid counts as nothing**, however many boxes it has — and so does
+every empty copy that **Generate matrix** or a **+** handle stamps out, so a
+storyboard you have laid out but not drawn yet costs no cards at all. A box
+that holds only a sequence number such as `SHOT [#]` is still empty for this
+purpose; the number is part of the layout, not something you put in.
+
 ## Reading order
 
 Cells have a defined order, which is what makes a grid different from a set of

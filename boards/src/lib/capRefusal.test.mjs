@@ -121,8 +121,10 @@ test('every add mutator notes its placements only when the cap gate applied', ()
   assert.match(app, /if \(gated && placedId\) notePlacedThroughCap\(\[placedId\]\);/);
   assert.match(app, /if \(csBatch\.capped\) notePlacedThroughCap\(placedIds\);/);
   assert.match(app, /if \(csDup\.capped\) notePlacedThroughCap\(newIds\);/);
-  // addCard's flag is set inside the capped branch, nowhere else.
-  assert.match(app, /if \(cs\.capped\) \{\s*gated = true;/);
+  // addCard's flag is set inside the capped branch, nowhere else. (A card that
+  // costs nothing — an empty grid — never enters that branch, and the server
+  // never refuses it, so it is never noted.)
+  assert.match(app, /if \(cs\.capped && cost > 0\) \{\s*gated = true;/);
 });
 
 test('a kept-only refusal is logged as held, never as a blocked create, and opens no wall', () => {

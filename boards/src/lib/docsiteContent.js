@@ -10292,6 +10292,77 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "How grids count toward your card limit",
+   "inline": [
+    {
+     "t": "text",
+     "v": "How grids count toward your card limit"
+    }
+   ],
+   "id": "how-grids-count-toward-your-card-limit"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every filled box counts as one card: a grid holding 25 photos counts as 25. An "
+    },
+    {
+     "t": "strong",
+     "v": "empty grid counts as nothing",
+     "children": [
+      {
+       "t": "text",
+       "v": "empty grid counts as nothing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", however many boxes it has — and so does every empty copy that "
+    },
+    {
+     "t": "strong",
+     "v": "Generate matrix",
+     "children": [
+      {
+       "t": "text",
+       "v": "Generate matrix"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or a "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " handle stamps out, so a storyboard you have laid out but not drawn yet costs no cards at all. A box that holds only a sequence number such as "
+    },
+    {
+     "t": "code",
+     "v": "SHOT [#]"
+    },
+    {
+     "t": "text",
+     "v": " is still empty for this purpose; the number is part of the layout, not something you put in."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Reading order",
    "inline": [
     {
@@ -28679,6 +28750,30 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Everything else is the same on both plans."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A "
+    },
+    {
+     "t": "link",
+     "v": "grid",
+     "href": "/docs/canvas/grids",
+     "children": [
+      {
+       "t": "text",
+       "v": "grid"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " counts the boxes you have filled, one card each, and an empty grid counts as nothing — so laying out a storyboard before you draw it costs no cards."
     }
    ]
   },

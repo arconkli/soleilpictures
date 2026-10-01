@@ -41,6 +41,10 @@ Exactly three things:
 
 Everything else is the same on both plans.
 
+A [grid](/docs/canvas/grids) counts the boxes you have filled, one card each,
+and an empty grid counts as nothing — so laying out a storyboard before you draw
+it costs no cards.
+
 ## One plan covers the workspace
 
 Those three limits are charged to **whoever owns the workspace**, never to the

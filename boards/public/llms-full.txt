@@ -1111,6 +1111,10 @@ You can also share one later from its ··· menu, and Remove from the store tak
 
 Generate matrix builds an empty N×M grid at whatever size you name — the fast path to a contact sheet larger than any template.
 
+How grids count toward your card limit
+
+Every filled box counts as one card: a grid holding 25 photos counts as 25. An empty grid counts as nothing, however many boxes it has — and so does every empty copy that Generate matrix or a + handle stamps out, so a storyboard you have laid out but not drawn yet costs no cards at all. A box that holds only a sequence number such as SHOT [#] is still empty for this purpose; the number is part of the layout, not something you put in.
+
 Reading order
 
 Cells have a defined order, which is what makes a grid different from a set of images that happen to be arranged in rows. A storyboard reads in sequence, and that sequence is what exports and what a reader follows.
@@ -3430,6 +3434,8 @@ File types | Standard media | Anything
 Per-file size and length | Video 30 MB or 60 seconds · audio 50 MB · PDF 50 MB | No limit
 
 Everything else is the same on both plans.
+
+A grid counts the boxes you have filled, one card each, and an empty grid counts as nothing — so laying out a storyboard before you draw it costs no cards.
 
 One plan covers the workspace
 

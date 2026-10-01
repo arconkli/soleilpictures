@@ -33,22 +33,46 @@ export function isCellFilled(cell) {
 // and a `/r:` segment cannot occur in a grid's cell ids.
 const RUNDOWN_ROW_RE = /\/r:[^/]+$/;
 
-// Number of filled cells in a { cellId: record } map.
+// A text cell holding a sequence label — "SHOT [#]", "[##][A]" — is the slate
+// every stamped copy of a grid carries (gridSequence.stampCarry: carry what
+// describes HOW a grid is meant to be filled in, never what IS filled in). Nobody
+// put it in that box, so it costs no card: a 5×5 storyboard stamped from a
+// labelled panel would otherwise spend twenty-five of a free account's cards on
+// twenty-five empty frames. It is still FILLED for everything else — a template
+// re-cut that drops it reports it as dropped (gridLayout.js), because it is.
+// Same tags as gridSequence.hasLabelTag, inline so this module stays
+// dependency-free.
+const LABEL_TAG_RE = /\[#{1,3}\]|\[A\]/;
+function isSlate(cell) {
+  return cell?.type === 'text' && LABEL_TAG_RE.test(String(cell.html || ''));
+}
+
+// Number of cells in a { cellId: record } map that cost a card: filled, and not
+// a carried slate.
 export function cellsWeight(cells) {
   if (!cells || typeof cells !== 'object') return 0;
   let n = 0;
   for (const k in cells) {
     if (RUNDOWN_ROW_RE.test(k)) continue;
-    if (isCellFilled(cells[k])) n++;
+    if (isCellFilled(cells[k]) && !isSlate(cells[k])) n++;
   }
   return n;
 }
 
-// Weight of one card toward the cap: a cell container (grid, or a new-model
-// schedule whose items are grid cell records) weighs its filled cells (min 1 —
-// the container itself is one placed card); everything else is 1. A LEGACY
-// schedule card (rows table, no cells map) passes no cells → weighs 1.
+// Weight of one card toward the cap.
+//
+// A GRID weighs its filled cells and nothing else, so an empty grid weighs 0.
+// It used to weigh at least 1 ("the container is one placed card"), which made
+// Generate matrix — documented as building "an empty N×M grid" — spend one card
+// per empty copy: a 5×5 storyboard cost half of a free account before a single
+// frame was drawn, and walled people minutes after signup. The docs have always
+// said an empty box adds nothing to your card count; this makes the grid agree.
+//
+// A SCHEDULE keeps its minimum of 1: a calendar is a placed card even before
+// anything is on it. A LEGACY schedule (rows table, no cells map) passes no
+// cells → weighs 1. Everything else is 1.
 export function cardWeight(kind, cells) {
-  if (kind === 'grid' || kind === 'schedule') return Math.max(1, cellsWeight(cells));
+  if (kind === 'grid') return cellsWeight(cells);
+  if (kind === 'schedule') return Math.max(1, cellsWeight(cells));
   return 1;
 }

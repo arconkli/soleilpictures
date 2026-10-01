@@ -129,6 +129,7 @@ import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js'
 import { trackRegistration } from './lib/metaPixel.js';
 import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap } from './lib/boardsApi.js';
 import { undoToast } from './lib/undoToast.js';
+import { cardIndexWeight } from './lib/cardIndexRow.js';
 import { forceBoardThumbnail, boardDoc } from './lib/yboard.js';
 import { boardDepth, planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
@@ -1503,18 +1504,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Owner-pays cap: hard-block at the limit (cards total across the
       // OWNER's workspaces — 0187). The trigger on card_index enforces the
       // same subject server-side; this check reads the cached value.
+      //
+      // It charges what card_index will record for this card. An empty grid
+      // records 0 (gridCount.cardWeight), so placing one never meets the wall
+      // and never moves the count — its boxes are gated one at a time as they
+      // fill (guardWeightedAdd).
+      const cost = cardIndexWeight(card?.kind || 'note', (k) => card?.[k]);
       let gated = false;
       {
         const cs = capSource();
-        if (cs.capped) {
+        if (cs.capped && cost > 0) {
           gated = true;
-          const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: 1, limit: cs.limit });
+          const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: cost, limit: cs.limit });
           if (capHit) {
             if (!isSeedCard(card)) noteBlocked('demo_cap');   // modal/toast opens below
             surfaceCapHit(cs);
             return;
           }
-          nearCapToast(cs, 1);
+          nearCapToast(cs, cost);
         }
       }
       breakUndo();
@@ -1538,8 +1545,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (!isSeedCard(card)) {
         // Keep the cached cap count moving between fetches, so the NEXT add is
         // gated on a number that reflects this one. Seeds are never indexed, so
-        // they never count — same boundary card_placed uses.
-        myTier.notePlaced?.(1);
+        // they never count — same boundary card_placed uses. An empty grid
+        // costs nothing, so it moves nothing.
+        if (cost > 0) myTier.notePlaced?.(cost);
         logEventNow(EV.CARD_PLACED, {
           n: 1, kind: card?.kind || 'card', cards_after: genuineCountInDoc(),
           board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,

@@ -768,6 +768,10 @@ export const DOCS_PAGES = [
         "text": "Templates"
       },
       {
+        "id": "how-grids-count-toward-your-card-limit",
+        "text": "How grids count toward your card limit"
+      },
+      {
         "id": "reading-order",
         "text": "Reading order"
       },

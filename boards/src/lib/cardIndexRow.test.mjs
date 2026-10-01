@@ -202,6 +202,17 @@ test('an unmodelled kind gets an empty meta rather than throwing', () => {
   assert.deepEqual(rowFromPlain({ id: 'h', kind: 'hologram', title: 'x' }).meta, {});
 });
 
-test('weight is never zero — an empty grid still counts as a card', () => {
-  assert.ok(cardIndexWeight('grid', (k) => ({ gridCells: {} }[k])) >= 1);
+test('only an EMPTY grid weighs zero — every other card is at least one', () => {
+  // An empty grid is a frame with nothing in it, and the docs promise an empty
+  // box adds nothing to the card count. Generate matrix stamps empty copies, and
+  // each used to cost a card.
+  assert.equal(cardIndexWeight('grid', (k) => ({ gridCells: {} }[k])), 0);
+  assert.equal(cardIndexWeight('grid', () => undefined), 0);
+  assert.equal(cardIndexWeight('grid', (k) => ({ gridCells: { a: { type: 'image', src: 'r2:x' } } }[k])), 1);
+  // Zero is a free card, so nothing else may reach it.
+  for (const kind of ['note', 'image', 'doc', 'board', 'file', 'link', 'video', 'palette', 'vote']) {
+    assert.equal(cardIndexWeight(kind, () => undefined), 1, kind);
+  }
+  assert.equal(cardIndexWeight('schedule', (k) => ({ schedView: 'month', gridCells: {} }[k])), 1, 'empty schedule');
+  assert.equal(cardIndexWeight('schedule', () => undefined), 1, 'legacy schedule');
 });
