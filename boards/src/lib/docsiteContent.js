@@ -672,35 +672,78 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "2. Make a cluster",
+   "text": "2. Start a project",
    "inline": [
     {
      "t": "text",
-     "v": "2. Make a cluster"
+     "v": "2. Start a project"
     }
    ],
-   "id": "2-make-a-cluster"
+   "id": "2-start-a-project"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Click "
+     "v": "Click the "
     },
     {
      "t": "strong",
-     "v": "New cluster",
+     "v": "+",
      "children": [
       {
        "t": "text",
-       "v": "New cluster"
+       "v": "+"
       }
      ]
     },
     {
      "t": "text",
-     "v": " in the sidebar, or press "
+     "v": " next to "
+    },
+    {
+     "t": "strong",
+     "v": "Clusters",
+     "children": [
+      {
+       "t": "text",
+       "v": "Clusters"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the sidebar, choose "
+    },
+    {
+     "t": "strong",
+     "v": "New project",
+     "children": [
+      {
+       "t": "text",
+       "v": "New project"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on "
+    },
+    {
+     "t": "link",
+     "v": "Home",
+     "href": "/docs/clusters/home-graph",
+     "children": [
+      {
+       "t": "text",
+       "v": "Home"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or press "
     },
     {
      "t": "code",
@@ -708,7 +751,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " and type \"create cluster\"."
+     "v": " and type \"new project\". Each one creates a cluster at the top of your workspace and opens it."
     }
    ]
   },
@@ -1381,7 +1424,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in total across every cluster you create. Clusters themselves are unlimited, and so are collaborators."
+     "v": " in total across every cluster you create. There is no separate limit on clusters, but each one sits on its parent's canvas as a card and counts toward that total. Collaborators are unlimited."
     }
    ]
   },
@@ -15187,14 +15230,37 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Creating one",
+   "text": "Starting a project",
    "inline": [
     {
      "t": "text",
-     "v": "Creating one"
+     "v": "Starting a project"
     }
    ],
-   "id": "creating-one"
+   "id": "starting-a-project"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A project is a cluster at the top of your workspace, beside "
+    },
+    {
+     "t": "strong",
+     "v": "Studio",
+     "children": [
+      {
+       "t": "text",
+       "v": "Studio"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (the cluster everything starts in). Three ways to start one, and all three put it at the top and open it for you:"
+    }
+   ]
   },
   {
    "type": "list",
@@ -15203,17 +15269,66 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "New cluster",
+      "v": "New project",
       "children": [
        {
         "t": "text",
-        "v": "New cluster"
+        "v": "New project"
        }
       ]
      },
      {
       "t": "text",
-      "v": " in the sidebar"
+      "v": " on "
+     },
+     {
+      "t": "link",
+      "v": "Home",
+      "href": "/docs/clusters/home-graph",
+      "children": [
+       {
+        "t": "text",
+        "v": "Home"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — type a name, press Enter"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The "
+     },
+     {
+      "t": "strong",
+      "v": "+",
+      "children": [
+       {
+        "t": "text",
+        "v": "+"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " next to "
+     },
+     {
+      "t": "strong",
+      "v": "Clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "Clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in the sidebar — name it right in the sidebar"
      }
     ],
     [
@@ -15223,9 +15338,36 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " → \"create cluster\""
+      "v": " → \"new project\""
      }
-    ],
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A new project opens on the same panel a first board does: paste or drag images in from any tab, or drop a whole folder."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Adding a cluster inside one",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Adding a cluster inside one"
+    }
+   ],
+   "id": "adding-a-cluster-inside-one"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
     [
      {
       "t": "text",
@@ -15243,13 +15385,13 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " tool on any canvas, which creates it nested inside the current one"
+      "v": " tool on any canvas creates a cluster nested inside the one you are in"
      }
     ],
     [
      {
       "t": "text",
-      "v": "Right-click a canvas → Add → Cluster"
+      "v": "Right-click a canvas → Add → Cluster does the same, under your cursor"
      }
     ]
    ]
@@ -15259,21 +15401,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Clusters are "
-    },
-    {
-     "t": "strong",
-     "v": "unlimited on every plan",
-     "children": [
-      {
-       "t": "text",
-       "v": "unlimited on every plan"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", including free. Only "
+     "v": "There is no separate limit on how many clusters you make. Each one sits on its parent's canvas as a card, though, so on the free Demo plan every cluster counts as one of your 50 "
     },
     {
      "t": "link",
@@ -15288,7 +15416,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " are capped."
+     "v": "."
     }
    ]
   },
@@ -15728,6 +15856,39 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
+      "v": "[Home](/docs/clusters/home-graph)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Home",
+        "href": "/docs/clusters/home-graph",
+        "children": [
+         {
+          "t": "text",
+          "v": "Home"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " lists your projects, newest work first, with the clusters you were last in under "
+     },
+     {
+      "t": "strong",
+      "v": "Jump back in",
+      "children": [
+       {
+        "t": "text",
+        "v": "Jump back in"
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "strong",
       "v": "The sidebar tree",
       "children": [
        {
@@ -15738,7 +15899,23 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " expands lazily, so a deep hierarchy stays fast"
+      "v": " opens on your projects, most recently worked on first, and expands lazily, so a deep hierarchy stays fast"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "All clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "All clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " at the bottom of the sidebar's list searches every cluster and opens the one you pick"
      }
     ],
     [
@@ -15762,45 +15939,6 @@ export const DOCS_CONTENT = {
      {
       "t": "text",
       "v": " searches cluster names alongside everything else"
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Recents",
-      "children": [
-       {
-        "t": "text",
-        "v": "Recents"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " surfaces what you have had open"
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "[Home](/docs/clusters/home-graph)",
-      "children": [
-       {
-        "t": "link",
-        "v": "Home",
-        "href": "/docs/clusters/home-graph",
-        "children": [
-         {
-          "t": "text",
-          "v": "Home"
-         }
-        ]
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " shows the whole workspace as a relationship graph"
      }
     ],
     [
@@ -16981,7 +17119,173 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " is the workspace seen as a graph: every cluster, document, card and URL as a node, with edges for the relationships between them."
+     "v": " is where your projects are. Open it from "
+    },
+    {
+     "t": "strong",
+     "v": "Home",
+     "children": [
+      {
+       "t": "text",
+       "v": "Home"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the sidebar or the "
+    },
+    {
+     "t": "strong",
+     "v": "Clusters",
+     "children": [
+      {
+       "t": "text",
+       "v": "Clusters"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " logo in the top bar."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Your projects",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Your projects"
+    }
+   ],
+   "id": "your-projects"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A panel shows three things:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Jump back in",
+      "children": [
+       {
+        "t": "text",
+        "v": "Jump back in"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the clusters you were last in on this device, and when there are none, the ones you worked on most recently anywhere"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Your projects",
+      "children": [
+       {
+        "t": "text",
+        "v": "Your projects"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — "
+     },
+     {
+      "t": "strong",
+      "v": "Studio",
+      "children": [
+       {
+        "t": "text",
+        "v": "Studio"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and every cluster at the top of your workspace, newest work first, each with its thumbnail"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "New project",
+      "children": [
+       {
+        "t": "text",
+        "v": "New project"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — type a name (or don't) and press Enter. The project is created at the top of your workspace and opens, ready for you to paste or drag images in"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "The graph behind it",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The graph behind it"
+    }
+   ],
+   "id": "the-graph-behind-it"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Behind the panel is the workspace seen as a graph: every cluster, document, card and URL as a node, with edges for the relationships between them. It stays visible and usable around the panel. "
+    },
+    {
+     "t": "strong",
+     "v": "Explore universe",
+     "children": [
+      {
+       "t": "text",
+       "v": "Explore universe"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " puts the panel away so the whole graph is yours; "
+    },
+    {
+     "t": "strong",
+     "v": "Projects",
+     "children": [
+      {
+       "t": "text",
+       "v": "Projects"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " brings the panel back."
     }
    ]
   },
@@ -17252,7 +17556,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The graph is a heavy piece of code and is loaded only when you open Home, so it costs nothing on any other screen."
+     "v": "The graph is a heavy piece of code and is loaded only when you open Home, so it costs nothing on any other screen. The projects panel does not wait for it. On a phone, Home is the panel alone, and the graph is never loaded."
     }
    ]
   },
@@ -17580,7 +17884,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "They are created empty on purpose. Clusters are unlimited on every plan, but cards are capped on the free plan, and scaffolding sixty days up front would spend the whole allowance before anyone had opened one."
+     "v": "They are created empty on purpose. Each day is a cluster, every cluster sits on its parent's canvas as a card, and cards are capped on the free plan — so scaffolding sixty days up front, with cards inside them, would spend the whole allowance before anyone had opened one."
     }
    ]
   },
@@ -21706,13 +22010,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Create cluster"
+       "v": "New project"
       }
      ],
      [
       {
        "t": "text",
-       "v": "A new board"
+       "v": "A new cluster at the top of your workspace, opened"
       }
      ]
     ],
@@ -21739,19 +22043,19 @@ export const DOCS_CONTENT = {
      ],
      [
       {
-       "t": "text",
-       "v": "The "
-      },
-      {
        "t": "link",
-       "v": "relationship graph",
+       "v": "Your projects",
        "href": "/docs/clusters/home-graph",
        "children": [
         {
          "t": "text",
-         "v": "relationship graph"
+         "v": "Your projects"
         }
        ]
+      },
+      {
+       "t": "text",
+       "v": ", over the relationship graph"
       }
      ]
     ],
@@ -28438,7 +28742,7 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Unlimited clusters and boards"
+      "v": "No separate limit on clusters — each one counts as one of your cards"
      }
     ],
     [
@@ -30533,22 +30837,36 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The "
+     "v": "On a phone or a touch tablet, "
     },
     {
      "t": "link",
-     "v": "Home graph",
+     "v": "Home",
      "href": "/docs/clusters/home-graph",
      "children": [
       {
        "t": "text",
-       "v": "Home graph"
+       "v": "Home"
       }
      ]
     },
     {
      "t": "text",
-     "v": " renders its 2D fallback on most tablets, which has the same nodes and interactions."
+     "v": " is your projects on their own: the boards you were last in, every project, and "
+    },
+    {
+     "t": "strong",
+     "v": "New project",
+     "children": [
+      {
+       "t": "text",
+       "v": "New project"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". The 3D workspace graph is left for larger screens, and is never loaded here."
     }
    ]
   },

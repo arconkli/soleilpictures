@@ -30,9 +30,11 @@ address. You will get a one-time code — there is no password.
 New accounts land on a starter cluster with a few cards already on it, so the
 canvas is never a blank intimidating rectangle. You can delete all of it.
 
-## 2. Make a cluster
+## 2. Start a project
 
-Click **New cluster** in the sidebar, or press `⌘K` and type "create cluster".
+Click the **+** next to **Clusters** in the sidebar, choose **New project** on
+[Home](/docs/clusters/home-graph), or press `⌘K` and type "new project". Each one
+creates a cluster at the top of your workspace and opens it.
 
 Name it after the thing it is for — a scene, a project, a pitch. Names are
 searchable later and "Untitled cluster" is not.

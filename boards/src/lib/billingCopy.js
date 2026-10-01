@@ -112,7 +112,9 @@ export function planBilling(plan) {
 // so the claim is that your LIMITS carry to the people you invite, not that
 // inviting them is free. Both are true; only one of them is Creator's.
 //
-// NOTE: clusters/boards are NOT a paid difference — they were never capped.
+// NOTE: clusters/boards are NOT a paid difference — there is no separate cap on
+// them. Each cluster does sit on its parent's canvas as a card (weight 1), so on
+// the free tier it counts toward the card limit like any other card.
 //
 // The storage figure mirrors the enforced default quota: app_config
 // 'storage_quota_bytes' = 107374182400 (100 GiB), seeded in migration 0154 and
@@ -224,8 +226,9 @@ export const CREATOR_FEATURE_KEYS = CREATOR_BENEFITS.map((b) => b.key);
 export const LEGACY_FEATURE_KEYS = ['studio', 'edit_access', 'tools', 'events'];
 
 // What the free tier genuinely is. It is NOT view-only: since migration 0188 a
-// free user can edit any cluster they are invited to as an editor, and
-// clusters/boards themselves were never capped. The only real limit is cards.
+// free user can edit any cluster they are invited to as an editor, and there is
+// no separate cap on clusters/boards. The only real limit is cards — and a
+// cluster's own card counts toward it (clusters/index.md says so).
 export const DEMO_FEATURES = [
   `**${DEMO_CARD_LIMIT} cards** to build with`,
   'Unlimited clusters & boards',
@@ -295,6 +298,16 @@ export function nearCapSentence({ count, limit, trialOffer } = {}) {
   return trialOffer
     ? `${head} Creator lifts the cap — free for ${CREATOR_TRIAL_DAYS} days, or invite friends to earn more free ones.`
     : `${head} Creator lifts the cap, ${PRICE_FROM_LABEL} — or invite friends to earn more free ones.`;
+}
+
+// Starting another project near the ceiling. The free plan's cards are shared
+// by every project, so this is the exact moment "Clusters for every project"
+// meets the free tier — and people who started a second project close to
+// their limit were refused right then and stopped. Trial-only by design: the
+// caller shows this only when the invitation applies (creatorTrial.js decides
+// who), so it never carries a price.
+export function newProjectSentence({ count, limit } = {}) {
+  return `New project started. Your free plan's ${limit} cards are shared by every project, and you've used ${count}. Creator holds them all — free for ${CREATOR_TRIAL_DAYS} days.`;
 }
 
 // ── The /pricing page ───────────────────────────────────────────────────────

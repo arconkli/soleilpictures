@@ -25,7 +25,8 @@ test('the board view mode decides between canvas and list', () => {
 });
 
 test('home and tag surfaces are distinct from the board', () => {
-  assert.equal(resolveSurface(app({ currentSurface: 'home' })), 'universe');
+  assert.equal(resolveSurface(app({ currentSurface: 'home' })), 'projects', 'Home is the projects panel');
+  assert.equal(resolveSurface(app({ currentSurface: 'home', homeExploring: true })), 'universe', 'exploring the graph is the universe');
   assert.equal(resolveSurface(app({ currentSurface: 'tag' })), 'tag');
 });
 

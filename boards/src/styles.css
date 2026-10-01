@@ -7566,6 +7566,29 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 }
 /* First board: two writing tiles under the hero, not a 2×3 capability grid. */
 .cnv-empty-tiles.is-first .cnv-empty-tiles-grid { grid-template-columns: repeat(2, 1fr); max-width: 260px; }
+/* A new top-level project starts the way a first board does. */
+.cnv-empty-tiles.is-project .cnv-empty-tiles-grid { grid-template-columns: repeat(2, 1fr); max-width: 260px; }
+/* The project's name, in the headline slot. Reads as the headline — same type,
+   no box — until it is focused; gold only on focus (it is reserved for focus,
+   active and selection). */
+.cnv-empty-project-name {
+  width: 100%;
+  min-width: 0;
+  padding: 2px 4px 4px;
+  border: none;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-0);
+  font: 600 15px/1.2 var(--font-sans);
+  letter-spacing: 0.01em;
+  text-align: center;
+  outline: none;
+}
+.cnv-empty-project-name::placeholder { color: var(--ink-2); }
+.cnv-empty-project-name:hover { border-bottom-color: var(--line-3); }
+.cnv-empty-project-name:focus-visible,
+.cnv-empty-project-name:focus { border-bottom-color: var(--soleil); }
 /* Image-first hero tile — the primary CTA, since adding an image is the single
    action that drives activation. Wider, filled, horizontal (icon + label + hint).
    Neutral at rest (gold stays reserved for active/selection); accent on hover. */
@@ -14846,6 +14869,182 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .comment-inline-replyform input:focus { border-color: transparent; box-shadow: var(--shadow-glow); }
 
 /* ───────────────────────────── Home graph ───────────────────────────────── */
+
+/* ── Projects Home: your projects, with the universe behind ─────────────────
+   Home used to be the 3D graph alone. Now a glass panel lists the boards you
+   were last in and your projects, floating over the same living graph, which
+   stays visible and usable around it. "Explore universe" slides the panel
+   away; the "Projects" pill brings it back. Gold stays reserved for focus,
+   active and selection — nothing here is gold at rest. */
+.ph-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-0);
+}
+.ph-graph { position: absolute; inset: 0; }
+.ph-graph .home-graph-wrap { width: 100%; height: 100%; }
+.ph-panel {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(760px, calc(100% - 48px));
+  max-height: calc(100% - 64px);
+  overflow-y: auto;
+  padding: 22px 24px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: phPanelIn var(--dur-base) var(--ease);
+}
+@keyframes phPanelIn {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 6px)); }
+  to   { opacity: 1; transform: translate(-50%, -50%); }
+}
+.ph-root.no-graph .ph-panel {
+  /* Phones: the panel is the page. No graph to float over, so it stops being
+     a card in the middle of nothing. */
+  position: relative;
+  left: auto; top: auto;
+  transform: none;
+  width: auto;
+  max-height: none;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  padding: 18px 16px 24px;
+  animation: none;
+}
+.ph-section { display: flex; flex-direction: column; gap: 10px; }
+.ph-eyebrow {
+  font: 600 11px/1 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.ph-jump { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ph-jump-item {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md, 8px);
+  background: transparent;
+  color: var(--ink-0);
+  text-align: left;
+  cursor: pointer;
+}
+.ph-jump-item:hover { background: var(--bg-hov); }
+.ph-jump-item:focus-visible { outline: none; border-color: var(--soleil); }
+.ph-jump-item .ph-thumb { grid-row: 1 / span 2; width: 44px; height: 32px; }
+.ph-jump-name { font: 600 13px/1.25 var(--font-sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ph-jump-when { font: 500 11px/1.25 var(--font-sans); color: var(--ink-2); }
+.ph-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.ph-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md, 8px);
+  background: transparent;
+  color: var(--ink-0);
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+.ph-tile:hover .ph-thumb { transform: translateY(-1px); box-shadow: var(--shadow-2); }
+.ph-tile:focus-visible { outline: none; }
+.ph-tile:focus-visible .ph-thumb { box-shadow: 0 0 0 2px var(--soleil); }
+.ph-thumb {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+  background: var(--bg-2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: transform var(--dur-base) var(--ease), box-shadow var(--dur-base) var(--ease);
+}
+[data-theme='light'] .ph-thumb { border-color: rgba(0, 0, 0, 0.06); }
+.ph-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ph-thumb-empty {
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--ph-tint, #6b6760) 28%, var(--bg-2));
+}
+.ph-thumb-initial { font: 600 22px/1 var(--font-sans); color: var(--ink-1); }
+.ph-thumb-new {
+  display: grid;
+  place-items: center;
+  border-style: dashed;
+  color: var(--ink-2);
+  background: transparent;
+}
+.ph-tile-new:hover .ph-thumb-new { color: var(--ink-0); }
+.ph-tile-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 0 2px; }
+.ph-tile-name { font: 600 13px/1.3 var(--font-sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ph-tile-sub { font: 500 11px/1.3 var(--font-sans); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ph-new-input {
+  width: 100%;
+  padding: 2px 0;
+  border: none;
+  border-bottom: 1px solid var(--soleil);
+  background: transparent;
+  color: var(--ink-0);
+  font: 600 13px/1.3 var(--font-sans);
+  outline: none;
+}
+.ph-explore {
+  align-self: flex-end;
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  background: transparent;
+  color: var(--ink-2);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.ph-explore:hover { color: var(--ink-0); background: var(--bg-hov); }
+.ph-explore:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.ph-projects-pill {
+  position: absolute;
+  z-index: 3;
+  top: 16px;
+  left: 16px;
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(20, 18, 15, 0.72);
+  backdrop-filter: blur(12px) saturate(1.05);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  color: var(--ink-0);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+[data-theme='light'] .ph-projects-pill { background: rgba(255, 252, 246, 0.78); border-color: rgba(10, 9, 8, 0.06); }
+.ph-projects-pill:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .ph-jump { grid-template-columns: minmax(0, 1fr); }
+  .ph-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ph-panel { animation: none; }
+  .ph-thumb { transition: none; }
+}
 
 .home-graph-wrap {
   position: relative;

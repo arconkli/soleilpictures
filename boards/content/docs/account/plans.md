@@ -1,15 +1,15 @@
 ---
 title: Plans and Pricing — Soleil Clusters
-metaDescription: Soleil Clusters is free with {{fact:demoCardLimit}} cards, unlimited clusters and free collaborators. Creator removes the card cap and adds any file type on a {{fact:creatorStorage}} drive.
+metaDescription: Soleil Clusters is free with {{fact:demoCardLimit}} cards and free collaborators. Creator removes the card cap and adds any file type on a {{fact:creatorStorage}} drive.
 h1: Plans and pricing
 navLabel: Plans and pricing
 section: account
 order: 1
 updated: 2026-10-01
-answer: The free Demo plan gives you {{fact:demoCardLimit}} cards, unlimited clusters and unlimited free collaborators. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a {{fact:creatorStorage}} drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+answer: The free Demo plan gives you {{fact:demoCardLimit}} cards — each cluster counts as one — and unlimited free collaborators. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a {{fact:creatorStorage}} drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 faq:
   - q: What is actually limited on the free plan?
-    a: Three things and only three — total cards, which file types you can upload, and how big or long a single file can be (video stops at {{fact:freeVideoCap}} or {{fact:freeVideoSec}}, audio at {{fact:freeAudioCap}}, PDFs at {{fact:freePdfCap}}). Clusters, collaborators and editing are not limited.
+    a: Three things and only three — total cards, which file types you can upload, and how big or long a single file can be (video stops at {{fact:freeVideoCap}} or {{fact:freeVideoSec}}, audio at {{fact:freeAudioCap}}, PDFs at {{fact:freePdfCap}}). Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card.
   - q: Do collaborators need to pay?
     a: No, and they never did — editors are free on every plan. What {{fact:planName}} adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.
   - q: If someone on my team upgrades, does my workspace get the higher limits?
@@ -36,7 +36,7 @@ honest — three enforced limits, listed below, and nothing else.
 ## Demo — free
 
 - **{{fact:demoCardLimit}} cards** to build with
-- Unlimited clusters and boards
+- No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
 
 ## {{fact:planName}}

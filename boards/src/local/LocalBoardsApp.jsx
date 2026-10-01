@@ -36,6 +36,9 @@ import { isReturnQaMode } from '../lib/localMode.js';
 import { AspectMask } from '../components/capture/AspectMask.jsx';
 import { Spotlight } from '../components/capture/Spotlight.jsx';
 import { HomeGraph } from '../components/HomeGraph.jsx';
+import { ProjectsHome } from '../components/ProjectsHome.jsx';
+import { isTopLevelProject, spotBesideContent } from '../lib/projectsHome.js';
+import { ancestorPath } from '../lib/boardTree.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
@@ -341,6 +344,7 @@ export function LocalBoardsApp({ user, signOut }) {
   const [selectedTool, setSelectedTool] = useState('select');
   const [autoFocusId, setAutoFocusId] = useState(null);
   const [currentSurface, setCurrentSurface] = useState('board');
+  const [homeExploring, setHomeExploring] = useState(false);
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph
   const [onboardCoachOpen, setOnboardCoachOpen] = useState(ONBOARD_PREVIEW);
 
@@ -655,6 +659,37 @@ export function LocalBoardsApp({ user, signOut }) {
     // Return the id like App.jsx does — the first-card auto-open reads it, and a
     // harness that silently returned undefined would make the feature look dead
     // in every local test while working in production.
+    return id;
+  };
+
+  // Mirror of App.jsx's addNewProject: the parent is the ROOT whatever board is
+  // open, the root's card goes beside its content (not on it), and the person
+  // lands inside the new project with the root in the breadcrumb.
+  const addNewProject = ({ name = null } = {}) => {
+    const id = createId('board');
+    const w = 280, h = 220;
+    setLocalState(prev => {
+      const rootState = prev.boardState?.[ROOT_ID] || { cards: [], arrows: [], strokes: [] };
+      const spot = spotBesideContent(rootState.cards);
+      return {
+        boards: {
+          ...prev.boards,
+          [id]: {
+            id, kind: 'board', name: name || 'Untitled cluster', view: 'canvas',
+            workspace_id: 'local-workspace', parent_board_id: ROOT_ID,
+            created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+          },
+        },
+        boardState: {
+          ...prev.boardState,
+          [ROOT_ID]: { ...rootState, cards: [...(rootState.cards || []), { id, kind: 'board', x: spot.x, y: spot.y, w, h }] },
+          [id]: { cards: [], arrows: [], strokes: [] },
+        },
+      };
+    });
+    setCurrentSurface('board');
+    setStack([ROOT_ID, id]);
+    recents.push(id);
     return id;
   };
 
@@ -1456,8 +1491,8 @@ export function LocalBoardsApp({ user, signOut }) {
 
   // Reduced command set — the local QA shell has no Settings/Share/Trash modals.
   const localCommands = useMemo(() => [
-    { id: 'new-board', label: 'Create cluster', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'cluster', 'board'],
-      run: () => { setCurrentSurface('board'); addNewBoard(); } },
+    { id: 'new-board', label: 'New project', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'cluster', 'board', 'project'],
+      run: () => { addNewProject(); } },
     { id: 'new-note', label: 'New note', icon: StickyNote, keywords: ['note', 'text', 'add', 'sticky'],
       available: view !== 'list' && currentSurface === 'board',
       run: () => { setCurrentSurface('board'); addNote(); } },
@@ -1627,14 +1662,28 @@ export function LocalBoardsApp({ user, signOut }) {
         </div>
 
         {currentSurface === 'home' ? (
-          <HomeGraph
+          <ProjectsHome
+            boards={boards}
+            rootId={ROOT_ID}
             workspaceId="local-workspace"
-            onNavigate={(target) => {
-              setCurrentSurface('board');
-              if (target?.kind === 'url') { window.open(target.href, '_blank', 'noopener,noreferrer'); return; }
-              if (target?.kind === 'board') setStack([target.id]);
-              if (target?.kind === 'card')  setStack([target.boardId]);
-            }}
+            recents={recents.recents}
+            canCreate
+            exploring={homeExploring}
+            onExplore={setHomeExploring}
+            onOpenBoard={(id) => { setStack(ancestorPath(boards, id)); recents.push(id); setCurrentSurface('board'); }}
+            onNewProject={(name) => addNewProject({ name })}
+            graph={(
+              <HomeGraph
+                workspaceId="local-workspace"
+                backdrop={!homeExploring}
+                onNavigate={(target) => {
+                  setCurrentSurface('board');
+                  if (target?.kind === 'url') { window.open(target.href, '_blank', 'noopener,noreferrer'); return; }
+                  if (target?.kind === 'board') setStack([target.id]);
+                  if (target?.kind === 'card')  setStack([target.boardId]);
+                }}
+              />
+            )}
           />
         ) : view === 'canvas' ? (
           <CanvasSurface
@@ -1648,6 +1697,7 @@ export function LocalBoardsApp({ user, signOut }) {
             boardReady={true}
             firstBoard={isFirstBoardQaMode()}
             firstBoardKind={qaFirstBoardKind()}
+            freshProject={isTopLevelProject(boards, currentBoard?.id, ROOT_ID)}
             /* ?tplqa=<slug> — see TPL_QA_ROW. Dead code in production. */
             justAddedTemplate={qaTemplate}
             onDismissJustAdded={() => setQaTemplate(null)}

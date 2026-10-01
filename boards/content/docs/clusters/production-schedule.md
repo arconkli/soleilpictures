@@ -55,9 +55,10 @@ day, every call sheet — comes with it.
 numbered day for each date. The days arrive empty; open one and **set up this
 day** fills it with the four cards above.
 
-They are created empty on purpose. Clusters are unlimited on every plan, but
-cards are capped on the free plan, and scaffolding sixty days up front would
-spend the whole allowance before anyone had opened one.
+They are created empty on purpose. Each day is a cluster, every cluster sits on
+its parent's canvas as a card, and cards are capped on the free plan — so
+scaffolding sixty days up front, with cards inside them, would spend the whole
+allowance before anyone had opened one.
 
 The date is never written into a day's name. `Day 12` stays `Day 12`; the date
 is rendered from the calendar every time it is shown, so a day that moves twice

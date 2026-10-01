@@ -63,7 +63,7 @@ Screenshots are deliberately sparse. The interface moves faster than screenshots
 ## Frequently asked questions
 
 Q: Is Soleil Clusters free?
-A: Yes. The free Demo plan gives you 50 cards, unlimited clusters, and unlimited collaborators. Creator removes the card limit and adds any-file-type uploads on a 100GB drive.
+A: Yes. The free Demo plan gives you 50 cards — every cluster counts as one — and unlimited collaborators. Creator removes the card limit and adds any-file-type uploads on a 100GB drive.
 
 Q: What is a cluster?
 A: A cluster is a board. The interface says "cluster" everywhere; the API and database call the same object a board. They are the same thing, and the two words are used interchangeably in these docs where the API is involved.
@@ -90,9 +90,9 @@ Go to clusters.soleilpictures.com and enter your email address. You will get a o
 
 New accounts land on a starter cluster with a few cards already on it, so the canvas is never a blank intimidating rectangle. You can delete all of it.
 
-2. Make a cluster
+2. Start a project
 
-Click New cluster in the sidebar, or press ⌘K and type "create cluster".
+Click the + next to Clusters in the sidebar, choose New project on Home, or press ⌘K and type "new project". Each one creates a cluster at the top of your workspace and opens it.
 
 Name it after the thing it is for — a scene, a project, a pitch. Names are searchable later and "Untitled cluster" is not.
 
@@ -185,7 +185,7 @@ A card is one thing on a board. Images, notes, links, documents, PDFs, video, au
 
 Cards carry a position, a size and a stacking order, which is what makes the canvas a canvas rather than a list. Everything else about a card depends on what kind it is — see Cards.
 
-The free Demo plan allows 50 cards in total across every cluster you create. Clusters themselves are unlimited, and so are collaborators.
+The free Demo plan allows 50 cards in total across every cluster you create. There is no separate limit on clusters, but each one sits on its parent's canvas as a card and counts toward that total. Collaborators are unlimited.
 
 Two views of the same cluster
 
@@ -595,7 +595,7 @@ Q: How do I change what kind a card is?
 A: You do not convert cards between kinds. Create the kind you want and move the content across. The one exception is dropping a file, which picks the right kind for you automatically.
 
 Q: Is there a limit on cards?
-A: The free Demo plan allows 50 cards across every cluster you create. Creator removes the limit. Clusters themselves are never capped.
+A: The free Demo plan allows 50 cards across every cluster you create. A cluster sits on its parent's canvas as a card and counts toward that total; there is no separate limit on clusters. Creator removes the limit.
 
 Q: What happens if I delete a card by accident?
 A: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster is a soft delete that stays in the trash for 30 days.
@@ -1770,20 +1770,28 @@ A: Whatever the browser can play — H.264 MP4 and MP3 or WAV are the safe choic
 ========================================================================
 # Clusters
 URL: https://clusters.soleilpictures.com/docs/clusters
-Updated: 2026-08-08
+Updated: 2026-10-01
 
-A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. Clusters are never capped on any plan. Each one gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
+A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 
 A cluster is the unit of work: a project, a scene, a pitch, a moodboard. The code and the API call the same object a board.
 
-Creating one
+Starting a project
 
-New cluster in the sidebar
-⌘K → "create cluster"
-The Add cluster tool on any canvas, which creates it nested inside the current one
-Right-click a canvas → Add → Cluster
+A project is a cluster at the top of your workspace, beside Studio (the cluster everything starts in). Three ways to start one, and all three put it at the top and open it for you:
 
-Clusters are unlimited on every plan, including free. Only cards are capped.
+New project on Home — type a name, press Enter
+The + next to Clusters in the sidebar — name it right in the sidebar
+⌘K → "new project"
+
+A new project opens on the same panel a first board does: paste or drag images in from any tab, or drop a whole folder.
+
+Adding a cluster inside one
+
+The Add cluster tool on any canvas creates a cluster nested inside the one you are in
+Right-click a canvas → Add → Cluster does the same, under your cursor
+
+There is no separate limit on how many clusters you make. Each one sits on its parent's canvas as a card, though, so on the free Demo plan every cluster counts as one of your 50 cards.
 
 Nesting
 
@@ -1837,10 +1845,10 @@ Switching does not convert anything. Settings → Card defaults sets which view 
 
 Finding clusters
 
-The sidebar tree expands lazily, so a deep hierarchy stays fast
+Home lists your projects, newest work first, with the clusters you were last in under Jump back in
+The sidebar tree opens on your projects, most recently worked on first, and expands lazily, so a deep hierarchy stays fast
+All clusters at the bottom of the sidebar's list searches every cluster and opens the one you pick
 ⌘K searches cluster names alongside everything else
-Recents surfaces what you have had open
-Home shows the whole workspace as a relationship graph
 Shared with me groups clusters other people have invited you to, by whose workspace they came from
 
 Deleting
@@ -1850,7 +1858,7 @@ Deleting a cluster is a soft delete. It goes to the trash and stays restorable f
 ## Frequently asked questions
 
 Q: Is there a limit on how many clusters I can make?
-A: No. Clusters are unlimited on every plan, including free. Only cards are capped, at 50 on the free Demo plan.
+A: Not separately. Each cluster sits on the canvas that holds it as a card, and on the free Demo plan that card counts toward your 50 cards, like any other. Creator removes the card limit.
 
 Q: How do I move a cluster somewhere else?
 A: Drag it in the sidebar tree, or drag it onto another cluster's card on a canvas. Moves are cycle-safe — you cannot make a cluster its own ancestor.
@@ -1967,13 +1975,25 @@ A: Yes, in Settings under Defaults. You can also set the view per cluster.
 
 
 ========================================================================
-# Home graph
+# Home
 URL: https://clusters.soleilpictures.com/docs/clusters/home-graph
-Updated: 2026-08-08
+Updated: 2026-10-01
 
-Home shows your workspace as a relationship graph rather than a list — clusters, documents, cards and URLs as connected nodes you can orbit and fly through. Hover a node to preview it, right-click to open, and use the detail drawer for what connects to what. A 2D view is used automatically where 3D would not perform.
+Home shows your projects — the clusters you were last in, every project newest first, and New project — on a panel floating over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Projects brings it back.
 
-Home is the workspace seen as a graph: every cluster, document, card and URL as a node, with edges for the relationships between them.
+Home is where your projects are. Open it from Home in the sidebar or the Clusters logo in the top bar.
+
+Your projects
+
+A panel shows three things:
+
+Jump back in — the clusters you were last in on this device, and when there are none, the ones you worked on most recently anywhere
+Your projects — Studio and every cluster at the top of your workspace, newest work first, each with its thumbnail
+New project — type a name (or don't) and press Enter. The project is created at the top of your workspace and opens, ready for you to paste or drag images in
+
+The graph behind it
+
+Behind the panel is the workspace seen as a graph: every cluster, document, card and URL as a node, with edges for the relationships between them. It stays visible and usable around the panel. Explore universe puts the panel away so the whole graph is yours; Projects brings the panel back.
 
 Why a graph
 
@@ -2008,7 +2028,7 @@ The 3D view needs a capable GPU. Where that is not available — some laptops, m
 
 Performance
 
-The graph is a heavy piece of code and is loaded only when you open Home, so it costs nothing on any other screen.
+The graph is a heavy piece of code and is loaded only when you open Home, so it costs nothing on any other screen. The projects panel does not wait for it. On a phone, Home is the panel alone, and the graph is never loaded.
 
 When to use something else
 
@@ -2018,14 +2038,17 @@ Finding everything on a theme — tags
 
 ## Frequently asked questions
 
-Q: What do the connections represent?
+Q: What is a project here?
+A: A cluster at the top of your workspace, beside Studio. New project on Home, the + next to Clusters in the sidebar, and ⌘K → "new project" all create one at the top and open it.
+
+Q: How do I see the whole graph?
+A: Press Explore universe on the panel. The panel slides away and the graph is yours to orbit and fly through; Projects brings the panel back. Clusters remembers which one you left on, per device.
+
+Q: What do the connections in the graph represent?
 A: Real relationships — nesting, links between documents, mentions, and shared URLs. The graph is derived from your content, not arranged by hand.
 
-Q: Is this just decorative?
-A: It is genuinely useful on a large workspace, where a tree hides the fact that two projects reference the same material. On a small workspace the sidebar is faster.
-
 Q: What if 3D is slow on my machine?
-A: A 2D fallback renders automatically. The graph and its interactions are the same.
+A: A 2D fallback renders automatically. The graph and its interactions are the same. On a phone, Home shows the projects panel on its own.
 
 
 ========================================================================
@@ -2056,7 +2079,7 @@ Laying it out
 
 Add days takes a date range, optionally skips weekends, and creates a numbered day for each date. The days arrive empty; open one and set up this day fills it with the four cards above.
 
-They are created empty on purpose. Clusters are unlimited on every plan, but cards are capped on the free plan, and scaffolding sixty days up front would spend the whole allowance before anyone had opened one.
+They are created empty on purpose. Each day is a cluster, every cluster sits on its parent's canvas as a card, and cards are capped on the free plan — so scaffolding sixty days up front, with cards inside them, would spend the whole allowance before anyone had opened one.
 
 The date is never written into a day's name. Day 12 stays Day 12; the date is rendered from the calendar every time it is shown, so a day that moves twice still reads correctly everywhere.
 
@@ -2637,9 +2660,9 @@ What it does
 The palette also runs commands. Type the verb rather than the noun:
 
 Command | Effect
-Create cluster | A new board
+New project | A new cluster at the top of your workspace, opened
 New note | A note on the current board
-Go to Home | The relationship graph
+Go to Home | Your projects, over the relationship graph
 Link a cluster onto canvas | Place a reference to another board
 Open split view | Two boards side by side
 Share this cluster | The share dialog
@@ -3405,14 +3428,14 @@ A: Under Connections, alongside Soleil Scout and any apps you have approved. Tok
 URL: https://clusters.soleilpictures.com/docs/account/plans
 Updated: 2026-10-01
 
-The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+The free Demo plan gives you 50 cards — each cluster counts as one — and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 
 Two plans. The difference between them is deliberately small and deliberately honest — three enforced limits, listed below, and nothing else.
 
 Demo — free
 
 50 cards to build with
-Unlimited clusters and boards
+No separate limit on clusters — each one counts as one of your cards
 Free collaboration — invite editors to any cluster
 
 Creator
@@ -3488,7 +3511,7 @@ More on the free tier specifically: free mood board maker.
 ## Frequently asked questions
 
 Q: What is actually limited on the free plan?
-A: Three things and only three — total cards, which file types you can upload, and how big or long a single file can be (video stops at 30 MB or 60 seconds, audio at 50 MB, PDFs at 50 MB). Clusters, collaborators and editing are not limited.
+A: Three things and only three — total cards, which file types you can upload, and how big or long a single file can be (video stops at 30 MB or 60 seconds, audio at 50 MB, PDFs at 50 MB). Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card.
 
 Q: Do collaborators need to pay?
 A: No, and they never did — editors are free on every plan. What Creator adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.
@@ -3674,7 +3697,7 @@ Tablets get closer to the desktop layout — the rail rather than the sheet — 
 
 Drawing is on the rail directly on touch, and in the add sheet, rather than behind the D shortcut there is no keyboard for. A stylus draws with pressure; flipping it over erases. The full-screen sketch pad goes edge to edge, with pinch-to-zoom inside the frame for detail work. Its chrome is two rows that never scroll — leaving and committing on one, the tools and Layers on the other — with the brushes, colours and sizes a tap behind the chip showing what you are drawing with, and the frame formats offered on the bar itself while the frame is still empty.
 
-The Home graph renders its 2D fallback on most tablets, which has the same nodes and interactions.
+On a phone or a touch tablet, Home is your projects on their own: the boards you were last in, every project, and New project. The 3D workspace graph is left for larger screens, and is never loaded here.
 
 Installing
 
@@ -3707,7 +3730,7 @@ Q: Why did my finger stop drawing?
 A: Because a stylus was used on this device, so the finger became a pan gesture — that is how palm rejection works. Turn "Draw with finger" back on under Brush in the draw options.
 
 Q: Is anything unavailable on mobile?
-A: Nothing is removed, but dense surfaces like long documents and the 3D home graph are much better on a large screen. The graph falls back to 2D on tablets.
+A: Nothing that matters is removed, but dense surfaces like long documents are much better on a large screen. On a phone or a touch tablet, Home shows your projects on their own, without the 3D workspace graph behind them.
 
 
 ========================================================================

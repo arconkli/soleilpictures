@@ -25,9 +25,9 @@ The palette also runs commands. Type the verb rather than the noun:
 
 | Command | Effect |
 |---|---|
-| Create cluster | A new board |
+| New project | A new cluster at the top of your workspace, opened |
 | New note | A note on the current board |
-| Go to Home | The [relationship graph](/docs/clusters/home-graph) |
+| Go to Home | [Your projects](/docs/clusters/home-graph), over the relationship graph |
 | Link a cluster onto canvas | Place a reference to another board |
 | Open split view | [Two boards side by side](/docs/clusters#side-by-side) |
 | Share this cluster | The [share dialog](/docs/collaborate/sharing) |

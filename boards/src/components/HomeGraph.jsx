@@ -44,7 +44,11 @@ const HALO_TEXTURE = (() => {
 // 3D workspace graph home. Force-directed via react-force-graph-3d.
 //   workspaceId — required
 //   onNavigate(target) — open the entity in the existing board surface
-export function HomeGraph({ workspaceId, onNavigate }) {
+// `backdrop`: Home now floats a projects panel over this graph. In that mode
+// the graph is scenery that can still be orbited and clicked, so its own
+// messages (the empty state, the "link things with @" hint) stay out of the way
+// of the panel, which is what Home is saying.
+export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
   const fgRef = useRef(null);
   const containerRef = useRef(null);
   const [data, setData] = useState({ nodes: [], links: [] });
@@ -195,6 +199,10 @@ export function HomeGraph({ workspaceId, onNavigate }) {
     let lastT = performance.now();
     let detachInteract = null;
     const tiltAxis = new THREE.Vector3(0.35, 1, 0.18).normalize();
+    // The drift is ambient motion nobody asked for. CSS prefers-reduced-motion
+    // cannot reach a WebGL camera, so it is honoured here, in the loop.
+    let reduceMotion = false;
+    try { reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) {}
     const tryAttach = () => {
       const controls = fgRef.current?.controls?.();
       const camera = fgRef.current?.camera?.();
@@ -231,7 +239,7 @@ export function HomeGraph({ workspaceId, onNavigate }) {
         const now = performance.now();
         const dt = Math.min(0.05, (now - lastT) / 1000);
         lastT = now;
-        if (!selected && !interacting) {
+        if (!selected && !interacting && !reduceMotion) {
           // ~0.085 rad/s around a tilted axis = leisurely diagonal drift.
           const rel = camera.position.clone().sub(controls.target);
           rel.applyAxisAngle(tiltAxis, 0.085 * dt);
@@ -387,7 +395,7 @@ export function HomeGraph({ workspaceId, onNavigate }) {
   if (loaded && filtered.nodes.length === 0) {
     return (
       <div className="home-graph-wrap" ref={setContainer}>
-        <HomeEmptyState />
+        {!backdrop && <HomeEmptyState />}
       </div>
     );
   }
@@ -402,7 +410,7 @@ export function HomeGraph({ workspaceId, onNavigate }) {
 
   // A 3-node constellation floating in the dark reads as "unfinished", not
   // "get started" — give sparse graphs a quiet next-step nudge.
-  const sparseHint = filtered.nodes.length > 0 && filtered.nodes.length < 5 ? (
+  const sparseHint = !backdrop && filtered.nodes.length > 0 && filtered.nodes.length < 5 ? (
     <div className="home-sparse-hint" aria-hidden="true">
       Your map grows as you link things — type @ in any doc or note to connect boards, docs, and cards.
     </div>

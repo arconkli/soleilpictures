@@ -174,6 +174,39 @@ const EMPTY_TILES = [
   { id: 'doc',    label: 'Doc',      icon: FileText },
   { id: 'file',   label: 'Any file', icon: Upload },
 ];
+// The name of a project that was just started, in the empty panel's headline
+// slot. Deliberately NOT autofocused: the panel's whole ask is "paste or drag
+// images in", and a focused text input would swallow that paste. Untitled
+// shows as an empty field with the ask as its placeholder.
+const UNTITLED_RE = /^Untitled (cluster|list)$/i;
+function ProjectNameField({ board, onRename }) {
+  const named = board?.name && !UNTITLED_RE.test(board.name) ? board.name : '';
+  const [draft, setDraft] = useState(named);
+  useEffect(() => { setDraft(named); /* a different board, or a rename from elsewhere */ }, [board?.id, named]);
+  const commit = () => {
+    const t = draft.trim();
+    if (!t || t === board?.name) return;
+    onRename?.(t);
+  };
+  return (
+    <input className="cnv-empty-project-name"
+           type="text"
+           value={draft}
+           maxLength={120}
+           placeholder="Name this project"
+           aria-label="Project name"
+           spellCheck={false}
+           onChange={(e) => setDraft(e.target.value)}
+           onKeyDown={(e) => {
+             e.stopPropagation();
+             if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+             if (e.key === 'Escape') { e.preventDefault(); setDraft(named); e.currentTarget.blur(); }
+           }}
+           onBlur={commit}
+           onPointerDown={(e) => e.stopPropagation()} />
+  );
+}
+
 function RotatingWord({ words = BREADTH_WORDS, intervalMs = 2000 }) {
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -455,6 +488,11 @@ export function CanvasSurface({
                            // writing tiles, never a container (lib/firstBoardCopy).
   firstBoardKind = null,   // 'references' | 'moodboard' | 'storyboard' | null —
                            // shapes the first board's headline and hero verb.
+  freshProject = false,    // an empty TOP-LEVEL cluster (a project): it gets the
+                           // first board's treatment — material from elsewhere,
+                           // writing tiles, no empty containers as peers — and a
+                           // name field in place of the rotating headline. A
+                           // next project starts the way a first one does.
   paneId = 'main',         // which pane this surface is ('main' | 'split') —
                            // arbitrates the window-level keyboard/paste
                            // listeners so a split view doesn't double-fire
@@ -1462,7 +1500,8 @@ export function CanvasSurface({
   // every visit — and logged empty_board_shown on boards holding dozens of cards.
   const emptyPanelVisible = canEdit && !isPublic && boardReady
     && (firstCardPrompt || (cards.length === 0 && !(strokes?.length) && !(arrows?.length)));
-  const panelTiles = firstBoard ? EMPTY_TILES.filter((t) => FIRST_BOARD_TILE_IDS.includes(t.id)) : EMPTY_TILES;
+  const firstLike = firstBoard || freshProject;
+  const panelTiles = firstLike ? EMPTY_TILES.filter((t) => FIRST_BOARD_TILE_IDS.includes(t.id)) : EMPTY_TILES;
   const panelCopy = firstBoardCopy(firstBoard ? firstBoardKind : null, { coarse: isPhone });
   useEffect(() => {
     if (!emptyPanelVisible || !board?.id) return;
@@ -1472,12 +1511,12 @@ export function CanvasSurface({
     logEventOnce(`empty_board_shown:${board.id}`, EV.EMPTY_BOARD_SHOWN, {
       board_id: board.id,
       tiles_n: panelTiles.length + 1,        // rendered tiles plus the hero
-      variant: firstBoard ? 'first' : 'full',
+      variant: firstBoard ? 'first' : freshProject ? 'project' : 'full',
       kind: firstBoard ? (firstBoardKind || null) : null,
       is_prompt: !!firstCardPrompt,          // shown over a seeded board, not a bare one
       escalated: !!frictionStuck,            // they'd already tripped the stuck signal
     });
-  }, [emptyPanelVisible, board?.id, firstCardPrompt, frictionStuck, firstBoard, firstBoardKind, panelTiles.length]);
+  }, [emptyPanelVisible, board?.id, firstCardPrompt, frictionStuck, firstBoard, freshProject, firstBoardKind, panelTiles.length]);
 
   // ── Depth dock ──
   // The panel above is the only place the product says "pick several at once",
@@ -10885,12 +10924,16 @@ export function CanvasSurface({
         // what it is (lib/firstBoardCopy.js).
         const runTile = (id) => { markViewSettled(); return buildAddActions(emptyCenterPos(), 'empty_cta').find((a) => a.id === id)?.run(); };
         return (
-        <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}${firstCardPrompt ? ' is-prompt' : ''}${firstBoard ? ' is-first' : ''}`}
+        <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}${firstCardPrompt ? ' is-prompt' : ''}${firstBoard ? ' is-first' : ''}${freshProject && !firstBoard ? ' is-project' : ''}`}
              aria-label="Add your first images"
              role={frictionStuck ? 'status' : 'group'}>
-          <div className="cnv-empty-tiles-head">
-            {panelCopy.head ? panelCopy.head : <>Start your <RotatingWord words={firstBoard ? FIRST_BOARD_WORDS : BREADTH_WORDS} /></>}
-          </div>
+          {freshProject && !firstBoard ? (
+            <ProjectNameField board={board} onRename={(name) => mutators.renameBoardById?.(board.id, name)} />
+          ) : (
+            <div className="cnv-empty-tiles-head">
+              {panelCopy.head ? panelCopy.head : <>Start your <RotatingWord words={firstLike ? FIRST_BOARD_WORDS : BREADTH_WORDS} /></>}
+            </div>
+          )}
           <div className="cnv-empty-tiles-breadth">Moodboards, scripts, shot lists — every asset, one canvas.</div>
           <button type="button" className="cnv-empty-tile cnv-empty-tile-hero"
                   onPointerDown={(e) => e.stopPropagation()}

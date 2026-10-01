@@ -1,21 +1,34 @@
 # Clusters
 
-> A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. Clusters are never capped on any plan. Each one gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
+> A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/clusters · Updated 2026-10-01_
 
 A cluster is the unit of work: a project, a scene, a pitch, a moodboard. The
 code and the [API](/docs/api/boards) call the same object a **board**.
 
-## Creating one
+## Starting a project
 
-- **New cluster** in the sidebar
-- `⌘K` → "create cluster"
-- The **Add cluster** tool on any canvas, which creates it nested inside the current one
-- Right-click a canvas → Add → Cluster
+A project is a cluster at the top of your workspace, beside **Studio** (the
+cluster everything starts in). Three ways to start one, and all three put it at
+the top and open it for you:
 
-Clusters are **unlimited on every plan**, including free. Only
-[cards](/docs/canvas/cards) are capped.
+- **New project** on [Home](/docs/clusters/home-graph) — type a name, press Enter
+- The **+** next to **Clusters** in the sidebar — name it right in the sidebar
+- `⌘K` → "new project"
+
+A new project opens on the same panel a first board does: paste or drag images
+in from any tab, or drop a whole folder.
+
+## Adding a cluster inside one
+
+- The **Add cluster** tool on any canvas creates a cluster nested inside the one
+  you are in
+- Right-click a canvas → Add → Cluster does the same, under your cursor
+
+There is no separate limit on how many clusters you make. Each one sits on its
+parent's canvas as a card, though, so on the free Demo plan every cluster counts
+as one of your 50 [cards](/docs/canvas/cards).
 
 ## Nesting
 
@@ -90,10 +103,13 @@ clusters open in.
 
 ## Finding clusters
 
-- **The sidebar tree** expands lazily, so a deep hierarchy stays fast
+- **[Home](/docs/clusters/home-graph)** lists your projects, newest work first,
+  with the clusters you were last in under **Jump back in**
+- **The sidebar tree** opens on your projects, most recently worked on first,
+  and expands lazily, so a deep hierarchy stays fast
+- **All clusters** at the bottom of the sidebar's list searches every cluster
+  and opens the one you pick
 - **[`⌘K`](/docs/organize/search)** searches cluster names alongside everything else
-- **Recents** surfaces what you have had open
-- **[Home](/docs/clusters/home-graph)** shows the whole workspace as a relationship graph
 - **Shared with me** groups clusters other people have invited you to, by whose workspace they came from
 
 ## Deleting

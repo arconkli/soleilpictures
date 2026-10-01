@@ -101,7 +101,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is Soleil Clusters free?",
-        "a": "Yes. The free Demo plan gives you 50 cards, unlimited clusters, and unlimited collaborators. Creator removes the card limit and adds any-file-type uploads on a 100GB drive."
+        "a": "Yes. The free Demo plan gives you 50 cards — every cluster counts as one — and unlimited collaborators. Creator removes the card limit and adds any-file-type uploads on a 100GB drive."
       },
       {
         "q": "What is a cluster?",
@@ -133,8 +133,8 @@ export const DOCS_PAGES = [
         "text": "1. Sign in"
       },
       {
-        "id": "2-make-a-cluster",
-        "text": "2. Make a cluster"
+        "id": "2-start-a-project",
+        "text": "2. Start a project"
       },
       {
         "id": "3-get-things-onto-the-canvas",
@@ -452,7 +452,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Is there a limit on cards?",
-        "a": "The free Demo plan allows 50 cards across every cluster you create. Creator removes the limit. Clusters themselves are never capped."
+        "a": "The free Demo plan allows 50 cards across every cluster you create. A cluster sits on its parent's canvas as a card and counts toward that total; there is no separate limit on clusters. Creator removes the limit."
       },
       {
         "q": "What happens if I delete a card by accident?",
@@ -1277,15 +1277,19 @@ export const DOCS_PAGES = [
     "title": "Clusters and Nesting — Soleil Clusters",
     "metaDescription": "Create, nest, rename and organize clusters in Soleil Clusters. Unlimited nesting, cover images, thumbnails, moving boards and the sidebar tree.",
     "h1": "Clusters",
-    "answer": "A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. Clusters are never capped on any plan. Each one gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.",
+    "answer": "A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.",
     "section": "clusters",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-10-01",
     "navLabel": "Overview",
     "headings": [
       {
-        "id": "creating-one",
-        "text": "Creating one"
+        "id": "starting-a-project",
+        "text": "Starting a project"
+      },
+      {
+        "id": "adding-a-cluster-inside-one",
+        "text": "Adding a cluster inside one"
       },
       {
         "id": "nesting",
@@ -1320,7 +1324,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is there a limit on how many clusters I can make?",
-        "a": "No. Clusters are unlimited on every plan, including free. Only cards are capped, at 50 on the free Demo plan."
+        "a": "Not separately. Each cluster sits on the canvas that holds it as a card, and on the free Demo plan that card counts toward your 50 cards, like any other. Creator removes the card limit."
       },
       {
         "q": "How do I move a cluster somewhere else?",
@@ -1406,15 +1410,23 @@ export const DOCS_PAGES = [
   },
   {
     "path": "/docs/clusters/home-graph",
-    "title": "Home Graph — Soleil Clusters",
-    "metaDescription": "The Home view in Soleil Clusters shows your whole workspace as a 3D relationship graph of clusters, documents, cards and links you can fly through.",
-    "h1": "Home graph",
-    "answer": "Home shows your workspace as a relationship graph rather than a list — clusters, documents, cards and URLs as connected nodes you can orbit and fly through. Hover a node to preview it, right-click to open, and use the detail drawer for what connects to what. A 2D view is used automatically where 3D would not perform.",
+    "title": "Home — Your Projects and Workspace Graph — Soleil Clusters",
+    "metaDescription": "Home in Soleil Clusters shows your projects — where you left off, every project newest first, New project — over a 3D graph of your workspace.",
+    "h1": "Home",
+    "answer": "Home shows your projects — the clusters you were last in, every project newest first, and New project — on a panel floating over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Projects brings it back.",
     "section": "clusters",
     "order": 2,
-    "updated": "2026-08-08",
-    "navLabel": "Home graph",
+    "updated": "2026-10-01",
+    "navLabel": "Home",
     "headings": [
+      {
+        "id": "your-projects",
+        "text": "Your projects"
+      },
+      {
+        "id": "the-graph-behind-it",
+        "text": "The graph behind it"
+      },
       {
         "id": "why-a-graph",
         "text": "Why a graph"
@@ -1447,16 +1459,20 @@ export const DOCS_PAGES = [
     ],
     "faq": [
       {
-        "q": "What do the connections represent?",
+        "q": "What is a project here?",
+        "a": "A cluster at the top of your workspace, beside Studio. New project on Home, the + next to Clusters in the sidebar, and ⌘K → \"new project\" all create one at the top and open it."
+      },
+      {
+        "q": "How do I see the whole graph?",
+        "a": "Press Explore universe on the panel. The panel slides away and the graph is yours to orbit and fly through; Projects brings the panel back. Clusters remembers which one you left on, per device."
+      },
+      {
+        "q": "What do the connections in the graph represent?",
         "a": "Real relationships — nesting, links between documents, mentions, and shared URLs. The graph is derived from your content, not arranged by hand."
       },
       {
-        "q": "Is this just decorative?",
-        "a": "It is genuinely useful on a large workspace, where a tree hides the fact that two projects reference the same material. On a small workspace the sidebar is faster."
-      },
-      {
         "q": "What if 3D is slow on my machine?",
-        "a": "A 2D fallback renders automatically. The graph and its interactions are the same."
+        "a": "A 2D fallback renders automatically. The graph and its interactions are the same. On a phone, Home shows the projects panel on its own."
       }
     ]
   },
@@ -2539,9 +2555,9 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/account/plans",
     "title": "Plans and Pricing — Soleil Clusters",
-    "metaDescription": "Soleil Clusters is free with 50 cards, unlimited clusters and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.",
+    "metaDescription": "Soleil Clusters is free with 50 cards and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.",
     "h1": "Plans and pricing",
-    "answer": "The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
+    "answer": "The free Demo plan gives you 50 cards — each cluster counts as one — and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
     "section": "account",
     "order": 1,
     "updated": "2026-10-01",
@@ -2596,7 +2612,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "What is actually limited on the free plan?",
-        "a": "Three things and only three — total cards, which file types you can upload, and how big or long a single file can be (video stops at 30 MB or 60 seconds, audio at 50 MB, PDFs at 50 MB). Clusters, collaborators and editing are not limited."
+        "a": "Three things and only three — total cards, which file types you can upload, and how big or long a single file can be (video stops at 30 MB or 60 seconds, audio at 50 MB, PDFs at 50 MB). Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card."
       },
       {
         "q": "Do collaborators need to pay?",
@@ -2780,7 +2796,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Is anything unavailable on mobile?",
-        "a": "Nothing is removed, but dense surfaces like long documents and the 3D home graph are much better on a large screen. The graph falls back to 2D on tablets."
+        "a": "Nothing that matters is removed, but dense surfaces like long documents are much better on a large screen. On a phone or a touch tablet, Home shows your projects on their own, without the 3D workspace graph behind them."
       }
     ]
   },

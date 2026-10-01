@@ -1,6 +1,6 @@
 # Plans and pricing
 
-> The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+> The free Demo plan gives you 50 cards — each cluster counts as one — and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 
 _Source: https://clusters.soleilpictures.com/docs/account/plans · Updated 2026-10-01_
 
@@ -10,7 +10,7 @@ honest — three enforced limits, listed below, and nothing else.
 ## Demo — free
 
 - **50 cards** to build with
-- Unlimited clusters and boards
+- No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
 
 ## Creator

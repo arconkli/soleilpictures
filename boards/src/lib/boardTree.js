@@ -51,6 +51,28 @@ export function boardDepth(boards, id) {
   return depth;
 }
 
+// The stack that reaches a board from the root: [root, …, id]. Jumping to a
+// board used to set the stack to [id] alone, so the breadcrumb lost "Studio" and
+// every parent for the rest of the session. Falls back to [id] when the chain is
+// broken or loops — never a partial path that names the wrong parents.
+export function ancestorPath(boards, id) {
+  if (id == null) return [];
+  const path = [];
+  const visited = new Set();
+  let cur = getBoard(boards, id);
+  if (!cur) return [id];
+  while (cur) {
+    if (visited.has(cur.id)) return [id];
+    visited.add(cur.id);
+    path.unshift(cur.id);
+    if (cur.parent_board_id == null) return path;
+    const parent = getBoard(boards, cur.parent_board_id);
+    if (!parent) return [id];
+    cur = parent;
+  }
+  return [id];
+}
+
 // Collect every board id in the subtree rooted at `rootId` (EXCLUDING the root
 // itself). Used to scope the cluster-browser's "search / presence includes
 // descendants" pass. BFS over parent_board_id with a visited guard against

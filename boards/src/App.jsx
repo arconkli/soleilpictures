@@ -131,7 +131,8 @@ import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensu
 import { undoToast } from './lib/undoToast.js';
 import { cardIndexWeight } from './lib/cardIndexRow.js';
 import { forceBoardThumbnail, boardDoc } from './lib/yboard.js';
-import { boardDepth, planReparent } from './lib/boardTree.js';
+import { ancestorPath, boardDepth, planReparent } from './lib/boardTree.js';
+import { isTopLevelProject, projectList, projectOfferDue, spotBesideContent } from './lib/projectsHome.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
@@ -139,8 +140,8 @@ import { evaluateDemoCap, rejectedNoun, DEMO_CARD_LIMIT } from './lib/demoCardCa
 import { planImport } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap, shouldWarnNearCapNow } from './lib/upsellEligibility.js';
 import { nearCapWarnedAt, markNearCapWarned, markPriceSeen } from './lib/upsellLatches.js';
-import { stampUpgradePrompt } from './lib/upgradePrompts.js';
-import { CTA, nearCapSentence, PLAN_NAME, CREATOR_TRIAL_DAYS } from './lib/billingCopy.js';
+import { readUpgradePrompts, stampUpgradePrompt } from './lib/upgradePrompts.js';
+import { CTA, nearCapSentence, newProjectSentence, PLAN_NAME, CREATOR_TRIAL_DAYS } from './lib/billingCopy.js';
 import { creatorTrialEligibility, trialAwaitingServer } from './lib/creatorTrial.js';
 import { notePendingImport, readCheckoutReturn, clearCheckoutReturn } from './lib/checkoutReturn.js';
 import { importDroppedScripts, reportSkippedFiles } from './lib/dropOutcomes.js';
@@ -185,6 +186,9 @@ import { lazyWithReload } from './lib/lazyWithReload.js';
 // renders on the Home view. Keeping it out of the eager App bundle means a board
 // canvas no longer downloads the 3D-graph libs.
 const HomeGraph = lazyWithReload(() => import('./components/HomeGraph.jsx').then(m => ({ default: m.HomeGraph })));
+// Home's projects panel is light (no three.js), so it is eager: the panel paints
+// at once while the graph behind it loads lazily.
+import { ProjectsHome } from './components/ProjectsHome.jsx';
 // Lazy for the same reason, one step removed: DocCard is the CanvasSurface
 // chunk's, and it reaches the TipTap stack. Importing it statically here would
 // haul both toward AppShell for every signed-in user, when only the people who
@@ -602,6 +606,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // once the hook exists; only ever invoked at runtime, so the ref is populated.
   const tourFireRef = useRef(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [browsePickerOpen, setBrowsePickerOpen] = useState(false);
   // Canvas-space point the "Linked cluster" picker was opened FROM (right-click
   // Add / rail), so the picked boardlink lands under the cursor. Ref, not state:
   // nothing re-renders on it. Rewritten on EVERY open (null for pos-less flows
@@ -2676,6 +2681,65 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       return null;
     };
+    // ── A new PROJECT: a cluster at the top level, opened, ready for material ──
+    // Every create path made the new cluster INSIDE whatever board was open, so
+    // someone sitting in their first project who clicked "+" got the second one
+    // nested inside it — unnamed, at a random spot, unopened. Most clusters made
+    // after a person's first day were never renamed, and many were deleted. The
+    // sidebar "+", cmd-K "Create cluster" and Home's "New project" come here
+    // instead: the parent is the ROOT, and the person lands inside it.
+    //
+    // The canvas tool and the add menu keep nesting on purpose — dropping a box
+    // on a canvas is "add a sub-cluster here", and that is what people mean.
+    const addNewProject = async ({ via = 'new_project', name = null } = {}) => {
+      if (!rootBoard?.id) return null;
+      // On the root itself the ordinary path is exactly right: the card lands on
+      // this canvas and addCard checks the cap. Only the opening is new.
+      if (boardId === rootBoard.id) {
+        // Beside the first project's references, not on top of them.
+        const d0 = defaultsRef.current?.board || {};
+        const w0 = d0.w || 280, h0 = d0.h || 220;
+        const spot = spotBesideContent(boardId === currentId ? ybCardsRef.current : []);
+        const id = await addNewBoard({ x: spot.x + w0 / 2, y: spot.y + h0 / 2 },
+          { via, openAfter: true, ...(name ? { name } : {}) });
+        if (id) projectCreatedRef.current?.(id, { via });
+        return id;
+      }
+      // Anywhere else the root's canvas is not loaded, so the root's card for
+      // this cluster arrives through the reconcile effect the next time the root
+      // opens. Ask the cap NOW, the way addCard would, so a project is never
+      // made whose own card would then be refused.
+      const cs = capSource();
+      if (cs.capped) {
+        const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: 1, limit: cs.limit });
+        if (capHit) { noteBlocked('demo_cap'); surfaceCapHit(cs); return null; }
+      }
+      const d = defaultsRef.current?.board || {};
+      const view = d.view || 'canvas';
+      try {
+        const b = await createBoard({
+          workspaceId: workspace.id,
+          parentBoardId: rootBoard.id,
+          name: name || (view === 'list' ? 'Untitled list' : 'Untitled cluster'),
+          view, userId: user.id,
+          cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
+        });
+        try {
+          logEvent(EV.CLUSTER_CREATE, { via, parent_depth: 0, opened: true, board_id: b.id });
+        } catch (_) {}
+        // Its card on the root counts once the reconcile places it; move the
+        // cached count now so the next add gates on it.
+        if (cs.own) myTier.notePlaced?.(1);
+        await refreshBoards();
+        projectOpenRef.current?.(b.id);
+        projectCreatedRef.current?.(b.id, { via });
+        return b.id;
+      } catch (e) {
+        console.error('createBoard (project) failed', e);
+        feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
+      }
+      return null;
+    };
     // ── Board-delete-aware undo/redo ──────────────────────────────────────
     // Deleting a board card soft-deletes the board row in Postgres
     // (boards.deleted_at), which the in-session Yjs UndoManager can't reverse
@@ -3323,7 +3387,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       createGroup, ungroup, renameGroup, setGroupOutline,
       addToGroup, removeFromGroup,
       addArrow, addFreeArrow, deleteArrows, updateArrow,
-      addNote, addTextLink, addImageAt, addPdfAt, ingestFilesArranged, updateCardSilent, addNewBoard, addPalette,
+      addNote, addTextLink, addImageAt, addPdfAt, ingestFilesArranged, updateCardSilent, addNewBoard, addNewProject, addPalette,
       addDocCard, addScriptCard, addGrid,
       resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, applyGridLayout, setGridCellContent, clearGridCellContent, removeGridCellRecord,
       setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
@@ -3437,14 +3501,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     );
     if (missing.length === 0) return;
     const w = 280, h = 200;
-    // Find a clean spot — append to the right of existing board cards.
-    const boardCards = yb.cards.filter(c => c.kind === 'board');
-    const maxRight = boardCards.reduce((m, c) => Math.max(m, c.x + c.w), 60);
-    const baseY = 60;
+    // A clean spot beside EVERYTHING on the canvas, top-aligned. It used to
+    // append beside other cluster cards only, so a project made from the sidebar
+    // landed on top of the root's images — and the root is where the first
+    // project's images are.
+    const spot = spotBesideContent(yb.cards, { gap: 40 });
     const newCards = missing.map((b, i) => ({
       id: b.id, kind: 'board',
-      x: maxRight + 20 + i * (w + 20),
-      y: baseY,
+      x: spot.x + i * (w + 20),
+      y: spot.y,
       w, h,
     }));
     mainMutators.addCards?.(newCards);
@@ -3875,6 +3940,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     () => guardCaptureMutators(mainMutatorsFull), [mainMutatorsFull]);
 
   const [currentSurface, setCurrentSurface] = useState('board');
+  // Home's panel put away to explore the graph. Per device, like the sidebar's
+  // open state: someone who prefers the universe keeps it.
+  const HOME_EXPLORE_KEY = 'soleil.home.exploring';
+  const [homeExploring, setHomeExploringState] = useState(() => {
+    try { return localStorage.getItem(HOME_EXPLORE_KEY) === '1'; } catch (_) { return false; }
+  });
+  const setHomeExploring = (open) => {
+    setHomeExploringState(!!open);
+    try { localStorage.setItem(HOME_EXPLORE_KEY, open ? '1' : '0'); } catch (_) {}
+    try { logEvent(EV.HOME_EXPLORE, { open: !!open }); } catch (_) {}
+  };
+  // One row per arrival at Home, never per render: is Home a place people go
+  // to get back to their work, and how many projects does it show them.
+  useEffect(() => {
+    if (currentSurface !== 'home') return;
+    try {
+      logEvent(EV.HOME_VIEW, {
+        exploring: !!homeExploring,
+        projects_n: projectList(boards, rootBoard.id, { workspaceId: workspace.id }).length,
+      });
+    } catch (_) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSurface]);
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph;
   //   'tag'   = TagDetailView keyed by activeTag
   const [activeTag, setActiveTag] = useState(null); // tag row {id,name,color,...} or null
@@ -4584,6 +4672,71 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     setUpgradeReason('near-cap');
   }, []);
 
+  // ── A new project: where it lands, and (once) the trial near the ceiling ──
+  // The mutators memo is built long before this line, so addNewProject reaches
+  // navigation and the offer through refs — the same reason showNearCapToastRef
+  // is a ref.
+  //
+  // Opening sets the WHOLE stack, [root, project]: the project is a sibling of
+  // the board the person was in, not a child of it, and openBoard() would have
+  // pushed it under project one in the breadcrumb.
+  const projectOpenRef = useRef(null);
+  projectOpenRef.current = (id) => {
+    setCurrentSurface('board');
+    setStack([rootBoard.id, id]);
+    recents.push(id);
+    try { logEvent(EV.BOARD_OPEN, { board_id: id, depth: 1, is_subboard: true }); } catch (_) {}
+  };
+  // The sidebar's "+" asks for the name right where it was clicked, through
+  // the tree's own inline rename. Never by focusing a field on the canvas: a
+  // focused text input swallows the image paste the empty project asks for.
+  const [projectRenameRequest, setProjectRenameRequest] = useState(null);
+  // Once per account (server stamp) and once per page (ref): starting another
+  // project at or past 60% of the cap is when "every project" meets the free
+  // plan. Trial-only — an account that cannot be offered the trial is not
+  // pitched a price here instead; it has the near-cap toast and the wall.
+  const projectOfferShownRef = useRef(false);
+  const offerTrialForProject = async () => {
+    try {
+      if (projectOfferShownRef.current) return;
+      if (myTier.tier !== 'demo' || workspace?.created_by !== user?.id) return;
+      const limit = Number(myTier.effectiveCardLimit) || 0;
+      const count = Number(myTier.demoCardCount) || 0;
+      if (!projectOfferDue({ count, limit })) return;
+      const trial = {
+        tier: myTier.tier, cards: myTier.serverCardCount, cardLimit: limit,
+        trialStartedAt: myTier.creatorTrialStartedAt,
+      };
+      if (!creatorTrialEligibility(trial).eligible) return;
+      if (trialAwaitingServer({ ...trial, cards: count, serverCards: myTier.serverCardCount })) return;
+      projectOfferShownRef.current = true;
+      const prompts = await readUpgradePrompts();
+      if (prompts?.project_offer_at) return;
+      if (!claimUpsellSlot('cap-toast')) { projectOfferShownRef.current = false; return; }
+      stampUpgradePrompt({ project_offer_at: new Date().toISOString() });
+      logEventOnce('up_cap_toast:new_project', EV.UP_CAP_TOAST_VIEW, {
+        count, limit, at: 'new_project', trial_shown: true,
+      });
+      feedback.toast({
+        type: 'info',
+        ttl: 12000,
+        message: newProjectSentence({ count, limit }),
+        action: {
+          label: CTA.tryCreatorShort,
+          onClick: () => {
+            logEventNow(EV.UP_CAP_TOAST_CTA, { count, limit, at: 'new_project', trial_shown: true });
+            openNearCapOffer();
+          },
+        },
+      });
+    } catch (_) { /* an offer must never break creating a project */ }
+  };
+  const projectCreatedRef = useRef(null);
+  projectCreatedRef.current = (id, { via } = {}) => {
+    if (via === 'sidebar') setProjectRenameRequest({ boardId: id, at: Date.now() });
+    offerTrialForProject();
+  };
+
   // Has the storage / file-type gate already explained itself this session?
   //
   // The twin of capPitchedAtRef, and it exists for the same reason. The gate
@@ -4650,6 +4803,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     view,
     docOpen: !!openDocCard,
     settingsOpen,
+    homeExploring,
   });
   useEffect(() => {
     setAnalyticsContext({
@@ -6905,9 +7059,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Command palette actions. Per-shell so each closure captures the right
   // setters; `available` gates rows that need an editable board / a real board.
   const appCommands = useMemo(() => [
-    { id: 'new-board', label: 'Create cluster', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'cluster', 'board'],
-      available: canEditCurrent,
-      run: () => { setCurrentSurface('board'); mainMutators.addNewBoard?.(null, { via: 'palette' }); } },
+    { id: 'new-board', label: 'New project', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'cluster', 'board', 'project'],
+      available: canEditBoard(rootBoard.id),
+      run: () => { mainMutators.addNewProject?.({ via: 'palette' }); } },
     { id: 'new-note', label: 'New note', icon: StickyNote, keywords: ['note', 'text', 'add', 'sticky'],
       available: canEditCurrent && view !== 'list' && currentSurface === 'board',
       run: () => { setCurrentSurface('board'); mainMutators.addNote?.(); } },
@@ -6967,7 +7121,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => openInviteFriends('palette') },
     { id: 'signout', label: 'Sign out', icon: LogOut, keywords: ['sign out', 'log out', 'logout', 'exit'],
       run: () => signOut?.() },
-  ], [canEditCurrent, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, sidebarOpen,
+  ], [canEditCurrent, canEditBoard, rootBoard.id, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, sidebarOpen,
       captureAllowed, capture.on,
       setTheme, setWheelMode, setSidebarOpen, setTweak, mainMutators, openSettings, openInviteFriends, signOut]);
 
@@ -7210,6 +7364,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          boardReady={ready}
                          firstBoard={isMain && !myTier.loading && Number(myTier.demoCardCount) === 0 && !hasGenuineCard(cards)}
                          firstBoardKind={firstBoardKind}
+                         freshProject={isTopLevelProject(boards, board.id, rootBoard.id)}
                          gridTemplates={gridTemplates} gridSequences={gridSequences}
                          ydoc={yd}
                          getAwareness={yh.getAwareness}
@@ -7528,11 +7683,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           <SidebarBoardsSection
             boards={boards}
             workspaceId={workspace.id}
+            rootId={rootBoard.id}
             activeBoardId={currentSurface === 'board' ? activeBoardId : null}
-            onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
+            onOpenBoard={(id) => { setStack(ancestorPath(boards, id)); setCurrentSurface('board'); }}
             onShareBoard={openShareForBoard}
             onRenameBoard={renameBoardById}
-            onCreateBoard={canEditCurrent ? () => { setCurrentSurface('board'); mainMutators.addNewBoard?.(null, { via: 'sidebar' }); } : null}
+            onCreateBoard={canEditBoard(rootBoard.id) ? () => { mainMutators.addNewProject?.({ via: 'sidebar' }); } : null}
+            renameRequest={projectRenameRequest}
             onCreateBoardInside={createBoardInside}
             onSetBoardCover={mainMutators.setBoardCover}
             onSetBoardBgColor={setBoardBgColorById}
@@ -7542,7 +7699,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onPasteBoardInto={pasteBoardInto}
             onDeleteBoard={(id) => deleteBoardsById([id])}
             canEditBoard={canEditBoard}
-            onOpenPicker={() => openBoardLinkPicker()}
+            onOpenPicker={() => setBrowsePickerOpen(true)}
             peersHereByBoard={peersHereByBoard}
             peersBelowByBoard={peersBelowByBoard}
             onJumpToPeer={jumpToPeer}
@@ -7763,21 +7920,42 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         )}
 
         {currentSurface === 'home' ? (
-          <Suspense fallback={<div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}><SoleilMark size={28} color="var(--soleil)" glow /></div>}>
-            <HomeGraph
-              workspaceId={workspace.id}
-              onNavigate={(target) => {
-                setCurrentSurface('board');
-                if (target?.kind === 'url') {
-                  window.open(target.href, '_blank', 'noopener,noreferrer');
-                  return;
-                }
-                if (target?.kind === 'board') setStack([target.id]);
-                if (target?.kind === 'card')  setStack([target.boardId]);
-                if (target?.kind === 'doc')   { /* doc cards open inside their board canvas; future wiring */ }
-              }}
-            />
-          </Suspense>
+          <ProjectsHome
+            boards={boards}
+            rootId={rootBoard.id}
+            workspaceId={workspace.id}
+            recents={recents.recents}
+            canCreate={canEditBoard(rootBoard.id)}
+            exploring={homeExploring && !mobileShell}
+            onExplore={setHomeExploring}
+            onOpenBoard={(id, via) => {
+              try { logEvent(EV.HOME_OPEN_BOARD, { via, board_id: id }); } catch (_) {}
+              setStack(ancestorPath(boards, id));
+              recents.push(id);
+              setCurrentSurface('board');
+            }}
+            onNewProject={(name) => { mainMutators.addNewProject?.({ via: 'home', name }); }}
+            /* Phones get the panel only: no graph to float over, and no reason
+               to load the 3D bundle for scenery. */
+            graph={mobileShell ? null : (
+              <Suspense fallback={<div className="home-graph-wrap" />}>
+                <HomeGraph
+                  workspaceId={workspace.id}
+                  backdrop={!homeExploring}
+                  onNavigate={(target) => {
+                    setCurrentSurface('board');
+                    if (target?.kind === 'url') {
+                      window.open(target.href, '_blank', 'noopener,noreferrer');
+                      return;
+                    }
+                    if (target?.kind === 'board') setStack(ancestorPath(boards, target.id));
+                    if (target?.kind === 'card')  setStack(ancestorPath(boards, target.boardId));
+                    if (target?.kind === 'doc')   { /* doc cards open inside their board canvas; future wiring */ }
+                  }}
+                />
+              </Suspense>
+            )}
+          />
         ) : currentSurface === 'tag' && activeTag ? (
           <TagDetailView
             tag={activeTag}
@@ -7844,6 +8022,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         onPickBoard={(b) => addLink(b, linkPickerPosRef.current)}
       />
 
+      {/* "All clusters" in the sidebar: pick one and OPEN it. This row used to
+          open the link picker, so choosing a cluster dropped a link card on the
+          current canvas — and a link card costs one of the free plan's cards. */}
+      <CommandPalette
+        mode="pick"
+        open={browsePickerOpen}
+        onClose={() => setBrowsePickerOpen(false)}
+        workspaceId={workspace.id}
+        boards={boards}
+        rootId={rootBoard.id}
+        recents={recents.recents}
+        mobileShell={mobileShell}
+        placeholder="Open a cluster…"
+        onPickBoard={(b) => {
+          setStack(ancestorPath(boards, b.id));
+          recents.push(b.id);
+          setCurrentSurface('board');
+        }}
+      />
+
       {/* Split-view board picker — same pick mode, opens the chosen board beside. */}
       <CommandPalette
         mode="pick"
@@ -7869,7 +8067,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         commands={appCommands}
         mobileShell={mobileShell}
         onOpenBoard={(id) => {
-          setStack([id]);
+          setStack(ancestorPath(boards, id));
           recents.push(id);
           setCurrentSurface('board');
         }}

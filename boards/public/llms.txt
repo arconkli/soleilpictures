@@ -47,7 +47,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 - [Clusters](https://clusters.soleilpictures.com/docs/clusters): Create, nest, rename and organize clusters in Soleil Clusters. Unlimited nesting, cover images, thumbnails, moving boards and the sidebar tree.
 - [List view](https://clusters.soleilpictures.com/docs/clusters/list-view): Every cluster in Soleil Clusters is also a drive. List view gives you table and gallery modes, search, sort, type filters and a detail panel with previews.
-- [Home graph](https://clusters.soleilpictures.com/docs/clusters/home-graph): The Home view in Soleil Clusters shows your whole workspace as a 3D relationship graph of clusters, documents, cards and links you can fly through.
+- [Home](https://clusters.soleilpictures.com/docs/clusters/home-graph): Home in Soleil Clusters shows your projects — where you left off, every project newest first, New project — over a 3D graph of your workspace.
 - [Production schedules](https://clusters.soleilpictures.com/docs/clusters/production-schedule): Run a production schedule in Soleil Clusters — a multi-month calendar shared with the crew, each day its own cluster holding that day's material.
 - [Trash and recovery](https://clusters.soleilpictures.com/docs/clusters/trash-and-recovery): Restore deleted clusters from a 30-day trash, roll a board back through version history, or rewind an entire workspace to a point in time.
 
@@ -84,7 +84,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 ## Account and plans
 
 - [Settings](https://clusters.soleilpictures.com/docs/account/settings): Every setting in Soleil Clusters — Profile, Appearance, Notifications, Connections, Billing, Invite and earn, General, Members, Card defaults and Documentation.
-- [Plans and pricing](https://clusters.soleilpictures.com/docs/account/plans): Soleil Clusters is free with 50 cards, unlimited clusters and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.
+- [Plans and pricing](https://clusters.soleilpictures.com/docs/account/plans): Soleil Clusters is free with 50 cards and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.
 - [Theme and defaults](https://clusters.soleilpictures.com/docs/account/theme-and-defaults): Follow your system theme or pick light or dark in Soleil Clusters, set an accent colour and body font, and choose what new notes, shapes and clusters start as.
 - [Referrals](https://clusters.soleilpictures.com/docs/account/referrals): Invite people to Soleil Clusters and earn bonus cards when they actually get started. Your referral link, share targets and stats live in Settings.
 - [Mobile and tablet](https://clusters.soleilpictures.com/docs/account/mobile): Soleil Clusters on phones and tablets — touch gestures, focus view, the mobile add sheet, and adding it to your home screen as a web app.
