@@ -55,9 +55,11 @@ This is how structure emerges without anybody designing it: a film becomes
 scenes, a scene becomes setups, a setup becomes a reference wall — each a real
 board you can open, share and work on independently.
 
-**Moving** a cluster: drag it in the sidebar tree, or drag it onto another
-cluster's card on a canvas. Moves are cycle-safe — dragging a cluster into one
-of its own descendants is refused rather than creating a loop.
+**Moving** a cluster: drag it in the sidebar tree, drag it onto another
+cluster's card on a canvas, or right-click it → **Move to cluster…**. Moves are
+cycle-safe — dragging a cluster into one of its own descendants is refused
+rather than creating a loop. Cards move the same way — see
+[Cards](/docs/canvas/cards).
 
 **Linked clusters** are different: a reference to a cluster that lives elsewhere,
 placed on this canvas. The board itself does not move. Use it when something

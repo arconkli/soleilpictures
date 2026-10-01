@@ -18,6 +18,8 @@
 // The thumbnail is re-rendered after edits, so `thumb_updated_at` fills most of
 // the gap; the later of the two is the board's recency.
 
+import { ancestorPath } from './boardTree.js';
+
 export const JUMP_BACK_MAX = 3;
 
 const stamp = (v) => {
@@ -117,4 +119,32 @@ export function spotBesideContent(cards, { gap = 40 } = {}) {
   }
   if (!Number.isFinite(right)) return { x: 60, y: 60 };
   return { x: Math.round(right + gap), y: Math.round(top) };
+}
+
+export const MOVE_TARGETS_MAX = 50;
+
+/**
+ * Where "Move to cluster…" can send cards that sit on `fromId`: every live
+ * cluster in the workspace except that one, most recently touched first. The
+ * usual job is filing a first project's references — gathered on the root —
+ * into the project they belong to, which is also the cluster most recently
+ * touched.
+ *
+ * Each is labelled by its path below the root ("Spec ad / Refs"), because two
+ * projects can each have a "Refs" and a bare name would not say which. A path
+ * deeper than two is shortened to its project and its leaf. The root keeps
+ * its own name.
+ */
+export function cardMoveTargets(boards, { workspaceId = null, fromId = null, max = MOVE_TARGETS_MAX } = {}) {
+  const nameOf = (id) => boards?.[id]?.name || 'Untitled';
+  const label = (id) => {
+    const path = ancestorPath(boards, id);
+    const names = (path.length > 1 ? path.slice(1) : path).map(nameOf);
+    return names.length <= 2 ? names.join(' / ') : `${names[0]} / … / ${names[names.length - 1]}`;
+  };
+  return Object.values(boards || {})
+    .filter((b) => isLive(b) && b.id !== fromId && (workspaceId == null || b.workspace_id === workspaceId))
+    .sort((a, b) => boardRecency(b) - boardRecency(a))
+    .slice(0, max)
+    .map((b) => ({ id: b.id, label: label(b.id) }));
 }

@@ -553,6 +553,30 @@ export function LocalBoardsApp({ user, signOut }) {
     });
   };
 
+  // Source half of a move into another cluster, as App.jsx's: off the undo
+  // history on purpose — the copies live on another board, so an undo here
+  // could only bring back the source half and duplicate the cards. The move's
+  // undo belongs to the move. Never cascades: cluster cards nest, not move.
+  const deleteCardsForMove = (ids) => {
+    const idSet = new Set(ids || []);
+    if (!idSet.size) return;
+    setLocalState(prev => {
+      const cur = prev.boardState[currentId];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        boardState: {
+          ...prev.boardState,
+          [currentId]: {
+            ...cur,
+            cards: cur.cards.filter(card => !idSet.has(card.id)),
+            arrows: cur.arrows.filter(arrow => !idSet.has(arrow.from) && !idSet.has(arrow.to)),
+          },
+        },
+      };
+    });
+  };
+
   const duplicateCards = (ids) => {
     const idSet = new Set(ids || []);
     const newIds = [];
@@ -1391,6 +1415,7 @@ export function LocalBoardsApp({ user, signOut }) {
     updateCards,
     deleteCard: (id) => deleteCards([id]),
     deleteCards,
+    deleteCardsForMove,
     duplicateCard: (id) => duplicateCards([id]),
     duplicateCards,
     bringToFront,
@@ -1473,6 +1498,55 @@ export function LocalBoardsApp({ user, signOut }) {
     window.__soleilAudioLive = { addAudio: (pos, overrides) => addAudioAt(pos, overrides) };
     return () => { delete window.__soleilAudioLive; };
   }, []);
+
+  // Target half of a move into another cluster — App.jsx's
+  // 'soleil-card-into-board-drop' listener reduced to what this shell stores.
+  // The cards land on the target under fresh ids, offset to the same corner the
+  // real handler uses, with the arrows that joined two of them; only then is
+  // the source told it may delete. Without a listener the source waited
+  // forever, so dropping a card on a cluster card did nothing here at all.
+  useEffect(() => {
+    const onDrop = (e) => {
+      const { sourceBoardId, targetBoardId, cards: moved, onTargetSaved, onTargetFailed } = e.detail || {};
+      if (!sourceBoardId || !targetBoardId || !moved?.length || !boards[targetBoardId]) {
+        try { onTargetFailed?.(new Error('bad event')); } catch (_) {}
+        return;
+      }
+      if (sourceBoardId === targetBoardId) { try { onTargetSaved?.(); } catch (_) {} return; }
+      const idMap = {};
+      for (const c of moved) idMap[c.id] = createId(c.kind || 'card');
+      const minX = Math.min(...moved.map(c => c.x ?? 0));
+      const minY = Math.min(...moved.map(c => c.y ?? 0));
+      const dx = 60 - (Number.isFinite(minX) ? minX : 0);
+      const dy = 60 - (Number.isFinite(minY) ? minY : 0);
+      const endId = (end) => (typeof end === 'string' ? end : end?.cardId);
+      const remapEnd = (end) => (typeof end === 'string' ? idMap[end] : { ...end, cardId: idMap[end.cardId] });
+      setLocalState(prev => {
+        const target = prev.boardState[targetBoardId] || { cards: [], arrows: [], strokes: [] };
+        const sourceArrows = prev.boardState[sourceBoardId]?.arrows || [];
+        const cards = moved.map(c => ({
+          ...clone(c),
+          id: idMap[c.id],
+          x: Math.round((c.x ?? 0) + dx),
+          y: Math.round((c.y ?? 0) + dy),
+          groupId: null,
+        }));
+        const arrows = sourceArrows
+          .filter(a => idMap[endId(a.from)] && idMap[endId(a.to)])
+          .map(a => ({ ...a, from: remapEnd(a.from), to: remapEnd(a.to) }));
+        return {
+          ...prev,
+          boardState: {
+            ...prev.boardState,
+            [targetBoardId]: { ...target, cards: [...target.cards, ...cards], arrows: [...target.arrows, ...arrows] },
+          },
+        };
+      });
+      try { onTargetSaved?.(); } catch (_) {}
+    };
+    document.addEventListener('soleil-card-into-board-drop', onDrop);
+    return () => document.removeEventListener('soleil-card-into-board-drop', onDrop);
+  }, [boards]);
 
   // ⌘K / Ctrl-K (and "/" when not typing) — open the global search palette.
   // App.jsx has its own; the local shell had no global keydown handler at all.

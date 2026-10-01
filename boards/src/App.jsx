@@ -6385,7 +6385,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     const onDrop = async (e) => {
       const { sourceBoardId, targetBoardId, cards: movedCards,
-              onTargetSaved, onTargetFailed } = e.detail || {};
+              onTargetSaved, onTargetFailed, via } = e.detail || {};
       const ack    = () => { try { onTargetSaved?.(); } catch (_) {} };
       const reject = (err) => { try { onTargetFailed?.(err); } catch (_) {} };
       if (!sourceBoardId || !targetBoardId || !movedCards?.length) { reject(new Error('bad event')); return; }
@@ -6489,7 +6489,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           console.error('[xbm] aborting: target board_state is empty', { targetBoardId, sourceBoardId });
           feedback.toast({
             type: 'error',
-            message: 'Could not load the destination cluster’s state. Drag cancelled to prevent data loss. Try again in a moment.',
+            message: 'Could not load the destination cluster’s state. Move cancelled to prevent data loss. Try again in a moment.',
             ttl: 8000,
           });
           reject(new Error('target board_state empty'));
@@ -6579,7 +6579,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           tmp.destroy();
           feedback.toast({
             type: 'error',
-            message: 'Drag aborted — target cluster state looked unsafe to overwrite.',
+            message: 'Move cancelled — the destination cluster’s state looked unsafe to overwrite.',
             ttl: 8000,
           });
           reject(new Error('tmp card count below expected'));
@@ -6628,6 +6628,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         try { window.__soleilEmitBoardReset?.(targetBoardId); } catch (_) {}
         // Target save complete + room reset — safe to delete the source.
         ack();
+        logEvent(EV.CARDS_MOVE, {
+          via: via === 'menu' ? 'menu' : 'drag',
+          n: movedCards.length,
+          board_id: sourceBoardId,
+          target_board_id: targetBoardId,
+        });
 
         // ── Repoint attached comments to the target board. ──
         try {

@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   boardRecency, projectList, jumpBackIn, isTopLevelProject, projectOfferDue, spotBesideContent, JUMP_BACK_MAX,
+  cardMoveTargets,
 } from './projectsHome.js';
 
 const WS = 'ws-1';
@@ -70,4 +71,33 @@ test('a new cluster card goes beside the work, top-aligned, never on it', () => 
   assert.deepEqual(spotBesideContent(cards), { x: 660, y: 80 });
   assert.deepEqual(spotBesideContent([]), { x: 60, y: 60 }, 'an empty canvas uses the usual corner');
   assert.deepEqual(spotBesideContent([{ x: 'nope' }, null]), { x: 60, y: 60 });
+});
+
+test('move targets: every other live cluster in the workspace, most recent first', () => {
+  const bs = {
+    root:   B('root', null, { name: 'Studio', updated_at: '2026-09-01T00:00:00Z' }),
+    spec:   B('spec', 'root', { name: 'Spec ad', updated_at: '2026-09-20T00:00:00Z' }),
+    refs:   B('refs', 'spec', { name: 'Refs', updated_at: '2026-09-10T00:00:00Z' }),
+    faces:  B('faces', 'refs', { name: 'Faces', updated_at: '2026-09-05T00:00:00Z' }),
+    gone:   B('gone', 'root', { name: 'Gone', updated_at: '2026-09-30T00:00:00Z', deleted_at: '2026-09-30T01:00:00Z' }),
+    theirs: { id: 'theirs', parent_board_id: null, workspace_id: 'ws-2', name: 'Theirs', updated_at: '2026-09-29T00:00:00Z' },
+  };
+  const t = cardMoveTargets(bs, { workspaceId: WS, fromId: 'root' });
+  assert.deepEqual(t.map((x) => x.id), ['spec', 'refs', 'faces'], 'not the board they are on, not deleted, not another workspace');
+  assert.deepEqual(t.map((x) => x.label), ['Spec ad', 'Spec ad / Refs', 'Spec ad / … / Faces']);
+  const fromProject = cardMoveTargets(bs, { workspaceId: WS, fromId: 'spec' });
+  assert.equal(fromProject.find((x) => x.id === 'root')?.label, 'Studio', 'the root keeps its own name');
+  assert.equal(cardMoveTargets(bs, { workspaceId: WS, fromId: 'root', max: 1 }).length, 1);
+});
+
+test('move targets: an unnamed or broken-chain cluster still gets a label', () => {
+  const bs = {
+    root: B('root', null, { name: 'Studio' }),
+    anon: B('anon', 'root', {}),
+    lost: B('lost', 'missing-parent', { name: 'Lost' }),
+  };
+  const t = cardMoveTargets(bs, { workspaceId: WS, fromId: 'root' });
+  assert.equal(t.find((x) => x.id === 'anon')?.label, 'Untitled');
+  assert.equal(t.find((x) => x.id === 'lost')?.label, 'Lost');
+  assert.deepEqual(cardMoveTargets(null, {}), []);
 });

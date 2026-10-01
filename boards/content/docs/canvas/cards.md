@@ -71,8 +71,12 @@ menu.
 
 **Cut and paste** — `⌘X` / `⌘V`, including across clusters. Cut-paste keeps
 standard clipboard behavior: the cut is undoable on the board it happened on,
-the paste on the board it landed on. (Dragging cards onto a cluster card
-instead performs a true move, whose toast undoes both sides at once.)
+the paste on the board it landed on.
+
+**Move to another cluster** — drag cards onto a cluster card, or right-click →
+**Move to cluster…** to send them to any cluster in the workspace, including one
+that isn't on this canvas. A move is one action: its toast undoes both sides at
+once. Moving cards doesn't change how many you have.
 
 **Group** — select several and press `⌘G`. See [Groups](/docs/canvas/groups).
 

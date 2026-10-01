@@ -5637,7 +5637,40 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", including across clusters. Cut-paste keeps standard clipboard behavior: the cut is undoable on the board it happened on, the paste on the board it landed on. (Dragging cards onto a cluster card instead performs a true move, whose toast undoes both sides at once.)"
+     "v": ", including across clusters. Cut-paste keeps standard clipboard behavior: the cut is undoable on the board it happened on, the paste on the board it landed on."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Move to another cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move to another cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — drag cards onto a cluster card, or right-click → "
+    },
+    {
+     "t": "strong",
+     "v": "Move to cluster…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move to cluster…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to send them to any cluster in the workspace, including one that isn't on this canvas. A move is one action: its toast undoes both sides at once. Moving cards doesn't change how many you have."
     }
    ]
   },
@@ -15465,7 +15498,36 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " a cluster: drag it in the sidebar tree, or drag it onto another cluster's card on a canvas. Moves are cycle-safe — dragging a cluster into one of its own descendants is refused rather than creating a loop."
+     "v": " a cluster: drag it in the sidebar tree, drag it onto another cluster's card on a canvas, or right-click it → "
+    },
+    {
+     "t": "strong",
+     "v": "Move to cluster…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move to cluster…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Moves are cycle-safe — dragging a cluster into one of its own descendants is refused rather than creating a loop. Cards move the same way — see "
+    },
+    {
+     "t": "link",
+     "v": "Cards",
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "Cards"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
