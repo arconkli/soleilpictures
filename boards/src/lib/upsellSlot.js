@@ -15,13 +15,15 @@
 // card-index refusal — deferred to nothing and was deferred to by nobody.
 // This module is that guard, made symmetric and shared.
 //
-// Pure and (but for the gallery flag, itself a zero-import leaf with no DOM)
-// dependency-free, mirroring upsellEligibility.js and depthDock.js, so it stays
-// unit-testable under node with no React/DOM — see the sibling .test.mjs.
+// Pure and (but for the gallery flag and the app session id — both zero-import
+// leaves with no DOM) dependency-free, mirroring upsellEligibility.js and
+// depthDock.js, so it stays unit-testable under node with no React/DOM — see
+// the sibling .test.mjs.
 // A DOM query cannot answer "did something just show" for a surface that has
 // not painted yet, which is why the old guard needed a timestamp beside it.
 
 import { isGalleryActive } from './galleryState.js';
+import { getAppSessionId } from './appSession.js';
 
 // How long one upsell surface owns the moment. Matches the 60s stacking guard
 // this replaces in ReferralNudge — deliberately NOT that component's
@@ -72,6 +74,33 @@ const FOLLOWS = Object.freeze({
   'upgrade-reason': new Set(['first-value', 'cap-toast', 'storage-gate', ALWAYS_WINS]),
 });
 
+// THE VISIT. The window stops two surfaces landing in the same minute; it never
+// stopped one visit collecting three of them a minute apart, and that is what
+// return visits got. People who come back mostly come back to re-read a board,
+// and they were often asked for something — a reveal, then a share ask, then a
+// question — and sometimes for two of them in the same visit.
+//
+// So the AMBIENT kinds, the asks nobody came for, get one turn per visit between
+// them. The first to show in an app session (lib/appSession: 30 minutes idle, a
+// sign-in or a new UTC day starts the next) owns that session; any other
+// ambient kind waits for the next visit. The owner may show again — the mix
+// prompt follows its person from board to board, and that is one ask.
+//
+// A money surface — the wall, the first-value banner, the near-cap toast, a
+// refused file — is neither refused by this nor spends it: each is a
+// consequence or an offer, and its pacing lives beside it. "What's holding you
+// back?" IS ambient: FOLLOWS lets it follow an offer inside the window, but it
+// is still one more question, so it waits behind an ask this visit already had.
+const AMBIENT = new Set(['invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal', 'upgrade-reason']);
+
+let visitAsk = { visit: null, kind: null };
+
+// The live app session id, or null. A missing id never refuses anything: as
+// with a bad clock, suppressing a surface is the more expensive mistake.
+function currentVisit() {
+  try { return getAppSessionId() || null; } catch (_) { return null; }
+}
+
 // Module scope = page lifetime, like boardsApi's _capAnnounced. No auth reset
 // is wired for it on purpose: the claim self-expires in a minute, so the worst
 // a stale one can do after a user switch is defer an ambient nudge by <60s.
@@ -109,7 +138,10 @@ export function upsellSlotBusy(now = Date.now()) {
 // re-dispatches the first-value signal on every card change, so a surface that
 // stands down here simply arrives at the next card. Burning the one-shot on a
 // deferral would retire the surface for that account forever.
-export function claimUpsellSlot(kind, now = Date.now()) {
+//
+// `visit` is the app session the claim belongs to (THE VISIT, above); callers
+// leave it to default. Tests pass their own.
+export function claimUpsellSlot(kind, now = Date.now(), visit = currentVisit()) {
   if (!KINDS.has(kind)) return false;            // fail closed on a typo'd kind
 
   // The admin Surface Gallery bypasses the mutex entirely, and records nothing.
@@ -129,11 +161,16 @@ export function claimUpsellSlot(kind, now = Date.now()) {
     return true;
   }
 
+  // One ambient ask per visit, and it belongs to whichever showed first.
+  const ambient = AMBIENT.has(kind);
+  if (ambient && visit && visitAsk.visit === visit && visitAsk.kind !== kind) return false;
+
   if (upsellSlotBusy(t)) {
     const may = FOLLOWS[kind];
     if (!may || !may.has(lastClaim.kind)) return false;
   }
   lastClaim = { kind, at: t };
+  if (ambient && visit) visitAsk = { visit, kind };
   return true;
 }
 
@@ -141,4 +178,5 @@ export function claimUpsellSlot(kind, now = Date.now()) {
 // letting a test reach in and mutate the binding.
 export function __resetUpsellSlot() {
   lastClaim = { kind: null, at: 0 };
+  visitAsk = { visit: null, kind: null };
 }
