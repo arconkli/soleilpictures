@@ -6,6 +6,7 @@ import { supabase } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 import * as perf from './perf.js';
 import { buildCardIndexRow } from './cardIndexRow.js';
+import { createPlacementLedger } from './capRefusal.js';
 
 const PARTYKIT_HOST = import.meta.env?.VITE_PARTYKIT_HOST || 'localhost:1999';
 
@@ -1145,6 +1146,11 @@ const _cardIndexCache = new Map();   // boardId → { sigs: Map<card_id, sig>, i
 // exactly what the analytics showed: card_create_blocked → pricing_abandon at a
 // flat 10-second cadence for twenty minutes, ~80 cycles, no user input involved.
 const _capAnnounced = new Map();   // boardId → Set<card_id>
+// Cards this tab just placed through the cap gate — the only refused cards the
+// app may take back. Every other refused card is existing work and stays on
+// the canvas, uncounted, until there is room (see capRefusal.js).
+const _placements = createPlacementLedger();
+export function notePlacedThroughCap(ids) { _placements.note(ids); }
 
 // Land as many of `rows` as the cap will ACTUALLY take, and return only the
 // ones that genuinely did not fit.
@@ -1222,6 +1228,7 @@ try {
     _syncState.clear();
     _cardIndexCache.clear();
     _capAnnounced.clear();
+    _placements.clear();
     _boardWsCache.clear();
     _groupSyncState.clear();
     _groupSigCache.clear();
@@ -1252,6 +1259,16 @@ export async function syncCardIndex({ boardId, ydoc }) {
 // price in the meantime. useMyTier decides whether a refetch is actually owed.
 function _announceIndexSynced(boardId) {
   try { window.dispatchEvent(new CustomEvent('soleil:card-index-synced', { detail: { boardId } })); } catch (_) {}
+}
+
+// { kind: n } for a set of refused rows — what the cap wall names.
+function _kindTally(rows) {
+  const kinds = {};
+  for (const r of rows) {
+    const k = r.kind || 'card';
+    kinds[k] = (kinds[k] || 0) + 1;
+  }
+  return kinds;
 }
 
 async function _doSyncCardIndex(boardId, ydoc) {
@@ -1381,37 +1398,47 @@ async function _doSyncCardIndex(boardId, ydoc) {
       if (!announced) { announced = new Set(); _capAnnounced.set(boardId, announced); }
       const fresh = rejected.filter(r => !announced.has(r.card_id));
       for (const r of fresh) announced.add(r.card_id);
+      // Only a card this tab just placed through the cap gate may be taken
+      // back. The rest is existing work, kept on the canvas uncounted: a card
+      // placed while paid whose sync never ran, one restored by undo or
+      // version history, one moved in from another cluster. Withdrawing those
+      // is how a paid period ending deleted work with no undo.
+      const { withdraw, keep } = _placements.split(fresh, r => r.card_id);
       if (fresh.length > 0) {
         // Per-kind tally so the wall can name what was actually lost. A user
         // who just dropped a folder of photos and got back "cards couldn't be
         // added" has to translate; naming the count AND the kind is both truer
         // and the only concrete thing on that screen. Mirrors import_batch.kinds.
-        const kinds = {};
-        for (const r of fresh) {
-          const k = r.kind || 'card';
-          kinds[k] = (kinds[k] || 0) + 1;
-        }
+        const kinds = _kindTally(withdraw);
         try {
           window.dispatchEvent(new CustomEvent('soleil:card-index-capped', {
             detail: {
               boardId,
-              rejected: fresh.length,
+              // What the user just tried to add and didn't get.
+              rejected: withdraw.length,
               kinds,
               // Ids let the app withdraw the cards it optimistically rendered.
               // Without them a refused card stays on canvas but is absent from
               // search, tags and the graph — present and inert.
-              cardIds: fresh.map(r => r.card_id),
+              cardIds: withdraw.map(r => r.card_id),
+              // Refused but kept: on the canvas, not counted, retried by the
+              // next sync. Not an add the user just made, so no wall.
+              kept: keep.length,
+              keptKinds: _kindTally(keep),
             },
           }));
         } catch (_) {}
       }
-      // Some of the batch may have landed (the retry, and landUpToCap's fit),
-      // and the count the server reports has moved either way.
-      _announceIndexSynced(boardId);
+      // No early return. Some of the batch may have landed (the retry, and
+      // landUpToCap's fit), and the orphan cleanup below must still run: a
+      // board holding a refused card otherwise never released the count of
+      // cards deleted from it, so deleting to make room made none.
+    } else if (ups.error) {
+      console.warn('syncCardIndex upsert', ups.error);
       return;
+    } else {
+      for (const r of changed) cache.sigs.set(r.card_id, sigFor(r));
     }
-    if (ups.error) { console.warn('syncCardIndex upsert', ups.error); return; }
-    for (const r of changed) cache.sigs.set(r.card_id, sigFor(r));
   }
 
   // Clean up rows for cards that no longer exist on the board — but only

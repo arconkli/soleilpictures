@@ -127,7 +127,7 @@ const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx')
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap } from './lib/boardsApi.js';
 import { undoToast } from './lib/undoToast.js';
 import { forceBoardThumbnail, boardDoc } from './lib/yboard.js';
 import { boardDepth, planReparent } from './lib/boardTree.js';
@@ -1503,9 +1503,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Owner-pays cap: hard-block at the limit (cards total across the
       // OWNER's workspaces — 0187). The trigger on card_index enforces the
       // same subject server-side; this check reads the cached value.
+      let gated = false;
       {
         const cs = capSource();
         if (cs.capped) {
+          gated = true;
           const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: 1, limit: cs.limit });
           if (capHit) {
             if (!isSeedCard(card)) noteBlocked('demo_cap');   // modal/toast opens below
@@ -1516,14 +1518,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }
       }
       breakUndo();
+      let placedId = null;
       ydoc.transact(() => {
         const c = stampCreate({ z: nextZ(), ...card });
         m.set(c.id, cardToYMap(c));
+        placedId = c.id;
         // Run any per-card initialization (e.g. a doc card's Y store) INSIDE
         // this transaction so create+init is ONE undo step. Yjs transact is
         // reentrant, so a nested ydoc.transact inside afterInsert merges here.
         if (afterInsert) { try { afterInsert(m.get(c.id)); } catch (_) {} }
       }, 'local');
+      // The gate let this card in on a cached count. If the server disagrees,
+      // this is the one card the refusal may take back (capRefusal.js).
+      if (gated && placedId) notePlacedThroughCap([placedId]);
       // Live activity signal → admin Command Center placement ticker. Prompt
       // (beacon) delivery so it shows up ~live, not at the next 5s batch flush.
       // Seeds (onb-*) are not real placements — exclude so card_placed only ever
@@ -1598,13 +1605,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }
       }
       breakUndo();
+      const placedIds = [];
       ydoc.transact(() => {
         let z = nextZ();
         for (const card of cardsToAdd) {
           const c = stampCreate({ z: z++, ...card });
           m.set(c.id, cardToYMap(c));
+          placedIds.push(c.id);
         }
       }, 'local');
+      if (csBatch.capped) notePlacedThroughCap(placedIds);
       // One ticker entry per bulk action (collapsed) — "placed N cards".
       // Count only genuine cards so the onboarding seed batch (all onb-*) never
       // emits a card_placed — the seed was being counted as activation.
@@ -1887,6 +1897,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           newIds.push(obj.id);
         }
       }, 'local');
+      if (csDup.capped) notePlacedThroughCap(newIds);
       if (newIds.length) myTier.notePlaced?.(newIds.length);
       return newIds;
     };
@@ -4690,13 +4701,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const onCapped = (e) => {
       const rejectedBoardId = e?.detail?.boardId || null;
       const rejectedIds = e?.detail?.cardIds || [];
-      try {
-        logEvent(EV.CARD_CREATE_BLOCKED, {
-          reason: 'server_cap',
-          board_id: rejectedBoardId,
-          n: e?.detail?.rejected || 0,
-        });
-      } catch (_) {}
+      const nKept = Math.max(0, Number(e?.detail?.kept) || 0);
       // Owner-pays: the trigger counted the board OWNER's cards. Refresh the
       // number that was actually stale — the actor's own tier for their own
       // board, the owner's capacity for a shared one (the capacity cache is
@@ -4707,12 +4712,39 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (ownRejected) myTier.refetch?.();
       else boardCapacity.refetch?.(rejectedBoardId);
 
-      // Withdraw the cards the server refused. They render from the Y.Doc but
-      // never reach card_index, so leaving them means a card the user can see
-      // and drag that is absent from search, tags and the graph — and that
-      // silently reappears as "rejected" on every subsequent sync. Origin
-      // 'upload' (deleteCardsSilent) keeps this off the undo stack on purpose:
-      // undoing would resurrect a card the server will refuse again.
+      // Refused but KEPT: existing work the cap would not index. A card placed
+      // while the account was paid whose sync never ran, one restored by undo
+      // or version history, one moved in from another cluster. It stays on the
+      // canvas, uncounted, and the next sync retries it. Nobody just tried to
+      // add it, so it is not a blocked create and it gets no wall. It was
+      // deleted here, with no undo, until 2026-10-01 (capRefusal.js).
+      if (nKept > 0) {
+        try {
+          logEvent(EV.CARD_INDEX_HELD, {
+            board_id: rejectedBoardId,
+            n: nKept,
+            kinds: e?.detail?.keptKinds || null,
+            own: ownRejected,
+          });
+        } catch (_) {}
+      }
+      if (!(Number(e?.detail?.rejected) > 0)) return;
+
+      try {
+        logEvent(EV.CARD_CREATE_BLOCKED, {
+          reason: 'server_cap',
+          board_id: rejectedBoardId,
+          n: e?.detail?.rejected || 0,
+        });
+      } catch (_) {}
+
+      // Withdraw the cards the server refused that this tab had just placed
+      // through the cap gate (syncCardIndex sends only those as cardIds).
+      // They render from the Y.Doc but never reach card_index, so leaving them
+      // means a card the user can see and drag that is absent from search,
+      // tags and the graph. Origin 'upload' (deleteCardsSilent) keeps this off
+      // the undo stack on purpose: undoing would resurrect a card the server
+      // will refuse again.
       //
       // Only the visible board can be withdrawn — a background board's mutators
       // aren't bound here. Those cards stay pending and are re-offered by the

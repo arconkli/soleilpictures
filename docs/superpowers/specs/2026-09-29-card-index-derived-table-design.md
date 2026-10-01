@@ -149,6 +149,20 @@ doing anyway: accounts are still accruing uncounted cards every month and C is
 the long pole. (2) and (3) are *not* throwaway: `syncGroupIndex` has the same
 shape at `boardsApi.js:1780` and C does not cover `group_index`.
 
+**Done ahead of this spec (2026-10-01, interim):** a cap refusal no longer
+withdraws existing work. The refusal used to delete *every* refused card on the
+visible board with no undo. That included cards placed while the account was
+paid whose 10-second sync never ran, so the first sync after a paid period ended
+deleted them. Cards restored by undo or version history were deleted the same
+way. `src/lib/capRefusal.js` now keeps a ledger of the cards this tab placed
+through the cap gate in the last five minutes. Only those are withdrawn; every
+other refused card stays on the canvas, uncounted, retried by the next sync, and
+logged as `card_index_held`. The cap branch of `_doSyncCardIndex` also stopped
+returning before the orphan cleanup. Before that, a board holding a refused card
+never released the count of the cards deleted from it. Phase C removes the
+ledger together with the rest of the client write path. This is the soft wall
+above, arriving early.
+
 ## Phase C — the reconciler (migrations 0342, 0343)
 
 **0342** creates the queue, the `board_state` trigger, and the cron schedule, and

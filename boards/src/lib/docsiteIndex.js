@@ -2616,7 +2616,11 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Is there a free trial of Creator?",
-        "a": "Yes, once you have built something. Accounts with a real cluster on them are offered 14 days of Creator inside the app — on the upgrade pill, on the prompts that appear as you build, when a drop will not fit, in Settings → Plan & billing, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; cancel before then and you pay nothing. One trial per account."
+        "a": "Yes, once you have built something. Accounts with a real cluster on them are offered 14 days of Creator inside the app — on the upgrade pill, on the prompts that appear as you build, when a drop will not fit, in Settings → Plan & billing, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; about three days before the first charge you get an email with the date and the amount, and cancelling before then costs nothing. One trial per account."
+      },
+      {
+        "q": "What happens to my work if I cancel, or my trial ends?",
+        "a": "Nothing you made is deleted. Every cluster and card stays where it is, and you can keep opening and editing it. If you are over your card limit, new cards will not fit until you are back under it."
       }
     ]
   },

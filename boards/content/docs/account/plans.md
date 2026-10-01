@@ -21,7 +21,9 @@ faq:
   - q: Where do I enter a discount code?
     a: On the payment page, under Add promotion code. Codes apply to the monthly plan only and come off your first month.
   - q: Is there a free trial of {{fact:planName}}?
-    a: Yes, once you have built something. Accounts with a real cluster on them are offered {{fact:creatorTrialDays}} days of {{fact:planName}} inside the app — on the upgrade pill, on the prompts that appear as you build, when a drop will not fit, in Settings → Plan & billing, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; cancel before then and you pay nothing. One trial per account.
+    a: Yes, once you have built something. Accounts with a real cluster on them are offered {{fact:creatorTrialDays}} days of {{fact:planName}} inside the app — on the upgrade pill, on the prompts that appear as you build, when a drop will not fit, in Settings → Plan & billing, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; about three days before the first charge you get an email with the date and the amount, and cancelling before then costs nothing. One trial per account.
+  - q: What happens to my work if I cancel, or my trial ends?
+    a: Nothing you made is deleted. Every cluster and card stays where it is, and you can keep opening and editing it. If you are over your card limit, new cards will not fit until you are back under it.
 related:
   - /docs/canvas/cards
   - /docs/files
@@ -112,8 +114,10 @@ on the prompts that show up as a cluster fills, when a folder you drop will not
 fit, in **Settings → Plan & billing**, and on the upgrade screen.
 
 A card is required; nothing is charged until the trial ends, and cancelling
-before then costs nothing. It is one trial per account, and it is offered in
-the app rather than on this page — it is for people who have built something.
+before then costs nothing. About three days before the first charge, Clusters
+emails you the date and the amount, with a link to **Settings → Plan & billing**
+where you can cancel. It is one trial per account, and it is offered in the app
+rather than on this page — it is for people who have built something.
 
 ## Billing
 
@@ -136,6 +140,10 @@ The Demo plan is not a trial. It does not expire and it does not degrade. If
 {{fact:demoCardLimit}} cards is enough for what you do, that is a complete
 account. The {{fact:planName}} trial above is separate: it is a taste of the
 paid plan, and when it ends you are back on exactly this one.
+
+When a trial or a paid plan ends, nothing you made is deleted. Every cluster
+and card stays where it is, and you can keep opening and editing it. If you are
+over your card limit, new cards will not fit until you are back under it.
 
 ---
 

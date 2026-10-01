@@ -28988,7 +28988,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A card is required; nothing is charged until the trial ends, and cancelling before then costs nothing. It is one trial per account, and it is offered in the app rather than on this page — it is for people who have built something."
+     "v": "A card is required; nothing is charged until the trial ends, and cancelling before then costs nothing. About three days before the first charge, Clusters emails you the date and the amount, with a link to "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Plan & billing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Plan & billing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " where you can cancel. It is one trial per account, and it is offered in the app rather than on this page — it is for people who have built something."
     }
    ]
   },
@@ -29108,6 +29122,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "The Demo plan is not a trial. It does not expire and it does not degrade. If 50 cards is enough for what you do, that is a complete account. The Creator trial above is separate: it is a taste of the paid plan, and when it ends you are back on exactly this one."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When a trial or a paid plan ends, nothing you made is deleted. Every cluster and card stays where it is, and you can keep opening and editing it. If you are over your card limit, new cards will not fit until you are back under it."
     }
    ]
   },

@@ -88,8 +88,10 @@ on the prompts that show up as a cluster fills, when a folder you drop will not
 fit, in **Settings → Plan & billing**, and on the upgrade screen.
 
 A card is required; nothing is charged until the trial ends, and cancelling
-before then costs nothing. It is one trial per account, and it is offered in
-the app rather than on this page — it is for people who have built something.
+before then costs nothing. About three days before the first charge, Clusters
+emails you the date and the amount, with a link to **Settings → Plan & billing**
+where you can cancel. It is one trial per account, and it is offered in the app
+rather than on this page — it is for people who have built something.
 
 ## Billing
 
@@ -112,6 +114,10 @@ The Demo plan is not a trial. It does not expire and it does not degrade. If
 50 cards is enough for what you do, that is a complete
 account. The Creator trial above is separate: it is a taste of the
 paid plan, and when it ends you are back on exactly this one.
+
+When a trial or a paid plan ends, nothing you made is deleted. Every cluster
+and card stays where it is, and you can keep opening and editing it. If you are
+over your card limit, new cards will not fit until you are back under it.
 
 ---
 
