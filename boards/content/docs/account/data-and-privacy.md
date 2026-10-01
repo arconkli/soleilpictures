@@ -5,7 +5,7 @@ h1: Data and privacy
 navLabel: Data and privacy
 section: account
 order: 5
-updated: 2026-09-08
+updated: 2026-10-01
 answer: Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 faq:
   - q: How do I delete my account?
@@ -103,15 +103,24 @@ service in the app.
 
 ## When Clusters asks you a question
 
-Clusters may ask you one question, once: on a day you come back, it asks what
-brings you back today, offering a short list of answers. Tapping one is the
-whole answer. It then asks a single follow-up in your own words, which you can
-skip — the tap has already been recorded either way.
+Clusters asks two questions, each **once per account**, and Send feedback is
+there whenever you want it. Every one of them shows you what will be sent with
+your answer before you send it.
+
+### What brings you back today?
+
+On a day you come back, Clusters may ask what brings you back today, offering a
+short list of answers. Tapping one is the whole answer.
 
 The list is fixed and always in this order: picking up where you left off,
 adding material you have collected since, starting something new, looking back
 through what you have got, showing it to someone. Alongside them sit *Nothing
 in particular*, which is a real answer, and *Not now*, which is not.
+
+After you tap, it asks **what best describes you** — filmmaker, photographer,
+designer, artist or illustrator, student, or something else — and offers a
+single follow-up in your own words. Both are optional: the first tap has already
+been recorded either way. Your role is asked for once per account too.
 
 - It is asked **once per account, ever**. Answering closes it permanently and
   that is recorded on the server, so it will not return if you clear your
@@ -121,18 +130,56 @@ in particular*, which is a real answer, and *Not now*, which is not.
   up your one time.
 - It never appears on your first session, and it does not appear when you have
   arrived through someone else's share or invite link.
-- Whatever you type in the optional **free-text** follow-up is stored as
+
+### What's holding you back?
+
+If you are on the free plan and close an offer to upgrade — the upgrade screen,
+or the dialog that appears when a folder will not fit — Clusters may ask, once,
+what is holding you back: the free plan is enough for you, the price, putting a
+card in for a trial, not being sure what you would get, just trying it out, or
+something else. One tap answers it, and an optional line in your own words
+follows.
+
+It only appears after the offer was actually on your screen, and it is asked
+**once per account**: answering it, choosing *Not now*, or leaving it on your
+screen for a few seconds ends it for good, and that is recorded on the server,
+so it will not come back on another device.
+
+### Send feedback
+
+**Send feedback** — the paper-plane button — is always there. Pick a topic
+(something broke, missing a feature, confusing, slow, plans and pricing, I love
+something, other) and send; words and a screenshot are both optional. The **OK
+to email me about this** box starts unticked. Unless you tick it, nobody will
+write to you about what you sent.
+
+### What is sent with an answer
+
+Each of these attaches a small record of where you were, printed under the
+question before you send it — for example *canvas · 34 cards · Free · desktop*:
+
+- the part of the app you were on, and the cluster's id
+- how many cards you have and your card limit, and your plan
+- the offer you had just closed, if any, and how you closed it
+- your device type, operating system and browser, and the app's version
+- the page's path — never its query string
+
+Send feedback also sends, as it always has, the address of the page you were
+on, your window size, your browser's user-agent string, and any screenshot you
+attach.
+
+- Whatever you type in an optional **free-text** follow-up is stored as
   **written text you chose to send**, readable by Clusters staff. It is not
   analysed automatically and is not shared with anyone outside Clusters. If it
   cannot be sent straight away it waits in your browser's own storage until it
   can, for at most a week.
-- The tap itself is recorded as one of the fixed answers above, together with
-  the length of anything you wrote — never its content.
+- A tap is recorded as one of the fixed answers above, together with the length
+  of anything you wrote — never its content.
 - Nothing you type into your own clusters — card contents, notes, documents,
   search terms — is ever collected this way. Search is measured by shape only
   (how many results, whether any were opened), never by content.
 
-If you would rather it had never been asked, deleting your account removes it
+If you would rather none of it had been asked, deleting your account removes it
 along with everything else.
 
 ## Legal

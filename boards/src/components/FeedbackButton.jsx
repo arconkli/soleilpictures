@@ -4,20 +4,41 @@
 //   as = 'floating' (default) — frosted pill, position: fixed
 //   as = 'icon'                — tb-icon-style inline button
 //                                (caller controls placement)
+//
+// One tap is enough (2026-10-01). The modal used to demand at least two
+// characters of prose under one of four broad kinds, so a person with a quick
+// "this is slow" had to compose a sentence to say it — and almost nobody did.
+// Now a TOPIC alone can be sent; the words are optional. Topics file under the
+// established kinds (send-feedback TOPIC_KIND) so every existing reader keeps
+// working, and the topic itself is the row's `choice`.
+//
+// What rides along is SHOWN before it is sent — "Sent with: canvas · 34 cards
+// · Free · desktop" — and "OK to email me about this" is an explicit, unticked
+// choice. The topic ids and labels are the server's (_feedback_topic_label,
+// 0348); feedbackContract.test.mjs compares them.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PaperPlaneTilt, Bug, Lightbulb, Heart, ChatCircle, CheckCircle } from '@phosphor-icons/react';
+import { PaperPlaneTilt, Bug, Lightbulb, Heart, ChatCircle, CheckCircle, Question, Hourglass, Tag } from '@phosphor-icons/react';
 import { supabase } from '../lib/supabase.js';
+import { useAuth } from '../auth/AuthGate.jsx';
+import { useMyTier } from '../hooks/useMyTier.js';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
+import { buildFeedbackContext, describeFeedbackContext } from '../lib/feedbackContext.js';
+import { feedbackEnv } from '../lib/feedbackEnv.js';
 
 const FEEDBACK_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/send-feedback';
 const SUPPORT_EMAIL = 'clusters@soleilpictures.com';
 const MAX_MESSAGE = 4000;
-const KINDS = [
-  { id: 'idea',   label: 'Idea',   icon: Lightbulb,  hint: 'A feature request or improvement' },
-  { id: 'bug',    label: 'Bug',    icon: Bug,        hint: "Something's broken or wrong" },
-  { id: 'praise', label: 'Praise', icon: Heart,      hint: 'You love something' },
-  { id: 'other',  label: 'Other',  icon: ChatCircle, hint: 'Anything else' },
+const TOPICS = [
+  { id: 'broke',           label: 'Something broke',   icon: Bug,        hint: 'What happened, and what did you expect? (optional)' },
+  { id: 'missing_feature', label: 'Missing a feature', icon: Lightbulb,  hint: 'What would you like it to do? (optional)' },
+  { id: 'confusing',       label: 'Confusing',         icon: Question,   hint: 'What was unclear? (optional)' },
+  { id: 'slow',            label: 'Slow',              icon: Hourglass,  hint: 'What was slow, and where? (optional)' },
+  { id: 'pricing',         label: 'Plans and pricing', icon: Tag,        hint: 'What should we know? (optional)' },
+  { id: 'love',            label: 'I love something',  icon: Heart,      hint: 'Tell us what — we like knowing. (optional)' },
+  { id: 'other',           label: 'Other',             icon: ChatCircle, hint: 'Anything at all (optional)' },
 ];
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -51,10 +72,13 @@ function fileToDownscaledDataUrl(file) {
 }
 
 export function FeedbackButton({ as = 'floating' }) {
+  const { user } = useAuth();
+  const myTier = useMyTier({ userId: user?.id });
   const [open, setOpen]       = useState(false);
-  const [kind, setKind]       = useState('idea');
+  const [topic, setTopic]     = useState(null);
   const [message, setMessage] = useState('');
   const [image, setImage]     = useState(null);  // { dataUrl, name } | null
+  const [contactOk, setContactOk] = useState(false);
   const [busy, setBusy]       = useState(false);
   const [status, setStatus]   = useState(null);  // 'sent' | 'error' | null
   const [error, setError]     = useState('');
@@ -62,9 +86,21 @@ export function FeedbackButton({ as = 'floating' }) {
   const panelRef   = useRef(null);
   const lastFocus  = useRef(null);   // element to restore focus to on close
 
-  const canSend = message.trim().length >= 2 && !busy;
+  // A topic alone is a whole answer. Without one, words are (the old shape).
+  const hasText = message.trim().length >= 2;
+  const canSend = (Boolean(topic) || hasText) && !busy;
 
   const close = () => { if (!busy) setOpen(false); };
+
+  // What will be attached, computed while the modal is open so the line the
+  // person reads is the record that is sent.
+  const context = useMemo(() => (open ? buildFeedbackContext({
+    cards: myTier.tier ? myTier.demoCardCount : undefined,
+    server_cards: myTier.serverCardCount,
+    cap: myTier.tier === 'demo' ? myTier.effectiveCardLimit : undefined,
+    tier: myTier.tier,
+  }, feedbackEnv()) : null), [open, myTier.tier, myTier.demoCardCount, myTier.serverCardCount, myTier.effectiveCardLimit]);
+  const contextLine = context ? describeFeedbackContext(context) : '';
 
   // While open: lock background scroll, trap Tab inside the panel, Esc closes.
   useEffect(() => {
@@ -96,6 +132,17 @@ export function FeedbackButton({ as = 'floating' }) {
     };
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Focus the first topic on open: the Tab trap above only holds focus that is
+  // already inside the panel, and a textarea autofocus would put the software
+  // keyboard over a list of one-tap answers on a phone.
+  useEffect(() => {
+    if (!open || status === 'sent') return undefined;
+    const raf = requestAnimationFrame(() => {
+      try { panelRef.current?.querySelector('.feedback-kind')?.focus({ preventScroll: true }); } catch (_) {}
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [open, status]);
+
   const pickImage = async (e) => {
     const file = e.target.files?.[0];
     if (e.target) e.target.value = '';  // allow re-picking the same file
@@ -114,9 +161,10 @@ export function FeedbackButton({ as = 'floating' }) {
   };
 
   const submit = async () => {
-    if (message.trim().length < 2) { setError('Please write a bit more.'); return; }
+    if (!topic && !hasText) { setError('Pick a topic, or write a few words.'); return; }
     setBusy(true);
     setError('');
+    const text = message.trim();
     try {
       let token = '';
       try {
@@ -130,8 +178,11 @@ export function FeedbackButton({ as = 'floating' }) {
           ...(token ? { authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          kind,
-          message: message.trim(),
+          // Words with no topic file as 'other' — the same place they always went.
+          choice: topic || 'other',
+          message: text,
+          context,
+          contact_ok: Boolean(user) && contactOk,
           image_data_url: image?.dataUrl || null,
           url:        typeof window !== 'undefined' ? window.location.href : null,
           viewport:   typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : null,
@@ -140,9 +191,18 @@ export function FeedbackButton({ as = 'floating' }) {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      // Length only, never the words — the same rule every ask follows.
+      try {
+        logEvent(EV.FEEDBACK_SENT, {
+          topic: topic || 'other', has_text: text.length > 0, len: text.length,
+          has_image: Boolean(image), contact_ok: Boolean(user) && contactOk,
+        });
+      } catch (_) {}
       setStatus('sent');
       setMessage('');
       setImage(null);
+      setTopic(null);
+      setContactOk(false);
       setTimeout(() => { setOpen(false); setStatus(null); }, 1600);
     } catch (e) {
       setError(e?.message || String(e));
@@ -163,6 +223,7 @@ export function FeedbackButton({ as = 'floating' }) {
     setStatus(null);
     setError('');
     setImage(null);
+    try { logEvent(EV.FEEDBACK_OPENED, { surface: feedbackEnv().surface || null }); } catch (_) {}
   };
 
   const Trigger = as === 'icon' ? (
@@ -175,7 +236,7 @@ export function FeedbackButton({ as = 'floating' }) {
     </button>
   );
 
-  const activeHint = KINDS.find((k) => k.id === kind)?.hint || 'Tell us…';
+  const activeHint = TOPICS.find((t) => t.id === topic)?.hint || 'Pick a topic above, or just write — either is enough.';
 
   // The modal is rendered through a portal to document.body so a parent with
   // backdrop-filter / transform / contain (which create a containing block for
@@ -202,28 +263,28 @@ export function FeedbackButton({ as = 'floating' }) {
           <div className="feedback-success" role="status">
             <span className="feedback-success-ico" aria-hidden="true"><CheckCircle size={40} weight="fill" /></span>
             <div className="feedback-success-title">Thanks — got it.</div>
-            <div className="feedback-success-sub t-meta">We read every note that comes in.</div>
+            <div className="feedback-success-sub t-meta">A person here reads every note that comes in.</div>
           </div>
         ) : (
           <>
             <div className="feedback-body">
-              <div className="feedback-kinds" role="radiogroup" aria-label="Feedback type">
-                {KINDS.map((k) => {
-                  const KIco = k.icon;
-                  const active = kind === k.id;
+              <div className="feedback-kinds" role="radiogroup" aria-label="What is it about?">
+                {TOPICS.map((t) => {
+                  const TIco = t.icon;
+                  const active = topic === t.id;
                   return (
                     <button
-                      key={k.id}
+                      key={t.id}
                       type="button"
                       role="radio"
                       aria-checked={active}
                       className={`feedback-kind ${active ? 'is-active' : ''}`}
-                      onClick={() => setKind(k.id)}
-                      title={k.hint}
+                      // Tapping the chosen topic again clears it.
+                      onClick={() => setTopic(active ? null : t.id)}
                       disabled={busy}
                     >
-                      <span className="feedback-kind-ico" aria-hidden="true"><KIco size={17} weight={active ? 'fill' : 'regular'} /></span>
-                      {k.label}
+                      <span className="feedback-kind-ico" aria-hidden="true"><TIco size={17} weight={active ? 'fill' : 'regular'} /></span>
+                      {t.label}
                     </button>
                   );
                 })}
@@ -236,10 +297,10 @@ export function FeedbackButton({ as = 'floating' }) {
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={onTextareaKeyDown}
                   placeholder={activeHint}
-                  rows={5}
+                  rows={4}
                   disabled={busy}
-                  autoFocus
                   maxLength={MAX_MESSAGE}
+                  aria-label="Details (optional)"
                 />
                 {message.length > 0 && (
                   <span className={`feedback-count t-meta ${message.length >= MAX_MESSAGE ? 'is-max' : ''}`}>
@@ -262,6 +323,22 @@ export function FeedbackButton({ as = 'floating' }) {
                 )}
                 <input ref={fileRef} type="file" accept="image/*" onChange={pickImage} style={{ display: 'none' }} />
               </div>
+
+              {user && (
+                <label className="feedback-consent">
+                  <input
+                    type="checkbox"
+                    checked={contactOk}
+                    onChange={(e) => setContactOk(e.target.checked)}
+                    disabled={busy}
+                  />
+                  <span>OK to email me about this</span>
+                </label>
+              )}
+
+              {contextLine && (
+                <div className="ask-context">Sent with: {contextLine}</div>
+              )}
 
               {error && <div className="feedback-error t-meta" role="alert">{error}</div>}
             </div>

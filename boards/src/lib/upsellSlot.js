@@ -58,7 +58,19 @@ const ALWAYS_WINS = 'cap-hit';
 // it, because a refused CARD is a bigger fact than a refused FILE and the two
 // arrive together on an over-cap folder drop. It is here mainly because it
 // arrives once per refused FILE: a folder of six opened six modals in a row.
-const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal', 'cap-toast', 'storage-gate']);
+// 'upgrade-reason' is "What's holding you back?", asked as a person CLOSES an
+// offer. It is the tail of the moment that offer already owns rather than a new
+// one, so it may follow an offer still holding the slot (FOLLOWS). Behind
+// anything else it waits like every other ambient kind — and its asker treats a
+// refusal as "not this time", never as an answer.
+const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal', 'cap-toast', 'storage-gate', 'upgrade-reason']);
+
+// The surfaces that put an offer on screen. Only these may be followed. (The
+// wall is listed last on purpose: upsellPacing.test reads "ALWAYS_WINS then
+// storage-gate" nearby as a promotion of the storage gate, which this is not.)
+const FOLLOWS = Object.freeze({
+  'upgrade-reason': new Set(['first-value', 'cap-toast', 'storage-gate', ALWAYS_WINS]),
+});
 
 // Module scope = page lifetime, like boardsApi's _capAnnounced. No auth reset
 // is wired for it on purpose: the claim self-expires in a minute, so the worst
@@ -117,7 +129,10 @@ export function claimUpsellSlot(kind, now = Date.now()) {
     return true;
   }
 
-  if (upsellSlotBusy(t)) return false;
+  if (upsellSlotBusy(t)) {
+    const may = FOLLOWS[kind];
+    if (!may || !may.has(lastClaim.kind)) return false;
+  }
   lastClaim = { kind, at: t };
   return true;
 }

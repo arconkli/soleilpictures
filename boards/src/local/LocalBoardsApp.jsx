@@ -32,7 +32,9 @@ import { aspectSpec } from '../lib/captureAspect.js';
 import { guardCaptureMutators } from '../lib/captureMutatorGuard.js';
 import { CaptureHud } from '../components/capture/CaptureHud.jsx';
 import { ReturnReasonAsk } from '../components/ReturnReasonAsk.jsx';
-import { isReturnQaMode } from '../lib/localMode.js';
+import { isReturnQaMode, isUpgradeReasonQaMode, upgradeReasonQaAutoFire } from '../lib/localMode.js';
+import { UpgradeReasonAsk } from '../components/UpgradeReasonAsk.jsx';
+import { OFFER_DISMISSED } from '../lib/offerEvents.js';
 import { AspectMask } from '../components/capture/AspectMask.jsx';
 import { Spotlight } from '../components/capture/Spotlight.jsx';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -1522,6 +1524,22 @@ export function LocalBoardsApp({ user, signOut }) {
           at all and stay that way. The literal import.meta.env.DEV drops this
           from production along with the component's own harness branch. */}
       {import.meta.env.DEV && isReturnQaMode() && <ReturnReasonAsk />}
+      {/* Dev-only, ?upgradereasonqa=1: the ask that follows a closed offer. The
+          local shell never shows an offer, so this fires the one event the real
+          one would — after mount, so the listener is there to hear it. */}
+      {import.meta.env.DEV && isUpgradeReasonQaMode() && (
+        <>
+          <UpgradeReasonAsk />
+          {upgradeReasonQaAutoFire() && <span hidden ref={(el) => {
+            if (!el || el.dataset.fired) return;
+            el.dataset.fired = '1';
+            setTimeout(() => window.dispatchEvent(new CustomEvent(OFFER_DISMISSED, {
+              detail: { offer: 'cap-hit', surface: 'pricing_modal', method: 'maybe_later', via: 'qa',
+                        trial: true, dwell_ms: 4200, cards: 34, server_cards: 34, cap: 50, tier: 'demo' },
+            })), 50);
+          }} />}
+        </>
+      )}
       {mobileShell && mobileNavOpen && (
         <div className="sidebar-mobile-backdrop"
              onClick={() => setMobileNavOpen(false)}

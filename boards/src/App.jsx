@@ -44,6 +44,8 @@ import {
 } from './lib/powerReveals.js';
 import { ReferralNudge } from './components/ReferralNudge.jsx';
 import { ReturnReasonAsk } from './components/ReturnReasonAsk.jsx';
+import { UpgradeReasonAsk } from './components/UpgradeReasonAsk.jsx';
+import { OFFER_DISMISSED } from './lib/offerEvents.js';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
 import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
 import { readRemix, clearRemix } from './lib/remix.js';
@@ -4465,6 +4467,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // say so (checkoutReturn.js).
         notePendingImport({ n: ask.n });
         openCapWall();
+      } else if (ask.own && (action === 'cancel' || action === 'partial')) {
+        // Declining the room this drop needed is declining the offer: the one
+        // moment to ask why (UpgradeReasonAsk). Only on the person's own plan —
+        // a collaborator's upgrade could never have unblocked the cluster.
+        try {
+          window.dispatchEvent(new CustomEvent(OFFER_DISMISSED, {
+            detail: {
+              offer: 'import', surface: 'import_dialog', method: action,
+              trial: Boolean(trialOfferRef.current), dwell_ms: null,
+              cards: ask.count, cap: ask.limit, tier: 'demo',
+            },
+          }));
+        } catch (_) {}
       }
       try { ask.resolve?.({ take }); } catch (_) {}
       return null;
@@ -8277,8 +8292,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       <ReferralNudge tier={myTier.tier} onCollaborate={openCollabInvite} />
       {/* Gates itself entirely on the soleil:returned signal above, so it is
           inert for every first session and costs a listener otherwise. */}
+      {/* Inert until an offer closes; once per account (UpgradeReasonAsk). */}
+      <UpgradeReasonAsk />
       <ReturnReasonAsk
         askedOnServer={!!myTier.onboarding?.return_reason_asked_at}
+        contextInput={{
+          cards: myTier.demoCardCount, server_cards: myTier.serverCardCount,
+          cap: myTier.effectiveCardLimit, tier: myTier.tier,
+        }}
         onAsked={() => {
           // merge_profile_settings replaces the whole onboarding key, so spread
           // the current one; the flag makes "once per account" hold across devices.

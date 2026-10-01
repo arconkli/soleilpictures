@@ -141,5 +141,24 @@ assertEq(claimUpsellSlot('cap-hit', T + 1000), true, 'and the wall still overrid
 // caller that passes the upgradeReason string straight through fails closed.
 assertEq(claimUpsellSlot('storage', T), false, "'storage' is not a slot kind — 'storage-gate' is");
 
+// "What's holding you back?" is asked as an offer CLOSES, inside the window the
+// offer itself claimed. As an ordinary ambient kind it would be refused by the
+// very surface it follows, every time — so it may follow an OFFER, and nothing
+// else.
+for (const offer of ['cap-hit', 'first-value', 'cap-toast', 'storage-gate']) {
+  __resetUpsellSlot();
+  assertEq(claimUpsellSlot(offer, T), true, `${offer} shows`);
+  assertEq(claimUpsellSlot('upgrade-reason', T + 5000), true, `the reason ask may follow ${offer}`);
+  assertEq(claimUpsellSlot('share-ask', T + 6000), false, `and then holds the moment against ambient kinds (after ${offer})`);
+}
+for (const other of ['share-ask', 'mix-prompt', 'return-reason', 'invite-nudge', 'power-reveal']) {
+  __resetUpsellSlot();
+  assertEq(claimUpsellSlot(other, T), true, `${other} shows`);
+  assertEq(claimUpsellSlot('upgrade-reason', T + 5000), false, `the reason ask waits behind ${other}, which is not an offer`);
+}
+__resetUpsellSlot();
+assertEq(claimUpsellSlot('upgrade-reason', T), true, 'a free slot takes it');
+assertEq(claimUpsellSlot('cap-hit', T + 1000), true, 'and the wall still overrides it');
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

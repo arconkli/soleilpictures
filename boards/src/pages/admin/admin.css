@@ -2135,6 +2135,16 @@
 .fbk-kind-other         { --k: var(--ink-3); }
 .fbk-kind-return_reason { --k: rgb(165,165,185); }
 .fbk-kind-account_deleted { --k: rgb(205,140,95); }
+.fbk-kind-upgrade_reason  { --k: rgb(200,130,200); }
+.fbk-kind-role            { --k: rgb(110,190,200); }
+/* The record that rode along with an answer, and the author's consent to be
+ * written to about it. Quiet: filing, not content. */
+.fbk-ctx { color: var(--ink-3); }
+.fbk-consent { color: rgb(80,200,120); }
+.fbk-breakdown { margin: 4px 0 14px; }
+.fbk-breakdown-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.fbk-breakdown-title { font: 600 12px/1 var(--font-sans); color: var(--ink-1); }
+.fbk-breakdown .admin-table td, .fbk-breakdown .admin-table th { padding-top: 6px; padding-bottom: 6px; }
 .fbk-kind .fbk-dot { background: var(--k); }
 
 .fbk-choice { color: var(--ink-2); }

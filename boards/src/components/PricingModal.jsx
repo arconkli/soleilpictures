@@ -36,6 +36,7 @@ import { trackViewContent } from '../lib/metaPixel.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
 import { stampUpgradePrompt } from '../lib/upgradePrompts.js';
 import { creatorTrialEligibility } from '../lib/creatorTrial.js';
+import { OFFER_DISMISSED } from '../lib/offerEvents.js';
 
 export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null, tierPreview = null, ownWorkPreview = null }) {
   const { user } = useAuth();
@@ -220,10 +221,25 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   const handleClose = (method = 'x') => {
     if (!redirectingRef.current) {
       up.outcome('dismiss', { method });
+      const timing = up.timing();
       logEvent(EV.PRICING_ABANDON, {
         header, plan, surface: 'modal', method,
-        exposure_n: up.envelope().exposure_n, ...up.timing(),
+        exposure_n: up.envelope().exposure_n, ...timing,
       });
+      // The one moment to ask why (UpgradeReasonAsk). Never from the admin
+      // gallery's preview, and only for someone the offer was actually for.
+      if (!tierPreview && tier === 'demo') {
+        try {
+          window.dispatchEvent(new CustomEvent(OFFER_DISMISSED, {
+            detail: {
+              offer: header || 'generic', surface: 'pricing_modal', method, via,
+              trial: trialOffer, dwell_ms: timing?.dwell_ms ?? null,
+              cards: demoCardCount, server_cards: serverCardCount,
+              cap: effectiveCardLimit, tier,
+            },
+          }));
+        } catch (_) { /* the ask is optional; closing is not */ }
+      }
     }
     onClose?.();
   };

@@ -31704,7 +31704,42 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Clusters may ask you one question, once: on a day you come back, it asks what brings you back today, offering a short list of answers. Tapping one is the whole answer. It then asks a single follow-up in your own words, which you can skip — the tap has already been recorded either way."
+     "v": "Clusters asks two questions, each "
+    },
+    {
+     "t": "strong",
+     "v": "once per account",
+     "children": [
+      {
+       "t": "text",
+       "v": "once per account"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and Send feedback is there whenever you want it. Every one of them shows you what will be sent with your answer before you send it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "What brings you back today?",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What brings you back today?"
+    }
+   ],
+   "id": "what-brings-you-back-today"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a day you come back, Clusters may ask what brings you back today, offering a short list of answers. Tapping one is the whole answer."
     }
    ]
   },
@@ -31742,6 +31777,29 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": ", which is not."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "After you tap, it asks "
+    },
+    {
+     "t": "strong",
+     "v": "what best describes you",
+     "children": [
+      {
+       "t": "text",
+       "v": "what best describes you"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — filmmaker, photographer, designer, artist or illustrator, student, or something else — and offers a single follow-up in your own words. Both are optional: the first tap has already been recorded either way. Your role is asked for once per account too."
     }
    ]
   },
@@ -31794,11 +31852,200 @@ export const DOCS_CONTENT = {
       "t": "text",
       "v": "It never appears on your first session, and it does not appear when you have arrived through someone else's share or invite link."
      }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "What's holding you back?",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What's holding you back?"
+    }
+   ],
+   "id": "what-s-holding-you-back"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you are on the free plan and close an offer to upgrade — the upgrade screen, or the dialog that appears when a folder will not fit — Clusters may ask, once, what is holding you back: the free plan is enough for you, the price, putting a card in for a trial, not being sure what you would get, just trying it out, or something else. One tap answers it, and an optional line in your own words follows."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It only appears after the offer was actually on your screen, and it is asked "
+    },
+    {
+     "t": "strong",
+     "v": "once per account",
+     "children": [
+      {
+       "t": "text",
+       "v": "once per account"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": answering it, choosing "
+    },
+    {
+     "t": "em",
+     "v": "Not now",
+     "children": [
+      {
+       "t": "text",
+       "v": "Not now"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or leaving it on your screen for a few seconds ends it for good, and that is recorded on the server, so it will not come back on another device."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Send feedback",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Send feedback"
+    }
+   ],
+   "id": "send-feedback"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Send feedback",
+     "children": [
+      {
+       "t": "text",
+       "v": "Send feedback"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — the paper-plane button — is always there. Pick a topic (something broke, missing a feature, confusing, slow, plans and pricing, I love something, other) and send; words and a screenshot are both optional. The "
+    },
+    {
+     "t": "strong",
+     "v": "OK to email me about this",
+     "children": [
+      {
+       "t": "text",
+       "v": "OK to email me about this"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " box starts unticked. Unless you tick it, nobody will write to you about what you sent."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "What is sent with an answer",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What is sent with an answer"
+    }
+   ],
+   "id": "what-is-sent-with-an-answer"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each of these attaches a small record of where you were, printed under the question before you send it — for example "
+    },
+    {
+     "t": "em",
+     "v": "canvas · 34 cards · Free · desktop",
+     "children": [
+      {
+       "t": "text",
+       "v": "canvas · 34 cards · Free · desktop"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ":"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "the part of the app you were on, and the cluster's id"
+     }
     ],
     [
      {
       "t": "text",
-      "v": "Whatever you type in the optional "
+      "v": "how many cards you have and your card limit, and your plan"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the offer you had just closed, if any, and how you closed it"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "your device type, operating system and browser, and the app's version"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the page's path — never its query string"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Send feedback also sends, as it always has, the address of the page you were on, your window size, your browser's user-agent string, and any screenshot you attach."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Whatever you type in an optional "
      },
      {
       "t": "strong",
@@ -31832,7 +32079,7 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "The tap itself is recorded as one of the fixed answers above, together with the length of anything you wrote — never its content."
+      "v": "A tap is recorded as one of the fixed answers above, together with the length of anything you wrote — never its content."
      }
     ],
     [
@@ -31848,7 +32095,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "If you would rather it had never been asked, deleting your account removes it along with everything else."
+     "v": "If you would rather none of it had been asked, deleting your account removes it along with everything else."
     }
    ]
   },

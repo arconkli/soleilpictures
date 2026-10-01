@@ -130,17 +130,64 @@ function kindsAcceptedBySendFeedback() {
   return kinds;
 }
 
-// The closed list the RPC validates p_choice against.
-function choicesInMigrations() {
+// The body of the LATEST definition of public.<fn>, across migrations in
+// order. SCOPED TO THE FUNCTION. The first version of this file took the last
+// `v_choice not in (…)` anywhere, which was right only while one function had
+// a closed list — 0348 added two more, and an unscoped read would compare
+// whichever came last against whichever client it happened to be paired with.
+function latestFunctionBody(fn) {
   let found = null;
+  const re = new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.${fn}\\s*\\(`, 'gi');
   for (const { name, sql } of migrationsInOrder()) {
-    for (const m of sql.matchAll(/v_choice\s+not\s+in\s*\(([^)]*)\)/gi)) {
-      const ids = [...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]);
-      if (ids.length) found = { name, ids };
+    for (const m of sql.matchAll(re)) {
+      const rest = sql.slice(m.index);
+      const as = rest.match(/\bas\s+(\$[a-z_]*\$)/i);
+      if (!as) continue;
+      const bodyStart = m.index + as.index + as[0].length;
+      const end = sql.indexOf(as[1], bodyStart);
+      if (end < 0) continue;
+      found = { name, body: sql.slice(bodyStart, end) };
     }
   }
-  assert.ok(found, 'no closed choice list found in any migration');
+  assert.ok(found, `no definition of public.${fn} in any migration`);
   return found;
+}
+
+// The closed list a definer RPC validates its argument against.
+function closedList(fn, varName) {
+  const { name, body } = latestFunctionBody(fn);
+  const m = body.match(new RegExp(`${varName}\\s+not\\s+in\\s*\\(([^)]*)\\)`, 'i'));
+  assert.ok(m, `${fn} (${name}) has no closed list on ${varName}`);
+  const ids = [...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]);
+  assert.ok(ids.length > 0, `${fn}'s closed list extracted as EMPTY`);
+  return { name, ids };
+}
+
+// id → label from a `case p_choice when 'x' then 'Label' … end` function.
+function labelsOf(fn) {
+  const { name, body } = latestFunctionBody(fn);
+  const map = {};
+  for (const m of body.matchAll(/when\s+'([a-z_]+)'\s+then\s+'((?:[^']|'')*)'/gi)) map[m[1]] = m[2].replace(/''/g, "'");
+  assert.ok(Object.keys(map).length > 0, `${fn} labels extracted as EMPTY`);
+  return { name, map };
+}
+
+// A client list literal: const NAME = [ { id: 'x', label: '…' }, … ];
+function clientList(file, constName) {
+  const src = read(path.join(here, '..', 'components', file));
+  const start = src.indexOf(`const ${constName} = [`);
+  assert.ok(start > -1, `${file} no longer declares ${constName}`);
+  const end = src.indexOf('];', start);
+  assert.ok(end > start, `could not find the end of ${constName}`);
+  const items = [...src.slice(start, end).matchAll(/id:\s*'([a-z_]+)',\s*label:\s*(['"])((?:(?!\2).)*)\2/g)]
+    .map((m) => ({ id: m[1], label: m[3] }));
+  assert.ok(items.length > 0, `${constName} extracted as EMPTY`);
+  return items;
+}
+
+// The closed list the return RPC validates p_choice against.
+function choicesInMigrations() {
+  return closedList('submit_return_reason', 'v_choice');
 }
 
 // The client half of that same list.
@@ -211,4 +258,67 @@ test('the closed choice list is identical in the client and the RPC', () => {
     `ReturnReasonAsk.jsx CHOICES and ${name}'s closed list disagree. `
     + 'A choice the client can send and the server rejects raises 22023 and is lost.',
   );
+});
+
+// ── 0348: one data model, four closed lists ─────────────────────────────────
+// Each list lives in three places — the client that offers it, the RPC that
+// validates it, the label function whose text a tap-only answer stores — and a
+// disagreement in any pair loses answers silently (0282) or makes the admin
+// view present our filler as somebody's words. Every pair is compared here.
+
+test('"What\'s holding you back?": client, RPC and labels agree, id for id and word for word', () => {
+  const client = clientList('UpgradeReasonAsk.jsx', 'CHOICES');
+  const { name, ids } = closedList('submit_upgrade_reason', 'v_choice');
+  assert.deepEqual(client.map((c) => c.id).sort(), [...ids].sort(),
+    `UpgradeReasonAsk CHOICES and ${name}'s closed list disagree`);
+  const { map } = labelsOf('_upgrade_reason_label');
+  for (const c of client) assert.equal(map[c.id], c.label, `the chip and the stored label for '${c.id}' read differently`);
+});
+
+test('the role step: client, RPC and labels agree', () => {
+  const client = clientList('ReturnReasonAsk.jsx', 'ROLES');
+  const { name, ids } = closedList('submit_role', 'v_role');
+  assert.deepEqual(client.map((c) => c.id).sort(), [...ids].sort(),
+    `ReturnReasonAsk ROLES and ${name}'s closed list disagree`);
+  const { map } = labelsOf('_role_label');
+  for (const c of client) assert.equal(map[c.id], c.label, `role '${c.id}' reads differently on the chip and in the table`);
+});
+
+test('the return question\'s labels are what was tapped', () => {
+  const client = clientList('ReturnReasonAsk.jsx', 'CHOICES');
+  const { map } = labelsOf('_return_reason_label');
+  for (const c of client) assert.equal(map[c.id], c.label, `return answer '${c.id}' reads differently on the chip and in the table`);
+  const src = read(path.join(here, '..', 'components', 'ReturnReasonAsk.jsx'));
+  assert.match(src, />Nothing in particular</, 'the null answer\'s button text');
+  assert.equal(map.nothing, 'Nothing in particular');
+});
+
+test('Send feedback topics: client, edge function and labels agree, and every topic files under a stored kind', () => {
+  const client = clientList('FeedbackButton.jsx', 'TOPICS');
+  const edge = read(path.join(repo, 'supabase', 'functions', 'send-feedback', 'index.ts'));
+  const m = edge.match(/const\s+TOPIC_KIND\s*=\s*new\s+Map<[^>]*>\(\[([\s\S]*?)\]\);/);
+  assert.ok(m, 'could not find TOPIC_KIND in send-feedback/index.ts');
+  const pairs = [...m[1].matchAll(/\["([a-z_]+)",\s*"([a-z_]+)"\]/g)].map((x) => [x[1], x[2]]);
+  assert.ok(pairs.length > 0, 'TOPIC_KIND extracted as EMPTY');
+  assert.deepEqual(client.map((c) => c.id).sort(), pairs.map(([t]) => t).sort(),
+    'FeedbackButton TOPICS and send-feedback TOPIC_KIND disagree — a topic the client sends and the edge rejects is a 400');
+  const { name, kinds } = effectiveAllowedKinds();
+  const sendKinds = kindsAcceptedBySendFeedback();
+  for (const [topic, kind] of pairs) {
+    assert.ok(sendKinds.includes(kind), `topic '${topic}' files under '${kind}', which send-feedback does not accept`);
+    assert.ok(kinds.includes(kind), `topic '${topic}' files under '${kind}', which ${name}'s CHECK forbids`);
+  }
+  const { map } = labelsOf('_feedback_topic_label');
+  for (const c of client) assert.equal(map[c.id], c.label, `topic '${c.id}' reads differently on the chip and in the table`);
+});
+
+test('the context the client attaches is exactly what the server keeps', async () => {
+  const { FEEDBACK_CONTEXT_KEYS } = await import('./feedbackContext.js');
+  const { name, body } = latestFunctionBody('_feedback_context');
+  const m = body.match(/e\.key\s+in\s*\(([\s\S]*?)\)/);
+  assert.ok(m, `${name}: no key whitelist in _feedback_context`);
+  const server = [...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]);
+  assert.ok(server.length > 0, '_feedback_context whitelist extracted as EMPTY');
+  assert.deepEqual([...FEEDBACK_CONTEXT_KEYS].sort(), [...server].sort(),
+    'a key the client sends and the server drops is shown to the person and then not stored');
 });

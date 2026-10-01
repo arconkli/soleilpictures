@@ -261,6 +261,28 @@ export const EV = Object.freeze({
   RETURN_REASON_NOTE:      'return_reason_note',          // the follow-up was written {choice,len} — LENGTH ONLY, same rule as search_run's q_len
   RETURN_REASON_WRITE_FAILED: 'return_reason_write_failed', // the answer did not reach the table {code,terminal,stage}. Its absence is why 0282's total loss of every answer looked exactly like success — do not remove it
   RETURN_REASON_DISMISSED: 'return_reason_dismissed',     // "Not now" {days_since_last_seen,via:'x'|'skip'} — remembered permanently, so a high rate here means the ask is wrong and should come out rather than be re-timed a third time
+  // Its second step (2026-10-01): "What best describes you?" — one per account,
+  // the read that tells the professional positioning from the audience acquired.
+  ROLE_ANSWERED:           'role_answered',               // a role was tapped {role,surface:'return_banner'} (must-land). Stored by submit_role in public.feedback kind='role'
+  ROLE_WRITE_FAILED:       'role_write_failed',           // the role did not reach the table {code,terminal}
+
+  // ── "What's holding you back?" (see components/UpgradeReasonAsk.jsx) ──
+  // Asked once per account as a demo owner CLOSES an offer (the pricing modal,
+  // or the over-cap import dialog). Until 2026-10-01 nobody had ever been asked
+  // why they did not buy, so zero sales could not be read at all. Same
+  // denominator rule as the return question: SHOWN fires only once the ask has
+  // been on a live screen for a few seconds.
+  UPGRADE_REASON_SHOWN:    'upgrade_reason_shown',        // delivered to a live screen {offer,surface,method,trial} — the denominator. offer = the modal header ('cap-hit'|'near-cap'|'first-value'|'storage'|…) or 'import'
+  UPGRADE_REASON_ANSWERED: 'upgrade_reason_answered',     // a choice was taken {choice,offer,surface,trial} (must-land). choice ∈ enough_room|price|no_card|unsure_value|just_trying|other — the pre-registered read (price ≥ 35% reopens price; enough_room+unsure_value ≥ 50% reopens what Creator sells; no_card ≥ 25% reopens the card requirement)
+  UPGRADE_REASON_NOTE:     'upgrade_reason_note',         // the optional follow-up was written {choice,len} — LENGTH ONLY
+  UPGRADE_REASON_WRITE_FAILED: 'upgrade_reason_write_failed', // the answer did not reach the table {code,terminal,stage}
+  UPGRADE_REASON_DISMISSED: 'upgrade_reason_dismissed',   // "Not now" {via:'x'|'skip'|'esc'} — remembered for good, so the account is not asked again
+
+  // ── Send feedback (see components/FeedbackButton.jsx) ──
+  // Dark until 2026-10-01: a row in public.feedback was the only trace, so how
+  // many people opened the modal and gave up was unknowable.
+  FEEDBACK_OPENED:         'feedback_opened',             // the Send feedback modal opened {surface}
+  FEEDBACK_SENT:           'feedback_sent',               // it was sent {topic,has_text,len,has_image,contact_ok} — LENGTH ONLY, never the words
 
   // ── The bell (previously COMPLETELY DARK) ──
   // public.notifications, the panel, the live bus and the browser-notification
