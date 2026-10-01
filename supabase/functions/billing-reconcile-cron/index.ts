@@ -18,11 +18,17 @@
 // Authorization: same dual contract as waitlist-accept-cron —
 //   • Bearer <SUPABASE_SERVICE_ROLE_KEY>   (admin tools, manual curl)
 //   • x-cron-secret: <CRON_SECRET>         (pg_cron; see migration 0253)
+//
+// It also sends the TRIAL-ENDING reminder (migration 0345): one email per
+// trialing subscription, about three days before its first charge. Read off
+// the subscriptions mirror on purpose — stripe-webhook has no trial_will_end
+// case, and which events the endpoint is subscribed to is a Dashboard setting.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@17";
 import { activateUserFromSubscription } from "../_shared/activate.ts";
+import { renderTrialEnding } from "../_shared/email/trialEnding.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -31,6 +37,15 @@ const CRON_SECRET  = Deno.env.get("CRON_SECRET") || "";
 
 const STALE_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
 const BATCH = 50;
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
+// Same sender identity send-transactional-email gives its hello@-class mail:
+// a billing notice should land where a reply reaches a person.
+const FROM_HELLO = "Clusters <hello@clusters.soleilpictures.com>";
+const REPLY_TO   = "hello@clusters.soleilpictures.com";
+// Remind when the first charge is at most this far out. The job runs daily, so
+// a subscription enters the window roughly three days ahead, and a failed send
+// gets two or three more daily attempts before the charge.
+const REMIND_AHEAD_MS = 3.5 * 24 * 60 * 60 * 1000;
 
 const stripe = new Stripe(STRIPE_KEY, { httpClient: Stripe.createFetchHttpClient() });
 
@@ -125,10 +140,127 @@ Deno.serve(async (req) => {
     }
   }
 
-  const summary = { checked, repaired, demoted, flagged, skipped, notes };
+  const reminders = await sendTrialReminders(admin);
+
+  const summary = { checked, repaired, demoted, flagged, skipped, notes, reminders };
   console.log("[billing-reconcile]", JSON.stringify(summary));
   return json(summary, 200);
 });
+
+// One trial_ending email per trialing subscription whose first charge is
+// within REMIND_AHEAD_MS. The stamp is CLAIMED before the send (an atomic
+// update that only one run can win) and RELEASED if the send fails, so each
+// subscription is reminded once and a failure retries tomorrow. Canceled-at-
+// period-end trials are skipped: nobody is going to be charged.
+async function sendTrialReminders(admin: ReturnType<typeof createClient>) {
+  const out = { due: 0, sent: 0, failed: 0, skipped: 0 };
+  if (!RESEND_API_KEY) { console.warn("[billing-reconcile] RESEND_API_KEY missing; reminders skipped"); return out; }
+  const now = new Date();
+  const due = await admin.from("subscriptions")
+    .select("user_id, stripe_subscription_id, plan, current_period_end")
+    .eq("status", "trialing")
+    .eq("cancel_at_period_end", false)
+    .is("trial_reminder_sent_at", null)
+    .gt("current_period_end", now.toISOString())
+    .lte("current_period_end", new Date(now.getTime() + REMIND_AHEAD_MS).toISOString())
+    .limit(BATCH);
+  if (due.error) { console.error("[billing-reconcile] reminder query failed", due.error.message); return out; }
+  out.due = (due.data || []).length;
+
+  for (const row of due.data || []) {
+    const userId = row.user_id as string;
+    try {
+      const claim = await admin.from("subscriptions")
+        .update({ trial_reminder_sent_at: new Date().toISOString() })
+        .eq("user_id", userId).is("trial_reminder_sent_at", null)
+        .select("user_id");
+      if (claim.error) throw new Error(`claim failed: ${claim.error.message}`);
+      if (!claim.data?.length) { out.skipped++; continue; }   // another run won it
+
+      const u = await admin.auth.admin.getUserById(userId);
+      const email = u.data?.user?.email;
+      if (!email) { out.skipped++; continue; }                // keep the claim: nobody to tell
+
+      const firstChargeDate = new Date(row.current_period_end as string)
+        .toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+      const amountLabel = await chargeLabel(row.stripe_subscription_id as string | null, row.plan as string | null);
+
+      // Sent from here rather than through send-transactional-email so that
+      // adding a billing notice never means redeploying the sender every other
+      // email depends on. The log row it writes is the same one that function
+      // writes, so the admin email views see this send like any other.
+      const mail = renderTrialEnding({ firstChargeDate, amountLabel });
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "authorization": `Bearer ${RESEND_API_KEY}`,
+          "content-type": "application/json",
+          "Idempotency-Key": `trial_ending:${userId}:${row.current_period_end}`,
+        },
+        body: JSON.stringify({
+          from: FROM_HELLO, to: [email], reply_to: REPLY_TO,
+          subject: mail.subject, html: mail.html, text: mail.text,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      await logEmailSend(admin, { to: email, ok: res.ok, resendId: body?.id, errorBody: res.ok ? null : body });
+      if (!res.ok) throw new Error(`send failed: ${res.status} ${JSON.stringify(body).slice(0, 200)}`);
+      out.sent++;
+    } catch (e) {
+      out.failed++;
+      console.error("[billing-reconcile] trial reminder failed", userId, e);
+      // Release the claim so tomorrow's run tries again, inside the window.
+      await admin.from("subscriptions").update({ trial_reminder_sent_at: null }).eq("user_id", userId);
+    }
+  }
+  return out;
+}
+
+// What the first charge will actually be, read from Stripe's price rather than
+// typed here — a hand-typed amount is exactly how public copy drifts from the
+// thing that charges. Falls back to the plan's cadence alone if Stripe can't
+// be reached, never to a guessed number.
+async function chargeLabel(subId: string | null, plan: string | null): Promise<string> {
+  const cadence = plan === "annual" ? "year" : "month";
+  if (!subId) return `the Creator ${plan === "annual" ? "annual" : "monthly"} price`;
+  try {
+    const sub = await stripe.subscriptions.retrieve(subId);
+    const price = sub.items?.data?.[0]?.price;
+    const cents = price?.unit_amount;
+    const interval = price?.recurring?.interval || cadence;
+    if (typeof cents === "number") {
+      const amount = cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2);
+      const symbol = (price?.currency || "usd").toLowerCase() === "usd" ? "$" : "";
+      const suffix = symbol ? "" : ` ${(price?.currency || "").toUpperCase()}`;
+      return `${symbol}${amount}${suffix}/${interval}`;
+    }
+  } catch (e) {
+    console.warn("[billing-reconcile] price lookup failed", subId, (e as Error)?.message || String(e));
+  }
+  return `the Creator ${cadence === "year" ? "annual" : "monthly"} price`;
+}
+
+// The universal email_sends row (migration 0175), written exactly as
+// send-transactional-email writes it. Non-fatal: a logging hiccup must never
+// turn a delivered reminder into a failure that releases the claim and resends.
+async function logEmailSend(
+  admin: ReturnType<typeof createClient>,
+  o: { to: string; ok: boolean; resendId?: string; errorBody?: unknown },
+) {
+  try {
+    const ins = await admin.from("email_sends").insert({
+      resend_id: o.ok ? (o.resendId ?? null) : null,
+      template: "trial_ending",
+      category: "transactional",
+      recipient_email: o.to,
+      status: o.ok ? "sent" : "failed",
+      error: o.ok ? null : JSON.stringify(o.errorBody ?? null).slice(0, 500),
+    });
+    if (ins.error) console.warn("[billing-reconcile] email_sends log failed", ins.error.message);
+  } catch (e) {
+    console.warn("[billing-reconcile] email_sends log threw", (e as Error)?.message || String(e));
+  }
+}
 
 async function flag(admin: ReturnType<typeof createClient>, userId: string | null, props: Record<string, unknown>) {
   try {
