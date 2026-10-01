@@ -628,9 +628,23 @@ export function grantCopy({ grantActive, grantExpiresAt } = {}) {
 // the banned-claims list — the previous hand-typed version sold a retired
 // feature ("Edit Mode") and a never-capped one ("unlimited boards") for
 // months with no test able to notice.
+//
+// PRE-REGISTERED 2026-10-01 — "unlimited clusters" removed. A truth fix, not
+// an optimisation (owner's call: every cluster spends one of the Demo's cards,
+// so a capped plan must not read as unlimited clusters). This surface is alone
+// in its commit.
+//   Target queries: seo_page_daily, path = '/pricing', search_type = 'web',
+//     query <> '' and query ILIKE ANY ('%pricing%','%price%','%cost%','%free%');
+//     page truth from the query = '' rows. Never sum the two row types.
+//   Window: ±7 and ±14 days around the PRODUCTION deploy that carries it,
+//     impression-weighted position; nothing read inside 3 days of the ship.
+//   Floor: ≥200 post-change web impressions on /pricing, or the read is
+//     "ungradable" and says so instead of quoting a CTR.
+//   Expectation: no material change — the phrase is not a query term. A CTR
+//     drop well outside noise would mean it was doing selling work.
 export const PRICING_META_DESCRIPTION =
   `Soleil Clusters pricing — start free with the Demo (${DEMO_CARD_LIMIT} cards, ` +
-  `unlimited clusters, free collaborators), or go ${PLAN_NAME} ` +
+  `free collaborators), or go ${PLAN_NAME} ` +
   `(${PRICING.monthly.billedLabel}, or ${PRICING.annual.perMonthLabel}/mo billed annually) ` +
   `for unlimited cards, any file type, and no size limits on a ${CREATOR_STORAGE_LABEL} drive.`;
 
