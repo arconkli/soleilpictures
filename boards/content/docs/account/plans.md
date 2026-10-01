@@ -88,10 +88,10 @@ work across several, the one that matters is the workspace the cluster lives in.
 > is on the Upgrade pill and in Settings → Plan & billing, and it is the one enforced.
 > [Referral credits](/docs/account/referrals) add to whichever cap you have.
 
-> **Note:** Clusters are **not** capped. Neither are collaborators, editing,
-> sharing, [public links](/docs/collaborate/sharing), comments, documents,
-> [screenplay mode](/docs/documents/screenplay) or the
-> [API](/docs/api). Images have no size cap on any plan.
+> **Note:** There is no separate cap on clusters — each one is a card, and counts
+> as one. Collaborators, editing, sharing, [public links](/docs/collaborate/sharing),
+> comments, documents, [screenplay mode](/docs/documents/screenplay) and the
+> [API](/docs/api) are not capped at all. Images have no size cap on any plan.
 
 ## Whose allowance
 

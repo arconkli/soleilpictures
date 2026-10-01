@@ -67,7 +67,7 @@ Clusters focuses on live team production — multiplayer editing with cursors an
 
 ### Does Clusters have a free tier like Milanote?
 
-Yes. The Demo tier is free with no credit card and covers 50 cards across unlimited boards, with uploads never metered. Creator is $25/mo for unlimited cards, 100GB storage, and any file type.
+Yes. The Demo tier is free with no credit card and covers 50 cards — every cluster you make is one of them — with uploads never metered. Creator is $25/mo for unlimited cards, 100GB storage, and any file type.
 
 ### Can I move my Milanote boards over?
 

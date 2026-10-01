@@ -131,20 +131,18 @@ const RULES = [
     pattern: /edit mode/i,
   },
   {
-    name: 'boards/clusters are not a paid unlock — they were never capped',
+    // Until 2026-10-01 this rule banned "unlimited boards" only when sold as a
+    // CREATOR unlock, and let "the free tier covers N cards across unlimited
+    // boards" pass as true. The owner ruled otherwise: every cluster sits on its
+    // parent's canvas as a card and spends one of those N, so on a capped plan
+    // "unlimited clusters" reads as free room that is not there. Same for photo
+    // uploads — each photo is a card; "uploads never metered" (no SEPARATE
+    // budget) is the true form. Nesting really is unlimited, and "unlimited
+    // nesting" passes. Scoped like the rest: competitors' unlimited boards are
+    // theirs to claim.
+    name: 'a cluster or a photo costs a card — never sell either as unlimited',
     scoped: true,
-    pattern: /unlimited (boards|clusters)/i,
-    // ...but only when sold AS the upgrade. "The free tier covers N cards
-    // across unlimited boards" is true and must keep passing.
-    //
-    // This clause survives the `ours` flag, deliberately. `ours` says the FILE
-    // describes only our product; it does not say which TIER a given line is
-    // about, and billingCopy plus both pricing pages carry the free tier's
-    // list too — where "unlimited clusters" is simply true. Dropping the
-    // clause on those files flagged DEMO_FEATURES and the /pricing meta
-    // description as false advertising, which is how a lint earns the reflex
-    // that deletes it.
-    unless: (s) => !/\bCreator\b/.test(s),
+    pattern: /unlimited (boards|clusters|photo uploads)|(clusters|boards) (are|is) unlimited/i,
   },
   {
     name: 'invited collaborators edit free on every tier (a public LINK is read-only, a collaborator is not)',

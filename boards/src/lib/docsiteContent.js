@@ -29228,21 +29228,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Clusters are "
-    },
-    {
-     "t": "strong",
-     "v": "not",
-     "children": [
-      {
-       "t": "text",
-       "v": "not"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " capped. Neither are collaborators, editing, sharing, "
+     "v": "There is no separate cap on clusters — each one is a card, and counts as one. Collaborators, editing, sharing, "
     },
     {
      "t": "link",
@@ -29272,7 +29258,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " or the "
+     "v": " and the "
     },
     {
      "t": "link",
@@ -29287,7 +29273,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Images have no size cap on any plan."
+     "v": " are not capped at all. Images have no size cap on any plan."
     }
    ]
   },

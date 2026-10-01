@@ -28,7 +28,7 @@ What arrives is not a chat log. It is an infinite canvas you can rearrange, draw
 
 - Real cards you can move, group, and connect with arrows
 - Share the whole board with one link, no account needed to view
-- Free to start — 50 cards, unlimited boards, collaborators and photo uploads
+- Free to start — 50 cards, free collaborators, uploads never metered
 
 ## How Soleil Scout works
 
@@ -58,7 +58,7 @@ It reads what you wrote. Text "Scene 4 diner" with five photos and it titles the
 
 ### Is it free?
 
-Yes, to start. The free tier covers 50 cards across unlimited boards, with unlimited photo uploads and collaborators included. Creator ($25/mo) lifts the cap and adds 100GB and any file type.
+Yes, to start. The free tier covers 50 cards — every cluster you make is one of them — with collaborators free and uploads never metered. Creator ($25/mo) lifts the cap and adds 100GB and any file type.
 
 ### Can I use it with a board I already have?
 

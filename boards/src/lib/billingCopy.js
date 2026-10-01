@@ -228,10 +228,13 @@ export const LEGACY_FEATURE_KEYS = ['studio', 'edit_access', 'tools', 'events'];
 // What the free tier genuinely is. It is NOT view-only: since migration 0188 a
 // free user can edit any cluster they are invited to as an editor, and there is
 // no separate cap on clusters/boards. The only real limit is cards — and a
-// cluster's own card counts toward it (clusters/index.md says so).
+// cluster's own card counts toward it, which is why this list stopped saying
+// "Unlimited clusters & boards" (owner, 2026-10-01): on a capped plan that
+// reads as free room, and every cluster spends one of the cards. Same words as
+// content/docs/account/plans.md's list.
 export const DEMO_FEATURES = [
   `**${DEMO_CARD_LIMIT} cards** to build with`,
-  'Unlimited clusters & boards',
+  'No separate limit on clusters — each one counts as one of your cards',
   'Free collaboration — invite editors to any cluster',
 ];
 
@@ -450,7 +453,8 @@ export const PRICING_FAQ = [
     q: 'What is actually limited on the free plan?',
     a: 'Three things and only three — how many cards you can have, which file types you can upload, ' +
        `and how big or long a single file can be (video stops at ${mb(FREE_VIDEO_CAP)} or ${FREE_VIDEO_SECONDS} seconds, ` +
-       `audio at ${mb(FREE_AUDIO_CAP)}, PDFs at ${mb(FREE_PDF_CAP)}). Clusters, collaborators and editing are not limited.`,
+       `audio at ${mb(FREE_AUDIO_CAP)}, PDFs at ${mb(FREE_PDF_CAP)}). Collaborators and editing are not limited, and there is ` +
+       'no separate limit on clusters — each one simply counts as a card.',
   },
   {
     q: 'Do the people I invite need to pay?',
