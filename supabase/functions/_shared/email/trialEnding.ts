@@ -24,20 +24,27 @@ export interface TrialEndingEmail {
 
 // Inputs are display strings built by the caller from the subscriptions mirror
 // and Stripe's price. Newlines are stripped so nothing can reach a header.
-export function renderTrialEnding(input: { firstChargeDate: unknown; amountLabel: unknown }): TrialEndingEmail {
+//
+// `chargeAt` is the exact moment WITH its zone ("October 15, 2026 at 1:30 AM
+// UTC"), never a bare date. Nothing stores the reader's time zone, and a bare
+// UTC date names the wrong day for an evening charge anywhere in the Americas:
+// someone told "October 15" who cancels that morning has already been charged.
+// The headline is relative — "in about three days" is true to within half a
+// day for every send, since the job runs daily — and the body gives the moment.
+export function renderTrialEnding(input: { chargeAt: unknown; amountLabel: unknown }): TrialEndingEmail {
   const clean = (v: unknown, fallback: string) =>
     (v == null ? fallback : String(v)).replace(/[\r\n]/g, "").slice(0, 40) || fallback;
-  const date = clean(input.firstChargeDate, "soon");
+  const at = clean(input.chargeAt, "in about three days");
   const amount = clean(input.amountLabel, "the Creator price");
   const url = `${APP_URL}?settings=billing`;
-  const headline = `Your Creator trial ends ${date}.`;
-  const subtitle = `If you keep Creator, your card will be charged ${amount} that day. ` +
+  const headline = "Your Creator trial ends in about three days.";
+  const subtitle = `It ends ${at}. If you keep Creator, your card will be charged ${amount} then. ` +
     `To stop it, cancel before then in Settings → Plan & billing — you won't be charged, ` +
     `and everything you've made stays exactly where it is.`;
   return {
-    subject: `Your Creator trial ends ${date}`,
+    subject: "Your Creator trial ends in about three days",
     html: renderEmail({
-      preheader: `Nothing has been charged yet. Your first charge is ${date}.`,
+      preheader: `Nothing has been charged yet. Your trial ends ${at}.`,
       eyebrow: "Creator trial",
       headline,
       subtitle,

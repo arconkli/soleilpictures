@@ -41,6 +41,23 @@ test('the email and the docs make the same promise about cancelling', () => {
   assert.match(plans, /nothing you made is deleted/i);
 });
 
+test('the email names the moment with its zone, never a bare date', () => {
+  // Nothing stores the reader's time zone, and a bare UTC date names the wrong
+  // day for an evening charge in the Americas — the reader cancels "on" the day
+  // they were given and has already been charged.
+  assert.match(cron, /timeZone: "UTC"/);
+  assert.match(cron, /\+ " UTC"/, 'the zone is written out');
+  assert.match(cron, /hour: "numeric", minute: "2-digit"/, 'and the time, not only the date');
+  assert.doesNotMatch(email, /subject: `[^`]*\$\{/, 'the subject carries no date to misread');
+  assert.match(email, /in about three days/);
+});
+
+test('a failed user lookup releases the claim instead of dropping the reminder', () => {
+  // getUserById resolves with an error; read as "no email", it would keep the
+  // claim and that trial would never be reminded.
+  assert.match(cron, /if \(u\.error\) throw new Error\(`user lookup failed/);
+});
+
 test('only trials that will actually charge are reminded, once', () => {
   assert.match(cron, /\.eq\("status", "trialing"\)/);
   assert.match(cron, /\.eq\("cancel_at_period_end", false\)/);

@@ -177,19 +177,28 @@ async function sendTrialReminders(admin: ReturnType<typeof createClient>) {
       if (claim.error) throw new Error(`claim failed: ${claim.error.message}`);
       if (!claim.data?.length) { out.skipped++; continue; }   // another run won it
 
+      // getUserById RESOLVES with an error rather than throwing, so a transient
+      // auth failure must be turned into one here — otherwise it reads as "no
+      // email", the claim is kept, and this trial is never reminded at all.
       const u = await admin.auth.admin.getUserById(userId);
+      if (u.error) throw new Error(`user lookup failed: ${u.error.message}`);
       const email = u.data?.user?.email;
       if (!email) { out.skipped++; continue; }                // keep the claim: nobody to tell
 
-      const firstChargeDate = new Date(row.current_period_end as string)
-        .toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+      // The exact moment, with its zone — see renderTrialEnding for why a bare
+      // date is not enough.
+      const chargeAt = new Date(row.current_period_end as string)
+        .toLocaleString("en-US", {
+          month: "long", day: "numeric", year: "numeric",
+          hour: "numeric", minute: "2-digit", timeZone: "UTC",
+        }).replace(/, (\d{1,2}:\d{2})/, " at $1") + " UTC";
       const amountLabel = await chargeLabel(row.stripe_subscription_id as string | null, row.plan as string | null);
 
       // Sent from here rather than through send-transactional-email so that
       // adding a billing notice never means redeploying the sender every other
       // email depends on. The log row it writes is the same one that function
       // writes, so the admin email views see this send like any other.
-      const mail = renderTrialEnding({ firstChargeDate, amountLabel });
+      const mail = renderTrialEnding({ chargeAt, amountLabel });
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
