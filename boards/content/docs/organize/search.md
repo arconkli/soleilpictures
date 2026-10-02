@@ -5,11 +5,11 @@ h1: Search and the command palette
 navLabel: Search
 section: organize
 order: 2
-updated: 2026-08-08
-answer: Press Cmd-K or forward slash to open the command palette. It searches across cluster names, card contents, notes, documents and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
+updated: 2026-10-02
+answer: Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, document titles and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
 faq:
   - q: Does search look inside my notes and documents?
-    a: Yes. It searches full content, not just titles — cluster names, card contents, note text, document text and tags.
+    a: Inside notes, yes — note text is searched in full, along with card titles and text. A document is found by its title; the text on its pages is not searched from the palette, so inside a long document use Cmd-F instead.
   - q: Can I run actions from it?
     a: Yes. Type what you want to do rather than what you want to find. "share", "invite", "trash", "theme", "billing" all work.
   - q: Is there a shortcut other than Cmd-K?
@@ -24,16 +24,17 @@ related:
 
 ## What it searches
 
-Full content, not just names:
-
 - **Recents** — what you have had open
 - **Clusters** — by name
-- **Cards and notes** — by content
+- **Cards and notes** — by title and by the text on them
 - **Tags**
-- **Docs** — by content
+- **Docs** — by title
 
-Results are grouped by kind, so a query matching a board and a passage inside a
-document shows you both, labelled.
+The text on a document's pages is not searched from here. Inside a document,
+`⌘F` finds it.
+
+Results are grouped by kind, so a query matching a board and a note shows you
+both, labelled.
 
 ## What it does
 

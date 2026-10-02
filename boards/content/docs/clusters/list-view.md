@@ -5,7 +5,7 @@ h1: List view
 navLabel: List view
 section: clusters
 order: 1
-updated: 2026-09-21
+updated: 2026-10-02
 answer: Every cluster has a list view as well as a canvas — the same contents as a sortable, searchable file browser. It has table and gallery modes, sorting by name, type, size or date, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.
 faq:
   - q: Does switching to list view change my board?
@@ -99,8 +99,10 @@ the fastest way through a folder of samples.
 ## Downloading
 
 Hover any row holding a file — an image, PDF, video, audio clip or attachment —
-and a download button appears at the end of it. The file keeps its **original
-name**, so renaming a card for readability never costs you the extension.
+and a download button appears at the end of it. Audio, PDFs and attachments
+keep their **original names**, so renaming a card for readability never costs you
+the extension. Images and videos do not keep the name they were uploaded with,
+and come down under a generic one.
 
 **Download all** sits above the table whenever there is more than one file to
 take. It follows the search and the filters, so it reads *Download 14* once you
@@ -109,8 +111,7 @@ offers **Download** for just those.
 
 Either way you get a single zip named after the cluster. Zips are capped at
 **{{fact:zipMaxFiles}} files** or **{{fact:zipMaxSize}}**, whichever comes
-first; past either, take it in batches. In the phone and tablet apps files come
-down one at a time, through the system share sheet.
+first; past either, take it in batches.
 
 Anything in the selection with no file behind it — a note, a link — is skipped,
 and the count of what was skipped is reported rather than quietly dropped. The

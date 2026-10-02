@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a Miro alternative purpose-built for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that ties a mood board to a storyboard to a shot list. Choose Miro for enterprise diagramming and workshops; choose Clusters for film, photo, and design pre-production.
 
-_Source: https://clusters.soleilpictures.com/vs/miro · Updated 2026-07-12_
+_Source: https://clusters.soleilpictures.com/vs/miro · Updated 2026-10-02_
 
 Miro is a whiteboard for everything. Clusters is a canvas built specifically for visual, reference-driven creative work.
 

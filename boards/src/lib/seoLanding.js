@@ -162,13 +162,13 @@ const PAGES = [
       'Pull your references, colors, and notes onto one infinite canvas — then share the whole board with a single link.',
     answer:
       'Soleil Clusters is a free online mood board maker: drag images, links, video, and color palettes onto an infinite canvas, arrange them freely, and share the finished board with one link. It runs in the browser with no download, supports real-time collaboration, and is built for film, photo, and design teams.',
-    updated: '2026-08-10',
+    updated: '2026-10-02',
     cta: { label: 'Start a mood board — free', sub: 'No credit card. Your first board in seconds.' },
     stepsHeading: 'How to make a mood board',
     steps: [
       { t: 'Start a board', d: 'Open Clusters and create a blank board — an infinite canvas you can pan and zoom.' },
-      { t: 'Drop in your references', d: 'Drag images, screenshots, links, and files straight onto the canvas — a whole folder lands in one drop.' },
-      { t: 'Add color and notes', d: 'Pull a color palette and add rich-text notes or a brief right beside the imagery.' },
+      { t: 'Drop in your references', d: 'Drag images, screenshots, links, and files straight onto the canvas — select everything in a folder and it all lands in one drop.' },
+      { t: 'Add color and notes', d: 'Add a color palette and rich-text notes or a brief right beside the imagery.' },
       { t: 'Arrange and connect', d: 'Move cards freely, group related references, and draw arrows to show how ideas relate.' },
       { t: 'Share it', d: 'Send one link for a clean, interactive preview — or invite your team to build the board live with you.' },
     ],
@@ -298,25 +298,25 @@ const PAGES = [
     subhead:
       'Lay your shots out in a grid, drop in frames and reference, and keep the shot list right beside them.',
     answer:
-      'Soleil Clusters is an online storyboard maker: split a grid card into panels, drop a still or sketch into each frame, caption and re-order shots by dragging, and keep the shot list beside the boards. Your director, DP, and AD can edit the same storyboard live, and one link shares it with the whole crew.',
-    updated: '2026-10-01',
+      'Soleil Clusters is an online storyboard maker: lay each shot out as a grid card, drop a still or sketch into the frame, write the action on the line beneath, and number shots automatically, so dragging one re-sequences the scene. Your director, DP, and AD edit the same storyboard live, and one link shares it.',
+    updated: '2026-10-02',
     cta: { label: 'Start a storyboard — free', sub: 'No credit card. Free to start.' },
     stepsHeading: 'How to make a storyboard',
     steps: [
-      { t: 'Add a grid card', d: 'Drop a grid onto the board and split it into the number of panels your sequence needs.' },
-      { t: 'Fill each frame', d: 'Drop a reference still or a sketch into each cell, and caption it with the action.' },
-      { t: 'Order your shots', d: 'Drag panels to re-sequence the scene, and number them automatically.' },
+      { t: 'Add a grid card', d: 'Drop a grid onto the board and cut it into a frame with an action line beneath — or start from the storyboard template.' },
+      { t: 'Fill each frame', d: 'Drop a reference still or a sketch into the frame, and write the action on the line beneath it.' },
+      { t: 'Order your shots', d: 'Type SHOT [#] in a box, then stamp the next shot from the + on the grid’s edge. Each shot numbers itself by position, so dragging one re-sequences the scene.' },
       { t: 'Add the shot list', d: 'Put a doc beside the frames — a table works — for lens, camera movement, and shoot day.' },
       { t: 'Share with the crew', d: 'Send one link, or invite your DP and AD to edit and comment on the frames in real time.' },
     ],
     sections: [
       {
         heading: 'A grid built for sequences',
-        body: "Clusters' grid cards give you a clean, modular storyboard layout: split any cell, drop an image or sketch into each frame, and re-order shots by dragging. Number the panels automatically, add a caption under each, and the whole sequence reads top to bottom the way your crew will shoot it.",
+        body: "Clusters' grid cards give you a clean, modular storyboard layout: split any cell, drop an image or sketch into each frame, and write the action in the box beneath it. Stamp the next shot from the + on the grid's edge and every shot shares the layout; a SHOT [#] box numbers each one by where it sits, so dragging a shot re-sequences the scene and the storyboard reads top to bottom the way your crew will shoot it.",
         bullets: [
-          'Modular grid cells you can split and re-arrange',
-          'Auto-numbered panels with captions',
-          'Sketch directly on frames or drop in reference stills',
+          'Modular grid cells you can split, merge and resize',
+          'Shots that number themselves — drag one and the sequence follows',
+          'Sketch on the canvas or drop in reference stills',
         ],
       },
       {
@@ -325,11 +325,11 @@ const PAGES = [
       },
       {
         heading: 'Get the crew on the same page',
-        body: 'Share the storyboard with a link, or invite your DP and 1st AD to edit alongside you in real time. Comments land right on the frame in question, so feedback is specific instead of a paragraph in an email.',
+        body: 'Share the storyboard with a link, or invite your DP and 1st AD to edit alongside you in real time. Comments pin right onto the storyboard beside the frames in question, so feedback is specific instead of a paragraph in an email.',
       },
     ],
     faq: [
-      { q: 'How do I make a storyboard in Clusters?', a: 'Add a grid card, split it into the number of panels you need, then drop a reference still or sketch into each cell and caption it. You can re-order panels by dragging and number them automatically.' },
+      { q: 'How do I make a storyboard in Clusters?', a: 'Add a grid card and cut it into a frame with an action line beneath, or start from the storyboard template. Drop a still or sketch into each frame and write the action underneath. Type SHOT [#] in a box and stamp the next shot from the + on the grid’s edge: each shot numbers itself by position, so dragging one re-orders the scene.' },
       { q: 'Can I draw my own frames?', a: 'Yes. You can sketch directly on the canvas with the draw tools, or drop in reference photos, screenshots, or AI-generated frames — whatever your process uses.' },
       { q: 'Can I keep a shot list with the storyboard?', a: 'Yes. Put a doc beside your frames — tables work — to track lens, camera movement, location, and shoot day, so the visual board and the logistics stay together.' },
       { q: 'Can my crew collaborate on the storyboard?', a: 'Yes — Clusters is real-time. Your director, DP, and AD can edit and comment on the same storyboard at once with live cursors and presence.' },
@@ -415,7 +415,7 @@ const PAGES = [
       'Arrange looks, references, and color stories on one canvas — then send a polished, interactive link.',
     answer:
       'Soleil Clusters is an online look book maker: arrange imagery in clean grid spreads, unify the set with non-destructive photo adjustments, add color palettes for the season’s story, and send clients one link to the polished, interactive board itself — no account or download required to view it.',
-    updated: '2026-07-07',
+    updated: '2026-10-02',
     cta: { label: 'Make a look book — free', sub: 'Free to start. Share with one link.' },
     stepsHeading: 'How to make a look book',
     steps: [
@@ -464,7 +464,7 @@ const PAGES = [
       'Runs in your browser. Drop images, notes, and palettes on an infinite canvas and share with a link — no download.',
     answer:
       'Yes — you can make a mood board online free with Soleil Clusters. The Demo tier needs no credit card: open the browser app, drop in images, links, notes, and color palettes on an infinite canvas, and share the board with a public link. Upgrading only matters when you want unlimited cards and 100GB storage.',
-    updated: '2026-07-07',
+    updated: '2026-10-02',
     cta: { label: 'Make one free', sub: 'No credit card. No install.' },
     stepsHeading: 'How to make a mood board online, free',
     steps: [
@@ -513,13 +513,13 @@ const PAGES = [
       'Drop reference onto an infinite canvas in your browser. The same board follows you to every machine, and one link shows your art director exactly what you’re looking at.',
     answer:
       'Soleil Clusters is a free online reference board maker: drop images onto an infinite canvas, arrange and zoom them while you work, and open the same board from any device’s browser with nothing to install. One link shares it read-only. The tradeoff: it lives online — for offline reference, desktop PureRef still earns its place.',
-    updated: '2026-07-22',
+    updated: '2026-10-02',
     cta: { label: 'Make a reference board', sub: 'Free Demo tier — no credit card, no trial clock.' },
     stepsHeading: 'How to make a reference board',
     steps: [
       { t: 'Gather everything in one place', d: 'Drag images, screenshots, and stills straight onto a new board. Paste links to pieces you found online, and drop in video clips or PDFs when your reference isn’t a still image.' },
       { t: 'Arrange by what you’re studying', d: 'Cluster the board around the problem — one area for lighting, one for anatomy, one for materials. The infinite canvas never runs out of room, and you can zoom from the whole board down to a single edge.' },
-      { t: 'Tune the reference, not the file', d: 'Flip an image to black and white to read its values, nudge brightness or warmth to match your scene, and pull a color palette from any image. Adjustments are non-destructive, so the original stays intact.' },
+      { t: 'Tune the reference, not the file', d: 'Flip an image to black and white to read its values, nudge brightness or warmth to match your scene, and sample its colors into a palette with the eyedropper. Adjustments are non-destructive, so the original stays intact.' },
       { t: 'Open it wherever you work', d: 'The board lives at a URL, so the same reference is on your workstation, your laptop, and your tablet — no files to move, nothing to install.' },
       { t: 'Show it when you’re ready', d: 'Send one link and your art director sees a clean, read-only version of the board in their browser — no account required.' },
     ],
@@ -548,7 +548,7 @@ const PAGES = [
         body: 'Clusters treats a reference board as a working surface, not a gallery.',
         bullets: [
           'Check your values — flip any image to black and white, or nudge brightness, contrast, saturation, and warmth. Every adjustment is non-destructive.',
-          'Steal the palette — extract a color palette from any image and keep it on the board beside the work it came from.',
+          'Steal the palette — sample swatches off any image with the eyedropper and keep them on the board beside the work they came from.',
           'Reference beyond stills — boards hold video, audio, PDFs, links, and rich-text notes alongside images; Creator accepts any file type.',
           'Sketch over it — draw directly on the canvas to mark a gesture line or call out a detail.',
           'One board per problem — nest boards inside boards so a project’s costume, lighting, and environment reference each stay findable, and tag an image once to find it from any board.',
@@ -617,14 +617,14 @@ const PAGES = [
       'One live wall of reference for a concept, VFX, game or 3D team — added to by everyone, opened from one link, with notes pinned to the image they are about.',
     answer:
       'Soleil Clusters is a shared reference board for studio art teams: an infinite canvas in the browser where every artist drops reference into the same board live, the art director comments directly on the image, and one link opens a read-only view. One plan covers the whole workspace, so there are no per-seat licences.',
-    updated: '2026-10-01',
+    updated: '2026-10-02',
     cta: { label: 'Start a team board — free', sub: 'Free to start. Editors join free.' },
     stepsHeading: 'How a studio sets one up',
     steps: [
       { t: 'Make the project’s board', d: 'Create one cluster for the project and nest a cluster inside it per discipline or asset — characters, environments, props, FX.' },
       { t: 'Invite the team', d: 'Invite artists as editors by email or with an invite link. Editors are free on every plan, and everyone lands in the same live board.' },
-      { t: 'Pull reference in bulk', d: 'Drop a whole folder at once, paste image links, or bring in video and PDFs. Everything lands as cards you can arrange.' },
-      { t: 'Mark what matters', d: 'Comment on a card or a point on the image, tag references by character or setting, and vote between options when the team has to pick one.' },
+      { t: 'Pull reference in bulk', d: 'Select everything in a folder and drag it in at once, paste image links, or bring in video and PDFs. Everything lands as cards you can arrange.' },
+      { t: 'Mark what matters', d: 'Comment on a card or a group, tag references by character or setting, and put a vote card beside each option when the team has to pick one.' },
       { t: 'Show the supervisor', d: 'Send a view-only link — no account needed, set to expire after 7 or 30 days if you like — or invite them to comment.' },
     ],
     sections: [
@@ -639,20 +639,20 @@ const PAGES = [
       },
       {
         heading: 'Notes that stay on the image',
-        body: 'Feedback in a chat thread drifts away from the picture it is about. In Clusters a comment anchors to the card, or to a point on it, so “push the rim light here” sits on the exact frame — with a thread, @mentions, and a resolve once it is handled. When the team has to choose between options, a vote card settles which of the five without a meeting. Reviewers you invite comment and vote free.',
+        body: 'Feedback in a chat thread drifts away from the picture it is about. In Clusters a comment pins to the card it is about and moves with it, so “push the rim light” sits beside the exact frame — with a thread, @mentions, and a resolve once it is handled. When the team has to choose, put a vote card beside each option and read the room without a meeting. Reviewers you invite comment and vote free.',
         bullets: [
-          'Comments on a card, a group, or a point on the image',
+          'Comments pinned to a card, a group, or a spot on the canvas',
           'Threads, @mentions and resolve',
           'Vote cards for “which of these” decisions',
         ],
       },
       {
         heading: 'Organised the way a studio thinks',
-        body: 'Nest a cluster per character, environment or shot and the project stays navigable at hundreds of references. Tags cut across the nesting: type a tag as a character, a setting or a thing, and its view gathers every reference carrying it from anywhere in the workspace. Non-destructive adjustments — black and white for reading values, warmth, contrast — and palettes pulled from any image keep the reference working as reference, not just a gallery.',
+        body: 'Nest a cluster per character, environment or shot and the project stays navigable at hundreds of references. Tags cut across the nesting: type a tag as a character, a setting or a thing, and its view gathers every reference carrying it from anywhere in the workspace. Non-destructive adjustments — black and white for reading values, warmth, contrast — and swatches sampled off any image keep the reference working as reference, not just a gallery.',
         bullets: [
           'Nested clusters per character, environment or shot',
           'Typed tags gather a character’s references across boards',
-          'Black-and-white value checks and palettes from any image',
+          'Black-and-white value checks, and swatches sampled off any image',
         ],
       },
       {
@@ -668,7 +668,7 @@ const PAGES = [
       { q: 'What is the best way for an art team to share reference boards?', a: 'Put the reference in one board everyone can open and edit at once, instead of passing files around. Clusters does this in the browser: artists add reference live, comments pin to the image they are about, and a view-only link shows the board to anyone without an account.' },
       { q: 'Do the artists I invite need to pay?', a: 'No. Editors are free on every plan. Limits are charged to the workspace owner, so one Creator plan lifts the ceiling for everyone working in that workspace — there are no per-seat charges.' },
       { q: 'Can a client or supervisor see the board without an account?', a: 'Yes. A view-only link opens the board in any browser with no account, can include its nested clusters, and can expire after 7 or 30 days. To comment or vote, invite them instead — that is free too.' },
-      { q: 'Can we bring our PureRef boards over?', a: 'Not as .pur files — that is PureRef’s own local format. Export the images, or gather the originals, and drop the whole folder onto a board in one go, then rebuild the layout. On Creator you can also attach the .pur file itself to the board.' },
+      { q: 'Can we bring our PureRef boards over?', a: 'Not as .pur files — that is PureRef’s own local format. Export the images, or gather the originals, select them all and drag them onto a board in one go, then rebuild the layout. On Creator you can also attach the .pur file itself to the board.' },
       { q: 'Does it work offline?', a: 'No. Clusters is a browser workspace and needs a connection. In exchange the board is backed up and identical on every machine and for every artist.' },
       { q: 'Is it free?', a: `Free for ${DEMO_CARD_LIMIT} cards across the workspace — each cluster counts as one — with free editors. Creator removes the card cap and adds any file type; see “What it costs” on this page.` },
     ],
@@ -686,13 +686,13 @@ const PAGES = [
       'Develop the look with your team on a live board, write the treatment as a document with the images inline, and send it as a PDF.',
     answer:
       'A director’s treatment is the visual pitch for a commercial, music video or film: concept, tone, look, casting, wardrobe and locations. In Soleil Clusters you develop it on a live board with your team, write it as a document with images inline, and export a PDF to send. It is a document, not a designed slide deck.',
-    updated: '2026-10-01',
+    updated: '2026-10-02',
     cta: { label: 'Start a treatment — free', sub: 'Free to start. Nothing to install.' },
     stepsHeading: 'The treatment template, section by section',
     steps: [
       { t: 'Concept', d: 'One paragraph: what the piece is and why it works. Write it first, at the top of the document.' },
       { t: 'Tone and references', d: 'The frames, films and photographs that set the feel — gathered on the board, where the team argues them into agreement.' },
-      { t: 'Look and light', d: 'Palette, lensing, light and texture. Pull a palette from any reference image and keep it beside the frames it came from.' },
+      { t: 'Look and light', d: 'Palette, lensing, light and texture. Sample swatches off any reference image with the eyedropper and keep them beside the frames they came from.' },
       { t: 'Casting', d: 'Faces and types, with a note on each. Tag each reference as a character so the tag gathers every image of them.' },
       { t: 'Wardrobe and art direction', d: 'Silhouettes, fabrics, sets and props, each in its own nested cluster so each department can work in theirs.' },
       { t: 'Locations', d: 'Scout photos and found references, a cluster per setting.' },
@@ -706,7 +706,7 @@ const PAGES = [
       },
       {
         heading: 'Build it on a board, with the people who will make it',
-        body: 'The slow part of a treatment is not the layout; it is agreeing the look. Clusters is an infinite canvas your producer, DP and designer can work in at the same time: pull references in by the folder, sort them into clusters for tone, casting, wardrobe and locations, comment on the exact frame, and vote between options when it comes down to two. Nobody waits for a version to be emailed round.',
+        body: 'The slow part of a treatment is not the layout; it is agreeing the look. Clusters is an infinite canvas your producer, DP and designer can work in at the same time: select a folder’s references and drag them in together, sort them into clusters for tone, casting, wardrobe and locations, comment on the exact frame, and put a vote card on each option when it comes down to two. Nobody waits for a version to be emailed round.',
         bullets: [
           'Live co-editing with cursors and presence',
           'Comments pinned to the frame they are about',
@@ -753,15 +753,15 @@ const PAGES = [
       'A cluster per set, with references, palettes, plans and notes in one place — built by the whole art department, live.',
     answer:
       'Soleil Clusters gives production designers a mood board per set: references, palettes, PDFs of plans and notes in one cluster, nested inside the project. Set decorators, props and the art director build it live, the director comments on the image itself, and one link shows it to anyone. Editors are free, so the department is not billed per seat.',
-    updated: '2026-10-01',
+    updated: '2026-10-02',
     cta: { label: 'Start a set board — free', sub: 'Free to start. The department joins free.' },
     stepsHeading: 'How an art department uses it',
     steps: [
       { t: 'A cluster per set', d: 'Nest one cluster per set or location inside the project — the diner, the motel room, the night exterior.' },
-      { t: 'Pull the references', d: 'Drop period photography, film frames and scout photos in by the folder; attach plans and drawings as PDFs.' },
-      { t: 'Set the palette', d: 'Pull a palette from any reference and keep the hex values beside the set they belong to.' },
+      { t: 'Pull the references', d: 'Select everything in your folders of period photography, film frames and scout photos and drag it in; attach plans and drawings as PDFs.' },
+      { t: 'Set the palette', d: 'Sample swatches off any reference with the eyedropper and keep the hex values beside the set they belong to.' },
       { t: 'Split the work', d: 'Set decoration, props and graphics each work in their own nested clusters, inside the set.' },
-      { t: 'Get the director’s notes', d: 'The director comments on the exact image; when it comes down to two options, a vote card decides.' },
+      { t: 'Get the director’s notes', d: 'The director comments on the exact image; when it comes down to two options, a vote card on each shows where the room leans.' },
     ],
     sections: [
       {
@@ -775,16 +775,16 @@ const PAGES = [
       },
       {
         heading: 'References, palettes and plans together',
-        body: 'A set board is not only pictures. Drop period photography and film frames beside the floor plan as a PDF, a fabric photo beside the paint chip, and a note on what the set has to do for the scene. Palettes come straight out of any reference. On Creator, any file type rides along as an attachment — a .psd, a .zip of drawings, a model file.',
+        body: 'A set board is not only pictures. Drop period photography and film frames beside the floor plan as a PDF, a fabric photo beside the paint chip, and a note on what the set has to do for the scene. Sample a palette off any reference with the eyedropper, a swatch at a time. On Creator, any file type rides along as an attachment — a .psd, a .zip of drawings, a model file.',
         bullets: [
           'PDF plans and drawings beside the references',
-          'Palettes pulled from any image, with hex values',
+          'Palettes sampled off any image, with hex values',
           'Any file type as an attachment on Creator',
         ],
       },
       {
         heading: 'The whole department, live',
-        body: 'Set decoration, props and graphics can work in the same project at once, each in their own nested cluster, with live cursors showing who is where. The director and producer comment on the exact image — a point on a reference, not a paragraph in an email — and a vote card settles “which of these three chairs” without a meeting.',
+        body: 'Set decoration, props and graphics can work in the same project at once, each in their own nested cluster, with live cursors showing who is where. The director and producer comment on the exact image — pinned to the reference, not a paragraph in an email — and a vote card beside each chair settles “which of these three” without a meeting.',
       },
       {
         heading: 'Tag by setting and character',
@@ -816,29 +816,29 @@ const PAGES = [
       'A board per character, the looks laid out scene by scene, and the fabric, colour and fitting photos beside them — shared live with the director.',
     answer:
       'Soleil Clusters gives costume designers a mood board per character: research and inspiration, a grid of looks scene by scene, fabric and colour swatches, and fitting photos together. Assistants and buyers add to it live, the director comments on the image itself, and a typed character tag gathers every reference for that character across the project.',
-    updated: '2026-10-01',
+    updated: '2026-10-02',
     cta: { label: 'Start a costume board — free', sub: 'Free to start. Your team joins free.' },
     stepsHeading: 'How a costume department uses it',
     steps: [
       { t: 'A cluster per character', d: 'Nest one cluster per principal inside the project, and one for background.' },
-      { t: 'Research and inspiration', d: 'Period photography, paintings, runway and street references, dropped in by the folder.' },
-      { t: 'Lay out the looks', d: 'A grid per character with a cell per scene or change — the look, a caption, and the swatch.' },
-      { t: 'Swatches and colour', d: 'Photograph fabrics and trims, pull palettes from them, and keep the hex values beside the look.' },
-      { t: 'Fittings and sign-off', d: 'Drop fitting photos into the character’s board; the director comments on the exact image, and a vote card picks between options.' },
+      { t: 'Research and inspiration', d: 'Period photography, paintings, runway and street references — select a folder’s worth and drag them in together.' },
+      { t: 'Lay out the looks', d: 'A grid per character, a frame per scene or change, with the scene and what changes written in the box beneath each look.' },
+      { t: 'Swatches and colour', d: 'Photograph fabrics and trims, sample their colours with the eyedropper, and keep the hex values beside the look.' },
+      { t: 'Fittings and sign-off', d: 'Drop fitting photos into the character’s board; the director comments on the exact image, and a vote card beside each option shows where the room leans.' },
     ],
     sections: [
       {
         heading: 'A board per character, a look per scene',
-        body: 'Costume is a story told across scenes, so one mood board for the whole film flattens it. In Clusters each character gets a cluster, and inside it a grid lays the changes out in order — a cell per scene or change, holding the look, a caption and the fabric. When scenes move, the grid is still the order of the story, and everyone is looking at the same one.',
+        body: 'Costume is a story told across scenes, so one mood board for the whole film flattens it. In Clusters each character gets a cluster, and inside it a grid lays the changes out in order — a frame per scene or change for the look, with the scene and what changes in the box beneath it, and the fabric swatches beside the grid. When scenes move, the grid is still the order of the story, and everyone is looking at the same one.',
         bullets: [
           'A cluster per character',
           'A grid of looks, a cell per scene or change',
-          'Captions and swatches beside each look',
+          'Scene notes under each look, swatches beside it',
         ],
       },
       {
         heading: 'Swatches, colour and fittings together',
-        body: 'Photograph fabrics and trims as you buy them and drop them beside the look they belong to. Pull a palette from a swatch or a reference and keep the hex values on the board. After a fitting, the photos go straight into the character’s cluster, so the next decision is made looking at the real garment rather than a description of it.',
+        body: 'Photograph fabrics and trims as you buy them and drop them beside the look they belong to. Sample colours off a swatch photo or a reference with the eyedropper and keep the hex values on the board. After a fitting, the photos go straight into the character’s cluster, so the next decision is made looking at the real garment rather than a description of it.',
       },
       {
         heading: 'One character tag, every reference',
@@ -846,7 +846,7 @@ const PAGES = [
       },
       {
         heading: 'Assistants, buyers and the director, live',
-        body: 'Invite assistant designers, buyers and the supervisor as editors — free on every plan — and the department works in the same boards at once. The director comments on the exact image and votes between options, so sign-off is a thread on the look rather than an email chain.',
+        body: 'Invite assistant designers, buyers and the supervisor as editors — free on every plan — and the department works in the same boards at once. The director comments on the exact image and votes on each option, so sign-off is a thread on the look rather than an email chain.',
       },
       {
         heading: 'What it does not do',
@@ -855,7 +855,7 @@ const PAGES = [
     ],
     faq: [
       { q: 'What should a costume mood board include?', a: 'Per character: research and inspiration, the silhouette and colour story, a look for each scene or change, fabric and trim swatches, and fitting photos as they happen. A board per character keeps the arc readable.' },
-      { q: 'How do I lay out costume changes by scene?', a: 'Put a grid inside the character’s board with a cell per scene or change, and caption each cell with the scene and what changes. The grid reads in story order, and everyone with access sees the same one.' },
+      { q: 'How do I lay out costume changes by scene?', a: 'Put a grid inside the character’s board with a frame per scene or change and a box beneath each for the scene and what changes. The grid reads in story order, and everyone with access sees the same one.' },
       { q: 'Can I share it with the director without an account?', a: 'Yes. A view-only link opens in any browser with no account and can expire after 7 or 30 days. To comment or vote, invite them — free on every plan.' },
       { q: 'Does it handle continuity?', a: 'For the looks, yes: fitting and continuity photos live in the character’s grid beside the intended look. It is not a dedicated continuity database — there is no per-take logging.' },
       { q: 'Is it free?', a: `Free for ${DEMO_CARD_LIMIT} cards across the workspace — each cluster counts as one — with free editors. A full principal cast will outgrow that; Creator removes the cap for the whole workspace. See “What it costs” on this page.` },
@@ -873,13 +873,13 @@ const PAGES = [
     subhead:
       'Collect the frames, light and lensing you are after, check them in black and white, and keep the director, gaffer and colourist on the same board.',
     answer:
-      'Soleil Clusters is a cinematography lookbook on a shared canvas: collect film frames and lighting references by scene, note lens and light beside each, check values in black and white, and pull palettes. The director, gaffer and colourist work in the same board live, and a view-only link shows it to anyone without an account.',
-    updated: '2026-10-01',
+      'Soleil Clusters is a cinematography lookbook on a shared canvas: collect film frames and lighting references by scene, note lens and light beside each, check values in black and white, and sample palettes. The director, gaffer and colourist work in the same board live, and a view-only link shows it to anyone without an account.',
+    updated: '2026-10-02',
     cta: { label: 'Start a lookbook — free', sub: 'Free to start. Nothing to install.' },
     stepsHeading: 'How a DP builds one',
     steps: [
       { t: 'A cluster per scene or look', d: 'Night exteriors, the apartment, the flashback — each look gets its own cluster.' },
-      { t: 'Collect the frames', d: 'Film stills, photographs and your own tests, dropped in by the folder; reference clips as video cards.' },
+      { t: 'Collect the frames', d: 'Film stills, photographs and your own tests — select them all in the folder and drag them in together; reference clips as video cards.' },
       { t: 'Read the light', d: 'Flip any frame to black and white to read its values; nudge warmth and contrast to compare against your tests.' },
       { t: 'Note lens and setup', d: 'A note or caption beside each frame: focal length, stop, height, source, diffusion.' },
       { t: 'Bring in the team', d: 'The gaffer and the colourist edit free; the director comments on the exact frame.' },
@@ -896,16 +896,16 @@ const PAGES = [
       },
       {
         heading: 'Check values, not just vibes',
-        body: 'Flip any reference to black and white to read where its values actually sit, and nudge warmth, contrast and saturation to compare it with your tests. The adjustments are non-destructive, so the original frame is always one click away. Pull a palette from any image to hand the colourist a concrete starting point.',
+        body: 'Flip any reference to black and white to read where its values actually sit, and nudge warmth, contrast and saturation to compare it with your tests. The adjustments are non-destructive, so the original frame is always one click away. Sample swatches off any frame with the eyedropper to hand the colourist a concrete starting point.',
         bullets: [
           'Black and white for reading values',
           'Warmth, contrast and saturation, non-destructively',
-          'Palettes pulled from any frame',
+          'Swatches sampled off any frame',
         ],
       },
       {
         heading: 'Director, gaffer and colourist on the same page',
-        body: 'A lookbook only helps if the people executing it see the same thing. Invite the gaffer, the key grip and the colourist as editors — free on every plan — and they work in the board live. The director comments on the exact frame, and a vote card settles “this one or that one” before the tech scout instead of during it.',
+        body: 'A lookbook only helps if the people executing it see the same thing. Invite the gaffer, the key grip and the colourist as editors — free on every plan — and they work in the board live. The director comments on the exact frame, and a vote card beside each settles “this one or that one” before the tech scout instead of during it.',
       },
       {
         heading: 'From lookbook to shot list',
@@ -1174,12 +1174,12 @@ const PAGES = [
       'PureRef is a fast, offline reference window. Clusters is a collaborative reference workspace you can share and grow.',
     answer:
       'PureRef has no web version — it is a desktop app and always has been. Soleil Clusters is the closest thing online: the same drop-images-and-arrange reference wall, free in any browser, synced across devices and shareable with one link. PureRef still wins for a small always-on-top offline overlay.',
-    updated: '2026-08-23',
+    updated: '2026-10-02',
     cta: { label: 'Try Clusters free', sub: 'Runs in your browser. Free to start.' },
     stepsHeading: 'How to move a PureRef board to Clusters',
     steps: [
       { t: 'Collect your images', d: 'Export the images from PureRef, or gather the original files you pinned.' },
-      { t: 'Drag them onto a new board', d: 'Drop the whole set at once — a folder of references lands in one go.' },
+      { t: 'Drag them onto a new board', d: 'Select everything in the folder and drag it in — the whole set lands in one go.' },
       { t: 'Add what PureRef couldn’t hold', d: 'Put notes, links, video, and color palettes right beside the imagery.' },
       { t: 'Share one link', d: 'Send the board to your team or client — it opens in the browser, nothing to install.' },
     ],
@@ -1213,14 +1213,14 @@ const PAGES = [
         bullets: [
           'Notes, docs, video, PDFs, and palettes on one canvas',
           'Non-destructive image adjustments built in',
-          'Pull a color palette straight from a reference image',
+          'Sample colors straight off a reference image into a palette',
         ],
       },
       {
         heading: 'Switching from PureRef takes an afternoon',
         body: 'Bring your references over in one pass: export the images from PureRef (or gather the original files you pinned) and drag the whole set onto a new Clusters board. The images land in one drop, ready to arrange, so the afternoon goes into rebuilding the layout you had — and tags and nested boards keep it organized as the project grows.',
         bullets: [
-          'Drag a whole folder of references in at once',
+          'Select a folder’s references and drag them all in at once',
           'Tags and nested boards keep a growing board findable',
           'One board per project — or nest boards inside it',
         ],
@@ -1259,7 +1259,7 @@ const PAGES = [
         { feature: 'Cloud sync & backup', us: 'Yes', them: 'Local files' },
         { feature: 'Works on phones & tablets', us: 'Yes', them: 'Desktop only' },
         { feature: 'Comments & feedback on the board', us: 'Yes', them: 'No' },
-        { feature: 'Color palette extraction', us: 'Yes', them: 'No' },
+        { feature: 'Palette cards that keep sampled colors', us: 'Yes', them: 'Picker only' },
         { feature: 'Organize boards into projects', us: 'Yes — nested boards + graph', them: 'One file per board' },
         { feature: 'Fully offline', us: 'No', them: 'Yes' },
         { feature: 'Free to start', us: 'Yes', them: 'Pay what you want' },
@@ -1296,7 +1296,7 @@ const PAGES = [
       'Miro is a whiteboard for everything. Clusters is a canvas built specifically for visual, reference-driven creative work.',
     answer:
       'Soleil Clusters is a Miro alternative purpose-built for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that ties a mood board to a storyboard to a shot list. Choose Miro for enterprise diagramming and workshops; choose Clusters for film, photo, and design pre-production.',
-    updated: '2026-07-12',
+    updated: '2026-10-02',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     sections: [
       {
@@ -1366,7 +1366,7 @@ const PAGES = [
       'One canvas for the whole creative process — from first reference to final shot list. Here is where to start.',
     answer:
       'Soleil Clusters is a visual workspace where creative teams make mood boards, look books, storyboards, shot lists, and brand boards — all on one infinite, collaborative canvas. Drop in references, connect boards into a project, and share any of it with a single link. Start free in the browser; no download.',
-    updated: '2026-07-21',
+    updated: '2026-10-02',
     cta: { label: 'Start free', sub: 'No credit card. Your first board in seconds.' },
     sections: [
       {

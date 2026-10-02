@@ -125,7 +125,7 @@ export const DOCS_PAGES = [
     "answer": "Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and unlimited collaborators.",
     "section": "start",
     "order": 1,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Getting started",
     "headings": [
       {
@@ -293,10 +293,10 @@ export const DOCS_PAGES = [
     "title": "Coming from Another Tool — Soleil Clusters",
     "metaDescription": "Moving to Soleil Clusters from PureRef, Milanote, Miro, Boords, StudioBinder or Storyboarder — what maps across, what does not, and how to bring work over.",
     "h1": "Coming from another tool",
-    "answer": "There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually a single drag of a folder. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.",
+    "answer": "There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually one drag: select everything in the folder and drag it in. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.",
     "section": "start",
     "order": 4,
-    "updated": "2026-08-25",
+    "updated": "2026-10-02",
     "navLabel": "Coming from another tool",
     "headings": [
       {
@@ -352,7 +352,7 @@ export const DOCS_PAGES = [
     "answer": "Every cluster opens as an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.",
     "section": "canvas",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Overview",
     "headings": [
       {
@@ -412,7 +412,7 @@ export const DOCS_PAGES = [
     "answer": "A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.",
     "section": "canvas",
     "order": 1,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Cards",
     "headings": [
       {
@@ -468,7 +468,7 @@ export const DOCS_PAGES = [
     "answer": "Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.",
     "section": "canvas",
     "order": 2,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Images",
     "headings": [
       {
@@ -996,7 +996,7 @@ export const DOCS_PAGES = [
     "answer": "As you drag a card, guides appear showing where it lines up with the cards around it, and it snaps to their edges, centres and spacing. Hold Alt while dragging to switch snapping off for that drag. Nothing needs enabling — the guides only appear while you are actually moving something.",
     "section": "canvas",
     "order": 11,
-    "updated": "2026-08-10",
+    "updated": "2026-10-02",
     "navLabel": "Snapping and alignment",
     "headings": [
       {
@@ -1228,7 +1228,7 @@ export const DOCS_PAGES = [
     "answer": "Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.",
     "section": "files",
     "order": 2,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Video and audio",
     "headings": [
       {
@@ -1284,7 +1284,7 @@ export const DOCS_PAGES = [
     "answer": "A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.",
     "section": "clusters",
     "order": 0,
-    "updated": "2026-10-01",
+    "updated": "2026-10-02",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1348,7 +1348,7 @@ export const DOCS_PAGES = [
     "answer": "Every cluster has a list view as well as a canvas — the same contents as a sortable, searchable file browser. It has table and gallery modes, sorting by name, type, size or date, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.",
     "section": "clusters",
     "order": 1,
-    "updated": "2026-09-21",
+    "updated": "2026-10-02",
     "navLabel": "List view",
     "headings": [
       {
@@ -1732,7 +1732,7 @@ export const DOCS_PAGES = [
     "answer": "Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.",
     "section": "documents",
     "order": 2,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Exporting documents",
     "headings": [
       {
@@ -1776,7 +1776,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Does Markdown export keep my images?",
-        "a": "Image references are preserved. The images themselves stay in Clusters storage and are linked, not embedded."
+        "a": "Yes. Each image is embedded in the file itself as a data URI, so the export opens complete with no account and no link back to Clusters, at the cost of a bigger file. An image linked from a site that refuses the download stays a link."
       },
       {
         "q": "Why would I export Fountain instead of Final Draft?",
@@ -1845,10 +1845,10 @@ export const DOCS_PAGES = [
     "title": "Tags and Entities — Soleil Clusters",
     "metaDescription": "Tag anything in Soleil Clusters — cards, groups, boards and passages of text. Entity types, automatic tagging, AI suggestions and emergent themes.",
     "h1": "Tags and entities",
-    "answer": "A tag cuts across everything — apply one to a card, a group, a whole cluster or a passage of text, and the tag's detail view gathers every one of them from anywhere in the workspace. Tags can be typed as entities like character, setting, organization, concept or thing, and the app suggests tags automatically without ever applying one on its own.",
+    "answer": "A tag cuts across everything — apply one to a card, a group, a whole cluster or a passage of text, and the tag's detail view gathers every one of them from anywhere in the workspace. Tags can be typed as entities like character, setting, organization, concept or thing. Automatic tagging reads text, never pictures, and marks what it applies as auto until you confirm it.",
     "section": "organize",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Tags",
     "headings": [
       {
@@ -1895,8 +1895,8 @@ export const DOCS_PAGES = [
         "a": "No. A tag is not a location. The same card can carry several tags and stays exactly where it is."
       },
       {
-        "q": "Does the AI tagger tag things without asking?",
-        "a": "No. It only ever suggests. Nothing is tagged until you accept a suggestion."
+        "q": "Does Clusters tag things without asking?",
+        "a": "Sometimes. When a card's text closely matches a tag you already made, the tag is applied and marked auto. Open the tag, filter to Auto, and right-click any item to confirm it, remove it, or choose Don't suggest again. Looser matches are only suggested. It reads text, not what an image shows."
       },
       {
         "q": "What is an entity type?",
@@ -1965,10 +1965,10 @@ export const DOCS_PAGES = [
     "title": "Search and the Command Palette — Soleil Clusters",
     "metaDescription": "Cmd-K in Soleil Clusters searches clusters, cards, notes, docs and tags, and runs commands — share, invite, trash, theme, settings — from the keyboard.",
     "h1": "Search and the command palette",
-    "answer": "Press Cmd-K or forward slash to open the command palette. It searches across cluster names, card contents, notes, documents and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.",
+    "answer": "Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, document titles and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.",
     "section": "organize",
     "order": 2,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Search",
     "headings": [
       {
@@ -1996,7 +1996,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Does search look inside my notes and documents?",
-        "a": "Yes. It searches full content, not just titles — cluster names, card contents, note text, document text and tags."
+        "a": "Inside notes, yes — note text is searched in full, along with card titles and text. A document is found by its title; the text on its pages is not searched from the palette, so inside a long document use Cmd-F instead."
       },
       {
         "q": "Can I run actions from it?",
@@ -2072,7 +2072,7 @@ export const DOCS_PAGES = [
     "answer": "A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.",
     "section": "collaborate",
     "order": 1,
-    "updated": "2026-08-28",
+    "updated": "2026-10-02",
     "navLabel": "Sharing",
     "headings": [
       {

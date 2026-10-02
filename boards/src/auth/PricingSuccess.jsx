@@ -280,7 +280,7 @@ export function PricingSuccess() {
           )}
           {waitingFolder > 0 && (
             <p className="welcome-copy t-body">
-              Drop your folder again — all {waitingFolder} will fit.
+              Drop those files again — all {waitingFolder} will fit.
             </p>
           )}
           <p className="welcome-copy t-body">

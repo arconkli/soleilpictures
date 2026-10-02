@@ -2,7 +2,7 @@
 
 > Every cluster opens as an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/canvas · Updated 2026-10-02_
 
 The canvas is the default view of every cluster. It is an unbounded surface —
 position means something here, which is the whole point. Two images side by side
@@ -45,8 +45,11 @@ Down the left edge:
 The **+** at the end of the rail opens the rest, grouped:
 
 - *Tools* — Draw (`D`), Shape, Palette
-- *Create* — File, Link, Schedule, Linked cluster
+- *Create* — File, Link, Linked cluster
 - *Annotate* — Comment, Vote
+
+Schedule cards are being rebuilt and are not in the menu meanwhile — see
+[Schedule](/docs/canvas/schedule).
 
 ## Right-click
 

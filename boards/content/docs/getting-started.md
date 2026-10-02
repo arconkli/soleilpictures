@@ -5,7 +5,7 @@ h1: Getting started
 navLabel: Getting started
 section: start
 order: 1
-updated: 2026-08-08
+updated: 2026-10-02
 answer: Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes {{fact:demoCardLimit}} cards and unlimited collaborators.
 faq:
   - q: Do I need to install anything?
@@ -55,7 +55,7 @@ A few things worth knowing on day one:
 | To do this | Do this |
 |---|---|
 | Add a note | Press `N`, or right-click where you want it |
-| Add images | Drag them in, paste from the clipboard, or use the image tool — the picker is multi-select, so a whole folder lands in one go |
+| Add images | Drag them in, paste from the clipboard, or use the image tool — the picker is multi-select, so everything in a folder can come in at once |
 | Add a link | Paste a URL onto the canvas — it unfurls into a real card |
 | Pan | Hold `Space` and drag, or press `H` |
 | Fit everything on screen | `⇧1` |

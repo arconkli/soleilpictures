@@ -2,7 +2,7 @@
 
 > Yes — you can make a mood board online free with Soleil Clusters. The Demo tier needs no credit card: open the browser app, drop in images, links, notes, and color palettes on an infinite canvas, and share the board with a public link. Upgrading only matters when you want unlimited cards and 100GB storage.
 
-_Source: https://clusters.soleilpictures.com/tools/free-mood-board-maker · Updated 2026-07-07_
+_Source: https://clusters.soleilpictures.com/tools/free-mood-board-maker · Updated 2026-10-02_
 
 Runs in your browser. Drop images, notes, and palettes on an infinite canvas and share with a link — no download.
 

@@ -2,7 +2,7 @@
 
 > Soleil Clusters is the best mood board app for film and photo production in 2026: a free real-time canvas where the board is argued over live, approved with one link, and carried into look books and shot lists. Milanote is best for structured solo boards, Canva when the board itself is the deliverable, and Pinterest for pure discovery.
 
-_Source: https://clusters.soleilpictures.com/best/mood-board-apps · Published 2026-08-04 · Updated 2026-09-19_
+_Source: https://clusters.soleilpictures.com/best/mood-board-apps · Published 2026-08-04 · Updated 2026-10-02_
 
 Ranked by a working film studio, tested on real productions — with the dead apps other roundups still recommend culled from the list.
 
@@ -56,7 +56,7 @@ Where to start: open the storyboard and shot list pages for how the mood board c
 
 The only app on this list where the mood board is argued over live, approved in one link, and then becomes the look book and the shot list.
 
-Clusters is the tool we built because nothing else survived our own pre-production. It is an infinite canvas in the browser where a board holds what production reference actually is: images with non-destructive adjustments, video, audio, PDFs, links, notes, color palettes, image grids, and docs with a screenplay mode — not just stills. Drop a folder of references and it lands in one go, so the time goes into arguing about the layout, not uploading.
+Clusters is the tool we built because nothing else survived our own pre-production. It is an infinite canvas in the browser where a board holds what production reference actually is: images with non-destructive adjustments, video, audio, PDFs, links, notes, color palettes, image grids, and docs with a screenplay mode — not just stills. Select everything in a reference folder and drag it in, and it lands in one go, so the time goes into arguing about the layout, not uploading.
 
 The arguing is the point. Boards are real-time multiplayer — live cursors, presence, comments pinned to the image they are about — so the director and the production designer move frames while they talk instead of trading screenshots. When the look settles, you send one link; the client opens the current board in any browser, on a laptop or a phone — no account, no install — not last Tuesday's export.
 

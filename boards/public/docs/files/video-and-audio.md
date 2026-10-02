@@ -2,7 +2,7 @@
 
 > Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.
 
-_Source: https://clusters.soleilpictures.com/docs/files/video-and-audio · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/files/video-and-audio · Updated 2026-10-02_
 
 Both play in place on the canvas. No lightbox, no separate player window — the
 clip is a card among the reference stills it belongs with.
@@ -71,7 +71,7 @@ To take several at once, switch to [list view](/docs/clusters/list-view),
 select the ones you want and press **Download** — one zip, original names
 intact. Zips are capped at **500 files** or
 **500 MB**, whichever comes first; past either, download in
-batches. In the phone and tablet apps, files download one at a time.
+batches.
 
 ### Tempo and key
 

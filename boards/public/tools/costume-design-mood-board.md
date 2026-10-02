@@ -2,21 +2,21 @@
 
 > Soleil Clusters gives costume designers a mood board per character: research and inspiration, a grid of looks scene by scene, fabric and colour swatches, and fitting photos together. Assistants and buyers add to it live, the director comments on the image itself, and a typed character tag gathers every reference for that character across the project.
 
-_Source: https://clusters.soleilpictures.com/tools/costume-design-mood-board · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/tools/costume-design-mood-board · Updated 2026-10-02_
 
 A board per character, the looks laid out scene by scene, and the fabric, colour and fitting photos beside them — shared live with the director.
 
 ## A board per character, a look per scene
 
-Costume is a story told across scenes, so one mood board for the whole film flattens it. In Clusters each character gets a cluster, and inside it a grid lays the changes out in order — a cell per scene or change, holding the look, a caption and the fabric. When scenes move, the grid is still the order of the story, and everyone is looking at the same one.
+Costume is a story told across scenes, so one mood board for the whole film flattens it. In Clusters each character gets a cluster, and inside it a grid lays the changes out in order — a frame per scene or change for the look, with the scene and what changes in the box beneath it, and the fabric swatches beside the grid. When scenes move, the grid is still the order of the story, and everyone is looking at the same one.
 
 - A cluster per character
 - A grid of looks, a cell per scene or change
-- Captions and swatches beside each look
+- Scene notes under each look, swatches beside it
 
 ## Swatches, colour and fittings together
 
-Photograph fabrics and trims as you buy them and drop them beside the look they belong to. Pull a palette from a swatch or a reference and keep the hex values on the board. After a fitting, the photos go straight into the character’s cluster, so the next decision is made looking at the real garment rather than a description of it.
+Photograph fabrics and trims as you buy them and drop them beside the look they belong to. Sample colours off a swatch photo or a reference with the eyedropper and keep the hex values on the board. After a fitting, the photos go straight into the character’s cluster, so the next decision is made looking at the real garment rather than a description of it.
 
 ## One character tag, every reference
 
@@ -24,7 +24,7 @@ Tags in Clusters can be typed as characters. Tag a reference with the character 
 
 ## Assistants, buyers and the director, live
 
-Invite assistant designers, buyers and the supervisor as editors — free on every plan — and the department works in the same boards at once. The director comments on the exact image and votes between options, so sign-off is a thread on the look rather than an email chain.
+Invite assistant designers, buyers and the supervisor as editors — free on every plan — and the department works in the same boards at once. The director comments on the exact image and votes on each option, so sign-off is a thread on the look rather than an email chain.
 
 ## What it does not do
 
@@ -33,10 +33,10 @@ Clusters holds the look and the decision, not the paperwork. It does not track a
 ## How a costume department uses it
 
 1. **A cluster per character** — Nest one cluster per principal inside the project, and one for background.
-2. **Research and inspiration** — Period photography, paintings, runway and street references, dropped in by the folder.
-3. **Lay out the looks** — A grid per character with a cell per scene or change — the look, a caption, and the swatch.
-4. **Swatches and colour** — Photograph fabrics and trims, pull palettes from them, and keep the hex values beside the look.
-5. **Fittings and sign-off** — Drop fitting photos into the character’s board; the director comments on the exact image, and a vote card picks between options.
+2. **Research and inspiration** — Period photography, paintings, runway and street references — select a folder’s worth and drag them in together.
+3. **Lay out the looks** — A grid per character, a frame per scene or change, with the scene and what changes written in the box beneath each look.
+4. **Swatches and colour** — Photograph fabrics and trims, sample their colours with the eyedropper, and keep the hex values beside the look.
+5. **Fittings and sign-off** — Drop fitting photos into the character’s board; the director comments on the exact image, and a vote card beside each option shows where the room leans.
 
 ## What it costs
 
@@ -67,7 +67,7 @@ Per character: research and inspiration, the silhouette and colour story, a look
 
 ### How do I lay out costume changes by scene?
 
-Put a grid inside the character’s board with a cell per scene or change, and caption each cell with the scene and what changes. The grid reads in story order, and everyone with access sees the same one.
+Put a grid inside the character’s board with a frame per scene or change and a box beneath each for the scene and what changes. The grid reads in story order, and everyone with access sees the same one.
 
 ### Can I share it with the director without an account?
 

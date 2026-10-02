@@ -2,11 +2,11 @@
 
 > Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/images · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/canvas/images · Updated 2026-10-02_
 
 Images are the reason most boards exist. Getting them in is meant to be
-thoughtless: drag a folder's worth onto the canvas and they upload in parallel
-and lay themselves out rather than landing in a heap.
+thoughtless: select everything in a folder, drag it onto the canvas, and the
+files upload in parallel and lay themselves out rather than landing in a heap.
 
 ## Adding images
 

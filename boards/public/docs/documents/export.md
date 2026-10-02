@@ -2,7 +2,7 @@
 
 > Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.
 
-_Source: https://clusters.soleilpictures.com/docs/documents/export · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/documents/export · Updated 2026-10-02_
 
 The export menu is in the document toolbar.
 
@@ -30,15 +30,17 @@ the page breaks match what you saw while writing, because
 ## Markdown
 
 Plain text with structure preserved: headings, lists, emphasis, tables, code
-blocks and links. Image references are preserved as links; the files themselves
-stay in Clusters storage.
+blocks and links. Images are embedded in the file as data URIs, so it opens
+complete anywhere at the cost of size; an image linked from a site that refuses
+the download stays a link.
 
 The right choice for moving writing into another tool without reformatting it by
 hand.
 
 ## HTML
 
-Standalone HTML with inline styling, for publishing or pasting into a CMS.
+Standalone HTML with inline styling and the images embedded the same way, for
+publishing or pasting into a CMS.
 
 ## On a phone or tablet
 

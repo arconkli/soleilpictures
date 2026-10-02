@@ -2,7 +2,7 @@
 
 > PureRef has no web version — it is a desktop app and always has been. Soleil Clusters is the closest thing online: the same drop-images-and-arrange reference wall, free in any browser, synced across devices and shareable with one link. PureRef still wins for a small always-on-top offline overlay.
 
-_Source: https://clusters.soleilpictures.com/vs/pureref · Updated 2026-08-23_
+_Source: https://clusters.soleilpictures.com/vs/pureref · Updated 2026-10-02_
 
 PureRef is a fast, offline reference window. Clusters is a collaborative reference workspace you can share and grow.
 
@@ -28,13 +28,13 @@ A reference board is rarely just pictures. Clusters cards can be images, notes, 
 
 - Notes, docs, video, PDFs, and palettes on one canvas
 - Non-destructive image adjustments built in
-- Pull a color palette straight from a reference image
+- Sample colors straight off a reference image into a palette
 
 ## Switching from PureRef takes an afternoon
 
 Bring your references over in one pass: export the images from PureRef (or gather the original files you pinned) and drag the whole set onto a new Clusters board. The images land in one drop, ready to arrange, so the afternoon goes into rebuilding the layout you had — and tags and nested boards keep it organized as the project grows.
 
-- Drag a whole folder of references in at once
+- Select a folder’s references and drag them all in at once
 - Tags and nested boards keep a growing board findable
 - One board per project — or nest boards inside it
 
@@ -61,7 +61,7 @@ If you want a tiny, free, fully-offline window that floats over your art app and
 ## How to move a PureRef board to Clusters
 
 1. **Collect your images** — Export the images from PureRef, or gather the original files you pinned.
-2. **Drag them onto a new board** — Drop the whole set at once — a folder of references lands in one go.
+2. **Drag them onto a new board** — Select everything in the folder and drag it in — the whole set lands in one go.
 3. **Add what PureRef couldn’t hold** — Put notes, links, video, and color palettes right beside the imagery.
 4. **Share one link** — Send the board to your team or client — it opens in the browser, nothing to install.
 
@@ -78,7 +78,7 @@ Two different philosophies for reference boards:
 | Cloud sync & backup | Yes | Local files |
 | Works on phones & tablets | Yes | Desktop only |
 | Comments & feedback on the board | Yes | No |
-| Color palette extraction | Yes | No |
+| Palette cards that keep sampled colors | Yes | Picker only |
 | Organize boards into projects | Yes — nested boards + graph | One file per board |
 | Fully offline | No | Yes |
 | Free to start | Yes | Pay what you want |

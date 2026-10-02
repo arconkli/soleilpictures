@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a shared reference board for studio art teams: an infinite canvas in the browser where every artist drops reference into the same board live, the art director comments directly on the image, and one link opens a read-only view. One plan covers the whole workspace, so there are no per-seat licences.
 
-_Source: https://clusters.soleilpictures.com/tools/shared-reference-board · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/tools/shared-reference-board · Updated 2026-10-02_
 
 One live wall of reference for a concept, VFX, game or 3D team — added to by everyone, opened from one link, with notes pinned to the image they are about.
 
@@ -16,19 +16,19 @@ A desktop reference app is built for one artist on one machine. The board is a f
 
 ## Notes that stay on the image
 
-Feedback in a chat thread drifts away from the picture it is about. In Clusters a comment anchors to the card, or to a point on it, so “push the rim light here” sits on the exact frame — with a thread, @mentions, and a resolve once it is handled. When the team has to choose between options, a vote card settles which of the five without a meeting. Reviewers you invite comment and vote free.
+Feedback in a chat thread drifts away from the picture it is about. In Clusters a comment pins to the card it is about and moves with it, so “push the rim light” sits beside the exact frame — with a thread, @mentions, and a resolve once it is handled. When the team has to choose, put a vote card beside each option and read the room without a meeting. Reviewers you invite comment and vote free.
 
-- Comments on a card, a group, or a point on the image
+- Comments pinned to a card, a group, or a spot on the canvas
 - Threads, @mentions and resolve
 - Vote cards for “which of these” decisions
 
 ## Organised the way a studio thinks
 
-Nest a cluster per character, environment or shot and the project stays navigable at hundreds of references. Tags cut across the nesting: type a tag as a character, a setting or a thing, and its view gathers every reference carrying it from anywhere in the workspace. Non-destructive adjustments — black and white for reading values, warmth, contrast — and palettes pulled from any image keep the reference working as reference, not just a gallery.
+Nest a cluster per character, environment or shot and the project stays navigable at hundreds of references. Tags cut across the nesting: type a tag as a character, a setting or a thing, and its view gathers every reference carrying it from anywhere in the workspace. Non-destructive adjustments — black and white for reading values, warmth, contrast — and swatches sampled off any image keep the reference working as reference, not just a gallery.
 
 - Nested clusters per character, environment or shot
 - Typed tags gather a character’s references across boards
-- Black-and-white value checks and palettes from any image
+- Black-and-white value checks, and swatches sampled off any image
 
 ## One plan for the team, not a licence per seat
 
@@ -42,8 +42,8 @@ If an artist needs reference floating always-on-top over their paint app on a fl
 
 1. **Make the project’s board** — Create one cluster for the project and nest a cluster inside it per discipline or asset — characters, environments, props, FX.
 2. **Invite the team** — Invite artists as editors by email or with an invite link. Editors are free on every plan, and everyone lands in the same live board.
-3. **Pull reference in bulk** — Drop a whole folder at once, paste image links, or bring in video and PDFs. Everything lands as cards you can arrange.
-4. **Mark what matters** — Comment on a card or a point on the image, tag references by character or setting, and vote between options when the team has to pick one.
+3. **Pull reference in bulk** — Select everything in a folder and drag it in at once, paste image links, or bring in video and PDFs. Everything lands as cards you can arrange.
+4. **Mark what matters** — Comment on a card or a group, tag references by character or setting, and put a vote card beside each option when the team has to pick one.
 5. **Show the supervisor** — Send a view-only link — no account needed, set to expire after 7 or 30 days if you like — or invite them to comment.
 
 ## What it costs
@@ -83,7 +83,7 @@ Yes. A view-only link opens the board in any browser with no account, can includ
 
 ### Can we bring our PureRef boards over?
 
-Not as .pur files — that is PureRef’s own local format. Export the images, or gather the originals, and drop the whole folder onto a board in one go, then rebuild the layout. On Creator you can also attach the .pur file itself to the board.
+Not as .pur files — that is PureRef’s own local format. Export the images, or gather the originals, select them all and drag them onto a board in one go, then rebuild the layout. On Creator you can also attach the .pur file itself to the board.
 
 ### Does it work offline?
 

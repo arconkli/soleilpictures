@@ -2,7 +2,7 @@
 
 > A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/docs/clusters · Updated 2026-10-02_
 
 A cluster is the unit of work: a project, a scene, a pitch, a moodboard. The
 code and the [API](/docs/api/boards) call the same object a **board**.
@@ -18,7 +18,7 @@ the top and open it for you:
 - `⌘K` → "new project"
 
 A new project opens on the same panel a first board does: paste or drag images
-in from any tab, or drop a whole folder.
+in from any tab, or select everything in a folder and drag it in.
 
 ## Adding a cluster inside one
 

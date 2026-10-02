@@ -5,7 +5,7 @@ h1: Video and audio
 navLabel: Video and audio
 section: files
 order: 2
-updated: 2026-08-08
+updated: 2026-10-02
 answer: Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at {{fact:freeVideoCap}} and audio at {{fact:freeAudioCap}}; {{fact:planName}} removes both caps.
 faq:
   - q: Why does starting one audio card stop another?
@@ -89,7 +89,7 @@ To take several at once, switch to [list view](/docs/clusters/list-view),
 select the ones you want and press **Download** — one zip, original names
 intact. Zips are capped at **{{fact:zipMaxFiles}} files** or
 **{{fact:zipMaxSize}}**, whichever comes first; past either, download in
-batches. In the phone and tablet apps, files download one at a time.
+batches.
 
 ### Tempo and key
 

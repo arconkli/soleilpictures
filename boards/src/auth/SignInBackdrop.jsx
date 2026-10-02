@@ -44,9 +44,9 @@ const CARDS = [
   { kind:'note', mSlot:'top', head:'LIVE CANVAS', text:'Your whole team on one infinite canvas — live cursors, comments, and presence, no refresh.', dot:'#f59e0b', x:-340,y:-195,r:-3,w:212,h:138, in:0.12,out:0.36 },
   // idx3 — filler: Lost Time palette (balances scene B, top-centre)
   { kind:'palette', cols:['#222a4e','#f8ebce','#ff7720'], label:'Lost Time', dot:'#34d399', x:-30,y:-250,r:4,w:196,h:100, in:0.31,out:0.51 },
-  // scene B → BOTTOM-RIGHT: Lost Time still → AUTO-TAG note
+  // scene B → BOTTOM-RIGHT: Lost Time still → TAGS note
   { kind:'image', img:'/signin-losttime-still1.webp', label:'losttime_int_07.jpg', dot:'#3b82f6', x:450,y:55,r:-5,w:240,h:152, in:0.22,out:0.47 },
-  { kind:'note', mSlot:'bottom', head:'AUTO-TAG', text:'Drop any image, link, or file — Clusters reads it, auto-tags it, and files it to the right board.', dot:'#f59e0b', x:375,y:235,r:4,w:224,h:142, in:0.28,out:0.52 },
+  { kind:'note', mSlot:'bottom', head:'TAGS', text:'Tag a card, a group or a whole cluster — every tag gathers its references from across the workspace.', dot:'#f59e0b', x:375,y:235,r:4,w:224,h:142, in:0.28,out:0.52 },
   // scene C → BOTTOM-LEFT: MoodBoard → DOCS note
   { kind:'board', name:'MoodBoard', count:36, mini:[ {t:'img',src:'/signin-losttime-still1.webp',l:5,tp:8,w:46,h:50,r:-4}, {t:'img',src:'/signin-losttime-still2.webp',l:50,tp:30,w:46,h:52,r:4}, {t:'pal',cols:['#222a4e','#f8ebce','#ff7720'],l:8,tp:60,w:38,h:20,r:2} ], x:-455,y:25,r:-3,w:196,h:142, in:0.42,out:0.66 },
   { kind:'note', mSlot:'top', head:'DOCS, BUILT IN', text:'Write briefs right beside the canvas — rich docs with @mentions and screenplay mode.', dot:'#f59e0b', x:-360,y:215,r:3,w:214,h:134, in:0.48,out:0.70 },
@@ -86,7 +86,7 @@ const LINKS = [
 // draw window (win is wide so the stroke draws gently).
 const ARROWS = [
   { from:1,  to:2,  color:'#f59e0b', bow:26,  in:0.16, win:0.11 },  // Yahweh board → LIVE CANVAS note (TL)
-  { from:4,  to:5,  color:'#10b981', bow:-26, in:0.32, win:0.11 },  // Lost Time still → AUTO-TAG note (BR)
+  { from:4,  to:5,  color:'#10b981', bow:-26, in:0.32, win:0.11 },  // Lost Time still → TAGS note (BR)
   { from:6,  to:7,  color:'#f59e0b', bow:26,  in:0.52, win:0.11 },  // MoodBoard → DOCS note (BL)
   { from:9,  to:10, color:'#3b82f6', bow:-26, in:0.64, win:0.10 },  // dailies reel → SHARE OR LOCK note (TR)
   { from:11, to:16, color:'#10b981', bow:-34, in:0.92, win:0.10 },  // diner still → RELATIONSHIP GRAPH note

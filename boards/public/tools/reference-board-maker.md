@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a free online reference board maker: drop images onto an infinite canvas, arrange and zoom them while you work, and open the same board from any device’s browser with nothing to install. One link shares it read-only. The tradeoff: it lives online — for offline reference, desktop PureRef still earns its place.
 
-_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-07-22_
+_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-10-02_
 
 Drop reference onto an infinite canvas in your browser. The same board follows you to every machine, and one link shows your art director exactly what you’re looking at.
 
@@ -29,7 +29,7 @@ Moving the board into a browser tab removes those walls without changing the job
 Clusters treats a reference board as a working surface, not a gallery.
 
 - Check your values — flip any image to black and white, or nudge brightness, contrast, saturation, and warmth. Every adjustment is non-destructive.
-- Steal the palette — extract a color palette from any image and keep it on the board beside the work it came from.
+- Steal the palette — sample swatches off any image with the eyedropper and keep them on the board beside the work they came from.
 - Reference beyond stills — boards hold video, audio, PDFs, links, and rich-text notes alongside images; Creator accepts any file type.
 - Sketch over it — draw directly on the canvas to mark a gesture line or call out a detail.
 - One board per problem — nest boards inside boards so a project’s costume, lighting, and environment reference each stay findable, and tag an image once to find it from any board.
@@ -46,7 +46,7 @@ A browser tool isn’t the answer for everyone, and it’s worth being plain abo
 
 1. **Gather everything in one place** — Drag images, screenshots, and stills straight onto a new board. Paste links to pieces you found online, and drop in video clips or PDFs when your reference isn’t a still image.
 2. **Arrange by what you’re studying** — Cluster the board around the problem — one area for lighting, one for anatomy, one for materials. The infinite canvas never runs out of room, and you can zoom from the whole board down to a single edge.
-3. **Tune the reference, not the file** — Flip an image to black and white to read its values, nudge brightness or warmth to match your scene, and pull a color palette from any image. Adjustments are non-destructive, so the original stays intact.
+3. **Tune the reference, not the file** — Flip an image to black and white to read its values, nudge brightness or warmth to match your scene, and sample its colors into a palette with the eyedropper. Adjustments are non-destructive, so the original stays intact.
 4. **Open it wherever you work** — The board lives at a URL, so the same reference is on your workstation, your laptop, and your tablet — no files to move, nothing to install.
 5. **Show it when you’re ready** — Send one link and your art director sees a clean, read-only version of the board in their browser — no account required.
 

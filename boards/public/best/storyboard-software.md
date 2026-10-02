@@ -2,7 +2,7 @@
 
 > For storyboards that live beside the rest of pre-production, Soleil Clusters is the best storyboard software in 2026 — frames in a grid next to the shot list and script, shared with one link, edited live. Toon Boom Storyboard Pro is the professional standard for drawn animatics, Boords the best client-approval workflow, and StudioBinder the best all-in-one production suite.
 
-_Source: https://clusters.soleilpictures.com/best/storyboard-software · Published 2026-08-25 · Updated 2026-08-25_
+_Source: https://clusters.soleilpictures.com/best/storyboard-software · Published 2026-08-25 · Updated 2026-10-02_
 
 Most filmmakers do not need a drawing program. They need their frames to sit next to the shot list, the script, and the people who have notes.
 
@@ -43,13 +43,13 @@ Frames in a grid, next to the coverage plan and the screenplay, on one canvas th
 
 Clusters exists because our own boards kept dying in transit. We would build a sequence in a slide deck, export a PDF, email it, and by the second revision nobody knew which version the director had seen — and the shot list it referred to lived in a spreadsheet that had moved on without it. So we built the board as a place instead of a deliverable: an infinite canvas in the browser where the frames, the coverage plan and the script sit in one document that only ever has one current version.
 
-The storyboard mechanic is the grid card. Drop a grid on the canvas, choose the frame count, and each cell holds an image, a screen grab, a photo from a scout or a phone snap of a thumbnail sketch. Cells reorder by dragging, captions sit under each frame, and arrows connect a frame to the shot on the list that covers it. Next to the grid you can put a document in screenplay mode with the actual scene, a shot-list table and a colour palette — so the board argues for itself instead of needing a meeting to explain.
+The storyboard mechanic is the grid card. Drop a grid on the canvas, cut it into frames, and each frame holds an image, a screen grab, a photo from a scout or a phone snap of a thumbnail sketch, with the action written in the box beneath. Stamp the next shot from the + on the grid's edge and a SHOT [#] box numbers each one by position, so dragging a shot re-sequences the scene. Next to the grid you can put a document in screenplay mode with the actual scene, a shot-list table and a colour palette — so the board argues for itself instead of needing a meeting to explain.
 
 The team mechanics are why it survives a production. Live cursors and presence show who is on the board. Comments pin to a specific frame, so 'the third one' is unambiguous. A director or client opens a read-only view from one link with no account and nothing installed, on a laptop or an iPad at a scout. Invited collaborators edit free on every tier, so adding the first AD or the production designer does not change the invoice. Vote cards settle 'which of these five frames' without a thread.
 
 The honest shape of it: this is not a drawing program. There are freehand and shape tools and a sketch pad, and they are fine for rough thumbnails, but there is no pressure-sensitive brush engine, no onion skinning and no camera-move keyframing. There is no AI frame generation. There is no animatic timeline that plays your board against scratch audio — if you need to time a sequence to a soundtrack, Toon Boom or Boords is the right purchase. The free Demo tier needs no credit card and has no trial clock, with a card cap on the free tier; Creator is a flat $25 a month, not per person, for unlimited cards, 100GB of storage and any file type.
 
-- Grid cards as storyboard frames — set the frame count, drop images into cells, reorder by dragging, caption each frame
+- Grid cards as storyboard frames — cut the frames, drop images in, write the action beneath, and let shots number themselves
 - The board holds the rest of pre-production too: shot-list tables, documents with screenplay mode, palettes, PDFs, video and audio
 - One-link sharing — viewers need no account or install; invited collaborators edit free on every tier
 - Real-time multiplayer with live cursors, presence and comments pinned to an individual frame

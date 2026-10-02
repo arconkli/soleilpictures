@@ -5,13 +5,13 @@ h1: Exporting documents
 navLabel: Exporting documents
 section: documents
 order: 2
-updated: 2026-08-08
+updated: 2026-10-02
 answer: Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.
 faq:
   - q: Is the PDF selectable text or an image?
     a: Real text. Screenplay PDFs are vector output in Courier, so the text is selectable and searchable.
   - q: Does Markdown export keep my images?
-    a: Image references are preserved. The images themselves stay in Clusters storage and are linked, not embedded.
+    a: Yes. Each image is embedded in the file itself as a data URI, so the export opens complete with no account and no link back to Clusters, at the cost of a bigger file. An image linked from a site that refuses the download stays a link.
   - q: Why would I export Fountain instead of Final Draft?
     a: Fountain is plain text — it opens anywhere, diffs cleanly in version control, and does not depend on any one application.
 related:
@@ -46,15 +46,17 @@ the page breaks match what you saw while writing, because
 ## Markdown
 
 Plain text with structure preserved: headings, lists, emphasis, tables, code
-blocks and links. Image references are preserved as links; the files themselves
-stay in Clusters storage.
+blocks and links. Images are embedded in the file as data URIs, so it opens
+complete anywhere at the cost of size; an image linked from a site that refuses
+the download stays a link.
 
 The right choice for moving writing into another tool without reformatting it by
 hand.
 
 ## HTML
 
-Standalone HTML with inline styling, for publishing or pasting into a CMS.
+Standalone HTML with inline styling and the images embedded the same way, for
+publishing or pasting into a CMS.
 
 ## On a phone or tablet
 

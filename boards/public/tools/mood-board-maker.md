@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a free online mood board maker: drag images, links, video, and color palettes onto an infinite canvas, arrange them freely, and share the finished board with one link. It runs in the browser with no download, supports real-time collaboration, and is built for film, photo, and design teams.
 
-_Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2026-08-10_
+_Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2026-10-02_
 
 Pull your references, colors, and notes onto one infinite canvas — then share the whole board with a single link.
 
@@ -25,8 +25,8 @@ Send a board to a client or collaborator with one link — they see a clean, int
 ## How to make a mood board
 
 1. **Start a board** — Open Clusters and create a blank board — an infinite canvas you can pan and zoom.
-2. **Drop in your references** — Drag images, screenshots, links, and files straight onto the canvas — a whole folder lands in one drop.
-3. **Add color and notes** — Pull a color palette and add rich-text notes or a brief right beside the imagery.
+2. **Drop in your references** — Drag images, screenshots, links, and files straight onto the canvas — select everything in a folder and it all lands in one drop.
+3. **Add color and notes** — Add a color palette and rich-text notes or a brief right beside the imagery.
 4. **Arrange and connect** — Move cards freely, group related references, and draw arrows to show how ideas relate.
 5. **Share it** — Send one link for a clean, interactive preview — or invite your team to build the board live with you.
 

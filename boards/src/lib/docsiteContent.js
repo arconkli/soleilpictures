@@ -971,7 +971,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Drag them in, paste from the clipboard, or use the image tool — the picker is multi-select, so a whole folder lands in one go"
+       "v": "Drag them in, paste from the clipboard, or use the image tool — the picker is multi-select, so everything in a folder can come in at once"
       }
      ]
     ],
@@ -2979,7 +2979,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "There is no import button. For a reference board that is less of a problem than it sounds — dragging a folder of images in takes about as long as an importer would, and they "
+     "v": "There is no import button. For a reference board that is less of a problem than it sounds — selecting a folder's images and dragging them in takes about as long as an importer would, and they "
     },
     {
      "t": "link",
@@ -3770,7 +3770,7 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Drag its reference folder onto a new cluster; let it auto-arrange."
+      "v": "Select everything in its reference folder and drag it onto a new cluster; let it auto-arrange."
      }
     ],
     [
@@ -4468,7 +4468,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — File, Link, Schedule, Linked cluster"
+      "v": " — File, Link, Linked cluster"
      }
     ],
     [
@@ -4487,6 +4487,30 @@ export const DOCS_CONTENT = {
       "v": " — Comment, Vote"
      }
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Schedule cards are being rebuilt and are not in the menu meanwhile — see "
+    },
+    {
+     "t": "link",
+     "v": "Schedule",
+     "href": "/docs/canvas/schedule",
+     "children": [
+      {
+       "t": "text",
+       "v": "Schedule"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
    ]
   },
   {
@@ -6025,7 +6049,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "If you drag in a folder with more files than your remaining allowance, Clusters asks before it uploads anything. You can add the ones that fit, upgrade to keep the whole folder, or cancel — and until you answer, nothing is uploaded and nothing on the canvas changes. Choosing to add the ones that fit always gives you every card you still have room for; the rest stay on your disk."
+     "v": "If you drag in more files than your remaining allowance, Clusters asks before it uploads anything. You can add the ones that fit, upgrade to keep them all, or cancel — and until you answer, nothing is uploaded and nothing on the canvas changes. Choosing to add the ones that fit always gives you every card you still have room for; the rest stay on your disk."
     }
    ]
   },
@@ -6136,7 +6160,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Images are the reason most boards exist. Getting them in is meant to be thoughtless: drag a folder's worth onto the canvas and they upload in parallel and lay themselves out rather than landing in a heap."
+     "v": "Images are the reason most boards exist. Getting them in is meant to be thoughtless: select everything in a folder, drag it onto the canvas, and the files upload in parallel and lay themselves out rather than landing in a heap."
     }
    ]
   },
@@ -13047,7 +13071,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Drop a folder of images onto the canvas and they arrive as a block centred on where you dropped, laid out as justified rows, rather than in a line running off the side of the screen."
+     "v": "Drop a big selection of images onto the canvas and they arrive as a block centred on where you dropped, laid out as justified rows, rather than in a line running off the side of the screen."
     }
    ]
   },
@@ -15017,7 +15041,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", whichever comes first; past either, download in batches. In the phone and tablet apps, files download one at a time."
+     "v": ", whichever comes first; past either, download in batches."
     }
    ]
   },
@@ -15458,7 +15482,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A new project opens on the same panel a first board does: paste or drag images in from any tab, or drop a whole folder."
+     "v": "A new project opens on the same panel a first board does: paste or drag images in from any tab, or select everything in a folder and drag it in."
     }
    ]
   },
@@ -16760,21 +16784,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Hover any row holding a file — an image, PDF, video, audio clip or attachment — and a download button appears at the end of it. The file keeps its "
+     "v": "Hover any row holding a file — an image, PDF, video, audio clip or attachment — and a download button appears at the end of it. Audio, PDFs and attachments keep their "
     },
     {
      "t": "strong",
-     "v": "original name",
+     "v": "original names",
      "children": [
       {
        "t": "text",
-       "v": "original name"
+       "v": "original names"
       }
      ]
     },
     {
      "t": "text",
-     "v": ", so renaming a card for readability never costs you the extension."
+     "v": ", so renaming a card for readability never costs you the extension. Images and videos do not keep the name they were uploaded with, and come down under a generic one."
     }
    ]
   },
@@ -16858,7 +16882,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", whichever comes first; past either, take it in batches. In the phone and tablet apps files come down one at a time, through the system share sheet."
+     "v": ", whichever comes first; past either, take it in batches."
     }
    ]
   },
@@ -20312,7 +20336,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Plain text with structure preserved: headings, lists, emphasis, tables, code blocks and links. Image references are preserved as links; the files themselves stay in Clusters storage."
+     "v": "Plain text with structure preserved: headings, lists, emphasis, tables, code blocks and links. Images are embedded in the file as data URIs, so it opens complete anywhere at the cost of size; an image linked from a site that refuses the download stays a link."
     }
    ]
   },
@@ -20342,7 +20366,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Standalone HTML with inline styling, for publishing or pasting into a CMS."
+     "v": "Standalone HTML with inline styling and the images embedded the same way, for publishing or pasting into a CMS."
     }
    ]
   },
@@ -20992,7 +21016,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "This is the payoff. \"Show me everything about the diner\" spans a script scene, a reference wall, a schedule entry and a message thread, and no folder structure could have anticipated that grouping."
+     "v": "This is the payoff. \"Show me everything about the diner\" spans a script scene, a reference wall, a group of location photos and a note, and no folder structure could have anticipated that grouping."
     }
    ]
   },
@@ -21177,68 +21201,138 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Two layers, neither of which applies a tag on its own."
+     "v": "Automatic tagging works from "
+    },
+    {
+     "t": "strong",
+     "v": "text",
+     "children": [
+      {
+       "t": "text",
+       "v": "text"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — card titles, notes, and the names of groups and clusters. It never looks at what an image shows, and it only uses tags you have already made, so a workspace with no tags gets none."
     }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "A close match is applied",
+      "children": [
+       {
+        "t": "text",
+        "v": "A close match is applied"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", marked "
+     },
+     {
+      "t": "em",
+      "v": "auto",
+      "children": [
+       {
+        "t": "text",
+        "v": "auto"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". Make a Diner tag, and a note about the diner can pick it up on its own."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "A looser match is only suggested.",
+      "children": [
+       {
+        "t": "text",
+        "v": "A looser match is only suggested."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " It waits on the tag until you accept or dismiss it."
+     }
+    ]
    ]
   },
   {
    "type": "para",
    "inline": [
     {
+     "t": "text",
+     "v": "Nothing applied automatically is hidden. Open the tag and switch its filter to "
+    },
+    {
      "t": "strong",
-     "v": "The matcher",
+     "v": "Auto",
      "children": [
       {
        "t": "text",
-       "v": "The matcher"
+       "v": "Auto"
       }
      ]
     },
     {
      "t": "text",
-     "v": " recognises names you have already used. Write \"Diner\" in a note after creating a Diner tag, and it is detected and offered."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
+     "v": " to see everything it picked up on its own; right-click any item to "
+    },
     {
      "t": "strong",
-     "v": "The AI tagger",
+     "v": "confirm",
      "children": [
       {
        "t": "text",
-       "v": "The AI tagger"
+       "v": "confirm"
       }
      ]
     },
     {
      "t": "text",
-     "v": " goes further, suggesting tags for content it has not seen a name for — including from image content. It is "
+     "v": " it, "
     },
     {
      "t": "strong",
-     "v": "on by default",
+     "v": "remove",
      "children": [
       {
        "t": "text",
-       "v": "on by default"
+       "v": "remove"
       }
      ]
     },
     {
      "t": "text",
-     "v": " and can be switched off."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
+     "v": " it, or choose "
+    },
+    {
+     "t": "strong",
+     "v": "Don't suggest again",
+     "children": [
+      {
+       "t": "text",
+       "v": "Don't suggest again"
+      }
+     ]
+    },
     {
      "t": "text",
-     "v": "In both cases suggestion is the whole behaviour. Nothing is tagged until you accept it. A workspace silently filling with tags nobody chose would be worse than no tagging at all."
+     "v": ", which keeps that tag off that item for good."
     }
    ]
   },
@@ -22044,15 +22138,6 @@ export const DOCS_CONTENT = {
    "id": "what-it-searches"
   },
   {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Full content, not just names:"
-    }
-   ]
-  },
-  {
    "type": "list",
    "ordered": false,
    "items": [
@@ -22101,7 +22186,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — by content"
+      "v": " — by title and by the text on them"
      }
     ],
     [
@@ -22129,7 +22214,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — by content"
+      "v": " — by title"
      }
     ]
    ]
@@ -22139,7 +22224,24 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Results are grouped by kind, so a query matching a board and a passage inside a document shows you both, labelled."
+     "v": "The text on a document's pages is not searched from here. Inside a document, "
+    },
+    {
+     "t": "code",
+     "v": "⌘F"
+    },
+    {
+     "t": "text",
+     "v": " finds it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Results are grouped by kind, so a query matching a board and a note shows you both, labelled."
     }
    ]
   },
@@ -23504,7 +23606,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " mean the files stay behind glass: anyone who opens the link can download the images, audio, video, PDFs and attachments on it, at full quality and under their original names. That is what makes a link worth sending — a sample pack or a stills selects is only useful if the other person can take it away."
+     "v": " mean the files stay behind glass: anyone who opens the link can download the images, audio, video, PDFs and attachments on it, at full quality — audio, PDFs and attachments under their original names. That is what makes a link worth sending — a sample pack or a stills selects is only useful if the other person can take it away."
     }
    ]
   },

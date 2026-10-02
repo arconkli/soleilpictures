@@ -5,7 +5,7 @@ h1: Cards
 navLabel: Cards
 section: canvas
 order: 1
-updated: 2026-08-08
+updated: 2026-10-02
 answer: A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
 faq:
   - q: How do I change what kind a card is?
@@ -109,9 +109,9 @@ yours.
 
 ### Dropping more files than you have room for
 
-If you drag in a folder with more files than your remaining allowance, Clusters
+If you drag in more files than your remaining allowance, Clusters
 asks before it uploads anything. You can add the ones that fit, upgrade to keep
-the whole folder, or cancel — and until you answer, nothing is uploaded and
+them all, or cancel — and until you answer, nothing is uploaded and
 nothing on the canvas changes. Choosing to add the ones that fit always gives
 you every card you still have room for; the rest stay on your disk.
 

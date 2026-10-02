@@ -1,8 +1,8 @@
 # Cinematography Lookbook
 
-> Soleil Clusters is a cinematography lookbook on a shared canvas: collect film frames and lighting references by scene, note lens and light beside each, check values in black and white, and pull palettes. The director, gaffer and colourist work in the same board live, and a view-only link shows it to anyone without an account.
+> Soleil Clusters is a cinematography lookbook on a shared canvas: collect film frames and lighting references by scene, note lens and light beside each, check values in black and white, and sample palettes. The director, gaffer and colourist work in the same board live, and a view-only link shows it to anyone without an account.
 
-_Source: https://clusters.soleilpictures.com/tools/cinematography-lookbook · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/tools/cinematography-lookbook · Updated 2026-10-02_
 
 Collect the frames, light and lensing you are after, check them in black and white, and keep the director, gaffer and colourist on the same board.
 
@@ -16,15 +16,15 @@ A lookbook is an argument about how the film will look, made with other people�
 
 ## Check values, not just vibes
 
-Flip any reference to black and white to read where its values actually sit, and nudge warmth, contrast and saturation to compare it with your tests. The adjustments are non-destructive, so the original frame is always one click away. Pull a palette from any image to hand the colourist a concrete starting point.
+Flip any reference to black and white to read where its values actually sit, and nudge warmth, contrast and saturation to compare it with your tests. The adjustments are non-destructive, so the original frame is always one click away. Sample swatches off any frame with the eyedropper to hand the colourist a concrete starting point.
 
 - Black and white for reading values
 - Warmth, contrast and saturation, non-destructively
-- Palettes pulled from any frame
+- Swatches sampled off any frame
 
 ## Director, gaffer and colourist on the same page
 
-A lookbook only helps if the people executing it see the same thing. Invite the gaffer, the key grip and the colourist as editors — free on every plan — and they work in the board live. The director comments on the exact frame, and a vote card settles “this one or that one” before the tech scout instead of during it.
+A lookbook only helps if the people executing it see the same thing. Invite the gaffer, the key grip and the colourist as editors — free on every plan — and they work in the board live. The director comments on the exact frame, and a vote card beside each settles “this one or that one” before the tech scout instead of during it.
 
 ## From lookbook to shot list
 
@@ -37,7 +37,7 @@ Clusters is not a shot-design or previs tool — there is no 3D camera simulatio
 ## How a DP builds one
 
 1. **A cluster per scene or look** — Night exteriors, the apartment, the flashback — each look gets its own cluster.
-2. **Collect the frames** — Film stills, photographs and your own tests, dropped in by the folder; reference clips as video cards.
+2. **Collect the frames** — Film stills, photographs and your own tests — select them all in the folder and drag them in together; reference clips as video cards.
 3. **Read the light** — Flip any frame to black and white to read its values; nudge warmth and contrast to compare against your tests.
 4. **Note lens and setup** — A note or caption beside each frame: focal length, stop, height, source, diffusion.
 5. **Bring in the team** — The gaffer and the colourist edit free; the director comments on the exact frame.

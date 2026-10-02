@@ -2,7 +2,7 @@
 
 > As you drag a card, guides appear showing where it lines up with the cards around it, and it snaps to their edges, centres and spacing. Hold Alt while dragging to switch snapping off for that drag. Nothing needs enabling — the guides only appear while you are actually moving something.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/snapping-and-alignment · Updated 2026-08-10_
+_Source: https://clusters.soleilpictures.com/docs/canvas/snapping-and-alignment · Updated 2026-10-02_
 
 Boards look better when things line up, and lining things up by hand is tedious.
 Guides do it while you drag.
@@ -64,7 +64,7 @@ assistant can tidy a board too.
 
 ## Dropping a lot of files at once
 
-Drop a folder of images onto the canvas and they arrive as a block centred on
+Drop a big selection of images onto the canvas and they arrive as a block centred on
 where you dropped, laid out as justified rows, rather than in a line running off
 the side of the screen.
 

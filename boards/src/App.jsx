@@ -4785,7 +4785,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     clearCheckoutReturn();
     feedback.toast({
       type: 'success',
-      message: `${PLAN_NAME} is on. Drop your folder again — all ${ret.importN} will fit.`,
+      message: `${PLAN_NAME} is on. Drop those files again — all ${ret.importN} will fit.`,
       ttl: 9000,
     });
     // feedback is the stable provider value; the tier is what we wait for.

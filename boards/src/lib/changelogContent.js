@@ -650,7 +650,7 @@ export const CHANGELOG_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Dropping a folder of photos gives you a block, not a 5,200-pixel strip."
+      "v": "Dropping a big batch of photos gives you a block, not a 5,200-pixel strip."
      }
     ],
     [

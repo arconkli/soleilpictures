@@ -2,7 +2,7 @@
 
 > A director’s treatment is the visual pitch for a commercial, music video or film: concept, tone, look, casting, wardrobe and locations. In Soleil Clusters you develop it on a live board with your team, write it as a document with images inline, and export a PDF to send. It is a document, not a designed slide deck.
 
-_Source: https://clusters.soleilpictures.com/tools/directors-treatment · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/tools/directors-treatment · Updated 2026-10-02_
 
 Develop the look with your team on a live board, write the treatment as a document with the images inline, and send it as a PDF.
 
@@ -12,7 +12,7 @@ A treatment wins or loses the job before anything is shot. For a commercial it a
 
 ## Build it on a board, with the people who will make it
 
-The slow part of a treatment is not the layout; it is agreeing the look. Clusters is an infinite canvas your producer, DP and designer can work in at the same time: pull references in by the folder, sort them into clusters for tone, casting, wardrobe and locations, comment on the exact frame, and vote between options when it comes down to two. Nobody waits for a version to be emailed round.
+The slow part of a treatment is not the layout; it is agreeing the look. Clusters is an infinite canvas your producer, DP and designer can work in at the same time: select a folder’s references and drag them in together, sort them into clusters for tone, casting, wardrobe and locations, comment on the exact frame, and put a vote card on each option when it comes down to two. Nobody waits for a version to be emailed round.
 
 - Live co-editing with cursors and presence
 - Comments pinned to the frame they are about
@@ -38,7 +38,7 @@ It is not a deck designer. There are no slide templates, no presentation mode, a
 
 1. **Concept** — One paragraph: what the piece is and why it works. Write it first, at the top of the document.
 2. **Tone and references** — The frames, films and photographs that set the feel — gathered on the board, where the team argues them into agreement.
-3. **Look and light** — Palette, lensing, light and texture. Pull a palette from any reference image and keep it beside the frames it came from.
+3. **Look and light** — Palette, lensing, light and texture. Sample swatches off any reference image with the eyedropper and keep them beside the frames they came from.
 4. **Casting** — Faces and types, with a note on each. Tag each reference as a character so the tag gathers every image of them.
 5. **Wardrobe and art direction** — Silhouettes, fabrics, sets and props, each in its own nested cluster so each department can work in theirs.
 6. **Locations** — Scout photos and found references, a cluster per setting.

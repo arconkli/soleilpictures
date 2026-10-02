@@ -5,13 +5,13 @@ h1: Tags and entities
 navLabel: Tags
 section: organize
 order: 0
-updated: 2026-08-08
-answer: A tag cuts across everything — apply one to a card, a group, a whole cluster or a passage of text, and the tag's detail view gathers every one of them from anywhere in the workspace. Tags can be typed as entities like character, setting, organization, concept or thing, and the app suggests tags automatically without ever applying one on its own.
+updated: 2026-10-02
+answer: A tag cuts across everything — apply one to a card, a group, a whole cluster or a passage of text, and the tag's detail view gathers every one of them from anywhere in the workspace. Tags can be typed as entities like character, setting, organization, concept or thing. Automatic tagging reads text, never pictures, and marks what it applies as auto until you confirm it.
 faq:
   - q: Do tags move things?
     a: No. A tag is not a location. The same card can carry several tags and stays exactly where it is.
-  - q: Does the AI tagger tag things without asking?
-    a: No. It only ever suggests. Nothing is tagged until you accept a suggestion.
+  - q: Does Clusters tag things without asking?
+    a: Sometimes. When a card's text closely matches a tag you already made, the tag is applied and marked auto. Open the tag, filter to Auto, and right-click any item to confirm it, remove it, or choose Don't suggest again. Looser matches are only suggested. It reads text, not what an image shows.
   - q: What is an entity type?
     a: A tag can be typed as a character, setting, organization, concept or thing. Typed tags get an appropriate colour and behaviour, and are what make hover previews and backlinks useful.
 related:
@@ -43,7 +43,7 @@ Open a tag from the sidebar and you get everything carrying it, from anywhere in
 the workspace, arranged hierarchically — boards, then groups, then cards.
 
 This is the payoff. "Show me everything about the diner" spans a script scene, a
-reference wall, a schedule entry and a message thread, and no folder structure
+reference wall, a group of location photos and a note, and no folder structure
 could have anticipated that grouping.
 
 ## Entity types
@@ -63,18 +63,19 @@ in [links and mentions](/docs/organize/links-and-mentions).
 
 ## Automatic tagging
 
-Two layers, neither of which applies a tag on its own.
+Automatic tagging works from **text** — card titles, notes, and the names of
+groups and clusters. It never looks at what an image shows, and it only uses
+tags you have already made, so a workspace with no tags gets none.
 
-**The matcher** recognises names you have already used. Write "Diner" in a note
-after creating a Diner tag, and it is detected and offered.
+- **A close match is applied**, marked *auto*. Make a Diner tag, and a note about
+  the diner can pick it up on its own.
+- **A looser match is only suggested.** It waits on the tag until you accept or
+  dismiss it.
 
-**The AI tagger** goes further, suggesting tags for content it has not seen a
-name for — including from image content. It is **on by default** and can be
-switched off.
-
-In both cases suggestion is the whole behaviour. Nothing is tagged until you
-accept it. A workspace silently filling with tags nobody chose would be worse
-than no tagging at all.
+Nothing applied automatically is hidden. Open the tag and switch its filter to
+**Auto** to see everything it picked up on its own; right-click any item to
+**confirm** it, **remove** it, or choose **Don't suggest again**, which keeps
+that tag off that item for good.
 
 ## Emergent themes
 

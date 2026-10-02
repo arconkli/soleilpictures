@@ -87,14 +87,28 @@ const CODE = [
   { path: resolve(BOARDS, 'src/auth/PricingPageView.jsx'), ours: true },
   // And the shared card internals, which render the benefit titles and bodies.
   { path: resolve(BOARDS, 'src/components/PricingBits.jsx'), ours: true },
+  // The homepage. '/' is the sign-in screen, and its animated backdrop is the
+  // first copy every visitor reads — it said a dropped file is "auto-tagged and
+  // filed to the right board" for a month after the SEO pages stopped saying
+  // it, because nothing scanned it. index.html carries the crawlable body that
+  // stands in for the same screen.
+  { path: resolve(BOARDS, 'src/auth/SignInBackdrop.jsx'), ours: true },
+  { path: resolve(BOARDS, 'index.html'), ours: true, html: true },
 ];
+
+// HTML comments out, for the one HTML file. They span lines, so the line-based
+// stripper above cannot see them, and index.html's explain the page at length.
+function stripHtmlComments(text) {
+  return text.replace(/<!--[\s\S]*?-->/g, '');
+}
 
 const FILES = [
   ...CODE.map((c) => ({ ...c, code: true })),
   ...walk(resolve(BOARDS, 'content/docs'), /\.md$/).map((p) => ({ path: p, code: false, ours: false })),
-].map(({ path: p, code, ours }) => {
+].map(({ path: p, code, ours, html }) => {
   const raw = readFileSync(p, 'utf8');
-  return { path: p, rel: relative(BOARDS, p), ours, text: code ? stripCodeComments(raw) : raw };
+  const text = html ? stripHtmlComments(raw) : code ? stripCodeComments(raw) : raw;
+  return { path: p, rel: relative(BOARDS, p), ours, text };
 });
 
 // Split into sentence-ish spans so a rule can require two terms to co-occur in
@@ -183,20 +197,108 @@ const RULES = [
     // the native apps", "a native iOS app as well", and exports "through the
     // system share sheet". "Builds are in development" (mobile.md) is TRUE and
     // must keep passing — the alternations name the false shapes, not the noun.
-    pattern: /ships as (native )?(iOS|Android)|native apps for iOS and Android|native (iOS|Android)( and Android)? apps? (for|handle|land|open)|native (iOS|Android)( and Android)? apps? (are|is) (also )?available|(Yes|yes),? for iOS and Android|share sheet from photos|the (native )?iOS and Android apps|also iOS and Android builds|in the native apps|native iOS app as well|(export|exports) (goes?|are delivered) through the (platform's own |system )?share sheet/i,
+    // Widened again 2026-10-02: two docs pages described downloads "in the
+    // phone and tablet apps" — the Capacitor shells' behaviour, in no store.
+    pattern: /ships as (native )?(iOS|Android)|native apps for iOS and Android|native (iOS|Android)( and Android)? apps? (for|handle|land|open)|native (iOS|Android)( and Android)? apps? (are|is) (also )?available|(Yes|yes),? for iOS and Android|share sheet from photos|the (native )?iOS and Android apps|also iOS and Android builds|in the native apps|native iOS app as well|(export|exports) (goes?|are delivered) through the (platform's own |system )?share sheet|\bin the phone and tablet apps?\b/i,
+    known: [
+      'In the phone and tablet apps files come down one at a time, through the system share sheet.',
+      'Clusters ships as iOS and Android apps',
+    ],
+    theirs: ['Native iOS and Android builds are in development.'],
   },
   {
     // Twenty-five marketing lines, four compare-table rows and the homepage's
     // crawlable body said a dropped file is read, tagged and "filed to the right
-    // board automatically". The tags doc says the opposite in as many words — a
-    // tag is not a location, tagging moves nothing, and nothing is tagged until
-    // you accept a suggestion — and the AI tagger behind the claim has never
-    // run (tag_ai_usage and autotag_log were both empty on 2026-10-01). Removed
-    // 2026-10-01. Competitors' auto-tagging (Eagle's, refern's) is theirs to
-    // claim; these shapes are ours.
-    name: 'tagging suggests and moves nothing — never sell dropped files as auto-tagged or auto-filed',
+    // board automatically". Two things are wrong with that. A tag is not a
+    // location: tagging moves nothing, ever. And automatic tagging reads TEXT —
+    // titles, notes, the names of groups and clusters — against tags somebody
+    // already made; it never looks at what a picture shows, so a dropped image
+    // is not tagged either. (What it does do, when a card's text closely matches
+    // an existing tag, is apply that tag marked "auto", to be confirmed or
+    // dismissed — see docs/organize/tags.md.) Removed 2026-10-01; the homepage
+    // animation (SignInBackdrop.jsx) kept saying it until 2026-10-02 because it
+    // sat outside this corpus. Competitors' auto-tagging (Eagle's, refern's) is
+    // theirs to claim; these shapes are ours.
+    name: 'tagging moves nothing and never reads a picture — never sell dropped files as auto-tagged or auto-filed',
     scoped: false,
-    pattern: /auto-?tagging (files|reads and files|organi[sz]es (images|them|references))|reads it,? tags it,? and files it|tags and files each one|files (each|every) (dropped )?(reference|image|one) (as it lands|to the right board)|files (them|it|a dropped image) to the right board|automatic organi[sz]ation of dropped files/i,
+    pattern: /auto-?tagging (files|reads and files|organi[sz]es (images|them|references))|reads it,? (auto-?)?tags it|tags and files each one|files (each|every) (dropped )?(reference|image|one) (as it lands|to the right board)|files (them|it|a dropped image) to the right board|automatic organi[sz]ation of dropped files|(drop|dropped|upload)[^.!?]{0,60}\bauto-?tags? (it|them|each)/i,
+    known: [
+      'Drop any image, link, or file — Clusters reads it, auto-tags it, and files it to the right board.',
+      'auto-tagging files each reference to the right board',
+    ],
+    theirs: [
+      'Auto-tag rules, smart folders, and search by dominant color do the organizing',
+    ],
+  },
+  {
+    // Five professional pages, the reference-board page and a /vs/pureref
+    // compare row ("Color palette extraction: Yes / No") said a palette is
+    // pulled or extracted from any image. Nothing extracts one: a palette
+    // card's eyedropper samples ONE pixel per click into a swatch
+    // (CanvasSurface sampleImagePixel), and PureRef has a picker of its own, so
+    // the row was wrong on both sides. The true form is "sample swatches off any
+    // image with the eyedropper". Fixed 2026-10-02.
+    name: 'a palette is sampled a swatch at a time — never sell palette extraction',
+    scoped: false,
+    pattern: /(extract|pull)(s|ed|ing)? (a |the )?(colou?r )?palettes? (from|out of|straight (from|out of))|palettes? (pulled|extracted) (from|out of|straight)|palettes? come straight out of|colou?r palette extraction|palettes? from any (image|frame|reference)/i,
+    unless: (s) => /\b(Eagle|Milanote|Adobe|Canva|Coolors|Pinterest|Figma|Miro|refern|PureRef|Storyflow|StudioBinder|Boords)\b/.test(s),
+    known: [
+      'Steal the palette — extract a color palette from any image and keep it on the board',
+      'Look and light. Pull a palette from any reference image and keep it beside the frames',
+      'Palettes pulled from any image, with hex values',
+      'Black-and-white value checks and palettes from any image',
+      'Palettes come straight out of any reference.',
+      "{ feature: 'Color palette extraction', us: 'Yes', them: 'No' },",
+    ],
+    theirs: [
+      'Coolors extracts a colour palette from any image you upload',
+      'A palette card holds a set of colours on your board that everything else can pull from',
+      'Sample swatches off any reference with the eyedropper and keep the hex values beside the set',
+    ],
+  },
+  // Three mechanics the same pass described wrongly, each fixed 2026-10-02. A
+  // comment anchors to a card, a group, an empty point on the canvas, a board or
+  // a text range — never to a spot inside a picture (there is no 'cell' or
+  // 'pixel' anchor kind). A vote card is ONE up/down poll, so choosing between
+  // options means a card beside each option. And a grid cell holds one thing:
+  // there is no per-cell caption (the action goes in the box beneath) and cells
+  // do not drag into a new order — re-sequencing is done by moving whole grids
+  // in a numbered sequence (SHOT [#], gridSequence.js).
+  {
+    name: 'a comment pins to a card or a spot on the canvas, never a point inside an image',
+    scoped: false,
+    pattern: /\bpoint on (the|an?) (image|picture|frame|reference|photo)\b|anchors? to the card, or to a point on it/i,
+    unless: (s) => /\b(Milanote|Miro|Frame\.io|Figma|Boords|StudioBinder|Storyflow|Filestage|Ziflow)\b/.test(s),
+    known: [
+      'Comment on a card or a point on the image, tag references by character or setting',
+      'In Clusters a comment anchors to the card, or to a point on it, so “push the rim light here” sits on the exact frame',
+    ],
+    theirs: ['Frame.io pins a comment to a point on the frame at a timecode'],
+  },
+  {
+    name: 'a vote card is one up/down poll — it cannot pick between several options on its own',
+    scoped: false,
+    pattern: /\ba vote card (settles|decides|picks)\b|that last one settles ['‘“]?which of/i,
+    known: [
+      'when it comes down to two options, a vote card decides.',
+      'and a vote card picks between options.',
+      "and vote cards — that last one settles 'which of these five frames' arguments without a meeting.",
+    ],
+    theirs: ['and a vote card beside each chair settles “which of these three” without a meeting.'],
+  },
+  {
+    name: 'a grid cell holds one thing — no per-cell captions, and cells do not drag into a new order',
+    scoped: false,
+    pattern: /\bcells? (re-?order|swap|move) by dragging|\bre-?order (shots|panels|cells|frames) by dragging|\bdrag (panels|cells) to re-?(sequence|order)|captions? (sit )?under each (frame|panel|cell)|\bcaption each (cell|frame)|numbered panels with captions|a cell per scene or change[^.!?]{0,30}caption/i,
+    unless: (s) => /\b(Milanote|Boords|StudioBinder|Storyflow|Plot|Canva|Miro|Frame\.io|Storyboarder|Celtx)\b/.test(s),
+    known: [
+      'Cells reorder by dragging, captions sit under each frame',
+      'caption and re-order shots by dragging',
+      'Drag panels to re-sequence the scene, and number them automatically.',
+      'Auto-numbered panels with captions',
+      'A grid per character with a cell per scene or change — the look, a caption, and the swatch.',
+    ],
+    theirs: ['Type SHOT [#] in a box, then stamp the next shot from the + on the grid’s edge. Each shot numbers itself by position, so dragging one re-sequences the scene.'],
   },
 ];
 
@@ -248,8 +350,69 @@ test('no marketing copy sells schedules, shoot days or call sheets while schedul
     `schedule creation is held off production (appHost.scheduleCreationAllowed), so these sell a feature a visitor cannot use:\n  ${hits.join('\n  ')}`);
 });
 
+// Dragging a FOLDER onto the canvas does nothing useful today. No drop path
+// reads a directory — there is no webkitGetAsEntry walk and no webkitdirectory
+// input — so the browser hands over one empty File named after the folder. What
+// works is selecting everything INSIDE the folder and dragging that, which is
+// what the copy now says. Until 2026-10-02 the SEO pages, the docs, the empty
+// board, the tour and the post-checkout toast all said "drop a whole folder",
+// and two of those were written by the same pass that removed the schedule and
+// auto-filing claims. Like the schedule guard, this reads the source rather
+// than a flag: the day a drop path walks directories it lifts on its own, and
+// folder claims can come back with the feature.
+const FOLDER_SOURCE = walk(resolve(BOARDS, 'src'), /\.(jsx?|mjs)$/)
+  .filter((p) => !/\.test\.mjs$/.test(p) && !/(docsite|changelog)(Content|Crawlable|Index)\.js$/.test(p));
+const FOLDER_DROP_LIVE = FOLDER_SOURCE.some((p) =>
+  /webkitGetAsEntry|getAsFileSystemHandle|webkitdirectory/.test(stripCodeComments(readFileSync(p, 'utf8'))));
+const FOLDER_CLAIM = /\b(drop|drag)(s|ped|ping|ged|ging)? (in )?(a|the|its|your|one) (whole |entire )?(reference )?folder\b|\bwhole folder (lands|at once|in one)|\bfolder (of [a-z]+ )?lands in one|\bby the folder\b|\bsingle drag of a folder\b|\bdragging a folder\b|\bkeep the whole folder\b/i;
+
+test('no copy tells anyone to drop a folder while no drop path can read one', () => {
+  for (const known of [
+    'Drag images, screenshots, links, and files straight onto the canvas — a whole folder lands in one drop.',
+    'Drop period photography, film frames and scout photos in by the folder',
+    'Paste or drag images from any tab, or drop a whole folder',
+    'Moving to Soleil Clusters means dragging your files in, which for a reference board is usually a single drag of a folder.',
+    'Drag its reference folder onto a new cluster; let it auto-arrange.',
+    'If you drag in a folder with more files than your remaining allowance',
+    'Drop the whole set at once — a folder of references lands in one go.',
+    'Drop your folder again — all 40 will fit.',
+  ]) assert.ok(FOLDER_CLAIM.test(known), `the folder guard no longer recognises: ${known}`);
+  for (const fine of [
+    'select everything in a folder and drag it in',
+    'Select a folder’s references and drag them all in at once',
+    'so a folder of samples becomes something you can order by tempo or by key',
+    '| Folder | A nested cluster — nesting is unlimited |',
+    'Bring reference in from wherever it lives now — a shared drive folder, a CDN',
+  ]) assert.ok(!FOLDER_CLAIM.test(fine), `the folder guard would flag a true sentence: ${fine}`);
+
+  if (FOLDER_DROP_LIVE) return; // a drop path walks directories — folder claims may return
+  const corpus = [
+    'src/lib/seoLanding.js', 'src/lib/seoListicles.js', 'index.html', 'scripts/gen-docs.mjs',
+    'src/auth/SignInBackdrop.jsx', 'src/lib/firstBoardCopy.js', 'src/lib/onboardingTour.js',
+    'src/auth/PricingSuccess.jsx', 'src/App.jsx',
+    ...walk(resolve(BOARDS, 'content'), /\.md$/).map((p) => relative(BOARDS, p)),
+  ];
+  const hits = [];
+  for (const rel of corpus) {
+    const raw = readFileSync(resolve(BOARDS, rel), 'utf8');
+    const text = rel.endsWith('.md') ? raw : rel.endsWith('.html') ? stripHtmlComments(raw) : stripCodeComments(raw);
+    sentences(text).forEach((s) => {
+      if (FOLDER_CLAIM.test(s) && !isFaqQuestion(s)) hits.push(`${rel}: ${s.trim().slice(0, 160)}`);
+    });
+  }
+  assert.ok(corpus.length > 60, `the folder guard should scan the docs and changelog too, found ${corpus.length} files`);
+  assert.deepEqual(hits, [],
+    `nothing reads a dropped directory (no webkitGetAsEntry), so these promise a drop that hands over one empty file — say "select everything in the folder and drag it in":\n  ${hits.join('\n  ')}`);
+});
+
 for (const rule of RULES) {
   test(`no public copy claims: ${rule.name}`, () => {
+    // A rule that names the claims it was written for must keep catching them,
+    // or it passes vacuously the first time the pattern is edited.
+    for (const k of rule.known || []) assert.ok(rule.pattern.test(k), `the rule no longer recognises: ${k}`);
+    for (const t of rule.theirs || []) {
+      assert.ok(!rule.pattern.test(t) || (rule.unless && rule.unless(t)), `the rule would flag a true sentence: ${t}`);
+    }
     const hits = [];
     for (const f of FILES) {
       sentences(f.text).forEach((s) => {
@@ -275,7 +438,8 @@ test('the public copy corpus is actually being scanned', () => {
   // The pricing screens are in the corpus and are treated as wholly ours.
   const ours = FILES.filter((f) => f.ours);
   assert.ok(ours.length >= 4, `expected the pricing surfaces to be scanned as our own claims, found ${ours.length}`);
-  for (const rel of ['src/components/PricingModal.jsx', 'src/auth/PublicPricingPage.jsx', 'src/auth/PricingPageView.jsx']) {
+  for (const rel of ['src/components/PricingModal.jsx', 'src/auth/PublicPricingPage.jsx', 'src/auth/PricingPageView.jsx',
+    'src/auth/SignInBackdrop.jsx', 'index.html']) {
     assert.ok(FILES.some((f) => f.rel === rel && f.ours),
       `${rel} must be in the corpus — copy typed into the JSX escaped every lint until it was`);
   }
@@ -286,4 +450,11 @@ test('the public copy corpus is actually being scanned', () => {
   const modal = FILES.find((f) => f.rel === 'src/components/PricingModal.jsx');
   assert.ok(/upgrade-title/.test(modal.text), 'the stripper must leave the markup intact');
   assert.ok(!/^\s*\/\/ PricingModal —/m.test(modal.text), 'and must remove the comment header');
+
+  // Same for the HTML stripper: the comments go, the crawlable body stays.
+  const home = FILES.find((f) => f.rel === 'index.html');
+  assert.ok(/id="seo-fallback"/.test(home.text), 'the HTML stripper must leave the crawlable body');
+  assert.ok(!/SEO \+ no-JS fallback/.test(home.text), 'and must remove the HTML comments');
+  const backdrop = FILES.find((f) => f.rel === 'src/auth/SignInBackdrop.jsx');
+  assert.ok(/kind:'note'/.test(backdrop.text), 'the backdrop notes must be in the scanned text');
 });

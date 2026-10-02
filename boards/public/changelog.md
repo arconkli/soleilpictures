@@ -156,7 +156,7 @@ can build against.
 
 ### Canvas and images
 
-- Dropping a folder of photos gives you a block, not a 5,200-pixel strip.
+- Dropping a big batch of photos gives you a block, not a 5,200-pixel strip.
 - Image cards serve the smaller rendition when the larger one is not needed.
 
 ### Soleil Scout

@@ -5,7 +5,7 @@ h1: Clusters
 navLabel: Overview
 section: clusters
 order: 0
-updated: 2026-10-01
+updated: 2026-10-02
 answer: A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 faq:
   - q: Is there a limit on how many clusters I can make?
@@ -34,7 +34,7 @@ the top and open it for you:
 - `⌘K` → "new project"
 
 A new project opens on the same panel a first board does: paste or drag images
-in from any tab, or drop a whole folder.
+in from any tab, or select everything in a folder and drag it in.
 
 ## Adding a cluster inside one
 

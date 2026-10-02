@@ -2103,7 +2103,7 @@ async function handleSitemap(env, request) {
   // Google to ignore the field). Landings carry their spec's `updated`; the
   // homepage the date its copy last changed; /explore the newest board;
   // /c/<slug> the board's updated_at; everything else omits lastmod.
-  const HOME_LASTMOD = '2026-07-07'; // homepage head/OG + crawlable copy last edited
+  const HOME_LASTMOD = '2026-10-02'; // homepage head/OG + crawlable copy last edited
   let boards = null;
   try { boards = await fetchPublicBoards(env, 4000); } catch (_) { boards = null; }
   const boardList = Array.isArray(boards) ? boards.filter((b) => b?.slug) : [];

@@ -79,7 +79,7 @@ A: The changelog at /changelog lists every user-visible change, newest first, on
 ========================================================================
 # Getting started
 URL: https://clusters.soleilpictures.com/docs/getting-started
-Updated: 2026-08-08
+Updated: 2026-10-02
 
 Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and unlimited collaborators.
 
@@ -110,7 +110,7 @@ A few things worth knowing on day one:
 
 To do this | Do this
 Add a note | Press N, or right-click where you want it
-Add images | Drag them in, paste from the clipboard, or use the image tool — the picker is multi-select, so a whole folder lands in one go
+Add images | Drag them in, paste from the clipboard, or use the image tool — the picker is multi-select, so everything in a folder can come in at once
 Add a link | Paste a URL onto the canvas — it unfurls into a real card
 Pan | Hold Space and drag, or press H
 Fit everything on screen | ⇧1
@@ -338,11 +338,11 @@ A: Yes. Every Cmd shortcut listed here is Ctrl on Windows and Linux. The in-app 
 ========================================================================
 # Coming from another tool
 URL: https://clusters.soleilpictures.com/docs/migrating
-Updated: 2026-08-25
+Updated: 2026-10-02
 
-There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually a single drag of a folder. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.
+There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually one drag: select everything in the folder and drag it in. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.
 
-There is no import button. For a reference board that is less of a problem than it sounds — dragging a folder of images in takes about as long as an importer would, and they auto-arrange on arrival.
+There is no import button. For a reference board that is less of a problem than it sounds — selecting a folder's images and dragging them in takes about as long as an importer would, and they auto-arrange on arrival.
 
 What is worth knowing is how the concepts map.
 
@@ -392,7 +392,7 @@ The best storyboard software
 Practical route in
 
 Pick one live project rather than migrating an archive.
-Drag its reference folder onto a new cluster; let it auto-arrange.
+Select everything in its reference folder and drag it onto a new cluster; let it auto-arrange.
 Give things names — names are what search works on.
 Nest sub-clusters where the old tool had folders.
 Invite the team. Editors are free, so there is no seat maths.
@@ -418,7 +418,7 @@ A: Files, and screenplays. Everything else is a rebuild — which is why this pa
 ========================================================================
 # The canvas
 URL: https://clusters.soleilpictures.com/docs/canvas
-Updated: 2026-08-08
+Updated: 2026-10-02
 
 Every cluster opens as an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
 
@@ -455,8 +455,10 @@ Arrow (A) — connect two things.
 The + at the end of the rail opens the rest, grouped:
 
 Tools — Draw (D), Shape, Palette
-Create — File, Link, Schedule, Linked cluster
+Create — File, Link, Linked cluster
 Annotate — Comment, Vote
+
+Schedule cards are being rebuilt and are not in the menu meanwhile — see Schedule.
 
 Right-click
 
@@ -513,7 +515,7 @@ A: Yes. Touch gestures pan and zoom, long-press opens the context menu, and the 
 ========================================================================
 # Cards
 URL: https://clusters.soleilpictures.com/docs/canvas/cards
-Updated: 2026-08-08
+Updated: 2026-10-02
 
 A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
 
@@ -586,7 +588,7 @@ Creator removes the limit entirely. See Plans.
 
 Dropping more files than you have room for
 
-If you drag in a folder with more files than your remaining allowance, Clusters asks before it uploads anything. You can add the ones that fit, upgrade to keep the whole folder, or cancel — and until you answer, nothing is uploaded and nothing on the canvas changes. Choosing to add the ones that fit always gives you every card you still have room for; the rest stay on your disk.
+If you drag in more files than your remaining allowance, Clusters asks before it uploads anything. You can add the ones that fit, upgrade to keep them all, or cancel — and until you answer, nothing is uploaded and nothing on the canvas changes. Choosing to add the ones that fit always gives you every card you still have room for; the rest stay on your disk.
 
 Cards through the API
 
@@ -607,11 +609,11 @@ A: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster 
 ========================================================================
 # Images and photo editing
 URL: https://clusters.soleilpictures.com/docs/canvas/images
-Updated: 2026-08-08
+Updated: 2026-10-02
 
 Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
-Images are the reason most boards exist. Getting them in is meant to be thoughtless: drag a folder's worth onto the canvas and they upload in parallel and lay themselves out rather than landing in a heap.
+Images are the reason most boards exist. Getting them in is meant to be thoughtless: select everything in a folder, drag it onto the canvas, and the files upload in parallel and lay themselves out rather than landing in a heap.
 
 Adding images
 
@@ -1407,7 +1409,7 @@ A: Copy the palette card and paste it into another cluster. Its swatches then fe
 ========================================================================
 # Snapping and alignment
 URL: https://clusters.soleilpictures.com/docs/canvas/snapping-and-alignment
-Updated: 2026-08-10
+Updated: 2026-10-02
 
 As you drag a card, guides appear showing where it lines up with the cards around it, and it snaps to their edges, centres and spacing. Hold Alt while dragging to switch snapping off for that drag. Nothing needs enabling — the guides only appear while you are actually moving something.
 
@@ -1455,7 +1457,7 @@ The same layouts are available over the API, so an assistant can tidy a board to
 
 Dropping a lot of files at once
 
-Drop a folder of images onto the canvas and they arrive as a block centred on where you dropped, laid out as justified rows, rather than in a line running off the side of the screen.
+Drop a big selection of images onto the canvas and they arrive as a block centred on where you dropped, laid out as justified rows, rather than in a line running off the side of the screen.
 
 On a crowded board
 
@@ -1680,7 +1682,7 @@ A: Not automatically. Export the pages you want from your PDF tool and drop them
 ========================================================================
 # Video and audio
 URL: https://clusters.soleilpictures.com/docs/files/video-and-audio
-Updated: 2026-08-08
+Updated: 2026-10-02
 
 Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.
 
@@ -1724,7 +1726,7 @@ Hover an audio card and a download button appears next to the transport. It is t
 
 The file comes back under its original name, not the card's title. Renaming a card to something readable never costs you the extension, which is what makes the file openable.
 
-To take several at once, switch to list view, select the ones you want and press Download — one zip, original names intact. Zips are capped at 500 files or 500 MB, whichever comes first; past either, download in batches. In the phone and tablet apps, files download one at a time.
+To take several at once, switch to list view, select the ones you want and press Download — one zip, original names intact. Zips are capped at 500 files or 500 MB, whichever comes first; past either, download in batches.
 
 Tempo and key
 
@@ -1776,7 +1778,7 @@ A: Whatever the browser can play — H.264 MP4 and MP3 or WAV are the safe choic
 ========================================================================
 # Clusters
 URL: https://clusters.soleilpictures.com/docs/clusters
-Updated: 2026-10-01
+Updated: 2026-10-02
 
 A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 
@@ -1790,7 +1792,7 @@ New project on Home — type a name, press Enter
 The + next to Clusters in the sidebar — name it right in the sidebar
 ⌘K → "new project"
 
-A new project opens on the same panel a first board does: paste or drag images in from any tab, or drop a whole folder.
+A new project opens on the same panel a first board does: paste or drag images in from any tab, or select everything in a folder and drag it in.
 
 Adding a cluster inside one
 
@@ -1876,7 +1878,7 @@ A: To the trash, for 30 days, from which they can be restored. See Trash and rec
 ========================================================================
 # List view
 URL: https://clusters.soleilpictures.com/docs/clusters/list-view
-Updated: 2026-09-21
+Updated: 2026-10-02
 
 Every cluster has a list view as well as a canvas — the same contents as a sortable, searchable file browser. It has table and gallery modes, sorting by name, type, size or date, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.
 
@@ -1926,11 +1928,11 @@ Only one thing plays at a time, everywhere: starting a row stops a clip playing 
 
 Downloading
 
-Hover any row holding a file — an image, PDF, video, audio clip or attachment — and a download button appears at the end of it. The file keeps its original name, so renaming a card for readability never costs you the extension.
+Hover any row holding a file — an image, PDF, video, audio clip or attachment — and a download button appears at the end of it. Audio, PDFs and attachments keep their original names, so renaming a card for readability never costs you the extension. Images and videos do not keep the name they were uploaded with, and come down under a generic one.
 
 Download all sits above the table whenever there is more than one file to take. It follows the search and the filters, so it reads Download 14 once you have narrowed to fourteen. Select particular rows instead and the selection bar offers Download for just those.
 
-Either way you get a single zip named after the cluster. Zips are capped at 500 files or 500 MB, whichever comes first; past either, take it in batches. In the phone and tablet apps files come down one at a time, through the system share sheet.
+Either way you get a single zip named after the cluster. Zips are capped at 500 files or 500 MB, whichever comes first; past either, take it in batches.
 
 Anything in the selection with no file behind it — a note, a link — is skipped, and the count of what was skipped is reported rather than quietly dropped. The same is true of a file storage cannot hand back: the archive still contains everything that could be read, and says how many could not.
 
@@ -2369,7 +2371,7 @@ A: Yes. The scene navigator lists every scene heading with its number, and click
 ========================================================================
 # Exporting documents
 URL: https://clusters.soleilpictures.com/docs/documents/export
-Updated: 2026-08-08
+Updated: 2026-10-02
 
 Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.
 
@@ -2394,13 +2396,13 @@ For screenplays it is vector output in Courier at correct industry metrics, and 
 
 Markdown
 
-Plain text with structure preserved: headings, lists, emphasis, tables, code blocks and links. Image references are preserved as links; the files themselves stay in Clusters storage.
+Plain text with structure preserved: headings, lists, emphasis, tables, code blocks and links. Images are embedded in the file as data URIs, so it opens complete anywhere at the cost of size; an image linked from a site that refuses the download stays a link.
 
 The right choice for moving writing into another tool without reformatting it by hand.
 
 HTML
 
-Standalone HTML with inline styling, for publishing or pasting into a CMS.
+Standalone HTML with inline styling and the images embedded the same way, for publishing or pasting into a CMS.
 
 On a phone or tablet
 
@@ -2420,7 +2422,7 @@ Q: Is the PDF selectable text or an image?
 A: Real text. Screenplay PDFs are vector output in Courier, so the text is selectable and searchable.
 
 Q: Does Markdown export keep my images?
-A: Image references are preserved. The images themselves stay in Clusters storage and are linked, not embedded.
+A: Yes. Each image is embedded in the file itself as a data URI, so the export opens complete with no account and no link back to Clusters, at the cost of a bigger file. An image linked from a site that refuses the download stays a link.
 
 Q: Why would I export Fountain instead of Final Draft?
 A: Fountain is plain text — it opens anywhere, diffs cleanly in version control, and does not depend on any one application.
@@ -2492,9 +2494,9 @@ A: Yes. The AI tagger is on by default and can be switched off in settings. Sugg
 ========================================================================
 # Tags and entities
 URL: https://clusters.soleilpictures.com/docs/organize/tags
-Updated: 2026-08-08
+Updated: 2026-10-02
 
-A tag cuts across everything — apply one to a card, a group, a whole cluster or a passage of text, and the tag's detail view gathers every one of them from anywhere in the workspace. Tags can be typed as entities like character, setting, organization, concept or thing, and the app suggests tags automatically without ever applying one on its own.
+A tag cuts across everything — apply one to a card, a group, a whole cluster or a passage of text, and the tag's detail view gathers every one of them from anywhere in the workspace. Tags can be typed as entities like character, setting, organization, concept or thing. Automatic tagging reads text, never pictures, and marks what it applies as auto until you confirm it.
 
 Tags are the cross-cutting layer. Clusters give you hierarchy; tags give you everything that does not fit a hierarchy.
 
@@ -2515,7 +2517,7 @@ The tag detail view
 
 Open a tag from the sidebar and you get everything carrying it, from anywhere in the workspace, arranged hierarchically — boards, then groups, then cards.
 
-This is the payoff. "Show me everything about the diner" spans a script scene, a reference wall, a schedule entry and a message thread, and no folder structure could have anticipated that grouping.
+This is the payoff. "Show me everything about the diner" spans a script scene, a reference wall, a group of location photos and a note, and no folder structure could have anticipated that grouping.
 
 Entity types
 
@@ -2532,13 +2534,12 @@ Typed tags get an appropriate colour and drive the hover previews and backlinks 
 
 Automatic tagging
 
-Two layers, neither of which applies a tag on its own.
+Automatic tagging works from text — card titles, notes, and the names of groups and clusters. It never looks at what an image shows, and it only uses tags you have already made, so a workspace with no tags gets none.
 
-The matcher recognises names you have already used. Write "Diner" in a note after creating a Diner tag, and it is detected and offered.
+A close match is applied, marked auto. Make a Diner tag, and a note about the diner can pick it up on its own.
+A looser match is only suggested. It waits on the tag until you accept or dismiss it.
 
-The AI tagger goes further, suggesting tags for content it has not seen a name for — including from image content. It is on by default and can be switched off.
-
-In both cases suggestion is the whole behaviour. Nothing is tagged until you accept it. A workspace silently filling with tags nobody chose would be worse than no tagging at all.
+Nothing applied automatically is hidden. Open the tag and switch its filter to Auto to see everything it picked up on its own; right-click any item to confirm it, remove it, or choose Don't suggest again, which keeps that tag off that item for good.
 
 Emergent themes
 
@@ -2571,8 +2572,8 @@ The tag detail view is the full hierarchical browse
 Q: Do tags move things?
 A: No. A tag is not a location. The same card can carry several tags and stays exactly where it is.
 
-Q: Does the AI tagger tag things without asking?
-A: No. It only ever suggests. Nothing is tagged until you accept a suggestion.
+Q: Does Clusters tag things without asking?
+A: Sometimes. When a card's text closely matches a tag you already made, the tag is applied and marked auto. Open the tag, filter to Auto, and right-click any item to confirm it, remove it, or choose Don't suggest again. Looser matches are only suggested. It reads text, not what an image shows.
 
 Q: What is an entity type?
 A: A tag can be typed as a character, setting, organization, concept or thing. Typed tags get an appropriate colour and behaviour, and are what make hover previews and backlinks useful.
@@ -2647,23 +2648,23 @@ A: Yes. Copy link on any card gives a URL that opens the board with that card se
 ========================================================================
 # Search and the command palette
 URL: https://clusters.soleilpictures.com/docs/organize/search
-Updated: 2026-08-08
+Updated: 2026-10-02
 
-Press Cmd-K or forward slash to open the command palette. It searches across cluster names, card contents, notes, documents and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
+Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, document titles and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
 
 ⌘K, or / when you are not typing into something.
 
 What it searches
 
-Full content, not just names:
-
 Recents — what you have had open
 Clusters — by name
-Cards and notes — by content
+Cards and notes — by title and by the text on them
 Tags
-Docs — by content
+Docs — by title
 
-Results are grouped by kind, so a query matching a board and a passage inside a document shows you both, labelled.
+The text on a document's pages is not searched from here. Inside a document, ⌘F finds it.
+
+Results are grouped by kind, so a query matching a board and a note shows you both, labelled.
 
 What it does
 
@@ -2699,7 +2700,7 @@ Inside one long document — ⌘F find and replace
 ## Frequently asked questions
 
 Q: Does search look inside my notes and documents?
-A: Yes. It searches full content, not just titles — cluster names, card contents, note text, document text and tags.
+A: Inside notes, yes — note text is searched in full, along with card titles and text. A document is found by its title; the text on its pages is not searched from the palette, so inside a long document use Cmd-F instead.
 
 Q: Can I run actions from it?
 A: Yes. Type what you want to do rather than what you want to find. "share", "invite", "trash", "theme", "billing" all work.
@@ -2778,7 +2779,7 @@ A: Yes. Viewers can read, comment and vote; they cannot add, move or change card
 ========================================================================
 # Sharing and public links
 URL: https://clusters.soleilpictures.com/docs/collaborate/sharing
-Updated: 2026-08-28
+Updated: 2026-10-02
 
 A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
@@ -2801,7 +2802,7 @@ An edit link is not an editable public link. It grants nothing on its own: the p
 
 What "view" includes
 
-Read-only means nobody can change the cluster. It does not mean the files stay behind glass: anyone who opens the link can download the images, audio, video, PDFs and attachments on it, at full quality and under their original names. That is what makes a link worth sending — a sample pack or a stills selects is only useful if the other person can take it away.
+Read-only means nobody can change the cluster. It does not mean the files stay behind glass: anyone who opens the link can download the images, audio, video, PDFs and attachments on it, at full quality — audio, PDFs and attachments under their original names. That is what makes a link worth sending — a sample pack or a stills selects is only useful if the other person can take it away.
 
 Treat the link itself as the access control. If the contents should not leave, do not put them behind a public link.
 
@@ -6285,13 +6286,13 @@ Say "put these in <board name>" any time and Scout files into that board. Linkin
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/mood-board-maker
-Updated: 2026-08-10
+Updated: 2026-10-02
 
 # Mood Board Maker
 
 > Soleil Clusters is a free online mood board maker: drag images, links, video, and color palettes onto an infinite canvas, arrange them freely, and share the finished board with one link. It runs in the browser with no download, supports real-time collaboration, and is built for film, photo, and design teams.
 
-_Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2026-08-10_
+_Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2026-10-02_
 
 Pull your references, colors, and notes onto one infinite canvas — then share the whole board with a single link.
 
@@ -6314,8 +6315,8 @@ Send a board to a client or collaborator with one link — they see a clean, int
 ## How to make a mood board
 
 1. **Start a board** — Open Clusters and create a blank board — an infinite canvas you can pan and zoom.
-2. **Drop in your references** — Drag images, screenshots, links, and files straight onto the canvas — a whole folder lands in one drop.
-3. **Add color and notes** — Pull a color palette and add rich-text notes or a brief right beside the imagery.
+2. **Drop in your references** — Drag images, screenshots, links, and files straight onto the canvas — select everything in a folder and it all lands in one drop.
+3. **Add color and notes** — Add a color palette and rich-text notes or a brief right beside the imagery.
 4. **Arrange and connect** — Move cards freely, group related references, and draw arrows to show how ideas relate.
 5. **Share it** — Send one link for a clean, interactive preview — or invite your team to build the board live with you.
 
@@ -6428,23 +6429,23 @@ Yes. Connecting an assistant costs nothing and works on the free plan. The usual
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/storyboard-maker
-Updated: 2026-10-01
+Updated: 2026-10-02
 
 # Storyboard Maker
 
-> Soleil Clusters is an online storyboard maker: split a grid card into panels, drop a still or sketch into each frame, caption and re-order shots by dragging, and keep the shot list beside the boards. Your director, DP, and AD can edit the same storyboard live, and one link shares it with the whole crew.
+> Soleil Clusters is an online storyboard maker: lay each shot out as a grid card, drop a still or sketch into the frame, write the action on the line beneath, and number shots automatically, so dragging one re-sequences the scene. Your director, DP, and AD edit the same storyboard live, and one link shares it.
 
-_Source: https://clusters.soleilpictures.com/tools/storyboard-maker · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/tools/storyboard-maker · Updated 2026-10-02_
 
 Lay your shots out in a grid, drop in frames and reference, and keep the shot list right beside them.
 
 ## A grid built for sequences
 
-Clusters' grid cards give you a clean, modular storyboard layout: split any cell, drop an image or sketch into each frame, and re-order shots by dragging. Number the panels automatically, add a caption under each, and the whole sequence reads top to bottom the way your crew will shoot it.
+Clusters' grid cards give you a clean, modular storyboard layout: split any cell, drop an image or sketch into each frame, and write the action in the box beneath it. Stamp the next shot from the + on the grid's edge and every shot shares the layout; a SHOT [#] box numbers each one by where it sits, so dragging a shot re-sequences the scene and the storyboard reads top to bottom the way your crew will shoot it.
 
-- Modular grid cells you can split and re-arrange
-- Auto-numbered panels with captions
-- Sketch directly on frames or drop in reference stills
+- Modular grid cells you can split, merge and resize
+- Shots that number themselves — drag one and the sequence follows
+- Sketch on the canvas or drop in reference stills
 
 ## Shot list and storyboard, side by side
 
@@ -6452,13 +6453,13 @@ A storyboard without a shot list is half the picture. Put a rich-text doc right 
 
 ## Get the crew on the same page
 
-Share the storyboard with a link, or invite your DP and 1st AD to edit alongside you in real time. Comments land right on the frame in question, so feedback is specific instead of a paragraph in an email.
+Share the storyboard with a link, or invite your DP and 1st AD to edit alongside you in real time. Comments pin right onto the storyboard beside the frames in question, so feedback is specific instead of a paragraph in an email.
 
 ## How to make a storyboard
 
-1. **Add a grid card** — Drop a grid onto the board and split it into the number of panels your sequence needs.
-2. **Fill each frame** — Drop a reference still or a sketch into each cell, and caption it with the action.
-3. **Order your shots** — Drag panels to re-sequence the scene, and number them automatically.
+1. **Add a grid card** — Drop a grid onto the board and cut it into a frame with an action line beneath — or start from the storyboard template.
+2. **Fill each frame** — Drop a reference still or a sketch into the frame, and write the action on the line beneath it.
+3. **Order your shots** — Type SHOT [#] in a box, then stamp the next shot from the + on the grid’s edge. Each shot numbers itself by position, so dragging one re-sequences the scene.
 4. **Add the shot list** — Put a doc beside the frames — a table works — for lens, camera movement, and shoot day.
 5. **Share with the crew** — Send one link, or invite your DP and AD to edit and comment on the frames in real time.
 
@@ -6466,7 +6467,7 @@ Share the storyboard with a link, or invite your DP and 1st AD to edit alongside
 
 ### How do I make a storyboard in Clusters?
 
-Add a grid card, split it into the number of panels you need, then drop a reference still or sketch into each cell and caption it. You can re-order panels by dragging and number them automatically.
+Add a grid card and cut it into a frame with an action line beneath, or start from the storyboard template. Drop a still or sketch into each frame and write the action underneath. Type SHOT [#] in a box and stamp the next shot from the + on the grid’s edge: each shot numbers itself by position, so dragging one re-orders the scene.
 
 ### Can I draw my own frames?
 
@@ -6572,13 +6573,13 @@ Yes — planning the shots is the whole point. Each shot card carries its refere
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/look-book-maker
-Updated: 2026-07-07
+Updated: 2026-10-02
 
 # Look Book Maker
 
 > Soleil Clusters is an online look book maker: arrange imagery in clean grid spreads, unify the set with non-destructive photo adjustments, add color palettes for the season’s story, and send clients one link to the polished, interactive board itself — no account or download required to view it.
 
-_Source: https://clusters.soleilpictures.com/tools/look-book-maker · Updated 2026-07-07_
+_Source: https://clusters.soleilpictures.com/tools/look-book-maker · Updated 2026-10-02_
 
 Arrange looks, references, and color stories on one canvas — then send a polished, interactive link.
 
@@ -6632,13 +6633,13 @@ Yes. The free Demo tier covers 50 cards — every cluster you make is one of the
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/free-mood-board-maker
-Updated: 2026-07-07
+Updated: 2026-10-02
 
 # Free Online Mood Board Maker
 
 > Yes — you can make a mood board online free with Soleil Clusters. The Demo tier needs no credit card: open the browser app, drop in images, links, notes, and color palettes on an infinite canvas, and share the board with a public link. Upgrading only matters when you want unlimited cards and 100GB storage.
 
-_Source: https://clusters.soleilpictures.com/tools/free-mood-board-maker · Updated 2026-07-07_
+_Source: https://clusters.soleilpictures.com/tools/free-mood-board-maker · Updated 2026-10-02_
 
 Runs in your browser. Drop images, notes, and palettes on an infinite canvas and share with a link — no download.
 
@@ -6692,13 +6693,13 @@ Yes. You own your references and control who can see each board and whether it i
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/reference-board-maker
-Updated: 2026-07-22
+Updated: 2026-10-02
 
 # An Online Reference Board Maker for Working Artists
 
 > Soleil Clusters is a free online reference board maker: drop images onto an infinite canvas, arrange and zoom them while you work, and open the same board from any device’s browser with nothing to install. One link shares it read-only. The tradeoff: it lives online — for offline reference, desktop PureRef still earns its place.
 
-_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-07-22_
+_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-10-02_
 
 Drop reference onto an infinite canvas in your browser. The same board follows you to every machine, and one link shows your art director exactly what you’re looking at.
 
@@ -6725,7 +6726,7 @@ Moving the board into a browser tab removes those walls without changing the job
 Clusters treats a reference board as a working surface, not a gallery.
 
 - Check your values — flip any image to black and white, or nudge brightness, contrast, saturation, and warmth. Every adjustment is non-destructive.
-- Steal the palette — extract a color palette from any image and keep it on the board beside the work it came from.
+- Steal the palette — sample swatches off any image with the eyedropper and keep them on the board beside the work they came from.
 - Reference beyond stills — boards hold video, audio, PDFs, links, and rich-text notes alongside images; Creator accepts any file type.
 - Sketch over it — draw directly on the canvas to mark a gesture line or call out a detail.
 - One board per problem — nest boards inside boards so a project’s costume, lighting, and environment reference each stay findable, and tag an image once to find it from any board.
@@ -6742,7 +6743,7 @@ A browser tool isn’t the answer for everyone, and it’s worth being plain abo
 
 1. **Gather everything in one place** — Drag images, screenshots, and stills straight onto a new board. Paste links to pieces you found online, and drop in video clips or PDFs when your reference isn’t a still image.
 2. **Arrange by what you’re studying** — Cluster the board around the problem — one area for lighting, one for anatomy, one for materials. The infinite canvas never runs out of room, and you can zoom from the whole board down to a single edge.
-3. **Tune the reference, not the file** — Flip an image to black and white to read its values, nudge brightness or warmth to match your scene, and pull a color palette from any image. Adjustments are non-destructive, so the original stays intact.
+3. **Tune the reference, not the file** — Flip an image to black and white to read its values, nudge brightness or warmth to match your scene, and sample its colors into a palette with the eyedropper. Adjustments are non-destructive, so the original stays intact.
 4. **Open it wherever you work** — The board lives at a URL, so the same reference is on your workstation, your laptop, and your tablet — no files to move, nothing to install.
 5. **Show it when you’re ready** — Send one link and your art director sees a clean, read-only version of the board in their browser — no account required.
 
@@ -6784,13 +6785,13 @@ PureRef is a beloved offline desktop app — free to use personally, and excelle
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/shared-reference-board
-Updated: 2026-10-01
+Updated: 2026-10-02
 
 # Shared Reference Boards for Studio Art Teams
 
 > Soleil Clusters is a shared reference board for studio art teams: an infinite canvas in the browser where every artist drops reference into the same board live, the art director comments directly on the image, and one link opens a read-only view. One plan covers the whole workspace, so there are no per-seat licences.
 
-_Source: https://clusters.soleilpictures.com/tools/shared-reference-board · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/tools/shared-reference-board · Updated 2026-10-02_
 
 One live wall of reference for a concept, VFX, game or 3D team — added to by everyone, opened from one link, with notes pinned to the image they are about.
 
@@ -6804,19 +6805,19 @@ A desktop reference app is built for one artist on one machine. The board is a f
 
 ## Notes that stay on the image
 
-Feedback in a chat thread drifts away from the picture it is about. In Clusters a comment anchors to the card, or to a point on it, so “push the rim light here” sits on the exact frame — with a thread, @mentions, and a resolve once it is handled. When the team has to choose between options, a vote card settles which of the five without a meeting. Reviewers you invite comment and vote free.
+Feedback in a chat thread drifts away from the picture it is about. In Clusters a comment pins to the card it is about and moves with it, so “push the rim light” sits beside the exact frame — with a thread, @mentions, and a resolve once it is handled. When the team has to choose, put a vote card beside each option and read the room without a meeting. Reviewers you invite comment and vote free.
 
-- Comments on a card, a group, or a point on the image
+- Comments pinned to a card, a group, or a spot on the canvas
 - Threads, @mentions and resolve
 - Vote cards for “which of these” decisions
 
 ## Organised the way a studio thinks
 
-Nest a cluster per character, environment or shot and the project stays navigable at hundreds of references. Tags cut across the nesting: type a tag as a character, a setting or a thing, and its view gathers every reference carrying it from anywhere in the workspace. Non-destructive adjustments — black and white for reading values, warmth, contrast — and palettes pulled from any image keep the reference working as reference, not just a gallery.
+Nest a cluster per character, environment or shot and the project stays navigable at hundreds of references. Tags cut across the nesting: type a tag as a character, a setting or a thing, and its view gathers every reference carrying it from anywhere in the workspace. Non-destructive adjustments — black and white for reading values, warmth, contrast — and swatches sampled off any image keep the reference working as reference, not just a gallery.
 
 - Nested clusters per character, environment or shot
 - Typed tags gather a character’s references across boards
-- Black-and-white value checks and palettes from any image
+- Black-and-white value checks, and swatches sampled off any image
 
 ## One plan for the team, not a licence per seat
 
@@ -6830,8 +6831,8 @@ If an artist needs reference floating always-on-top over their paint app on a fl
 
 1. **Make the project’s board** — Create one cluster for the project and nest a cluster inside it per discipline or asset — characters, environments, props, FX.
 2. **Invite the team** — Invite artists as editors by email or with an invite link. Editors are free on every plan, and everyone lands in the same live board.
-3. **Pull reference in bulk** — Drop a whole folder at once, paste image links, or bring in video and PDFs. Everything lands as cards you can arrange.
-4. **Mark what matters** — Comment on a card or a point on the image, tag references by character or setting, and vote between options when the team has to pick one.
+3. **Pull reference in bulk** — Select everything in a folder and drag it in at once, paste image links, or bring in video and PDFs. Everything lands as cards you can arrange.
+4. **Mark what matters** — Comment on a card or a group, tag references by character or setting, and put a vote card beside each option when the team has to pick one.
 5. **Show the supervisor** — Send a view-only link — no account needed, set to expire after 7 or 30 days if you like — or invite them to comment.
 
 ## What it costs
@@ -6871,7 +6872,7 @@ Yes. A view-only link opens the board in any browser with no account, can includ
 
 ### Can we bring our PureRef boards over?
 
-Not as .pur files — that is PureRef’s own local format. Export the images, or gather the originals, and drop the whole folder onto a board in one go, then rebuild the layout. On Creator you can also attach the .pur file itself to the board.
+Not as .pur files — that is PureRef’s own local format. Export the images, or gather the originals, select them all and drag them onto a board in one go, then rebuild the layout. On Creator you can also attach the .pur file itself to the board.
 
 ### Does it work offline?
 
@@ -6885,13 +6886,13 @@ Free for 50 cards across the workspace — each cluster counts as one — with f
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/directors-treatment
-Updated: 2026-10-01
+Updated: 2026-10-02
 
 # Director’s Treatment Template
 
 > A director’s treatment is the visual pitch for a commercial, music video or film: concept, tone, look, casting, wardrobe and locations. In Soleil Clusters you develop it on a live board with your team, write it as a document with images inline, and export a PDF to send. It is a document, not a designed slide deck.
 
-_Source: https://clusters.soleilpictures.com/tools/directors-treatment · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/tools/directors-treatment · Updated 2026-10-02_
 
 Develop the look with your team on a live board, write the treatment as a document with the images inline, and send it as a PDF.
 
@@ -6901,7 +6902,7 @@ A treatment wins or loses the job before anything is shot. For a commercial it a
 
 ## Build it on a board, with the people who will make it
 
-The slow part of a treatment is not the layout; it is agreeing the look. Clusters is an infinite canvas your producer, DP and designer can work in at the same time: pull references in by the folder, sort them into clusters for tone, casting, wardrobe and locations, comment on the exact frame, and vote between options when it comes down to two. Nobody waits for a version to be emailed round.
+The slow part of a treatment is not the layout; it is agreeing the look. Clusters is an infinite canvas your producer, DP and designer can work in at the same time: select a folder’s references and drag them in together, sort them into clusters for tone, casting, wardrobe and locations, comment on the exact frame, and put a vote card on each option when it comes down to two. Nobody waits for a version to be emailed round.
 
 - Live co-editing with cursors and presence
 - Comments pinned to the frame they are about
@@ -6927,7 +6928,7 @@ It is not a deck designer. There are no slide templates, no presentation mode, a
 
 1. **Concept** — One paragraph: what the piece is and why it works. Write it first, at the top of the document.
 2. **Tone and references** — The frames, films and photographs that set the feel — gathered on the board, where the team argues them into agreement.
-3. **Look and light** — Palette, lensing, light and texture. Pull a palette from any reference image and keep it beside the frames it came from.
+3. **Look and light** — Palette, lensing, light and texture. Sample swatches off any reference image with the eyedropper and keep them beside the frames they came from.
 4. **Casting** — Faces and types, with a note on each. Tag each reference as a character so the tag gathers every image of them.
 5. **Wardrobe and art direction** — Silhouettes, fabrics, sets and props, each in its own nested cluster so each department can work in theirs.
 6. **Locations** — Scout photos and found references, a cluster per setting.
@@ -6985,13 +6986,13 @@ Free for 50 cards — each cluster counts as one — with free editors. Image-he
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/production-design-mood-board
-Updated: 2026-10-01
+Updated: 2026-10-02
 
 # Production Design Mood Boards
 
 > Soleil Clusters gives production designers a mood board per set: references, palettes, PDFs of plans and notes in one cluster, nested inside the project. Set decorators, props and the art director build it live, the director comments on the image itself, and one link shows it to anyone. Editors are free, so the department is not billed per seat.
 
-_Source: https://clusters.soleilpictures.com/tools/production-design-mood-board · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/tools/production-design-mood-board · Updated 2026-10-02_
 
 A cluster per set, with references, palettes, plans and notes in one place — built by the whole art department, live.
 
@@ -7005,15 +7006,15 @@ Production design is many decisions per set, made by several people at once. One
 
 ## References, palettes and plans together
 
-A set board is not only pictures. Drop period photography and film frames beside the floor plan as a PDF, a fabric photo beside the paint chip, and a note on what the set has to do for the scene. Palettes come straight out of any reference. On Creator, any file type rides along as an attachment — a .psd, a .zip of drawings, a model file.
+A set board is not only pictures. Drop period photography and film frames beside the floor plan as a PDF, a fabric photo beside the paint chip, and a note on what the set has to do for the scene. Sample a palette off any reference with the eyedropper, a swatch at a time. On Creator, any file type rides along as an attachment — a .psd, a .zip of drawings, a model file.
 
 - PDF plans and drawings beside the references
-- Palettes pulled from any image, with hex values
+- Palettes sampled off any image, with hex values
 - Any file type as an attachment on Creator
 
 ## The whole department, live
 
-Set decoration, props and graphics can work in the same project at once, each in their own nested cluster, with live cursors showing who is where. The director and producer comment on the exact image — a point on a reference, not a paragraph in an email — and a vote card settles “which of these three chairs” without a meeting.
+Set decoration, props and graphics can work in the same project at once, each in their own nested cluster, with live cursors showing who is where. The director and producer comment on the exact image — pinned to the reference, not a paragraph in an email — and a vote card beside each chair settles “which of these three” without a meeting.
 
 ## Tag by setting and character
 
@@ -7026,10 +7027,10 @@ Clusters is a reference and decision tool, not a drafting or budgeting one. Draw
 ## How an art department uses it
 
 1. **A cluster per set** — Nest one cluster per set or location inside the project — the diner, the motel room, the night exterior.
-2. **Pull the references** — Drop period photography, film frames and scout photos in by the folder; attach plans and drawings as PDFs.
-3. **Set the palette** — Pull a palette from any reference and keep the hex values beside the set they belong to.
+2. **Pull the references** — Select everything in your folders of period photography, film frames and scout photos and drag it in; attach plans and drawings as PDFs.
+3. **Set the palette** — Sample swatches off any reference with the eyedropper and keep the hex values beside the set they belong to.
 4. **Split the work** — Set decoration, props and graphics each work in their own nested clusters, inside the set.
-5. **Get the director’s notes** — The director comments on the exact image; when it comes down to two options, a vote card decides.
+5. **Get the director’s notes** — The director comments on the exact image; when it comes down to two options, a vote card on each shows where the room leans.
 
 ## What it costs
 
@@ -7078,27 +7079,27 @@ Free for 50 cards across the workspace — each cluster counts as one — with f
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/costume-design-mood-board
-Updated: 2026-10-01
+Updated: 2026-10-02
 
 # Costume Design Mood Boards
 
 > Soleil Clusters gives costume designers a mood board per character: research and inspiration, a grid of looks scene by scene, fabric and colour swatches, and fitting photos together. Assistants and buyers add to it live, the director comments on the image itself, and a typed character tag gathers every reference for that character across the project.
 
-_Source: https://clusters.soleilpictures.com/tools/costume-design-mood-board · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/tools/costume-design-mood-board · Updated 2026-10-02_
 
 A board per character, the looks laid out scene by scene, and the fabric, colour and fitting photos beside them — shared live with the director.
 
 ## A board per character, a look per scene
 
-Costume is a story told across scenes, so one mood board for the whole film flattens it. In Clusters each character gets a cluster, and inside it a grid lays the changes out in order — a cell per scene or change, holding the look, a caption and the fabric. When scenes move, the grid is still the order of the story, and everyone is looking at the same one.
+Costume is a story told across scenes, so one mood board for the whole film flattens it. In Clusters each character gets a cluster, and inside it a grid lays the changes out in order — a frame per scene or change for the look, with the scene and what changes in the box beneath it, and the fabric swatches beside the grid. When scenes move, the grid is still the order of the story, and everyone is looking at the same one.
 
 - A cluster per character
 - A grid of looks, a cell per scene or change
-- Captions and swatches beside each look
+- Scene notes under each look, swatches beside it
 
 ## Swatches, colour and fittings together
 
-Photograph fabrics and trims as you buy them and drop them beside the look they belong to. Pull a palette from a swatch or a reference and keep the hex values on the board. After a fitting, the photos go straight into the character’s cluster, so the next decision is made looking at the real garment rather than a description of it.
+Photograph fabrics and trims as you buy them and drop them beside the look they belong to. Sample colours off a swatch photo or a reference with the eyedropper and keep the hex values on the board. After a fitting, the photos go straight into the character’s cluster, so the next decision is made looking at the real garment rather than a description of it.
 
 ## One character tag, every reference
 
@@ -7106,7 +7107,7 @@ Tags in Clusters can be typed as characters. Tag a reference with the character 
 
 ## Assistants, buyers and the director, live
 
-Invite assistant designers, buyers and the supervisor as editors — free on every plan — and the department works in the same boards at once. The director comments on the exact image and votes between options, so sign-off is a thread on the look rather than an email chain.
+Invite assistant designers, buyers and the supervisor as editors — free on every plan — and the department works in the same boards at once. The director comments on the exact image and votes on each option, so sign-off is a thread on the look rather than an email chain.
 
 ## What it does not do
 
@@ -7115,10 +7116,10 @@ Clusters holds the look and the decision, not the paperwork. It does not track a
 ## How a costume department uses it
 
 1. **A cluster per character** — Nest one cluster per principal inside the project, and one for background.
-2. **Research and inspiration** — Period photography, paintings, runway and street references, dropped in by the folder.
-3. **Lay out the looks** — A grid per character with a cell per scene or change — the look, a caption, and the swatch.
-4. **Swatches and colour** — Photograph fabrics and trims, pull palettes from them, and keep the hex values beside the look.
-5. **Fittings and sign-off** — Drop fitting photos into the character’s board; the director comments on the exact image, and a vote card picks between options.
+2. **Research and inspiration** — Period photography, paintings, runway and street references — select a folder’s worth and drag them in together.
+3. **Lay out the looks** — A grid per character, a frame per scene or change, with the scene and what changes written in the box beneath each look.
+4. **Swatches and colour** — Photograph fabrics and trims, sample their colours with the eyedropper, and keep the hex values beside the look.
+5. **Fittings and sign-off** — Drop fitting photos into the character’s board; the director comments on the exact image, and a vote card beside each option shows where the room leans.
 
 ## What it costs
 
@@ -7149,7 +7150,7 @@ Per character: research and inspiration, the silhouette and colour story, a look
 
 ### How do I lay out costume changes by scene?
 
-Put a grid inside the character’s board with a cell per scene or change, and caption each cell with the scene and what changes. The grid reads in story order, and everyone with access sees the same one.
+Put a grid inside the character’s board with a frame per scene or change and a box beneath each for the scene and what changes. The grid reads in story order, and everyone with access sees the same one.
 
 ### Can I share it with the director without an account?
 
@@ -7167,13 +7168,13 @@ Free for 50 cards across the workspace — each cluster counts as one — with f
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/cinematography-lookbook
-Updated: 2026-10-01
+Updated: 2026-10-02
 
 # Cinematography Lookbook
 
-> Soleil Clusters is a cinematography lookbook on a shared canvas: collect film frames and lighting references by scene, note lens and light beside each, check values in black and white, and pull palettes. The director, gaffer and colourist work in the same board live, and a view-only link shows it to anyone without an account.
+> Soleil Clusters is a cinematography lookbook on a shared canvas: collect film frames and lighting references by scene, note lens and light beside each, check values in black and white, and sample palettes. The director, gaffer and colourist work in the same board live, and a view-only link shows it to anyone without an account.
 
-_Source: https://clusters.soleilpictures.com/tools/cinematography-lookbook · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/tools/cinematography-lookbook · Updated 2026-10-02_
 
 Collect the frames, light and lensing you are after, check them in black and white, and keep the director, gaffer and colourist on the same board.
 
@@ -7187,15 +7188,15 @@ A lookbook is an argument about how the film will look, made with other people�
 
 ## Check values, not just vibes
 
-Flip any reference to black and white to read where its values actually sit, and nudge warmth, contrast and saturation to compare it with your tests. The adjustments are non-destructive, so the original frame is always one click away. Pull a palette from any image to hand the colourist a concrete starting point.
+Flip any reference to black and white to read where its values actually sit, and nudge warmth, contrast and saturation to compare it with your tests. The adjustments are non-destructive, so the original frame is always one click away. Sample swatches off any frame with the eyedropper to hand the colourist a concrete starting point.
 
 - Black and white for reading values
 - Warmth, contrast and saturation, non-destructively
-- Palettes pulled from any frame
+- Swatches sampled off any frame
 
 ## Director, gaffer and colourist on the same page
 
-A lookbook only helps if the people executing it see the same thing. Invite the gaffer, the key grip and the colourist as editors — free on every plan — and they work in the board live. The director comments on the exact frame, and a vote card settles “this one or that one” before the tech scout instead of during it.
+A lookbook only helps if the people executing it see the same thing. Invite the gaffer, the key grip and the colourist as editors — free on every plan — and they work in the board live. The director comments on the exact frame, and a vote card beside each settles “this one or that one” before the tech scout instead of during it.
 
 ## From lookbook to shot list
 
@@ -7208,7 +7209,7 @@ Clusters is not a shot-design or previs tool — there is no 3D camera simulatio
 ## How a DP builds one
 
 1. **A cluster per scene or look** — Night exteriors, the apartment, the flashback — each look gets its own cluster.
-2. **Collect the frames** — Film stills, photographs and your own tests, dropped in by the folder; reference clips as video cards.
+2. **Collect the frames** — Film stills, photographs and your own tests — select them all in the folder and drag them in together; reference clips as video cards.
 3. **Read the light** — Flip any frame to black and white to read its values; nudge warmth and contrast to compare against your tests.
 4. **Note lens and setup** — A note or caption beside each frame: focal length, stop, height, source, diffusion.
 5. **Bring in the team** — The gaffer and the colourist edit free; the director comments on the exact frame.
@@ -7511,13 +7512,13 @@ Yes. Clusters runs in the mobile browser and can be added to the home screen as 
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/vs/pureref
-Updated: 2026-08-23
+Updated: 2026-10-02
 
 # PureRef Online: The Closest Thing, in Your Browser
 
 > PureRef has no web version — it is a desktop app and always has been. Soleil Clusters is the closest thing online: the same drop-images-and-arrange reference wall, free in any browser, synced across devices and shareable with one link. PureRef still wins for a small always-on-top offline overlay.
 
-_Source: https://clusters.soleilpictures.com/vs/pureref · Updated 2026-08-23_
+_Source: https://clusters.soleilpictures.com/vs/pureref · Updated 2026-10-02_
 
 PureRef is a fast, offline reference window. Clusters is a collaborative reference workspace you can share and grow.
 
@@ -7543,13 +7544,13 @@ A reference board is rarely just pictures. Clusters cards can be images, notes, 
 
 - Notes, docs, video, PDFs, and palettes on one canvas
 - Non-destructive image adjustments built in
-- Pull a color palette straight from a reference image
+- Sample colors straight off a reference image into a palette
 
 ## Switching from PureRef takes an afternoon
 
 Bring your references over in one pass: export the images from PureRef (or gather the original files you pinned) and drag the whole set onto a new Clusters board. The images land in one drop, ready to arrange, so the afternoon goes into rebuilding the layout you had — and tags and nested boards keep it organized as the project grows.
 
-- Drag a whole folder of references in at once
+- Select a folder’s references and drag them all in at once
 - Tags and nested boards keep a growing board findable
 - One board per project — or nest boards inside it
 
@@ -7576,7 +7577,7 @@ If you want a tiny, free, fully-offline window that floats over your art app and
 ## How to move a PureRef board to Clusters
 
 1. **Collect your images** — Export the images from PureRef, or gather the original files you pinned.
-2. **Drag them onto a new board** — Drop the whole set at once — a folder of references lands in one go.
+2. **Drag them onto a new board** — Select everything in the folder and drag it in — the whole set lands in one go.
 3. **Add what PureRef couldn’t hold** — Put notes, links, video, and color palettes right beside the imagery.
 4. **Share one link** — Send the board to your team or client — it opens in the browser, nothing to install.
 
@@ -7593,7 +7594,7 @@ Two different philosophies for reference boards:
 | Cloud sync & backup | Yes | Local files |
 | Works on phones & tablets | Yes | Desktop only |
 | Comments & feedback on the board | Yes | No |
-| Color palette extraction | Yes | No |
+| Palette cards that keep sampled colors | Yes | Picker only |
 | Organize boards into projects | Yes — nested boards + graph | One file per board |
 | Fully offline | No | Yes |
 | Free to start | Yes | Pay what you want |
@@ -7685,13 +7686,13 @@ In Clusters, yes — connect Claude or any MCP client with one URL and ask it to
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/vs/miro
-Updated: 2026-07-12
+Updated: 2026-10-02
 
 # A Miro Alternative for Filmmakers and Creative Teams
 
 > Soleil Clusters is a Miro alternative purpose-built for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that ties a mood board to a storyboard to a shot list. Choose Miro for enterprise diagramming and workshops; choose Clusters for film, photo, and design pre-production.
 
-_Source: https://clusters.soleilpictures.com/vs/miro · Updated 2026-07-12_
+_Source: https://clusters.soleilpictures.com/vs/miro · Updated 2026-10-02_
 
 Miro is a whiteboard for everything. Clusters is a canvas built specifically for visual, reference-driven creative work.
 
@@ -7786,13 +7787,13 @@ Yes. Creator is a flat $25/mo — not a per-member subscription — and anyone y
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/use-cases
-Updated: 2026-07-21
+Updated: 2026-10-02
 
 # What You Can Make with Clusters
 
 > Soleil Clusters is a visual workspace where creative teams make mood boards, look books, storyboards, shot lists, and brand boards — all on one infinite, collaborative canvas. Drop in references, connect boards into a project, and share any of it with a single link. Start free in the browser; no download.
 
-_Source: https://clusters.soleilpictures.com/use-cases · Updated 2026-07-21_
+_Source: https://clusters.soleilpictures.com/use-cases · Updated 2026-10-02_
 
 One canvas for the whole creative process — from first reference to final shot list. Here is where to start.
 
@@ -7904,13 +7905,13 @@ Every template is free. Adding one places the layout on a board with each box la
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/best/pureref-alternatives
-Updated: 2026-08-26
+Updated: 2026-10-02
 
 # The 10 Best PureRef Alternatives in 2026
 
 > For shared, team reference boards, Soleil Clusters is the best PureRef alternative in 2026 — the same drop-and-arrange feel, in the browser, shared with one link and edited in real time, free to start. BeeRef is the best open-source desktop clone, Eagle the best one-time-purchase reference library, and Milanote the best for structured client presentations.
 
-_Source: https://clusters.soleilpictures.com/best/pureref-alternatives · Published 2026-08-04 · Updated 2026-08-26_
+_Source: https://clusters.soleilpictures.com/best/pureref-alternatives · Published 2026-08-04 · Updated 2026-10-02_
 
 PureRef is alive, excellent, and still shipping. This list is for the day your reference wall has to leave one machine.
 
@@ -8059,7 +8060,7 @@ Clusters exists because we kept hitting the day the wall breaks. Our references 
 
 The team mechanics are the point. Live cursors and presence show who is on the board; comments pin to the exact image they are about; a client or director opens a read-only view from one link, no account, nothing to install. Free editors can collaborate, so bringing on the production designer costs nothing. Tags gather references across boards, and a relationship graph connects boards across a project — mood board, look book, and shot list stay one linked body of work.
 
-A production reference wall is rarely just images, so boards hold video, audio, PDFs, links, notes, docs with a screenplay mode, color palettes, image grids, and vote cards — that last one settles 'which of these five frames' arguments without a meeting. Photo adjustments are non-destructive. Boards nest inside boards with live thumbnails, so a project reads like a map rather than a pile.
+A production reference wall is rarely just images, so boards hold video, audio, PDFs, links, notes, docs with a screenplay mode, color palettes, image grids, and vote cards — put one beside each of five frames and the 'which one' argument settles without a meeting. Photo adjustments are non-destructive. Boards nest inside boards with live thumbnails, so a project reads like a map rather than a pile.
 
 It runs in the browser on desktop and mobile, including touch and iPad. The free Demo tier has no credit card and no trial clock, with a card cap on the free tier; Creator is a flat $25 a month — not per person — for unlimited cards, 100GB of storage, and any file type. The honest trade: there is no offline desktop app and no always-on-top overlay. If you never share your wall, keep PureRef.
 
@@ -8387,13 +8388,13 @@ Soleil Clusters — the only tool on this list designed as a team reference wall
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/best/milanote-alternatives
-Updated: 2026-09-19
+Updated: 2026-10-02
 
 # The 12 Best Milanote Alternatives in 2026
 
 > Soleil Clusters is the best Milanote alternative for production teams in 2026: a free tier with no separate upload budget — files just count as cards — where Milanote stops at 10 file uploads ever, plus flat $25/mo pricing instead of per-person seats and real-time boards that carry a project from mood board to shot list. Miro is the runner-up for team whiteboarding, Obsidian Canvas for free offline work, Canva for polished deliverables.
 
-_Source: https://clusters.soleilpictures.com/best/milanote-alternatives · Published 2026-08-04 · Updated 2026-09-19_
+_Source: https://clusters.soleilpictures.com/best/milanote-alternatives · Published 2026-08-04 · Updated 2026-10-02_
 
 Twelve tools, ranked by the only question that matters: what does your board have to become next?
 
@@ -8511,7 +8512,7 @@ Clusters is what we built when our own pre-production kept splintering across fo
 
 Against Milanote, two structural differences. First, the wall: Milanote's free plan spends a 10-file upload budget that never resets, so one scene's reference pull can end it in an afternoon — Clusters has no separate upload budget — files count as cards, and the free Demo tier has no trial clock or credit card. Second, the team math: Creator is a flat $25/mo — not per person — for unlimited cards, 100GB of storage, and any file type. On Milanote, adding your DP and production designer multiplies the bill. On Clusters it does not, and free editors can collaborate.
 
-Sharing is one link. Viewers need no account — a producer opens the live board in a browser — and anyone you invite, free, can comment right on the exact image they mean. Drop a folder of references and it lands in one go — at hour three of a pull, nobody uploads one file at a time. Screenplay mode lives in docs, so the script draft sits beside the imagery it describes. We use all of this daily; the features exist because a shoot demanded them.
+Sharing is one link. Viewers need no account — a producer opens the live board in a browser — and anyone you invite, free, can comment right on the exact image they mean. Select everything in a reference folder and drag it in, and it lands in one go — at hour three of a pull, nobody uploads one file at a time. Screenplay mode lives in docs, so the script draft sits beside the imagery it describes. We use all of this daily; the features exist because a shoot demanded them.
 
 The honest limits: Clusters is browser-only — no offline mode, no always-on-top overlay over your paint tool; PureRef keeps that crown. The template library is smaller than Milanote's or Canva's, there is no integrations marketplace, and it is a young product from a small studio. If your work is solo, offline, and image-only, tools further down this list fit better. If your board has to reach a shot list with other people involved, this is the one built for that.
 
@@ -8876,13 +8877,13 @@ Kosmik shut down. The founder announced the wind-down on April 24, 2026, and the
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/best/mood-board-apps
-Updated: 2026-09-19
+Updated: 2026-10-02
 
 # The 12 Best Mood Board Apps in 2026
 
 > Soleil Clusters is the best mood board app for film and photo production in 2026: a free real-time canvas where the board is argued over live, approved with one link, and carried into look books and shot lists. Milanote is best for structured solo boards, Canva when the board itself is the deliverable, and Pinterest for pure discovery.
 
-_Source: https://clusters.soleilpictures.com/best/mood-board-apps · Published 2026-08-04 · Updated 2026-09-19_
+_Source: https://clusters.soleilpictures.com/best/mood-board-apps · Published 2026-08-04 · Updated 2026-10-02_
 
 Ranked by a working film studio, tested on real productions — with the dead apps other roundups still recommend culled from the list.
 
@@ -8936,7 +8937,7 @@ Where to start: open the storyboard and shot list pages for how the mood board c
 
 The only app on this list where the mood board is argued over live, approved in one link, and then becomes the look book and the shot list.
 
-Clusters is the tool we built because nothing else survived our own pre-production. It is an infinite canvas in the browser where a board holds what production reference actually is: images with non-destructive adjustments, video, audio, PDFs, links, notes, color palettes, image grids, and docs with a screenplay mode — not just stills. Drop a folder of references and it lands in one go, so the time goes into arguing about the layout, not uploading.
+Clusters is the tool we built because nothing else survived our own pre-production. It is an infinite canvas in the browser where a board holds what production reference actually is: images with non-destructive adjustments, video, audio, PDFs, links, notes, color palettes, image grids, and docs with a screenplay mode — not just stills. Select everything in a reference folder and drag it in, and it lands in one go, so the time goes into arguing about the layout, not uploading.
 
 The arguing is the point. Boards are real-time multiplayer — live cursors, presence, comments pinned to the image they are about — so the director and the production designer move frames while they talk instead of trading screenshots. When the look settles, you send one link; the client opens the current board in any browser, on a laptop or a phone — no account, no install — not last Tuesday's export.
 
@@ -9317,13 +9318,13 @@ No. Kosmik announced its wind-down on April 24, 2026 and sunset the service on M
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/best/storyboard-software
-Updated: 2026-08-25
+Updated: 2026-10-02
 
 # The 10 Best Storyboard Software Tools in 2026
 
 > For storyboards that live beside the rest of pre-production, Soleil Clusters is the best storyboard software in 2026 — frames in a grid next to the shot list and script, shared with one link, edited live. Toon Boom Storyboard Pro is the professional standard for drawn animatics, Boords the best client-approval workflow, and StudioBinder the best all-in-one production suite.
 
-_Source: https://clusters.soleilpictures.com/best/storyboard-software · Published 2026-08-25 · Updated 2026-08-25_
+_Source: https://clusters.soleilpictures.com/best/storyboard-software · Published 2026-08-25 · Updated 2026-10-02_
 
 Most filmmakers do not need a drawing program. They need their frames to sit next to the shot list, the script, and the people who have notes.
 
@@ -9364,13 +9365,13 @@ Frames in a grid, next to the coverage plan and the screenplay, on one canvas th
 
 Clusters exists because our own boards kept dying in transit. We would build a sequence in a slide deck, export a PDF, email it, and by the second revision nobody knew which version the director had seen — and the shot list it referred to lived in a spreadsheet that had moved on without it. So we built the board as a place instead of a deliverable: an infinite canvas in the browser where the frames, the coverage plan and the script sit in one document that only ever has one current version.
 
-The storyboard mechanic is the grid card. Drop a grid on the canvas, choose the frame count, and each cell holds an image, a screen grab, a photo from a scout or a phone snap of a thumbnail sketch. Cells reorder by dragging, captions sit under each frame, and arrows connect a frame to the shot on the list that covers it. Next to the grid you can put a document in screenplay mode with the actual scene, a shot-list table and a colour palette — so the board argues for itself instead of needing a meeting to explain.
+The storyboard mechanic is the grid card. Drop a grid on the canvas, cut it into frames, and each frame holds an image, a screen grab, a photo from a scout or a phone snap of a thumbnail sketch, with the action written in the box beneath. Stamp the next shot from the + on the grid's edge and a SHOT [#] box numbers each one by position, so dragging a shot re-sequences the scene. Next to the grid you can put a document in screenplay mode with the actual scene, a shot-list table and a colour palette — so the board argues for itself instead of needing a meeting to explain.
 
 The team mechanics are why it survives a production. Live cursors and presence show who is on the board. Comments pin to a specific frame, so 'the third one' is unambiguous. A director or client opens a read-only view from one link with no account and nothing installed, on a laptop or an iPad at a scout. Invited collaborators edit free on every tier, so adding the first AD or the production designer does not change the invoice. Vote cards settle 'which of these five frames' without a thread.
 
 The honest shape of it: this is not a drawing program. There are freehand and shape tools and a sketch pad, and they are fine for rough thumbnails, but there is no pressure-sensitive brush engine, no onion skinning and no camera-move keyframing. There is no AI frame generation. There is no animatic timeline that plays your board against scratch audio — if you need to time a sequence to a soundtrack, Toon Boom or Boords is the right purchase. The free Demo tier needs no credit card and has no trial clock, with a card cap on the free tier; Creator is a flat $25 a month, not per person, for unlimited cards, 100GB of storage and any file type.
 
-- Grid cards as storyboard frames — set the frame count, drop images into cells, reorder by dragging, caption each frame
+- Grid cards as storyboard frames — cut the frames, drop images in, write the action beneath, and let shots number themselves
 - The board holds the rest of pre-production too: shot-list tables, documents with screenplay mode, palettes, PDFs, video and audio
 - One-link sharing — viewers need no account or install; invited collaborators edit free on every tier
 - Real-time multiplayer with live cursors, presence and comments pinned to an individual frame
@@ -9936,7 +9937,7 @@ can build against.
 
 ### Canvas and images
 
-- Dropping a folder of photos gives you a block, not a 5,200-pixel strip.
+- Dropping a big batch of photos gives you a block, not a 5,200-pixel strip.
 - Image cards serve the smaller rendition when the larger one is not needed.
 
 ### Soleil Scout
