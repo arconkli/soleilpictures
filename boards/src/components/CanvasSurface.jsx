@@ -160,6 +160,7 @@ import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
 import { makeCastAwareness } from '../lib/castAwareness.js';
 import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS, meaningfulFileName, fileMetaFor } from '../lib/fileIngest.js';
 import { saveWebImageCopy } from '../lib/webImageClient.js';
+import { pickHotlinks, noteTried, loadTried, saveTried, stopsThePass, HOTLINK_PER_OPEN } from '../lib/hotlinkBackfill.js';
 import { captureDropEntries, hasDirectory } from '../lib/folderWalk.js';
 import { importDroppedScripts, reportSkippedFiles } from '../lib/dropOutcomes.js';
 import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
@@ -3397,6 +3398,54 @@ export function CanvasSurface({
         } catch (_) {}
       }
     }, 4000);
+    return () => clearTimeout(t);
+  }, [board?.id, cards, canEdit, isPublic, useLocalImages, boardSynced]);
+
+  // Web images placed before copies were kept (lib/hotlinkBackfill.js): a
+  // writer's open of the board copies a few, one at a time, once the board has
+  // settled and the SERVER's snapshot is in — the sweep's gate, above. Silent:
+  // a card that cannot be copied stays the link it was.
+  const hotlinkPassRef = useRef({ boardId: null, n: 0, attempted: new Set() });
+  useEffect(() => {
+    if (!canEdit || isPublic || useLocalImages || !board?.id || !boardSynced) return undefined;
+    if (hotlinkPassRef.current.boardId !== board.id) hotlinkPassRef.current = { boardId: board.id, n: 0, attempted: new Set() };
+    const pass = hotlinkPassRef.current;
+    const store = (() => { try { return window.localStorage; } catch (_) { return null; } })();
+    const picks = pickHotlinks(cards, {
+      attempted: pass.attempted, tried: loadTried(store), limit: HOTLINK_PER_OPEN - pass.n,
+    });
+    if (!picks.length) return undefined;
+    const passBoardId = board.id;
+    const t = setTimeout(async () => {
+      for (const c of picks) {
+        const tag = `${c.id}|${c.src}`;
+        if (pass.attempted.has(tag) || pass.n >= HOTLINK_PER_OPEN || boardIdRef.current !== passBoardId) return;
+        pass.attempted.add(tag);
+        pass.n += 1;
+        const res = await saveWebImageCopy({
+          url: c.src, boardId: passBoardId, cardId: c.id,
+          getToken: async () => (await supabase?.auth.getSession())?.data?.session?.access_token || null,
+        });
+        const code = res?.ok ? (res.reused ? 'reused' : 'saved') : (res?.code || 'unknown');
+        try {
+          logEvent(EV.WEB_IMAGE_SAVE, {
+            board_id: passBoardId, source: 'backfill', ok: !!res?.ok, code, bytes: res?.ok ? (res.bytes ?? null) : null,
+          });
+        } catch (_) {}
+        if (!res?.ok) {
+          if (stopsThePass(code)) return;
+          saveTried(store, noteTried(loadTried(store), c.src, code));
+          continue;
+        }
+        if (boardIdRef.current !== passBoardId) return;
+        // Judged as the card is NOW: one edited or re-pointed meanwhile is left alone.
+        const live = (cardsRef.current || []).find((x) => x.id === c.id);
+        if (!live || live.src !== c.src) continue;
+        sweepMutatorsRef.current?.updateCardSilent?.(c.id, {
+          src: res.src, sourceUrl: c.src, ...(res.fileName && !live.fileName ? { fileName: res.fileName } : {}),
+        });
+      }
+    }, 8000);
     return () => clearTimeout(t);
   }, [board?.id, cards, canEdit, isPublic, useLocalImages, boardSynced]);
 
@@ -9307,7 +9356,7 @@ export function CanvasSurface({
             }).then((res) => {
               try {
                 logEvent(EV.WEB_IMAGE_SAVE, {
-                  board_id: dropBoardId, ok: !!res?.ok,
+                  board_id: dropBoardId, source: 'drop', ok: !!res?.ok,
                   code: res?.ok ? (res.reused ? 'reused' : 'saved') : (res?.code || 'unknown'),
                   bytes: res?.ok ? (res.bytes ?? null) : null,
                 });

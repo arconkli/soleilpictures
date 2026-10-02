@@ -6443,7 +6443,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The copy is counted against your storage like any upload. The same image dragged in twice in one workspace is stored once."
+     "v": "The copy is counted against your storage like any upload. The same image dragged in twice in one workspace is stored once. Web images that went onto a board before copies were kept get copied the same way. It happens a few at a time, whenever someone who can edit that cluster opens it."
     }
    ]
   },
