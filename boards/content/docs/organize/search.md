@@ -6,10 +6,10 @@ navLabel: Search
 section: organize
 order: 2
 updated: 2026-10-02
-answer: Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, document titles and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
+answer: Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
 faq:
   - q: Does search look inside my notes and documents?
-    a: Partly. The palette reads a card's title and the first {{fact:searchBodyChars}} characters of its text, so a short note is searched in full and a long one by its opening. A document is found by its title; the text on its pages is not searched from the palette, so inside a long document use Cmd-F instead.
+    a: Yes. Documents are searched by the words on their pages, and a result opens the document at the page it came from. Cards and notes are searched by their title and the first {{fact:searchBodyChars}} characters of their text. A document written before search learned to read it is picked up the next time it, or anything in its cluster, is edited.
   - q: Can I run actions from it?
     a: Yes. Type what you want to do rather than what you want to find. "share", "invite", "trash", "theme", "billing" all work.
   - q: Is there a shortcut other than Cmd-K?
@@ -31,10 +31,12 @@ related:
   is found as `diner_ext_dusk_04.jpg` (photos and videos uploaded since names
   were kept; audio, PDFs and attachments always had theirs)
 - **Tags**
-- **Docs** — by title
+- **Docs** — by title, and by the words on every page: a match shows the line
+  it came from, under **Inside docs**, and opens the document at that page
 
-The text on a document's pages is not searched from here. Inside a document,
-`⌘F` finds it.
+A document written before search learned to read it is indexed the next time it,
+or anything else in its cluster, is edited. Inside one long document, `⌘F` finds
+every occurrence on the page you are on.
 
 Results are grouped by kind, so a query matching a board and a note shows you
 both, labelled.

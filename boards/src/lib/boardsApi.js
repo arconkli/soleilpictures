@@ -9,6 +9,7 @@ import { buildCardIndexRow } from './cardIndexRow.js';
 import { createPlacementLedger } from './capRefusal.js';
 import { isAbandonedUpload } from './abandonedUploads.js';
 import { fitByCost } from './demoCardCap.js';
+import { docPagesText, docSignature } from './docText.js';
 
 const PARTYKIT_HOST = import.meta.env?.VITE_PARTYKIT_HOST || 'localhost:1999';
 
@@ -1558,6 +1559,27 @@ async function _doSyncCardIndex(boardId, ydoc) {
   // that restores it at the limit) must keep it, not withdraw it.
   _placements.forgetWhere((id) => cache.sigs.has(id));
   if (changed.length > 0 || removed) _announceIndexSynced(boardId);
+  // Search inside documents: every doc on this board, not only the ones open in
+  // the editor (until 2026-10 the editor was the index's only writer, so a doc
+  // nobody reopened was invisible to search however much it held).
+  _syncDocIndexForBoard(workspaceId, ydoc).catch((e) => console.warn('doc_page_index board sync failed', e));
+}
+
+// doc card id → signature of what doc_page_index last got for it, so a board
+// save that did not touch a doc does not rewrite its rows.
+const _docIndexSigs = new Map();
+async function _syncDocIndexForBoard(workspaceId, ydoc) {
+  const cards = ydoc?.getMap?.('cards');
+  if (!workspaceId || !cards) return;
+  for (const [cardId, cym] of cards.entries()) {
+    if (!cym || typeof cym.get !== 'function' || cym.get('kind') !== 'doc') continue;
+    const pages = docPagesText(cym);
+    if (!pages.length) continue;
+    const sig = docSignature(pages);
+    if (_docIndexSigs.get(cardId) === sig) continue;
+    const res = await syncDocPageIndex({ workspaceId, docCardId: cardId, pages });
+    if (res?.ok) _docIndexSigs.set(cardId, sig);
+  }
 }
 
 // Per-kind preview data baked into card_index.meta. Kept compact —

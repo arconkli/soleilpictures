@@ -13,6 +13,7 @@
 
 import * as Y from 'yjs';
 import { cloneYXmlNode } from './yhelpers.js';
+import { fragmentText } from './docText.js';
 
 // Origin for doc STRUCTURAL ops (add/rename/delete page·sheet·bookmark·comment,
 // mode). Deliberately NOT 'local' so the board-level Y.UndoManager (which
@@ -292,25 +293,15 @@ export function readComments(ydoc, scope) {
 }
 
 // Extract plain text of a single page's Y.XmlFragment. Used by the
-// doc_page_index sync to project page text into Postgres for the
-// universal "Appears in" hover lookup. Reads the fragment's DOM
-// representation and returns trimmed textContent.
+// doc_page_index sync to project page text into Postgres for the universal
+// "Appears in" hover lookup and for search inside documents. Shares
+// docText.fragmentText with the board-save indexer, so both write the same
+// text — with block boundaries as word boundaries, which the old DOM
+// textContent path glued together ("Exterior.Night.").
 export function readPageText(ydoc, pageId, scope) {
   const map = pageContentMap(ydoc, scope);
   if (!map) return '';
-  const frag = map.get(pageId);
-  if (!frag) return '';
-  try {
-    if (typeof frag.toDOM === 'function' && typeof document !== 'undefined') {
-      const dom = frag.toDOM(document);
-      return (dom?.textContent || '').replace(/\s+/g, ' ').trim();
-    }
-    // Fallback: strip XML tags from the string form.
-    const xml = frag.toString ? frag.toString() : '';
-    return xml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-  } catch (_) {
-    return '';
-  }
+  try { return fragmentText(map.get(pageId)); } catch (_) { return ''; }
 }
 
 // Read every page (from this scope) along with its plain text body.

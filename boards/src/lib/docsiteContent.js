@@ -22841,7 +22841,21 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — by title"
+      "v": " — by title, and by the words on every page: a match shows the line it came from, under "
+     },
+     {
+      "t": "strong",
+      "v": "Inside docs",
+      "children": [
+       {
+        "t": "text",
+        "v": "Inside docs"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and opens the document at that page"
      }
     ]
    ]
@@ -22851,7 +22865,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The text on a document's pages is not searched from here. Inside a document, "
+     "v": "A document written before search learned to read it is indexed the next time it, or anything else in its cluster, is edited. Inside one long document, "
     },
     {
      "t": "code",
@@ -22859,7 +22873,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " finds it."
+     "v": " finds every occurrence on the page you are on."
     }
    ]
   },

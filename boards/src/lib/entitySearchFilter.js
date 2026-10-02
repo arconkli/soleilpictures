@@ -10,10 +10,21 @@
 // tree — `,` separates conditions, `(` `)` group them, `"` quotes a value, and
 // `%` is ours to place — so a typed "Act II (rev)" searches for the words
 // rather than failing the request and showing nothing.
+export function cleanSearchTerm(query) {
+  return String(query || '').replace(/[%,()"]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 export function entitySearchFilter(query) {
-  const safe = String(query || '').replace(/[%,()"]/g, ' ').replace(/\s+/g, ' ').trim();
+  const safe = cleanSearchTerm(query);
   if (!safe) return null;
   return `title.ilike.%${safe}%,body.ilike.%${safe}%,meta->>fileName.ilike.%${safe}%`;
+}
+
+// The words INSIDE documents: doc_page_index, one row per page (docText).
+export function docPageSearchFilter(query) {
+  const safe = cleanSearchTerm(query);
+  if (!safe) return null;
+  return `page_text.ilike.%${safe}%,page_title.ilike.%${safe}%`;
 }
 
 // Ranking: exact, prefix, contains — on the title, or the file name for a

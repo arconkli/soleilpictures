@@ -1,6 +1,6 @@
 # Search and the command palette
 
-> Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, document titles and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
+> Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
 
 _Source: https://clusters.soleilpictures.com/docs/organize/search · Updated 2026-10-02_
 
@@ -15,10 +15,12 @@ _Source: https://clusters.soleilpictures.com/docs/organize/search · Updated 202
   is found as `diner_ext_dusk_04.jpg` (photos and videos uploaded since names
   were kept; audio, PDFs and attachments always had theirs)
 - **Tags**
-- **Docs** — by title
+- **Docs** — by title, and by the words on every page: a match shows the line
+  it came from, under **Inside docs**, and opens the document at that page
 
-The text on a document's pages is not searched from here. Inside a document,
-`⌘F` finds it.
+A document written before search learned to read it is indexed the next time it,
+or anything else in its cluster, is edited. Inside one long document, `⌘F` finds
+every occurrence on the page you are on.
 
 Results are grouped by kind, so a query matching a board and a note shows you
 both, labelled.

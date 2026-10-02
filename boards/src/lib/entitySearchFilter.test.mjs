@@ -23,3 +23,10 @@ test('a photo with no title ranks by its file name', () => {
   assert.equal(entitySearchRank({ title: 'Diner, dusk', meta: { fileName: 'x.jpg' } }, 'diner'), 1,
     'a typed title still decides when there is one');
 });
+
+test('the words inside documents are searched by page text and page title', async () => {
+  const { docPageSearchFilter } = await import('./entitySearchFilter.js');
+  assert.equal(docPageSearchFilter('rain on the glass'),
+    'page_text.ilike.%rain on the glass%,page_title.ilike.%rain on the glass%');
+  assert.equal(docPageSearchFilter('(,)'), null);
+});

@@ -1977,7 +1977,7 @@ export const DOCS_PAGES = [
     "title": "Search and the Command Palette — Soleil Clusters",
     "metaDescription": "Cmd-K in Soleil Clusters searches clusters, cards, notes, docs and tags, and runs commands — share, invite, trash, theme, settings — from the keyboard.",
     "h1": "Search and the command palette",
-    "answer": "Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, document titles and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.",
+    "answer": "Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.",
     "section": "organize",
     "order": 2,
     "updated": "2026-10-02",
@@ -2008,7 +2008,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Does search look inside my notes and documents?",
-        "a": "Partly. The palette reads a card's title and the first 500 characters of its text, so a short note is searched in full and a long one by its opening. A document is found by its title; the text on its pages is not searched from the palette, so inside a long document use Cmd-F instead."
+        "a": "Yes. Documents are searched by the words on their pages, and a result opens the document at the page it came from. Cards and notes are searched by their title and the first 500 characters of their text. A document written before search learned to read it is picked up the next time it, or anything in its cluster, is edited."
       },
       {
         "q": "Can I run actions from it?",
