@@ -198,3 +198,36 @@ test('App asks once for the whole folder, guards the tab, and writes clusters th
   assert.doesNotMatch(write, /forceResetBoardRoom|__soleilEmitBoardReset/, 'an additive write must never reset the room');
   assert.match(fn, /originalName: meaningfulFileName\(item\.file\)/, 'imported files keep their names too');
 });
+
+test('a refused top card stops the import and takes the cluster back', async () => {
+  const w = world();
+  const res = await runFolderImport(tree(), { ...w.deps, placeTopCard: () => null });
+  assert.equal(res.stopped.code, 'cap');
+  assert.equal(w.clusters.get('b1').deleted, true);
+  assert.deepEqual(res.created, []);
+  assert.equal(w.uploads(), 0, 'nothing uploads into a cluster the board refused');
+});
+
+test('a subfolder that cannot be created costs that subfolder, not its parent', async () => {
+  const w = world();
+  let n = 0;
+  const createCluster = async (args) => {
+    n++;
+    if (args.name === 'Day 2') throw new Error('createBoard failed');
+    return w.deps.createCluster(args);
+  };
+  const res = await runFolderImport(tree(), { ...w.deps, createCluster });
+  assert.equal(res.failed, 1, 'Day 2 held one file');
+  assert.equal(res.firstError, 'createBoard failed');
+  const diner = readCards(w.docs.get('b1'));
+  assert.equal(diner.filter((c) => c.kind === 'image').length, 2, 'the parent is still written with its own files');
+  assert.ok(n >= 2);
+});
+
+test('a card-cap stop is not pitched as storage — the board already showed its wall', () => {
+  const app = read('App.jsx');
+  const fn = app.slice(app.indexOf('const importFolder = useCallback('));
+  assert.match(fn, /if \(res\.stopped && res\.stopped\.code !== 'cap'\) \{[\s\S]{0,400}?pitchStorageGate\(\);/);
+  assert.match(fn, /const placed = muts\.addCard\?\.\(card\);[\s\S]{0,200}?return placed \?\? null;/,
+    'placeTopCard hands back the refusal, so the import can stop on it');
+});

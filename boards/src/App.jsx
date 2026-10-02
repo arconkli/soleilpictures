@@ -145,7 +145,7 @@ import { planImport } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap, shouldWarnNearCapNow } from './lib/upsellEligibility.js';
 import { nearCapWarnedAt, markNearCapWarned, markPriceSeen } from './lib/upsellLatches.js';
 import { readUpgradePrompts, stampUpgradePrompt } from './lib/upgradePrompts.js';
-import { CTA, nearCapSentence, newProjectSentence, PLAN_NAME, CREATOR_TRIAL_DAYS } from './lib/billingCopy.js';
+import { CTA, nearCapSentence, newProjectSentence, PLAN_NAME, CREATOR_TRIAL_DAYS, CREATOR_STORAGE_LABEL } from './lib/billingCopy.js';
 import { creatorTrialEligibility, trialAwaitingServer } from './lib/creatorTrial.js';
 import { notePendingImport, readCheckoutReturn, clearCheckoutReturn } from './lib/checkoutReturn.js';
 import { importDroppedScripts, reportSkippedFiles } from './lib/dropOutcomes.js';
@@ -2555,7 +2555,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         feedback.toast({
           type: 'warning',
           message: csFiles.own
-            ? `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`
+            ? `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to ${CREATOR_STORAGE_LABEL}.`
             : `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs the cluster's owner to be on a paid plan.`,
           ttl: 6000,
           // Only when the modal did NOT open — otherwise the toast offers a
@@ -5004,6 +5004,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the folder landed in hands over its own board, mutators and plan rules, so
   // a drop into a split pane imports into THAT pane's cluster.
   const [folderImport, setFolderImport] = useState(null); // { name, done, total, cancel }
+  // openBoard is rebuilt every render; read the live one when the import ends.
+  const openBoardRef = useRef(openBoard);
+  openBoardRef.current = openBoard;
   const importFolder = useCallback(async ({
     entries = null, pickedFiles = null, at = null, boardId: targetBoardId, mutators: muts,
     canAttemptFiles = false, source = 'drop', boardWasEmpty = false,
@@ -5088,7 +5091,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // Refresh the boards list as the card lands: a cluster card whose board
         // is not in the list yet renders as a missing cluster for the whole
         // import otherwise.
-        placeTopCard: (card) => { muts.addCard?.(card); Promise.resolve(refreshBoards()).catch(() => {}); },
+        placeTopCard: (card) => {
+          const placed = muts.addCard?.(card);   // null = refused by the cap
+          Promise.resolve(refreshBoards()).catch(() => {});
+          return placed ?? null;
+        },
         upload, writeCluster,
         signal: ctrl.signal,
         onProgress: ({ done }) => setFolderImport((s) => (s ? { ...s, done } : s)),
@@ -5143,19 +5150,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       });
       // Dropped onto an empty board: open what was made rather than leave a
       // lone cluster card on a blank canvas.
-      if (boardWasEmpty && res.tops.length === 1 && targetBoardId === currentBoard?.id && !res.cancelled) openBoard(res.tops[0]);
+      if (boardWasEmpty && res.tops.length === 1 && targetBoardId === currentBoard?.id && !res.cancelled) openBoardRef.current(res.tops[0]);
     } else if (!res.stopped) {
       feedback.toast({ type: 'info', message: res.cancelled ? 'Folder import cancelled — nothing was added.' : 'Nothing in that folder could be added.' });
     }
-    if (res.stopped) {
+    if (res.stopped && res.stopped.code !== 'cap') {
       // Out of storage, or a file type the owner's plan does not take: the
-      // one pitch, after what landed is safe.
+      // one pitch, after what landed is safe. A 'cap' stop already showed the
+      // card wall (addCard's own refusal) — a storage pitch on top would be a
+      // second, wrong one.
       pitchStorageGate();
     }
     if (plan.blocked.length && !res.stopped) {
       feedback.toast({
         type: 'warning',
-        message: `${plan.blocked.length} ${plan.blocked.length === 1 ? 'file needs' : 'files need'} a paid plan and ${plan.blocked.length === 1 ? 'was' : 'were'} left out — upgrade to add any file type, up to 100GB.`,
+        message: `${plan.blocked.length} ${plan.blocked.length === 1 ? 'file needs' : 'files need'} a paid plan and ${plan.blocked.length === 1 ? 'was' : 'were'} left out — upgrade to add any file type, up to ${CREATOR_STORAGE_LABEL}.`,
         ttl: 7000,
         action: { label: 'See Creator', onClick: () => pitchStorageGate({ force: true }) },
       });

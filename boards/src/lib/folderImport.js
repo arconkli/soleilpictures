@@ -116,7 +116,15 @@ export async function runFolderImport(nodes, deps) {
     const id = await createCluster({ parentBoardId: parentId, name: node.name });
     result.created.push({ id, name: node.name, parentId });
     if (topIndex != null) {
-      placeTopCard({ id, kind: 'board', ...topRects[topIndex] });
+      // null = the board refused the card (the cap moved since the preflight
+      // asked). Stop rather than fill a cluster nobody can see on the board.
+      const placed = placeTopCard({ id, kind: 'board', ...topRects[topIndex] });
+      if (placed === null) {
+        result.stopped = { code: 'cap', message: 'the board had no room left for the cluster' };
+        result.created = result.created.filter((e) => e.id !== id);
+        try { await deleteCluster(id); } catch (_) { /* soft delete; harmless if it stays */ }
+        return null;
+      }
       result.tops.push(id);
     }
 
@@ -142,8 +150,17 @@ export async function runFolderImport(nodes, deps) {
 
     const childIds = [];
     for (const child of node.children) {
-      const c = await visit(child, id, null);
-      if (c) childIds.push(c);
+      // A subfolder that cannot be made (a failed createBoard) costs that
+      // subfolder, not the import: its parent is still written with the files
+      // that already landed, which would otherwise be stranded in an unwritten
+      // cluster.
+      try {
+        const c = await visit(child, id, null);
+        if (c) childIds.push(c);
+      } catch (err) {
+        result.failed += countFiles([child]);
+        if (!result.firstError) result.firstError = String(err?.message || err).slice(0, 200);
+      }
     }
 
     uploaded.sort((a, b) => a.order - b.order);
