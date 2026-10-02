@@ -19395,6 +19395,57 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Starting from a treatment",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Starting from a treatment"
+    }
+   ],
+   "id": "starting-from-a-treatment"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The "
+    },
+    {
+     "t": "link",
+     "v": "director's treatment",
+     "href": "/tools/directors-treatment",
+     "children": [
+      {
+       "t": "text",
+       "v": "director's treatment"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " page hands you a document to start from. Press its button and the first cluster you can edit gets a treatment document. It holds a cover, then a page for each section: concept, tone and references, look and light, casting, wardrobe and art direction, locations, and edit, music and pace. Each page has a line saying what goes on it, and the document opens when it lands. Replace the lines with your own, bring the chosen images in, and "
+    },
+    {
+     "t": "link",
+     "v": "export",
+     "href": "/docs/documents/export",
+     "children": [
+      {
+       "t": "text",
+       "v": "export"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " a PDF."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Opening",
    "inline": [
     {

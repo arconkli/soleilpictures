@@ -156,6 +156,8 @@ import { recordSeen, takeReturn } from './lib/returnVisit.js';
 import { shouldAskToShare } from './lib/shareAsk.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode, setTitlePage, writeScriptBody } from './lib/docState.js';
+import { STARTER_DOCS, starterDocPages, starterDocSpot } from './lib/starterDocs.js';
+import { useStarterIntentResume } from './hooks/useStarterIntentResume.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel, setGridHints, readGridHints } from './lib/gridState.js';
 import { hintsToCellMap, bodyFromGrid, rowFromRecord, SOURCES } from './lib/gridLayoutLibrary.js';
 // Generated projection of the kind:'template' seoLanding specs — the preset id
@@ -1552,7 +1554,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // records 0 (gridCount.cardWeight), so placing one never meets the wall
       // and never moves the count — its boxes are gated one at a time as they
       // fill (guardWeightedAdd).
-      const cost = placementCost(card);
+      // A seed (an onboarding starter, a page's starter document) is never
+      // indexed, so the server never counts it — and the gate must not either,
+      // or a starter document is refused at a cap it would not have touched.
+      const cost = isSeedCard(card) ? 0 : placementCost(card);
       let gated = false;
       const cs = capSource();
       {
@@ -2325,6 +2330,42 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           if (script) {
             try { if (script.titlePage) setTitlePage(ydoc, scope, { enabled: true, ...script.titlePage }); } catch (_) {}
             try { if (script.body) writeScriptBody(ydoc, scope, script.body, { name: title }); } catch (_) {}
+          }
+        },
+      });
+      if (!placed) return null;
+      setAutoFocusId(placed);
+      return placed;
+    };
+
+    // A document a page promised (lib/starterDocs.js) — the director's
+    // treatment's cover and sections, a page each — written in the card's own
+    // creation transaction like a dropped script, so it is whole everywhere at
+    // once and one ⌘Z takes it back. Marked `seed`, like the onboarding starter
+    // cards: it is our template, not the person's own work, so it does not
+    // stamp activation (cardIndexRow.isSeedCard keeps it out of card_index,
+    // where 0120's first-card stamps read) or fire first-value. Its pages are
+    // still indexed for search (boardsApi._syncDocIndexForBoard). Returns the
+    // card's id, or null when the board refused it.
+    const addStarterDoc = (kind, clickPos = null) => {
+      const pages = starterDocPages(kind);
+      if (!pages.length) return null;
+      const d = defaultsRef.current?.doc || {};
+      const w = d.w || 320, h = d.h || 240;
+      const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
+      const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
+      const id = `doc-${Date.now()}`;
+      const placed = addCard({
+        id, kind: 'doc', title: STARTER_DOCS[kind].title, seed: true,
+        ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
+        x: Math.max(8, x), y: Math.max(8, y), w, h,
+      }, {
+        afterInsert: (cardYM) => {
+          if (!cardYM) return;
+          initCardDocStore(ydoc, cardYM);
+          const scope = cardScope(cardYM);
+          for (const p of pages) {
+            try { writeScriptBody(ydoc, scope, p.docJSON, { name: p.name }); } catch (_) {}
           }
         },
       });
@@ -3510,7 +3551,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addToGroup, removeFromGroup,
       addArrow, addFreeArrow, deleteArrows, updateArrow,
       addNote, addTextLink, addImageAt, addPdfAt, ingestFilesArranged, updateCardSilent, addNewBoard, addNewProject, addPalette,
-      addDocCard, addScriptCard, addGrid,
+      addDocCard, addScriptCard, addStarterDoc, addGrid,
       resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, applyGridLayout, setGridCellContent, clearGridCellContent, removeGridCellRecord,
       setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
       applyRundownPlan,
@@ -6293,6 +6334,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     tier: myTier.tier,
   });
   const canEditCurrent = currentBoardPerm.canEdit;
+  // "Start a treatment" pressed on its page before signing in (lib/starterIntent):
+  // the document it promised lands on the first cluster this person can write,
+  // once a brand-new account's own first run has finished, beside whatever is
+  // already there, and opens.
+  useStarterIntentResume({
+    ready: !myTier.loading && yb.ready && firstRunSettled && !!currentBoard?.id && canEditCurrent,
+    onResume: (intent) => {
+      const id = mainMutators.addStarterDoc?.(intent.kind, starterDocSpot(yb.cards));
+      try {
+        logEvent(EV.STARTER_DOC_ADDED, {
+          kind: intent.kind, from: intent.from, placed: !!id, board_id: currentBoard?.id || null,
+          age_s: Math.round(intent.ageMs / 1000),
+        });
+      } catch (_) {}
+    },
+  });
   // Same decision for the split pane. This used to be hardcoded `canEdit={true}`
   // — survivable while the pane could only ever show the one board you picked
   // from your own workspace, but not now that you can navigate inside it: a

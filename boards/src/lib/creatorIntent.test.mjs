@@ -132,7 +132,7 @@ test('a free start clears an earlier Get Creator, and the sign-in form never doe
   assert.match(page, /clearCreatorIntent\(\)/, 'Start free on /pricing must clear a pending Creator intent');
   const lp = read('hooks/useLandingEngagement.js');
   const props = lp.slice(lp.indexOf('ctaProps(pos, href, extra)'));
-  assert.match(props.slice(0, 900), /if \(isFreeStartCta\(pageKind, pos, extra\)\) clearCreatorIntent\(\);/,
+  assert.match(props.slice(0, 900), /if \(isFreeStartCta\(pageKind, pos, extra\)\) \{\s*clearCreatorIntent\(\);/,
     'a landing free start must clear a pending Creator intent');
   // The shared-board buttons call the tracker directly, so they clear too.
   assert.match(read('components/PublicBoardView.jsx'), /if \(isFreeStartCta\('share', surface\)\) clearCreatorIntent\(\);/);

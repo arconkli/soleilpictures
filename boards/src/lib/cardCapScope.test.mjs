@@ -197,7 +197,9 @@ test('an empty grid costs nothing — in the trigger, in the index row and at th
   assert.match(app, /const countedWeight = \(get\) => \(isAbandonedUpload\(get\) \? 0 : cardIndexWeight\(get\('kind'\) \|\| 'note', get\)\);/,
     'one cost function: what card_index will record');
   assert.match(app, /const placementCost = \(card\) => countedWeight\(\(k\) => card\?\.\[k\]\);/);
-  assert.match(app, /const cost = placementCost\(card\);/, 'addCard charges it');
+  // …except a seed (onboarding starter, a page's starter document), which
+  // card_index never records — so the gate charges it nothing either.
+  assert.match(app, /const cost = isSeedCard\(card\) \? 0 : placementCost\(card\);/, 'addCard charges it');
   assert.match(app, /fitByCost\(cardsToAdd, placementCost, remaining\)/, 'addCards charges it');
   assert.match(app, /fitByCost\(sources, dupCost, remaining\)/, 'duplicateCards charges it');
   assert.match(app, /if \(cs\.capped && cost > 0\) \{/, 'a zero-cost card never meets the wall');

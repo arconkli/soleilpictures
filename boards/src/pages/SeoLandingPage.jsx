@@ -128,7 +128,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
   // The page scrolls the .seo-scroll overflow container, not the window.
   const scrollRef = useRef(null);
   const lp = useLandingEngagement({
-    page: spec?.path, pageKind: spec?.kind,
+    page: spec?.path, pageKind: spec?.kind, starter: spec?.starter || null,
     getScrollEl: () => scrollRef.current,
   });
 

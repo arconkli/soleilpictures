@@ -33,7 +33,10 @@ export function firstBoardKindFrom(src) {
   const path = typeof src.landingPath === 'string' ? src.landingPath.toLowerCase() : '';
   if (path.startsWith('/vs/pureref') || path.includes('reference-board')) return 'references';
   if (path.includes('storyboard') || path.includes('shot-list')) return 'storyboard';
-  if (path.includes('mood-board') || path.includes('look-book')) return 'moodboard';
+  // A treatment is built from references before it is written; the document
+  // itself arrives from its own page (starterDocs.js).
+  if (path.includes('treatment')) return 'treatment';
+  if (path.includes('mood-board') || path.includes('look-book') || path.includes('lookbook')) return 'moodboard';
   const ref = typeof src.referrerHost === 'string' ? src.referrerHost.toLowerCase() : '';
   const utm = typeof src.utmSource === 'string' ? src.utmSource.toLowerCase() : '';
   if (ref.includes('chatgpt') || ref.includes('openai') || utm.includes('chatgpt') || utm.includes('openai')) return 'references';
@@ -51,6 +54,7 @@ export function firstBoardCopy(kind, opts = {}) {
     case 'references': return { head: 'Start your reference wall', heroLabel: 'Drop your references here', heroHint: hint };
     case 'moodboard':  return { head: 'Start your moodboard',      heroLabel: 'Bring your images in',      heroHint: hint };
     case 'storyboard': return { head: 'Start your storyboard',     heroLabel: 'Bring your frames in',      heroHint: coarse ? HINT_COARSE : 'Paste or drag images from any tab, or drop a folder of frames' };
+    case 'treatment':  return { head: 'Start your treatment',      heroLabel: 'Bring your references in',  heroHint: hint };
     default:           return { head: null,                        heroLabel: 'Add images',                heroHint: hint };
   }
 }

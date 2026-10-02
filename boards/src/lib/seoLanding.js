@@ -42,6 +42,7 @@
 //   }
 
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
+import { treatmentPageSteps } from './starterDocs.js';
 
 const SIGNUP = (campaign) =>
   `/?utm_source=seo&utm_medium=landing&utm_campaign=${campaign}`;
@@ -703,16 +704,11 @@ const PAGES = [
     updated: '2026-10-02',
     cta: { label: 'Start a treatment — free', sub: 'Free to start. Nothing to install.' },
     stepsHeading: 'The treatment template, section by section',
-    steps: [
-      { t: 'Concept', d: 'One paragraph: what the piece is and why it works. Write it first, at the top of the document.' },
-      { t: 'Tone and references', d: 'The frames, films and photographs that set the feel — gathered on the board, where the team argues them into agreement.' },
-      { t: 'Look and light', d: 'Palette, lensing, light and texture. Sample swatches off any reference image with the eyedropper and keep them beside the frames they came from.' },
-      { t: 'Casting', d: 'Faces and types, with a note on each. Tag each reference as a character so the tag gathers every image of them.' },
-      { t: 'Wardrobe and art direction', d: 'Silhouettes, fabrics, sets and props, each in its own nested cluster so each department can work in theirs.' },
-      { t: 'Locations', d: 'Scout photos and found references, a cluster per setting.' },
-      { t: 'Edit, music and pace', d: 'How it moves: reference clips as video cards, tracks as audio cards, and the rhythm you are after.' },
-      { t: 'Export and send', d: 'Lay the chosen images into the document, a page per section, and export a PDF from the browser’s print dialog.' },
-    ],
+    // The same sections the starter document is written from (starterDocs.js),
+    // so the page and the document it hands over cannot disagree.
+    steps: treatmentPageSteps(),
+    // Its buttons ask for that document (starterIntent.js).
+    starter: 'treatment',
     sections: [
       {
         heading: 'What a treatment has to do',

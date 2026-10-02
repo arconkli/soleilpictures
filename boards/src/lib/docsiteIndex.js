@@ -1620,9 +1620,13 @@ export const DOCS_PAGES = [
     "answer": "A document is a multi-page rich-text editor that lives as a card on your canvas. It has a page tree, a full formatting toolbar, tables, images, code blocks and embedded boards, real-time co-editing with visible cursors, inline comments, and find and replace. Open it full screen or docked beside the canvas.",
     "section": "documents",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Overview",
     "headings": [
+      {
+        "id": "starting-from-a-treatment",
+        "text": "Starting from a treatment"
+      },
       {
         "id": "opening",
         "text": "Opening"

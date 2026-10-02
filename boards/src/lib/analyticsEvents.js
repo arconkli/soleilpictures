@@ -65,6 +65,7 @@ export const EV = Object.freeze({
   PRICING_VIEW:            'pricing_view',                // {surface:'page'|'modal',header?}
   PRICING_PLAN_TOGGLE:     'pricing_plan_toggle',         // {plan,surface}
   PRICING_DEMO_CTA:        'pricing_demo_cta',            // {surface,tier}
+  STARTER_DOC_ADDED:       'starter_doc_added',           // {kind,from,placed,board_id,age_s} — a page's promised starting document (e.g. the director's treatment) written after sign-in (useStarterIntentResume). placed:false = the board refused it (the cap)
   PRICING_INTENT_RESUMED:  'pricing_intent_resumed',      // {plan,from,age_s} — a signed-out "Get Creator" reopened the offer after sign-in (useCreatorIntentResume)
   PRICING_CREATOR_INTENT:  'pricing_creator_intent',      // {plan,surface,already_paid,trial} (must-land) — trial:true = the button read "Try Creator free for N days" (in-product offer to a real body of work; 0325)
   PRICING_SIGNOUT:         'pricing_signout',
