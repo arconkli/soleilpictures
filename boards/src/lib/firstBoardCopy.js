@@ -41,7 +41,7 @@ export function firstBoardKindFrom(src) {
   return null;
 }
 
-const HINT = 'Paste or drag images from any tab, or select a folder’s files and drag them in';
+const HINT = 'Paste or drag images from any tab, or drop a whole folder';
 const HINT_COARSE = 'Pick several from your camera roll at once';
 
 export function firstBoardCopy(kind, opts = {}) {
@@ -50,7 +50,7 @@ export function firstBoardCopy(kind, opts = {}) {
   switch (kind) {
     case 'references': return { head: 'Start your reference wall', heroLabel: 'Drop your references here', heroHint: hint };
     case 'moodboard':  return { head: 'Start your moodboard',      heroLabel: 'Bring your images in',      heroHint: hint };
-    case 'storyboard': return { head: 'Start your storyboard',     heroLabel: 'Bring your frames in',      heroHint: coarse ? HINT_COARSE : 'Paste or drag images from any tab, or select all your frames and drag them in' };
+    case 'storyboard': return { head: 'Start your storyboard',     heroLabel: 'Bring your frames in',      heroHint: coarse ? HINT_COARSE : 'Paste or drag images from any tab, or drop a folder of frames' };
     default:           return { head: null,                        heroLabel: 'Add images',                heroHint: hint };
   }
 }

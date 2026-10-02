@@ -61,7 +61,7 @@ Down the left edge:
 The **+** at the end of the rail opens the rest, grouped:
 
 - *Tools* — Draw (`D`), Shape, Palette
-- *Create* — File, Link, Linked cluster
+- *Create* — File, Folder (on a desktop browser), Link, Linked cluster
 - *Annotate* — Comment, Vote
 
 Schedule cards are being rebuilt and are not in the menu meanwhile — see

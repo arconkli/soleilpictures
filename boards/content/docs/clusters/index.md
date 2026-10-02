@@ -34,7 +34,38 @@ the top and open it for you:
 - `⌘K` → "new project"
 
 A new project opens on the same panel a first board does: paste or drag images
-in from any tab, or select everything in a folder and drag it in.
+in from any tab, or drop a whole folder.
+
+## Dropping a folder
+
+Drag a folder from your desktop onto a canvas and it becomes a cluster there,
+named after the folder. Each folder inside it becomes a cluster nested inside
+that one, the same shape your folders had, and every file becomes a card in
+the cluster it was in — photos laid out in rows, everything else in a grid,
+each keeping its file name. **Add → Folder…** does the same from a picker, on a
+desktop browser.
+
+While it runs, a bar at the bottom of the screen counts the files and has a
+**Cancel**: what has landed is kept, and nothing empty is left behind. When it
+finishes, the message offers **Undo**, which takes every cluster it made back
+to [Trash](/docs/clusters/trash-and-recovery).
+
+- One drop reads up to **{{fact:folderMaxFiles}} files** and makes up to
+  **{{fact:folderMaxClusters}} clusters**. Past either, the import is partial
+  and says so.
+- Folders nested more than **{{fact:folderMaxDepth}} levels** deep are merged
+  into the deepest cluster rather than left out.
+- The things a computer keeps in folders that are not yours to look at —
+  `.DS_Store`, hidden files, app and project bundles such as a `.logicx`
+  session or a Photos library — are left out, and so are files iCloud has not
+  downloaded yet. The message counts them.
+- On the free plan the folder is counted before anything uploads: one
+  [card](/docs/canvas/cards) for each file and one for each cluster it becomes.
+  If it will not all fit, you are asked first, and **Add what fits** takes
+  whole folders in order rather than a scatter of half-filled ones.
+
+Dropping a folder works on the canvas, on a desktop browser. A phone cannot
+drag a folder, and list view takes files rather than folders.
 
 ## Adding a cluster inside one
 

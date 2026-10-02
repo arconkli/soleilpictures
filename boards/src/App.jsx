@@ -177,6 +177,9 @@ import { parseLoopMeta } from './lib/loopMeta.js';
 import { lowMemoryDevice } from './lib/device.js';
 import { arrangeInFreeSpace } from './lib/canvasGeom.js';
 import { classifyDropFile, fitImageDims, sizeBucket, meaningfulFileName, fileMetaFor } from './lib/fileIngest.js';
+import { walkEntries, treeFromRelativePaths } from './lib/folderWalk.js';
+import { planFolderImport, slicePlan } from './lib/folderPlan.js';
+import { runFolderImport, undoFolderImport, countFiles } from './lib/folderImport.js';
 import { makeLimiter } from './lib/asyncPool.js';
 import { TrashModal } from './components/TrashModal.jsx';
 import { VersionHistoryModal } from './components/VersionHistoryModal.jsx';
@@ -1480,7 +1483,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     //      hundred-file folder drop leaves its user holding a fraction of it —
     //      a count BELOW their own cap, because the batch had not merely
     //      overflowed, it had failed whole.
-    const preflightImport = async ({ n, kinds = null, source = 'drop' } = {}) => {
+    // `folder` ({ files, clusters }) when the drop was a folder: n is then its
+    // whole cost in cards — a card per file AND per cluster (lib/folderPlan).
+    const preflightImport = async ({ n, kinds = null, source = 'drop', folder = null } = {}) => {
       const requested = Math.max(0, Number(n) | 0);
       if (requested <= 0) return { take: 0 };
 
@@ -1529,7 +1534,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         setImportAsk({
           n: requested, take: plan.take, over: plan.over,
           count: plan.count, limit: plan.limit,
-          kinds, source, boardId, own: cs.own, resolve,
+          kinds, source, boardId, own: cs.own, resolve, folder,
         });
       });
     };
@@ -4993,6 +4998,165 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return true;
   }, []);
 
+  // ── A dropped FOLDER becomes clusters (Drive basics, item 2) ─────────────────
+  // lib/folderWalk reads the folder, lib/folderPlan prices it in cards, the
+  // preflight asks ONCE for the whole thing, lib/folderImport does it. The pane
+  // the folder landed in hands over its own board, mutators and plan rules, so
+  // a drop into a split pane imports into THAT pane's cluster.
+  const [folderImport, setFolderImport] = useState(null); // { name, done, total, cancel }
+  const importFolder = useCallback(async ({
+    entries = null, pickedFiles = null, at = null, boardId: targetBoardId, mutators: muts,
+    canAttemptFiles = false, source = 'drop', boardWasEmpty = false,
+  } = {}) => {
+    if (!targetBoardId || !muts) return { loose: [] };
+    const started = Date.now();
+    const walked = entries ? await walkEntries(entries) : treeFromRelativePaths(pickedFiles || []);
+    const plan = planFolderImport(walked.root, { canAttemptFiles });
+    if (!plan.nodes.length) return { loose: plan.loose, walked, plan };
+
+    const { take } = await muts.preflightImport?.({
+      n: plan.cost, kinds: plan.kinds, source: 'folder',
+      folder: { files: plan.files, clusters: plan.clusters },
+    }) || { take: plan.cost };
+    const nodes = slicePlan(plan.nodes, Math.min(plan.cost, Number(take) || 0));
+    const total = countFiles(nodes);
+    try {
+      logEvent(EV.IMPORT_BATCH, {
+        n_files: walked.files, n_accepted: plan.files, n_over: plan.files - total,
+        n_blocked: plan.blocked.length,
+        n_skipped: plan.skipped.partial + plan.skipped.pureref + plan.skipped.scripts,
+        n_scripts: plan.skipped.scripts, source: 'folder', kinds: plan.kinds, board_id: targetBoardId,
+        n_clusters: plan.clusters,
+      });
+    } catch (_) {}
+    if (!nodes.length) return { loose: plan.loose, walked, plan };
+
+    const ctrl = new AbortController();
+    const label = nodes.length === 1 ? nodes[0].name : `${nodes.length} folders`;
+    setFolderImport({ name: label, done: 0, total, cancel: () => ctrl.abort() });
+    // Closing the tab mid-import loses whatever has not been written yet, and
+    // the browser asks before it lets that happen.
+    const guard = (ev) => { ev.preventDefault(); ev.returnValue = ''; return ''; };
+    window.addEventListener('beforeunload', guard);
+
+    const writeCluster = async (id, cards) => {
+      // A NEW cluster nobody has open: build its doc from whatever is stored
+      // (nothing, normally), add the finished cards, write it whole, and reset
+      // its room so anyone who did open it mid-import reloads into the cards —
+      // the same path a cross-cluster move writes its target with.
+      const doc = boardDoc(id);
+      try {
+        const snap = await loadBoardSnapshot(id);
+        if (snap) Y.applyUpdate(doc, b64ToBytes(snap));
+        doc.transact(() => {
+          const m = doc.getMap('cards');
+          for (const c of cards) if (!m.has(c.id)) m.set(c.id, cardToYMap(c));
+        }, 'folder-import');
+        await saveBoardSnapshot(id, doc);
+      } finally {
+        doc.destroy();
+      }
+      try { await forceResetBoardRoom(id); } catch (_) { /* nobody is in the room */ }
+      try { window.__soleilEmitBoardReset?.(id); } catch (_) {}
+    };
+    const upload = (item, { boardId, cardId }) => {
+      const opts = { file: item.file, workspaceId: workspace.id, boardId, userId: user.id, originalName: meaningfulFileName(item.file) };
+      if (item.route === 'image') return uploadImage({ ...opts, cardId });
+      if (item.route === 'video') return uploadVideo({ ...opts, ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
+      if (item.route === 'audio') return uploadAudio(opts);
+      if (item.route === 'pdf') return uploadPdf({ ...opts, cardId });
+      return uploadFile({ ...opts, cardId });   // 'largeMedia' and 'file' — multipart
+    };
+    const deleteCluster = (id) => deleteBoard(id);
+    const removeTopCard = (id) => muts.deleteCardsSilent?.([id]);
+
+    let res;
+    try {
+      res = await runFolderImport(nodes, {
+        parentBoardId: targetBoardId, at,
+        createCluster: async ({ parentBoardId, name }) => {
+          const b = await createBoard({ workspaceId: workspace.id, parentBoardId, name, view: 'canvas', userId: user.id });
+          return b.id;
+        },
+        deleteCluster, removeTopCard,
+        // Refresh the boards list as the card lands: a cluster card whose board
+        // is not in the list yet renders as a missing cluster for the whole
+        // import otherwise.
+        placeTopCard: (card) => { muts.addCard?.(card); Promise.resolve(refreshBoards()).catch(() => {}); },
+        upload, writeCluster,
+        signal: ctrl.signal,
+        onProgress: ({ done }) => setFolderImport((s) => (s ? { ...s, done } : s)),
+      });
+    } catch (err) {
+      res = null;
+      feedback.toast({ type: 'error', message: 'The folder could not be imported: ' + (err?.message || err), ttl: 8000 });
+    } finally {
+      window.removeEventListener('beforeunload', guard);
+      setFolderImport(null);
+    }
+    try { await refreshBoards(); } catch (_) {}
+    if (!res) return { loose: plan.loose, walked, plan };
+
+    try {
+      logEvent(EV.FOLDER_IMPORT, {
+        source, board_id: targetBoardId, n_files: total, n_clusters: res.created.length,
+        depth: plan.depth, placed: res.placed, failed: res.failed, write_failed: res.writeFailed,
+        cancelled: res.cancelled, stopped: res.stopped?.code ?? null,
+        truncated: walked.truncated, flattened: walked.flattened,
+        skipped_packages: walked.skipped.packages, skipped_icloud: walked.skipped.icloud,
+        ms: Date.now() - started,
+      });
+    } catch (_) {}
+
+    const nClusters = res.created.length;
+    if (res.placed > 0) {
+      const parts = [`${res.placed} ${res.placed === 1 ? 'file' : 'files'} in ${nClusters} ${nClusters === 1 ? 'cluster' : 'clusters'}`];
+      const notes = [];
+      if (res.cancelled) notes.push('stopped where you cancelled');
+      if (res.failed + res.writeFailed > 0) notes.push(`${res.failed + res.writeFailed} could not be added`);
+      if (walked.truncated) notes.push(`only the first ${walked.files} files were read`);
+      if (walked.skipped.packages) notes.push(`${walked.skipped.packages} app or project ${walked.skipped.packages === 1 ? 'bundle was' : 'bundles were'} left out`);
+      if (walked.skipped.icloud) notes.push(`${walked.skipped.icloud} not yet downloaded from iCloud`);
+      feedback.toast({
+        type: notes.length ? 'warning' : 'success',
+        message: `Imported ${parts[0]}${notes.length ? ` — ${notes.join('; ')}` : ''}.`,
+        ttl: 10000,
+        // Deleting shows an undo; so does making forty clusters at once.
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            try {
+              await undoFolderImport(res, { deleteCluster, removeTopCard });
+              await refreshBoards();
+              logEvent(EV.FOLDER_IMPORT_UNDO, { board_id: targetBoardId, n_clusters: nClusters });
+            } catch (e) {
+              feedback.toast({ type: 'error', message: 'Undo failed — the clusters are still in the sidebar: ' + (e?.message || e) });
+            }
+          },
+        },
+      });
+      // Dropped onto an empty board: open what was made rather than leave a
+      // lone cluster card on a blank canvas.
+      if (boardWasEmpty && res.tops.length === 1 && targetBoardId === currentBoard?.id && !res.cancelled) openBoard(res.tops[0]);
+    } else if (!res.stopped) {
+      feedback.toast({ type: 'info', message: res.cancelled ? 'Folder import cancelled — nothing was added.' : 'Nothing in that folder could be added.' });
+    }
+    if (res.stopped) {
+      // Out of storage, or a file type the owner's plan does not take: the
+      // one pitch, after what landed is safe.
+      pitchStorageGate();
+    }
+    if (plan.blocked.length && !res.stopped) {
+      feedback.toast({
+        type: 'warning',
+        message: `${plan.blocked.length} ${plan.blocked.length === 1 ? 'file needs' : 'files need'} a paid plan and ${plan.blocked.length === 1 ? 'was' : 'were'} left out — upgrade to add any file type, up to 100GB.`,
+        ttl: 7000,
+        action: { label: 'See Creator', onClick: () => pitchStorageGate({ force: true }) },
+      });
+    }
+    return { loose: plan.loose, walked, plan, res };
+  }, [workspace?.id, user?.id, currentBoard?.id, feedback, refreshBoards, pitchStorageGate]);
+
   // Should this demo user be pitched at all? Shared by every always-on upsell
   // surface so the chip, the first-value banner and the list-toolbar chip agree
   // rather than each inventing its own threshold. The cap-hit modal is
@@ -7627,6 +7791,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          canEdit={paneCanEdit}
                          boardPermission={isMain ? currentBoardPerm : splitBoardPerm}
                          onRequestStorageUpgrade={pitchStorageGate}
+                         onImportFolder={importFolder}
                          isPaidPlan={myTier.tier === 'paid' || myTier.tier === 'admin'}
                          ownsWorkspace={workspace?.created_by === user?.id}
                          currentUser={currentUser}
@@ -8446,6 +8611,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       {/* Asked BEFORE the folder is read, so cancelling costs the user nothing
           and choosing the partial keeps the cards they're entitled to. Rendered
           ahead of UpgradeModal because "Upgrade" here opens that one. */}
+      {/* A folder import in progress (importFolder): what is happening, how far
+          along, and a way to stop it — what landed so far is kept. */}
+      {folderImport && (
+        <div className="folder-import-status" role="status" aria-live="polite">
+          <span className="folder-import-label">
+            Importing “{folderImport.name}” — {folderImport.done} of {folderImport.total} {folderImport.total === 1 ? 'file' : 'files'}
+          </span>
+          <span className="folder-import-track" aria-hidden="true">
+            <span className="folder-import-fill" style={{ width: `${Math.round((100 * folderImport.done) / Math.max(1, folderImport.total))}%` }} />
+          </span>
+          <button type="button" className="folder-import-cancel" onClick={folderImport.cancel}>Cancel</button>
+        </div>
+      )}
+
       {importAsk && (
         <ImportCapDialog
           open
@@ -8455,6 +8634,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           count={importAsk.count}
           limit={importAsk.limit}
           kinds={importAsk.kinds}
+          folder={importAsk.folder || null}
           trialOffer={creatorTrialEligibility({
             tier: myTier.tier, cards: myTier.serverCardCount,
             cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt,

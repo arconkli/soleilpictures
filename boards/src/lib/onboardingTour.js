@@ -215,7 +215,7 @@ export const PROJECT_TOUR_STEPS = [
     touchAction: { label: 'Add photos', type: 'pick_photos' },
     copy: {
       title: 'Now drop your images in',
-      body: 'Paste or drag images from any tab, or select a folder’s files and drag them in. This is your workspace.',
+      body: 'Paste or drag images from any tab, or drop a whole folder. This is your workspace.',
       touch: 'Add your first images — or anything else. This is your canvas.',
     },
     // The one step a new desktop user reads BEFORE the empty panel (a running
@@ -229,7 +229,7 @@ export const PROJECT_TOUR_STEPS = [
         : 'Now drop your images in';
       return {
         title,
-        body: 'Paste or drag images from any tab, or select a folder’s files and drag them in. This is your workspace.',
+        body: 'Paste or drag images from any tab, or drop a whole folder. This is your workspace.',
         touch: 'Add your first images — or anything else. This is your canvas.',
       };
     },

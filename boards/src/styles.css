@@ -21539,3 +21539,49 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
   .gal-panel { width: 100%; max-height: 100%; height: 100%; border: 0; border-radius: 0; }
   .gal-bar { bottom: 10px; }
 }
+
+/* Folder import in progress (App.jsx importFolder). Bottom-centre, above the
+   canvas chrome, like the undo strip. Neutral ink throughout: gold is for
+   active/selection/focus, and a progress bar is neither. */
+.folder-import-status {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 10px 12px 10px 16px;
+  border-radius: 999px;
+  background: var(--bg-elev, rgba(24, 22, 19, 0.92));
+  border: 1px solid var(--line-2, rgba(255, 255, 255, 0.1));
+  box-shadow: var(--shadow-2);
+  color: var(--ink-1);
+  font: 500 13px/1.3 var(--font-sans);
+}
+.folder-import-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.folder-import-track {
+  flex: 0 0 96px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-2, rgba(255, 255, 255, 0.12));
+  overflow: hidden;
+}
+.folder-import-fill { display: block; height: 100%; background: var(--ink-2); transition: width 0.25s ease; }
+.folder-import-cancel {
+  flex: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: var(--bg-hov);
+  color: var(--ink-1);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.folder-import-cancel:hover { background: var(--bg-act); }
+.folder-import-cancel:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+@media (max-width: 480px) {
+  .folder-import-track { display: none; }
+}

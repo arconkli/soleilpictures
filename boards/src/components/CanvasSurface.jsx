@@ -47,7 +47,7 @@ import { useFeedback } from './AppFeedback.jsx';
 import {
   Eye, EyeOff, MessageCircle,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, Scribble, ArrowRight, Plus, Question,
-  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut,
+  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut, Folder,
   Calendar as CalendarPh, X,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
@@ -159,6 +159,7 @@ import { useCaptureState } from '../hooks/useCaptureState.js';
 import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
 import { makeCastAwareness } from '../lib/castAwareness.js';
 import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS, meaningfulFileName, fileMetaFor } from '../lib/fileIngest.js';
+import { captureDropEntries, hasDirectory } from '../lib/folderWalk.js';
 import { importDroppedScripts, reportSkippedFiles } from '../lib/dropOutcomes.js';
 import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
@@ -456,6 +457,9 @@ export function CanvasSurface({
   workspaceId, userId, personalWorkspaceId,
   selectedTool = 'select', setSelectedTool = () => {},
   mutators = {},
+  // A dropped FOLDER (App.jsx importFolder): called with this pane's board,
+  // mutators and plan rules, so the folder lands in the cluster it was dropped on.
+  onImportFolder = null,
   autoFocusId, clearAutoFocus,
   useLocalImages = false,
   peersHereByBoard,        // Map<boardId, Peer[]>  — workspace presence
@@ -3819,6 +3823,31 @@ export function CanvasSurface({
   // same dispatch as drag-drop, so a picked PDF still becomes a PDF card, an
   // image an image card, a clip a media card, anything else a generic file
   // card. `pos` is a canvas coordinate (from the click point / viewport center).
+  // "Add → Folder…": the picker side of a folder drop. A desktop browser hands
+  // back every file in the chosen folder with its webkitRelativePath, which
+  // lib/folderWalk turns into the same tree a drop gives. Not offered where the
+  // browser cannot pick a folder (iOS Safari ignores webkitdirectory and would
+  // open an ordinary file picker under a "Folder" label), or in the mobile shell.
+  const canPickFolder = useMemo(() => {
+    if (mobileShell || !onImportFolder) return false;
+    try { return 'webkitdirectory' in document.createElement('input'); } catch (_) { return false; }
+  }, [mobileShell, onImportFolder]);
+  const openFolderPicker = useCallback((pos) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.webkitdirectory = true;
+    input.onchange = async () => {
+      if (!input.files || !input.files.length) return;
+      await onImportFolder?.({
+        pickedFiles: Array.from(input.files), at: { x: pos?.x ?? 200, y: pos?.y ?? 200 },
+        boardId: board?.id, mutators, canAttemptFiles, source: 'picker',
+        boardWasEmpty: !(cards || []).length,
+      });
+    };
+    input.click();
+  }, [onImportFolder, board?.id, mutators, canAttemptFiles, cards]);
+
   const openFilePicker = useCallback((pos) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -7750,6 +7779,7 @@ export function CanvasSurface({
     // (50-73% at 6+, ~13% at zero). Selecting one file behaves exactly as before.
     { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method, 'image'); pickPhotosAtRef.current?.(pos, method); } },
     { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method, 'file'); openFilePicker(pos); } },
+    ...(canPickFolder ? [{ id: 'folder', group: 'card', label: 'Folder', icon: Folder, run: () => { noteCreateIntent(method, 'folder'); openFolderPicker(pos); } }] : []),
     { id: 'note',    group: 'card', label: 'Text note', icon: NotePencil,  run: () => { noteCreateIntent(method, 'note'); mutators.addNote?.(pos); } },
     { id: 'doc',     group: 'card', label: 'Doc',     icon: FileText,      run: () => { noteCreateIntent(method, 'doc'); mutators.addDocCard?.(pos); } },
     { id: 'script',  group: 'card', label: 'Script',  icon: Clapperboard,  run: () => { noteCreateIntent(method, 'script'); mutators.addScriptCard?.(pos); } },
@@ -9117,6 +9147,9 @@ export function CanvasSurface({
     }
     const types = e.dataTransfer.types;
     const { x: cx, y: cy } = clientToCanvas(e.clientX, e.clientY);
+    // A FOLDER has to be read off the drop before this handler's first await:
+    // Chrome empties dataTransfer.items the moment it yields (lib/folderWalk).
+    const dropEntries = types && types.includes && types.includes('Files') ? captureDropEntries(e.dataTransfer) : [];
 
     // Universal entity-ref drop: any EntityLink chip / picker row /
     // canvas card dragged here materializes as a 'link' chip card
@@ -9417,6 +9450,19 @@ export function CanvasSurface({
       return;
     }
 
+    // A folder: it becomes a cluster here, its folders nested clusters inside
+    // it. Files dropped BESIDE it go the ordinary way, onto this board.
+    if (hasDirectory(dropEntries) && onImportFolder) {
+      e.preventDefault();
+      const boardWasEmpty = !(cards || []).length;
+      const out = await onImportFolder({
+        entries: dropEntries, at: { x: cx, y: cy }, boardId: board?.id, mutators,
+        canAttemptFiles, source: 'drop', boardWasEmpty,
+      });
+      if (out?.loose?.length) await ingestFiles(out.loose, cx, cy);
+      return;
+    }
+
     // Files (images / videos / audio / anything dragged from Finder). Shares
     // the same routing as the "Add → File" menu picker.
     const files = e.dataTransfer.files;
@@ -9682,6 +9728,7 @@ export function CanvasSurface({
     ]},
     { title: 'Create', items: [
       { id: 'file',          label: 'File',           icon: Paperclip,      tip: 'Upload any file',         action: () => addFromRegistry('file') },
+      ...(canPickFolder ? [{ id: 'folder', label: 'Folder', icon: Folder, tip: 'Upload a folder — its folders become clusters', action: () => addFromRegistry('folder') }] : []),
       { id: 'addurl',        label: 'Link',           icon: Link,           tip: 'Add a web link',          action: () => addFromRegistry('addurl') },
       ...(scheduleCreationAllowed() ? [
         { id: 'schedule',      label: 'Schedule',       icon: CalendarPh,     tip: 'A calendar you can drop anything into', action: () => addFromRegistry('schedule') },

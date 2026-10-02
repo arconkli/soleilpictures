@@ -5,8 +5,10 @@
 _Source: https://clusters.soleilpictures.com/docs/canvas/images · Updated 2026-10-02_
 
 Images are the reason most boards exist. Getting them in is meant to be
-thoughtless: select everything in a folder, drag it onto the canvas, and the
-files upload in parallel and lay themselves out rather than landing in a heap.
+thoughtless: drag a whole folder onto the canvas and it becomes a cluster of its
+own, or select the files you want and drop them where you are — either way they
+upload in parallel and lay themselves out rather than landing in a heap. See
+[dropping a folder](/docs/clusters#dropping-a-folder).
 
 ## Adding images
 

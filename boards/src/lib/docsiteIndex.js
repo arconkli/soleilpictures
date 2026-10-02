@@ -293,7 +293,7 @@ export const DOCS_PAGES = [
     "title": "Coming from Another Tool — Soleil Clusters",
     "metaDescription": "Moving to Soleil Clusters from PureRef, Milanote, Miro, Boords, StudioBinder or Storyboarder — what maps across, what does not, and how to bring work over.",
     "h1": "Coming from another tool",
-    "answer": "There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually one drag: select everything in the folder and drag it in. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.",
+    "answer": "There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually one drag: drop the folder, and its folders become nested clusters. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.",
     "section": "start",
     "order": 4,
     "updated": "2026-10-02",
@@ -1290,6 +1290,10 @@ export const DOCS_PAGES = [
       {
         "id": "starting-a-project",
         "text": "Starting a project"
+      },
+      {
+        "id": "dropping-a-folder",
+        "text": "Dropping a folder"
       },
       {
         "id": "adding-a-cluster-inside-one",

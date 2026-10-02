@@ -62,6 +62,7 @@ import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/im
 import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
 import { CREATOR_INTENT_MAX_AGE_MS } from '../src/lib/creatorIntent.js';
 import { BODY_MAX as CARD_INDEX_BODY_MAX } from '../src/lib/cardIndexRow.js';
+import { FOLDER_LIMITS } from '../src/lib/folderWalk.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '..');
@@ -130,6 +131,12 @@ export const FACTS = {
   // How much of a card's or note's text ⌘K can see: card_index.body is cut at
   // BODY_MAX, and the palette searches that column.
   searchBodyChars: String(CARD_INDEX_BODY_MAX),
+  // A dropped folder (lib/folderWalk FOLDER_LIMITS): how many files one drop
+  // reads, how deep folders nest before merging upward, and how many clusters
+  // one drop makes.
+  folderMaxFiles: String(FOLDER_LIMITS.maxFiles),
+  folderMaxDepth: String(FOLDER_LIMITS.maxDepth),
+  folderMaxClusters: String(FOLDER_LIMITS.maxClusters),
   // The Creator trial length. Sourced from billingCopy, which trialCore.test.mjs
   // pins to the number the edge function puts on the Stripe session.
   creatorTrialDays: String(CREATOR_TRIAL_DAYS),

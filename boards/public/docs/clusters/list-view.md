@@ -165,6 +165,7 @@ what a drive is really for, no. Here is the line:
 | Preview without opening | Yes — every item has a real preview, and the detail panel a large one |
 | Download | Yes — one file, or a selection as a zip of up to 500 files or 500 MB |
 | Folders inside folders | Yes — nested clusters, as deep as you like |
+| Upload a whole folder | Yes — [drop it on a canvas](/docs/clusters#dropping-a-folder) and its folders become nested clusters |
 | Share | A whole cluster, yes: one link opens it read-only, and everyone you invite edits free |
 | Store any kind of file | On Creator, any file type on a 100GB drive. The free plan takes standard media under its [size caps](/docs/account/plans), and every file is one of its 50 cards |
 | Keep each file's original name | Yes — images and videos from the [change that added it](/changelog) on; audio, PDFs and attachments always |

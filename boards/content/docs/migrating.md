@@ -6,7 +6,7 @@ navLabel: Coming from another tool
 section: start
 order: 4
 updated: 2026-10-02
-answer: There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually one drag: select everything in the folder and drag it in. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.
+answer: There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually one drag: drop the folder, and its folders become nested clusters. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.
 faq:
   - q: Is there an importer?
     a: No. Reference boards move by dragging the images in, which takes about as long as an importer would. Structured formats are the exception — screenplays import as Final Draft or Fountain files.
@@ -21,8 +21,8 @@ related:
 ---
 
 There is no import button. For a reference board that is less of a problem than
-it sounds — selecting a folder's images and dragging them in takes about as long
-as an importer would, and they [auto-arrange](/docs/canvas/images) on arrival.
+it sounds — dropping a folder takes about as long as an importer would, its
+folders become nested clusters, and they [auto-arrange](/docs/canvas/images) on arrival.
 
 What is worth knowing is how the concepts map.
 
@@ -92,8 +92,8 @@ Roundups of what else is out there, with pricing checked at the date shown:
 ## Practical route in
 
 1. Pick **one** live project rather than migrating an archive.
-2. Select everything in its reference folder and drag it onto a new cluster; let
-   it auto-arrange.
+2. Drop its reference folder onto a canvas — it becomes a cluster, with a nested
+   one for each folder inside it.
 3. Give things names — names are what [search](/docs/organize/search) works on.
 4. Nest sub-clusters where the old tool had folders.
 5. Invite the team. [Editors are free](/docs/collaborate), so there is no seat maths.

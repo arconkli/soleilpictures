@@ -93,7 +93,8 @@ Creator removes the limit entirely. See [Plans](/docs/account/plans).
 
 ### Dropping more files than you have room for
 
-If you drag in more files than your remaining allowance, Clusters
+If you drag in more files than your remaining allowance — or a folder, which
+counts a card for each file and one for each cluster it becomes — Clusters
 asks before it uploads anything. You can add the ones that fit, upgrade to keep
 them all, or cancel — and until you answer, nothing is uploaded and
 nothing on the canvas changes. Choosing to add the ones that fit always gives

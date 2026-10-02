@@ -971,7 +971,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Drag them in, paste from the clipboard, or use the image tool — the picker is multi-select, so everything in a folder can come in at once"
+       "v": "Drag them in, paste from the clipboard, or use the image tool — the picker is multi-select. Drop a whole folder and it becomes a cluster, its folders nested ones"
       }
      ]
     ],
@@ -2979,7 +2979,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "There is no import button. For a reference board that is less of a problem than it sounds — selecting a folder's images and dragging them in takes about as long as an importer would, and they "
+     "v": "There is no import button. For a reference board that is less of a problem than it sounds — dropping a folder takes about as long as an importer would, its folders become nested clusters, and they "
     },
     {
      "t": "link",
@@ -3796,7 +3796,7 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Select everything in its reference folder and drag it onto a new cluster; let it auto-arrange."
+      "v": "Drop its reference folder onto a canvas — it becomes a cluster, with a nested one for each folder inside it."
      }
     ],
     [
@@ -4494,7 +4494,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — File, Link, Linked cluster"
+      "v": " — File, Folder (on a desktop browser), Link, Linked cluster"
      }
     ],
     [
@@ -6075,7 +6075,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "If you drag in more files than your remaining allowance, Clusters asks before it uploads anything. You can add the ones that fit, upgrade to keep them all, or cancel — and until you answer, nothing is uploaded and nothing on the canvas changes. Choosing to add the ones that fit always gives you every card you still have room for; the rest stay on your disk."
+     "v": "If you drag in more files than your remaining allowance — or a folder, which counts a card for each file and one for each cluster it becomes — Clusters asks before it uploads anything. You can add the ones that fit, upgrade to keep them all, or cancel — and until you answer, nothing is uploaded and nothing on the canvas changes. Choosing to add the ones that fit always gives you every card you still have room for; the rest stay on your disk."
     }
    ]
   },
@@ -6186,7 +6186,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Images are the reason most boards exist. Getting them in is meant to be thoughtless: select everything in a folder, drag it onto the canvas, and the files upload in parallel and lay themselves out rather than landing in a heap."
+     "v": "Images are the reason most boards exist. Getting them in is meant to be thoughtless: drag a whole folder onto the canvas and it becomes a cluster of its own, or select the files you want and drop them where you are — either way they upload in parallel and lay themselves out rather than landing in a heap. See "
+    },
+    {
+     "t": "link",
+     "v": "dropping a folder",
+     "href": "/docs/clusters#dropping-a-folder",
+     "children": [
+      {
+       "t": "text",
+       "v": "dropping a folder"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -15548,7 +15563,220 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A new project opens on the same panel a first board does: paste or drag images in from any tab, or select everything in a folder and drag it in."
+     "v": "A new project opens on the same panel a first board does: paste or drag images in from any tab, or drop a whole folder."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Dropping a folder",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Dropping a folder"
+    }
+   ],
+   "id": "dropping-a-folder"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Drag a folder from your desktop onto a canvas and it becomes a cluster there, named after the folder. Each folder inside it becomes a cluster nested inside that one, the same shape your folders had, and every file becomes a card in the cluster it was in — photos laid out in rows, everything else in a grid, each keeping its file name. "
+    },
+    {
+     "t": "strong",
+     "v": "Add → Folder…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add → Folder…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " does the same from a picker, on a desktop browser."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "While it runs, a bar at the bottom of the screen counts the files and has a "
+    },
+    {
+     "t": "strong",
+     "v": "Cancel",
+     "children": [
+      {
+       "t": "text",
+       "v": "Cancel"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": what has landed is kept, and nothing empty is left behind. When it finishes, the message offers "
+    },
+    {
+     "t": "strong",
+     "v": "Undo",
+     "children": [
+      {
+       "t": "text",
+       "v": "Undo"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which takes every cluster it made back to "
+    },
+    {
+     "t": "link",
+     "v": "Trash",
+     "href": "/docs/clusters/trash-and-recovery",
+     "children": [
+      {
+       "t": "text",
+       "v": "Trash"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "One drop reads up to "
+     },
+     {
+      "t": "strong",
+      "v": "500 files",
+      "children": [
+       {
+        "t": "text",
+        "v": "500 files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and makes up to "
+     },
+     {
+      "t": "strong",
+      "v": "60 clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "60 clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". Past either, the import is partial and says so."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Folders nested more than "
+     },
+     {
+      "t": "strong",
+      "v": "6 levels",
+      "children": [
+       {
+        "t": "text",
+        "v": "6 levels"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " deep are merged into the deepest cluster rather than left out."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The things a computer keeps in folders that are not yours to look at — "
+     },
+     {
+      "t": "code",
+      "v": ".DS_Store"
+     },
+     {
+      "t": "text",
+      "v": ", hidden files, app and project bundles such as a "
+     },
+     {
+      "t": "code",
+      "v": ".logicx"
+     },
+     {
+      "t": "text",
+      "v": " session or a Photos library — are left out, and so are files iCloud has not downloaded yet. The message counts them."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On the free plan the folder is counted before anything uploads: one "
+     },
+     {
+      "t": "link",
+      "v": "card",
+      "href": "/docs/canvas/cards",
+      "children": [
+       {
+        "t": "text",
+        "v": "card"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " for each file and one for each cluster it becomes. If it will not all fit, you are asked first, and "
+     },
+     {
+      "t": "strong",
+      "v": "Add what fits",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add what fits"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " takes whole folders in order rather than a scatter of half-filled ones."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Dropping a folder works on the canvas, on a desktop browser. A phone cannot drag a folder, and list view takes files rather than folders."
     }
    ]
   },
@@ -17432,6 +17660,35 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "Yes — nested clusters, as deep as you like"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Upload a whole folder"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes — "
+      },
+      {
+       "t": "link",
+       "v": "drop it on a canvas",
+       "href": "/docs/clusters#dropping-a-folder",
+       "children": [
+        {
+         "t": "text",
+         "v": "drop it on a canvas"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " and its folders become nested clusters"
       }
      ]
     ],
