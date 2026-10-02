@@ -22,6 +22,7 @@ import { handleApiRoute } from './worker-api.js';
 import { runWebhooks } from './lib/webhooks.js';
 import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME } from './lib/billingCopy.js';
 import { buildPricingCrawlableHtml, buildPricingJsonLd } from './lib/pricingCrawlable.js';
+import { hasPlanBlock, planBlockHtml } from './lib/planBlock.js';
 import {
   handleScoutSession, handleScoutSessionMint, handleScoutSignup, handleScoutClaim,
 } from './worker-scout.js';
@@ -1885,6 +1886,8 @@ export function buildLandingCrawlableHtml(spec, extra = null) {
     }
     parts.push(`</tbody></table></section>`);
   }
+  // "What it costs" — same model, same position as SeoLandingPage (lib/planBlock).
+  if (hasPlanBlock(spec)) parts.push(planBlockHtml(spec.cta?.href || '/'));
   // The layout a curated template page is about. React draws the same thing as
   // a numbered SVG diagram; here it is the same list as text, which is what a
   // crawler can actually read. Both derive from spec.template.preset, so the

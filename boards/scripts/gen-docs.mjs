@@ -52,6 +52,7 @@ import { layoutById, layoutSize, templateCellOrder } from '../src/lib/templateLa
 import { HINT_LIMITS } from '../src/lib/gridLayoutLibrary.js';
 import { SEO_LISTICLE_PAGES } from '../src/lib/seoListicles.js';
 import { pricingMarkdown, PRICING_ANSWER } from '../src/lib/pricingCrawlable.js';
+import { hasPlanBlock, planBlockMarkdown } from '../src/lib/planBlock.js';
 
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
 import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, CREATOR_TRIAL_DAYS } from '../src/lib/billingCopy.js';
@@ -866,6 +867,8 @@ function landingMarkdown(spec, catalogue = null) {
     }
     out.push('');
   }
+  // "What it costs", in the same position the page and the Worker put it.
+  if (hasPlanBlock(spec)) out.push(...planBlockMarkdown());
   if (spec.faq?.length) {
     out.push('## Frequently asked questions', '');
     for (const f of spec.faq) out.push(`### ${f.q}`, '', f.a, '');

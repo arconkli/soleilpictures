@@ -16,6 +16,7 @@ import { publicTemplateSlug } from '../lib/templatePaths.js';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
+import { hasPlanBlock, planBlockModel } from '../lib/planBlock.js';
 import './seoLanding.css';
 
 // The template store branches off this component rather than getting its own
@@ -57,6 +58,41 @@ function SectionWithMidCta({ index, cta, midCtaProps, children }) {
         </aside>
       )}
     </>
+  );
+}
+
+// billingCopy marks bold spans with **…** (PricingBits renders them the same
+// way); a tiny local renderer keeps PricingBits out of this chunk.
+const withBold = (s) => String(s).split(/\*\*(.+?)\*\*/g)
+  .map((part, i) => (i % 2 ? <b key={i}>{part}</b> : part));
+
+// "What it costs" (lib/planBlock.js — read its header for why it is here and
+// the read it is pre-registered against). The Worker renders the same model in
+// the same position, so crawlers and readers get one document.
+function PlanBlock({ lp, signupHref, idx }) {
+  const m = planBlockModel();
+  return (
+    <section className="seo-section seo-plans" id={m.id} ref={lp.sectionRef('plans', idx)}>
+      <h2 className="seo-h2">{m.heading}</h2>
+      <p className="seo-body">{m.lead}</p>
+      <div className="seo-plans-grid">
+        <div className="seo-plan">
+          <div className="seo-plan-name">{m.free.name}</div>
+          <div className="seo-plan-price">{m.free.price} <span className="seo-plan-unit">{m.free.unit}</span></div>
+          <ul className="seo-plan-lines">{m.free.lines.map((l, i) => <li key={i}>{withBold(l)}</li>)}</ul>
+        </div>
+        <div className="seo-plan">
+          <div className="seo-plan-name">{m.creator.name}</div>
+          <div className="seo-plan-price">{m.creator.price} <span className="seo-plan-unit">{m.creator.annual}</span></div>
+          <ul className="seo-plan-lines">{m.creator.lines.map((l, i) => <li key={i}>{l}</li>)}</ul>
+        </div>
+      </div>
+      <p className="seo-body seo-plans-note">{m.note}</p>
+      <div className="seo-plans-actions">
+        <a className="seo-cta-primary seo-cta-small" href={signupHref} {...lp.ctaProps('plan_block', signupHref)}>Start free</a>
+        <a className="seo-cta-secondary" href={m.compareHref} {...lp.ctaProps('plan_block_pricing', m.compareHref, { intent: 'nav' })}>{m.compareLabel} →</a>
+      </div>
+    </section>
   );
 }
 
@@ -173,6 +209,9 @@ export function SeoLandingPage({ spec: specProp, path }) {
                 <div className="seo-hero-cta">
                   <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('hero', cta.href || '/')}>{cta.label || 'Start free'}</a>
                   {hero && <a className="seo-cta-secondary" href="#live-example" {...lp.ctaProps('hero_secondary', '#live-example', { intent: 'nav' })}>See a real board ↓</a>}
+                  {/* The in-page answer to "what does it cost". The topbar link
+                      is hidden on phones, so this is the phone's only path. */}
+                  {hasPlanBlock(spec) && <a className="seo-cta-secondary" href="#what-it-costs" {...lp.ctaProps('hero_pricing', '#what-it-costs', { intent: 'nav' })}>What it costs ↓</a>}
                 </div>
                 <div className="seo-trust">
                   {cta.sub && <span>{cta.sub}</span>}
@@ -275,6 +314,8 @@ export function SeoLandingPage({ spec: specProp, path }) {
               </div>
             </section>
           )}
+
+          {hasPlanBlock(spec) && <PlanBlock lp={lp} signupHref={cta.href || '/'} idx={3 + nSec} />}
 
           {/* Cross-link to the /best/* listicle sibling: the plural-intent
               "compare them all" page (mirrored in the worker's crawlable HTML). */}

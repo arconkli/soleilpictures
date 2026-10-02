@@ -46,6 +46,27 @@ Different tools for different jobs:
 | Diagramming & integrations marketplace | Focused | Extensive |
 | Free tier | Yes | Yes |
 
+## What it costs
+
+Start free. Pay when you outgrow it.
+
+**Free — $0 forever**
+
+- **50 cards** to build with
+- No separate limit on clusters — each one counts as one of your cards
+- Free collaboration — invite editors to any cluster
+
+**Creator — $25/mo, or $20/mo billed annually**
+
+- Unlimited cards
+- Any file type
+- No size limits
+- Covers your whole workspace
+
+One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+
+Compare the plans side by side: https://clusters.soleilpictures.com/pricing
+
 ## Frequently asked questions
 
 ### Why choose Clusters over Miro?
