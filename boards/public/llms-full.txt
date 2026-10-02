@@ -4944,7 +4944,7 @@ A: The cards are saved, but a canvas someone already has open will not show them
 ========================================================================
 # Images API
 URL: https://clusters.soleilpictures.com/docs/api/images
-Updated: 2026-08-08
+Updated: 2026-10-02
 
 POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance. Files larger than the one-request ceiling go through /uploads/multipart, where you PUT the parts straight to storage and the bytes never pass through the API. Either way the upload is charged against the board owner's storage quota.
 
@@ -4954,10 +4954,10 @@ POST /uploads?board=<uuid>
 
 Raw bytes in the body, Content-Type set to the image's real type.
 
-curl -X POST "$SOLEIL_API/uploads?board=$BOARD" \
+curl -X POST "$SOLEIL_API/uploads?board=$BOARD&filename=diner_ext_dusk_04.jpg" \
   -H "Authorization: Bearer $SOLEIL_TOKEN" \
   -H "Content-Type: image/jpeg" \
-  --data-binary @frame.jpg
+  --data-binary @diner_ext_dusk_04.jpg
 
 {
   "image_key": "3b7e…/9f1c….jpg",
@@ -4965,10 +4965,13 @@ curl -X POST "$SOLEIL_API/uploads?board=$BOARD" \
   "height": 4032,
   "bytes": 2841923,
   "content_type": "image/jpeg",
-  "next": "POST /api/v1/boards/…/cards with {\"kind\":\"image\",\"image_key\":\"…\"}"
+  "file_name": "diner_ext_dusk_04.jpg",
+  "next": "POST /api/v1/boards/…/cards with {\"kind\":\"image\",\"image_key\":\"…\",\"file_name\":\"diner_ext_dusk_04.jpg\"}"
 }
 
 The response spells out the next call, because it is not guessable from the key alone.
+
+filename is optional. Pass it and the file keeps its own name — the stored file carries it, and so does the card when you send file_name on it, which is what list view shows and what Download names the file. A path is cut to the basename, and a name a browser invents for a paste (image.png) is not kept, the same rule the app applies to a drop.
 
 The ?board= parameter is required: an upload is charged to a board, and write access to that board is checked before anything is stored.
 
@@ -4977,9 +4980,9 @@ Then place it
 curl -X POST "$SOLEIL_API/boards/$BOARD/cards" \
   -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \
   -H "Idempotency-Key: $(uuidgen)" \
-  -d '{"kind":"image","image_key":"3b7e…/9f1c….jpg","alt":"Diner counter, night"}'
+  -d '{"kind":"image","image_key":"3b7e…/9f1c….jpg","file_name":"diner_ext_dusk_04.jpg","alt":"Diner counter, night"}'
 
-Pass alt for a description. Omit x/y and the card is placed in free space.
+Pass alt for a description and file_name to keep the file's name on the card. Omit x/y and the card is placed in free space.
 
 Limits
 
@@ -5038,7 +5041,7 @@ curl -X POST "$SOLEIL_API/uploads/multipart/complete" \
   -d '{"board_id":"'$BOARD'","key":"…","upload_id":"…",
        "parts":[{"part_number":1,"etag":"\"a1b2…\""}]}'
 
-Returns the image_key, which you place as a card exactly as above. Dimensions come back for formats that carry them in a header; other files report null.
+Returns the image_key, which you place as a card exactly as above. Dimensions come back for formats that carry them in a header; other files report null. Send filename here as well to keep the file's name — the first call only uses it for the extension.
 
 POST /uploads/multipart/abort with the same key and upload_id discards an upload you have given up on, so the parts are not billed as storage.
 
@@ -5055,7 +5058,8 @@ curl "$SOLEIL_API/images?workspace=$WS&limit=500" -H "Authorization: Bearer $SOL
 {
   "images": [
     { "image_key": "3b7e…/9f1c….jpg", "bytes": 2841923, "width": 3024, "height": 4032,
-      "board_id": "…", "workspace_id": "…", "created_at": "2026-08-08T12:00:00Z" }
+      "board_id": "…", "workspace_id": "…", "created_at": "2026-08-08T12:00:00Z",
+      "file_name": "diner_ext_dusk_04.jpg" }
   ],
   "limit": 500,
   "has_more": true,
@@ -5068,7 +5072,7 @@ Paging is by cursor, not offset: pass next_cursor back as cursor. Offset paging 
 
 GET /images/:key
 
-Reads an image back. Access is authorized the same way as everything else — you get the image if your account can see a board that references it.
+Reads an image back. Access is authorized the same way as everything else — you get the image if your account can see a board that references it. When the file kept its own name, the response carries it in Content-Disposition, so a client that saves the bytes saves them under that name. file_name is null for anything uploaded before names were kept.
 
 Smaller renditions
 
@@ -5596,7 +5600,7 @@ A: Set omc.functionalType in the board's properties. Values outside the OMC cont
 ========================================================================
 # MCP server
 URL: https://clusters.soleilpictures.com/docs/mcp
-Updated: 2026-08-10
+Updated: 2026-10-02
 
 Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.
 
@@ -5724,7 +5728,7 @@ Tool | Input
 create_board | name, workspace_id?, parent_board_id?, scheduled_date?, scheduled_end?, day_label?, identifiers?, props?
 create_boards | boards[], on_conflict? — build a structure in one call; each entry takes the same schedule fields
 add_cards | board_id, cards[] — up to 1000, on_conflict?
-upload_image | board_id, data (base64), content_type
+upload_image | board_id, data (base64), content_type, optionally file_name
 upload_file | board_id, path — local server only; handles large files
 import_urls | board_id, urls[], titles?, dry_run? — bring reference in from the web; safe to re-run
 arrange_board | board_id, layout?, card_ids?, dry_run? — lay a board out
@@ -5763,8 +5767,8 @@ Adding an image
 
 Two calls:
 
-upload_image with the base64 bytes and a content_type — returns an image_key
-add_cards with {"kind": "image", "image_key": "…"}
+upload_image with the base64 bytes and a content_type, plus file_name to keep the file's own name — returns an image_key (and the file_name it kept)
+add_cards with {"kind": "image", "image_key": "…", "file_name": "…"}
 
 Images are limited to 25 MB through the API and are charged to the board owner's storage. See Images API.
 

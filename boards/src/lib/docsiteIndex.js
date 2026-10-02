@@ -3337,7 +3337,7 @@ export const DOCS_PAGES = [
     "answer": "POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance. Files larger than the one-request ceiling go through /uploads/multipart, where you PUT the parts straight to storage and the bytes never pass through the API. Either way the upload is charged against the board owner's storage quota.",
     "section": "developers",
     "order": 5,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Images and uploads",
     "headings": [
       {
@@ -3661,7 +3661,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.",
     "section": "developers",
     "order": 10,
-    "updated": "2026-08-10",
+    "updated": "2026-10-02",
     "navLabel": "MCP",
     "headings": [
       {

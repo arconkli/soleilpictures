@@ -41287,12 +41287,12 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "sh",
-   "code": "curl -X POST \"$SOLEIL_API/uploads?board=$BOARD\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" \\\n  -H \"Content-Type: image/jpeg\" \\\n  --data-binary @frame.jpg"
+   "code": "curl -X POST \"$SOLEIL_API/uploads?board=$BOARD&filename=diner_ext_dusk_04.jpg\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" \\\n  -H \"Content-Type: image/jpeg\" \\\n  --data-binary @diner_ext_dusk_04.jpg"
   },
   {
    "type": "code",
    "lang": "json",
-   "code": "{\n  \"image_key\": \"3b7e…/9f1c….jpg\",\n  \"width\": 3024,\n  \"height\": 4032,\n  \"bytes\": 2841923,\n  \"content_type\": \"image/jpeg\",\n  \"next\": \"POST /api/v1/boards/…/cards with {\\\"kind\\\":\\\"image\\\",\\\"image_key\\\":\\\"…\\\"}\"\n}"
+   "code": "{\n  \"image_key\": \"3b7e…/9f1c….jpg\",\n  \"width\": 3024,\n  \"height\": 4032,\n  \"bytes\": 2841923,\n  \"content_type\": \"image/jpeg\",\n  \"file_name\": \"diner_ext_dusk_04.jpg\",\n  \"next\": \"POST /api/v1/boards/…/cards with {\\\"kind\\\":\\\"image\\\",\\\"image_key\\\":\\\"…\\\",\\\"file_name\\\":\\\"diner_ext_dusk_04.jpg\\\"}\"\n}"
   },
   {
    "type": "para",
@@ -41300,6 +41300,35 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "The response spells out the next call, because it is not guessable from the key alone."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "filename"
+    },
+    {
+     "t": "text",
+     "v": " is optional. Pass it and the file keeps its own name — the stored file carries it, and so does the card when you send "
+    },
+    {
+     "t": "code",
+     "v": "file_name"
+    },
+    {
+     "t": "text",
+     "v": " on it, which is what list view shows and what Download names the file. A path is cut to the basename, and a name a browser invents for a paste ("
+    },
+    {
+     "t": "code",
+     "v": "image.png"
+    },
+    {
+     "t": "text",
+     "v": ") is not kept, the same rule the app applies to a drop."
     }
    ]
   },
@@ -41335,7 +41364,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "sh",
-   "code": "curl -X POST \"$SOLEIL_API/boards/$BOARD/cards\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" -H \"Content-Type: application/json\" \\\n  -H \"Idempotency-Key: $(uuidgen)\" \\\n  -d '{\"kind\":\"image\",\"image_key\":\"3b7e…/9f1c….jpg\",\"alt\":\"Diner counter, night\"}'"
+   "code": "curl -X POST \"$SOLEIL_API/boards/$BOARD/cards\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" -H \"Content-Type: application/json\" \\\n  -H \"Idempotency-Key: $(uuidgen)\" \\\n  -d '{\"kind\":\"image\",\"image_key\":\"3b7e…/9f1c….jpg\",\"file_name\":\"diner_ext_dusk_04.jpg\",\"alt\":\"Diner counter, night\"}'"
   },
   {
    "type": "para",
@@ -41350,7 +41379,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " for a description. Omit "
+     "v": " for a description and "
+    },
+    {
+     "t": "code",
+     "v": "file_name"
+    },
+    {
+     "t": "text",
+     "v": " to keep the file's name on the card. Omit "
     },
     {
      "t": "code",
@@ -41922,7 +41959,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ". Send "
+    },
+    {
+     "t": "code",
+     "v": "filename"
+    },
+    {
+     "t": "text",
+     "v": " here as well to keep the file's name — the first call only uses it for the extension."
     }
    ]
   },
@@ -42010,7 +42055,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "json",
-   "code": "{\n  \"images\": [\n    { \"image_key\": \"3b7e…/9f1c….jpg\", \"bytes\": 2841923, \"width\": 3024, \"height\": 4032,\n      \"board_id\": \"…\", \"workspace_id\": \"…\", \"created_at\": \"2026-08-08T12:00:00Z\" }\n  ],\n  \"limit\": 500,\n  \"has_more\": true,\n  \"next_cursor\": \"2026-08-08T12:00:00Z|9f1c…\"\n}"
+   "code": "{\n  \"images\": [\n    { \"image_key\": \"3b7e…/9f1c….jpg\", \"bytes\": 2841923, \"width\": 3024, \"height\": 4032,\n      \"board_id\": \"…\", \"workspace_id\": \"…\", \"created_at\": \"2026-08-08T12:00:00Z\",\n      \"file_name\": \"diner_ext_dusk_04.jpg\" }\n  ],\n  \"limit\": 500,\n  \"has_more\": true,\n  \"next_cursor\": \"2026-08-08T12:00:00Z|9f1c…\"\n}"
   },
   {
    "type": "para",
@@ -42101,7 +42146,31 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Reads an image back. Access is authorized the same way as everything else — you get the image if your account can see a board that references it."
+     "v": "Reads an image back. Access is authorized the same way as everything else — you get the image if your account can see a board that references it. When the file kept its own name, the response carries it in "
+    },
+    {
+     "t": "code",
+     "v": "Content-Disposition"
+    },
+    {
+     "t": "text",
+     "v": ", so a client that saves the bytes saves them under that name. "
+    },
+    {
+     "t": "code",
+     "v": "file_name"
+    },
+    {
+     "t": "text",
+     "v": " is "
+    },
+    {
+     "t": "code",
+     "v": "null"
+    },
+    {
+     "t": "text",
+     "v": " for anything uploaded before names were kept."
     }
    ]
   },
@@ -46974,6 +47043,14 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "content_type"
+      },
+      {
+       "t": "text",
+       "v": ", optionally "
+      },
+      {
+       "t": "code",
+       "v": "file_name"
       }
      ]
     ],
@@ -47846,11 +47923,31 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — returns an "
+      "v": ", plus "
+     },
+     {
+      "t": "code",
+      "v": "file_name"
+     },
+     {
+      "t": "text",
+      "v": " to keep the file's own name — returns an "
      },
      {
       "t": "code",
       "v": "image_key"
+     },
+     {
+      "t": "text",
+      "v": " (and the "
+     },
+     {
+      "t": "code",
+      "v": "file_name"
+     },
+     {
+      "t": "text",
+      "v": " it kept)"
      }
     ],
     [
@@ -47864,7 +47961,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "code",
-      "v": "{\"kind\": \"image\", \"image_key\": \"…\"}"
+      "v": "{\"kind\": \"image\", \"image_key\": \"…\", \"file_name\": \"…\"}"
      }
     ]
    ]

@@ -5,7 +5,7 @@ h1: Images API
 navLabel: Images and uploads
 section: developers
 order: 5
-updated: 2026-08-08
+updated: 2026-10-02
 answer: POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance. Files larger than the one-request ceiling go through /uploads/multipart, where you PUT the parts straight to storage and the bytes never pass through the API. Either way the upload is charged against the board owner's storage quota.
 faq:
   - q: How do I add a photo to a board from code?
@@ -32,10 +32,10 @@ makes it usable from a single tool call.
 Raw bytes in the body, `Content-Type` set to the image's real type.
 
 ```sh
-curl -X POST "$SOLEIL_API/uploads?board=$BOARD" \
+curl -X POST "$SOLEIL_API/uploads?board=$BOARD&filename=diner_ext_dusk_04.jpg" \
   -H "Authorization: Bearer $SOLEIL_TOKEN" \
   -H "Content-Type: image/jpeg" \
-  --data-binary @frame.jpg
+  --data-binary @diner_ext_dusk_04.jpg
 ```
 
 ```json
@@ -45,12 +45,19 @@ curl -X POST "$SOLEIL_API/uploads?board=$BOARD" \
   "height": 4032,
   "bytes": 2841923,
   "content_type": "image/jpeg",
-  "next": "POST /api/v1/boards/…/cards with {\"kind\":\"image\",\"image_key\":\"…\"}"
+  "file_name": "diner_ext_dusk_04.jpg",
+  "next": "POST /api/v1/boards/…/cards with {\"kind\":\"image\",\"image_key\":\"…\",\"file_name\":\"diner_ext_dusk_04.jpg\"}"
 }
 ```
 
 The response spells out the next call, because it is not guessable from the key
 alone.
+
+`filename` is optional. Pass it and the file keeps its own name — the stored
+file carries it, and so does the card when you send `file_name` on it, which is
+what list view shows and what Download names the file. A path is cut to the
+basename, and a name a browser invents for a paste (`image.png`) is not kept,
+the same rule the app applies to a drop.
 
 The `?board=` parameter is required: an upload is charged to a board, and write
 access to that board is checked before anything is stored.
@@ -61,10 +68,11 @@ access to that board is checked before anything is stored.
 curl -X POST "$SOLEIL_API/boards/$BOARD/cards" \
   -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \
   -H "Idempotency-Key: $(uuidgen)" \
-  -d '{"kind":"image","image_key":"3b7e…/9f1c….jpg","alt":"Diner counter, night"}'
+  -d '{"kind":"image","image_key":"3b7e…/9f1c….jpg","file_name":"diner_ext_dusk_04.jpg","alt":"Diner counter, night"}'
 ```
 
-Pass `alt` for a description. Omit `x`/`y` and the card is
+Pass `alt` for a description and `file_name` to keep the file's name on the
+card. Omit `x`/`y` and the card is
 [placed in free space](/docs/api/cards).
 
 ## Limits
@@ -154,6 +162,8 @@ curl -X POST "$SOLEIL_API/uploads/multipart/complete" \
 
 Returns the `image_key`, which you place as a card exactly as above. Dimensions
 come back for formats that carry them in a header; other files report `null`.
+Send `filename` here as well to keep the file's name — the first call only uses
+it for the extension.
 
 `POST /uploads/multipart/abort` with the same `key` and `upload_id` discards an
 upload you have given up on, so the parts are not billed as storage.
@@ -177,7 +187,8 @@ curl "$SOLEIL_API/images?workspace=$WS&limit=500" -H "Authorization: Bearer $SOL
 {
   "images": [
     { "image_key": "3b7e…/9f1c….jpg", "bytes": 2841923, "width": 3024, "height": 4032,
-      "board_id": "…", "workspace_id": "…", "created_at": "2026-08-08T12:00:00Z" }
+      "board_id": "…", "workspace_id": "…", "created_at": "2026-08-08T12:00:00Z",
+      "file_name": "diner_ext_dusk_04.jpg" }
   ],
   "limit": 500,
   "has_more": true,
@@ -195,7 +206,10 @@ exactly when you need it.
 ## `GET /images/:key`
 
 Reads an image back. Access is authorized the same way as everything else — you
-get the image if your account can see a board that references it.
+get the image if your account can see a board that references it. When the file
+kept its own name, the response carries it in `Content-Disposition`, so a client
+that saves the bytes saves them under that name. `file_name` is `null` for
+anything uploaded before names were kept.
 
 ### Smaller renditions
 
