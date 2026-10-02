@@ -127,3 +127,25 @@ export const IMAGE_TYPES = {
 export function extensionFor(contentType) {
   return IMAGE_TYPES[String(contentType || '').toLowerCase().split(';')[0].trim()] || null;
 }
+
+// What an image REALLY is, from its first bytes — never from a Content-Type
+// someone else's server sent. Saving a web image (worker-media.js) stores the
+// bytes under a key whose extension comes from here, so a page that serves
+// HTML or script labelled image/png cannot get it into the bucket as one.
+// Returns a key of IMAGE_TYPES, or null. SVG is text and always null.
+export function sniffImageType(bytes) {
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
+  if (b.length < 12) return null;
+  if (b[0] === 0x89 && ascii(b, 1, 'PNG')) return 'image/png';
+  if (ascii(b, 0, 'GIF8')) return 'image/gif';
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+  if (ascii(b, 0, 'RIFF') && ascii(b, 8, 'WEBP')) return 'image/webp';
+  // ISOBMFF: a `ftyp` box at offset 4 naming the brand.
+  if (ascii(b, 4, 'ftyp')) {
+    const brand = String.fromCharCode(...b.subarray(8, 12));
+    if (brand === 'avif' || brand === 'avis') return 'image/avif';
+    if (['heic', 'heix', 'heim', 'heis', 'hevc', 'hevx'].includes(brand)) return 'image/heic';
+    if (brand === 'mif1' || brand === 'msf1') return 'image/heif';
+  }
+  return null;
+}
