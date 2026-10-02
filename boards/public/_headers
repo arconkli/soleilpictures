@@ -86,3 +86,6 @@
 /changelog.md
   Cache-Control: public, max-age=300, s-maxage=3600
   Access-Control-Allow-Origin: *
+/pricing.md
+  Cache-Control: public, max-age=300, s-maxage=3600
+  Access-Control-Allow-Origin: *

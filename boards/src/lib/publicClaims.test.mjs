@@ -73,6 +73,8 @@ const CODE = [
   { path: resolve(BOARDS, 'src/lib/seoListicles.js'), ours: false },
   { path: resolve(BOARDS, 'src/worker.js'), ours: false },
   { path: resolve(BOARDS, 'src/lib/billingCopy.js'), ours: true },
+  // The crawlable /pricing body and its .md twin — every sentence is ours.
+  { path: resolve(BOARDS, 'src/lib/pricingCrawlable.js'), ours: true },
   { path: resolve(BOARDS, 'src/components/PricingModal.jsx'), ours: true },
   { path: resolve(BOARDS, 'src/auth/PublicPricingPage.jsx'), ours: true },
   { path: resolve(BOARDS, 'src/auth/PricingPage.jsx'), ours: true },

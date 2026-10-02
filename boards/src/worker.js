@@ -21,6 +21,7 @@ import { handleAiRoute } from './worker-ai.js';
 import { handleApiRoute } from './worker-api.js';
 import { runWebhooks } from './lib/webhooks.js';
 import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME } from './lib/billingCopy.js';
+import { buildPricingCrawlableHtml, buildPricingJsonLd } from './lib/pricingCrawlable.js';
 import {
   handleScoutSession, handleScoutSessionMint, handleScoutSignup, handleScoutClaim,
 } from './worker-scout.js';
@@ -729,6 +730,14 @@ const worker = {
         return withRevalidate(injectChangelog(res));
       }
       return notFoundResponse(res, 'Page not found — Soleil Clusters changelog');
+    }
+
+    // /pricing gets a real crawlable body, not just head meta. MUST run before
+    // the ROUTE_META block below for the same reason the changelog does: that
+    // block returns after rewriting <head> only, which for months left /pricing
+    // serving the homepage's fallback body to every reader without JavaScript.
+    if (isPageReq && contentType.includes('text/html') && normalizePath(url.pathname) === '/pricing') {
+      return withRevalidate(injectPricing(res));
     }
 
     // Inject per-route SEO metadata for HTML document navigations to a known
@@ -1727,6 +1736,31 @@ function buildDocsJsonLd(page, url) {
 // The changelog. Structurally a docs page — one crawlable body, one JSON-LD
 // block — but its OG card is static (there is no per-section artwork to pick)
 // and it advertises a feed as well as a markdown twin.
+// /pricing, server-rendered from billingCopy through pricingCrawlable.js — the
+// same objects PricingPageView draws, so the body a crawler reads and the page a
+// person sees are one document. Built once per isolate: it is pure static data.
+const PRICING_HTML = buildPricingCrawlableHtml();
+const PRICING_JSON_LD = jsonLdSafe(buildPricingJsonLd());
+function injectPricing(res) {
+  const meta = ROUTE_META['/pricing'];
+  const canonical = `${SITE_ORIGIN}/pricing`;
+  return new HTMLRewriter()
+    .on('title',                            new SetText(meta.title))
+    .on('meta[name="description"]',         new SetContent(meta.description))
+    .on('meta[property="og:title"]',        new SetContent(meta.title))
+    .on('meta[property="og:description"]',  new SetContent(meta.description))
+    .on('meta[property="og:url"]',          new SetContent(canonical))
+    .on('meta[name="twitter:title"]',       new SetContent(meta.title))
+    .on('meta[name="twitter:description"]', new SetContent(meta.description))
+    .on('link[rel="canonical"]',            new SetHref(canonical))
+    .on('main#seo-fallback',                new SetInnerHtml(PRICING_HTML))
+    .on('head', new AppendHead(
+      '<script type="application/ld+json">' + PRICING_JSON_LD + '</script>'
+      + '<link rel="alternate" type="text/markdown" href="/pricing.md">'
+    ))
+    .transform(res);
+}
+
 function injectChangelog(res) {
   const canonical = `${SITE_ORIGIN}/changelog`;
   // ?v= the newest entry so a re-share picks up a fresh card without the file

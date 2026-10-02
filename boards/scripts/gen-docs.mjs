@@ -51,6 +51,7 @@ import { computeCellRects, readingOrder } from '../src/lib/gridLayout.js';
 import { layoutById, layoutSize, templateCellOrder } from '../src/lib/templateLayouts.js';
 import { HINT_LIMITS } from '../src/lib/gridLayoutLibrary.js';
 import { SEO_LISTICLE_PAGES } from '../src/lib/seoListicles.js';
+import { pricingMarkdown, PRICING_ANSWER } from '../src/lib/pricingCrawlable.js';
 
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
 import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, CREATOR_TRIAL_DAYS } from '../src/lib/billingCopy.js';
@@ -1075,6 +1076,13 @@ export function isDocsPath(pathname) {
     write(resolve(BOARDS, 'public', `${marketingMdRel(spec.path)}.md`), md);
   }
 
+  // 4c. /pricing.md — the raw twin of /pricing, built from billingCopy by the
+  //     same module the Worker renders the crawlable body with. Until
+  //     2026-10-01 there was no machine-readable price anywhere on the site
+  //     except a meta description; an assistant asked "what does Soleil
+  //     Clusters cost, is it per seat" had nothing to quote.
+  write(resolve(BOARDS, 'public/pricing.md'), pricingMarkdown());
+
   // 4d. The curated grid templates, as a LIGHT index.
   //
   //     App.jsx has to turn ?remix=k_<slug> into an actual saved template after
@@ -1235,6 +1243,14 @@ export function isChangelogPath(pathname) {
     '',
     `- [Changelog](${SITE_ORIGIN}/changelog): ${CHANGELOG_DESCRIPTION} Most recent entry: ${changelog[0].date}. Raw Markdown at ${SITE_ORIGIN}/changelog.md, RSS at ${SITE_ORIGIN}/changelog.xml.`,
     '',
+    // The price, stated, because "how much is it / is it per seat" is the most
+    // money-relevant question an assistant is asked about us — and before this
+    // line llms.txt contained no '$' at all. PRICING_ANSWER is built from
+    // billingCopy, so this cannot drift from what Stripe charges.
+    '## Pricing',
+    '',
+    `- [Pricing](${SITE_ORIGIN}/pricing): ${PRICING_ANSWER} Raw Markdown at ${SITE_ORIGIN}/pricing.md; limits and billing in detail at ${SITE_ORIGIN}/docs/account/plans.`,
+    '',
   ];
   for (const s of sections) {
     const list = bySection.get(s.id);
@@ -1292,6 +1308,7 @@ export function isChangelogPath(pathname) {
   for (const { spec, md } of marketing) {
     full.push('', '='.repeat(72), `URL: ${SITE_ORIGIN}${spec.path}`, `Updated: ${spec.updated}`, '', md);
   }
+  full.push('', '='.repeat(72), `URL: ${SITE_ORIGIN}/pricing`, '', pricingMarkdown());
   // The changelog goes LAST in the corpus but is the first thing worth checking:
   // everything above describes the product as documented, this says when each
   // part of it arrived.

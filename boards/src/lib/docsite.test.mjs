@@ -399,6 +399,9 @@ test('LINKS: every internal link resolves', () => {
           // (public/changelog.md), and it advertises that twin the same way
           // every docs page advertises its own.
           || stem === '/changelog'
+          // /pricing.md, the fifth: gen-docs builds it from billingCopy through
+          // pricingCrawlable.js, the same module the Worker renders /pricing with.
+          || stem === '/pricing'
           || surface.publicRoutes.listicle.includes(stem);
         if (!mirrored) broken.push(`${p.path} -> ${href}`);
         continue;

@@ -31,7 +31,9 @@ related:
 ---
 
 Two plans. The difference between them is deliberately small and deliberately
-honest — three enforced limits, listed below, and nothing else.
+honest — three enforced limits, listed below, and nothing else. The
+[pricing page](/pricing) puts the two side by side, and its plain-Markdown twin
+is at [/pricing.md](/pricing.md) for anything that reads text rather than pages.
 
 ## Demo — free
 

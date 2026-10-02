@@ -30,6 +30,7 @@ import { DOCS_HTML } from './docsiteCrawlable.js';
 import { buildListicleCrawlableHtml } from './seoListicleHtml.js';
 import { getListicleSpec, SEO_LISTICLE_PATHS } from './seoListicles.js';
 import { SEO_LANDING_PATHS } from './seoLanding.js';
+import { buildPricingCrawlableHtml } from './pricingCrawlable.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '../..');
@@ -57,6 +58,9 @@ function resolveSource(source) {
       assert.ok(html, `no DOCS_HTML entry for ${source.path} — the page itself is gone`);
       return { text: html, what: `the crawlable HTML for ${source.path}` };
     }
+    case 'pricing':
+      // worker.js: .on('main#seo-fallback', new SetInnerHtml(PRICING_HTML))
+      return { text: buildPricingCrawlableHtml(), what: 'the /pricing crawlable HTML (src/lib/pricingCrawlable.js)' };
     case 'file':
       return { text: read(source.path), what: `boards/${source.path}` };
     case 'route':

@@ -28765,7 +28765,37 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Two plans. The difference between them is deliberately small and deliberately honest — three enforced limits, listed below, and nothing else."
+     "v": "Two plans. The difference between them is deliberately small and deliberately honest — three enforced limits, listed below, and nothing else. The "
+    },
+    {
+     "t": "link",
+     "v": "pricing page",
+     "href": "/pricing",
+     "children": [
+      {
+       "t": "text",
+       "v": "pricing page"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " puts the two side by side, and its plain-Markdown twin is at "
+    },
+    {
+     "t": "link",
+     "v": "/pricing.md",
+     "href": "/pricing.md",
+     "children": [
+      {
+       "t": "text",
+       "v": "/pricing.md"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for anything that reads text rather than pages."
     }
    ]
   },

@@ -3435,7 +3435,7 @@ Updated: 2026-10-01
 
 The free Demo plan gives you 50 cards — each cluster counts as one — and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 
-Two plans. The difference between them is deliberately small and deliberately honest — three enforced limits, listed below, and nothing else.
+Two plans. The difference between them is deliberately small and deliberately honest — three enforced limits, listed below, and nothing else. The pricing page puts the two side by side, and its plain-Markdown twin is at /pricing.md for anything that reads text rather than pages.
 
 Demo — free
 
@@ -9129,6 +9129,71 @@ Some of it. Soleil Clusters runs in the browser with touch and iPad support, Mil
 
 StoryboardHero is the strongest we tested, starting at $19/month for one seat and 100 premium AI images, because it keeps character and visual style consistent across a sequence rather than generating unrelated images. Boords includes AI image quotas on every tier if you want generation inside an approval workflow. Generated frames suit pitches and treatments, not precise staging.
 
+
+
+========================================================================
+URL: https://clusters.soleilpictures.com/pricing
+
+# Start free. Pay when you outgrow it.
+
+URL: https://clusters.soleilpictures.com/pricing
+
+The free plan is a real plan, not a countdown. Creator lifts its three limits for $25/mo.
+
+Soleil Clusters has two plans. Free is $0 forever with no credit card. Creator is $25/mo, or $20/mo billed annually ($240/yr), and one Creator plan covers the whole workspace: everyone invited builds at its limits, with no per-seat charges.
+
+## Free — $0 forever
+
+No card, no clock, no expiry.
+
+- **50 cards** to build with
+- No separate limit on clusters — each one counts as one of your cards
+- Free collaboration — invite editors to any cluster
+
+## Creator — $25/mo
+
+Or $20/mo billed annually ($240/yr) — save 20%. Cancel any time — your cards stay yours.
+
+- **Unlimited cards** — The 50-card ceiling comes off. Everything you have already made stays exactly where it is.
+- **Any file type** — A .psd, a .fig, a .zip — anything at all — lands on the canvas instead of bouncing off it.
+- **No size limits** — Video past 30 MB or 60 seconds, audio past 50 MB, a PDF past 50 MB — all fine, on a **100GB** drive.
+- **Covers your whole workspace** — Everyone you invite builds at your limits. There are no per-seat charges.
+
+## Both plans, line by line
+
+Three differences, and nothing else. Everything absent from this table is on both plans — clusters, collaborators, editing, sharing, exports, version history, the API.
+
+| | Free | Creator |
+|---|---|---|
+| Cards | 50 | Unlimited |
+| File types | Images, video, audio, PDFs | Any file — .psd, .fig, .zip, anything |
+| Per-file size and length | Video 30 MB or 60s · audio 50 MB · PDF 50 MB | No limit, on a 100GB drive |
+
+One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+
+## Frequently asked questions
+
+### What is actually limited on the free plan?
+
+Three things and only three — how many cards you can have, which file types you can upload, and how big or long a single file can be (video stops at 30 MB or 60 seconds, audio at 50 MB, PDFs at 50 MB). Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card.
+
+### Do the people I invite need to pay?
+
+No. Editors are free on every plan, and always were. What Creator does is carry YOUR limits to them: everything they add counts against the workspace owner, so one plan raises the ceiling for everyone working in that workspace. There are no per-seat charges.
+
+### What happens when I reach 50 cards?
+
+You are told, and asked to upgrade. Nothing you have already made is removed, hidden or locked — you simply cannot add more until you free some room or upgrade.
+
+### Can I cancel?
+
+Any time, from Settings → Billing, and you keep access until the end of the period you have paid for. Afterwards everything over the free allowance stays exactly where it is; you just cannot add more.
+
+### Do I need to install anything?
+
+No. Clusters runs in the browser on desktop, laptop and tablet, and the same board opens on all of them. You can add it to a phone home screen as a web app.
+
+Full plan and billing documentation: https://clusters.soleilpictures.com/docs/account/plans
 
 
 ========================================================================
