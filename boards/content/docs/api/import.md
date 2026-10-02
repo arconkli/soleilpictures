@@ -93,6 +93,9 @@ answer here rather than a silent half-import.
   would still have told you the manifest was fine.
 - Each image is subject to the same **{{fact:maxUploadMb}}** ceiling as a direct
   upload, and the same storage allowance.
+- Redirects are followed, but every hop has to pass the same public-host rule.
+  A source that redirects to an internal address fails that item with
+  `source_refused`; the rest still import.
 - A source that does not answer within **{{fact:importTimeoutSeconds}} seconds**
   fails that item; the rest still import.
 - The same URL twice in one manifest is refused: both entries would race for the

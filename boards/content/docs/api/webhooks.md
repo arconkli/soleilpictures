@@ -134,7 +134,8 @@ Six attempts: after **1 minute, 5 minutes, 25 minutes, ~2 hours and ~10 hours**.
 That is over twelve hours in total, so an endpoint that is down overnight still
 receives its events.
 
-Any non-2xx, or a connection failure, counts as a failure. Respond `2xx` as soon
+Any non-2xx, or a connection failure, counts as a failure. Redirects are never
+followed: a `3xx` is a failure too, so point the webhook at its final address. Respond `2xx` as soon
 as you have durably accepted the delivery and do your work afterwards — a slow
 receiver is a retried receiver. We give up on a single delivery after ten
 seconds.

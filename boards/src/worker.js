@@ -29,6 +29,7 @@ import {
 import { runCompactionJob1 } from './worker-compaction.js';
 import { isOAuthRoute, handleOAuthRoute } from './worker-oauth.js';
 import { classifyCrawler, isCrawlablePath, crawlerHitPath } from './lib/crawlerUa.js';
+import { ogTargetProblem } from './lib/safeUrl.js';
 import { runAeoRetrievalProbe } from './worker-aeo.js';
 // Self-authored SEO landing pages (tool / "alternative to" / hub). Pure-data
 // registry shared with the React component so the crawlable server-rendered
@@ -2604,48 +2605,11 @@ async function handleBoardReset(boardId, request) {
 // Workers can't do a DNS lookup before fetching — so a hostname that resolves to
 // a private address still gets through. That's the residual, and it's why the
 // port and scheme limits matter: they bound what an attacker can do with it.
-const OG_BLOCKED_HOSTS = new Set([
-  'localhost', 'localhost.localdomain', '127.0.0.1', '0.0.0.0', '[::1]', '::1',
-  'metadata.google.internal', 'metadata.goog',
-]);
-
+// The rule itself lives in lib/safeUrl.js since 2026-10-02 — it is shared with
+// the importer and webhooks, whose copy had drifted permissive (it let the
+// v4-mapped IPv6 form of the metadata address through). One rule, every caller.
 function ogTargetIsAllowed(u) {
-  if (u.protocol !== 'http:' && u.protocol !== 'https:') return 'scheme not allowed';
-  // Only the default ports. Anything else is someone probing infrastructure.
-  if (u.port && u.port !== '80' && u.port !== '443') return 'port not allowed';
-
-  const host = u.hostname.toLowerCase();
-  if (OG_BLOCKED_HOSTS.has(host)) return 'host not allowed';
-  // Internal-only suffixes.
-  if (/(^|\.)(local|localdomain|internal|intranet|lan|home\.arpa)$/.test(host)) return 'host not allowed';
-
-  // IPv4 literals: block loopback, private, link-local (incl. cloud metadata at
-  // 169.254.169.254), CGNAT and broadcast.
-  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (v4) {
-    const [a, b] = v4.slice(1).map(Number);
-    if (a === 10 || a === 127 || a === 0 || a >= 224) return 'host not allowed';
-    if (a === 169 && b === 254) return 'host not allowed';
-    if (a === 172 && b >= 16 && b <= 31) return 'host not allowed';
-    if (a === 192 && b === 168) return 'host not allowed';
-    if (a === 100 && b >= 64 && b <= 127) return 'host not allowed';
-  }
-  // IPv6 literals: loopback, link-local (fe80::/10), unique-local (fc00::/7),
-  // and the whole `::`-prefixed low block.
-  //
-  // That last rule is what stops the v4-mapped bypass, and it is NOT the
-  // obvious check. `new URL()` canonicalises IPv6, so
-  // `[::ffff:169.254.169.254]` arrives here as `[::ffff:a9fe:a9fe]` — the
-  // dotted form is gone by the time we see it, and a `.includes('.')` test
-  // (the first thing I wrote) never fires. Matching on the `::` prefix catches
-  // ::1, ::, ::ffff:* (v4-mapped) and ::a.b.c.d (v4-compatible) alike, and
-  // costs nothing: no publicly routable address lives in that block.
-  if (host.startsWith('[')) {
-    const v6 = host.slice(1, -1).toLowerCase();
-    if (v6.startsWith('::')) return 'host not allowed';
-    if (/^(fe[89ab]|f[cd])/.test(v6)) return 'host not allowed';
-  }
-  return null;  // allowed
+  return ogTargetProblem(u);
 }
 
 async function handleOg(url, request) {

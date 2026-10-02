@@ -5138,6 +5138,7 @@ Limits and refusals
 At most 100 items per call.
 Each source must be an https URL on a public host. Internal and link-local addresses are refused, and one bad address fails the whole manifest before anything is fetched — an import that silently skipped it would still have told you the manifest was fine.
 Each image is subject to the same 25 MB ceiling as a direct upload, and the same storage allowance.
+Redirects are followed, but every hop has to pass the same public-host rule. A source that redirects to an internal address fails that item with source_refused; the rest still import.
 A source that does not answer within 15 seconds fails that item; the rest still import.
 The same URL twice in one manifest is refused: both entries would race for the same identifier and one would silently win.
 
@@ -5965,7 +5966,7 @@ Retries
 
 Six attempts: after 1 minute, 5 minutes, 25 minutes, ~2 hours and ~10 hours. That is over twelve hours in total, so an endpoint that is down overnight still receives its events.
 
-Any non-2xx, or a connection failure, counts as a failure. Respond 2xx as soon as you have durably accepted the delivery and do your work afterwards — a slow receiver is a retried receiver. We give up on a single delivery after ten seconds.
+Any non-2xx, or a connection failure, counts as a failure. Redirects are never followed: a 3xx is a failure too, so point the webhook at its final address. Respond 2xx as soon as you have durably accepted the delivery and do your work afterwards — a slow receiver is a retried receiver. We give up on a single delivery after ten seconds.
 
 After 20 consecutive failures across all deliveries a webhook is switched off, with disabled_reason saying why. A single success resets the counter, so this only ever fires for a genuinely dead endpoint. Re-enable with PATCH /webhooks/:id {"active": true}, which also clears the failure state.
 

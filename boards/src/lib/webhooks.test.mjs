@@ -200,6 +200,22 @@ test('a 500 schedules a retry rather than giving up', async () => {
   assert.match(p.error, /500/);
 });
 
+test('a redirect is never followed — it fails and says so', async () => {
+  // The URL was checked when the hook was saved; following a 302 would send a
+  // signed body to an address that check never saw. Without redirect:'manual'
+  // fetch follows by default, so the assertion is on what we ASK fetch to do.
+  const db = fakeDb({ deliveries: [pending()], hooks: [hook()] });
+  const sent = [];
+  const out = await deliverDue({}, {
+    db,
+    fetchImpl: async (url, init) => { sent.push(init); return { ok: false, status: 302 }; },
+  });
+  assert.equal(sent[0].redirect, 'manual', 'webhook delivery must never let fetch follow a redirect');
+  assert.equal(out.failed, 1);
+  const p = db.writes.patched.find((w) => w.tbl === 'webhook_deliveries').patch;
+  assert.match(p.error, /redirect/);
+});
+
 test('a connection failure is a retry, not a crash', async () => {
   const db = fakeDb({ deliveries: [pending()], hooks: [hook()] });
   const out = await deliverDue({}, {

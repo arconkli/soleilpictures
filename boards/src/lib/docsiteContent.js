@@ -42174,6 +42174,20 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
+      "v": "Redirects are followed, but every hop has to pass the same public-host rule. A source that redirects to an internal address fails that item with "
+     },
+     {
+      "t": "code",
+      "v": "source_refused"
+     },
+     {
+      "t": "text",
+      "v": "; the rest still import."
+     }
+    ],
+    [
+     {
+      "t": "text",
       "v": "A source that does not answer within "
      },
      {
@@ -49238,7 +49252,15 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Any non-2xx, or a connection failure, counts as a failure. Respond "
+     "v": "Any non-2xx, or a connection failure, counts as a failure. Redirects are never followed: a "
+    },
+    {
+     "t": "code",
+     "v": "3xx"
+    },
+    {
+     "t": "text",
+     "v": " is a failure too, so point the webhook at its final address. Respond "
     },
     {
      "t": "code",

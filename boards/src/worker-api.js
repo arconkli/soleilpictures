@@ -49,6 +49,7 @@ import {
 import { arrangeExisting } from './lib/scoutCards.js';
 import { bytesToB64 } from './lib/yhelpers.js';
 import { imageDimensions, extensionFor } from './lib/imageDims.js';
+import { fetchFollowingSafely, publicHttpsUrlProblem, UnsafeFetchError } from './lib/safeUrl.js';
 import { openapiDocument } from './lib/apiOpenapi.js';
 import { boardToOmc } from './lib/omcExport.js';
 import {
@@ -2371,13 +2372,17 @@ async function dispatch(url, request, env, ctx) {
     // Worker runs out of subrequests halfway through somebody's migration.
     const fetched = await mapWithConcurrency(items, IMPORT_CONCURRENCY, async (item) => {
       try {
-        const res = await fetch(item.url, {
-          redirect: 'follow',
+        // Redirects are followed BY HAND, every hop re-checked against the same
+        // rule normalizeImportItems ran on the submitted URL. With
+        // redirect:'follow' (until 2026-10-02) that check guarded only the first
+        // hop, so any allowed public URL could 302 the importer to an address
+        // the manifest itself would have refused.
+        const { res } = await fetchFollowingSafely(item.url, {
           signal: AbortSignal.timeout(IMPORT_TIMEOUT_MS),
           // No credentials of ours ever ride along, and a generic agent because
           // some CDNs refuse an empty one outright.
           headers: { accept: 'image/*,*/*;q=0.8', 'user-agent': 'SoleilClusters-Import/1.0' },
-        });
+        }, { check: (u) => publicHttpsUrlProblem(u.href) });
         if (!res.ok) {
           return { item, ok: false, error: `the source answered ${res.status}`, code: 'source_unavailable' };
         }
@@ -2449,6 +2454,9 @@ async function dispatch(url, request, env, ctx) {
           stored: { imageKey: key, width: dims?.width, height: dims?.height },
         };
       } catch (e) {
+        if (e instanceof UnsafeFetchError) {
+          return { item, ok: false, code: 'source_refused', error: `that source ${e.message}` };
+        }
         const timedOut = e?.name === 'TimeoutError' || /timed? ?out/i.test(e?.message || '');
         return {
           item, ok: false, code: timedOut ? 'source_timeout' : 'source_unavailable',

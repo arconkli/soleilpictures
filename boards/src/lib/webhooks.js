@@ -203,10 +203,18 @@ export async function deliverDue(env, { limit = 100, fetchImpl = fetch, now = Da
           'x-soleil-delivery': d.id,
         },
         body,
+        // Never follow a redirect. The URL was checked when the webhook was
+        // saved; a receiver that 302s us somewhere else would send a signed
+        // body to an address that check never saw (fetch's default is to
+        // follow). A 3xx is a failure that names itself, so the owner fixes
+        // the URL rather than the delivery silently going elsewhere.
+        redirect: 'manual',
         signal: AbortSignal.timeout(10_000),
       });
       status = res.status;
-      if (!res.ok) error = `receiver answered ${res.status}`;
+      if (res.status >= 300 && res.status < 400) {
+        error = `receiver answered ${res.status} (a redirect) — webhooks are never redirected; update the webhook URL to the final address`;
+      } else if (!res.ok) error = `receiver answered ${res.status}`;
     } catch (e) {
       error = String(e?.message || e).slice(0, 300);
     }
