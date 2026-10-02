@@ -134,6 +134,37 @@ test('the first URL is checked too, and a 3xx without Location is the answer', a
   assert.equal(res.status, 304);
 });
 
+// Review, 2026-10-02: shapes that still passed after the two rules merged.
+// Checked against what `new URL()` really hands over — a trailing dot is kept,
+// and %2e and the ideographic full stop become one.
+test('trailing dots, *.localhost, IPv4-carrying IPv6 and the other v6 blocks are refused', () => {
+  for (const u of [
+    'https://localhost./x', 'https://metadata.google.internal./', 'https://printer.lan./',
+    'https://localhost%2e/', 'https://localhost\u3002/', 'https://foo.localhost/',
+    'https://[64:ff9b::a9fe:a9fe]/', 'https://[64:ff9b:1::a9fe:a9fe]/', 'https://[2002:a9fe:a9fe::]/',
+    'https://[2001:0000:4136:e378:8000:63bf:3fff:fdd2]/', 'https://[2001::1]/',
+    'https://[ff02::1]/', 'https://[fec0::1]/',
+  ]) {
+    assert.equal(publicHttpsUrlProblem(u), 'must be a public host', u);
+  }
+  // Public addresses and names still pass, trailing dot or not.
+  for (const u of ['https://[2606:4700::1]/', 'https://example.com./a.jpg', 'https://cdn.example.com/x']) {
+    assert.equal(publicHttpsUrlProblem(u), null, u);
+  }
+});
+
+test('a malformed Location is a refused hop, and a redirect body is released', async () => {
+  let cancelled = 0;
+  const impl = async () => ({
+    status: 302, ok: false,
+    headers: { get: (h) => (h.toLowerCase() === 'location' ? 'https://exa mple.com:99999/' : null) },
+    body: { cancel: async () => { cancelled++; } },
+  });
+  await assert.rejects(fetchFollowingSafely('https://a.example.com/x', {}, { check: importCheck, fetchImpl: impl }),
+    (e) => e instanceof UnsafeFetchError && e.code === 'blocked_hop');
+  assert.equal(cancelled, 1, 'the 3xx body must be cancelled before the next hop is decided');
+});
+
 test('isBlockedHost refuses an empty host', () => {
   assert.equal(isBlockedHost({ hostname: '' }), true);
 });

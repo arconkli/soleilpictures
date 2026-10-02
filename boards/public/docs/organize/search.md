@@ -10,7 +10,7 @@ _Source: https://clusters.soleilpictures.com/docs/organize/search · Updated 202
 
 - **Recents** — what you have had open
 - **Clusters** — by name
-- **Cards and notes** — by title and by the text on them
+- **Cards and notes** — by title, and by the first 500 characters of their text
 - **Tags**
 - **Docs** — by title
 

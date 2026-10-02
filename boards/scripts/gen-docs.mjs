@@ -61,6 +61,7 @@ import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS,
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
 import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
 import { CREATOR_INTENT_MAX_AGE_MS } from '../src/lib/creatorIntent.js';
+import { BODY_MAX as CARD_INDEX_BODY_MAX } from '../src/lib/cardIndexRow.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '..');
@@ -126,6 +127,9 @@ export const FACTS = {
   // How long a signed-out "Get Creator" on /pricing is remembered through
   // sign-in (creatorIntent.js reads it back and expires it).
   creatorIntentHours: String(CREATOR_INTENT_MAX_AGE_MS / (60 * 60 * 1000)),
+  // How much of a card's or note's text ⌘K can see: card_index.body is cut at
+  // BODY_MAX, and the palette searches that column.
+  searchBodyChars: String(CARD_INDEX_BODY_MAX),
   // The Creator trial length. Sourced from billingCopy, which trialCore.test.mjs
   // pins to the number the edge function puts on the Stripe session.
   creatorTrialDays: String(CREATOR_TRIAL_DAYS),

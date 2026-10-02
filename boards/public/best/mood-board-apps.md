@@ -88,7 +88,7 @@ Milanote is the polished incumbent, and it earns the reputation. Boards mix note
 
 Its sharing model is smarter than most, too. Boards share with edit, comment, or view roles, and content shared to a free collaborator does not count against that person's card cap — a genuinely gracious detail. For a solo writer, designer, or director assembling ideas before the crew shows up, Milanote is a fine answer, and we recommend it for exactly that.
 
-The decision-document test is where it thins out. The free plan caps you at 100 total cards and 10 file uploads ever — a ceiling a real reference board hits in an afternoon. Paid is per person at $9.99 a month billed annually, so cost scales with headcount. And there is no offline mode; Milanote's own help center says an internet connection is required to view and edit boards. A lovely place to think. A harder place to run a production.
+The decision-document test is where it thins out. The free plan caps you at 100 total cards and 10 file uploads ever — a ceiling a real reference board hits in an afternoon. Paid is $9.99 a month per person billed annually, or $49 a month for a team of up to ten, so cost scales with headcount. And there is no offline mode; Milanote's own help center says an internet connection is required to view and edit boards. A lovely place to think. A harder place to run a production.
 
 - Freeform boards mixing notes, images, video, links, sketches, and files
 - 40+ template categories, including storyboards, shot lists, and mood boards for film
@@ -98,7 +98,7 @@ The decision-document test is where it thins out. The free plan caps you at 100 
 
 **Pros:** Best structured solo boarding experience here, with a deep template library; Broadest first-party platform coverage in the category; Flexible sharing roles; shared content is free for the recipient
 
-**Cons:** Free plan caps at 100 total cards and 10 file uploads — tight for a visual tool; No offline mode — the help center states an internet connection is required; Per-person pricing; mobile apps lack table editing and trash access
+**Cons:** Free plan caps at 100 total cards and 10 file uploads — tight for a visual tool; No offline mode — the help center states an internet connection is required; Per-person Pro pricing (team plans from $49/mo); mobile apps lack table editing and trash access
 
 ### 3. Canva
 

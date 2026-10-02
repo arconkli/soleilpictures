@@ -463,7 +463,7 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/canvas/images",
     "title": "Images and Photo Editing — Soleil Clusters",
-    "metaDescription": "Add images to a Soleil Clusters canvas and adjust them non-destructively — exposure, contrast, colour, crop. Lightbox, downloads with edits baked in.",
+    "metaDescription": "Add images to a Soleil Clusters canvas and adjust them non-destructively — exposure, contrast and colour. Lightbox, downloads with edits baked in.",
     "h1": "Images and photo editing",
     "answer": "Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.",
     "section": "canvas",
@@ -1904,7 +1904,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Does Clusters tag things without asking?",
-        "a": "Sometimes. When a card's text closely matches a tag you already made, the tag is applied and marked auto. Open the tag, filter to Auto, and right-click any item to confirm it, remove it, or choose Don't suggest again. Looser matches are only suggested. It reads text, not what an image shows."
+        "a": "Sometimes. When a card's text closely matches a tag you already made, the tag is applied and marked auto. Open the tag, press Manage and filter to Auto, then right-click any item to confirm or remove the tag — removing it also keeps that tag off that item for good. Looser matches are only suggested. It reads text, not what an image shows."
       },
       {
         "q": "What is an entity type?",
@@ -2004,7 +2004,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Does search look inside my notes and documents?",
-        "a": "Inside notes, yes — note text is searched in full, along with card titles and text. A document is found by its title; the text on its pages is not searched from the palette, so inside a long document use Cmd-F instead."
+        "a": "Partly. The palette reads a card's title and the first 500 characters of its text, so a short note is searched in full and a long one by its opening. A document is found by its title; the text on its pages is not searched from the palette, so inside a long document use Cmd-F instead."
       },
       {
         "q": "Can I run actions from it?",
@@ -2824,7 +2824,7 @@ export const DOCS_PAGES = [
     "answer": "Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.",
     "section": "account",
     "order": 5,
-    "updated": "2026-10-01",
+    "updated": "2026-10-02",
     "navLabel": "Data and privacy",
     "headings": [
       {

@@ -97,7 +97,7 @@ const PAGES = [
     // text thread, one sentence per bubble, so a 33-word sentence is a bubble
     // nobody reads. Anything over ~22 words has to be split at the source.
     answer:
-      'Soleil Scout is a text-message ingest bot for film crews. You text photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. Scout is invite-only for now. Leave your number and we text you when your line is ready.',
+      'Soleil Scout is a text-message ingest bot for film crews. You text photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. Scout is not running yet. Leave your number and we text you when your line is ready.',
     updated: '2026-10-02',
     cta: { label: 'Join the Scout list — free', sub: 'Invite-only for now. Leave your number and we text you when your line is ready.' },
     stepsHeading: 'How Soleil Scout works once you are in',
@@ -154,10 +154,11 @@ const PAGES = [
       { q: 'What happens to my photos?', a: 'They upload at full resolution to your own private board. Nobody else sees them unless you share it.' },
       { q: 'How does it know where to put things?', a: 'It reads what you wrote. Text "Scene 4 diner" with five photos and it titles the group. Everything collects in your Scout Bin until you file it — and Scout shows you exactly what will move first.' },
       { q: 'Is it free?', a: `Yes, to start. The free tier covers ${DEMO_CARD_LIMIT} cards — each cluster is one — with free collaborators and uploads never metered. Creator ($25/mo) lifts the cap and adds 100GB and any file type.` },
-      // Settings → Connections (settings/ConnectionsTab.jsx) shipped with the
-      // connect code, so "linking is coming" became false. The bot still has no
-      // line to answer on, which is why the answer opens with "once you are in".
-      { q: 'Can I use it with a board I already have?', a: 'Yes, once you are in. Settings → Connections gives you a code to text Scout, and your photos land in the workspace you already use. Say "put these in <board name>" to file them into a board.' },
+      // Settings → Connections carries the connect code on main, but
+      // PRODUCTION's ConnectionsTab holds the Scout section ("SCOUT IS HELD ON
+      // PRODUCTION") because connecting a phone there ends in silence. So this
+      // names no Settings screen until the bot is running and that hold lifts.
+      { q: 'Can I use it with a board I already have?', a: 'Yes, once you are in. Linking the account you already have comes with your invite. After that, say "put these in <board name>" and Scout files into that board.' },
     ],
     related: ['/tools/mood-board-maker', '/tools/shot-list-maker', '/tools/look-book-maker', '/use-cases'],
   },
@@ -311,24 +312,24 @@ const PAGES = [
     subhead:
       'Lay your shots out in a grid, drop in frames and reference, and keep the shot list right beside them.',
     answer:
-      'Soleil Clusters is an online storyboard maker: lay each shot out as a grid card, drop a still or sketch into the frame, write the action on the line beneath, and number shots automatically, so dragging one re-sequences the scene. Your director, DP, and AD edit the same storyboard live, and one link shares it.',
+      'Soleil Clusters is an online storyboard maker: lay each shot out as a grid card, drop a still or sketch into the frame, write the action on the line beneath, and let each shot number itself by where it sits. Your director, DP, and AD edit the same storyboard live, and one link shares it.',
     updated: '2026-10-02',
     cta: { label: 'Start a storyboard — free', sub: 'No credit card. Free to start.' },
     stepsHeading: 'How to make a storyboard',
     steps: [
       { t: 'Add a grid card', d: 'Drop a grid onto the board and cut it into a frame with an action line beneath — or start from the storyboard template.' },
       { t: 'Fill each frame', d: 'Drop a reference still or a sketch into the frame, and write the action on the line beneath it.' },
-      { t: 'Order your shots', d: 'Type SHOT [#] in a box, then stamp the next shot from the + on the grid’s edge. Each shot numbers itself by position, so dragging one re-sequences the scene.' },
+      { t: 'Number your shots', d: 'Type SHOT [#] in a box, then stamp the next shot from the + on the grid’s edge. Each new shot carries the box and numbers itself by where it sits.' },
       { t: 'Add the shot list', d: 'Put a doc beside the frames — a table works — for lens, camera movement, and shoot day.' },
       { t: 'Share with the crew', d: 'Send one link, or invite your DP and AD to edit and comment on the frames in real time.' },
     ],
     sections: [
       {
         heading: 'A grid built for sequences',
-        body: "Clusters' grid cards give you a clean, modular storyboard layout: split any cell, drop an image or sketch into each frame, and write the action in the box beneath it. Stamp the next shot from the + on the grid's edge and every shot shares the layout; a SHOT [#] box numbers each one by where it sits, so dragging a shot re-sequences the scene and the storyboard reads top to bottom the way your crew will shoot it.",
+        body: "Clusters' grid cards give you a clean, modular storyboard layout: split any cell, drop an image or sketch into each frame, and write the action in the box beneath it. Stamp the next shot from the + on the grid's edge and every shot shares the layout; a SHOT [#] box numbers each one by where it sits, so the storyboard reads top to bottom the way your crew will shoot it.",
         bullets: [
           'Modular grid cells you can split, merge and resize',
-          'Shots that number themselves — drag one and the sequence follows',
+          'Shots that number themselves as you stamp them',
           'Sketch on the canvas or drop in reference stills',
         ],
       },
@@ -342,7 +343,7 @@ const PAGES = [
       },
     ],
     faq: [
-      { q: 'How do I make a storyboard in Clusters?', a: 'Add a grid card and cut it into a frame with an action line beneath, or start from the storyboard template. Drop a still or sketch into each frame and write the action underneath. Type SHOT [#] in a box and stamp the next shot from the + on the grid’s edge: each shot numbers itself by position, so dragging one re-orders the scene.' },
+      { q: 'How do I make a storyboard in Clusters?', a: 'Add a grid card and cut it into a frame with an action line beneath, or start from the storyboard template. Drop a still or sketch into each frame and write the action underneath. Type SHOT [#] in a box and stamp the next shot from the + on the grid’s edge: each new shot numbers itself by where it sits.' },
       { q: 'Can I draw my own frames?', a: 'Yes. You can sketch directly on the canvas with the draw tools, or drop in reference photos, screenshots, or AI-generated frames — whatever your process uses.' },
       { q: 'Can I keep a shot list with the storyboard?', a: 'Yes. Put a doc beside your frames — tables work — to track lens, camera movement, location, and shoot day, so the visual board and the logistics stay together.' },
       { q: 'Can my crew collaborate on the storyboard?', a: 'Yes — Clusters is real-time. Your director, DP, and AD can edit and comment on the same storyboard at once with live cursors and presence.' },
@@ -433,7 +434,7 @@ const PAGES = [
     stepsHeading: 'How to make a look book',
     steps: [
       { t: 'Start a board and set the mood', d: 'Begin with a blank canvas — or a nested board per season, campaign, or client.' },
-      { t: 'Drop in your looks', d: 'Add your imagery and references, then crop and adjust them non-destructively to unify the set.' },
+      { t: 'Drop in your looks', d: 'Add your imagery and references, then adjust them non-destructively to unify the set.' },
       { t: 'Arrange the spreads', d: 'Use grid layouts for tidy, editorial spreads that read intentionally.' },
       { t: 'Pull a color story', d: 'Add a palette card so the color direction sits right in the presentation.' },
       { t: 'Send a link', d: 'Share a single link for a polished, interactive look book — no account needed to view.' },
@@ -441,7 +442,7 @@ const PAGES = [
     sections: [
       {
         heading: 'Composed, not cluttered',
-        body: 'A look book is a presentation. Clusters gives you a clean canvas with grids, palettes, and image cards you can crop, adjust, and arrange until each spread reads exactly the way you want. Non-destructive photo adjustments — brightness, contrast, warmth, black and white — let you unify a set of references without leaving the board.',
+        body: 'A look book is a presentation. Clusters gives you a clean canvas with grids, palettes, and image cards you can resize, adjust, and arrange until each spread reads exactly the way you want. Non-destructive photo adjustments — brightness, contrast, warmth, black and white — let you unify a set of references without leaving the board.',
         bullets: [
           'Grid layouts for tidy, editorial spreads',
           'Non-destructive image adjustments to unify a look',
@@ -983,7 +984,7 @@ const PAGES = [
       },
       {
         heading: 'A free Milanote alternative without the per-person bill',
-        body: 'Milanote’s free plan caps the total number of items you can add — around a hundred notes, images, and links across everything — which tends to run out right in the middle of a real project. Its individual plans are priced per person, and its team plan is a flat $49/mo for up to ten people. Clusters’ free Demo tier is a generous sandbox with no time limit, and Creator is a flat $25/mo for unlimited cards, 100GB of storage, and any file type — not a price that multiplies with every teammate you bring in.',
+        body: 'Milanote’s free plan caps the total number of items you can add — around a hundred notes, images, and links across everything — which tends to run out right in the middle of a real project. Its individual plans are priced per person, and its team plan is a flat $49/mo, billed annually, for up to ten people. Clusters’ free Demo tier is a generous sandbox with no time limit, and Creator is a flat $25/mo for unlimited cards, 100GB of storage, and any file type — not a price that multiplies with every teammate you bring in.',
         bullets: [
           'No trial clock on the free Demo tier',
           'Flat $25/mo Creator — not per-person pricing',
@@ -1034,7 +1035,7 @@ const PAGES = [
       { q: 'Does Clusters have a free tier like Milanote?', a: `Yes. The Demo tier is free with no credit card and covers ${DEMO_CARD_LIMIT} cards — every cluster you make is one of them — with uploads never metered. Creator is $25/mo for unlimited cards, 100GB storage, and any file type.` },
       { q: 'Can I move my Milanote boards over?', a: 'You can drag your images, links, and files straight into a new Clusters board and share it — there is no complex migration to do first.' },
       { q: 'Does Milanote limit how many items I can add?', a: 'Yes — Milanote’s free plan caps the total number of items across your boards, and separately allows 10 file uploads, ever. Clusters’ free Demo tier also caps cards, but never meters uploads and has no time limit; Creator ($25/mo) removes the card cap and adds 100GB of storage.' },
-      { q: 'Is Clusters cheaper than Milanote for a team?', a: 'Usually. Milanote’s individual plans are priced per person and its team plan is $49/mo for up to ten people; Clusters Creator is a flat $25/mo for the whole workspace, editors are free, and anyone you share a board with can view it free with one link.' },
+      { q: 'Is Clusters cheaper than Milanote for a team?', a: 'Usually. Milanote’s individual plans are priced per person and its team plan is $49/mo, billed annually, for up to ten people; Clusters Creator is a flat $25/mo for the whole workspace, editors are free, and anyone you share a board with can view it free with one link.' },
       { q: 'Is there a free Milanote alternative without item caps?', a: 'Both free tiers cap items, so the honest answer is what the cap is made of. Milanote’s free plan also spends a budget of 10 file uploads that never resets; Soleil Clusters has no separate upload budget, has no trial clock, and Creator ($25/mo, flat) removes the card cap entirely. If you need genuinely uncapped, Obsidian Canvas keeps boards as local files.' },
       { q: 'What do filmmakers use instead of Milanote?', a: 'Many use Clusters, because pre-production is connected there: the mood board links to the storyboard and the shot list as one project, with screenplay mode built in — and the whole crew edits the same boards in real time.' },
       { q: 'Milanote vs Canva — and where does Clusters fit?', a: 'Canva is a template-driven graphics editor, strongest when the goal is a finished design. Milanote is a board app for planning and collecting ideas. Clusters covers that planning ground for production teams — a real-time multiplayer canvas that never meters uploads, where the finished board shares with one link a client can open without an account.' },

@@ -216,6 +216,21 @@ test('a redirect is never followed — it fails and says so', async () => {
   assert.match(p.error, /redirect/);
 });
 
+test('a hook saved under the older rule is never posted to, and is switched off', async () => {
+  // [::ffff:169.254.169.254] canonicalises to [::ffff:a9fe:a9fe], which the
+  // pre-2026-10-02 rule let through. Delivery re-checks, so it is never sent.
+  const db = fakeDb({ deliveries: [pending(), pending({ id: 'd-2' })], hooks: [hook({ url: 'https://[::ffff:169.254.169.254]/hook' })] });
+  const sent = [];
+  const out = await deliverDue({}, { db, fetchImpl: async (url) => { sent.push(url); return { ok: true, status: 200 }; } });
+  assert.equal(sent.length, 0, 'nothing may be POSTed to a URL the current rule refuses');
+  assert.equal(out.delivered, 0);
+  const hookPatch = db.writes.patched.find((w) => w.tbl === 'webhooks').patch;
+  assert.equal(hookPatch.active, false);
+  assert.match(hookPatch.disabled_reason, /public host/);
+  const deliveryErrors = db.writes.patched.filter((w) => w.tbl === 'webhook_deliveries').map((w) => w.patch.error);
+  assert.ok(deliveryErrors.every((e) => /not sent|inactive/.test(e)), 'each delivery records why it went nowhere');
+});
+
 test('a connection failure is a retry, not a crash', async () => {
   const db = fakeDb({ deliveries: [pending()], hooks: [hook()] });
   const out = await deliverDue({}, {

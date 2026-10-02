@@ -29,7 +29,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 - [The canvas](https://clusters.soleilpictures.com/docs/canvas): The infinite canvas in Soleil Clusters — tools, panning, zooming, selection, right-click menus, drawing, backgrounds and exporting.
 - [Cards](https://clusters.soleilpictures.com/docs/canvas/cards): Every card type in Soleil Clusters — images, notes, links, documents, PDFs, video, audio, palettes, shapes, grids, schedules, votes and nested clusters.
-- [Images and photo editing](https://clusters.soleilpictures.com/docs/canvas/images): Add images to a Soleil Clusters canvas and adjust them non-destructively — exposure, contrast, colour, crop. Lightbox, downloads with edits baked in.
+- [Images and photo editing](https://clusters.soleilpictures.com/docs/canvas/images): Add images to a Soleil Clusters canvas and adjust them non-destructively — exposure, contrast and colour. Lightbox, downloads with edits baked in.
 - [Notes](https://clusters.soleilpictures.com/docs/canvas/notes): Rich-text notes on the Soleil Clusters canvas — formatting, checklists, @-mentions, auto-linking and real-time co-typing with other people.
 - [Shapes and drawing](https://clusters.soleilpictures.com/docs/canvas/shapes-and-drawing): Draw freehand on a Soleil Clusters canvas, add shapes with stroke and fill control, use the sketch pad overlay, or place a bounded art canvas card.
 - [Arrows](https://clusters.soleilpictures.com/docs/canvas/arrows): Connect cards with arrows in Soleil Clusters. Arrows anchor to cards, re-route as you move things, and carry labels, colours, thickness and head styles.

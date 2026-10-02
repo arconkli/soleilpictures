@@ -8,7 +8,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  stashCreatorIntent, readCreatorIntent, clearCreatorIntent,
+  stashCreatorIntent, readCreatorIntent, clearCreatorIntent, isFreeStartCta,
   CREATOR_INTENT_KEY, CREATOR_INTENT_MAX_AGE_MS,
 } from './creatorIntent.js';
 import { claimUpsellSlot, __resetUpsellSlot } from './upsellSlot.js';
@@ -132,13 +132,30 @@ test('a free start clears an earlier Get Creator, and the sign-in form never doe
   assert.match(page, /clearCreatorIntent\(\)/, 'Start free on /pricing must clear a pending Creator intent');
   const lp = read('hooks/useLandingEngagement.js');
   const props = lp.slice(lp.indexOf('ctaProps(pos, href, extra)'));
-  assert.match(props.slice(0, 900), /if \(extra\?\.intent !== 'nav'\) clearCreatorIntent\(\);/,
-    'a landing signup CTA must clear a pending Creator intent');
+  assert.match(props.slice(0, 900), /if \(isFreeStartCta\(pageKind, pos, extra\)\) clearCreatorIntent\(\);/,
+    'a landing free start must clear a pending Creator intent');
+  // The shared-board buttons call the tracker directly, so they clear too.
+  assert.match(read('components/PublicBoardView.jsx'), /if \(isFreeStartCta\('share', surface\)\) clearCreatorIntent\(\);/);
   // lpCtaClick is what the sign-in form calls; clearing there would throw away
   // the intent on the very sign-in /pricing sent the visitor to.
-  const fn = lp.slice(lp.indexOf('export { lpCtaClick }'));
   assert.ok(!/clearCreatorIntent/.test(read('lib/landingMetrics.js')), 'landingMetrics (lpCtaClick) must not clear the intent');
-  assert.ok(fn.length > 0);
+});
+
+test('only a free start drops the intent', () => {
+  // Free starts, wherever they sit.
+  for (const [kind, pos] of [['tool', 'hero'], ['compare', 'topbar'], ['tool', 'plan_block'], ['listicle', 'closing'],
+    ['explore', 'band'], ['not_found', 'topbar'], ['share', 'topbar'], ['share', 'remix']]) {
+    assert.equal(isFreeStartCta(kind, pos), true, `${kind}/${pos} is a free start`);
+  }
+  // Not free starts: browse links, the logo, the way back into the app, a
+  // sign-in link, and adding a template.
+  assert.equal(isFreeStartCta('tool', 'topbar_pricing', { intent: 'nav' }), false);
+  assert.equal(isFreeStartCta('listicle', 'brand'), false, 'the logo goes home; it is not a plan choice');
+  assert.equal(isFreeStartCta('docs', 'nav'), false, '"Open Clusters" from the docs');
+  assert.equal(isFreeStartCta('changelog', 'nav'), false);
+  assert.equal(isFreeStartCta('share', 'signin'), false);
+  assert.equal(isFreeStartCta('template', 'topbar'), false, '"Use this template" says nothing about plans');
+  assert.equal(isFreeStartCta('template_community', 'topbar'), false);
 });
 
 test('the resumed offer waits for the first run, pauses the tour, and has its own header', () => {
@@ -146,6 +163,10 @@ test('the resumed offer waits for the first run, pauses the tour, and has its ow
   assert.match(app, /ready: !myTier\.loading && !!myTier\.tier && yb\.ready && firstRunSettled,/,
     'the resumed offer must wait for the board and the first run to settle');
   assert.match(app, /journey\(EV\.PS_SEED_DONE[^\n]*\n\s*setFirstRunSettled\(true\);/, 'a finished seed settles the first run');
+  // The safety net starts with the board, from a stored deadline, and does not
+  // restart when useMyTier hands back a fresh onboarding object.
+  assert.match(app, /if \(myTier\.loading \|\| !yb\.ready\) return undefined;\s*if \(!settleDeadlineRef\.current\) settleDeadlineRef\.current = Date\.now\(\) \+ 10_000;/);
+  assert.match(app, /\}, \[firstRunSettled, onboardingSeeded, myTier\.loading, yb\.ready\]\);/);
   assert.match(app, /enabled: tourActive && upgradeReason !== 'pricing-intent',/, 'the tour must pause under the offer');
   assert.match(app, /showCoachmark && !onboardingArmB && upgradeReason !== 'pricing-intent'/, 'so must the coachmark');
   const um = read('components/UpgradeModal.jsx');

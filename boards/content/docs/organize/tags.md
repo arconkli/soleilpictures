@@ -11,7 +11,7 @@ faq:
   - q: Do tags move things?
     a: No. A tag is not a location. The same card can carry several tags and stays exactly where it is.
   - q: Does Clusters tag things without asking?
-    a: Sometimes. When a card's text closely matches a tag you already made, the tag is applied and marked auto. Open the tag, filter to Auto, and right-click any item to confirm it, remove it, or choose Don't suggest again. Looser matches are only suggested. It reads text, not what an image shows.
+    a: Sometimes. When a card's text closely matches a tag you already made, the tag is applied and marked auto. Open the tag, press Manage and filter to Auto, then right-click any item to confirm or remove the tag — removing it also keeps that tag off that item for good. Looser matches are only suggested. It reads text, not what an image shows.
   - q: What is an entity type?
     a: A tag can be typed as a character, setting, organization, concept or thing. Typed tags get an appropriate colour and behaviour, and are what make hover previews and backlinks useful.
 related:
@@ -72,10 +72,10 @@ tags you have already made, so a workspace with no tags gets none.
 - **A looser match is only suggested.** It waits on the tag until you accept or
   dismiss it.
 
-Nothing applied automatically is hidden. Open the tag and switch its filter to
-**Auto** to see everything it picked up on its own; right-click any item to
-**confirm** it, **remove** it, or choose **Don't suggest again**, which keeps
-that tag off that item for good.
+Nothing applied automatically is hidden. Open the tag, press **Manage** and
+filter to **Auto** to see everything it picked up on its own. Right-click any
+item for **Confirm tag** or **Remove tag** — removing also keeps that tag off
+that item for good, so it is never applied there again.
 
 ## Emergent themes
 

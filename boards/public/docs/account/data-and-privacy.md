@@ -2,7 +2,7 @@
 
 > Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 
-_Source: https://clusters.soleilpictures.com/docs/account/data-and-privacy · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/docs/account/data-and-privacy · Updated 2026-10-02_
 
 ## Who can see a board
 
@@ -116,7 +116,7 @@ been recorded either way. Your role is asked for once per account too.
 ### What's holding you back?
 
 If you are on the free plan and close an offer to upgrade — the upgrade screen,
-or the dialog that appears when a folder will not fit — Clusters may ask, once,
+or the dialog that appears when the files you drop will not fit — Clusters may ask, once,
 what is holding you back: the free plan is enough for you, the price, putting a
 card in for a trial, not being sure what you would get, just trying it out, or
 something else. One tap answers it, and an optional line in your own words

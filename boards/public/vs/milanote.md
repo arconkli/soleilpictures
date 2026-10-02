@@ -16,7 +16,7 @@ Both tools are beautiful, board-based, and made for creative work. Clusters lean
 
 ## A free Milanote alternative without the per-person bill
 
-Milanote’s free plan caps the total number of items you can add — around a hundred notes, images, and links across everything — which tends to run out right in the middle of a real project. Its individual plans are priced per person, and its team plan is a flat $49/mo for up to ten people. Clusters’ free Demo tier is a generous sandbox with no time limit, and Creator is a flat $25/mo for unlimited cards, 100GB of storage, and any file type — not a price that multiplies with every teammate you bring in.
+Milanote’s free plan caps the total number of items you can add — around a hundred notes, images, and links across everything — which tends to run out right in the middle of a real project. Its individual plans are priced per person, and its team plan is a flat $49/mo, billed annually, for up to ten people. Clusters’ free Demo tier is a generous sandbox with no time limit, and Creator is a flat $25/mo for unlimited cards, 100GB of storage, and any file type — not a price that multiplies with every teammate you bring in.
 
 - No trial clock on the free Demo tier
 - Flat $25/mo Creator — not per-person pricing
@@ -98,7 +98,7 @@ Yes — Milanote’s free plan caps the total number of items across your boards
 
 ### Is Clusters cheaper than Milanote for a team?
 
-Usually. Milanote’s individual plans are priced per person and its team plan is $49/mo for up to ten people; Clusters Creator is a flat $25/mo for the whole workspace, editors are free, and anyone you share a board with can view it free with one link.
+Usually. Milanote’s individual plans are priced per person and its team plan is $49/mo, billed annually, for up to ten people; Clusters Creator is a flat $25/mo for the whole workspace, editors are free, and anyone you share a board with can view it free with one link.
 
 ### Is there a free Milanote alternative without item caps?
 

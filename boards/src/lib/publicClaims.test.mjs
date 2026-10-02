@@ -105,6 +105,9 @@ function stripHtmlComments(text) {
 const FILES = [
   ...CODE.map((c) => ({ ...c, code: true })),
   ...walk(resolve(BOARDS, 'content/docs'), /\.md$/).map((p) => ({ path: p, code: false, ours: false })),
+  // The template pages (/templates/<slug>) are public SEO copy too; one sold
+  // "re-order by dragging" on a single grid whose cells cannot be dragged.
+  ...walk(resolve(BOARDS, 'content/templates'), /\.md$/).map((p) => ({ path: p, code: false, ours: false })),
 ].map(({ path: p, code, ours, html }) => {
   const raw = readFileSync(p, 'utf8');
   const text = html ? stripHtmlComments(raw) : code ? stripCodeComments(raw) : raw;
@@ -289,7 +292,7 @@ const RULES = [
   {
     name: 'a grid cell holds one thing — no per-cell captions, and cells do not drag into a new order',
     scoped: false,
-    pattern: /\bcells? (re-?order|swap|move) by dragging|\bre-?order (shots|panels|cells|frames) by dragging|\bdrag (panels|cells) to re-?(sequence|order)|captions? (sit )?under each (frame|panel|cell)|\bcaption each (cell|frame)|numbered panels with captions|a cell per scene or change[^.!?]{0,30}caption/i,
+    pattern: /\bcells? (re-?order|swap|move) by dragging|\bre-?order (shots|panels|cells|frames) by dragging|\bre-?order by dragging|\bdragging (one|a shot|a frame|a panel) re-?(sequences|orders)|drag one and the sequence follows|\bdrag (panels|cells) to re-?(sequence|order)|captions? (sit )?under each (frame|panel|cell)|\bcaption each (cell|frame)|numbered panels with captions|a cell per scene or change[^.!?]{0,30}caption/i,
     unless: (s) => /\b(Milanote|Boords|StudioBinder|Storyflow|Plot|Canva|Miro|Frame\.io|Storyboarder|Celtx)\b/.test(s),
     known: [
       'Cells reorder by dragging, captions sit under each frame',
@@ -297,8 +300,13 @@ const RULES = [
       'Drag panels to re-sequence the scene, and number them automatically.',
       'Auto-numbered panels with captions',
       'A grid per character with a cell per scene or change — the look, a caption, and the swatch.',
+      // Stamped grids join ONE group (App.jsx ensureGridGroup), so dragging a
+      // shot moves the whole sequence and nothing renumbers. Fixed 2026-10-02.
+      'Each shot numbers itself by position, so dragging one re-sequences the scene.',
+      'Shots that number themselves — drag one and the sequence follows',
+      'Drop in a shoot, re-order by dragging, share one link.',
     ],
-    theirs: ['Type SHOT [#] in a box, then stamp the next shot from the + on the grid’s edge. Each shot numbers itself by position, so dragging one re-sequences the scene.'],
+    theirs: ['Type SHOT [#] in a box, then stamp the next shot from the + on the grid’s edge. Each new shot carries the box and numbers itself by where it sits.'],
   },
 ];
 
@@ -364,7 +372,7 @@ const FOLDER_SOURCE = walk(resolve(BOARDS, 'src'), /\.(jsx?|mjs)$/)
   .filter((p) => !/\.test\.mjs$/.test(p) && !/(docsite|changelog)(Content|Crawlable|Index)\.js$/.test(p));
 const FOLDER_DROP_LIVE = FOLDER_SOURCE.some((p) =>
   /webkitGetAsEntry|getAsFileSystemHandle|webkitdirectory/.test(stripCodeComments(readFileSync(p, 'utf8'))));
-const FOLDER_CLAIM = /\b(drop|drag)(s|ped|ping|ged|ging)? (in )?(a|the|its|your|one) (whole |entire )?(reference )?folder\b|\bwhole folder (lands|at once|in one)|\bfolder (of [a-z]+ )?lands in one|\bby the folder\b|\bsingle drag of a folder\b|\bdragging a folder\b|\bkeep the whole folder\b/i;
+const FOLDER_CLAIM = /\b(drop|drag)(s|ped|ping|ged|ging)? (in )?(a|the|its|your|one) (whole |entire )?(reference )?folder\b|\bwhole folder (lands|at once|in one)|\bfolder (of [a-z]+ )?lands in one|\bby the folder\b|\bsingle drag of a folder\b|\bdragging a folder\b|\bkeep the whole folder\b|\b(a|the|your) folder (you drop|will not fit|won't fit|does not fit)/i;
 
 test('no copy tells anyone to drop a folder while no drop path can read one', () => {
   for (const known of [
@@ -376,6 +384,8 @@ test('no copy tells anyone to drop a folder while no drop path can read one', ()
     'If you drag in a folder with more files than your remaining allowance',
     'Drop the whole set at once — a folder of references lands in one go.',
     'Drop your folder again — all 40 will fit.',
+    'the prompts that show up when a folder you drop will not fit',
+    'or the dialog that appears when a folder will not fit',
   ]) assert.ok(FOLDER_CLAIM.test(known), `the folder guard no longer recognises: ${known}`);
   for (const fine of [
     'select everything in a folder and drag it in',

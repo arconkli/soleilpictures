@@ -4614,16 +4614,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // not to run for a reason that will not change (noteSeedSkip, below), or ten
   // seconds — so a seed that never reports cannot hold the offer back forever.
   const [firstRunSettled, setFirstRunSettled] = useState(false);
+  // Plain booleans and a stored deadline, not the onboarding object: useMyTier
+  // builds a new object on every refetch, which restarted the timer each time.
+  // And the ten seconds start when the BOARD is ready — the seed cannot start
+  // before that — so a board slow to load cannot use the safety net up first.
+  const onboardingSeeded = myTier.onboarding?.seeded === true || myTier.onboarding?.done === true;
+  const settleDeadlineRef = useRef(0);
   useEffect(() => {
     if (firstRunSettled) return undefined;
-    if (myTier.onboarding?.seeded === true || myTier.onboarding?.done === true) {
-      setFirstRunSettled(true);
-      return undefined;
-    }
-    if (myTier.loading) return undefined;
-    const t = setTimeout(() => setFirstRunSettled(true), 10_000);
+    if (onboardingSeeded) { setFirstRunSettled(true); return undefined; }
+    if (myTier.loading || !yb.ready) return undefined;
+    if (!settleDeadlineRef.current) settleDeadlineRef.current = Date.now() + 10_000;
+    const t = setTimeout(() => setFirstRunSettled(true), Math.max(0, settleDeadlineRef.current - Date.now()));
     return () => clearTimeout(t);
-  }, [firstRunSettled, myTier.loading, myTier.onboarding]);
+  }, [firstRunSettled, onboardingSeeded, myTier.loading, yb.ready]);
   useCreatorIntentResume({
     tier: myTier.tier,
     ready: !myTier.loading && !!myTier.tier && yb.ready && firstRunSettled,

@@ -21626,7 +21626,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Nothing applied automatically is hidden. Open the tag and switch its filter to "
+     "v": "Nothing applied automatically is hidden. Open the tag, press "
+    },
+    {
+     "t": "strong",
+     "v": "Manage",
+     "children": [
+      {
+       "t": "text",
+       "v": "Manage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and filter to "
     },
     {
      "t": "strong",
@@ -21640,49 +21654,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to see everything it picked up on its own; right-click any item to "
+     "v": " to see everything it picked up on its own. Right-click any item for "
     },
     {
      "t": "strong",
-     "v": "confirm",
+     "v": "Confirm tag",
      "children": [
       {
        "t": "text",
-       "v": "confirm"
+       "v": "Confirm tag"
       }
      ]
     },
     {
      "t": "text",
-     "v": " it, "
+     "v": " or "
     },
     {
      "t": "strong",
-     "v": "remove",
+     "v": "Remove tag",
      "children": [
       {
        "t": "text",
-       "v": "remove"
+       "v": "Remove tag"
       }
      ]
     },
     {
      "t": "text",
-     "v": " it, or choose "
-    },
-    {
-     "t": "strong",
-     "v": "Don't suggest again",
-     "children": [
-      {
-       "t": "text",
-       "v": "Don't suggest again"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", which keeps that tag off that item for good."
+     "v": " — removing also keeps that tag off that item for good, so it is never applied there again."
     }
    ]
   },
@@ -22536,7 +22536,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — by title and by the text on them"
+      "v": " — by title, and by the first 500 characters of their text"
      }
     ],
     [
@@ -30068,7 +30068,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " before you pay. The offer appears where you are already working: on the upgrade pill in the corner, on the prompts that show up as a cluster fills, when a folder you drop will not fit, in "
+     "v": " before you pay. The offer appears where you are already working: on the upgrade pill in the corner, on the prompts that show up as a cluster fills, when the files you drop will not fit, in "
     },
     {
      "t": "strong",
@@ -32576,7 +32576,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "If you are on the free plan and close an offer to upgrade — the upgrade screen, or the dialog that appears when a folder will not fit — Clusters may ask, once, what is holding you back: the free plan is enough for you, the price, putting a card in for a trial, not being sure what you would get, just trying it out, or something else. One tap answers it, and an optional line in your own words follows."
+     "v": "If you are on the free plan and close an offer to upgrade — the upgrade screen, or the dialog that appears when the files you drop will not fit — Clusters may ask, once, what is holding you back: the free plan is enough for you, the price, putting a card in for a trial, not being sure what you would get, just trying it out, or something else. One tap answers it, and an optional line in your own words follows."
     }
    ]
   },
@@ -49797,6 +49797,23 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": ", which also clears the failure state."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The address is checked again at every delivery, not only when the webhook is saved. One that no longer passes the public-host rule — say it was saved before the rule was tightened — is never posted to: it is switched off at once, with the reason in "
+    },
+    {
+     "t": "code",
+     "v": "disabled_reason"
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },

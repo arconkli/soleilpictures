@@ -183,6 +183,28 @@ export async function deliverDue(env, { limit = 100, fetchImpl = fetch, now = Da
       continue;
     }
 
+    // Re-checked at delivery, not only when saved. A hook saved under an older,
+    // looser rule (before 2026-10-02 it let [::ffff:…], CGNAT, .lan and
+    // .home.arpa through) must not be POSTed to because it was once accepted.
+    // It is switched off at once, with the reason: the URL can never pass, so
+    // the usual 25 retries would only be 25 more attempts to send it there.
+    const urlProblem = webhookUrlProblem(hook.url);
+    if (urlProblem) {
+      failed++;
+      await db.patch(env, 'webhook_deliveries', `id=eq.${d.id}`, {
+        delivered_at: new Date().toISOString(), attempt: (d.attempt || 0) + 1,
+        error: `not sent: the webhook ${urlProblem}`.slice(0, 300),
+      });
+      if (hook.active) {
+        hook.active = false;
+        await db.patch(env, 'webhooks', `id=eq.${hook.id}`, {
+          active: false,
+          disabled_reason: `the webhook ${urlProblem} — point it at a public https address`.slice(0, 300),
+        });
+      }
+      continue;
+    }
+
     const body = JSON.stringify(d.payload);
     const ts = Math.floor(Date.now() / 1000);
     const signature = await signBody(hook.secret, ts, body);

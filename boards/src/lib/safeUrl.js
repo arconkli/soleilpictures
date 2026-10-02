@@ -33,15 +33,21 @@ const BLOCKED_HOSTS = new Set([
   'metadata.google.internal', 'metadata.goog',
 ]);
 
-// Internal-only DNS suffixes.
-const INTERNAL_SUFFIX = /(^|\.)(local|localdomain|internal|intranet|lan|home\.arpa)$/;
+// Internal-only DNS suffixes. `localhost` is one too: every *.localhost name
+// resolves to loopback (RFC 6761), so foo.localhost is localhost.
+const INTERNAL_SUFFIX = /(^|\.)(localhost|local|localdomain|internal|intranet|lan|home\.arpa)$/;
 
 /**
  * The host rule, shared by every caller. Returns true when the URL's host is
  * one the server must never fetch.
  */
 export function isBlockedHost(u) {
-  const host = String(u?.hostname || '').toLowerCase();
+  let host = String(u?.hostname || '').toLowerCase();
+  // One trailing dot is the DNS root: "localhost." IS localhost, and the URL
+  // parser keeps the dot (it also turns "localhost%2e" and "localhost。" into
+  // exactly that). Without this every name rule below was one character from
+  // useless — a 302 to metadata.google.internal. was followed.
+  if (host.endsWith('.')) host = host.slice(0, -1);
   if (!host) return true;
   if (BLOCKED_HOSTS.has(host) || INTERNAL_SUFFIX.test(host)) return true;
 
@@ -70,6 +76,16 @@ export function isBlockedHost(u) {
     const v6 = host.slice(1, -1);
     if (v6.startsWith('::')) return true;
     if (/^(fe[89ab]|f[cd])/.test(v6)) return true;
+    // Site-local (fec0::/10, deprecated but routable inside some networks) and
+    // multicast (ff00::/8).
+    if (/^(fe[c-f]|ff)/.test(v6)) return true;
+    // The transition prefixes that carry an IPv4 address INSIDE the IPv6 one:
+    // NAT64 (64:ff9b::/96 and the local-use 64:ff9b:1::/48), 6to4 (2002::/16)
+    // and Teredo (2001:0::/32, which canonicalises to "2001:0:" or "2001::").
+    // [64:ff9b::a9fe:a9fe] is 169.254.169.254 through a NAT64 gateway. Rather
+    // than decode each one and re-run the IPv4 rule, refuse the prefixes: no
+    // public import source is addressed this way.
+    if (/^(64:ff9b:|2002:|2001:(0:|:))/.test(v6)) return true;
   }
   return false;
 }
@@ -142,9 +158,17 @@ export async function fetchFollowingSafely(url, init = {}, { check, maxHops = 5,
     if (res.status >= 300 && res.status < 400) {
       const loc = res.headers.get('location');
       if (!loc) return { res, url: current };
-      // Drain nothing: the redirect body is never read, and the next request
-      // is a fresh one.
-      current = new URL(loc, current).toString();   // resolve relative hops
+      // Release the redirect's body before the next hop: an unread body holds
+      // a connection open, and a Worker gets six at a time — exactly the
+      // importer's concurrency.
+      try { await res.body?.cancel?.(); } catch (_) { /* already closed */ }
+      // A Location that does not parse is a refused hop, not fetch's own
+      // TypeError — the importer reports the two differently.
+      try {
+        current = new URL(loc, current).toString();   // resolve relative hops
+      } catch {
+        throw new UnsafeFetchError('a redirect pointed at an unparseable address', 'blocked_hop');
+      }
       continue;
     }
     return { res, url: current };

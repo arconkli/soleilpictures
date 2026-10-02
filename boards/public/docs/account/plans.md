@@ -96,7 +96,7 @@ grant bonus cards when someone you invited actually gets started.
 Once there is a real cluster on your account, Clusters offers you
 **14 days of Creator** before you pay. The
 offer appears where you are already working: on the upgrade pill in the corner,
-on the prompts that show up as a cluster fills, when a folder you drop will not
+on the prompts that show up as a cluster fills, when the files you drop will not
 fit, in **Settings → Plan & billing**, and on the upgrade screen.
 
 A card is required; nothing is charged until the trial ends, and cancelling

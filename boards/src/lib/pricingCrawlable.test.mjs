@@ -70,7 +70,11 @@ test('the React page renders everything the crawlable body says', () => {
     'PRICING_FAQ', 'PRICING_PAGE.closing', 'PRICING_PAGE.closingSub',
     'CreatorPriceRow', 'PlanToggle',
   ];
-  const missing = drawnFrom.filter((id) => !view.includes(id));
+  // Whole identifiers only: 'PRICING_PAGE.closing' is a prefix of
+  // 'PRICING_PAGE.closingSub', and a substring match let the closing heading
+  // be deleted from the view without this test noticing.
+  const uses = (id) => new RegExp(`${id.replace(/\./g, '\\.')}(?![A-Za-z0-9_])`).test(view);
+  const missing = drawnFrom.filter((id) => !uses(id));
   assert.deepEqual(missing, [], 'the crawlable /pricing body says things the React page does not render');
   // The prices the body states come through the shared price row and toggle.
   for (const id of ['SAVINGS_PCT_LABEL', 'planPerMonth', 'planBilling']) {
@@ -84,9 +88,15 @@ test('the React page renders everything the crawlable body says', () => {
   // And nothing crawler-only: the view has no eyebrow, so the body has none.
   assert.doesNotMatch(html, /text-transform:uppercase/, 'an eyebrow line the React page does not show');
   // Same order as the view: plans, then the answer, then the table.
+  // …on BOTH sides. Reading only the crawler's text, the React page could
+  // move its answer anywhere and this would still pass.
   const at = (s) => text.indexOf(plain(s));
   assert.ok(at(PRICING_PAGE.freeCardSub) < at(PRICING_ANSWER) && at(PRICING_ANSWER) < at(PRICING_PAGE.paidHeading),
-    'the answer moved relative to the plans or the table — move PricingPageView with it');
+    'the crawlable body moved the answer relative to the plans or the table');
+  const inView = (id) => view.search(new RegExp(`\\{${id.replace(/\./g, '\\.')}\\}`));
+  assert.ok(inView('PRICING_PAGE.freeCardSub') > 0 && inView('PRICING_PAGE.freeCardSub') < inView('PRICING_ANSWER')
+    && inView('PRICING_ANSWER') < inView('PRICING_PAGE.paidHeading'),
+    'the React page moved the answer relative to the plans or the table — move pricingCrawlable with it');
 });
 
 test('the twin and the body state both prices and the workspace scope', () => {

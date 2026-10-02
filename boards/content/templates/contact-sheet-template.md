@@ -1,6 +1,6 @@
 ---
 title: Contact Sheet Template — 36 Frames at 3:2
-metaDescription: A free contact sheet template built like a roll of 35mm — six strips of six, every frame at 3:2. Drop in a shoot, re-order by dragging, share one link.
+metaDescription: A free contact sheet template built like a roll of 35mm — six strips of six, every frame at 3:2. Drop in a shoot, replace any frame, share one link.
 h1: Contact sheet template
 blurb: Six strips of six, every frame at 3:2 — a whole roll on one sheet.
 category: photography

@@ -1,6 +1,6 @@
 # Text your scout photos. Get a board.
 
-> Soleil Scout is a text-message ingest bot for film crews. You text photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. Scout is invite-only for now. Leave your number and we text you when your line is ready.
+> Soleil Scout is a text-message ingest bot for film crews. You text photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. Scout is not running yet. Leave your number and we text you when your line is ready.
 
 _Source: https://clusters.soleilpictures.com/scout · Updated 2026-10-02_
 
@@ -62,5 +62,5 @@ Yes, to start. The free tier covers 50 cards — each cluster is one — with fr
 
 ### Can I use it with a board I already have?
 
-Yes, once you are in. Settings → Connections gives you a code to text Scout, and your photos land in the workspace you already use. Say "put these in <board name>" to file them into a board.
+Yes, once you are in. Linking the account you already have comes with your invite. After that, say "put these in <board name>" and Scout files into that board.
 

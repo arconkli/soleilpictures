@@ -56,10 +56,10 @@ tags you have already made, so a workspace with no tags gets none.
 - **A looser match is only suggested.** It waits on the tag until you accept or
   dismiss it.
 
-Nothing applied automatically is hidden. Open the tag and switch its filter to
-**Auto** to see everything it picked up on its own; right-click any item to
-**confirm** it, **remove** it, or choose **Don't suggest again**, which keeps
-that tag off that item for good.
+Nothing applied automatically is hidden. Open the tag, press **Manage** and
+filter to **Auto** to see everything it picked up on its own. Right-click any
+item for **Confirm tag** or **Remove tag** — removing also keeps that tag off
+that item for good, so it is never applied there again.
 
 ## Emergent themes
 

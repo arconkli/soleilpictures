@@ -8,7 +8,7 @@ Arrange looks, references, and color stories on one canvas — then send a polis
 
 ## Composed, not cluttered
 
-A look book is a presentation. Clusters gives you a clean canvas with grids, palettes, and image cards you can crop, adjust, and arrange until each spread reads exactly the way you want. Non-destructive photo adjustments — brightness, contrast, warmth, black and white — let you unify a set of references without leaving the board.
+A look book is a presentation. Clusters gives you a clean canvas with grids, palettes, and image cards you can resize, adjust, and arrange until each spread reads exactly the way you want. Non-destructive photo adjustments — brightness, contrast, warmth, black and white — let you unify a set of references without leaving the board.
 
 - Grid layouts for tidy, editorial spreads
 - Non-destructive image adjustments to unify a look
@@ -25,7 +25,7 @@ Nest boards inside boards so a season, a campaign, or a client each has its own 
 ## How to make a look book
 
 1. **Start a board and set the mood** — Begin with a blank canvas — or a nested board per season, campaign, or client.
-2. **Drop in your looks** — Add your imagery and references, then crop and adjust them non-destructively to unify the set.
+2. **Drop in your looks** — Add your imagery and references, then adjust them non-destructively to unify the set.
 3. **Arrange the spreads** — Use grid layouts for tidy, editorial spreads that read intentionally.
 4. **Pull a color story** — Add a palette card so the color direction sits right in the presentation.
 5. **Send a link** — Share a single link for a polished, interactive look book — no account needed to view.

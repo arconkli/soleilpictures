@@ -1,6 +1,6 @@
 # Storyboard Maker
 
-> Soleil Clusters is an online storyboard maker: lay each shot out as a grid card, drop a still or sketch into the frame, write the action on the line beneath, and number shots automatically, so dragging one re-sequences the scene. Your director, DP, and AD edit the same storyboard live, and one link shares it.
+> Soleil Clusters is an online storyboard maker: lay each shot out as a grid card, drop a still or sketch into the frame, write the action on the line beneath, and let each shot number itself by where it sits. Your director, DP, and AD edit the same storyboard live, and one link shares it.
 
 _Source: https://clusters.soleilpictures.com/tools/storyboard-maker · Updated 2026-10-02_
 
@@ -8,10 +8,10 @@ Lay your shots out in a grid, drop in frames and reference, and keep the shot li
 
 ## A grid built for sequences
 
-Clusters' grid cards give you a clean, modular storyboard layout: split any cell, drop an image or sketch into each frame, and write the action in the box beneath it. Stamp the next shot from the + on the grid's edge and every shot shares the layout; a SHOT [#] box numbers each one by where it sits, so dragging a shot re-sequences the scene and the storyboard reads top to bottom the way your crew will shoot it.
+Clusters' grid cards give you a clean, modular storyboard layout: split any cell, drop an image or sketch into each frame, and write the action in the box beneath it. Stamp the next shot from the + on the grid's edge and every shot shares the layout; a SHOT [#] box numbers each one by where it sits, so the storyboard reads top to bottom the way your crew will shoot it.
 
 - Modular grid cells you can split, merge and resize
-- Shots that number themselves — drag one and the sequence follows
+- Shots that number themselves as you stamp them
 - Sketch on the canvas or drop in reference stills
 
 ## Shot list and storyboard, side by side
@@ -26,7 +26,7 @@ Share the storyboard with a link, or invite your DP and 1st AD to edit alongside
 
 1. **Add a grid card** — Drop a grid onto the board and cut it into a frame with an action line beneath — or start from the storyboard template.
 2. **Fill each frame** — Drop a reference still or a sketch into the frame, and write the action on the line beneath it.
-3. **Order your shots** — Type SHOT [#] in a box, then stamp the next shot from the + on the grid’s edge. Each shot numbers itself by position, so dragging one re-sequences the scene.
+3. **Number your shots** — Type SHOT [#] in a box, then stamp the next shot from the + on the grid’s edge. Each new shot carries the box and numbers itself by where it sits.
 4. **Add the shot list** — Put a doc beside the frames — a table works — for lens, camera movement, and shoot day.
 5. **Share with the crew** — Send one link, or invite your DP and AD to edit and comment on the frames in real time.
 
@@ -34,7 +34,7 @@ Share the storyboard with a link, or invite your DP and 1st AD to edit alongside
 
 ### How do I make a storyboard in Clusters?
 
-Add a grid card and cut it into a frame with an action line beneath, or start from the storyboard template. Drop a still or sketch into each frame and write the action underneath. Type SHOT [#] in a box and stamp the next shot from the + on the grid’s edge: each shot numbers itself by position, so dragging one re-orders the scene.
+Add a grid card and cut it into a frame with an action line beneath, or start from the storyboard template. Drop a still or sketch into each frame and write the action underneath. Type SHOT [#] in a box and stamp the next shot from the + on the grid’s edge: each new shot numbers itself by where it sits.
 
 ### Can I draw my own frames?
 

@@ -272,7 +272,7 @@ The caps are the catch, and for reference work they bite early. The free plan al
 
 **Pros:** Best film-specific template library in this roundup; Broadest first-party platform coverage, including real iPad and Android apps; Collaboration works on the free tier, with role-based sharing
 
-**Cons:** Free tier is tight for visual work: 100 cards total, 10 file uploads ever, 10MB image cap; No offline mode — the help center states an internet connection is required; Per-person pricing: a crew of five costs five subscriptions
+**Cons:** Free tier is tight for visual work: 100 cards total, 10 file uploads ever, 10MB image cap; No offline mode — the help center states an internet connection is required; Pro is per person; a crew moves to the $49/mo team plan (billed annually, up to ten)
 
 ### 6. Obsidian Canvas
 

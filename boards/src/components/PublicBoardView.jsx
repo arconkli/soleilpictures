@@ -50,6 +50,7 @@ import { EntityNavigateContext } from '../hooks/useEntityNavigate.js';
 import { OpenDmContext } from '../hooks/useOpenDm.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
+import { clearCreatorIntent, isFreeStartCta } from '../lib/creatorIntent.js';
 import { logEvent, logEventNow, logEventOnce, seedShareFirstSource, seedPublicBoardFirstSource } from '../lib/analytics.js';
 import { getRelatedPublicBoards } from '../lib/publicBoardsApi.js';
 import { encodeRemixParam } from '../lib/remix.js';
@@ -203,6 +204,9 @@ export function PublicBoardView({ token, slug }) {
 
   const onCta = useCallback((surface) => () => {
     ctaClickedRef.current = true;
+    // "Try Clusters free" / "Make your own — free" are free starts, and these
+    // buttons call the tracker directly rather than going through ctaProps.
+    if (isFreeStartCta('share', surface)) clearCreatorIntent();
     logEventNow(EV.SHARE_CTA_CLICK, { surface, ...attrib });
     lp.tracker.ctaClick(surface, '/');   // uniform lp_cta_click (no token in props)
   }, [attrib, lp]);

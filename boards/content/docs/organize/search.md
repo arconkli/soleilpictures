@@ -9,7 +9,7 @@ updated: 2026-10-02
 answer: Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, document titles and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
 faq:
   - q: Does search look inside my notes and documents?
-    a: Inside notes, yes — note text is searched in full, along with card titles and text. A document is found by its title; the text on its pages is not searched from the palette, so inside a long document use Cmd-F instead.
+    a: Partly. The palette reads a card's title and the first {{fact:searchBodyChars}} characters of its text, so a short note is searched in full and a long one by its opening. A document is found by its title; the text on its pages is not searched from the palette, so inside a long document use Cmd-F instead.
   - q: Can I run actions from it?
     a: Yes. Type what you want to do rather than what you want to find. "share", "invite", "trash", "theme", "billing" all work.
   - q: Is there a shortcut other than Cmd-K?
@@ -26,7 +26,7 @@ related:
 
 - **Recents** — what you have had open
 - **Clusters** — by name
-- **Cards and notes** — by title and by the text on them
+- **Cards and notes** — by title, and by the first {{fact:searchBodyChars}} characters of their text
 - **Tags**
 - **Docs** — by title
 

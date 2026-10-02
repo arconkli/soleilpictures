@@ -43,7 +43,7 @@ Frames in a grid, next to the coverage plan and the screenplay, on one canvas th
 
 Clusters exists because our own boards kept dying in transit. We would build a sequence in a slide deck, export a PDF, email it, and by the second revision nobody knew which version the director had seen — and the shot list it referred to lived in a spreadsheet that had moved on without it. So we built the board as a place instead of a deliverable: an infinite canvas in the browser where the frames, the coverage plan and the script sit in one document that only ever has one current version.
 
-The storyboard mechanic is the grid card. Drop a grid on the canvas, cut it into frames, and each frame holds an image, a screen grab, a photo from a scout or a phone snap of a thumbnail sketch, with the action written in the box beneath. Stamp the next shot from the + on the grid's edge and a SHOT [#] box numbers each one by position, so dragging a shot re-sequences the scene. Next to the grid you can put a document in screenplay mode with the actual scene, a shot-list table and a colour palette — so the board argues for itself instead of needing a meeting to explain.
+The storyboard mechanic is the grid card. Drop a grid on the canvas, cut it into frames, and each frame holds an image, a screen grab, a photo from a scout or a phone snap of a thumbnail sketch, with the action written in the box beneath. Stamp the next shot from the + on the grid's edge and a SHOT [#] box numbers each one by where it sits. Next to the grid you can put a document in screenplay mode with the actual scene, a shot-list table and a colour palette — so the board argues for itself instead of needing a meeting to explain.
 
 The team mechanics are why it survives a production. Live cursors and presence show who is on the board. Comments pin to a specific frame, so 'the third one' is unambiguous. A director or client opens a read-only view from one link with no account and nothing installed, on a laptop or an iPad at a scout. Invited collaborators edit free on every tier, so adding the first AD or the production designer does not change the invoice. Vote cards settle 'which of these five frames' without a thread.
 
@@ -166,7 +166,7 @@ The pricing shape matters more than the headline number. The free plan is capped
 
 **Pros:** The best-looking finished boards in the category, with templates that actually help; Excellent apps across iPad, mobile and desktop, plus a genuinely good web clipper; Free tier has no time limit, so it is a real trial rather than a countdown
 
-**Cons:** The 100-item free cap is consumed by roughly one storyboard sequence; No shot lists, script tooling, schedule or animatic playback; Priced per person, so a crew multiplies the cost
+**Cons:** The 100-item free cap is consumed by roughly one storyboard sequence; No shot lists, script tooling, schedule or animatic playback; Per-person Pro pricing; a crew needs the $49/mo team plan
 
 ### 6. StoryboardHero
 

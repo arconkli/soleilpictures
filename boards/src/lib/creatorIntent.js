@@ -88,6 +88,24 @@ export function readCreatorIntent({ now = Date.now(), maxAgeMs = CREATOR_INTENT_
   };
 }
 
+// Does pressing this CTA mean "the free plan, not Creator"? Then a pending
+// intent goes (the docs promise it: Start free, on any page, drops it).
+//
+// Every landing CTA counts as a signup for CTR (landingMetrics defaults intent
+// to 'signup'), but not every one is a FREE START, and a wrong yes here throws
+// away the one thing a visitor asked to pay for. Kept: browse links marked
+// intent:'nav'; the logo and the docs/changelog "Open Clusters" links, which
+// are how people get back into the app; a sign-in link; and a template's "Use
+// this template", which adds a template and says nothing about plans.
+const KEEPS_INTENT_POS = new Set(['nav', 'brand', 'signin']);
+const KEEPS_INTENT_KINDS = new Set(['docs', 'changelog', 'template', 'template_community']);
+export function isFreeStartCta(pageKind, pos, extra = null) {
+  if (extra?.intent === 'nav') return false;
+  if (KEEPS_INTENT_POS.has(String(pos || ''))) return false;
+  if (KEEPS_INTENT_KINDS.has(String(pageKind || ''))) return false;
+  return true;
+}
+
 export function clearCreatorIntent(storage) {
   const s = store(storage);
   if (!s) return;

@@ -1,6 +1,6 @@
 ---
 title: Images and Photo Editing — Soleil Clusters
-metaDescription: Add images to a Soleil Clusters canvas and adjust them non-destructively — exposure, contrast, colour, crop. Lightbox, downloads with edits baked in.
+metaDescription: Add images to a Soleil Clusters canvas and adjust them non-destructively — exposure, contrast and colour. Lightbox, downloads with edits baked in.
 h1: Images and photo editing
 navLabel: Images
 section: canvas

@@ -125,6 +125,11 @@ off, with `disabled_reason` saying why. A single success resets the counter, so
 this only ever fires for a genuinely dead endpoint. Re-enable with
 `PATCH /webhooks/:id {"active": true}`, which also clears the failure state.
 
+The address is checked again at every delivery, not only when the webhook is
+saved. One that no longer passes the public-host rule — say it was saved before
+the rule was tightened — is never posted to: it is switched off at once, with
+the reason in `disabled_reason`.
+
 ## The delivery log
 
 ```sh
