@@ -17714,6 +17714,35 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
+       "v": "Search"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes — "
+      },
+      {
+       "t": "link",
+       "v": "⌘K",
+       "href": "/docs/organize/search",
+       "children": [
+        {
+         "t": "text",
+         "v": "⌘K"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " finds files by name, card text and the words inside documents. It does not read text inside images or PDFs"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
        "v": "Preview without opening"
       }
      ],

@@ -161,6 +161,7 @@ what a drive is really for, no. Here is the line:
 |---|---|
 | Browse a folder's contents | Yes — list view, as a table or a gallery |
 | Sort and filter | Yes — by name, type, size and dates, filtered to one kind of content |
+| Search | Yes — [⌘K](/docs/organize/search) finds files by name, card text and the words inside documents. It does not read text inside images or PDFs |
 | Preview without opening | Yes — every item has a real preview, and the detail panel a large one |
 | Download | Yes — one file, or a selection as a zip of up to 500 files or 500 MB |
 | Folders inside folders | Yes — nested clusters, as deep as you like |
