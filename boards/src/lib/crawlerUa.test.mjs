@@ -2,7 +2,7 @@
 //   node --test boards/src/lib/crawlerUa.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyCrawler, isCrawlablePath } from './crawlerUa.js';
+import { classifyCrawler, isCrawlablePath, crawlerHitPath } from './crawlerUa.js';
 
 // Real user-agents as each vendor publishes them.
 const UA = {
@@ -88,4 +88,15 @@ test('isCrawlablePath keeps pages and machine mirrors, drops assets and APIs', (
   }
   assert.equal(isCrawlablePath(''), false);
   assert.equal(isCrawlablePath('not-a-path'), false);
+});
+
+test('a capability token never reaches crawler_hits', () => {
+  // /share/<uuid> and /t/<uuid> open a board for anyone holding the URL.
+  assert.equal(crawlerHitPath('/share/3b2d89f2-9c1d-48af-8b89-2517b1b49712'), '/share');
+  assert.equal(crawlerHitPath('/SHARE/3b2d89f2-9c1d-48af-8b89-2517b1b49712/'), '/share');
+  assert.equal(crawlerHitPath('/t/3b2d89f2-9c1d-48af-8b89-2517b1b49712'), '/t');
+  // Public pages are stored as requested.
+  assert.equal(crawlerHitPath('/best/pureref-alternatives'), '/best/pureref-alternatives');
+  assert.equal(crawlerHitPath('/c/film-noir-look-book'), '/c/film-noir-look-book');
+  assert.equal(crawlerHitPath('/tools/x'.padEnd(400, 'y')).length, 300);
 });

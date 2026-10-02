@@ -28,7 +28,7 @@ import {
 } from './worker-scout.js';
 import { runCompactionJob1 } from './worker-compaction.js';
 import { isOAuthRoute, handleOAuthRoute } from './worker-oauth.js';
-import { classifyCrawler, isCrawlablePath } from './lib/crawlerUa.js';
+import { classifyCrawler, isCrawlablePath, crawlerHitPath } from './lib/crawlerUa.js';
 import { runAeoRetrievalProbe } from './worker-aeo.js';
 // Self-authored SEO landing pages (tool / "alternative to" / hub). Pure-data
 // registry shared with the React component so the crawlable server-rendered
@@ -537,7 +537,7 @@ const worker = {
       if (seen) {
         ctx.waitUntil(
           rpc(env, 'record_crawler_hit', {
-            p_bot: seen.bot, p_kind: seen.kind, p_path: url.pathname.slice(0, 300),
+            p_bot: seen.bot, p_kind: seen.kind, p_path: crawlerHitPath(url.pathname),
           }, 5_000).catch(() => {}),
         );
       }
